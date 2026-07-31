@@ -1,8 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.core.ui.kit.components.navbar
 
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import io.github.stslex.workeeper.core.ui.kit.theme.provideAppMotion
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotSame
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
@@ -26,6 +30,18 @@ import org.junit.jupiter.api.Test
  * `pagingTailKind`/`PagingTailKindTest`.
  */
 internal class NavPillTest {
+
+    @Test
+    @DisplayName("the pill travels on `travel`, and it is the scale's own instance")
+    fun offsetUsesTheTravelCurve() {
+        // §26.2. Not `assertEquals` on control points — `assertSame`, so this asserts the call
+        // site reads the SCALE rather than that someone rebuilt an equal-looking curve locally.
+        val motion = provideAppMotion()
+        assertSame(motion.travel, navPillOffsetSpec<Dp>(motion).easing)
+        // And the negative: `out` is what this was, and repointing back is the regression.
+        assertNotSame(motion.out, navPillOffsetSpec<Dp>(motion).easing)
+        assertEquals(NAV_PILL_TRAVEL, navPillOffsetSpec<Dp>(motion).durationMillis)
+    }
 
     @Test
     @DisplayName("the travel is the ledger's 340ms, not a motion-scale rung")

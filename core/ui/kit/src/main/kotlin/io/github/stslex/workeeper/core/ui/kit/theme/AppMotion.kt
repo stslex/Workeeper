@@ -6,7 +6,7 @@ import androidx.compose.animation.core.LinearEasing
 import androidx.compose.runtime.Immutable
 
 /**
- * The v3 motion scale: three durations, three curves.
+ * The v3 motion scale: three durations, four curves.
  *
  * The previous set had five durations and four easings, of which production read exactly two
  * durations and zero easings — measured, not assumed. Five names for two used values is not a
@@ -47,6 +47,21 @@ data class AppMotion(
      */
     val spring: Easing,
     /**
+     * Decelerate, **without [out]'s tail**. The curve for positional travel (§26.1, as amended).
+     *
+     * [out] is near-expo, and on a *position* that produces a shape a reader reports as "it moves,
+     * then hangs": device-measured on the nav pill, the last 10% of the journey occupies **50.6%
+     * of the animation**, and the pill is still creeping single pixels long after it has visually
+     * arrived. This curve puts the same last 10% in **37.9%**, and still decelerates into its
+     * target — so §26.1's reason for choosing a decelerating curve at all survives, and only the
+     * severity changes. `linear` was measured beside it (10.4%) and rejected for reading
+     * mechanical: a thing that travels and then stops dead is not how a moved thing rests.
+     *
+     * Not a replacement for [out], which stays correct for colour, alpha-free state flips and
+     * anything where the front-loading is the point.
+     */
+    val travel: Easing,
+    /**
      * No shape at all — progress equals elapsed fraction, exactly, at every sample.
      *
      * **The curve for alpha** (§26, continuity motion, as amended). It is on the scale for being
@@ -85,6 +100,14 @@ private const val SPRING_Y1 = 1.56f
 private const val SPRING_X2 = 0.64f
 private const val SPRING_Y2 = 1f
 
+// The positional curve (§26.1, as amended). A standard decelerate: no ease-in at all, so the
+// departure is immediate, and the control point at x=0.2 keeps the settle short enough that the
+// journey ends when it looks like it has ended.
+private const val TRAVEL_X1 = 0f
+private const val TRAVEL_Y1 = 0f
+private const val TRAVEL_X2 = 0.2f
+private const val TRAVEL_Y2 = 1f
+
 /**
  * `CubicBezierEasing`'s four arguments are the two control points as (x1, y1, x2, y2). The
  * overshoot lives in y2 = 1.56 for [AppMotion.spring].
@@ -105,6 +128,7 @@ fun provideAppMotion(): AppMotion = AppMotion(
     slow = SLOW_MS,
     out = CubicBezierEasing(OUT_X1, OUT_Y1, OUT_X2, OUT_Y2),
     spring = CubicBezierEasing(SPRING_X1, SPRING_Y1, SPRING_X2, SPRING_Y2),
+    travel = CubicBezierEasing(TRAVEL_X1, TRAVEL_Y1, TRAVEL_X2, TRAVEL_Y2),
     // Compose's own, not a bezier reproduction of it: `CubicBezierEasing(0,0,1,1)` is linear only
     // to the precision of a cubic solve, and this scale is sampled against an exact identity.
     linear = LinearEasing,

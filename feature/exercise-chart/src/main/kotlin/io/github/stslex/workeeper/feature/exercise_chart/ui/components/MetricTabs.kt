@@ -2,10 +2,12 @@
 package io.github.stslex.workeeper.feature.exercise_chart.ui.components
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.TweenSpec
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -19,17 +21,21 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
+import io.github.stslex.workeeper.core.ui.kit.components.rememberPressScale
 import io.github.stslex.workeeper.core.ui.kit.components.surface.liftedSurface
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
+import io.github.stslex.workeeper.core.ui.kit.theme.AppMotion
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
@@ -72,10 +78,7 @@ internal fun MetricTabs(
         val thumbShape = RoundedCornerShape(AppDimension.Radius.small)
         val indicatorOffset by animateDpAsState(
             targetValue = (tabWidth + TRACK_GAP) * selectedIndex,
-            animationSpec = tween(
-                durationMillis = AppUi.motion.base,
-                easing = AppUi.motion.out,
-            ),
+            animationSpec = metricIndicatorSpec(AppUi.motion),
             label = "tabs-ind",
         )
 
@@ -101,12 +104,25 @@ internal fun MetricTabs(
                     ),
                     label = "tab-label",
                 )
+                // NO RIPPLE — see `rememberPressScale`. `clickable`'s default indication is one,
+                // nothing in the drawing has a ripple, and this surface took the default rather
+                // than deciding. The thumb is `liftedSurface` and sits UNDER the label, so the
+                // scale goes on the label box: scaling the tab would scale a transparent box.
+                val interactionSource = remember { MutableInteractionSource() }
+                val pressScale by rememberPressScale(interactionSource)
                 Box(
                     modifier = Modifier
                         .width(tabWidth)
                         .height(TAB_HEIGHT)
+                        .graphicsLayer {
+                            scaleX = pressScale
+                            scaleY = pressScale
+                        }
                         .clip(thumbShape)
-                        .clickable { onSelect(metric) }
+                        .clickable(
+                            interactionSource = interactionSource,
+                            indication = null,
+                        ) { onSelect(metric) }
                         .testTag("ChartMetricTab_${metric.name}"),
                     contentAlignment = Alignment.Center,
                 ) {
@@ -124,6 +140,18 @@ internal fun MetricTabs(
 }
 
 /** `.tabs{padding:5px}` → 4dp. */
+/**
+ * The indicator's transit — extracted so the CURVE is assertable and not only the duration.
+ *
+ * §26.2: this was `out`, whose near-expo tail put 90% of the travel in the first third and left the
+ * thumb creeping (device-measured tail 58.1% of the animation, now 37.5%). The extraction is what
+ * makes a repoint back to `out` reddenable; inline, it was invisible to every test in the module.
+ */
+internal fun <T> metricIndicatorSpec(motion: AppMotion): TweenSpec<T> = tween(
+    durationMillis = motion.base,
+    easing = motion.travel,
+)
+
 private val TRACK_PADDING = AppDimension.Space.xs
 
 /** `.tabtrack{gap:4px}` → 4dp. */

@@ -3,11 +3,13 @@ package io.github.stslex.workeeper.core.ui.kit.components.navbar
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.TweenSpec
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.keyframes
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -39,9 +41,11 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
+import io.github.stslex.workeeper.core.ui.kit.components.rememberPressScale
 import io.github.stslex.workeeper.core.ui.kit.components.surface.liftedSurface
 import io.github.stslex.workeeper.core.ui.kit.icons.AppIcons
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
+import io.github.stslex.workeeper.core.ui.kit.theme.AppMotion
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
@@ -171,12 +175,27 @@ fun AppNavBar(
                         ),
                         label = "nav-item-tint",
                     )
+                    // NO RIPPLE. `clickable` defaults to `LocalIndication`, which under a
+                    // Material theme is one — and no ripple is drawn anywhere in either mockup,
+                    // whose only press affordance is `.btn:active{transform:scale(.985)}`. Six
+                    // sites in this app already pass `indication = null`, so the default was the
+                    // divergence. Measured before removing: it IS drawn (+1.31 luma in the item
+                    // box on a press-and-hold, flat to +/-0.05 with indication null).
+                    val interactionSource = remember { MutableInteractionSource() }
+                    val pressScale by rememberPressScale(interactionSource)
                     Box(
                         modifier = Modifier
                             .width(itemWidth)
                             .fillMaxHeight()
+                            .graphicsLayer {
+                                scaleX = pressScale
+                                scaleY = pressScale
+                            }
                             .clip(pillShape)
-                            .clickable { onSelect(index) }
+                            .clickable(
+                                interactionSource = interactionSource,
+                                indication = null,
+                            ) { onSelect(index) }
                             .testTag(item.testTag),
                         contentAlignment = Alignment.Center,
                     ) {
@@ -222,10 +241,7 @@ private fun NavPill(
     val out = AppUi.motion.out
     val animatedOffset by animateDpAsState(
         targetValue = offset,
-        animationSpec = tween(
-            durationMillis = NAV_PILL_TRAVEL,
-            easing = out,
-        ),
+        animationSpec = navPillOffsetSpec(AppUi.motion),
         label = "nav-pill-offset",
     )
 
@@ -286,6 +302,19 @@ private fun NavPill(
  * drawing's own `Math.min(Math.abs(dx)/bar.offsetWidth, 1)` and is load-bearing — without it a
  * hypothetical bar narrower than one jump would scale past the recorded ceiling.
  */
+/**
+ * The pill's transit — extracted so the CURVE is assertable, not only the duration.
+ *
+ * `NAV_PILL_TRAVEL` was already gated as a number while the easing sat inline, which is the
+ * value-gated/wiring-ungated split `ToastDuration` records: repointing this at [AppMotion.out]
+ * would restore the tail §26.2 removed and no test could see it. Same shape, and same remedy, as
+ * `continuityPositionalSpec`.
+ */
+internal fun <T> navPillOffsetSpec(motion: AppMotion): TweenSpec<T> = tween(
+    durationMillis = NAV_PILL_TRAVEL,
+    easing = motion.travel,
+)
+
 internal fun navPillStretchPeak(travel: Dp, barWidth: Dp): Float {
     if (barWidth.value <= 0f) return 1f
     val k = min(abs(travel.value) / barWidth.value, 1f)
