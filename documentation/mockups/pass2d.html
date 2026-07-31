@@ -224,6 +224,11 @@
         .nb.slide .ind i{display:block;width:100%;height:100%;border-radius:12px;background:var(--slab);box-shadow:var(--slabtop)}
         .nb.slide .ind.go i{animation:gel 340ms var(--e-out)}
         @keyframes gel{0%{transform:scaleX(1)}42%{transform:scaleX(var(--sx,1.2))}100%{transform:scaleX(1)}}
+        /* Device-pass candidate ONLY — not the contract. The rise eases linearly instead of on
+           --e-out, so the stretch is legible as motion rather than snapping to peak by frame 3.
+           Selected by .ind.lin; nothing outside #s-nav's comparison control sets it. */
+        .nb.slide .ind.lin.go i{animation:gelLin 340ms var(--e-out)}
+        @keyframes gelLin{0%{transform:scaleX(1);animation-timing-function:linear}42%{transform:scaleX(var(--sx,1.2))}100%{transform:scaleX(1)}}
         /* ===== список: скелет, начинки, режим выбора ===== */
         .frame{margin:0 var(--gutter);border:1px solid var(--hair-s);border-radius:18px;overflow:hidden;background:var(--base);position:relative}
         .frame .row:last-of-type{border-bottom:0}
@@ -491,7 +496,10 @@
         <div class="topbar"><h1>Нижняя навигация</h1></div>
         <div class="hint">Трек <b>--sec</b> под баром, волосяная линия сверху, активный на <b>--slab</b> + <b>--slabtop</b> — дословно грамматика <b>.tabs</b> из графика и <b>.mseg</b> из настроек. Устройство собрало варианты 2 и 3 (отдельная плашка без трека, подпись без контейнера); оба сняты с полотна — причина в §26. Переключи тему: slabtop в тёмной это внутренняя грань, в светлой — тень вверх.</div>
 
-        <div class="section-head"><span class="label">трек и плашка</span></div>
+        <div class="section-head"><span class="label">трек и плашка</span>
+            <button class="tag on" id="gel30" onclick="gelPick(this,0.30,0)">0.30 · out</button>
+            <button class="tag" id="gel55out" onclick="gelPick(this,0.55,0)">0.55 · out</button>
+            <button class="tag" id="gel55lin" onclick="gelPick(this,0.55,1)">0.55 · linear</button></div>
         <div class="navdemo">
             <div class="row"><div class="row-body"><div class="row-name">Спина и бицепс</div><div class="meta">12 июля · 6 упражнений</div></div><span class="slot"><svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></span></div>
             <div class="row"><div class="row-body"><div class="row-name">Ноги</div><div class="meta">9 июля · 5 упражнений</div></div><span class="slot"><svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></span></div>
@@ -674,11 +682,20 @@
       if(b.dataset.s==='s-nav'){nbPlace()}}
     function nbPlace(){const ind=document.querySelector('#s-nav .ind'),bar=ind.closest('.nb'),on=bar.querySelector('button.on');
       ind.style.width=on.offsetWidth+'px';ind.style.transform='translateX('+on.offsetLeft+'px)';}
+    // Device-pass comparison. GEL_C defaults to 0.30 and GEL_LIN to 0 — i.e. what SHIPS — so
+    // opening the drawing shows the contract and nothing else. The two candidates are
+    // reachable only by pressing a control, which is the «Упругость» idiom this section
+    // carried at f52462c7 and which §26 records as the reason the collapse was judgeable.
+    // Neither candidate is declared until Ilya rules; §26's row still reads 0.30.
+    let GEL_C=0.30, GEL_LIN=0;
+    function gelPick(btn,c,lin){GEL_C=c;GEL_LIN=lin;
+      btn.parentNode.querySelectorAll('.tag').forEach(x=>x.classList.remove('on'));btn.classList.add('on');}
     function nbPick(btn){const bar=btn.closest('.nb'),ind=bar.querySelector('.ind'),cur=bar.querySelector('button.on');
       if(cur===btn)return;const dx=btn.offsetLeft-cur.offsetLeft;
       bar.querySelectorAll('button').forEach(b=>b.classList.remove('on'));btn.classList.add('on');
       const k=Math.min(Math.abs(dx)/bar.offsetWidth,1),el=ind.querySelector('i');
-      el.style.setProperty('--sx',(1+0.30*k).toFixed(3));
+      el.style.setProperty('--sx',(1+GEL_C*k).toFixed(3));
+      ind.classList.toggle('lin',GEL_LIN===1);
       el.style.transformOrigin=dx>0?'100% 50%':'0% 50%';
       ind.classList.remove('go');void ind.offsetWidth;ind.classList.add('go');
       ind.style.transform='translateX('+btn.offsetLeft+'px)';}

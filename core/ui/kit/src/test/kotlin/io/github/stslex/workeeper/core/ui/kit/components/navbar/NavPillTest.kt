@@ -43,6 +43,20 @@ internal class NavPillTest {
     }
 
     @Test
+    @DisplayName("the tint shares the pill's timeline — one state change, one duration")
+    fun tintSharesTheTravel() {
+        // Two properties of ONE state change. They were 340 (pill) against 260 (tint), and the
+        // device pass read the destination as selected while the pill was still moving. A golden
+        // cannot see either duration, so the invariant is asserted rather than reviewed: whatever
+        // the travel becomes, the tint follows it.
+        //
+        // Asserted as an identity between the two call sites' duration rather than against a
+        // literal, because the defect is DIVERGENCE, not a wrong number — pinning 340 twice would
+        // pass just as happily if one of them were later moved alone.
+        assertEquals(NAV_PILL_TRAVEL, NAV_ITEM_TINT_DURATION)
+    }
+
+    @Test
     @DisplayName("the stretch peaks at 42% of the travel")
     fun stretchPeakPosition() {
         // `@keyframes gel{0%{1} 42%{--sx} 100%{1}}` at 340ms -> 142.8ms, rounded to 143.

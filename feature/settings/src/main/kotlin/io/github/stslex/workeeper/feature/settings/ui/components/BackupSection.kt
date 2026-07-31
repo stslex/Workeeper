@@ -74,7 +74,7 @@ private fun NotAuthenticatedRows(
 private fun AuthenticatedRows(
     auth: BackupAuthUi.Authenticated,
     operation: BackupOperationUi,
-    info: BackupInfoUi?,
+    info: BackupInfoUi,
     preferences: BackupPreferencesUi?,
     canRevertLastRestore: Boolean,
     onAction: (Action.Backup) -> Unit,
@@ -149,8 +149,14 @@ private fun AuthenticatedRows(
     )
     ActionRow(
         title = stringResource(R.string.feature_settings_backup_restore),
-        subtitle = info?.let {
-            if (it.isEmpty) it.backupCountText else "${it.backupCountText} · ${it.lastBackupText}"
+        // `Unknown` renders no sub-line — exactly what `null` rendered, so this change moves no
+        // pixels. What it SHOULD render is undrawn (`#s-set` draws only the populated row) and is
+        // owed to the mockup pass; the point of the sealed type is that the question is now
+        // unavoidable at this call site instead of hidden inside a nullable.
+        subtitle = when (info) {
+            BackupInfoUi.Unknown -> null
+            is BackupInfoUi.Empty -> info.backupCountText
+            is BackupInfoUi.Present -> "${info.backupCountText} · ${info.lastBackupText}"
         },
         loading = operation == BackupOperationUi.FetchingBackups ||
             operation == BackupOperationUi.Restoring,
@@ -226,7 +232,7 @@ private fun BackupSectionAuthenticatedDarkPreview() {
                     displayName = "User",
                 ),
                 operation = BackupOperationUi.Idle,
-                info = BackupInfoUi(
+                info = BackupInfoUi.Present(
                     lastBackupText = "последняя минуту назад",
                     backupCountText = "3 копии",
                 ),
@@ -252,7 +258,7 @@ private fun BackupSectionNotAuthenticatedLightPreview() {
             state = SettingsBackupState(
                 auth = BackupAuthUi.NotAuthenticated,
                 operation = BackupOperationUi.Idle,
-                info = null,
+                info = BackupInfoUi.Unknown,
                 preferences = null,
                 canRevertLastRestore = false,
             ),

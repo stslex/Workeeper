@@ -27,6 +27,7 @@ import io.github.stslex.workeeper.feature.settings.domain.model.BackupSummaryDom
 import io.github.stslex.workeeper.feature.settings.domain.model.SignInOutcomeDomain
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupAuthUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupErrorUi
+import io.github.stslex.workeeper.feature.settings.mvi.model.BackupInfoUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupOperationUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupScheduleUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.RestoreProgressUi
@@ -51,7 +52,6 @@ import kotlinx.coroutines.test.setMain
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
-import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
@@ -178,7 +178,9 @@ internal class BackupClickHandlerTest {
 
         authFlow.value = BackupAuthDomain.NotAuthenticated
 
-        assertNull(store.stateFlow.value.backupInfo)
+        // `Unknown`, not null. Signing out does not mean "this account has no backups" — it means
+        // we no longer know, which is exactly the distinction the sealed type exists to keep.
+        assertEquals(BackupInfoUi.Unknown, store.stateFlow.value.backupInfo)
     }
 
     @Test
@@ -684,7 +686,9 @@ internal class BackupClickHandlerTest {
 
             handler.invoke(Action.Backup.LoadBackupList)
 
-            assertNull(store.stateFlow.value.backupInfo)
+            // A FAILED list call leaves the state where it was: `Unknown`. Reporting `Empty`
+            // here would turn a network failure into a claim about the account.
+            assertEquals(BackupInfoUi.Unknown, store.stateFlow.value.backupInfo)
             assertTrue(store.events.isEmpty(), "LoadBackupList failure must stay silent")
         }
 

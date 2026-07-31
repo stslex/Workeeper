@@ -119,7 +119,7 @@ private fun signedInState(): State = baseState().copy(
         email = "user@example.com",
         displayName = "User",
     ),
-    backupInfo = BackupInfoUi(
+    backupInfo = BackupInfoUi.Present(
         lastBackupText = "last a minute ago",
         backupCountText = "3 backups",
     ),

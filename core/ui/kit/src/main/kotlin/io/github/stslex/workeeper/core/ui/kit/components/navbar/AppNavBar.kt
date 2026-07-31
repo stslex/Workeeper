@@ -171,6 +171,14 @@ fun AppNavBar(
 
             Row(horizontalArrangement = Arrangement.spacedBy(ITEM_GAP)) {
                 items.forEachIndexed { index, item ->
+                    // ONE TIMELINE. The tint and the pill are two properties of a single state
+                    // change, so they run for the same length: `NAV_PILL_TRAVEL`, not `base`.
+                    //
+                    // They used to be 340 against 260, and the device pass read the destination as
+                    // already selected while the pill was still travelling — 80ms of one property
+                    // finished before the other. Nothing about the CURVE is decided here: both are
+                    // `out`, as before, and whether a colour transit wants a different curve is a
+                    // separate question §26.1 now records as an open gap rather than an omission.
                     val tint by animateColorAsState(
                         targetValue = if (index == selected) {
                             AppUi.colors.textPrimary
@@ -178,7 +186,7 @@ fun AppNavBar(
                             AppUi.colors.textTertiary
                         },
                         animationSpec = tween(
-                            durationMillis = AppUi.motion.base,
+                            durationMillis = NAV_ITEM_TINT_DURATION,
                             easing = AppUi.motion.out,
                         ),
                         label = "nav-item-tint",
@@ -320,6 +328,15 @@ private val ITEM_GAP = AppDimension.Space.xs
  * member's own recorded number, which is the only way a continuity member is allowed to hold one.
  */
 internal const val NAV_PILL_TRAVEL: Int = 340
+
+/**
+ * The icon tint's duration — **defined as the pill's travel, not as a second number.**
+ *
+ * A separate constant rather than `NAV_PILL_TRAVEL` used twice, so `NavPillTest` can assert the two
+ * are equal: the defect this closes is DIVERGENCE (340 against 260), and an assertion that pins 340
+ * in two places would pass just as happily if one of them were later moved alone.
+ */
+internal const val NAV_ITEM_TINT_DURATION: Int = NAV_PILL_TRAVEL
 
 /** `@keyframes gel{42%{…}}` — the peak's position in the 340ms timeline. */
 internal const val NAV_PILL_STRETCH_PEAK_MS: Int = 143
