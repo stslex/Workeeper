@@ -47,22 +47,21 @@ import io.github.stslex.workeeper.feature.archive.domain.model.ExerciseTypeDomai
  * ```
  *
  *
- * ## What this row does NOT resolve
+ * ## This row does not yet conform, and that is now scheduled rather than open
  *
- * **The trailing slot is deliberately untouched, and it is the screen's open question.** `#s-list`
- * gives a row one 20px slot holding a chevron, a check, or nothing; this row carries *two* live
- * verbs — a `Restore` button and an overflow whose single item is permanent delete — and both were
- * verified reachable before the question was framed, so it does not collapse to one (unlike B23's
- * dialog on the sibling, which had no producer at all). The drawn archive row carries a **chevron**,
- * i.e. it navigates, and says nothing about either verb.
+ * §2.1 asked whether the drawn one-slot skeleton or this screen's two live verbs win. **It is RULED
+ * (Ilya, §24.2 group A):** an archived item **opens** — read-only detail — so the drawn chevron is
+ * true, this row takes the drawn 20dp slot like its three siblings, and restore and
+ * permanent-delete come off it. Where they go is the one part still open, and it belongs to the
+ * drawing.
  *
- * That is a §0.1 decision for the owner, not a delta to apply, so the two affordances are left
- * exactly as they were. Everything around them is rebuilt. See `archive-delta.md` §2.1 for the three
- * readings and the argument against each.
- *
- * One consequence worth stating rather than discovering: while the affordances stay, this row is
- * **taller than 88dp in practice** and its trailing region is not the drawn slot. The `heightIn`
- * minimum is the drawn one; the row is not yet the drawn row, and it cannot be until §2.1 is ruled.
+ * **What ships here is the pre-ruling row, deliberately.** Applying the ruling moves pixels — a
+ * chevron appears, two affordances leave, and the row drops to the drawn 88dp, which it currently
+ * exceeds because its trailing region is not the slot. The extraction this file is part of asserts
+ * the opposite (every golden byte-identical), so conformance cannot land in the same change without
+ * destroying the only claim that change makes. **It lands in the archive rebuild, after group A is
+ * drawn**, and until then this row is the one consumer of [AppListRow] that does not use
+ * `AppListRowSlot` — by schedule, not by exception.
  */
 @Composable
 internal fun ArchivedItemRow(
