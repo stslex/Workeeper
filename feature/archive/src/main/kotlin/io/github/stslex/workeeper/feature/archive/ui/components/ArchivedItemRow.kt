@@ -1,19 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.archive.ui.components
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -26,10 +21,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButton
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButtonSize
+import io.github.stslex.workeeper.core.ui.kit.components.list.AppListRow
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
@@ -78,52 +73,26 @@ internal fun ArchivedItemRow(
     onPermanentDelete: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(modifier = modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = AppDimension.rowHeight)
-                .padding(horizontal = AppDimension.screenEdge),
-            horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.md),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(AppDimension.Space.xs),
-            ) {
-                Text(
-                    modifier = Modifier.testTag("ArchivedItemName_${item.uuid}"),
-                    text = item.name,
-                    style = AppUi.typography.titleMedium,
-                    color = AppUi.colors.textPrimary,
-                    maxLines = NAME_MAX_LINES,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    modifier = Modifier.testTag("ArchivedItemMeta_${item.uuid}"),
-                    text = metaLine,
-                    style = AppUi.typography.mono.meta,
-                    color = AppUi.colors.textTertiary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            // UNRESOLVED — archive-delta §2.1. Two verbs against a one-slot skeleton; left as-is
-            // on purpose rather than picked. Do not "tidy" this into the drawn 20dp slot without
-            // that ruling: collapsing it silently answers a §0.1 question in a refactor.
+    AppListRow(
+        modifier = modifier,
+        name = item.name,
+        nameTestTag = "ArchivedItemName_${item.uuid}",
+        meta = metaLine,
+        metaTestTag = "ArchivedItemMeta_${item.uuid}",
+        showDivider = showDivider,
+        // UNRESOLVED — archive-delta §2.1. Two verbs against a one-slot skeleton; left as-is on
+        // purpose rather than picked, which is also why this is NOT wrapped in `AppListRowSlot`:
+        // the drawn 20dp slot cannot hold them, and the shared row deliberately does not impose
+        // it. Do not "tidy" either without that ruling — collapsing it silently answers a §0.1
+        // question in a refactor.
+        content = {
             TrailingAffordances(
                 item = item,
                 onRestore = onRestore,
                 onPermanentDelete = onPermanentDelete,
             )
-        }
-        if (showDivider) {
-            HorizontalDivider(
-                thickness = AppDimension.borderHairline,
-                color = AppUi.colors.borderSubtle,
-            )
-        }
-    }
+        },
+    )
 }
 
 /** The two contested verbs, unchanged. See [ArchivedItemRow]'s KDoc and `archive-delta.md` §2.1. */
@@ -177,8 +146,6 @@ private fun TrailingAffordances(
         }
     }
 }
-
-private const val NAME_MAX_LINES = 2
 
 @Preview(name = "Light", showBackground = true)
 @Preview(
