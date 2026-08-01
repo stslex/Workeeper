@@ -28,7 +28,7 @@ import io.github.stslex.workeeper.core.ui.kit.components.empty.AppEmptyState
 import io.github.stslex.workeeper.core.ui.kit.components.loading.AppLoadingIndicator
 import io.github.stslex.workeeper.core.ui.kit.components.paging.AppPagingErrorFooter
 import io.github.stslex.workeeper.core.ui.kit.components.paging.AppPagingLoadingFooter
-import io.github.stslex.workeeper.core.ui.kit.components.paging.rememberLoadingVisible
+import io.github.stslex.workeeper.core.ui.kit.components.paging.rememberDeferredSurface
 import io.github.stslex.workeeper.core.ui.kit.components.segmented.AppSegmentedControl
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopAppBar
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
@@ -282,18 +282,20 @@ private fun ArchiveEmptyRegion(
     emptyTestTag: String,
     modifier: Modifier = Modifier,
 ) {
-    val surface = archiveListSurface(items.itemCount, items.loadState)
-    // Outside the `when` on purpose: the hold works by staying in composition after loading ends.
-    val loadingVisible = rememberLoadingVisible(surface == ArchiveListSurface.LOADING)
+    // Outside the `when` on purpose: the hold works by staying in composition after loading ends,
+    // and it draws LOADING while the data is no longer loading — so the `when` reads THIS verdict,
+    // never `archiveListSurface`'s. `null` is the deferral window, where nothing draws at all.
+    val surface = rememberDeferredSurface(
+        surface = archiveListSurface(items.itemCount, items.loadState),
+        loadingSurface = ArchiveListSurface.LOADING,
+    ) ?: return
     when (surface) {
         ArchiveListSurface.CONTENT -> Unit
 
-        ArchiveListSurface.LOADING -> if (loadingVisible) {
-            AppPagingLoadingFooter(
-                modifier = modifier.testTag("ArchiveColdOpen"),
-                label = stringResource(R.string.feature_archive_paging_loading),
-            )
-        }
+        ArchiveListSurface.LOADING -> AppPagingLoadingFooter(
+            modifier = modifier.testTag("ArchiveColdOpen"),
+            label = stringResource(R.string.feature_archive_paging_loading),
+        )
 
         ArchiveListSurface.REFRESH_ERROR -> AppPagingErrorFooter(
             modifier = modifier.testTag("ArchiveColdOpenError"),

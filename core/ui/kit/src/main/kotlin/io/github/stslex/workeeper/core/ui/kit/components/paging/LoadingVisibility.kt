@@ -59,21 +59,19 @@ import kotlinx.coroutines.delay
  * against the scale they claim to come from, and the worst-case row of the table above is asserted
  * as arithmetic — see `LoadingVisibilityTest`.
  *
- * ## Call it where it OUTLIVES the loading state
+ * ## Private on purpose — the screens call [rememberDeferredSurface]
  *
- * The hold is implemented by this composable staying in composition after `loading` goes false. Put
- * the call inside the branch that renders the spinner — `if (surface == LOADING) { if
- * (rememberLoadingVisible(true)) … }` — and it leaves composition at the very moment it is supposed
- * to start holding, so the minimum silently does nothing. The first version of every call site here
- * had exactly that shape. Call it once, high enough that it survives the transition, and branch on
- * the result.
+ * A `Boolean` beside a surface enum is the shape that loses the hold: the caller writes
+ * `if (surface == LOADING && visible)`, which is false the instant the data stops loading, and the
+ * minimum then holds a value nothing draws. There is nothing to fix at four call sites if there is
+ * only one thing to call.
  *
  * @param loading whether the data is loading — typically `surface == LOADING` from a screen's list
  *  surface selector.
  * @return whether the loading treatment should be drawn right now.
  */
 @Composable
-fun rememberLoadingVisible(loading: Boolean): Boolean {
+private fun rememberLoadingVisible(loading: Boolean): Boolean {
     val motion = AppUi.motion
     var visible by remember { mutableStateOf(false) }
     var shownAt by remember { mutableLongStateOf(0L) }
@@ -95,6 +93,57 @@ fun rememberLoadingVisible(loading: Boolean): Boolean {
         }
     }
     return visible
+}
+
+/**
+ * The surface a list should **draw**, which is not always the surface its data is in.
+ *
+ * This is the whole call-site API: hand it the selector's verdict and the loading verdict, branch on
+ * what comes back, and the two numbers above are then unavoidable rather than merely available.
+ *
+ * | returns | when | the screen draws |
+ * |---|---|---|
+ * | `loadingSurface` | shown: appear delay elapsed, minimum hold not | the loading treatment |
+ * | `null` | the deferral window — loading, nothing shown yet | **nothing**; the last frame persists |
+ * | `surface` | anything else | that surface |
+ *
+ * ## The hold draws LOADING while the data is NOT loading. That is the point
+ *
+ * The minimum exists for loads in the open interval (140, 400) ms — the ones that finish *after*
+ * the spinner appears and *before* it has been up long enough to read. In every one of them the
+ * selector has already moved to `CONTENT` (or `FIRST_RUN`, or an error) by the time the hold is
+ * doing anything, so a screen that re-derives its own `surface == LOADING` beside this value draws
+ * nothing for the rest of the hold and the spinner flashes for the millisecond the two numbers
+ * exist to prevent. Branch on **this** return value and nothing else; the raw verdict is not what
+ * is on screen.
+ *
+ * Both halves are needed and neither is sufficient. Call this where it **outlives** the loading
+ * state — a call sited inside `if (surface == LOADING) { … }` leaves composition at the instant the
+ * hold is supposed to start, so the minimum silently does nothing however the result is read.
+ *
+ * @param surface the list-surface verdict for the data as it is now.
+ * @param loadingSurface that enum's loading verdict.
+ */
+@Composable
+fun <T : Any> rememberDeferredSurface(surface: T, loadingSurface: T): T? = deferredSurface(
+    surface = surface,
+    loadingSurface = loadingSurface,
+    visible = rememberLoadingVisible(surface == loadingSurface),
+)
+
+/**
+ * See [rememberDeferredSurface]. Pure, so the table there is asserted rather than described —
+ * including the row that carries the hold, which is the one a golden cannot reach and a screen can
+ * silently discard.
+ */
+internal fun <T : Any> deferredSurface(
+    surface: T,
+    loadingSurface: T,
+    visible: Boolean,
+): T? = when {
+    visible -> loadingSurface
+    surface == loadingSurface -> null
+    else -> surface
 }
 
 /**

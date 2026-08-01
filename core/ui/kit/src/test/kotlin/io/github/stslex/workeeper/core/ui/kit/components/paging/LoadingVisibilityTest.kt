@@ -132,4 +132,49 @@ internal class LoadingVisibilityTest {
         assertEquals(0L, loadingHoldRemaining(motion.fast.toLong(), window.toLong(), motion))
         assertEquals(0L, loadingHoldRemaining(motion.fast.toLong(), (window + 1_000).toLong(), motion))
     }
+
+    private enum class Surface { LOADING, CONTENT, EMPTY }
+
+    @Test
+    @DisplayName("the hold draws LOADING while the data is NOT loading")
+    fun holdOutlivesTheLoadingVerdict() {
+        // The whole point of the minimum, and the one row every other test above was blind to: the
+        // durations were asserted while the value they produce was discarded downstream. In the
+        // entire interval the hold exists for — (140, 400) — the selector has ALREADY left LOADING,
+        // so a screen reading its own verdict beside `visible` draws nothing and the spinner
+        // flashes for the millisecond the two numbers exist to prevent.
+        assertEquals(
+            Surface.LOADING,
+            deferredSurface(surface = Surface.CONTENT, loadingSurface = Surface.LOADING, visible = true),
+        )
+        assertEquals(
+            Surface.LOADING,
+            deferredSurface(surface = Surface.EMPTY, loadingSurface = Surface.LOADING, visible = true),
+        )
+    }
+
+    @Test
+    @DisplayName("the deferral window draws NOTHING — not the spinner, and not the surface under it")
+    fun deferralWindowDrawsNothing() {
+        // Loading, nothing shown yet: null, so the outgoing frame persists. Returning the raw
+        // LOADING verdict here would put the spinner up at once and delete the appear delay; the
+        // two are the same value and mean opposite things, which is why the window has its own.
+        assertEquals(
+            null,
+            deferredSurface(surface = Surface.LOADING, loadingSurface = Surface.LOADING, visible = false),
+        )
+    }
+
+    @Test
+    @DisplayName("everything else passes through untouched")
+    fun settledSurfacesPassThrough() {
+        assertEquals(
+            Surface.CONTENT,
+            deferredSurface(surface = Surface.CONTENT, loadingSurface = Surface.LOADING, visible = false),
+        )
+        assertEquals(
+            Surface.EMPTY,
+            deferredSurface(surface = Surface.EMPTY, loadingSurface = Surface.LOADING, visible = false),
+        )
+    }
 }

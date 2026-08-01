@@ -32,7 +32,7 @@ import androidx.paging.compose.LazyPagingItems
 import io.github.stslex.workeeper.core.ui.kit.components.collectAsItems
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppConfirmDialog
 import io.github.stslex.workeeper.core.ui.kit.components.fab.AppFAB
-import io.github.stslex.workeeper.core.ui.kit.components.paging.rememberLoadingVisible
+import io.github.stslex.workeeper.core.ui.kit.components.paging.rememberDeferredSurface
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopAppBar
 import io.github.stslex.workeeper.core.ui.kit.icons.AppIcons
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
@@ -331,19 +331,20 @@ private fun BoxScope.EmptyRegion(
     val filterActive = state.activeTagFilter.isNotEmpty()
     val clearFilter = { consume(Action.Click.OnClearTagFilter) }
     val spec = continuityAlphaSpec<Float>()
-    val surface = listSurface(
-        itemCount = items.itemCount,
-        loadState = items.loadState,
-        filterActive = filterActive,
-        selecting = state.isSelecting,
-    )
-    // Deferred, then held for a minimum — see `rememberLoadingVisible`. Called OUTSIDE the branch
-    // that draws the spinner: the hold works by staying in composition after loading ends, so a
-    // call sited inside `if (surface == LOADING)` would leave composition exactly when the minimum
-    // was meant to start.
-    val loadingVisible = rememberLoadingVisible(surface == ListSurface.LOADING)
+    // Deferred, then held for a minimum — see `rememberDeferredSurface`. Branch on what it returns
+    // and never on the raw verdict beside it: the hold's whole job is to keep LOADING on screen
+    // after the data has stopped loading, and `null` is the deferral window, where nothing draws.
+    val surface = rememberDeferredSurface(
+        surface = listSurface(
+            itemCount = items.itemCount,
+            loadState = items.loadState,
+            filterActive = filterActive,
+            selecting = state.isSelecting,
+        ),
+        loadingSurface = ListSurface.LOADING,
+    ) ?: return
     if (surface.crossfades.not()) {
-        if (surface == ListSurface.LOADING && loadingVisible) {
+        if (surface == ListSurface.LOADING) {
             ColdOpenLoading(modifier = Modifier.align(Alignment.TopCenter))
         }
         return

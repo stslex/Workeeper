@@ -5,8 +5,9 @@
 
 A real email address and a real name shipped as fixture data in `BackupSection.kt`'s `@Preview`
 and `SettingsGoldenTest`'s signed-in state — and the golden fixture **renders into committed PNGs**,
-so `ilya977.077@gmail.com` and the account holder's name were legible in four images in a public
-repository. They had been through the reviews that landed the settings rebuild.
+so both were legible at full size in committed images in a public repository. They had been through
+the reviews that landed the settings rebuild. The values are not quoted here; a file that names them
+is a file that carries them, which is the whole point of the gate.
 
 That is the same shape as the token-parity seam: a class of defect that is individually obvious and
 collectively invisible, because nobody re-reads a fixture they have already read. So it is checked
@@ -23,6 +24,12 @@ through one. The images are covered transitively: change the fixture, re-record,
 follow. There is deliberately no OCR here; a gate that half-reads images would be worse than one
 that states its scope.
 
+**Every tracked file is a candidate, and the skip list is by binary suffix rather than an allowlist
+of text ones.** An allowlist is blind to whatever kind of file nobody thought of, and blindness by
+omission reads exactly like a pass — a gate that names the kinds it looks at reports "clean" about
+the kinds it does not. Anything that fails to decode as UTF-8 is skipped in the same breath, so the
+denylist is a speed measure and not the correctness boundary.
+
 Placeholder conventions are the fix, not just the absence of real data. `SettingsScreen.kt` already
 used `user@example.com` / `"User"` while the other three sites carried the real values — the
 convention existed and was diverged from, which is exactly what a mechanical check catches and a
@@ -32,6 +39,7 @@ reviewer does not.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import pathlib
 import re
 import subprocess
@@ -56,20 +64,45 @@ LITERALS: tuple[str, ...] = (
     "Ilya Alexandrovich",
 )
 
-# Exceptions, each cited individually. Loosening this to a directory glob would make the check stop
-# seeing a real leak among the noise of expected ones — the same argument `shell_gate.py` makes for
-# its token exceptions.
-EXCEPTIONS: dict[str, str] = {
-    "CODE_OF_CONDUCT.md": "the project's DELIBERATE contact address. A code of conduct with no "
-                          "route to a human is not a code of conduct, and the address is published "
-                          "on purpose — this is the one file where the value is the point.",
-    "docs/index.md": "the published privacy policy's contact address, and the file is LOCKED BY "
-                     "PLAY CONSOLE (CLAUDE.md: 'do not modify'). A privacy policy is required to "
-                     "name a data controller, so the address is the point here too — and this is "
-                     "the one exception that could not be fixed even if it were wrong.",
+# Exceptions are keyed by (file, EXACT VALUE), never by file alone. A file-level excuse waves
+# through every hit in the file, and it does it precisely where personal values already live — the
+# two files below carry two DIFFERENT real addresses, so "this file is allowed to have one" cannot
+# tell a third one from the excused one. That is also the scoping `shell_gate.py` uses for its token
+# exceptions, which this list cites as its model: it excepts a value, not a drawing.
+#
+# The value is keyed by SHA-256 rather than in the clear, and the asymmetry with LITERALS above is
+# deliberate. A detector that hashed what it looks for would be unreadable — nobody could say what
+# the gate matches — but an EXCEPTION only has to answer "is this exact hit the excused one", which
+# a digest answers exactly, and the reason string says in words which value it is. Written in the
+# clear, this table would be a second copy of every address the gate exists to keep out of the tree,
+# in the file least able to argue it is an accident. Mint one with:
+#
+#     python3 -c "import hashlib,sys; print(hashlib.sha256(sys.argv[1].encode()).hexdigest())" VALUE
+EXCEPTIONS: dict[tuple[str, str], str] = {
+    ("CODE_OF_CONDUCT.md", "c3b8a3f96959251b3a93767be7751cf083aff510fd5167e4306cb2285dd2275f"):
+        "the project's DELIBERATE contact address. A code of conduct with no route to a human is "
+        "not a code of conduct, and the address is published on purpose — this is the one file "
+        "where the value is the point.",
+    ("docs/index.md", "fad486d71013d1ab2ac71a5db614949f2f81706c06dcbf36e38b4fda7e703f5f"):
+        "the published privacy policy's contact address, and the file is LOCKED BY PLAY CONSOLE "
+        "(CLAUDE.md: 'do not modify'). A privacy policy is required to name a data controller, so "
+        "the address is the point here too — and this is the one exception that could not be fixed "
+        "even if it were wrong.",
+    ("documentation/personal_data_gate.py", "22124678c5287a6e7a73a12d63b2fb38f147f8c57f9eb468050fd6020e5469f1"):
+        "this gate's own LITERALS list, which is the one site where a forbidden value must appear "
+        "in the clear: a name detector cannot look for a name without naming it. Bound to that "
+        "exact value, so any OTHER personal value appearing in this file still fails.",
 }
 
-SCANNED_SUFFIXES = (".kt", ".kts", ".java", ".xml", ".html", ".md", ".json", ".yml", ".yaml", ".pro")
+# Binary kinds, skipped for speed. NOT the correctness boundary: everything else tracked is read,
+# and anything that fails to decode as UTF-8 is skipped where it is read. An allowlist of text
+# suffixes sat here first and it is what let this gate's own `.py` source go unscanned while it
+# reported PASS.
+BINARY_SUFFIXES = frozenset({
+    ".png", ".jpg", ".jpeg", ".webp", ".gif", ".ico", ".pdf",
+    ".ttf", ".otf", ".woff", ".woff2",
+    ".jar", ".aar", ".zip", ".apk", ".aab", ".keystore", ".jks", ".so", ".bin", ".db",
+})
 
 SKIP_DIRS = {".git", "build", ".gradle", ".idea", "__pycache__", ".kotlin"}
 
@@ -102,7 +135,7 @@ def scan(root: pathlib.Path) -> tuple[list[str], list[str]]:
         rel = path.relative_to(root).as_posix()
         if any(part in SKIP_DIRS for part in path.parts):
             continue
-        if path.suffix not in SCANNED_SUFFIXES:
+        if path.suffix.lower() in BINARY_SUFFIXES:
             continue
         try:
             text = path.read_text(encoding="utf-8")
@@ -125,13 +158,13 @@ def scan(root: pathlib.Path) -> tuple[list[str], list[str]]:
                 if literal in line:
                     hits.append((lineno, "name", literal))
 
-        if not hits:
-            continue
-        if rel in EXCEPTIONS:
-            excused.append(f"    (excused) {rel} — {EXCEPTIONS[rel]}")
-            continue
+        # Per HIT, not per file: an excused value in a file does not excuse the next value in it.
         for lineno, kind, value in hits:
-            fails.append(f"    {rel}:{lineno}  {kind}: {value}")
+            reason = EXCEPTIONS.get((rel, hashlib.sha256(value.encode()).hexdigest()))
+            if reason is None:
+                fails.append(f"    {rel}:{lineno}  {kind}: {value}")
+            else:
+                excused.append(f"    (excused) {rel}:{lineno} {kind} — {reason}")
 
     return fails, excused
 
@@ -151,9 +184,10 @@ def main() -> int:
         print()
         print("  Use a reserved placeholder — this repo's convention is already")
         print("  `user@example.com` / \"User\" (SettingsScreen.kt). If a value is deliberate and")
-        print("  published on purpose, add the FILE to EXCEPTIONS with the reason, never widen a")
-        print("  pattern. A fixture change needs its goldens re-recorded: the images carry what")
-        print("  the fixture renders, and this gate cannot read pixels.")
+        print("  published on purpose, add the (FILE, sha256-of-VALUE) pair to EXCEPTIONS with the")
+        print("  reason — never the file alone and never a wider pattern. Mint the digest with the")
+        print("  one-liner in this file's EXCEPTIONS comment. A fixture change needs its goldens")
+        print("  re-recorded: the images carry what the fixture renders, and this cannot read pixels.")
         return 1
 
     if args.verbose:

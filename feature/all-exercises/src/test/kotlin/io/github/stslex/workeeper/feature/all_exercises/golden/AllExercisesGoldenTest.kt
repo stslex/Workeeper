@@ -473,7 +473,7 @@ internal class AllExercisesGoldenTest {
      * **The cold open now photographs NOTHING, and that is what it gates.**
      *
      * It used to show the paging spinner where row 1 will land. The loading deferral
-     * (`rememberLoadingVisible`) withholds it for 140 ms, and Paparazzi renders one frame with no
+     * (`rememberDeferredSurface`) withholds it for 140 ms, and Paparazzi renders one frame with no
      * clock — so at t = 0 there is no spinner, and this image is the *absence*.
      *
      * That makes it more useful than before, not less: delete the deferral and the spinner returns
