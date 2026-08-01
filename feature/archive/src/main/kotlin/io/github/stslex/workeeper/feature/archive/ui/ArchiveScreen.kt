@@ -28,7 +28,6 @@ import io.github.stslex.workeeper.core.ui.kit.components.empty.AppEmptyState
 import io.github.stslex.workeeper.core.ui.kit.components.loading.AppLoadingIndicator
 import io.github.stslex.workeeper.core.ui.kit.components.paging.AppPagingErrorFooter
 import io.github.stslex.workeeper.core.ui.kit.components.paging.AppPagingLoadingFooter
-import io.github.stslex.workeeper.core.ui.kit.components.paging.rememberDeferredSurface
 import io.github.stslex.workeeper.core.ui.kit.components.segmented.AppSegmentedControl
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopAppBar
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
@@ -41,14 +40,16 @@ import io.github.stslex.workeeper.feature.archive.mvi.model.ArchivedItemUi
 import io.github.stslex.workeeper.feature.archive.mvi.store.ArchiveStore.Action
 import io.github.stslex.workeeper.feature.archive.mvi.store.ArchiveStore.Segment
 import io.github.stslex.workeeper.feature.archive.mvi.store.ArchiveStore.State
+import io.github.stslex.workeeper.feature.archive.ui.components.ArchiveBody
 import io.github.stslex.workeeper.feature.archive.ui.components.ArchiveListSurface
 import io.github.stslex.workeeper.feature.archive.ui.components.ArchivedItemRow
 import io.github.stslex.workeeper.feature.archive.ui.components.PagingErrorFooter
 import io.github.stslex.workeeper.feature.archive.ui.components.PagingLoadingFooter
 import io.github.stslex.workeeper.feature.archive.ui.components.PagingTailKind
 import io.github.stslex.workeeper.feature.archive.ui.components.PermanentDeleteDialog
-import io.github.stslex.workeeper.feature.archive.ui.components.archiveListSurface
+import io.github.stslex.workeeper.feature.archive.ui.components.archiveBody
 import io.github.stslex.workeeper.feature.archive.ui.components.pagingTailKind
+import io.github.stslex.workeeper.feature.archive.ui.components.rememberArchiveSurface
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.flow.flowOf
 import io.github.stslex.workeeper.core.ui.kit.R as KitR
@@ -145,9 +146,15 @@ private fun ArchivedExerciseList(
     consume: (Action) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    if (archiveListSurface(items.itemCount, items.loadState) != ArchiveListSurface.CONTENT) {
+    // Taken ABOVE the swap, not inside the region: this branch decides whether the region is
+    // composed at all, and the hold works by staying in composition after the data stops loading.
+    // Reading `archiveListSurface` here would delete the region — and the deferral with it — at
+    // the exact moment the minimum starts. See [ArchiveBody].
+    val surface = rememberArchiveSurface(items)
+    if (archiveBody(surface) == ArchiveBody.REGION) {
         ArchiveEmptyRegion(
             modifier = modifier,
+            surface = surface,
             items = items,
             supportingText = stringResource(R.string.feature_archive_empty_supporting_exercises),
             emptyTestTag = "ArchiveEmptyExercises",
@@ -197,9 +204,12 @@ private fun ArchivedTrainingList(
     consume: (Action) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    if (archiveListSurface(items.itemCount, items.loadState) != ArchiveListSurface.CONTENT) {
+    // Same gate as the exercise tab, and same reason — see [ArchiveBody].
+    val surface = rememberArchiveSurface(items)
+    if (archiveBody(surface) == ArchiveBody.REGION) {
         ArchiveEmptyRegion(
             modifier = modifier,
+            surface = surface,
             items = items,
             supportingText = stringResource(R.string.feature_archive_empty_supporting_trainings),
             emptyTestTag = "ArchiveEmptyTrainings",
@@ -277,19 +287,18 @@ private fun LazyListScope.pagingTail(
  */
 @Composable
 private fun ArchiveEmptyRegion(
+    surface: ArchiveListSurface?,
     items: LazyPagingItems<*>,
     supportingText: String,
     emptyTestTag: String,
     modifier: Modifier = Modifier,
 ) {
-    // Outside the `when` on purpose: the hold works by staying in composition after loading ends,
-    // and it draws LOADING while the data is no longer loading — so the `when` reads THIS verdict,
-    // never `archiveListSurface`'s. `null` is the deferral window, where nothing draws at all.
-    val surface = rememberDeferredSurface(
-        surface = archiveListSurface(items.itemCount, items.loadState),
-        loadingSurface = ArchiveListSurface.LOADING,
-    ) ?: return
+    // The verdict is PASSED IN, from the swap above — see [ArchiveBody]. Deriving it here again
+    // would put the deferral inside the composable the raw verdict removes, which is where the
+    // minimum hold used to die. `null` is the deferral window, where nothing draws at all.
     when (surface) {
+        null -> Unit
+
         ArchiveListSurface.CONTENT -> Unit
 
         ArchiveListSurface.LOADING -> AppPagingLoadingFooter(

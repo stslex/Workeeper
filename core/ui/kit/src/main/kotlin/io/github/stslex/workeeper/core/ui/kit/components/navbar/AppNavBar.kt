@@ -348,7 +348,15 @@ internal const val NAV_PILL_TRAVEL: Int = 340
  */
 internal const val NAV_ITEM_TINT_DURATION: Int = NAV_PILL_TRAVEL
 
-/** `@keyframes gel{42%{…}}` — the peak's position in the 340ms timeline. */
+/**
+ * `@keyframes gel{42%{…}}` — the peak's position in the 340ms timeline.
+ *
+ * **Frozen, where the tabs derive.** `GEL_PEAK_FRACTION` is the same drawn 42% as a fraction, and
+ * `rememberIndicatorGel` multiplies it by whatever travel it is given; this is 340 × 0.42 rounded,
+ * written once. Move `NAV_PILL_TRAVEL` and the tabs follow the drawing while this stays at 143 —
+ * **B31**, which also says which of the two is authoritative. Do not "tidy" the divergence away
+ * here: unifying them is motion work and waits on the device pass.
+ */
 internal const val NAV_PILL_STRETCH_PEAK_MS: Int = 143
 
 /** `--sx:(1+0.30*k)` — the stretch coefficient in `nbPick()`. */

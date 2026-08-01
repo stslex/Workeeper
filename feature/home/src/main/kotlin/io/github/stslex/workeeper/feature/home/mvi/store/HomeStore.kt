@@ -65,6 +65,12 @@ interface HomeStore : Store<HomeStore.State, HomeStore.Action, HomeStore.Event> 
         /**
          * Whether the ACTIVE-SESSION half of the screen has settled.
          *
+         * **One-way, and the list's deferral depends on it.** `isActiveLoaded` goes false → true
+         * once and never back, so the `if (isLoading)` branch in `HomeScreen` can only remove
+         * `HomeBody` *before* a load has begun. Widening this to include the list — it read
+         * `!isActiveLoaded || !isRecentLoaded` once — makes it two-way, and `rememberDeferredSurface`
+         * lives inside `HomeBody`: the minimum hold would then be cancelled by the very state
+         * change it exists to outlive.
          */
         val isLoading: Boolean get() = !isActiveLoaded
         val showStartCta: Boolean get() = activeSession == null && !isLoading

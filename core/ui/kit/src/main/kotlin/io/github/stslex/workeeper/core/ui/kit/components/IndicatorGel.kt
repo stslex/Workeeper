@@ -18,11 +18,14 @@ import kotlin.math.abs
 import kotlin.math.min
 
 /**
- * The `gel` stretch, shared by every sliding indicator that moves at constant width.
+ * The `gel` stretch, for a sliding indicator that moves at constant width.
  *
- * Extracted from `AppNavBar` when the chart tabs took it too (§26, `.tabs` gel row). One formula
- * with two call sites rather than two copies: the coefficient is a ledger value, and a copy is how
- * a ledger value quietly becomes two.
+ * **ONE call site — `MetricTabs`. `AppNavBar` does not use this.** Written here because the
+ * opposite was claimed when the chart tabs took the gel (§26, `.tabs` gel row, corrected): the pill
+ * keeps its own `Animatable`, its own keyframes and its own `navPillStretchPeak`, whose body is
+ * identical to [indicatorStretchPeak]. What the two genuinely share is [INDICATOR_STRETCH] — the
+ * ledger coefficient — and nothing else. So editing anything in this file changes the tabs and
+ * leaves the pill exactly as it was; **B31** registers what that has already cost.
  *
  * ## What the coefficient means, and why it transfers here
  *
@@ -45,8 +48,9 @@ import kotlin.math.min
  *
  * §26: gel is available to an indicator that moves at **constant size**, and unavailable to one
  * that resizes — a `scaleX` excursion has to be the only width change in the frame or it stops
- * reading as "how far it jumped". Both current callers qualify: measured frame by frame on device,
- * `MetricTabs`' thumb is 318px in every frame of a two-step jump.
+ * reading as "how far it jumped". Both indicators qualify: measured frame by frame on device,
+ * `MetricTabs`' thumb is 318px in every frame of a two-step jump, and the pill translates at a
+ * fixed width by construction.
  *
  * @param travelMillis the transit's own duration; the gel runs on the same clock.
  * @param selectedIndex the stop the indicator is travelling to. Drives the effect; the animation
