@@ -39,11 +39,8 @@ import kotlinx.collections.immutable.persistentListOf
  * `#s-list`'s hint states it outright: "Скелет строки один — 88px, линейка снизу, имя и мета-строка,
  * шеврон. Начинки разные". The skeleton is now [AppListRow] and is documented there.
  *
- * **This paragraph used to say the opposite** — that extraction waited for a third consumer to say
- * what the shape was — and the wait was the right call: with two payloads the choice between a
- * pre-joined string and a union of nullable fields was a guess. With four it was measured. The
- * answer turned out to be the pre-joined string, and no union at all: every difference between the
- * four is a modifier or the trailing region's content.
+ * What this row keeps is its own: the payload, the meta line's composition and the trailing slot's
+ * three states.
  *
  * ## What this payload does differently, and it is one thing
  *
