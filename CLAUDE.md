@@ -25,6 +25,15 @@ content in this file.
 ./setup-hooks.sh
 ```
 
+## Merge flow
+
+Open the PR; do not merge it. Wait for review — CI **and** the bot. Every comment is fixed or
+resolved with a comment saying why not. **Ilya merges, never you.** Review comments are claims:
+reproduce, classify (correct / correct-but-already-decided / wrong / correct-and-new), and report
+the classification before pushing fixes. Waiting on review does not block the next task — stack it,
+state the stack in both PR descriptions, and re-run every gate after a rebase.
+Full rule, with the stacking costs it comes with: [AGENTS.md](AGENTS.md) § "Merge flow".
+
 ## Canonical project knowledge
 
 - [documentation/architecture.md](documentation/architecture.md) — modules, MVI, DI, data flow.

@@ -172,6 +172,50 @@ unrun. A stale exemption is worse than no exemption: it reads as a decision.
 Any `from cache` OR `up-to-date` count in that line **voids** the gate result — re-run before claiming
 green.
 
+## Merge flow — open it, answer review, Ilya merges
+
+1. **Open the PR. Do not merge it.** Not with `gh pr merge`, not because CI went green, not because
+   the diff is small.
+2. **Wait for review — CI *and* the bot.** Both. A green pipeline is a gate result, not a review.
+3. **Every comment is either fixed, or resolved with a comment saying why not.** Not silently
+   closed, not deferred without saying so in the thread it was raised in.
+4. **Ilya merges.** Never you.
+
+**Review comments are claims, and claims already have a discipline here: reproduce before acting,
+then classify.** Report the classification for every comment **before** pushing the fixes — a diff
+plus a row of resolved threads does not tell the reader which comments were accepted and which were
+argued down.
+
+| verdict | what it means | what it owes |
+|---|---|---|
+| **correct** | reproduced | the fix |
+| **correct-but-already-decided** | the reviewer is right and it was ruled | the ledger row or registry entry, **cited by anchor** — §26, §25, a B-number |
+| **wrong** | it does not reproduce | the **measurement** that says so. An argument is not a refutation |
+| **correct-and-new** | a finding, like any other on this arc | the fix — and if it outlives this PR, a §25 / §27 row, not only a commit body |
+
+The last row is the one that leaks. A finding recorded only in a commit body is a finding the next
+reader does not meet, which is the whole reason the registries are append-only.
+
+### Stacking, and the cost it has already charged once
+
+**Waiting on review does not block the next task.** Start it on a branch stacked on the one under
+review, and **state the stack in both PR descriptions** — "stacked on #N" in the upper, "#M stands
+on this" in the lower — so neither can be merged by someone who does not know the other exists.
+
+The rule that comes with it, because this arc has already paid for it once: **fixes from review land
+in the lower PR, and that moves the base of everything above it.**
+
+- When the lower PR moves, **rebase the stack and let each gate re-run against its new base** before
+  treating anything above as green. **A green measured against a base that no longer exists is not
+  evidence** — same family as `FROM-CACHE` above: the result is real, it is simply not about the
+  tree in question.
+- **A squash rewrites the SHA**, so the dependent arrives conflicting no matter how clean it was;
+  it needs the rebase before it can merge at all.
+- **Never `--delete-branch` while a dependent still points at the branch.**
+- The mockup gate resolves `git merge-base origin/$PR_BASE HEAD`, and for a stacked PR `$PR_BASE` is
+  the branch **below you**, not `dev` — see "Current focus". Rebasing changes that baseline too, so
+  a shell-gate green from before the rebase is void with the rest.
+
 ## Canonical project knowledge
 
 - [documentation/architecture.md](documentation/architecture.md) — modules, MVI, DI, data flow.
