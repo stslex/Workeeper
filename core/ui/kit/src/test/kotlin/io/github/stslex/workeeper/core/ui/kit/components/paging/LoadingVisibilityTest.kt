@@ -166,6 +166,31 @@ internal class LoadingVisibilityTest {
     }
 
     @Test
+    @DisplayName("the HOLD withholds the rows, not just the surface verdict")
+    fun holdWithholdsRows() {
+        // The second half of the same defect, and the one a screen can lose on its own: the hold
+        // keeps LOADING on screen after the data says CONTENT, so a list composed independently of
+        // the verdict draws its rows UNDER the loading treatment for the rest of the hold. Three of
+        // the four screens did exactly that until this rule was named.
+        assertEquals(ListBody.REGION, listBody(Surface.LOADING, Surface.CONTENT))
+    }
+
+    @Test
+    @DisplayName("the deferral window withholds the rows too — nothing draws at all")
+    fun deferralWindowWithholdsRows() {
+        // `null` is "loading, nothing shown yet". Rows are the one thing that must not appear in
+        // that window: a list that pops in at 40ms is what the appear delay protects the eye from.
+        assertEquals(ListBody.REGION, listBody(null, Surface.CONTENT))
+    }
+
+    @Test
+    @DisplayName("rows draw for the content verdict, and for nothing else")
+    fun rowsDrawForContentOnly() {
+        assertEquals(ListBody.ROWS, listBody(Surface.CONTENT, Surface.CONTENT))
+        assertEquals(ListBody.REGION, listBody(Surface.EMPTY, Surface.CONTENT))
+    }
+
+    @Test
     @DisplayName("everything else passes through untouched")
     fun settledSurfacesPassThrough() {
         assertEquals(

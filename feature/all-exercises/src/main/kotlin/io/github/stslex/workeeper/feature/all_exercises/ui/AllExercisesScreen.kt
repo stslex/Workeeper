@@ -33,6 +33,8 @@ import io.github.stslex.workeeper.core.ui.kit.components.collectAsItems
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppBlockedArchiveDialog
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppConfirmDialog
 import io.github.stslex.workeeper.core.ui.kit.components.fab.AppFAB
+import io.github.stslex.workeeper.core.ui.kit.components.paging.ListBody
+import io.github.stslex.workeeper.core.ui.kit.components.paging.listBody
 import io.github.stslex.workeeper.core.ui.kit.components.paging.rememberDeferredSurface
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopAppBar
 import io.github.stslex.workeeper.core.ui.kit.icons.AppIcons
@@ -86,9 +88,38 @@ internal fun AllExercisesScreen(
                     onToggle = { uuid -> consume(Action.Click.OnTagFilterToggle(uuid)) },
                 )
             }
-            Box(modifier = Modifier.weight(1f)) {
-                ExercisesList(state = state, items = items, consume = consume)
-                EmptyRegion(state = state, items = items, consume = consume)
+            // `fillMaxSize` and not just `weight`: the empty region measures itself with
+            // `matchParentSize`, so the Box's own width comes from its other children — and
+            // the list is now conditional. Without this the region collapses to zero width
+            // in exactly the states where the list is absent, which is every state it draws.
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxSize(),
+            ) {
+                // ONE reading of the verdict for BOTH bodies. The rows and the region are
+                // alternatives (`ListBody`): during the minimum hold the deferred verdict is still
+                // LOADING while the data already says CONTENT, so a list composed independently of
+                // it draws its rows UNDER the spinner for the rest of the hold — the flash the two
+                // numbers remove, wearing an overlay.
+                val surface = rememberDeferredSurface(
+                    surface = listSurface(
+                        itemCount = items.itemCount,
+                        loadState = items.loadState,
+                        filterActive = state.activeTagFilter.isNotEmpty(),
+                        selecting = state.isSelecting,
+                    ),
+                    loadingSurface = ListSurface.LOADING,
+                )
+                if (listBody(surface, ListSurface.CONTENT) == ListBody.ROWS) {
+                    ExercisesList(state = state, items = items, consume = consume)
+                }
+                EmptyRegion(
+                    deferredSurface = surface,
+                    state = state,
+                    items = items,
+                    consume = consume,
+                )
             }
         }
         val isSelecting = state.isSelecting
@@ -346,6 +377,7 @@ private fun ExercisesList(
  */
 @Composable
 private fun BoxScope.EmptyRegion(
+    deferredSurface: ListSurface?,
     state: State,
     items: LazyPagingItems<ExerciseUiModel>,
     consume: (Action) -> Unit,
@@ -353,18 +385,7 @@ private fun BoxScope.EmptyRegion(
     val filterActive = state.activeTagFilter.isNotEmpty()
     val clearFilter = { consume(Action.Click.OnClearTagFilter) }
     val spec = continuityAlphaSpec<Float>()
-    // Deferred, then held for a minimum — see `rememberDeferredSurface`. Branch on what it returns
-    // and never on the raw verdict beside it: the hold's whole job is to keep LOADING on screen
-    // after the data has stopped loading, and `null` is the deferral window, where nothing draws.
-    val surface = rememberDeferredSurface(
-        surface = listSurface(
-            itemCount = items.itemCount,
-            loadState = items.loadState,
-            filterActive = filterActive,
-            selecting = state.isSelecting,
-        ),
-        loadingSurface = ListSurface.LOADING,
-    ) ?: return
+    val surface = deferredSurface ?: return
     if (surface.crossfades.not()) {
         if (surface == ListSurface.LOADING) {
             ColdOpenLoading(modifier = Modifier.align(Alignment.TopCenter))

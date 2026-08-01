@@ -132,6 +132,35 @@ fun <T : Any> rememberDeferredSurface(surface: T, loadingSurface: T): T? = defer
 )
 
 /**
+ * Which body a list screen draws, from [rememberDeferredSurface]'s verdict.
+ *
+ * **The rows and the loading treatment are alternatives, not layers.** The minimum hold keeps
+ * `loadingSurface` on screen *after* the data has arrived, so a screen whose rows are composed
+ * independently of this verdict draws them under a spinner for the rest of the hold — the flash the
+ * two numbers exist to remove, wearing an overlay. The hold is only a hold if the content it is
+ * holding back is actually held back.
+ *
+ * [REGION] covers `null` as well: in the deferral window the region draws nothing at all, and rows
+ * would be the one thing that must not appear there — a list that pops in at 40 ms is exactly what
+ * the appear delay is protecting the eye from.
+ *
+ * Every surface selector on this arc returns its content verdict first (`itemCount > 0 -> CONTENT`),
+ * so no verdict other than the content one can coexist with rows; gating on equality is therefore
+ * total rather than a heuristic.
+ */
+enum class ListBody {
+    /** The list's own items. */
+    ROWS,
+
+    /** The empty region: loading treatment, error, empty state — or, in the deferral window, nothing. */
+    REGION,
+}
+
+/** See [ListBody]. Pure, so the alternative is assertable without a screen. */
+fun <T : Any> listBody(surface: T?, contentSurface: T): ListBody =
+    if (surface == contentSurface) ListBody.ROWS else ListBody.REGION
+
+/**
  * See [rememberDeferredSurface]. Pure, so the table there is asserted rather than described —
  * including the row that carries the hold, which is the one a golden cannot reach and a screen can
  * silently discard.

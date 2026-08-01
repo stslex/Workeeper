@@ -31,6 +31,8 @@ import io.github.stslex.workeeper.core.ui.kit.components.PagingUiState
 import io.github.stslex.workeeper.core.ui.kit.components.collectAsItems
 import io.github.stslex.workeeper.core.ui.kit.components.empty.AppEmptyState
 import io.github.stslex.workeeper.core.ui.kit.components.loading.AppLoadingIndicator
+import io.github.stslex.workeeper.core.ui.kit.components.paging.ListBody
+import io.github.stslex.workeeper.core.ui.kit.components.paging.listBody
 import io.github.stslex.workeeper.core.ui.kit.components.paging.rememberDeferredSurface
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopAppBar
 import io.github.stslex.workeeper.core.ui.kit.icons.AppIcons
@@ -190,30 +192,42 @@ private fun HomeBody(
                 )
             }
         }
-        items(
-            count = recent.itemCount,
-            key = { index -> recent.peek(index)?.sessionUuid ?: "recent_$index" },
-        ) { index ->
-            recent[index]?.let { item ->
-                RecentSessionRow(
-                    // §26, continuity motion. A finished session arrives at the head of this list
-                    // the moment a workout ends, while the banner above it disappears — so every
-                    // row below moves in the same frame. Pure transit, no character: the placement
-                    // spec is positional and both fades are alpha, which is the split stated as
-                    // plainly as one call can state it.
-                    modifier = Modifier.animateItem(
-                        fadeInSpec = continuityAlphaSpec(),
-                        placementSpec = continuityPositionalSpec(),
-                        fadeOutSpec = continuityAlphaSpec(),
-                    ),
-                    item = item,
-                    // The drawing removes the last row's rule (`.frame .row:last-of-type`), so the
-                    // list does not end on a hairline into empty space.
-                    showDivider = index < recent.itemCount - 1,
-                    onClick = {
-                        consume(Action.Click.OnRecentSessionClick(sessionUuid = item.sessionUuid))
-                    },
-                )
+        // Gated on the DEFERRED verdict, not on `itemCount`: during the minimum hold the verdict is
+        // still LOADING while the rows have already arrived, and a list that emits them anyway
+        // draws them under the footer for the rest of the hold. The banner and the start card are
+        // not part of this — they are not the list.
+        // Gated on the DEFERRED verdict, not on `itemCount`: during the minimum hold the verdict
+        // is still LOADING while the rows have already arrived, and a list that emits them anyway
+        // draws them under the footer for the rest of the hold. The banner and the start card are
+        // not part of this — they are not the list.
+        if (listBody(surface, HomeListSurface.CONTENT) == ListBody.ROWS) {
+            items(
+                count = recent.itemCount,
+                key = { index -> recent.peek(index)?.sessionUuid ?: "recent_$index" },
+            ) { index ->
+                recent[index]?.let { item ->
+                    RecentSessionRow(
+                        // §26, continuity motion. A finished session arrives at the head of this
+                        // list the moment a workout ends, while the banner above it disappears — so
+                        // every row below moves in the same frame. Pure transit, no character: the
+                        // placement spec is positional and both fades are alpha, which is the split
+                        // stated as plainly as one call can state it.
+                        modifier = Modifier.animateItem(
+                            fadeInSpec = continuityAlphaSpec(),
+                            placementSpec = continuityPositionalSpec(),
+                            fadeOutSpec = continuityAlphaSpec(),
+                        ),
+                        item = item,
+                        // The drawing removes the last row's rule (`.frame .row:last-of-type`), so
+                        // the list does not end on a hairline into empty space.
+                        showDivider = index < recent.itemCount - 1,
+                        onClick = {
+                            consume(
+                                Action.Click.OnRecentSessionClick(sessionUuid = item.sessionUuid),
+                            )
+                        },
+                    )
+                }
             }
         }
         pagingTail(items = recent, onRetry = { recent.retry() })

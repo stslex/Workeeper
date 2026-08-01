@@ -6,36 +6,28 @@ import androidx.compose.runtime.Immutable
 /**
  * What is known about the account's stored backups — **three states, because there are three.**
  *
- * ## The defect this replaces
+ * [Unknown] is *not yet loaded*, [Empty] is *known to have none*, and they are different claims: a
+ * signed-in account with an unfinished Drive round-trip is in the first, not the second. **Do not
+ * collapse them.** Reporting [Empty] for a failed or pending list call turns a network condition
+ * into a statement about the user's account, which is the one thing this type exists to prevent.
  *
- * This was `BackupInfoUi?`, and the nullable carried two meanings at once: `null` meant *not yet
- * loaded*, while `BackupInfoUi(isEmpty = true)` meant *known to have none*. The UI could not tell
- * them apart, so a signed-in account with an unfinished Drive round-trip rendered identically to
- * one with no backups.
+ * **A loading deferral is the wrong instrument here and will not help.**
+ * `BackupClickHandler.observeAuth()` commits `backupAuth = Authenticated` immediately and only then
+ * calls `loadBackupList()`, whose `onSuccess` writes the info in a *second* emission with a network
+ * round-trip in between. Both emissions are rendered faithfully; the gap is not frame-scale, so
+ * `rememberDeferredSurface` does not apply — the first emission needs a way to *say* "not known
+ * yet", which is [Unknown].
  *
- * That is not a frame-scale problem and a loading deferral is the wrong instrument for it.
- * `BackupClickHandler.observeAuth()` commits `backupAuth = Authenticated` **immediately** and only
- * then calls `loadBackupList()`, whose `onSuccess` writes the info in a **second** emission — with a
- * network round-trip in between. The screen renders both emissions faithfully; what was wrong was
- * that the first one had no way to say "I do not know yet".
- *
- * ## The audit, so this is not mistaken for a screen's bug or for a codebase-wide one
- *
- * `null`-as-not-yet-loaded is an idiom, so every nullable field on every `Store.State` was checked
- * for the same conflation — 30 fields. **This is the only one**, because everywhere else either a
- * discriminator already exists (`isLoading` in exercise, chart, live-workout, single-training;
- * `isActiveLoaded` in home; `backupAuth` for `backupPreferences`) or only one meaning is reachable
- * (`archivedCounts` is `null` until known and `(0, 0)` when zero; pending-dialog fields and route
- * arguments are absence-only, with no load involved). Settings is the one State class carrying no
- * loading discriminator of any kind.
+ * This is the only `Store.State` nullable on the arc carrying that conflation; the audit behind
+ * that claim is §24.2, mockup-pass item 7.
  *
  * ## What [Unknown] draws is NOT decided here
  *
  * This type makes the third state expressible and forces a call site to answer it. It does not
  * choose the treatment: `#s-set` draws the populated row and nothing else, so a row-level spinner,
  * a withheld sub-line or a skeleton are all §0.1 decisions on an undrawn surface. Until the mockup
- * pass rules, [Unknown] renders exactly what `null` rendered — no sub-line — so this change moves
- * zero pixels, and the settings goldens prove it.
+ * pass rules, [Unknown] renders what the screen rendered before it existed — no sub-line — so the
+ * settings goldens are byte-identical across the change.
  */
 @Immutable
 sealed interface BackupInfoUi {

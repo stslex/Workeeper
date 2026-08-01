@@ -28,6 +28,8 @@ import io.github.stslex.workeeper.core.ui.kit.components.empty.AppEmptyState
 import io.github.stslex.workeeper.core.ui.kit.components.loading.AppLoadingIndicator
 import io.github.stslex.workeeper.core.ui.kit.components.paging.AppPagingErrorFooter
 import io.github.stslex.workeeper.core.ui.kit.components.paging.AppPagingLoadingFooter
+import io.github.stslex.workeeper.core.ui.kit.components.paging.ListBody
+import io.github.stslex.workeeper.core.ui.kit.components.paging.listBody
 import io.github.stslex.workeeper.core.ui.kit.components.segmented.AppSegmentedControl
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopAppBar
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
@@ -40,14 +42,12 @@ import io.github.stslex.workeeper.feature.archive.mvi.model.ArchivedItemUi
 import io.github.stslex.workeeper.feature.archive.mvi.store.ArchiveStore.Action
 import io.github.stslex.workeeper.feature.archive.mvi.store.ArchiveStore.Segment
 import io.github.stslex.workeeper.feature.archive.mvi.store.ArchiveStore.State
-import io.github.stslex.workeeper.feature.archive.ui.components.ArchiveBody
 import io.github.stslex.workeeper.feature.archive.ui.components.ArchiveListSurface
 import io.github.stslex.workeeper.feature.archive.ui.components.ArchivedItemRow
 import io.github.stslex.workeeper.feature.archive.ui.components.PagingErrorFooter
 import io.github.stslex.workeeper.feature.archive.ui.components.PagingLoadingFooter
 import io.github.stslex.workeeper.feature.archive.ui.components.PagingTailKind
 import io.github.stslex.workeeper.feature.archive.ui.components.PermanentDeleteDialog
-import io.github.stslex.workeeper.feature.archive.ui.components.archiveBody
 import io.github.stslex.workeeper.feature.archive.ui.components.pagingTailKind
 import io.github.stslex.workeeper.feature.archive.ui.components.rememberArchiveSurface
 import kotlinx.collections.immutable.persistentListOf
@@ -149,9 +149,9 @@ private fun ArchivedExerciseList(
     // Taken ABOVE the swap, not inside the region: this branch decides whether the region is
     // composed at all, and the hold works by staying in composition after the data stops loading.
     // Reading `archiveListSurface` here would delete the region — and the deferral with it — at
-    // the exact moment the minimum starts. See [ArchiveBody].
+    // the exact moment the minimum starts. See [ListBody].
     val surface = rememberArchiveSurface(items)
-    if (archiveBody(surface) == ArchiveBody.REGION) {
+    if (listBody(surface, ArchiveListSurface.CONTENT) == ListBody.REGION) {
         ArchiveEmptyRegion(
             modifier = modifier,
             surface = surface,
@@ -204,9 +204,9 @@ private fun ArchivedTrainingList(
     consume: (Action) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // Same gate as the exercise tab, and same reason — see [ArchiveBody].
+    // Same gate as the exercise tab, and same reason — see [ListBody].
     val surface = rememberArchiveSurface(items)
-    if (archiveBody(surface) == ArchiveBody.REGION) {
+    if (listBody(surface, ArchiveListSurface.CONTENT) == ListBody.REGION) {
         ArchiveEmptyRegion(
             modifier = modifier,
             surface = surface,

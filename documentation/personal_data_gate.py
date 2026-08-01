@@ -49,12 +49,30 @@ import sys
 
 # Each pattern carries the reason for THE PATTERN, not for the name.
 PATTERNS: dict[str, str] = {
-    # Any address that is not on a reserved documentation domain. RFC 2606 reserves example.com /
-    # .org / .net and `.invalid`/`.test`/`.example` precisely so fixtures have somewhere safe to
-    # live, so the check is "is it reserved", not "is it Ilya's".
-    "email": r"[A-Za-z0-9._%+-]+@(?!example\.(?:com|org|net)\b)(?!.*\.(?:invalid|test|example)\b)"
-             r"[A-Za-z0-9.-]+\.[A-Za-z]{2,}",
+    # What an address LOOKS like — nothing about which domains are allowed. That half moved out of
+    # the pattern and into `is_reserved_domain` below, and the move is a fix, not tidying: the old
+    # pattern carried `(?!.*\.(?:invalid|test|example)\b)`, whose `.*` spans the REST OF THE LINE,
+    # so a real address followed anywhere on the same line by a reserved placeholder matched
+    # nothing at all — a leak plus `user@example.test`, in that order, reported clean. The bypass
+    # was order-dependent, since the same two addresses reversed were caught, which is the worst
+    # shape a gate hole can take: it looks like it works. (The failing case is not written out
+    # here as a literal, because this gate now reads its own source and would catch it.)
+    "email": r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}",
 }
+
+# RFC 2606 reserves example.com/.org/.net and the `.invalid`/`.test`/`.example` TLDs precisely so
+# fixtures have somewhere safe to live. The check is "is this address's OWN domain reserved", which
+# is a question about one address and is therefore asked in code, one candidate at a time — never
+# with a lookahead that can see its neighbours.
+RESERVED_DOMAINS = ("example.com", "example.org", "example.net")
+RESERVED_TLDS = (".invalid", ".test", ".example")
+
+
+def is_reserved_domain(address: str) -> bool:
+    """True if this one address is on a documentation domain and may therefore appear anywhere."""
+    domain = address.rsplit("@", 1)[-1].lower().rstrip(".")
+    return domain in RESERVED_DOMAINS or domain.endswith(RESERVED_TLDS)
+
 
 # Literal strings that are personal but match no general pattern — a human name is not
 # distinguishable from any other capitalised pair by regex, so the ones this repo has carried are
@@ -152,6 +170,8 @@ def scan(root: pathlib.Path) -> tuple[list[str], list[str]]:
                     # address looks like, and this is about what Kotlin syntax looks like — mixing
                     # the two would make the pattern unreadable and unauditable.
                     if value.startswith("this@"):
+                        continue
+                    if kind == "email" and is_reserved_domain(value):
                         continue
                     hits.append((lineno, kind, value))
             for literal in LITERALS:

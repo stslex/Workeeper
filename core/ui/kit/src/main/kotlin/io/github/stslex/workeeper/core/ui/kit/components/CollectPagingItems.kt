@@ -21,8 +21,15 @@ import androidx.paging.compose.collectAsLazyPagingItems
  *
  * That is not a theoretical hazard. Three screens wrote
  * `remember(state.pagingUiState) { state.pagingUiState() }` and Home wrote
- * `state.pagingUiState().collectAsLazyPagingItems()`. Measured on device, with a workout running —
- * Home recomposes once a second on the session timer:
+ * `state.pagingUiState().collectAsLazyPagingItems()`.
+ *
+ * **Measured on device on a `debug` build**, with a workout running — Home recomposes once a second
+ * on the session timer. The build type is stated because AGENTS.md requires it of any performance
+ * number, and it splits this evidence in two: the **rebuild count is structural** — a `fun
+ * interface` invocation allocates a new `Flow` under R8 exactly as it does without it, and the
+ * recomposition that triggers it is a Compose fact, not an optimiser one — while the **23 ms blank
+ * is a debug duration and is not a shipping claim.** Release would blank for less; it would still
+ * blank, once a second, and that is what the `remember` removes.
  *
  * ```
  *   flow BUILT      t=...892435
@@ -30,9 +37,9 @@ import androidx.paging.compose.collectAsLazyPagingItems
  *   verdict=CONTENT n=1   t=...892459   (+23ms)
  * ```
  *
- * 13 rebuilds in 12 seconds, each blanking the list to the paging spinner for ~23 ms — a visible
- * flash once a second, for as long as a workout runs, on the app's primary screen. The three
- * screens that wrapped it composed **twice on entry and never again**.
+ * 13 rebuilds in 12 seconds, each blanking the list to the paging spinner for ~23 ms on that build
+ * — a visible flash once a second, for as long as a workout runs, on the app's primary screen. The
+ * three screens that wrapped it composed **twice on entry and never again**.
  *
  * ## Why a helper rather than a lint rule alone
  *

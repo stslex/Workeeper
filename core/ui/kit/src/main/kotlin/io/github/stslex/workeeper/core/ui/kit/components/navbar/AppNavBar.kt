@@ -157,13 +157,13 @@ fun AppNavBar(
             Row(horizontalArrangement = Arrangement.spacedBy(ITEM_GAP)) {
                 items.forEachIndexed { index, item ->
                     // ONE TIMELINE. The tint and the pill are two properties of a single state
-                    // change, so they run for the same length: `NAV_PILL_TRAVEL`, not `base`.
+                    // change, so they run for the same length: `NAV_PILL_TRAVEL`, not `base`. Give
+                    // the tint its own rung and the destination reads as already selected while the
+                    // pill is still travelling. `NavPillTest` asserts the two are EQUAL rather than
+                    // pinning the number twice — the defect is divergence.
                     //
-                    // They used to be 340 against 260, and the device pass read the destination as
-                    // already selected while the pill was still travelling — 80ms of one property
-                    // finished before the other. Nothing about the CURVE is decided here: both are
-                    // `out`, as before, and whether a colour transit wants a different curve is a
-                    // separate question §26.1 now records as an open gap rather than an omission.
+                    // Nothing about the CURVE is decided here: both are `out`, and whether a colour
+                    // transit wants a different one is §26.1's open gap, not an omission.
                     val tint by animateColorAsState(
                         targetValue = if (index == selected) {
                             AppUi.colors.textPrimary
