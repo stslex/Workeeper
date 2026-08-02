@@ -60,8 +60,8 @@ import kotlinx.coroutines.flow.flowOf
 /**
  * Home, extracted against the drawn shell — and the extraction stops in four places.
  *
- * **Home has no drawing.** `pass2d.html` carries ten `.screen` sections (`#s-live`, `#s-chart`,
- * `#s-ex`, `#s-past`, `#s-set`, `#s-empty`, `#s-list`, `#s-nav`, `#s-topbar`, `#s-arch`) and not
+ * **Home has no drawing.** `pass2d.html` carries eleven `.screen` sections (`#s-live`, `#s-chart`,
+ * `#s-ex`, `#s-past`, `#s-set`, `#s-empty`, `#s-list`, `#s-nav`, `#s-topbar`, `#s-arch`, `#s-band`) and not
  * one of them is this
  * screen; `#s-empty`'s three glyph-tile blocks are all-trainings', the chart's and all-exercises'.
  * So Home is a **derived** screen in §24's sense — it composes the shell drawn once in `#s-list`
