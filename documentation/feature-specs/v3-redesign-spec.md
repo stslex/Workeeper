@@ -696,7 +696,7 @@ Taken the way A's was, and it corrects one sentence of this section's own first 
 
 | part | drawn referent | ships | the decision |
 |---|---|---|---|
-| **active-session banner** | **`.row.live`** (`#s-list`) — `--slab` + `--slabtop`, meta «идёт сейчас · 12:04». A **row**, carrying exactly what the banner carries: name plus running time | `ActiveSessionBanner` = `AppCard`, inset, `Space.md` padding | row or card. **A row form is fully referenced and a card form is not** — `.card` exists but is drawn only for a *session's exercises* (`#s-live`, `#s-past`), never for a standing summary |
+| **active-session banner** | **`.row.live`** (`#s-list`) — `--slab` + `--slabtop`, meta «идёт сейчас · 12:04». A referent for the **treatment**, not for the whole payload — see the content row below | `ActiveSessionBanner` = `AppCard`, inset, `Space.md` padding, **three elements beyond the name** | row or card. **The row's treatment is referenced and the card's is not** — `.card` exists but is drawn only for a *session's exercises* (`#s-live`, `#s-past`), never for a standing summary |
 | **start card** | **none for a card.** The drawn CTA grammar is `#s-empty`'s `.btns` — `.btn` + `.btn.ghost` — which lives *inside an empty state*, not as a standing block | `HomeStartCard` = `AppCard` with title + subtitle, shown when `activeSession == null && !isLoading` | whether the offer is a **card**, a pair of **buttons** in the drawn grammar, or absent — and the answer is coupled to the banner's, since they occupy the same slot in alternation |
 | **empty copy** | `#s-empty`'s `.empty` + `.glyph` + optional `.btns`, drawn three times | `AppEmptyState`, glyph `AppIcons.Trainings`, headline + supporting, **`actionLabel = null, onAction = null`** | the copy, and whether this state carries a CTA at all |
 
@@ -705,6 +705,24 @@ plus an empty-state CTA is **the same offer twice**". **Not today:** Home passes
 and `onAction = null`, so the empty state draws copy only and the start card is the single offer. The
 duplication is a **hazard of the decision**, not a live defect — and it becomes live the moment the
 empty state is given a button, which is precisely one of the three things B rules.
+
+**CORRECTED after review — "carries exactly what the banner carries" was false, and the difference
+is the interesting part.** Measured against `ActiveSessionBanner`: the shipped banner renders a
+**leading `Icons.Filled.FitnessCenter`** at `iconLg`, the training name **and** an emphasised
+`•elapsed` timer at `titleLarge` on one line (width reserved off `MAX_TEXT_TIME`), and a **progress
+line** at `bodySmall` carrying done/total. `.row.live` carries a name, one meta line and a chevron.
+So the row is a referent for the *treatment* — `--slab` + `--slabtop`, the lift — and **not** for the
+payload, and the comparison's real question is whether the row can take that payload:
+
+- **the leading icon cannot survive the row form at all** — §26 "Leading media in list rows" is a
+  stated **absence**, so choosing the row means dropping the mark or overruling a recorded decision;
+- **the emphasised timer** has no row-grammar equivalent: the row's meta line is one line at
+  `mono.meta`, so `•12:04` at title size becomes a meta token;
+- **done/total** folds into that same meta line or goes.
+
+**A sub-finding worth its own line, since it is a shipped fact rather than a drawing question:** the
+banner's leading mark is a **filled Material import** (`Icons.Filled.FitnessCenter`), which is the
+class this arc has removed twice. Whatever grammar wins, that mark does not survive as it is.
 
 **What the survey adds that the grouping did not have.** The banner/card question is not a taste
 question between two available forms: **one of the two forms has a referent and the other does not.**
