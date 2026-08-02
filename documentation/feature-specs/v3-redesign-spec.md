@@ -548,7 +548,14 @@ survey proposed nothing; it grouped, measured and asked.
 
 1. **How many sections? THREE, unchanged** — Home, Trainings, Exercises. The bar is not reopened.
 2. **Archive stays a SETTINGS SUB-SCREEN**, not a fourth destination. It is pushed, it keeps its
-   back arrow, and `Home → Settings → Archive` stays the route. So the two-hop distance is a
+   back arrow, and `Home → Settings → Archive` stays the route. **This CONFIRMS the governing
+   documents rather than establishing anything, and they are cited here because the question was
+   put without them:** `features.md` names exactly three top-level entries (`HOME`, `TRAININGS`,
+   `EXERCISES`) and `product.md` item 13 places the Archive screen **"under Settings"** in as many
+   words. The consequence in the other direction is the part worth keeping: **a ruling that MOVED
+   archive would have been a product change** and owed both documents an edit, not a spec row. The
+   defect was the survey's — it measured the code exhaustively and never read the product document
+   that already described it. So the two-hop distance is a
    **decision**, not an artefact of one call site — and archive's back-plus-title top bar is now the
    correct bar for what it is rather than a third default nobody chose.
 3. **An archived item OPENS — read-only detail.** The drawn `.chev` becomes true: the row gains a
@@ -641,8 +648,11 @@ Independent of A and B and of each other.
 
 #### Order
 
-**A, then B, then C.** A is blocked on a ruling; B and C are not blocked on anything but on A being
-settled first, because a top bar and a band are seen together. Within C the order is free.
+**A, then B. C runs alongside either, and the earlier draft of this line was wrong to queue it.**
+A is blocked on a ruling. **B waits for A** for a stated reason — a top bar and a band are seen
+together, so deciding the band under an undecided bar decides it twice. **C waits for nothing:** the
+editors' plan-editor body, backup's `Unknown` and the borrowed press scale touch neither the bar nor
+the band, which is what "standalone" meant two paragraphs up. Within C the order is free.
 
 ### 24.1 The jank investigation — where it stands, and what is still open
 
