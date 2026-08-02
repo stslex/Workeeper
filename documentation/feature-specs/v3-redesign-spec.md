@@ -612,7 +612,7 @@ rebuild, where it is already recorded (`ArchivedItemRow`'s KDoc, #206). A pass t
 delta" is worth stating plainly: before it, three screens differed for no reason anyone had written
 down; after it, they differ for one sentence that a reviewer can check.
 
-**What group A still leaves open — TWO items, and the second was found in review.**
+**What group A still leaves open — THREE items.**
 
 **(a) Where "restore" and "delete permanently" go once they come off the archive row.** The ruling moved them off it by making the row
 open; it did not say where they land, and `#s-arch` does not answer it either — the drawn detail has
@@ -630,6 +630,12 @@ chart — and choosing between them is a decision, not a transcription. Left ope
 outlives this pass: the chart's only entry point on the exercise detail is an unmarked click**, which
 is a discoverability question on a shipped screen and is filed here rather than fixed inside a
 mockup PR.
+
+**(c) The archived TRAINING card.** `#s-arch` draws the **exercise** variant — set history, the
+chart question — and archive carries two lists. Drawing the training variant now would mean drawing
+the training detail itself, which is not in the file at all: it is one of the eight derived screens
+and undrawn. So the training variant is **unresolved**, not implied, and the archive rebuild must
+not derive it from this section by analogy.
 
 **The candidate drawing is not in this repository.** `v3-topbar-candidates.html` — `pass2d.html`
 plus one `#s-topbar` section, drawing the candidates side by side — was searched for in the working
