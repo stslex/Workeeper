@@ -690,6 +690,35 @@ that are visible in a single screenful:
 Home is undrawn in full (`pass2d.html` has ten sections and none is Home), so B has no drawn
 referent to transcribe and every part of it is a §0.1 decision.
 
+##### SURVEYED, read-only — what each part has, ships, and decides
+
+Taken the way A's was, and it corrects one sentence of this section's own first draft.
+
+| part | drawn referent | ships | the decision |
+|---|---|---|---|
+| **active-session banner** | **`.row.live`** (`#s-list`) — `--slab` + `--slabtop`, meta «идёт сейчас · 12:04». A **row**, carrying exactly what the banner carries: name plus running time | `ActiveSessionBanner` = `AppCard`, inset, `Space.md` padding | row or card. **A row form is fully referenced and a card form is not** — `.card` exists but is drawn only for a *session's exercises* (`#s-live`, `#s-past`), never for a standing summary |
+| **start card** | **none for a card.** The drawn CTA grammar is `#s-empty`'s `.btns` — `.btn` + `.btn.ghost` — which lives *inside an empty state*, not as a standing block | `HomeStartCard` = `AppCard` with title + subtitle, shown when `activeSession == null && !isLoading` | whether the offer is a **card**, a pair of **buttons** in the drawn grammar, or absent — and the answer is coupled to the banner's, since they occupy the same slot in alternation |
+| **empty copy** | `#s-empty`'s `.empty` + `.glyph` + optional `.btns`, drawn three times | `AppEmptyState`, glyph `AppIcons.Trainings`, headline + supporting, **`actionLabel = null, onAction = null`** | the copy, and whether this state carries a CTA at all |
+
+**CORRECTION to this section's own text, measured rather than remembered.** It said "a start card
+plus an empty-state CTA is **the same offer twice**". **Not today:** Home passes `actionLabel = null`
+and `onAction = null`, so the empty state draws copy only and the start card is the single offer. The
+duplication is a **hazard of the decision**, not a live defect — and it becomes live the moment the
+empty state is given a button, which is precisely one of the three things B rules.
+
+**What the survey adds that the grouping did not have.** The banner/card question is not a taste
+question between two available forms: **one of the two forms has a referent and the other does not.**
+Choosing the card means drawing a standing-summary card for the first time in this contract —
+new grammar, in §0.1's sense, exactly like Home's second trailing mark. Choosing the row means the
+band opens with the treatment the list below it already uses, and the "two grammars in eight
+vertical dp" problem disappears rather than being managed.
+
+**Half-answered by group A, and recorded so it is not re-opened:** the chart entry **stays in the
+bar**, so it is not competing for a slot in the band. B decides three blocks, not four.
+
+**Not drawn. Stops here for a ruling**, the way A did: the three parts are one grammar and drawing
+any of them takes the other two.
+
 #### Group C — STANDALONE (was items 6, 7, 8)
 
 Independent of A and B and of each other.
