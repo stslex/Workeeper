@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.core.ui.kit.components.paging
 
+import android.os.SystemClock
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -26,10 +27,13 @@ import kotlinx.coroutines.delay
  * not on this list is a design decision"):
  *
  * - **Appear delay** = [AppMotion.fast], **140 ms** — nothing renders below it, so the
- *   outgoing frame persists. Measured worst case for a real load on this app is **61 ms** (a cold
- *   `all-trainings` entry, `refresh = Loading` → `NotLoading`, device-instrumented), and Home's warm
- *   path is 23 ms, so 140 clears the real distribution by 2.3× and the spinner never appears at all
- *   on the loads that were flashing.
+ *   outgoing frame persists. Measured worst case for a real load on this app is **61 ms on a
+ *   `debug` build** (a cold `all-trainings` entry, `refresh = Loading` → `NotLoading`,
+ *   device-instrumented); Home's warm path is 23 ms on the same build. Both numbers state their
+ *   build type because AGENTS.md requires it of any performance number, and here it cuts the safe
+ *   way: **release loads are not slower than debug ones**, so a threshold that clears the debug
+ *   distribution by 2.3× clears the release one by at least as much. A release re-measure would
+ *   move the margin up, never the threshold down.
  * - **Minimum hold** = [AppMotion.base], **260 ms** — once visible, visible for at least this
  *   long. The same rung the app's crossfades already run at, so a spinner that does appear lasts
  *   about as long as everything else that moves.
@@ -77,10 +81,10 @@ private fun rememberLoadingVisible(loading: Boolean): Boolean {
     var shownAt by remember { mutableLongStateOf(0L) }
 
     LaunchedEffect(loading) {
-        when (val step = loadingStep(loading, visible, shownAt, System.currentTimeMillis(), motion)) {
+        when (val step = loadingStep(loading, visible, shownAt, SystemClock.elapsedRealtime(), motion)) {
             is LoadingStep.ShowAfter -> {
                 delay(step.delayMillis)
-                shownAt = System.currentTimeMillis()
+                shownAt = SystemClock.elapsedRealtime()
                 visible = true
             }
 
@@ -222,6 +226,12 @@ internal fun loadingStep(
  *
  * Clamped at zero: a spinner already up for longer than the minimum is released immediately, and a
  * negative value would mean the arithmetic had gone wrong somewhere nothing could see it.
+ *
+ * **Fed from `SystemClock.elapsedRealtime()`, not the wall clock.** A wall-clock adjustment between
+ * the spinner appearing and the load finishing lands directly in this subtraction: backwards, the
+ * remainder inflates by the size of the correction and the spinner sits there; forwards, the hold is
+ * released early. Neither is likely inside 260 ms and neither is bounded, which is the reason to use
+ * the clock that cannot move rather than the one that rarely does.
  */
 internal fun loadingHoldRemaining(
     shownAtMillis: Long,

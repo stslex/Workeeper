@@ -60,6 +60,10 @@ class PagingCollectionRule(
         super.visitCallExpression(expression)
 
         if (expression.calleeExpression?.text != RAW_COLLECT) return
+        // The exclusion matches the helper's FULL repo-relative path, not its basename. A suffix of
+        // "/CollectPagingItems.kt" exempts any file that happens to carry that name, anywhere in the
+        // tree — which is an exemption granted by filename rather than by identity, and it would let
+        // a feature file reintroduce the raw call with the rule watching and silent.
         val path = expression.containingKtFile.virtualFilePath.replace('\\', '/')
         if (path.endsWith(KIT_HELPER_FILE)) return
 
@@ -90,6 +94,8 @@ class PagingCollectionRule(
          * matched. Kept as a leading `/` match so a same-named file elsewhere is not silently
          * excused.
          */
-        const val KIT_HELPER_FILE = "/CollectPagingItems.kt"
+        const val KIT_HELPER_FILE =
+            "core/ui/kit/src/main/kotlin/io/github/stslex/workeeper/core/ui/kit/" +
+                "components/CollectPagingItems.kt"
     }
 }
