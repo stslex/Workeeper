@@ -784,8 +784,13 @@ obligation: **the loser leaves the file with its rules, in one commit.** The car
 ships today on purpose: the comparison is then against what has been on screen for weeks rather than
 against a description.
 
-**Both forms carry the SHIPPED payload, corrected after review — a comparison that drops content
-cannot answer the question it exists for.** The card draws all four things the banner has (leading
+**Both forms carry the SHIPPED payload AND ITS GEOMETRY — a comparison that drops either cannot
+answer the question it exists for.** The drawn card reproduces what production renders: **24dp per
+edge** (`AppCard`'s `cardPadding` plus the banner's own `Row` padding), a **32dp** leading mark, a
+**16dp** gap, vertical centring, name and timer at **19sp** (`titleLarge`), **12dp** before the
+progress line, and the timer's width **reserved off `•999:99:99`** rather than off the string on
+screen — drawn as a hidden max-width string behind the live one, which is the mechanism itself and
+not a magic number. The card draws all four things the banner has (leading
 mark, name, emphasised `•12:04`, progress); the row draws what the row grammar can take, and the
 difference is itself evidence: **the leading mark cannot appear in the row at all** (§26 "Leading
 media in list rows" is a stated absence), and the timer and progress fold into one `mono.meta` line,
