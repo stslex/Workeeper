@@ -784,6 +784,18 @@ obligation: **the loser leaves the file with its rules, in one commit.** The car
 ships today on purpose: the comparison is then against what has been on screen for weeks rather than
 against a description.
 
+**Both forms carry the SHIPPED payload, corrected after review — a comparison that drops content
+cannot answer the question it exists for.** The card draws all four things the banner has (leading
+mark, name, emphasised `•12:04`, progress); the row draws what the row grammar can take, and the
+difference is itself evidence: **the leading mark cannot appear in the row at all** (§26 "Leading
+media in list rows" is a stated absence), and the timer and progress fold into one `mono.meta` line,
+losing the title-size emphasis. So the ruling is not only "which treatment" — it is **whether the
+band can lose a leading mark and a size distinction**. One correction to the drawn card, stated
+because it is a shipped fact and not a drawing choice: the banner's leading mark is
+`Icons.Filled.FitnessCenter`, **a filled Material import** — the class this arc has removed twice —
+so `#s-band` draws it as the stroke training glyph the nav bar already carries, and that mark does
+not survive either ruling in its shipped form.
+
 **The framing carries the correction, and does not keep steering by the claim it replaced.** "A
 start card plus an empty-state CTA is the same offer twice" is **a hazard the ruling could create,
 not a defect it must fix** — Home passes `actionLabel = null, onAction = null`, so the empty state is
