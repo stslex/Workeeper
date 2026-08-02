@@ -142,12 +142,10 @@ fun AppListRow(
 /**
  * The drawn 20px trailing slot, centred and **fixed width**.
  *
- * §26 "Selection mode", as amended: an unselected row in selection mode loses the chevron, not the
- * slot. As first drawn the slot followed its contents and the text column moved with it — measured
- * 338 / 336 / 370px for chevron, check and nothing — which reflowed every row on entering the mode
- * and one row on every toggle, against a two-line clamped name. Holding the width is the fix, so
- * a caller that puts its content straight into [AppListRow]'s trailing region without this box is
- * opting out of it.
+ * §26 "Selection mode", as amended: an unselected row in selection mode loses the chevron, **not
+ * the slot**. The width is held whatever is in it, so the text column beside it never reflows on a
+ * selection toggle — a caller that puts content straight into [AppListRow]'s trailing region
+ * instead of this box is opting out of that guarantee.
  */
 @Composable
 fun AppListRowSlot(content: @Composable () -> Unit) {

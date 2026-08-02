@@ -79,11 +79,12 @@ internal fun ArchivedItemRow(
         meta = metaLine,
         metaTestTag = "ArchivedItemMeta_${item.uuid}",
         showDivider = showDivider,
-        // UNRESOLVED — archive-delta §2.1. Two verbs against a one-slot skeleton; left as-is on
-        // purpose rather than picked, which is also why this is NOT wrapped in `AppListRowSlot`:
-        // the drawn 20dp slot cannot hold them, and the shared row deliberately does not impose
-        // it. Do not "tidy" either without that ruling — collapsing it silently answers a §0.1
-        // question in a refactor.
+        // SCHEDULED, not open — §2.1 is ruled (§24.2 group A): the row will take the drawn 20dp
+        // slot with a chevron and these two verbs leave it. Not applied here because this change
+        // asserts every golden stays byte-identical and applying it moves pixels; it lands with
+        // the archive rebuild. Until then this stays un-slotted BY SCHEDULE — so do not wrap it in
+        // `AppListRowSlot` piecemeal either: the slot arrives with the click and the destination
+        // or not at all.
         content = {
             TrailingAffordances(
                 item = item,
