@@ -696,7 +696,7 @@ Taken the way A's was, and it corrects one sentence of this section's own first 
 
 | part | drawn referent | ships | the decision |
 |---|---|---|---|
-| **active-session banner** | **`.row.live`** (`#s-list`) — `--slab` + `--slabtop`, meta «идёт сейчас · 12:04». A referent for the **treatment**, not for the whole payload — see the content row below | `ActiveSessionBanner` = `AppCard`, inset, `Space.md` padding, **three elements beyond the name** | row or card. **The row's treatment is referenced and the card's is not** — `.card` exists but is drawn only for a *session's exercises* (`#s-live`, `#s-past`), never for a standing summary |
+| **active-session banner** | **`.row.live`** (`#s-list`) — `--slab` + `--slabtop`, meta «идёт сейчас · 12:04». A referent for the **treatment**, not for the whole payload — see the content row below | `ActiveSessionBanner` = `AppCard`, inset, **24dp per edge** (`AppCard`'s own `cardPadding = Space.md` plus another `Space.md` on the nested `Row`), **three elements beyond the name** | row or card. **The row's treatment is referenced and the card's is not** — `.card` exists but is drawn only for a *session's exercises* (`#s-live`, `#s-past`), never for a standing summary |
 | **start card** | **none for a card.** The drawn CTA grammar is `#s-empty`'s `.btns` — `.btn` + `.btn.ghost` — which lives *inside an empty state*, not as a standing block | `HomeStartCard` = `AppCard` with title + subtitle, shown when `activeSession == null && !isLoading` | whether the offer is a **card**, a pair of **buttons** in the drawn grammar, or absent — and the answer is coupled to the banner's, since they occupy the same slot in alternation |
 | **empty copy** | `#s-empty`'s `.empty` + `.glyph` + optional `.btns`, drawn three times | `AppEmptyState`, glyph `AppIcons.Trainings`, headline + supporting, **`actionLabel = null, onAction = null`** | the copy, and whether this state carries a CTA at all |
 
@@ -720,9 +720,26 @@ payload, and the comparison's real question is whether the row can take that pay
   `mono.meta`, so `•12:04` at title size becomes a meta token;
 - **done/total** folds into that same meta line or goes.
 
-**A sub-finding worth its own line, since it is a shipped fact rather than a drawing question:** the
-banner's leading mark is a **filled Material import** (`Icons.Filled.FitnessCenter`), which is the
-class this arc has removed twice. Whatever grammar wins, that mark does not survive as it is.
+**Two shipped icons recorded as facts, with their treatment left to the ruling.** The banner's
+leading mark is `Icons.Filled.FitnessCenter` and `HomeStartCard`'s is `Icons.Filled.PlayArrow` —
+both **filled Material imports**, in a drawing whose every mark is a stroke at 1.6–2.7 with
+`fill:none`. **Nothing in the ledger bans a filled glyph on a card**, so declaring they cannot
+survive would be taking an appearance decision inside a survey that exists to stop for one; the
+earlier draft of this line did exactly that and is corrected here.
+
+**What the two rulings do to the banner's mark, which is a consequence of each and not a new
+decision:**
+
+- **as a ROW the mark is gone** — not by preference but by a recorded rule: §26 "Leading media in
+  list rows" is a stated absence, so the row form has nowhere to put it;
+- **as a CARD the mark stays, and what it should BE is open.** `#s-band` draws it as the stroke
+  training glyph the nav bar already carries, which is a **stand-in and is marked as one** —
+  a section mark doing duty as a state mark, since the nav glyph says *Trainings* and the banner
+  means *a session is running*, and no mark for that state is drawn anywhere. So the card form owes
+  either a mark it does not have, or the filled import it ships with, and that is the ruling's to
+  take.
+- **`HomeStartCard`'s `PlayArrow` rides on the same decision** and is recorded here so it is not
+  discovered separately later.
 
 **What the survey adds that the grouping did not have.** The banner/card question is not a taste
 question between two available forms: **one of the two forms has a referent and the other does not.**
