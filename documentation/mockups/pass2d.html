@@ -216,8 +216,6 @@
         .nb button svg{width:22px;height:22px;stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round}
         .nb button.on{color:var(--max)}
         .nb.pill button.on{background:var(--slab);box-shadow:var(--slabtop)}
-        .nb .cap{font-family:var(--ff-mono);font-size:11px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--meta);line-height:1;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-        .nb.capsel button:not(.on) .cap{display:none}
         .nb.slide{position:relative}
         .nb.slide button{position:relative;z-index:1}
         .nb.slide .ind{position:absolute;top:5px;bottom:5px;left:0;width:0;pointer-events:none;transition:transform 340ms var(--e-out)}
@@ -526,6 +524,43 @@
         </div>
         <div class="navnote">Сессия (§1.8) и упражнение (§3.6) рисуют снизу <b>.dock</b>. Если бар и док встречаются, низ читается как две панели подряд — 152px хрома на 812px экрана. Правило рисуется здесь: экран с доком бар не показывает.</div>
     </section>
+
+    <section class="screen" id="s-topbar">
+        <div class="topbar"><h1>Верхняя панель</h1></div>
+        <div class="hint">Правило одно, форм три: <b>раздел нижней навигации несёт свой заголовок; главная дополнительно несёт две глобальные точки входа, потому что она единственный экран, где они есть; вытолкнутый экран несёт стрелку назад</b>. Ниже нарисованы первая и третья. Вторая ждёт одну отметку — см. последнюю заметку.</div>
+
+        <div class="section-head"><span class="label">раздел нижней навигации — только заголовок</span></div>
+        <div class="frame">
+            <div class="topbar"><h1>Тренировки</h1></div>
+            <div class="row"><div class="row-body"><div class="row-name">Ноги и плечи</div><div class="meta">вчера · 48 мин · 6 упражнений</div></div><span class="slot"><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></span></div>
+            <div class="row"><div class="row-body"><div class="row-name">Верх (с подтягиваниями)</div><div class="meta">8 упражнений · грудь · спина</div></div><span class="slot"><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></span></div>
+        </div>
+        <div class="navnote">Заголовок нужен не потому, что 60px хрома ничего не стоят, а потому, что <b>назвать экран больше нечем</b>: у нижней панели <b>нет подписей</b> — ни одной <b>.cap</b> в разметке <b>#s-nav</b>, — и из трёх её глифов два взяты из нарисованных пустых состояний. Заголовок — единственное место, где сказано, на что вы смотрите. Отклонённый вариант снимал панель на доводе «раздел уже назван нижней панелью»; в нарисованном виде это <b>неверно</b>, а отклонение с неверным доводом переиспользуют.</div>
+
+        <div class="section-head"><span class="label">вытолкнутый экран — стрелка назад и заголовок</span></div>
+        <div class="frame">
+            <div class="topbar"><button class="icon-btn lead"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><h1>Архив</h1></div>
+            <div class="row"><div class="row-body"><div class="row-name">Румынская тяга</div><div class="meta">упражнение · в архиве с 3 июля</div></div><span class="slot"><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></span></div>
+        </div>
+        <div class="navnote">Форма не новая: <b>.icon-btn.lead + h1</b> уже нарисована на трёх экранах (<b>#s-ex</b>, <b>#s-past</b>, <b>#s-set</b>). Архив её и так носит — правило превращает совпадение в <b>ссылку</b>.</div>
+
+        <div class="navnote"><b>Панель главной здесь не нарисована, и это не пропуск.</b> Она несёт <b>две</b> замыкающие отметки — график, затем настройки. У отметки графика референс есть: это глиф пустого состояния графика (<b>#s-empty</b>, ломаная), взятый в размер иконки. <b>У отметки настроек референса нет</b> — во всём файле нет ни одной шестерёнки: настройки нарисованы как <b>экран</b> (<b>#s-set</b>), никогда как точка входа. Нарисовать её значит её придумать, поэтому панель главной ждёт решения, какой отметкой обозначены настройки.</div>
+    </section>
+
+    <section class="screen" id="s-arch">
+        <div class="topbar"><h1>Архивная карточка</h1></div>
+        <div class="hint">Архивная карточка <b>только для чтения</b>: правки и удаления нет, история и график остаются доступны. Отклонённый вариант провалился на собственном рисунке — он показывал «14 сессий» как факт, к которому нельзя перейти.</div>
+
+        <div class="topbar"><button class="icon-btn lead"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><h1 class="sm">Румынская тяга</h1></div>
+        <div style="padding:0 var(--gutter);margin-bottom:16px"><div class="meta">упражнение · в архиве с 3 июля · спина</div></div>
+
+        <div class="section-head"><span class="label">История</span><span class="label">14 сессий</span></div>
+        <div class="list">
+            <div class="row"><div class="row-body"><div class="row-name" style="font-size:15px">9 июля</div><div class="meta">7×12 · 7×12 · 7×12</div></div><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
+            <div class="row"><div class="row-body"><div class="row-name" style="font-size:15px">2 июля</div><div class="meta">5×12 · 6×12 · 9×12</div></div><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
+        </div>
+        <div class="navnote">Замыкающего слота у панели <b>нет</b> — это и есть «правки и удаления не видно»: вычитание из нарисованной формы <b>#s-ex</b>, а не новая форма. Строка сведений — та же мета-строка, что несёт строка списка. История — <b>.section-head</b> со счётом и строки со шевроном, как на <b>#s-ex</b>: счёт назван, и по нему можно пройти. <b>Что этот экран НЕ решает:</b> куда уходят «восстановить» и «удалить навсегда», когда они сходят со строки списка, — это следующее решение, и оно намеренно не задавалось.</div>
+    </section>
 </div>
 
 <div class="scrim" id="scrim" onclick="closeSheets()"></div>
@@ -547,6 +582,8 @@
     <button data-s="s-empty" onclick="nav(this)">Пустые</button>
     <button data-s="s-list" onclick="nav(this)">Список</button>
     <button data-s="s-nav" onclick="nav(this)">Навбар</button>
+    <button data-s="s-topbar" onclick="nav(this)">Топбар</button>
+    <button data-s="s-arch" onclick="nav(this)">Архивная</button>
     <span class="sep"></span>
     <button id="sizeBtn" onclick="toggleSize()">Сессия 2×4</button>
     <button id="thBtn" onclick="setTheme(document.body.classList.contains('light')?'dark':'light')">Светлая</button>

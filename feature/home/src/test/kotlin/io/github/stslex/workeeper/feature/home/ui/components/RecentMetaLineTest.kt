@@ -11,7 +11,7 @@ import org.junit.jupiter.api.Test
  *
  * §26 "Meta-line order" fixes the rule — information first, tags last, because the line does not
  * wrap so what truncates is always the tail. It does not fix Home's tokens, because Home is not
- * drawn: `pass2d.html` has eight sections and none of them is this screen. The order chosen is
+ * drawn: `pass2d.html` has ten sections and none of them is this screen. The order chosen is
  * *when · how long · how much*, following `#s-nav`'s drawn session row («12 июля · 6 упражнений»,
  * when-then-count) with duration inserted between.
  *

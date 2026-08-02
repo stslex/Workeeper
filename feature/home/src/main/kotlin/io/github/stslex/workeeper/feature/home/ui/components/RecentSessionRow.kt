@@ -38,7 +38,7 @@ import io.github.stslex.workeeper.feature.home.mvi.model.RecentSessionItem
  *
  * §26 "Meta-line order" fixes the *rule* — information first, tags last, because the line does not
  * wrap so what truncates is always the tail. It does not fix Home's tokens, because **Home is not
- * drawn**: `pass2d.html` has eight sections and none of them is this screen. The nearest drawn
+ * drawn**: `pass2d.html` has ten sections and none of them is this screen. The nearest drawn
  * session row is `#s-nav`'s demo — «Спина и бицепс» over «12 июля · 6 упражнений» — which puts
  * *when* first and *how much* second.
  *
