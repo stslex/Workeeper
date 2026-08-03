@@ -34,6 +34,15 @@ loop of mutations fail loudly on the first surprise instead of scrolling past it
 **Nothing in this file knows what HEAD is, in either mode.** That is the property, and it is why
 neither mode can lose uncommitted work.
 
+4. **A task name that does not resolve scored as RED.** Gradle exits non-zero when the task does
+   not exist; the verdict logic read any non-zero exit with no named test as
+   `RED (no named test — check)`, so `--expect RED` reported "OK" for a run in which NOTHING RAN.
+   Witnessed rather than imagined: `--task ":$T:testDebugUnitTest"` in **zsh** expands `$T:t` as
+   the tail modifier, producing `:feature:exerciseestDebugUnitTest`, and two mutation proofs came
+   back green-for-red against a task that does not exist. Same family as (3) — a verdict from a
+   run that did not measure what it appears to. Fixed by `_NO_SUCH_TASK_MARKERS`, checked before
+   everything else; write `":${T}:task"` and let the harness catch it when you forget.
+
 ## The one verdict this harness cannot check for you
 
 `INVALID` covers two ways a run fails to measure what it appears to: the mutation did not compile,
@@ -118,6 +127,14 @@ _GRADLE_FLAGS = ["--rerun-tasks", "--no-build-cache"]
 
 _REUSE_MARKERS = ("UP-TO-DATE", "FROM-CACHE")
 
+# Gradle's own wording when a task name does not resolve. Matched on the message rather than on the
+# exit code, because the exit code is the very thing that made this look like a red.
+_NO_SUCH_TASK_MARKERS = (
+    "Cannot locate tasks that match",
+    "not found in root project",
+    "Project directory",
+)
+
 # Mutating a file under lint-rules/ changes the RULE JAR, and the Gradle daemon serves whichever
 # jar it loaded first — so detekt judges the edit with stale bytecode and the mutation appears to
 # have no effect. `--rerun-tasks` does not defeat this and neither does `--no-build-cache`; only
@@ -181,6 +198,7 @@ def case(name: str, rel: str, old: str, new: str, task: str) -> str:
         assert p.read_text(encoding="utf-8") == before, f"RESTORE FAILED for {rel}"
 
     compile_errs = [l.strip() for l in out.splitlines() if l.startswith("e: ") or "error:" in l]
+    not_found = [l.strip() for l in out.splitlines() if any(m in l for m in _NO_SUCH_TASK_MARKERS)]
     fails = [
         l.strip()
         for l in out.splitlines()
@@ -188,7 +206,17 @@ def case(name: str, rel: str, old: str, new: str, task: str) -> str:
     ]
     reused = _reused_outputs(out, task)
 
-    if compile_errs:
+    if not_found:
+        # Checked FIRST, and it is the third member of the INVALID family. Gradle exits non-zero
+        # when the task does not exist, the old code read any non-zero exit with no named test as
+        # `RED (no named test — check)`, and `--expect RED` then scored a run in which NOTHING RAN
+        # as a detector firing. Witnessed: `--task ":$T:testDebugUnitTest"` in **zsh** expands
+        # `$T:t` as the tail modifier, so the string became `:feature:exerciseestDebugUnitTest`
+        # and two mutation proofs came back "expected RED: OK" against a task that does not exist.
+        # Use `":${T}:testDebugUnitTest"` — and rely on this check rather than on remembering to.
+        verdict = "*** INVALID — NO SUCH GRADLE TASK, nothing ran ***"
+        detail = not_found[:2]
+    elif compile_errs:
         verdict, detail = "*** INVALID — DID NOT COMPILE, proves nothing ***", compile_errs[:4]
     elif reused:
         # Checked BEFORE the green branch, because reuse is exactly how a false GATE HOLE is born.
