@@ -1743,7 +1743,7 @@ app's own colour rather than a transparent hole.
 |---|---|---|---|
 | D1 | Top bar | `AppTopAppBar` ×2 + a raw M3 `TopAppBar` ×1, **and the exercise screen swaps bars mid-mode** — the bar changes under the user when one screen flips to Edit | all three on `AppTopBar` (§7.1, §1.2) |
 | D2 | Text field | `OutlinedTextField` with `unfocusedContainerColor = surfaceTier1` — outlined **and** filled | transparent fill, outline only (§7.2) |
-| D3 | Error outline width | M3's own 1dp/2dp, not settable on the plain `OutlinedTextField` | 1.5dp (§7.2) — needs the field rebuilt on `BasicTextField`, as `AppNumberInput` already is |
+| D3 | Error outline width | M3's own 1dp/2dp, not settable on the plain `OutlinedTextField` | 1.5dp (§7.2). **Built**, and the field IS rebuilt on `BasicTextField` — M3 exposes thickness only as focused/unfocused via `OutlinedTextFieldDefaults.Container`, so an *unfocused* error would have drawn at 1dp |
 | D4 | Save button | disabled by the condition that produces the error | always enabled (§7.3) |
 | D5 | Modals | six dialog instances, five components | six sheets (§7.4) |
 | D6 | Plan editor modal state | two channels, both openable at once | one sealed `DialogState` (§7.4) |
@@ -1751,13 +1751,40 @@ app's own colour rather than a transparent hole.
 | D8 | Set add/remove | per-row `✕` + a full-width `AppButton.Tertiary` outside the body | `.setbar` in the card's foot (§7.5) |
 | D9 | Plan values | `textTertiary` — an authored value drawn as "not yet entered" | `isLogged` → `textPrimary` (§7.5) |
 | D10 | Set-type labels | `"W" / "·" / "F" / "D"` **hardcoded English** in `AppSetTypeChip` | localised; Ru `Р / · / О / Д` (§7.5) |
-| D11 | Set-type picker | a `DropdownMenu` anchored to the chip | unchanged — the drawing rules the chip, not the picker. **Reported, not folded in** |
+| D11 | Set-type picker | a `DropdownMenu` anchored to the chip | unchanged — the drawing rules the chip, not the picker. **Reported, not folded in.** Note it is the one modal on these screens that stayed a dropdown: §26's sheet ruling names the six *confirmation and choice* modals, and an anchored menu on a 34dp chip is a different object from a sheet. Whether it should also be a sheet is a decision nobody has taken |
 | D12 | Add exercise | `AppButton.Tertiary` + `Icons.Default.Add` in the section head | `.addex` (§7.6) |
 | D13 | Image | a 72dp thumb + two buttons in a form row | 46dp thumb in the bar; the row is deleted (§7.7) |
 | D14 | Type marks | `Icons.Filled.FitnessCenter` / `AccessibilityNew` | two new stroke glyphs in `AppIcons` (§7.7) |
 | D15 | Reorder | two identical `DragHandle` arrows | long-press drag (§7.8) |
 | D16 | Loading | written, never read; a false KDoc and an unconditional overwrite | the route does not compose until loaded (§7.9) |
 | D17 | Glyph swaps (B33(a)) | `Close` ×4, `Add` ×1, `ArrowBack` ×1 as filled Material imports | `AppIcons.Close` / `.Plus` / `.ChevronLeft` |
+
+## 7.10a What building it found that reading it did not
+
+Four things, each caught by an instrument rather than by review, recorded because the instrument is
+the transferable part.
+
+1. **`hasChanges` was permanently true after the plan editor saved** — §25 **B39**. `adhocPlan` had
+   two baselines (`originalSnapshot.adhocPlan` and a field of its own) and the plan editor's return
+   reset one. Found by writing the three-states-one-term fixture §27 requires for a multi-term
+   predicate: modelling the return's exact writes went red against the unmodified tree. Fixed by
+   deleting the second baseline, not by synchronising it.
+2. **`.addex` rendered «+ + Добавить».** The old string carried a leading `+` for the Material
+   `Add` icon that used to sit beside it, and `.addex` draws its own plus. Caught by *looking at*
+   the first recorded golden, which is a different act from recording it.
+3. **The thumb sat 2dp from the screen edge.** `AppTopBar`'s 2dp row padding is right for an
+   `.icon-btn`, whose glyph is inset 13.5dp inside a 48dp box; the thumb's box edge IS its visual
+   edge. Same instrument, same act.
+4. **The discard strings existed in FOUR places** — `feature/exercise`, `feature/single-training`,
+   `feature/plan-editor` and `core/ui/plan-editor` — and the fourth surfaced only when Android
+   Lint called it unused after the other three were deleted. They live in the kit now, one table
+   for one component.
+
+And one **green** that is recorded as a no-op rather than a hole, per §27: taking
+`ReorderableColumnState`'s drag direction off the accumulated offset instead of the latest delta —
+the exact defect that line's own comment warns about — changes nothing the suite can see, because
+the loop cannot leave an uncommitted crossing for the wrong expression to find. The reasoning is in
+the file beside the line so the next person to mutate it does not re-derive it.
 
 ## 7.11 Adjacent, and deliberately NOT folded in
 
