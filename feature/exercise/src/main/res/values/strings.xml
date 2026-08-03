@@ -51,6 +51,9 @@
 
     <!-- Edit exercise — image -->
     <string name="feature_exercise_image_thumb_description">Attached exercise photo</string>
+    <!-- The thumb in the pushed bar is one control with two destinations, so it needs two labels. -->
+    <string name="feature_exercise_image_thumb_open_description">Open photo full screen</string>
+    <string name="feature_exercise_image_thumb_pick_description">Add a photo</string>
     <string name="feature_exercise_image_placeholder_description">No exercise photo attached</string>
 
     <!-- Source dialog -->

@@ -470,7 +470,49 @@ internal class ClickHandlerTest {
             ),
         )
         handler.invoke(Action.Click.OnImageThumbnailClick)
-        verify { store.consume(Action.Navigation.OpenImageViewer(path)) }
+        verify { store.consume(Action.Navigation.OpenImageViewer(path, editable = false)) }
+    }
+
+    /**
+     * The viewer carries replace and remove, and only a caller that can honour one may be offered
+     * it. Read mode cannot — no Save, and `interceptBack` is false there — so a replace staged
+     * from the detail hero would look applied and be lost on the way out. The capability is stated
+     * on the route by the caller rather than guessed at by the viewer.
+     */
+    @Test
+    fun `Edit mode opens the viewer as editable`() {
+        val (_, store, handler) = setup(
+            State.create(uuid = "uuid-1").copy(
+                mode = Mode.Edit(isCreate = false),
+                imagePath = "/img/a.png",
+            ),
+        )
+
+        handler.invoke(Action.Click.OnImageThumbnailClick)
+
+        verify(exactly = 1) {
+            store.consume(
+                Action.Navigation.OpenImageViewer(model = "/img/a.png", editable = true),
+            )
+        }
+    }
+
+    @Test
+    fun `Read mode opens the viewer as NOT editable`() {
+        val (_, store, handler) = setup(
+            State.create(uuid = "uuid-1").copy(
+                mode = Mode.Read,
+                imagePath = "/img/a.png",
+            ),
+        )
+
+        handler.invoke(Action.Click.OnImageThumbnailClick)
+
+        verify(exactly = 1) {
+            store.consume(
+                Action.Navigation.OpenImageViewer(model = "/img/a.png", editable = false),
+            )
+        }
     }
 
     @Test

@@ -16,6 +16,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -71,6 +74,7 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 fun AppExerciseThumb(
     isWeighted: Boolean,
     onClick: () -> Unit,
+    contentDescription: String,
     modifier: Modifier = Modifier,
     content: (@Composable () -> Unit)? = null,
 ) {
@@ -98,7 +102,8 @@ fun AppExerciseThumb(
                         )
                 }
             }
-            .clickable(onClick = onClick),
+            .clickable(onClickLabel = contentDescription, onClick = onClick)
+            .semantics { role = Role.Button },
         contentAlignment = Alignment.Center,
     ) {
         if (content != null) {
@@ -138,9 +143,9 @@ private fun AppExerciseThumbPreview() {
                 .padding(AppDimension.Space.lg),
             horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.md),
         ) {
-            AppExerciseThumb(isWeighted = true, onClick = {})
-            AppExerciseThumb(isWeighted = false, onClick = {})
-            AppExerciseThumb(isWeighted = true, onClick = {}) {}
+            AppExerciseThumb(isWeighted = true, onClick = {}, contentDescription = "Add image")
+            AppExerciseThumb(isWeighted = false, onClick = {}, contentDescription = "Add image")
+            AppExerciseThumb(isWeighted = true, onClick = {}, contentDescription = "Open image") {}
         }
     }
 }

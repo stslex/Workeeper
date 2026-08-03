@@ -16,6 +16,13 @@ interface ImageViewerStore :
         val offsetX: Float,
         val offsetY: Float,
         val sheetState: SheetState,
+        /**
+         * Whether the CALLER can honour a replace/remove request. The viewer draws the `⋮` only
+         * when it can: the exercise detail screen opens this same route and has no Save and no
+         * dirty interception, so a request from there would stage an edit that looks applied and
+         * is lost on the way out. Stated by the caller on the route rather than guessed here.
+         */
+        val editable: Boolean,
     ) : Store.State {
 
         /**
@@ -41,8 +48,9 @@ interface ImageViewerStore :
             const val MAX_SCALE: Float = 5f
             const val DOUBLE_TAP_TARGET_SCALE: Float = 2.5f
 
-            fun create(model: String): State = State(
+            fun create(model: String, editable: Boolean): State = State(
                 model = model,
+                editable = editable,
                 scale = MIN_SCALE,
                 offsetX = 0f,
                 offsetY = 0f,

@@ -48,6 +48,8 @@
     <string name="core_ui_kit_discard_sheet_body">Unsaved edits will be lost.</string>
     <string name="core_ui_kit_discard_sheet_confirm">Leave without saving</string>
     <string name="core_ui_kit_discard_sheet_dismiss">Keep editing</string>
+    <!-- Announced by TalkBack when a field is in its error state; the outline is the sighted half. -->
+    <string name="core_ui_kit_field_error">Invalid input</string>
     <string name="core_ui_kit_plan_editor_empty_hint">No sets yet — tap “Add set” to start the plan.</string>
 
     <string name="core_ui_kit_active_session_conflict_title">Active session in progress</string>

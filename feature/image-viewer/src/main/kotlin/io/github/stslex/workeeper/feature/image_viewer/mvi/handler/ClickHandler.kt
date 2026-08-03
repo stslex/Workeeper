@@ -28,7 +28,15 @@ internal class ClickHandler @Inject constructor(
         }
     }
 
+    /**
+     * Guarded as well as hidden. `editable` already decides whether the `⋮` is drawn, so this
+     * branch is unreachable through the UI — and that is exactly the shape B23 records as a state
+     * a test can build and production cannot. It is here because the alternative is a
+     * representable state (`Menu` on a non-editable route) whose only defence is a composable
+     * remembering to check a flag, and the sheet it opens stages edits the caller cannot save.
+     */
     private fun processMenuClick() {
+        if (state.value.editable.not()) return
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
         updateState { it.copy(sheetState = State.SheetState.Menu) }
     }

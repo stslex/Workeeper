@@ -34,7 +34,7 @@ class ImageViewerStoreImpl internal constructor(
     loggerHolder: LoggerHolder,
 ) : BaseStore<State, Action, Event>(
     name = NAME,
-    initialState = State.create(model = screen.model),
+    initialState = State.create(model = screen.model, editable = screen.editable),
     handlerCreator = { action ->
         when (action) {
             is Action.Navigation -> navigationHandler

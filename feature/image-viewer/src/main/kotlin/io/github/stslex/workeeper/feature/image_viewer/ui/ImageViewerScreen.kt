@@ -67,16 +67,25 @@ internal fun ImageViewerScreen(
                     // into the pushed top bar"). One `⋮` rather than two marks, because the kit
                     // ships no camera and no bin and inventing either would settle two of
                     // B33(b)'s open glyph questions by writing them.
-                    IconButton(
-                        modifier = Modifier.testTag("ImageViewerMenuButton"),
-                        onClick = { consume(Action.Click.OnMenuClick) },
-                    ) {
-                        Icon(
-                            modifier = Modifier.size(AppDimension.iconSm),
-                            imageVector = AppIcons.MoreVertical,
-                            contentDescription = stringResource(R.string.feature_image_viewer_menu),
-                            tint = Color.White,
-                        )
+                    //
+                    // Drawn only when the CALLER can honour the request. The exercise detail
+                    // screen opens this same route and has no Save and no dirty interception, so
+                    // an affordance there would stage an edit that looks applied and is lost on
+                    // the way out — worse than no affordance, because it reads as having worked.
+                    if (state.editable) {
+                        IconButton(
+                            modifier = Modifier.testTag("ImageViewerMenuButton"),
+                            onClick = { consume(Action.Click.OnMenuClick) },
+                        ) {
+                            Icon(
+                                modifier = Modifier.size(AppDimension.iconSm),
+                                imageVector = AppIcons.MoreVertical,
+                                contentDescription = stringResource(
+                                    R.string.feature_image_viewer_menu,
+                                ),
+                                tint = Color.White,
+                            )
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(

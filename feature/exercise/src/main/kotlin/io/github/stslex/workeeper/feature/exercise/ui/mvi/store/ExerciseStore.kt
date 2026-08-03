@@ -321,7 +321,12 @@ interface ExerciseStore : Store<State, Action, Event> {
 
             data class OpenLiveWorkout(val sessionUuid: String) : Navigation
 
-            data class OpenImageViewer(val model: String) : Navigation
+            /**
+             * [editable] states whether THIS caller can honour a replace/remove request coming
+             * back from the viewer. Read mode cannot — no Save, no dirty interception — so the
+             * viewer draws no verbs for it.
+             */
+            data class OpenImageViewer(val model: String, val editable: Boolean) : Navigation
 
             data class OpenChart(val exerciseUuid: String) : Navigation
 

@@ -57,6 +57,16 @@ internal fun ExerciseTopBarThumb(
             .testTag("ExerciseEditImageThumb"),
         isWeighted = type == ExerciseTypeUiModel.WEIGHTED,
         onClick = if (model != null) onOpenImage else onPickImage,
+        // The control has two destinations, so it needs two labels: TalkBack must say which one
+        // this tap will take. An unlabelled 46dp box whose only child is a decorative type mark is
+        // a control a screen reader cannot discover, let alone identify.
+        contentDescription = stringResource(
+            if (model != null) {
+                R.string.feature_exercise_image_thumb_open_description
+            } else {
+                R.string.feature_exercise_image_thumb_pick_description
+            },
+        ),
         content = model?.let {
             {
                 AsyncImage(

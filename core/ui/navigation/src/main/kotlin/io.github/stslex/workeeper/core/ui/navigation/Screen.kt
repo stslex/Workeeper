@@ -95,6 +95,14 @@ sealed interface Screen {
     @Serializable
     data class ExerciseImage(
         val model: String,
+        /**
+         * Whether the caller can act on [exerciseImageRequestAttr]. The viewer offers replace and
+         * remove only when this is `true`, because a request nobody can honour is worse than no
+         * affordance: the exercise DETAIL screen opens this viewer too, and it has no Save and no
+         * dirty interception, so a staged replacement there would look applied and vanish on the
+         * way out. The caller states its own capability rather than the viewer guessing at it.
+         */
+        val editable: Boolean = false,
     ) : Screen {
 
         companion object {

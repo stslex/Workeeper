@@ -27,11 +27,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.error
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import io.github.stslex.workeeper.core.ui.kit.R
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
@@ -131,8 +135,14 @@ fun AppTextField(
     val outlineWidth = if (isError && enabled) FIELD_ERROR_BORDER else AppDimension.Border.small
     val contentColor = if (enabled) AppUi.colors.textPrimary else AppUi.colors.textTertiary
     val minHeight = if (singleLine) AppDimension.heightMd else MULTILINE_MIN_HEIGHT
+    // WCAG/TalkBack: the outline is the sighted signal and this is the other one. M3's
+    // `OutlinedTextField` sets it from `isError` internally (`TextFieldImpl.kt`), so a field built
+    // on `BasicTextField` owes it explicitly or an invalid box announces as an ordinary one.
+    val errorMessage = stringResource(R.string.core_ui_kit_field_error)
     BasicTextField(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .semantics { if (isError) error(errorMessage) },
         value = value,
         onValueChange = onValueChange,
         enabled = enabled,

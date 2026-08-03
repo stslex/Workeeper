@@ -51,11 +51,11 @@ private fun Thumbs() {
         horizontalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         // Empty, weighted — the dumbbell in a dashed box.
-        AppExerciseThumb(isWeighted = true, onClick = {})
+        AppExerciseThumb(isWeighted = true, onClick = {}, contentDescription = "Add a photo")
         // Empty, weightless — the figure, same box.
-        AppExerciseThumb(isWeighted = false, onClick = {})
+        AppExerciseThumb(isWeighted = false, onClick = {}, contentDescription = "Add a photo")
         // Filled: solid border, no glyph. A camera here would read as "take another" (§26).
-        AppExerciseThumb(isWeighted = true, onClick = {}) {
+        AppExerciseThumb(isWeighted = true, onClick = {}, contentDescription = "Open photo") {
             Box(modifier = Modifier.fillMaxSize().background(AppUi.colors.surfaceTier4))
         }
     }

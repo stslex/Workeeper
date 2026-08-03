@@ -660,7 +660,15 @@ internal class ClickHandler @Inject constructor(
             ImageDisplay.None -> return
         }
         sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
-        consume(Action.Navigation.OpenImageViewer(model))
+        // Only Edit mode can honour a replace/remove request: Read has no Save and its
+        // `interceptBack` is false, so a staged `pendingImage` there would look applied and
+        // vanish on the way out. The viewer hides the two verbs when this is false.
+        consume(
+            Action.Navigation.OpenImageViewer(
+                model = model,
+                editable = state.value.mode is Mode.Edit,
+            ),
+        )
     }
 
     private fun processImageSourceSelected(action: Action.Click.OnImageSourceSelected) {

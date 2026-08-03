@@ -13,7 +13,7 @@ import org.junit.jupiter.api.Test
 
 internal class CommonHandlerTest {
 
-    private fun setup(initialState: State = State.create("model")): TestSetup {
+    private fun setup(initialState: State = State.create("model", editable = true)): TestSetup {
         val stateFlow = MutableStateFlow(initialState)
         val store = mockk<ImageViewerHandlerStore>(relaxed = true).apply {
             every { state } returns stateFlow

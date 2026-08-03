@@ -52,6 +52,8 @@
 
     <!-- Edit exercise — image -->
     <string name="feature_exercise_image_thumb_description">Прикреплённое фото упражнения</string>
+    <string name="feature_exercise_image_thumb_open_description">Открыть фото на весь экран</string>
+    <string name="feature_exercise_image_thumb_pick_description">Добавить фото</string>
     <string name="feature_exercise_image_placeholder_description">Фото упражнения не прикреплено</string>
 
     <!-- Source dialog -->

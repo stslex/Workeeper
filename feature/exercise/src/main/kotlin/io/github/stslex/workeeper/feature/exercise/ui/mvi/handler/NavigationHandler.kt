@@ -31,7 +31,7 @@ internal class NavigationHandler @Inject constructor(
             )
 
             is Action.Navigation.OpenImageViewer -> navigator.navTo(
-                Screen.ExerciseImage(action.model),
+                Screen.ExerciseImage(model = action.model, editable = action.editable),
             )
 
             is Action.Navigation.OpenChart -> navigator.navTo(
