@@ -243,6 +243,40 @@ object AppIcons {
         )
     }
 
+    /**
+     * The **weighted** exercise type mark — a dumbbell. `pass2d.html` `#s-editor`, form 5, inside
+     * `.thumb.none`, at the thumb's own [THUMB_STROKE].
+     *
+     * **NEW, and recorded as new** (§26, "The image moves into the pushed top bar"). It replaces
+     * `Icons.Filled.FitnessCenter`, a filled Material import and one of B33(b)'s `×4`; the mark
+     * itself has no earlier referent anywhere in either drawing, which is why the ledger carries it
+     * rather than the extraction alone.
+     *
+     * Two collars, two plates, one bar: five subpaths, all strokes, no fill — the same grammar as
+     * every other mark in this file, which is the whole point of not importing the filled one.
+     */
+    val ExerciseWeighted: ImageVector by lazy {
+        strokeIcon("ExerciseWeighted", THUMB_STROKE, "M4 9v6M7 7v10M17 7v10M20 9v6M7 12h10")
+    }
+
+    /**
+     * The **weightless** exercise type mark — a standing figure. `pass2d.html` `#s-editor`, form 5,
+     * the second `.thumb.none`, at [THUMB_STROKE].
+     *
+     * **NEW**, replacing `Icons.Filled.AccessibilityNew` (B33(b)'s `×3`). Head, spine, two legs,
+     * arms — the head is the drawing's `<circle cx="12" cy="5" r="2.1">` rewritten as two arcs,
+     * the only change of notation this file allows, and written out rather than generated so it
+     * stays diffable against the mockup line.
+     */
+    val ExerciseWeightless: ImageVector by lazy {
+        strokeIcon(
+            "ExerciseWeightless",
+            THUMB_STROKE,
+            "M9.9 5a2.1 2.1 0 1 0 4.2 0a2.1 2.1 0 1 0-4.2 0Z" +
+                " M12 8v6M12 14l-3 6M12 14l3 6M6 10.5h12",
+        )
+    }
+
     /** Lid, body, pull. One path so it diffs against the mockup line-for-line. */
     private const val ARCHIVE_PATH = "M4 8h16M6 8v11h12V8M10 12h4"
 
@@ -254,6 +288,14 @@ object AppIcons {
 
     /** 1.7 — the top-bar stroke weight (21dp glyphs). */
     private const val TOPBAR_STROKE = 1.7f
+
+    /**
+     * 1.7 — `.thumb svg{stroke-width:1.7}`, the two exercise type marks. Numerically
+     * [TOPBAR_STROKE]'s value and named separately because they are a different declaration in the
+     * drawing: the thumb sits IN the top bar but is not an `.icon-btn`, and one of the two weights
+     * could move without the other. The same reason [NAV_GLYPH_STROKE] is its own name.
+     */
+    private const val THUMB_STROKE = TOPBAR_STROKE
 
     /** 1.8 — the card/sheet stroke weight (17dp and 19dp glyphs). */
     private const val CARD_STROKE = 1.8f

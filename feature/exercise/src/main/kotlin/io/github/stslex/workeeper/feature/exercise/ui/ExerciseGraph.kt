@@ -84,6 +84,30 @@ fun NavGraphBuilder.exerciseGraph(
             }
         }
 
+        // Image-viewer return. The viewer carries the picture's two verbs now (§26, "The image
+        // moves into the pushed top bar") and performs neither: it pops with a REQUEST, and the
+        // machinery that can honour it — the source sheet, the camera permission, the temp URI,
+        // the uncommitted `PendingImage` — stays here, where it already was. Same shape as the
+        // plan editor's two returns above, including the reset: an attr left set would re-fire
+        // the request on the next resume.
+        val imageRequestAttr by stateHandle
+            .getStateFlow(Screen.ExerciseImage.exerciseImageRequestAttr)
+            .collectAsState()
+        LaunchedEffect(imageRequestAttr) {
+            val request = imageRequestAttr
+                ?.let { name -> Screen.ExerciseImageRequest.entries.firstOrNull { it.name == name } }
+            if (request != null) {
+                when (request) {
+                    Screen.ExerciseImageRequest.REPLACE ->
+                        processor.consume(Action.Click.OnEditImageClick)
+
+                    Screen.ExerciseImageRequest.REMOVE ->
+                        processor.consume(Action.Click.OnRemoveImageClick)
+                }
+                stateHandle.setAttrDefaultValue(Screen.ExerciseImage.exerciseImageRequestAttr)
+            }
+        }
+
         val haptic = LocalHapticFeedback.current
         val context = LocalContext.current
         val undoLabel = stringResource(R.string.feature_exercise_detail_archive_undo)

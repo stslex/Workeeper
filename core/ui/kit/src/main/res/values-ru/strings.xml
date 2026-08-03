@@ -14,8 +14,6 @@
     <string name="core_ui_kit_plan_editor_unit_kg">кг</string>
     <string name="core_ui_kit_plan_editor_unit_reps">повт</string>
     <string name="core_ui_kit_plan_editor_unit_reps_full">повторений</string>
-    <string name="core_ui_kit_plan_editor_add_set">+ Добавить подход</string>
-    <string name="core_ui_kit_plan_editor_remove_set">Удалить подход</string>
     <string name="core_ui_kit_plan_editor_set_type_warmup">Разминка</string>
     <string name="core_ui_kit_plan_editor_set_type_work">Рабочий</string>
     <string name="core_ui_kit_plan_editor_set_type_failure">Отказ</string>

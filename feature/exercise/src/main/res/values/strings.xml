@@ -54,10 +54,6 @@
     <string name="feature_exercise_edit_type_chip_hint">Change in plan editor</string>
 
     <!-- Edit exercise — image -->
-    <string name="feature_exercise_image_edit_title">Exercise image</string>
-    <string name="feature_exercise_image_action_add">Add image</string>
-    <string name="feature_exercise_image_action_edit">Edit image</string>
-    <string name="feature_exercise_image_action_remove">Remove</string>
     <string name="feature_exercise_image_thumb_description">Attached exercise photo</string>
     <string name="feature_exercise_image_placeholder_description">No exercise photo attached</string>
 

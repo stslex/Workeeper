@@ -55,10 +55,6 @@
     <string name="feature_exercise_edit_type_chip_hint">Меняется в редакторе плана</string>
 
     <!-- Edit exercise — image -->
-    <string name="feature_exercise_image_edit_title">Изображение упражнения</string>
-    <string name="feature_exercise_image_action_add">Добавить фото</string>
-    <string name="feature_exercise_image_action_edit">Изменить фото</string>
-    <string name="feature_exercise_image_action_remove">Убрать</string>
     <string name="feature_exercise_image_thumb_description">Прикреплённое фото упражнения</string>
     <string name="feature_exercise_image_placeholder_description">Фото упражнения не прикреплено</string>
 

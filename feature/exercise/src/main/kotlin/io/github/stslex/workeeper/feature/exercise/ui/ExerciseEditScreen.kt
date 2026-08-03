@@ -34,7 +34,7 @@ import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
 import io.github.stslex.workeeper.core.ui.plan_editor.PlanEditorBody
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.feature.exercise.R
-import io.github.stslex.workeeper.feature.exercise.ui.components.ImageEditRow
+import io.github.stslex.workeeper.feature.exercise.ui.components.ExerciseTopBarThumb
 import io.github.stslex.workeeper.feature.exercise.ui.components.TagPickerInline
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.TagUiModel
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
@@ -85,6 +85,17 @@ internal fun ExerciseEditScreen(
                     onClick = { consume(Action.Click.OnCancelClick) },
                 )
             },
+            actions = {
+                // §26 "The image moves into the pushed top bar". This is the whole of what used
+                // to be a form row — a 72dp thumb and two buttons — and it costs the form no
+                // vertical space at all.
+                ExerciseTopBarThumb(
+                    type = state.type,
+                    imageDisplay = state.effectiveImageDisplay,
+                    onOpenImage = { consume(Action.Click.OnImageThumbnailClick) },
+                    onPickImage = { consume(Action.Click.OnEditImageClick) },
+                )
+            },
         )
         Column(
             modifier = Modifier
@@ -94,15 +105,9 @@ internal fun ExerciseEditScreen(
             verticalArrangement = Arrangement.spacedBy(AppDimension.sectionSpacing),
         ) {
             Spacer(Modifier.height(AppDimension.Space.sm))
-            FormSection(label = stringResource(R.string.feature_exercise_image_edit_title)) {
-                ImageEditRow(
-                    type = state.type,
-                    imageDisplay = state.effectiveImageDisplay,
-                    onEditClick = { consume(Action.Click.OnEditImageClick) },
-                    onRemoveClick = { consume(Action.Click.OnRemoveImageClick) },
-                    onThumbClick = { consume(Action.Click.OnImageThumbnailClick) },
-                )
-            }
+            // The image row is GONE — thumb, «Изменить» and «Удалить» all moved (§26, "The image
+            // moves into the pushed top bar"). The thumb is in the bar above; the two verbs are
+            // in the viewer the thumb opens, which is where the picture they act on is.
             FormSection(label = stringResource(R.string.feature_exercise_edit_label_name)) {
                 val nameErrorText = when {
                     state.nameError -> stringResource(R.string.feature_exercise_edit_error_name_required)

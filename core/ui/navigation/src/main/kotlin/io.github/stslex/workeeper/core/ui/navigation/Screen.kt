@@ -83,11 +83,46 @@ sealed interface Screen {
      * Full-screen image viewer. [model] is either an absolute file path
      * (`filesDir/exercise_images/<uuid>.jpg`) or a content URI string
      * (e.g. from `PickVisualMedia`); Coil resolves both transparently.
+     *
+     * **It also carries the picture's two verbs now** (§26, "The image moves into the pushed top
+     * bar"). The exercise editor's image row is gone — thumb, «Изменить» and «Удалить» all moved —
+     * and the ruling puts replace and remove *where the picture is* rather than beside a 46dp
+     * stand-in for it. The viewer does not perform either: it pops back with
+     * [exerciseImageRequestAttr] and the editor, which owns the permission plumbing, the temp-URI
+     * dance and the uncommitted `PendingImage`, does the work. **A request, not a result** — none
+     * of that machinery moves, and the viewer stays a viewer.
      */
     @Serializable
     data class ExerciseImage(
         val model: String,
-    ) : Screen
+    ) : Screen {
+
+        companion object {
+
+            private const val SAVED_STATE_EXERCISE_IMAGE_REQUEST: String = "exercise-image-request"
+
+            /**
+             * What the viewer asked for on its way out — a [ExerciseImageRequest] name, or `null`
+             * for an ordinary back. Default `null` so the consumer's `LaunchedEffect` fires only
+             * after a real choice, exactly as `planEditorDraftResultAttr` does.
+             */
+            val exerciseImageRequestAttr: SaveHandlerAttr<String> =
+                SaveHandlerAttr(SAVED_STATE_EXERCISE_IMAGE_REQUEST, null)
+        }
+    }
+
+    /**
+     * The two verbs the image viewer can hand back. An enum rather than two booleans or a raw
+     * string: the caller's `when` is then exhaustive, and a third verb cannot be added on one side
+     * only.
+     */
+    enum class ExerciseImageRequest {
+        /** Pick a new picture — the editor reopens its own source sheet. */
+        REPLACE,
+
+        /** Drop the picture. Staged like any other edit; the editor's Save is what commits it. */
+        REMOVE,
+    }
 
     /**
      * Full-screen plan editor. Two destinations:

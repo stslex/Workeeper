@@ -3,4 +3,7 @@
     <string name="feature_image_viewer_back">Назад</string>
     <string name="feature_image_viewer_content_description">Полноразмерное фото упражнения</string>
     <string name="feature_image_viewer_unavailable">Фото недоступно</string>
+    <string name="feature_image_viewer_menu">Действия с фото</string>
+    <string name="feature_image_viewer_action_replace">Заменить фото</string>
+    <string name="feature_image_viewer_action_remove">Удалить фото</string>
 </resources>

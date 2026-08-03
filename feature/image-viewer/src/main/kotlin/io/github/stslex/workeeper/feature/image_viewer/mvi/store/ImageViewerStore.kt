@@ -4,6 +4,7 @@ package io.github.stslex.workeeper.feature.image_viewer.mvi.store
 import androidx.compose.runtime.Stable
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import io.github.stslex.workeeper.core.ui.mvi.Store
+import io.github.stslex.workeeper.core.ui.navigation.Screen.ExerciseImageRequest
 
 interface ImageViewerStore :
     Store<ImageViewerStore.State, ImageViewerStore.Action, ImageViewerStore.Event> {
@@ -14,7 +15,25 @@ interface ImageViewerStore :
         val scale: Float,
         val offsetX: Float,
         val offsetY: Float,
+        val sheetState: SheetState,
     ) : Store.State {
+
+        /**
+         * The picture's two verbs, which arrived here with §26's "The image moves into the pushed
+         * top bar". Sealed and Store-homed rather than a `Boolean` + `remember`, per Rule 4 of
+         * compose-state-discipline: the screen has one modal today and a second one added later
+         * must be unrepresentable alongside it, not merely absent.
+         */
+        @Stable
+        sealed interface SheetState {
+
+            @Stable
+            data object Hidden : SheetState
+
+            /** «Заменить» · «Удалить» — the sheet the trailing `⋮` opens. */
+            @Stable
+            data object Menu : SheetState
+        }
 
         companion object {
 
@@ -27,6 +46,7 @@ interface ImageViewerStore :
                 scale = MIN_SCALE,
                 offsetX = 0f,
                 offsetY = 0f,
+                sheetState = SheetState.Hidden,
             )
         }
     }
@@ -39,6 +59,15 @@ interface ImageViewerStore :
             data object OnBackClick : Click
 
             data object OnDoubleTap : Click
+
+            /** Trailing `⋮` — opens the two-verb sheet. */
+            data object OnMenuClick : Click
+
+            data object OnSheetDismiss : Click
+
+            data object OnReplaceClick : Click
+
+            data object OnRemoveClick : Click
         }
 
         sealed interface Common : Action {
@@ -55,6 +84,13 @@ interface ImageViewerStore :
         sealed interface Navigation : Action {
 
             data object Back : Navigation
+
+            /**
+             * Pop carrying what the user asked for. The viewer performs neither verb — the
+             * editor owns the permission plumbing, the temp-URI dance and the uncommitted
+             * `PendingImage` — so this is a REQUEST and not a result.
+             */
+            data class BackWithRequest(val request: ExerciseImageRequest) : Navigation
         }
     }
 

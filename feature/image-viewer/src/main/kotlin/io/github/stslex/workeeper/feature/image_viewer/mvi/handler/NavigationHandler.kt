@@ -5,6 +5,7 @@ import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.core.ui.navigation.Navigator
+import io.github.stslex.workeeper.core.ui.navigation.Screen.ExerciseImage.Companion.exerciseImageRequestAttr
 import io.github.stslex.workeeper.feature.image_viewer.di.ImageViewerScope
 import io.github.stslex.workeeper.feature.image_viewer.mvi.store.ImageViewerStore.Action
 
@@ -16,6 +17,9 @@ internal class NavigationHandler @Inject constructor(
     override fun invoke(action: Action.Navigation) {
         when (action) {
             Action.Navigation.Back -> navigator.popBack()
+            is Action.Navigation.BackWithRequest -> navigator.popBack(
+                exerciseImageRequestAttr.toPairValue(action.request.name),
+            )
         }
     }
 }
