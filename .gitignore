@@ -9,6 +9,13 @@
 /.idea/assetWizardSettings.xml
 .DS_Store
 /build
+
+# Assemble outputs. `app/<flavour>/release/` is where AGP drops a release APK, its
+# baseline profiles and `output-metadata.json` — a ~10 MB build artefact that was NOT ignored,
+# so a `git add -A` in a working tree that had run `assembleRelease` committed it. Ignored now
+# rather than remembered: the recurrence is one careless `add` away and the cost is a blob that
+# a merge commit keeps forever.
+/app/*/release/
 /captures
 .externalNativeBuild
 .cxx
