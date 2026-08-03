@@ -151,16 +151,15 @@ internal class ClickHandler @Inject constructor(
     }
 
     private fun processBack() {
-        // Back dismisses the topmost modal before propagating — but NOT the discard sheet, which
-        // is the answer to a back press already. Swallowing it there would make the second press
-        // do nothing, which is how a screen becomes impossible to leave by gesture.
+        // ONE RULE FOR EVERY MODAL: back dismisses the topmost one, and no variant is exempt.
+        // In practice this arm is a fallback rather than the live path — each modal here is an
+        // `AppConfirmSheet`, which owns back inside its own window and routes it to
+        // `onDismissRequest` before the route sees anything. It must stay non-destructive for
+        // exactly that reason: a variant that navigated away instead would turn a stray back
+        // press into a silent discard.
         val dialog = state.value.dialogState
-        if (dialog !is DialogState.Hidden && dialog !is DialogState.DiscardConfirm) {
+        if (dialog !is DialogState.Hidden) {
             updateState { it.copy(dialogState = DialogState.Hidden, pendingTypeChange = null) }
-            return
-        }
-        if (dialog is DialogState.DiscardConfirm) {
-            consume(Action.Navigation.Back)
             return
         }
         if (state.value.isDirty) {

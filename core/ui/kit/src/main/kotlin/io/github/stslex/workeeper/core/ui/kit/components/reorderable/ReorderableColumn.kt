@@ -71,9 +71,9 @@ fun Modifier.reorderableColumnItem(
             // success having done nothing. The arrow buttons this replaced were disabled at their
             // boundaries; the replacement has to be at least as honest.
             //
-            // The two labels are hardcoded English and that is a SEPARATE defect in an app that
-            // ships Russian — reported on #213 rather than absorbed here, because making the
-            // actions conditional does not require touching them.
+            // NOT LOCALISED: both labels below are English literals, so a Russian build announces
+            // "Move up". Any action added here inherits that — the set belongs in the kit's
+            // string table.
             //
             // [lastIndex] is REQUIRED and must not gain a default: a default is a value every
             // existing call site would silently keep, which is the bug.

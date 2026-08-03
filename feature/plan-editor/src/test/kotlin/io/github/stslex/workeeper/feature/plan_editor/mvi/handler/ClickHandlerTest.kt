@@ -341,13 +341,17 @@ internal class ClickHandlerTest {
     }
 
     /**
-     * The discard sheet is the answer to a back press, so a SECOND back press must leave. One
-     * branch on one variant — a second modal field beside `dialogState` would make it two
-     * conditions that have to agree.
+     * **The discard sheet is not exempt from the one modal rule, and it must never navigate.**
+     *
+     * This arm is a fallback rather than the live path: every modal here is an `AppConfirmSheet`,
+     * which owns back inside its own `ComponentDialog` window and routes it to `onDismissRequest`
+     * before the route's handler sees anything. What the assertion protects is the *shape* of the
+     * fallback — a variant that navigated away instead would turn a stray back press into a silent
+     * discard of the draft.
      */
     @Test
-    fun `back with the discard sheet already open leaves instead of swallowing the press`() {
-        val (_, store, handler) = setup(
+    fun `back with the discard sheet open hides it and never navigates`() {
+        val (stateFlow, store, handler) = setup(
             existingExerciseInitial().copy(
                 draft = listOf(PlanSetUiModel(80.0, 8, SetTypeUiModel.WORK)).toImmutableList(),
                 dialogState = DialogState.DiscardConfirm,
@@ -356,7 +360,8 @@ internal class ClickHandlerTest {
 
         handler.invoke(Action.Click.OnBackClick)
 
-        verify(exactly = 1) { store.consume(Action.Navigation.Back) }
+        assertEquals(DialogState.Hidden, stateFlow.value.dialogState)
+        verify(exactly = 0) { store.consume(Action.Navigation.Back) }
     }
 
     @Test
@@ -383,8 +388,14 @@ internal class ClickHandlerTest {
         assertTrue(stateFlow.value.isDirty)
     }
 
+    /**
+     * **No variant is exempt from interception**, the discard sheet included. An exception here
+     * would describe a flow that cannot happen: an `AppConfirmSheet` is a `ModalBottomSheet`, it
+     * owns back inside its own `ComponentDialog` window, and the route never sees the press while
+     * one is up — so disabling interception for a variant routes nothing anywhere.
+     */
     @Test
-    fun `interceptBack disabled while the discard sheet is shown`() {
+    fun `interceptBack stays armed while the discard sheet is shown`() {
         val (stateFlow, _, _) = setup(
             existingExerciseInitial().copy(
                 draft = listOf(PlanSetUiModel(80.0, 8, SetTypeUiModel.WORK)).toImmutableList(),
@@ -392,13 +403,10 @@ internal class ClickHandlerTest {
             ),
         )
 
-        // Dirty + the discard sheet open → interceptBack is false, so the system gesture reaches
-        // nav and back means back. The predicate names the VARIANT now rather than a parallel
-        // boolean, which is what the channel collapse bought (§26).
-        assertFalse(stateFlow.value.interceptBack)
+        assertTrue(stateFlow.value.interceptBack)
     }
 
-    /** The other half of the same predicate: any OTHER open modal still intercepts. */
+    /** The other half of the same predicate: any OTHER open modal intercepts too. */
     @Test
     fun `interceptBack stays armed while the type-change sheet is shown`() {
         val (stateFlow, _, _) = setup(

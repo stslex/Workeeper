@@ -43,16 +43,18 @@ interface PlanEditorStore : Store<State, Action, Event> {
             get() = type == ExerciseTypeUiModel.WEIGHTED
 
         /**
-         * BackHandler intercepts when there are unsaved edits OR when a modal is open — EXCEPT
-         * when the open modal is the discard sheet itself, which is the answer to a back press
-         * already, so the second press must reach nav and back must mean back.
+         * The route's BackHandler intercepts when there are unsaved edits or a modal is open.
          *
-         * The exception names a VARIANT of [dialogState] rather than a parallel flag, which is
-         * what the single-channel shape buys (§26, "Every modal on the three editors is a SHEET").
+         * **NO PER-VARIANT EXCEPTION HERE, and one must not be added to route a back press past
+         * an open sheet.** Every modal on this screen is an `AppConfirmSheet`, i.e. a
+         * `ModalBottomSheet`, and that renders in its own `ComponentDialog` window which consumes
+         * system back itself and calls `onDismissRequest` (§26, "Every modal on the three editors
+         * is a SHEET"). A back press with a sheet up therefore never reaches this route at all,
+         * whatever this property says — so an exception here buys nothing and only describes a
+         * flow that cannot happen.
          */
         val interceptBack: Boolean
-            get() = (isDirty || dialogState !is DialogState.Hidden) &&
-                dialogState !is DialogState.DiscardConfirm
+            get() = isDirty || dialogState !is DialogState.Hidden
 
         @Stable
         sealed interface Mode {
