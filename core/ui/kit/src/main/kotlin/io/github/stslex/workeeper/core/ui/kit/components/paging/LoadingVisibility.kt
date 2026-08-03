@@ -108,8 +108,32 @@ private fun rememberLoadingVisible(loading: Boolean): Boolean {
  * | returns | when | the screen draws |
  * |---|---|---|
  * | `loadingSurface` | shown: appear delay elapsed, minimum hold not | the loading treatment |
- * | `null` | the deferral window — loading, nothing shown yet | **nothing**; the last frame persists |
+ * | the last settled verdict | the deferral window, something already drawn | **that**, unchanged |
+ * | `null` | the deferral window on a cold open — nothing drawn yet | **nothing** |
  * | `surface` | anything else | that surface |
+ *
+ * ## The deferral window keeps the outgoing surface; it does not blank
+ *
+ * A screen renders this verdict by *removing* the block it names — every call site opens
+ * `deferredSurface ?: return` — so `null` does not mean "leave the screen alone", it means "delete
+ * what is there". Compose keeps no frame behind a composable that has left composition. The two
+ * readings are identical on a cold open, where there is nothing to delete, and they diverge on
+ * every transition **from** a settled empty-region verdict. The witness is retry: tapping retry on
+ * a cold-open error moves the verdict `REFRESH_ERROR → LOADING` while the appear delay is still
+ * running, so the error was removed at once and the region sat blank for up to 140 ms before the
+ * spinner arrived — a blank flash in the file whose whole subject is not flashing.
+ *
+ * So the window returns the **last settled verdict** and `null` only before there is one. Note what
+ * this cannot do: a selector returns its content verdict only at `itemCount > 0` and `LOADING` only
+ * at `itemCount == 0`, so the retained verdict is an empty-region one in every reachable case, and
+ * the rows cannot be what persists.
+ *
+ * **The residual, measured rather than assumed:** [deferredSurface]'s arithmetic is gated — the
+ * retention reddens `LoadingVisibilityTest` by name — but the *wiring* from this composable into it
+ * is not. Replacing `lastSettled = lastSettled` with `lastSettled = null` here leaves the whole
+ * module's suite **green**, and that is a hole rather than a no-op: it changes what the screen
+ * draws, which is §27's own discriminator. Same shape as the delays below, same cause — closing it
+ * needs a clock-driven Compose test this module does not have.
  *
  * ## The hold draws LOADING while the data is NOT loading. That is the point
  *
@@ -129,11 +153,24 @@ private fun rememberLoadingVisible(loading: Boolean): Boolean {
  * @param loadingSurface that enum's loading verdict.
  */
 @Composable
-fun <T : Any> rememberDeferredSurface(surface: T, loadingSurface: T): T? = deferredSurface(
-    surface = surface,
-    loadingSurface = loadingSurface,
-    visible = rememberLoadingVisible(surface == loadingSurface),
-)
+fun <T : Any> rememberDeferredSurface(surface: T, loadingSurface: T): T? {
+    val visible = rememberLoadingVisible(surface == loadingSurface)
+    // The outgoing frame, kept because Compose does not keep it for us. A screen renders this
+    // verdict by REMOVING the block it names — `deferredSurface ?: return` at all four sites — so a
+    // `null` here is not "leave what is there", it is "delete it". On a cold open that is right and
+    // is what the appear delay is for: there is nothing to delete. On any transition FROM a settled
+    // empty-region verdict it was wrong, and the retry path is where a user meets it — tap retry on
+    // a cold-open error and the error was removed at once, leaving the region blank for up to 140ms
+    // before the spinner arrived. Found in review on #212.
+    var lastSettled by remember { mutableStateOf<T?>(null) }
+    if (surface != loadingSurface) lastSettled = surface
+    return deferredSurface(
+        surface = surface,
+        loadingSurface = loadingSurface,
+        visible = visible,
+        lastSettled = lastSettled,
+    )
+}
 
 /**
  * Which body a list screen draws, from [rememberDeferredSurface]'s verdict.
@@ -144,9 +181,10 @@ fun <T : Any> rememberDeferredSurface(surface: T, loadingSurface: T): T? = defer
  * two numbers exist to remove, wearing an overlay. The hold is only a hold if the content it is
  * holding back is actually held back.
  *
- * [REGION] covers `null` as well: in the deferral window the region draws nothing at all, and rows
- * would be the one thing that must not appear there — a list that pops in at 40 ms is exactly what
- * the appear delay is protecting the eye from.
+ * [REGION] covers `null` as well: in the deferral window the region draws either the outgoing
+ * verdict or, on a cold open, nothing at all — and rows are the one thing that must not appear
+ * there in either case, since a list that pops in at 40 ms is exactly what the appear delay is
+ * protecting the eye from.
  *
  * Every surface selector on this arc returns its content verdict first (`itemCount > 0 -> CONTENT`),
  * so no verdict other than the content one can coexist with rows; gating on equality is therefore
@@ -156,7 +194,10 @@ enum class ListBody {
     /** The list's own items. */
     ROWS,
 
-    /** The empty region: loading treatment, error, empty state — or, in the deferral window, nothing. */
+    /**
+     * The empty region: loading treatment, error, empty state — in the deferral window whichever of
+     * those was last settled, and nothing at all only before one has been.
+     */
     REGION,
 }
 
@@ -168,14 +209,20 @@ fun <T : Any> listBody(surface: T?, contentSurface: T): ListBody =
  * See [rememberDeferredSurface]. Pure, so the table there is asserted rather than described —
  * including the row that carries the hold, which is the one a golden cannot reach and a screen can
  * silently discard.
+ *
+ * @param lastSettled the last non-loading verdict this call site drew, or `null` if it has not
+ *  drawn one yet. **This is what makes "the outgoing frame persists" true rather than aspirational**
+ *  — see [rememberDeferredSurface]'s deferral row. A caller that passes `null` unconditionally gets
+ *  the blank the appear delay exists to avoid.
  */
 internal fun <T : Any> deferredSurface(
     surface: T,
     loadingSurface: T,
     visible: Boolean,
+    lastSettled: T?,
 ): T? = when {
     visible -> loadingSurface
-    surface == loadingSurface -> null
+    surface == loadingSurface -> lastSettled
     else -> surface
 }
 

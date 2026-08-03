@@ -133,7 +133,7 @@ internal class LoadingVisibilityTest {
         assertEquals(0L, loadingHoldRemaining(motion.fast.toLong(), (window + 1_000).toLong(), motion))
     }
 
-    private enum class Surface { LOADING, CONTENT, EMPTY }
+    private enum class Surface { LOADING, CONTENT, EMPTY, ERROR }
 
     @Test
     @DisplayName("the hold draws LOADING while the data is NOT loading")
@@ -145,23 +145,69 @@ internal class LoadingVisibilityTest {
         // flashes for the millisecond the two numbers exist to prevent.
         assertEquals(
             Surface.LOADING,
-            deferredSurface(surface = Surface.CONTENT, loadingSurface = Surface.LOADING, visible = true),
+            deferredSurface(
+                surface = Surface.CONTENT,
+                loadingSurface = Surface.LOADING,
+                visible = true,
+                lastSettled = Surface.CONTENT,
+            ),
         )
         assertEquals(
             Surface.LOADING,
-            deferredSurface(surface = Surface.EMPTY, loadingSurface = Surface.LOADING, visible = true),
+            deferredSurface(
+                surface = Surface.EMPTY,
+                loadingSurface = Surface.LOADING,
+                visible = true,
+                lastSettled = Surface.EMPTY,
+            ),
         )
     }
 
     @Test
-    @DisplayName("the deferral window draws NOTHING — not the spinner, and not the surface under it")
-    fun deferralWindowDrawsNothing() {
-        // Loading, nothing shown yet: null, so the outgoing frame persists. Returning the raw
-        // LOADING verdict here would put the spinner up at once and delete the appear delay; the
-        // two are the same value and mean opposite things, which is why the window has its own.
+    @DisplayName("the deferral window draws NOTHING on a cold open — nothing has been settled yet")
+    fun deferralWindowDrawsNothingOnColdOpen() {
+        // Loading with nothing ever drawn: null. Returning the raw LOADING verdict here would put
+        // the spinner up at once and delete the appear delay; the two are the same value and mean
+        // opposite things, which is why the window has its own.
         assertEquals(
             null,
-            deferredSurface(surface = Surface.LOADING, loadingSurface = Surface.LOADING, visible = false),
+            deferredSurface(
+                surface = Surface.LOADING,
+                loadingSurface = Surface.LOADING,
+                visible = false,
+                lastSettled = null,
+            ),
+        )
+    }
+
+    @Test
+    @DisplayName("the deferral window KEEPS the outgoing surface when there is one — the retry blank")
+    fun deferralWindowKeepsTheOutgoingSurface() {
+        // Found in review on #212. A screen renders this verdict by REMOVING the block it names
+        // (`deferredSurface ?: return` at all four sites), so `null` deletes rather than preserves,
+        // and Compose keeps no frame behind a composable that has left composition. Tapping retry
+        // on a cold-open error moves the verdict REFRESH_ERROR -> LOADING while the appear delay is
+        // still running: with `null` the error vanished at once and the region sat blank for up to
+        // 140ms before the spinner — a blank flash, in the file whose subject is not flashing.
+        assertEquals(
+            Surface.ERROR,
+            deferredSurface(
+                surface = Surface.LOADING,
+                loadingSurface = Surface.LOADING,
+                visible = false,
+                lastSettled = Surface.ERROR,
+            ),
+        )
+        // And it is the WINDOW that keeps it, not the hold: once the delay elapses the spinner
+        // replaces the error rather than the error outliving it.
+        assertEquals(
+            Surface.LOADING,
+            deferredSurface(
+                surface = Surface.LOADING,
+                loadingSurface = Surface.LOADING,
+                visible = true,
+                lastSettled = Surface.ERROR,
+            ),
         )
     }
 
@@ -195,11 +241,21 @@ internal class LoadingVisibilityTest {
     fun settledSurfacesPassThrough() {
         assertEquals(
             Surface.CONTENT,
-            deferredSurface(surface = Surface.CONTENT, loadingSurface = Surface.LOADING, visible = false),
+            deferredSurface(
+                surface = Surface.CONTENT,
+                loadingSurface = Surface.LOADING,
+                visible = false,
+                lastSettled = Surface.EMPTY,
+            ),
         )
         assertEquals(
             Surface.EMPTY,
-            deferredSurface(surface = Surface.EMPTY, loadingSurface = Surface.LOADING, visible = false),
+            deferredSurface(
+                surface = Surface.EMPTY,
+                loadingSurface = Surface.LOADING,
+                visible = false,
+                lastSettled = Surface.CONTENT,
+            ),
         )
     }
 }
