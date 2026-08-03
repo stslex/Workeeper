@@ -13,10 +13,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -28,7 +24,9 @@ import io.github.stslex.workeeper.core.ui.kit.components.button.AppButton
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButtonSize
 import io.github.stslex.workeeper.core.ui.kit.components.input.AppFieldLabel
 import io.github.stslex.workeeper.core.ui.kit.components.input.AppTextField
-import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopAppBar
+import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppIconButton
+import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopBar
+import io.github.stslex.workeeper.core.ui.kit.icons.AppIcons
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
@@ -65,21 +63,28 @@ internal fun ExerciseEditScreen(
             .background(AppUi.colors.surfaceTier0)
             .testTag("ExerciseEditScreen"),
     ) {
-        AppTopAppBar(
-            title = stringResource(titleRes),
-            navigationIcon = {
-                IconButton(
+        // §26 "The editors' six code-diverges": `AppTopBar` is the extracted `.topbar`, and this
+        // screen was the worst of the three — it drew `AppTopAppBar` in Edit and `AppTopBar` in
+        // Read, so THE BAR CHANGED UNDER THE USER when one screen flipped modes. Same component
+        // in both modes now, and the same navigation mark: §26 "The three bar shapes" rules that
+        // a pushed screen carries a back arrow, and `#s-ex` / `#s-arch` / `#s-editor` all draw it
+        // as `.icon-btn.lead` + `h1.sm` + the record's own name. The filled `Icons.Default.Close`
+        // that used to sit here is one of B33(a)'s four.
+        //
+        // The title falls back to the create/edit string only while the name is blank, which is
+        // the create flow before the first keystroke — an unnamed record has no name to show.
+        AppTopBar(
+            title = state.name.ifBlank { stringResource(titleRes) },
+            smallTitle = true,
+            navigation = {
+                AppIconButton(
                     modifier = Modifier.testTag("ExerciseEditCloseButton"),
+                    icon = AppIcons.ChevronLeft,
+                    contentDescription = stringResource(
+                        R.string.feature_exercise_edit_close_description,
+                    ),
                     onClick = { consume(Action.Click.OnCancelClick) },
-                ) {
-                    Icon(
-                        modifier = Modifier.size(AppDimension.iconSm),
-                        imageVector = Icons.Default.Close,
-                        contentDescription = stringResource(
-                            R.string.feature_exercise_edit_close_description,
-                        ),
-                    )
-                }
+                )
             },
         )
         Column(

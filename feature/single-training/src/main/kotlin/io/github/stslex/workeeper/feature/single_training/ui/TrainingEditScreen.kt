@@ -15,9 +15,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -28,7 +25,9 @@ import io.github.stslex.workeeper.core.ui.kit.components.button.AppButton
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButtonSize
 import io.github.stslex.workeeper.core.ui.kit.components.input.AppFieldLabel
 import io.github.stslex.workeeper.core.ui.kit.components.input.AppTextField
-import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopAppBar
+import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppIconButton
+import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopBar
+import io.github.stslex.workeeper.core.ui.kit.icons.AppIcons
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.feature.single_training.R
@@ -57,19 +56,20 @@ internal fun TrainingEditScreen(
             .background(AppUi.colors.surfaceTier0)
             .testTag("TrainingEditScreen"),
     ) {
-        AppTopAppBar(
-            title = stringResource(titleRes),
-            navigationIcon = {
-                IconButton(
+        // §26 "The editors' six code-diverges" and "The three bar shapes" — see the twin in
+        // `ExerciseEditScreen` for the full reasoning. `AppTopBar`, the pushed shape:
+        // `.icon-btn.lead` + `h1.sm` + the record's own name, with the create/edit string
+        // standing in only while the name is blank.
+        AppTopBar(
+            title = state.name.ifBlank { stringResource(titleRes) },
+            smallTitle = true,
+            navigation = {
+                AppIconButton(
                     modifier = Modifier.testTag("TrainingEditCloseButton"),
+                    icon = AppIcons.ChevronLeft,
+                    contentDescription = stringResource(R.string.feature_training_edit_close),
                     onClick = { consume(Action.Click.OnCancelClick) },
-                ) {
-                    Icon(
-                        modifier = Modifier.size(AppDimension.iconSm),
-                        imageVector = Icons.Default.Close,
-                        contentDescription = stringResource(R.string.feature_training_edit_close),
-                    )
-                }
+                )
             },
         )
         Column(

@@ -14,20 +14,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
@@ -35,6 +27,9 @@ import androidx.compose.ui.window.Dialog
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButton
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButtonSize
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppConfirmDialog
+import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppIconButton
+import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopBar
+import io.github.stslex.workeeper.core.ui.kit.icons.AppIcons
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
@@ -52,14 +47,12 @@ import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 import io.github.stslex.workeeper.core.ui.kit.R as KitR
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun PlanEditorScreen(
     state: State,
     consume: (Action) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val title = if (state.exerciseName.isBlank()) {
         stringResource(R.string.core_ui_plan_editor_screen_title_default)
     } else {
@@ -73,38 +66,28 @@ internal fun PlanEditorScreen(
     Scaffold(
         modifier = modifier
             .fillMaxSize()
-            .nestedScroll(scrollBehavior.nestedScrollConnection)
             .testTag("PlanEditorScreen"),
         topBar = {
-            TopAppBar(
-                scrollBehavior = scrollBehavior,
-                title = {
-                    Text(
-                        text = title,
-                        style = AppUi.typography.headlineSmall,
-                        color = AppUi.colors.textPrimary,
+            // §26 "The editors' six code-diverges": this was the raw M3 `TopAppBar` of the three
+            // — its own colours, its own title rung, its own filled `ArrowBack` — and it is now
+            // the extracted `.topbar` like the other two. The collapsing scroll behaviour goes
+            // with it: nothing in either mockup draws a bar that collapses, and `AppTopBar` is a
+            // 56dp row on `surfaceTier0` with no surface of its own to collapse into.
+            // `Icons.AutoMirrored.Filled.ArrowBack` → `AppIcons.ChevronLeft` is B34, which is
+            // one of B33(a)'s eighteen and one of this stage's six.
+            AppTopBar(
+                title = title,
+                smallTitle = true,
+                navigation = {
+                    AppIconButton(
+                        modifier = Modifier.testTag("PlanEditorBack"),
+                        icon = AppIcons.ChevronLeft,
+                        contentDescription = stringResource(
+                            R.string.core_ui_plan_editor_screen_back,
+                        ),
+                        onClick = { consume(Action.Click.OnBackClick) },
                     )
                 },
-                navigationIcon = {
-                    IconButton(
-                        modifier = Modifier.testTag("PlanEditorBack"),
-                        onClick = { consume(Action.Click.OnBackClick) },
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(
-                                R.string.core_ui_plan_editor_screen_back,
-                            ),
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = AppUi.colors.surfaceTier0,
-                    scrolledContainerColor = AppUi.colors.surfaceTier0,
-                    navigationIconContentColor = AppUi.colors.textPrimary,
-                    titleContentColor = AppUi.colors.textPrimary,
-                    actionIconContentColor = AppUi.colors.textPrimary,
-                ),
             )
         },
         bottomBar = {
