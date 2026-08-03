@@ -151,11 +151,9 @@ internal class ClickHandler @Inject constructor(
     }
 
     private fun processBack() {
-        // Back gesture dismisses the topmost modal before propagating — but NOT the discard
-        // sheet, which is the answer to a back press already. Swallowing it there would make the
-        // second press do nothing, which is how a screen becomes impossible to leave. With one
-        // sealed channel this is a branch on a variant; with the old two-field shape it was two
-        // conditions that had to agree.
+        // Back dismisses the topmost modal before propagating — but NOT the discard sheet, which
+        // is the answer to a back press already. Swallowing it there would make the second press
+        // do nothing, which is how a screen becomes impossible to leave by gesture.
         val dialog = state.value.dialogState
         if (dialog !is DialogState.Hidden && dialog !is DialogState.DiscardConfirm) {
             updateState { it.copy(dialogState = DialogState.Hidden, pendingTypeChange = null) }
@@ -182,10 +180,9 @@ internal class ClickHandler @Inject constructor(
         consume(Action.Navigation.Back)
     }
 
-    // `processConfirmSave` USED TO LIVE HERE, and it went with the sheet's third action.
-    // §26: the discard sheet appears only when there is something to lose, and saving already
-    // lives on the form — «Сохранить» inside it was a second door to a room the user is standing
-    // in. Nothing else called it; `OnConfirmSave` is deleted rather than left unreachable.
+    // NO SAVE ACTION ON THE DISCARD SHEET: it appears only when there is something to lose and
+    // saving already lives on the form, so a third action would be a second door to a room the
+    // user is standing in (§26, "Every modal on the three editors is a SHEET").
 
     private fun processSave() {
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))

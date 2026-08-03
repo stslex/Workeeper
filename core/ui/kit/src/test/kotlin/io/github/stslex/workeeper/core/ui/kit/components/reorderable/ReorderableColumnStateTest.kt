@@ -13,15 +13,14 @@ import org.junit.jupiter.api.Test
  * §27: "a golden image gates only what a single static frame contains. Anything whose evidence
  * needs a second frame, a gesture or a scroll is invisible to it, and will pass a mutation
  * silently." A drag is three frames minimum and a gesture throughout, so the pictures this stage
- * records for the training editor can show that there is **one handle where two arrows used to
- * be** and nothing at all about whether dragging it works.
+ * records for the training editor can show that the row carries **one handle** and nothing at all
+ * about whether dragging it works.
  *
- * **This class had no tests, in either of its two consumers.** It has shipped since the
- * past-session rebuild and the editors stage makes it the training editor's only reorder
- * affordance — deleting the up/down buttons removes the path that WAS covered
- * (`ClickHandlerTest`'s `OnExerciseReorder` cases still cover the store side; what went is the
- * only *tested* way to produce those arguments). Replacing a covered control with an uncovered
- * one is a coverage regression dressed as a redesign, which is what this file refuses.
+ * **This class is the training editor's only reorder affordance and its only tested one.**
+ * `ClickHandlerTest`'s `OnExerciseReorder` cases cover the store side; nothing but this file
+ * covers the gesture that produces those arguments. A control the user has no alternative to,
+ * with no assertion on it, is a coverage hole shaped like a redesign — which is what this file
+ * refuses.
  *
  * Its semantics are documented and non-obvious, so each is asserted rather than assumed:
  * **live commit** (the move fires as centres cross, not on release), **re-anchoring** (the finger

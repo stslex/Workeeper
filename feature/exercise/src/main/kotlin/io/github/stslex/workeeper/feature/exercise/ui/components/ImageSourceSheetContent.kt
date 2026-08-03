@@ -25,11 +25,10 @@ import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ImageSourceUiMod
  * A **menu** sheet, not a confirmation: two choices and no question, which is `#sh-pick`'s shape
  * and why `AppConfirmSheet` is the wrong component for it.
  *
- * Two things went with the dialog it replaces, and both are subtractions rather than losses.
- * **The two Material photo glyphs** (`PhotoCamera`, `PhotoLibrary`) — the kit ships neither, and
- * drawing them here would settle two of B33(b)'s open glyph questions by writing them; `#sh-pick`
- * draws its items as text and so does this. **The cancel button** — a sheet's scrim and its drag
- * ARE the dismiss, so a third row that only closed the sheet was a button for a gesture.
+ * **No glyphs and no cancel row.** `PhotoCamera` / `PhotoLibrary` are Material fills the kit does
+ * not ship, and drawing them here would settle two of B33(b)'s open glyph questions by writing
+ * them; `#sh-pick` draws its items as text and so does this. A cancel row is a button for a
+ * gesture — the scrim and the drag ARE the dismiss.
  *
  * Content-only, hosted by `AppBottomSheet` at the call site: `ModalBottomSheet` composes into its
  * own window and Paparazzi models one, so the layout is separated to keep it photographable.

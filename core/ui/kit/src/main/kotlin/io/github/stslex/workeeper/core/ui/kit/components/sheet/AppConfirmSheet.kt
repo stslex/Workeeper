@@ -32,14 +32,14 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
  * a dialog zero times, so §26 turns every modal on the three editors into one of these — six
  * instances across five components. This is the form all of them take.
  *
- * ## Two actions, and the third one is the ruling
+ * ## Two actions, and the second one is the ruling
  *
- * The plan editor's discard was three: Save / Discard / Continue, in a bespoke `Dialog` that
- * existed because "`AppConfirmDialog` only renders two". **«Сохранить» is removed** — the sheet
- * appears only when there is something to lose, and saving already lives on the form, so the third
- * action offered a second door to a room the user is standing in. That also disposes of the
- * bespoke dialog and of the reason it stood on. The dismiss label is «Продолжить правку», not
- * «Отмена»: the old one read as closing the window rather than as declining to discard.
+ * **A discard sheet carries exactly two: «Выйти без сохранения» and «Продолжить правку».** No save
+ * action — the sheet appears only when there is something to lose, and saving already lives on the
+ * form, so a third row would offer a second door to a room the user is standing in. A discard that
+ * needs a bespoke `Dialog` to render three is a discard with one too many. The dismiss label is
+ * «Продолжить правку» rather than «Отмена», which reads as closing the window rather than as
+ * declining to discard.
  *
  * Actions are `.mitem`s ([AppSheetItem]) rather than buttons — a full-width row you tap, which is
  * what the drawing draws and what a sheet's bottom edge affords. The scrim and the drag both route

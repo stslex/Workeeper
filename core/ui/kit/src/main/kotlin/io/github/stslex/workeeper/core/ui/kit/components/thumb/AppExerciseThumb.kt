@@ -40,12 +40,11 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
  * .thumb svg{width:21px;height:21px;stroke-width:1.7}
  * ```
  *
- * ## What it replaces, and why the form row goes
+ * ## Why it is in the bar and not in the form
  *
- * The image used to be a 72dp thumb plus two buttons in a row of the form. Moving it into the bar
- * costs the form **no vertical space at all** and gives the record a face at the top of every
- * screen that shows it. What is lost is the two buttons, and §26 puts them where the picture is:
- * with an image, the tap opens the full-screen viewer and replace/remove live there.
+ * It costs the form **no vertical space at all** and gives the record a face at the top of every
+ * screen that shows it. The picture's two verbs are not here: §26 puts them where the picture is,
+ * so with an image the tap opens the full-screen viewer and replace/remove live in it.
  *
  * ## The empty state draws the TYPE, and that relationship is not invented here
  *
@@ -116,9 +115,9 @@ fun AppExerciseThumb(
                 } else {
                     AppIcons.ExerciseWeightless
                 },
-                // Labelled by the caller's own click target, not here: the mark says which TYPE
-                // the exercise is, and the action is "choose a picture" — one description cannot
-                // be both, so the caller owns the button's.
+                // Decorative: the box is the control and it carries [contentDescription] as its
+                // click label. Describing the mark here too would announce the exercise's TYPE
+                // where the user needs to hear the ACTION, and one control cannot say both.
                 contentDescription = null,
                 tint = AppUi.colors.textDim,
             )

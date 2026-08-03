@@ -44,13 +44,11 @@ interface PlanEditorStore : Store<State, Action, Event> {
 
         /**
          * BackHandler intercepts when there are unsaved edits OR when a modal is open — EXCEPT
-         * when the open modal is the discard sheet itself, which is the second press of the same
-         * gesture and must reach nav so back means back.
+         * when the open modal is the discard sheet itself, which is the answer to a back press
+         * already, so the second press must reach nav and back must mean back.
          *
-         * That exception used to be spelled `!confirmDiscardOpen`, a second channel beside
-         * `dialogState` (§26). Collapsing the two makes the clause name the variant instead of a
-         * parallel flag, which is the whole point: the state that must not intercept is now a
-         * value of the same field the rest of the predicate reads.
+         * The exception names a VARIANT of [dialogState] rather than a parallel flag, which is
+         * what the single-channel shape buys (§26, "Every modal on the three editors is a SHEET").
          */
         val interceptBack: Boolean
             get() = (isDirty || dialogState !is DialogState.Hidden) &&

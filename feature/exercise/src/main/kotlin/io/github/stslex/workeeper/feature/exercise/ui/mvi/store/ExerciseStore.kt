@@ -51,13 +51,9 @@ interface ExerciseStore : Store<State, Action, Event> {
         val personalRecord: PersonalRecordUiModel?,
     ) : Store.State {
 
-        // `isSaveEnabled: Boolean get() = name.isNotBlank()` USED TO LIVE HERE, and its removal
-        // is the whole of §26 "Save is never disabled". It was the exact condition that produces
-        // `nameError`, so the blank-name branch was unreachable from the UI and
-        // `ClickHandlerTest`'s "OnSaveClick with blank name sets nameError" certified a state
-        // production could not enter — B23's shape, arriving a second time. Save is enabled
-        // always; a blank name is now a reachable error the field can point at, which tells the
-        // user WHERE to fix rather than only that something is wrong.
+        // NO SAVE-ENABLED PREDICATE HERE, and none may be added: gating Save on `name` is
+        // gating it on the exact condition that produces `nameError`, which makes that error
+        // unreachable (§26, "Save is never disabled").
 
         /**
          * Read-mode default plan surface visibility — drives the small "Default plan" card
@@ -78,19 +74,12 @@ interface ExerciseStore : Store<State, Action, Event> {
          * Compares the working ad-hoc plan against the baseline. It exists for CREATE mode, where
          * [originalSnapshot] is null until the first save and the first term of [hasChanges] is
          * therefore false by construction — without it, a plan built in the create flow would be
-         * silently discarded by Cancel.
+         * silently discarded by Cancel. A null snapshot reads as "no plan yet", which is exactly
+         * the comparison create mode needs.
          *
-         * **It reads the SNAPSHOT, and it used to read a second baseline field of its own
-         * (`originalAdhocPlan`). That field is deleted, and its removal is a bug fix.** Two
-         * baselines for one value need every writer to know about both, and
-         * `CommonHandler.processPlanEditorExistingReturned` knew about one: it reset
-         * `originalSnapshot` after the plan editor persisted — saying so in as many words — and
-         * left `originalAdhocPlan` at the value the load had put there. So saving a plan and
-         * coming back left the form permanently dirty, raising the discard sheet over work that
-         * was already on disk. Fixed by deletion rather than by a second assignment: a pairing
-         * kept in step by hand comes apart, one source cannot. Create mode still works, because a
-         * null snapshot means "no plan yet", which is exactly the comparison this needs there.
-         * Asserted in `ExerciseDirtyStateTest`, both directions.
+         * **The baseline is [originalSnapshot] and there must not be a second one.** Two baselines
+         * for one value need every writer to keep both in step, and every writer will not: §25
+         * **B39** is what that costs here. Asserted both ways in `ExerciseDirtyStateTest`.
          */
         val isAdhocPlanDirty: Boolean
             get() = (adhocPlan ?: persistentListOf<PlanSetUiModel>()) !=

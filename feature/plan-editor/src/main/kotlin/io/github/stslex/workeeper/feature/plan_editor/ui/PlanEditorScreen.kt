@@ -65,11 +65,11 @@ internal fun PlanEditorScreen(
             .fillMaxSize()
             .testTag("PlanEditorScreen"),
         topBar = {
-            // §26 "The editors' six code-diverges": this was the raw M3 `TopAppBar` of the three
-            // — its own colours, its own title rung, its own filled `ArrowBack` — and it is now
-            // the extracted `.topbar` like the other two. The collapsing scroll behaviour goes
-            // with it: nothing in either mockup draws a bar that collapses, and `AppTopBar` is a
-            // 56dp row on `surfaceTier0` with no surface of its own to collapse into.
+            // §26 "The editors' six code-diverges": the bar is the extracted `.topbar`, the same
+            // component as on the other two editors — not a raw M3 `TopAppBar` with its own
+            // colours and its own title rung. It does not collapse on scroll either: nothing in
+            // either mockup draws a bar that collapses, and `AppTopBar` is a 56dp row on
+            // `surfaceTier0` with no surface of its own to collapse into.
             // `Icons.AutoMirrored.Filled.ArrowBack` → `AppIcons.ChevronLeft` is B34, which is
             // one of B33(a)'s eighteen and one of this stage's six.
             AppTopBar(
@@ -135,14 +135,14 @@ internal fun PlanEditorScreen(
                     R.string.core_ui_plan_editor_set_type_tooltip,
                 ),
             )
-            // The full-width tertiary "add set" button that used to sit here is GONE, and so is
-            // its twin in the exercise create-flow: add and remove live in the card's foot now
-            // (§26, "Sets: add and remove move to the card's foot"). `PlanEditorBody` owns both,
-            // so the two hosts cannot drift on where a set comes from.
+            // NO ADD BUTTON HERE, and none in the exercise create-flow either: add and remove
+            // live in the card's foot (§26, "Sets: add and remove move to the card's foot").
+            // `PlanEditorBody` owns both, so the two hosts cannot drift on where a set comes
+            // from.
         }
 
-        // ONE sealed channel. `confirmDiscardOpen: Boolean` used to sit beside `dialogState`,
-        // so this screen could have both modals open at once (§26; `mvi-dialog-state`).
+        // ONE sealed channel, and there must not be a second — a `Boolean` beside `dialogState`
+        // lets this screen open two modals at once (§26; `mvi-dialog-state`).
         when (val dialog = state.dialogState) {
             DialogState.Hidden -> Unit
 

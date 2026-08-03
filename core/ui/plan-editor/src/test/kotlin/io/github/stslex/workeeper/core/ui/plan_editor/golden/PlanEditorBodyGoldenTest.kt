@@ -27,8 +27,8 @@ import org.junit.jupiter.params.provider.EnumSource
  * this component as the one no mockup section draws; that is a reason to gate it more carefully,
  * not less.
  *
- * Four claims, every one of them a one-frame static fact and none of them visible before this
- * stage:
+ * Four claims, every one of them a one-frame static fact and no other instrument holding any of
+ * them:
  *
  *  - the rows sit on a **card** (`surfaceTier1`, `Radius.medium`), so the foot's top rule has
  *    something to be the foot of;

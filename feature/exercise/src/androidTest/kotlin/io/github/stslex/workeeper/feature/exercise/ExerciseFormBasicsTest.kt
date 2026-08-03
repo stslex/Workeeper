@@ -48,19 +48,13 @@ class ExerciseFormBasicsTest : BaseComposeTest() {
         State.create(uuid = null).copy(isLoading = false, name = name)
 
     /**
-     * **INVERTED by the editors stage, and the inversion is the point.**
+     * **The UI half of §26 "Save is never disabled", asserted on both sides of the name.**
      *
-     * This case used to assert that Save is **disabled** on an empty name, and it was the only
-     * automated statement of the defect §26 "Save is never disabled" removed: `isSaveEnabled` was
-     * `name.isNotBlank()`, the exact condition that produces `nameError`, so the error branch was
-     * unreachable and two green `ClickHandlerTest` cases certified a state production could not
-     * enter (B23's shape).
-     *
-     * It now asserts the opposite in the same shape: **Save is enabled with an empty name**, the
-     * tap dispatches [Action.Click.OnSaveClick] — which is what makes the blank-name error
-     * reachable — and typing a name changes neither. Kept rather than deleted, because a test
-     * that flipped from "disabled" to "enabled" is a readable record of the decision; a deleted
-     * one is not.
+     * Save is enabled with an empty name and the tap dispatches [Action.Click.OnSaveClick], which
+     * is what makes the handler's blank-name branch reachable at all: gate the button on
+     * `name.isNotBlank()` and that branch — and the two `ClickHandlerTest` cases that assert it —
+     * certify a state production cannot enter (B23's shape). Typing a name changes neither, so the
+     * assertion is about the absence of a predicate rather than about one value of it.
      */
     @Test
     fun f02_saveIsEnabledWithAnEmptyName_soTheBlankNameErrorIsReachable() {
@@ -87,7 +81,7 @@ class ExerciseFormBasicsTest : BaseComposeTest() {
         }
 
         // Empty name → Save ENABLED, and the tap goes through. This is the reachability the
-        // handler's blank-name branch never had.
+        // handler's blank-name branch depends on.
         composeTestRule
             .onNodeWithTag("ExerciseEditSaveButton")
             .assertIsEnabled()
@@ -100,7 +94,7 @@ class ExerciseFormBasicsTest : BaseComposeTest() {
             .performTextInput("Bench Press")
         capture.assertCaptured<Action.Input.OnNameChange>()
 
-        // ...and Save is still enabled, because it no longer depends on the name at all.
+        // ...and Save is still enabled, because it does not depend on the name at all.
         composeTestRule.waitForIdle()
         composeTestRule
             .onNodeWithTag("ExerciseEditSaveButton")

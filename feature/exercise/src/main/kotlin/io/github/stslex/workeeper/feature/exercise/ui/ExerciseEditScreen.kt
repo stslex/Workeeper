@@ -62,13 +62,13 @@ internal fun ExerciseEditScreen(
             .background(AppUi.colors.surfaceTier0)
             .testTag("ExerciseEditScreen"),
     ) {
-        // §26 "The editors' six code-diverges": `AppTopBar` is the extracted `.topbar`, and this
-        // screen was the worst of the three — it drew `AppTopAppBar` in Edit and `AppTopBar` in
-        // Read, so THE BAR CHANGED UNDER THE USER when one screen flipped modes. Same component
-        // in both modes now, and the same navigation mark: §26 "The three bar shapes" rules that
-        // a pushed screen carries a back arrow, and `#s-ex` / `#s-arch` / `#s-editor` all draw it
-        // as `.icon-btn.lead` + `h1.sm` + the record's own name. The filled `Icons.Default.Close`
-        // that used to sit here is one of B33(a)'s four.
+        // §26 "The editors' six code-diverges": `AppTopBar` is the extracted `.topbar`, and it
+        // is the bar in BOTH modes of this screen. Read and Edit must not draw different bar
+        // components — this screen flips modes in place, and a bar that changes under the user
+        // is the defect the ruling closes. Same navigation mark in both, too: §26 "The three bar
+        // shapes" rules that a pushed screen carries a back arrow, and `#s-ex` / `#s-arch` /
+        // `#s-editor` all draw it as `.icon-btn.lead` + `h1.sm` + the record's own name. The
+        // chevron here is one of B33(a)'s four `Icons.Default.Close` sites.
         //
         // The title falls back to the create/edit string only while the name is blank, which is
         // the create flow before the first keystroke — an unnamed record has no name to show.
@@ -105,9 +105,9 @@ internal fun ExerciseEditScreen(
             verticalArrangement = Arrangement.spacedBy(AppDimension.sectionSpacing),
         ) {
             Spacer(Modifier.height(AppDimension.Space.sm))
-            // The image row is GONE — thumb, «Изменить» and «Удалить» all moved (§26, "The image
-            // moves into the pushed top bar"). The thumb is in the bar above; the two verbs are
-            // in the viewer the thumb opens, which is where the picture they act on is.
+            // NO IMAGE ROW IN THE FORM (§26, "The image moves into the pushed top bar"). The
+            // thumb is in the bar above; «Изменить» and «Удалить» are in the viewer the thumb
+            // opens, which is where the picture they act on is.
             FormSection(label = stringResource(R.string.feature_exercise_edit_label_name)) {
                 val nameErrorText = when {
                     state.nameError -> stringResource(R.string.feature_exercise_edit_error_name_required)
@@ -147,9 +147,9 @@ internal fun ExerciseEditScreen(
                 )
             }
             FormSection(label = stringResource(R.string.feature_exercise_edit_label_description)) {
-                // No explicit height: `.tf.multi` is the same box taller, and the field owns
-                // that height now (§7.2). The 120.dp that used to sit here was a call site
-                // guessing at a number the drawing puts at 96.
+                // No explicit height — `.tf.multi` is the same box taller and the FIELD owns
+                // that number (§7.2). A call site that sets its own guesses at a value the
+                // drawing already puts at 96.
                 AppTextField(
                     modifier = Modifier.testTag("ExerciseEditDescriptionField"),
                     value = state.description,
@@ -253,10 +253,9 @@ private fun InlineAdhocPlanEditor(
     consume: (Action) -> Unit,
 ) {
     val draft = state.adhocPlan ?: persistentListOf()
-    // The `AppButton.Tertiary` that used to follow this call is GONE — add and remove live in
-    // the card's foot now (§26, "Sets: add and remove move to the card's foot"), which
-    // `PlanEditorBody` owns, so this host and the full-screen route cannot drift on where a set
-    // comes from.
+    // NO ADD BUTTON AFTER THIS CALL: add and remove live in the card's foot (§26, "Sets: add
+    // and remove move to the card's foot"), which `PlanEditorBody` owns, so this host and the
+    // full-screen route cannot drift on where a set comes from.
     PlanEditorBody(
         draft = draft,
         isWeighted = state.type == ExerciseTypeUiModel.WEIGHTED,
@@ -309,8 +308,8 @@ private fun EditActionBar(
                 .testTag("ExerciseEditSaveButton"),
             text = stringResource(KitR.string.core_ui_kit_action_save),
             onClick = { consume(Action.Click.OnSaveClick) },
-            // No `enabled` — §26 "Save is never disabled". The condition that used to sit here
-            // was the one that produces `nameError`, so the error it guarded was unreachable.
+            // No `enabled` — §26 "Save is never disabled". The only condition available here is
+            // the one that produces `nameError`, so gating on it makes that error unreachable.
         )
     }
 }

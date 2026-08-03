@@ -84,10 +84,10 @@ sealed interface Screen {
      * (`filesDir/exercise_images/<uuid>.jpg`) or a content URI string
      * (e.g. from `PickVisualMedia`); Coil resolves both transparently.
      *
-     * **It also carries the picture's two verbs now** (§26, "The image moves into the pushed top
-     * bar"). The exercise editor's image row is gone — thumb, «Изменить» and «Удалить» all moved —
-     * and the ruling puts replace and remove *where the picture is* rather than beside a 46dp
-     * stand-in for it. The viewer does not perform either: it pops back with
+     * **It also carries the picture's two verbs** (§26, "The image moves into the pushed top
+     * bar"). The editor's form has no image row: replace and remove live *where the picture is*
+     * rather than beside the 46dp stand-in for it in the bar. The viewer performs neither — it
+     * pops back with
      * [exerciseImageRequestAttr] and the editor, which owns the permission plumbing, the temp-URI
      * dance and the uncommitted `PendingImage`, does the work. **A request, not a result** — none
      * of that machinery moves, and the viewer stays a viewer.

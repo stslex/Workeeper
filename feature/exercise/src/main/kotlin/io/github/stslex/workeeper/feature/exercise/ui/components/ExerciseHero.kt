@@ -86,9 +86,9 @@ private fun ExerciseTypePlaceholder(
     val isWeighted = type == ExerciseTypeUiModel.WEIGHTED
     Icon(
         modifier = Modifier.size(36.dp),
-        // §26 "The image moves into the pushed top bar": the two type marks are stroke glyphs
-        // in the kit now, and the filled Material pair they replace is gone from every site that
-        // draws a TYPE. One vector per mark, so the hero and the thumb cannot drift.
+        // §26 "The image moves into the pushed top bar": the two type marks are kit strokes, and
+        // no site that draws a TYPE imports the filled Material pair. One vector per mark, so the
+        // hero and the thumb cannot drift.
         imageVector = if (isWeighted) AppIcons.ExerciseWeighted else AppIcons.ExerciseWeightless,
         contentDescription = stringResource(R.string.feature_exercise_image_placeholder_description),
         tint = if (isWeighted) {

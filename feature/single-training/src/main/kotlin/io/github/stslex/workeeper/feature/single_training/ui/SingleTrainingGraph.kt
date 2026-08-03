@@ -83,8 +83,8 @@ fun NavGraphBuilder.singleTrainingsGraph(
         //
         // LOAD-BEARING PRECONDITION: `loadTraining` must clear `isLoading` on FAILURE as well
         // as on success, because `HandlerStore.launch` defaults `onError` to `{}` (B17, B21).
-        // Before this gate a thrown load cost nothing visible; after it the same throw is a
-        // permanently empty screen. `CommonHandler.loadTraining` closes its own.
+        // A throw that leaves the flag set is a permanently empty screen — this gate is what
+        // gives that failure a cost. `CommonHandler.loadTraining` closes its own.
         if (state.isLoading) return@navComponentScreenWithState
 
         when (state.mode) {

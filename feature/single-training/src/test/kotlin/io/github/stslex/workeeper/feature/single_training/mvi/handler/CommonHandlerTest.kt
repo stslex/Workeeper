@@ -24,11 +24,10 @@ import org.junit.jupiter.api.Test
 /**
  * `isLoading`'s lifecycle on the training editor.
  *
- * Until the editors stage nothing read the flag — it was written on every load and consulted by no
- * composable, so an assertion about it was a claim about a field rather than about the app (§27:
- * "a gate whose subject is unconsumed is vacuous in precisely the way a green one is").
- * `SingleTrainingGraph` now withholds the whole screen while it is true (§26, "A route does not
- * compose until it has loaded").
+ * `SingleTrainingGraph` withholds the whole screen while the flag is true (§26, "A route does not
+ * compose until it has loaded"), which is what makes these assertions claims about the app rather
+ * than about a field (§27: "a gate whose subject is unconsumed is vacuous in precisely the way a
+ * green one is").
  *
  * The consumer, named per §27's discriminator: that graph's
  * `if (state.isLoading) return@navComponentScreenWithState`, which decides whether

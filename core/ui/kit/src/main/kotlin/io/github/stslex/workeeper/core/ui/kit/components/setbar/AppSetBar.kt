@@ -35,10 +35,9 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
  * .setbar button:disabled{opacity:.35}
  * ```
  *
- * **It replaces two things at once, and that is the point.** Before this, a set was removed by a
- * `✕` on its own row and added by a full-width tertiary button sitting *outside* the body — two
- * affordances for one pair of opposite actions, in two different places, at two different weights.
- * The foot puts them side by side where the list ends, which is where the list grows.
+ * **One pair of opposite actions, in one place.** The foot puts add and remove side by side where
+ * the list ends, which is where the list grows — a set row carries no `✕` of its own, and no host
+ * draws an add button outside the body.
  *
  * Geometry, derived rather than transcribed (§0.2): the drawn `15px 0 14px` around a ~16px line
  * is **45px**, and each half takes [AppDimension.heightMd] (48dp) with its label centred — the

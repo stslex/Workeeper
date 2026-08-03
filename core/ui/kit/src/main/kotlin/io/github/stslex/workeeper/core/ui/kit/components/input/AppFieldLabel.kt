@@ -25,10 +25,9 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
  * `Arrangement.spacedBy` owns the distance to the field, the way every form section in the app
  * already spaces its parts, and baking a margin into the label would give two owners one number.
  *
- * It exists because M3's floating label is drawn nowhere in either mockup. [AppTextField] used to
- * take a `label` parameter and render M3's; that parameter is gone, and this is where the drawn
- * treatment lives instead — one implementation, so the three editors and the finish sheet cannot
- * describe the same object four ways.
+ * It exists because M3's floating label is drawn nowhere in either mockup, so [AppTextField] has
+ * no `label` parameter and the treatment needs a home of its own. One implementation, so the three
+ * editors and the finish sheet cannot describe the same object four ways.
  */
 @Composable
 fun AppFieldLabel(

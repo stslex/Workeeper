@@ -225,13 +225,13 @@ fun NavGraphBuilder.exerciseGraph(
         //
         // It gates BOTH modes because they are one route and one store. `isLoading` is
         // `uuid != null`, so a create flow is never withheld — there is nothing to load — and
-        // an existing exercise no longer draws a shell with a blank name and an empty history
+        // an existing exercise never draws a shell with a blank name and an empty history
         // while the read is in flight.
         //
         // LOAD-BEARING PRECONDITION: `loadExercise` must clear `isLoading` on FAILURE as well
         // as on success, because `HandlerStore.launch` defaults `onError` to `{}` (B17, B21).
-        // Before this gate a thrown load cost nothing visible; after it the same throw is a
-        // permanently empty screen. `CommonHandler.loadExercise` closes its own.
+        // A throw that leaves the flag set is a permanently empty screen — this gate is what
+        // gives that failure a cost. `CommonHandler.loadExercise` closes its own.
         if (state.isLoading) return@navComponentScreenWithState
 
         when (state.mode) {

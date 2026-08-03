@@ -71,21 +71,16 @@ internal class ClickHandlerTest {
     )
 
     /**
-     * **This case was green and unreachable until the editors stage, and it is kept rather than
-     * deleted because being reachable is the change.**
+     * **This case is only meaningful while Save is never disabled (§26).**
      *
-     * `State.isSaveEnabled` used to be `name.isNotBlank()` — the exact condition that produces
-     * `nameError` — so the Save button was disabled on precisely the state this asserts, and no
-     * user could arrive at it. §26 "Save is never disabled" removed that property; a blank name is
-     * now a reachable error the field points at. Same assertion, and for the first time it
-     * measures something a user can reach.
-     *
-     * B23's shape, second instance: a test whose precondition production cannot produce reads as
-     * coverage on every report. The discriminator that catches it is "ask what *reaches* the state
-     * the test builds" — here, nothing did.
+     * The blank name is the exact condition that produces `nameError`, so a save predicate of
+     * `name.isNotBlank()` makes the state this asserts unreachable through the button — the test
+     * stays green and stops measuring anything. That is B23's shape: a case whose precondition
+     * production cannot produce reads as coverage on every report, and the discriminator is "ask
+     * what *reaches* the state the test builds".
      */
     @Test
-    fun `OnSaveClick with blank name sets nameError without saving — now reachable`() {
+    fun `OnSaveClick with blank name sets nameError without saving — reachable`() {
         val (stateFlow, store, handler) = setup(State.create(uuid = null).copy(name = ""))
         handler.invoke(Action.Click.OnSaveClick)
         assertTrue(stateFlow.value.nameError)

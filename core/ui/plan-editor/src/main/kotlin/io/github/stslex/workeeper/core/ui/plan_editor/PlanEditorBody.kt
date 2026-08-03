@@ -55,18 +55,16 @@ private const val WEIGHT_COLUMN_FLEX = 1.2f
  * `.card` / `.sets` / `.set` / `.field` / `.tchip` are all drawn already, and **an authored plan
  * row is a logged row, not a third kind of row.** Three things changed with the ruling:
  *
- *  1. **Add and remove moved into the card's foot** — [AppSetBar], the drawn `.setbar`. The
- *     per-row `✕` is gone (its work is «− подход», which removes the last set), and so is the
- *     full-width tertiary "add set" button that each of the two callers used to draw *outside*
- *     this composable. Two affordances for one pair of opposite actions, in two places, at two
- *     weights — now one pair in one place. It also means the empty draft still has somewhere to
- *     grow from, which the old arrangement got from the caller's button.
- *  2. **Values render in the normal colour.** This body passed none of
- *     `isDone / isRecord / isLogged / isError`, so every authored value fell to `textTertiary`
- *     and **a number the user typed was drawn as "not yet entered"**. `isLogged` is the treatment
- *     the drawing gives it — `textPrimary` on the plain field, `#s-past`'s own inline override on
- *     every ordinary row. It is REUSED rather than duplicated: a fourth boolean resolving to the
- *     same colour would be a rename, and a rename is the mutation no gate can catch (§27).
+ *  1. **Add and remove live in the card's foot** — [AppSetBar], the drawn `.setbar`. A set row
+ *     carries no `✕` (removal is «− подход», which drops the last set) and **no host draws an add
+ *     button outside this composable**: one pair of opposite actions, in one place. It also means
+ *     the empty draft has somewhere to grow from without the caller supplying it.
+ *  2. **Values render in the normal colour** — `isLogged`, which is `textPrimary` on the plain
+ *     field and `#s-past`'s own inline override on every ordinary row. Passing none of
+ *     `isDone / isRecord / isLogged / isError` falls to `textTertiary`, which draws a number the
+ *     user typed as "not yet entered". `isLogged` is REUSED rather than given a fourth flag of
+ *     its own: a boolean resolving to the same colour is a rename, and a rename is the mutation
+ *     no gate can catch (§27).
  *  3. **The rows sit on a card**, `surfaceTier1` at `Radius.medium`, because `.setbar`'s top rule
  *     is the foot of something and a rule with nothing above it is a line in the air.
  *
@@ -127,9 +125,9 @@ fun PlanEditorBody(
             addLabel = stringResource(R.string.core_ui_kit_setbar_add),
             removeLabel = stringResource(R.string.core_ui_kit_setbar_remove),
             onAdd = { onAction(PlanEditorBodyAction.OnAddSet) },
-            // The foot removes the LAST set. The row-level index survives on the action because
-            // the reducer is shared with paths that still address a row directly; what is gone is
-            // the per-row control, not the ability to address a row.
+            // The foot removes the LAST set. The action keeps its row index because the reducer
+            // is shared with paths that address a row directly — what this drops is the per-row
+            // control, not the ability to address a row.
             onRemove = { onAction(PlanEditorBodyAction.OnSetRemove(draft.lastIndex)) },
             removeEnabled = draft.isNotEmpty(),
         )

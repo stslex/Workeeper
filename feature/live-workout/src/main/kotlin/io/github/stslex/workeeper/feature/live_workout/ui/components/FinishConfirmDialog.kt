@@ -132,10 +132,8 @@ private fun FinishNameField(
     onNameChange: (String) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(AppDimension.Space.xs)) {
-        // The label moved out of the field and above it. Not a change this screen asked for: the
-        // kit's field dropped M3's floating label, which no mockup draws, and `.flabel` is where
-        // the drawn treatment lives now (§26, "The editors' text field"). Same string, same
-        // Column, one rung and one role different.
+        // `.flabel` — the label sits above the box, because M3's floating one is drawn nowhere
+        // and `AppTextField` therefore has no `label` parameter (§26, "The editors' text field").
         AppFieldLabel(text = label)
         AppTextField(
             value = name,

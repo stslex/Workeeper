@@ -315,10 +315,10 @@ internal class ClickHandlerTest {
     }
 
     /**
-     * The collapse's own invariant, and the one a `Boolean` beside a sealed field cannot state:
-     * **the two modals are mutually exclusive by construction** (§26; `mvi-dialog-state`). Before
-     * this stage `confirmDiscardOpen = true` and `dialogState = TypeChangeConfirm` were a
-     * reachable pair, and the screen would have drawn both.
+     * The one-channel invariant, and the one a `Boolean` beside a sealed field cannot state:
+     * **the two modals are mutually exclusive by construction** (§26; `mvi-dialog-state`). With a
+     * second field, "discard open" and "type-change open" is a reachable pair and the screen draws
+     * both.
      */
     @Test
     fun `the discard sheet and the type-change sheet cannot be open at once`() {
@@ -341,9 +341,9 @@ internal class ClickHandlerTest {
     }
 
     /**
-     * The discard sheet is the answer to a back press, so a SECOND back press must leave. With
-     * the old two-field shape this was two conditions that had to agree; now it is one branch on
-     * one variant.
+     * The discard sheet is the answer to a back press, so a SECOND back press must leave. One
+     * branch on one variant — a second modal field beside `dialogState` would make it two
+     * conditions that have to agree.
      */
     @Test
     fun `back with the discard sheet already open leaves instead of swallowing the press`() {

@@ -19,8 +19,8 @@ import org.junit.jupiter.params.provider.EnumSource
  * The confirmation **sheet** every modal on the three editors became (§26; extraction §7.4).
  *
  * **What one frame can hold here, and it is most of the ruling.** That there are **TWO** actions
- * and not three — the plan editor's «Сохранить» is gone and this is the picture that would show it
- * coming back. That the destructive one is **first and in `status.error`**, so the dangerous action
+ * and not three — a save action returning to a discard sheet is a diff in this picture. That the
+ * destructive one is **first and in `status.error`**, so the dangerous action
  * is the one you read first rather than the one you reach last. That the actions are **`.mitem`
  * rows**, not buttons — full-width, tappable to the edge, which is what the drawing draws. And that
  * the title, body and items sit at the drawn rungs on the sheet's own `surfaceTier3`.

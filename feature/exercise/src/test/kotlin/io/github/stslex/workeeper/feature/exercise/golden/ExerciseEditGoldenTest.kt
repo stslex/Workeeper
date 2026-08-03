@@ -74,8 +74,8 @@ internal class ExerciseEditGoldenTest {
      * the only frame in the app's whole golden set that can see the ruled set list (§26, "Sets:
      * add and remove move to the card's foot"; extraction §7.5).
      *
-     * Four claims, all of them one-frame facts and none of them visible before this stage:
-     * the rows sit on a **card**; the foot is the drawn `.setbar` and the per-row `✕` is **gone**;
+     * Four claims, all of them one-frame facts and no other instrument holding any of them:
+     * the rows sit on a **card**; the foot is the drawn `.setbar` and no row carries a `✕`;
      * the `.tchip` carries a **letter** for a non-work type; and the values are in the **normal
      * colour** — `textPrimary`, not the `textTertiary` that drew a number the user typed as
      * "not yet entered".

@@ -20,19 +20,18 @@ import org.junit.jupiter.params.provider.EnumSource
  * Three of this stage's rulings land on one static frame of this screen and had no instrument
  * between them:
  *
- *  - **`.addex`** replaces the `AppButton.Tertiary` + `Icons.Default.Add` pair that used to sit in
- *    the section header. Not a glyph swap — a different component in a different place, full width
- *    below the list rather than a small button above it (§26; extraction §7.6).
- *  - **One drag handle, not two arrows.** The row drew `Icons.Default.DragHandle` **twice**, once
- *    for up and once for down, which is two identical marks and therefore not a control (§26,
- *    "Reorder is long-press drag"). What a frame can see is that there is now one.
+ *  - **`.addex` is the add action, and it is not in the section header.** A full-width dashed
+ *    block below the list, not a small tertiary button above it — a different component in a
+ *    different place, so a glyph swap in the header would not satisfy it (§26; extraction §7.6).
+ *  - **One drag handle, not two arrows.** Two identical marks meaning opposite directions are not
+ *    a control (§26, "Reorder is long-press drag"); what a frame can see is the count.
  *  - **Save is enabled with an empty name**, which is what makes the blank-name error reachable at
- *    all (§26, "Save is never disabled") — and on THIS screen the disabled button hid a second
+ *    all (§26, "Save is never disabled") — and on THIS screen a save predicate would hide a second
  *    branch too, the empty-exercise-list snackbar.
  *
  * [editEmpty] is not a decoration: it is the only frame in which `.addex` stands alone, which is
  * the state a user starting a training is actually in, and it is the frame that shows Save enabled
- * with both of the old `canSave` conjuncts false at once.
+ * with a blank name and an empty list at once — both of a save predicate's conjuncts false.
  *
  * Russian, deliberately. Every string this stage moved on this screen — the `.addex` label, the
  * section count, the row's «Изменить план» — is one the shipped app renders in Russian, and the

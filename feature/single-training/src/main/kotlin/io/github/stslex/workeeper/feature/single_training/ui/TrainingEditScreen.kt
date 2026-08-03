@@ -106,9 +106,9 @@ internal fun TrainingEditScreen(
                 }
             }
             FormSection(label = stringResource(R.string.feature_training_edit_label_description)) {
-                // No explicit height: `.tf.multi` is the same box taller, and the field owns
-                // that height now (§7.2). The 120.dp that used to sit here was a call site
-                // guessing at a number the drawing puts at 96.
+                // No explicit height — `.tf.multi` is the same box taller and the FIELD owns
+                // that number (§7.2). A call site that sets its own guesses at a value the
+                // drawing already puts at 96.
                 AppTextField(
                     modifier = Modifier.testTag("TrainingEditDescriptionField"),
                     value = state.description,
@@ -147,11 +147,10 @@ private fun ExercisesEditSection(
         consume(Action.Click.OnExerciseReorder(from = from, to = to))
     }
     Column(verticalArrangement = Arrangement.spacedBy(AppDimension.Space.sm)) {
-        // The count keeps the section label; only the ADD action moved. The
-        // `AppButton.Tertiary` + `Icons.Default.Add` pair that used to sit beside it is one of
-        // B33(a)'s six, and it is not swapped for a stroke plus — it is REPLACED by `.addex`,
-        // which is drawn and has the plus inside it (§26, "Sets: add and remove move to the
-        // card's foot"; extraction §7.6).
+        // The count keeps the section label and NO ADD BUTTON SITS BESIDE IT — this is one of
+        // B33(a)'s six `Icons.Default.Add` sites, and the resolution is not a stroke plus: the
+        // action is `.addex` at the foot of the list, which is drawn and carries the plus inside
+        // it (§26, "Sets: add and remove move to the card's foot"; extraction §7.6).
         Text(
             modifier = Modifier.fillMaxWidth(),
             text = stringResource(
@@ -224,8 +223,8 @@ private fun EditActionBar(
                 .testTag("TrainingEditSaveButton"),
             text = stringResource(KitR.string.core_ui_kit_action_save),
             onClick = { consume(Action.Click.OnSaveClick) },
-            // No `enabled` — §26 "Save is never disabled". See the note where `canSave` used to
-            // live: it hid two error branches, not one.
+            // No `enabled` — §26 "Save is never disabled". See `State`'s note: on this screen a
+            // save predicate would hide TWO error branches, not one.
         )
     }
 }

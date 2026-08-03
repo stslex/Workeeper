@@ -17,12 +17,10 @@ sealed interface DialogState {
     /**
      * Leave without saving? — the discard sheet.
      *
-     * **This was a SECOND, INDEPENDENT CHANNEL until the editors stage:** a
-     * `confirmDiscardOpen: Boolean` beside this very field, so the screen could have the discard
-     * confirmation and the type-change confirmation open AT ONCE. §26 collapses the two channels
-     * into this one sealed state, which is exactly what the `mvi-dialog-state` skill exists to
-     * make unrepresentable — a variant cannot coexist with another variant, where two fields
-     * always can.
+     * **The discard confirmation is a VARIANT of this field and must never be a `Boolean` beside
+     * it.** A second modal channel makes "discard sheet and type-change sheet open at once" a
+     * representable state, and the screen would draw both; one sealed field makes it
+     * unrepresentable, which is what the `mvi-dialog-state` skill is for (§26).
      *
      * It carries no payload: the sheet's four strings live in the kit, one table for all three
      * editors (`core_ui_kit_discard_sheet_*`).

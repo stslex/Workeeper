@@ -37,16 +37,17 @@ import kotlinx.collections.immutable.persistentListOf
  * One exercise inside the training editor's list.
  *
  * **Reorder is a long-press drag on the trailing handle (§26, "Reorder is long-press drag").**
- * What used to sit there was a pair of `IconButton`s both drawing `Icons.Default.DragHandle` —
- * one meaning up, one meaning down. **The same glyph twice is not a control**: it is two identical
- * marks whose meaning is known only to whoever placed them. The handle and the gesture are the
- * kit's `ReorderableColumn`, which past-session already ships, so this is a second consumer of a
- * built component rather than a new mechanic — and the up/down SEMANTICS survive as the
- * `CustomAccessibilityAction`s `reorderableColumnItem` registers, so the capability is not lost
- * with the arrows.
+ * ONE handle, not a pair of arrow buttons: **the same glyph twice is not a control**, it is two
+ * identical marks whose meaning is known only to whoever placed them. The handle and the gesture
+ * are the kit's `ReorderableColumn`, which past-session already ships, so this is a second
+ * consumer of a built component rather than a new mechanic — and up/down remain reachable as the
+ * `CustomAccessibilityAction`s `reorderableColumnItem` registers, so the gesture is not the only
+ * way in.
  *
- * The handle's glyph is still `Icons.Filled.DragHandle`, which is B33(b) and undecided; this
- * change takes that population from three sites to two rather than settling it.
+ * The handle's glyph is `Icons.Filled.DragHandle`, which is B33(b) and undecided. Deleting the
+ * pair and drawing one handle leaves **two** production sites in that family (here and
+ * `PastSetEditRow`; the kit's third draw is inside a `@Preview`), which is a smaller population,
+ * not a settled one.
  */
 @Composable
 internal fun TrainingExerciseEditRow(

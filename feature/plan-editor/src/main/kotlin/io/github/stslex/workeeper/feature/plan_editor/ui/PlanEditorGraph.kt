@@ -75,22 +75,20 @@ private fun PlanEditorContent(
     // runs while the load is in flight — the event Handle, the back interception — and only
     // the screen waits.
     //
-    // The rule replaces a loading surface neither mockup draws, and it closes three things at
-    // once on this route in particular. `Screen.PlanEditor.Existing` seeds `type = WEIGHTED`
-    // because the real value is on disk; before this gate a weightless exercise opened through
-    // «Изменить план» drew the WEIGHTED toggle and visibly flipped when the load landed, and
-    // `CommonHandler.loadPlan` then overwrote `draft` / `type` / `initialType` / `initialDraft`
-    // unconditionally, so anything touched inside that window was discarded without a word.
-    // With the screen withheld the window has no user in it, which is what makes the
-    // unconditional write correct rather than merely unnoticed.
+    // It matters most on this route. `Screen.PlanEditor.Existing` seeds `type = WEIGHTED`
+    // because the real value is on disk, and `CommonHandler.loadPlan` overwrites
+    // `draft` / `type` / `initialType` / `initialDraft` unconditionally when the read lands.
+    // Both are only safe because the seed is never seen and the window has no user in it: the
+    // gate is what makes the unconditional write correct rather than merely unnoticed.
     //
-    // Nothing is drawn instead, deliberately: `AppNavigationHost` paints the background under
-    // every destination, so an unloaded route is an empty frame in the app's own colour.
+    // Nothing is drawn instead, deliberately: neither mockup draws a loading surface, and
+    // `AppNavigationHost` paints the background under every destination, so an unloaded route
+    // is an empty frame in the app's own colour.
     //
     // LOAD-BEARING PRECONDITION: every path that sets `isLoading = true` must clear it on
     // FAILURE as well as on success. `HandlerStore.launch`/`launchDefault` default `onError`
-    // to `{}` (B17, B21), so before this gate a thrown load cost nothing visible; after it the
-    // same throw is a permanently empty screen. `CommonHandler.loadPlan` closes its own.
+    // to `{}` (B17, B21), so a throw that leaves the flag set is a permanently empty screen —
+    // this gate is what gives that failure a cost. `CommonHandler.loadPlan` closes its own.
     if (state.isLoading) return
 
     PlanEditorScreen(

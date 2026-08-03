@@ -26,8 +26,8 @@ import org.junit.jupiter.api.Test
  *
  * §27's own rule for multi-predicate coverage: **for each term, the fixture must contain a state
  * that ONLY that term makes true** — otherwise the suite measures the disjunction and reports it
- * as coverage of the parts. Before this file the predicate had no direct test at all, in either
- * direction, while three call sites branched on it.
+ * as coverage of the parts. Three call sites branch on this predicate, so each term owes its own
+ * isolating case in both directions.
  *
  * The consumer, named per §27: `ClickHandler.processCancelClick` and `processBackClick`, which
  * open `DialogState.DiscardConfirm` on it — and `State.interceptBack`, which arms the system
@@ -106,20 +106,18 @@ internal class ExerciseDirtyStateTest {
     }
 
     /**
-     * **The case that found a defect, and the reason `originalAdhocPlan` is gone.**
+     * **The §25 B39 case: `adhocPlan` has exactly ONE baseline, and it is `originalSnapshot`.**
      *
      * The plan editor persists on its own Save and pops with `planEditorSavedAttr`;
-     * `CommonHandler.processPlanEditorExistingReturned` then pulls `(type, plan)` back and resets
-     * the dirty baseline — it said so in as many words — **by updating `originalSnapshot` and
-     * leaving `originalAdhocPlan` at the value the load put there.** Two baselines for one field,
-     * and only one updater knew about both. So after saving a plan and coming back, the exercise
-     * editor believed it had unsaved changes FOREVER: Cancel raised the discard sheet over work
-     * that was already on disk, and back was intercepted for the same reason.
+     * `CommonHandler.processPlanEditorExistingReturned` pulls `(type, plan)` back and resets the
+     * baseline by writing `originalSnapshot`. A second baseline field would have to be written
+     * there too, and the failure of not writing it is silent and permanent: the form reads dirty
+     * FOREVER after a plan save, so Cancel raises the discard sheet over work already on disk and
+     * back is intercepted for the same reason.
      *
-     * Fixed by deletion rather than by a second assignment: `isAdhocPlanDirty` now reads the
-     * snapshot, which is the one baseline every path already maintains, and create mode falls out
-     * correctly because a null snapshot means "no plan yet". A pairing kept in step by hand is a
-     * pairing that comes apart; one source cannot.
+     * That is why `isAdhocPlanDirty` reads the snapshot rather than a companion field — create
+     * mode falls out correctly because a null snapshot means "no plan yet". A pairing kept in step
+     * by hand is a pairing that comes apart; one source cannot.
      */
     @Test
     fun `returning from the plan editor with a SAVED plan leaves the form clean`() {

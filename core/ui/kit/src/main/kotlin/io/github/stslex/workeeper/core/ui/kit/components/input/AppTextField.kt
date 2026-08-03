@@ -53,15 +53,13 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
  * ## Geometry, derived rather than transcribed (§0.2)
  *
  * - `background:none` → **no fill**. The page tier shows through; on a sheet, the sheet does.
- *   Before v3 this was an `OutlinedTextField` with `unfocusedContainerColor = surfaceTier1`, which
- *   is outlined *and* filled — two treatments doing one job.
+ *   There is no container colour: outlined *and* filled is two treatments doing one job.
  * - radius 12px → **8dp** (`Radius.small`). The 12 rung does not exist (extraction E7) and every
  *   site rounds it down with its reason at the site, as `AppIconButton` already does.
  * - `min-height:52px` → **48dp** (`heightMd`), the same way `.field`'s own 52 resolves.
  * - `.tf.multi{min-height:96px}` → **96dp**, which is `heightMd × 2` exactly. Multiline is the
- *   same box, taller — [singleLine] moves one height and nothing else, so no call site sets its
- *   own. Two of them used to set `.height(120.dp)` by hand, which is what a component that does
- *   not own its own multiline size costs.
+ *   same box, taller: [singleLine] moves one height and nothing else. **No call site sets its own
+ *   height** — a field that does not own its multiline size gets a different number at every host.
  * - padding `14px 12px` → **12dp** on both axes, and a multiline field aligns its text to the
  *   **top** rather than centring it.
  *
@@ -102,10 +100,9 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
  *
  * ## The label is above the field, and this component does not draw one
  *
- * The `label` parameter is gone. M3's floating label is drawn nowhere in either mockup; the form
- * puts a `.flabel` above the box, which is an ordinary `Text` the caller already owns. The
- * parameter had no production reader — the only call passing it was `AppTagPicker`, which has no
- * production call sites at all (B37).
+ * **There is no `label` parameter and there must not be one.** M3's floating label is drawn nowhere
+ * in either mockup; the form puts a `.flabel` above the box — see `AppFieldLabel`, which is where
+ * that treatment lives.
  */
 @Suppress("LongParameterList")
 @Composable
