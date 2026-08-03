@@ -22,6 +22,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
@@ -54,20 +55,59 @@ internal class ClickHandlerTest {
 
     private val handler = ClickHandler(interactor, resourceWrapper, Dispatchers.Unconfined, store)
 
+    /**
+     * **These two were green and unreachable until the editors stage, and they are kept rather
+     * than deleted because being reachable is the change.**
+     *
+     * `State.canSave` used to be `name.isNotBlank() && exercises.isNotEmpty()` — so this screen's
+     * disabled Save hid **two** branches, not one: the first conjunct is the exact condition that
+     * produces `nameError`, and the second is the one that emits `ShowSaveError`. Neither state
+     * was reachable through the button, and both had a green case asserting it.
+     *
+     * §26 "Save is never disabled" removed the property. B23's shape, and the discriminator that
+     * catches it is "ask what *reaches* the state the test builds" — here, nothing did, twice.
+     */
     @Test
-    fun `OnSaveClick with blank name flips nameError`() {
+    fun `OnSaveClick with blank name flips nameError — now reachable`() {
         stateFlow.value = stateFlow.value.copy(name = "")
         handler.invoke(Action.Click.OnSaveClick)
         assertTrue(stateFlow.value.nameError)
     }
 
     @Test
-    fun `OnSaveClick with empty exercises emits ShowSaveError`() {
+    fun `OnSaveClick with empty exercises emits ShowSaveError — now reachable`() {
         stateFlow.value = stateFlow.value.copy(name = "Push Day")
         handler.invoke(Action.Click.OnSaveClick)
         val captured = slot<Event>()
         verify { store.sendEvent(capture(captured)) }
         assertTrue(captured.captured is Event.ShowSaveError)
+    }
+
+    /**
+     * The other direction, so both branches are shown to be gates rather than unconditional
+     * flags: a named training with an exercise in it sets no error and emits no save error.
+     */
+    @Test
+    fun `OnSaveClick with a name and exercises raises neither error`() {
+        stateFlow.value = stateFlow.value.copy(
+            name = "Push Day",
+            exercises = persistentListOf(
+                TrainingExerciseItem(
+                    exerciseUuid = "ex-1",
+                    exerciseName = "Жим лёжа",
+                    exerciseType = ExerciseTypeUiModel.WEIGHTED,
+                    tags = persistentListOf(),
+                    position = 0,
+                    planSets = null,
+                    planSummary = "",
+                ),
+            ),
+        )
+
+        handler.invoke(Action.Click.OnSaveClick)
+
+        assertFalse(stateFlow.value.nameError)
+        verify(exactly = 0) { store.sendEvent(any<Event.ShowSaveError>()) }
     }
 
     @Test

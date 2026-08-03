@@ -152,7 +152,7 @@ internal fun ExerciseEditScreen(
             DefaultPlanSection(state = state, consume = consume)
             Spacer(Modifier.height(AppDimension.Space.md))
         }
-        EditActionBar(state = state, consume = consume)
+        EditActionBar(consume = consume)
     }
 }
 
@@ -284,7 +284,6 @@ private fun FormSection(
 
 @Composable
 private fun EditActionBar(
-    state: State,
     consume: (Action) -> Unit,
 ) {
     Row(
@@ -307,7 +306,8 @@ private fun EditActionBar(
                 .testTag("ExerciseEditSaveButton"),
             text = stringResource(KitR.string.core_ui_kit_action_save),
             onClick = { consume(Action.Click.OnSaveClick) },
-            enabled = state.isSaveEnabled,
+            // No `enabled` — §26 "Save is never disabled". The condition that used to sit here
+            // was the one that produces `nameError`, so the error it guarded was unreachable.
         )
     }
 }

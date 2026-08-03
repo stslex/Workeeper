@@ -52,8 +52,13 @@ interface ExerciseStore : Store<State, Action, Event> {
         val personalRecord: PersonalRecordUiModel?,
     ) : Store.State {
 
-        val isSaveEnabled: Boolean
-            get() = name.isNotBlank()
+        // `isSaveEnabled: Boolean get() = name.isNotBlank()` USED TO LIVE HERE, and its removal
+        // is the whole of §26 "Save is never disabled". It was the exact condition that produces
+        // `nameError`, so the blank-name branch was unreachable from the UI and
+        // `ClickHandlerTest`'s "OnSaveClick with blank name sets nameError" certified a state
+        // production could not enter — B23's shape, arriving a second time. Save is enabled
+        // always; a blank name is now a reachable error the field can point at, which tells the
+        // user WHERE to fix rather than only that something is wrong.
 
         /**
          * Read-mode default plan surface visibility — drives the small "Default plan" card

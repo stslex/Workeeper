@@ -5,7 +5,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsEnabled
-import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
@@ -23,7 +22,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * F-02 — the create-form interaction wiring: typing a name enables Save, and tapping Save dispatches
+ * F-02 — the create-form interaction wiring: Save is always enabled, and tapping it dispatches
  * [Action.Click.OnSaveClick].
  *
  * App-Scope Collapse Step 6 (Phase 3.4): de-Hilt'd. The former version booted a real Hilt graph +
@@ -48,12 +47,27 @@ class ExerciseFormBasicsTest : BaseComposeTest() {
     private fun createState(name: String = ""): State =
         State.create(uuid = null).copy(isLoading = false, name = name)
 
+    /**
+     * **INVERTED by the editors stage, and the inversion is the point.**
+     *
+     * This case used to assert that Save is **disabled** on an empty name, and it was the only
+     * automated statement of the defect §26 "Save is never disabled" removed: `isSaveEnabled` was
+     * `name.isNotBlank()`, the exact condition that produces `nameError`, so the error branch was
+     * unreachable and two green `ClickHandlerTest` cases certified a state production could not
+     * enter (B23's shape).
+     *
+     * It now asserts the opposite in the same shape: **Save is enabled with an empty name**, the
+     * tap dispatches [Action.Click.OnSaveClick] — which is what makes the blank-name error
+     * reachable — and typing a name changes neither. Kept rather than deleted, because a test
+     * that flipped from "disabled" to "enabled" is a readable record of the decision; a deleted
+     * one is not.
+     */
     @Test
-    fun f02_saveDisabledUntilNameEntered_thenTypingNameEnablesSaveAndTapDispatchesSaveClick() {
+    fun f02_saveIsEnabledWithAnEmptyName_soTheBlankNameErrorIsReachable() {
         val capture = createActionCapture<Action>()
         // In production the Store folds Action.Input.OnNameChange back into State; here the test plays
-        // that role, so the empty → non-empty transition genuinely drives `isSaveEnabled` instead of the
-        // screen rendering one frozen state.
+        // that role, so the empty → non-empty transition is a real transition rather than one frozen
+        // frame — which is what makes "enabled on both sides of it" an assertion and not a coincidence.
         var state by mutableStateOf(createState())
 
         composeTestRule.setContent {
@@ -72,8 +86,13 @@ class ExerciseFormBasicsTest : BaseComposeTest() {
             }
         }
 
-        // Empty name → Save disabled (State.isSaveEnabled = name.isNotBlank()).
-        composeTestRule.onNodeWithTag("ExerciseEditSaveButton").assertIsNotEnabled()
+        // Empty name → Save ENABLED, and the tap goes through. This is the reachability the
+        // handler's blank-name branch never had.
+        composeTestRule
+            .onNodeWithTag("ExerciseEditSaveButton")
+            .assertIsEnabled()
+            .performClick()
+        capture.assertCapturedExactly(Action.Click.OnSaveClick)
 
         // Typing a name dispatches OnNameChange (the input wiring the form depends on)...
         composeTestRule
@@ -81,13 +100,13 @@ class ExerciseFormBasicsTest : BaseComposeTest() {
             .performTextInput("Bench Press")
         capture.assertCaptured<Action.Input.OnNameChange>()
 
-        // ...and the folded-back name flips Save to enabled, where the tap dispatches OnSaveClick.
+        // ...and Save is still enabled, because it no longer depends on the name at all.
         composeTestRule.waitForIdle()
         composeTestRule
             .onNodeWithTag("ExerciseEditSaveButton")
             .assertIsEnabled()
             .performClick()
-        capture.assertCapturedExactly(Action.Click.OnSaveClick)
+        capture.assertCaptured<Action.Click.OnSaveClick>()
     }
 
     @Test

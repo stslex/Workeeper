@@ -28,6 +28,7 @@ import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertNull
@@ -69,12 +70,37 @@ internal class ClickHandlerTest {
         val handler: ClickHandler,
     )
 
+    /**
+     * **This case was green and unreachable until the editors stage, and it is kept rather than
+     * deleted because being reachable is the change.**
+     *
+     * `State.isSaveEnabled` used to be `name.isNotBlank()` — the exact condition that produces
+     * `nameError` — so the Save button was disabled on precisely the state this asserts, and no
+     * user could arrive at it. §26 "Save is never disabled" removed that property; a blank name is
+     * now a reachable error the field points at. Same assertion, and for the first time it
+     * measures something a user can reach.
+     *
+     * B23's shape, second instance: a test whose precondition production cannot produce reads as
+     * coverage on every report. The discriminator that catches it is "ask what *reaches* the state
+     * the test builds" — here, nothing did.
+     */
     @Test
-    fun `OnSaveClick with blank name sets nameError without saving`() {
+    fun `OnSaveClick with blank name sets nameError without saving — now reachable`() {
         val (stateFlow, store, handler) = setup(State.create(uuid = null).copy(name = ""))
         handler.invoke(Action.Click.OnSaveClick)
         assertTrue(stateFlow.value.nameError)
         verify(exactly = 0) { store.sendEvent(any()) }
+    }
+
+    /** The other direction, so the gate is shown to be a gate and not an unconditional flag. */
+    @Test
+    fun `OnSaveClick with a name does not set nameError and proceeds`() {
+        val (stateFlow, store, handler) = setup(
+            State.create(uuid = null).copy(name = "Жим лёжа"),
+        )
+        handler.invoke(Action.Click.OnSaveClick)
+        assertFalse(stateFlow.value.nameError)
+        verify(exactly = 1) { store.sendEvent(Event.Haptic(HapticFeedbackType.ContextClick)) }
     }
 
     @Test

@@ -40,7 +40,14 @@ interface SingleTrainingStore : Store<State, Action, Event> {
 
         val isCreate: Boolean get() = (mode as? Mode.Edit)?.isCreate == true
 
-        val canSave: Boolean get() = name.isNotBlank() && exercises.isNotEmpty()
+        // `canSave: Boolean get() = name.isNotBlank() && exercises.isNotEmpty()` USED TO LIVE
+        // HERE, and it hid TWO branches rather than one (§26, "Save is never disabled"). The
+        // first conjunct is the exact condition that produces `nameError`; the second is the
+        // condition that emits `Event.ShowSaveError`. Both were unreachable from the UI and both
+        // had a green `ClickHandlerTest` case certifying a state production could not enter.
+        // Save is enabled always: a blank name is a field error the user can be pointed at, and
+        // an empty exercise list stays a snackbar because there is no field for it to sit under
+        // and the drawing draws no error surface for a section (extraction §7.3).
 
         val hasChanges: Boolean
             get() = originalSnapshot?.matches(this) == false
