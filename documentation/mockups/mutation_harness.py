@@ -207,13 +207,13 @@ def case(name: str, rel: str, old: str, new: str, task: str) -> str:
     reused = _reused_outputs(out, task)
 
     if not_found:
-        # Checked FIRST, and it is the third member of the INVALID family. Gradle exits non-zero
-        # when the task does not exist, the old code read any non-zero exit with no named test as
-        # `RED (no named test — check)`, and `--expect RED` then scored a run in which NOTHING RAN
-        # as a detector firing. Witnessed: `--task ":$T:testDebugUnitTest"` in **zsh** expands
-        # `$T:t` as the tail modifier, so the string became `:feature:exerciseestDebugUnitTest`
-        # and two mutation proofs came back "expected RED: OK" against a task that does not exist.
-        # Use `":${T}:testDebugUnitTest"` — and rely on this check rather than on remembering to.
+        # CHECKED FIRST, ahead of every other verdict: Gradle exits non-zero when a task name does
+        # not resolve, so a nothing-ran build is indistinguishable from a detector firing by exit
+        # code alone. A member of the INVALID family for that reason (§27).
+        #
+        # The trap this catches most often is a shell one: in **zsh** `":$T:testDebugUnitTest"`
+        # expands `$T:t` as the tail history modifier, yielding `:feature:exerciseestDebugUnitTest`.
+        # Write `":${T}:testDebugUnitTest"` — and rely on this check rather than on remembering to.
         verdict = "*** INVALID — NO SUCH GRADLE TASK, nothing ran ***"
         detail = not_found[:2]
     elif compile_errs:

@@ -4,11 +4,10 @@ plugins {
     // The Screen.Training route arg enters as a @Provides bound instance on the extension factory
     // (shape B), so the graph's root accessor is the Store itself and there is no assisted machinery.
     alias(libs.plugins.metro)
-    // The training editor had no visual gate at all, and the editors stage changes what one static
-    // frame of it holds: the add action becomes the drawn `.addex`, the two identical `DragHandle`
-    // arrows collapse to one handle, and the row's `✕` becomes the kit's stroke mark. Every one of
-    // those is one-frame-static, which is exactly the set a golden covers (§27). The harness is NOT
-    // copied: it comes from core:ui:kit's testFixtures, so device config, tolerance and canvas
+    // The training editor's only visual gate. What it holds is one-frame-static and therefore
+    // exactly what a golden covers (§27): the drawn `.addex` as the add action, ONE drag handle
+    // rather than a pair of arrows, and the kit's stroke `✕` on the row. The harness is NOT
+    // copied — it comes from core:ui:kit's testFixtures, so device config, tolerance and canvas
     // width cannot drift between modules.
     alias(libs.plugins.paparazzi)
 }
