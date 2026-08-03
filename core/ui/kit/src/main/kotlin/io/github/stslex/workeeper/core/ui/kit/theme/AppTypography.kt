@@ -136,12 +136,11 @@ data class AppTypography(
      *
      * ## Why this is a name and not a seventh step
      *
-     * The mockups draw the timer at **32px**, and the ladder rule (v3 spec §0.2) rounds that
-     * onto the existing 34 rung — text landing 1–2px off the mockup is correct, not a bug. So
-     * there is nothing to add to [AppTypeStyles]: the size the timer needs already exists, and
-     * a seventh member on a six-rung record is precisely what that class's KDoc forbids. What
-     * was missing was a *name*. An alias is how this file already turns fifteen Material names
-     * into six sizes; this is the same move for a slot Material has no name for.
+     * The drawn 32px rounds onto the existing 34 rung (§0.2; the timer's two drawn sizes are
+     * screen-extraction.md, "The session timer is a second tier"). So there is nothing to add to
+     * [AppTypeStyles] — **a seventh member on a six-rung record is what that class's KDoc
+     * forbids.** What was missing was a *name*, and an alias is how this file already turns
+     * fifteen Material names into six sizes.
      *
      * Being an alias, it is the same [TextStyle] instance as `numeric.display` — so it carries
      * `tnum` by construction (v3 spec C1) rather than by a promise, and adding it moved zero
@@ -299,57 +298,15 @@ private val CAPTION_LETTER_SPACING = 0.5.sp
 /**
  * Tracking on the screen-title rung: **−0.39sp**, which is the mockups' `-.015em` at 26sp.
  *
- * ## The conversion
+ * `-0.015em` at the 26sp rung, exactly (`sp` rather than `em` so it reads against the size and
+ * line height beside it). **This is the only `(family, rung)` pair that carries tracking**, beyond
+ * the pre-existing 0.5sp on caption — the six mockup declarations, the tiebreak that picks
+ * `-.015em` over `-.02em`, and why section / body / display each stay at platform default are
+ * §4.1, "Tracking".
  *
- * CSS `em` is a multiple of the element's own font size, so `em × rung size in sp` is the sp
- * value — and because every rung here is a fixed size, `sp` and `em` are interchangeable. `sp`
- * is written instead of `(-0.015).em` so the number sits in the same unit as the size and line
- * height beside it, and can be read against them. `-0.015 × 26 = -0.39` exactly; no rounding.
- *
- * ## Why this rung and only this rung
- *
- * Six selectors across the two mockups declare negative tracking. Mapped onto the rung the
- * codebase's alias table actually routes them to:
- *
- * | selector | px | declared | rung it lands on today |
- * |---|---|---|---|
- * | `.topbar h1` | 20 (17 `.sm`) | `-.015em` | title — `headlineSmall` |
- * | `.shead h2` | 22 | `-.015em` | title — `headlineSmall` |
- * | `.exhead h2` | 24 | `-.02em` | title — `headlineSmall` |
- * | `.ctitle`, `.chead .title` | 16.5 | `-.01em` | body — `titleMedium` |
- * | `.data-hero` | 52 / 44 / 38 | `-.02em` | display, **numeric** family |
- *
- * **title takes `-.015em`, not `-.02em`.** The two disagree, and the tiebreak is which
- * declaration was made against this typeface: three of them (`.topbar h1` at 20px and at 17px,
- * `.shead h2` at 22px) inherit `--ff-ui`, i.e. real IBM Plex Sans. `.exhead h2` declares no
- * `font-family` and neither does its `<button>` parent, so it inherits nothing from the
- * mockup's own stacks and falls to the browser's UA stylesheet for buttons. Which face that is
- * depends on the browser; what is certain, and what the tiebreak needs, is that it is **not**
- * IBM Plex Sans. Tracking chosen against a different typeface is not evidence about this one.
- *
- * **section stays at default**, because both selectors that land on it declare no tracking at
- * all: `.sheet h3` (19px) and `.empty h4` (18px). Adding it there would be inventing.
- *
- * **body stays at default.** `.ctitle`'s `-.01em` is a *card title* treatment; the same rung
- * also carries the body default, `.btn` and `.mitem`, none of which are tracked. Tracking the
- * rung would track every sentence in the app to fix one card title. That is a component's
- * business, and it needs a slot the six-step scale does not have.
- *
- * **display stays at default.** `.data-hero`'s `-.02em` is Archivo at 38–52px, and the numeric
- * display rung's live consumer is the session timer, which declares none (`.data-s` sets no
- * `letter-spacing` in either file). Tracking display would invent it on the timer.
- *
- * Positive tracking — `.label` `.14em`, `.tempbadge` `.12em`, `.prtag` `.1em`, `.toast button`
- * `.08em`, `.setbar button` `.06em` — is deliberately absent here too. Every one of those is
- * mono **and** uppercase **and** a specific component, so it belongs on the component, the way
- * `AppSetTypeChip` and `PersonalRecordBadge` already carry theirs.
- *
- * ## Handoff
- *
- * This follows the *alias* table, not the extraction's px→rung rounding, which sends
- * `.topbar h1` (20px) to the 19 rung. Today screen titles read `headlineSmall`, which is
- * `text.title` at 26. If a screen rebuild moves a screen title to the section rung, its
- * tracking has to move with it — the value is attached to the rung, not to the role.
+ * **The value is attached to the rung, not to the role.** Screen titles read `headlineSmall`
+ * today, which is `text.title`; if a screen rebuild moves a title to the section rung, its
+ * tracking has to move with it. §4.1, "Handoff".
  */
 private const val TITLE_LETTER_SPACING_SP = -0.39f
 

@@ -112,10 +112,6 @@ internal class ExerciseExtensionIdentityTest {
     }
 
     /**
-     * The app `Context` used to be handed in explicitly as `context.applicationContext` from the
-     * composable. After the port it is inherited from AppGraph's `create(applicationContext)` bound
-     * instance, so this asserts the extension resolves the PARENT's Context rather than acquiring one
-     * of its own.
      */
     @Test
     fun `the bare app Context is inherited from the parent's bound instance`() {

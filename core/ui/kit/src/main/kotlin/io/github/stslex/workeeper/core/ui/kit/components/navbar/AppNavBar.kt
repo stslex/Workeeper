@@ -3,11 +3,13 @@ package io.github.stslex.workeeper.core.ui.kit.components.navbar
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.TweenSpec
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.keyframes
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -39,9 +41,12 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
+import io.github.stslex.workeeper.core.ui.kit.components.INDICATOR_STRETCH
+import io.github.stslex.workeeper.core.ui.kit.components.rememberPressScale
 import io.github.stslex.workeeper.core.ui.kit.components.surface.liftedSurface
 import io.github.stslex.workeeper.core.ui.kit.icons.AppIcons
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
+import io.github.stslex.workeeper.core.ui.kit.theme.AppMotion
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
@@ -51,33 +56,13 @@ import kotlin.math.min
 /**
  * The v3 bottom navigation — `pass2d.html` `#s-nav`, the `.nb.track.slide` variant.
  *
- * §26 ("Bottom navigation") collapsed three drawn variants to this one on the stage-5 gate-0
- * device pass: a `--sec` **track** under a hairline, with the active destination sitting on a
- * lifted `--slab` + `--slabtop` **pill** — the system's only drawn marker for "selected among
- * siblings", and literally `.tabs`' grammar from the chart, where a track holding a lifted thumb
- * was drawn and built first. Three icon-only items; no captions in the chosen variant.
  *
  * ## Geometry, derived rather than transcribed (§0.2)
  *
- * The drawn `.nb{height:60px;padding:5px 8px;gap:4px}` decomposes exactly the way `.topbar`'s
- * identical `min-height:60px` already decomposed in [AppDimension] terms — and it is the *same
- * drawn number*, so it gets the *same answer*:
- *
- * | drawn | parts | ships as |
- * |---|---|---|
- * | `height:60px` | pill 50px + 2×5px padding | `heightMd` (48) + 2×`Space.xs` (4) = **56dp** (`heightLg`) |
- * | `padding:5px 8px` | — | `Space.xs` (4) vertical, `Space.sm` (8) horizontal |
- * | `gap:4px` | — | `Space.xs` (4) |
- * | `border-radius:12px` | — | `Radius.small` (8) — the rung `.icon-btn`'s 12px already took |
- * | `svg{width:22px}` | — | `iconMd` (24) — the rung `AppEmptyState` took for the identical 22px draw |
- *
- * **56, not 60**, and the difference is not a rounding preference: 60 is not on the height ladder
- * (32/40/48/56/64) and §0.2 says raw px round onto it, ties toward the value with call sites.
- * `AppTopBar` states the derivation for the same input in as many words — "`min-height:60px`
- * resolves as 48dp button + 2×4dp vertical padding = 56dp (`heightLg`)" — so shipping 60 here
- * would put two different dp answers in the app for one drawn px value, on two bars §26 explicitly
- * says match each other. Note the pill's 48dp is `MetricTabs`' `TAB_HEIGHT` unchanged, which is
- * the same grammar arriving at the same rung from the other direction.
+ * `.nb{height:60px;padding:5px 8px;gap:4px}` ships as **56dp** (`heightLg`), `Space.xs` / `Space.sm`
+ * padding, `Space.xs` gap, `Radius.small`, `iconMd`. **56, not 60** — 60 is not a height rung, and
+ * the same drawn number was already resolved this way by `.topbar`. The decomposition is §26,
+ * "Bottom navigation"; the height token carries it at [AppDimension.BottomNavBar].
  *
  * ## The hairline
  *
@@ -92,10 +77,13 @@ import kotlin.math.min
  *
  * ## Motion — one transit, one character, on two elements
  *
- * §26 "Nav pill motion", unchanged by the §26.1 curve split: the pill's travel is **positional**,
- * so the split leaves it on `out`.
+ * §26 "Nav pill motion". The pill's travel is **positional**, and §26.2 is what that now selects:
+ * `out` is near-expo and leaves the pill creeping — device-measured, its last 10% occupied **50.6%
+ * of the animation** — so positional travel moved onto [AppMotion.travel]. Read the curve off
+ * [navPillOffsetSpec], never off this paragraph: `NavPillTest` asserts it is `travel` and asserts
+ * it is **not** `out`.
  *
- * - **Transit** — the offset, [NAV_PILL_TRAVEL] on `out`. Monotone, no overshoot. Delete it and
+ * - **Transit** — the offset, [NAV_PILL_TRAVEL] on `travel`. Monotone, no overshoot. Delete it and
  *   the pill teleports, which is the class's own reader-test for membership.
  * - **Character** — the `gel` stretch: `scaleX` peaks at `1 + 0.30 × k` where `k = |Δ| / barWidth`
  *   clamped to 1, at 42% of the travel, with [TransformOrigin] on the **leading** edge so the tail
@@ -171,6 +159,14 @@ fun AppNavBar(
 
             Row(horizontalArrangement = Arrangement.spacedBy(ITEM_GAP)) {
                 items.forEachIndexed { index, item ->
+                    // ONE TIMELINE. The tint and the pill are two properties of a single state
+                    // change, so they run for the same length: `NAV_PILL_TRAVEL`, not `base`. Give
+                    // the tint its own rung and the destination reads as already selected while the
+                    // pill is still travelling. `NavPillTest` asserts the two are EQUAL rather than
+                    // pinning the number twice — the defect is divergence.
+                    //
+                    // Nothing about the CURVE is decided here: both are `out`, and whether a colour
+                    // transit wants a different one is §26.1's open gap, not an omission.
                     val tint by animateColorAsState(
                         targetValue = if (index == selected) {
                             AppUi.colors.textPrimary
@@ -178,17 +174,32 @@ fun AppNavBar(
                             AppUi.colors.textTertiary
                         },
                         animationSpec = tween(
-                            durationMillis = AppUi.motion.base,
+                            durationMillis = NAV_ITEM_TINT_DURATION,
                             easing = AppUi.motion.out,
                         ),
                         label = "nav-item-tint",
                     )
+                    // NO RIPPLE. `clickable` defaults to `LocalIndication`, which under a
+                    // Material theme is one — and no ripple is drawn anywhere in either mockup,
+                    // whose only press affordance is `.btn:active{transform:scale(.985)}`. Six
+                    // sites in this app already pass `indication = null`, so the default was the
+                    // divergence. Measured before removing: it IS drawn (+1.31 luma in the item
+                    // box on a press-and-hold, flat to +/-0.05 with indication null).
+                    val interactionSource = remember { MutableInteractionSource() }
+                    val pressScale by rememberPressScale(interactionSource)
                     Box(
                         modifier = Modifier
                             .width(itemWidth)
                             .fillMaxHeight()
+                            .graphicsLayer {
+                                scaleX = pressScale
+                                scaleY = pressScale
+                            }
                             .clip(pillShape)
-                            .clickable { onSelect(index) }
+                            .clickable(
+                                interactionSource = interactionSource,
+                                indication = null,
+                            ) { onSelect(index) }
                             .testTag(item.testTag),
                         contentAlignment = Alignment.Center,
                     ) {
@@ -234,10 +245,7 @@ private fun NavPill(
     val out = AppUi.motion.out
     val animatedOffset by animateDpAsState(
         targetValue = offset,
-        animationSpec = tween(
-            durationMillis = NAV_PILL_TRAVEL,
-            easing = out,
-        ),
+        animationSpec = navPillOffsetSpec(AppUi.motion),
         label = "nav-pill-offset",
     )
 
@@ -298,10 +306,23 @@ private fun NavPill(
  * drawing's own `Math.min(Math.abs(dx)/bar.offsetWidth, 1)` and is load-bearing — without it a
  * hypothetical bar narrower than one jump would scale past the recorded ceiling.
  */
+/**
+ * The pill's transit — extracted so the CURVE is assertable, not only the duration.
+ *
+ * `NAV_PILL_TRAVEL` was already gated as a number while the easing sat inline, which is the
+ * value-gated/wiring-ungated split `ToastDuration` records: repointing this at [AppMotion.out]
+ * would restore the tail §26.2 removed and no test could see it. Same shape, and same remedy, as
+ * `continuityPositionalSpec`.
+ */
+internal fun <T> navPillOffsetSpec(motion: AppMotion): TweenSpec<T> = tween(
+    durationMillis = NAV_PILL_TRAVEL,
+    easing = motion.travel,
+)
+
 internal fun navPillStretchPeak(travel: Dp, barWidth: Dp): Float {
     if (barWidth.value <= 0f) return 1f
     val k = min(abs(travel.value) / barWidth.value, 1f)
-    return 1f + NAV_PILL_STRETCH * k
+    return 1f + INDICATOR_STRETCH * k
 }
 
 /** `.nb{padding:5px 8px}` — the 8px half. */
@@ -321,11 +342,28 @@ private val ITEM_GAP = AppDimension.Space.xs
  */
 internal const val NAV_PILL_TRAVEL: Int = 340
 
-/** `@keyframes gel{42%{…}}` — the peak's position in the 340ms timeline. */
+/**
+ * The icon tint's duration — **defined as the pill's travel, not as a second number.**
+ *
+ * A separate constant rather than `NAV_PILL_TRAVEL` used twice, so `NavPillTest` can assert the two
+ * are equal: the defect this closes is DIVERGENCE (340 against 260), and an assertion that pins 340
+ * in two places would pass just as happily if one of them were later moved alone.
+ */
+internal const val NAV_ITEM_TINT_DURATION: Int = NAV_PILL_TRAVEL
+
+/**
+ * `@keyframes gel{42%{…}}` — the peak's position in the 340ms timeline.
+ *
+ * **Frozen, where the tabs derive.** `GEL_PEAK_FRACTION` is the same drawn 42% as a fraction, and
+ * `rememberIndicatorGel` multiplies it by whatever travel it is given; this is 340 × 0.42 rounded,
+ * written once. Move `NAV_PILL_TRAVEL` and the tabs follow the drawing while this stays at 143 —
+ * **B31**, which also says which of the two is authoritative. Do not "tidy" the divergence away
+ * here: unifying them is motion work and waits on the device pass.
+ */
 internal const val NAV_PILL_STRETCH_PEAK_MS: Int = 143
 
 /** `--sx:(1+0.30*k)` — the stretch coefficient in `nbPick()`. */
-internal const val NAV_PILL_STRETCH: Float = 0.30f
+internal const val NAV_PILL_STRETCH: Float = INDICATOR_STRETCH
 
 /** `transform-origin:… 50%` — the stretch is horizontal, so the vertical origin never moves. */
 private const val ORIGIN_VERTICAL_CENTRE = 0.5f

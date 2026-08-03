@@ -101,9 +101,6 @@ internal class AllExercisesGoldenTest {
      * A second exercise at the other type. It photographs the *payload* — different name length,
      * different counts, different tag count — where [typeIsolated] photographs the *token*.
      *
-     * The first draft called this "the pair that gates the screen's own drawn region" and said it
-     * was "identical to [weighted] except `type`". It is not: five rendered fields move, so diffing
-     * it against [weighted] cannot attribute anything to the type.
      */
     private val weightless = weighted.copy(
         uuid = "e2",
@@ -472,6 +469,13 @@ internal class AllExercisesGoldenTest {
      */
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
+    /**
+     * **The cold open photographs NOTHING, and that is what it gates.**
+     *
+     * The loading deferral withholds the spinner for 140 ms and Paparazzi renders one frame with no
+     * clock, so t=0 is empty by construction. Delete the deferral and the spinner returns at t=0 and
+     * this reddens — which is the only picture-shaped gate on a value no picture can otherwise see.
+     */
     fun screenColdOpen(theme: GoldenTheme, testInfo: TestInfo) = golden(testInfo, theme) {
         AllExercisesScreen(state = pagingState(LoadState.Loading), consume = {})
     }

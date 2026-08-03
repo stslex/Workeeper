@@ -2,6 +2,8 @@ import AppExt.findPluginId
 import AppExt.libs
 import com.android.build.api.dsl.ApplicationExtension
 import com.android.build.api.dsl.CommonExtension
+import io.gitlab.arturbosch.detekt.Detekt
+import io.gitlab.arturbosch.detekt.DetektCreateBaselineTask
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.kotlin.dsl.dependencies
@@ -82,6 +84,19 @@ class LintConventionPlugin : Plugin<Project> {
                         detektExt.baseline = rootProject.file("lint-rules/detekt-baseline.xml")
                     }
             }
+
+            // detekt defaults its --jvm-target to the version of the JVM running the daemon, which
+            // is the wrong number: the gate should analyse against the bytecode level the project
+            // actually produces. Keep in sync with KotlinAndroid.configureKotlin /
+            // KmpLibraryConventionPlugin.
+            //
+            // This is NOT a licence to move the daemon off JDK 21. detekt's embedded Kotlin
+            // compiler caps --jvm-target at 22 ("Invalid value (25) passed to --jvm-target"), and
+            // above that its bundled intellij-core also fails to parse java.version at all
+            // (IllegalArgumentException: 25.0.2 from JavaVersion.parse). The daemon JVM is pinned
+            // to 21 in gradle/gradle-daemon-jvm.properties for exactly this reason.
+            tasks.withType(Detekt::class.java).configureEach { jvmTarget = "21" }
+            tasks.withType(DetektCreateBaselineTask::class.java).configureEach { jvmTarget = "21" }
 
             dependencies {
                 "detektPlugins"(libs.findLibrary("detekt.formatting").get())

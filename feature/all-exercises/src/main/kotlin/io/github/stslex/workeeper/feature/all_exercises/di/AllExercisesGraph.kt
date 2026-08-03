@@ -16,11 +16,6 @@ import io.github.stslex.workeeper.feature.all_exercises.mvi.store.AllExercisesSt
  * `@Provides` are gone and `createAllExercisesGraph()` takes no arguments. The two `@Binds`
  * (interactor, handler store) stay.
  *
- * PLAIN Store (a BottomBar destination with no route args): the graph exposes the Store directly.
- * Structurally the same shape and size as home's extension (9 vs 9 formerly-threaded deps), which is why
- * it was picked as feature 6: it is a near-replicate of row 5 in feature terms, so the build-time table's
- * step-vs-slope question turns on N alone. See the running table in
- * documentation/graph-extension-arc/HANDOFF.md.
  *
  * Interface + factory are `public` because `:app` generates the extension impl and references them;
  * [AllExercisesScope] stays `internal` (Metro reads the scope KClass at IR level).

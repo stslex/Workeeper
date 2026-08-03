@@ -327,8 +327,14 @@ internal class AllTrainingsGoldenTest {
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
     fun screenFirstRunEmpty(theme: GoldenTheme, testInfo: TestInfo) = golden(testInfo, theme) {
+        // `pagingState(NotLoading)` and not `state(emptyList())`: `PagingData.from` never settles
+        // inside one Paparazzi frame, so this golden was photographing the LOADING spinner under a
+        // name that claims the empty state — §27's own "a claim in a filename is never checked by
+        // anything", in the file that records it. Found when the loading deferral removed the
+        // spinner and left the picture blank. The sibling cases two screens over already used the
+        // settled helper; this one did not.
         AllTrainingsScreen(
-            state = state(emptyList()).copy(activeTagFilter = persistentSetOf()),
+            state = pagingState(LoadState.NotLoading(true)).copy(activeTagFilter = persistentSetOf()),
             consume = {},
         )
     }
@@ -425,6 +431,13 @@ internal class AllTrainingsGoldenTest {
      */
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
+    /**
+     * **The cold open photographs NOTHING, and that is what it gates.**
+     *
+     * The loading deferral withholds the spinner for 140 ms and Paparazzi renders one frame with no
+     * clock, so t=0 is empty by construction. Delete the deferral and the spinner returns at t=0 and
+     * this reddens — which is the only picture-shaped gate on a value no picture can otherwise see.
+     */
     fun screenColdOpen(theme: GoldenTheme, testInfo: TestInfo) = golden(testInfo, theme) {
         AllTrainingsScreen(state = pagingState(LoadState.Loading), consume = {})
     }

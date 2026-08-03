@@ -55,14 +55,11 @@ import androidx.compose.ui.graphics.Color
  *
  * One token ends up with no slot at all.
  *
- * `hair-s` (#2B333B / #D2D7DD) has no slot for a sharper reason: both slots that would have
- * taken it turned out to be **enabled control outlines**, which owe 3:1 under WCAG 1.4.11, and
- * `hair-s` delivers 1.12–1.52:1 against every surface here. The mockup draws its off-state
- * switch track and unchecked set-mark ring in it, so this is the mockup being unmeasured rather
- * than a misreading of it — the same situation as light `meta`, resolved the same way. If a
- * genuinely decorative *solid* rule is ever needed, `hair-s` is the value to bring back; today
- * `borderSubtle` covers every decorative stroke in the app except the chart's gridlines, which
- * carry the mockup's own `--grid` token ([AppColors.grid]).
+ * `hair-s` (#2B333B / #D2D7DD) has no slot because both slots that would have taken it are
+ * **enabled control outlines**, which owe 3:1 — and it delivers 1.12–1.52:1 here. The measured
+ * case, and the lift that replaced it, are §2.7. If a genuinely decorative *solid* rule is ever
+ * needed, `hair-s` is the value to bring back; today `borderSubtle` covers every decorative
+ * stroke in the app except the chart's gridlines, which carry `--grid` ([AppColors.grid]).
  */
 
 /**
@@ -230,51 +227,14 @@ data class AppColors(
      * v3 `dim` — **merged into `meta`. This slot is an alias, deliberately, and not a mistake
      * to be tidied away.**
      *
-     * ## What the mockups draw
+     * ## The derivation lives in §2.5 — this is the conclusion
      *
-     * `dim` is the fourth and weakest step of one descending text ramp — `max` → `body` →
-     * `meta` → `dim` — mirrored across the themes. Both mockups agree on the values, and both
-     * disagree with spec revision 3:
-     *
-     * | | mockups (`session-v3f.html:18,26`, `pass2d.html:19,27`) | spec rev. 3 §2.1/§2.2 |
-     * |---|---|---|
-     * | dark `dim`  | **`#6B7078`** | `#98A0A9` |
-     * | light `dim` | **`#98A0A9`** | `#6B7078` |
-     *
-     * The spec has the pair swapped between themes; §2.5's own "3.91:1" figure is derived from
-     * the *mockup's* dark value, so the spec contradicts itself and the mockups are right.
-     * The values above are the ones measured below.
-     *
-     * It carries `.label`, `.unit`, `.set-i`, `.ord`, `.ordchip`, `.sub`, `.plan-line`,
-     * `.chev`, `.tchip`, `.val .x`, `.scrub`, `.tempbadge` and `.mini` — captions, units,
-     * ordinals and chevrons on every screen. It is not decorative: an 11sp uppercase label owes
-     * 4.5:1 like any other small text.
-     *
-     * ## Why the fourth step does not exist here
-     *
-     * Measured with the same transcription the gate uses, against all five surfaces:
-     *
-     * | theme | `dim` as drawn | worst surface | ratio | owed |
-     * |---|---|---|---|---|
-     * | dark  | `#6B7078` | `raise` `#242B32` | **2.87:1** | 4.5:1 |
-     * | light | `#98A0A9` | `raise` `#DFE3E8` | **2.05:1** | 4.5:1 |
-     *
-     * (The dark value's best case, on `base`, is 3.91:1 — the number `AppSectionHeader` already
-     * recorded. It is the *best* case, not the worst.)
-     *
-     * So neither theme can ship `dim` as drawn. The question is then whether a *corrected* `dim`
-     * is still a distinct step, and it is not. Holding each mockup value's hue and saturation and
-     * moving only lightness until 4.5:1 clears on every surface:
-     *
-     * | theme | corrected `dim` | `meta` | redmean distance |
-     * |---|---|---|---|
-     * | dark  | `#8C9198` | `#8B95A1` | **16.3** |
-     * | light | `#5E6670` | `#596169` | **17.0** |
-     *
-     * A tier whose entire job is to sit *below* `meta` has to land on top of it to become legal.
-     * That is not a preference, it is arithmetic: the two-tier `meta`/`dim` distinction the
-     * mockups draw on every screen does not survive AA in either theme. So it collapses to one
-     * tier, and this slot names the collapse instead of hiding it.
+     * As drawn, `dim` fails hard: worst-surface **2.87 dark / 2.05 light**, worst backing `raise`
+     * in both themes. The legal value collapses perceptually onto `meta` (redmean 16.3 dark /
+     * 17.0 light), so a fourth step that passes AA is indistinguishable from the third. The full
+     * argument, the per-surface table and the spec-vs-mockup swap are §2.5 — cited by section, not
+     * restated here, and **B28** records that the drawing's own `--dim` has since been corrected to
+     * the shipped meta values because nothing ever produced the drawn ones.
      *
      * ## Why this is an alias and not a deletion
      *
@@ -327,22 +287,16 @@ data class AppColors(
     /**
      * **Control outline — not a hairline.** The ring that *is* the control when it is off.
      *
-     * Both readers are enabled, operable controls in their unselected state: the `RadioButton`
-     * `unselectedColor` in `ThemeSelector.kt:84` and the `Checkbox` `uncheckedColor` in
-     * `ExercisePickerSheet.kt:170`. In that state the outline carries the entire affordance —
-     * there is no fill, no label inside it, nothing else to see — so WCAG 1.4.11 applies and it
-     * owes **3:1**, not the nothing a decorative separator owes. It is enabled, so the
-     * inactive-component carve-out does not reach it either.
+     * Both readers are enabled, operable controls in their unselected state: `RadioButton`'s
+     * `unselectedColor` in `ThemeSelector.kt` and `Checkbox`'s `uncheckedColor` in
+     * `ExercisePickerSheet.kt`. In that state the outline carries the entire affordance — no
+     * fill, no label inside it, nothing else to see — so WCAG 1.4.11 applies and it owes **3:1**,
+     * not the nothing a decorative separator owes.
      *
-     * That is why this is not `hair-s`. The mockup draws its off-state switch track and its
-     * unchecked set-mark ring in `hair-s`, which measures 1.12–1.52:1 against every surface in
-     * this palette — invisible by design, and fine for a rule between two rows, disqualifying
-     * for a checkbox. Same override the spec already applies to light `meta` for the same
-     * reason: the mockup was drawn, not measured.
-     *
-     * The values keep `hair-s`'s hue and saturation exactly and move only lightness, by the
-     * smallest step that clears 3:1 on all five surfaces — dark 4.09/3.82/3.60/3.29/3.01,
-     * light 3.61/3.42/3.26/3.87/3.00. Quiet, but present.
+     * **That is why this is not `hair-s`**, which the mockup draws here and which measures
+     * 1.12–1.52:1 — fine for a rule between two rows, disqualifying for a checkbox. The lift keeps
+     * `hair-s`'s hue and saturation and moves only lightness, by the smallest step that clears 3:1
+     * on all five surfaces; the ten ratios are in §2.7.
      */
     val borderStrong: Color,
     val inverseSurface: Color,

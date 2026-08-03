@@ -11,11 +11,9 @@ import androidx.compose.runtime.Stable
  * else — because `session-v3f.html`'s `.toast` is `<span>` + `<button>Отменить</button>` with no
  * dismiss mark anywhere. Two features passed `withDismissAction = true` and were silently ignored.
  *
- * Material3 recommends that flag specifically for a `SnackbarDuration.Indefinite` snackbar, which
- * is what the host used to end up with. Under B25 branch B the host times the toast itself at the
- * drawn 5000ms ([TOAST_VISIBLE_MS]), so the recommendation no longer applies and the honest
- * resolution is that the parameter goes rather than that an undrawn glyph arrives — adding a
- * dismiss mark would be an appearance decision, and §0.1 gives those to the drawing.
+ * The parameter goes rather than an undrawn glyph arriving: adding a dismiss mark would be an
+ * appearance decision, and §0.1 gives those to the drawing. Why M3's recommendation no longer
+ * binds once the host times the toast itself — B25, resolution.
  */
 @Stable
 data class AppSnackbarModel(

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.archive.golden
 
+import androidx.paging.LoadState
+import androidx.paging.LoadStates
 import androidx.paging.PagingData
 import io.github.stslex.workeeper.core.ui.kit.components.PagingUiState
 import io.github.stslex.workeeper.core.ui.kit.golden.GoldenTheme
@@ -109,10 +111,8 @@ internal class ArchiveGoldenTest {
     // ---- the screen ------------------------------------------------------------------------------
 
     /**
-     * Named for what it draws, not for what it means (§27: "the name of a golden is a claim, and a
-     * claim in a filename is never checked by anything"). Paparazzi renders one frame of a
-     * `PagingData.from` source, so `refresh` has not settled and no rows appear — this is the
-     * chrome, not the list.
+     * The settled empty tab — and it now photographs that rather than the loading spinner.
+     *
      */
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
@@ -146,14 +146,25 @@ internal class ArchiveGoldenTest {
         exerciseCount = 8,
     )
 
+    private fun <T : Any> settledEmpty(): PagingData<T> = PagingData.empty(
+        sourceLoadStates = LoadStates(
+            refresh = LoadState.NotLoading(endOfPaginationReached = true),
+            prepend = LoadState.NotLoading(endOfPaginationReached = true),
+            append = LoadState.NotLoading(endOfPaginationReached = true),
+        ),
+    )
+
     private fun state(segment: Segment) = State(
         selectedSegment = segment,
         exerciseCount = 12,
         trainingCount = 3,
         exerciseSegmentLabel = "Упражнения (12)",
         trainingSegmentLabel = "Тренировки (3)",
-        archivedExercisesPaging = PagingUiState { flowOf(PagingData.empty()) },
-        archivedTrainingsPaging = PagingUiState { flowOf(PagingData.empty()) },
+        // SETTLED, explicitly. `PagingData.empty()` with no `sourceLoadStates` presents
+        // `refresh = Loading` forever inside a single Paparazzi frame, which is why the two
+        // no-rows goldens used to be pictures of the spinner.
+        archivedExercisesPaging = PagingUiState { flowOf(settledEmpty()) },
+        archivedTrainingsPaging = PagingUiState { flowOf(settledEmpty()) },
         pendingDeleteImpact = null,
         pendingDeleteTarget = null,
         deleteImpactLoading = false,

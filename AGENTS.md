@@ -93,6 +93,59 @@ which is the only available check that distinguishes reconstruction from approxi
 rely on that.** If the harness is genuinely unusable for some mutation, copy to a scratchpad path
 and `cp` back. Never `git checkout` a file you are mutating, whatever its status.
 
+### Comments: the guard stays, the derivation moves, the history is never written
+
+Three categories, and only the first belongs at the point of edit.
+
+1. **GUARD** — stops a specific plausible wrong edit, *where that edit would be made*. "60 is not a
+   rung"; "`using null` suppresses the size transform"; "called unconditionally so the modifier
+   graph stays stable". These earn their place and are not counted against volume.
+2. **DERIVATION** — how a number was arrived at: rung arithmetic, contrast ratios, mockup
+   transcription tables. This belongs in `documentation/`, and the comment keeps the **conclusion
+   plus a citation**. Nothing is lost and the file gets shorter.
+3. **HISTORY** — what a decision used to be, who ruled, which PR, which round, what the first draft
+   said. **Do not write this in code at all.** It goes in the commit body and the spec's
+   append-only registries, both of which exist for it.
+
+**Category 3 is still being produced, which is why this is a rule and not a cleanup.** A pass over
+the tree found 17 sites of it; one of them — `ArchiveGoldenTest`'s "this KDoc used to say…" — had
+been written *in the same session as the pass*. Writing "corrected here", "the first draft", "§24
+predicted" into a KDoc is the reflex this rule exists to interrupt.
+
+**Two constraints when relocating.**
+
+- **Cite by anchor, never by line.** `AppTopBar`'s derivation, §26 "Bottom navigation",
+  `pass2d.html` `#s-nav` — all stable. Line numbers have decayed three times on this arc, twice in
+  a fortnight (`App.kt:152`→`:170` inside one PR, and a registry row whose line cites were
+  invalidated by the rebuild that rewrote the screen).
+- **Nothing moves that is not already in a document.** If the derivation exists only in the
+  comment, moving it means writing the row *first* — otherwise "moved to the docs" is a deletion
+  wearing a citation.
+- **Verify against a distinctive phrase from the derivation, never against the anchor.** A citation
+  proves a section exists, not that it contains what you need. Half of the 55 cited paragraphs in
+  the first pass cited a *rule* while the working lived only in the comment (§27, "Claims").
+
+**A performance number states its build type, or it is not a number.** Every gate here runs on
+`debug`, so that is what an unqualified measurement is about. Debug skips R8, keeps
+`debuggable=true` and takes Compose's debug path. Measured on one emulator, identical seeded data,
+one instrument: the cold nav transition costs **3.4 frames of lag on debug against 1.8 on release**,
+while warm repeats are indistinguishable (1.7 vs 1.8). A whole diagnosis was built on debug numbers
+before anyone asked which build was under the instrument. **Claims about shipping behaviour are
+established on `:app:dev:installRelease`, not on `installDebug`.**
+
+**Density is the wrong instrument; the marginal rate is the right one.** Comment:code across
+`core/ui` + `app/app` is **0.35:1**, and it barely moves no matter what a single branch does. What
+this arc *added* opened at **1.8:1** — 502 comment lines on 281 code lines, five times the tree it
+was landing in. That is the number that says new code reads differently from old, which was the
+actual complaint; the ratio hides it by averaging against everything already there. **Measure the
+diff, not the tree.**
+
+That is also what makes these three categories a rule at the point of writing rather than a cleanup
+job. The full pass — 17 category-3 cuts, seven relocations, and three spec rows written so three
+more could move — recovered **133 lines of the 502**, taking the marginal rate to **1.3:1**. Still
+four times the tree, after deliberate effort against it. Cleanup cannot catch up with a writing
+habit, so the categories have to apply while the comment is being typed.
+
 **`detekt --auto-correct` needs `--no-configuration-cache` or it reports without rewriting.** With the
 configuration cache on, the run reports the same findings and changes not one byte, so the fix looks
 like it failed to work rather than like it never ran. Same family as the `FROM-CACHE` note above and
@@ -118,6 +171,50 @@ unrun. A stale exemption is worse than no exemption: it reads as a decision.
 **Quote the Gradle summary line as the gate evidence.** It must read `N actionable tasks: N executed`.
 Any `from cache` OR `up-to-date` count in that line **voids** the gate result — re-run before claiming
 green.
+
+## Merge flow — open it, answer review, Ilya merges
+
+1. **Open the PR. Do not merge it.** Not with `gh pr merge`, not because CI went green, not because
+   the diff is small.
+2. **Wait for review — CI *and* the bot.** Both. A green pipeline is a gate result, not a review.
+3. **Every comment is either fixed, or resolved with a comment saying why not.** Not silently
+   closed, not deferred without saying so in the thread it was raised in.
+4. **Ilya merges.** Never you.
+
+**Review comments are claims, and claims already have a discipline here: reproduce before acting,
+then classify.** Report the classification for every comment **before** pushing the fixes — a diff
+plus a row of resolved threads does not tell the reader which comments were accepted and which were
+argued down.
+
+| verdict | what it means | what it owes |
+|---|---|---|
+| **correct** | reproduced | the fix |
+| **correct-but-already-decided** | the reviewer is right and it was ruled | the ledger row or registry entry, **cited by anchor** — §26, §25, a B-number |
+| **wrong** | it does not reproduce | the **measurement** that says so. An argument is not a refutation |
+| **correct-and-new** | a finding, like any other on this arc | the fix — and if it outlives this PR, a §25 / §27 row, not only a commit body |
+
+The last row is the one that leaks. A finding recorded only in a commit body is a finding the next
+reader does not meet, which is the whole reason the registries are append-only.
+
+### Stacking, and the cost it has already charged once
+
+**Waiting on review does not block the next task.** Start it on a branch stacked on the one under
+review, and **state the stack in both PR descriptions** — "stacked on #N" in the upper, "#M stands
+on this" in the lower — so neither can be merged by someone who does not know the other exists.
+
+The rule that comes with it, because this arc has already paid for it once: **fixes from review land
+in the lower PR, and that moves the base of everything above it.**
+
+- When the lower PR moves, **rebase the stack and let each gate re-run against its new base** before
+  treating anything above as green. **A green measured against a base that no longer exists is not
+  evidence** — same family as `FROM-CACHE` above: the result is real, it is simply not about the
+  tree in question.
+- **A squash rewrites the SHA**, so the dependent arrives conflicting no matter how clean it was;
+  it needs the rebase before it can merge at all.
+- **Never `--delete-branch` while a dependent still points at the branch.**
+- The mockup gate resolves `git merge-base origin/$PR_BASE HEAD`, and for a stacked PR `$PR_BASE` is
+  the branch **below you**, not `dev` — see "Current focus". Rebasing changes that baseline too, so
+  a shell-gate green from before the rebase is void with the rest.
 
 ## Canonical project knowledge
 

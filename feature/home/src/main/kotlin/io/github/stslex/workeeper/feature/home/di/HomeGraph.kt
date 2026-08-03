@@ -15,12 +15,6 @@ import io.github.stslex.workeeper.feature.home.mvi.store.HomeStoreImpl
  * ALL of its app-scoped bindings — the 9 formerly hand-threaded bound-instance `@Provides` are gone and
  * `createHomeGraph()` takes no arguments. The two `@Binds` (interactor, handler store) stay.
  *
- * PLAIN Store (a BottomBar destination): the graph exposes the Store directly, no assisted machinery and
- * no route arg. Structurally the same shape as archive's extension — which is the point of porting it
- * here: it is the arc's build-time DISAMBIGUATOR. settings (feature 4) stepped 1.2 → 1.4s while being
- * both the 4th extension AND the widest feature in the repo, confounding N with feature width. home holds
- * the structure constant and varies only size, so row 5 separates the two. See the running build-time
- * table in documentation/graph-extension-arc/HANDOFF.md.
  *
  * Interface + factory are `public` because `:app` generates the extension impl and references them;
  * [HomeScope] stays `internal` (Metro reads the scope KClass at IR level).

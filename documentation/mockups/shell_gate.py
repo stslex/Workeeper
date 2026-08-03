@@ -84,6 +84,17 @@
 # right — check 7 kills the transition on purpose (see below) and measures placement, not motion.
 # Motion is a device-review item and has never been signed off by anyone.
 #
+# AND IT READS ONE OF THE TWO DRAWINGS. `documentation/mockups/session-v3f.html` is the other, it is
+# a LIVE contract — `screen-extraction.md` maps the session screen from it and B25 ruled the toast's
+# 5000ms off its `.toast` — and nothing reads it. Every failure class this script exists for applies
+# there unwatched: an undefined `var(--x)`, an unbalanced tag, a token drifting from `AppColors.kt`,
+# a demo that renders to nothing. Named here rather than left to be inferred from `MOCKUP`, because
+# a scope nobody wrote down reads exactly like a scope nobody needed: the fix that armed this gate's
+# sibling (`personal_data_gate.py`) was inverting an allowlist that had quietly stopped covering the
+# population it was named for. Extending here is not a rewrite of `MOCKUP` into a list — the render
+# probe's selectors, the `:root` pin and the switcher checks are all `pass2d`-shaped — so it is a
+# second gate's worth of work and it has not been done.
+#
 # EXIT CODES. 0 = every check passed. 1 = at least one check failed, or the instrument could not run.
 # A missing browser is a FAILURE, never a skip: a check that quietly does not run is a green from a
 # detector never shown to fire, which is the exact class this script was written to end.
@@ -132,16 +143,29 @@ APP_COLORS = (
 # not a non-mapping. The drawing now carries the shipped meta values under the `--dim` name (which
 # mirrors the code, where `textDim` keeps its name at meta's value), so the token resolves like any
 # other and needs no excuse. See B28.
-TOKEN_PARITY_EXCEPTIONS = {
-    "--hair-s": "EXPIRED, AND KEPT ONLY UNTIL THE PALETTE DECISION LANDS. The recorded reason was "
+#
+# KEYED BY (NAME, VALUE), NOT BY NAME. An exception keyed by name excuses whatever the token is
+# worth later, and the two escape hatches in this gate compose exactly that way: check 1 pins
+# `:root` byte-identical, but a declared `Allow-root-change: hair-s` waives check 1 for that token
+# while this table excuses it by name — leaving the value with nothing watching it at all. Bounded
+# today only because `--hair-s` has no shipped constant; the moment the palette decision gives it
+# one, "no counterpart exists" stops being true and the excuse would outlive its reason silently.
+# Same shape as `personal_data_gate.py`'s per-file excuse, fixed the same way.
+_HAIR_S_REASON = (
+    "EXPIRED, AND KEPT ONLY UNTIL THE PALETTE DECISION LANDS. The recorded reason was "
                 "that the slots that would take it are enabled-control-outline borders owing 3:1 "
                 "under WCAG 1.4.11, which hair-s's 1.12-1.52:1 cannot clear, so the app ships "
                 "*_CONTROL_OUTLINE instead (B19) — and, in AppColors.kt's own words, that "
                 "'borderSubtle covers every decorative stroke in the app'. That clause stopped "
                 "being true when the v3 list row landed: the 88dp row is RULED with --hair-s "
                 "(.row border-bottom), a decorative stroke borderSubtle does not cover — "
-                "borderSubtle is --hair, a different value. A named exception is valid only while "
-                "its reason holds; this one's has stopped. See all-trainings-extraction.md D3",
+    "borderSubtle is --hair, a different value. A named exception is valid only while "
+    "its reason holds; this one's has stopped. See all-trainings-extraction.md D3"
+)
+
+TOKEN_PARITY_EXCEPTIONS: dict[tuple[str, str], str] = {
+    ("--hair-s", "2B333B"): _HAIR_S_REASON,  # dark
+    ("--hair-s", "D2D7DD"): _HAIR_S_REASON,  # light
 }
 
 # The one variable legitimately absent from :root — nbPick() writes it per-element at runtime
@@ -833,15 +857,20 @@ def check_9_token_parity(rep: Report, tgt_src: str, root: str) -> None:
     checked = 0
     for theme, props, consts in (("dark", root_hex, dark_consts), ("light", light_hex, light_consts)):
         for name, hexv in sorted(props.items()):
-            if name in TOKEN_PARITY_EXCEPTIONS:
-                excused.append(f"    (excused) {theme} {name}:#{hexv} — {TOKEN_PARITY_EXCEPTIONS[name]}")
+            # Per (name, VALUE): an excused token that changes value is a new claim, not the
+            # excused one. See TOKEN_PARITY_EXCEPTIONS for why the name alone is not enough.
+            reason = TOKEN_PARITY_EXCEPTIONS.get((name, hexv))
+            if reason is not None:
+                excused.append(f"    (excused) {theme} {name}:#{hexv} — {reason}")
                 continue
             checked += 1
             if hexv in consts:
                 continue
             fails.append(
                 f"    {theme} {name}:#{hexv} matches no AppColors.kt {theme.upper()}_* constant "
-                f"— either it drifted (see B19) or it is a new exception this check does not know about yet"
+                f"— either it drifted (see B19), or it is an excused token whose VALUE moved (the "
+                f"exception is keyed by (name, value), so a new value is a new claim), or it is a "
+                f"new exception this check does not know about yet"
             )
 
     rep.add(

@@ -28,6 +28,7 @@ import io.github.stslex.workeeper.feature.settings.mvi.mapper.BackupUiMapper.toC
 import io.github.stslex.workeeper.feature.settings.mvi.mapper.BackupUiMapper.toUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupAuthUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupErrorUi
+import io.github.stslex.workeeper.feature.settings.mvi.model.BackupInfoUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupOperationUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupScheduleUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.RestoreProgressUi
@@ -141,7 +142,7 @@ internal class BackupClickHandler @Inject constructor(
 
                     ui is BackupAuthUi.NotAuthenticated -> {
                         updateState { current ->
-                            current.copy(backupInfo = null, backupPreferences = null)
+                            current.copy(backupInfo = BackupInfoUi.Unknown, backupPreferences = null)
                         }
                     }
 

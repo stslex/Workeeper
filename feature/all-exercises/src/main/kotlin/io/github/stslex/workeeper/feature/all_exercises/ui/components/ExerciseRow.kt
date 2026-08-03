@@ -6,18 +6,9 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
@@ -26,8 +17,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import io.github.stslex.workeeper.core.ui.kit.components.list.AppListRow
+import io.github.stslex.workeeper.core.ui.kit.components.list.AppListRowSlot
 import io.github.stslex.workeeper.core.ui.kit.components.surface.liftedSurface
 import io.github.stslex.workeeper.core.ui.kit.icons.AppIcons
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
@@ -45,13 +37,10 @@ import kotlinx.collections.immutable.persistentListOf
  * ## One skeleton, four payloads — this is the second of them
  *
  * `#s-list`'s hint states it outright: "Скелет строки один — 88px, линейка снизу, имя и мета-строка,
- * шеврон. Начинки разные". The skeleton — the 88dp ruled full-bleed row, the two-line clamp, the
- * single non-wrapping meta line and the fixed trailing slot — is `TrainingRow`'s, extracted there
- * and documented there. **It is deliberately not shared code yet**: the two payloads do not line up
- * on a single field (this one carries a type and two counts, that one an `isActive` flag and one), so a
- * shared component would take either a pre-joined string or a union of nullable fields. The
- * all-exercises delta mapping records the field-by-field comparison; extraction waits for a third
- * consumer to say what the shape actually is.
+ * шеврон. Начинки разные". The skeleton is now [AppListRow] and is documented there.
+ *
+ * What this row keeps is its own: the payload, the meta line's composition and the trailing slot's
+ * three states.
  *
  * ## What this payload does differently, and it is one thing
  *
@@ -69,11 +58,6 @@ import kotlinx.collections.immutable.persistentListOf
  *
  * ## The chevron, and why the old comment is cited rather than deleted
  *
- * This row used to carry: *"Chevron is always visible — the filled-card selection visual replaces
- * the checkbox affordance entirely (spec C3)."* Its premise is false twice after this rebuild — the
- * card is gone, and `#s-list`'s selection frame draws an explicit check in the slot. The finding it
- * rests on is the all-trainings mapping's §3.1: the drawing's answer is that an unselected row in
- * selection mode leads nowhere, so it has nothing to promise and loses the chevron. The slot stays.
  *
  * ## `lifted` is selection alone
  *
@@ -91,56 +75,29 @@ internal fun ExerciseRow(
     onLongPress: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(modifier = modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                // Called unconditionally and driven by the flag, per its own KDoc: branching at the
-                // call site would rebuild the modifier graph on the flip and kill the tween. The
-                // drawn resting row has no fill of its own — it sits on `--base` — so the resting
-                // colour is transparent rather than the default `surfaceTier1`.
-                .liftedSurface(
-                    shape = RectangleShape,
-                    lifted = isSelected,
-                    restingColor = Color.Transparent,
-                )
-                .combinedClickable(onClick = onClick, onLongClick = onLongPress)
-                .heightIn(min = AppDimension.rowHeight)
-                .padding(horizontal = AppDimension.screenEdge)
-                .testTag("AllExercisesItem_${item.uuid}"),
-            horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.md),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(AppDimension.Space.xs),
-            ) {
-                Text(
-                    modifier = Modifier.testTag("AllExercisesItemName_${item.uuid}"),
-                    text = item.name,
-                    style = AppUi.typography.titleMedium,
-                    color = AppUi.colors.textPrimary,
-                    maxLines = NAME_MAX_LINES,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    modifier = Modifier.testTag("AllExercisesItemMeta_${item.uuid}"),
-                    text = item.metaLine(),
-                    style = AppUi.typography.mono.meta,
-                    color = AppUi.colors.textTertiary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            TrailingSlot(item = item, isSelected = isSelected, isSelecting = isSelecting)
-        }
-        if (showDivider) {
-            HorizontalDivider(
-                thickness = AppDimension.borderHairline,
-                color = AppUi.colors.borderSubtle,
+    AppListRow(
+        modifier = modifier,
+        // Called unconditionally and driven by the flag, per its own KDoc: branching at the call
+        // site would rebuild the modifier graph on the flip and kill the tween. The drawn resting
+        // row has no fill of its own — it sits on `--base` — so the resting colour is transparent
+        // rather than the default `surfaceTier1`.
+        rowModifier = Modifier
+            .liftedSurface(
+                shape = RectangleShape,
+                lifted = isSelected,
+                restingColor = Color.Transparent,
             )
-        }
-    }
+            .combinedClickable(onClick = onClick, onLongClick = onLongPress)
+            .testTag("AllExercisesItem_${item.uuid}"),
+        name = item.name,
+        nameTestTag = "AllExercisesItemName_${item.uuid}",
+        meta = item.metaLine(),
+        metaTestTag = "AllExercisesItemMeta_${item.uuid}",
+        showDivider = showDivider,
+        content = {
+            TrailingSlot(item = item, isSelected = isSelected, isSelecting = isSelecting)
+        },
+    )
 }
 
 /**
@@ -175,10 +132,7 @@ private fun TrailingSlot(
     isSelecting: Boolean,
 ) {
     val spec = continuityAlphaSpec<Float>()
-    Box(
-        modifier = Modifier.width(SLOT),
-        contentAlignment = Alignment.Center,
-    ) {
+    AppListRowSlot {
         AnimatedContent(
             targetState = trailingSlotKind(isSelected = isSelected, isSelecting = isSelecting),
             transitionSpec = { fadeIn(spec) togetherWith fadeOut(spec) using null },
@@ -229,9 +183,7 @@ private fun ExerciseUiModel.metaLine(): String {
     return (listOf(head, footerLabel).filter { it.isNotEmpty() } + tags).joinToString(separator)
 }
 
-private const val NAME_MAX_LINES = 2
-
-/** The drawn 20px slot, on the icon ladder. Holds the check; the chevron centres in it. */
+/** The drawn 20px glyph, on the icon ladder — the slot's own width is `AppListRowSlot`'s. */
 private val SLOT = AppDimension.iconSm
 
 @Preview(name = "Light", showBackground = true)

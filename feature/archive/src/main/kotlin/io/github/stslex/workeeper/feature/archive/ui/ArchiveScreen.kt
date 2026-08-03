@@ -16,7 +16,6 @@ import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -24,11 +23,13 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.paging.PagingData
 import androidx.paging.compose.LazyPagingItems
-import androidx.paging.compose.collectAsLazyPagingItems
+import io.github.stslex.workeeper.core.ui.kit.components.collectAsItems
 import io.github.stslex.workeeper.core.ui.kit.components.empty.AppEmptyState
 import io.github.stslex.workeeper.core.ui.kit.components.loading.AppLoadingIndicator
 import io.github.stslex.workeeper.core.ui.kit.components.paging.AppPagingErrorFooter
 import io.github.stslex.workeeper.core.ui.kit.components.paging.AppPagingLoadingFooter
+import io.github.stslex.workeeper.core.ui.kit.components.paging.ListBody
+import io.github.stslex.workeeper.core.ui.kit.components.paging.listBody
 import io.github.stslex.workeeper.core.ui.kit.components.segmented.AppSegmentedControl
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopAppBar
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
@@ -47,8 +48,8 @@ import io.github.stslex.workeeper.feature.archive.ui.components.PagingErrorFoote
 import io.github.stslex.workeeper.feature.archive.ui.components.PagingLoadingFooter
 import io.github.stslex.workeeper.feature.archive.ui.components.PagingTailKind
 import io.github.stslex.workeeper.feature.archive.ui.components.PermanentDeleteDialog
-import io.github.stslex.workeeper.feature.archive.ui.components.archiveListSurface
 import io.github.stslex.workeeper.feature.archive.ui.components.pagingTailKind
+import io.github.stslex.workeeper.feature.archive.ui.components.rememberArchiveSurface
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.flow.flowOf
 import io.github.stslex.workeeper.core.ui.kit.R as KitR
@@ -59,13 +60,9 @@ internal fun ArchiveScreen(
     consume: (Action) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val exerciseItems = remember(state.archivedExercisesPaging) {
-        state.archivedExercisesPaging()
-    }.collectAsLazyPagingItems()
+    val exerciseItems = state.archivedExercisesPaging.collectAsItems()
 
-    val trainingItems = remember(state.archivedTrainingsPaging) {
-        state.archivedTrainingsPaging()
-    }.collectAsLazyPagingItems()
+    val trainingItems = state.archivedTrainingsPaging.collectAsItems()
 
     Column(
         modifier = modifier
@@ -149,9 +146,15 @@ private fun ArchivedExerciseList(
     consume: (Action) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    if (archiveListSurface(items.itemCount, items.loadState) != ArchiveListSurface.CONTENT) {
+    // Taken ABOVE the swap, not inside the region: this branch decides whether the region is
+    // composed at all, and the hold works by staying in composition after the data stops loading.
+    // Reading `archiveListSurface` here would delete the region — and the deferral with it — at
+    // the exact moment the minimum starts. See [ListBody].
+    val surface = rememberArchiveSurface(items)
+    if (listBody(surface, ArchiveListSurface.CONTENT) == ListBody.REGION) {
         ArchiveEmptyRegion(
             modifier = modifier,
+            surface = surface,
             items = items,
             supportingText = stringResource(R.string.feature_archive_empty_supporting_exercises),
             emptyTestTag = "ArchiveEmptyExercises",
@@ -201,9 +204,12 @@ private fun ArchivedTrainingList(
     consume: (Action) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    if (archiveListSurface(items.itemCount, items.loadState) != ArchiveListSurface.CONTENT) {
+    // Same gate as the exercise tab, and same reason — see [ListBody].
+    val surface = rememberArchiveSurface(items)
+    if (listBody(surface, ArchiveListSurface.CONTENT) == ListBody.REGION) {
         ArchiveEmptyRegion(
             modifier = modifier,
+            surface = surface,
             items = items,
             supportingText = stringResource(R.string.feature_archive_empty_supporting_trainings),
             emptyTestTag = "ArchiveEmptyTrainings",
@@ -281,12 +287,18 @@ private fun LazyListScope.pagingTail(
  */
 @Composable
 private fun ArchiveEmptyRegion(
+    surface: ArchiveListSurface?,
     items: LazyPagingItems<*>,
     supportingText: String,
     emptyTestTag: String,
     modifier: Modifier = Modifier,
 ) {
-    when (archiveListSurface(items.itemCount, items.loadState)) {
+    // The verdict is PASSED IN, from the swap above — see [ArchiveBody]. Deriving it here again
+    // would put the deferral inside the composable the raw verdict removes, which is where the
+    // minimum hold used to die. `null` is the deferral window, where nothing draws at all.
+    when (surface) {
+        null -> Unit
+
         ArchiveListSurface.CONTENT -> Unit
 
         ArchiveListSurface.LOADING -> AppPagingLoadingFooter(

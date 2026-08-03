@@ -216,14 +216,17 @@
         .nb button svg{width:22px;height:22px;stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round}
         .nb button.on{color:var(--max)}
         .nb.pill button.on{background:var(--slab);box-shadow:var(--slabtop)}
-        .nb .cap{font-family:var(--ff-mono);font-size:11px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--meta);line-height:1;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-        .nb.capsel button:not(.on) .cap{display:none}
         .nb.slide{position:relative}
         .nb.slide button{position:relative;z-index:1}
         .nb.slide .ind{position:absolute;top:5px;bottom:5px;left:0;width:0;pointer-events:none;transition:transform 340ms var(--e-out)}
         .nb.slide .ind i{display:block;width:100%;height:100%;border-radius:12px;background:var(--slab);box-shadow:var(--slabtop)}
         .nb.slide .ind.go i{animation:gel 340ms var(--e-out)}
         @keyframes gel{0%{transform:scaleX(1)}42%{transform:scaleX(var(--sx,1.2))}100%{transform:scaleX(1)}}
+        /* Device-pass candidate ONLY — not the contract. The rise eases linearly instead of on
+           --e-out, so the stretch is legible as motion rather than snapping to peak by frame 3.
+           Selected by .ind.lin; nothing outside #s-nav's comparison control sets it. */
+        .nb.slide .ind.lin.go i{animation:gelLin 340ms var(--e-out)}
+        @keyframes gelLin{0%{transform:scaleX(1);animation-timing-function:linear}42%{transform:scaleX(var(--sx,1.2))}100%{transform:scaleX(1)}}
         /* ===== список: скелет, начинки, режим выбора ===== */
         .frame{margin:0 var(--gutter);border:1px solid var(--hair-s);border-radius:18px;overflow:hidden;background:var(--base);position:relative}
         .frame .row:last-of-type{border-bottom:0}
@@ -378,7 +381,7 @@
             <div class="srow"><div class="srow-b"><div class="srow-t">Единицы</div><div class="meta" style="margin-top:3px">Килограммы</div></div><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
         </div>
         <div class="sgroup"><span class="label">Резервные копии</span>
-            <div class="srow plain"><div class="srow-b"><div class="srow-t">ilya977.077@gmail.com</div><div class="meta" style="margin-top:3px">Ilya Alexandrovich</div></div></div>
+            <div class="srow plain"><div class="srow-b"><div class="srow-t">user@example.com</div><div class="meta" style="margin-top:3px">User</div></div></div>
             <div class="srow"><div class="srow-b"><div class="srow-t">Автокопия</div><div class="meta" style="margin-top:3px">Ежедневно · следующая через 23 ч</div></div><span class="val">Вкл</span><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
             <div class="srow plain"><div class="srow-b"><div class="srow-t">Снимок для ИИ-ассистента</div><div class="meta" style="margin-top:3px">Читаемая копия в видимой папке Google Drive</div></div><button class="sw on" onclick="this.classList.toggle('on')"><i></i></button></div>
             <div class="srow"><div class="srow-b"><div class="srow-t">Создать копию сейчас</div></div><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
@@ -491,7 +494,10 @@
         <div class="topbar"><h1>Нижняя навигация</h1></div>
         <div class="hint">Трек <b>--sec</b> под баром, волосяная линия сверху, активный на <b>--slab</b> + <b>--slabtop</b> — дословно грамматика <b>.tabs</b> из графика и <b>.mseg</b> из настроек. Устройство собрало варианты 2 и 3 (отдельная плашка без трека, подпись без контейнера); оба сняты с полотна — причина в §26. Переключи тему: slabtop в тёмной это внутренняя грань, в светлой — тень вверх.</div>
 
-        <div class="section-head"><span class="label">трек и плашка</span></div>
+        <div class="section-head"><span class="label">трек и плашка</span>
+            <button class="tag on" id="gel30" onclick="gelPick(this,0.30,0)">0.30 · out</button>
+            <button class="tag" id="gel55out" onclick="gelPick(this,0.55,0)">0.55 · out</button>
+            <button class="tag" id="gel55lin" onclick="gelPick(this,0.55,1)">0.55 · linear</button></div>
         <div class="navdemo">
             <div class="row"><div class="row-body"><div class="row-name">Спина и бицепс</div><div class="meta">12 июля · 6 упражнений</div></div><span class="slot"><svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></span></div>
             <div class="row"><div class="row-body"><div class="row-name">Ноги</div><div class="meta">9 июля · 5 упражнений</div></div><span class="slot"><svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></span></div>
@@ -518,6 +524,76 @@
         </div>
         <div class="navnote">Сессия (§1.8) и упражнение (§3.6) рисуют снизу <b>.dock</b>. Если бар и док встречаются, низ читается как две панели подряд — 152px хрома на 812px экрана. Правило рисуется здесь: экран с доком бар не показывает.</div>
     </section>
+
+    <section class="screen" id="s-topbar">
+        <div class="topbar"><h1>Верхняя панель</h1></div>
+        <div class="hint">Правило одно, форм три: <b>раздел нижней навигации несёт свой заголовок; главная дополнительно несёт две глобальные точки входа, потому что она единственный экран, где они есть; вытолкнутый экран несёт стрелку назад</b>. Ниже нарисованы все три. У второй отметка настроек — <b>кандидат</b>, и их два: выбор за Ильёй, см. заметки под ними.</div>
+
+        <div class="section-head"><span class="label">раздел нижней навигации — только заголовок</span></div>
+        <div class="frame">
+            <div class="topbar"><h1>Тренировки</h1></div>
+            <div class="row"><div class="row-body"><div class="row-name">Ноги и плечи</div><div class="meta">вчера · 48 мин · 6 упражнений</div></div><span class="slot"><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></span></div>
+            <div class="row"><div class="row-body"><div class="row-name">Верх (с подтягиваниями)</div><div class="meta">8 упражнений · грудь · спина</div></div><span class="slot"><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></span></div>
+        </div>
+        <div class="navnote">Заголовок нужен не потому, что 60px хрома ничего не стоят, а потому, что <b>назвать экран больше нечем</b>: у нижней панели <b>нет подписей</b> — ни одной <b>.cap</b> в разметке <b>#s-nav</b>, — и из трёх её глифов два взяты из нарисованных пустых состояний. Заголовок — единственное место, где сказано, на что вы смотрите. Отклонённый вариант снимал панель на доводе «раздел уже назван нижней панелью»; в нарисованном виде это <b>неверно</b>, а отклонение с неверным доводом переиспользуют.</div>
+
+        <div class="section-head"><span class="label">вытолкнутый экран — стрелка назад и заголовок</span></div>
+        <div class="frame">
+            <div class="topbar"><button class="icon-btn lead"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><h1>Архив</h1></div>
+            <div class="row"><div class="row-body"><div class="row-name">Румынская тяга</div><div class="meta">упражнение · в архиве с 3 июля</div></div><span class="slot"><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></span></div>
+        </div>
+        <div class="navnote">Форма не новая: <b>.icon-btn.lead + h1</b> уже нарисована на трёх экранах (<b>#s-ex</b>, <b>#s-past</b>, <b>#s-set</b>). Архив её и так носит — правило превращает совпадение в <b>ссылку</b>.</div>
+
+        <div class="navnote"><b>Панель главной несёт ДВЕ замыкающие отметки — график, затем настройки.</b> У отметки графика референс есть: это глиф пустого состояния графика (<b>#s-empty</b>, ломаная), взятый в размер иконки. У отметки настроек референса <b>не было</b> — во всём файле нет ни одной шестерёнки: настройки нарисованы как <b>экран</b> (<b>#s-set</b>), никогда как точка входа. Дыра настоящая, а не оплошность: настройки были наложением хоста, пока <b>B26</b> его не удалил, поэтому точку входа не рисовали вовсе. Поэтому ниже — <b>два кандидата</b>, а не одна придуманная отметка.</div>
+
+        <div class="section-head"><span class="label">главная — две отметки, и вторая пока кандидат</span></div>
+        <div class="frame">
+            <div class="topbar"><h1>Главная</h1><button class="icon-btn"><svg viewBox="0 0 24 24"><path d="M3 17l5-6 4 4 5-8"/></svg></button><button class="icon-btn trail"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="2.6"/><circle cx="12" cy="12" r="7.4"/><path d="M12 3.2v1.4M12 19.4v1.4M3.2 12h1.4M19.4 12h1.4M5.8 5.8l1 1M17.2 17.2l1 1M18.2 5.8l-1 1M6.8 17.2l-1 1"/></svg></button></div>
+            <div class="row"><div class="row-body"><div class="row-name">Верх (с подтягиваниями)</div><div class="meta">вчера · 47:12 · 5 упражнений</div></div><span class="slot"><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></span></div>
+        </div>
+        <div class="navnote"><b>Кандидат 1 — шестерня.</b> Отметка <b>машины, которую настраивают</b>: конвенция, читается без обучения. Ограничение измерено, а не выбрано: <b>упрощённая</b> шестерня — круг и восемь лучей — это ровно тот путь, которым в <b>#s-set</b> нарисована светлая тема, поэтому кандидат обязан нести внешнее кольцо, иначе он сталкивается с уже занятой отметкой.</div>
+        <div class="frame">
+            <div class="topbar"><h1>Главная</h1><button class="icon-btn"><svg viewBox="0 0 24 24"><path d="M3 17l5-6 4 4 5-8"/></svg></button><button class="icon-btn trail"><svg viewBox="0 0 24 24"><path d="M8.5 4v16M15.5 4v16"/><circle cx="8.5" cy="9" r="2.1"/><circle cx="15.5" cy="15" r="2.1"/></svg></button></div>
+            <div class="row"><div class="row-body"><div class="row-name">Верх (с подтягиваниями)</div><div class="meta">вчера · 47:12 · 5 упражнений</div></div><span class="slot"><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></span></div>
+        </div>
+        <div class="navnote"><b>Кандидат 2 — вертикальные регуляторы.</b> Отметка <b>того, что настраивают</b>, а не машины: <b>#s-set</b> состоит из переключателей, сегментов и строк со значением — регуляторы говорят именно это. Вертикальные, потому что горизонтальные столкнулись бы с глифом списка в нижней панели (<b>линии с точками</b>). <b>Обе</b> нарисованы обводкой в 1.7 из <b>.icon-btn svg</b>, без заливки — ни одна не является импортом залитой иконки, класс, который эта арка убирала дважды.<br><br><b>Обязательство схлопывания:</b> когда Илья выберет, проигравший кандидат уходит из файла <b>вместе со своими правилами</b>, одним коммитом — это урок <b>.nb .cap</b>: разметку убрали, стили оставили, и следующий читатель нашёл подписи, которых никогда не было.</div>
+    </section>
+
+    <section class="screen" id="s-arch">
+        <div class="topbar"><h1>Архивная карточка</h1></div>
+        <div class="hint">Архивная карточка <b>только для чтения</b>: правки и удаления нет, история и график остаются доступны. Отклонённый вариант провалился на собственном рисунке — он показывал «14 сессий» как факт, к которому нельзя перейти.</div>
+
+        <div class="topbar"><button class="icon-btn lead"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><h1 class="sm">Румынская тяга</h1></div>
+        <div style="padding:0 var(--gutter);margin-bottom:16px"><div class="meta">упражнение · в архиве с 3 июля · спина</div></div>
+
+        <div class="section-head"><span class="label">История</span><span class="label">14 сессий</span></div>
+        <div class="list">
+            <div class="row"><div class="row-body"><div class="row-name" style="font-size:15px">9 июля</div><div class="meta">7×12 · 7×12 · 7×12</div></div><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
+            <div class="row"><div class="row-body"><div class="row-name" style="font-size:15px">2 июля</div><div class="meta">5×12 · 6×12 · 9×12</div></div><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
+        </div>
+        <div class="navnote">Замыкающего слота у панели <b>нет</b> — это и есть «правки и удаления не видно»: вычитание из нарисованной формы <b>#s-ex</b>, а не новая форма. Строка сведений — та же мета-строка, что несёт строка списка. История — <b>.section-head</b> со счётом и строки со шевроном, как на <b>#s-ex</b>: счёт назван, и по нему можно пройти. <b>Что этот экран НЕ решает — три пункта.</b> Первый: куда уходят «восстановить» и «удалить навсегда», когда они сходят со строки списка. Второй: <b>вход в график тут не нарисован</b>. Правило говорит «история и график остаются доступны», но на карточке упражнения график открывается <b>нажатием на рекордный герой</b> (<b>.prhero</b>, <code>onClick</code> на <code>PersonalRecordHero</code>) — то есть отметки у входа нет вообще, он невидим. Перенести сюда ту же невидимую точку входа, дать явную отметку или оставить архивную карточку без графика — это <b>решение</b>, и карандашом оно тут не берётся. Третий: нарисовано <b>упражнение</b>, а архив несёт два списка — упражнения и тренировки. <b>Архивной карточки тренировки тут нет</b>, и рисовать её сейчас значит рисовать сам экран тренировки, которого в файле нет вовсе (это один из восьми производных экранов). Поэтому вариант тренировки — <b>нерешённый</b>, а не подразумеваемый: сборка архива не должна выводить его отсюда по аналогии. Все три — следующие решения, и они намеренно не задавались.</div>
+    </section>
+
+    <section class="screen" id="s-band">
+        <div class="topbar"><h1>Полоса главной</h1></div>
+        <div class="hint">Одно решение, а не два: <b>у одной формы есть референс, у другой его нет</b>. Ниже они рядом, на одинаковом содержании — это сравнение, а не два экрана.</div>
+
+        <div class="section-head"><span class="label">форма 1 — строка, поднятая над списком</span></div>
+        <div class="frame">
+            <div class="topbar"><h1>Главная</h1></div>
+            <div class="row live"><div class="row-body"><div class="row-name">Ноги и плечи</div><div class="meta">идёт сейчас · 12:04 · 3 из 5</div></div><span class="slot"><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></span></div>
+            <div class="row"><div class="row-body"><div class="row-name">Верх (с подтягиваниями)</div><div class="meta">вчера · 47:12 · 5 упражнений</div></div><span class="slot"><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></span></div>
+        </div>
+        <div class="navnote"><b>Приём нарисован; полезная нагрузка — нет, и это цена формы.</b> Это <b>.row.live</b> из <b>#s-list</b> — <b>--slab</b> с <b>--slabtop</b>. Баннер в сборке несёт <b>четыре</b> вещи: ведущий значок, имя, выделенный таймер <b>•12:04</b> размером с заголовок и строку прогресса. Строка берёт три из четырёх: <b>ведущего значка тут быть не может вовсе</b> — §26 «Leading media in list rows» это заявленное <b>отсутствие</b>, — а таймер и прогресс складываются в одну мета-строку и теряют выделение. Полоса при этом открывается тем же приёмом, которым набран список под ней.</div>
+
+        <div class="section-head"><span class="label">форма 2 — карточка, как сегодня в сборке</span></div>
+        <div class="frame">
+            <div class="topbar"><h1>Главная</h1></div>
+            <div style="padding:12px var(--gutter)"><div class="card" style="padding:24px;display:flex;gap:16px;align-items:center"><span class="slot" style="width:32px;height:32px"><svg viewBox="0 0 24 24"><path d="M4 12h3l2.5-7 5 14L17 12h3"/></svg></span><div style="flex:1"><div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline"><div class="row-name" style="font-size:19px">Ноги и плечи</div><span style="display:inline-grid;font-size:19px;font-weight:600"><span style="grid-area:1/1;visibility:hidden">•999:99:99</span><span style="grid-area:1/1;text-align:right">•12:04</span></span></div><div class="meta" style="margin-top:12px">идёт сейчас · 3 из 5</div></div></div></div>
+            <div class="row"><div class="row-body"><div class="row-name">Верх (с подтягиваниями)</div><div class="meta">вчера · 47:12 · 5 упражнений</div></div><span class="slot"><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></span></div>
+        </div>
+        <div class="navnote"><b>Это то, что стоит в сборке сегодня — со всем содержимым</b>, и сравнение идёт с привычным, а не с описанием: ведущий значок, имя, выделенный <b>•12:04</b>, строка прогресса. Одна поправка к рисунку названа прямо: ведущая отметка в сборке — <b>залитая иконка Material</b> (<code>Icons.Filled.FitnessCenter</code>), класс, который эта арка убирала дважды; здесь она нарисована <b>обводкой</b> — тем самым глифом тренировки, что стоит в нижней панели. Какая бы грамматика ни победила, залитая иконка не переживает решение в нынешнем виде. Но <b>референса у формы нет</b>: <b>.card</b> в этом файле нарисована только для <b>упражнений сессии</b> (<b>#s-live</b>, <b>#s-past</b>) и ни разу — для стоящей сводки. Выбрать её значит <b>добавить грамматику</b> в смысле §0.1, ровно как вторая отметка на панели главной. <b>Асимметрия и есть решение</b>, а не деталь внутри него.<br><br><b>Чего это сравнение НЕ решает:</b> карточку «начать» и текст пустого состояния. Они следуют из победившей грамматики и рисуются в ней одной — не четырьмя перестановками. И <b>дублирования сегодня нет</b>: пустое состояние главной идёт с <b>actionLabel = null</b>, поэтому «одно предложение дважды» — риск решения, а не дефект, который оно обязано чинить.<br><br><b>Обязательство схлопывания:</b> проигравшая форма уходит из файла вместе со своими правилами, одним коммитом.</div>
+    </section>
 </div>
 
 <div class="scrim" id="scrim" onclick="closeSheets()"></div>
@@ -539,6 +615,9 @@
     <button data-s="s-empty" onclick="nav(this)">Пустые</button>
     <button data-s="s-list" onclick="nav(this)">Список</button>
     <button data-s="s-nav" onclick="nav(this)">Навбар</button>
+    <button data-s="s-topbar" onclick="nav(this)">Топбар</button>
+    <button data-s="s-arch" onclick="nav(this)">Архивная</button>
+    <button data-s="s-band" onclick="nav(this)">Полоса</button>
     <span class="sep"></span>
     <button id="sizeBtn" onclick="toggleSize()">Сессия 2×4</button>
     <button id="thBtn" onclick="setTheme(document.body.classList.contains('light')?'dark':'light')">Светлая</button>
@@ -674,11 +753,20 @@
       if(b.dataset.s==='s-nav'){nbPlace()}}
     function nbPlace(){const ind=document.querySelector('#s-nav .ind'),bar=ind.closest('.nb'),on=bar.querySelector('button.on');
       ind.style.width=on.offsetWidth+'px';ind.style.transform='translateX('+on.offsetLeft+'px)';}
+    // Device-pass comparison. GEL_C defaults to 0.30 and GEL_LIN to 0 — i.e. what SHIPS — so
+    // opening the drawing shows the contract and nothing else. The two candidates are
+    // reachable only by pressing a control, which is the «Упругость» idiom this section
+    // carried at f52462c7 and which §26 records as the reason the collapse was judgeable.
+    // Neither candidate is declared until Ilya rules; §26's row still reads 0.30.
+    let GEL_C=0.30, GEL_LIN=0;
+    function gelPick(btn,c,lin){GEL_C=c;GEL_LIN=lin;
+      btn.parentNode.querySelectorAll('.tag').forEach(x=>x.classList.remove('on'));btn.classList.add('on');}
     function nbPick(btn){const bar=btn.closest('.nb'),ind=bar.querySelector('.ind'),cur=bar.querySelector('button.on');
       if(cur===btn)return;const dx=btn.offsetLeft-cur.offsetLeft;
       bar.querySelectorAll('button').forEach(b=>b.classList.remove('on'));btn.classList.add('on');
       const k=Math.min(Math.abs(dx)/bar.offsetWidth,1),el=ind.querySelector('i');
-      el.style.setProperty('--sx',(1+0.30*k).toFixed(3));
+      el.style.setProperty('--sx',(1+GEL_C*k).toFixed(3));
+      ind.classList.toggle('lin',GEL_LIN===1);
       el.style.transformOrigin=dx>0?'100% 50%':'0% 50%';
       ind.classList.remove('go');void ind.offsetWidth;ind.classList.add('go');
       ind.style.transform='translateX('+btn.offsetLeft+'px)';}

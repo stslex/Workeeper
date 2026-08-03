@@ -2,8 +2,10 @@ import AppExt.findPluginId
 import AppExt.libs
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
+import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
 
 /**
  * Kotlin Multiplatform library convention (Phase C KMP foundation).
@@ -49,6 +51,17 @@ class KmpLibraryConventionPlugin : Plugin<Project> {
                         "-opt-in=kotlinx.coroutines.ExperimentalCoroutinesApi",
                         "-opt-in=kotlin.time.ExperimentalTime",
                     )
+                }
+
+                // Pin the JVM bytecode level, mirroring KotlinAndroid.configureKotlin's
+                // JvmTarget.JVM_21. Unlike the Android convention this is NOT cosmetic: without
+                // it a KMP leaf inherits the *daemon's* JDK as its jvmTarget, so on any JDK newer
+                // than 21 every Android consumer fails with "Cannot inline bytecode built with
+                // JVM target <N> into bytecode that is being built with JVM target 21" the moment
+                // it calls one of this module's inline helpers (runIf, transition, ...).
+                // Keep in sync with KotlinAndroid.configureKotlin.
+                tasks.withType(KotlinJvmCompile::class.java).configureEach {
+                    compilerOptions.jvmTarget.set(JvmTarget.JVM_21)
                 }
             }
         }

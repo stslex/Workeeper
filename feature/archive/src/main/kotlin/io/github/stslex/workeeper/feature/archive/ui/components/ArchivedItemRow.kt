@@ -1,19 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.archive.ui.components
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -26,10 +21,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButton
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButtonSize
+import io.github.stslex.workeeper.core.ui.kit.components.list.AppListRow
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
@@ -51,29 +46,22 @@ import io.github.stslex.workeeper.feature.archive.domain.model.ExerciseTypeDomai
  * упражнение · в архиве с 3 июля
  * ```
  *
- * So the card this row used to be — `shapes.medium` on `surfaceTier1`, inset by the list's gutter,
- * with a `LazyRow` of tag chips and the date on its own third line — becomes the same full-bleed
- * 88dp ruled row the other two already are. Three regions are pure delta and carry no new argument:
- * the container, the two-line clamped `titleMedium` name, and the single non-wrapping `mono.meta`
- * line. §26 "Meta-line order" is why the tag chips go: they are rejected in-row on every payload,
- * and the tags survive as text at the tail of the meta line.
  *
- * ## What this row does NOT resolve
+ * ## This row does not yet conform, and that is now scheduled rather than open
  *
- * **The trailing slot is deliberately untouched, and it is the screen's open question.** `#s-list`
- * gives a row one 20px slot holding a chevron, a check, or nothing; this row carries *two* live
- * verbs — a `Restore` button and an overflow whose single item is permanent delete — and both were
- * verified reachable before the question was framed, so it does not collapse to one (unlike B23's
- * dialog on the sibling, which had no producer at all). The drawn archive row carries a **chevron**,
- * i.e. it navigates, and says nothing about either verb.
+ * §2.1 asked whether the drawn one-slot skeleton or this screen's two live verbs win. **It is RULED
+ * (Ilya, §24.2 group A):** an archived item **opens** — read-only detail — so the drawn chevron is
+ * true, this row takes the drawn 20dp slot like its three siblings, and restore and
+ * permanent-delete come off it. Where they go is the one part still open, and it belongs to the
+ * drawing.
  *
- * That is a §0.1 decision for the owner, not a delta to apply, so the two affordances are left
- * exactly as they were. Everything around them is rebuilt. See `archive-delta.md` §2.1 for the three
- * readings and the argument against each.
- *
- * One consequence worth stating rather than discovering: while the affordances stay, this row is
- * **taller than 88dp in practice** and its trailing region is not the drawn slot. The `heightIn`
- * minimum is the drawn one; the row is not yet the drawn row, and it cannot be until §2.1 is ruled.
+ * **What ships here is the pre-ruling row, deliberately.** Applying the ruling moves pixels — a
+ * chevron appears, two affordances leave, and the row drops to the drawn 88dp, which it currently
+ * exceeds because its trailing region is not the slot. The extraction this file is part of asserts
+ * the opposite (every golden byte-identical), so conformance cannot land in the same change without
+ * destroying the only claim that change makes. **It lands in the archive rebuild, after group A is
+ * drawn**, and until then this row is the one consumer of [AppListRow] that does not use
+ * `AppListRowSlot` — by schedule, not by exception.
  */
 @Composable
 internal fun ArchivedItemRow(
@@ -84,52 +72,27 @@ internal fun ArchivedItemRow(
     onPermanentDelete: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(modifier = modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = AppDimension.rowHeight)
-                .padding(horizontal = AppDimension.screenEdge),
-            horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.md),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(AppDimension.Space.xs),
-            ) {
-                Text(
-                    modifier = Modifier.testTag("ArchivedItemName_${item.uuid}"),
-                    text = item.name,
-                    style = AppUi.typography.titleMedium,
-                    color = AppUi.colors.textPrimary,
-                    maxLines = NAME_MAX_LINES,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    modifier = Modifier.testTag("ArchivedItemMeta_${item.uuid}"),
-                    text = metaLine,
-                    style = AppUi.typography.mono.meta,
-                    color = AppUi.colors.textTertiary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            // UNRESOLVED — archive-delta §2.1. Two verbs against a one-slot skeleton; left as-is
-            // on purpose rather than picked. Do not "tidy" this into the drawn 20dp slot without
-            // that ruling: collapsing it silently answers a §0.1 question in a refactor.
+    AppListRow(
+        modifier = modifier,
+        name = item.name,
+        nameTestTag = "ArchivedItemName_${item.uuid}",
+        meta = metaLine,
+        metaTestTag = "ArchivedItemMeta_${item.uuid}",
+        showDivider = showDivider,
+        // SCHEDULED, not open — §2.1 is ruled (§24.2 group A): the row will take the drawn 20dp
+        // slot with a chevron and these two verbs leave it. Not applied here because this change
+        // asserts every golden stays byte-identical and applying it moves pixels; it lands with
+        // the archive rebuild. Until then this stays un-slotted BY SCHEDULE — so do not wrap it in
+        // `AppListRowSlot` piecemeal either: the slot arrives with the click and the destination
+        // or not at all.
+        content = {
             TrailingAffordances(
                 item = item,
                 onRestore = onRestore,
                 onPermanentDelete = onPermanentDelete,
             )
-        }
-        if (showDivider) {
-            HorizontalDivider(
-                thickness = AppDimension.borderHairline,
-                color = AppUi.colors.borderSubtle,
-            )
-        }
-    }
+        },
+    )
 }
 
 /** The two contested verbs, unchanged. See [ArchivedItemRow]'s KDoc and `archive-delta.md` §2.1. */
@@ -183,8 +146,6 @@ private fun TrailingAffordances(
         }
     }
 }
-
-private const val NAME_MAX_LINES = 2
 
 @Preview(name = "Light", showBackground = true)
 @Preview(

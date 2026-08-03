@@ -233,7 +233,7 @@ private fun SettingsScreenAuthenticatedPreview() {
                         email = "user@example.com",
                         displayName = "User",
                     ),
-                    backupInfo = BackupInfoUi(
+                    backupInfo = BackupInfoUi.Present(
                         lastBackupText = "Last backup: 2 hours ago",
                         backupCountText = "3 backups stored",
                     ),

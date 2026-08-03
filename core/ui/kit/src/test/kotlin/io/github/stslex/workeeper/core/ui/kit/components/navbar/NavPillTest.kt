@@ -1,8 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.core.ui.kit.components.navbar
 
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import io.github.stslex.workeeper.core.ui.kit.theme.provideAppMotion
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotSame
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
@@ -28,6 +32,18 @@ import org.junit.jupiter.api.Test
 internal class NavPillTest {
 
     @Test
+    @DisplayName("the pill travels on `travel`, and it is the scale's own instance")
+    fun offsetUsesTheTravelCurve() {
+        // §26.2. Not `assertEquals` on control points — `assertSame`, so this asserts the call
+        // site reads the SCALE rather than that someone rebuilt an equal-looking curve locally.
+        val motion = provideAppMotion()
+        assertSame(motion.travel, navPillOffsetSpec<Dp>(motion).easing)
+        // And the negative: `out` is what this was, and repointing back is the regression.
+        assertNotSame(motion.out, navPillOffsetSpec<Dp>(motion).easing)
+        assertEquals(NAV_PILL_TRAVEL, navPillOffsetSpec<Dp>(motion).durationMillis)
+    }
+
+    @Test
     @DisplayName("the travel is the ledger's 340ms, not a motion-scale rung")
     fun travelDuration() {
         assertEquals(340, NAV_PILL_TRAVEL)
@@ -40,6 +56,20 @@ internal class NavPillTest {
             "340ms is a recorded ledger value for this member; snapping it onto the motion scale " +
                 "is a decision, not a cleanup."
         }
+    }
+
+    @Test
+    @DisplayName("the tint shares the pill's timeline — one state change, one duration")
+    fun tintSharesTheTravel() {
+        // Two properties of ONE state change. They were 340 (pill) against 260 (tint), and the
+        // device pass read the destination as selected while the pill was still moving. A golden
+        // cannot see either duration, so the invariant is asserted rather than reviewed: whatever
+        // the travel becomes, the tint follows it.
+        //
+        // Asserted as an identity between the two call sites' duration rather than against a
+        // literal, because the defect is DIVERGENCE, not a wrong number — pinning 340 twice would
+        // pass just as happily if one of them were later moved alone.
+        assertEquals(NAV_PILL_TRAVEL, NAV_ITEM_TINT_DURATION)
     }
 
     @Test

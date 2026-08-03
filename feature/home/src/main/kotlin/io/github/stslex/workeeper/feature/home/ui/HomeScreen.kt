@@ -27,10 +27,13 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.paging.PagingData
 import androidx.paging.compose.LazyPagingItems
-import androidx.paging.compose.collectAsLazyPagingItems
 import io.github.stslex.workeeper.core.ui.kit.components.PagingUiState
+import io.github.stslex.workeeper.core.ui.kit.components.collectAsItems
 import io.github.stslex.workeeper.core.ui.kit.components.empty.AppEmptyState
 import io.github.stslex.workeeper.core.ui.kit.components.loading.AppLoadingIndicator
+import io.github.stslex.workeeper.core.ui.kit.components.paging.ListBody
+import io.github.stslex.workeeper.core.ui.kit.components.paging.listBody
+import io.github.stslex.workeeper.core.ui.kit.components.paging.rememberDeferredSurface
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopAppBar
 import io.github.stslex.workeeper.core.ui.kit.icons.AppIcons
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
@@ -57,8 +60,9 @@ import kotlinx.coroutines.flow.flowOf
 /**
  * Home, extracted against the drawn shell — and the extraction stops in four places.
  *
- * **Home has no drawing.** `pass2d.html` carries eight `.screen` sections (`#s-live`, `#s-chart`,
- * `#s-ex`, `#s-past`, `#s-set`, `#s-empty`, `#s-list`, `#s-nav`) and not one of them is this
+ * **Home has no drawing.** `pass2d.html` carries eleven `.screen` sections (`#s-live`, `#s-chart`,
+ * `#s-ex`, `#s-past`, `#s-set`, `#s-empty`, `#s-list`, `#s-nav`, `#s-topbar`, `#s-arch`, `#s-band`) and not
+ * one of them is this
  * screen; `#s-empty`'s three glyph-tile blocks are all-trainings', the chart's and all-exercises'.
  * So Home is a **derived** screen in §24's sense — it composes the shell drawn once in `#s-list`
  * and `#s-nav` — and everything outside that shell is undrawn and left alone.
@@ -72,28 +76,16 @@ import kotlinx.coroutines.flow.flowOf
  *
  * ## What is undrawn, and stops here rather than being invented past
  *
- * 1. **The active-session banner.** Nothing in either mockup draws it. The one drawn expression of
- *    "a training is running" is `#s-list`'s `.row.live` — a *row* on `--slab` + `--slabtop` with
- *    «идёт сейчас · 12:04» in its meta line — which is a list treatment on the trainings screen,
- *    not a card with an icon, a timer in its own type and a progress count. Deriving the banner
- *    from it would be inventing a component out of a row; the banner keeps its v2.4 treatment.
- * 2. **The start card.** Same: no referent, keeps its treatment.
- * 3. **The top bar's contents.** §26 "Resting list top bar" owes the whole surface to a mockup
- *    pass and names Home explicitly as its point (4) — "whether Home differs, since it is the one
- *    destination already carrying two trailing actions against a drawn grammar that shows at most
- *    one `.icon-btn.trail`". Untouched, including the two Material glyphs, which is a deliberate
- *    non-fix: replacing them needs marks the drawing does not have for these two actions.
- * 4. **The empty state's copy.** The three drawn empties are other screens'. Home's strings stay.
- *    Its *glyph* is the one thing changed, and it is recorded as a derivation the pass may
- *    overrule: `Icons.Filled.FitnessCenter` is a **filled Material glyph in a system that has
- *    none** (§26, FAB row: "no filled mark exists anywhere in this drawing"), which is precisely
- *    the "design system applied, design absent" defect this arc exists to remove. It becomes
- *    `AppIcons.Trainings`, the drawn mark, on the ground that dropping the tile instead would
- *    contradict `#s-empty`'s own discriminator — a tile means the screen is empty *by itself*, and
- *    Home with no history is.
+ * Four regions keep their v2.4 treatment and are photographed rather than derived: the
+ * **active-session banner**, the **start card**, the **top bar's contents** (both Material
+ * glyphs included — a deliberate non-fix) and the **empty state's copy**. The one thing
+ * changed is the empty state's glyph, `Icons.Filled.FitnessCenter` → `AppIcons.Trainings`,
+ * because a filled Material glyph in a system that has none is the defect this arc removes;
+ * recorded as a derivation the pass may overrule.
  *
- * Recorded rather than silently narrowed: this is a much smaller extraction than its three
- * siblings', and correctly so — they had a drawing and Home does not.
+ * **Why each is undrawn, and what the mockup pass owes on them, is §26's "THE MOCKUP PASS"
+ * row** — including that `#s-list`'s `.row.live` is a *row* treatment and cannot yield a
+ * banner. Do not re-derive it here; do not invent past it.
  */
 @Composable
 internal fun HomeScreen(
@@ -102,7 +94,7 @@ internal fun HomeScreen(
     modifier: Modifier = Modifier,
     activeSessionModifier: Modifier = Modifier,
 ) {
-    val recent = state.pagingUiState().collectAsLazyPagingItems()
+    val recent = state.pagingUiState.collectAsItems()
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -160,6 +152,15 @@ private fun HomeBody(
     modifier: Modifier = Modifier,
     activeSessionModifier: Modifier = Modifier,
 ) {
+    // Computed HERE rather than inside `emptyRegion`: the deferral holds by staying in
+    // composition after loading ends, and the empty region's item is removed the instant the list
+    // has rows — so a call sited inside it would leave composition exactly when the hold was meant
+    // to begin. See `rememberDeferredSurface`.
+    val surface = rememberDeferredSurface(
+        surface = homeListSurface(itemCount = recent.itemCount, loadState = recent.loadState),
+        loadingSurface = HomeListSurface.LOADING,
+    )
+
     LazyColumn(
         modifier = modifier.testTag("HomeList"),
         // The rows are full-bleed and rule themselves (`#s-list` `.row`), so the list adds no
@@ -192,34 +193,46 @@ private fun HomeBody(
                 )
             }
         }
-        items(
-            count = recent.itemCount,
-            key = { index -> recent.peek(index)?.sessionUuid ?: "recent_$index" },
-        ) { index ->
-            recent[index]?.let { item ->
-                RecentSessionRow(
-                    // §26, continuity motion. A finished session arrives at the head of this list
-                    // the moment a workout ends, while the banner above it disappears — so every
-                    // row below moves in the same frame. Pure transit, no character: the placement
-                    // spec is positional and both fades are alpha, which is the split stated as
-                    // plainly as one call can state it.
-                    modifier = Modifier.animateItem(
-                        fadeInSpec = continuityAlphaSpec(),
-                        placementSpec = continuityPositionalSpec(),
-                        fadeOutSpec = continuityAlphaSpec(),
-                    ),
-                    item = item,
-                    // The drawing removes the last row's rule (`.frame .row:last-of-type`), so the
-                    // list does not end on a hairline into empty space.
-                    showDivider = index < recent.itemCount - 1,
-                    onClick = {
-                        consume(Action.Click.OnRecentSessionClick(sessionUuid = item.sessionUuid))
-                    },
-                )
+        // Gated on the DEFERRED verdict, not on `itemCount`: during the minimum hold the verdict is
+        // still LOADING while the rows have already arrived, and a list that emits them anyway
+        // draws them under the footer for the rest of the hold. The banner and the start card are
+        // not part of this — they are not the list.
+        // Gated on the DEFERRED verdict, not on `itemCount`: during the minimum hold the verdict
+        // is still LOADING while the rows have already arrived, and a list that emits them anyway
+        // draws them under the footer for the rest of the hold. The banner and the start card are
+        // not part of this — they are not the list.
+        if (listBody(surface, HomeListSurface.CONTENT) == ListBody.ROWS) {
+            items(
+                count = recent.itemCount,
+                key = { index -> recent.peek(index)?.sessionUuid ?: "recent_$index" },
+            ) { index ->
+                recent[index]?.let { item ->
+                    RecentSessionRow(
+                        // §26, continuity motion. A finished session arrives at the head of this
+                        // list the moment a workout ends, while the banner above it disappears — so
+                        // every row below moves in the same frame. Pure transit, no character: the
+                        // placement spec is positional and both fades are alpha, which is the split
+                        // stated as plainly as one call can state it.
+                        modifier = Modifier.animateItem(
+                            fadeInSpec = continuityAlphaSpec(),
+                            placementSpec = continuityPositionalSpec(),
+                            fadeOutSpec = continuityAlphaSpec(),
+                        ),
+                        item = item,
+                        // The drawing removes the last row's rule (`.frame .row:last-of-type`), so
+                        // the list does not end on a hairline into empty space.
+                        showDivider = index < recent.itemCount - 1,
+                        onClick = {
+                            consume(
+                                Action.Click.OnRecentSessionClick(sessionUuid = item.sessionUuid),
+                            )
+                        },
+                    )
+                }
             }
         }
         pagingTail(items = recent, onRetry = { recent.retry() })
-        emptyRegion(items = recent)
+        emptyRegion(items = recent, surface = surface)
     }
 }
 
@@ -257,11 +270,20 @@ private fun LazyListScope.pagingTail(
  * `AnimatedContent` only on the drawn blocks makes it mount fresh at its real verdict, with current
  * and target equal and no transition to catch.
  */
-private fun LazyListScope.emptyRegion(items: LazyPagingItems<RecentSessionItem>) {
-    val surface = homeListSurface(itemCount = items.itemCount, loadState = items.loadState)
-    if (surface == HomeListSurface.CONTENT) return
+private fun LazyListScope.emptyRegion(
+    items: LazyPagingItems<RecentSessionItem>,
+    surface: HomeListSurface?,
+) {
+    // The verdict is passed in, not recomputed: `rememberDeferredSurface` reports LOADING for as
+    // long as the spinner must stay up, which is AFTER the data has stopped loading, and `null`
+    // while the deferral window is open. Re-deriving it here would take the raw verdict and drop
+    // both — the item leaves the list the moment the rows arrive.
+    if (surface == null || surface == HomeListSurface.CONTENT) return
     item(key = "empty_region") {
         if (surface == HomeListSurface.LOADING) {
+            // A load under 140ms draws nothing at all and the outgoing frame persists, which is
+            // what stops the flash; one that gets past 140ms stays up for at least 260ms, which is
+            // what stops a 141ms load flashing the spinner for 1ms instead.
             PagingLoadingFooter(modifier = Modifier.fillMaxWidth())
             return@item
         }

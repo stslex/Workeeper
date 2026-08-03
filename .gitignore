@@ -29,3 +29,6 @@ fastlane/README.md
 
 # shell_gate.py is run directly; its bytecode cache is not an artefact.
 documentation/mockups/__pycache__/
+# Any `__pycache__`, not just the mockups' one: importing a gate module for a probe writes it
+# next to that module, and one slipped into a commit that way.
+**/__pycache__/

@@ -27,6 +27,7 @@ import io.github.stslex.workeeper.feature.settings.domain.model.BackupSummaryDom
 import io.github.stslex.workeeper.feature.settings.domain.model.SignInOutcomeDomain
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupAuthUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupErrorUi
+import io.github.stslex.workeeper.feature.settings.mvi.model.BackupInfoUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupOperationUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupScheduleUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.RestoreProgressUi
@@ -51,7 +52,6 @@ import kotlinx.coroutines.test.setMain
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
-import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
@@ -141,11 +141,11 @@ internal class BackupClickHandlerTest {
         handler.invoke(Action.Backup.ObserveAuth)
 
         authFlow.value = BackupAuthDomain.Authenticated(
-            AccountDomain(email = "a@b.com", displayName = "Alice"),
+            AccountDomain(email = "a@example.com", displayName = "Alice"),
         )
 
         assertEquals(
-            BackupAuthUi.Authenticated(email = "a@b.com", displayName = "Alice"),
+            BackupAuthUi.Authenticated(email = "a@example.com", displayName = "Alice"),
             store.stateFlow.value.backupAuth,
         )
     }
@@ -164,7 +164,7 @@ internal class BackupClickHandlerTest {
         )
 
         handler.invoke(Action.Backup.ObserveAuth)
-        authFlow.value = BackupAuthDomain.Authenticated(AccountDomain("a@b.com", "Alice"))
+        authFlow.value = BackupAuthDomain.Authenticated(AccountDomain("a@example.com", "Alice"))
 
         val info = store.stateFlow.value.backupInfo
         assertNotNull(info)
@@ -174,11 +174,13 @@ internal class BackupClickHandlerTest {
     @Test
     fun `ObserveAuth transition to NotAuthenticated clears backupInfo`() = runTest(testDispatcher) {
         handler.invoke(Action.Backup.ObserveAuth)
-        authFlow.value = BackupAuthDomain.Authenticated(AccountDomain("a@b.com", "Alice"))
+        authFlow.value = BackupAuthDomain.Authenticated(AccountDomain("a@example.com", "Alice"))
 
         authFlow.value = BackupAuthDomain.NotAuthenticated
 
-        assertNull(store.stateFlow.value.backupInfo)
+        // `Unknown`, not null. Signing out does not mean "this account has no backups" — it means
+        // we no longer know, which is exactly the distinction the sealed type exists to keep.
+        assertEquals(BackupInfoUi.Unknown, store.stateFlow.value.backupInfo)
     }
 
     @Test
@@ -299,7 +301,7 @@ internal class BackupClickHandlerTest {
             handler.invoke(Action.Backup.ToggleAiExport(true))
 
             coEvery { interactor.completeSignIn(any()) } returns
-                BackupResult.Success(AccountDomain(email = "a@b.com", displayName = null))
+                BackupResult.Success(AccountDomain(email = "a@example.com", displayName = null))
             coEvery { interactor.isDriveFileGranted() } returns true
 
             handler.invoke(Action.Backup.HandleAuthResult(mockk(relaxed = true)))
@@ -316,7 +318,7 @@ internal class BackupClickHandlerTest {
             handler.invoke(Action.Backup.ToggleAiExport(true))
 
             coEvery { interactor.completeSignIn(any()) } returns
-                BackupResult.Success(AccountDomain(email = "a@b.com", displayName = null))
+                BackupResult.Success(AccountDomain(email = "a@example.com", displayName = null))
             coEvery { interactor.isDriveFileGranted() } returns false
 
             handler.invoke(Action.Backup.HandleAuthResult(mockk(relaxed = true)))
@@ -427,7 +429,7 @@ internal class BackupClickHandlerTest {
                 schedule = BackupSchedule.Daily,
             )
             val intent = mockk<Intent>(relaxed = true)
-            val expectedAccount = AccountDomain(email = "a@b.com", displayName = "A")
+            val expectedAccount = AccountDomain(email = "a@example.com", displayName = "A")
             coEvery { interactor.completeSignIn(any()) } returns BackupResult.Success(expectedAccount)
 
             handler.invoke(Action.Backup.HandleAuthResult(intent))
@@ -684,7 +686,9 @@ internal class BackupClickHandlerTest {
 
             handler.invoke(Action.Backup.LoadBackupList)
 
-            assertNull(store.stateFlow.value.backupInfo)
+            // A FAILED list call leaves the state where it was: `Unknown`. Reporting `Empty`
+            // here would turn a network failure into a claim about the account.
+            assertEquals(BackupInfoUi.Unknown, store.stateFlow.value.backupInfo)
             assertTrue(store.events.isEmpty(), "LoadBackupList failure must stay silent")
         }
 

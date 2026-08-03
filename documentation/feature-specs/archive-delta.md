@@ -1,7 +1,9 @@
 # Archive — delta mapping (v3 stage 5, group 3)
 
-**Status: BUILT, except §2.1 — the trailing slot, which is the owner's and is deliberately left as it was.**
+**Status: BUILT, except §2.1 — which is now RULED and scheduled, not open.**
 Everything else in this mapping is applied. Facts below are verified against the tree.
+
+**§2.1 IS RULED (§24.2 group A, Ilya): an archived item OPENS — read-only detail.** So the drawn chevron is true, the row takes the drawn 20dp slot like its three siblings, and restore + permanent-delete come off it. The three readings §2.1 sets out below are **superseded** — reading (a), navigation, is the one taken — and they are kept because the argument against each is the working the ruling rests on. **Do not implement this screen from §2.1's unresolved framing:** it is the pre-ruling text. What is still open is *where the two verbs go* once off the row, and how an archived item reaches its chart (§24.2 group A, the two open items).
 
 Read against `feature/all-exercises` as rebuilt, on `feature/v3-all-exercises`.
 
@@ -66,7 +68,7 @@ kind and archive date, and §0.1 gives the drawing the decision.
 | Trailing | **two affordances**: a `Restore` text button *and* a `MoreVert` → `DropdownMenu` | see 2.1 | **no — the open question, and UNTOUCHED by this build.** Extracted into `TrailingAffordances` with a comment naming §2.1, so the next reader cannot collapse it into the drawn slot without meeting the ruling first. |
 | Selection | none | none | n/a — no selection mode here |
 
-### 2.1 The trailing slot is the screen's real question
+### 2.1 The trailing slot is the screen's real question — SUPERSEDED, see the status note above
 
 `#s-list` gives a row **one** trailing slot, 20px wide, holding a chevron, a check, or nothing. This
 screen's row carries two affordances inside the row body: a `Restore` button and an overflow menu
