@@ -38,7 +38,14 @@
     <string name="feature_training_edit_placeholder_description">Optional notes — focus, week, etc.</string>
     <string name="feature_training_edit_label_tags">Tags</string>
     <string name="feature_training_edit_label_exercises_format">Exercises (%1$d)</string>
-    <string name="feature_training_edit_add_exercise">+ Add</string>
+    <!--
+      `.addex`'s label. The leading "+" is GONE: it was there because the old
+      `AppButton.Tertiary` had a Material `Add` icon beside it and the two read as one mark plus
+      one word; `.addex` draws the plus itself, so the string carrying a second one produced
+      "+ + Добавить" in the first recorded golden. The drawn label is the whole action, not an
+      abbreviation of it.
+    -->
+    <string name="feature_training_edit_add_exercise">Add exercise</string>
     <string name="feature_training_edit_plan_edit">edit plan</string>
     <string name="feature_training_edit_plan_add">add plan</string>
     <string name="feature_training_edit_no_plan">no plan yet</string>

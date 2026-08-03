@@ -20,6 +20,12 @@
     <string name="core_ui_kit_plan_editor_set_type_work">Рабочий</string>
     <string name="core_ui_kit_plan_editor_set_type_failure">Отказ</string>
     <string name="core_ui_kit_plan_editor_set_type_drop">Дроп</string>
+    <!-- Первая буква названия: Разминка / Отказ / Дроп. Рабочий подход буквой не обозначается. -->
+    <string name="core_ui_kit_set_type_mark_warmup">Р</string>
+    <string name="core_ui_kit_set_type_mark_failure">О</string>
+    <string name="core_ui_kit_set_type_mark_drop">Д</string>
+    <string name="core_ui_kit_setbar_add">+ подход</string>
+    <string name="core_ui_kit_setbar_remove">− подход</string>
     <string name="core_ui_kit_plan_editor_empty_hint">Подходов пока нет — нажмите «Добавить подход», чтобы создать план.</string>
 
     <string name="core_ui_kit_active_session_conflict_title">Активная тренировка</string>

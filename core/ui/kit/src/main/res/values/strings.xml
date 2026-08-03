@@ -20,6 +20,22 @@
     <string name="core_ui_kit_plan_editor_set_type_work">Work</string>
     <string name="core_ui_kit_plan_editor_set_type_failure">Failure</string>
     <string name="core_ui_kit_plan_editor_set_type_drop">Drop</string>
+    <!--
+      The set-type CHIP marks: the work set is the drawn dot, the other three take the first
+      letter of their own name in the current language (§26, "Set types take their first letter").
+      New — no mockup draws a mark for the three non-work types, so this is a decision and not a
+      transcription; the chip keeps its 34x32 and takes no other treatment, the letter occupying
+      exactly the dot's place. They shipped as HARDCODED ENGLISH LITERALS inside AppSetTypeChip
+      until the editors stage, which is why a Russian build drew W for разминка.
+      `..._mark_work` is the same glyph in every language and is a resource anyway, so the four
+      marks live in one table rather than three plus a literal.
+    -->
+    <string name="core_ui_kit_set_type_mark_warmup">W</string>
+    <string name="core_ui_kit_set_type_mark_work" translatable="false">·</string>
+    <string name="core_ui_kit_set_type_mark_failure">F</string>
+    <string name="core_ui_kit_set_type_mark_drop">D</string>
+    <string name="core_ui_kit_setbar_add">+ set</string>
+    <string name="core_ui_kit_setbar_remove">− set</string>
     <string name="core_ui_kit_plan_editor_empty_hint">No sets yet — tap “Add set” to start the plan.</string>
 
     <string name="core_ui_kit_active_session_conflict_title">Active session in progress</string>

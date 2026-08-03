@@ -138,15 +138,10 @@ internal fun PlanEditorScreen(
                     R.string.core_ui_plan_editor_set_type_tooltip,
                 ),
             )
-            Spacer(Modifier.height(AppDimension.Space.lg))
-            AppButton.Tertiary(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("PlanEditorAddSet"),
-                text = stringResource(KitR.string.core_ui_kit_plan_editor_add_set),
-                onClick = { consume(Action.Click.OnAddSet) },
-                size = AppButtonSize.MEDIUM,
-            )
+            // The full-width tertiary "add set" button that used to sit here is GONE, and so is
+            // its twin in the exercise create-flow: add and remove live in the card's foot now
+            // (§26, "Sets: add and remove move to the card's foot"). `PlanEditorBody` owns both,
+            // so the two hosts cannot drift on where a set comes from.
         }
 
         if (state.confirmDiscardOpen) {

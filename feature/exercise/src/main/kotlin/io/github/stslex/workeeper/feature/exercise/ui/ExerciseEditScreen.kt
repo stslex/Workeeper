@@ -33,7 +33,6 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
 import io.github.stslex.workeeper.core.ui.plan_editor.PlanEditorBody
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
-import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanEditorBodyAction
 import io.github.stslex.workeeper.feature.exercise.R
 import io.github.stslex.workeeper.feature.exercise.ui.components.ImageEditRow
 import io.github.stslex.workeeper.feature.exercise.ui.components.TagPickerInline
@@ -249,6 +248,10 @@ private fun InlineAdhocPlanEditor(
     consume: (Action) -> Unit,
 ) {
     val draft = state.adhocPlan ?: persistentListOf()
+    // The `AppButton.Tertiary` that used to follow this call is GONE — add and remove live in
+    // the card's foot now (§26, "Sets: add and remove move to the card's foot"), which
+    // `PlanEditorBody` owns, so this host and the full-screen route cannot drift on where a set
+    // comes from.
     PlanEditorBody(
         draft = draft,
         isWeighted = state.type == ExerciseTypeUiModel.WEIGHTED,
@@ -256,16 +259,6 @@ private fun InlineAdhocPlanEditor(
             consume(Action.Click.OnAdhocPlanEditorAction(bodyAction))
         },
         scrollable = false,
-    )
-    AppButton.Tertiary(
-        modifier = Modifier
-            .fillMaxWidth()
-            .testTag("ExerciseEditPlanAddSetButton"),
-        text = stringResource(KitR.string.core_ui_kit_plan_editor_add_set),
-        onClick = {
-            consume(Action.Click.OnAdhocPlanEditorAction(PlanEditorBodyAction.OnAddSet))
-        },
-        size = AppButtonSize.SMALL,
     )
 }
 

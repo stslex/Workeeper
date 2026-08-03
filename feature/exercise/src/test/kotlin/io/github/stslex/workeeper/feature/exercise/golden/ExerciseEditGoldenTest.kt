@@ -4,6 +4,8 @@ package io.github.stslex.workeeper.feature.exercise.golden
 import io.github.stslex.workeeper.core.ui.kit.golden.GoldenTheme
 import io.github.stslex.workeeper.core.ui.kit.golden.golden
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
+import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
+import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.exercise.ui.ExerciseEditScreen
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.TagUiModel
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State
@@ -62,6 +64,35 @@ internal class ExerciseEditGoldenTest {
         golden(testInfo, theme) {
             ExerciseEditScreen(
                 state = editState(name = "Румынская тяга").copy(nameDuplicateError = true),
+                consume = {},
+            )
+        }
+    }
+
+    /**
+     * The create flow, which is the one place `PlanEditorBody` is composed INLINE — and therefore
+     * the only frame in the app's whole golden set that can see the ruled set list (§26, "Sets:
+     * add and remove move to the card's foot"; extraction §7.5).
+     *
+     * Four claims, all of them one-frame facts and none of them visible before this stage:
+     * the rows sit on a **card**; the foot is the drawn `.setbar` and the per-row `✕` is **gone**;
+     * the `.tchip` carries a **letter** for a non-work type; and the values are in the **normal
+     * colour** — `textPrimary`, not the `textTertiary` that drew a number the user typed as
+     * "not yet entered".
+     */
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun editCreateWithInlinePlan(theme: GoldenTheme, testInfo: TestInfo) {
+        golden(testInfo, theme) {
+            ExerciseEditScreen(
+                state = editState(name = "Жим лёжа").copy(
+                    mode = State.Mode.Edit(isCreate = true),
+                    adhocPlan = listOf(
+                        PlanSetUiModel(weight = 40.0, reps = 12, type = SetTypeUiModel.WARMUP),
+                        PlanSetUiModel(weight = 60.0, reps = 10, type = SetTypeUiModel.WORK),
+                        PlanSetUiModel(weight = 50.0, reps = 6, type = SetTypeUiModel.FAILURE),
+                    ).toImmutableList(),
+                ),
                 consume = {},
             )
         }

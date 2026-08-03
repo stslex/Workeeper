@@ -13,8 +13,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -22,9 +20,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButton
-import io.github.stslex.workeeper.core.ui.kit.components.button.AppButtonSize
+import io.github.stslex.workeeper.core.ui.kit.components.button.AppDashedAddButton
 import io.github.stslex.workeeper.core.ui.kit.components.input.AppFieldLabel
 import io.github.stslex.workeeper.core.ui.kit.components.input.AppTextField
+import io.github.stslex.workeeper.core.ui.kit.components.reorderable.rememberReorderableColumnState
+import io.github.stslex.workeeper.core.ui.kit.components.reorderable.reorderableColumnDragHandle
+import io.github.stslex.workeeper.core.ui.kit.components.reorderable.reorderableColumnItem
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppIconButton
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopBar
 import io.github.stslex.workeeper.core.ui.kit.icons.AppIcons
@@ -139,44 +140,48 @@ private fun ExercisesEditSection(
     state: State,
     consume: (Action) -> Unit,
 ) {
+    // `ReorderableColumnState`, not the lazy variant: this screen is one `verticalScroll`
+    // column, so nesting a lazy scroller would break the layout. Same reasoning past-session
+    // wrote down for the same choice, and the same component.
+    val reorderState = rememberReorderableColumnState { from, to ->
+        consume(Action.Click.OnExerciseReorder(from = from, to = to))
+    }
     Column(verticalArrangement = Arrangement.spacedBy(AppDimension.Space.sm)) {
-        Row(
+        // The count keeps the section label; only the ADD action moved. The
+        // `AppButton.Tertiary` + `Icons.Default.Add` pair that used to sit beside it is one of
+        // B33(a)'s six, and it is not swapped for a stroke plus — it is REPLACED by `.addex`,
+        // which is drawn and has the plus inside it (§26, "Sets: add and remove move to the
+        // card's foot"; extraction §7.6).
+        Text(
             modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
-        ) {
-            Text(
-                modifier = Modifier.weight(1f),
-                text = stringResource(
-                    R.string.feature_training_edit_label_exercises_format,
-                    state.exercises.size,
-                ),
-                style = AppUi.typography.labelSmall,
-                color = AppUi.colors.textTertiary,
-            )
-            AppButton.Tertiary(
-                modifier = Modifier.testTag("TrainingEditAddExerciseButton"),
-                text = stringResource(R.string.feature_training_edit_add_exercise),
-                onClick = { consume(Action.Click.OnAddExerciseClick) },
-                size = AppButtonSize.SMALL,
-                leadingIcon = Icons.Default.Add,
-            )
-        }
+            text = stringResource(
+                R.string.feature_training_edit_label_exercises_format,
+                state.exercises.size,
+            ),
+            style = AppUi.typography.labelSmall,
+            color = AppUi.colors.textTertiary,
+        )
         state.exercises.forEachIndexed { index, exercise ->
             TrainingExerciseEditRow(
                 item = exercise,
-                isFirst = index == 0,
-                isLast = index == state.exercises.lastIndex,
-                onMoveUp = {
-                    consume(Action.Click.OnExerciseReorder(from = index, to = index - 1))
-                },
-                onMoveDown = {
-                    consume(Action.Click.OnExerciseReorder(from = index, to = index + 1))
-                },
                 onRemove = { consume(Action.Click.OnExerciseRemove(exercise.exerciseUuid)) },
                 onEditPlan = { consume(Action.Click.OnEditPlanClick(exercise.exerciseUuid)) },
+                modifier = Modifier.reorderableColumnItem(
+                    state = reorderState,
+                    key = exercise.exerciseUuid,
+                    index = index,
+                ),
+                dragHandleModifier = Modifier.reorderableColumnDragHandle(
+                    state = reorderState,
+                    key = exercise.exerciseUuid,
+                ),
             )
         }
+        AppDashedAddButton(
+            modifier = Modifier.testTag("TrainingEditAddExerciseButton"),
+            text = stringResource(R.string.feature_training_edit_add_exercise),
+            onClick = { consume(Action.Click.OnAddExerciseClick) },
+        )
     }
 }
 
