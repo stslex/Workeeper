@@ -190,6 +190,26 @@ fun NavGraphBuilder.exerciseGraph(
         }
 
         val state = processor.state.value
+
+        // §26 "A route does not compose until it has loaded". Everything above this line still
+        // runs while the load is in flight — the two `LaunchedEffect`s, the activity-result
+        // launchers, the event `Handle`, the back interception — and only the screen waits.
+        //
+        // Nothing is drawn instead, deliberately: neither mockup draws a loading surface, and
+        // `AppNavigationHost` paints the background under every destination, so an unloaded
+        // route is an empty frame in the app's own colour rather than a hole.
+        //
+        // It gates BOTH modes because they are one route and one store. `isLoading` is
+        // `uuid != null`, so a create flow is never withheld — there is nothing to load — and
+        // an existing exercise no longer draws a shell with a blank name and an empty history
+        // while the read is in flight.
+        //
+        // LOAD-BEARING PRECONDITION: `loadExercise` must clear `isLoading` on FAILURE as well
+        // as on success, because `HandlerStore.launch` defaults `onError` to `{}` (B17, B21).
+        // Before this gate a thrown load cost nothing visible; after it the same throw is a
+        // permanently empty screen. `CommonHandler.loadExercise` closes its own.
+        if (state.isLoading) return@navComponentScreenWithState
+
         when (state.mode) {
             Mode.Read -> ExerciseDetailScreen(
                 modifier = modifier,

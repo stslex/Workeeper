@@ -71,6 +71,28 @@ private fun PlanEditorContent(
         processor.consume(Action.Click.OnBackClick)
     }
 
+    // §26 "A route does not compose until it has loaded". Everything above this line still
+    // runs while the load is in flight — the event Handle, the back interception — and only
+    // the screen waits.
+    //
+    // The rule replaces a loading surface neither mockup draws, and it closes three things at
+    // once on this route in particular. `Screen.PlanEditor.Existing` seeds `type = WEIGHTED`
+    // because the real value is on disk; before this gate a weightless exercise opened through
+    // «Изменить план» drew the WEIGHTED toggle and visibly flipped when the load landed, and
+    // `CommonHandler.loadPlan` then overwrote `draft` / `type` / `initialType` / `initialDraft`
+    // unconditionally, so anything touched inside that window was discarded without a word.
+    // With the screen withheld the window has no user in it, which is what makes the
+    // unconditional write correct rather than merely unnoticed.
+    //
+    // Nothing is drawn instead, deliberately: `AppNavigationHost` paints the background under
+    // every destination, so an unloaded route is an empty frame in the app's own colour.
+    //
+    // LOAD-BEARING PRECONDITION: every path that sets `isLoading = true` must clear it on
+    // FAILURE as well as on success. `HandlerStore.launch`/`launchDefault` default `onError`
+    // to `{}` (B17, B21), so before this gate a thrown load cost nothing visible; after it the
+    // same throw is a permanently empty screen. `CommonHandler.loadPlan` closes its own.
+    if (state.isLoading) return
+
     PlanEditorScreen(
         modifier = modifier,
         state = state,

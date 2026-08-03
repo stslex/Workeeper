@@ -100,9 +100,16 @@ internal fun Screen.PlanEditor.toInitialState(): State {
     val mode = toMode()
     val seedType = when (this) {
         is Screen.PlanEditor.Draft -> initialType
-        // Existing modes seed type as WEIGHTED until CommonHandler.Init loads the real
-        // value from disk. The Composable doesn't render the toggle until
-        // `state.isLoading == false`, so the user never sees the placeholder.
+        // Existing modes seed type as WEIGHTED until CommonHandler.Init loads the real value
+        // from disk. The seed is never seen, because `PlanEditorGraph` withholds the whole
+        // screen while `state.isLoading` is true (§26, "A route does not compose until it has
+        // loaded").
+        //
+        // THIS COMMENT USED TO SAY THE COMPOSABLE WITHHELD THE TOGGLE, AND IT DID NOT. Nothing
+        // read `isLoading` anywhere in the editors: for a weightless exercise the toggle drew
+        // the seeded WEIGHTED and visibly flipped when the load landed. Recorded rather than
+        // silently corrected, because a KDoc asserting a gate that does not exist is the thing
+        // that stops anyone looking for one.
         is Screen.PlanEditor.Existing -> ExerciseTypeUiModel.WEIGHTED
     }
     val seedPlan = when (this) {

@@ -78,6 +78,14 @@ internal class CommonHandler @Inject constructor(
             onSuccess = { result ->
                 updateState { current -> current.applyLoaded(result) }
             },
+            // Clearing `isLoading` here is load-bearing, not tidiness. The route does not
+            // compose until the load lands (§26; `SingleTrainingGraph`), so a throw that left
+            // the flag latched would leave the user on a permanently empty frame with no way
+            // back into the screen. `launch` defaults `onError` to `{}` (B17, B21), which is
+            // why this branch had nothing in it. A failed RELOAD is not blanked by this — the
+            // flag is already false by then — and it still surfaces nothing to the user, which
+            // is B17's standing defect and not this stage's to rule.
+            onError = { updateStateImmediate { it.copy(isLoading = false) } },
         ) {
             val training = interactor.getTraining(uuid)
             val exercises = interactor.getTrainingExercises(uuid)

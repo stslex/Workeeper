@@ -78,6 +78,12 @@ internal class CommonHandler @Inject constructor(
                 updateStateImmediate { current -> current.applyLoaded(result) }
                 if (result.exercise != null) observePersonalRecord(uuid)
             },
+            // Clearing `isLoading` here is load-bearing, not tidiness. The route does not
+            // compose until the load lands (§26; `ExerciseGraph`), so a throw that left the
+            // flag latched would leave the user on a permanently empty frame with no way back
+            // into the screen. `launch` defaults `onError` to `{}` (B17, B21), which is why
+            // this branch had nothing in it.
+            onError = { updateStateImmediate { it.copy(isLoading = false) } },
         ) {
             val exercise = async { interactor.getExercise(uuid) }
             val labels = async { interactor.getLabels(uuid) }

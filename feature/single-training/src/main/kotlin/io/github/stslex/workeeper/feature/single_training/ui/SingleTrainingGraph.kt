@@ -66,6 +66,27 @@ fun NavGraphBuilder.singleTrainingsGraph(
         }
 
         val state = processor.state.value
+
+        // §26 "A route does not compose until it has loaded". Everything above this line still
+        // runs while the load is in flight — the `LaunchedEffect` that picks up the plan
+        // editor's saved flag, the event `Handle`, the back interception — and only the screen
+        // waits.
+        //
+        // Nothing is drawn instead, deliberately: neither mockup draws a loading surface, and
+        // `AppNavigationHost` paints the background under every destination, so an unloaded
+        // route is an empty frame in the app's own colour rather than a hole.
+        //
+        // `isLoading` is `uuid != null`, so a create flow is never withheld — `processInit`
+        // clears it synchronously on that branch — and `Action.Common.Reload` (the plan
+        // editor's return) does not re-raise it, so coming back from the plan editor does not
+        // blank the screen for a frame.
+        //
+        // LOAD-BEARING PRECONDITION: `loadTraining` must clear `isLoading` on FAILURE as well
+        // as on success, because `HandlerStore.launch` defaults `onError` to `{}` (B17, B21).
+        // Before this gate a thrown load cost nothing visible; after it the same throw is a
+        // permanently empty screen. `CommonHandler.loadTraining` closes its own.
+        if (state.isLoading) return@navComponentScreenWithState
+
         when (state.mode) {
             Mode.Read -> TrainingDetailScreen(
                 modifier = modifier,
