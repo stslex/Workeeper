@@ -22,6 +22,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.window.Dialog
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButton
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButtonSize
+import io.github.stslex.workeeper.core.ui.kit.components.input.AppFieldLabel
 import io.github.stslex.workeeper.core.ui.kit.components.input.AppTextField
 import io.github.stslex.workeeper.core.ui.kit.components.pr.PersonalRecordBadge
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
@@ -131,10 +132,14 @@ private fun FinishNameField(
     onNameChange: (String) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(AppDimension.Space.xs)) {
+        // The label moved out of the field and above it. Not a change this screen asked for: the
+        // kit's field dropped M3's floating label, which no mockup draws, and `.flabel` is where
+        // the drawn treatment lives now (§26, "The editors' text field"). Same string, same
+        // Column, one rung and one role different.
+        AppFieldLabel(text = label)
         AppTextField(
             value = name,
             onValueChange = onNameChange,
-            label = label,
             placeholder = placeholder,
             isError = error != null,
             keyboardOptions = KeyboardOptions(

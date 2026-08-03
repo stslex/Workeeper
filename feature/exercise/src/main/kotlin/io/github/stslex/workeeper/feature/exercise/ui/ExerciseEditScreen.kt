@@ -24,9 +24,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButton
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButtonSize
+import io.github.stslex.workeeper.core.ui.kit.components.input.AppFieldLabel
 import io.github.stslex.workeeper.core.ui.kit.components.input.AppTextField
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopAppBar
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
@@ -138,10 +138,11 @@ internal fun ExerciseEditScreen(
                 )
             }
             FormSection(label = stringResource(R.string.feature_exercise_edit_label_description)) {
+                // No explicit height: `.tf.multi` is the same box taller, and the field owns
+                // that height now (§7.2). The 120.dp that used to sit here was a call site
+                // guessing at a number the drawing puts at 96.
                 AppTextField(
-                    modifier = Modifier
-                        .testTag("ExerciseEditDescriptionField")
-                        .height(120.dp),
+                    modifier = Modifier.testTag("ExerciseEditDescriptionField"),
                     value = state.description,
                     onValueChange = { consume(Action.Input.OnDescriptionChange(it)) },
                     placeholder = stringResource(R.string.feature_exercise_edit_placeholder_description),
@@ -273,11 +274,10 @@ private fun FormSection(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(AppDimension.Space.xs),
     ) {
-        Text(
-            text = label,
-            style = AppUi.typography.labelSmall,
-            color = AppUi.colors.textTertiary,
-        )
+        // `.flabel` — the drawn label sits above the box at the 12.5 rung in `textDim`. It was
+        // `labelSmall`/`textTertiary` here, one rung under the drawing and a second description
+        // of the same object; `AppFieldLabel` is the one implementation now (§7.2).
+        AppFieldLabel(text = label)
         content()
     }
 }
