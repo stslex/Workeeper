@@ -580,7 +580,6 @@ internal class ClickHandlerTest {
                 adhocPlan = persistentListOf(
                     PlanSetUiModel(weight = 80.0, reps = 8, type = SetTypeUiModel.WORK),
                 ),
-                originalAdhocPlan = null,
             ),
         )
 
@@ -599,7 +598,6 @@ internal class ClickHandlerTest {
                 adhocPlan = persistentListOf(
                     PlanSetUiModel(weight = 80.0, reps = 8, type = SetTypeUiModel.WORK),
                 ),
-                originalAdhocPlan = null,
             ),
         )
 

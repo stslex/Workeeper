@@ -42,7 +42,6 @@ interface ExerciseStore : Store<State, Action, Event> {
         val isLoading: Boolean,
         val canPermanentlyDelete: Boolean,
         val adhocPlan: ImmutableList<PlanSetUiModel>?,
-        val originalAdhocPlan: ImmutableList<PlanSetUiModel>?,
         val adhocPlanSummaryLabel: String,
         val imagePath: String?,
         val imageLastModified: Long,
@@ -76,14 +75,26 @@ interface ExerciseStore : Store<State, Action, Event> {
             get() = pendingImage != PendingImage.Unchanged
 
         /**
-         * Compares the working ad-hoc plan against the snapshot taken at load time
-         * (or against null in create-mode). Surfaces the discard-confirm dialog when the
-         * inline plan editor has unsaved sets — without it, plan edits in create-mode
-         * silently disappear when the user hits Cancel.
+         * Compares the working ad-hoc plan against the baseline. It exists for CREATE mode, where
+         * [originalSnapshot] is null until the first save and the first term of [hasChanges] is
+         * therefore false by construction — without it, a plan built in the create flow would be
+         * silently discarded by Cancel.
+         *
+         * **It reads the SNAPSHOT, and it used to read a second baseline field of its own
+         * (`originalAdhocPlan`). That field is deleted, and its removal is a bug fix.** Two
+         * baselines for one value need every writer to know about both, and
+         * `CommonHandler.processPlanEditorExistingReturned` knew about one: it reset
+         * `originalSnapshot` after the plan editor persisted — saying so in as many words — and
+         * left `originalAdhocPlan` at the value the load had put there. So saving a plan and
+         * coming back left the form permanently dirty, raising the discard sheet over work that
+         * was already on disk. Fixed by deletion rather than by a second assignment: a pairing
+         * kept in step by hand comes apart, one source cannot. Create mode still works, because a
+         * null snapshot means "no plan yet", which is exactly the comparison this needs there.
+         * Asserted in `ExerciseDirtyStateTest`, both directions.
          */
         val isAdhocPlanDirty: Boolean
             get() = (adhocPlan ?: persistentListOf<PlanSetUiModel>()) !=
-                (originalAdhocPlan ?: persistentListOf<PlanSetUiModel>())
+                (originalSnapshot?.adhocPlan ?: persistentListOf<PlanSetUiModel>())
 
         /** What the UI should display right now — pending overrides committed. */
         val effectiveImageDisplay: ImageDisplay
@@ -162,7 +173,6 @@ interface ExerciseStore : Store<State, Action, Event> {
                 isLoading = uuid != null,
                 canPermanentlyDelete = false,
                 adhocPlan = null,
-                originalAdhocPlan = null,
                 adhocPlanSummaryLabel = "",
                 imagePath = null,
                 imageLastModified = 0L,

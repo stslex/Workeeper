@@ -211,7 +211,6 @@ internal class CommonHandler @Inject constructor(
             isLoading = false,
             canPermanentlyDelete = result.canPermanentlyDelete,
             adhocPlan = adhocPlan,
-            originalAdhocPlan = adhocPlan,
             adhocPlanSummaryLabel = adhocPlan.toAdhocPlanSummary(resourceWrapper),
             imagePath = imagePath,
             imageLastModified = imageLastModified,
