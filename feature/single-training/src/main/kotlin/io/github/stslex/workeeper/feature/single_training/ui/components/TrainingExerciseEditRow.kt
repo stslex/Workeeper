@@ -3,6 +3,7 @@ package io.github.stslex.workeeper.feature.single_training.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -85,14 +86,25 @@ internal fun TrainingExerciseEditRow(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            Icon(
+            // THE GESTURE IS ON THE CONTAINER, NOT ON THE GLYPH. A bare `pointerInput` gets none
+            // of `IconButton`'s minimum-touch-target expansion, so an 18dp icon carrying the
+            // detector is an 18dp hit area — and since the arrows went, this is the only pointer
+            // affordance for reordering. `iconXl` is what the kit already gives an interactive
+            // mark: `AppIconButton` puts the drawing's 44px `.icon-btn` at 48dp around a 21dp
+            // glyph. The glyph here stays `iconSm`; only the target grows.
+            Box(
                 modifier = dragHandleModifier
-                    .size(AppDimension.iconSm)
+                    .size(AppDimension.iconXl)
                     .testTag("TrainingExerciseEditRowDrag_${item.exerciseUuid}"),
-                imageVector = Icons.Filled.DragHandle,
-                contentDescription = stringResource(R.string.feature_training_edit_drag_handle),
-                tint = AppUi.colors.textDim,
-            )
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    modifier = Modifier.size(AppDimension.iconSm),
+                    imageVector = Icons.Filled.DragHandle,
+                    contentDescription = stringResource(R.string.feature_training_edit_drag_handle),
+                    tint = AppUi.colors.textDim,
+                )
+            }
             IconButton(
                 modifier = Modifier
                     .size(AppDimension.heightXs)

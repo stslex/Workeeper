@@ -4,9 +4,9 @@
     <string name="feature_image_viewer_content_description">Exercise image, full size</string>
     <string name="feature_image_viewer_unavailable">Image unavailable</string>
     <!--
-      The picture's two verbs, which arrived with §26 "The image moves into the pushed top bar":
-      the exercise editor's image row is gone and replace/remove live where the picture is. The
-      viewer only ASKS — the editor does the work.
+      The picture's two verbs (§26, "The image moves into the pushed top bar"): the editor's form
+      has no image row, so replace and remove live where the picture is. The viewer only ASKS —
+      the editor does the work.
     -->
     <string name="feature_image_viewer_menu">Image actions</string>
     <string name="feature_image_viewer_action_replace">Replace photo</string>
