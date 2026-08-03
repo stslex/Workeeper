@@ -19,7 +19,7 @@ import org.junit.jupiter.params.provider.EnumSource
 
 /**
  * The shared plan-editor body — the set list §26 "Sets: add and remove move to the card's foot"
- * rules, and the first visual gate it has ever had.
+ * rules, and its only visual gate.
  *
  * **Why it lives here and not in a host.** Both remaining editors compose this body and neither can
  * photograph it: the exercise editor's whole-screen frame scrolls it off the bottom of a single

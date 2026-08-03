@@ -81,8 +81,8 @@ internal class CommonHandler @Inject constructor(
             // Clearing `isLoading` here is load-bearing, not tidiness. The route does not
             // compose until the load lands (§26; `ExerciseGraph`), so a throw that left the
             // flag latched would leave the user on a permanently empty frame with no way back
-            // into the screen. `launch` defaults `onError` to `{}` (B17, B21), which is why
-            // this branch had nothing in it.
+            // into the screen. `launch` defaults `onError` to `{}` (B17, B21), so this arm must
+            // be written out — an empty one is the latched flag.
             onError = { updateStateImmediate { it.copy(isLoading = false) } },
         ) {
             val exercise = async { interactor.getExercise(uuid) }

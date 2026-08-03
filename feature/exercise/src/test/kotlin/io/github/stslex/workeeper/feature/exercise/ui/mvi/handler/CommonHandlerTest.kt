@@ -98,9 +98,9 @@ internal class CommonHandlerTest {
     }
 
     /**
-     * `isLoading` had no reader in this feature until `ExerciseGraph` began withholding the whole
-     * screen while it is true (§26, "A route does not compose until it has loaded"). That gate is
-     * the consumer these two cases exist for, named per §27's discriminator: the
+     * `ExerciseGraph` withholds the whole screen while `isLoading` is true (§26, "A route does not
+     * compose until it has loaded"), and that gate is the consumer these two cases exist for —
+     * without a reader an assertion about the flag is vacuous. Named per §27's discriminator: the
      * `if (state.isLoading) return@navComponentScreenWithState` that decides whether
      * `ExerciseDetailScreen` / `ExerciseEditScreen` is composed at all — not a test that reads the
      * field.

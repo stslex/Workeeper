@@ -26,7 +26,7 @@ interface ImageViewerStore :
     ) : Store.State {
 
         /**
-         * The picture's two verbs, which arrived here with §26's "The image moves into the pushed
+         * The picture's two verbs, which live here per §26's "The image moves into the pushed
          * top bar". Sealed and Store-homed rather than a `Boolean` + `remember`, per Rule 4 of
          * compose-state-discipline: the screen has one modal today and a second one added later
          * must be unrepresentable alongside it, not merely absent.

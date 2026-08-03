@@ -46,6 +46,50 @@ internal class ReorderableColumnStateTest {
         state.onItemPlaced(key = "c", index = 2, top = 200f, bottom = 300f)
     }
 
+    /**
+     * **A row that leaves composition must leave the state with it.** `onItemPlaced` is the only
+     * writer, and a removed row simply stops calling it — so without an unregister path its
+     * bounds, its index and its slot in the index map all outlive it. Two consequences, one per
+     * case below: a drag can cross a centre belonging to nothing on screen, and the boundary
+     * guard that reads the highest known index still believes there is a row below the last one.
+     */
+    @Test
+    fun `a disposed row stops being a drop target`() {
+        placeThreeRows()
+        state.onItemDisposed("c")
+
+        state.onDragStart("b")
+        // "b" rests centred at 150; "c" was centred at 250. 101px puts the finger at 251, which
+        // would have crossed the departed row's centre.
+        state.onDrag(deltaY = 101f)
+
+        assertTrue(moves.isEmpty())
+    }
+
+    @Test
+    fun `moveDown at the new last row does nothing once the row below it is disposed`() {
+        placeThreeRows()
+        state.onItemDisposed("c")
+
+        // "b" is the last row now. `moveDown`'s guard reads the highest registered index, so a
+        // stale entry for "c" makes it believe index 1 can still move down.
+        state.moveDown(index = 1)
+
+        assertTrue(moves.isEmpty())
+    }
+
+    /** The other direction, so disposal is not simply deleting everything it touches. */
+    @Test
+    fun `disposing one row leaves the others droppable`() {
+        placeThreeRows()
+        state.onItemDisposed("c")
+
+        state.onDragStart("a")
+        state.onDrag(deltaY = 101f)
+
+        assertEquals(listOf(0 to 1), moves)
+    }
+
     @Test
     fun `a drag past the next row's centre commits the move, and does so before release`() {
         placeThreeRows()

@@ -17,7 +17,7 @@ import org.junit.jupiter.params.provider.EnumSource
 /**
  * The training editor's frame — this module's first golden, and the editors stage is why.
  *
- * Three of this stage's rulings land on one static frame of this screen and had no instrument
+ * Three rulings land on one static frame of this screen and have no other instrument
  * between them:
  *
  *  - **`.addex` is the add action, and it is not in the section header.** A full-width dashed

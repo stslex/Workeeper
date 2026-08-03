@@ -22,9 +22,9 @@ import org.junit.jupiter.params.provider.EnumSource
  *
  * §26 "Set types take their first letter" rules the marks as **the first letter of each type's own
  * name in the current language** — Р / О / Д against W / F / D — and that is a claim no
- * single-locale picture can make. These four marks shipped as HARDCODED ENGLISH LITERALS inside
- * `AppSetTypeChip`, so a Russian build drew `W` for разминка and nothing in the repo could see it:
- * every golden renders at the harness's default `en`, where the literal and the resource agree.
+ * single-locale picture can make. A literal in `AppSetTypeChip` draws `W` over разминка, and no
+ * `en`-only frame can see that: at the harness's default locale a literal and a resource render
+ * identically.
  *
  * So the Russian frame is not a nicety, it is the only frame that can fail on the defect the
  * ruling names, and the English one beside it is what makes the pair a comparison rather than two

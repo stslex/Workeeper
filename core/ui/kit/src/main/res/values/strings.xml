@@ -31,6 +31,12 @@
     <string name="core_ui_kit_set_type_mark_work" translatable="false">·</string>
     <string name="core_ui_kit_set_type_mark_failure">F</string>
     <string name="core_ui_kit_set_type_mark_drop">D</string>
+    <!--
+      TalkBack's reorder actions on a `ReorderableColumn` row. They are the only non-gesture way
+      to reorder, so they are announced verbatim and must exist in every language the app ships.
+    -->
+    <string name="core_ui_kit_reorder_move_up">Move up</string>
+    <string name="core_ui_kit_reorder_move_down">Move down</string>
     <string name="core_ui_kit_setbar_add">+ set</string>
     <string name="core_ui_kit_setbar_remove">− set</string>
     <!--

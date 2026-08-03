@@ -22,6 +22,8 @@
     <string name="core_ui_kit_set_type_mark_warmup">Р</string>
     <string name="core_ui_kit_set_type_mark_failure">О</string>
     <string name="core_ui_kit_set_type_mark_drop">Д</string>
+    <string name="core_ui_kit_reorder_move_up">Переместить вверх</string>
+    <string name="core_ui_kit_reorder_move_down">Переместить вниз</string>
     <string name="core_ui_kit_setbar_add">+ подход</string>
     <string name="core_ui_kit_setbar_remove">− подход</string>
     <string name="core_ui_kit_discard_sheet_title">Выйти без сохранения?</string>

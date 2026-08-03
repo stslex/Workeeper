@@ -55,10 +55,9 @@ fun AppSetTypeChip(
     val border = if (type == SetType.WORK) AppUi.colors.borderDefault else foreground
     // §26 "Set types take their first letter". The work set is the drawn dot; the other three
     // take the FIRST LETTER OF THEIR OWN NAME IN THE CURRENT LANGUAGE — Р / О / Д in Russian,
-    // W / F / D in English. These four were hardcoded English literals here, so the Russian
-    // build drew `W` for разминка; the marks are resources now and the localisation is the fix,
-    // not a side effect. Russian «Рабочий» also begins with Р and there is no collision, because
-    // the work set is never lettered.
+    // W / F / D in English. ALL FOUR ARE RESOURCES AND NONE MAY BECOME A LITERAL HERE: a literal
+    // draws `W` over разминка. Russian «Рабочий» also begins with Р, and that is not a collision
+    // because the work set is never lettered.
     val label = stringResource(
         when (type) {
             SetType.WARMUP -> R.string.core_ui_kit_set_type_mark_warmup

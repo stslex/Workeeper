@@ -16,7 +16,7 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.EnumSource
 
 /**
- * The confirmation **sheet** every modal on the three editors became (§26; extraction §7.4).
+ * The confirmation **sheet** that every modal on the three editors is (§26; extraction §7.4).
  *
  * **What one frame can hold here, and it is most of the ruling.** That there are **TWO** actions
  * and not three — a save action returning to a discard sheet is a diff in this picture. That the

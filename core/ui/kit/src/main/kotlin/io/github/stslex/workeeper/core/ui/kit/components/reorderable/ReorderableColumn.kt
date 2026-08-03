@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -12,11 +13,13 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.zIndex
+import io.github.stslex.workeeper.core.ui.kit.R
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 
@@ -49,6 +52,16 @@ fun Modifier.reorderableColumnItem(
         targetValue = if (isDragged) tintSelected else tintUnselected,
         label = "reorderable-column-background",
     )
+    // Resolved out here rather than inside the `semantics` lambda: that block is not a composable
+    // scope, and these are announced strings, so they are resources in every language the app has.
+    val moveUpLabel = stringResource(R.string.core_ui_kit_reorder_move_up)
+    val moveDownLabel = stringResource(R.string.core_ui_kit_reorder_move_down)
+    // The row registers itself while placed and MUST unregister when it leaves: nothing else
+    // removes it, and a stale entry is a drop target that is not on screen.
+    DisposableEffect(key) {
+        onDispose { state.onItemDisposed(key) }
+    }
+
     return this
         .onGloballyPositioned { coords ->
             val rootRect = coords.boundsInWindow()
@@ -68,19 +81,15 @@ fun Modifier.reorderableColumnItem(
             // Only the moves that can actually happen are offered. `moveUp` no-ops at 0 and
             // `moveDown` no-ops at [lastIndex], so registering both unconditionally advertises an
             // impossible action to a screen reader AND returns `true` for it — the action reports
-            // success having done nothing. The arrow buttons this replaced were disabled at their
-            // boundaries; the replacement has to be at least as honest.
-            //
-            // NOT LOCALISED: both labels below are English literals, so a Russian build announces
-            // "Move up". Any action added here inherits that — the set belongs in the kit's
-            // string table.
+            // success having done nothing — and a control that reports a move it did not make is
+            // worse than one that is simply absent.
             //
             // [lastIndex] is REQUIRED and must not gain a default: a default is a value every
             // existing call site would silently keep, which is the bug.
             customActions = buildList {
                 if (index > 0) {
                     add(
-                        CustomAccessibilityAction("Move up") {
+                        CustomAccessibilityAction(moveUpLabel) {
                             state.moveUp(index)
                             true
                         },
@@ -88,7 +97,7 @@ fun Modifier.reorderableColumnItem(
                 }
                 if (index < lastIndex) {
                     add(
-                        CustomAccessibilityAction("Move down") {
+                        CustomAccessibilityAction(moveDownLabel) {
                             state.moveDown(index)
                             true
                         },

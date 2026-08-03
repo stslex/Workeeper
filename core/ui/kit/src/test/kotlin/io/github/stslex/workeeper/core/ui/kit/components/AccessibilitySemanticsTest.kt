@@ -157,7 +157,7 @@ internal class AccessibilitySemanticsTest {
                 )
             },
             // A reorder action that cannot happen must not be offered, and must certainly not
-            // report success. The arrow buttons this replaced were disabled at their boundaries.
+            // report success: a control that claims a move it did not make is worse than absent.
             { onNodeWithTag(ROWS.first()).assert(hasCustomActions(MOVE_DOWN)) },
             { onNodeWithTag(ROWS.first()).assert(hasNoCustomAction(MOVE_UP)) },
             { onNodeWithTag(ROWS.last()).assert(hasCustomActions(MOVE_UP)) },
