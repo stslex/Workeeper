@@ -22,10 +22,15 @@ import org.jetbrains.kotlin.psi.KtCallExpression
  * a composable therefore resets the list to *loading* on every recomposition.
  *
  * Three screens wrote `remember(state.pagingUiState) { state.pagingUiState() }`; Home wrote
- * `state.pagingUiState().collectAsLazyPagingItems()`. On device, with a workout running — Home
- * recomposes once a second on the session timer — that was **13 flow rebuilds in 12 seconds**,
- * each blanking the list to the paging spinner for ~23 ms. The three wrapped screens composed
- * twice on entry and never again.
+ * `state.pagingUiState().collectAsLazyPagingItems()`. Measured on device on a **`debug`** build,
+ * with a workout running — Home recomposes once a second on the session timer — that was **13 flow
+ * rebuilds in 12 seconds**, each blanking the list to the paging spinner for ~23 ms. The three
+ * wrapped screens composed twice on entry and never again.
+ *
+ * The build type splits that evidence in two, and only one half is a shipping claim: the **rebuild
+ * count is structural** — a `fun interface` invocation allocates a new `Flow` under R8 exactly as
+ * it does without it — while the **~23 ms blank is a debug duration**. Release would blank for
+ * less; it would still blank, once a second. `CollectPagingItems`' KDoc carries the same split.
  *
  * ## Why a rule as well as a helper
  *
@@ -73,8 +78,9 @@ class PagingCollectionRule(
                 Entity.from(expression),
                 "`$RAW_COLLECT()` caches on the Flow INSTANCE, and `PagingUiState` builds a new " +
                     "Flow on every invocation — so this resets the list to `refresh = Loading`, " +
-                    "`itemCount = 0` on every recomposition (measured: 13 rebuilds in 12s on a " +
-                    "screen recomposing once a second, ~23ms of spinner each time). Use " +
+                    "`itemCount = 0` on every recomposition (measured on a debug build: 13 " +
+                    "rebuilds in 12s on a screen recomposing once a second, ~23ms of spinner " +
+                    "each time — the rebuild count is structural, the duration is debug's). Use " +
                     "`state.<yourPagingUiState>.collectAsItems()`, which holds the `remember` " +
                     "where a call site cannot omit it.",
             ),

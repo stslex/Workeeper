@@ -60,10 +60,13 @@ import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartMetricUi
  * leaves the thumb's corners tighter than the track's and the track visible behind them.
  *
  * The mockup animates `left`/`width` over 320ms — a duration the motion scale does not have
- * (140/260/520, and "anything else is a design decision"). The travel runs on `base` (260ms)
- * with the standard `out` curve; the −60ms is reported with the PR rather than minted as a
- * seventh duration. Width needs no animation here: the buttons are equal-flex, so every stop
- * measures the same.
+ * (140/260/520, and "anything else is a design decision"). The travel runs on `base` (260ms) on
+ * the [AppMotion.travel] curve, **not** the standard `out`: §26.2 measured `out`'s near-expo tail
+ * leaving this thumb creeping across 58.1% of the animation, now 37.5%. Read the curve off
+ * [metricIndicatorSpec], never off this paragraph — `MetricTabsMotionTest` asserts it is `travel`
+ * and asserts it is not `out`. The −60ms is reported with the PR rather than minted as a seventh
+ * duration. Width needs no animation here: the buttons are equal-flex, so every stop measures the
+ * same.
  */
 @Composable
 internal fun MetricTabs(

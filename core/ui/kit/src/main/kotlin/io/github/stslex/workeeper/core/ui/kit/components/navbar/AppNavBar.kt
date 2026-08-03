@@ -77,10 +77,13 @@ import kotlin.math.min
  *
  * ## Motion — one transit, one character, on two elements
  *
- * §26 "Nav pill motion", unchanged by the §26.1 curve split: the pill's travel is **positional**,
- * so the split leaves it on `out`.
+ * §26 "Nav pill motion". The pill's travel is **positional**, and §26.2 is what that now selects:
+ * `out` is near-expo and leaves the pill creeping — device-measured, its last 10% occupied **50.6%
+ * of the animation** — so positional travel moved onto [AppMotion.travel]. Read the curve off
+ * [navPillOffsetSpec], never off this paragraph: `NavPillTest` asserts it is `travel` and asserts
+ * it is **not** `out`.
  *
- * - **Transit** — the offset, [NAV_PILL_TRAVEL] on `out`. Monotone, no overshoot. Delete it and
+ * - **Transit** — the offset, [NAV_PILL_TRAVEL] on `travel`. Monotone, no overshoot. Delete it and
  *   the pill teleports, which is the class's own reader-test for membership.
  * - **Character** — the `gel` stretch: `scaleX` peaks at `1 + 0.30 × k` where `k = |Δ| / barWidth`
  *   clamped to 1, at 42% of the travel, with [TransformOrigin] on the **leading** edge so the tail

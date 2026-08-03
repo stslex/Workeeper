@@ -182,10 +182,11 @@ internal fun <T : Any> deferredSurface(
 /**
  * What the deferral should do next — **pure, so both durations are assertable.**
  *
- * The composable above is dispatch only. That split is not tidiness: with `delay(motion.fast)`
- * written inline, mutating it to `delay(0)` — which restores the exact flash this file exists to
- * remove — came back **green**, because the tests could only reach the hold arithmetic and the
- * constants. Moving the durations into a returned value puts them where a test can read them.
+ * The composable above is dispatch only, and it must stay that way: **do not inline these delays
+ * back into it.** A duration written straight into a `delay(...)` call inside a composable is
+ * reachable by no test in this module — not by a golden, which photographs one settled frame, and
+ * not by the hold arithmetic, which never sees it. Returning the durations as a value is what puts
+ * them where a test can read them.
  *
  * **The residual, stated rather than papered over:** nothing here proves the composable *honours*
  * the returned delay. Replacing `delay(step.delayMillis)` with `delay(0)` still passes, and closing
