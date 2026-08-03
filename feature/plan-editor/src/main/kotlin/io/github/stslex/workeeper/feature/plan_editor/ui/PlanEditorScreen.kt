@@ -5,7 +5,6 @@ import android.content.res.Configuration
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -19,14 +18,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.window.Dialog
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButton
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButtonSize
-import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppConfirmDialog
+import io.github.stslex.workeeper.core.ui.kit.components.sheet.AppConfirmSheet
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppIconButton
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopBar
 import io.github.stslex.workeeper.core.ui.kit.icons.AppIcons
@@ -144,91 +141,32 @@ internal fun PlanEditorScreen(
             // so the two hosts cannot drift on where a set comes from.
         }
 
-        if (state.confirmDiscardOpen) {
-            DiscardDialog(
-                onSave = { consume(Action.Click.OnConfirmSave) },
-                onDiscard = { consume(Action.Click.OnConfirmDiscard) },
-                onContinue = { consume(Action.Click.OnDismissDiscard) },
-            )
-        }
-
+        // ONE sealed channel. `confirmDiscardOpen: Boolean` used to sit beside `dialogState`,
+        // so this screen could have both modals open at once (§26; `mvi-dialog-state`).
         when (val dialog = state.dialogState) {
             DialogState.Hidden -> Unit
 
-            is DialogState.TypeChangeConfirm -> AppConfirmDialog(
+            DialogState.DiscardConfirm -> AppConfirmSheet(
+                title = stringResource(KitR.string.core_ui_kit_discard_sheet_title),
+                body = stringResource(KitR.string.core_ui_kit_discard_sheet_body),
+                confirmLabel = stringResource(KitR.string.core_ui_kit_discard_sheet_confirm),
+                dismissLabel = stringResource(KitR.string.core_ui_kit_discard_sheet_dismiss),
+                confirmDestructive = true,
+                onConfirm = { consume(Action.Click.OnConfirmDiscard) },
+                onDismiss = { consume(Action.Click.OnDismissDiscard) },
+            )
+
+            // The impact summary rides as `emphasis` — a brighter paragraph, not the dialog's
+            // `failureBackground` panel, because the drawn sheet has no panel (see the component).
+            is DialogState.TypeChangeConfirm -> AppConfirmSheet(
                 title = dialog.title,
                 body = dialog.body,
-                impactSummary = dialog.impactSummary,
+                emphasis = dialog.impactSummary,
                 confirmLabel = dialog.confirmLabel,
+                dismissLabel = stringResource(KitR.string.core_ui_kit_action_cancel),
                 onConfirm = { consume(Action.Click.OnTypeChangeConfirm) },
                 onDismiss = { consume(Action.Click.OnTypeChangeDismiss) },
             )
-        }
-    }
-}
-
-/**
- * Three-action discard dialog (v2.4 5.5 / D2): Save / Discard / Continue editing. The
- * standard `AppConfirmDialog` only renders two actions; this dialog inlines a custom
- * three-button row so the user can commit or abandon edits without leaving the screen
- * twice.
- */
-@Composable
-private fun DiscardDialog(
-    onSave: () -> Unit,
-    onDiscard: () -> Unit,
-    onContinue: () -> Unit,
-) {
-    val dialogBg = if (AppUi.colors.isDark) AppUi.colors.surfaceTier1 else AppUi.colors.surfaceTier2
-    Dialog(onDismissRequest = onContinue) {
-        Column(
-            modifier = Modifier
-                .testTag("PlanEditorDiscardDialog")
-                .clip(AppUi.shapes.medium)
-                .background(dialogBg)
-                .padding(AppDimension.Space.lg),
-            verticalArrangement = Arrangement.spacedBy(AppDimension.Space.md),
-        ) {
-            Text(
-                text = stringResource(R.string.core_ui_plan_editor_discard_title),
-                style = AppUi.typography.titleLarge,
-                color = AppUi.colors.textPrimary,
-            )
-            Text(
-                text = stringResource(R.string.core_ui_plan_editor_discard_body),
-                style = AppUi.typography.bodyMedium,
-                color = AppUi.colors.textSecondary,
-            )
-            // FlowRow so the three buttons wrap onto a second line on narrow screens
-            // rather than overflowing horizontally. End-aligned matches the
-            // AppConfirmDialog convention.
-            FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(
-                    space = AppDimension.Space.sm,
-                    alignment = Alignment.End,
-                ),
-                verticalArrangement = Arrangement.spacedBy(AppDimension.Space.xs),
-            ) {
-                AppButton.Tertiary(
-                    modifier = Modifier.testTag("PlanEditorDiscardContinue"),
-                    text = stringResource(R.string.core_ui_plan_editor_discard_continue),
-                    onClick = onContinue,
-                    size = AppButtonSize.MEDIUM,
-                )
-                AppButton.Destructive(
-                    modifier = Modifier.testTag("PlanEditorDiscardDiscard"),
-                    text = stringResource(R.string.core_ui_plan_editor_discard_discard),
-                    onClick = onDiscard,
-                    size = AppButtonSize.MEDIUM,
-                )
-                AppButton.Primary(
-                    modifier = Modifier.testTag("PlanEditorDiscardSave"),
-                    text = stringResource(R.string.core_ui_plan_editor_screen_save),
-                    onClick = onSave,
-                    size = AppButtonSize.MEDIUM,
-                )
-            }
         }
     }
 }
@@ -310,7 +248,6 @@ private fun PlanEditorScreenPreview() {
                 ).toImmutableList(),
                 initialType = ExerciseTypeUiModel.WEIGHTED,
                 pendingTypeChange = null,
-                confirmDiscardOpen = false,
                 isSaving = false,
                 dialogState = DialogState.Hidden,
             ),

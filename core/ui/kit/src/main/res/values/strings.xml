@@ -34,6 +34,20 @@
     <string name="core_ui_kit_set_type_mark_drop">D</string>
     <string name="core_ui_kit_setbar_add">+ set</string>
     <string name="core_ui_kit_setbar_remove">− set</string>
+    <!--
+      The discard SHEET's four strings (§26, "Every modal on the three editors is a SHEET").
+      They live in the kit because one component now serves all three editors and each of them
+      used to carry its own copy — three tables saying the same thing is how «Отмена» survived on
+      one screen after being renamed on another. The Russian is the drawing verbatim
+      (`pass2d.html` `#s-editor` form 3); the English follows it rather than the old wording.
+
+      «Продолжить правку», not «Отмена»: the old label read as CLOSING THE WINDOW rather than as
+      declining to discard, which is the wrong thing to promise on the gentle branch.
+    -->
+    <string name="core_ui_kit_discard_sheet_title">Leave without saving?</string>
+    <string name="core_ui_kit_discard_sheet_body">Unsaved edits will be lost.</string>
+    <string name="core_ui_kit_discard_sheet_confirm">Leave without saving</string>
+    <string name="core_ui_kit_discard_sheet_dismiss">Keep editing</string>
     <string name="core_ui_kit_plan_editor_empty_hint">No sets yet — tap “Add set” to start the plan.</string>
 
     <string name="core_ui_kit_active_session_conflict_title">Active session in progress</string>

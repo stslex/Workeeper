@@ -31,7 +31,6 @@ interface PlanEditorStore : Store<State, Action, Event> {
         val draft: ImmutableList<PlanSetUiModel>,
         val initialType: ExerciseTypeUiModel,
         val pendingTypeChange: ExerciseTypeUiModel?,
-        val confirmDiscardOpen: Boolean,
         val isSaving: Boolean,
         val dialogState: DialogState,
     ) : Store.State {
@@ -44,13 +43,18 @@ interface PlanEditorStore : Store<State, Action, Event> {
             get() = type == ExerciseTypeUiModel.WEIGHTED
 
         /**
-         * BackHandler intercepts when there are unsaved edits OR when a dialog is open.
-         * The dialog's own back gesture closes it before propagating; clean state with no
-         * dialog stays unsubscribed so Compose nav handles the gesture natively (including
-         * the predictive-back preview animation).
+         * BackHandler intercepts when there are unsaved edits OR when a modal is open — EXCEPT
+         * when the open modal is the discard sheet itself, which is the second press of the same
+         * gesture and must reach nav so back means back.
+         *
+         * That exception used to be spelled `!confirmDiscardOpen`, a second channel beside
+         * `dialogState` (§26). Collapsing the two makes the clause name the variant instead of a
+         * parallel flag, which is the whole point: the state that must not intercept is now a
+         * value of the same field the rest of the predicate reads.
          */
         val interceptBack: Boolean
-            get() = (isDirty && !confirmDiscardOpen) || dialogState !is DialogState.Hidden
+            get() = (isDirty || dialogState !is DialogState.Hidden) &&
+                dialogState !is DialogState.DiscardConfirm
 
         @Stable
         sealed interface Mode {
@@ -104,7 +108,6 @@ interface PlanEditorStore : Store<State, Action, Event> {
                 draft = seedPlan,
                 initialType = seedType,
                 pendingTypeChange = null,
-                confirmDiscardOpen = false,
                 isSaving = false,
                 dialogState = DialogState.Hidden,
             )
@@ -138,8 +141,6 @@ interface PlanEditorStore : Store<State, Action, Event> {
             data object OnBackClick : Click
 
             data object OnConfirmDiscard : Click
-
-            data object OnConfirmSave : Click
 
             data object OnDismissDiscard : Click
         }

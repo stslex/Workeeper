@@ -24,6 +24,10 @@
     <string name="core_ui_kit_set_type_mark_drop">Д</string>
     <string name="core_ui_kit_setbar_add">+ подход</string>
     <string name="core_ui_kit_setbar_remove">− подход</string>
+    <string name="core_ui_kit_discard_sheet_title">Выйти без сохранения?</string>
+    <string name="core_ui_kit_discard_sheet_body">Несохранённые правки будут потеряны.</string>
+    <string name="core_ui_kit_discard_sheet_confirm">Выйти без сохранения</string>
+    <string name="core_ui_kit_discard_sheet_dismiss">Продолжить правку</string>
     <string name="core_ui_kit_plan_editor_empty_hint">Подходов пока нет — нажмите «Добавить подход», чтобы создать план.</string>
 
     <string name="core_ui_kit_active_session_conflict_title">Активная тренировка</string>

@@ -43,7 +43,6 @@ internal class ClickHandler @Inject constructor(
             Action.Click.OnSave -> processSave()
             Action.Click.OnBackClick -> processBack()
             Action.Click.OnConfirmDiscard -> processDiscard()
-            Action.Click.OnConfirmSave -> processConfirmSave()
             Action.Click.OnDismissDiscard -> processDismissDiscard()
         }
     }
@@ -152,32 +151,41 @@ internal class ClickHandler @Inject constructor(
     }
 
     private fun processBack() {
-        // Back gesture dismisses the topmost dialog before propagating.
-        if (state.value.dialogState !is DialogState.Hidden) {
+        // Back gesture dismisses the topmost modal before propagating — but NOT the discard
+        // sheet, which is the answer to a back press already. Swallowing it there would make the
+        // second press do nothing, which is how a screen becomes impossible to leave. With one
+        // sealed channel this is a branch on a variant; with the old two-field shape it was two
+        // conditions that had to agree.
+        val dialog = state.value.dialogState
+        if (dialog !is DialogState.Hidden && dialog !is DialogState.DiscardConfirm) {
             updateState { it.copy(dialogState = DialogState.Hidden, pendingTypeChange = null) }
             return
         }
+        if (dialog is DialogState.DiscardConfirm) {
+            consume(Action.Navigation.Back)
+            return
+        }
         if (state.value.isDirty) {
-            updateState { it.copy(confirmDiscardOpen = true) }
+            updateState { it.copy(dialogState = DialogState.DiscardConfirm) }
         } else {
             consume(Action.Navigation.Back)
         }
     }
 
     private fun processDismissDiscard() {
-        updateState { it.copy(confirmDiscardOpen = false) }
+        updateState { it.copy(dialogState = DialogState.Hidden) }
     }
 
     private fun processDiscard() {
         sendEvent(Event.HapticClick(HapticFeedbackType.LongPress))
-        updateState { it.copy(confirmDiscardOpen = false) }
+        updateState { it.copy(dialogState = DialogState.Hidden) }
         consume(Action.Navigation.Back)
     }
 
-    private fun processConfirmSave() {
-        updateState { it.copy(confirmDiscardOpen = false) }
-        processSave()
-    }
+    // `processConfirmSave` USED TO LIVE HERE, and it went with the sheet's third action.
+    // §26: the discard sheet appears only when there is something to lose, and saving already
+    // lives on the form — «Сохранить» inside it was a second door to a room the user is standing
+    // in. Nothing else called it; `OnConfirmSave` is deleted rather than left unreachable.
 
     private fun processSave() {
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))

@@ -13,13 +13,12 @@ import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavGraphBuilder
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.ActiveSessionConflictDialog
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppConfirmDialog
-import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppDialog
+import io.github.stslex.workeeper.core.ui.kit.components.sheet.AppConfirmSheet
 import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
 import io.github.stslex.workeeper.core.ui.mvi.getStateFlow
 import io.github.stslex.workeeper.core.ui.mvi.navComponentScreenWithState
 import io.github.stslex.workeeper.core.ui.mvi.setAttrDefaultValue
 import io.github.stslex.workeeper.core.ui.navigation.Screen
-import io.github.stslex.workeeper.feature.single_training.R
 import io.github.stslex.workeeper.feature.single_training.di.SingleTrainingFeature
 import io.github.stslex.workeeper.feature.single_training.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.Action
@@ -27,6 +26,7 @@ import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTraini
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.State.Mode
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.State.PickerState
 import io.github.stslex.workeeper.feature.single_training.ui.components.ExercisePickerSheet
+import io.github.stslex.workeeper.core.ui.kit.R as KitR
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Suppress("UnusedParameter", "LongMethod", "CyclomaticComplexMethod")
@@ -116,12 +116,15 @@ fun NavGraphBuilder.singleTrainingsGraph(
         when (val dialog = state.dialogState) {
             DialogState.Hidden -> Unit
 
-            DialogState.DiscardConfirm -> AppDialog(
-                title = stringResource(R.string.feature_training_edit_discard_title),
-                body = stringResource(R.string.feature_training_edit_discard_body),
-                confirmLabel = stringResource(R.string.feature_training_edit_discard_confirm),
-                dismissLabel = stringResource(R.string.feature_training_edit_discard_dismiss),
-                destructive = true,
+            // §26 "Every modal on the three editors is a SHEET". Strings from the kit: one
+            // component, one table, three editors — three copies is how a renamed label survives
+            // on one screen after being corrected on another.
+            DialogState.DiscardConfirm -> AppConfirmSheet(
+                title = stringResource(KitR.string.core_ui_kit_discard_sheet_title),
+                body = stringResource(KitR.string.core_ui_kit_discard_sheet_body),
+                confirmLabel = stringResource(KitR.string.core_ui_kit_discard_sheet_confirm),
+                dismissLabel = stringResource(KitR.string.core_ui_kit_discard_sheet_dismiss),
+                confirmDestructive = true,
                 onConfirm = { processor.consume(Action.Click.OnConfirmDiscard) },
                 onDismiss = { processor.consume(Action.Click.OnDismissDiscard) },
             )

@@ -6,10 +6,6 @@
     <string name="core_ui_plan_editor_screen_save">Save</string>
     <string name="core_ui_plan_editor_screen_cancel">Cancel</string>
 
-    <string name="core_ui_plan_editor_discard_title">Discard changes?</string>
-    <string name="core_ui_plan_editor_discard_body">You have unsaved edits. Save them, discard them, or keep editing.</string>
-    <string name="core_ui_plan_editor_discard_discard">Discard</string>
-    <string name="core_ui_plan_editor_discard_continue">Continue editing</string>
 
     <string name="core_ui_plan_editor_set_type_tooltip">Tap to cycle: warmup → work → failure → drop</string>
 

@@ -15,6 +15,22 @@ sealed interface DialogState {
     data object Hidden : DialogState
 
     /**
+     * Leave without saving? — the discard sheet.
+     *
+     * **This was a SECOND, INDEPENDENT CHANNEL until the editors stage:** a
+     * `confirmDiscardOpen: Boolean` beside this very field, so the screen could have the discard
+     * confirmation and the type-change confirmation open AT ONCE. §26 collapses the two channels
+     * into this one sealed state, which is exactly what the `mvi-dialog-state` skill exists to
+     * make unrepresentable — a variant cannot coexist with another variant, where two fields
+     * always can.
+     *
+     * It carries no payload: the sheet's four strings live in the kit, one table for all three
+     * editors (`core_ui_kit_discard_sheet_*`).
+     */
+    @Stable
+    data object DiscardConfirm : DialogState
+
+    /**
      * "Switching to weightless will clear weights on N plan rows" confirmation. The
      * pending target type lives in `State.pendingTypeChange` so the confirm handler
      * knows which value to commit; this variant only carries the pre-resolved dialog

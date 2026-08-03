@@ -24,9 +24,9 @@ import androidx.navigation.NavGraphBuilder
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.ActiveSessionConflictDialog
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppBlockedArchiveDialog
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppConfirmDialog
-import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppDialog
 import io.github.stslex.workeeper.core.ui.kit.components.pr.PrExplainerDialog
 import io.github.stslex.workeeper.core.ui.kit.components.sheet.AppBottomSheet
+import io.github.stslex.workeeper.core.ui.kit.components.sheet.AppConfirmSheet
 import io.github.stslex.workeeper.core.ui.kit.snackbar.AppSnackbarModel
 import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
 import io.github.stslex.workeeper.core.ui.mvi.getStateFlow
@@ -36,8 +36,7 @@ import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.exercise.R
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseFeature
 import io.github.stslex.workeeper.feature.exercise.ui.components.ExerciseDetailMenuSheetContent
-import io.github.stslex.workeeper.feature.exercise.ui.components.ImageSourceDialog
-import io.github.stslex.workeeper.feature.exercise.ui.components.PermissionDeniedDialog
+import io.github.stslex.workeeper.feature.exercise.ui.components.ImageSourceSheetContent
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ImageErrorType
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.BottomSheetState
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.DialogState
@@ -45,6 +44,7 @@ import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Ac
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Event
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State.Mode
 import kotlinx.collections.immutable.persistentListOf
+import io.github.stslex.workeeper.core.ui.kit.R as KitR
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Suppress("LongMethod", "CyclomaticComplexMethod")
@@ -264,12 +264,14 @@ fun NavGraphBuilder.exerciseGraph(
         when (val dialog = state.dialogState) {
             DialogState.Hidden -> Unit
 
-            is DialogState.DiscardConfirm -> AppDialog(
-                title = stringResource(R.string.feature_exercise_edit_discard_title),
-                body = stringResource(R.string.feature_exercise_edit_discard_body),
-                confirmLabel = stringResource(R.string.feature_exercise_edit_discard_confirm),
-                dismissLabel = stringResource(R.string.feature_exercise_edit_discard_dismiss),
-                destructive = true,
+            // §26 "Every modal on the three editors is a SHEET" — the drawing has no dialog
+            // primitive at all. Strings from the kit: one component, one table, three editors.
+            is DialogState.DiscardConfirm -> AppConfirmSheet(
+                title = stringResource(KitR.string.core_ui_kit_discard_sheet_title),
+                body = stringResource(KitR.string.core_ui_kit_discard_sheet_body),
+                confirmLabel = stringResource(KitR.string.core_ui_kit_discard_sheet_confirm),
+                dismissLabel = stringResource(KitR.string.core_ui_kit_discard_sheet_dismiss),
+                confirmDestructive = true,
                 onConfirm = { processor.consume(Action.Click.OnConfirmDiscard(dialog.target)) },
                 onDismiss = { processor.consume(Action.Click.OnDismissDiscard) },
             )
@@ -295,15 +297,28 @@ fun NavGraphBuilder.exerciseGraph(
                 onDismiss = { processor.consume(Action.Click.OnPrExplainerDismiss) },
             )
 
-            DialogState.ImageSourcePicker -> ImageSourceDialog(
-                onSourceSelected = { source ->
-                    processor.consume(Action.Click.OnImageSourceSelected(source))
-                },
+            // A MENU sheet rather than a confirm one: two choices and no question, which is
+            // `#sh-pick`'s shape. The two Material photo glyphs go with the dialog — the kit
+            // ships neither, and inventing them would settle two of B33(b)'s open questions.
+            // The cancel button goes too: a sheet's scrim and drag are its dismiss.
+            DialogState.ImageSourcePicker -> AppBottomSheet(
                 onDismiss = { processor.consume(Action.Click.OnImageSourceDialogDismiss) },
-            )
+            ) {
+                ImageSourceSheetContent(
+                    onSourceSelected = { source ->
+                        processor.consume(Action.Click.OnImageSourceSelected(source))
+                    },
+                )
+            }
 
-            DialogState.PermissionDenied -> PermissionDeniedDialog(
-                onSettingsClick = {
+            DialogState.PermissionDenied -> AppConfirmSheet(
+                title = stringResource(R.string.feature_exercise_image_permission_denied_title),
+                body = stringResource(R.string.feature_exercise_image_permission_denied_body),
+                confirmLabel = stringResource(
+                    R.string.feature_exercise_image_permission_denied_action_settings,
+                ),
+                dismissLabel = stringResource(KitR.string.core_ui_kit_action_cancel),
+                onConfirm = {
                     processor.consume(Action.Click.OnPermissionDeniedSettingsClick)
                 },
                 onDismiss = { processor.consume(Action.Click.OnPermissionDeniedDialogDismiss) },

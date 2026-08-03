@@ -286,31 +286,76 @@ internal class ClickHandlerTest {
 
         handler.invoke(Action.Click.OnBackClick)
 
-        assertTrue(stateFlow.value.confirmDiscardOpen)
+        assertEquals(DialogState.DiscardConfirm, stateFlow.value.dialogState)
         verify(exactly = 0) { store.consume(Action.Navigation.Back) }
     }
 
     @Test
-    fun `OnDismissDiscard closes the dialog without navigating`() {
+    fun `OnDismissDiscard closes the sheet without navigating`() {
         val (stateFlow, store, handler) = setup(
-            existingExerciseInitial().copy(confirmDiscardOpen = true),
+            existingExerciseInitial().copy(dialogState = DialogState.DiscardConfirm),
         )
 
         handler.invoke(Action.Click.OnDismissDiscard)
 
-        assertFalse(stateFlow.value.confirmDiscardOpen)
+        assertEquals(DialogState.Hidden, stateFlow.value.dialogState)
         verify(exactly = 0) { store.consume(Action.Navigation.Back) }
     }
 
     @Test
-    fun `OnConfirmDiscard closes dialog and navigates back without persisting`() {
+    fun `OnConfirmDiscard closes the sheet and navigates back without persisting`() {
         val (stateFlow, store, handler) = setup(
-            existingExerciseInitial().copy(confirmDiscardOpen = true),
+            existingExerciseInitial().copy(dialogState = DialogState.DiscardConfirm),
         )
 
         handler.invoke(Action.Click.OnConfirmDiscard)
 
-        assertFalse(stateFlow.value.confirmDiscardOpen)
+        assertEquals(DialogState.Hidden, stateFlow.value.dialogState)
+        verify(exactly = 1) { store.consume(Action.Navigation.Back) }
+    }
+
+    /**
+     * The collapse's own invariant, and the one a `Boolean` beside a sealed field cannot state:
+     * **the two modals are mutually exclusive by construction** (§26; `mvi-dialog-state`). Before
+     * this stage `confirmDiscardOpen = true` and `dialogState = TypeChangeConfirm` were a
+     * reachable pair, and the screen would have drawn both.
+     */
+    @Test
+    fun `the discard sheet and the type-change sheet cannot be open at once`() {
+        val (stateFlow, _, handler) = setup(
+            existingExerciseInitial().copy(
+                draft = listOf(PlanSetUiModel(80.0, 8, SetTypeUiModel.WORK)).toImmutableList(),
+                dialogState = DialogState.TypeChangeConfirm(
+                    title = "t",
+                    body = "b",
+                    impactSummary = "i",
+                    confirmLabel = "c",
+                ),
+            ),
+        )
+
+        // Back with a modal already open closes it; it does NOT stack the discard sheet on top.
+        handler.invoke(Action.Click.OnBackClick)
+
+        assertEquals(DialogState.Hidden, stateFlow.value.dialogState)
+    }
+
+    /**
+     * The discard sheet is the answer to a back press, so a SECOND back press must leave. With
+     * the old two-field shape this was two conditions that had to agree; now it is one branch on
+     * one variant.
+     */
+    @Test
+    fun `back with the discard sheet already open leaves instead of swallowing the press`() {
+        val (_, store, handler) = setup(
+            existingExerciseInitial().copy(
+                draft = listOf(PlanSetUiModel(80.0, 8, SetTypeUiModel.WORK)).toImmutableList(),
+                dialogState = DialogState.DiscardConfirm,
+            ),
+        )
+
+        handler.invoke(Action.Click.OnBackClick)
+
         verify(exactly = 1) { store.consume(Action.Navigation.Back) }
     }
 
@@ -339,19 +384,35 @@ internal class ClickHandlerTest {
     }
 
     @Test
-    fun `interceptBack disabled while discard dialog is shown`() {
+    fun `interceptBack disabled while the discard sheet is shown`() {
         val (stateFlow, _, _) = setup(
             existingExerciseInitial().copy(
                 draft = listOf(PlanSetUiModel(80.0, 8, SetTypeUiModel.WORK)).toImmutableList(),
-                confirmDiscardOpen = true,
+                dialogState = DialogState.DiscardConfirm,
             ),
         )
 
-        // Dirty + dialog open → interceptBack is false so Dialog's own dismiss handles
-        // the back gesture (predictive-back preview behind the dialog isn't desirable
-        // anyway, but we explicitly de-arm BackHandler so the system gesture is a no-op
-        // beyond closing the dialog).
+        // Dirty + the discard sheet open → interceptBack is false, so the system gesture reaches
+        // nav and back means back. The predicate names the VARIANT now rather than a parallel
+        // boolean, which is what the channel collapse bought (§26).
         assertFalse(stateFlow.value.interceptBack)
+    }
+
+    /** The other half of the same predicate: any OTHER open modal still intercepts. */
+    @Test
+    fun `interceptBack stays armed while the type-change sheet is shown`() {
+        val (stateFlow, _, _) = setup(
+            existingExerciseInitial().copy(
+                dialogState = DialogState.TypeChangeConfirm(
+                    title = "t",
+                    body = "b",
+                    impactSummary = "i",
+                    confirmLabel = "c",
+                ),
+            ),
+        )
+
+        assertTrue(stateFlow.value.interceptBack)
     }
 
     @Test

@@ -38,10 +38,6 @@
     <string name="feature_exercise_edit_tag_limit">Maximum 10 tags per exercise</string>
     <string name="feature_exercise_edit_error_name_required">Name is required</string>
     <string name="feature_exercise_edit_error_name_duplicate">Exercise with this name already exists</string>
-    <string name="feature_exercise_edit_discard_title">Discard changes?</string>
-    <string name="feature_exercise_edit_discard_body">Your changes will be lost.</string>
-    <string name="feature_exercise_edit_discard_confirm">Discard</string>
-    <string name="feature_exercise_edit_discard_dismiss">Keep editing</string>
 
     <!-- Adhoc plan -->
     <string name="feature_exercise_edit_label_default_plan">Default plan (ad-hoc)</string>
