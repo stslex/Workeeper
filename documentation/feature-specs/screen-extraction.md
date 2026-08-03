@@ -150,7 +150,9 @@ extraction that keeps asserting a disproved premise is how the next reader inher
    `.data-s` back to `font-size:32px` at **L221**, exactly at the timer, so the timer is 32px
    in both files and the mockups do not disagree about it. The 26px reading belongs to the
    record-hero value at `pass2d` L274. Those are two rungs — 34 and 26 — and the second is
-   blocker B1. Resolved by naming the first: `AppTypography.timer`.
+   **`v3-redesign-spec.md` §25 B1**, not this document's own §6.2 row (see the numbering note
+   there: `B<n>` is §25's alone, and this document's series is now `E<n>`). Resolved by naming
+   the first: `AppTypography.timer`.
 4. **letter-spacing is declared throughout and absent from `AppTypography`.** `.label` `.14em`,
    `.prtag` `.1em`, `.tempbadge` `.12em`, `.setbar` `.06em`, `.toast button` `.08em`, `.ctitle`
    `-.01em`, `.shead h2` `-.015em`, `.exhead h2` `-.02em`, `.data-hero` `-.02em`, `.topbar h1`
@@ -1385,17 +1387,37 @@ Everything here is **reported, not resolved**. Each is a decision that belongs t
 
 ## 6.2 Blockers — cannot be expressed today
 
-| # | Blocker | Scope |
-|---|---|---|
-| B1 | **Weight 600 is not bundled.** Only 400/500 ship. | `.ctitle`, `.chead .title`, `.sheet h3`, `.topbar h1`, `.shead h2`, `.exhead h2`, `.empty h4`, `.btn`, `.prtag` — **every heading and every primary button on all five screens** |
-| B2 | **Archivo width axis.** Drawn at `wdth` 115 / 116 / 122; the bundled static cut is **125**. | every numeral: `.data-l`, `.data-s`, `.data-hero` |
-| B3 | **Two numeral tiers.** `.data-s` is **32px** in the session mockup and **26px** in pass2d — same class, two sizes, and the spec records neither. | session timer vs exercise-detail record value |
-| B4 | **letter-spacing is absent from `AppTypography`.** Ten declared values, positive on mono labels and negative on headings. | `.label` `.14em`, `.prtag` `.1em`, `.tempbadge` `.12em`, `.setbar` `.06em`, `.toast button` `.08em`, `.ctitle` `-.01em`, `.shead h2` `-.015em`, `.exhead h2` `-.02em`, `.data-hero` `-.02em`, `.topbar h1` `-.015em` |
-| B5 | **No `dim` tier.** The palette has four text tiers; the mockups use five, and `meta`/`dim` appear on the same screen with different jobs. See C1 — and note light `dim` measures 2.47:1, so it cannot ship as drawn either. | `.label`, `.unit`, `.set-i`, `.ord`, `.sub`, `.plan-line`, `.chev`, `.tchip`, `.val .x`, `.scrub`, `.tempbadge`, `.mini` |
-| B6 | **No `--slabtop` equivalent.** An inset 1px top highlight in dark, a two-layer drop shadow in light. `AppElevation.shadow` is `0.dp`. | `.card.active`, `.card.open`, `.tabs .ind`, `.mseg button.on` — the entire "lifted" vocabulary |
-| B7 | **No 12dp radius rung.** `AppDimension.Radius` is 4/8/16/32/64/128; the mockup's most common radius is **12px** (`.field`, `.set`, `.mitem`, `.icon-btn`), with 11px and 13px nearby. | every field, every sheet menu item |
-| B8 | **No `--donefill`, `--flash`, `--grid` tokens.** Three translucent washes with no palette slot. | done field, set flash, chart gridlines |
-| B9 | **Durations outside `--d-*`.** 320ms (tab indicator), 380ms (pstrip), 420ms (rail fill, metric tween), 560ms (pulse), 620ms (flash), 900ms (PR sweep), 1000ms (sweep cleanup), 5000ms (toast). §5 defines three. | motion tokens |
+**RENUMBERED `B*` → `E*`, and the renumbering is the finding.** This table shipped as `B1`–`B9`
+while `v3-redesign-spec.md` §25 — the **live, append-only** blocker registry — shipped its own
+`B1`–`B35`. Two registries, one namespace, and the numbers do not line up: this table's `B1` is
+§25's **B2**, its `B2` is §25's **B3**, its `B3` is §25's **B5**, and only `B4` happens to collide
+on the same subject by coincidence. The collision was not hypothetical — §0.4's own note above
+already reads *"the second is blocker B1"* meaning **§25's** B1 (the 26sp record value) while
+sitting three hundred lines above a table whose `B1` is the font weight. A citation that resolves
+to two different rows depending on which file the reader opens is worse than an uncited claim,
+because it reads as precise.
+
+**The convention, so this cannot recur:** `B<n>` belongs to **§25 of `v3-redesign-spec.md` and
+nowhere else** — it is the one registry that is append-only and therefore the one whose numbers
+must never be reused. Every other document prefixes its own series with a letter of its own:
+`E<n>` here (extraction blockers), `C<n>` for §6.1's spec-vs-mockup conflicts, `G<n>`/`D<n>` in the
+per-screen delta documents. A new series picks an unused letter; it does not pick `B`.
+
+**This table is CLOSED.** It records what the extraction found when it was written, and it is not
+where any of these are tracked now — the third column says where each one went. New blockers are
+filed in §25, not appended here.
+
+| # | Blocker | Scope | Where it lives now |
+|---|---|---|---|
+| E1 | **Weight 600 is not bundled.** Only 400/500 ship. | `.ctitle`, `.chead .title`, `.sheet h3`, `.topbar h1`, `.shead h2`, `.exhead h2`, `.empty h4`, `.btn`, `.prtag` — **every heading and every primary button on all five screens** | §25 **B2** — resolved, fonts PR (premise corrected: headings rendered at 400, not 500) |
+| E2 | **Archivo width axis.** Drawn at `wdth` 115 / 116 / 122; the bundled static cut is **125**. | every numeral: `.data-l`, `.data-s`, `.data-hero` | §25 **B3** — resolved at `wdth 116`; the three-width treatment stays unimplemented and is recorded as the reinstatement path |
+| E3 | **Two numeral tiers.** `.data-s` is **32px** in the session mockup and **26px** in pass2d — same class, two sizes, and the spec records neither. | session timer vs exercise-detail record value | §25 **B5** — resolved by naming (`AppTypography.timer`); the premise was wrong, the timer is 32px in both files |
+| E4 | **letter-spacing is absent from `AppTypography`.** Ten declared values, positive on mono labels and negative on headings. | `.label` `.14em`, `.prtag` `.1em`, `.tempbadge` `.12em`, `.setbar` `.06em`, `.toast button` `.08em`, `.ctitle` `-.01em`, `.shead h2` `-.015em`, `.exhead h2` `-.02em`, `.data-hero` `-.02em`, `.topbar h1` `-.015em` | §25 **B4** — the one number that collides with §25's on the same subject, by coincidence. Resolved: `text.title` only, at −0.39sp |
+| E5 | **No `dim` tier.** The palette has four text tiers; the mockups use five, and `meta`/`dim` appear on the same screen with different jobs. See C1 — and note light `dim` measures 2.47:1, so it cannot ship as drawn either. | `.label`, `.unit`, `.set-i`, `.ord`, `.sub`, `.plan-line`, `.chev`, `.tchip`, `.val .x`, `.scrub`, `.tempbadge`, `.mini` | **No §25 row.** Ruled in §26 ("`dim` fourth step" — merged into `meta`, on perceptual collapse) and re-audited by §25 **B28**, which found the *slot* (`AppColors.textDim`) survives at meta's value |
+| E6 | **No `--slabtop` equivalent.** An inset 1px top highlight in dark, a two-layer drop shadow in light. `AppElevation.shadow` is `0.dp`. | `.card.active`, `.card.open`, `.tabs .ind`, `.mseg button.on` — the entire "lifted" vocabulary | **No §25 row.** Ruled in §26 ("Elevation") and built as `Modifier.liftedSurface`. This is the `B-2025-elevation` §25's own preamble says a rewrite lost once |
+| E7 | **No 12dp radius rung.** `AppDimension.Radius` is 4/8/16/32/64/128; the mockup's most common radius is **12px** (`.field`, `.set`, `.mitem`, `.icon-btn`), with 11px and 13px nearby. | every field, every sheet menu item | **Open, and answered per component rather than by a rung** — each site rounds onto the ladder with its reason stated at the site (`AppIconButton`'s KDoc rounds 12 → `Radius.small` and says why). No rung was added |
+| E8 | **No `--donefill`, `--flash`, `--grid` tokens.** Three translucent washes with no palette slot. | done field, set flash, chart gridlines | **Closed in code, not by a row.** `AppColors.donefill` and `AppColors.grid` both ship, declared in `ContrastContract` (SURFACE and DECORATIVE respectively); the flash wash lives in `SetClosureVisuals`. §25 **B7** is a different question about the same wash — *which element* it paints |
+| E9 | **Durations outside `--d-*`.** 320ms (tab indicator), 380ms (pstrip), 420ms (rail fill, metric tween), 560ms (pulse), 620ms (flash), 900ms (PR sweep), 1000ms (sweep cleanup), 5000ms (toast). §5 defines three. | motion tokens | **Partly closed, and deliberately not by widening the scale.** `AppMotion` still declares three durations; the off-scale values ship as component constants with their reason at the site. The toast's 5000 is ruled in §25 **B25** (branch B, host-owned `TOAST_VISIBLE_MS`) |
 
 ## 6.3 Drawn but out of scope, or in code but not drawn
 

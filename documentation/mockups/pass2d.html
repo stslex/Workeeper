@@ -253,6 +253,55 @@
         .fab.del .garch{display:block}
         .navnote{margin:10px var(--gutter) 30px;font-family:var(--ff-mono);font-size:11.5px;line-height:1.65;color:var(--dim)}
         .navnote b{color:var(--meta);font-weight:500}
+        .navnote .no{color:var(--rust)}
+        /* ===== редакторы (#s-editor) ===== */
+        .form{padding:16px} /* the form's own inset inside a catalogue .frame — the frame is the specimen box, this is the screen's content edge */
+        .flabel{font-family:var(--ff-ui);font-size:13px;color:var(--dim);margin:0 0 6px 2px}
+        .fgrp{margin-bottom:18px}
+        .fgrp:last-child{margin-bottom:0}
+        /* The TYPING field, and it is NOT .field. .field is the session's tap-to-enter value box:
+           no caret, no label, no error, so it is not the referent for a thing you type into.
+           Outlined on --idle, which measures 6.40 dark / 3.49 light against --base — over the 3:1
+           a control outline owes under §2.7, with an existing role and no new one added. The
+           --hair-s alternative was measured and rejected (1.12–1.52); see §26 "Editor text field". */
+        .tf{width:100%;box-sizing:border-box;display:block;min-height:52px;padding:14px 12px;border:1px solid var(--idle);border-radius:12px;background:none;color:var(--max);font-family:var(--ff-ui);font-size:16px}
+        .tf.multi{min-height:96px} /* multiline is the same box, taller — not a second treatment */
+        .tf.ghosty{color:var(--dim)}
+        .tf.err{border-color:var(--rust);border-width:1.5px}
+        .ferr{font-family:var(--ff-ui);font-size:12.5px;color:var(--rust);margin:6px 0 0 2px}
+        .caret{display:inline-block;width:1.5px;height:19px;background:var(--max);vertical-align:-3px;margin-left:1px;animation:cb 1.1s step-end infinite}
+        @keyframes cb{50%{opacity:0}}
+        .selrow{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:9px}
+        .selrow .tag{display:flex;align-items:center;gap:7px}
+        .selrow .tag svg{width:13px;height:13px;stroke:currentColor;stroke-width:2;fill:none}
+        /* 46px thumb in the pushed bar, beside the title. Costs the form no vertical space and
+           gives the record a face; the type mark it draws when there is no photo is a relationship
+           the build already has (ImageThumb takes `type`), not a new one. */
+        .thumb{width:46px;height:46px;flex:none;border-radius:12px;border:1px solid var(--hair-s);background:var(--field);display:grid;place-items:center;overflow:hidden;cursor:pointer}
+        .thumb svg{width:21px;height:21px;stroke:var(--dim);stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round}
+        .thumb.has{background:linear-gradient(135deg,var(--raise),var(--sec))} /* the photo itself; no glyph — a camera inside a thumb that already holds a photo reads as "take another" */
+        .thumb.none{border-style:dashed}
+        /* .setbar and .addex BELONG TO session-v3f (L137-141 and L143-145) and are copied here BYTE
+           FOR BYTE. Neither is new: §26 "Sets: add and remove move to the card's foot" cites them.
+           The copy exists because pass2d already draws the session card (#s-live, #s-past) minus its
+           foot, so declaring them here completes an existing copy rather than starting a new one —
+           and the coupling is real: CHANGING ONE CHANGES TWO, the same obligation §26 "Empty state"
+           carries for the trainings glyph. Copied rather than paraphrased on purpose: the candidate
+           this pass arrived with had already drifted (mono 11.5/.13em/uppercase/radius 14 against
+           the drawn --ff-ui 15px with a label and radius 16) before anyone put the two side by side. */
+        .setbar{display:flex;border-top:1px solid var(--hair)}
+        .setbar button{flex:1;background:none;border:0;color:var(--meta);cursor:pointer;font-family:var(--ff-mono);font-size:12px;letter-spacing:.06em;text-transform:uppercase;padding:15px 0 14px;transition:color var(--d-fast)}
+        .setbar button:hover{color:var(--max)}
+        .setbar button+button{border-left:1px solid var(--hair)}
+        .setbar button:disabled{opacity:.35;cursor:default}
+        .addex{display:flex;align-items:center;justify-content:center;gap:9px;height:60px;margin:12px var(--gutter) 0;border:1px dashed var(--hair-s);border-radius:16px;color:var(--meta);cursor:pointer;background:none;width:calc(100% - var(--gutter)*2);font-family:var(--ff-ui);font-size:15px;transition:border-color var(--d-fast),color var(--d-fast)}
+        .addex:hover{border-color:var(--dim);color:var(--body)}
+        .addex svg{width:17px;height:17px;stroke:currentColor;stroke-width:1.9;fill:none;stroke-linecap:round}
+        /* The discard sheet is .sheet — this is a POSITION override so the catalogue can show it in
+           place. Every value that makes it a sheet (--field, the 26px top radius, the padding, h3,
+           .desc, .grab) stays .sheet's, so the two cannot say different things. */
+        .shx{position:static;transform:none;width:auto;max-width:none;margin:0 var(--gutter);z-index:auto}
+        .mitem.dang{color:var(--rust)} /* §1: rust marks destruction. --rust on --field measures 5.39 dark / 5.04 light, over the 4.5 text owes */
         .clash{margin:0 var(--gutter);border:1px solid var(--rust);border-radius:18px;overflow:hidden;background:var(--base)}
         .clash .dock{position:static;margin:0;padding:14px var(--gutter)}
         @media (prefers-reduced-motion:reduce){*{animation-duration:1ms!important;transition-duration:1ms!important}}
@@ -489,6 +538,75 @@
         <div class="section-head"><span class="label">хаптика — из того, что уже в коде</span></div>
         <div class="navnote">Словарь не расширяем, в репозитории живут четыре константы. <b>SegmentTick</b> — смена вкладки навбара, уже так и есть. <b>LongPress</b> — вход в режим выбора. <b>ContextClick</b> — отметить и снять отметку. <b>Confirm</b> — подтверждённое удаление, после диалога, а не по нажатию кнопки. Морф кнопки отдачи не даёт: он следствие долгого нажатия, которое уже отработало, а вторая отдача подряд читается как сбой. Подгрузка страницы — тоже ничего, пользователь её не запрашивал.</div>
     </section>
+
+    <!-- EDITOR -->
+    <section class="screen" id="s-editor">
+        <div class="topbar"><h1>Редакторы</h1></div>
+        <div class="hint">Пять форм, все решённые. Отклонённых вариантов здесь нет ни одного: раздел рисует то, что строится, а отклонённое живёт в §26 вместе с причиной. Метка <span class="nu">ново</span> стоит там, где рисунка не было ни в каком виде — это решения, а не детали.</div>
+
+        <div class="section-head"><span class="label">1 — поле ввода: контур на --idle</span></div>
+        <div class="frame"><div class="form">
+            <div class="fgrp"><div class="flabel">Название</div><div class="tf">Жим лёжа<span class="caret"></span></div></div>
+            <div class="fgrp"><div class="flabel">Описание</div><div class="tf multi ghosty">Заметка к упражнению</div></div>
+        </div></div>
+        <div class="navnote"><b>Контур, а не заливка, и это не вкусовое.</b> Заливкой поле рисовать нечем: <b>.field</b> — коробка значения в сессии, у неё нет ни каретки, ни подписи, ни ошибки, поэтому она не референс для того, во что печатают. Рамка идёт <b>--idle</b>: роль уже есть в палитре и <b>измерена — 6.40 в тёмной и 3.49 в светлой</b> против <b>--base</b>, то есть выше 3:1, которые контур включённого контрола должен по §2.7. Новой роли не добавлено. Подпись стоит <b>над</b> полем — форма её там уже держит. Многострочное — та же коробка, выше: <b>.tf.multi</b> меняет одну высоту и ничего больше.</div>
+
+        <div class="section-head"><span class="label">2 — две ошибки, «Сохранить» всегда активна</span></div>
+        <div class="frame"><div class="form">
+            <div class="fgrp"><div class="flabel">Название</div><div class="tf err"><span class="ghosty">Название упражнения</span></div><div class="ferr">Введите название</div></div>
+            <div class="fgrp"><div class="flabel">Название</div><div class="tf err">Румынская тяга<span class="caret"></span></div><div class="ferr">Упражнение с таким названием уже есть</div></div>
+            <div class="fgrp" style="display:flex;gap:10px"><button class="btn ghost">Отмена</button><button class="btn">Сохранить</button></div>
+        </div></div>
+        <div class="navnote"><b>Кнопка больше не отключается.</b> Сегодня она отключена ровно тем условием, которое и производит <b>nameError</b>, — значит пустое имя из интерфейса <span class="no">недостижимо</span> на обоих редакторах, а два зелёных теста удостоверяют ветку, до которой продакшн не доходит. Обе ошибки достижимы, обе красят рамку в <b>--rust</b> 1.5px и обе пишут причину под полем: видно <b>где</b> править, а не только <b>что</b> не так. Толщина растёт с 1 до 1.5 потому, что цвет один и тот же контур меняет — прибавка веса и есть вторая половина сигнала.</div>
+
+        <div class="section-head"><span class="label">3 — лист отказа: два действия</span></div>
+        <div class="sheet shx">
+            <div class="grab"></div><h3>Выйти без сохранения?</h3>
+            <div class="desc">Несохранённые правки будут потеряны.</div>
+            <button class="mitem dang">Выйти без сохранения</button>
+            <button class="mitem">Продолжить правку</button>
+        </div>
+        <div class="navnote"><b>Диалога в этом файле нет ни одного</b> — лист нарисован дважды (<b>#sh-del</b>, <b>#sh-pick</b>), и все шесть модалок трёх редакторов становятся листами. Здесь это <b>.sheet</b>, показанный на месте: <b>.shx</b> переопределяет только положение, а поверхность, радиус, отступы, <b>h3</b> и <b>.desc</b> остаются листовыми, поэтому два рисунка одного объекта не могут разойтись. <b>«Сохранить» убрано:</b> лист приходит только когда есть что терять, а сохранение уже живёт кнопкой на форме. «Отмена» переименована в «Продолжить правку» — прежняя читалась как закрытие окна, а не как отказ от отказа. Это же снимает трёхкнопочный диалог редактора плана и повод, которым он держался («AppConfirmDialog рисует только два действия»).</div>
+
+        <div class="section-head"><span class="label">4 — карточка упражнения: подходы и подвал</span></div>
+        <div class="cards">
+            <div class="card open">
+                <div class="chead"><span class="ord">1</span><div class="chead-body"><div class="title">Жим лёжа</div></div></div>
+                <div class="cbody"><div class="inner"><div class="sets">
+                    <div class="set"><span class="set-i">1</span><div class="field"><span class="data-l" style="color:var(--max)">40</span><span class="unit">кг</span></div><div class="field"><span class="data-l" style="color:var(--max)">12</span><span class="unit">повт</span></div><div class="tchip">Р</div></div>
+                    <div class="set"><span class="set-i">2</span><div class="field"><span class="data-l" style="color:var(--max)">60</span><span class="unit">кг</span></div><div class="field"><span class="data-l" style="color:var(--max)">10</span><span class="unit">повт</span></div><div class="tchip">·</div></div>
+                    <div class="set"><span class="set-i">3</span><div class="field"><span class="data-l" style="color:var(--max)">60</span><span class="unit">кг</span></div><div class="field"><span class="data-l" style="color:var(--max)">8</span><span class="unit">повт</span></div><div class="tchip">·</div></div>
+                    <div class="set"><span class="set-i">4</span><div class="field"><span class="data-l" style="color:var(--max)">50</span><span class="unit">кг</span></div><div class="field"><span class="data-l" style="color:var(--max)">6</span><span class="unit">повт</span></div><div class="tchip">О</div></div>
+                </div>
+                    <div class="setbar"><button>+ подход</button><button>− подход</button></div>
+                </div></div>
+            </div>
+        </div>
+        <button class="addex"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Добавить упражнение</button>
+        <div class="navnote"><b>Ни одной новой формы: это карточка сессии целиком.</b> <b>.card.open</b>, <b>.chead</b>, <b>.set</b>, <b>.field</b>, <b>.tchip</b> — всё уже нарисовано на <b>#s-past</b>, и строка редактора это <b>записанная</b> строка прошлой сессии, а не третий вид строки. <b>Значения в нормальном цвете</b> — как <b>#s-past</b> и красит их построчно: сегодня авторский план рисуется бледным, потому что <b>PlanEditorBody</b> не передаёт ни одного из <b>isDone/isRecord/isLogged/isError</b>, и введённое пользователем значение выходит «ещё не введено». <b>Добавление и удаление ушли в подвал карточки</b> — <b>.setbar</b>, две моноширинные надписи через волосяную линию; крестика на строке нет, и полноширинной третичной кнопки «добавить подход» под телом тоже. <b>.setbar</b> и <b>.addex</b> — не новое: обе живут в <b>session-v3f</b> (L137–141, L143–145) и скопированы сюда байт в байт, потому что pass2d уже носит копию этой карточки без подвала. Связь настоящая: <b>правка одной правит две</b>.</div>
+        <div class="navnote"><b>Чего в этой шапке намеренно нет.</b> Голова карточки — порядковый номер и имя, дословно первая карточка <b>#s-past</b>, и <b>никаких действий в ней не нарисовано</b>. Ни шеврона раскрытия (в редакторе плана упражнение одно и всегда открыто), ни крестика. «Крестик со строки уходит» сказано про строку <b>подхода</b> — его работу забирает «− подход» в подвале; удаление <b>упражнения</b> из тренировки этим решением не тронуто и остаётся там, где стоит в сборке. Нарисовать ему здесь новое место значило бы вывести решение из аналогии, а не принять его.</div>
+        <div class="navnote"><b>Типы подхода получают буквы</b> <span class="nu">ново</span>. Рабочий — точка, как в сессии. Разминка, отказ и дроп берут <b>первую букву</b>: <b>Р / О / Д</b> по-русски, <b>W / F / D</b> по-английски. Обозначений для них не было нигде — ни в одном из двух файлов, — поэтому это решение, а не транскрипция. Чип при этом <b>не расширяется</b> (34×32 остаются) и никакой второй отделки не получает: буква занимает ровно место точки. Русское «Рабочий» тоже на Р, но столкновения нет — рабочий подход буквой не обозначается вовсе.</div>
+        <div class="navnote"><b>Перетаскивание — длинным нажатием, как в прошлой сессии</b>, через <b>ReorderableColumn</b> из кита. Две одинаковые стрелки <b>DragHandle</b> уходят: вверх и вниз, нарисованные одним глифом, — это не контрол, а два одинаковых пятна, у которых значение знает только тот, кто их ставил.</div>
+
+        <div class="section-head"><span class="label">5 — миниатюра в полосе заголовка</span> <span class="nu">ново</span></div>
+        <div class="frame">
+            <div class="topbar"><button class="icon-btn lead"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><h1 class="sm">Жим лёжа</h1><div class="thumb has"></div></div>
+            <div class="form">
+                <div class="fgrp"><div class="flabel">Название</div><div class="tf">Жим лёжа<span class="caret"></span></div></div>
+                <div class="fgrp"><div class="flabel">Теги</div><div class="selrow"><span class="tag on">грудь <svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg></span><span class="tag on">трицепс <svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg></span></div><div class="tf ghosty">Добавить тег<span class="caret"></span></div></div>
+            </div>
+        </div>
+        <div class="navnote"><b>Фото есть</b> — миниатюра 46 в полосе, тап открывает во весь экран, замена живёт там же. Строки формы под изображение больше нет: место не тратится, а запись получает лицо. Внутри миниатюры <b>ничего не нарисовано</b> — там фото; камера внутри коробки, в которой уже лежит снимок, читается как «сними ещё один».</div>
+        <div class="frame">
+            <div class="topbar"><button class="icon-btn lead"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><h1 class="sm">Жим лёжа</h1><div class="thumb none"><svg viewBox="0 0 24 24"><path d="M4 9v6M7 7v10M17 7v10M20 9v6M7 12h10"/></svg></div></div>
+            <div class="topbar" style="border-top:1px solid var(--hair-s)"><button class="icon-btn lead"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><h1 class="sm">Подтягивания</h1><div class="thumb none"><svg viewBox="0 0 24 24"><path d="M9.9 5a2.1 2.1 0 1 0 4.2 0a2.1 2.1 0 1 0-4.2 0Z"/><path d="M12 8v6M12 14l-3 6M12 14l3 6M6 10.5h12"/></svg></div></div>
+        </div>
+        <div class="navnote"><b>Фото нет</b> — пунктирная рамка, тап открывает лист выбора, а внутри стоит <b>метка типа</b>: с весом — гантель, без веса — фигура. Камера была вторым кандидатом и отклонена (§26): она обещает одно действие из двух, которые лист предлагает, и стирает отношение, которое в сборке уже есть — <b>ImageThumb</b> берёт <b>type</b> и рисует его именно тогда, когда фото нет. Обе метки <span class="nu">ново</span> и обе штриховые, 1.7 из <b>.thumb svg</b>: сегодня на их месте <b>FitnessCenter</b> и <b>AccessibilityNew</b> — залитые импорты Material, класс, который эта арка убирала дважды. <b>Третьей метки — для упражнений на время — здесь нет и не будет:</b> время требует миграции схемы за v6, это новая функциональность, а не перерисовка, и готовить под неё место в перечислении типов, в наборе иконок или в рисунке значит принимать решение, которого никто не принимал.</div>
+
+        <div class="section-head"><span class="label">чего в этом разделе нет</span></div>
+        <div class="navnote">Шести пунктов «код разошёлся с рисунком» здесь нет, потому что рисунок на них уже отвечает: верхняя полоса (<b>.topbar</b> — три редактора носят <b>AppTopAppBar</b> ×2 и голый M3 <b>TopAppBar</b> ×1, а экран упражнения ещё и <b>подменяет полосу на середине</b>, когда тот же экран переключается в правку), <b>.addex</b>, <b>.setbar</b>, перетаскивание, и шесть свопов глифов из B33(a) — <b>Close</b> ×4, <b>Add</b> ×1, <b>ArrowBack</b> ×1. Это коммиты, а не решения. Двух дефектов достижимости — <b>nameError</b> и <b>isLoading</b> — тоже нет: первый решён формой 2, второй рисунка не требует вовсе (<b>маршрут не собирается, пока не загрузился</b>), и ни один из двух мокапов не рисует поверхности загрузки.</div>
+    </section>
+
     <!-- NAV -->
     <section class="screen" id="s-nav">
         <div class="topbar"><h1>Нижняя навигация</h1></div>
@@ -615,6 +733,7 @@
     <button data-s="s-empty" onclick="nav(this)">Пустые</button>
     <button data-s="s-list" onclick="nav(this)">Список</button>
     <button data-s="s-nav" onclick="nav(this)">Навбар</button>
+    <button data-s="s-editor" onclick="nav(this)">Редакторы</button>
     <button data-s="s-topbar" onclick="nav(this)">Топбар</button>
     <button data-s="s-arch" onclick="nav(this)">Архивная</button>
     <button data-s="s-band" onclick="nav(this)">Полоса</button>
