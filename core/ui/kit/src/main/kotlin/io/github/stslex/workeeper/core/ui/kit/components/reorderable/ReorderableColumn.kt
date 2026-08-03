@@ -37,6 +37,7 @@ fun Modifier.reorderableColumnItem(
     state: ReorderableColumnState,
     key: Any,
     index: Int,
+    lastIndex: Int,
     tintSelected: Color = AppUi.colors.accentTintedForeground,
     tintUnselected: Color = Color.Transparent,
     verticalPadding: Dp = AppDimension.Space.xs,
@@ -64,16 +65,36 @@ fun Modifier.reorderableColumnItem(
         .background(backgroundColor)
         .padding(vertical = verticalPadding)
         .semantics {
-            customActions = listOf(
-                CustomAccessibilityAction("Move up") {
-                    state.moveUp(index)
-                    true
-                },
-                CustomAccessibilityAction("Move down") {
-                    state.moveDown(index)
-                    true
-                },
-            )
+            // Only the moves that can actually happen are offered. `moveUp` no-ops at 0 and
+            // `moveDown` no-ops at [lastIndex], so registering both unconditionally advertises an
+            // impossible action to a screen reader AND returns `true` for it — the action reports
+            // success having done nothing. The arrow buttons this replaced were disabled at their
+            // boundaries; the replacement has to be at least as honest.
+            //
+            // The two labels are hardcoded English and that is a SEPARATE defect in an app that
+            // ships Russian — reported on #213 rather than absorbed here, because making the
+            // actions conditional does not require touching them.
+            //
+            // [lastIndex] is REQUIRED and must not gain a default: a default is a value every
+            // existing call site would silently keep, which is the bug.
+            customActions = buildList {
+                if (index > 0) {
+                    add(
+                        CustomAccessibilityAction("Move up") {
+                            state.moveUp(index)
+                            true
+                        },
+                    )
+                }
+                if (index < lastIndex) {
+                    add(
+                        CustomAccessibilityAction("Move down") {
+                            state.moveDown(index)
+                            true
+                        },
+                    )
+                }
+            }
         }
 }
 

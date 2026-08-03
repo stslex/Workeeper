@@ -15,6 +15,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -81,7 +82,7 @@ internal fun TrainingEditScreen(
             verticalArrangement = Arrangement.spacedBy(AppDimension.sectionSpacing),
         ) {
             Spacer(Modifier.height(AppDimension.Space.sm))
-            FormSection(label = stringResource(R.string.feature_training_edit_label_name)) {
+            FormSection(label = stringResource(R.string.feature_training_edit_label_name)) { fieldLabel ->
                 val errorText = if (state.nameError) {
                     stringResource(R.string.feature_training_edit_error_name_required)
                 } else {
@@ -91,6 +92,7 @@ internal fun TrainingEditScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("TrainingEditNameField"),
+                    accessibilityLabel = fieldLabel,
                     value = state.name,
                     onValueChange = { consume(Action.Input.OnNameChange(it)) },
                     placeholder = stringResource(R.string.feature_training_edit_label_name),
@@ -105,19 +107,20 @@ internal fun TrainingEditScreen(
                     )
                 }
             }
-            FormSection(label = stringResource(R.string.feature_training_edit_label_description)) {
+            FormSection(label = stringResource(R.string.feature_training_edit_label_description)) { fieldLabel ->
                 // No explicit height — `.tf.multi` is the same box taller and the FIELD owns
                 // that number (§7.2). A call site that sets its own guesses at a value the
                 // drawing already puts at 96.
                 AppTextField(
                     modifier = Modifier.testTag("TrainingEditDescriptionField"),
+                    accessibilityLabel = fieldLabel,
                     value = state.description,
                     onValueChange = { consume(Action.Input.OnDescriptionChange(it)) },
                     placeholder = stringResource(R.string.feature_training_edit_placeholder_description),
                     singleLine = false,
                 )
             }
-            FormSection(label = stringResource(R.string.feature_training_edit_label_tags)) {
+            FormSection(label = stringResource(R.string.feature_training_edit_label_tags)) { fieldLabel ->
                 TagPickerInline(
                     selectedTags = state.tags,
                     availableTags = state.availableTags,
@@ -161,20 +164,29 @@ private fun ExercisesEditSection(
             color = AppUi.colors.textTertiary,
         )
         state.exercises.forEachIndexed { index, exercise ->
-            TrainingExerciseEditRow(
-                item = exercise,
-                onRemove = { consume(Action.Click.OnExerciseRemove(exercise.exerciseUuid)) },
-                onEditPlan = { consume(Action.Click.OnEditPlanClick(exercise.exerciseUuid)) },
-                modifier = Modifier.reorderableColumnItem(
-                    state = reorderState,
-                    key = exercise.exerciseUuid,
-                    index = index,
-                ),
-                dragHandleModifier = Modifier.reorderableColumnDragHandle(
-                    state = reorderState,
-                    key = exercise.exerciseUuid,
-                ),
-            )
+            // KEYED, and the drag does not survive the first swap without it. The handle's
+            // `pointerInput(state, key)` is restarted whenever `key` changes, and in a positional
+            // loop the first reorder puts a different exercise in this slot — which cancels the
+            // long-press coroutine mid-drag, so one press could never cross more than one
+            // neighbour. `key` moves the whole subtree with the item instead. `PastExerciseCard`
+            // does the same thing for the same reason (§26, "Reorder is long-press drag").
+            key(exercise.exerciseUuid) {
+                TrainingExerciseEditRow(
+                    item = exercise,
+                    onRemove = { consume(Action.Click.OnExerciseRemove(exercise.exerciseUuid)) },
+                    onEditPlan = { consume(Action.Click.OnEditPlanClick(exercise.exerciseUuid)) },
+                    modifier = Modifier.reorderableColumnItem(
+                        state = reorderState,
+                        key = exercise.exerciseUuid,
+                        index = index,
+                        lastIndex = state.exercises.lastIndex,
+                    ),
+                    dragHandleModifier = Modifier.reorderableColumnDragHandle(
+                        state = reorderState,
+                        key = exercise.exerciseUuid,
+                    ),
+                )
+            }
         }
         AppDashedAddButton(
             modifier = Modifier.testTag("TrainingEditAddExerciseButton"),
@@ -187,7 +199,7 @@ private fun ExercisesEditSection(
 @Composable
 private fun FormSection(
     label: String,
-    content: @Composable () -> Unit,
+    content: @Composable (fieldLabel: String) -> Unit,
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -195,7 +207,9 @@ private fun FormSection(
     ) {
         // `.flabel` — see the twin in `ExerciseEditScreen`. One implementation, in the kit.
         AppFieldLabel(text = label)
-        content()
+        // Handed down rather than re-resolved at the call site: the drawn label and the one
+        // a screen reader hears must be the same string, and two `stringResource` calls drift.
+        content(label)
     }
 }
 

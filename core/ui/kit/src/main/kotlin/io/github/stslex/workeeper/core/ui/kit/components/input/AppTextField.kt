@@ -28,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.error
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.VisualTransformation
@@ -116,6 +117,7 @@ fun AppTextField(
     enabled: Boolean = true,
     readOnly: Boolean = false,
     isError: Boolean = false,
+    accessibilityLabel: String? = null,
     singleLine: Boolean = true,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     visualTransformation: VisualTransformation = VisualTransformation.None,
@@ -139,7 +141,16 @@ fun AppTextField(
     BasicTextField(
         modifier = modifier
             .fillMaxWidth()
-            .semantics { if (isError) error(errorMessage) },
+            .semantics {
+                if (isError) error(errorMessage)
+                // The drawn `.flabel` is a SIBLING node, so it names the field on screen and not
+                // to a screen reader — with a value present the placeholder is gone too, and the
+                // field announces its text and its role without ever saying which field it is.
+                // `OutlinedTextField(label = …)` made that association itself; a `BasicTextField`
+                // owes it explicitly. Every caller that draws an `AppFieldLabel` passes the same
+                // string here.
+                if (accessibilityLabel != null) contentDescription = accessibilityLabel
+            },
         value = value,
         onValueChange = onValueChange,
         enabled = enabled,

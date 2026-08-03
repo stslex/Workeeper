@@ -108,7 +108,7 @@ internal fun ExerciseEditScreen(
             // NO IMAGE ROW IN THE FORM (§26, "The image moves into the pushed top bar"). The
             // thumb is in the bar above; «Изменить» and «Удалить» are in the viewer the thumb
             // opens, which is where the picture they act on is.
-            FormSection(label = stringResource(R.string.feature_exercise_edit_label_name)) {
+            FormSection(label = stringResource(R.string.feature_exercise_edit_label_name)) { fieldLabel ->
                 val nameErrorText = when {
                     state.nameError -> stringResource(R.string.feature_exercise_edit_error_name_required)
                     state.nameDuplicateError ->
@@ -118,6 +118,7 @@ internal fun ExerciseEditScreen(
                 }
                 AppTextField(
                     modifier = Modifier.testTag("ExerciseEditNameField"),
+                    accessibilityLabel = fieldLabel,
                     value = state.name,
                     onValueChange = { consume(Action.Input.OnNameChange(it)) },
                     placeholder = stringResource(R.string.feature_exercise_edit_label_name),
@@ -132,10 +133,10 @@ internal fun ExerciseEditScreen(
                     )
                 }
             }
-            FormSection(label = stringResource(R.string.feature_exercise_edit_label_type)) {
+            FormSection(label = stringResource(R.string.feature_exercise_edit_label_type)) { fieldLabel ->
                 TypeChipReadOnly(type = state.type)
             }
-            FormSection(label = stringResource(R.string.feature_exercise_edit_label_tags)) {
+            FormSection(label = stringResource(R.string.feature_exercise_edit_label_tags)) { fieldLabel ->
                 TagPickerInline(
                     selectedTags = state.tags,
                     availableTags = state.availableTags,
@@ -146,12 +147,13 @@ internal fun ExerciseEditScreen(
                     onTagCreate = { consume(Action.Click.OnTagCreate(it)) },
                 )
             }
-            FormSection(label = stringResource(R.string.feature_exercise_edit_label_description)) {
+            FormSection(label = stringResource(R.string.feature_exercise_edit_label_description)) { fieldLabel ->
                 // No explicit height — `.tf.multi` is the same box taller and the FIELD owns
                 // that number (§7.2). A call site that sets its own guesses at a value the
                 // drawing already puts at 96.
                 AppTextField(
                     modifier = Modifier.testTag("ExerciseEditDescriptionField"),
+                    accessibilityLabel = fieldLabel,
                     value = state.description,
                     onValueChange = { consume(Action.Input.OnDescriptionChange(it)) },
                     placeholder = stringResource(R.string.feature_exercise_edit_placeholder_description),
@@ -270,7 +272,7 @@ private fun InlineAdhocPlanEditor(
 private fun FormSection(
     label: String,
     modifier: Modifier = Modifier,
-    content: @Composable () -> Unit,
+    content: @Composable (fieldLabel: String) -> Unit,
 ) {
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -280,7 +282,9 @@ private fun FormSection(
         // `labelSmall`/`textTertiary` here, one rung under the drawing and a second description
         // of the same object; `AppFieldLabel` is the one implementation now (§7.2).
         AppFieldLabel(text = label)
-        content()
+        // Handed down rather than re-resolved at the call site: the drawn label and the one
+        // a screen reader hears must be the same string, and two `stringResource` calls drift.
+        content(label)
     }
 }
 

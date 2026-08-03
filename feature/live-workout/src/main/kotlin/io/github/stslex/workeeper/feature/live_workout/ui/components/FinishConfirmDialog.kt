@@ -140,6 +140,9 @@ private fun FinishNameField(
             onValueChange = onNameChange,
             placeholder = placeholder,
             isError = error != null,
+            // Same string the `.flabel` above draws — the drawn label is a sibling node and does
+            // not name the field to a screen reader.
+            accessibilityLabel = label,
             keyboardOptions = KeyboardOptions(
                 imeAction = ImeAction.Done,
             ),

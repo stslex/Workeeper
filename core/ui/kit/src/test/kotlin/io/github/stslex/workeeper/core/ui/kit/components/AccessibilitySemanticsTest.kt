@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.core.ui.kit.components
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.runtime.key
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.SemanticsActions
@@ -13,6 +15,8 @@ import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.v2.runComposeUiTest
 import io.github.stslex.workeeper.core.ui.kit.components.input.AppTextField
+import io.github.stslex.workeeper.core.ui.kit.components.reorderable.rememberReorderableColumnState
+import io.github.stslex.workeeper.core.ui.kit.components.reorderable.reorderableColumnItem
 import io.github.stslex.workeeper.core.ui.kit.components.thumb.AppExerciseThumb
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import org.junit.jupiter.api.Assertions.assertAll
@@ -81,12 +85,35 @@ internal class AccessibilitySemanticsTest {
                         value = "Жим лёжа",
                         onValueChange = {},
                     )
+                    AppTextField(
+                        modifier = Modifier.testTag(FIELD_LABELLED),
+                        value = "Подтягивания",
+                        onValueChange = {},
+                        accessibilityLabel = NAME_LABEL,
+                    )
                     AppExerciseThumb(
                         modifier = Modifier.testTag(THUMB),
                         isWeighted = true,
                         onClick = {},
                         contentDescription = ADD_A_PHOTO,
                     )
+                    // Three rows, so first / middle / last are all present in one frame — the
+                    // boundary claim cannot be made by a single row.
+                    val reorderState = rememberReorderableColumnState { _, _ -> }
+                    ROWS.forEachIndexed { index, tag ->
+                        key(tag) {
+                            Box(
+                                modifier = Modifier
+                                    .testTag(tag)
+                                    .reorderableColumnItem(
+                                        state = reorderState,
+                                        key = tag,
+                                        index = index,
+                                        lastIndex = ROWS.lastIndex,
+                                    ),
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -112,6 +139,16 @@ internal class AccessibilitySemanticsTest {
             // a separately labelled button. Without a click label it is a control a screen-reader
             // user cannot discover, let alone identify — the mark says which TYPE the exercise is,
             // which is not what the tap does.
+            // The drawn `.flabel` is a sibling node, so without this the field announces its
+            // value and role and never says WHICH field it is.
+            {
+                onNodeWithTag(FIELD_LABELLED).assert(
+                    SemanticsMatcher.expectValue(
+                        SemanticsProperties.ContentDescription,
+                        listOf(NAME_LABEL),
+                    ),
+                )
+            },
             {
                 onNodeWithTag(THUMB).assert(
                     SemanticsMatcher("has the click label «$ADD_A_PHOTO»") { node ->
@@ -119,7 +156,24 @@ internal class AccessibilitySemanticsTest {
                     },
                 )
             },
+            // A reorder action that cannot happen must not be offered, and must certainly not
+            // report success. The arrow buttons this replaced were disabled at their boundaries.
+            { onNodeWithTag(ROWS.first()).assert(hasCustomActions(MOVE_DOWN)) },
+            { onNodeWithTag(ROWS.first()).assert(hasNoCustomAction(MOVE_UP)) },
+            { onNodeWithTag(ROWS.last()).assert(hasCustomActions(MOVE_UP)) },
+            { onNodeWithTag(ROWS.last()).assert(hasNoCustomAction(MOVE_DOWN)) },
+            // The middle row keeps both, so the filter is a boundary rule and not a blanket one.
+            { onNodeWithTag(ROWS[1]).assert(hasCustomActions(MOVE_UP)) },
+            { onNodeWithTag(ROWS[1]).assert(hasCustomActions(MOVE_DOWN)) },
         )
+    }
+
+    private fun hasCustomActions(label: String) = SemanticsMatcher("offers «$label»") { node ->
+        node.config.getOrNull(SemanticsActions.CustomActions).orEmpty().any { it.label == label }
+    }
+
+    private fun hasNoCustomAction(label: String) = SemanticsMatcher("does NOT offer «$label»") { node ->
+        node.config.getOrNull(SemanticsActions.CustomActions).orEmpty().none { it.label == label }
     }
 
     private companion object {
@@ -128,5 +182,10 @@ internal class AccessibilitySemanticsTest {
         const val FIELD_CLEAN = "field-clean"
         const val THUMB = "thumb"
         const val ADD_A_PHOTO = "Add a photo"
+        const val FIELD_LABELLED = "field-labelled"
+        const val NAME_LABEL = "Название"
+        const val MOVE_UP = "Move up"
+        const val MOVE_DOWN = "Move down"
+        val ROWS = listOf("row-first", "row-middle", "row-last")
     }
 }
