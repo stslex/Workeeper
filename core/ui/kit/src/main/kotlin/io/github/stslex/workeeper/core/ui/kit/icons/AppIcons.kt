@@ -251,13 +251,12 @@ object AppIcons {
      * The **weighted** exercise type mark — a dumbbell. `pass2d.html` `#s-editor`, form 5, inside
      * `.thumb.none`, at the thumb's own [THUMB_STROKE].
      *
-     * **NEW, and recorded as new** (§26, "The image moves into the pushed top bar"). It replaces
-     * `Icons.Filled.FitnessCenter`, a filled Material import and one of B33(b)'s `×4`; the mark
-     * itself has no earlier referent anywhere in either drawing, which is why the ledger carries it
-     * rather than the extraction alone.
+     * **NEW, and recorded as new** (§26, "The image moves into the pushed top bar") — the mark has
+     * no referent in either drawing, which is why the ledger carries it rather than the extraction.
      *
      * Two collars, two plates, one bar: five subpaths, all strokes, no fill — the same grammar as
-     * every other mark in this file, which is the whole point of not importing the filled one.
+     * every other mark in this file. Do not swap in a filled Material import: B33(b) is open, and
+     * a solid mass is the one thing this box cannot hold.
      */
     val ExerciseWeighted: ImageVector by lazy {
         strokeIcon("ExerciseWeighted", THUMB_STROKE, "M4 9v6M7 7v10M17 7v10M20 9v6M7 12h10")
@@ -267,8 +266,8 @@ object AppIcons {
      * The **weightless** exercise type mark — a standing figure. `pass2d.html` `#s-editor`, form 5,
      * the second `.thumb.none`, at [THUMB_STROKE].
      *
-     * **NEW**, replacing `Icons.Filled.AccessibilityNew` (B33(b)'s `×3`). Head, spine, two legs,
-     * arms — the head is the drawing's `<circle cx="12" cy="5" r="2.1">` rewritten as two arcs,
+     * **NEW**, and a stroke for the reason [ExerciseWeighted] is (B33(b) is open). Head, spine, two
+     * legs, arms — the head is the drawing's `<circle cx="12" cy="5" r="2.1">` rewritten as two arcs,
      * the only change of notation this file allows, and written out rather than generated so it
      * stays diffable against the mockup line.
      */

@@ -27,9 +27,8 @@ import org.junit.jupiter.params.provider.EnumSource
  *    reader would otherwise take on trust from two path strings that both start with `M`;
  *  - **empty is dashed, filled is solid**, which is the only signal distinguishing "tap to choose a
  *    picture" from "tap to look at one";
- *  - both are **strokes**. They replace `Icons.Filled.FitnessCenter` and
- *    `Icons.Filled.AccessibilityNew` (B33(b)'s ×4 and ×3), and a filled glyph re-imported here
- *    would be a solid mass in a box drawn entirely in hairlines.
+ *  - both are **strokes**, and a filled Material glyph imported here would be a solid mass in a
+ *    box drawn entirely in hairlines (B33(b) is open).
  *
  * Recorded on both themes because the dashed outline is `borderDefault`, a different value in each
  * (`#627587` / `#748396`), and because a dashed 1dp stroke at 2.75px/dp is the class the hairline
