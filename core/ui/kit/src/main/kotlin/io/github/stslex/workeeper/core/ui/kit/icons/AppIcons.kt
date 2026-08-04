@@ -27,9 +27,9 @@ import androidx.compose.ui.unit.dp
  */
 object AppIcons {
 
-    /** Top-bar back affordance — session-v3f L190. */
+    /** Top-bar back affordance — session-v3f L190. Mirrors in RTL: "back" is a direction. */
     val ChevronLeft: ImageVector by lazy {
-        strokeIcon("ChevronLeft", TOPBAR_STROKE, "M15 5l-7 7 7 7")
+        strokeIcon("ChevronLeft", TOPBAR_STROKE, "M15 5l-7 7 7 7", autoMirror = true)
     }
 
     /**
@@ -46,9 +46,13 @@ object AppIcons {
         )
     }
 
-    /** Card expand affordance, rotates 90° when the card is active — session-v3f L354. */
+    /**
+     * Card expand affordance, rotates 90° when the card is active — session-v3f L354. Mirrors in
+     * RTL for the same reason [ChevronLeft] does: it is the onward mark on a row, and the tree
+     * already auto-mirrors the Material equivalent it sits beside (`TrainingExerciseRow`).
+     */
     val ChevronRight: ImageVector by lazy {
-        strokeIcon("ChevronRight", CARD_STROKE, "M9 6l6 6-6 6")
+        strokeIcon("ChevronRight", CARD_STROKE, "M9 6l6 6-6 6", autoMirror = true)
     }
 
     /**
@@ -329,16 +333,25 @@ object AppIcons {
     private fun circlePath(cy: String): String =
         "M10.6 ${cy}a1.4 1.4 0 1 0 2.8 0a1.4 1.4 0 1 0-2.8 0Z"
 
+    /**
+     * @param autoMirror flips the glyph under an RTL layout direction. The manifest sets
+     * `android:supportsRtl="true"`, so a fixed path in a *directional* mark points the wrong way
+     * there — set this on any glyph whose meaning is "back", "forward" or "onward", and leave it
+     * off for marks that carry no direction. Media-transport glyphs stay off by convention: a
+     * timeline reads left-to-right in every locale.
+     */
     private fun strokeIcon(
         name: String,
         strokeWidth: Float,
         pathData: String,
+        autoMirror: Boolean = false,
     ): ImageVector = ImageVector.Builder(
         name = name,
         defaultWidth = VIEWPORT.dp,
         defaultHeight = VIEWPORT.dp,
         viewportWidth = VIEWPORT,
         viewportHeight = VIEWPORT,
+        autoMirror = autoMirror,
     ).addPath(
         pathData = addPathNodes(pathData),
         fill = null,

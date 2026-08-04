@@ -68,7 +68,7 @@ internal fun ExerciseEditScreen(
         // is the defect the ruling closes. Same navigation mark in both, too: §26 "The three bar
         // shapes" rules that a pushed screen carries a back arrow, and `#s-ex` / `#s-arch` /
         // `#s-editor` all draw it as `.icon-btn.lead` + `h1.sm` + the record's own name. The
-        // chevron here is one of B33(a)'s four `Icons.Default.Close` sites.
+        // chevron here is a B33(a) `Icons.Default.Close` site.
         //
         // The title falls back to the create/edit string only while the name is blank, which is
         // the create flow before the first keystroke — an unnamed record has no name to show.

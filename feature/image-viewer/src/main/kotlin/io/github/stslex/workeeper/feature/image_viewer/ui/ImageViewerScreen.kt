@@ -50,10 +50,9 @@ internal fun ImageViewerScreen(
                     ) {
                         Icon(
                             modifier = Modifier.size(AppDimension.iconSm),
-                            // B34's fourth production site. Swapped HERE rather than left to
-                            // B33(a)'s PR because this commit puts a kit stroke mark in the
-                            // trailing slot, and a bar carrying one stroke mark beside one filled
-                            // Material import is the mismatch B33 names — visible in one frame.
+                            // A kit stroke mark, not a filled Material import: this bar's
+                            // trailing slot carries one, and a bar mixing the two families is
+                            // visible in a single frame (B33).
                             imageVector = AppIcons.ChevronLeft,
                             contentDescription = stringResource(
                                 R.string.feature_image_viewer_back,

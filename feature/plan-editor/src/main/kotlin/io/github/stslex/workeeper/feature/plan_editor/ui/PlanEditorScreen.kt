@@ -70,8 +70,8 @@ internal fun PlanEditorScreen(
             // colours and its own title rung. It does not collapse on scroll either: nothing in
             // either mockup draws a bar that collapses, and `AppTopBar` is a 56dp row on
             // `surfaceTier0` with no surface of its own to collapse into.
-            // `Icons.AutoMirrored.Filled.ArrowBack` → `AppIcons.ChevronLeft` is B34, which is
-            // one of B33(a)'s eighteen and one of this stage's six.
+            // The back mark is the kit's `AppIcons.ChevronLeft`, not a filled Material import
+            // (B34).
             AppTopBar(
                 title = title,
                 smallTitle = true,

@@ -45,10 +45,7 @@ import kotlinx.collections.immutable.persistentListOf
  * `CustomAccessibilityAction`s `reorderableColumnItem` registers, so the gesture is not the only
  * way in.
  *
- * The handle's glyph is `Icons.Filled.DragHandle`, which is B33(b) and undecided. Deleting the
- * pair and drawing one handle leaves **two** production sites in that family (here and
- * `PastSetEditRow`; the kit's third draw is inside a `@Preview`), which is a smaller population,
- * not a settled one.
+ * The handle's glyph is `Icons.Filled.DragHandle`, which is B33(b) and undecided.
  */
 @Composable
 internal fun TrainingExerciseEditRow(

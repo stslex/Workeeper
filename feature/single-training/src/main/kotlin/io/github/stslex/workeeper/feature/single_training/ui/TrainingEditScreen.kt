@@ -150,8 +150,8 @@ private fun ExercisesEditSection(
         consume(Action.Click.OnExerciseReorder(from = from, to = to))
     }
     Column(verticalArrangement = Arrangement.spacedBy(AppDimension.Space.sm)) {
-        // The count keeps the section label and NO ADD BUTTON SITS BESIDE IT — this is one of
-        // B33(a)'s six `Icons.Default.Add` sites, and the resolution is not a stroke plus: the
+        // The count keeps the section label and NO ADD BUTTON SITS BESIDE IT — this is a
+        // B33(a) `Icons.Default.Add` site, and the resolution is not a stroke plus: the
         // action is `.addex` at the foot of the list, which is drawn and carries the plus inside
         // it (§26, "Sets: add and remove move to the card's foot"; extraction §7.6).
         Text(
