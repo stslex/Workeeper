@@ -17,6 +17,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.tooling.preview.Preview
 import io.github.stslex.workeeper.core.ui.kit.components.border.dashedBorder
 import io.github.stslex.workeeper.core.ui.kit.icons.AppIcons
@@ -64,7 +65,10 @@ fun AppDashedAddButton(
                 color = AppUi.colors.borderDefault,
                 cornerRadius = AppDimension.Radius.medium,
             )
-            .clickable(onClick = onClick),
+            // `Role.Button` is the control type, and a foundation `clickable` supplies none:
+            // without it TalkBack announces the app's only add-exercise affordance as a generic
+            // clickable view. The `AppButton` this replaces carried the role for free.
+            .clickable(role = Role.Button, onClick = onClick),
         horizontalArrangement = Arrangement.spacedBy(
             space = AppDimension.Space.sm,
             alignment = Alignment.CenterHorizontally,

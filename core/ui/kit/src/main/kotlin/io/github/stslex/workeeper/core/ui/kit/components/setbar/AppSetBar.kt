@@ -17,6 +17,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.em
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
@@ -101,7 +102,9 @@ private fun SetBarAction(
     Row(
         modifier = modifier
             .height(AppDimension.heightMd)
-            .clickable(enabled = enabled, onClick = onClick),
+            // Both halves are buttons and a foundation `clickable` says so to nobody. The role
+            // rides on the shared modifier so add and remove cannot drift apart on it.
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {

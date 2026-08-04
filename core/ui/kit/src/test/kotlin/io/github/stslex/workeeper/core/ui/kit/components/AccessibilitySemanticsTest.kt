@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.runtime.key
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
@@ -14,9 +15,11 @@ import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.v2.runComposeUiTest
+import io.github.stslex.workeeper.core.ui.kit.components.button.AppDashedAddButton
 import io.github.stslex.workeeper.core.ui.kit.components.input.AppTextField
 import io.github.stslex.workeeper.core.ui.kit.components.reorderable.rememberReorderableColumnState
 import io.github.stslex.workeeper.core.ui.kit.components.reorderable.reorderableColumnItem
+import io.github.stslex.workeeper.core.ui.kit.components.setbar.AppSetBar
 import io.github.stslex.workeeper.core.ui.kit.components.thumb.AppExerciseThumb
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import org.junit.jupiter.api.Assertions.assertAll
@@ -26,13 +29,13 @@ import org.robolectric.annotation.Config
 import tech.apter.junit.jupiter.robolectric.RobolectricExtension
 
 /**
- * The two accessibility properties this arc's rebuilds could drop without any other instrument
+ * The accessibility properties this arc's rebuilds could drop without any other instrument
  * noticing, asserted where they can be read.
  *
  * **Why here and not in a golden or a handler test.** Both are semantics, not pixels and not state:
  * Paparazzi photographs a frame and never sees them, and a handler test never composes. §27's
  * standing rule is that anything whose evidence needs something other than one static frame owes a
- * direct assertion — this is that assertion for the two of them.
+ * direct assertion — this is that assertion for each of them.
  *
  * ## Why it is a JVM test and not an instrumented one
  *
@@ -54,15 +57,15 @@ import tech.apter.junit.jupiter.robolectric.RobolectricExtension
  * not run and **not reported** — the task goes green having executed zero of it, which is worse
  * than the instrumented suite it replaces, because it looks like a gate.
  *
- * ## ONE `@Test`, ONE composition — do not split this into three
+ * ## ONE `@Test`, ONE composition — do not split this up
  *
  * **A second `runComposeUiTest` in the same Robolectric sandbox never returns.** Measured, not
- * feared: each of these three assertions passes alone in 4–12s, and any two in one class hang
+ * feared: each of these subjects passes alone in 4–12s, and any two in one class hang
  * indefinitely in `RobolectricIdlingStrategy.runUntilIdle` → `Espresso.onIdle()`, reached from
  * `AndroidComposeUiTestEnvironment.runTest` — the environment's own synchronisation, with the
- * previous environment's idling resource still registered. So the three subjects share one
- * composition and one environment, and [assertAll] keeps all three reported rather than stopping at
- * the first. Splitting them back into a `@Test` each does not fail the build, it **hangs** it.
+ * previous environment's idling resource still registered. So every subject shares one composition
+ * and one environment, and [assertAll] keeps them all reported rather than stopping at the first.
+ * Splitting them back into a `@Test` each does not fail the build, it **hangs** it.
  */
 @ExtendWith(RobolectricExtension::class)
 @Config(sdk = [33])
@@ -96,6 +99,17 @@ internal class AccessibilitySemanticsTest {
                         isWeighted = true,
                         onClick = {},
                         contentDescription = ADD_A_PHOTO,
+                    )
+                    AppDashedAddButton(
+                        modifier = Modifier.testTag(DASHED_ADD),
+                        text = ADD_EXERCISE,
+                        onClick = {},
+                    )
+                    AppSetBar(
+                        addLabel = SET_ADD,
+                        removeLabel = SET_REMOVE,
+                        onAdd = {},
+                        onRemove = {},
                     )
                     // Three rows, so first / middle / last are all present in one frame — the
                     // boundary claim cannot be made by a single row.
@@ -165,6 +179,18 @@ internal class AccessibilitySemanticsTest {
             // The middle row keeps both, so the filter is a boundary rule and not a blanket one.
             { onNodeWithTag(ROWS[1]).assert(hasCustomActions(MOVE_UP)) },
             { onNodeWithTag(ROWS[1]).assert(hasCustomActions(MOVE_DOWN)) },
+            // A foundation `clickable` carries an onClick and no control type, so each of these
+            // announces as a generic clickable view rather than a button. All three replaced
+            // Material controls that supplied the role for free, which is why the loss is
+            // invisible in review: the tap still works and the picture is identical.
+            { onNodeWithTag(DASHED_ADD).assert(hasRole(Role.Button)) },
+            { onNodeWithTag(SET_BAR_ADD).assert(hasRole(Role.Button)) },
+            { onNodeWithTag(SET_BAR_REMOVE).assert(hasRole(Role.Button)) },
+            { onNodeWithTag(THUMB).assert(hasRole(Role.Button)) },
+            // The negative control, and it is what makes the four above a gate: a plain reorder
+            // Box is clickable-adjacent and is NOT a button, so a matcher that passed everything
+            // — or a fix that stamped Role.Button onto every clickable in the kit — fails here.
+            { onNodeWithTag(ROWS.first()).assert(hasNoRole(Role.Button)) },
         )
     }
 
@@ -174,6 +200,14 @@ internal class AccessibilitySemanticsTest {
 
     private fun hasNoCustomAction(label: String) = SemanticsMatcher("does NOT offer «$label»") { node ->
         node.config.getOrNull(SemanticsActions.CustomActions).orEmpty().none { it.label == label }
+    }
+
+    private fun hasRole(role: Role) = SemanticsMatcher("is announced as $role") { node ->
+        node.config.getOrNull(SemanticsProperties.Role) == role
+    }
+
+    private fun hasNoRole(role: Role) = SemanticsMatcher("is NOT announced as $role") { node ->
+        node.config.getOrNull(SemanticsProperties.Role) != role
     }
 
     private companion object {
@@ -186,6 +220,14 @@ internal class AccessibilitySemanticsTest {
         const val NAME_LABEL = "Название"
         const val MOVE_UP = "Move up"
         const val MOVE_DOWN = "Move down"
+        const val DASHED_ADD = "dashed-add"
+        const val ADD_EXERCISE = "Добавить упражнение"
+        const val SET_ADD = "+ подход"
+        const val SET_REMOVE = "− подход"
+
+        /** [AppSetBar] tags its own halves, so the test reads them rather than re-tagging. */
+        const val SET_BAR_ADD = "AppSetBarAdd"
+        const val SET_BAR_REMOVE = "AppSetBarRemove"
         val ROWS = listOf("row-first", "row-middle", "row-last")
     }
 }
