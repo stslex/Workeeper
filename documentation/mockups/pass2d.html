@@ -274,10 +274,13 @@
         .selrow{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:9px}
         .selrow .tag{display:flex;align-items:center;gap:7px}
         .selrow .tag svg{width:13px;height:13px;stroke:currentColor;stroke-width:2;fill:none}
-        /* 46px thumb in the pushed bar, beside the title. Costs the form no vertical space and
-           gives the record a face; the type mark it draws when there is no photo is a relationship
-           the build already has (ImageThumb takes `type`), not a new one. */
-        .thumb{width:46px;height:46px;flex:none;border-radius:12px;border:1px solid var(--hair-s);background:var(--field);display:grid;place-items:center;overflow:hidden;cursor:pointer}
+        /* The thumb is a control in the bar, so it takes the bar's control size: 44px, the same
+           box .icon-btn carries. It is not its own number — beside a 17px h1.sm the earlier 46
+           read as oversized, and a bar with two controls at two sizes has no rung at all. Costs
+           the form no vertical space and gives the record a face; the type mark it draws when
+           there is no photo is a relationship the build already has (ImageThumb takes `type`),
+           not a new one. */
+        .thumb{width:44px;height:44px;flex:none;border-radius:12px;border:1px solid var(--hair-s);background:var(--field);display:grid;place-items:center;overflow:hidden;cursor:pointer}
         .thumb svg{width:21px;height:21px;stroke:var(--dim);stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round}
         .thumb.has{background:linear-gradient(135deg,var(--raise),var(--sec))} /* the photo itself; no glyph — a camera inside a thumb that already holds a photo reads as "take another" */
         .thumb.none{border-style:dashed}

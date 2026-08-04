@@ -1666,7 +1666,7 @@ The `(N)` count stays on the section label, where it already is.
 ## 7.7 The pushed bar and `.thumb` — **NEW**
 
 ```css
-.thumb{width:46px;height:46px;flex:none;border-radius:12px;border:1px solid var(--hair-s);
+.thumb{width:44px;height:44px;flex:none;border-radius:12px;border:1px solid var(--hair-s);
        background:var(--field);display:grid;place-items:center;overflow:hidden;cursor:pointer}
 .thumb svg{width:21px;height:21px;stroke:var(--dim);stroke-width:1.7;fill:none;
            stroke-linecap:round;stroke-linejoin:round}
@@ -1674,9 +1674,14 @@ The `(N)` count stays on the section label, where it already is.
 .thumb.none{border-style:dashed}
 ```
 
-46px → **46dp**, kept literal like the other component treatments in this file (it is not on the
-`height*` ladder and rounding it to 48 would collide with `.icon-btn`'s own 48). Radius 12 → **8dp**.
-Border 1px `--hair-s` → **1dp `borderDefault`**, the same reroute §7.2 records.
+44px → **48dp**, the `.icon-btn` rung, by the `44px / 46px / 48px → 48dp` row of §0.5's ladder. **The thumb
+takes the bar's control size rather than one of its own**: it is a control in that bar, beside a
+17px `h1.sm`, and a bar carrying two controls at two sizes has no rung at all. Colliding with
+`.icon-btn`'s 48 is the point, not the objection. Radius 12 → **8dp**. Border 1px `--hair-s` →
+**1dp `borderDefault`**, the same reroute §7.2 records.
+
+The 48dp box is also the minimum interactive target, so the drawn box **is** the touch target and
+nothing has to be added around it.
 
 - **Image present** → the gradient stands in for the photo; **no glyph inside**. Tap opens the
   full-screen viewer, and replace lives there. The form's whole `ImageEditRow` — thumb, «Изменить»,
@@ -1753,7 +1758,7 @@ app's own colour rather than a transparent hole.
 | D10 | Set-type labels | `"W" / "·" / "F" / "D"` **hardcoded English** in `AppSetTypeChip` | localised; Ru `Р / · / О / Д` (§7.5) |
 | D11 | Set-type picker | a `DropdownMenu` anchored to the chip | unchanged — the drawing rules the chip, not the picker. **Reported, not folded in.** Note it is the one modal on these screens that stayed a dropdown: §26's sheet ruling names the six *confirmation and choice* modals, and an anchored menu on a 34dp chip is a different object from a sheet. Whether it should also be a sheet is a decision nobody has taken |
 | D12 | Add exercise | `AppButton.Tertiary` + `Icons.Default.Add` in the section head | `.addex` (§7.6) |
-| D13 | Image | a 72dp thumb + two buttons in a form row | 46dp thumb in the bar; the row is deleted (§7.7) |
+| D13 | Image | a 72dp thumb + two buttons in a form row | 48dp thumb in the bar, on `.icon-btn`'s rung; the row is deleted (§7.7) |
 | D14 | Type marks | `Icons.Filled.FitnessCenter` / `AccessibilityNew` | two new stroke glyphs in `AppIcons` (§7.7) |
 | D15 | Reorder | two identical `DragHandle` arrows | long-press drag (§7.8) |
 | D16 | Loading | written, never read; a false KDoc and an unconditional overwrite | the route does not compose until loaded (§7.9) |

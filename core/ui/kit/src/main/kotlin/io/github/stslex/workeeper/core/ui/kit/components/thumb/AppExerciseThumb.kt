@@ -29,11 +29,11 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 
 /**
- * The v3 `.thumb` — an exercise's picture, 46dp, in the pushed top bar beside the title
+ * The v3 `.thumb` — an exercise's picture, 48dp, in the pushed top bar beside the title
  * (`pass2d.html` `#s-editor` form 5; extraction §7.7). **NEW.**
  *
  * ```css
- * .thumb{width:46px;height:46px;border-radius:12px;border:1px solid var(--hair-s);
+ * .thumb{width:44px;height:44px;border-radius:12px;border:1px solid var(--hair-s);
  *        background:var(--field)}
  * .thumb.has{background:linear-gradient(135deg,var(--raise),var(--sec))}
  * .thumb.none{border-style:dashed}
@@ -53,12 +53,14 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
  * drawn inside the FILLED thumb either: a camera in a box that already holds a photo reads as
  * "take another".
  *
- * Geometry, derived (§0.2): 46px is kept **literal**, like the other component treatments in this
- * file. It is not on the `height*` ladder, and rounding it to 48 would make it exactly
- * `AppIconButton`'s box — two different objects at one size, in the same bar, is worse than a
- * 2dp irregularity. Radius 12 → 8dp (`Radius.small`), the E7 rounding every site makes. Glyph
- * 21 → `iconLg`'s neighbour is 32 and `iconMd` is 24, so the literal is kept for the same reason
- * `AppTopBar`'s own 21dp glyph is.
+ * Geometry, derived (§0.2): the drawn 44px is `.icon-btn`'s own box, and it takes `.icon-btn`'s
+ * rung — **48dp** ([AppDimension.iconXl]), by §0.5's `44 / 46 / 48 → 48dp` row. **The thumb is a
+ * control in the bar, so it takes the bar's control size rather than one of its own**; landing on
+ * `AppIconButton`'s box is the point, not a collision to avoid. That also makes the drawn box the
+ * minimum interactive target, so the gesture sits on it directly and nothing is added around it.
+ * Radius 12 → 8dp (`Radius.small`), the E7 rounding every site makes. Glyph 21 → `iconLg`'s
+ * neighbour is 32 and `iconMd` is 24, so the literal is kept for the same reason `AppTopBar`'s own
+ * 21dp glyph is.
  *
  * The border is `borderDefault`, not `borderSubtle`: dashed or solid, this outline **is** the
  * control — it is the only thing that draws the target at all — so WCAG 1.4.11 applies at 3:1.
@@ -79,67 +81,55 @@ fun AppExerciseThumb(
 ) {
     val shape = RoundedCornerShape(AppDimension.Radius.small)
     val hasImage = content != null
-    // THE GESTURE IS ON THE CONTAINER, NOT ON THE DRAWN BOX. A foundation `clickable` gets none of
-    // `IconButton`'s minimum-touch-target expansion, so putting it on the 46dp box would ship a
-    // 46dp hit area for the only image affordance on the screen — 2dp under the 48dp minimum, and
-    // this is the sole way in now that the form carries no image row. The drawn box stays
-    // [THUMB_SIZE]; only the target grows, to the [AppDimension.iconXl] the kit already gives an
-    // interactive mark.
+    // The drawn box IS the touch target: [AppDimension.iconXl] is both `.icon-btn`'s rung and the
+    // 48dp minimum, so a foundation `clickable` — which gets none of `IconButton`'s target
+    // expansion — needs nothing around it here. Shrink this below the rung and the hit area
+    // shrinks with it, on the only image affordance the screen has.
     Box(
         modifier = modifier
             .size(AppDimension.iconXl)
+            .clip(shape)
+            .let { base ->
+                if (hasImage) {
+                    base
+                        .background(
+                            Brush.linearGradient(
+                                listOf(AppUi.colors.surfaceTier4, AppUi.colors.surfaceTier1),
+                            ),
+                        )
+                        .border(AppDimension.Border.small, AppUi.colors.borderDefault, shape)
+                } else {
+                    base
+                        .background(AppUi.colors.surfaceTier3)
+                        .dashedBorder(
+                            color = AppUi.colors.borderDefault,
+                            cornerRadius = AppDimension.Radius.small,
+                        )
+                }
+            }
             .clickable(onClickLabel = contentDescription, onClick = onClick)
             .semantics { role = Role.Button },
         contentAlignment = Alignment.Center,
     ) {
-        Box(
-            modifier = Modifier
-                .size(THUMB_SIZE)
-                .clip(shape)
-                .let { base ->
-                    if (hasImage) {
-                        base
-                            .background(
-                                Brush.linearGradient(
-                                    listOf(AppUi.colors.surfaceTier4, AppUi.colors.surfaceTier1),
-                                ),
-                            )
-                            .border(AppDimension.Border.small, AppUi.colors.borderDefault, shape)
-                    } else {
-                        base
-                            .background(AppUi.colors.surfaceTier3)
-                            .dashedBorder(
-                                color = AppUi.colors.borderDefault,
-                                cornerRadius = AppDimension.Radius.small,
-                            )
-                    }
+        if (content != null) {
+            content()
+        } else {
+            Icon(
+                modifier = Modifier.size(THUMB_GLYPH),
+                imageVector = if (isWeighted) {
+                    AppIcons.ExerciseWeighted
+                } else {
+                    AppIcons.ExerciseWeightless
                 },
-            contentAlignment = Alignment.Center,
-        ) {
-            if (content != null) {
-                content()
-            } else {
-                Icon(
-                    modifier = Modifier.size(THUMB_GLYPH),
-                    imageVector = if (isWeighted) {
-                        AppIcons.ExerciseWeighted
-                    } else {
-                        AppIcons.ExerciseWeightless
-                    },
-                    // Decorative: the box is the control and it carries [contentDescription] as
-                    // its click label. Describing the mark here too would announce the exercise's
-                    // TYPE where the user needs to hear the ACTION, and one control cannot say
-                    // both.
-                    contentDescription = null,
-                    tint = AppUi.colors.textDim,
-                )
-            }
+                // Decorative: the box is the control and it carries [contentDescription] as its
+                // click label. Describing the mark here too would announce the exercise's TYPE
+                // where the user needs to hear the ACTION, and one control cannot say both.
+                contentDescription = null,
+                tint = AppUi.colors.textDim,
+            )
         }
     }
 }
-
-/** `.thumb{width:46px}` — kept literal; see the KDoc for why it is not rounded onto the ladder. */
-private val THUMB_SIZE: Dp = 46.dp
 
 /** `.thumb svg{width:21px}` — the same literal `AppTopBar`'s own glyph keeps. */
 private val THUMB_GLYPH: Dp = 21.dp
