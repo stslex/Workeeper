@@ -231,7 +231,7 @@ private fun PlanEditorRow(
 /** The row's `.set-i` column — wide enough for a two-digit ordinal plus its full stop. */
 private val ORDINAL_MIN_WIDTH = 22.dp
 
-/** The scrollable host's cap, unchanged: the route embeds the body above its own action bar. */
+/** The scrollable host's cap: the route embeds the body above its own action bar. */
 private val SCROLLABLE_ROWS_MAX_HEIGHT = 360.dp
 
 internal fun Double.formatPlain(): String = if (this % 1.0 == 0.0) {

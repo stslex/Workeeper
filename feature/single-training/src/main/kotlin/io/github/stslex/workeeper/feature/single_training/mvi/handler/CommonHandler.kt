@@ -83,9 +83,8 @@ internal class CommonHandler @Inject constructor(
             // the flag latched would leave the user on a permanently empty frame with no way
             // back into the screen. `launch` defaults `onError` to `{}` (B17, B21), so this arm
             // must be written out — an empty one is the latched flag. A failed RELOAD is not
-            // blanked by this — the
-            // flag is already false by then — and it still surfaces nothing to the user, which
-            // is B17's standing defect and not this stage's to rule.
+            // blanked by this: the flag is already false by then, and the failure surfaces
+            // nothing to the user (B17).
             onError = { updateStateImmediate { it.copy(isLoading = false) } },
         ) {
             val training = interactor.getTraining(uuid)

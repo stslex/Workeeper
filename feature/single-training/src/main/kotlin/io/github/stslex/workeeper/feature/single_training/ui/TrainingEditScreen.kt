@@ -144,8 +144,8 @@ private fun ExercisesEditSection(
     consume: (Action) -> Unit,
 ) {
     // `ReorderableColumnState`, not the lazy variant: this screen is one `verticalScroll`
-    // column, so nesting a lazy scroller would break the layout. Same reasoning past-session
-    // wrote down for the same choice, and the same component.
+    // column, so nesting a lazy scroller would break the layout. past-session makes the same
+    // choice with the same component.
     val reorderState = rememberReorderableColumnState { from, to ->
         consume(Action.Click.OnExerciseReorder(from = from, to = to))
     }

@@ -29,8 +29,8 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
  * ```
  *
  * **The drawing has no dialog primitive at all.** It draws sheets twice (`#sh-del`, `#sh-pick`) and
- * a dialog zero times, so §26 turns every modal on the three editors into one of these — six
- * instances across five components. This is the form all of them take.
+ * a dialog zero times, so §26 turns every modal on the three editors into one of these. This is
+ * the form all of them take.
  *
  * ## Two actions, and the second one is the ruling
  *

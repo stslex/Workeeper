@@ -26,8 +26,8 @@ import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ImageSourceUiMod
  * and why `AppConfirmSheet` is the wrong component for it.
  *
  * **No glyphs and no cancel row.** `PhotoCamera` / `PhotoLibrary` are Material fills the kit does
- * not ship, and drawing them here would settle two of B33(b)'s open glyph questions by writing
- * them; `#sh-pick` draws its items as text and so does this. A cancel row is a button for a
+ * not ship, and drawing them here would settle B33(b)'s open glyph questions by writing them;
+ * `#sh-pick` draws its items as text and so does this. A cancel row is a button for a
  * gesture — the scrim and the drag ARE the dismiss.
  *
  * Content-only, hosted by `AppBottomSheet` at the call site: `ModalBottomSheet` composes into its

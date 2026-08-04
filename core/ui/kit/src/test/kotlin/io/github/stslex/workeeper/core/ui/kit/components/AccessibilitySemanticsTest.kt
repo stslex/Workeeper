@@ -55,7 +55,7 @@ import tech.apter.junit.jupiter.robolectric.RobolectricExtension
  * `useJUnitPlatform()` with `failOnNoDiscoveredTests.set(false)` (`KotlinAndroid.kt`), with no
  * vintage engine in the catalog. A JUnit 4-shaped class in `src/test` is therefore not discovered,
  * not run and **not reported** — the task goes green having executed zero of it, which is worse
- * than the instrumented suite it replaces, because it looks like a gate.
+ * than having no suite at all, because it looks like a gate.
  *
  * ## ONE `@Test`, ONE composition — do not split this up
  *
@@ -149,8 +149,8 @@ internal class AccessibilitySemanticsTest {
                     SemanticsMatcher.keyNotDefined(SemanticsProperties.Error),
                 )
             },
-            // The empty thumb is a 46dp box whose only child is a decorative mark, and it replaced
-            // a separately labelled button. Without a click label it is a control a screen-reader
+            // The empty thumb is a 46dp box whose only child is a decorative mark.
+            // Without a click label it is a control a screen-reader
             // user cannot discover, let alone identify — the mark says which TYPE the exercise is,
             // which is not what the tap does.
             // The drawn `.flabel` is a sibling node, so without this the field announces its
@@ -180,9 +180,8 @@ internal class AccessibilitySemanticsTest {
             { onNodeWithTag(ROWS[1]).assert(hasCustomActions(MOVE_UP)) },
             { onNodeWithTag(ROWS[1]).assert(hasCustomActions(MOVE_DOWN)) },
             // A foundation `clickable` carries an onClick and no control type, so each of these
-            // announces as a generic clickable view rather than a button. All three replaced
-            // Material controls that supplied the role for free, which is why the loss is
-            // invisible in review: the tap still works and the picture is identical.
+            // announces as a generic clickable view rather than a button. The loss is invisible
+            // in review: the tap still works and the picture is identical.
             { onNodeWithTag(DASHED_ADD).assert(hasRole(Role.Button)) },
             { onNodeWithTag(SET_BAR_ADD).assert(hasRole(Role.Button)) },
             { onNodeWithTag(SET_BAR_REMOVE).assert(hasRole(Role.Button)) },

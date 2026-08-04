@@ -15,7 +15,7 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.EnumSource
 
 /**
- * The training editor's frame — this module's first golden, and the editors stage is why.
+ * The training editor's frame — this module's first golden.
  *
  * Three rulings land on one static frame of this screen and have no other instrument
  * between them:
@@ -33,8 +33,8 @@ import org.junit.jupiter.params.provider.EnumSource
  * the state a user starting a training is actually in, and it is the frame that shows Save enabled
  * with a blank name and an empty list at once — both of a save predicate's conjuncts false.
  *
- * Russian, deliberately. Every string this stage moved on this screen — the `.addex` label, the
- * section count, the row's «Изменить план» — is one the shipped app renders in Russian, and the
+ * Russian, deliberately. The strings this screen carries — the `.addex` label, the section
+ * count, the row's «Изменить план» — are ones the shipped app renders in Russian, and the
  * harness's default `en` frame cannot fail on a Russian-only defect. The set-type marks are the
  * standing witness for why that matters (`SetTypeMarkGoldenTest`).
  *

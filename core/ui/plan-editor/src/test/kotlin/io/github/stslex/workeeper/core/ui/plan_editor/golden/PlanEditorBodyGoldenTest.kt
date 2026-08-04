@@ -35,8 +35,8 @@ import org.junit.jupiter.params.provider.EnumSource
  *  - the foot is the drawn **`.setbar`** — two mono uppercase halves split by a hairline — and the
  *    per-row `✕` is **gone**;
  *  - the `.tchip` carries a **letter** for warmup and failure and the dot for work;
- *  - the values are in the **normal colour**. `textPrimary`, not the `textTertiary` this body used
- *    to fall to, which drew a number the user had typed as "not yet entered". That one is a colour
+ *  - the values are in the **normal colour**. `textPrimary`, not `textTertiary`, which draws a
+ *    number the user has typed as "not yet entered". That one is a colour
  *    swap between two roles that are genuinely different values, so a picture can see it — unlike
  *    the `textDim`/`textTertiary` alias §27 records as ungatable by any golden.
  *

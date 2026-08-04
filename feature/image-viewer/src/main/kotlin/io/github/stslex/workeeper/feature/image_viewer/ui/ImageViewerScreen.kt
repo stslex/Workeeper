@@ -64,8 +64,8 @@ internal fun ImageViewerScreen(
                 actions = {
                     // The picture's two verbs live where the picture is (§26, "The image moves
                     // into the pushed top bar"). One `⋮` rather than two marks, because the kit
-                    // ships no camera and no bin and inventing either would settle two of
-                    // B33(b)'s open glyph questions by writing them.
+                    // ships no camera and no bin, and inventing either would settle B33(b)'s
+                    // open glyph questions by writing them.
                     //
                     // Drawn only when the CALLER can honour the request. The exercise detail
                     // screen opens this same route and has no Save and no dirty interception, so
@@ -124,8 +124,8 @@ internal fun ImageViewerScreen(
     // A SHEET, not a dialog — §26 "Every modal on the three editors is a SHEET" rules the editors
     // and this is the surface their image row moved to, so drawing a dialog here would put the
     // one modal in the flow that is not a sheet at the end of it. Text items, no glyphs: the kit
-    // ships no camera and no bin, and inventing either would settle two of B33(b)'s open
-    // questions by writing them.
+    // ships no camera and no bin, and inventing either would settle B33(b)'s open questions
+    // by writing them.
     when (state.sheetState) {
         State.SheetState.Hidden -> Unit
 

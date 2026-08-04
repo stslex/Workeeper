@@ -35,9 +35,8 @@ import org.junit.jupiter.params.provider.EnumSource
  * `failureBackground` panel, the drawn sheet has no panel, and this renders it a tier brighter
  * instead. A frame is the only thing that can show "brighter, not boxed" is what shipped.
  *
- * Russian, because these are the strings the app renders and the discard sheet's four are the
- * ones §26 rewrote — «Продолжить правку» in place of «Отмена» is a decision, and an `en` frame
- * would photograph a translation of it rather than it.
+ * Russian, because these are the strings the app renders and the discard sheet's «Продолжить
+ * правку» is a §26 decision, so an `en` frame would photograph a translation of it rather than it.
  */
 internal class ConfirmSheetGoldenTest {
 

@@ -85,10 +85,10 @@ internal fun TrainingExerciseEditRow(
             )
             // THE GESTURE IS ON THE CONTAINER, NOT ON THE GLYPH. A bare `pointerInput` gets none
             // of `IconButton`'s minimum-touch-target expansion, so an 18dp icon carrying the
-            // detector is an 18dp hit area — and since the arrows went, this is the only pointer
-            // affordance for reordering. `iconXl` is what the kit already gives an interactive
-            // mark: `AppIconButton` puts the drawing's 44px `.icon-btn` at 48dp around a 21dp
-            // glyph. The glyph here stays `iconSm`; only the target grows.
+            // detector is an 18dp hit area — and this is the only pointer affordance for
+            // reordering. `iconXl` is what the kit already gives an interactive mark:
+            // `AppIconButton` puts the drawing's 44px `.icon-btn` at 48dp around a 21dp glyph.
+            // The glyph here stays `iconSm`; only the target grows.
             Box(
                 modifier = dragHandleModifier
                     .size(AppDimension.iconXl)

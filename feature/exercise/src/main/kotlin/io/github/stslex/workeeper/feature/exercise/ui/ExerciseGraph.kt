@@ -299,7 +299,7 @@ fun NavGraphBuilder.exerciseGraph(
 
             // A MENU sheet rather than a confirm one: two choices and no question, which is
             // `#sh-pick`'s shape. The two Material photo glyphs go with the dialog — the kit
-            // ships neither, and inventing them would settle two of B33(b)'s open questions.
+            // ships neither, and inventing them would settle B33(b)'s open questions.
             // The cancel button goes too: a sheet's scrim and drag are its dismiss.
             DialogState.ImageSourcePicker -> AppBottomSheet(
                 onDismiss = { processor.consume(Action.Click.OnImageSourceDialogDismiss) },

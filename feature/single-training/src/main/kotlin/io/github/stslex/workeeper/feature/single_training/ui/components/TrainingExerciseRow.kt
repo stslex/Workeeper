@@ -103,7 +103,7 @@ internal fun TypeIcon(type: ExerciseTypeUiModel) {
         Icon(
             modifier = Modifier.size(AppDimension.iconSm),
             // §26 "The image moves into the pushed top bar" — the same two stroke marks the
-            // thumb and the hero draw. Swapped here too because leaving this one filled would
+            // thumb and the hero draw. A stroke here too: a filled mark would
             // ship the exercise type as two different pictures.
             imageVector = if (isWeighted) AppIcons.ExerciseWeighted else AppIcons.ExerciseWeightless,
             contentDescription = null,

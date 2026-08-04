@@ -203,10 +203,10 @@ internal class ReorderableColumnStateTest {
     }
 
     /**
-     * The accessibility path, which is what carries the deleted up/down arrows' SEMANTICS
-     * (§26, "Reorder is long-press drag"). `reorderableColumnItem` registers both as
-     * `CustomAccessibilityAction`s, so removing the two buttons removed two drawn marks and no
-     * capability — provided these two clamp at the ends, which is the whole of their logic.
+     * The accessibility path, which is what carries reorder's SEMANTICS (§26, "Reorder is
+     * long-press drag"). `reorderableColumnItem` registers up and down as
+     * `CustomAccessibilityAction`s, so the drag gesture is not the only way in — provided these
+     * two clamp at the ends, which is the whole of their logic.
      */
     @Test
     fun `moveUp and moveDown carry the deleted arrows' semantics, and clamp at both ends`() {

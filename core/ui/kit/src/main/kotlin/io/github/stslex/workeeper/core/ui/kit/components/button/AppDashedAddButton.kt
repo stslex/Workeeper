@@ -36,9 +36,9 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
  * .addex svg{width:17px;height:17px;stroke-width:1.9}
  * ```
  *
- * Geometry, derived (§0.2): height 60 → **56dp** ([AppDimension.heightLg]), the third time this
- * arc has put a drawn 60 on that rung (`.topbar`, `.nb`) and the reason to keep doing it — one
- * drawn value should not have three dp answers. Radius 16 → `Radius.medium`, exactly. Label 15px
+ * Geometry, derived (§0.2): height 60 → **56dp** ([AppDimension.heightLg]) — the same rung
+ * `.topbar` and `.nb` put it on, because one drawn value should not have several dp answers.
+ * Radius 16 → `Radius.medium`, exactly. Label 15px
  * → the body rung. Gap 9 → `Space.sm`. Glyph 17 → `iconSm` (18), at [AppIcons.Plus], which already
  * carries this component's own 1.9 stroke — `ADDEX_STROKE` is named after it.
  *
@@ -67,7 +67,6 @@ fun AppDashedAddButton(
             )
             // `Role.Button` is the control type, and a foundation `clickable` supplies none:
             // without it TalkBack announces the app's only add-exercise affordance as a generic
-            // clickable view. The `AppButton` this replaces carried the role for free.
             .clickable(role = Role.Button, onClick = onClick),
         horizontalArrangement = Arrangement.spacedBy(
             space = AppDimension.Space.sm,
