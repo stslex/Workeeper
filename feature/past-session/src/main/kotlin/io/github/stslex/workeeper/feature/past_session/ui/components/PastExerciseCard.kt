@@ -256,6 +256,7 @@ private fun CardBody(
                             state = reorderState,
                             key = set.setUuid,
                             index = index,
+                            lastIndex = exercise.sets.lastIndex,
                         ),
                         // Long-press the trailing drag-handle icon to start a drag.
                         // Skipped exercises stay read-only — handle is rendered for

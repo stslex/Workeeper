@@ -42,8 +42,9 @@ interface ExerciseStore : Store<State, Action, Event> {
         val isLoading: Boolean,
         val canPermanentlyDelete: Boolean,
         val adhocPlan: ImmutableList<PlanSetUiModel>?,
-        val originalAdhocPlan: ImmutableList<PlanSetUiModel>?,
         val adhocPlanSummaryLabel: String,
+        /** Target of an in-flight WEIGHTED -> WEIGHTLESS switch awaiting its confirm. */
+        val pendingTypeChange: ExerciseTypeUiModel?,
         val imagePath: String?,
         val imageLastModified: Long,
         val pendingImage: PendingImage,
@@ -52,8 +53,9 @@ interface ExerciseStore : Store<State, Action, Event> {
         val personalRecord: PersonalRecordUiModel?,
     ) : Store.State {
 
-        val isSaveEnabled: Boolean
-            get() = name.isNotBlank()
+        // NO SAVE-ENABLED PREDICATE HERE, and none may be added: gating Save on `name` is
+        // gating it on the exact condition that produces `nameError`, which makes that error
+        // unreachable (§26, "Save is never disabled").
 
         /**
          * Read-mode default plan surface visibility — drives the small "Default plan" card
@@ -71,14 +73,19 @@ interface ExerciseStore : Store<State, Action, Event> {
             get() = pendingImage != PendingImage.Unchanged
 
         /**
-         * Compares the working ad-hoc plan against the snapshot taken at load time
-         * (or against null in create-mode). Surfaces the discard-confirm dialog when the
-         * inline plan editor has unsaved sets — without it, plan edits in create-mode
-         * silently disappear when the user hits Cancel.
+         * Compares the working ad-hoc plan against the baseline. It exists for CREATE mode, where
+         * [originalSnapshot] is null until the first save and the first term of [hasChanges] is
+         * therefore false by construction — without it, a plan built in the create flow would be
+         * silently discarded by Cancel. A null snapshot reads as "no plan yet", which is exactly
+         * the comparison create mode needs.
+         *
+         * **The baseline is [originalSnapshot] and there must not be a second one.** Two baselines
+         * for one value need every writer to keep both in step, and every writer will not: §25
+         * **B39** is what that costs here. Asserted both ways in `ExerciseDirtyStateTest`.
          */
         val isAdhocPlanDirty: Boolean
             get() = (adhocPlan ?: persistentListOf<PlanSetUiModel>()) !=
-                (originalAdhocPlan ?: persistentListOf<PlanSetUiModel>())
+                (originalSnapshot?.adhocPlan ?: persistentListOf<PlanSetUiModel>())
 
         /** What the UI should display right now — pending overrides committed. */
         val effectiveImageDisplay: ImageDisplay
@@ -157,8 +164,8 @@ interface ExerciseStore : Store<State, Action, Event> {
                 isLoading = uuid != null,
                 canPermanentlyDelete = false,
                 adhocPlan = null,
-                originalAdhocPlan = null,
                 adhocPlanSummaryLabel = "",
+                pendingTypeChange = null,
                 imagePath = null,
                 imageLastModified = 0L,
                 pendingImage = PendingImage.Unchanged,
@@ -187,15 +194,6 @@ interface ExerciseStore : Store<State, Action, Event> {
              * unsaved name/description/tag/image edit on the parent form is preserved.
              */
             data object PlanEditorExistingReturned : Common
-
-            /**
-             * Dispatched after returning from a `Screen.PlanEditor.Draft` Done. The
-             * handler decodes the [io.github.stslex.workeeper.core.ui.plan_editor.model.PlanDraftResult]
-             * JSON payload and merges `(type, adhocPlan)` into State without touching
-             * `originalSnapshot` — the draft is treated as an unsaved edit until the
-             * parent form's own Save fires.
-             */
-            data class PlanEditorDraftReturned(val resultJson: String) : Common
         }
 
         sealed interface Click : Action {
@@ -260,6 +258,18 @@ interface ExerciseStore : Store<State, Action, Event> {
                 val action: PlanEditorBodyAction,
             ) : Click
 
+            /**
+             * The inline plan editor's WEIGHTED / WEIGHTLESS toggle. Creation owns the type on
+             * this form because the rows whose shape it decides are drawn on this form.
+             */
+            data class OnTypeToggle(val value: ExerciseTypeUiModel) : Click
+
+            /** Commit a switch that the weight-wipe confirm asked about. */
+            data object OnTypeChangeConfirm : Click
+
+            /** Dismiss the weight-wipe confirm, leaving the type as it was. */
+            data object OnTypeChangeDismiss : Click
+
             data class OnTagToggle(val tagUuid: String) : Click
 
             data class OnTagRemove(val tagUuid: String) : Click
@@ -306,7 +316,12 @@ interface ExerciseStore : Store<State, Action, Event> {
 
             data class OpenLiveWorkout(val sessionUuid: String) : Navigation
 
-            data class OpenImageViewer(val model: String) : Navigation
+            /**
+             * [editable] states whether THIS caller can honour a replace/remove request coming
+             * back from the viewer. Read mode cannot — no Save, no dirty interception — so the
+             * viewer draws no verbs for it.
+             */
+            data class OpenImageViewer(val model: String, val editable: Boolean) : Navigation
 
             data class OpenChart(val exerciseUuid: String) : Navigation
 
@@ -318,19 +333,6 @@ interface ExerciseStore : Store<State, Action, Event> {
              * `(type, adhocPlan)`.
              */
             data class OpenPlanEditorExisting(val exerciseUuid: String) : Navigation
-
-            /**
-             * Open `Screen.PlanEditor.Draft` for an in-flight exercise that has not been
-             * persisted yet (creation flow). Returns to ExerciseEditScreen with a
-             * [io.github.stslex.workeeper.core.ui.plan_editor.model.PlanDraftResult] JSON
-             * payload via `planEditorDraftResultAttr`; the graph dispatches
-             * [Action.Common.PlanEditorDraftReturned] to merge `(type, adhocPlan)` into
-             * local state.
-             */
-            data class OpenPlanEditorDraft(
-                val initialType: ExerciseTypeUiModel,
-                val initialPlanJson: String?,
-            ) : Navigation
         }
     }
 

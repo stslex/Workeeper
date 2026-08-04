@@ -18,24 +18,16 @@ import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorSto
 import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorStore.Event
 
 /**
- * Registers the two plan editor destinations:
+ * Registers the plan editor's one destination, [Screen.PlanEditor.Existing] — DB-backed, persists
+ * `(type, plan)` to disk on Save and signals the caller via `planEditorSavedAttr`.
  *
- *  - [Screen.PlanEditor.Existing] — DB-backed; persists `(type, plan)` to disk on Save
- *    and signals the caller via `planEditorSavedAttr`.
- *  - [Screen.PlanEditor.Draft] — in-memory; pops back with the draft as
- *    `PlanDraftResult` JSON via `planEditorDraftResultAttr` for the caller to merge into
- *    its local state.
- *
- * Two separate `composable<...>` blocks (rather than one with a polymorphic discriminator)
- * keep route resolution simple — typed-nav has known edge cases on sealed parents.
+ * **There is no creation destination.** An exercise with no persisted UUID is built on the exercise
+ * form, which hosts `PlanEditorBody` inline; nothing routes here to make one.
  */
 fun NavGraphBuilder.planEditorGraph(
     modifier: Modifier = Modifier,
 ) {
     navScreen<Screen.PlanEditor.Existing> { screen ->
-        PlanEditorContent(modifier = modifier, screen = screen)
-    }
-    navScreen<Screen.PlanEditor.Draft> { screen ->
         PlanEditorContent(modifier = modifier, screen = screen)
     }
 }
@@ -70,6 +62,26 @@ private fun PlanEditorContent(
     BackHandler(enabled = state.interceptBack) {
         processor.consume(Action.Click.OnBackClick)
     }
+
+    // §26 "A route does not compose until it has loaded". Everything above this line still
+    // runs while the load is in flight — the event Handle, the back interception — and only
+    // the screen waits.
+    //
+    // It matters most on this route. `Screen.PlanEditor.Existing` seeds `type = WEIGHTED`
+    // because the real value is on disk, and `CommonHandler.loadPlan` overwrites
+    // `draft` / `type` / `initialType` / `initialDraft` unconditionally when the read lands.
+    // Both are only safe because the seed is never seen and the window has no user in it: the
+    // gate is what makes the unconditional write correct rather than merely unnoticed.
+    //
+    // Nothing is drawn instead, deliberately: neither mockup draws a loading surface, and
+    // `AppNavigationHost` paints the background under every destination, so an unloaded route
+    // is an empty frame in the app's own colour.
+    //
+    // LOAD-BEARING PRECONDITION: every path that sets `isLoading = true` must clear it on
+    // FAILURE as well as on success. `HandlerStore.launch`/`launchDefault` default `onError`
+    // to `{}` (B17, B21), so a throw that leaves the flag set is a permanently empty screen —
+    // this gate is what gives that failure a cost. `CommonHandler.loadPlan` closes its own.
+    if (state.isLoading) return
 
     PlanEditorScreen(
         modifier = modifier,

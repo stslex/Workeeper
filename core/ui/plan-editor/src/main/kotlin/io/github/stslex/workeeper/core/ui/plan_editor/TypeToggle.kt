@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-package io.github.stslex.workeeper.feature.plan_editor.ui.components
+package io.github.stslex.workeeper.core.ui.plan_editor
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.tooling.preview.Preview
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
@@ -24,6 +25,15 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 
+/**
+ * WEIGHTED / WEIGHTLESS, as one instance beside the rows whose shape it decides.
+ *
+ * **It lives here, with [PlanEditorBody], because the type and the sets are one edit.** The toggle
+ * decides whether a row has a weight column at all, so a host that draws the rows and cannot reach
+ * the toggle has to send the user somewhere else to change what those rows mean — which is the
+ * split this placement closes. [PlanEditorBody] renders it; no host renders it directly, so there
+ * is one instance and not a copy per host.
+ */
 @Composable
 internal fun TypeToggle(
     selected: ExerciseTypeUiModel,
@@ -83,7 +93,9 @@ private fun TypeOption(
                 color = borderColor,
                 shape = AppUi.shapes.medium,
             )
-            .clickable(onClick = onClick)
+            // A foundation `clickable` supplies no control type, so without this each half
+            // announces as a generic clickable view rather than a button.
+            .clickable(role = Role.Button, onClick = onClick)
             .padding(horizontal = AppDimension.Space.md),
         contentAlignment = Alignment.Center,
     ) {

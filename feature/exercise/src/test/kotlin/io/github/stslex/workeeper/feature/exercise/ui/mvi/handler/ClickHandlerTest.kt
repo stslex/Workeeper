@@ -28,6 +28,7 @@ import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertNull
@@ -63,18 +64,123 @@ internal class ClickHandlerTest {
         )
     }
 
+    /**
+     * Creation owns the type on the form now, so these are the assertions that the toggle it
+     * gained actually decides something. Weight-bearing rows make the switch destructive, so it
+     * asks; nothing to lose makes it immediate.
+     */
+    @Test
+    fun `OnTypeToggle to WEIGHTLESS with weighted rows raises the confirm instead of switching`() {
+        val (stateFlow, _, handler) = setup(
+            State.create(uuid = null).copy(
+                type = ExerciseTypeUiModel.WEIGHTED,
+                adhocPlan = persistentListOf(
+                    PlanSetUiModel(weight = 80.0, reps = 8, type = SetTypeUiModel.WORK),
+                ),
+            ),
+        )
+
+        handler.invoke(Action.Click.OnTypeToggle(ExerciseTypeUiModel.WEIGHTLESS))
+
+        // The type has NOT moved yet — the sheet is the opt-in.
+        assertEquals(ExerciseTypeUiModel.WEIGHTED, stateFlow.value.type)
+        assertEquals(ExerciseTypeUiModel.WEIGHTLESS, stateFlow.value.pendingTypeChange)
+        assertTrue(stateFlow.value.dialogState is DialogState.TypeChangeConfirm)
+    }
+
+    @Test
+    fun `OnTypeToggle to WEIGHTLESS with no weights switches immediately and asks nothing`() {
+        val (stateFlow, _, handler) = setup(
+            State.create(uuid = null).copy(
+                type = ExerciseTypeUiModel.WEIGHTED,
+                adhocPlan = persistentListOf(
+                    PlanSetUiModel(weight = null, reps = 8, type = SetTypeUiModel.WORK),
+                ),
+            ),
+        )
+
+        handler.invoke(Action.Click.OnTypeToggle(ExerciseTypeUiModel.WEIGHTLESS))
+
+        assertEquals(ExerciseTypeUiModel.WEIGHTLESS, stateFlow.value.type)
+        assertNull(stateFlow.value.pendingTypeChange)
+        assertEquals(DialogState.Hidden, stateFlow.value.dialogState)
+    }
+
+    @Test
+    fun `OnTypeChangeConfirm commits the switch and clears the weights it warned about`() {
+        val (stateFlow, _, handler) = setup(
+            State.create(uuid = null).copy(
+                type = ExerciseTypeUiModel.WEIGHTED,
+                adhocPlan = persistentListOf(
+                    PlanSetUiModel(weight = 80.0, reps = 8, type = SetTypeUiModel.WORK),
+                    PlanSetUiModel(weight = 90.0, reps = 5, type = SetTypeUiModel.WORK),
+                ),
+            ),
+        )
+        handler.invoke(Action.Click.OnTypeToggle(ExerciseTypeUiModel.WEIGHTLESS))
+
+        handler.invoke(Action.Click.OnTypeChangeConfirm)
+
+        assertEquals(ExerciseTypeUiModel.WEIGHTLESS, stateFlow.value.type)
+        assertNull(stateFlow.value.pendingTypeChange)
+        assertEquals(DialogState.Hidden, stateFlow.value.dialogState)
+        assertTrue(stateFlow.value.adhocPlan?.all { it.weight == null } == true)
+        // The ROWS survive — only their weights go. A switch is not a delete.
+        assertEquals(2, stateFlow.value.adhocPlan?.size)
+    }
+
+    @Test
+    fun `OnTypeChangeDismiss leaves both the type and the weights alone`() {
+        val (stateFlow, _, handler) = setup(
+            State.create(uuid = null).copy(
+                type = ExerciseTypeUiModel.WEIGHTED,
+                adhocPlan = persistentListOf(
+                    PlanSetUiModel(weight = 80.0, reps = 8, type = SetTypeUiModel.WORK),
+                ),
+            ),
+        )
+        handler.invoke(Action.Click.OnTypeToggle(ExerciseTypeUiModel.WEIGHTLESS))
+
+        handler.invoke(Action.Click.OnTypeChangeDismiss)
+
+        assertEquals(ExerciseTypeUiModel.WEIGHTED, stateFlow.value.type)
+        assertNull(stateFlow.value.pendingTypeChange)
+        assertEquals(DialogState.Hidden, stateFlow.value.dialogState)
+        assertEquals(80.0, stateFlow.value.adhocPlan?.first()?.weight)
+    }
+
     private data class TestSetup(
         val stateFlow: MutableStateFlow<State>,
         val store: ExerciseHandlerStore,
         val handler: ClickHandler,
     )
 
+    /**
+     * **This case is only meaningful while Save is never disabled (§26).**
+     *
+     * The blank name is the exact condition that produces `nameError`, so a save predicate of
+     * `name.isNotBlank()` makes the state this asserts unreachable through the button — the test
+     * stays green and stops measuring anything. That is B23's shape: a case whose precondition
+     * production cannot produce reads as coverage on every report, and the discriminator is "ask
+     * what *reaches* the state the test builds".
+     */
     @Test
-    fun `OnSaveClick with blank name sets nameError without saving`() {
+    fun `OnSaveClick with blank name sets nameError without saving — reachable`() {
         val (stateFlow, store, handler) = setup(State.create(uuid = null).copy(name = ""))
         handler.invoke(Action.Click.OnSaveClick)
         assertTrue(stateFlow.value.nameError)
         verify(exactly = 0) { store.sendEvent(any()) }
+    }
+
+    /** The other direction, so the gate is shown to be a gate and not an unconditional flag. */
+    @Test
+    fun `OnSaveClick with a name does not set nameError and proceeds`() {
+        val (stateFlow, store, handler) = setup(
+            State.create(uuid = null).copy(name = "Жим лёжа"),
+        )
+        handler.invoke(Action.Click.OnSaveClick)
+        assertFalse(stateFlow.value.nameError)
+        verify(exactly = 1) { store.sendEvent(Event.Haptic(HapticFeedbackType.ContextClick)) }
     }
 
     @Test
@@ -152,44 +258,6 @@ internal class ClickHandlerTest {
                 Action.Navigation.OpenPlanEditorExisting(exerciseUuid = "uuid-1"),
             )
         }
-    }
-
-    @Test
-    fun `OnEditPlanClick on Draft exercise navigates with empty seed`() {
-        val (_, store, handler) = setup(
-            State.create(uuid = null).copy(type = ExerciseTypeUiModel.WEIGHTLESS),
-        )
-        handler.invoke(Action.Click.OnEditPlanClick)
-        verify(exactly = 1) {
-            store.consume(
-                Action.Navigation.OpenPlanEditorDraft(
-                    initialType = ExerciseTypeUiModel.WEIGHTLESS,
-                    initialPlanJson = null,
-                ),
-            )
-        }
-    }
-
-    @Test
-    fun `OnEditPlanClick on Draft exercise serializes a non-empty plan into the seed`() {
-        val draft = listOf(
-            PlanSetUiModel(weight = 80.0, reps = 8, type = SetTypeUiModel.WORK),
-            PlanSetUiModel(weight = 90.0, reps = 5, type = SetTypeUiModel.WORK),
-        )
-        val (_, store, handler) = setup(
-            State.create(uuid = null).copy(
-                type = ExerciseTypeUiModel.WEIGHTED,
-                adhocPlan = persistentListOf<PlanSetUiModel>().addAll(draft),
-            ),
-        )
-        handler.invoke(Action.Click.OnEditPlanClick)
-        val captured = slot<Action.Navigation.OpenPlanEditorDraft>()
-        verify(exactly = 1) { store.consume(capture(captured)) }
-        assertEquals(ExerciseTypeUiModel.WEIGHTED, captured.captured.initialType)
-        val decoded = kotlinx.serialization.json.Json.decodeFromString<List<PlanSetUiModel>>(
-            captured.captured.initialPlanJson!!,
-        )
-        assertEquals(draft, decoded)
     }
 
     @Test
@@ -444,7 +512,49 @@ internal class ClickHandlerTest {
             ),
         )
         handler.invoke(Action.Click.OnImageThumbnailClick)
-        verify { store.consume(Action.Navigation.OpenImageViewer(path)) }
+        verify { store.consume(Action.Navigation.OpenImageViewer(path, editable = false)) }
+    }
+
+    /**
+     * The viewer carries replace and remove, and only a caller that can honour one may be offered
+     * it. Read mode cannot — no Save, and `interceptBack` is false there — so a replace staged
+     * from the detail hero would look applied and be lost on the way out. The capability is stated
+     * on the route by the caller rather than guessed at by the viewer.
+     */
+    @Test
+    fun `Edit mode opens the viewer as editable`() {
+        val (_, store, handler) = setup(
+            State.create(uuid = "uuid-1").copy(
+                mode = Mode.Edit(isCreate = false),
+                imagePath = "/img/a.png",
+            ),
+        )
+
+        handler.invoke(Action.Click.OnImageThumbnailClick)
+
+        verify(exactly = 1) {
+            store.consume(
+                Action.Navigation.OpenImageViewer(model = "/img/a.png", editable = true),
+            )
+        }
+    }
+
+    @Test
+    fun `Read mode opens the viewer as NOT editable`() {
+        val (_, store, handler) = setup(
+            State.create(uuid = "uuid-1").copy(
+                mode = Mode.Read,
+                imagePath = "/img/a.png",
+            ),
+        )
+
+        handler.invoke(Action.Click.OnImageThumbnailClick)
+
+        verify(exactly = 1) {
+            store.consume(
+                Action.Navigation.OpenImageViewer(model = "/img/a.png", editable = false),
+            )
+        }
     }
 
     @Test
@@ -554,7 +664,6 @@ internal class ClickHandlerTest {
                 adhocPlan = persistentListOf(
                     PlanSetUiModel(weight = 80.0, reps = 8, type = SetTypeUiModel.WORK),
                 ),
-                originalAdhocPlan = null,
             ),
         )
 
@@ -573,7 +682,6 @@ internal class ClickHandlerTest {
                 adhocPlan = persistentListOf(
                     PlanSetUiModel(weight = 80.0, reps = 8, type = SetTypeUiModel.WORK),
                 ),
-                originalAdhocPlan = null,
             ),
         )
 

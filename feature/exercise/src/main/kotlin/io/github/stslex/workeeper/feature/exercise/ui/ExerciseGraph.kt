@@ -24,9 +24,9 @@ import androidx.navigation.NavGraphBuilder
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.ActiveSessionConflictDialog
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppBlockedArchiveDialog
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppConfirmDialog
-import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppDialog
 import io.github.stslex.workeeper.core.ui.kit.components.pr.PrExplainerDialog
 import io.github.stslex.workeeper.core.ui.kit.components.sheet.AppBottomSheet
+import io.github.stslex.workeeper.core.ui.kit.components.sheet.AppConfirmSheet
 import io.github.stslex.workeeper.core.ui.kit.snackbar.AppSnackbarModel
 import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
 import io.github.stslex.workeeper.core.ui.mvi.getStateFlow
@@ -36,8 +36,7 @@ import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.exercise.R
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseFeature
 import io.github.stslex.workeeper.feature.exercise.ui.components.ExerciseDetailMenuSheetContent
-import io.github.stslex.workeeper.feature.exercise.ui.components.ImageSourceDialog
-import io.github.stslex.workeeper.feature.exercise.ui.components.PermissionDeniedDialog
+import io.github.stslex.workeeper.feature.exercise.ui.components.ImageSourceSheetContent
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ImageErrorType
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.BottomSheetState
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.DialogState
@@ -45,6 +44,7 @@ import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Ac
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Event
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State.Mode
 import kotlinx.collections.immutable.persistentListOf
+import io.github.stslex.workeeper.core.ui.kit.R as KitR
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Suppress("LongMethod", "CyclomaticComplexMethod")
@@ -68,19 +68,27 @@ fun NavGraphBuilder.exerciseGraph(
             }
         }
 
-        // Draft-mode return: PlanEditor never touched the DB. The Done click pops back
-        // with the serialized PlanDraftResult JSON in `planEditorDraftResultAttr`. The
-        // CommonHandler decodes the JSON and merges (type, adhocPlan) into State without
-        // updating `originalSnapshot` — the draft is treated as an unsaved edit until the
-        // parent form's own Save fires.
-        val draftAttr by stateHandle
-            .getStateFlow(Screen.PlanEditor.planEditorDraftResultAttr)
+        // Image-viewer return. The viewer carries the picture's two verbs now (§26, "The image
+        // moves into the pushed top bar") and performs neither: it pops with a REQUEST, and the
+        // machinery that can honour it — the source sheet, the camera permission, the temp URI,
+        // the uncommitted `PendingImage` — stays here, where it already was. Same shape as the
+        // plan editor's two returns above, including the reset: an attr left set would re-fire
+        // the request on the next resume.
+        val imageRequestAttr by stateHandle
+            .getStateFlow(Screen.ExerciseImage.exerciseImageRequestAttr)
             .collectAsState()
-        LaunchedEffect(draftAttr) {
-            val payload = draftAttr
-            if (payload != null) {
-                processor.consume(Action.Common.PlanEditorDraftReturned(payload))
-                stateHandle.setAttrDefaultValue(Screen.PlanEditor.planEditorDraftResultAttr)
+        LaunchedEffect(imageRequestAttr) {
+            val request = imageRequestAttr
+                ?.let { name -> Screen.ExerciseImageRequest.entries.firstOrNull { it.name == name } }
+            if (request != null) {
+                when (request) {
+                    Screen.ExerciseImageRequest.REPLACE ->
+                        processor.consume(Action.Click.OnEditImageClick)
+
+                    Screen.ExerciseImageRequest.REMOVE ->
+                        processor.consume(Action.Click.OnRemoveImageClick)
+                }
+                stateHandle.setAttrDefaultValue(Screen.ExerciseImage.exerciseImageRequestAttr)
             }
         }
 
@@ -190,6 +198,26 @@ fun NavGraphBuilder.exerciseGraph(
         }
 
         val state = processor.state.value
+
+        // §26 "A route does not compose until it has loaded". Everything above this line still
+        // runs while the load is in flight — the two `LaunchedEffect`s, the activity-result
+        // launchers, the event `Handle`, the back interception — and only the screen waits.
+        //
+        // Nothing is drawn instead, deliberately: neither mockup draws a loading surface, and
+        // `AppNavigationHost` paints the background under every destination, so an unloaded
+        // route is an empty frame in the app's own colour rather than a hole.
+        //
+        // It gates BOTH modes because they are one route and one store. `isLoading` is
+        // `uuid != null`, so a create flow is never withheld — there is nothing to load — and
+        // an existing exercise never draws a shell with a blank name and an empty history
+        // while the read is in flight.
+        //
+        // LOAD-BEARING PRECONDITION: `loadExercise` must clear `isLoading` on FAILURE as well
+        // as on success, because `HandlerStore.launch` defaults `onError` to `{}` (B17, B21).
+        // A throw that leaves the flag set is a permanently empty screen — this gate is what
+        // gives that failure a cost. `CommonHandler.loadExercise` closes its own.
+        if (state.isLoading) return@navComponentScreenWithState
+
         when (state.mode) {
             Mode.Read -> ExerciseDetailScreen(
                 modifier = modifier,
@@ -220,14 +248,29 @@ fun NavGraphBuilder.exerciseGraph(
         when (val dialog = state.dialogState) {
             DialogState.Hidden -> Unit
 
-            is DialogState.DiscardConfirm -> AppDialog(
-                title = stringResource(R.string.feature_exercise_edit_discard_title),
-                body = stringResource(R.string.feature_exercise_edit_discard_body),
-                confirmLabel = stringResource(R.string.feature_exercise_edit_discard_confirm),
-                dismissLabel = stringResource(R.string.feature_exercise_edit_discard_dismiss),
-                destructive = true,
+            // §26 "Every modal on the three editors is a SHEET" — the drawing has no dialog
+            // primitive at all. Strings from the kit: one component, one table, three editors.
+            is DialogState.DiscardConfirm -> AppConfirmSheet(
+                title = stringResource(KitR.string.core_ui_kit_discard_sheet_title),
+                body = stringResource(KitR.string.core_ui_kit_discard_sheet_body),
+                confirmLabel = stringResource(KitR.string.core_ui_kit_discard_sheet_confirm),
+                dismissLabel = stringResource(KitR.string.core_ui_kit_discard_sheet_dismiss),
+                confirmDestructive = true,
                 onConfirm = { processor.consume(Action.Click.OnConfirmDiscard(dialog.target)) },
                 onDismiss = { processor.consume(Action.Click.OnDismissDiscard) },
+            )
+
+            // The inline plan editor's type switch. Same sheet the full-screen route raises, so
+            // the two hosts ask the question the same way.
+            is DialogState.TypeChangeConfirm -> AppConfirmSheet(
+                title = dialog.title,
+                body = dialog.body,
+                emphasis = dialog.impactSummary,
+                confirmLabel = dialog.confirmLabel,
+                dismissLabel = stringResource(KitR.string.core_ui_kit_discard_sheet_dismiss),
+                confirmDestructive = true,
+                onConfirm = { processor.consume(Action.Click.OnTypeChangeConfirm) },
+                onDismiss = { processor.consume(Action.Click.OnTypeChangeDismiss) },
             )
 
             is DialogState.ArchiveBlocked -> AppBlockedArchiveDialog(
@@ -251,15 +294,28 @@ fun NavGraphBuilder.exerciseGraph(
                 onDismiss = { processor.consume(Action.Click.OnPrExplainerDismiss) },
             )
 
-            DialogState.ImageSourcePicker -> ImageSourceDialog(
-                onSourceSelected = { source ->
-                    processor.consume(Action.Click.OnImageSourceSelected(source))
-                },
+            // A MENU sheet rather than a confirm one: two choices and no question, which is
+            // `#sh-pick`'s shape. The two Material photo glyphs go with the dialog — the kit
+            // ships neither, and inventing them would settle B33(b)'s open questions.
+            // The cancel button goes too: a sheet's scrim and drag are its dismiss.
+            DialogState.ImageSourcePicker -> AppBottomSheet(
                 onDismiss = { processor.consume(Action.Click.OnImageSourceDialogDismiss) },
-            )
+            ) {
+                ImageSourceSheetContent(
+                    onSourceSelected = { source ->
+                        processor.consume(Action.Click.OnImageSourceSelected(source))
+                    },
+                )
+            }
 
-            DialogState.PermissionDenied -> PermissionDeniedDialog(
-                onSettingsClick = {
+            DialogState.PermissionDenied -> AppConfirmSheet(
+                title = stringResource(R.string.feature_exercise_image_permission_denied_title),
+                body = stringResource(R.string.feature_exercise_image_permission_denied_body),
+                confirmLabel = stringResource(
+                    R.string.feature_exercise_image_permission_denied_action_settings,
+                ),
+                dismissLabel = stringResource(KitR.string.core_ui_kit_action_cancel),
+                onConfirm = {
                     processor.consume(Action.Click.OnPermissionDeniedSettingsClick)
                 },
                 onDismiss = { processor.consume(Action.Click.OnPermissionDeniedDialogDismiss) },

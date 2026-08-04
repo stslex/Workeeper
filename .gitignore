@@ -9,6 +9,11 @@
 /.idea/assetWizardSettings.xml
 .DS_Store
 /build
+
+# Assemble outputs. `app/<flavour>/release/` is where AGP drops a release APK, its baseline
+# profiles and `output-metadata.json` — ~10 MB that a `git add -A` after `assembleRelease` would
+# otherwise commit, and a blob a merge commit keeps forever.
+/app/*/release/
 /captures
 .externalNativeBuild
 .cxx

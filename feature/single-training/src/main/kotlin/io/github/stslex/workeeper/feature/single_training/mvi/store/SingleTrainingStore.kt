@@ -40,7 +40,11 @@ interface SingleTrainingStore : Store<State, Action, Event> {
 
         val isCreate: Boolean get() = (mode as? Mode.Edit)?.isCreate == true
 
-        val canSave: Boolean get() = name.isNotBlank() && exercises.isNotEmpty()
+        // NO SAVE-ENABLED PREDICATE HERE, and none may be added. On this screen it would hide
+        // TWO error branches, not one: `name.isNotBlank()` is the condition that produces
+        // `nameError`, and `exercises.isNotEmpty()` is the one that emits `Event.ShowSaveError`
+        // (§26, "Save is never disabled"). The empty list stays a snackbar — there is no field
+        // for it to sit under and the drawing draws no error surface for a section (§7.3).
 
         val hasChanges: Boolean
             get() = originalSnapshot?.matches(this) == false

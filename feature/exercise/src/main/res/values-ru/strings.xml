@@ -39,10 +39,6 @@
     <string name="feature_exercise_edit_tag_limit">Максимум 10 тегов на упражнение</string>
     <string name="feature_exercise_edit_error_name_required">Введите название</string>
     <string name="feature_exercise_edit_error_name_duplicate">Упражнение с таким именем уже есть</string>
-    <string name="feature_exercise_edit_discard_title">Отменить изменения?</string>
-    <string name="feature_exercise_edit_discard_body">Все изменения будут потеряны.</string>
-    <string name="feature_exercise_edit_discard_confirm">Отменить</string>
-    <string name="feature_exercise_edit_discard_dismiss">Продолжить</string>
 
     <!-- Adhoc plan -->
     <string name="feature_exercise_edit_label_default_plan">План по умолчанию (отдельно)</string>
@@ -55,11 +51,9 @@
     <string name="feature_exercise_edit_type_chip_hint">Меняется в редакторе плана</string>
 
     <!-- Edit exercise — image -->
-    <string name="feature_exercise_image_edit_title">Изображение упражнения</string>
-    <string name="feature_exercise_image_action_add">Добавить фото</string>
-    <string name="feature_exercise_image_action_edit">Изменить фото</string>
-    <string name="feature_exercise_image_action_remove">Убрать</string>
     <string name="feature_exercise_image_thumb_description">Прикреплённое фото упражнения</string>
+    <string name="feature_exercise_image_thumb_open_description">Открыть фото на весь экран</string>
+    <string name="feature_exercise_image_thumb_pick_description">Добавить фото</string>
     <string name="feature_exercise_image_placeholder_description">Фото упражнения не прикреплено</string>
 
     <!-- Source dialog -->

@@ -3,7 +3,6 @@ package io.github.stslex.workeeper.feature.plan_editor.mvi.handler
 
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
-import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanDraftResult
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.plan_editor.di.PlanEditorHandlerStore
@@ -12,15 +11,12 @@ import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.handler.ClickHandle
 import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorStore.Action
 import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorStore.State
-import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.slot
 import io.mockk.verify
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
@@ -57,12 +53,6 @@ internal class ClickHandlerTest {
 
     private fun existingExerciseInitial(): State = State.init(
         mode = State.Mode.Exercise(exerciseUuid = "exercise-1"),
-        seedType = ExerciseTypeUiModel.WEIGHTED,
-        seedPlan = persistentListOf(),
-    )
-
-    private fun draftInitial(): State = State.init(
-        mode = State.Mode.Draft,
         seedType = ExerciseTypeUiModel.WEIGHTED,
         seedPlan = persistentListOf(),
     )
@@ -286,32 +276,82 @@ internal class ClickHandlerTest {
 
         handler.invoke(Action.Click.OnBackClick)
 
-        assertTrue(stateFlow.value.confirmDiscardOpen)
+        assertEquals(DialogState.DiscardConfirm, stateFlow.value.dialogState)
         verify(exactly = 0) { store.consume(Action.Navigation.Back) }
     }
 
     @Test
-    fun `OnDismissDiscard closes the dialog without navigating`() {
+    fun `OnDismissDiscard closes the sheet without navigating`() {
         val (stateFlow, store, handler) = setup(
-            existingExerciseInitial().copy(confirmDiscardOpen = true),
+            existingExerciseInitial().copy(dialogState = DialogState.DiscardConfirm),
         )
 
         handler.invoke(Action.Click.OnDismissDiscard)
 
-        assertFalse(stateFlow.value.confirmDiscardOpen)
+        assertEquals(DialogState.Hidden, stateFlow.value.dialogState)
         verify(exactly = 0) { store.consume(Action.Navigation.Back) }
     }
 
     @Test
-    fun `OnConfirmDiscard closes dialog and navigates back without persisting`() {
+    fun `OnConfirmDiscard closes the sheet and navigates back without persisting`() {
         val (stateFlow, store, handler) = setup(
-            existingExerciseInitial().copy(confirmDiscardOpen = true),
+            existingExerciseInitial().copy(dialogState = DialogState.DiscardConfirm),
         )
 
         handler.invoke(Action.Click.OnConfirmDiscard)
 
-        assertFalse(stateFlow.value.confirmDiscardOpen)
+        assertEquals(DialogState.Hidden, stateFlow.value.dialogState)
         verify(exactly = 1) { store.consume(Action.Navigation.Back) }
+    }
+
+    /**
+     * The one-channel invariant, and the one a `Boolean` beside a sealed field cannot state:
+     * **the two modals are mutually exclusive by construction** (§26; `mvi-dialog-state`). With a
+     * second field, "discard open" and "type-change open" is a reachable pair and the screen draws
+     * both.
+     */
+    @Test
+    fun `the discard sheet and the type-change sheet cannot be open at once`() {
+        val (stateFlow, _, handler) = setup(
+            existingExerciseInitial().copy(
+                draft = listOf(PlanSetUiModel(80.0, 8, SetTypeUiModel.WORK)).toImmutableList(),
+                dialogState = DialogState.TypeChangeConfirm(
+                    title = "t",
+                    body = "b",
+                    impactSummary = "i",
+                    confirmLabel = "c",
+                ),
+            ),
+        )
+
+        // Back with a modal already open closes it; it does NOT stack the discard sheet on top.
+        handler.invoke(Action.Click.OnBackClick)
+
+        assertEquals(DialogState.Hidden, stateFlow.value.dialogState)
+    }
+
+    /**
+     * **The discard sheet is not exempt from the one modal rule, and it must never navigate.**
+     *
+     * This arm is a fallback rather than the live path: every modal here is an `AppConfirmSheet`,
+     * which owns back inside its own `ComponentDialog` window and routes it to `onDismissRequest`
+     * before the route's handler sees anything. What the assertion protects is the *shape* of the
+     * fallback — a variant that navigated away instead would turn a stray back press into a silent
+     * discard of the draft.
+     */
+    @Test
+    fun `back with the discard sheet open hides it and never navigates`() {
+        val (stateFlow, store, handler) = setup(
+            existingExerciseInitial().copy(
+                draft = listOf(PlanSetUiModel(80.0, 8, SetTypeUiModel.WORK)).toImmutableList(),
+                dialogState = DialogState.DiscardConfirm,
+            ),
+        )
+
+        handler.invoke(Action.Click.OnBackClick)
+
+        assertEquals(DialogState.Hidden, stateFlow.value.dialogState)
+        verify(exactly = 0) { store.consume(Action.Navigation.Back) }
     }
 
     @Test
@@ -338,20 +378,39 @@ internal class ClickHandlerTest {
         assertTrue(stateFlow.value.isDirty)
     }
 
+    /**
+     * **No variant is exempt from interception**, the discard sheet included. An exception here
+     * would describe a flow that cannot happen: an `AppConfirmSheet` is a `ModalBottomSheet`, it
+     * owns back inside its own `ComponentDialog` window, and the route never sees the press while
+     * one is up — so disabling interception for a variant routes nothing anywhere.
+     */
     @Test
-    fun `interceptBack disabled while discard dialog is shown`() {
+    fun `interceptBack stays armed while the discard sheet is shown`() {
         val (stateFlow, _, _) = setup(
             existingExerciseInitial().copy(
                 draft = listOf(PlanSetUiModel(80.0, 8, SetTypeUiModel.WORK)).toImmutableList(),
-                confirmDiscardOpen = true,
+                dialogState = DialogState.DiscardConfirm,
             ),
         )
 
-        // Dirty + dialog open → interceptBack is false so Dialog's own dismiss handles
-        // the back gesture (predictive-back preview behind the dialog isn't desirable
-        // anyway, but we explicitly de-arm BackHandler so the system gesture is a no-op
-        // beyond closing the dialog).
-        assertFalse(stateFlow.value.interceptBack)
+        assertTrue(stateFlow.value.interceptBack)
+    }
+
+    /** The other half of the same predicate: any OTHER open modal intercepts too. */
+    @Test
+    fun `interceptBack stays armed while the type-change sheet is shown`() {
+        val (stateFlow, _, _) = setup(
+            existingExerciseInitial().copy(
+                dialogState = DialogState.TypeChangeConfirm(
+                    title = "t",
+                    body = "b",
+                    impactSummary = "i",
+                    confirmLabel = "c",
+                ),
+            ),
+        )
+
+        assertTrue(stateFlow.value.interceptBack)
     }
 
     @Test
@@ -366,31 +425,5 @@ internal class ClickHandlerTest {
         // Type-change confirm uses BackHandler interception so the system back gesture
         // routes through `OnBackClick` → dialog dismiss before propagating to a pop.
         assertTrue(stateFlow.value.interceptBack)
-    }
-
-    @Test
-    fun `OnSave in Draft mode encodes plan and pops with BackAfterDraftSave`() {
-        val draft = listOf(
-            PlanSetUiModel(80.0, 8, SetTypeUiModel.WORK),
-            PlanSetUiModel(90.0, 5, SetTypeUiModel.WORK),
-        )
-        val (_, store, handler) = setup(
-            draftInitial().copy(
-                draft = draft.toImmutableList(),
-            ),
-        )
-
-        handler.invoke(Action.Click.OnSave)
-
-        // Mode.Draft never persists to DB — interactor is untouched.
-        coVerify(exactly = 0) {
-            interactor.savePlan(any(), any(), any(), any())
-        }
-
-        val captured = slot<Action.Navigation.BackAfterDraftSave>()
-        verify { store.consume(capture(captured)) }
-        val decoded = Json.decodeFromString<PlanDraftResult>(captured.captured.resultJson)
-        assertEquals(ExerciseTypeUiModel.WEIGHTED, decoded.type)
-        assertEquals(draft, decoded.plan)
     }
 }

@@ -6,13 +6,14 @@
     <string name="core_ui_plan_editor_screen_save">Save</string>
     <string name="core_ui_plan_editor_screen_cancel">Cancel</string>
 
-    <string name="core_ui_plan_editor_discard_title">Discard changes?</string>
-    <string name="core_ui_plan_editor_discard_body">You have unsaved edits. Save them, discard them, or keep editing.</string>
-    <string name="core_ui_plan_editor_discard_discard">Discard</string>
-    <string name="core_ui_plan_editor_discard_continue">Continue editing</string>
 
     <string name="core_ui_plan_editor_set_type_tooltip">Tap to cycle: warmup → work → failure → drop</string>
 
     <string name="core_ui_plan_editor_error_load">Failed to load the plan.</string>
     <string name="core_ui_plan_editor_error_save">Failed to save the plan.</string>
+
+    <string name="core_ui_plan_editor_type_change_weightless_title">Switch to weightless?</string>
+    <string name="core_ui_plan_editor_type_change_weightless_body">Weight values from this exercise’s plans will be cleared. This cannot be undone.</string>
+    <string name="core_ui_plan_editor_type_change_weightless_impact">All plan weights cleared</string>
+    <string name="core_ui_plan_editor_type_change_weightless_confirm">Switch</string>
 </resources>

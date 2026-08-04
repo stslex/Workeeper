@@ -25,6 +25,24 @@ sealed interface DialogState {
     data class DiscardConfirm(val target: ExerciseStore.DiscardTarget) : DialogState
 
     /**
+     * "Switching to weightless will clear the weights you have typed" confirmation, raised by the
+     * inline plan editor's type toggle. The pending target lives in `State.pendingTypeChange` so
+     * the confirm handler knows which value to commit; this variant carries only the pre-resolved
+     * strings (Rule 1 — no `stringResource` inside an `updateState` lambda).
+     *
+     * **The wipe here is local and that is not an oversight.** A record being created has no row
+     * on disk and nothing else references it, so there is no cross-plan cascade to run — the only
+     * weights in existence are the ones in this draft.
+     */
+    @Stable
+    data class TypeChangeConfirm(
+        val title: String,
+        val body: String,
+        val impactSummary: String,
+        val confirmLabel: String,
+    ) : DialogState
+
+    /**
      * Surfaced when archiving an exercise that is still referenced by an active training.
      * Rendered by the shared `AppBlockedArchiveDialog` (same component the all-exercises
      * bulk-archive path uses) so the two surfaces can't drift. [item] carries the exercise

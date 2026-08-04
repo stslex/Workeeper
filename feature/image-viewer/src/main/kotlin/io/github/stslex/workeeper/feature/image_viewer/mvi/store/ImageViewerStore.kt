@@ -4,6 +4,7 @@ package io.github.stslex.workeeper.feature.image_viewer.mvi.store
 import androidx.compose.runtime.Stable
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import io.github.stslex.workeeper.core.ui.mvi.Store
+import io.github.stslex.workeeper.core.ui.navigation.Screen.ExerciseImageRequest
 
 interface ImageViewerStore :
     Store<ImageViewerStore.State, ImageViewerStore.Action, ImageViewerStore.Event> {
@@ -14,7 +15,32 @@ interface ImageViewerStore :
         val scale: Float,
         val offsetX: Float,
         val offsetY: Float,
+        val sheetState: SheetState,
+        /**
+         * Whether the CALLER can honour a replace/remove request. The viewer draws the `⋮` only
+         * when it can: the exercise detail screen opens this same route and has no Save and no
+         * dirty interception, so a request from there would stage an edit that looks applied and
+         * is lost on the way out. Stated by the caller on the route rather than guessed here.
+         */
+        val editable: Boolean,
     ) : Store.State {
+
+        /**
+         * The picture's two verbs, which live here per §26's "The image moves into the pushed
+         * top bar". Sealed and Store-homed rather than a `Boolean` + `remember`, per Rule 4 of
+         * compose-state-discipline: the screen has one modal today and a second one added later
+         * must be unrepresentable alongside it, not merely absent.
+         */
+        @Stable
+        sealed interface SheetState {
+
+            @Stable
+            data object Hidden : SheetState
+
+            /** «Заменить» · «Удалить» — the sheet the trailing `⋮` opens. */
+            @Stable
+            data object Menu : SheetState
+        }
 
         companion object {
 
@@ -22,11 +48,13 @@ interface ImageViewerStore :
             const val MAX_SCALE: Float = 5f
             const val DOUBLE_TAP_TARGET_SCALE: Float = 2.5f
 
-            fun create(model: String): State = State(
+            fun create(model: String, editable: Boolean): State = State(
                 model = model,
+                editable = editable,
                 scale = MIN_SCALE,
                 offsetX = 0f,
                 offsetY = 0f,
+                sheetState = SheetState.Hidden,
             )
         }
     }
@@ -39,6 +67,15 @@ interface ImageViewerStore :
             data object OnBackClick : Click
 
             data object OnDoubleTap : Click
+
+            /** Trailing `⋮` — opens the two-verb sheet. */
+            data object OnMenuClick : Click
+
+            data object OnSheetDismiss : Click
+
+            data object OnReplaceClick : Click
+
+            data object OnRemoveClick : Click
         }
 
         sealed interface Common : Action {
@@ -55,6 +92,13 @@ interface ImageViewerStore :
         sealed interface Navigation : Action {
 
             data object Back : Navigation
+
+            /**
+             * Pop carrying what the user asked for. The viewer performs neither verb — the
+             * editor owns the permission plumbing, the temp-URI dance and the uncommitted
+             * `PendingImage` — so this is a REQUEST and not a result.
+             */
+            data class BackWithRequest(val request: ExerciseImageRequest) : Navigation
         }
     }
 

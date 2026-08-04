@@ -13,10 +13,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -24,20 +20,21 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButton
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButtonSize
+import io.github.stslex.workeeper.core.ui.kit.components.input.AppFieldLabel
 import io.github.stslex.workeeper.core.ui.kit.components.input.AppTextField
-import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopAppBar
+import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppIconButton
+import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopBar
+import io.github.stslex.workeeper.core.ui.kit.icons.AppIcons
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
 import io.github.stslex.workeeper.core.ui.plan_editor.PlanEditorBody
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
-import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanEditorBodyAction
 import io.github.stslex.workeeper.feature.exercise.R
-import io.github.stslex.workeeper.feature.exercise.ui.components.ImageEditRow
+import io.github.stslex.workeeper.feature.exercise.ui.components.ExerciseTopBarThumb
 import io.github.stslex.workeeper.feature.exercise.ui.components.TagPickerInline
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.TagUiModel
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
@@ -46,6 +43,7 @@ import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.St
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 import io.github.stslex.workeeper.core.ui.kit.R as KitR
+import io.github.stslex.workeeper.core.ui.plan_editor.R as CoreEditorR
 
 @Composable
 internal fun ExerciseEditScreen(
@@ -65,21 +63,38 @@ internal fun ExerciseEditScreen(
             .background(AppUi.colors.surfaceTier0)
             .testTag("ExerciseEditScreen"),
     ) {
-        AppTopAppBar(
-            title = stringResource(titleRes),
-            navigationIcon = {
-                IconButton(
+        // §26 "The editors' six code-diverges": `AppTopBar` is the extracted `.topbar`, and it
+        // is the bar in BOTH modes of this screen. Read and Edit must not draw different bar
+        // components — this screen flips modes in place, and a bar that changes under the user
+        // is the defect the ruling closes. Same navigation mark in both, too: §26 "The three bar
+        // shapes" rules that a pushed screen carries a back arrow, and `#s-ex` / `#s-arch` /
+        // `#s-editor` all draw it as `.icon-btn.lead` + `h1.sm` + the record's own name. The
+        // chevron here is a B33(a) `Icons.Default.Close` site.
+        //
+        // The title falls back to the create/edit string only while the name is blank, which is
+        // the create flow before the first keystroke — an unnamed record has no name to show.
+        AppTopBar(
+            title = state.name.ifBlank { stringResource(titleRes) },
+            smallTitle = true,
+            navigation = {
+                AppIconButton(
                     modifier = Modifier.testTag("ExerciseEditCloseButton"),
+                    icon = AppIcons.ChevronLeft,
+                    contentDescription = stringResource(
+                        R.string.feature_exercise_edit_close_description,
+                    ),
                     onClick = { consume(Action.Click.OnCancelClick) },
-                ) {
-                    Icon(
-                        modifier = Modifier.size(AppDimension.iconSm),
-                        imageVector = Icons.Default.Close,
-                        contentDescription = stringResource(
-                            R.string.feature_exercise_edit_close_description,
-                        ),
-                    )
-                }
+                )
+            },
+            actions = {
+                // §26 "The image moves into the pushed top bar" — the whole image affordance, in
+                // the bar, costing the form no vertical space. Do not add an image row below.
+                ExerciseTopBarThumb(
+                    type = state.type,
+                    imageDisplay = state.effectiveImageDisplay,
+                    onOpenImage = { consume(Action.Click.OnImageThumbnailClick) },
+                    onPickImage = { consume(Action.Click.OnEditImageClick) },
+                )
             },
         )
         Column(
@@ -90,16 +105,10 @@ internal fun ExerciseEditScreen(
             verticalArrangement = Arrangement.spacedBy(AppDimension.sectionSpacing),
         ) {
             Spacer(Modifier.height(AppDimension.Space.sm))
-            FormSection(label = stringResource(R.string.feature_exercise_image_edit_title)) {
-                ImageEditRow(
-                    type = state.type,
-                    imageDisplay = state.effectiveImageDisplay,
-                    onEditClick = { consume(Action.Click.OnEditImageClick) },
-                    onRemoveClick = { consume(Action.Click.OnRemoveImageClick) },
-                    onThumbClick = { consume(Action.Click.OnImageThumbnailClick) },
-                )
-            }
-            FormSection(label = stringResource(R.string.feature_exercise_edit_label_name)) {
+            // NO IMAGE ROW IN THE FORM (§26, "The image moves into the pushed top bar"). The
+            // thumb is in the bar above; «Изменить» and «Удалить» are in the viewer the thumb
+            // opens, which is where the picture they act on is.
+            FormSection(label = stringResource(R.string.feature_exercise_edit_label_name)) { fieldLabel ->
                 val nameErrorText = when {
                     state.nameError -> stringResource(R.string.feature_exercise_edit_error_name_required)
                     state.nameDuplicateError ->
@@ -109,6 +118,7 @@ internal fun ExerciseEditScreen(
                 }
                 AppTextField(
                     modifier = Modifier.testTag("ExerciseEditNameField"),
+                    accessibilityLabel = fieldLabel,
                     value = state.name,
                     onValueChange = { consume(Action.Input.OnNameChange(it)) },
                     placeholder = stringResource(R.string.feature_exercise_edit_label_name),
@@ -123,10 +133,15 @@ internal fun ExerciseEditScreen(
                     )
                 }
             }
-            FormSection(label = stringResource(R.string.feature_exercise_edit_label_type)) {
-                TypeChipReadOnly(type = state.type)
+            // The chip is the EDIT-mode reading of the type. In create the toggle is live in the
+            // plan editor below, and a read-only restatement of a value the user can change two
+            // rows down is a second description of one object.
+            if (!isCreate) {
+                FormSection(label = stringResource(R.string.feature_exercise_edit_label_type)) { fieldLabel ->
+                    TypeChipReadOnly(type = state.type)
+                }
             }
-            FormSection(label = stringResource(R.string.feature_exercise_edit_label_tags)) {
+            FormSection(label = stringResource(R.string.feature_exercise_edit_label_tags)) { fieldLabel ->
                 TagPickerInline(
                     selectedTags = state.tags,
                     availableTags = state.availableTags,
@@ -137,11 +152,13 @@ internal fun ExerciseEditScreen(
                     onTagCreate = { consume(Action.Click.OnTagCreate(it)) },
                 )
             }
-            FormSection(label = stringResource(R.string.feature_exercise_edit_label_description)) {
+            FormSection(label = stringResource(R.string.feature_exercise_edit_label_description)) { fieldLabel ->
+                // No explicit height — `.tf.multi` is the same box taller and the FIELD owns
+                // that number (§7.2). A call site that sets its own guesses at a value the
+                // drawing already puts at 96.
                 AppTextField(
-                    modifier = Modifier
-                        .testTag("ExerciseEditDescriptionField")
-                        .height(120.dp),
+                    modifier = Modifier.testTag("ExerciseEditDescriptionField"),
+                    accessibilityLabel = fieldLabel,
                     value = state.description,
                     onValueChange = { consume(Action.Input.OnDescriptionChange(it)) },
                     placeholder = stringResource(R.string.feature_exercise_edit_placeholder_description),
@@ -151,7 +168,7 @@ internal fun ExerciseEditScreen(
             DefaultPlanSection(state = state, consume = consume)
             Spacer(Modifier.height(AppDimension.Space.md))
         }
-        EditActionBar(state = state, consume = consume)
+        EditActionBar(consume = consume)
     }
 }
 
@@ -243,23 +260,22 @@ private fun InlineAdhocPlanEditor(
     consume: (Action) -> Unit,
 ) {
     val draft = state.adhocPlan ?: persistentListOf()
+    // NO ADD BUTTON AFTER THIS CALL: add and remove live in the card's foot (§26, "Sets: add
+    // and remove move to the card's foot"), which `PlanEditorBody` owns, so this host and the
+    // full-screen route cannot drift on where a set comes from.
     PlanEditorBody(
         draft = draft,
         isWeighted = state.type == ExerciseTypeUiModel.WEIGHTED,
         onAction = { bodyAction ->
             consume(Action.Click.OnAdhocPlanEditorAction(bodyAction))
         },
+        setTypeTooltipText = stringResource(
+            CoreEditorR.string.core_ui_plan_editor_set_type_tooltip,
+        ),
         scrollable = false,
-    )
-    AppButton.Tertiary(
-        modifier = Modifier
-            .fillMaxWidth()
-            .testTag("ExerciseEditPlanAddSetButton"),
-        text = stringResource(KitR.string.core_ui_kit_plan_editor_add_set),
-        onClick = {
-            consume(Action.Click.OnAdhocPlanEditorAction(PlanEditorBodyAction.OnAddSet))
-        },
-        size = AppButtonSize.SMALL,
+        // Creation owns the type HERE, on the form that draws the rows it reshapes. Supplying
+        // the handler is what makes the toggle appear (see `PlanEditorBody`).
+        onTypeChange = { type -> consume(Action.Click.OnTypeToggle(type)) },
     )
 }
 
@@ -267,24 +283,24 @@ private fun InlineAdhocPlanEditor(
 private fun FormSection(
     label: String,
     modifier: Modifier = Modifier,
-    content: @Composable () -> Unit,
+    content: @Composable (fieldLabel: String) -> Unit,
 ) {
     Column(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(AppDimension.Space.xs),
     ) {
-        Text(
-            text = label,
-            style = AppUi.typography.labelSmall,
-            color = AppUi.colors.textTertiary,
-        )
-        content()
+        // `.flabel` — the drawn label sits above the box at the 12.5 rung in `textDim`.
+        // `AppFieldLabel` is the one implementation (§7.2): do not re-describe the same object
+        // with a local `labelSmall`/`textTertiary` Text, which draws a rung under the drawing.
+        AppFieldLabel(text = label)
+        // Handed down rather than re-resolved at the call site: the drawn label and the one
+        // a screen reader hears must be the same string, and two `stringResource` calls drift.
+        content(label)
     }
 }
 
 @Composable
 private fun EditActionBar(
-    state: State,
     consume: (Action) -> Unit,
 ) {
     Row(
@@ -307,7 +323,8 @@ private fun EditActionBar(
                 .testTag("ExerciseEditSaveButton"),
             text = stringResource(KitR.string.core_ui_kit_action_save),
             onClick = { consume(Action.Click.OnSaveClick) },
-            enabled = state.isSaveEnabled,
+            // No `enabled` — §26 "Save is never disabled". The only condition available here is
+            // the one that produces `nameError`, so gating on it makes that error unreachable.
         )
     }
 }

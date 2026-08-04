@@ -38,10 +38,6 @@
     <string name="feature_exercise_edit_tag_limit">Maximum 10 tags per exercise</string>
     <string name="feature_exercise_edit_error_name_required">Name is required</string>
     <string name="feature_exercise_edit_error_name_duplicate">Exercise with this name already exists</string>
-    <string name="feature_exercise_edit_discard_title">Discard changes?</string>
-    <string name="feature_exercise_edit_discard_body">Your changes will be lost.</string>
-    <string name="feature_exercise_edit_discard_confirm">Discard</string>
-    <string name="feature_exercise_edit_discard_dismiss">Keep editing</string>
 
     <!-- Adhoc plan -->
     <string name="feature_exercise_edit_label_default_plan">Default plan (ad-hoc)</string>
@@ -54,11 +50,10 @@
     <string name="feature_exercise_edit_type_chip_hint">Change in plan editor</string>
 
     <!-- Edit exercise — image -->
-    <string name="feature_exercise_image_edit_title">Exercise image</string>
-    <string name="feature_exercise_image_action_add">Add image</string>
-    <string name="feature_exercise_image_action_edit">Edit image</string>
-    <string name="feature_exercise_image_action_remove">Remove</string>
     <string name="feature_exercise_image_thumb_description">Attached exercise photo</string>
+    <!-- The thumb in the pushed bar is one control with two destinations, so it needs two labels. -->
+    <string name="feature_exercise_image_thumb_open_description">Open photo full screen</string>
+    <string name="feature_exercise_image_thumb_pick_description">Add a photo</string>
     <string name="feature_exercise_image_placeholder_description">No exercise photo attached</string>
 
     <!-- Source dialog -->

@@ -5,7 +5,6 @@ import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
-import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanDraftResult
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseScope
 import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor
@@ -26,7 +25,6 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
-import kotlinx.serialization.json.Json
 import java.io.File
 
 @SingleIn(ExerciseScope::class)
@@ -42,7 +40,6 @@ internal class CommonHandler @Inject constructor(
             is Action.Common.ImagePicked -> processImagePicked(action)
             Action.Common.ImagePickCancelled -> processImagePickCancelled()
             Action.Common.PlanEditorExistingReturned -> processPlanEditorExistingReturned()
-            is Action.Common.PlanEditorDraftReturned -> processPlanEditorDraftReturned(action)
         }
     }
 
@@ -78,6 +75,12 @@ internal class CommonHandler @Inject constructor(
                 updateStateImmediate { current -> current.applyLoaded(result) }
                 if (result.exercise != null) observePersonalRecord(uuid)
             },
+            // Clearing `isLoading` here is load-bearing, not tidiness. The route does not
+            // compose until the load lands (§26; `ExerciseGraph`), so a throw that left the
+            // flag latched would leave the user on a permanently empty frame with no way back
+            // into the screen. `launch` defaults `onError` to `{}` (B17, B21), so this arm must
+            // be written out — an empty one is the latched flag.
+            onError = { updateStateImmediate { it.copy(isLoading = false) } },
         ) {
             val exercise = async { interactor.getExercise(uuid) }
             val labels = async { interactor.getLabels(uuid) }
@@ -136,25 +139,6 @@ internal class CommonHandler @Inject constructor(
     }
 
     /**
-     * Draft-mode return: PlanEditor never persisted anything. Decode the JSON payload and
-     * merge `(type, adhocPlan)` into State. Do NOT update [State.originalSnapshot] —
-     * the draft is treated as an unsaved edit until the parent form's own Save fires.
-     */
-    private fun processPlanEditorDraftReturned(action: Action.Common.PlanEditorDraftReturned) {
-        val result = runCatching {
-            Json.decodeFromString(PlanDraftResult.serializer(), action.resultJson)
-        }.getOrNull() ?: return
-        val plan = result.plan.toImmutableList()
-        updateState { current ->
-            current.copy(
-                type = result.type,
-                adhocPlan = plan,
-                adhocPlanSummaryLabel = plan.toAdhocPlanSummary(resourceWrapper),
-            )
-        }
-    }
-
-    /**
      * The query no longer takes a type — it reads `exercise_table.type` itself — so the
      * subscription cannot go stale on the *query* side. The restart is still needed on the
      * *rendering* side: the PR card formats weight-bearing and rep-only records differently,
@@ -205,7 +189,6 @@ internal class CommonHandler @Inject constructor(
             isLoading = false,
             canPermanentlyDelete = result.canPermanentlyDelete,
             adhocPlan = adhocPlan,
-            originalAdhocPlan = adhocPlan,
             adhocPlanSummaryLabel = adhocPlan.toAdhocPlanSummary(resourceWrapper),
             imagePath = imagePath,
             imageLastModified = imageLastModified,

@@ -150,7 +150,9 @@ extraction that keeps asserting a disproved premise is how the next reader inher
    `.data-s` back to `font-size:32px` at **L221**, exactly at the timer, so the timer is 32px
    in both files and the mockups do not disagree about it. The 26px reading belongs to the
    record-hero value at `pass2d` L274. Those are two rungs — 34 and 26 — and the second is
-   blocker B1. Resolved by naming the first: `AppTypography.timer`.
+   **`v3-redesign-spec.md` §25 B1**, not this document's own §6.2 row (see the numbering note
+   there: `B<n>` is §25's alone, and this document's series is now `E<n>`). Resolved by naming
+   the first: `AppTypography.timer`.
 4. **letter-spacing is declared throughout and absent from `AppTypography`.** `.label` `.14em`,
    `.prtag` `.1em`, `.tempbadge` `.12em`, `.setbar` `.06em`, `.toast button` `.08em`, `.ctitle`
    `-.01em`, `.shead h2` `-.015em`, `.exhead h2` `-.02em`, `.data-hero` `-.02em`, `.topbar h1`
@@ -1385,17 +1387,37 @@ Everything here is **reported, not resolved**. Each is a decision that belongs t
 
 ## 6.2 Blockers — cannot be expressed today
 
-| # | Blocker | Scope |
-|---|---|---|
-| B1 | **Weight 600 is not bundled.** Only 400/500 ship. | `.ctitle`, `.chead .title`, `.sheet h3`, `.topbar h1`, `.shead h2`, `.exhead h2`, `.empty h4`, `.btn`, `.prtag` — **every heading and every primary button on all five screens** |
-| B2 | **Archivo width axis.** Drawn at `wdth` 115 / 116 / 122; the bundled static cut is **125**. | every numeral: `.data-l`, `.data-s`, `.data-hero` |
-| B3 | **Two numeral tiers.** `.data-s` is **32px** in the session mockup and **26px** in pass2d — same class, two sizes, and the spec records neither. | session timer vs exercise-detail record value |
-| B4 | **letter-spacing is absent from `AppTypography`.** Ten declared values, positive on mono labels and negative on headings. | `.label` `.14em`, `.prtag` `.1em`, `.tempbadge` `.12em`, `.setbar` `.06em`, `.toast button` `.08em`, `.ctitle` `-.01em`, `.shead h2` `-.015em`, `.exhead h2` `-.02em`, `.data-hero` `-.02em`, `.topbar h1` `-.015em` |
-| B5 | **No `dim` tier.** The palette has four text tiers; the mockups use five, and `meta`/`dim` appear on the same screen with different jobs. See C1 — and note light `dim` measures 2.47:1, so it cannot ship as drawn either. | `.label`, `.unit`, `.set-i`, `.ord`, `.sub`, `.plan-line`, `.chev`, `.tchip`, `.val .x`, `.scrub`, `.tempbadge`, `.mini` |
-| B6 | **No `--slabtop` equivalent.** An inset 1px top highlight in dark, a two-layer drop shadow in light. `AppElevation.shadow` is `0.dp`. | `.card.active`, `.card.open`, `.tabs .ind`, `.mseg button.on` — the entire "lifted" vocabulary |
-| B7 | **No 12dp radius rung.** `AppDimension.Radius` is 4/8/16/32/64/128; the mockup's most common radius is **12px** (`.field`, `.set`, `.mitem`, `.icon-btn`), with 11px and 13px nearby. | every field, every sheet menu item |
-| B8 | **No `--donefill`, `--flash`, `--grid` tokens.** Three translucent washes with no palette slot. | done field, set flash, chart gridlines |
-| B9 | **Durations outside `--d-*`.** 320ms (tab indicator), 380ms (pstrip), 420ms (rail fill, metric tween), 560ms (pulse), 620ms (flash), 900ms (PR sweep), 1000ms (sweep cleanup), 5000ms (toast). §5 defines three. | motion tokens |
+**RENUMBERED `B*` → `E*`, and the renumbering is the finding.** This table shipped as `B1`–`B9`
+while `v3-redesign-spec.md` §25 — the **live, append-only** blocker registry — shipped its own
+`B1`–`B35`. Two registries, one namespace, and the numbers do not line up: this table's `B1` is
+§25's **B2**, its `B2` is §25's **B3**, its `B3` is §25's **B5**, and only `B4` happens to collide
+on the same subject by coincidence. The collision was not hypothetical — §0.4's own note above
+already reads *"the second is blocker B1"* meaning **§25's** B1 (the 26sp record value) while
+sitting three hundred lines above a table whose `B1` is the font weight. A citation that resolves
+to two different rows depending on which file the reader opens is worse than an uncited claim,
+because it reads as precise.
+
+**The convention, so this cannot recur:** `B<n>` belongs to **§25 of `v3-redesign-spec.md` and
+nowhere else** — it is the one registry that is append-only and therefore the one whose numbers
+must never be reused. Every other document prefixes its own series with a letter of its own:
+`E<n>` here (extraction blockers), `C<n>` for §6.1's spec-vs-mockup conflicts, `G<n>`/`D<n>` in the
+per-screen delta documents. A new series picks an unused letter; it does not pick `B`.
+
+**This table is CLOSED.** It records what the extraction found when it was written, and it is not
+where any of these are tracked now — the third column says where each one went. New blockers are
+filed in §25, not appended here.
+
+| # | Blocker | Scope | Where it lives now |
+|---|---|---|---|
+| E1 | **Weight 600 is not bundled.** Only 400/500 ship. | `.ctitle`, `.chead .title`, `.sheet h3`, `.topbar h1`, `.shead h2`, `.exhead h2`, `.empty h4`, `.btn`, `.prtag` — **every heading and every primary button on all five screens** | §25 **B2** — resolved, fonts PR (premise corrected: headings rendered at 400, not 500) |
+| E2 | **Archivo width axis.** Drawn at `wdth` 115 / 116 / 122; the bundled static cut is **125**. | every numeral: `.data-l`, `.data-s`, `.data-hero` | §25 **B3** — resolved at `wdth 116`; the three-width treatment stays unimplemented and is recorded as the reinstatement path |
+| E3 | **Two numeral tiers.** `.data-s` is **32px** in the session mockup and **26px** in pass2d — same class, two sizes, and the spec records neither. | session timer vs exercise-detail record value | §25 **B5** — resolved by naming (`AppTypography.timer`); the premise was wrong, the timer is 32px in both files |
+| E4 | **letter-spacing is absent from `AppTypography`.** Ten declared values, positive on mono labels and negative on headings. | `.label` `.14em`, `.prtag` `.1em`, `.tempbadge` `.12em`, `.setbar` `.06em`, `.toast button` `.08em`, `.ctitle` `-.01em`, `.shead h2` `-.015em`, `.exhead h2` `-.02em`, `.data-hero` `-.02em`, `.topbar h1` `-.015em` | §25 **B4** — the one number that collides with §25's on the same subject, by coincidence. Resolved: `text.title` only, at −0.39sp |
+| E5 | **No `dim` tier.** The palette has four text tiers; the mockups use five, and `meta`/`dim` appear on the same screen with different jobs. See C1 — and note light `dim` measures 2.47:1, so it cannot ship as drawn either. | `.label`, `.unit`, `.set-i`, `.ord`, `.sub`, `.plan-line`, `.chev`, `.tchip`, `.val .x`, `.scrub`, `.tempbadge`, `.mini` | **No §25 row.** Ruled in §26 ("`dim` fourth step" — merged into `meta`, on perceptual collapse) and re-audited by §25 **B28**, which found the *slot* (`AppColors.textDim`) survives at meta's value |
+| E6 | **No `--slabtop` equivalent.** An inset 1px top highlight in dark, a two-layer drop shadow in light. `AppElevation.shadow` is `0.dp`. | `.card.active`, `.card.open`, `.tabs .ind`, `.mseg button.on` — the entire "lifted" vocabulary | **No §25 row.** Ruled in §26 ("Elevation") and built as `Modifier.liftedSurface`. This is the `B-2025-elevation` §25's own preamble says a rewrite lost once |
+| E7 | **No 12dp radius rung.** `AppDimension.Radius` is 4/8/16/32/64/128; the mockup's most common radius is **12px** (`.field`, `.set`, `.mitem`, `.icon-btn`), with 11px and 13px nearby. | every field, every sheet menu item | **Open, and answered per component rather than by a rung** — each site rounds onto the ladder with its reason stated at the site (`AppIconButton`'s KDoc rounds 12 → `Radius.small` and says why). No rung was added |
+| E8 | **No `--donefill`, `--flash`, `--grid` tokens.** Three translucent washes with no palette slot. | done field, set flash, chart gridlines | **Closed in code, not by a row.** `AppColors.donefill` and `AppColors.grid` both ship, declared in `ContrastContract` (SURFACE and DECORATIVE respectively); the flash wash lives in `SetClosureVisuals`. §25 **B7** is a different question about the same wash — *which element* it paints |
+| E9 | **Durations outside `--d-*`.** 320ms (tab indicator), 380ms (pstrip), 420ms (rail fill, metric tween), 560ms (pulse), 620ms (flash), 900ms (PR sweep), 1000ms (sweep cleanup), 5000ms (toast). §5 defines three. | motion tokens | **Partly closed, and deliberately not by widening the scale.** `AppMotion` still declares three durations; the off-scale values ship as component constants with their reason at the site. The toast's 5000 is ruled in §25 **B25** (branch B, host-owned `TOAST_VISIBLE_MS`) |
 
 ## 6.3 Drawn but out of scope, or in code but not drawn
 
@@ -1447,3 +1469,346 @@ Four defects are not per-screen — they are one mistake repeated:
 
 Any one of these is invisible in a golden — all four produce a stable, self-consistent picture that
 simply is not the design. That is the §10.2 failure mode, and it is why this document exists.
+
+---
+
+# Part 7 — THE EDITORS
+`pass2d.html` §`s-editor` (the five ruled forms) · `session-v3f.html` L137–145 (`.setbar`, `.addex`)
+· code: `feature/exercise/ui/ExerciseEditScreen.kt`,
+`feature/single-training/ui/TrainingEditScreen.kt`,
+`feature/plan-editor/ui/PlanEditorScreen.kt`, `core/ui/plan-editor/PlanEditorBody.kt`
+
+**Why this part is numbered 7 and sits after Part 6.** Parts 0–5 were written in one pass and Part 6
+records what that pass could not resolve; renumbering to insert the editors between them would
+invalidate every `§n.m` citation already in circulation. The number is the cheap thing to give up.
+
+**Three screens, one vocabulary, and the vocabulary is already drawn.** The editors add exactly
+three forms nobody had drawn — the typing field, the thumb in the pushed bar, and the set-type
+letters. Everything else on these screens is a citation: the card is `#s-past`'s, the sheet is
+`#sh-del`'s, the bar is `#s-topbar`'s pushed shape, the card's foot and the add-exercise button are
+`session-v3f`'s. Where this part says "as drawn at X", **X is the normative source and this document
+is not a second copy of it.**
+
+## 7.1 Frames
+
+```
+EXERCISE EDITOR                       TRAINING EDITOR                PLAN EDITOR
+.topbar  ‹  h1.sm name  .thumb        .topbar  ‹  h1.sm name        .topbar  ‹  h1.sm name
+.form                                 .form                          .form
+  .fgrp  Название   .tf                 .fgrp  Название   .tf          (type toggle — plan editor only)
+  .fgrp  Теги       .selrow + .tf       .fgrp  Описание   .tf.multi
+  .fgrp  Описание   .tf.multi           .fgrp  Теги       .selrow + .tf
+  (default-plan summary or the card)  .cards  n × .card.open        .cards  1 × .card.open
+                                      .addex                        (no .addex — one exercise)
+.dock  .btn.ghost Отмена · .btn Сохранить   — all three
+```
+
+The exercise editor's thumb is the **only** trailing element any of the three bars carries. The
+training and plan editors draw the pushed bar's plain shape (`.icon-btn.lead` + `h1.sm`, §`s-topbar`).
+
+## 7.2 `.tf` — the typing field. **NOT `.field`.**
+
+```css
+.tf{width:100%;box-sizing:border-box;display:block;min-height:52px;padding:14px 12px;
+    border:1px solid var(--idle);border-radius:12px;background:none;
+    color:var(--max);font-family:var(--ff-ui);font-size:16px}
+.tf.multi{min-height:96px}
+.tf.ghosty{color:var(--dim)}
+.tf.err{border-color:var(--rust);border-width:1.5px}
+.ferr{font-family:var(--ff-ui);font-size:12.5px;color:var(--rust);margin:6px 0 0 2px}
+.flabel{font-family:var(--ff-ui);font-size:13px;color:var(--dim);margin:0 0 6px 2px}
+```
+
+| Property | Drawn | Ships | Why |
+|---|---|---|---|
+| fill | `background:none` | **transparent** — the page tier shows through | Outlined, not filled. `.field` is the session's tap-to-enter value box: no caret, no label, no error, so it is not the referent for a thing you type into |
+| outline | 1px `--idle` | **1dp `borderDefault`** | See the divergence note below — this is the one place in this part where the code deliberately does not paint the drawn token |
+| radius | 12px | **8dp** (`Radius.small`) | E7's missing rung, rounded down at the site, as `AppIconButton` already does |
+| min-height | 52px | **48dp** (`heightMd`) | `.field` resolves the same 52 the same way |
+| type | 16px `--ff-ui`, `--max` | **body rung**, `textPrimary` | |
+| placeholder | `.tf.ghosty` → `--dim` | `textDim` | |
+| multiline | `min-height:96px` | **the same composable, taller** | One height changes. Not a second component, and not `singleLine=false` on a differently-shaped field |
+| label | **above** the field, `.flabel` 13px `--dim` | the form's own `FormSection` label | The form already puts it there; the M3 floating label is not drawn anywhere and is not used |
+| error outline | `--rust`, **1.5px** | `status.error`, **1.5dp** | The width step is the second half of the signal: the same contour is changing colour, and weight is what makes that legible without adding an element |
+| error reason | `.ferr` under the field | `bodySmall` / `status.error`, `Space.xs` above | |
+
+**THE ONE DELIBERATE TOKEN DIVERGENCE, and it must not be "fixed".** The drawing paints the outline
+`--idle`; the build paints `borderDefault`. `--idle` maps to `AppColors.textDisabled`, which
+`ContrastContract` declares **EXEMPT** — WCAG carves disabled controls out of the non-text
+requirement — so painting an **enabled** field's outline with it is wrong on the semantics and would
+drag every `textDisabled` pair into the gate to make it right. `borderDefault` is
+`*_CONTROL_OUTLINE`, the slot the app created when it made the same move `--hair-s` forced (B19's
+non-mapping). Both clear the 3:1 an enabled outline owes, measured with the gate's own arithmetic:
+
+| Pair | Dark | Light |
+|---|---|---|
+| `--idle` on `--base` | **6.40** | **3.49** |
+| `--idle` on `--field` | 5.64 | 3.15 |
+| `borderDefault` on `--base` (what ships) | **4.09** | **3.60** |
+| `--hair-s` on `--base` — **the rejected candidate** | 1.51 | 1.35 |
+| `--hair-s` on `--field` — the rejected candidate | 1.33 | 1.22 |
+
+## 7.3 The two errors, and why the button stops being disabled
+
+`isSaveEnabled` (exercise) is `name.isNotBlank()`; `canSave` (training) is
+`name.isNotBlank() && exercises.isNotEmpty()`. **The first conjunct is the exact condition that
+produces `nameError`**, so blank-name is unreachable from the UI on both, and two green
+`ClickHandlerTest` cases certify a branch production cannot enter. Save is **enabled always**; both
+name errors become reachable and draw `.tf.err` + `.ferr`.
+
+The training editor's **second** conjunct is a second dead branch and it is a different shape: an
+empty exercise list emits `Event.ShowSaveError` — a **snackbar**, not a field error, because there
+is no field for it. Enabling the button makes that reachable too. **The snackbar stays**: the
+drawing draws no error surface for a section, and inventing one here would be deriving a decision
+from an analogy. Reported, not folded in.
+
+Precedence when both name errors could be set: `nameError` (blank) is checked before the save runs,
+`nameDuplicateError` comes back from the save, so they cannot be true at once by construction — the
+UI's `when` orders blank first anyway.
+
+## 7.4 Modals — six instances, five components, **all sheets**
+
+`pass2d.html` draws **no dialog primitive at all**; it draws sheets twice (`#sh-del`, `#sh-pick`).
+
+| # | Screen | State | Component today | Becomes |
+|---|---|---|---|---|
+| 1 | exercise editor | `DialogState.DiscardConfirm` | `AppDialog` | the discard sheet |
+| 2 | exercise editor | `DialogState.ImageSourcePicker` | `ImageSourceDialog` | `AppBottomSheet` + `AppSheetItem` ×2 |
+| 3 | exercise editor | `DialogState.PermissionDenied` | `PermissionDeniedDialog` | `AppBottomSheet` + `AppSheetLayout` |
+| 4 | training editor | `DialogState.DiscardConfirm` | `AppDialog` | the discard sheet |
+| 5 | plan editor | `confirmDiscardOpen: Boolean` | a bespoke three-action `Dialog` | the discard sheet |
+| 6 | plan editor | `DialogState.TypeChangeConfirm` | `AppConfirmDialog` | `AppBottomSheet` + `AppSheetLayout` |
+
+**The discard sheet, drawn (`#s-editor` form 3):**
+
+```html
+<div class="sheet shx">
+  <div class="grab"></div><h3>Выйти без сохранения?</h3>
+  <div class="desc">Несохранённые правки будут потеряны.</div>
+  <button class="mitem dang">Выйти без сохранения</button>
+  <button class="mitem">Продолжить правку</button>
+</div>
+```
+
+`.shx` is a **position override only** — surface (`--field` → `surfaceTier3`), 26px top radius
+(→ 32dp), padding, `.grab`, `h3` and `.desc` are `.sheet`'s own, so the in-place drawing and the
+real sheet cannot say different things. `.mitem.dang` is `--rust` → `status.error`, measured
+**5.39 dark / 5.04 light** on `--field`, over the 4.5 text owes; the pair already ships
+(`AppSheetItem(destructive = true)` on `AppBottomSheet`'s `surfaceTier3`) and is already declared.
+
+**Two actions, not three.** «Сохранить» is removed: the sheet appears only when there is something
+to lose, and saving already lives on the form. «Отмена» → **«Продолжить правку»** — the old label
+read as dismissing the window rather than as declining to discard. This is also what disposes of
+the plan editor's bespoke dialog and of its stated reason ("`AppConfirmDialog` only renders two").
+
+**Plan editor: two modal channels collapse to one.** `confirmDiscardOpen: Boolean` sits beside
+`dialogState: DialogState`, so both can be open at once — the exact state the `mvi-dialog-state`
+skill exists to make unrepresentable. `DialogState` gains a `DiscardConfirm` variant and the
+Boolean goes, along with `Action.Click.OnConfirmSave` (the third action's only consumer).
+
+## 7.5 The exercise card — `#s-past`'s card, with a foot
+
+Head, body and row are drawn already; **nothing here is a new form.**
+
+```
+.card.open              --slab + --slabtop, radius 18px → 16dp
+  .chead                .ord + .title       — no actions drawn (see below)
+  .cbody > .inner
+    .sets               n × .set
+    .setbar             + подход | − подход
+```
+
+**`.set`** is `#s-past`'s logged row verbatim: `.set-i` ordinal, `.field` weight, `.field` reps,
+`.tchip`. Weight is omitted for a weightless exercise, exactly as `PlanEditorBody` already does.
+
+**Values render in the normal colour.** `PlanEditorBody` passes none of
+`isDone / isRecord / isLogged / isError`, so every authored plan value falls to `textTertiary` and
+**a value the user typed is drawn as "not yet entered"**. It takes the **`isLogged`** treatment —
+`textPrimary` on the plain `surfaceTier3` field — which is `#s-past`'s own inline
+`style="color:var(--max)"` on every ordinary row. `isLogged` is **reused, not duplicated**: a fourth
+boolean resolving to the same colour would be a rename, and a rename is the mutation a gate cannot
+catch (§27, and `textDim`/`textTertiary` is the standing example).
+
+**`.tchip` — 34×32, mono, unchanged geometry, and the letters are NEW.**
+
+| Type | Mark | Ru | En |
+|---|---|---|---|
+| work | `·` as drawn in the session | `·` | `·` |
+| warmup | **first letter** | **Р** | **W** |
+| failure | **first letter** | **О** | **F** |
+| drop | **first letter** | **Д** | **D** |
+
+No mockup draws a mark for the three non-work types, so this is a decision. The chip is **not
+widened** and takes no other treatment — the letter occupies exactly the dot's place. Russian
+«Рабочий» also begins with Р and there is no collision, because the work set is never lettered.
+The build already emits `"W" / "·" / "F" / "D"` as **hardcoded English literals** in
+`AppSetTypeChip`; they become localised resources, which is what stops a Russian build showing `W`
+for разминка.
+
+**`.chead` carries no actions, and that is a statement.** Ordinal and title only — `#s-past`'s first
+card verbatim. No disclosure chevron (in the plan editor there is one exercise and it is always
+open) and no `✕`. **"The per-row `✕` goes" is about the SET row**: its work moves to «− подход».
+Removing an **exercise** from a training is untouched by this stage and stays where the build has
+it; giving it a new home here would be deriving a ruling from an analogy.
+
+**`.setbar` — `session-v3f` L137–141, and this document does not restate its values.** Two mono
+uppercase actions, `flex:1` each, split by a `--hair` rule, `border-top:1px solid var(--hair)`
+above. `pass2d.html` now carries a byte-for-byte copy because it already drew this card minus its
+foot; **changing one changes two.**
+
+## 7.6 `.addex` — `session-v3f` L143–145
+
+Dashed `--hair-s`, 60px tall, `radius:16px`, `--ff-ui` 15px with a leading 17px plus glyph and the
+label «Добавить упражнение», full width minus two gutters. **Drawn already; not redrawn here.** It
+replaces the training editor's `AppButton.Tertiary` + `Icons.Default.Add` in the section header row.
+The `(N)` count stays on the section label, where it already is.
+
+## 7.7 The pushed bar and `.thumb` — **NEW**
+
+```css
+.thumb{width:44px;height:44px;flex:none;border-radius:12px;border:1px solid var(--hair-s);
+       background:var(--field);display:grid;place-items:center;overflow:hidden;cursor:pointer}
+.thumb svg{width:21px;height:21px;stroke:var(--dim);stroke-width:1.7;fill:none;
+           stroke-linecap:round;stroke-linejoin:round}
+.thumb.has{background:linear-gradient(135deg,var(--raise),var(--sec))}
+.thumb.none{border-style:dashed}
+```
+
+44px → **48dp**, the `.icon-btn` rung, by the `44px / 46px / 48px → 48dp` row of §0.5's ladder. **The thumb
+takes the bar's control size rather than one of its own**: it is a control in that bar, beside a
+17px `h1.sm`, and a bar carrying two controls at two sizes has no rung at all. Colliding with
+`.icon-btn`'s 48 is the point, not the objection. Radius 12 → **8dp**. Border 1px `--hair-s` →
+**1dp `borderDefault`**, the same reroute §7.2 records.
+
+The 48dp box is also the minimum interactive target, so the drawn box **is** the touch target and
+nothing has to be added around it.
+
+- **Image present** → the gradient stands in for the photo; **no glyph inside**. Tap opens the
+  full-screen viewer, and replace lives there. The form's whole `ImageEditRow` — thumb, «Изменить»,
+  «Удалить» — is deleted; the row's two buttons move to the viewer.
+- **Image absent** → dashed border, and the thumb draws the **exercise type mark**. Tap opens the
+  picker sheet.
+
+**The type mark is not invented for this.** `ImageThumb` already takes `type` and already draws it
+when there is no photo; the ruling keeps that relationship and moves the container. **Rejected: a
+camera inside the empty thumb** — it promises one of the two actions the sheet offers, and it erases
+the relationship.
+
+**Two new stroke glyphs, and they join `AppIcons`:**
+
+| Mark | Path (24-unit viewBox, stroke 1.7) | Replaces |
+|---|---|---|
+| weighted — a dumbbell | `M4 9v6M7 7v10M17 7v10M20 9v6M7 12h10` | `Icons.Filled.FitnessCenter` (B33(b), ×4) |
+| weightless — a figure | `M9.9 5a2.1 2.1 0 1 0 4.2 0a2.1 2.1 0 1 0-4.2 0Z` + `M12 8v6M12 14l-3 6M12 14l3 6M6 10.5h12` | `Icons.Filled.AccessibilityNew` (B33(b), ×3) |
+
+The circle is rewritten as two arcs, the only change of notation `AppIcons` allows.
+
+**No third mark, and this is a refusal rather than a deferral.** Time-based exercises need a schema
+migration past v6; that is new functionality and this stage is a redesign. Nothing is prepared for
+it — not in the type enum, not in the icon set, not in the drawing. **Preparing a slot is how the
+decision gets taken by whoever fills it.**
+
+## 7.8 Reorder — long-press drag
+
+The kit's `ReorderableColumn` (`reorderableColumnItem` + `reorderableColumnDragHandle`), long-press,
+as past-session already does — a second consumer of a shipped component, not a new mechanic. What
+goes is `TrainingExerciseEditRow`'s `ReorderControls`: **two `IconButton`s drawing
+`Icons.Default.DragHandle` twice**, one meaning up and one meaning down. The same glyph twice is not
+a control. The `moveUp`/`moveDown` **semantics survive** as
+`CustomAccessibilityAction`s — `reorderableColumnItem` already registers both — so the capability is
+not lost with the arrows, it stops being drawn as two identical marks.
+
+## 7.9 Loading — **there is no loading surface, and that is the ruling**
+
+Neither mockup draws one. **A route does not compose until it has loaded.**
+
+`isLoading` is written by all three stores and **read by no editor UI**, and
+`PlanEditorStoreImpl.kt` carried a KDoc claiming a gate that does not exist: *"The Composable
+doesn't render the toggle until `state.isLoading == false`, so the user never sees the
+placeholder."* It does render it. For a weightless exercise opened through «Изменить план» the
+toggle shows the seeded `WEIGHTED` and **visibly flips** when the load lands, and
+`CommonHandler.loadPlan` then overwrites `draft`, `type`, `initialType` and `initialDraft`
+**unconditionally** — so anything touched in that window is silently discarded. Gating composition
+removes the flip, the false KDoc and the unconditional overwrite together.
+
+**The obligation it comes with.** All three load paths take `launch` / `launchDefault` with
+`onError` defaulting to `{}` (B17's and B21's class). Before this rule a thrown load left
+`isLoading` latched and cost nothing visible; **after it, the same throw is a permanently empty
+screen.** Each of the three closes its error path in the same commit — end loading, then surface the
+existing error event. That is not a spinner drawn to cover the rule; it is the rule's precondition.
+
+What composes before the load: the graph's own `processor.Handle`, `BackHandler` and the launcher
+plumbing. Only the **screen** is gated, and the nav host already backs every destination
+(`AppNavigationHost` paints `colorScheme.background`), so an unloaded route is an empty frame in the
+app's own colour rather than a transparent hole.
+
+## 7.10 DELTA — mockup vs code
+
+| # | Item | Code today | Contract |
+|---|---|---|---|
+| D1 | Top bar | `AppTopAppBar` ×2 + a raw M3 `TopAppBar` ×1, **and the exercise screen swaps bars mid-mode** — the bar changes under the user when one screen flips to Edit | all three on `AppTopBar` (§7.1, §1.2) |
+| D2 | Text field | `OutlinedTextField` with `unfocusedContainerColor = surfaceTier1` — outlined **and** filled | transparent fill, outline only (§7.2) |
+| D3 | Error outline width | M3's own 1dp/2dp, not settable on the plain `OutlinedTextField` | 1.5dp (§7.2). **Built**, and the field IS rebuilt on `BasicTextField` — M3 exposes thickness only as focused/unfocused via `OutlinedTextFieldDefaults.Container`, so an *unfocused* error would have drawn at 1dp |
+| D4 | Save button | disabled by the condition that produces the error | always enabled (§7.3) |
+| D5 | Modals | six dialog instances, five components | six sheets (§7.4) |
+| D6 | Plan editor modal state | two channels, both openable at once | one sealed `DialogState` (§7.4) |
+| D7 | Discard actions | three (Save / Discard / Continue), in a bespoke `Dialog` | two, in the drawn sheet (§7.4) |
+| D8 | Set add/remove | per-row `✕` + a full-width `AppButton.Tertiary` outside the body | `.setbar` in the card's foot (§7.5) |
+| D9 | Plan values | `textTertiary` — an authored value drawn as "not yet entered" | `isLogged` → `textPrimary` (§7.5) |
+| D10 | Set-type labels | `"W" / "·" / "F" / "D"` **hardcoded English** in `AppSetTypeChip` | localised; Ru `Р / · / О / Д` (§7.5) |
+| D11 | Set-type picker | a `DropdownMenu` anchored to the chip | unchanged — the drawing rules the chip, not the picker. **Reported, not folded in.** Note it is the one modal on these screens that stayed a dropdown: §26's sheet ruling names the six *confirmation and choice* modals, and an anchored menu on a 34dp chip is a different object from a sheet. Whether it should also be a sheet is a decision nobody has taken |
+| D12 | Add exercise | `AppButton.Tertiary` + `Icons.Default.Add` in the section head | `.addex` (§7.6) |
+| D13 | Image | a 72dp thumb + two buttons in a form row | 48dp thumb in the bar, on `.icon-btn`'s rung; the row is deleted (§7.7) |
+| D14 | Type marks | `Icons.Filled.FitnessCenter` / `AccessibilityNew` | two new stroke glyphs in `AppIcons` (§7.7) |
+| D15 | Reorder | two identical `DragHandle` arrows | long-press drag (§7.8) |
+| D16 | Loading | written, never read; a false KDoc and an unconditional overwrite | the route does not compose until loaded (§7.9) |
+| D17 | Glyph swaps (B33(a)) | `Close` ×4, `Add` ×1, `ArrowBack` ×1 as filled Material imports | `AppIcons.Close` / `.Plus` / `.ChevronLeft` |
+
+## 7.10a What building it found that reading it did not
+
+Four things, each caught by an instrument rather than by review, recorded because the instrument is
+the transferable part.
+
+1. **`hasChanges` was permanently true after the plan editor saved** — §25 **B39**. `adhocPlan` had
+   two baselines (`originalSnapshot.adhocPlan` and a field of its own) and the plan editor's return
+   reset one. Found by writing the three-states-one-term fixture §27 requires for a multi-term
+   predicate: modelling the return's exact writes went red against the unmodified tree. Fixed by
+   deleting the second baseline, not by synchronising it.
+2. **`.addex` rendered «+ + Добавить».** The old string carried a leading `+` for the Material
+   `Add` icon that used to sit beside it, and `.addex` draws its own plus. Caught by *looking at*
+   the first recorded golden, which is a different act from recording it.
+3. **The thumb sat 2dp from the screen edge.** `AppTopBar`'s 2dp row padding is right for an
+   `.icon-btn`, whose glyph is inset 13.5dp inside a 48dp box; the thumb's box edge IS its visual
+   edge. Same instrument, same act.
+4. **The discard strings existed in FOUR places** — `feature/exercise`, `feature/single-training`,
+   `feature/plan-editor` and `core/ui/plan-editor` — and the fourth surfaced only when Android
+   Lint called it unused after the other three were deleted. They live in the kit now, one table
+   for one component.
+
+And one **green** that is recorded as a no-op rather than a hole, per §27: taking
+`ReorderableColumnState`'s drag direction off the accumulated offset instead of the latest delta —
+the exact defect that line's own comment warns about — changes nothing the suite can see, because
+the loop cannot leave an uncommitted crossing for the wrong expression to find. The derivation is
+§27 "Gates", "A guard can be correct, load-bearing, and still un-mutatable"; the line keeps the
+guard and the conclusion.
+
+## 7.11 Adjacent, and deliberately NOT folded in
+
+Found while extracting; each is real and none is this stage's.
+
+1. **`TagPickerInline` is duplicated**, privately, in `feature/exercise` and
+   `feature/single-training`. Diffed: the two files differ **only** in test tags
+   (`ExerciseTag*` / `TrainingTag*`), two string-resource ids, one `@Suppress` and the previews.
+   Two files, one component, no kit home.
+2. **`AppTagPicker` and `AppDatePickerDialog` ship with zero production consumers.** Grepped: the
+   only call to either is inside its own `@Preview`. `AppTagPicker` is **not** a third copy of (1)
+   — it takes `Set<String>` and owns its query internally, where the feature copies take
+   `ImmutableList<TagUiModel>` with the query hoisted — so it is a *different* answer to the same
+   question, shipped and never wired. Whether (1) collapses onto it or onto something new is the
+   decision, and it is one decision covering both rows.
+3. **Back interception differs between the two editors.** The exercise editor's `interceptBack` is
+   `(mode is Mode.Edit && (hasChanges || !mode.isCreate)) || dialogState !is Hidden` — so an
+   *unmodified* edit of an existing exercise still intercepts, to flip back to Read. The training
+   editor's is `(mode is Mode.Edit && hasChanges) || dialogState !is Hidden`: no `!isCreate` clause,
+   so the same gesture on the same kind of screen pops instead of flipping. Same gesture, two
+   answers, and neither file mentions the other.

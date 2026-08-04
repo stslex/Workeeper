@@ -18,7 +18,6 @@ import io.github.stslex.workeeper.core.ui.kit.components.dialog.BlockedArchiveIt
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.core.ui.plan_editor.domain.PlanDraftReducer
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
-import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.feature.exercise.R
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseScope
@@ -45,9 +44,8 @@ import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.builtins.ListSerializer
-import kotlinx.serialization.json.Json
 import kotlin.uuid.Uuid
+import io.github.stslex.workeeper.core.ui.plan_editor.R as CoreEditorR
 
 @Suppress("TooManyFunctions", "LargeClass")
 @SingleIn(ExerciseScope::class)
@@ -87,6 +85,9 @@ internal class ClickHandler @Inject constructor(
             Action.Click.OnDismissPermanentDelete -> processCloseDialog()
             is Action.Click.OnUndoArchive -> processUndoArchive(action)
             Action.Click.OnEditPlanClick -> processEditPlanClick()
+            is Action.Click.OnTypeToggle -> processTypeToggle(action.value)
+            Action.Click.OnTypeChangeConfirm -> processTypeChangeConfirm()
+            Action.Click.OnTypeChangeDismiss -> processTypeChangeDismiss()
             is Action.Click.OnAdhocPlanEditorAction -> processAdhocPlanEditorAction(action)
             is Action.Click.OnTagToggle -> processTagToggle(action)
             is Action.Click.OnTagRemove -> processTagRemove(action)
@@ -527,35 +528,77 @@ internal class ClickHandler @Inject constructor(
         launch { interactor.restore(action.uuid) }
     }
 
+    /**
+     * Only an exercise that EXISTS routes to the plan editor. Creation edits its plan inline on
+     * this form, so there is no uuid-less branch here and no draft to hand to another screen.
+     */
     private fun processEditPlanClick() {
         sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
+        val uuid = state.value.uuid ?: return
+        consume(Action.Navigation.OpenPlanEditorExisting(exerciseUuid = uuid))
+    }
+
+    /**
+     * Switching WEIGHTED -> WEIGHTLESS while weighted rows exist would silently strand the weights
+     * the user typed, so it asks first. The wipe is LOCAL: a record being created has no row on
+     * disk and nothing else references it, so there is no cross-plan cascade to run here — the
+     * only weights in existence are in this draft.
+     */
+    private fun processTypeToggle(target: ExerciseTypeUiModel) {
         val current = state.value
-        val uuid = current.uuid
-        if (uuid != null) {
-            // Existing exercise — PlanEditor saves directly to DB on its own Save,
-            // round-trips a `planEditorSavedAttr = true` signal, and the parent does a
-            // partial reload of (type, adhocPlan).
-            consume(Action.Navigation.OpenPlanEditorExisting(exerciseUuid = uuid))
+        if (current.type == target) return
+        val needsWeightWipe = target == ExerciseTypeUiModel.WEIGHTLESS &&
+            current.type == ExerciseTypeUiModel.WEIGHTED &&
+            current.adhocPlan?.any { it.weight != null } == true
+        if (needsWeightWipe) {
+            sendEvent(Event.Haptic(HapticFeedbackType.LongPress))
+            // Strings resolved outside `updateState` — Rule 1 of compose-state-discipline.
+            val title = resourceWrapper.getString(
+                CoreEditorR.string.core_ui_plan_editor_type_change_weightless_title,
+            )
+            val body = resourceWrapper.getString(
+                CoreEditorR.string.core_ui_plan_editor_type_change_weightless_body,
+            )
+            val impact = resourceWrapper.getString(
+                CoreEditorR.string.core_ui_plan_editor_type_change_weightless_impact,
+            )
+            val confirmLabel = resourceWrapper.getString(
+                CoreEditorR.string.core_ui_plan_editor_type_change_weightless_confirm,
+            )
+            updateState {
+                it.copy(
+                    pendingTypeChange = target,
+                    dialogState = DialogState.TypeChangeConfirm(
+                        title = title,
+                        body = body,
+                        impactSummary = impact,
+                        confirmLabel = confirmLabel,
+                    ),
+                )
+            }
             return
         }
-        // No persisted UUID yet — Draft mode. PlanEditor never touches the DB; on Done
-        // it pops back with the seed merged into local state, and the parent's own Save
-        // is what eventually persists everything to disk.
-        val seedJson = current.adhocPlan
-            ?.takeIf { it.isNotEmpty() }
-            ?.let { plan ->
-                // Use the explicit serializer overload so the call resolves to a
-                // member function rather than the (deprecated-conflicting)
-                // `kotlinx.serialization.encodeToString` extension — see the
-                // MemberExtensionConflict lint and issuetracker.google.com/issues/350432371.
-                Json.encodeToString(ListSerializer(PlanSetUiModel.serializer()), plan.toList())
-            }
-        consume(
-            Action.Navigation.OpenPlanEditorDraft(
-                initialType = current.type,
-                initialPlanJson = seedJson,
-            ),
-        )
+        sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
+        updateState { it.copy(type = target) }
+    }
+
+    private fun processTypeChangeConfirm() {
+        val pending = state.value.pendingTypeChange ?: return
+        sendEvent(Event.Haptic(HapticFeedbackType.LongPress))
+        updateState { latest ->
+            val nextPlan = latest.adhocPlan?.map { it.copy(weight = null) }?.toImmutableList()
+            latest.copy(
+                type = pending,
+                pendingTypeChange = null,
+                dialogState = DialogState.Hidden,
+                adhocPlan = nextPlan,
+                adhocPlanSummaryLabel = nextPlan.toAdhocPlanSummary(resourceWrapper),
+            )
+        }
+    }
+
+    private fun processTypeChangeDismiss() {
+        updateState { it.copy(pendingTypeChange = null, dialogState = DialogState.Hidden) }
     }
 
     private fun processAdhocPlanEditorAction(action: Action.Click.OnAdhocPlanEditorAction) {
@@ -660,7 +703,15 @@ internal class ClickHandler @Inject constructor(
             ImageDisplay.None -> return
         }
         sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
-        consume(Action.Navigation.OpenImageViewer(model))
+        // Only Edit mode can honour a replace/remove request: Read has no Save and its
+        // `interceptBack` is false, so a staged `pendingImage` there would look applied and
+        // vanish on the way out. The viewer hides the two verbs when this is false.
+        consume(
+            Action.Navigation.OpenImageViewer(
+                model = model,
+                editable = state.value.mode is Mode.Edit,
+            ),
+        )
     }
 
     private fun processImageSourceSelected(action: Action.Click.OnImageSourceSelected) {

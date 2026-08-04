@@ -8,9 +8,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccessibilityNew
-import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -25,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
+import io.github.stslex.workeeper.core.ui.kit.icons.AppIcons
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
@@ -88,7 +86,10 @@ private fun ExerciseTypePlaceholder(
     val isWeighted = type == ExerciseTypeUiModel.WEIGHTED
     Icon(
         modifier = Modifier.size(36.dp),
-        imageVector = if (isWeighted) Icons.Filled.FitnessCenter else Icons.Filled.AccessibilityNew,
+        // §26 "The image moves into the pushed top bar": the two type marks are kit strokes, and
+        // no site that draws a TYPE imports the filled Material pair. One vector per mark, so the
+        // hero and the thumb cannot drift.
+        imageVector = if (isWeighted) AppIcons.ExerciseWeighted else AppIcons.ExerciseWeightless,
         contentDescription = stringResource(R.string.feature_exercise_image_placeholder_description),
         tint = if (isWeighted) {
             AppUi.colors.accentTintedForeground

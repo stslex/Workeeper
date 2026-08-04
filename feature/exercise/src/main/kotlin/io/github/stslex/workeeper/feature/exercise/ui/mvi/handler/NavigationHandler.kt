@@ -31,7 +31,7 @@ internal class NavigationHandler @Inject constructor(
             )
 
             is Action.Navigation.OpenImageViewer -> navigator.navTo(
-                Screen.ExerciseImage(action.model),
+                Screen.ExerciseImage(model = action.model, editable = action.editable),
             )
 
             is Action.Navigation.OpenChart -> navigator.navTo(
@@ -43,13 +43,6 @@ internal class NavigationHandler @Inject constructor(
                     performedExerciseUuid = null,
                     exerciseUuid = action.exerciseUuid,
                     trainingUuid = null,
-                ),
-            )
-
-            is Action.Navigation.OpenPlanEditorDraft -> navigator.navTo(
-                Screen.PlanEditor.Draft(
-                    initialType = action.initialType,
-                    initialPlanJson = action.initialPlanJson,
                 ),
             )
         }

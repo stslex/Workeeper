@@ -36,6 +36,14 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 
+    // Compose's semantics-tree test surface on the JVM side, so an accessibility assertion runs
+    // under `testDebugUnitTest` and therefore gates every PR. Instrumented tests here could not:
+    // both `connectedDebugAndroidTest` jobs in ui_tests.yml select by the runner's `annotation`
+    // argument, and that workflow is dispatch-only in the first place. Robolectric and the Jupiter
+    // `RobolectricExtension` are already on this configuration from the convention plugin; this
+    // line adds the one missing piece, `runComposeUiTest`. See AccessibilitySemanticsTest.
+    testImplementation(libs.androidx.compose.ui.test.junit4)
+
     // Consumed by every module that records goldens.
     testFixturesImplementation(libs.paparazzi.core)
     testFixturesImplementation(platform(libs.junit.bom))

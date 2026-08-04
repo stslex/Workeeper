@@ -3,13 +3,13 @@ package io.github.stslex.workeeper.feature.single_training.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -25,6 +25,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButton
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButtonSize
+import io.github.stslex.workeeper.core.ui.kit.icons.AppIcons
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
@@ -33,17 +34,26 @@ import io.github.stslex.workeeper.feature.single_training.R
 import io.github.stslex.workeeper.feature.single_training.mvi.model.TrainingExerciseItem
 import kotlinx.collections.immutable.persistentListOf
 
-@Suppress("LongMethod")
+/**
+ * One exercise inside the training editor's list.
+ *
+ * **Reorder is a long-press drag on the trailing handle (§26, "Reorder is long-press drag").**
+ * ONE handle, not a pair of arrow buttons: **the same glyph twice is not a control**, it is two
+ * identical marks whose meaning is known only to whoever placed them. The handle and the gesture
+ * are the kit's `ReorderableColumn`, which past-session already ships, so this is a second
+ * consumer of a built component rather than a new mechanic — and up/down remain reachable as the
+ * `CustomAccessibilityAction`s `reorderableColumnItem` registers, so the gesture is not the only
+ * way in.
+ *
+ * The handle's glyph is `Icons.Filled.DragHandle`, which is B33(b) and undecided.
+ */
 @Composable
 internal fun TrainingExerciseEditRow(
     item: TrainingExerciseItem,
-    isFirst: Boolean,
-    isLast: Boolean,
-    onMoveUp: () -> Unit,
-    onMoveDown: () -> Unit,
     onRemove: () -> Unit,
     onEditPlan: () -> Unit,
     modifier: Modifier = Modifier,
+    dragHandleModifier: Modifier = Modifier,
 ) {
     Column(
         modifier = modifier
@@ -73,15 +83,25 @@ internal fun TrainingExerciseEditRow(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            // Drag-to-reorder is offered as Up/Down arrows in v1 to avoid pulling in the
-            // foundation reorderable lib; long-press anywhere on the header is documented
-            // as the v2 fallback. Spec §"Reorder" explicitly allows this trade-off.
-            ReorderControls(
-                isFirst = isFirst,
-                isLast = isLast,
-                onMoveUp = onMoveUp,
-                onMoveDown = onMoveDown,
-            )
+            // THE GESTURE IS ON THE CONTAINER, NOT ON THE GLYPH. A bare `pointerInput` gets none
+            // of `IconButton`'s minimum-touch-target expansion, so an 18dp icon carrying the
+            // detector is an 18dp hit area — and this is the only pointer affordance for
+            // reordering. `iconXl` is what the kit already gives an interactive mark:
+            // `AppIconButton` puts the drawing's 44px `.icon-btn` at 48dp around a 21dp glyph.
+            // The glyph here stays `iconSm`; only the target grows.
+            Box(
+                modifier = dragHandleModifier
+                    .size(AppDimension.iconXl)
+                    .testTag("TrainingExerciseEditRowDrag_${item.exerciseUuid}"),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    modifier = Modifier.size(AppDimension.iconSm),
+                    imageVector = Icons.Filled.DragHandle,
+                    contentDescription = stringResource(R.string.feature_training_edit_drag_handle),
+                    tint = AppUi.colors.textDim,
+                )
+            }
             IconButton(
                 modifier = Modifier
                     .size(AppDimension.heightXs)
@@ -90,7 +110,10 @@ internal fun TrainingExerciseEditRow(
             ) {
                 Icon(
                     modifier = Modifier.size(AppDimension.iconSm),
-                    imageVector = Icons.Default.Close,
+                    // B33(a): the stroke `✕` the kit already ships. Removing an EXERCISE from a
+                    // training is untouched by §26's "the per-row ✕ goes" — that rules the SET
+                    // row, whose ✕ becomes «− подход» in the card's foot.
+                    imageVector = AppIcons.Close,
                     contentDescription = stringResource(R.string.feature_training_edit_remove_exercise),
                     tint = AppUi.colors.textTertiary,
                 )
@@ -129,44 +152,6 @@ internal fun TrainingExerciseEditRow(
     }
 }
 
-@Composable
-private fun ReorderControls(
-    isFirst: Boolean,
-    isLast: Boolean,
-    onMoveUp: () -> Unit,
-    onMoveDown: () -> Unit,
-) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.xxs),
-    ) {
-        IconButton(
-            modifier = Modifier.size(AppDimension.heightXs),
-            onClick = onMoveUp,
-            enabled = !isFirst,
-        ) {
-            Icon(
-                modifier = Modifier.size(AppDimension.iconSm),
-                imageVector = Icons.Default.DragHandle,
-                contentDescription = stringResource(R.string.feature_training_edit_drag_handle),
-                tint = if (isFirst) AppUi.colors.textDisabled else AppUi.colors.textSecondary,
-            )
-        }
-        IconButton(
-            modifier = Modifier.size(AppDimension.heightXs),
-            onClick = onMoveDown,
-            enabled = !isLast,
-        ) {
-            Icon(
-                modifier = Modifier.size(AppDimension.iconSm),
-                imageVector = Icons.Default.DragHandle,
-                contentDescription = stringResource(R.string.feature_training_edit_drag_handle),
-                tint = if (isLast) AppUi.colors.textDisabled else AppUi.colors.textSecondary,
-            )
-        }
-    }
-}
-
 @Preview(name = "Light", showBackground = true)
 @Preview(
     name = "Dark",
@@ -186,10 +171,6 @@ private fun TrainingExerciseEditRowPreview() {
                 planSets = null,
                 planSummary = "",
             ),
-            isFirst = false,
-            isLast = false,
-            onMoveUp = {},
-            onMoveDown = {},
             onRemove = {},
             onEditPlan = {},
         )

@@ -38,7 +38,12 @@
     <string name="feature_training_edit_placeholder_description">Optional notes — focus, week, etc.</string>
     <string name="feature_training_edit_label_tags">Tags</string>
     <string name="feature_training_edit_label_exercises_format">Exercises (%1$d)</string>
-    <string name="feature_training_edit_add_exercise">+ Add</string>
+    <!--
+      `.addex`'s label. NO LEADING "+" IN THE STRING — `.addex` draws the plus itself, so a
+      string carrying one renders "+ + Добавить". The drawn label is the whole action, not an
+      abbreviation of it.
+    -->
+    <string name="feature_training_edit_add_exercise">Add exercise</string>
     <string name="feature_training_edit_plan_edit">edit plan</string>
     <string name="feature_training_edit_plan_add">add plan</string>
     <string name="feature_training_edit_no_plan">no plan yet</string>
@@ -46,10 +51,6 @@
     <string name="feature_training_edit_drag_handle">Reorder</string>
     <string name="feature_training_edit_error_name_required">Name is required</string>
     <string name="feature_training_edit_error_no_exercises">Add at least one exercise</string>
-    <string name="feature_training_edit_discard_title">Discard changes?</string>
-    <string name="feature_training_edit_discard_body">Your changes will be lost.</string>
-    <string name="feature_training_edit_discard_confirm">Discard</string>
-    <string name="feature_training_edit_discard_dismiss">Keep editing</string>
     <string name="feature_training_edit_tag_search_placeholder">Type to filter or create new</string>
     <string name="feature_training_edit_tag_create_format">+ Create “%1$s”</string>
 

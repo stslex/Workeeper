@@ -221,6 +221,12 @@ internal object ContrastContract {
             // Same threshold as META numerically (4.5:1), but the slot names what is actually
             // painted, which is what makes the verdict re-checkable if the alias is ever undone.
             add(Declared("textDim", surface, TypeSlot.CAPTION, "AppSectionHeader label, AppNumberInput unit"))
+            // The v3 editors put `dim` on two larger rungs, and they get their own rows for the
+            // same reason the `textTertiary` BODY row above has one: all three thresholds are
+            // 4.5:1, so nothing about the verdict changes, but the slot naming what is painted is
+            // what keeps the row re-checkable if the `dim`/`meta` alias is ever undone (§2.5).
+            add(Declared("textDim", surface, TypeSlot.META, "AppFieldLabel — the drawn `.flabel`"))
+            add(Declared("textDim", surface, TypeSlot.BODY, "AppTextField placeholder — `.tf.ghosty`"))
             // The screen-title rung. Same colour, larger type, weaker obligation — declared so
             // the distinction is visible rather than implied.
             add(Declared("textPrimary", surface, TypeSlot.TITLE, "DetailTopbar, PastSessionHeader"))

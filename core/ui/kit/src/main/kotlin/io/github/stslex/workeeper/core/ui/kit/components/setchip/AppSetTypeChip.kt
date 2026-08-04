@@ -14,8 +14,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import io.github.stslex.workeeper.core.ui.kit.R
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
@@ -31,6 +33,12 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
  * WARMUP / FAIL / DROP are this app's own mechanic with no drawn counterpart; they keep their
  * `SetTypeColors` pairs ("neutral by decision" — see the palette KDoc) inside the new
  * geometry, so the quiet chip is the common case and a non-work type still reads at a glance.
+ *
+ * **Their MARKS are a ruling and are recorded as new (§26, "Set types take their first letter").**
+ * No mockup draws a mark for the three, so the first letter of each type's own name is a decision;
+ * the alternatives considered — a digit, or the whole word in a widened chip — are in the ledger
+ * and drawn nowhere. **The chip is not widened and takes no other treatment**: the letter occupies
+ * exactly the dot's place, which is why the ruling costs one string table and no geometry.
  */
 @Composable
 fun AppSetTypeChip(
@@ -45,12 +53,19 @@ fun AppSetTypeChip(
         SetType.DROP -> palette.dropBackground to palette.dropForeground
     }
     val border = if (type == SetType.WORK) AppUi.colors.borderDefault else foreground
-    val label = when (type) {
-        SetType.WARMUP -> "W"
-        SetType.WORK -> "·"
-        SetType.FAIL -> "F"
-        SetType.DROP -> "D"
-    }
+    // §26 "Set types take their first letter". The work set is the drawn dot; the other three
+    // take the FIRST LETTER OF THEIR OWN NAME IN THE CURRENT LANGUAGE — Р / О / Д in Russian,
+    // W / F / D in English. ALL FOUR ARE RESOURCES AND NONE MAY BECOME A LITERAL HERE: a literal
+    // draws `W` over разминка. Russian «Рабочий» also begins with Р, and that is not a collision
+    // because the work set is never lettered.
+    val label = stringResource(
+        when (type) {
+            SetType.WARMUP -> R.string.core_ui_kit_set_type_mark_warmup
+            SetType.WORK -> R.string.core_ui_kit_set_type_mark_work
+            SetType.FAIL -> R.string.core_ui_kit_set_type_mark_failure
+            SetType.DROP -> R.string.core_ui_kit_set_type_mark_drop
+        },
+    )
     val shape = RoundedCornerShape(AppDimension.Radius.small)
     Row(
         modifier = modifier

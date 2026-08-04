@@ -32,12 +32,17 @@ internal class CommonHandler @Inject constructor(
         val (exerciseUuid, trainingUuid) = when (mode) {
             is Mode.Exercise -> mode.exerciseUuid to null
             is Mode.PerformedExercise -> mode.exerciseUuid to mode.trainingUuid
-            // Draft mode has no DB anchor — the seed already lives in State, so skip the
-            // load and let the editor render immediately.
-            Mode.Draft -> return
         }
         launchDefault(
-            onError = { sendEvent(Event.ShowError(ErrorType.LoadFailed)) },
+            // Clearing `isLoading` here is load-bearing, not tidiness. The route does not
+            // compose until the load lands (§26; `PlanEditorGraph`), so a throw that left the
+            // flag latched would leave the user on a permanently empty frame with no way
+            // back into the screen. The `NotFound` branch below clears it for the same reason;
+            // this is the branch that did not, because `onError` defaults to `{}` (B17).
+            onError = {
+                sendEvent(Event.ShowError(ErrorType.LoadFailed))
+                updateState { it.copy(isLoading = false) }
+            },
         ) {
             val result = interactor.loadPlan(
                 exerciseUuid = exerciseUuid,

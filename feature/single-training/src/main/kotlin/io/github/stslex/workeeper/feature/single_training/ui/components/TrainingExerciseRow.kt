@@ -13,8 +13,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.AccessibilityNew
-import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -28,6 +26,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagChip
+import io.github.stslex.workeeper.core.ui.kit.icons.AppIcons
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
@@ -103,7 +102,10 @@ internal fun TypeIcon(type: ExerciseTypeUiModel) {
     ) {
         Icon(
             modifier = Modifier.size(AppDimension.iconSm),
-            imageVector = if (isWeighted) Icons.Filled.FitnessCenter else Icons.Filled.AccessibilityNew,
+            // §26 "The image moves into the pushed top bar" — the same two stroke marks the
+            // thumb and the hero draw. A stroke here too: a filled mark would
+            // ship the exercise type as two different pictures.
+            imageVector = if (isWeighted) AppIcons.ExerciseWeighted else AppIcons.ExerciseWeightless,
             contentDescription = null,
             tint = if (isWeighted) {
                 AppUi.colors.accentTintedForeground

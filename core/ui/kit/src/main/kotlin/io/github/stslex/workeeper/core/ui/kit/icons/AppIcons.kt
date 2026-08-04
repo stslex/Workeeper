@@ -27,9 +27,9 @@ import androidx.compose.ui.unit.dp
  */
 object AppIcons {
 
-    /** Top-bar back affordance — session-v3f L190. */
+    /** Top-bar back affordance — session-v3f L190. Mirrors in RTL: "back" is a direction. */
     val ChevronLeft: ImageVector by lazy {
-        strokeIcon("ChevronLeft", TOPBAR_STROKE, "M15 5l-7 7 7 7")
+        strokeIcon("ChevronLeft", TOPBAR_STROKE, "M15 5l-7 7 7 7", autoMirror = true)
     }
 
     /**
@@ -46,9 +46,13 @@ object AppIcons {
         )
     }
 
-    /** Card expand affordance, rotates 90° when the card is active — session-v3f L354. */
+    /**
+     * Card expand affordance, rotates 90° when the card is active — session-v3f L354. Mirrors in
+     * RTL for the same reason [ChevronLeft] does: it is the onward mark on a row, and the tree
+     * already auto-mirrors the Material equivalent it sits beside (`TrainingExerciseRow`).
+     */
     val ChevronRight: ImageVector by lazy {
-        strokeIcon("ChevronRight", CARD_STROKE, "M9 6l6 6-6 6")
+        strokeIcon("ChevronRight", CARD_STROKE, "M9 6l6 6-6 6", autoMirror = true)
     }
 
     /**
@@ -243,6 +247,39 @@ object AppIcons {
         )
     }
 
+    /**
+     * The **weighted** exercise type mark — a dumbbell. `pass2d.html` `#s-editor`, form 5, inside
+     * `.thumb.none`, at the thumb's own [THUMB_STROKE].
+     *
+     * **NEW, and recorded as new** (§26, "The image moves into the pushed top bar") — the mark has
+     * no referent in either drawing, which is why the ledger carries it rather than the extraction.
+     *
+     * Two collars, two plates, one bar: five subpaths, all strokes, no fill — the same grammar as
+     * every other mark in this file. Do not swap in a filled Material import: B33(b) is open, and
+     * a solid mass is the one thing this box cannot hold.
+     */
+    val ExerciseWeighted: ImageVector by lazy {
+        strokeIcon("ExerciseWeighted", THUMB_STROKE, "M4 9v6M7 7v10M17 7v10M20 9v6M7 12h10")
+    }
+
+    /**
+     * The **weightless** exercise type mark — a standing figure. `pass2d.html` `#s-editor`, form 5,
+     * the second `.thumb.none`, at [THUMB_STROKE].
+     *
+     * **NEW**, and a stroke for the reason [ExerciseWeighted] is (B33(b) is open). Head, spine, two
+     * legs, arms — the head is the drawing's `<circle cx="12" cy="5" r="2.1">` rewritten as two arcs,
+     * the only change of notation this file allows, and written out rather than generated so it
+     * stays diffable against the mockup line.
+     */
+    val ExerciseWeightless: ImageVector by lazy {
+        strokeIcon(
+            "ExerciseWeightless",
+            THUMB_STROKE,
+            "M9.9 5a2.1 2.1 0 1 0 4.2 0a2.1 2.1 0 1 0-4.2 0Z" +
+                " M12 8v6M12 14l-3 6M12 14l3 6M6 10.5h12",
+        )
+    }
+
     /** Lid, body, pull. One path so it diffs against the mockup line-for-line. */
     private const val ARCHIVE_PATH = "M4 8h16M6 8v11h12V8M10 12h4"
 
@@ -254,6 +291,14 @@ object AppIcons {
 
     /** 1.7 — the top-bar stroke weight (21dp glyphs). */
     private const val TOPBAR_STROKE = 1.7f
+
+    /**
+     * 1.7 — `.thumb svg{stroke-width:1.7}`, the two exercise type marks. Numerically
+     * [TOPBAR_STROKE]'s value and named separately because they are a different declaration in the
+     * drawing: the thumb sits IN the top bar but is not an `.icon-btn`, and one of the two weights
+     * could move without the other. The same reason [NAV_GLYPH_STROKE] is its own name.
+     */
+    private const val THUMB_STROKE = TOPBAR_STROKE
 
     /** 1.8 — the card/sheet stroke weight (17dp and 19dp glyphs). */
     private const val CARD_STROKE = 1.8f
@@ -287,16 +332,25 @@ object AppIcons {
     private fun circlePath(cy: String): String =
         "M10.6 ${cy}a1.4 1.4 0 1 0 2.8 0a1.4 1.4 0 1 0-2.8 0Z"
 
+    /**
+     * @param autoMirror flips the glyph under an RTL layout direction. The manifest sets
+     * `android:supportsRtl="true"`, so a fixed path in a *directional* mark points the wrong way
+     * there — set this on any glyph whose meaning is "back", "forward" or "onward", and leave it
+     * off for marks that carry no direction. Media-transport glyphs stay off by convention: a
+     * timeline reads left-to-right in every locale.
+     */
     private fun strokeIcon(
         name: String,
         strokeWidth: Float,
         pathData: String,
+        autoMirror: Boolean = false,
     ): ImageVector = ImageVector.Builder(
         name = name,
         defaultWidth = VIEWPORT.dp,
         defaultHeight = VIEWPORT.dp,
         viewportWidth = VIEWPORT,
         viewportHeight = VIEWPORT,
+        autoMirror = autoMirror,
     ).addPath(
         pathData = addPathNodes(pathData),
         fill = null,

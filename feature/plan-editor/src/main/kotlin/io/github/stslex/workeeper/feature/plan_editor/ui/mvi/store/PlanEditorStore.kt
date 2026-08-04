@@ -15,9 +15,12 @@ import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorSto
 import kotlinx.collections.immutable.ImmutableList
 
 /**
- * Full-screen plan editor. Holds the draft set list, owns the WEIGHTED / WEIGHTLESS type,
- * and persists either to the DB ([Mode.Existing] / [Mode.PerformedExercise]) or back to the
- * caller as a [PlanDraftResult] payload ([Mode.Draft]).
+ * Full-screen plan editor. Holds the draft set list, owns the WEIGHTED / WEIGHTLESS type for
+ * [Mode.Exercise], and persists to the DB on its own Save.
+ *
+ * **Creation does not come through here.** An exercise that has no persisted UUID is built on the
+ * exercise form, which hosts [PlanEditorBody] inline — one screen, no route hop, no payload
+ * handed back. This store serves the two modes that edit something already on disk.
  */
 interface PlanEditorStore : Store<State, Action, Event> {
 
@@ -31,7 +34,6 @@ interface PlanEditorStore : Store<State, Action, Event> {
         val draft: ImmutableList<PlanSetUiModel>,
         val initialType: ExerciseTypeUiModel,
         val pendingTypeChange: ExerciseTypeUiModel?,
-        val confirmDiscardOpen: Boolean,
         val isSaving: Boolean,
         val dialogState: DialogState,
     ) : Store.State {
@@ -44,13 +46,18 @@ interface PlanEditorStore : Store<State, Action, Event> {
             get() = type == ExerciseTypeUiModel.WEIGHTED
 
         /**
-         * BackHandler intercepts when there are unsaved edits OR when a dialog is open.
-         * The dialog's own back gesture closes it before propagating; clean state with no
-         * dialog stays unsubscribed so Compose nav handles the gesture natively (including
-         * the predictive-back preview animation).
+         * The route's BackHandler intercepts when there are unsaved edits or a modal is open.
+         *
+         * **NO PER-VARIANT EXCEPTION HERE, and one must not be added to route a back press past
+         * an open sheet.** Every modal on this screen is an `AppConfirmSheet`, i.e. a
+         * `ModalBottomSheet`, and that renders in its own `ComponentDialog` window which consumes
+         * system back itself and calls `onDismissRequest` (§26, "Every modal on the three editors
+         * is a SHEET"). A back press with a sheet up therefore never reaches this route at all,
+         * whatever this property says — so an exception here buys nothing and only describes a
+         * flow that cannot happen.
          */
         val interceptBack: Boolean
-            get() = (isDirty && !confirmDiscardOpen) || dialogState !is DialogState.Hidden
+            get() = isDirty || dialogState !is DialogState.Hidden
 
         @Stable
         sealed interface Mode {
@@ -78,15 +85,6 @@ interface PlanEditorStore : Store<State, Action, Event> {
              */
             @Stable
             data class Exercise(val exerciseUuid: String) : Mode
-
-            /**
-             * Editing a fresh draft for an exercise that is still being created (no
-             * persisted UUID yet). PlanEditor does not touch the DB; Save returns the draft
-             * to the caller via [PlanDraftResult] JSON in
-             * [io.github.stslex.workeeper.core.ui.navigation.Screen.PlanEditor.Companion.planEditorDraftResultAttr].
-             */
-            @Stable
-            data object Draft : Mode
         }
 
         companion object {
@@ -97,14 +95,13 @@ interface PlanEditorStore : Store<State, Action, Event> {
                 seedPlan: ImmutableList<PlanSetUiModel>,
             ): State = State(
                 mode = mode,
-                isLoading = mode !is Mode.Draft,
+                isLoading = true,
                 exerciseName = "",
                 type = seedType,
                 initialDraft = seedPlan,
                 draft = seedPlan,
                 initialType = seedType,
                 pendingTypeChange = null,
-                confirmDiscardOpen = false,
                 isSaving = false,
                 dialogState = DialogState.Hidden,
             )
@@ -139,8 +136,6 @@ interface PlanEditorStore : Store<State, Action, Event> {
 
             data object OnConfirmDiscard : Click
 
-            data object OnConfirmSave : Click
-
             data object OnDismissDiscard : Click
         }
 
@@ -160,20 +155,13 @@ interface PlanEditorStore : Store<State, Action, Event> {
             data object Back : Navigation
 
             /**
-             * Pop after a successful save in [Mode.Existing] / [Mode.PerformedExercise] /
-             * [Mode.Exercise]. The NavigationHandler writes the
+             * Pop after a successful save in [Mode.Exercise] / [Mode.PerformedExercise].
+             * The NavigationHandler writes the
              * `plan-editor-saved` flag to the previous backstack entry's
              * SavedStateHandle so the caller (Live workout, Single training,
              * Exercise detail) reloads its plan-driven state on resume.
              */
             data object BackAfterSave : Navigation
-
-            /**
-             * Pop after Done in [Mode.Draft]. Carries the serialized
-             * [io.github.stslex.workeeper.feature.plan_editor.ui.mvi.model.PlanDraftResult]
-             * JSON for the caller to merge into its local state.
-             */
-            data class BackAfterDraftSave(val resultJson: String) : Navigation
         }
     }
 

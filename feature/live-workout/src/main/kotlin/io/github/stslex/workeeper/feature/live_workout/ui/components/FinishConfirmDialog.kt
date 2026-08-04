@@ -22,6 +22,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.window.Dialog
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButton
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButtonSize
+import io.github.stslex.workeeper.core.ui.kit.components.input.AppFieldLabel
 import io.github.stslex.workeeper.core.ui.kit.components.input.AppTextField
 import io.github.stslex.workeeper.core.ui.kit.components.pr.PersonalRecordBadge
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
@@ -131,12 +132,17 @@ private fun FinishNameField(
     onNameChange: (String) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(AppDimension.Space.xs)) {
+        // `.flabel` — the label sits above the box, because M3's floating one is drawn nowhere
+        // and `AppTextField` therefore has no `label` parameter (§26, "The editors' text field").
+        AppFieldLabel(text = label)
         AppTextField(
             value = name,
             onValueChange = onNameChange,
-            label = label,
             placeholder = placeholder,
             isError = error != null,
+            // Same string the `.flabel` above draws — the drawn label is a sibling node and does
+            // not name the field to a screen reader.
+            accessibilityLabel = label,
             keyboardOptions = KeyboardOptions(
                 imeAction = ImeAction.Done,
             ),
