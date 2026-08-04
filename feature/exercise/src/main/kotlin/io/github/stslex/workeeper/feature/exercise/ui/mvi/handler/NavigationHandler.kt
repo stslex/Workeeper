@@ -45,13 +45,6 @@ internal class NavigationHandler @Inject constructor(
                     trainingUuid = null,
                 ),
             )
-
-            is Action.Navigation.OpenPlanEditorDraft -> navigator.navTo(
-                Screen.PlanEditor.Draft(
-                    initialType = action.initialType,
-                    initialPlanJson = action.initialPlanJson,
-                ),
-            )
         }
     }
 }

@@ -9,7 +9,6 @@ import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
 import io.github.stslex.workeeper.core.ui.mvi.holders.LoggerHolder
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
-import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.feature.plan_editor.di.PlanEditorHandlerStoreImpl
 import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.handler.ClickHandler
 import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.handler.CommonHandler
@@ -20,9 +19,6 @@ import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorSto
 import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorStore.Event
 import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorStore.State
 import kotlinx.collections.immutable.persistentListOf
-import kotlinx.collections.immutable.toImmutableList
-import kotlinx.serialization.builtins.ListSerializer
-import kotlinx.serialization.json.Json
 
 // Metro constructs this Store (class-level @Inject). The Screen.PlanEditor route arg is a bound
 // instance on the extension factory (shape B), so it is an ordinary ctor param — no assisted machinery.
@@ -92,33 +88,14 @@ internal fun Screen.PlanEditor.toMode(): State.Mode = when (this) {
             else -> State.Mode.Exercise(exerciseUuid = exercise)
         }
     }
-
-    is Screen.PlanEditor.Draft -> State.Mode.Draft
 }
 
-internal fun Screen.PlanEditor.toInitialState(): State {
-    val mode = toMode()
-    val seedType = when (this) {
-        is Screen.PlanEditor.Draft -> initialType
-        // Existing modes seed type as WEIGHTED until CommonHandler.Init loads the real value
-        // from disk. The seed is never seen: `PlanEditorGraph` withholds the whole screen while
-        // `state.isLoading` is true (§26, "A route does not compose until it has loaded"). The
-        // gate is in the GRAPH — do not restate it as a property of this composable.
-        is Screen.PlanEditor.Existing -> ExerciseTypeUiModel.WEIGHTED
-    }
-    val seedPlan = when (this) {
-        is Screen.PlanEditor.Draft ->
-            initialPlanJson
-                ?.let { json ->
-                    Json.decodeFromString(
-                        ListSerializer(PlanSetUiModel.serializer()),
-                        json,
-                    )
-                }
-                ?.toImmutableList()
-                ?: persistentListOf()
-
-        is Screen.PlanEditor.Existing -> persistentListOf()
-    }
-    return State.init(mode = mode, seedType = seedType, seedPlan = seedPlan)
-}
+internal fun Screen.PlanEditor.toInitialState(): State = State.init(
+    mode = toMode(),
+    // The type seeds as WEIGHTED until CommonHandler.Init loads the real value from disk. The
+    // seed is never seen: `PlanEditorGraph` withholds the whole screen while `state.isLoading`
+    // is true (§26, "A route does not compose until it has loaded"). The gate is in the GRAPH —
+    // do not restate it as a property of this composable.
+    seedType = ExerciseTypeUiModel.WEIGHTED,
+    seedPlan = persistentListOf(),
+)

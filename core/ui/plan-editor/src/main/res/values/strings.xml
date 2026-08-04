@@ -11,4 +11,9 @@
 
     <string name="core_ui_plan_editor_error_load">Failed to load the plan.</string>
     <string name="core_ui_plan_editor_error_save">Failed to save the plan.</string>
+
+    <string name="core_ui_plan_editor_type_change_weightless_title">Switch to weightless?</string>
+    <string name="core_ui_plan_editor_type_change_weightless_body">Weight values from this exercise’s plans will be cleared. This cannot be undone.</string>
+    <string name="core_ui_plan_editor_type_change_weightless_impact">All plan weights cleared</string>
+    <string name="core_ui_plan_editor_type_change_weightless_confirm">Switch</string>
 </resources>

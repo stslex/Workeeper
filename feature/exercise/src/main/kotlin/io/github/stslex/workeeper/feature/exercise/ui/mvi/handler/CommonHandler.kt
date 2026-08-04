@@ -5,7 +5,6 @@ import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
-import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanDraftResult
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseScope
 import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor
@@ -26,7 +25,6 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
-import kotlinx.serialization.json.Json
 import java.io.File
 
 @SingleIn(ExerciseScope::class)
@@ -42,7 +40,6 @@ internal class CommonHandler @Inject constructor(
             is Action.Common.ImagePicked -> processImagePicked(action)
             Action.Common.ImagePickCancelled -> processImagePickCancelled()
             Action.Common.PlanEditorExistingReturned -> processPlanEditorExistingReturned()
-            is Action.Common.PlanEditorDraftReturned -> processPlanEditorDraftReturned(action)
         }
     }
 
@@ -137,25 +134,6 @@ internal class CommonHandler @Inject constructor(
             PartialReload(
                 exercise = exercise.await(),
                 adhocPlan = adhocPlan.await(),
-            )
-        }
-    }
-
-    /**
-     * Draft-mode return: PlanEditor never persisted anything. Decode the JSON payload and
-     * merge `(type, adhocPlan)` into State. Do NOT update [State.originalSnapshot] —
-     * the draft is treated as an unsaved edit until the parent form's own Save fires.
-     */
-    private fun processPlanEditorDraftReturned(action: Action.Common.PlanEditorDraftReturned) {
-        val result = runCatching {
-            Json.decodeFromString(PlanDraftResult.serializer(), action.resultJson)
-        }.getOrNull() ?: return
-        val plan = result.plan.toImmutableList()
-        updateState { current ->
-            current.copy(
-                type = result.type,
-                adhocPlan = plan,
-                adhocPlanSummaryLabel = plan.toAdhocPlanSummary(resourceWrapper),
             )
         }
     }

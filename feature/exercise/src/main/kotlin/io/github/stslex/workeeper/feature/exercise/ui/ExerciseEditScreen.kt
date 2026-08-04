@@ -43,6 +43,7 @@ import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.St
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 import io.github.stslex.workeeper.core.ui.kit.R as KitR
+import io.github.stslex.workeeper.core.ui.plan_editor.R as CoreEditorR
 
 @Composable
 internal fun ExerciseEditScreen(
@@ -132,8 +133,13 @@ internal fun ExerciseEditScreen(
                     )
                 }
             }
-            FormSection(label = stringResource(R.string.feature_exercise_edit_label_type)) { fieldLabel ->
-                TypeChipReadOnly(type = state.type)
+            // The chip is the EDIT-mode reading of the type. In create the toggle is live in the
+            // plan editor below, and a read-only restatement of a value the user can change two
+            // rows down is a second description of one object.
+            if (!isCreate) {
+                FormSection(label = stringResource(R.string.feature_exercise_edit_label_type)) { fieldLabel ->
+                    TypeChipReadOnly(type = state.type)
+                }
             }
             FormSection(label = stringResource(R.string.feature_exercise_edit_label_tags)) { fieldLabel ->
                 TagPickerInline(
@@ -263,7 +269,13 @@ private fun InlineAdhocPlanEditor(
         onAction = { bodyAction ->
             consume(Action.Click.OnAdhocPlanEditorAction(bodyAction))
         },
+        setTypeTooltipText = stringResource(
+            CoreEditorR.string.core_ui_plan_editor_set_type_tooltip,
+        ),
         scrollable = false,
+        // Creation owns the type HERE, on the form that draws the rows it reshapes. Supplying
+        // the handler is what makes the toggle appear (see `PlanEditorBody`).
+        onTypeChange = { type -> consume(Action.Click.OnTypeToggle(type)) },
     )
 }
 

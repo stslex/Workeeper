@@ -68,22 +68,6 @@ fun NavGraphBuilder.exerciseGraph(
             }
         }
 
-        // Draft-mode return: PlanEditor never touched the DB. The Done click pops back
-        // with the serialized PlanDraftResult JSON in `planEditorDraftResultAttr`. The
-        // CommonHandler decodes the JSON and merges (type, adhocPlan) into State without
-        // updating `originalSnapshot` — the draft is treated as an unsaved edit until the
-        // parent form's own Save fires.
-        val draftAttr by stateHandle
-            .getStateFlow(Screen.PlanEditor.planEditorDraftResultAttr)
-            .collectAsState()
-        LaunchedEffect(draftAttr) {
-            val payload = draftAttr
-            if (payload != null) {
-                processor.consume(Action.Common.PlanEditorDraftReturned(payload))
-                stateHandle.setAttrDefaultValue(Screen.PlanEditor.planEditorDraftResultAttr)
-            }
-        }
-
         // Image-viewer return. The viewer carries the picture's two verbs now (§26, "The image
         // moves into the pushed top bar") and performs neither: it pops with a REQUEST, and the
         // machinery that can honour it — the source sheet, the camera permission, the temp URI,
@@ -274,6 +258,19 @@ fun NavGraphBuilder.exerciseGraph(
                 confirmDestructive = true,
                 onConfirm = { processor.consume(Action.Click.OnConfirmDiscard(dialog.target)) },
                 onDismiss = { processor.consume(Action.Click.OnDismissDiscard) },
+            )
+
+            // The inline plan editor's type switch. Same sheet the full-screen route raises, so
+            // the two hosts ask the question the same way.
+            is DialogState.TypeChangeConfirm -> AppConfirmSheet(
+                title = dialog.title,
+                body = dialog.body,
+                emphasis = dialog.impactSummary,
+                confirmLabel = dialog.confirmLabel,
+                dismissLabel = stringResource(KitR.string.core_ui_kit_discard_sheet_dismiss),
+                confirmDestructive = true,
+                onConfirm = { processor.consume(Action.Click.OnTypeChangeConfirm) },
+                onDismiss = { processor.consume(Action.Click.OnTypeChangeDismiss) },
             )
 
             is DialogState.ArchiveBlocked -> AppBlockedArchiveDialog(

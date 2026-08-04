@@ -124,20 +124,4 @@ internal class CommonHandlerTest {
         // initialDraft moves with draft, so the screen does not open dirty.
         assertEquals(stateFlow.value.draft, stateFlow.value.initialDraft)
     }
-
-    @Test
-    fun `Draft mode never loads, so it is never withheld`() {
-        val (stateFlow, _, handler) = setup(
-            State.init(
-                mode = State.Mode.Draft,
-                seedType = ExerciseTypeUiModel.WEIGHTLESS,
-                seedPlan = persistentListOf(),
-            ),
-        )
-
-        handler.invoke(Action.Common.Init)
-
-        assertFalse(stateFlow.value.isLoading)
-        assertEquals(ExerciseTypeUiModel.WEIGHTLESS, stateFlow.value.type)
-    }
 }

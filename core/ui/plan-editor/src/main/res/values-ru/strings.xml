@@ -11,4 +11,9 @@
 
     <string name="core_ui_plan_editor_error_load">Не удалось загрузить план.</string>
     <string name="core_ui_plan_editor_error_save">Не удалось сохранить план.</string>
+
+    <string name="core_ui_plan_editor_type_change_weightless_title">Переключить на без веса?</string>
+    <string name="core_ui_plan_editor_type_change_weightless_body">Значения веса из планов этого упражнения будут очищены. Это нельзя отменить.</string>
+    <string name="core_ui_plan_editor_type_change_weightless_impact">Все веса в планах очищены</string>
+    <string name="core_ui_plan_editor_type_change_weightless_confirm">Переключить</string>
 </resources>

@@ -3,7 +3,6 @@ package io.github.stslex.workeeper.feature.plan_editor.mvi.handler
 
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
-import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanDraftResult
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.plan_editor.di.PlanEditorHandlerStore
@@ -12,15 +11,12 @@ import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.handler.ClickHandle
 import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorStore.Action
 import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorStore.State
-import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.slot
 import io.mockk.verify
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
@@ -57,12 +53,6 @@ internal class ClickHandlerTest {
 
     private fun existingExerciseInitial(): State = State.init(
         mode = State.Mode.Exercise(exerciseUuid = "exercise-1"),
-        seedType = ExerciseTypeUiModel.WEIGHTED,
-        seedPlan = persistentListOf(),
-    )
-
-    private fun draftInitial(): State = State.init(
-        mode = State.Mode.Draft,
         seedType = ExerciseTypeUiModel.WEIGHTED,
         seedPlan = persistentListOf(),
     )
@@ -435,31 +425,5 @@ internal class ClickHandlerTest {
         // Type-change confirm uses BackHandler interception so the system back gesture
         // routes through `OnBackClick` → dialog dismiss before propagating to a pop.
         assertTrue(stateFlow.value.interceptBack)
-    }
-
-    @Test
-    fun `OnSave in Draft mode encodes plan and pops with BackAfterDraftSave`() {
-        val draft = listOf(
-            PlanSetUiModel(80.0, 8, SetTypeUiModel.WORK),
-            PlanSetUiModel(90.0, 5, SetTypeUiModel.WORK),
-        )
-        val (_, store, handler) = setup(
-            draftInitial().copy(
-                draft = draft.toImmutableList(),
-            ),
-        )
-
-        handler.invoke(Action.Click.OnSave)
-
-        // Mode.Draft never persists to DB — interactor is untouched.
-        coVerify(exactly = 0) {
-            interactor.savePlan(any(), any(), any(), any())
-        }
-
-        val captured = slot<Action.Navigation.BackAfterDraftSave>()
-        verify { store.consume(capture(captured)) }
-        val decoded = Json.decodeFromString<PlanDraftResult>(captured.captured.resultJson)
-        assertEquals(ExerciseTypeUiModel.WEIGHTED, decoded.type)
-        assertEquals(draft, decoded.plan)
     }
 }

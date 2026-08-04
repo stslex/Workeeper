@@ -18,24 +18,16 @@ import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorSto
 import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorStore.Event
 
 /**
- * Registers the two plan editor destinations:
+ * Registers the plan editor's one destination, [Screen.PlanEditor.Existing] — DB-backed, persists
+ * `(type, plan)` to disk on Save and signals the caller via `planEditorSavedAttr`.
  *
- *  - [Screen.PlanEditor.Existing] — DB-backed; persists `(type, plan)` to disk on Save
- *    and signals the caller via `planEditorSavedAttr`.
- *  - [Screen.PlanEditor.Draft] — in-memory; pops back with the draft as
- *    `PlanDraftResult` JSON via `planEditorDraftResultAttr` for the caller to merge into
- *    its local state.
- *
- * Two separate `composable<...>` blocks (rather than one with a polymorphic discriminator)
- * keep route resolution simple — typed-nav has known edge cases on sealed parents.
+ * **There is no creation destination.** An exercise with no persisted UUID is built on the exercise
+ * form, which hosts `PlanEditorBody` inline; nothing routes here to make one.
  */
 fun NavGraphBuilder.planEditorGraph(
     modifier: Modifier = Modifier,
 ) {
     navScreen<Screen.PlanEditor.Existing> { screen ->
-        PlanEditorContent(modifier = modifier, screen = screen)
-    }
-    navScreen<Screen.PlanEditor.Draft> { screen ->
         PlanEditorContent(modifier = modifier, screen = screen)
     }
 }

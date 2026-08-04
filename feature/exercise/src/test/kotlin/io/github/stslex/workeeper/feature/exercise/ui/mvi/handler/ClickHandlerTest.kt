@@ -64,6 +64,91 @@ internal class ClickHandlerTest {
         )
     }
 
+    /**
+     * Creation owns the type on the form now, so these are the assertions that the toggle it
+     * gained actually decides something. Weight-bearing rows make the switch destructive, so it
+     * asks; nothing to lose makes it immediate.
+     */
+    @Test
+    fun `OnTypeToggle to WEIGHTLESS with weighted rows raises the confirm instead of switching`() {
+        val (stateFlow, _, handler) = setup(
+            State.create(uuid = null).copy(
+                type = ExerciseTypeUiModel.WEIGHTED,
+                adhocPlan = persistentListOf(
+                    PlanSetUiModel(weight = 80.0, reps = 8, type = SetTypeUiModel.WORK),
+                ),
+            ),
+        )
+
+        handler.invoke(Action.Click.OnTypeToggle(ExerciseTypeUiModel.WEIGHTLESS))
+
+        // The type has NOT moved yet — the sheet is the opt-in.
+        assertEquals(ExerciseTypeUiModel.WEIGHTED, stateFlow.value.type)
+        assertEquals(ExerciseTypeUiModel.WEIGHTLESS, stateFlow.value.pendingTypeChange)
+        assertTrue(stateFlow.value.dialogState is DialogState.TypeChangeConfirm)
+    }
+
+    @Test
+    fun `OnTypeToggle to WEIGHTLESS with no weights switches immediately and asks nothing`() {
+        val (stateFlow, _, handler) = setup(
+            State.create(uuid = null).copy(
+                type = ExerciseTypeUiModel.WEIGHTED,
+                adhocPlan = persistentListOf(
+                    PlanSetUiModel(weight = null, reps = 8, type = SetTypeUiModel.WORK),
+                ),
+            ),
+        )
+
+        handler.invoke(Action.Click.OnTypeToggle(ExerciseTypeUiModel.WEIGHTLESS))
+
+        assertEquals(ExerciseTypeUiModel.WEIGHTLESS, stateFlow.value.type)
+        assertNull(stateFlow.value.pendingTypeChange)
+        assertEquals(DialogState.Hidden, stateFlow.value.dialogState)
+    }
+
+    @Test
+    fun `OnTypeChangeConfirm commits the switch and clears the weights it warned about`() {
+        val (stateFlow, _, handler) = setup(
+            State.create(uuid = null).copy(
+                type = ExerciseTypeUiModel.WEIGHTED,
+                adhocPlan = persistentListOf(
+                    PlanSetUiModel(weight = 80.0, reps = 8, type = SetTypeUiModel.WORK),
+                    PlanSetUiModel(weight = 90.0, reps = 5, type = SetTypeUiModel.WORK),
+                ),
+            ),
+        )
+        handler.invoke(Action.Click.OnTypeToggle(ExerciseTypeUiModel.WEIGHTLESS))
+
+        handler.invoke(Action.Click.OnTypeChangeConfirm)
+
+        assertEquals(ExerciseTypeUiModel.WEIGHTLESS, stateFlow.value.type)
+        assertNull(stateFlow.value.pendingTypeChange)
+        assertEquals(DialogState.Hidden, stateFlow.value.dialogState)
+        assertTrue(stateFlow.value.adhocPlan?.all { it.weight == null } == true)
+        // The ROWS survive — only their weights go. A switch is not a delete.
+        assertEquals(2, stateFlow.value.adhocPlan?.size)
+    }
+
+    @Test
+    fun `OnTypeChangeDismiss leaves both the type and the weights alone`() {
+        val (stateFlow, _, handler) = setup(
+            State.create(uuid = null).copy(
+                type = ExerciseTypeUiModel.WEIGHTED,
+                adhocPlan = persistentListOf(
+                    PlanSetUiModel(weight = 80.0, reps = 8, type = SetTypeUiModel.WORK),
+                ),
+            ),
+        )
+        handler.invoke(Action.Click.OnTypeToggle(ExerciseTypeUiModel.WEIGHTLESS))
+
+        handler.invoke(Action.Click.OnTypeChangeDismiss)
+
+        assertEquals(ExerciseTypeUiModel.WEIGHTED, stateFlow.value.type)
+        assertNull(stateFlow.value.pendingTypeChange)
+        assertEquals(DialogState.Hidden, stateFlow.value.dialogState)
+        assertEquals(80.0, stateFlow.value.adhocPlan?.first()?.weight)
+    }
+
     private data class TestSetup(
         val stateFlow: MutableStateFlow<State>,
         val store: ExerciseHandlerStore,
@@ -173,44 +258,6 @@ internal class ClickHandlerTest {
                 Action.Navigation.OpenPlanEditorExisting(exerciseUuid = "uuid-1"),
             )
         }
-    }
-
-    @Test
-    fun `OnEditPlanClick on Draft exercise navigates with empty seed`() {
-        val (_, store, handler) = setup(
-            State.create(uuid = null).copy(type = ExerciseTypeUiModel.WEIGHTLESS),
-        )
-        handler.invoke(Action.Click.OnEditPlanClick)
-        verify(exactly = 1) {
-            store.consume(
-                Action.Navigation.OpenPlanEditorDraft(
-                    initialType = ExerciseTypeUiModel.WEIGHTLESS,
-                    initialPlanJson = null,
-                ),
-            )
-        }
-    }
-
-    @Test
-    fun `OnEditPlanClick on Draft exercise serializes a non-empty plan into the seed`() {
-        val draft = listOf(
-            PlanSetUiModel(weight = 80.0, reps = 8, type = SetTypeUiModel.WORK),
-            PlanSetUiModel(weight = 90.0, reps = 5, type = SetTypeUiModel.WORK),
-        )
-        val (_, store, handler) = setup(
-            State.create(uuid = null).copy(
-                type = ExerciseTypeUiModel.WEIGHTED,
-                adhocPlan = persistentListOf<PlanSetUiModel>().addAll(draft),
-            ),
-        )
-        handler.invoke(Action.Click.OnEditPlanClick)
-        val captured = slot<Action.Navigation.OpenPlanEditorDraft>()
-        verify(exactly = 1) { store.consume(capture(captured)) }
-        assertEquals(ExerciseTypeUiModel.WEIGHTED, captured.captured.initialType)
-        val decoded = kotlinx.serialization.json.Json.decodeFromString<List<PlanSetUiModel>>(
-            captured.captured.initialPlanJson!!,
-        )
-        assertEquals(draft, decoded)
     }
 
     @Test

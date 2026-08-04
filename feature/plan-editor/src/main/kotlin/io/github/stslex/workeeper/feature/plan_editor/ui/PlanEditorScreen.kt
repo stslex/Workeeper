@@ -35,7 +35,6 @@ import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.plan_editor.R
-import io.github.stslex.workeeper.feature.plan_editor.ui.components.TypeToggle
 import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorStore.Action
 import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorStore.State
@@ -43,6 +42,7 @@ import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorSto
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 import io.github.stslex.workeeper.core.ui.kit.R as KitR
+import io.github.stslex.workeeper.core.ui.plan_editor.R as CoreEditorR
 
 @Composable
 internal fun PlanEditorScreen(
@@ -55,11 +55,7 @@ internal fun PlanEditorScreen(
     } else {
         stringResource(R.string.core_ui_plan_editor_screen_title_format, state.exerciseName)
     }
-    val saveLabel = if (state.mode is Mode.Draft) {
-        stringResource(R.string.feature_plan_editor_action_done)
-    } else {
-        stringResource(R.string.core_ui_plan_editor_screen_save)
-    }
+    val saveLabel = stringResource(R.string.core_ui_plan_editor_screen_save)
     Scaffold(
         modifier = modifier
             .fillMaxSize()
@@ -106,25 +102,12 @@ internal fun PlanEditorScreen(
                 .verticalScroll(rememberScrollState()),
         ) {
             PlanEditorHeader(exerciseName = state.exerciseName)
-            // Type toggle is editable from PlanEditor whenever the type ownership is the
-            // editor's own concern (Mode.Exercise — owns parent exercise.type, Mode.Draft —
-            // seeds the in-flight exercise's type). Mode.PerformedExercise renders nothing
-            // here: type lives on the parent exercise and isn't editable through a
-            // training-scoped editor.
-            if (state.mode is Mode.Exercise || state.mode is Mode.Draft) {
-                Spacer(Modifier.height(AppDimension.Space.lg))
-                Text(
-                    text = stringResource(R.string.feature_plan_editor_label_type),
-                    style = AppUi.typography.labelSmall,
-                    color = AppUi.colors.textTertiary,
-                )
-                Spacer(Modifier.height(AppDimension.Space.xs))
-                TypeToggle(
-                    selected = state.type,
-                    onSelect = { type -> consume(Action.Click.OnTypeToggle(type)) },
-                )
-            }
             Spacer(Modifier.height(AppDimension.Space.lg))
+            // THIS SCREEN NO LONGER DRAWS THE TOGGLE — `PlanEditorBody` does, so the toggle and
+            // the rows whose shape it decides are one instance rather than a copy per host.
+            // What this screen still owns is the RULE: `Mode.PerformedExercise` passes null and
+            // gets no toggle, because type lives on the parent exercise and is not editable
+            // through a training-scoped editor.
             PlanEditorBody(
                 draft = state.draft,
                 isWeighted = state.isWeighted,
@@ -132,8 +115,13 @@ internal fun PlanEditorScreen(
                     consume(Action.EditorAction(editorAction))
                 },
                 setTypeTooltipText = stringResource(
-                    R.string.core_ui_plan_editor_set_type_tooltip,
+                    CoreEditorR.string.core_ui_plan_editor_set_type_tooltip,
                 ),
+                onTypeChange = if (state.mode is Mode.PerformedExercise) {
+                    null
+                } else {
+                    { type -> consume(Action.Click.OnTypeToggle(type)) }
+                },
             )
             // NO ADD BUTTON HERE, and none in the exercise create-flow either: add and remove
             // live in the card's foot (§26, "Sets: add and remove move to the card's foot").

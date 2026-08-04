@@ -32,9 +32,6 @@ internal class CommonHandler @Inject constructor(
         val (exerciseUuid, trainingUuid) = when (mode) {
             is Mode.Exercise -> mode.exerciseUuid to null
             is Mode.PerformedExercise -> mode.exerciseUuid to mode.trainingUuid
-            // Draft mode has no DB anchor — the seed already lives in State, so skip the
-            // load and let the editor render immediately.
-            Mode.Draft -> return
         }
         launchDefault(
             // Clearing `isLoading` here is load-bearing, not tidiness. The route does not

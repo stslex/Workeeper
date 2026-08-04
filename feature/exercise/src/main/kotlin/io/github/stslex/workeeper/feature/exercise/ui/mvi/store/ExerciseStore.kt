@@ -43,6 +43,8 @@ interface ExerciseStore : Store<State, Action, Event> {
         val canPermanentlyDelete: Boolean,
         val adhocPlan: ImmutableList<PlanSetUiModel>?,
         val adhocPlanSummaryLabel: String,
+        /** Target of an in-flight WEIGHTED -> WEIGHTLESS switch awaiting its confirm. */
+        val pendingTypeChange: ExerciseTypeUiModel?,
         val imagePath: String?,
         val imageLastModified: Long,
         val pendingImage: PendingImage,
@@ -163,6 +165,7 @@ interface ExerciseStore : Store<State, Action, Event> {
                 canPermanentlyDelete = false,
                 adhocPlan = null,
                 adhocPlanSummaryLabel = "",
+                pendingTypeChange = null,
                 imagePath = null,
                 imageLastModified = 0L,
                 pendingImage = PendingImage.Unchanged,
@@ -191,15 +194,6 @@ interface ExerciseStore : Store<State, Action, Event> {
              * unsaved name/description/tag/image edit on the parent form is preserved.
              */
             data object PlanEditorExistingReturned : Common
-
-            /**
-             * Dispatched after returning from a `Screen.PlanEditor.Draft` Done. The
-             * handler decodes the [io.github.stslex.workeeper.core.ui.plan_editor.model.PlanDraftResult]
-             * JSON payload and merges `(type, adhocPlan)` into State without touching
-             * `originalSnapshot` — the draft is treated as an unsaved edit until the
-             * parent form's own Save fires.
-             */
-            data class PlanEditorDraftReturned(val resultJson: String) : Common
         }
 
         sealed interface Click : Action {
@@ -264,6 +258,18 @@ interface ExerciseStore : Store<State, Action, Event> {
                 val action: PlanEditorBodyAction,
             ) : Click
 
+            /**
+             * The inline plan editor's WEIGHTED / WEIGHTLESS toggle. Creation owns the type on
+             * this form because the rows whose shape it decides are drawn on this form.
+             */
+            data class OnTypeToggle(val value: ExerciseTypeUiModel) : Click
+
+            /** Commit a switch that the weight-wipe confirm asked about. */
+            data object OnTypeChangeConfirm : Click
+
+            /** Dismiss the weight-wipe confirm, leaving the type as it was. */
+            data object OnTypeChangeDismiss : Click
+
             data class OnTagToggle(val tagUuid: String) : Click
 
             data class OnTagRemove(val tagUuid: String) : Click
@@ -327,19 +333,6 @@ interface ExerciseStore : Store<State, Action, Event> {
              * `(type, adhocPlan)`.
              */
             data class OpenPlanEditorExisting(val exerciseUuid: String) : Navigation
-
-            /**
-             * Open `Screen.PlanEditor.Draft` for an in-flight exercise that has not been
-             * persisted yet (creation flow). Returns to ExerciseEditScreen with a
-             * [io.github.stslex.workeeper.core.ui.plan_editor.model.PlanDraftResult] JSON
-             * payload via `planEditorDraftResultAttr`; the graph dispatches
-             * [Action.Common.PlanEditorDraftReturned] to merge `(type, adhocPlan)` into
-             * local state.
-             */
-            data class OpenPlanEditorDraft(
-                val initialType: ExerciseTypeUiModel,
-                val initialPlanJson: String?,
-            ) : Navigation
         }
     }
 
