@@ -46,12 +46,12 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
  * screen that shows it. The picture's two verbs are not here: §26 puts them where the picture is,
  * so with an image the tap opens the full-screen viewer and replace/remove live in it.
  *
- * ## The empty state draws the TYPE, and that relationship is not invented here
+ * ## The empty state draws the TYPE
  *
- * `ImageEditRow.ThumbPlaceholder` already took the exercise's `type` and drew it when there was no
- * photo. The ruling keeps that and moves the container. **Rejected: a camera glyph** — it promises
- * one of the two things the picker sheet offers, and it erases the type. Nothing is drawn inside
- * the FILLED thumb either: a camera in a box that already holds a photo reads as "take another".
+ * With no photo the box draws the exercise's `type` mark. **Rejected: a camera glyph** — it
+ * promises one of the two things the picker sheet offers, and it erases the type. Nothing is
+ * drawn inside the FILLED thumb either: a camera in a box that already holds a photo reads as
+ * "take another".
  *
  * Geometry, derived (§0.2): 46px is kept **literal**, like the other component treatments in this
  * file. It is not on the `height*` ladder, and rounding it to 48 would make it exactly

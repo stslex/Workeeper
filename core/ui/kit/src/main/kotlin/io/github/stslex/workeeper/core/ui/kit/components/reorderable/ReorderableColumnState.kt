@@ -136,23 +136,10 @@ class ReorderableColumnState internal constructor(
 
         // Direction must be based on the latest gesture delta, not on total dragOffset.
         // Otherwise after re-anchor dragOffset can change sign and immediately swap back.
-        //
-        // MEASURED, and the measurement narrows the claim: `deltaY → dragOffsetPx` here is a
-        // NO-OP against `ReorderableColumnStateTest`, and the reason is not a gate hole. The
-        // hazard the line above names needs an UNCOMMITTED crossing in the direction the wrong
-        // expression picks, and the loop cannot leave one: it commits every crossing before it
-        // returns, and `commitAdjacentSwap` re-anchors so the finger sits within the overshoot of
-        // the new centre. The two expressions can therefore only ever disagree about which
-        // *uncrossed* neighbour to test, and both then `break`. (With unequal row heights the
-        // re-anchored offset genuinely can carry the opposite sign — but it points at the row
-        // just passed, whose centre is far behind the finger, so that branch breaks too.)
-        //
-        // So this is defence, not a live fix, and it is kept: the invariant it leans on is the
-        // loop's, not this line's, and a future change to the commit path would break it silently.
-        // Recorded here rather than in a session log because the next person to mutate it will
-        // get the same green and should not have to re-derive why (§27, "a green mutation accuses
-        // the SUITE or the MUTATION, and only the reader can tell which"). This is an argument
-        // from the state machine, not a proof.
+        // The invariant that currently makes the wrong expression harmless is the loop's, not
+        // this line's, so this is defence against a change to the commit path — which would
+        // break it with nothing going red. Mutating it today is a no-op; why, in §27 "Gates",
+        // "A guard can be correct, load-bearing, and still un-mutatable".
         val direction = if (deltaY > 0f) 1 else -1
 
         var safety = MAX_SWAPS_PER_FRAME

@@ -27,9 +27,8 @@ import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ImageDisplay
  *  - **image present** → the full-screen viewer, where replace and remove live now;
  *  - **image absent** → the picker sheet, which is what the type mark's dashed box promises.
  *
- * One control, two destinations, decided by whether there is anything to look at — which is why
- * `ImageEditRow`'s three affordances (a 72dp thumb, «Изменить», «Удалить») collapse into it and
- * the form loses a whole row.
+ * One control, two destinations, decided by whether there is anything to look at. The form carries
+ * no image row of its own: the thumb, its viewer and the picker are the whole of the affordance.
  */
 @Composable
 internal fun ExerciseTopBarThumb(

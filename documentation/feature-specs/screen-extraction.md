@@ -1783,8 +1783,9 @@ the transferable part.
 And one **green** that is recorded as a no-op rather than a hole, per §27: taking
 `ReorderableColumnState`'s drag direction off the accumulated offset instead of the latest delta —
 the exact defect that line's own comment warns about — changes nothing the suite can see, because
-the loop cannot leave an uncommitted crossing for the wrong expression to find. The reasoning is in
-the file beside the line so the next person to mutate it does not re-derive it.
+the loop cannot leave an uncommitted crossing for the wrong expression to find. The derivation is
+§27 "Gates", "A guard can be correct, load-bearing, and still un-mutatable"; the line keeps the
+guard and the conclusion.
 
 ## 7.11 Adjacent, and deliberately NOT folded in
 

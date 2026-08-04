@@ -86,9 +86,8 @@ internal fun ExerciseEditScreen(
                 )
             },
             actions = {
-                // §26 "The image moves into the pushed top bar". This is the whole of what used
-                // to be a form row — a 72dp thumb and two buttons — and it costs the form no
-                // vertical space at all.
+                // §26 "The image moves into the pushed top bar" — the whole image affordance, in
+                // the bar, costing the form no vertical space. Do not add an image row below.
                 ExerciseTopBarThumb(
                     type = state.type,
                     imageDisplay = state.effectiveImageDisplay,
@@ -278,9 +277,9 @@ private fun FormSection(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(AppDimension.Space.xs),
     ) {
-        // `.flabel` — the drawn label sits above the box at the 12.5 rung in `textDim`. It was
-        // `labelSmall`/`textTertiary` here, one rung under the drawing and a second description
-        // of the same object; `AppFieldLabel` is the one implementation now (§7.2).
+        // `.flabel` — the drawn label sits above the box at the 12.5 rung in `textDim`.
+        // `AppFieldLabel` is the one implementation (§7.2): do not re-describe the same object
+        // with a local `labelSmall`/`textTertiary` Text, which draws a rung under the drawing.
         AppFieldLabel(text = label)
         // Handed down rather than re-resolved at the call site: the drawn label and the one
         // a screen reader hears must be the same string, and two `stringResource` calls drift.
