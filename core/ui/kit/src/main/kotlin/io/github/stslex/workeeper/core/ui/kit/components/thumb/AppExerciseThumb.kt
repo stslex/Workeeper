@@ -61,7 +61,7 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
  * `AppTopBar`'s own 21dp glyph is.
  *
  * The border is `borderDefault`, not `borderSubtle`: dashed or solid, this outline **is** the
- * control — it is the only thing bounding a tappable 46dp box — so WCAG 1.4.11 applies at 3:1.
+ * control — it is the only thing that draws the target at all — so WCAG 1.4.11 applies at 3:1.
  * The same discriminator `AppDashedAddButton` states, and the same one that keeps
  * `AppEmptyState`'s decorative tile on `borderSubtle`.
  *
@@ -79,48 +79,61 @@ fun AppExerciseThumb(
 ) {
     val shape = RoundedCornerShape(AppDimension.Radius.small)
     val hasImage = content != null
+    // THE GESTURE IS ON THE CONTAINER, NOT ON THE DRAWN BOX. A foundation `clickable` gets none of
+    // `IconButton`'s minimum-touch-target expansion, so putting it on the 46dp box would ship a
+    // 46dp hit area for the only image affordance on the screen — 2dp under the 48dp minimum, and
+    // this is the sole way in now that the form carries no image row. The drawn box stays
+    // [THUMB_SIZE]; only the target grows, to the [AppDimension.iconXl] the kit already gives an
+    // interactive mark.
     Box(
         modifier = modifier
-            .size(THUMB_SIZE)
-            .clip(shape)
-            .let { base ->
-                if (hasImage) {
-                    base
-                        .background(
-                            Brush.linearGradient(
-                                listOf(AppUi.colors.surfaceTier4, AppUi.colors.surfaceTier1),
-                            ),
-                        )
-                        .border(AppDimension.Border.small, AppUi.colors.borderDefault, shape)
-                } else {
-                    base
-                        .background(AppUi.colors.surfaceTier3)
-                        .dashedBorder(
-                            color = AppUi.colors.borderDefault,
-                            cornerRadius = AppDimension.Radius.small,
-                        )
-                }
-            }
+            .size(AppDimension.iconXl)
             .clickable(onClickLabel = contentDescription, onClick = onClick)
             .semantics { role = Role.Button },
         contentAlignment = Alignment.Center,
     ) {
-        if (content != null) {
-            content()
-        } else {
-            Icon(
-                modifier = Modifier.size(THUMB_GLYPH),
-                imageVector = if (isWeighted) {
-                    AppIcons.ExerciseWeighted
-                } else {
-                    AppIcons.ExerciseWeightless
+        Box(
+            modifier = Modifier
+                .size(THUMB_SIZE)
+                .clip(shape)
+                .let { base ->
+                    if (hasImage) {
+                        base
+                            .background(
+                                Brush.linearGradient(
+                                    listOf(AppUi.colors.surfaceTier4, AppUi.colors.surfaceTier1),
+                                ),
+                            )
+                            .border(AppDimension.Border.small, AppUi.colors.borderDefault, shape)
+                    } else {
+                        base
+                            .background(AppUi.colors.surfaceTier3)
+                            .dashedBorder(
+                                color = AppUi.colors.borderDefault,
+                                cornerRadius = AppDimension.Radius.small,
+                            )
+                    }
                 },
-                // Decorative: the box is the control and it carries [contentDescription] as its
-                // click label. Describing the mark here too would announce the exercise's TYPE
-                // where the user needs to hear the ACTION, and one control cannot say both.
-                contentDescription = null,
-                tint = AppUi.colors.textDim,
-            )
+            contentAlignment = Alignment.Center,
+        ) {
+            if (content != null) {
+                content()
+            } else {
+                Icon(
+                    modifier = Modifier.size(THUMB_GLYPH),
+                    imageVector = if (isWeighted) {
+                        AppIcons.ExerciseWeighted
+                    } else {
+                        AppIcons.ExerciseWeightless
+                    },
+                    // Decorative: the box is the control and it carries [contentDescription] as
+                    // its click label. Describing the mark here too would announce the exercise's
+                    // TYPE where the user needs to hear the ACTION, and one control cannot say
+                    // both.
+                    contentDescription = null,
+                    tint = AppUi.colors.textDim,
+                )
+            }
         }
     }
 }

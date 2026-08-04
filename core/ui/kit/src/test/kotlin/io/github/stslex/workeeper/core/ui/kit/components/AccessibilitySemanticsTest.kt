@@ -13,8 +13,10 @@ import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.v2.runComposeUiTest
+import androidx.compose.ui.unit.dp
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppDashedAddButton
 import io.github.stslex.workeeper.core.ui.kit.components.input.AppTextField
 import io.github.stslex.workeeper.core.ui.kit.components.reorderable.rememberReorderableColumnState
@@ -23,6 +25,7 @@ import io.github.stslex.workeeper.core.ui.kit.components.setbar.AppSetBar
 import io.github.stslex.workeeper.core.ui.kit.components.thumb.AppExerciseThumb
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import org.junit.jupiter.api.Assertions.assertAll
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import org.robolectric.annotation.Config
@@ -190,6 +193,19 @@ internal class AccessibilitySemanticsTest {
             // Box is clickable-adjacent and is NOT a button, so a matcher that passed everything
             // — or a fix that stamped Role.Button onto every clickable in the kit — fails here.
             { onNodeWithTag(ROWS.first()).assert(hasNoRole(Role.Button)) },
+            // A foundation `clickable` gets none of `IconButton`'s minimum-target expansion, so a
+            // control drawn smaller than 48dp ships a hit area the size of its drawing. The thumb
+            // is drawn at 46dp deliberately (`.thumb{width:46px}`), so the target has to come from
+            // the container — which a picture cannot see, because the drawn box is still 46dp.
+            {
+                val bounds = onNodeWithTag(THUMB).getUnclippedBoundsInRoot()
+                val w = bounds.right - bounds.left
+                val h = bounds.bottom - bounds.top
+                assertTrue(
+                    w >= MIN_TOUCH_TARGET && h >= MIN_TOUCH_TARGET,
+                    "thumb target is $w × $h, under $MIN_TOUCH_TARGET",
+                )
+            },
         )
     }
 
@@ -228,5 +244,8 @@ internal class AccessibilitySemanticsTest {
         const val SET_BAR_ADD = "AppSetBarAdd"
         const val SET_BAR_REMOVE = "AppSetBarRemove"
         val ROWS = listOf("row-first", "row-middle", "row-last")
+
+        /** Android's minimum interactive target. WCAG 2.5.5 asks 44; Material asks 48. */
+        val MIN_TOUCH_TARGET = 48.dp
     }
 }
