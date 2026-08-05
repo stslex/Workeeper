@@ -57,15 +57,6 @@ interface ExerciseStore : Store<State, Action, Event> {
         // gating it on the exact condition that produces `nameError`, which makes that error
         // unreachable (§26, "Save is never disabled").
 
-        /**
-         * Read-mode default plan surface visibility — drives the small "Default plan" card
-         * between the description block and HistorySection in [io.github.stslex.workeeper
-         * .feature.exercise.ui.ExerciseDetailScreen]. Edit mode renders the inline editor
-         * row instead, so the read-mode card stays hidden.
-         */
-        val planSummaryVisible: Boolean
-            get() = mode is Mode.Read && !adhocPlan.isNullOrEmpty()
-
         val hasChanges: Boolean
             get() = originalSnapshot?.matches(this) == false || isImageDirty || isAdhocPlanDirty
 

@@ -36,7 +36,7 @@ mockup pass and ED14 with the §5 rulings.
 | **ED2** | The **exercise read screen shows the plan as the set-row card** — ordinal, weight and reps in separate `.field` boxes with units, set-type chip. Not `.planline`, not a dot-separated summary, no `×` compression. | extraction §3.4 (`.plancard` + `.planline`) |
 | **ED3** | **Form rhythm**: a labelled field only where text is typed (`.flabel` + `.tf`); everything else is a **section** with `.section-head`. Order — name, then the screen's main slot (sets / exercises), then tags, then description. | extraction §7.1 frame order |
 | **ED4** | **No placeholders that repeat the label.** An empty name field is empty. | build (`placeholder = label`) |
-| **ED5** | **Type toggle is monochrome**, in `.tabs` grammar: track `surfaceTier1`, selected on `surfaceTier2` + `slabtop`, text `textPrimary` / `textSecondary`. The accent trio leaves this call site. | build (`accent`, `accentTintedBackground`, `accentTintedForeground`) |
+| **ED5** | **Type toggle is monochrome**, in `.tabs` grammar: track `surfaceTier1`, selected on `surfaceTier2` + `slabtop`, text `textPrimary` / `textTertiary`. The accent trio leaves this call site. **The resting label read `textSecondary` until PR-A** — a transcription slip, corrected against three witnesses that agree and none that dissent: `.tabs button` (`pass2d.html:142`) and `.mseg button` (`pass2d.html:170`) both rest on `--meta`, which is `textTertiary` by the rosetta (extraction §0.1), and the shipped `.tabs` — `MetricTabs` — animates between exactly `textPrimary` and `textTertiary`. Note this row's `Overturns` cell names the **build**, never the drawing, so it never claimed authority over `.tabs` in the first place (§7). | build (`accent`, `accentTintedBackground`, `accentTintedForeground`) |
 | **ED6** | **No thumbnail in the pushed top bar**, on either read or edit. | extraction §7.7, **and #213 which shipped it on the editor** (never on read — see D-OPEN-3) |
 | **ED7** | **Tags are a sheet.** The form shows selected chips with `✕` plus a dashed `+ тег` chip; the chip opens `AppBottomSheet` carrying search, the dictionary as selectable chips, and `+ Создать «X»` when there is no exact match. | build (`TagPickerInline`: two `internal` copies, field + two `FlowRow`s inline) |
 | **ED8** | **Long explanations move under an `i` button.** A section head carries a short label; the reason lives in a sheet. The referent is the session's exercise description (`.mini.info` → `#sh-desc`). | this arc's own first draft (a two-label head reading as one long title) |
@@ -351,6 +351,13 @@ green in this project:
 - every gate proven in **both** directions: it fires on the violation and is silent on the clean tree.
 - a golden locks in what **is**, not what **should be**. Look at each new golden; recording one and
   reading one are different acts (§7.10a caught `+ + Добавить` exactly this way).
+- **This document wins over the drawing only where a row's `Overturns` cell states the reason.
+  Where it merely *differs*, that is a transcription defect and the drawing wins.** A row that
+  names what it overrules has been thought about; a row that quietly disagrees has not, and the
+  header's "this document wins" was never a licence for the second kind. ED5 is the witness: its
+  `Overturns` cell names the **build**, so its `textSecondary` overruled nothing — it was a slip
+  read as a ruling, and it shipped to a screen outside this arc before anyone checked
+  `pass2d.html:142`.
 
 New goldens this arc: type toggle (2 states × 2 themes), read-only set card (weighted / weightless
 / empty × 2), editor plan card empty state, tag row (selected / empty × 2), training exercise card
