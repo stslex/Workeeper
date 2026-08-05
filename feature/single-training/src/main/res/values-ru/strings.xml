@@ -39,6 +39,7 @@
     <string name="feature_training_edit_label_tags">Теги</string>
     <string name="feature_training_edit_label_exercises_format">Упражнения (%1$d)</string>
     <string name="feature_training_edit_add_exercise">Добавить упражнение</string>
+    <string name="feature_training_edit_exercise_removed">Упражнение убрано из тренировки</string>
     <string name="feature_training_edit_no_plan">плана пока нет</string>
     <string name="feature_training_edit_remove_exercise">Удалить упражнение</string>
     <string name="feature_training_edit_drag_handle">Переместить</string>

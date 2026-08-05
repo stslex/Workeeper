@@ -19,6 +19,7 @@ import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagItem
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.core.ui.plan_editor.domain.PlanDraftReducer
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
+import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanEditorBodyAction
 import io.github.stslex.workeeper.feature.exercise.R
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseScope
@@ -88,6 +89,7 @@ internal class ClickHandler @Inject constructor(
             Action.Click.OnTypeChangeConfirm -> processTypeChangeConfirm()
             Action.Click.OnTypeChangeDismiss -> processTypeChangeDismiss()
             is Action.Click.OnAdhocPlanEditorAction -> processAdhocPlanEditorAction(action)
+            is Action.Click.OnUndoSetRemove -> processUndoSetRemove(action)
             Action.Click.OnTagAddClick -> processTagAddClick()
             Action.Click.OnTagPickerDismiss -> processTagPickerDismiss()
             is Action.Click.OnTagToggle -> processTagToggle(action)
@@ -512,24 +514,29 @@ internal class ClickHandler @Inject constructor(
         }
     }
 
+    /**
+     * The DEFERRED delete (ED11's strict order): nothing is deleted here. The confirm pops
+     * the screen and hands [Event.ShowPermanentDeleteUndo] a commit lambda; the app-level
+     * snackbar host — the one thing that owns the toast's lifetime (B25) — runs it only when
+     * the undo window closes. «Отменить» means the delete simply never runs; there is no
+     * re-insert path to get wrong. GUARD: no `interactor.permanentlyDelete` call may appear
+     * in this method — a delete before the window closes is the inversion ED11 forbids.
+     */
     private fun processConfirmPermanentDelete() {
         val uuid = state.value.uuid ?: return
         sendEvent(Event.Haptic(HapticFeedbackType.LongPress))
         updateState { it.copy(dialogState = DialogState.Hidden) }
-        launch(
-            onSuccess = {
-                sendEvent(
-                    Event.ShowPermanentDeleteSuccess(
-                        message = resourceWrapper.getString(
-                            R.string.feature_exercise_detail_permanent_delete_success,
-                        ),
-                    ),
-                )
-                withContext(mainDispatcher) { consume(Action.Navigation.Back) }
-            },
-        ) {
-            interactor.permanentlyDelete(uuid)
-        }
+        sendEvent(
+            Event.ShowPermanentDeleteUndo(
+                message = resourceWrapper.getString(
+                    R.string.feature_exercise_detail_permanent_delete_success,
+                ),
+                // Captures the interactor — app-scoped repositories underneath — never the
+                // Store, whose scope dies with the pop below.
+                commit = { interactor.permanentlyDelete(uuid) },
+            ),
+        )
+        consume(Action.Navigation.Back)
     }
 
     private fun processUndoArchive(action: Action.Click.OnUndoArchive) {
@@ -609,8 +616,9 @@ internal class ClickHandler @Inject constructor(
     private fun processAdhocPlanEditorAction(action: Action.Click.OnAdhocPlanEditorAction) {
         val current = state.value
         val isWeighted = current.type == ExerciseTypeUiModel.WEIGHTED
+        val draft = current.adhocPlan ?: persistentListOf()
         val nextDraft = PlanDraftReducer.reduce(
-            draft = current.adhocPlan ?: persistentListOf(),
+            draft = draft,
             action = action.action,
             isWeighted = isWeighted,
         )
@@ -619,6 +627,34 @@ internal class ClickHandler @Inject constructor(
         val nextPlan = nextDraft.takeIf { it.isNotEmpty() }
         sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
         updateState { latest -> latest.copy(adhocPlan = nextPlan) }
+        // `− подход` gets its undo toast (§4's table): a DRAFT edit, so the undo re-inserts
+        // the removed row and nothing waits on a timer — the deferred machinery is the
+        // permanent delete's alone.
+        val bodyAction = action.action
+        if (bodyAction is PlanEditorBodyAction.OnSetRemove && nextDraft.size < draft.size) {
+            sendEvent(
+                Event.ShowSetRemovedUndo(
+                    message = resourceWrapper.getString(
+                        CoreEditorR.string.core_ui_plan_editor_toast_set_removed,
+                    ),
+                    set = draft[bodyAction.index],
+                    index = bodyAction.index,
+                ),
+            )
+        }
+    }
+
+    /** The set-removed toast's «Отменить»: the draft takes the row back where it was. */
+    private fun processUndoSetRemove(action: Action.Click.OnUndoSetRemove) {
+        updateState { latest ->
+            val draft = latest.adhocPlan ?: persistentListOf()
+            val at = action.index.coerceIn(0, draft.size)
+            latest.copy(
+                adhocPlan = draft.toMutableList()
+                    .apply { add(at, action.set) }
+                    .toImmutableList(),
+            )
+        }
     }
 
     private fun processTagAddClick() {

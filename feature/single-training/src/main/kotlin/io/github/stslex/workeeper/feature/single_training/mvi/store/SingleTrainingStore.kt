@@ -6,6 +6,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagItem
 import io.github.stslex.workeeper.core.ui.mvi.Store
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanEditorBodyAction
+import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.feature.single_training.domain.model.ActiveSessionDomain
 import io.github.stslex.workeeper.feature.single_training.mvi.model.HistorySessionItem
 import io.github.stslex.workeeper.feature.single_training.mvi.model.PickerExerciseItem
@@ -210,6 +211,19 @@ interface SingleTrainingStore : Store<State, Action, Event> {
 
             data class OnExerciseRemove(val exerciseUuid: String) : Click
 
+            /** «Отменить» on the exercise-removed toast: the draft takes [item] back. */
+            data class OnUndoExerciseRemove(
+                val item: TrainingExerciseItem,
+                val wasExpanded: Boolean,
+            ) : Click
+
+            /** «Отменить» on the set-removed toast: [set] back at [index] in one card's draft. */
+            data class OnUndoSetRemove(
+                val exerciseUuid: String,
+                val set: PlanSetUiModel,
+                val index: Int,
+            ) : Click
+
             data class OnExerciseReorder(val from: Int, val to: Int) : Click
 
             /** The card head's tap (ED14): expand the one you mean, collapse the one open. */
@@ -282,6 +296,30 @@ interface SingleTrainingStore : Store<State, Action, Event> {
         data class ShowArchiveBlocked(val message: String) : Event
 
         data class ShowSaveError(val message: String) : Event
+
+        /**
+         * `− подход` in an expanded card is a DRAFT edit (§4's table): nothing is persisted,
+         * so the undo puts [set] back at [index] in [exerciseUuid]'s draft — no timer, no
+         * deferred anything. Item-wise so queued toasts compose.
+         */
+        data class ShowSetRemovedUndo(
+            val message: String,
+            val exerciseUuid: String,
+            val set: PlanSetUiModel,
+            val index: Int,
+        ) : Event
+
+        /**
+         * `✕` removes from THIS training only, unconfirmed (D-OPEN-11) — the undo snackbar is
+         * the affordance ED11 pairs with that absence. A draft edit like the row above it:
+         * the undo re-inserts [item] where it stood (and re-opens it if it was expanded),
+         * and nothing was persisted in between.
+         */
+        data class ShowExerciseRemovedUndo(
+            val message: String,
+            val item: TrainingExerciseItem,
+            val wasExpanded: Boolean,
+        ) : Event
     }
 
     companion object {

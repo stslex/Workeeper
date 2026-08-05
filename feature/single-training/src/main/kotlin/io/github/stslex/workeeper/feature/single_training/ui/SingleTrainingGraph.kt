@@ -13,6 +13,7 @@ import io.github.stslex.workeeper.core.ui.kit.components.dialog.ActiveSessionCon
 import io.github.stslex.workeeper.core.ui.kit.components.sheet.AppBottomSheet
 import io.github.stslex.workeeper.core.ui.kit.components.sheet.AppConfirmSheet
 import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagPickerSheetContent
+import io.github.stslex.workeeper.core.ui.kit.snackbar.AppSnackbarModel
 import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
 import io.github.stslex.workeeper.core.ui.mvi.navComponentScreenWithState
 import io.github.stslex.workeeper.feature.single_training.di.SingleTrainingFeature
@@ -35,6 +36,7 @@ fun NavGraphBuilder.singleTrainingsGraph(
     navComponentScreenWithState(SingleTrainingFeature) { _, processor ->
 
         val haptic = LocalHapticFeedback.current
+        val undoToastLabel = stringResource(KitR.string.core_ui_kit_toast_undo)
 
         processor.Handle { event ->
             when (event) {
@@ -42,6 +44,39 @@ fun NavGraphBuilder.singleTrainingsGraph(
                 is Event.ShowArchiveSuccess -> SnackbarManager.showSnackbar(message = event.message)
                 is Event.ShowArchiveBlocked -> SnackbarManager.showSnackbar(message = event.message)
                 is Event.ShowSaveError -> SnackbarManager.showSnackbar(message = event.message)
+
+                // §4's table, rows 1 and 2: DRAFT edits with an undo toast — the undo
+                // re-inserts the removed thing, and nothing is persisted or deferred.
+                is Event.ShowSetRemovedUndo -> SnackbarManager.showSnackbar(
+                    AppSnackbarModel(
+                        message = event.message,
+                        actionLabel = undoToastLabel,
+                        action = {
+                            processor.consume(
+                                Action.Click.OnUndoSetRemove(
+                                    exerciseUuid = event.exerciseUuid,
+                                    set = event.set,
+                                    index = event.index,
+                                ),
+                            )
+                        },
+                    ),
+                )
+
+                is Event.ShowExerciseRemovedUndo -> SnackbarManager.showSnackbar(
+                    AppSnackbarModel(
+                        message = event.message,
+                        actionLabel = undoToastLabel,
+                        action = {
+                            processor.consume(
+                                Action.Click.OnUndoExerciseRemove(
+                                    item = event.item,
+                                    wasExpanded = event.wasExpanded,
+                                ),
+                            )
+                        },
+                    ),
+                )
             }
         }
 

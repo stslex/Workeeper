@@ -82,4 +82,5 @@
     <string name="core_ui_kit_tag_done">Done</string>
     <string name="core_ui_kit_tag_add_chip">+ tag</string>
     <string name="core_ui_kit_tag_remove_description">Remove tag</string>
+    <string name="core_ui_kit_toast_undo" tools:ignore="DuplicateStrings">Undo</string>
 </resources>

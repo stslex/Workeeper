@@ -23,7 +23,6 @@ import androidx.core.net.toUri
 import androidx.navigation.NavGraphBuilder
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.ActiveSessionConflictDialog
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppBlockedArchiveDialog
-import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppConfirmDialog
 import io.github.stslex.workeeper.core.ui.kit.components.pr.PrExplainerDialog
 import io.github.stslex.workeeper.core.ui.kit.components.sheet.AppBottomSheet
 import io.github.stslex.workeeper.core.ui.kit.components.sheet.AppConfirmSheet
@@ -83,6 +82,7 @@ fun NavGraphBuilder.exerciseGraph(
         val haptic = LocalHapticFeedback.current
         val context = LocalContext.current
         val undoLabel = stringResource(R.string.feature_exercise_detail_archive_undo)
+        val undoToastLabel = stringResource(KitR.string.core_ui_kit_toast_undo)
         val imageSaveFailed = stringResource(R.string.feature_exercise_image_error_save_failed)
         val imageLoadFailed = stringResource(R.string.feature_exercise_image_error_load_failed)
         val imageDecodeFailed =
@@ -138,8 +138,31 @@ fun NavGraphBuilder.exerciseGraph(
 
                 is Event.ShowTagLimitReached -> SnackbarManager.showSnackbar(message = event.message)
 
-                is Event.ShowPermanentDeleteSuccess ->
-                    SnackbarManager.showSnackbar(message = event.message)
+                // ED11's deferred delete: the toast is hosted app-level — ABOVE the popped
+                // destination — and its own lifetime IS the undo window. `action` (Отменить)
+                // does nothing because nothing has been deleted; `onDismissed` is the commit,
+                // run by the host's collector, which outlives this screen (D-OPEN-10: a
+                // process death cancels it and the row survives).
+                is Event.ShowPermanentDeleteUndo -> SnackbarManager.showSnackbar(
+                    AppSnackbarModel(
+                        message = event.message,
+                        actionLabel = undoToastLabel,
+                        action = { },
+                        onDismissed = event.commit,
+                    ),
+                )
+
+                is Event.ShowSetRemovedUndo -> SnackbarManager.showSnackbar(
+                    AppSnackbarModel(
+                        message = event.message,
+                        actionLabel = undoToastLabel,
+                        action = {
+                            processor.consume(
+                                Action.Click.OnUndoSetRemove(set = event.set, index = event.index),
+                            )
+                        },
+                    ),
+                )
 
                 is Event.NavigateLaunchCamera -> {
                     pendingCameraTempUri = event.tempUri
@@ -295,11 +318,15 @@ fun NavGraphBuilder.exerciseGraph(
                 onDismiss = { processor.consume(Action.Click.OnDismissArchiveBlocked) },
             )
 
-            is DialogState.PermanentDeleteConfirm -> AppConfirmDialog(
+            // `#sh-del`'s form: the one true confirmation is a SHEET (D-OPEN-1 — §7.4 stands,
+            // no dialog primitive in this language). The impact line rides `emphasis`.
+            is DialogState.PermanentDeleteConfirm -> AppConfirmSheet(
                 title = dialog.title,
                 body = dialog.body,
-                impactSummary = dialog.impactSummary,
+                emphasis = dialog.impactSummary,
                 confirmLabel = dialog.confirmLabel,
+                dismissLabel = stringResource(KitR.string.core_ui_kit_action_cancel),
+                confirmDestructive = true,
                 onConfirm = { processor.consume(Action.Click.OnConfirmPermanentDelete) },
                 onDismiss = { processor.consume(Action.Click.OnDismissPermanentDelete) },
             )

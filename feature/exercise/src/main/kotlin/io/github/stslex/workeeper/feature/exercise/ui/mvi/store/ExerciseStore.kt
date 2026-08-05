@@ -264,6 +264,9 @@ interface ExerciseStore : Store<State, Action, Event> {
             /** «Готово», the scrim or the drag — selection already applied live (ED7). */
             data object OnTagPickerDismiss : Click
 
+            /** «Отменить» on the set-removed toast: put [set] back at [index] in the draft. */
+            data class OnUndoSetRemove(val set: PlanSetUiModel, val index: Int) : Click
+
             data class OnTagToggle(val tagUuid: String) : Click
 
             data class OnTagRemove(val tagUuid: String) : Click
@@ -330,7 +333,30 @@ interface ExerciseStore : Store<State, Action, Event> {
 
         data class ShowTagLimitReached(val message: String) : Event
 
-        data class ShowPermanentDeleteSuccess(val message: String) : Event
+        /**
+         * The DEFERRED permanent delete (ED11): nothing has been deleted when this fires.
+         * [commit] is the delete itself, and the app-level snackbar host runs it when the
+         * undo window closes — timeout or dismissal — and never on «Отменить»
+         * (`resolveSnackbarOutcome`). It captures the interactor, not the Store, so it
+         * outlives this screen's pop without outliving the process (D-OPEN-10: a process
+         * death inside the window commits nothing and the row survives).
+         */
+        data class ShowPermanentDeleteUndo(
+            val message: String,
+            val commit: suspend () -> Unit,
+        ) : Event
+
+        /**
+         * `− подход` in the editor is a DRAFT edit (§4's table): nothing is persisted, so
+         * the undo restores the draft — [set] back at [index] — and there is no timer and
+         * no deferred anything. Item-wise rather than a whole-draft snapshot, so queued
+         * toasts compose: each undo restores exactly the row its toast named.
+         */
+        data class ShowSetRemovedUndo(
+            val message: String,
+            val set: PlanSetUiModel,
+            val index: Int,
+        ) : Event
 
         data class NavigateLaunchCamera(val tempUri: Uri) : Event
 

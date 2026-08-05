@@ -513,6 +513,68 @@ internal class ClickHandlerTest {
         assertFalse(stateFlow.value.hasChanges)
     }
 
+    /**
+     * §4's table, row 2: `✕` is a DRAFT edit — unconfirmed (D-OPEN-11), nothing persisted —
+     * and its toast's «Отменить» restores the item where it stood, position and expansion
+     * included. Item-wise, so a queued sibling toast composes.
+     */
+    @Test
+    fun `remove emits the undo toast and the undo restores item, position and expansion`() {
+        stateFlow.value = stateFlow.value.copy(
+            mode = State.Mode.Edit(isCreate = false),
+            exercises = persistentListOf(exercise("ex-1"), exercise("ex-2", position = 1)),
+            expandedExerciseUuids = persistentSetOf("ex-1"),
+        )
+        val events = mutableListOf<Event>()
+        every { store.sendEvent(capture(events)) } answers { }
+
+        handler.invoke(Action.Click.OnExerciseRemove("ex-1"))
+
+        assertEquals(listOf("ex-2"), stateFlow.value.exercises.map { it.exerciseUuid })
+        assertEquals(0, stateFlow.value.exercises.single().position)
+        val undo = events.filterIsInstance<Event.ShowExerciseRemovedUndo>().single()
+        assertEquals("ex-1", undo.item.exerciseUuid)
+        assertTrue(undo.wasExpanded)
+
+        handler.invoke(
+            Action.Click.OnUndoExerciseRemove(item = undo.item, wasExpanded = undo.wasExpanded),
+        )
+
+        assertEquals(listOf("ex-1", "ex-2"), stateFlow.value.exercises.map { it.exerciseUuid })
+        assertEquals(listOf(0, 1), stateFlow.value.exercises.map { it.position })
+        assertTrue("ex-1" in stateFlow.value.expandedExerciseUuids)
+    }
+
+    @Test
+    fun `minus set in a card emits the undo toast and the undo restores the row`() {
+        val set = PlanSetUiModel(weight = 60.0, reps = 10, type = SetTypeUiModel.WORK)
+        stateFlow.value = stateFlow.value.copy(
+            mode = State.Mode.Edit(isCreate = false),
+            exercises = persistentListOf(
+                exercise("ex-1").copy(planSets = persistentListOf(set), planSummary = "60×10"),
+            ),
+        )
+        val events = mutableListOf<Event>()
+        every { store.sendEvent(capture(events)) } answers { }
+
+        handler.invoke(
+            Action.Click.OnExercisePlanAction("ex-1", PlanEditorBodyAction.OnSetRemove(0)),
+        )
+        assertEquals(null, stateFlow.value.exercises.single().planSets)
+        val undo = events.filterIsInstance<Event.ShowSetRemovedUndo>().single()
+        assertEquals(set, undo.set)
+
+        handler.invoke(
+            Action.Click.OnUndoSetRemove(
+                exerciseUuid = undo.exerciseUuid,
+                set = undo.set,
+                index = undo.index,
+            ),
+        )
+        assertEquals(listOf(set), stateFlow.value.exercises.single().planSets)
+        assertEquals("60×10", stateFlow.value.exercises.single().planSummary)
+    }
+
     @Test
     fun `the dashed add chip opens the tag picker sheet`() {
         handler.invoke(Action.Click.OnTagAddClick)

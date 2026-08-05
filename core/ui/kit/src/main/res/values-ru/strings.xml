@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="core_ui_kit_action_cancel">Отмена</string>
     <string name="core_ui_kit_action_save">Сохранить</string>
     <string name="core_ui_kit_action_back">Назад</string>
@@ -58,4 +58,5 @@
     <string name="core_ui_kit_tag_done">Готово</string>
     <string name="core_ui_kit_tag_add_chip">+ тег</string>
     <string name="core_ui_kit_tag_remove_description">Убрать тег</string>
+    <string name="core_ui_kit_toast_undo" tools:ignore="DuplicateStrings">Отменить</string>
 </resources>

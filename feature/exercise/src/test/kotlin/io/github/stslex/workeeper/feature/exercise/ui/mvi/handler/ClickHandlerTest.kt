@@ -20,6 +20,7 @@ import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Di
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Event
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State.Mode
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
@@ -27,6 +28,7 @@ import io.mockk.verify
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -254,6 +256,72 @@ internal class ClickHandlerTest {
         )
         handler.invoke(Action.Click.OnArchiveMenuClick)
         assertEquals(BottomSheetState.Hidden, stateFlow.value.bottomSheetState)
+    }
+
+    /**
+     * ED11's strict order at the handler seam: confirming opens the undo window and DELETES
+     * NOTHING — the interactor is untouched until the window's close signal runs the event's
+     * own commit. Both directions on one flow: zero calls before, exactly one after.
+     */
+    @Test
+    fun `confirm permanent delete defers - nothing runs until the commit`() {
+        val (_, store, handler) = setup(
+            State.create(uuid = "uuid-1").copy(canPermanentlyDelete = true),
+        )
+        val events = mutableListOf<Event>()
+        every { store.sendEvent(capture(events)) } answers { }
+
+        handler.invoke(Action.Click.OnPermanentDeleteMenuClick)
+        handler.invoke(Action.Click.OnConfirmPermanentDelete)
+
+        coVerify(exactly = 0) { interactor.permanentlyDelete(any()) }
+        verify { store.consume(Action.Navigation.Back) }
+
+        val pending = events.filterIsInstance<Event.ShowPermanentDeleteUndo>().single()
+        runBlocking { pending.commit() }
+        coVerify(exactly = 1) { interactor.permanentlyDelete("uuid-1") }
+    }
+
+    @Test
+    fun `minus set emits the undo toast and the undo restores the row`() {
+        val plan = persistentListOf(
+            PlanSetUiModel(weight = 60.0, reps = 10, type = SetTypeUiModel.WORK),
+            PlanSetUiModel(weight = 80.0, reps = 8, type = SetTypeUiModel.WORK),
+        )
+        val (stateFlow, store, handler) = setup(
+            State.create(uuid = "uuid-1").copy(adhocPlan = plan),
+        )
+        val events = mutableListOf<Event>()
+        every { store.sendEvent(capture(events)) } answers { }
+
+        handler.invoke(
+            Action.Click.OnAdhocPlanEditorAction(PlanEditorBodyAction.OnSetRemove(plan.lastIndex)),
+        )
+        assertEquals(1, stateFlow.value.adhocPlan?.size)
+        val undo = events.filterIsInstance<Event.ShowSetRemovedUndo>().single()
+        assertEquals(plan.last(), undo.set)
+
+        handler.invoke(Action.Click.OnUndoSetRemove(set = undo.set, index = undo.index))
+        assertEquals(plan, stateFlow.value.adhocPlan)
+    }
+
+    /** The toast fires on the REMOVE alone — a value edit is not a removal. */
+    @Test
+    fun `a plan value edit emits no undo toast`() {
+        val plan = persistentListOf(
+            PlanSetUiModel(weight = 60.0, reps = 10, type = SetTypeUiModel.WORK),
+        )
+        val (_, store, handler) = setup(
+            State.create(uuid = "uuid-1").copy(adhocPlan = plan),
+        )
+        val events = mutableListOf<Event>()
+        every { store.sendEvent(capture(events)) } answers { }
+
+        handler.invoke(
+            Action.Click.OnAdhocPlanEditorAction(PlanEditorBodyAction.OnSetWeightChange(0, 70.0)),
+        )
+
+        assertTrue(events.filterIsInstance<Event.ShowSetRemovedUndo>().isEmpty())
     }
 
     @Test

@@ -10,6 +10,7 @@ import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagItem
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.core.ui.plan_editor.domain.PlanDraftReducer
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
+import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanEditorBodyAction
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanEditorUIMapper.formatPlanSummary
 import io.github.stslex.workeeper.feature.single_training.R
 import io.github.stslex.workeeper.feature.single_training.di.SingleTrainingHandlerStore
@@ -36,6 +37,7 @@ import kotlinx.collections.immutable.toImmutableSet
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import kotlin.uuid.Uuid
+import io.github.stslex.workeeper.core.ui.plan_editor.R as CoreEditorR
 
 @Suppress("TooManyFunctions", "LongMethod")
 @SingleIn(SingleTrainingScope::class)
@@ -68,6 +70,8 @@ internal class ClickHandler @Inject constructor(
             Action.Click.OnDismissDiscard -> processCloseDialog()
             Action.Click.OnAddExerciseClick -> processAddExerciseClick()
             is Action.Click.OnExerciseRemove -> processExerciseRemove(action)
+            is Action.Click.OnUndoExerciseRemove -> processUndoExerciseRemove(action)
+            is Action.Click.OnUndoSetRemove -> processUndoSetRemove(action)
             is Action.Click.OnExerciseReorder -> processExerciseReorder(action)
             is Action.Click.OnExerciseCardToggle -> processExerciseCardToggle(action)
             is Action.Click.OnExercisePlanAction -> processExercisePlanAction(action)
@@ -420,19 +424,32 @@ internal class ClickHandler @Inject constructor(
     }
 
     // Immediate, and deliberately unconfirmed (D-OPEN-11): the draft is unsaved and Cancel
-    // stands behind it. No undo affordance is built here — an absent confirmation is the
-    // ruling, not a gap to fill in passing.
+    // stands behind it. The undo snackbar is the affordance ED11 pairs with that absence —
+    // a DRAFT restore, item-wise, with no timer and nothing deferred: nothing was persisted.
     private fun processExerciseRemove(action: Action.Click.OnExerciseRemove) {
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
-        updateState { current ->
-            current.copy(
-                exercises = current.exercises
+        val current = state.value
+        val removed = current.exercises.firstOrNull { it.exerciseUuid == action.exerciseUuid }
+        updateState { latest ->
+            latest.copy(
+                exercises = latest.exercises
                     .filterNot { it.exerciseUuid == action.exerciseUuid }
                     .mapIndexed { index, item -> item.copy(position = index) }
                     .toImmutableList(),
-                expandedExerciseUuids = current.expandedExerciseUuids
+                expandedExerciseUuids = latest.expandedExerciseUuids
                     .filterNot { it == action.exerciseUuid }
                     .toImmutableSet(),
+            )
+        }
+        if (removed != null) {
+            sendEvent(
+                Event.ShowExerciseRemovedUndo(
+                    message = resourceWrapper.getString(
+                        R.string.feature_training_edit_exercise_removed,
+                    ),
+                    item = removed,
+                    wasExpanded = action.exerciseUuid in current.expandedExerciseUuids,
+                ),
             )
         }
     }
@@ -478,6 +495,10 @@ internal class ClickHandler @Inject constructor(
      */
     private fun processExercisePlanAction(action: Action.Click.OnExercisePlanAction) {
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
+        val bodyAction = action.action
+        val priorDraft = state.value.exercises
+            .firstOrNull { it.exerciseUuid == action.exerciseUuid }
+            ?.planSets
         updateState { current ->
             val target = current.exercises.firstOrNull { it.exerciseUuid == action.exerciseUuid }
                 ?: return@updateState current
@@ -500,6 +521,75 @@ internal class ClickHandler @Inject constructor(
                         item
                     }
                 }.toImmutableList(),
+            )
+        }
+        // `− подход` gets its undo toast (§4's table): a DRAFT edit — the undo re-inserts the
+        // removed row; no timer, nothing deferred. The deferred machinery belongs to the
+        // permanent delete alone.
+        if (bodyAction is PlanEditorBodyAction.OnSetRemove &&
+            priorDraft != null &&
+            bodyAction.index in priorDraft.indices
+        ) {
+            sendEvent(
+                Event.ShowSetRemovedUndo(
+                    message = resourceWrapper.getString(
+                        CoreEditorR.string.core_ui_plan_editor_toast_set_removed,
+                    ),
+                    exerciseUuid = action.exerciseUuid,
+                    set = priorDraft[bodyAction.index],
+                    index = bodyAction.index,
+                ),
+            )
+        }
+    }
+
+    /** The set-removed toast's «Отменить»: the addressed card's draft takes the row back. */
+    private fun processUndoSetRemove(action: Action.Click.OnUndoSetRemove) {
+        updateState { current ->
+            val target = current.exercises.firstOrNull { it.exerciseUuid == action.exerciseUuid }
+                ?: return@updateState current
+            val draft = target.planSets ?: persistentListOf()
+            val at = action.index.coerceIn(0, draft.size)
+            val nextPlan = draft.toMutableList()
+                .apply { add(at, action.set) }
+                .toImmutableList()
+            current.copy(
+                exercises = current.exercises.map { item ->
+                    if (item.exerciseUuid == action.exerciseUuid) {
+                        item.copy(
+                            planSets = nextPlan,
+                            planSummary = nextPlan.formatPlanSummary(),
+                        )
+                    } else {
+                        item
+                    }
+                }.toImmutableList(),
+            )
+        }
+    }
+
+    /**
+     * The exercise-removed toast's «Отменить»: the item returns where it stood — clamped to
+     * the list's current size, since other edits may have landed inside the toast's window —
+     * positions reindex, and a card that was open re-opens.
+     */
+    private fun processUndoExerciseRemove(action: Action.Click.OnUndoExerciseRemove) {
+        updateState { current ->
+            if (current.exercises.any { it.exerciseUuid == action.item.exerciseUuid }) {
+                return@updateState current
+            }
+            val at = action.item.position.coerceIn(0, current.exercises.size)
+            val nextExercises = current.exercises.toMutableList()
+                .apply { add(at, action.item) }
+                .mapIndexed { index, item -> item.copy(position = index) }
+                .toImmutableList()
+            current.copy(
+                exercises = nextExercises,
+                expandedExerciseUuids = if (action.wasExpanded) {
+                    (current.expandedExerciseUuids + action.item.exerciseUuid).toImmutableSet()
+                } else {
+                    current.expandedExerciseUuids
+                },
             )
         }
     }
