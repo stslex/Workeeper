@@ -5,7 +5,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,33 +13,25 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButton
-import io.github.stslex.workeeper.core.ui.kit.components.card.AppCard
 import io.github.stslex.workeeper.core.ui.kit.components.pr.PersonalRecordHero
 import io.github.stslex.workeeper.core.ui.kit.components.section.AppSectionHeader
-import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTag
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppIconButton
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopBar
 import io.github.stslex.workeeper.core.ui.kit.icons.AppIcons
@@ -48,19 +39,20 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
+import io.github.stslex.workeeper.core.ui.plan_editor.PlanSetCard
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.exercise.R
-import io.github.stslex.workeeper.feature.exercise.ui.components.ExerciseHero
+import io.github.stslex.workeeper.feature.exercise.ui.components.ExerciseDescriptionBlock
 import io.github.stslex.workeeper.feature.exercise.ui.components.ExerciseHistoryRow
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.HistoryUiModel
-import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ImageDisplay
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PersonalRecordUiModel
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.TagUiModel
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State
 import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 
 @Composable
@@ -115,6 +107,14 @@ internal fun TopBar(
     )
 }
 
+/**
+ * `v3-editors.md` §3.1's frame, in its order: tags · record · plan · description · history.
+ *
+ * Two blocks moved and one changed shape. The **description** now sits after the plan and before
+ * the history, which is ED3's order — the description follows the screen's main slot — and it
+ * carries the image, which used to be a full-width hero at the very top (D-OPEN-9). The **plan**
+ * is the set-row card the editor draws, not a summary line (ED2).
+ */
 @Composable
 private fun Body(
     state: State,
@@ -129,40 +129,7 @@ private fun Body(
                 // reachable above it.
                 .padding(bottom = DOCK_CLEARANCE),
         ) {
-            // E3: hero only when a custom image is present (in code, not drawn in the
-            // mockup — kept as shipped, see the PR delta table).
-            if (state.effectiveImageDisplay !is ImageDisplay.None) {
-                InGutter(top = AppDimension.Space.sm) {
-                    ExerciseHero(
-                        type = state.type,
-                        imageDisplay = state.effectiveImageDisplay,
-                        onImageClick = { consume(Action.Click.OnImageThumbnailClick) },
-                    )
-                }
-            }
-            // §3.2 tag row: the type pill first, then the muscle-group tags — display only
-            // (`cursor:default` in the mockup; the `.on` variant belongs to the chart).
-            InGutter(top = AppDimension.Space.sm) {
-                FlowRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
-                    verticalArrangement = Arrangement.spacedBy(AppDimension.Space.xs),
-                ) {
-                    AppTag(label = stringResource(state.type.labelRes))
-                    state.tags.forEach { tag -> AppTag(label = tag.name) }
-                }
-            }
-            if (state.description.isNotBlank()) {
-                InGutter(top = AppDimension.Space.md) {
-                    AppCard {
-                        Text(
-                            text = state.description,
-                            style = AppUi.typography.bodyMedium,
-                            color = AppUi.colors.textPrimary,
-                        )
-                    }
-                }
-            }
+            TagMetaLine(tags = state.tags)
             // §3.1 frame order: the record block sits above the default plan (`.prhero`'s
             // 6px top margin lands on the tag row's 16px bottom — the lg rung). The whole
             // hero is the chart entry point; the PR explainer moved to the history row's
@@ -178,14 +145,8 @@ private fun Body(
                     )
                 }
             }
-            if (state.planSummaryVisible) {
-                state.adhocPlan?.let { plan ->
-                    DefaultPlanSection(
-                        plan = plan,
-                        isWeighted = state.type == ExerciseTypeUiModel.WEIGHTED,
-                    )
-                }
-            }
+            DefaultPlanSection(state = state)
+            DescriptionSection(state = state, consume = consume)
             HistorySection(state = state, consume = consume)
             Spacer(Modifier.height(AppDimension.Space.md))
         }
@@ -215,16 +176,42 @@ private fun InGutter(
 }
 
 /**
- * §3.4 — `.section-head` (single label, 32dp above / 12dp below) over `.plancard`:
- * ruled `.planline`s of `.ord` + `.val`, `{w}×{r}` in mono at Medium with the `×` dimmed.
- * The mockup draws no set-type chip and no units on these lines — the plan editor still
- * shows both.
+ * §3.1's `meta` line — the tags, on ONE mono line, and **the exercise type is not among them**
+ * (ED12). The type is a property of the exercise and is declared once, on the plan head, where it
+ * explains the shape of the rows underneath it; as a chip in this row it read as a tag the user
+ * could have applied.
+ *
+ * The separator is the app's own meta separator — `ExerciseHistoryRow`'s set summary and
+ * `.prhero`'s date line both use it — so a meta line looks like a meta line wherever it appears.
  */
 @Composable
-private fun DefaultPlanSection(
-    plan: ImmutableList<PlanSetUiModel>,
-    isWeighted: Boolean,
-) {
+private fun TagMetaLine(tags: ImmutableList<TagUiModel>) {
+    if (tags.isEmpty()) return
+    InGutter(top = AppDimension.Space.sm) {
+        Text(
+            modifier = Modifier.testTag("ExerciseDetailTagMeta"),
+            text = tags.joinToString(META_SEPARATOR) { it.name },
+            style = AppUi.typography.mono.meta,
+            color = AppUi.colors.textTertiary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+/** `.meta`'s own separator — the middle dot with air either side, as every meta line draws it. */
+private const val META_SEPARATOR = " · "
+
+/**
+ * §3.1 — `ПЛАН ПО УМОЛЧАНИЮ` with the type as its trailing label (ED12), over the read-only
+ * [PlanSetCard] (ED2). Read and edit draw the same card by ruling (D-OPEN-6).
+ *
+ * **Rendered whether or not there is a plan.** The head is where the type is stated, so hiding
+ * the section for an exercise with no plan hides the type as well; the card's own empty branch
+ * covers the state. §3.1's frame marks `prhero` conditional and this section not.
+ */
+@Composable
+private fun DefaultPlanSection(state: State) {
     Column {
         AppSectionHeader(
             modifier = Modifier.padding(
@@ -232,109 +219,50 @@ private fun DefaultPlanSection(
                 bottom = AppDimension.Space.md,
             ),
             label = stringResource(R.string.feature_exercise_detail_default_plan),
+            trailingLabel = stringResource(state.type.labelRes),
         )
-        InGutter { PlanCard(plan = plan, isWeighted = isWeighted) }
-    }
-}
-
-@Composable
-private fun PlanCard(
-    plan: ImmutableList<PlanSetUiModel>,
-    isWeighted: Boolean,
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(AppDimension.Radius.medium))
-            .background(AppUi.colors.surfaceTier1)
-            .padding(
-                horizontal = AppDimension.screenEdge,
-                vertical = AppDimension.Space.sm,
+        InGutter {
+            PlanSetCard(
+                modifier = Modifier.testTag("ExerciseDetailDefaultPlanCard"),
+                plan = state.adhocPlan ?: persistentListOf(),
+                isWeighted = state.type == ExerciseTypeUiModel.WEIGHTED,
             )
-            .testTag("ExerciseDetailDefaultPlanCard"),
-    ) {
-        plan.forEachIndexed { index, set ->
-            if (index > 0) {
-                HorizontalDivider(
-                    thickness = AppDimension.Border.small,
-                    color = AppUi.colors.borderSubtle,
-                )
-            }
-            PlanLine(index = index, set = set, isWeighted = isWeighted)
         }
     }
 }
 
+/**
+ * §3.1 — `ОПИСАНИЕ` over the block that carries the description and the picture beside it
+ * (D-OPEN-9). The block is built once and the editor consumes the same one; the head stays with
+ * the host, whose section rhythm differs from a form's.
+ *
+ * Read has no picker: an image chosen here would be a `pendingImage` on a screen with no Save.
+ * So the block gets the viewer and nothing else, and draws an inert placeholder when there is
+ * no picture to open.
+ */
 @Composable
-private fun PlanLine(
-    index: Int,
-    set: PlanSetUiModel,
-    isWeighted: Boolean,
+private fun DescriptionSection(
+    state: State,
+    consume: (Action) -> Unit,
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = AppDimension.Space.md)
-            .testTag("ExerciseDetailDefaultPlanRow_$index"),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            modifier = Modifier.widthIn(min = ORD_WIDTH),
-            text = "${index + 1}",
-            style = AppUi.typography.mono.meta,
-            color = AppUi.colors.textDim,
-            maxLines = 1,
+    Column {
+        AppSectionHeader(
+            modifier = Modifier.padding(
+                top = AppDimension.Space.xxl,
+                bottom = AppDimension.Space.md,
+            ),
+            label = stringResource(R.string.feature_exercise_edit_label_description),
         )
-        Spacer(Modifier.weight(1f))
-        PlanValue(set = set, isWeighted = isWeighted)
+        InGutter {
+            ExerciseDescriptionBlock(
+                description = state.description,
+                type = state.type,
+                imageDisplay = state.effectiveImageDisplay,
+                onOpenImage = { consume(Action.Click.OnImageThumbnailClick) },
+            )
+        }
     }
 }
-
-/** `.val` — mono 15 at Medium, `textSecondary`; the `×` separator stays `textDim`. */
-@Composable
-private fun PlanValue(
-    set: PlanSetUiModel,
-    isWeighted: Boolean,
-) {
-    val valueStyle = AppUi.typography.mono.body.copy(fontWeight = FontWeight.Medium)
-    if (isWeighted) {
-        Text(
-            text = buildAnnotatedString {
-                append(formatPlanWeight(set.weight))
-                withStyle(SpanStyle(color = AppUi.colors.textDim)) { append(MULTIPLY_SIGN) }
-                append("${set.reps}")
-            },
-            style = valueStyle,
-            color = AppUi.colors.textSecondary,
-            maxLines = 1,
-        )
-    } else {
-        val unit = stringResource(
-            io.github.stslex.workeeper.core.ui.kit.R.string.core_ui_kit_plan_editor_unit_reps,
-        )
-        Text(
-            text = "${set.reps} $unit",
-            style = valueStyle,
-            color = AppUi.colors.textSecondary,
-            maxLines = 1,
-        )
-    }
-}
-
-private fun formatPlanWeight(weight: Double?): String {
-    if (weight == null) return ""
-    return if (weight % 1.0 == 0.0) {
-        weight.toLong().toString()
-    } else {
-        weight.toString().trimEnd('0').trimEnd('.')
-    }
-}
-
-/** `.ord` width 16px → 16dp, as a minimum so a two-digit ordinal cannot wrap. */
-private val ORD_WIDTH = 16.dp
-
-/** `U+00D7` — the `.val .x` separator (mono carries the glyph; no Archivo here). */
-private const val MULTIPLY_SIGN = "×"
 
 /**
  * §3.5 — the История section: head with the session count as its trailing label, then a

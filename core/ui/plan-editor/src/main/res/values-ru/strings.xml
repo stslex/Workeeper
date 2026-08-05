@@ -9,6 +9,8 @@
 
     <string name="core_ui_plan_editor_set_type_tooltip">Нажмите, чтобы переключить: разминка → рабочий → отказ → дроп</string>
 
+    <string name="core_ui_plan_editor_read_plan_empty">У упражнения нет плана по умолчанию.</string>
+
     <string name="core_ui_plan_editor_error_load">Не удалось загрузить план.</string>
     <string name="core_ui_plan_editor_error_save">Не удалось сохранить план.</string>
 

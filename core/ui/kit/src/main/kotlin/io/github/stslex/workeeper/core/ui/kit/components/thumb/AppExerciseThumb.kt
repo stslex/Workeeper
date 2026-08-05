@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
@@ -70,17 +71,28 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
  * The picture slot is the trailing lambda ([content]) rather than an `image:` parameter, so the
  * empty state is `null` and Compose's own naming rule is satisfied — the box is the component and
  * the picture is what goes in it.
+ *
+ * ## A null [onClick] is a box with nowhere to go, and that is a state a host can be in
+ *
+ * The exercise **read** screen draws this beside the description (`v3-editors.md` D-OPEN-3,
+ * D-OPEN-9) and has exactly one destination for it: the viewer, which needs a picture to show.
+ * With no picture there is nothing to open and read mode cannot pick one, so the box is drawn and
+ * is not a control. Announcing a button that does nothing is worse than announcing a picture that
+ * is absent, which is what [contentDescription] then says.
  */
 @Composable
 fun AppExerciseThumb(
     isWeighted: Boolean,
-    onClick: () -> Unit,
+    onClick: (() -> Unit)?,
     contentDescription: String,
     modifier: Modifier = Modifier,
     content: (@Composable () -> Unit)? = null,
 ) {
     val shape = RoundedCornerShape(AppDimension.Radius.small)
     val hasImage = content != null
+    // Aliased before the `semantics` block: inside it a bare `contentDescription` resolves to the
+    // receiver's own property, so `this.contentDescription = contentDescription` is a self-assign.
+    val label = contentDescription
     // The drawn box IS the touch target: [AppDimension.iconXl] is both `.icon-btn`'s rung and the
     // 48dp minimum, so a foundation `clickable` — which gets none of `IconButton`'s target
     // expansion — needs nothing around it here. Shrink this below the rung and the hit area
@@ -107,8 +119,15 @@ fun AppExerciseThumb(
                         )
                 }
             }
-            .clickable(onClickLabel = contentDescription, onClick = onClick)
-            .semantics { role = Role.Button },
+            .then(
+                if (onClick != null) {
+                    Modifier
+                        .clickable(onClickLabel = contentDescription, onClick = onClick)
+                        .semantics { role = Role.Button }
+                } else {
+                    Modifier.semantics { this.contentDescription = label }
+                },
+            ),
         contentAlignment = Alignment.Center,
     ) {
         if (content != null) {
