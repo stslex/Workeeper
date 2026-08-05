@@ -400,6 +400,40 @@ internal class ClickHandlerTest {
     }
 
     /**
+     * ED14 governs ENTERING the editor, and a save is not the only way back to Read — so the
+     * whole reported path is walked here rather than the one exit: expand, save, tap Edit. Between
+     * the save and the tap the set is invisible (Read renders `TrainingExerciseRow`, not the
+     * card), which is why nothing catches this without re-entering.
+     */
+    @Test
+    fun `entering the editor after a save collapses every card`() {
+        every {
+            store.launch(any(), any(), any(), any(), any<suspend CoroutineScope.() -> Any?>())
+        } answers {
+            val onSuccess = arg<suspend CoroutineScope.(Any?) -> Unit>(1)
+            val action = arg<suspend CoroutineScope.() -> Any?>(4)
+            runBlocking { onSuccess(this, action()) }
+            mockk(relaxed = true)
+        }
+        stateFlow.value = stateFlow.value.copy(
+            uuid = "training-1",
+            mode = State.Mode.Edit(isCreate = false),
+            name = "Push Day",
+            exercises = persistentListOf(exercise("ex-1", 0), exercise("ex-2", 1)),
+        )
+        handler.invoke(Action.Click.OnExerciseCardToggle("ex-1"))
+        handler.invoke(Action.Click.OnExerciseCardToggle("ex-2"))
+        assertEquals(2, stateFlow.value.expandedExerciseUuids.size)
+
+        handler.invoke(Action.Click.OnSaveClick)
+        assertEquals(State.Mode.Read, stateFlow.value.mode)
+
+        handler.invoke(Action.Click.OnEditClick)
+
+        assertTrue(stateFlow.value.expandedExerciseUuids.isEmpty())
+    }
+
+    /**
      * The snapshot stores whole items; the comparison is narrower than the storage, over
      * uuid + position + plan. An exercise renamed on its own screen and refreshed into this list
      * is not an unsaved edit to THIS training, and must not raise the discard sheet.

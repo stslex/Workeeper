@@ -101,11 +101,19 @@ internal class ClickHandler @Inject constructor(
         }
     }
 
+    /**
+     * ED14 is about ENTERING: "entering the editor you see the whole list; you expand the one you
+     * mean". So the collapse lives here rather than on the ways OUT — one route in, however the
+     * screen got back to Read, and a route added later inherits it. `applySnapshotOrPop` clears
+     * the set too, for its own reason: a discard restores the loaded form, and expansion is part
+     * of the form. D-OPEN-8's insert-opens fires while editing and is untouched by either.
+     */
     private fun processEditClick() {
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
         updateState { current ->
             current.copy(
                 mode = Mode.Edit(isCreate = false),
+                expandedExerciseUuids = persistentSetOf(),
                 originalSnapshot = current.toSnapshot(),
             )
         }
