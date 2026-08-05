@@ -399,6 +399,87 @@ internal class ClickHandlerTest {
         verify(exactly = 0) { store.consume(any<Action.Navigation.Back>()) }
     }
 
+    /**
+     * The snapshot now stores whole items, so this pins the half that must NOT change with it:
+     * the comparison is still over uuid + position + plan. An exercise renamed on its own screen
+     * and refreshed into this list is not an unsaved edit to THIS training, and must not raise
+     * the discard sheet.
+     */
+    @Test
+    fun `a refreshed exercise name is not an unsaved change`() {
+        stateFlow.value = stateFlow.value.copy(
+            mode = State.Mode.Edit(isCreate = false),
+            exercises = persistentListOf(exercise("ex-1")),
+        )
+        stateFlow.value = stateFlow.value.copy(originalSnapshot = stateFlow.value.toSnapshot())
+
+        stateFlow.value = stateFlow.value.copy(
+            exercises = persistentListOf(
+                stateFlow.value.exercises.first().copy(exerciseName = "Жим лёжа, узкий хват"),
+            ),
+        )
+
+        assertFalse(stateFlow.value.hasChanges)
+    }
+
+    /**
+     * Three defects, one cause: the discard rebuilt the list out of the CURRENT one. Each test
+     * below is a thing the snapshot has to be able to put back, and only the whole-list restore
+     * puts all three back.
+     */
+    @Test
+    fun `OnConfirmDiscard restores an exercise the edit removed`() {
+        stateFlow.value = stateFlow.value.copy(
+            mode = State.Mode.Edit(isCreate = false),
+            exercises = persistentListOf(exercise("ex-1", 0), exercise("ex-2", 1)),
+        )
+        stateFlow.value = stateFlow.value.copy(originalSnapshot = stateFlow.value.toSnapshot())
+        handler.invoke(Action.Click.OnExerciseRemove("ex-1"))
+        assertEquals(1, stateFlow.value.exercises.size)
+
+        handler.invoke(Action.Click.OnConfirmDiscard)
+
+        assertEquals(
+            listOf("ex-1", "ex-2"),
+            stateFlow.value.exercises.map { it.exerciseUuid },
+        )
+    }
+
+    @Test
+    fun `OnConfirmDiscard restores the positions a reorder changed`() {
+        stateFlow.value = stateFlow.value.copy(
+            mode = State.Mode.Edit(isCreate = false),
+            exercises = persistentListOf(exercise("ex-1", 0), exercise("ex-2", 1)),
+        )
+        stateFlow.value = stateFlow.value.copy(originalSnapshot = stateFlow.value.toSnapshot())
+        handler.invoke(Action.Click.OnExerciseReorder(0, 1))
+        assertEquals(listOf("ex-2", "ex-1"), stateFlow.value.exercises.map { it.exerciseUuid })
+
+        handler.invoke(Action.Click.OnConfirmDiscard)
+
+        // Both the ORDER and the `position` field, which the read screen renders as "N.".
+        assertEquals(listOf("ex-1", "ex-2"), stateFlow.value.exercises.map { it.exerciseUuid })
+        assertEquals(listOf(0, 1), stateFlow.value.exercises.map { it.position })
+    }
+
+    @Test
+    fun `OnConfirmDiscard restores the plan a card edited`() {
+        stateFlow.value = stateFlow.value.copy(
+            mode = State.Mode.Edit(isCreate = false),
+            exercises = persistentListOf(exercise("ex-1")),
+        )
+        stateFlow.value = stateFlow.value.copy(originalSnapshot = stateFlow.value.toSnapshot())
+        handler.invoke(
+            Action.Click.OnExercisePlanAction("ex-1", PlanEditorBodyAction.OnAddSet),
+        )
+        assertTrue(stateFlow.value.hasChanges)
+
+        handler.invoke(Action.Click.OnConfirmDiscard)
+
+        assertEquals(null, stateFlow.value.exercises.first().planSets)
+        assertFalse(stateFlow.value.hasChanges)
+    }
+
     private fun exercise(
         uuid: String,
         position: Int = 0,

@@ -110,13 +110,7 @@ internal class CommonHandler @Inject constructor(
             name = training.name,
             description = training.description.orEmpty(),
             tagUuids = tags.map { it.uuid },
-            exerciseSignature = exercises.map {
-                State.ExerciseSignature(
-                    it.exerciseUuid,
-                    it.position,
-                    it.planSets,
-                )
-            },
+            exercises = exercises,
         )
         return copy(
             uuid = training.uuid,
@@ -159,7 +153,5 @@ internal fun State.toSnapshot(): State.Snapshot = State.Snapshot(
     name = name,
     description = description,
     tagUuids = tags.map { it.uuid },
-    exerciseSignature = exercises.map {
-        State.ExerciseSignature(it.exerciseUuid, it.position, it.planSets)
-    },
+    exercises = exercises,
 )

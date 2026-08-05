@@ -5,7 +5,6 @@ import androidx.compose.runtime.Stable
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import io.github.stslex.workeeper.core.ui.mvi.Store
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanEditorBodyAction
-import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.feature.single_training.domain.model.ActiveSessionDomain
 import io.github.stslex.workeeper.feature.single_training.mvi.model.HistorySessionItem
 import io.github.stslex.workeeper.feature.single_training.mvi.model.PickerExerciseItem
@@ -63,8 +62,8 @@ interface SingleTrainingStore : Store<State, Action, Event> {
 
         /**
          * Intercept back when edits are unsaved or a dialog is open — and a plan edited in a
-         * card counts, through [ExerciseSignature.planSets]. Dialog dismissal precedes screen
-         * pop so the back gesture closes the topmost dialog before propagating.
+         * card counts, through the plan half of [Snapshot]'s comparison. Dialog dismissal
+         * precedes screen pop so the back gesture closes the topmost dialog before propagating.
          */
         val interceptBack: Boolean
             get() = (mode is Mode.Edit && hasChanges) || dialogState !is DialogState.Hidden
@@ -77,37 +76,45 @@ interface SingleTrainingStore : Store<State, Action, Event> {
             data class Edit(val isCreate: Boolean) : Mode
         }
 
+        /**
+         * The loaded form, kept whole so that discarding can put it back whole.
+         *
+         * [exercises] holds the ITEMS, not a signature of them. A signature is enough to detect
+         * a change and not enough to undo one: the discard restored the list by filtering and
+         * re-sorting the CURRENT one, so an exercise the user removed had nothing to come back
+         * from, and `position` — carried in the signature but never read out of it — stayed at
+         * the edited value on a screen that renders it as `"${position + 1}."`.
+         *
+         * The signature is now derived from these items inside [matches], on both sides, so
+         * dirty detection compares exactly what it compared before.
+         */
         @Stable
         data class Snapshot(
             val name: String,
             val description: String,
             val tagUuids: List<String>,
-            val exerciseSignature: List<ExerciseSignature>,
+            val exercises: ImmutableList<TrainingExerciseItem>,
         ) {
 
             fun matches(state: State): Boolean = state.name == name &&
                 state.description == description &&
                 state.tags.map { it.uuid } == tagUuids &&
-                state.exercises.map {
-                    ExerciseSignature(
-                        it.exerciseUuid,
-                        it.position,
-                        it.planSets,
-                    )
-                } == exerciseSignature
-        }
+                state.exercises.map { it.signature() } == exercises.map { it.signature() }
 
-        /**
-         * [planSets] is IN the signature since the plan became an inline edit (ED1): a plan
-         * edit with no baseline echo must read as `hasChanges`, or back would pop over an
-         * unsaved plan without the discard sheet — the protection D-OPEN-11 counts on.
-         */
-        @Stable
-        data class ExerciseSignature(
-            val exerciseUuid: String,
-            val position: Int,
-            val planSets: ImmutableList<PlanSetUiModel>?,
-        )
+            private companion object {
+
+                /**
+                 * The three fields an edit can touch. `planSets` is IN it since the plan became
+                 * an inline edit (ED1): a plan edit with no baseline echo must read as
+                 * `hasChanges`, or back would pop over an unsaved plan without the discard sheet
+                 * — the protection D-OPEN-11 counts on. Name, type and tags are NOT: they belong
+                 * to the exercise, are edited on its own screen, and a refresh of them arriving
+                 * from there is not an unsaved edit to THIS training.
+                 */
+                fun TrainingExerciseItem.signature() =
+                    Triple(exerciseUuid, position, planSets)
+            }
+        }
 
         @Stable
         sealed interface PickerState {

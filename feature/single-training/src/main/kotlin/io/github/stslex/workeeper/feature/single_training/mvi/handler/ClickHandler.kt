@@ -359,20 +359,12 @@ internal class ClickHandler @Inject constructor(
             description = snapshot.description,
             tags = matchedTags,
             tagSearchQuery = "",
-            // Drop in-progress order/exercises by re-snapshotting; the loader already
-            // cached the canonical set in `originalSnapshot`. We resolve the exercises
-            // list lazily by keeping the existing order matching the snapshot signature.
-            exercises = exercises
-                .filter { exercise ->
-                    snapshot.exerciseSignature.any { it.exerciseUuid == exercise.exerciseUuid }
-                }
-                .sortedBy { exercise ->
-                    snapshot.exerciseSignature
-                        .firstOrNull { it.exerciseUuid == exercise.exerciseUuid }
-                        ?.position
-                        ?: Int.MAX_VALUE
-                }
-                .toImmutableList(),
+            // The whole list, from the snapshot — not the current one filtered and re-sorted.
+            // Filtering can only ever REMOVE, so a removed exercise had nothing to come back
+            // from; and re-sorting moved rows without rewriting `position`, which this screen
+            // renders as `"${position + 1}."`. Discard is one assignment for the same reason
+            // the training and its plans save as one act: half an undo is a wrong screen.
+            exercises = snapshot.exercises,
         )
     }
 
