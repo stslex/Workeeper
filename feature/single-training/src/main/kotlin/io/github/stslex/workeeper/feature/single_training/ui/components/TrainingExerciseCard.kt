@@ -182,7 +182,7 @@ private fun CardHead(
             Icon(
                 modifier = Modifier.size(AppDimension.iconSm),
                 // Removes from THIS training only, immediately and unconfirmed (D-OPEN-11):
-                // the draft is unsaved and Cancel stands behind it. Undo is S7's, in PR-C.
+                // the draft is unsaved and Cancel stands behind it.
                 imageVector = AppIcons.Close,
                 contentDescription = stringResource(R.string.feature_training_edit_remove_exercise),
                 tint = AppUi.colors.textTertiary,

@@ -189,7 +189,8 @@ private fun NameField(
 
 /**
  * §3.2 — `ПЛАН ПО УМОЛЧАНИЮ` with the `(i)` in the head's trailing slot (ED8), over
- * [PlanEditorBody]: PR-A's toggle (ED5) above PR-A's set card with its `.setbar` foot. The head
+ * [PlanEditorBody]: the monochrome toggle (ED5) above the set card with its `.setbar` foot. The
+ * head
  * carries a short label; the REASON — what a default plan is for — lives in the sheet the `(i)`
  * opens, and not in a subtitle under the label.
  *
@@ -259,7 +260,7 @@ private fun PlanSectionHead(consume: (Action) -> Unit) {
  * §3.2 — `ТЕГИ` with the `N из 10` counter as the head's trailing label. The counter renders
  * **only** on this editor: the limit is this feature's ([State.MAX_TAGS_PER_EXERCISE]), and
  * `feature/single-training` has none, so showing one there would be a lie. The picker below is
- * untouched — the chip-plus-sheet form is S6's work, not this commit's.
+ * the tag affordance this screen has; nothing here builds a second one.
  */
 @Composable
 private fun TagsSection(
@@ -294,9 +295,9 @@ private fun TagsSection(
 }
 
 /**
- * §3.2 — `ОПИСАНИЕ` over PR-A's block in its **editable** mode: `.tf.multi` with the image
- * beside it (D-OPEN-3). S2 built it, this consumes it — the whole image affordance is here,
- * which is what replaced the top-bar thumb (ED6).
+ * §3.2 — `ОПИСАНИЕ` over [ExerciseDescriptionBlock] in its **editable** mode: `.tf.multi` with
+ * the image beside it (D-OPEN-3). The whole image affordance is here, and there is none in the
+ * top bar (ED6).
  */
 @Composable
 private fun DescriptionSection(

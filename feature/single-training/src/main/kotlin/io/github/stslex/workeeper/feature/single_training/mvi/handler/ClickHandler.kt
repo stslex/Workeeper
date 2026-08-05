@@ -408,7 +408,8 @@ internal class ClickHandler @Inject constructor(
     }
 
     // Immediate, and deliberately unconfirmed (D-OPEN-11): the draft is unsaved and Cancel
-    // stands behind it. The undo snackbar is S7's work — nothing here half-builds it.
+    // stands behind it. No undo affordance is built here — an absent confirmation is the
+    // ruling, not a gap to fill in passing.
     private fun processExerciseRemove(action: Action.Click.OnExerciseRemove) {
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
         updateState { current ->

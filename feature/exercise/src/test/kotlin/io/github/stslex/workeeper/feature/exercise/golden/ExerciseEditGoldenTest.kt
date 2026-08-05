@@ -19,8 +19,8 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.EnumSource
 
 /**
- * The exercise editor on §3.2's frame — the screen S3 rebuilt, so these frames are the ruling's
- * own gate: the plan edited inline in BOTH modes (ED1), the section rhythm (ED3), no placeholder
+ * The exercise editor on §3.2's frame. These frames are the rulings' own gate: the plan edited
+ * inline in BOTH modes (ED1), the section rhythm (ED3), no placeholder
  * echoing a label (ED4), the monochrome toggle (ED5), no thumb in the bar (ED6), the `(i)` on the
  * plan head (ED8), and an empty create draft (ED13).
  *
