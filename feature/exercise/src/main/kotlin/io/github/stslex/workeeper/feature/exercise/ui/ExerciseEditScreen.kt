@@ -64,10 +64,10 @@ import io.github.stslex.workeeper.core.ui.plan_editor.R as CoreEditorR
  *     head     ОПИСАНИЕ                                   + image beside it (D-OPEN-3)
  *     dock     Отмена · Сохранить                         Save always enabled (§7.3)
  *
- * The plan is edited **where it is drawn, in both modes** (ED1): the summary line, its button and
- * the `Screen.PlanEditor` round-trip are gone from this feature. ED3 rules the rhythm — a
- * labelled field only where text is typed, a `.section-head` everywhere else — which is why the
- * name keeps its `.flabel` and everything below it is a section.
+ * The plan is edited **where it is drawn, in both modes** (ED1) — this screen is the plan's
+ * whole editor, and nothing routes away from it. ED3 rules the rhythm — a labelled field only
+ * where text is typed, a `.section-head` everywhere else — which is why the name keeps its
+ * `.flabel` and everything below it is a section.
  */
 @Composable
 internal fun ExerciseEditScreen(

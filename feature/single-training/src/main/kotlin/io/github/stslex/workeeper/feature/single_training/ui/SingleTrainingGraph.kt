@@ -4,9 +4,6 @@ package io.github.stslex.workeeper.feature.single_training.ui
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
@@ -15,10 +12,7 @@ import io.github.stslex.workeeper.core.ui.kit.components.dialog.ActiveSessionCon
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppConfirmDialog
 import io.github.stslex.workeeper.core.ui.kit.components.sheet.AppConfirmSheet
 import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
-import io.github.stslex.workeeper.core.ui.mvi.getStateFlow
 import io.github.stslex.workeeper.core.ui.mvi.navComponentScreenWithState
-import io.github.stslex.workeeper.core.ui.mvi.setAttrDefaultValue
-import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.single_training.di.SingleTrainingFeature
 import io.github.stslex.workeeper.feature.single_training.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.Action
@@ -34,18 +28,7 @@ fun NavGraphBuilder.singleTrainingsGraph(
     sharedTransitionScope: SharedTransitionScope,
     modifier: Modifier = Modifier,
 ) {
-    navComponentScreenWithState(SingleTrainingFeature) { stateHandle, processor ->
-
-        val attrValue by stateHandle
-            .getStateFlow(Screen.PlanEditor.planEditorSavedAttr)
-            .collectAsState()
-
-        LaunchedEffect(attrValue) {
-            if (attrValue == true) {
-                processor.consume(Action.Common.Reload)
-                stateHandle.setAttrDefaultValue(Screen.PlanEditor.planEditorSavedAttr)
-            }
-        }
+    navComponentScreenWithState(SingleTrainingFeature) { _, processor ->
 
         val haptic = LocalHapticFeedback.current
 
@@ -58,9 +41,8 @@ fun NavGraphBuilder.singleTrainingsGraph(
             }
         }
 
-        // Intercept back for unsaved edits or to dismiss the topmost dialog. The plan
-        // editor lives on its own route (Screen.PlanEditor) and owns its own dirty-state
-        // interception.
+        // Intercept back for unsaved edits — a card's plan edit included, through the
+        // snapshot signature — or to dismiss the topmost dialog.
         BackHandler(enabled = processor.state.value.interceptBack) {
             processor.consume(Action.Click.OnBackClick)
         }
@@ -77,9 +59,7 @@ fun NavGraphBuilder.singleTrainingsGraph(
         // route is an empty frame in the app's own colour rather than a hole.
         //
         // `isLoading` is `uuid != null`, so a create flow is never withheld — `processInit`
-        // clears it synchronously on that branch — and `Action.Common.Reload` (the plan
-        // editor's return) does not re-raise it, so coming back from the plan editor does not
-        // blank the screen for a frame.
+        // clears it synchronously on that branch.
         //
         // LOAD-BEARING PRECONDITION: `loadTraining` must clear `isLoading` on FAILURE as well
         // as on success, because `HandlerStore.launch` defaults `onError` to `{}` (B17, B21).

@@ -5,6 +5,8 @@ import io.github.stslex.workeeper.core.ui.kit.golden.GoldenTheme
 import io.github.stslex.workeeper.core.ui.kit.golden.LOCALE_RU
 import io.github.stslex.workeeper.core.ui.kit.golden.golden
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
+import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
+import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.single_training.mvi.model.TrainingExerciseItem
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.State
 import io.github.stslex.workeeper.feature.single_training.ui.TrainingEditScreen
@@ -17,17 +19,19 @@ import org.junit.jupiter.params.provider.EnumSource
 /**
  * The training editor's frame — this module's first golden.
  *
- * Three rulings land on one static frame of this screen and have no other instrument
- * between them:
+ * The rulings that land on a static frame of this screen and have no other instrument:
  *
- *  - **`.addex` is the add action, and it is not in the section header.** A full-width dashed
- *    block below the list, not a small tertiary button above it — a different component in a
- *    different place, so a glyph swap in the header would not satisfy it (§26; extraction §7.6).
- *  - **One drag handle, not two arrows.** Two identical marks meaning opposite directions are not
- *    a control (§26, "Reorder is long-press drag"); what a frame can see is the count.
- *  - **Save is enabled with an empty name**, which is what makes the blank-name error reachable at
- *    all (§26, "Save is never disabled") — and on THIS screen a save predicate would hide a second
- *    branch too, the empty-exercise-list snackbar.
+ *  - **Each exercise is a card, COLLAPSED by default (ED14)** — ordinal, type glyph, name,
+ *    `.plan-line` summary, drag handle, `✕`, and **no plan rows** until a card is opened.
+ *    [editCollapsed] holds both collapsed states at once: one card with a summary, one with
+ *    the italic «плана пока нет».
+ *  - **The expanded card carries the plan body and NO TYPE TOGGLE** ([editExpanded]) — the
+ *    rows, the `.setbar` foot and the lifted `.card.open` surface, with `onTypeChange = null`
+ *    keeping the toggle out: type belongs to the exercise, not to a training-scoped editor.
+ *  - **`.addex` is the add action, and it is not in the section header** (§26; extraction §7.6).
+ *  - **One drag handle, not two arrows** (§26, "Reorder is long-press drag").
+ *  - **Save is enabled with an empty name** (§26, "Save is never disabled") — and on THIS screen
+ *    a save predicate would hide a second branch too, the empty-exercise-list snackbar.
  *
  * [editEmpty] is not a decoration: it is the only frame in which `.addex` stands alone, which is
  * the state a user starting a training is actually in, and it is the frame that shows Save enabled
@@ -43,11 +47,24 @@ import org.junit.jupiter.params.provider.EnumSource
  */
 internal class TrainingEditGoldenTest {
 
+    /** ED14: both collapsed states — a `.plan-line` summary, and the no-plan italic. */
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
-    fun editWithExercises(theme: GoldenTheme, testInfo: TestInfo) {
+    fun editCollapsed(theme: GoldenTheme, testInfo: TestInfo) {
         golden(testInfo, theme, locale = LOCALE_RU) {
             TrainingEditScreen(state = editState(), consume = {})
+        }
+    }
+
+    /** The first card open: rows + `.setbar` on the lifted surface, and no type toggle. */
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun editExpanded(theme: GoldenTheme, testInfo: TestInfo) {
+        golden(testInfo, theme, locale = LOCALE_RU) {
+            TrainingEditScreen(
+                state = editState().copy(expandedExerciseUuid = "e1"),
+                consume = {},
+            )
         }
     }
 
@@ -69,23 +86,27 @@ internal class TrainingEditGoldenTest {
             isLoading = false,
             name = "Верх (с подтягиваниями)",
             exercises = listOf(
-                exercise(uuid = "e1", name = "Жим лёжа", position = 0, plan = "60×10 · 60×8"),
-                exercise(uuid = "e2", name = "Подтягивания", position = 1, plan = ""),
+                TrainingExerciseItem(
+                    exerciseUuid = "e1",
+                    exerciseName = "Жим лёжа",
+                    exerciseType = ExerciseTypeUiModel.WEIGHTED,
+                    tags = persistentListOf(),
+                    position = 0,
+                    planSets = listOf(
+                        PlanSetUiModel(weight = 60.0, reps = 10, type = SetTypeUiModel.WORK),
+                        PlanSetUiModel(weight = 60.0, reps = 8, type = SetTypeUiModel.WORK),
+                    ).toImmutableList(),
+                    planSummary = "60×10 · 60×8",
+                ),
+                TrainingExerciseItem(
+                    exerciseUuid = "e2",
+                    exerciseName = "Подтягивания",
+                    exerciseType = ExerciseTypeUiModel.WEIGHTLESS,
+                    tags = persistentListOf(),
+                    position = 1,
+                    planSets = null,
+                    planSummary = "",
+                ),
             ).toImmutableList(),
         )
-
-    private fun exercise(
-        uuid: String,
-        name: String,
-        position: Int,
-        plan: String,
-    ): TrainingExerciseItem = TrainingExerciseItem(
-        exerciseUuid = uuid,
-        exerciseName = name,
-        exerciseType = ExerciseTypeUiModel.WEIGHTED,
-        tags = persistentListOf(),
-        position = position,
-        planSets = null,
-        planSummary = plan,
-    )
 }

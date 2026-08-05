@@ -57,23 +57,4 @@ internal class NavigationHandlerTest {
             )
         }
     }
-
-    @Test
-    fun `OpenPlanEditor navigates to Screen PlanEditor Existing with the training scope`() {
-        handler.invoke(
-            Action.Navigation.OpenPlanEditor(
-                trainingUuid = "training-1",
-                exerciseUuid = "ex-1",
-            ),
-        )
-        verify(exactly = 1) {
-            navigator.navTo(
-                Screen.PlanEditor.Existing(
-                    performedExerciseUuid = null,
-                    exerciseUuid = "ex-1",
-                    trainingUuid = "training-1",
-                ),
-            )
-        }
-    }
 }

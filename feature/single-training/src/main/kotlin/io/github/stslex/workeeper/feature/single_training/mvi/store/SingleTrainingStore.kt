@@ -4,6 +4,8 @@ package io.github.stslex.workeeper.feature.single_training.mvi.store
 import androidx.compose.runtime.Stable
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import io.github.stslex.workeeper.core.ui.mvi.Store
+import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanEditorBodyAction
+import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.feature.single_training.domain.model.ActiveSessionDomain
 import io.github.stslex.workeeper.feature.single_training.mvi.model.HistorySessionItem
 import io.github.stslex.workeeper.feature.single_training.mvi.model.PickerExerciseItem
@@ -29,6 +31,13 @@ interface SingleTrainingStore : Store<State, Action, Event> {
         val availableTags: ImmutableList<TagUiModel>,
         val tagSearchQuery: String,
         val exercises: ImmutableList<TrainingExerciseItem>,
+        /**
+         * The one open card in the editor's exercise list, or null when all are collapsed —
+         * collapsed is the default (ED14), and an exercise inserted from the picker opens
+         * (D-OPEN-8), which is why the STORE owns this and not the card: an insert is a state
+         * transition, and a `remember` in the card could not see it.
+         */
+        val expandedExerciseUuid: String?,
         val pastSessions: ImmutableList<HistorySessionItem>,
         val activeSession: ActiveSessionDomain?,
         val canPermanentlyDelete: Boolean,
@@ -50,10 +59,9 @@ interface SingleTrainingStore : Store<State, Action, Event> {
             get() = originalSnapshot?.matches(this) == false
 
         /**
-         * Intercept back when training-level edits are unsaved or a dialog is open.
-         * Plan-editor draft changes live on the standalone PlanEditor route now, so its
-         * dirty-state is owned there. Dialog dismissal precedes screen pop so the back
-         * gesture closes the topmost dialog before propagating.
+         * Intercept back when edits are unsaved or a dialog is open — and a plan edited in a
+         * card counts, through [ExerciseSignature.planSets]. Dialog dismissal precedes screen
+         * pop so the back gesture closes the topmost dialog before propagating.
          */
         val interceptBack: Boolean
             get() = (mode is Mode.Edit && hasChanges) || dialogState !is DialogState.Hidden
@@ -81,12 +89,22 @@ interface SingleTrainingStore : Store<State, Action, Event> {
                     ExerciseSignature(
                         it.exerciseUuid,
                         it.position,
+                        it.planSets,
                     )
                 } == exerciseSignature
         }
 
+        /**
+         * [planSets] is IN the signature since the plan became an inline edit (ED1): a plan
+         * edit with no baseline echo must read as `hasChanges`, or back would pop over an
+         * unsaved plan without the discard sheet — the protection D-OPEN-11 counts on.
+         */
         @Stable
-        data class ExerciseSignature(val exerciseUuid: String, val position: Int)
+        data class ExerciseSignature(
+            val exerciseUuid: String,
+            val position: Int,
+            val planSets: ImmutableList<PlanSetUiModel>?,
+        )
 
         @Stable
         sealed interface PickerState {
@@ -113,6 +131,7 @@ interface SingleTrainingStore : Store<State, Action, Event> {
                 availableTags = persistentListOf(),
                 tagSearchQuery = "",
                 exercises = persistentListOf(),
+                expandedExerciseUuid = null,
                 pastSessions = persistentListOf(),
                 activeSession = null,
                 canPermanentlyDelete = false,
@@ -131,13 +150,6 @@ interface SingleTrainingStore : Store<State, Action, Event> {
         sealed interface Common : Action {
 
             data object Init : Common
-
-            /**
-             * Reload the training + per-exercise plans from the repository without
-             * resetting form state. Dispatched after returning from the full-screen
-             * PlanEditor route (D1) so the exercise list reflects the just-saved draft.
-             */
-            data object Reload : Common
         }
 
         sealed interface Click : Action {
@@ -182,7 +194,19 @@ interface SingleTrainingStore : Store<State, Action, Event> {
 
             data class OnExerciseReorder(val from: Int, val to: Int) : Click
 
-            data class OnEditPlanClick(val exerciseUuid: String) : Click
+            /** The card head's tap (ED14): expand the one you mean, collapse the one open. */
+            data class OnExerciseCardToggle(val exerciseUuid: String) : Click
+
+            /**
+             * The expanded card's plan edit — `PlanEditorBody`'s action, addressed to one
+             * exercise of the list and reduced in memory (ED1): nothing is persisted until
+             * Save writes every plan alongside the training.
+             */
+            @Suppress("MviActionNamingRule")
+            data class OnExercisePlanAction(
+                val exerciseUuid: String,
+                val action: PlanEditorBodyAction,
+            ) : Click
 
             data class OnTagToggle(val tagUuid: String) : Click
 
@@ -220,16 +244,6 @@ interface SingleTrainingStore : Store<State, Action, Event> {
             data class OpenLiveWorkout(
                 val sessionUuid: String,
                 val trainingUuid: String?,
-            ) : Navigation
-
-            /**
-             * Open the full-screen plan-editor route for the given (training, exercise)
-             * pair (D1). Returns to SingleTraining; the graph picks up the
-             * `plan-editor-saved` flag and dispatches [Action.Common.Reload].
-             */
-            data class OpenPlanEditor(
-                val trainingUuid: String,
-                val exerciseUuid: String,
             ) : Navigation
         }
     }

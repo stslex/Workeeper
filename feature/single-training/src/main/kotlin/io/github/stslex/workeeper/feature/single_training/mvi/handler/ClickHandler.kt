@@ -7,6 +7,9 @@ import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.di.MainImmediateDispatcher
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
+import io.github.stslex.workeeper.core.ui.plan_editor.domain.PlanDraftReducer
+import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
+import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanEditorUIMapper.formatPlanSummary
 import io.github.stslex.workeeper.feature.single_training.R
 import io.github.stslex.workeeper.feature.single_training.di.SingleTrainingHandlerStore
 import io.github.stslex.workeeper.feature.single_training.di.SingleTrainingScope
@@ -14,6 +17,7 @@ import io.github.stslex.workeeper.feature.single_training.domain.SingleTrainingI
 import io.github.stslex.workeeper.feature.single_training.domain.model.ArchiveResult
 import io.github.stslex.workeeper.feature.single_training.domain.model.StartSessionConflict
 import io.github.stslex.workeeper.feature.single_training.domain.model.TrainingChangeDomain
+import io.github.stslex.workeeper.feature.single_training.mvi.mapper.TagUiMapper.toDomain
 import io.github.stslex.workeeper.feature.single_training.mvi.mapper.TagUiMapper.toUi
 import io.github.stslex.workeeper.feature.single_training.mvi.model.PickerExerciseItem
 import io.github.stslex.workeeper.feature.single_training.mvi.model.TagUiModel
@@ -60,7 +64,8 @@ internal class ClickHandler @Inject constructor(
             Action.Click.OnAddExerciseClick -> processAddExerciseClick()
             is Action.Click.OnExerciseRemove -> processExerciseRemove(action)
             is Action.Click.OnExerciseReorder -> processExerciseReorder(action)
-            is Action.Click.OnEditPlanClick -> processEditPlanClick(action)
+            is Action.Click.OnExerciseCardToggle -> processExerciseCardToggle(action)
+            is Action.Click.OnExercisePlanAction -> processExercisePlanAction(action)
             is Action.Click.OnTagToggle -> processTagToggle(action)
             is Action.Click.OnTagRemove -> processTagRemove(action)
             is Action.Click.OnTagCreate -> processTagCreate(action)
@@ -289,6 +294,9 @@ internal class ClickHandler @Inject constructor(
             exerciseUuids = current.exercises.sortedBy { it.position }.map { it.exerciseUuid },
         )
         val isCreate = current.isCreate
+        val plans = current.exercises.map { item ->
+            item.exerciseUuid to item.planSets?.map { it.toDomain() }
+        }
         launch(
             onSuccess = {
                 if (isCreate) {
@@ -304,7 +312,17 @@ internal class ClickHandler @Inject constructor(
                 }
             },
         ) {
+            // The training row first — `setPlanForExercise` lands on the
+            // `training_exercise_table` rows `saveTraining` just wrote, which is what lets a
+            // CREATE flow carry plans at all (ED1; the deleted route had to no-op there).
             interactor.saveTraining(snapshot)
+            plans.forEach { (exerciseUuid, plan) ->
+                interactor.setPlanForExercise(
+                    trainingUuid = resolvedUuid,
+                    exerciseUuid = exerciseUuid,
+                    plan = plan,
+                )
+            }
         }
     }
 
@@ -335,6 +353,7 @@ internal class ClickHandler @Inject constructor(
             .toImmutableList()
         return copy(
             mode = Mode.Read,
+            expandedExerciseUuid = null,
             name = snapshot.name,
             nameError = false,
             description = snapshot.description,
@@ -387,6 +406,8 @@ internal class ClickHandler @Inject constructor(
         }
     }
 
+    // Immediate, and deliberately unconfirmed (D-OPEN-11): the draft is unsaved and Cancel
+    // stands behind it. The undo snackbar is S7's work — nothing here half-builds it.
     private fun processExerciseRemove(action: Action.Click.OnExerciseRemove) {
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
         updateState { current ->
@@ -395,6 +416,8 @@ internal class ClickHandler @Inject constructor(
                     .filterNot { it.exerciseUuid == action.exerciseUuid }
                     .mapIndexed { index, item -> item.copy(position = index) }
                     .toImmutableList(),
+                expandedExerciseUuid = current.expandedExerciseUuid
+                    .takeIf { it != action.exerciseUuid },
             )
         }
     }
@@ -416,22 +439,48 @@ internal class ClickHandler @Inject constructor(
         }
     }
 
-    private fun processEditPlanClick(action: Action.Click.OnEditPlanClick) {
+    private fun processExerciseCardToggle(action: Action.Click.OnExerciseCardToggle) {
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
-        val current = state.value
-        val target = current.exercises.firstOrNull { it.exerciseUuid == action.exerciseUuid }
-            ?: return
-        // PlanEditor needs a non-blank trainingUuid to land the saved draft on
-        // training_exercise_table.plan_sets. Editing the plan from a not-yet-persisted
-        // training would write to the exercise's last_adhoc_sets instead — silently
-        // wrong — so we no-op until the user saves the training first.
-        val trainingUuid = current.uuid?.takeIf { it.isNotBlank() } ?: return
-        consume(
-            Action.Navigation.OpenPlanEditor(
-                trainingUuid = trainingUuid,
-                exerciseUuid = target.exerciseUuid,
-            ),
-        )
+        updateState { current ->
+            current.copy(
+                expandedExerciseUuid = action.exerciseUuid
+                    .takeIf { it != current.expandedExerciseUuid },
+            )
+        }
+    }
+
+    /**
+     * The expanded card's plan edit (ED1): reduce against THAT exercise's rows and write the
+     * item back. In memory only — Save persists every plan alongside the training, which is
+     * also what lets a not-yet-saved training edit its plans at all (the route this replaces
+     * had to no-op there: it needed a `training_exercise_table` row to write to).
+     */
+    private fun processExercisePlanAction(action: Action.Click.OnExercisePlanAction) {
+        sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
+        updateState { current ->
+            val target = current.exercises.firstOrNull { it.exerciseUuid == action.exerciseUuid }
+                ?: return@updateState current
+            val nextDraft = PlanDraftReducer.reduce(
+                draft = target.planSets ?: persistentListOf(),
+                action = action.action,
+                isWeighted = target.exerciseType == ExerciseTypeUiModel.WEIGHTED,
+            )
+            // Empty normalizes back to null: `plan_sets IS NULL` is attached-with-no-plan, the
+            // persisted shape, and an empty list would be a third value the row never stores.
+            val nextPlan = nextDraft.takeIf { it.isNotEmpty() }
+            current.copy(
+                exercises = current.exercises.map { item ->
+                    if (item.exerciseUuid == action.exerciseUuid) {
+                        item.copy(
+                            planSets = nextPlan,
+                            planSummary = nextPlan?.formatPlanSummary().orEmpty(),
+                        )
+                    } else {
+                        item
+                    }
+                }.toImmutableList(),
+            )
+        }
     }
 
     private fun processTagToggle(action: Action.Click.OnTagToggle) {
@@ -514,13 +563,19 @@ internal class ClickHandler @Inject constructor(
                             exerciseType = picker.exercise.type.toUi(),
                             tags = picker.labels.toImmutableList(),
                             position = latest.exercises.size + localIndex,
-                            planSets = persistentListOf(),
+                            // null, not an empty list: attached-with-no-plan is what the row
+                            // will persist as, and the dirty signature compares this value.
+                            planSets = null,
                             planSummary = "",
                         )
                     }
                     latest.copy(
                         exercises = (latest.exercises + nextItems).toImmutableList(),
                         pickerState = PickerState.Closed,
+                        // D-OPEN-8: an insert is an addressed gesture whose next step is the
+                        // plan, so the inserted card opens — the FIRST only on a multi-insert.
+                        expandedExerciseUuid = nextItems.firstOrNull()?.exerciseUuid
+                            ?: latest.expandedExerciseUuid,
                     )
                 }
             },
