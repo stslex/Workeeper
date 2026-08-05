@@ -15,7 +15,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
-import kotlin.uuid.Uuid
 
 @ContributesBinding(AppScope::class)
 @SingleIn(AppScope::class)
@@ -47,12 +46,6 @@ class TagRepositoryImpl @Inject internal constructor(
             val entity = TagEntity(name = name)
             dao.insert(entity)
             entity.toData()
-        }
-    }
-
-    override suspend fun delete(uuid: String) {
-        withContext(ioDispatcher) {
-            dao.delete(Uuid.parse(uuid))
         }
     }
 }

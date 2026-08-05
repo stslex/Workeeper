@@ -5,7 +5,6 @@ import androidx.room3.Insert
 import androidx.room3.OnConflictStrategy
 import androidx.room3.Query
 import kotlinx.coroutines.flow.Flow
-import kotlin.uuid.Uuid
 
 @Dao
 interface TagDao {
@@ -30,9 +29,6 @@ interface TagDao {
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertAll(tags: List<TagEntity>)
-
-    @Query("DELETE FROM tag_table WHERE uuid = :uuid")
-    suspend fun delete(uuid: Uuid)
 
     /**
      * Auto-prune (D-OPEN-4): a tag with no remaining links — in EITHER link table — leaves
