@@ -15,6 +15,7 @@ import io.github.stslex.workeeper.core.core.images.model.ImageSaveResult
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.core.utils.CommonExt.parseOrRandom
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.BlockedArchiveItem
+import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagItem
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.core.ui.plan_editor.domain.PlanDraftReducer
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
@@ -31,7 +32,6 @@ import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ImageDisplay
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ImageErrorType
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ImageSourceUiModel
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PendingImage
-import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.TagUiModel
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.BottomSheetState
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
@@ -88,6 +88,8 @@ internal class ClickHandler @Inject constructor(
             Action.Click.OnTypeChangeConfirm -> processTypeChangeConfirm()
             Action.Click.OnTypeChangeDismiss -> processTypeChangeDismiss()
             is Action.Click.OnAdhocPlanEditorAction -> processAdhocPlanEditorAction(action)
+            Action.Click.OnTagAddClick -> processTagAddClick()
+            Action.Click.OnTagPickerDismiss -> processTagPickerDismiss()
             is Action.Click.OnTagToggle -> processTagToggle(action)
             is Action.Click.OnTagRemove -> processTagRemove(action)
             is Action.Click.OnTagCreate -> processTagCreate(action)
@@ -619,6 +621,21 @@ internal class ClickHandler @Inject constructor(
         updateState { latest -> latest.copy(adhocPlan = nextPlan) }
     }
 
+    private fun processTagAddClick() {
+        sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
+        updateState { it.copy(bottomSheetState = BottomSheetState.TagPicker) }
+    }
+
+    /** The query clears with the sheet, so reopening starts from the whole dictionary. */
+    private fun processTagPickerDismiss() {
+        updateState {
+            it.copy(
+                bottomSheetState = BottomSheetState.Hidden,
+                tagSearchQuery = "",
+            )
+        }
+    }
+
     private fun processTagToggle(action: Action.Click.OnTagToggle) {
         val current = state.value
         val tag = current.availableTags.firstOrNull { it.uuid == action.tagUuid } ?: return
@@ -671,7 +688,7 @@ internal class ClickHandler @Inject constructor(
                 updateStateImmediate { state ->
                     state.copy(
                         tags = (
-                            state.tags + TagUiModel(
+                            state.tags + AppTagItem(
                                 uuid = tag.uuid,
                                 name = tag.name,
                             )

@@ -6,6 +6,7 @@ import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.di.MainImmediateDispatcher
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
+import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagItem
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.core.ui.plan_editor.domain.PlanDraftReducer
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
@@ -21,7 +22,6 @@ import io.github.stslex.workeeper.feature.single_training.domain.model.TrainingC
 import io.github.stslex.workeeper.feature.single_training.mvi.mapper.TagUiMapper.toDomain
 import io.github.stslex.workeeper.feature.single_training.mvi.mapper.TagUiMapper.toUi
 import io.github.stslex.workeeper.feature.single_training.mvi.model.PickerExerciseItem
-import io.github.stslex.workeeper.feature.single_training.mvi.model.TagUiModel
 import io.github.stslex.workeeper.feature.single_training.mvi.model.TrainingExerciseItem
 import io.github.stslex.workeeper.feature.single_training.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.Action
@@ -71,6 +71,8 @@ internal class ClickHandler @Inject constructor(
             is Action.Click.OnExerciseReorder -> processExerciseReorder(action)
             is Action.Click.OnExerciseCardToggle -> processExerciseCardToggle(action)
             is Action.Click.OnExercisePlanAction -> processExercisePlanAction(action)
+            Action.Click.OnTagAddClick -> processTagAddClick()
+            Action.Click.OnTagPickerDismiss -> processTagPickerDismiss()
             is Action.Click.OnTagToggle -> processTagToggle(action)
             is Action.Click.OnTagRemove -> processTagRemove(action)
             is Action.Click.OnTagCreate -> processTagCreate(action)
@@ -502,6 +504,21 @@ internal class ClickHandler @Inject constructor(
         }
     }
 
+    private fun processTagAddClick() {
+        sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
+        updateState { it.copy(dialogState = DialogState.TagPicker) }
+    }
+
+    /** The query clears with the sheet, so reopening starts from the whole dictionary. */
+    private fun processTagPickerDismiss() {
+        updateState {
+            it.copy(
+                dialogState = DialogState.Hidden,
+                tagSearchQuery = "",
+            )
+        }
+    }
+
     private fun processTagToggle(action: Action.Click.OnTagToggle) {
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
         updateState { current ->
@@ -533,7 +550,7 @@ internal class ClickHandler @Inject constructor(
                 updateStateImmediate { current ->
                     current.copy(
                         tags = (
-                            current.tags + TagUiModel(
+                            current.tags + AppTagItem(
                                 uuid = tag.uuid,
                                 name = tag.name,
                             )

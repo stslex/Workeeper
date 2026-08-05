@@ -2,6 +2,7 @@
 package io.github.stslex.workeeper.feature.exercise.ui.mvi.mapper
 
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
+import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagItem
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
@@ -14,13 +15,12 @@ import io.github.stslex.workeeper.feature.exercise.domain.model.SetTypeDomain
 import io.github.stslex.workeeper.feature.exercise.domain.model.TagDomain
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.HistoryUiModel
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PersonalRecordUiModel
-import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.TagUiModel
 
 internal object ExerciseUiMapper {
 
     private const val MAX_VISIBLE_SETS = 5
 
-    internal fun TagDomain.toUi(): TagUiModel = TagUiModel(uuid = uuid, name = name)
+    internal fun TagDomain.toUi(): AppTagItem = AppTagItem(uuid = uuid, name = name)
 
     internal fun ExerciseTypeDomain.toUi(): ExerciseTypeUiModel = when (this) {
         ExerciseTypeDomain.WEIGHTED -> ExerciseTypeUiModel.WEIGHTED

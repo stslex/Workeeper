@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
+import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagItem
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanEditorBodyAction
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
@@ -12,7 +13,6 @@ import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
 import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PendingImage
-import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.TagUiModel
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.BottomSheetState
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
@@ -257,10 +257,30 @@ internal class ClickHandlerTest {
     }
 
     @Test
+    fun `the dashed add chip opens the tag picker sheet`() {
+        val (stateFlow, _, handler) = setup()
+        handler.invoke(Action.Click.OnTagAddClick)
+        assertEquals(BottomSheetState.TagPicker, stateFlow.value.bottomSheetState)
+    }
+
+    @Test
+    fun `dismissing the tag picker clears the query with the sheet`() {
+        val (stateFlow, _, handler) = setup(
+            State.create(uuid = "uuid-1").copy(
+                bottomSheetState = BottomSheetState.TagPicker,
+                tagSearchQuery = "кар",
+            ),
+        )
+        handler.invoke(Action.Click.OnTagPickerDismiss)
+        assertEquals(BottomSheetState.Hidden, stateFlow.value.bottomSheetState)
+        assertEquals("", stateFlow.value.tagSearchQuery)
+    }
+
+    @Test
     fun `OnTagToggle adds tag when not selected`() {
         val (stateFlow, _, handler) = setup(
             State.create(uuid = "uuid-1").copy(
-                availableTags = persistentListOf(TagUiModel("tag-1", "Push")),
+                availableTags = persistentListOf(AppTagItem("tag-1", "Push")),
             ),
         )
         handler.invoke(Action.Click.OnTagToggle("tag-1"))
@@ -269,12 +289,12 @@ internal class ClickHandlerTest {
 
     @Test
     fun `OnTagToggle blocks adding when 10 tags already selected`() {
-        val tags = (1..10).map { TagUiModel("tag-$it", "Tag$it") }
-        val available = tags + TagUiModel("tag-11", "Tag11")
+        val tags = (1..10).map { AppTagItem("tag-$it", "Tag$it") }
+        val available = tags + AppTagItem("tag-11", "Tag11")
         val (stateFlow, store, handler) = setup(
             State.create(uuid = "uuid-1").copy(
-                tags = persistentListOf<TagUiModel>().addAll(tags),
-                availableTags = persistentListOf<TagUiModel>().addAll(available),
+                tags = persistentListOf<AppTagItem>().addAll(tags),
+                availableTags = persistentListOf<AppTagItem>().addAll(available),
             ),
         )
         handler.invoke(Action.Click.OnTagToggle("tag-11"))

@@ -50,4 +50,12 @@
     <string name="core_ui_kit_reorderable_drag_handle">Переставить</string>
 
     <string name="core_ui_kit_sheet_close">Закрыть</string>
+
+    <!-- One tag picker, one table (ED7): the form row's add chip, the sheet's own copy. -->
+    <string name="core_ui_kit_tag_sheet_title">Теги</string>
+    <string name="core_ui_kit_tag_search_hint">Поиск тегов…</string>
+    <string name="core_ui_kit_tag_create_format">+ Создать «%1$s»</string>
+    <string name="core_ui_kit_tag_done">Готово</string>
+    <string name="core_ui_kit_tag_add_chip">+ тег</string>
+    <string name="core_ui_kit_tag_remove_description">Убрать тег</string>
 </resources>

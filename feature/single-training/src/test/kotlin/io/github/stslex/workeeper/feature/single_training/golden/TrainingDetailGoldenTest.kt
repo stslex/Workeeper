@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.single_training.golden
 
+import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagItem
 import io.github.stslex.workeeper.core.ui.kit.golden.GoldenTheme
 import io.github.stslex.workeeper.core.ui.kit.golden.LOCALE_RU
 import io.github.stslex.workeeper.core.ui.kit.golden.golden
@@ -8,7 +9,6 @@ import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.single_training.mvi.model.HistorySessionItem
-import io.github.stslex.workeeper.feature.single_training.mvi.model.TagUiModel
 import io.github.stslex.workeeper.feature.single_training.mvi.model.TrainingExerciseItem
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.State
 import io.github.stslex.workeeper.feature.single_training.ui.TrainingDetailScreen
@@ -91,8 +91,8 @@ internal class TrainingDetailGoldenTest {
             isLoading = false,
             name = "Верх (с подтягиваниями)",
             tags = listOf(
-                TagUiModel(uuid = "t1", name = "верх"),
-                TagUiModel(uuid = "t2", name = "спина"),
+                AppTagItem(uuid = "t1", name = "верх"),
+                AppTagItem(uuid = "t2", name = "спина"),
             ).toImmutableList(),
             exercises = listOf(
                 TrainingExerciseItem(

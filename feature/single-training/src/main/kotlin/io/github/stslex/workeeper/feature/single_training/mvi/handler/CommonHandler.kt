@@ -4,6 +4,7 @@ package io.github.stslex.workeeper.feature.single_training.mvi.handler
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
+import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagItem
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanEditorUIMapper.formatPlanSummary
 import io.github.stslex.workeeper.feature.single_training.di.SingleTrainingHandlerStore
@@ -14,7 +15,6 @@ import io.github.stslex.workeeper.feature.single_training.domain.model.TrainingD
 import io.github.stslex.workeeper.feature.single_training.domain.model.TrainingExerciseDetail
 import io.github.stslex.workeeper.feature.single_training.mvi.mapper.TagUiMapper.toUi
 import io.github.stslex.workeeper.feature.single_training.mvi.model.HistorySessionItem
-import io.github.stslex.workeeper.feature.single_training.mvi.model.TagUiModel
 import io.github.stslex.workeeper.feature.single_training.mvi.model.TrainingExerciseItem
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.Action
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.State
@@ -88,7 +88,7 @@ internal class CommonHandler @Inject constructor(
         val training = result.training ?: return copy(isLoading = false)
         val tags = training.labels.map { name ->
             availableTags.firstOrNull { it.name.equals(name, ignoreCase = true) }
-                ?: TagUiModel(uuid = name, name = name)
+                ?: AppTagItem(uuid = name, name = name)
         }.toImmutableList()
         val exercises = result.exercises
             .sortedBy { it.position }

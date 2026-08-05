@@ -2,11 +2,11 @@
 package io.github.stslex.workeeper.feature.exercise.ui.mvi.store
 
 import android.net.Uri
+import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagItem
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PendingImage
-import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.TagUiModel
 import io.mockk.mockk
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
@@ -47,7 +47,7 @@ internal class ExerciseDirtyStateTest {
             isLoading = false,
             name = "Жим лёжа",
             description = "note",
-            tags = listOf(TagUiModel(uuid = "t1", name = "грудь")).toImmutableList(),
+            tags = listOf(AppTagItem(uuid = "t1", name = "грудь")).toImmutableList(),
             adhocPlan = loadedPlan,
             originalSnapshot = ExerciseStore.State.Snapshot(
                 name = "Жим лёжа",

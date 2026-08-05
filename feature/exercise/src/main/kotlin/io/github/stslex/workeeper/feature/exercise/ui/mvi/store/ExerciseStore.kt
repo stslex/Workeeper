@@ -4,6 +4,7 @@ package io.github.stslex.workeeper.feature.exercise.ui.mvi.store
 import android.net.Uri
 import androidx.compose.runtime.Stable
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagItem
 import io.github.stslex.workeeper.core.ui.mvi.Store
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanEditorBodyAction
@@ -14,7 +15,6 @@ import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ImageErrorType
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ImageSourceUiModel
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PendingImage
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PersonalRecordUiModel
-import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.TagUiModel
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Event
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State
@@ -32,8 +32,8 @@ interface ExerciseStore : Store<State, Action, Event> {
         val nameDuplicateError: Boolean,
         val type: ExerciseTypeUiModel,
         val description: String,
-        val tags: ImmutableList<TagUiModel>,
-        val availableTags: ImmutableList<TagUiModel>,
+        val tags: ImmutableList<AppTagItem>,
+        val availableTags: ImmutableList<AppTagItem>,
         val tagSearchQuery: String,
         val recentHistory: ImmutableList<HistoryUiModel>,
         /** Total finished sessions containing this exercise — the История head's count. */
@@ -257,6 +257,12 @@ interface ExerciseStore : Store<State, Action, Event> {
 
             /** Dismiss the weight-wipe confirm, leaving the type as it was. */
             data object OnTypeChangeDismiss : Click
+
+            /** The form's dashed «+ тег» chip — opens the [BottomSheetState.TagPicker] sheet. */
+            data object OnTagAddClick : Click
+
+            /** «Готово», the scrim or the drag — selection already applied live (ED7). */
+            data object OnTagPickerDismiss : Click
 
             data class OnTagToggle(val tagUuid: String) : Click
 

@@ -27,6 +27,7 @@ import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppConfirmDialog
 import io.github.stslex.workeeper.core.ui.kit.components.pr.PrExplainerDialog
 import io.github.stslex.workeeper.core.ui.kit.components.sheet.AppBottomSheet
 import io.github.stslex.workeeper.core.ui.kit.components.sheet.AppConfirmSheet
+import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagPickerSheetContent
 import io.github.stslex.workeeper.core.ui.kit.snackbar.AppSnackbarModel
 import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
 import io.github.stslex.workeeper.core.ui.mvi.getStateFlow
@@ -45,6 +46,7 @@ import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Ac
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Event
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State.Mode
 import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.toImmutableSet
 import io.github.stslex.workeeper.core.ui.kit.R as KitR
 
 @OptIn(ExperimentalSharedTransitionApi::class)
@@ -235,6 +237,25 @@ fun NavGraphBuilder.exerciseGraph(
                 onDismiss = { processor.consume(Action.Click.OnSheetDismiss) },
             ) {
                 PlanInfoSheetContent(consume = processor::consume)
+            }
+
+            // ED7: search · the dictionary as chips, a tap toggles live · «+ Создать «X»» ·
+            // «Готово». Dismissal by any route lands on the same action — the selection is
+            // already applied, so there is nothing to confirm or roll back.
+            BottomSheetState.TagPicker -> AppBottomSheet(
+                onDismiss = { processor.consume(Action.Click.OnTagPickerDismiss) },
+            ) {
+                AppTagPickerSheetContent(
+                    selectedTagUuids = remember(state.tags) {
+                        state.tags.map { it.uuid }.toImmutableSet()
+                    },
+                    availableTags = state.availableTags,
+                    searchQuery = state.tagSearchQuery,
+                    onSearchQueryChange = { processor.consume(Action.Input.OnTagSearchChange(it)) },
+                    onTagToggle = { processor.consume(Action.Click.OnTagToggle(it)) },
+                    onTagCreate = { processor.consume(Action.Click.OnTagCreate(it)) },
+                    onDone = { processor.consume(Action.Click.OnTagPickerDismiss) },
+                )
             }
         }
 

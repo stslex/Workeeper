@@ -4,6 +4,7 @@ package io.github.stslex.workeeper.feature.single_training.ui
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
@@ -11,6 +12,7 @@ import androidx.navigation.NavGraphBuilder
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.ActiveSessionConflictDialog
 import io.github.stslex.workeeper.core.ui.kit.components.sheet.AppBottomSheet
 import io.github.stslex.workeeper.core.ui.kit.components.sheet.AppConfirmSheet
+import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagPickerSheetContent
 import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
 import io.github.stslex.workeeper.core.ui.mvi.navComponentScreenWithState
 import io.github.stslex.workeeper.feature.single_training.di.SingleTrainingFeature
@@ -21,6 +23,7 @@ import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTraini
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.State.PickerState
 import io.github.stslex.workeeper.feature.single_training.ui.components.ExercisePickerSheet
 import io.github.stslex.workeeper.feature.single_training.ui.components.TrainingDetailMenuSheetContent
+import kotlinx.collections.immutable.toImmutableSet
 import io.github.stslex.workeeper.core.ui.kit.R as KitR
 
 @OptIn(ExperimentalSharedTransitionApi::class)
@@ -96,6 +99,25 @@ fun NavGraphBuilder.singleTrainingsGraph(
 
         when (val dialog = state.dialogState) {
             DialogState.Hidden -> Unit
+
+            // ED7: search · the dictionary as chips, a tap toggles live · «+ Создать «X»» ·
+            // «Готово». Dismissal by any route lands on the same action — the selection is
+            // already applied, so there is nothing to confirm or roll back.
+            DialogState.TagPicker -> AppBottomSheet(
+                onDismiss = { processor.consume(Action.Click.OnTagPickerDismiss) },
+            ) {
+                AppTagPickerSheetContent(
+                    selectedTagUuids = remember(state.tags) {
+                        state.tags.map { it.uuid }.toImmutableSet()
+                    },
+                    availableTags = state.availableTags,
+                    searchQuery = state.tagSearchQuery,
+                    onSearchQueryChange = { processor.consume(Action.Input.OnTagSearchChange(it)) },
+                    onTagToggle = { processor.consume(Action.Click.OnTagToggle(it)) },
+                    onTagCreate = { processor.consume(Action.Click.OnTagCreate(it)) },
+                    onDone = { processor.consume(Action.Click.OnTagPickerDismiss) },
+                )
+            }
 
             // ED10: the `⋮` menu, minus `Изменить` (it lives on the dock now).
             DialogState.DetailMenu -> AppBottomSheet(

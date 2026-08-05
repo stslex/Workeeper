@@ -19,6 +19,14 @@ sealed interface DialogState {
     data object DetailMenu : DialogState
 
     /**
+     * ED7: the tag picker's sheet — search, the dictionary as selectable chips, the create
+     * row, «Готово». Opened by the form's dashed «+ тег» chip; selection applies live. No
+     * counter here or anywhere on this feature: it has no tag limit (§3.2).
+     */
+    @Stable
+    data object TagPicker : DialogState
+
+    /**
      * Edit-mode discard confirmation. Strings are pulled from the screen via
      * `stringResource(R.string.*)` because the kit's `AppDialog` accepts the values
      * directly — no per-instance payload is needed beyond the variant tag.

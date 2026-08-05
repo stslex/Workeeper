@@ -2,6 +2,7 @@
 package io.github.stslex.workeeper.feature.exercise.golden
 
 import io.github.stslex.workeeper.core.ui.kit.components.pr.PersonalRecordHero
+import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagItem
 import io.github.stslex.workeeper.core.ui.kit.golden.GoldenTheme
 import io.github.stslex.workeeper.core.ui.kit.golden.golden
 import io.github.stslex.workeeper.core.ui.kit.golden.goldenSubject
@@ -15,7 +16,6 @@ import io.github.stslex.workeeper.feature.exercise.ui.components.ExerciseDetailM
 import io.github.stslex.workeeper.feature.exercise.ui.components.ExerciseHistoryRow
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.HistoryUiModel
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PersonalRecordUiModel
-import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.TagUiModel
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
@@ -93,7 +93,7 @@ internal class ExerciseDetailGoldenTest {
                 state = baseState().copy(
                     name = "подтягивания",
                     type = ExerciseTypeUiModel.WEIGHTLESS,
-                    tags = persistentListOf(TagUiModel(uuid = "t-up", name = "верх")),
+                    tags = persistentListOf(AppTagItem(uuid = "t-up", name = "верх")),
                     adhocPlan = List(3) {
                         PlanSetUiModel(weight = null, reps = 12, type = SetTypeUiModel.WORK)
                     }.toImmutableList(),
@@ -219,7 +219,7 @@ private fun baseState(): State = State
     )
 
 private fun loadedState(): State = baseState().copy(
-    tags = persistentListOf(TagUiModel(uuid = "t-up", name = "верх")),
+    tags = persistentListOf(AppTagItem(uuid = "t-up", name = "верх")),
     description = "Разводи гантели в стороны до уровня плеч, локти чуть согнуты.",
     adhocPlan = List(4) {
         PlanSetUiModel(weight = 7.0, reps = 12, type = SetTypeUiModel.WORK)

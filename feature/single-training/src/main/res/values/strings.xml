@@ -48,8 +48,6 @@
     <string name="feature_training_edit_drag_handle">Reorder</string>
     <string name="feature_training_edit_error_name_required">Name is required</string>
     <string name="feature_training_edit_error_no_exercises">Add at least one exercise</string>
-    <string name="feature_training_edit_tag_search_placeholder">Type to filter or create new</string>
-    <string name="feature_training_edit_tag_create_format">+ Create “%1$s”</string>
 
     <!-- Exercise picker -->
     <string name="feature_training_picker_title">Add exercises</string>

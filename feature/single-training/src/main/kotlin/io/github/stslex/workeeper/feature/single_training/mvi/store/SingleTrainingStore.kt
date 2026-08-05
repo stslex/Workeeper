@@ -3,12 +3,12 @@ package io.github.stslex.workeeper.feature.single_training.mvi.store
 
 import androidx.compose.runtime.Stable
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagItem
 import io.github.stslex.workeeper.core.ui.mvi.Store
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanEditorBodyAction
 import io.github.stslex.workeeper.feature.single_training.domain.model.ActiveSessionDomain
 import io.github.stslex.workeeper.feature.single_training.mvi.model.HistorySessionItem
 import io.github.stslex.workeeper.feature.single_training.mvi.model.PickerExerciseItem
-import io.github.stslex.workeeper.feature.single_training.mvi.model.TagUiModel
 import io.github.stslex.workeeper.feature.single_training.mvi.model.TrainingExerciseItem
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.Action
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.Event
@@ -27,8 +27,8 @@ interface SingleTrainingStore : Store<State, Action, Event> {
         val name: String,
         val nameError: Boolean,
         val description: String,
-        val tags: ImmutableList<TagUiModel>,
-        val availableTags: ImmutableList<TagUiModel>,
+        val tags: ImmutableList<AppTagItem>,
+        val availableTags: ImmutableList<AppTagItem>,
         val tagSearchQuery: String,
         val exercises: ImmutableList<TrainingExerciseItem>,
         /**
@@ -225,6 +225,12 @@ interface SingleTrainingStore : Store<State, Action, Event> {
                 val exerciseUuid: String,
                 val action: PlanEditorBodyAction,
             ) : Click
+
+            /** The form's dashed «+ тег» chip — opens the [DialogState.TagPicker] sheet. */
+            data object OnTagAddClick : Click
+
+            /** «Готово», the scrim or the drag — selection already applied live (ED7). */
+            data object OnTagPickerDismiss : Click
 
             data class OnTagToggle(val tagUuid: String) : Click
 

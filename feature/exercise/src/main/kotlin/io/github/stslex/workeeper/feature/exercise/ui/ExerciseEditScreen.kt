@@ -31,6 +31,8 @@ import io.github.stslex.workeeper.core.ui.kit.components.input.AppFieldLabel
 import io.github.stslex.workeeper.core.ui.kit.components.input.AppTextField
 import io.github.stslex.workeeper.core.ui.kit.components.section.AppLabel
 import io.github.stslex.workeeper.core.ui.kit.components.section.AppSectionHeader
+import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagFormRow
+import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagItem
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppIconButton
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopBar
 import io.github.stslex.workeeper.core.ui.kit.icons.AppIcons
@@ -44,8 +46,6 @@ import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.exercise.R
 import io.github.stslex.workeeper.feature.exercise.ui.components.ExerciseDescriptionBlock
-import io.github.stslex.workeeper.feature.exercise.ui.components.TagPickerInline
-import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.TagUiModel
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State.Mode
@@ -259,8 +259,10 @@ private fun PlanSectionHead(consume: (Action) -> Unit) {
 /**
  * §3.2 — `ТЕГИ` with the `N из 10` counter as the head's trailing label. The counter renders
  * **only** on this editor: the limit is this feature's ([State.MAX_TAGS_PER_EXERCISE]), and
- * `feature/single-training` has none, so showing one there would be a lie. The picker below is
- * the tag affordance this screen has; nothing here builds a second one.
+ * `feature/single-training` has none, so showing one there would be a lie.
+ *
+ * The row under the head is ED7's: selected chips with `✕` plus the dashed «+ тег» chip that
+ * opens the picker SHEET — the search and the dictionary live there now, not in the form.
  */
 @Composable
 private fun TagsSection(
@@ -281,14 +283,10 @@ private fun TagsSection(
             ),
         )
         InGutter {
-            TagPickerInline(
+            AppTagFormRow(
                 selectedTags = state.tags,
-                availableTags = state.availableTags,
-                searchQuery = state.tagSearchQuery,
-                onSearchQueryChange = { consume(Action.Input.OnTagSearchChange(it)) },
-                onTagToggle = { consume(Action.Click.OnTagToggle(it)) },
                 onTagRemove = { consume(Action.Click.OnTagRemove(it)) },
-                onTagCreate = { consume(Action.Click.OnTagCreate(it)) },
+                onAddClick = { consume(Action.Click.OnTagAddClick) },
             )
         }
     }
@@ -394,9 +392,9 @@ private fun ExerciseEditScreenCreateLightPreview() {
         ExerciseEditScreen(
             state = editPreviewBaseState(isCreate = true).copy(
                 availableTags = listOf(
-                    TagUiModel(uuid = "t1", name = "Push"),
-                    TagUiModel(uuid = "t2", name = "Pull"),
-                    TagUiModel(uuid = "t3", name = "Legs"),
+                    AppTagItem(uuid = "t1", name = "Push"),
+                    AppTagItem(uuid = "t2", name = "Pull"),
+                    AppTagItem(uuid = "t3", name = "Legs"),
                 ).toImmutableList(),
             ),
             consume = {},
@@ -413,14 +411,14 @@ private fun ExerciseEditScreenEditWithPlanPreview() {
                 name = "Bench press",
                 description = "Compound chest movement.",
                 tags = listOf(
-                    TagUiModel(uuid = "t1", name = "Push"),
-                    TagUiModel(uuid = "t2", name = "Chest"),
+                    AppTagItem(uuid = "t1", name = "Push"),
+                    AppTagItem(uuid = "t2", name = "Chest"),
                 ).toImmutableList(),
                 availableTags = listOf(
-                    TagUiModel(uuid = "t1", name = "Push"),
-                    TagUiModel(uuid = "t2", name = "Chest"),
-                    TagUiModel(uuid = "t3", name = "Pull"),
-                    TagUiModel(uuid = "t4", name = "Legs"),
+                    AppTagItem(uuid = "t1", name = "Push"),
+                    AppTagItem(uuid = "t2", name = "Chest"),
+                    AppTagItem(uuid = "t3", name = "Pull"),
+                    AppTagItem(uuid = "t4", name = "Legs"),
                 ).toImmutableList(),
                 adhocPlan = listOf(
                     PlanSetUiModel(weight = 60.0, reps = 10, type = SetTypeUiModel.WORK),

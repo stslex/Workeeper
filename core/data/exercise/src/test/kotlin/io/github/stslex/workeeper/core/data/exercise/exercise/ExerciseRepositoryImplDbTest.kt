@@ -14,6 +14,8 @@ import io.github.stslex.workeeper.core.data.database.session.model.SetEntity
 import io.github.stslex.workeeper.core.data.database.session.model.SetTypeEntity
 import io.github.stslex.workeeper.core.data.database.sets.PlanSetDataModel
 import io.github.stslex.workeeper.core.data.database.sets.SetTypeDataModel
+import io.github.stslex.workeeper.core.data.database.tag.TagEntity
+import io.github.stslex.workeeper.core.data.database.tag.TrainingTagEntity
 import io.github.stslex.workeeper.core.data.database.testfixtures.RepositoryTestEnv
 import io.github.stslex.workeeper.core.data.database.training.TrainingEntity
 import io.github.stslex.workeeper.core.data.database.training.TrainingExerciseEntity
@@ -149,9 +151,50 @@ internal class ExerciseRepositoryImplDbTest {
 
         val updated = repository.getLabels(uuid.toString()).sorted()
         assertEquals(listOf("legs", "quads"), updated)
-        // Tag rows are reused by name, so all three tag names exist in tag_table.
+        // D-OPEN-4, auto-prune: the save that dropped "lower"'s last link swept its
+        // dictionary row IN THE SAME TRANSACTION. Before S6 this assertion read
+        // `containsAll(listOf("legs", "lower", "quads"))` — the dictionary only grew (B-E2).
+        val tagNames = env.tagDao.observeAll().first().map { it.name }.sorted()
+        assertEquals(listOf("legs", "quads"), tagNames)
+    }
+
+    /**
+     * The prune's predicate is a conjunction over BOTH link tables, and each conjunct needs a
+     * fixture only IT keeps alive (§27, "a test that two predicates both satisfy tells you
+     * nothing about either"): a tag whose only remaining link is a TRAINING's must survive an
+     * exercise save that drops its exercise link.
+     */
+    @Test
+    fun `a tag still linked by a training survives an exercise save that unlinks it`() = runTest {
+        val trainingUuid = Uuid.random()
+        env.trainingDao.insert(
+            TrainingEntity(
+                uuid = trainingUuid,
+                name = "Push Day",
+                description = null,
+                isAdhoc = false,
+                archived = false,
+                createdAt = 0L,
+                archivedAt = null,
+            ),
+        )
+        val sharedTag = TagEntity(name = "shared")
+        env.tagDao.insert(sharedTag)
+        env.trainingTagDao.insert(
+            listOf(TrainingTagEntity(trainingUuid = trainingUuid, tagUuid = sharedTag.uuid)),
+        )
+
+        val uuid = Uuid.random()
+        repository.saveItem(
+            exerciseChange(uuid = uuid, name = "Squat", labels = listOf("shared", "solo")),
+        )
+        repository.saveItem(
+            exerciseChange(uuid = uuid, name = "Squat", labels = emptyList()),
+        )
+
         val tagNames = env.tagDao.observeAll().first().map { it.name }
-        assertTrue(tagNames.containsAll(listOf("legs", "lower", "quads")))
+        // "solo" had no other link and is swept; "shared" is held by the training's link.
+        assertEquals(listOf("shared"), tagNames)
     }
 
     @Test

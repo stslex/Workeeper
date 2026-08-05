@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButton
 import io.github.stslex.workeeper.core.ui.kit.components.pr.PersonalRecordHero
 import io.github.stslex.workeeper.core.ui.kit.components.section.AppSectionHeader
+import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagItem
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppIconButton
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopBar
 import io.github.stslex.workeeper.core.ui.kit.icons.AppIcons
@@ -49,7 +50,6 @@ import io.github.stslex.workeeper.feature.exercise.ui.components.ExerciseHistory
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.HistoryUiModel
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ImageDisplay
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PersonalRecordUiModel
-import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.TagUiModel
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State
 import kotlinx.collections.immutable.ImmutableList
@@ -185,7 +185,7 @@ private fun InGutter(
  * `.prhero`'s date line both use it — so a meta line looks like a meta line wherever it appears.
  */
 @Composable
-private fun TagMetaLine(tags: ImmutableList<TagUiModel>) {
+private fun TagMetaLine(tags: ImmutableList<AppTagItem>) {
     if (tags.isEmpty()) return
     InGutter(top = AppDimension.Space.sm) {
         Text(
@@ -417,8 +417,8 @@ private fun ExerciseDetailScreenWithDescriptionAndTagsPreview() {
             state = detailPreviewBaseState().copy(
                 description = "Compound movement targeting chest, shoulders, and triceps.",
                 tags = listOf(
-                    TagUiModel(uuid = "t1", name = "Push"),
-                    TagUiModel(uuid = "t2", name = "Chest"),
+                    AppTagItem(uuid = "t1", name = "Push"),
+                    AppTagItem(uuid = "t2", name = "Chest"),
                 ).toImmutableList(),
             ),
             consume = {},
@@ -444,7 +444,7 @@ private fun ExerciseDetailScreenWithPlanAndPrPreview() {
                     repsLabel = "5",
                     absoluteDateLabel = "27 июля 2026 г.",
                 ),
-                tags = listOf(TagUiModel(uuid = "t1", name = "Push")).toImmutableList(),
+                tags = listOf(AppTagItem(uuid = "t1", name = "Push")).toImmutableList(),
             ),
             consume = {},
         )
@@ -491,7 +491,7 @@ private fun ExerciseDetailScreenWeightlessPreview() {
                 name = "Pull-ups",
                 type = ExerciseTypeUiModel.WEIGHTLESS,
                 description = "Bodyweight back exercise.",
-                tags = listOf(TagUiModel(uuid = "t1", name = "Pull")).toImmutableList(),
+                tags = listOf(AppTagItem(uuid = "t1", name = "Pull")).toImmutableList(),
                 adhocPlan = listOf(
                     PlanSetUiModel(weight = null, reps = 12, type = SetTypeUiModel.WORK),
                     PlanSetUiModel(weight = null, reps = 10, type = SetTypeUiModel.WORK),

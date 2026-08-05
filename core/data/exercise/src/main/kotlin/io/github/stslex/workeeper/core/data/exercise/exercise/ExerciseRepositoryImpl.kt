@@ -127,6 +127,10 @@ class ExerciseRepositoryImpl @Inject internal constructor(
         if (item.type == ExerciseTypeDataModel.WEIGHTLESS) {
             clearWeightsForExercise(entity.uuid)
         }
+        // Auto-prune on SAVE COMMIT, inside the same transaction as the link writes above
+        // (D-OPEN-4) — a save that drops a tag's last link takes the dictionary row with it,
+        // atomically. The DAO KDoc carries where-not-to-run-this.
+        tagDao.deleteOrphans()
         SaveResult.Success
     }
 

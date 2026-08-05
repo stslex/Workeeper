@@ -83,6 +83,11 @@ class TrainingRepositoryImpl @Inject internal constructor(
                         planSets = PlanSetsConverter.toJson(plan.planSets),
                     )
                 }
+                // Auto-prune on SAVE COMMIT, inside the same transaction as the link writes
+                // (D-OPEN-4). Deliberately NOT inside `writeTraining`: `updateTraining` shares
+                // that helper without a transaction around it, and a prune outside the link
+                // writes' transaction is the ordering the ruling forbids.
+                tagDao.deleteOrphans()
             }
         }
     }

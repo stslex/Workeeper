@@ -514,6 +514,23 @@ internal class ClickHandlerTest {
     }
 
     @Test
+    fun `the dashed add chip opens the tag picker sheet`() {
+        handler.invoke(Action.Click.OnTagAddClick)
+        assertEquals(DialogState.TagPicker, stateFlow.value.dialogState)
+    }
+
+    @Test
+    fun `dismissing the tag picker clears the query with the sheet`() {
+        stateFlow.value = stateFlow.value.copy(
+            dialogState = DialogState.TagPicker,
+            tagSearchQuery = "кар",
+        )
+        handler.invoke(Action.Click.OnTagPickerDismiss)
+        assertEquals(DialogState.Hidden, stateFlow.value.dialogState)
+        assertEquals("", stateFlow.value.tagSearchQuery)
+    }
+
+    @Test
     fun `the topbar menu opens as the DetailMenu sheet`() {
         handler.invoke(Action.Click.OnDetailMenuClick)
 
