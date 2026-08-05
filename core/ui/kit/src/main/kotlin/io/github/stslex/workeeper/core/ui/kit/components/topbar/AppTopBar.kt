@@ -54,12 +54,18 @@ import io.github.stslex.workeeper.core.ui.kit.theme.fadedOut
  *   and exercise detail draw this variant.
  * The h1's declared −.015em tracking is deliberately not reproduced either way (spec B4:
  * `text.title` is the only tracked rung).
+ *
+ * [titleDimmed] is the `h1.sm` placeholder treatment — `v3-editors.md` §3.2's
+ * «Новое упражнение» dim, for a bar whose title is standing in for a name the record does not
+ * have yet. It moves colour only (`textDim`), never the rung or the weight: a placeholder title
+ * is the same title, quieter.
  */
 @Composable
 fun AppTopBar(
     modifier: Modifier = Modifier,
     title: String? = null,
     smallTitle: Boolean = false,
+    titleDimmed: Boolean = false,
     navigation: @Composable () -> Unit = {},
     actions: @Composable RowScope.() -> Unit = {},
 ) {
@@ -85,7 +91,7 @@ fun AppTopBar(
                     .padding(horizontal = AppDimension.Space.xs),
                 text = title,
                 style = style,
-                color = AppUi.colors.textPrimary,
+                color = if (titleDimmed) AppUi.colors.textDim else AppUi.colors.textPrimary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )

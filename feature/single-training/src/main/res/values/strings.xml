@@ -44,8 +44,6 @@
       abbreviation of it.
     -->
     <string name="feature_training_edit_add_exercise">Add exercise</string>
-    <string name="feature_training_edit_plan_edit">edit plan</string>
-    <string name="feature_training_edit_plan_add">add plan</string>
     <string name="feature_training_edit_no_plan">no plan yet</string>
     <string name="feature_training_edit_remove_exercise">Remove exercise</string>
     <string name="feature_training_edit_drag_handle">Reorder</string>

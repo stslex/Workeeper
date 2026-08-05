@@ -26,6 +26,7 @@ import io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.data.exercise.training.TrainingRepository.BulkArchiveOutcome
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
@@ -61,19 +62,46 @@ class TrainingRepositoryImpl @Inject internal constructor(
 
     override suspend fun updateTraining(training: TrainingChangeDataModel) {
         withContext(ioDispatcher) {
-            val entity = training.toEntity()
-            val existing = dao.getById(entity.uuid)
-            if (existing == null) {
-                dao.insert(entity)
-            } else {
-                dao.update(entity)
-            }
-            val syncLabelsDeferred = async {
-                syncLabels(entity.uuid, training.labels)
-            }
-            syncExercises(entity.uuid, training.exerciseUuids)
-            syncLabelsDeferred.await()
+            writeTraining(training)
         }
+    }
+
+    override suspend fun updateTrainingWithPlans(
+        training: TrainingChangeDataModel,
+        plans: List<TrainingRepository.ExercisePlanWrite>,
+    ) {
+        withContext(ioDispatcher) {
+            dbTransition {
+                // After the sync, inside the transaction: the sync truncates and re-inserts
+                // the rows these updates land on. See the interface KDoc — the ordering is
+                // the guarantee now, not a caller's comment.
+                val trainingUuid = writeTraining(training)
+                plans.forEach { plan ->
+                    trainingExerciseDao.updatePlanSets(
+                        trainingUuid = trainingUuid,
+                        exerciseUuid = Uuid.parse(plan.exerciseUuid),
+                        planSets = PlanSetsConverter.toJson(plan.planSets),
+                    )
+                }
+            }
+        }
+    }
+
+    /** The one write path both save shapes share. Returns the row's resolved uuid. */
+    private suspend fun writeTraining(training: TrainingChangeDataModel): Uuid = coroutineScope {
+        val entity = training.toEntity()
+        val existing = dao.getById(entity.uuid)
+        if (existing == null) {
+            dao.insert(entity)
+        } else {
+            dao.update(entity)
+        }
+        val syncLabelsDeferred = async {
+            syncLabels(entity.uuid, training.labels)
+        }
+        syncExercises(entity.uuid, training.exerciseUuids)
+        syncLabelsDeferred.await()
+        entity.uuid
     }
 
     override suspend fun removeTraining(uuid: String) {

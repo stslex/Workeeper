@@ -3,8 +3,8 @@ package io.github.stslex.workeeper.feature.single_training.domain
 
 import io.github.stslex.workeeper.feature.single_training.domain.model.ActiveSessionDomain
 import io.github.stslex.workeeper.feature.single_training.domain.model.ArchiveResult
+import io.github.stslex.workeeper.feature.single_training.domain.model.ExercisePlanDomain
 import io.github.stslex.workeeper.feature.single_training.domain.model.PickerExercise
-import io.github.stslex.workeeper.feature.single_training.domain.model.PlanSetDomain
 import io.github.stslex.workeeper.feature.single_training.domain.model.SessionDomain
 import io.github.stslex.workeeper.feature.single_training.domain.model.StartSessionConflict
 import io.github.stslex.workeeper.feature.single_training.domain.model.TagDomain
@@ -24,7 +24,14 @@ interface SingleTrainingInteractor {
 
     fun observeAvailableTags(): Flow<List<TagDomain>>
 
-    suspend fun saveTraining(snapshot: TrainingChangeDomain)
+    /**
+     * The training row and every listed exercise's plan, persisted as ONE transaction — a
+     * failure anywhere leaves nothing behind one «Сохранено».
+     */
+    suspend fun saveTraining(
+        snapshot: TrainingChangeDomain,
+        plans: List<ExercisePlanDomain>,
+    )
 
     suspend fun createTag(name: String): TagDomain
 
@@ -35,12 +42,6 @@ interface SingleTrainingInteractor {
     suspend fun canPermanentlyDelete(uuid: String): Boolean
 
     fun observeAnyActiveSession(): Flow<ActiveSessionDomain?>
-
-    suspend fun setPlanForExercise(
-        trainingUuid: String,
-        exerciseUuid: String,
-        plan: List<PlanSetDomain>?,
-    )
 
     suspend fun searchExercisesForPicker(
         query: String,

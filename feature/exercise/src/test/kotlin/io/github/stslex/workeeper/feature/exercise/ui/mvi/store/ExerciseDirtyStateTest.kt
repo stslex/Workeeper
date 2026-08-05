@@ -108,23 +108,22 @@ internal class ExerciseDirtyStateTest {
     /**
      * **The §25 B39 case: `adhocPlan` has exactly ONE baseline, and it is `originalSnapshot`.**
      *
-     * The plan editor persists on its own Save and pops with `planEditorSavedAttr`;
-     * `CommonHandler.processPlanEditorExistingReturned` pulls `(type, plan)` back and resets the
-     * baseline by writing `originalSnapshot`. A second baseline field would have to be written
-     * there too, and the failure of not writing it is silent and permanent: the form reads dirty
-     * FOREVER after a plan save, so Cancel raises the discard sheet over work already on disk and
-     * back is intercepted for the same reason.
+     * Only a load or a completed Save may write the baseline; the inline plan editor's
+     * `OnAdhocPlanEditorAction` writes `adhocPlan` alone. A second baseline field would need
+     * every baseline writer to keep both in step, and the failure of not doing so is silent
+     * and permanent: the form reads dirty FOREVER after a save, so Cancel raises the discard
+     * sheet over work already on disk and back is intercepted for the same reason.
      *
      * That is why `isAdhocPlanDirty` reads the snapshot rather than a companion field — create
      * mode falls out correctly because a null snapshot means "no plan yet". A pairing kept in step
      * by hand is a pairing that comes apart; one source cannot.
      */
     @Test
-    fun `returning from the plan editor with a SAVED plan leaves the form clean`() {
+    fun `a plan the baseline has seen reads clean`() {
         val savedPlan = listOf(
             PlanSetUiModel(weight = 80.0, reps = 5, type = SetTypeUiModel.WORK),
         ).toImmutableList()
-        // Exactly what `processPlanEditorExistingReturned` writes.
+        // The shape a baseline writer (load, or a completed Save) leaves behind.
         val state = loaded().copy(
             adhocPlan = savedPlan,
             originalSnapshot = loaded().originalSnapshot?.copy(adhocPlan = savedPlan),
@@ -134,13 +133,13 @@ internal class ExerciseDirtyStateTest {
         assertFalse(state.isAdhocPlanDirty)
     }
 
-    /** The other direction: a DRAFT return is an unsaved edit and must read dirty. */
+    /** The other direction: an inline plan edit touches no baseline and must read dirty. */
     @Test
-    fun `returning from the plan editor with a DRAFT plan leaves the form dirty`() {
+    fun `an inline plan edit the baseline has not seen reads dirty`() {
         val draftPlan = listOf(
             PlanSetUiModel(weight = 80.0, reps = 5, type = SetTypeUiModel.WORK),
         ).toImmutableList()
-        // `processPlanEditorDraftReturned` deliberately does NOT touch the baseline.
+        // What `OnAdhocPlanEditorAction` writes: the plan, and deliberately NOT the baseline.
         val state = loaded().copy(adhocPlan = draftPlan)
 
         assertTrue(state.hasChanges)

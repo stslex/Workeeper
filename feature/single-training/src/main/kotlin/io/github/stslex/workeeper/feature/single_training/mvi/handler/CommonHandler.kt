@@ -31,17 +31,7 @@ internal class CommonHandler @Inject constructor(
     override fun invoke(action: Action.Common) {
         when (action) {
             Action.Common.Init -> processInit()
-            // Reload re-runs the training + exercise + history load pipeline so the per-
-            // row planSets / planSummary refresh after returning from the full-screen
-            // PlanEditor route. Skips the create branch (uuid == null) since there's
-            // nothing to load yet.
-            Action.Common.Reload -> processReload()
         }
-    }
-
-    private fun processReload() {
-        val uuid = state.value.uuid?.takeIf { it.isNotBlank() } ?: return
-        loadTraining(uuid)
     }
 
     private fun processInit() {
@@ -82,9 +72,7 @@ internal class CommonHandler @Inject constructor(
             // compose until the load lands (§26; `SingleTrainingGraph`), so a throw that left
             // the flag latched would leave the user on a permanently empty frame with no way
             // back into the screen. `launch` defaults `onError` to `{}` (B17, B21), so this arm
-            // must be written out — an empty one is the latched flag. A failed RELOAD is not
-            // blanked by this: the flag is already false by then, and the failure surfaces
-            // nothing to the user (B17).
+            // must be written out — an empty one is the latched flag.
             onError = { updateStateImmediate { it.copy(isLoading = false) } },
         ) {
             val training = interactor.getTraining(uuid)
@@ -122,12 +110,7 @@ internal class CommonHandler @Inject constructor(
             name = training.name,
             description = training.description.orEmpty(),
             tagUuids = tags.map { it.uuid },
-            exerciseSignature = exercises.map {
-                State.ExerciseSignature(
-                    it.exerciseUuid,
-                    it.position,
-                )
-            },
+            exercises = exercises,
         )
         return copy(
             uuid = training.uuid,
@@ -170,5 +153,5 @@ internal fun State.toSnapshot(): State.Snapshot = State.Snapshot(
     name = name,
     description = description,
     tagUuids = tags.map { it.uuid },
-    exerciseSignature = exercises.map { State.ExerciseSignature(it.exerciseUuid, it.position) },
+    exercises = exercises,
 )

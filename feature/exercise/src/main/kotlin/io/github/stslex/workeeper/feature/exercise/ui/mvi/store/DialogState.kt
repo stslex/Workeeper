@@ -101,4 +101,12 @@ sealed interface BottomSheetState {
     /** `⋮` → Изменить · В архив · Удалить навсегда (the last only when deletable). */
     @Stable
     data object DetailMenu : BottomSheetState
+
+    /**
+     * The editor plan head's `(i)` (ED8): what a default plan is for, in a sheet rather than
+     * as a subtitle under the head — a long explanation is a reason, and reasons live behind
+     * the `i`. Referent: the session's `.mini.info` → `#sh-desc`.
+     */
+    @Stable
+    data object PlanInfo : BottomSheetState
 }

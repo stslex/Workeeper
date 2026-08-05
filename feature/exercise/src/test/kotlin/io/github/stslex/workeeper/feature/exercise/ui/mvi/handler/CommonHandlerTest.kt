@@ -3,18 +3,15 @@ package io.github.stslex.workeeper.feature.exercise.ui.mvi.handler
 
 import android.net.Uri
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
-import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
 import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PendingImage
-import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.TagUiModel
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
-import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,7 +21,6 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.supervisorScope
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
-import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
@@ -144,43 +140,5 @@ internal class CommonHandlerTest {
 
         assertEquals(PendingImage.Unchanged, stateFlow.value.pendingImage)
         assertEquals(DialogState.Hidden, stateFlow.value.dialogState)
-    }
-
-    @Test
-    fun `PlanEditorExistingReturned with no uuid is a no-op`() {
-        // Defence-in-depth: PlanEditorExistingReturned can only fire when the parent has
-        // a persisted UUID, but the handler must short-circuit if invoked without one.
-        val (stateFlow, handler) = setup(
-            State.create(uuid = null).copy(name = "Bench"),
-        )
-
-        handler.invoke(Action.Common.PlanEditorExistingReturned)
-
-        assertEquals("Bench", stateFlow.value.name)
-    }
-
-    @Test
-    fun `PlanEditorExistingReturned preserves baseline shape with adhocPlan and type fields`() {
-        // Pin the contract: State.Snapshot now carries adhocPlan + type. The
-        // partial-reload path (Phase 6) updates these fields on the snapshot so a
-        // following parent.Save doesn't see a phantom dirty diff.
-        val baseline = State.Snapshot(
-            name = "Bench",
-            type = ExerciseTypeUiModel.WEIGHTED,
-            description = "",
-            tagUuids = emptyList(),
-            adhocPlan = null,
-        )
-        val (stateFlow, _) = setup(
-            State.create(uuid = "uuid-1").copy(
-                name = "Bench",
-                originalSnapshot = baseline,
-                tags = persistentListOf<TagUiModel>(),
-            ),
-        )
-
-        // Verify pre-conditions: snapshot does include the new fields.
-        assertEquals(ExerciseTypeUiModel.WEIGHTED, stateFlow.value.originalSnapshot?.type)
-        assertNull(stateFlow.value.originalSnapshot?.adhocPlan)
     }
 }

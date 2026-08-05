@@ -122,12 +122,6 @@ class ExerciseInteractorImpl internal constructor(
         }
     }
 
-    override suspend fun clearWeightsFromAllPlansForExercise(uuid: String) {
-        withContext(defaultDispatcher) {
-            exerciseRepository.clearWeightsFromAllPlansForExercise(uuid)
-        }
-    }
-
     override suspend fun saveImage(
         ref: ImageRef,
         exerciseUuid: String,

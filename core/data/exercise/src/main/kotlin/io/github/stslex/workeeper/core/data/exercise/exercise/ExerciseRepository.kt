@@ -41,9 +41,10 @@ interface ExerciseRepository {
     /**
      * Updates only the `type` column on `exercise_table`. The plan editor uses this when
      * persisting a type change without rewriting the rest of the exercise row (name,
-     * description, image, tags). When `type` flips to WEIGHTLESS the caller is responsible
-     * for invoking [clearWeightsFromAllPlansForExercise] in the same Save flow so weighted
-     * plan rows do not survive the type change.
+     * description, image, tags). This is the ONE write path to `type` that asks the caller to
+     * run [clearWeightsFromAllPlansForExercise] itself when the type flips to WEIGHTLESS;
+     * [saveItem] derives the cascade from the row it writes instead, so that a caller who does
+     * not know about this obligation cannot strand weights on a weightless exercise.
      */
     suspend fun setExerciseType(
         exerciseUuid: String,
@@ -52,9 +53,12 @@ interface ExerciseRepository {
 
     /**
      * Wipes the `weight` column from `exercise.last_adhoc_sets` and from every
-     * `training_exercise.plan_sets` row that references this exercise. Used when the user
-     * confirms a WEIGHTED → WEIGHTLESS type change so weighted plan values do not survive
-     * the type flip and confuse Live workout pre-fill later.
+     * `training_exercise.plan_sets` row that references this exercise, so weighted plan
+     * values do not survive a WEIGHTED → WEIGHTLESS flip and resurface in a Live workout
+     * pre-fill.
+     *
+     * For the [setExerciseType] path only. A full [saveItem] runs the same cascade itself,
+     * inside its own transaction, whenever the row it writes is WEIGHTLESS.
      *
      * Runs as a single repository transaction; either every plan-set row referencing the
      * exercise has its weights cleared, or none do.

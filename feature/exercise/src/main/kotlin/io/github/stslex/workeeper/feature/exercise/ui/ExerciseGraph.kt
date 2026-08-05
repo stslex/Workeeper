@@ -37,6 +37,7 @@ import io.github.stslex.workeeper.feature.exercise.R
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseFeature
 import io.github.stslex.workeeper.feature.exercise.ui.components.ExerciseDetailMenuSheetContent
 import io.github.stslex.workeeper.feature.exercise.ui.components.ImageSourceSheetContent
+import io.github.stslex.workeeper.feature.exercise.ui.components.PlanInfoSheetContent
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ImageErrorType
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.BottomSheetState
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.DialogState
@@ -52,21 +53,6 @@ fun NavGraphBuilder.exerciseGraph(
     modifier: Modifier = Modifier,
 ) {
     navComponentScreenWithState(ExerciseFeature) { stateHandle, processor ->
-
-        // Existing-mode return: PlanEditor wrote (type, plan) to disk and signaled with
-        // `planEditorSavedAttr = true`. The CommonHandler runs a *partial* reload — only
-        // (type, adhocPlan) are refreshed — so any unsaved name/description/tag/image
-        // edit on this form is preserved (this is the v1.41.0 dirty-baseline regression
-        // fix).
-        val savedAttr by stateHandle
-            .getStateFlow(Screen.PlanEditor.planEditorSavedAttr)
-            .collectAsState()
-        LaunchedEffect(savedAttr) {
-            if (savedAttr == true) {
-                processor.consume(Action.Common.PlanEditorExistingReturned)
-                stateHandle.setAttrDefaultValue(Screen.PlanEditor.planEditorSavedAttr)
-            }
-        }
 
         // Image-viewer return. The viewer carries the picture's two verbs now (§26, "The image
         // moves into the pushed top bar") and performs neither: it pops with a REQUEST, and the
@@ -242,6 +228,13 @@ fun NavGraphBuilder.exerciseGraph(
                     canPermanentlyDelete = state.canPermanentlyDelete,
                     consume = processor::consume,
                 )
+            }
+
+            // ED8: the plan head's `(i)`. The head keeps a short label; the reason lives here.
+            BottomSheetState.PlanInfo -> AppBottomSheet(
+                onDismiss = { processor.consume(Action.Click.OnSheetDismiss) },
+            ) {
+                PlanInfoSheetContent(consume = processor::consume)
             }
         }
 

@@ -37,7 +37,7 @@ import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTraini
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.State
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.State.Mode
 import io.github.stslex.workeeper.feature.single_training.ui.components.TagPickerInline
-import io.github.stslex.workeeper.feature.single_training.ui.components.TrainingExerciseEditRow
+import io.github.stslex.workeeper.feature.single_training.ui.components.TrainingExerciseCard
 import io.github.stslex.workeeper.core.ui.kit.R as KitR
 
 @Composable
@@ -171,10 +171,21 @@ private fun ExercisesEditSection(
             // neighbour. `key` moves the whole subtree with the item instead. `PastExerciseCard`
             // does the same thing for the same reason (§26, "Reorder is long-press drag").
             key(exercise.exerciseUuid) {
-                TrainingExerciseEditRow(
+                TrainingExerciseCard(
                     item = exercise,
+                    expanded = exercise.exerciseUuid in state.expandedExerciseUuids,
+                    onToggle = {
+                        consume(Action.Click.OnExerciseCardToggle(exercise.exerciseUuid))
+                    },
                     onRemove = { consume(Action.Click.OnExerciseRemove(exercise.exerciseUuid)) },
-                    onEditPlan = { consume(Action.Click.OnEditPlanClick(exercise.exerciseUuid)) },
+                    onPlanAction = { planAction ->
+                        consume(
+                            Action.Click.OnExercisePlanAction(
+                                exerciseUuid = exercise.exerciseUuid,
+                                action = planAction,
+                            ),
+                        )
+                    },
                     modifier = Modifier.reorderableColumnItem(
                         state = reorderState,
                         key = exercise.exerciseUuid,

@@ -45,7 +45,7 @@ mockup pass and ED14 with the §5 rulings.
 | **ED11** | **Undo everywhere; confirmation only where the act is irreversible.** A set, and an exercise removed from a training: **snackbar with undo, no confirmation** (D-OPEN-11). **Permanent deletion of the entity** (`⋮`): confirmation sheet, then the same snackbar. **Mechanism, for every undoable delete: deferred.** Nothing is deleted while the snackbar lives. The order is strict and it *is* the rule — timer expires → snackbar dismissed → only then the delete commits. Never delete first and undo by re-inserting (D-OPEN-2). **A deferred delete that loses its process is not committed** — the row survives (D-OPEN-10). | build (no undo anywhere); and this row's own earlier "confirmation, then a snackbar" on every exercise delete |
 | **ED12** | **Type of the exercise is declared on the plan section head** (`С ВЕСОМ` / `БЕЗ ВЕСА`) on the read screen, not as a tag chip. Tags render as one `.meta` line. | extraction §3.2 (type as first `.tag`) |
 | **ED13** | **Creation starts from an empty plan** — no seeded sets. `− подход` is `:disabled` while the draft is empty. | this arc's own earlier drawing |
-| **ED14** | **Training-editor cards are collapsed by default.** Collapsed is the drawn form — ordinal, type glyph, name, `.plan-line` summary (`#s-past`, as ED9) — plus the head's drag handle and `✕`. Entering the editor you see the whole list; you expand the one you mean. | **this document's own §3.4** ("All cards open") — reversed by D-OPEN-7 |
+| **ED14** | **Training-editor cards are collapsed by default.** Collapsed is the drawn form — ordinal, type glyph, name, `.plan-line` summary (`#s-past`, as ED9) — plus the head's drag handle and `✕`. Entering the editor you see the whole list; you expand the one you mean. **Collapsed-by-default governs the INITIAL state, not a limit of one: expansion is per card**, never an accordion — an accordion trades scroll stability for height (collapsing a card above the viewport shifts the page under the user's finger mid-edit), and height is the cheaper of the two. | **this document's own §3.4** ("All cards open") — reversed by D-OPEN-7 |
 
 ---
 
@@ -376,6 +376,14 @@ component, so **both** its modes (read-only with image / read-only with the plac
   test files outside those features — `app/app/.../PlanEditorExtensionIdentityTest.kt` and
   `core/ui/mvi/.../SavedStateHandleNavigationResultTest.kt` — on top of the feature-side
   `NavigationHandlerTest`s that go with their own features.
+  **After PR-B the surviving caller is the only caller in either mode.** Deleting the
+  exercise-side entry point left `PlanEditorStoreImpl.toMode`'s `State.Mode.Exercise` arm
+  unreachable in production: the sole construction of `Screen.PlanEditor.Existing`
+  (`live-workout/.../NavigationHandler.kt:26`) is fed by `Action.Navigation.OpenPlanEditor`, whose
+  `performedExerciseUuid: String` is non-null and comes from `LiveExerciseUiModel`, where it is
+  also non-null — so `performed != null` always wins and `Mode.Exercise` is only ever reached from
+  tests and a preview. It still compiles, so no gate reports it. Recorded here so the later
+  deletion arc does not mistake a dead branch for a second consumer it must preserve.
 - **B-E2** — nothing in the app ever deletes a tag; the dictionary only grows. The symbol with zero
   callers anywhere is `TagRepository.delete` (`TagRepository.kt:16`); `TagDao.delete(uuid)` has one
   production caller, `TagRepositoryImpl.delete` (`TagRepositoryImpl.kt:53`), which nothing calls.
@@ -390,3 +398,21 @@ component, so **both** its modes (read-only with image / read-only with the plac
   Opened by D-OPEN-4's ruling: auto-prune deletes a tag the moment its last link goes, which is
   the cheap answer; the screen is the one that lets you see and manage what the dictionary holds.
   Nothing in S6 depends on it.
+- **B-E6** — **`syncExercises`'s inherit arm is unreachable in effect, and a green test guards
+  it.** `TrainingRepositoryImpl.syncExercises` seeds a newly attached exercise's `plan_sets` from
+  the exercise's own `last_adhoc_sets`. Since S4 the training editor saves through
+  `updateTrainingWithPlans`, which overwrites `plan_sets` for **every** exercise in the UI list
+  later in the same transaction — and a freshly picked exercise carries `planSets = null`. So the
+  seeded value never survives its own transaction. The arm's only other route,
+  `updateTraining`, has **zero production callers** (29 call sites, all in
+  `TrainingRepositoryImplDbTest`), one of which — `updateTraining preserves existing plan_sets
+  across re-saves and inherits when newly attached` — passes while asserting behaviour production
+  can no longer exhibit.
+
+  **The behaviour is not the defect; the dead code is.** A newly added exercise having no plan is
+  ruled twice — D-OPEN-8 states it as the premise for auto-opening the inserted card ("the
+  inserted card has no plan yet — so it opens where it lands"), and ED8's sheet tells the user the
+  default plan is for performing the exercise **without** a training while the training-scoped
+  plan "is set in the training editor". Inheritance would falsify the copy the `(i)` exists to
+  show. Recorded rather than cleaned in PR-B: retiring the arm means retiring `updateTraining` and
+  rewriting its 29 test call sites, which is a data-layer change wider than the arc's editors.

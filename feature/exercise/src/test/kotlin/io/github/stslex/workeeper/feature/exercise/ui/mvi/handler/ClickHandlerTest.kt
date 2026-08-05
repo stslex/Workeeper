@@ -215,6 +215,13 @@ internal class ClickHandlerTest {
     }
 
     @Test
+    fun `OnPlanInfoClick opens the plan-info sheet`() {
+        val (stateFlow, _, handler) = setup()
+        handler.invoke(Action.Click.OnPlanInfoClick)
+        assertEquals(BottomSheetState.PlanInfo, stateFlow.value.bottomSheetState)
+    }
+
+    @Test
     fun `OnEditClick from the sheet closes it in the same transition`() {
         val (stateFlow, _, handler) = setup(
             State.create(uuid = "uuid-1").copy(bottomSheetState = BottomSheetState.DetailMenu),
@@ -247,17 +254,6 @@ internal class ClickHandlerTest {
         )
         handler.invoke(Action.Click.OnArchiveMenuClick)
         assertEquals(BottomSheetState.Hidden, stateFlow.value.bottomSheetState)
-    }
-
-    @Test
-    fun `OnEditPlanClick on existing exercise navigates to PlanEditor Existing`() {
-        val (_, store, handler) = setup()
-        handler.invoke(Action.Click.OnEditPlanClick)
-        verify(exactly = 1) {
-            store.consume(
-                Action.Navigation.OpenPlanEditorExisting(exerciseUuid = "uuid-1"),
-            )
-        }
     }
 
     @Test
@@ -411,6 +407,61 @@ internal class ClickHandlerTest {
         verify(exactly = 0) { store.consume(Action.Navigation.Back) }
         assertEquals(Mode.Read, stateFlow.value.mode)
         assertEquals("Bench", stateFlow.value.name)
+    }
+
+    /**
+     * The plan is the field the discard sheet is usually ABOUT — since ED1 it is edited inline,
+     * and `Snapshot.matches` counts it when raising the sheet. Discarding must put it back.
+     */
+    @Test
+    fun `OnConfirmDiscard with FLIP_TO_READ restores the plan the edit changed`() {
+        val original = persistentListOf(
+            PlanSetUiModel(weight = 80.0, reps = 8, type = SetTypeUiModel.WORK),
+        )
+        val (stateFlow, _, handler) = setup(
+            State.create(uuid = "uuid-1").copy(
+                mode = Mode.Edit(isCreate = false),
+                adhocPlan = persistentListOf(
+                    PlanSetUiModel(weight = 100.0, reps = 3, type = SetTypeUiModel.WORK),
+                    PlanSetUiModel(weight = 100.0, reps = 3, type = SetTypeUiModel.WORK),
+                ),
+                originalSnapshot = State.Snapshot(
+                    name = "Bench",
+                    type = ExerciseTypeUiModel.WEIGHTED,
+                    description = "",
+                    tagUuids = emptyList(),
+                    adhocPlan = original,
+                ),
+            ),
+        )
+
+        handler.invoke(Action.Click.OnConfirmDiscard(DiscardTarget.FLIP_TO_READ))
+
+        assertEquals(original, stateFlow.value.adhocPlan)
+    }
+
+    /** A plan that was empty before the edit comes back empty, not merely unchanged. */
+    @Test
+    fun `OnConfirmDiscard with FLIP_TO_READ restores a plan that was absent`() {
+        val (stateFlow, _, handler) = setup(
+            State.create(uuid = "uuid-1").copy(
+                mode = Mode.Edit(isCreate = false),
+                adhocPlan = persistentListOf(
+                    PlanSetUiModel(weight = 100.0, reps = 3, type = SetTypeUiModel.WORK),
+                ),
+                originalSnapshot = State.Snapshot(
+                    name = "Bench",
+                    type = ExerciseTypeUiModel.WEIGHTED,
+                    description = "",
+                    tagUuids = emptyList(),
+                    adhocPlan = null,
+                ),
+            ),
+        )
+
+        handler.invoke(Action.Click.OnConfirmDiscard(DiscardTarget.FLIP_TO_READ))
+
+        assertNull(stateFlow.value.adhocPlan)
     }
 
     @Test

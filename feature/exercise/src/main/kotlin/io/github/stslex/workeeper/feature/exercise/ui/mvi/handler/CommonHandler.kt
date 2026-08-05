@@ -11,7 +11,6 @@ import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor
 import io.github.stslex.workeeper.feature.exercise.domain.model.ExerciseDomain
 import io.github.stslex.workeeper.feature.exercise.domain.model.HistoryEntryDomain
 import io.github.stslex.workeeper.feature.exercise.domain.model.PlanSetDomain
-import io.github.stslex.workeeper.feature.exercise.ui.mvi.mapper.ExerciseUiMapper.toAdhocPlanSummary
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.mapper.ExerciseUiMapper.toDomain
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.mapper.ExerciseUiMapper.toUi
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PendingImage
@@ -39,7 +38,6 @@ internal class CommonHandler @Inject constructor(
             Action.Common.Init -> processInit()
             is Action.Common.ImagePicked -> processImagePicked(action)
             Action.Common.ImagePickCancelled -> processImagePickCancelled()
-            Action.Common.PlanEditorExistingReturned -> processPlanEditorExistingReturned()
         }
     }
 
@@ -100,45 +98,6 @@ internal class CommonHandler @Inject constructor(
     }
 
     /**
-     * Existing-mode return: PlanEditor wrote `(type, last_adhoc_sets)` to disk. Pull just
-     * those two fields and merge into State + the originalSnapshot baseline so the screen
-     * doesn't think the user has unsaved type/plan edits any more, while name /
-     * description / tags / image stay exactly as the user has them on the form.
-     */
-    private fun processPlanEditorExistingReturned() {
-        val uuid = state.value.uuid?.takeIf { it.isNotBlank() } ?: return
-        launch(
-            onSuccess = { partial ->
-                if (partial.exercise == null) return@launch
-                val newType = partial.exercise.type.toUi()
-                val newPlan = partial.adhocPlan
-                    ?.map { it.toUi() }
-                    ?.toImmutableList()
-                updateStateImmediate { current ->
-                    current.copy(
-                        type = newType,
-                        adhocPlan = newPlan,
-                        adhocPlanSummaryLabel = newPlan.toAdhocPlanSummary(resourceWrapper),
-                        // Reset the dirty baseline so a subsequent Save doesn't re-mark
-                        // type/plan as dirty. Other fields stay untouched.
-                        originalSnapshot = current.originalSnapshot?.copy(
-                            type = newType,
-                            adhocPlan = newPlan,
-                        ),
-                    )
-                }
-            },
-        ) {
-            val exercise = async { interactor.getExercise(uuid) }
-            val adhocPlan = async { interactor.getAdhocPlan(uuid) }
-            PartialReload(
-                exercise = exercise.await(),
-                adhocPlan = adhocPlan.await(),
-            )
-        }
-    }
-
-    /**
      * The query no longer takes a type — it reads `exercise_table.type` itself — so the
      * subscription cannot go stale on the *query* side. The restart is still needed on the
      * *rendering* side: the PR card formats weight-bearing and rep-only records differently,
@@ -189,7 +148,6 @@ internal class CommonHandler @Inject constructor(
             isLoading = false,
             canPermanentlyDelete = result.canPermanentlyDelete,
             adhocPlan = adhocPlan,
-            adhocPlanSummaryLabel = adhocPlan.toAdhocPlanSummary(resourceWrapper),
             imagePath = imagePath,
             imageLastModified = imageLastModified,
             pendingImage = PendingImage.Unchanged,
@@ -209,11 +167,6 @@ internal class CommonHandler @Inject constructor(
         val history: List<HistoryEntryDomain>,
         val historyCount: Int,
         val canPermanentlyDelete: Boolean,
-        val adhocPlan: List<PlanSetDomain>?,
-    )
-
-    private data class PartialReload(
-        val exercise: ExerciseDomain?,
         val adhocPlan: List<PlanSetDomain>?,
     )
 }
