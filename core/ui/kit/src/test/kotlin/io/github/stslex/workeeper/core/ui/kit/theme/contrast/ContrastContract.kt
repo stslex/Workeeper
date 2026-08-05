@@ -88,7 +88,6 @@ internal object ContrastContract {
         // `ThemeSelector.kt:84` and `ExercisePickerSheet.kt:170`, and neither paints this slot
         // any more). What is actually live:
         //   - AppTextField.kt:57  unfocusedBorderColor — an enabled, operable field's boundary
-        //   - TypeToggle.kt:65    the unselected toggle's boundary
         //   - AppProgressRail.kt:201 the skipped-segment outline, which is the ONLY thing
         //     distinguishing a skipped exercise from an unfilled one — informational, not trim
         //   - AppCheckmarkButton.kt:51 the DISABLED branch (`if (enabled) accent else this`),
@@ -495,7 +494,7 @@ internal object ContrastContract {
                     foreground = "borderDefault",
                     background = surface,
                     typeSlot = TypeSlot.UI_COMPONENT,
-                    evidence = "AppTextField unfocusedBorderColor / TypeToggle unselected, enabled",
+                    evidence = "AppTextField unfocusedBorderColor / progress-rail skipped, enabled",
                 ),
             )
         }

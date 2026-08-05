@@ -274,11 +274,12 @@ data class AppColors(
      * **Control outline**, like [borderStrong] — the boundary that identifies an enabled,
      * unfocused control.
      *
-     * Readers: `AppTextField.kt:57` (`unfocusedBorderColor` — the resting outline of every text
-     * field in the app, nine call sites) and `TypeToggle.kt:65` (the unselected option
-     * boundary). Both are enabled and operable, so WCAG 1.4.11 applies and this owes 3:1.
+     * Readers: `AppTextField`'s `unfocusedBorderColor` — the resting outline of every text field
+     * in the app — and `AppProgressRail`'s skipped-segment outline, the only thing that
+     * distinguishes a skipped exercise from an unfilled one. Both are enabled and operable, so
+     * WCAG 1.4.11 applies and this owes 3:1.
      *
-     * The neighbouring `disabledBorderColor` at `AppTextField.kt:58` reads [borderSubtle]
+     * The neighbouring `disabledBorderColor` in `AppTextField` reads [borderSubtle]
      * instead, and *that* one is genuinely exempt — which is the line this palette draws:
      * [borderSubtle] is the hairline (separators, disabled outlines — chart gridlines have
      * their own [grid] slot) and takes no threshold; these two are controls and do.

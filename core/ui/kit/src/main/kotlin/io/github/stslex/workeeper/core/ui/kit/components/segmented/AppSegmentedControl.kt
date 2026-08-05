@@ -1,7 +1,6 @@
 package io.github.stslex.workeeper.core.ui.kit.components.segmented
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -56,6 +55,16 @@ import kotlinx.collections.immutable.persistentListOf
  * - The segments are separated by `gap: 3px` and **no rule**. The hairline dividers this
  *   component used to draw are siblings of the thumb, so a lifted thumb would have a seam
  *   running down its edge. The mockup draws air instead.
+ *
+ * ## The label pair is `v3-editors.md` ED5's, not `.mseg`'s
+ *
+ * Selected [io.github.stslex.workeeper.core.ui.kit.theme.AppColors.textPrimary], resting
+ * [io.github.stslex.workeeper.core.ui.kit.theme.AppColors.textSecondary]. The drawing paints the
+ * resting label `--meta` (`textTertiary`) on both `.mseg` and `.tabs`; ED5 names `textSecondary`
+ * for the segmented control's own grammar and this component follows the ruling. **The accent
+ * trio does not appear here** — a monochrome control is the point of that row, and
+ * `accentTintedForeground` (which this used to read) is `--max` by another name, so the rename
+ * is what makes the role legible rather than what moves a pixel.
  */
 @Composable
 fun AppSegmentedControl(
@@ -63,33 +72,42 @@ fun AppSegmentedControl(
     selected: Int,
     onSelectedChange: (Int) -> Unit,
     modifier: Modifier = Modifier,
+    itemModifier: (Int) -> Modifier = { Modifier },
 ) {
     Row(
         modifier = modifier
             .height(TRACK_HEIGHT)
-            .clip(AppUi.shapes.small)
+            .clip(SEGMENT_SHAPE)
             .background(AppUi.colors.surfaceTier1)
-            .padding(TRACK_PADDING),
+            .padding(TRACK_PADDING)
+            // One choice among N, as the icon form already announces it. Without this the halves
+            // read to TalkBack as unrelated clickable boxes and the selected one says nothing.
+            .selectableGroup(),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(TRACK_PADDING),
     ) {
         items.forEachIndexed { index, label ->
             val isSelected = index == selected
-            val foreground = if (isSelected) AppUi.colors.accentTintedForeground else AppUi.colors.textTertiary
             Box(
-                modifier = Modifier
+                modifier = itemModifier(index)
                     .weight(1f)
                     .fillMaxHeight()
-                    .liftedSurface(shape = AppUi.shapes.small, lifted = isSelected)
-                    .clip(AppUi.shapes.small)
-                    .clickable { onSelectedChange(index) }
+                    .liftedSurface(shape = SEGMENT_SHAPE, lifted = isSelected)
+                    .clip(SEGMENT_SHAPE)
+                    .selectable(selected = isSelected, role = Role.RadioButton) {
+                        onSelectedChange(index)
+                    }
                     .padding(horizontal = AppDimension.Space.md),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
                     text = label,
                     style = AppUi.typography.labelMedium,
-                    color = foreground,
+                    color = if (isSelected) {
+                        AppUi.colors.textPrimary
+                    } else {
+                        AppUi.colors.textSecondary
+                    },
                 )
             }
         }
@@ -98,6 +116,16 @@ fun AppSegmentedControl(
 
 /** `.mseg{padding:3px}` and `.mseg{gap:3px}` — 3px, one rung, one value. */
 private val TRACK_PADDING = AppDimension.Space.xs
+
+/**
+ * `.mseg button{border-radius:8px}` — a rung that exists ([AppDimension.Radius.small]), and the
+ * round-down `AppIconButton` documents for the track's missing 12 lands on the same 8.
+ *
+ * **NOT the theme's `shapes.small` (6dp)**: that value was D3's false citation, and the text form
+ * carried it until ED5. One `val` for both forms, for the reason [TRACK_PADDING] and
+ * [TRACK_HEIGHT] are one — a per-form copy is how the two drift.
+ */
+private val SEGMENT_SHAPE = RoundedCornerShape(AppDimension.Radius.small)
 
 /**
  * The track's outer height — **derived, not transcribed**, in the shape of [AppDimension.rowHeight].
@@ -147,14 +175,10 @@ fun AppSegmentedIconControl(
     modifier: Modifier = Modifier,
     itemModifier: (Int) -> Modifier = { Modifier },
 ) {
-    // §5.4 declares the buttons `radius 8px → 8dp` — a rung that exists (Radius.small),
-    // and the round-down AppIconButton documents for the track's missing-12 case lands on
-    // the same 8. NOT the theme's shapes.small (6dp): that value was D3's false citation.
-    val segShape = RoundedCornerShape(AppDimension.Radius.small)
     Row(
         modifier = modifier
             .height(TRACK_HEIGHT)
-            .clip(segShape)
+            .clip(SEGMENT_SHAPE)
             .background(AppUi.colors.surfaceTier1)
             .padding(TRACK_PADDING)
             // One choice among three: a radio group to TalkBack, as the ThemeSelector this
@@ -169,8 +193,8 @@ fun AppSegmentedIconControl(
                 modifier = itemModifier(index)
                     .width(MSEG_BUTTON_WIDTH)
                     .fillMaxHeight()
-                    .liftedSurface(shape = segShape, lifted = isSelected)
-                    .clip(segShape)
+                    .liftedSurface(shape = SEGMENT_SHAPE, lifted = isSelected)
+                    .clip(SEGMENT_SHAPE)
                     .selectable(selected = isSelected, role = Role.RadioButton) {
                         onSelectedChange(index)
                     },
