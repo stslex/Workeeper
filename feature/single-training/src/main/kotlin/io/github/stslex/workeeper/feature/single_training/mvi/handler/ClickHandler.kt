@@ -15,6 +15,7 @@ import io.github.stslex.workeeper.feature.single_training.di.SingleTrainingHandl
 import io.github.stslex.workeeper.feature.single_training.di.SingleTrainingScope
 import io.github.stslex.workeeper.feature.single_training.domain.SingleTrainingInteractor
 import io.github.stslex.workeeper.feature.single_training.domain.model.ArchiveResult
+import io.github.stslex.workeeper.feature.single_training.domain.model.ExercisePlanDomain
 import io.github.stslex.workeeper.feature.single_training.domain.model.StartSessionConflict
 import io.github.stslex.workeeper.feature.single_training.domain.model.TrainingChangeDomain
 import io.github.stslex.workeeper.feature.single_training.mvi.mapper.TagUiMapper.toDomain
@@ -295,7 +296,10 @@ internal class ClickHandler @Inject constructor(
         )
         val isCreate = current.isCreate
         val plans = current.exercises.map { item ->
-            item.exerciseUuid to item.planSets?.map { it.toDomain() }
+            ExercisePlanDomain(
+                exerciseUuid = item.exerciseUuid,
+                planSets = item.planSets?.map { it.toDomain() },
+            )
         }
         launch(
             onSuccess = {
@@ -312,17 +316,11 @@ internal class ClickHandler @Inject constructor(
                 }
             },
         ) {
-            // The training row first — `setPlanForExercise` lands on the
-            // `training_exercise_table` rows `saveTraining` just wrote, which is what lets a
-            // CREATE flow carry plans at all (ED1; the deleted route had to no-op there).
-            interactor.saveTraining(snapshot)
-            plans.forEach { (exerciseUuid, plan) ->
-                interactor.setPlanForExercise(
-                    trainingUuid = resolvedUuid,
-                    exerciseUuid = exerciseUuid,
-                    plan = plan,
-                )
-            }
+            // ONE act: the training row and every plan commit in a single repository
+            // transaction, which is also what lets a CREATE flow carry plans at all (ED1) —
+            // the plan writes land on the `training_exercise_table` rows the same
+            // transaction just wrote.
+            interactor.saveTraining(snapshot, plans)
         }
     }
 

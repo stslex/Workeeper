@@ -1,6 +1,7 @@
 package io.github.stslex.workeeper.core.data.exercise.training
 
 import androidx.paging.PagingData
+import io.github.stslex.workeeper.core.data.database.sets.PlanSetDataModel
 import kotlinx.coroutines.flow.Flow
 
 @Suppress("TooManyFunctions")
@@ -9,6 +10,20 @@ interface TrainingRepository {
     fun getTrainingsUnique(query: String): Flow<PagingData<TrainingDataModel>>
 
     suspend fun updateTraining(training: TrainingChangeDataModel)
+
+    /**
+     * [updateTraining] plus every listed exercise's `plan_sets`, as **one transaction** —
+     * one Save on the training editor is one act, so a failure anywhere leaves nothing:
+     * no training row without its plans, no first plan without the second.
+     *
+     * The plan writes land AFTER the exercise sync inside the same transaction, because the
+     * sync truncates and re-inserts the `training_exercise_table` rows the plan update needs.
+     * That ordering used to be a comment on the caller; here it is a guarantee.
+     */
+    suspend fun updateTrainingWithPlans(
+        training: TrainingChangeDataModel,
+        plans: List<ExercisePlanWrite>,
+    )
 
     /**
      * Lightweight name-only update used by the v2.3 Live workout editable header. Side-steps
@@ -71,6 +86,12 @@ interface TrainingRepository {
      * session. Drives the enabled/disabled state of the bulk-delete action.
      */
     suspend fun canBulkPermanentDelete(uuids: Set<String>): Boolean
+
+    /** One exercise's plan, addressed by uuid — [updateTrainingWithPlans]'s unit of write. */
+    data class ExercisePlanWrite(
+        val exerciseUuid: String,
+        val planSets: List<PlanSetDataModel>?,
+    )
 
     data class BulkArchiveOutcome(
         val archivedCount: Int,
