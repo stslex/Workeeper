@@ -534,9 +534,13 @@ internal class ClickHandler @Inject constructor(
 
     /**
      * Switching WEIGHTED -> WEIGHTLESS while weighted rows exist would silently strand the weights
-     * the user typed, so it asks first. The wipe is LOCAL: a record being created has no row on
-     * disk and nothing else references it, so there is no cross-plan cascade to run here — the
-     * only weights in existence are in this draft.
+     * the user typed, so it asks first.
+     *
+     * **The wipe here is LOCAL — the draft only — and that is not the whole cascade.** An existing
+     * exercise's weights also live on every `training_exercise.plan_sets` row that references it,
+     * and nothing on this screen can reach those. `ExerciseRepositoryImpl.saveItem` clears them
+     * from the row it writes whenever the saved type is WEIGHTLESS, in the same transaction as the
+     * save; the confirm below only decides whether the user accepts losing them.
      */
     private fun processTypeToggle(target: ExerciseTypeUiModel) {
         val current = state.value

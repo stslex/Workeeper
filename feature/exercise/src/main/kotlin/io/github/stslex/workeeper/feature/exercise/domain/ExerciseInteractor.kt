@@ -58,8 +58,6 @@ interface ExerciseInteractor {
 
     suspend fun setAdhocPlan(uuid: String, plan: List<PlanSetDomain>?)
 
-    suspend fun clearWeightsFromAllPlansForExercise(uuid: String)
-
     suspend fun saveImage(ref: ImageRef, exerciseUuid: String): ImageSaveResult
 
     suspend fun createTempCaptureRef(): ImageRef
