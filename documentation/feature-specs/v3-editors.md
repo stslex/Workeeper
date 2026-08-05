@@ -74,7 +74,8 @@ Verified by grep against `dev @ 5b3c1cb2`. Each symbol is named so CC deletes ra
   production call site, 2 previews and 3 `testTag` literals, all three kinds inside
   `ExerciseHero.kt` itself, and **no test asserts the tags**. Whether the component file survives
   as the placeholder-icon source — `exercise-image.md` reuses it for the thumb — is PR-2's
-  mechanical call, not a decision.
+  mechanical call, not a decision: §3.1 gives the placeholder to the description block, without
+  saying which file the glyph ends up in.
 
 **`feature/single-training`**
 - `Action.Click.OnEditPlanClick(exerciseUuid)`, `ClickHandler.processEditPlanClick`
@@ -134,6 +135,19 @@ and the full perimeter. Placement is after the plan and before `ИСТОРИЯ`:
 (description after the screen's main slot) and leaves history as the trailing log, which moves the
 image down from the top of the body where HEAD draws it.
 
+**One component, two hosts — the same class as the set row.** The description-plus-image block now
+appears on read (§3.1) and on the editor (§3.2). It is **built once, in PR-2**, in read-only and
+editable modes exactly as `PlanEditorBody` and its read-only host are one component in two modes;
+**PR-3 consumes it and does not rebuild it**. A second copy is the drift this arc exists to remove.
+Unlike the set row it needs no kit module — both hosts live in `feature/exercise`, so
+`feature/exercise/.../ui/components/` is its home, next to the `ExerciseHero.kt` it replaces.
+
+**The block carries the image affordance on both screens**, since the thumb (ED6) and the hero
+(D-OPEN-9) are the two things that used to and both are gone. So it **owns the placeholder icon**
+too — the glyph shown when `imageDisplay` is `None`, which today lives in `ExerciseHero.kt` and
+which `exercise-image.md` also reuses for the thumb. Where that glyph ends up is PR-2's call and it
+is **mechanical, not a decision**: nothing in §5 rides on it.
+
 ### 3.2 Exercise — create / edit (`ExerciseEditScreen`)
 
 ```
@@ -145,8 +159,8 @@ head      ПЛАН ПО УМОЛЧАНИЮ        (i) → sheet          (ED8)
 head      ТЕГИ                     2 из 10               counter only where a limit exists
           selected chips ✕ · + тег → sheet               (ED7)
 head      ОПИСАНИЕ
-          .tf.multi
-          image entry point, beside the description      (D-OPEN-3)
+          .tf.multi + image beside it                    (D-OPEN-3)
+          — §3.1's block in its editable mode, consumed
 dock      Отмена · Сохранить                             Save always enabled (§7.3)
 ```
 
@@ -157,6 +171,11 @@ would be a lie.
 The image entry point is **beside the description** — not in the top bar (ED6 stands, the thumb
 is deleted), not among the plan and not among the tags. The placement is the statement: the image
 is optional and descriptive, so it sits with the other optional descriptive thing.
+
+**This block is not built here.** It is §3.1's description-plus-image component in its editable
+mode — one component, two hosts. PR-2 builds it, PR-3 consumes it, and PR-3 does **not** rebuild
+it; that makes PR-3's dependency on PR-2 a code dependency, not an ordering one (§6). The
+placeholder icon travels with the block, so the editor does not carry its own.
 
 ### 3.3 Training — read (`TrainingDetailScreen`)
 
@@ -263,11 +282,17 @@ holding.
 Each PR is independently bisect-green and carries its own goldens. Dependencies are stated; where
 none is stated the PR is free-standing.
 
+**PR-3 depends on PR-2 in code, not merely in order.** The description block does not exist before
+PR-2, and PR-3 imports it rather than writing a second copy (§3.1, §3.2) — so PR-3 does not compile
+against a tree without PR-2 and cannot be stacked ahead of it. Contrast PR-1, which is an ordering
+dependency only: the type toggle exists at HEAD and PR-1 restyles it, so PR-3 would build either
+way and would simply draw the old toggle.
+
 | PR | Content | Depends on |
 |---|---|---|
 | **PR-1** | `TypeToggle` → monochrome `.tabs` grammar (ED5). `AppSegmentedControl` **is** the text variant (`items: ImmutableList<String>` → `Text`), with `AppSegmentedIconControl` as its sibling in the same file. #191 left the text form untouched — 6dp, no selection semantics — so *collapse onto it* means bringing it up to the `.tabs` grammar, not choosing between two controls. | — |
-| **PR-2** | Read-only set-row card extracted to `core/ui/plan-editor`; `ExerciseDetailScreen`'s `DefaultPlanSection` / `PlanCard` / `PlanLine` / `PlanValue` rebuilt onto it. Type onto the section head, tags to one `.meta` line (ED2, ED12). Read card and edit card are identical (D-OPEN-6). **Read gains the `ОПИСАНИЕ` block with the image beside it, replacing `ExerciseHero`'s role** (D-OPEN-9) — §3.1 records that the drawing omits both blocks and that building strictly to it would delete the image from read. | — |
-| **PR-3** | Exercise editor: inline plan, section rhythm, placeholders out, `TypeChipReadOnly` out, thumb out, `i` sheet in, image entry point beside the description (ED1, ED3, ED4, ED6, ED8, ED13, D-OPEN-3). Deletes the exercise-side route symbols from §2, whose three measurements (the two `DefaultPlanSection`s, `adhocPlanSummaryLabel`'s single read, the thumb's single call site) are settled — do not re-derive them. | PR-1, PR-2 |
+| **PR-2** | Read-only set-row card extracted to `core/ui/plan-editor`; `ExerciseDetailScreen`'s `DefaultPlanSection` / `PlanCard` / `PlanLine` / `PlanValue` rebuilt onto it. Type onto the section head, tags to one `.meta` line (ED2, ED12). Read card and edit card are identical (D-OPEN-6). **Read gains the `ОПИСАНИЕ` block with the image beside it, replacing `ExerciseHero`'s role** (D-OPEN-9) — §3.1 records that the drawing omits both blocks and that building strictly to it would delete the image from read. **PR-2 owns that block**: one component, read-only and editable modes, and the placeholder icon travels with it. | — |
+| **PR-3** | Exercise editor: inline plan, section rhythm, placeholders out, `TypeChipReadOnly` out, thumb out, `i` sheet in, image entry point beside the description (ED1, ED3, ED4, ED6, ED8, ED13, D-OPEN-3). **Consumes PR-2's description block in its editable mode; does not rebuild it.** Deletes the exercise-side route symbols from §2, whose three measurements (the two `DefaultPlanSection`s, `adhocPlanSummaryLabel`'s single read, the thumb's single call site) are settled — do not re-derive them. | PR-1 (ordering), **PR-2 (code)** |
 | **PR-4** | Training editor: row → card, collapsed by default with the plan body inside on expand (ED14); an exercise inserted from the picker opens, and a multi-insert opens the first only (D-OPEN-8). `✕` removes from this training with an undo snackbar and **no confirmation** (D-OPEN-11). Route symbols deleted (ED1), `Action.Common.Reload` among them — §2 records it has no other dispatch site. | PR-3 |
 | **PR-5** | Training read screen: cards vs list, `Изменить` to the dock (ED9, ED10). | — |
 | **PR-6** | Tags: one kit component, the sheet, the `+ тег` chip (dashed `--hair-s` kept, D-OPEN-5), the counter where a limit exists (ED7). Auto-prune on the last link (D-OPEN-4) — `TagRepository.delete`'s first caller, closing B-E2. | — |
@@ -298,8 +323,9 @@ review.
 
 New goldens this arc: type toggle (2 states × 2 themes), read-only set card (weighted / weightless
 / empty × 2), editor plan card empty state, tag row (selected / empty × 2), training exercise card
-(collapsed with plan / collapsed with no plan / expanded × 2, ED14), read description block
-(with image / without × 2, D-OPEN-9).
+(collapsed with plan / collapsed with no plan / expanded × 2, ED14), description block — one
+component, so **both** its modes (read-only with image / read-only with the placeholder / editable
+× 2, D-OPEN-9).
 
 ---
 
