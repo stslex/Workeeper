@@ -23,6 +23,7 @@ import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
 import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -160,37 +161,44 @@ internal class ClickHandlerTest {
         handler.invoke(Action.Click.OnPickerConfirm)
 
         assertEquals(2, stateFlow.value.exercises.size)
-        assertEquals("ex-1", stateFlow.value.expandedExerciseUuid)
+        // The FIRST inserted opens (D-OPEN-8); the second does not.
+        assertTrue("ex-1" in stateFlow.value.expandedExerciseUuids)
+        assertTrue("ex-2" !in stateFlow.value.expandedExerciseUuids)
         // Inserted with NO plan: null, not an empty list — the persisted shape.
         assertEquals(null, stateFlow.value.exercises.first().planSets)
     }
 
+    /** ED14: collapsed is the INITIAL state — the tap opens the tapped card. */
     @Test
     fun `OnExerciseCardToggle expands the tapped card`() {
         stateFlow.value = stateFlow.value.copy(exercises = persistentListOf(exercise("ex-1")))
         handler.invoke(Action.Click.OnExerciseCardToggle("ex-1"))
-        assertEquals("ex-1", stateFlow.value.expandedExerciseUuid)
+        assertTrue("ex-1" in stateFlow.value.expandedExerciseUuids)
     }
 
     @Test
     fun `OnExerciseCardToggle on the open card collapses it`() {
         stateFlow.value = stateFlow.value.copy(
             exercises = persistentListOf(exercise("ex-1")),
-            expandedExerciseUuid = "ex-1",
+            expandedExerciseUuids = persistentSetOf("ex-1"),
         )
         handler.invoke(Action.Click.OnExerciseCardToggle("ex-1"))
-        assertEquals(null, stateFlow.value.expandedExerciseUuid)
+        assertTrue(stateFlow.value.expandedExerciseUuids.isEmpty())
     }
 
-    /** ED14's accordion: expanding one collapses the other — never two open. */
+    /**
+     * ED14's amendment: expansion is PER CARD, never an accordion — opening the second
+     * card must not collapse the first, or the page shifts under the finger mid-edit.
+     */
     @Test
-    fun `OnExerciseCardToggle moves the one expansion between cards`() {
+    fun `cards expand independently`() {
         stateFlow.value = stateFlow.value.copy(
             exercises = persistentListOf(exercise("ex-1"), exercise("ex-2", position = 1)),
-            expandedExerciseUuid = "ex-1",
+            expandedExerciseUuids = persistentSetOf("ex-1"),
         )
         handler.invoke(Action.Click.OnExerciseCardToggle("ex-2"))
-        assertEquals("ex-2", stateFlow.value.expandedExerciseUuid)
+        assertTrue("ex-1" in stateFlow.value.expandedExerciseUuids)
+        assertTrue("ex-2" in stateFlow.value.expandedExerciseUuids)
     }
 
     /** ED1 on this screen: the plan reduces in memory, against the addressed exercise only. */

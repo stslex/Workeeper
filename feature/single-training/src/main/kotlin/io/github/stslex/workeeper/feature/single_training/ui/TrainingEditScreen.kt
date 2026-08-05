@@ -173,7 +173,7 @@ private fun ExercisesEditSection(
             key(exercise.exerciseUuid) {
                 TrainingExerciseCard(
                     item = exercise,
-                    expanded = state.expandedExerciseUuid == exercise.exerciseUuid,
+                    expanded = exercise.exerciseUuid in state.expandedExerciseUuids,
                     onToggle = {
                         consume(Action.Click.OnExerciseCardToggle(exercise.exerciseUuid))
                     },

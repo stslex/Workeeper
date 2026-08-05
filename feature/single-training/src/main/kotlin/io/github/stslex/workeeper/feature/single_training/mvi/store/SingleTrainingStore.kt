@@ -15,6 +15,7 @@ import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTraini
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.Event
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.State
 import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.ImmutableSet
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.persistentSetOf
 
@@ -32,12 +33,14 @@ interface SingleTrainingStore : Store<State, Action, Event> {
         val tagSearchQuery: String,
         val exercises: ImmutableList<TrainingExerciseItem>,
         /**
-         * The one open card in the editor's exercise list, or null when all are collapsed —
-         * collapsed is the default (ED14), and an exercise inserted from the picker opens
-         * (D-OPEN-8), which is why the STORE owns this and not the card: an insert is a state
-         * transition, and a `remember` in the card could not see it.
+         * The open cards in the editor's exercise list — empty when all are collapsed, which
+         * is the INITIAL state (ED14) and not a limit: **expansion is per card, never an
+         * accordion**. An accordion trades scroll stability for height — collapsing a card
+         * above the viewport shifts the page under the user's finger mid-edit — and height is
+         * the cheaper of the two. The STORE owns this rather than the card because an insert
+         * opens the inserted card (D-OPEN-8), and a `remember` could not see the insert.
          */
-        val expandedExerciseUuid: String?,
+        val expandedExerciseUuids: ImmutableSet<String>,
         val pastSessions: ImmutableList<HistorySessionItem>,
         val activeSession: ActiveSessionDomain?,
         val canPermanentlyDelete: Boolean,
@@ -131,7 +134,7 @@ interface SingleTrainingStore : Store<State, Action, Event> {
                 availableTags = persistentListOf(),
                 tagSearchQuery = "",
                 exercises = persistentListOf(),
-                expandedExerciseUuid = null,
+                expandedExerciseUuids = persistentSetOf(),
                 pastSessions = persistentListOf(),
                 activeSession = null,
                 canPermanentlyDelete = false,

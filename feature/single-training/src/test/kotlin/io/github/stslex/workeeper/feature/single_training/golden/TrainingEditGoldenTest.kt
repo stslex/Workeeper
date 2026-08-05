@@ -11,6 +11,7 @@ import io.github.stslex.workeeper.feature.single_training.mvi.model.TrainingExer
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.State
 import io.github.stslex.workeeper.feature.single_training.ui.TrainingEditScreen
 import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.collections.immutable.toImmutableList
 import org.junit.jupiter.api.TestInfo
 import org.junit.jupiter.params.ParameterizedTest
@@ -62,7 +63,7 @@ internal class TrainingEditGoldenTest {
     fun editExpanded(theme: GoldenTheme, testInfo: TestInfo) {
         golden(testInfo, theme, locale = LOCALE_RU) {
             TrainingEditScreen(
-                state = editState().copy(expandedExerciseUuid = "e1"),
+                state = editState().copy(expandedExerciseUuids = persistentSetOf("e1")),
                 consume = {},
             )
         }

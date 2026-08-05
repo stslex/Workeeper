@@ -17,6 +17,7 @@ import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTraini
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.State
 import io.github.stslex.workeeper.feature.single_training.ui.TrainingEditScreen
 import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.persistentSetOf
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -41,7 +42,7 @@ class SingleTrainingScreenTest : BaseComposeTest() {
             mode = State.Mode.Edit(isCreate = false),
             isLoading = false,
             name = "Push",
-            expandedExerciseUuid = expanded,
+            expandedExerciseUuids = persistentSetOf(*listOfNotNull(expanded).toTypedArray()),
             exercises = persistentListOf(
                 TrainingExerciseItem(
                     exerciseUuid = "ex-1",

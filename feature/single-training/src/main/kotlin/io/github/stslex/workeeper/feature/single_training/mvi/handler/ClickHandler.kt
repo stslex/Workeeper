@@ -30,7 +30,9 @@ import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTraini
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.State.Mode
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.State.PickerState
 import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.collections.immutable.toImmutableList
+import kotlinx.collections.immutable.toImmutableSet
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import kotlin.uuid.Uuid
@@ -351,7 +353,7 @@ internal class ClickHandler @Inject constructor(
             .toImmutableList()
         return copy(
             mode = Mode.Read,
-            expandedExerciseUuid = null,
+            expandedExerciseUuids = persistentSetOf(),
             name = snapshot.name,
             nameError = false,
             description = snapshot.description,
@@ -414,8 +416,9 @@ internal class ClickHandler @Inject constructor(
                     .filterNot { it.exerciseUuid == action.exerciseUuid }
                     .mapIndexed { index, item -> item.copy(position = index) }
                     .toImmutableList(),
-                expandedExerciseUuid = current.expandedExerciseUuid
-                    .takeIf { it != action.exerciseUuid },
+                expandedExerciseUuids = current.expandedExerciseUuids
+                    .filterNot { it == action.exerciseUuid }
+                    .toImmutableSet(),
             )
         }
     }
@@ -437,12 +440,18 @@ internal class ClickHandler @Inject constructor(
         }
     }
 
+    // Per card, never an accordion (ED14's amendment): closing card N must not move card
+    // N+3 under the user's finger.
     private fun processExerciseCardToggle(action: Action.Click.OnExerciseCardToggle) {
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
         updateState { current ->
+            val expanded = current.expandedExerciseUuids
             current.copy(
-                expandedExerciseUuid = action.exerciseUuid
-                    .takeIf { it != current.expandedExerciseUuid },
+                expandedExerciseUuids = if (action.exerciseUuid in expanded) {
+                    expanded.filterNot { it == action.exerciseUuid }.toImmutableSet()
+                } else {
+                    (expanded + action.exerciseUuid).toImmutableSet()
+                },
             )
         }
     }
@@ -572,8 +581,11 @@ internal class ClickHandler @Inject constructor(
                         pickerState = PickerState.Closed,
                         // D-OPEN-8: an insert is an addressed gesture whose next step is the
                         // plan, so the inserted card opens — the FIRST only on a multi-insert.
-                        expandedExerciseUuid = nextItems.firstOrNull()?.exerciseUuid
-                            ?: latest.expandedExerciseUuid,
+                        // Cards already open stay open (per card, not an accordion).
+                        expandedExerciseUuids = (
+                            latest.expandedExerciseUuids +
+                                listOfNotNull(nextItems.firstOrNull()?.exerciseUuid)
+                            ).toImmutableSet(),
                     )
                 }
             },
