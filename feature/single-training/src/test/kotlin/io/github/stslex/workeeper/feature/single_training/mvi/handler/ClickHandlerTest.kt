@@ -400,10 +400,9 @@ internal class ClickHandlerTest {
     }
 
     /**
-     * The snapshot now stores whole items, so this pins the half that must NOT change with it:
-     * the comparison is still over uuid + position + plan. An exercise renamed on its own screen
-     * and refreshed into this list is not an unsaved edit to THIS training, and must not raise
-     * the discard sheet.
+     * The snapshot stores whole items; the comparison is narrower than the storage, over
+     * uuid + position + plan. An exercise renamed on its own screen and refreshed into this list
+     * is not an unsaved edit to THIS training, and must not raise the discard sheet.
      */
     @Test
     fun `a refreshed exercise name is not an unsaved change`() {
@@ -423,9 +422,9 @@ internal class ClickHandlerTest {
     }
 
     /**
-     * Three defects, one cause: the discard rebuilt the list out of the CURRENT one. Each test
-     * below is a thing the snapshot has to be able to put back, and only the whole-list restore
-     * puts all three back.
+     * Three things the snapshot has to be able to put back. They are one test each because they
+     * fail separately: rebuilding the list from the current one restores an order and nothing
+     * else, and only the whole-list restore satisfies all three at once.
      */
     @Test
     fun `OnConfirmDiscard restores an exercise the edit removed`() {

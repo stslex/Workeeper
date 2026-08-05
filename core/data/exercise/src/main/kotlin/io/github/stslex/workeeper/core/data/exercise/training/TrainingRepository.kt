@@ -18,7 +18,7 @@ interface TrainingRepository {
      *
      * The plan writes land AFTER the exercise sync inside the same transaction, because the
      * sync truncates and re-inserts the `training_exercise_table` rows the plan update needs.
-     * That ordering used to be a comment on the caller; here it is a guarantee.
+     * The ordering is the implementation's to hold, not the caller's to remember.
      */
     suspend fun updateTrainingWithPlans(
         training: TrainingChangeDataModel,

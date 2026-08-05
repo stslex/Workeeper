@@ -401,9 +401,9 @@ internal class ExerciseRepositoryImplDbTest {
         }
 
     /**
-     * The save and its cascade are ONE act — the same rule the training side got in round 1.
-     * A failure in the cascade must take the type change with it, or the user is told
-     * «Сохранено» over a WEIGHTLESS row whose plans still carry weights.
+     * The save and its cascade are ONE act, as on the training side. A failure in the cascade
+     * must take the type change with it, or the user is told «Сохранено» over a WEIGHTLESS row
+     * whose plans still carry weights.
      *
      * Real in-memory Room, not Robolectric-mocked Room: only a real transaction can answer
      * whether the rollback happened.

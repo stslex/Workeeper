@@ -26,13 +26,13 @@ import org.junit.jupiter.params.provider.EnumSource
  *
  * [createEmpty] is ED13's own photograph: no seeded sets, the card's empty hint, «− подход»
  * disabled at the drawn `opacity:.35`, and the bar title standing in DIM because the record has
- * no name yet. [editWeighted] is the frame that did not exist before this commit — an EXISTING
- * exercise with its plan drawn as rows on this screen rather than as a summary line with a
- * button. [editWeightless] is B11's half: the weight column gone, everything else in place.
+ * no name yet. [editWeighted] holds ED1 for an EXISTING exercise: the plan drawn as rows on
+ * this screen, not as a summary line with a button off to another one. [editWeightless] is
+ * B11's half: the weight column gone, everything else in place.
  *
- * The two error frames survive from the pre-rebuild suite because their claims are unchanged and
- * nothing else holds them: the field draws `status.error` at the heavier weight with its reason
- * underneath, and Save in the same frame is in its **enabled** treatment (§7.3).
+ * The two error frames are here because nothing else holds their claims: the field draws
+ * `status.error` at the heavier weight with its reason underneath, and Save in the same frame
+ * is in its **enabled** treatment (§7.3).
  *
  * Whole-screen frames render in **Russian**: the drawn strings — «Новое упражнение»,
  * «ПЛАН ПО УМОЛЧАНИЮ», «N из 10», «Отмена · Сохранить» — are what §3.2 writes, and an `en`

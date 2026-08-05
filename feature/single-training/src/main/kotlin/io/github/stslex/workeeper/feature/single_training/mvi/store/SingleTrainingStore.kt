@@ -79,14 +79,14 @@ interface SingleTrainingStore : Store<State, Action, Event> {
         /**
          * The loaded form, kept whole so that discarding can put it back whole.
          *
-         * [exercises] holds the ITEMS, not a signature of them. A signature is enough to detect
-         * a change and not enough to undo one: the discard restored the list by filtering and
-         * re-sorting the CURRENT one, so an exercise the user removed had nothing to come back
-         * from, and `position` — carried in the signature but never read out of it — stayed at
-         * the edited value on a screen that renders it as `"${position + 1}."`.
+         * [exercises] holds the ITEMS and must keep holding them: a signature of them is enough
+         * to DETECT a change and not enough to UNDO one. Reduce this field to a signature and
+         * the discard has to rebuild the list from the current one, which can only remove what
+         * the user added — never restore what they removed — and leaves `position` at the
+         * edited value on a screen that renders it as `"${position + 1}."`.
          *
-         * The signature is now derived from these items inside [matches], on both sides, so
-         * dirty detection compares exactly what it compared before.
+         * The signature [matches] compares is derived from these items, on both sides, so
+         * widening the field does not widen dirty detection.
          */
         @Stable
         data class Snapshot(

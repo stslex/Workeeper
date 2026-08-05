@@ -118,13 +118,12 @@ class ExerciseRepositoryImpl @Inject internal constructor(
             return@transition SaveResult.DuplicateName
         }
         syncLabels(entity.uuid, item.labels)
-        // A WEIGHTLESS row may not leave weights behind it anywhere. Derived from the type
-        // being written rather than asked of the caller ON PURPOSE: the caller-obligation
-        // form is what broke — `setExerciseType`'s KDoc has always said "the caller is
-        // responsible", one caller ran the cascade, and the second one to write this column
-        // did not know it had to. A rule about row consistency belongs where the row is
-        // written, beside `syncLabels`, which is the same kind of obligation already met
-        // here. Runs inside this transaction, so the save and its cascade are one act.
+        // A WEIGHTLESS row may not leave weights behind it anywhere — not in its own
+        // `last_adhoc_sets`, not in any `training_exercise.plan_sets` that references it.
+        // Derived from the type being written, NOT taken as a parameter and NOT left to the
+        // caller: a rule about row consistency belongs where the row is written, beside
+        // `syncLabels`, and a caller-obligation form is one a new writer of this column can
+        // omit without noticing. Inside this transaction, so save and cascade are one act.
         if (item.type == ExerciseTypeDataModel.WEIGHTLESS) {
             clearWeightsForExercise(entity.uuid)
         }

@@ -41,10 +41,10 @@ interface ExerciseRepository {
     /**
      * Updates only the `type` column on `exercise_table`. The plan editor uses this when
      * persisting a type change without rewriting the rest of the exercise row (name,
-     * description, image, tags). This is the ONE write path to `type` that still asks the
-     * caller to run [clearWeightsFromAllPlansForExercise] itself when the type flips to
-     * WEIGHTLESS — `saveItem` derives the cascade from the row it is writing instead,
-     * because the caller-obligation form is what let a weightless save strand weights once.
+     * description, image, tags). This is the ONE write path to `type` that asks the caller to
+     * run [clearWeightsFromAllPlansForExercise] itself when the type flips to WEIGHTLESS;
+     * [saveItem] derives the cascade from the row it writes instead, so that a caller who does
+     * not know about this obligation cannot strand weights on a weightless exercise.
      */
     suspend fun setExerciseType(
         exerciseUuid: String,

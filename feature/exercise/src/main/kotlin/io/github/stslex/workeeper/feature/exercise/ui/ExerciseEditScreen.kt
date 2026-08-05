@@ -191,7 +191,7 @@ private fun NameField(
  * §3.2 — `ПЛАН ПО УМОЛЧАНИЮ` with the `(i)` in the head's trailing slot (ED8), over
  * [PlanEditorBody]: PR-A's toggle (ED5) above PR-A's set card with its `.setbar` foot. The head
  * carries a short label; the REASON — what a default plan is for — lives in the sheet the `(i)`
- * opens, which is what deleted the subtitle that used to say it in two lines under the label.
+ * opens, and not in a subtitle under the label.
  *
  * Creation starts from an EMPTY draft (ED13) — no seeded sets, and the card's own foot disables
  * «− подход» while the draft is empty. Supplying [Action.Click.OnTypeToggle] is what makes the

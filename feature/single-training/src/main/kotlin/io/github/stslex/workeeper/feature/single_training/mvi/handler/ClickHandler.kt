@@ -359,11 +359,12 @@ internal class ClickHandler @Inject constructor(
             description = snapshot.description,
             tags = matchedTags,
             tagSearchQuery = "",
-            // The whole list, from the snapshot — not the current one filtered and re-sorted.
-            // Filtering can only ever REMOVE, so a removed exercise had nothing to come back
-            // from; and re-sorting moved rows without rewriting `position`, which this screen
-            // renders as `"${position + 1}."`. Discard is one assignment for the same reason
-            // the training and its plans save as one act: half an undo is a wrong screen.
+            // The whole list, from the snapshot — never the current one filtered and
+            // re-sorted. Filtering can only ever REMOVE, so a removed exercise would have
+            // nothing to come back from; and re-sorting moves rows without rewriting
+            // `position`, which this screen renders as `"${position + 1}."`. Discard is one
+            // assignment for the same reason the training and its plans save as one act:
+            // half an undo is a wrong screen.
             exercises = snapshot.exercises,
         )
     }
