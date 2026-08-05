@@ -409,6 +409,61 @@ internal class ClickHandlerTest {
         assertEquals("Bench", stateFlow.value.name)
     }
 
+    /**
+     * The plan is the field the discard sheet is usually ABOUT — since ED1 it is edited inline,
+     * and `Snapshot.matches` counts it when raising the sheet. Discarding must put it back.
+     */
+    @Test
+    fun `OnConfirmDiscard with FLIP_TO_READ restores the plan the edit changed`() {
+        val original = persistentListOf(
+            PlanSetUiModel(weight = 80.0, reps = 8, type = SetTypeUiModel.WORK),
+        )
+        val (stateFlow, _, handler) = setup(
+            State.create(uuid = "uuid-1").copy(
+                mode = Mode.Edit(isCreate = false),
+                adhocPlan = persistentListOf(
+                    PlanSetUiModel(weight = 100.0, reps = 3, type = SetTypeUiModel.WORK),
+                    PlanSetUiModel(weight = 100.0, reps = 3, type = SetTypeUiModel.WORK),
+                ),
+                originalSnapshot = State.Snapshot(
+                    name = "Bench",
+                    type = ExerciseTypeUiModel.WEIGHTED,
+                    description = "",
+                    tagUuids = emptyList(),
+                    adhocPlan = original,
+                ),
+            ),
+        )
+
+        handler.invoke(Action.Click.OnConfirmDiscard(DiscardTarget.FLIP_TO_READ))
+
+        assertEquals(original, stateFlow.value.adhocPlan)
+    }
+
+    /** A plan that was empty before the edit comes back empty, not merely unchanged. */
+    @Test
+    fun `OnConfirmDiscard with FLIP_TO_READ restores a plan that was absent`() {
+        val (stateFlow, _, handler) = setup(
+            State.create(uuid = "uuid-1").copy(
+                mode = Mode.Edit(isCreate = false),
+                adhocPlan = persistentListOf(
+                    PlanSetUiModel(weight = 100.0, reps = 3, type = SetTypeUiModel.WORK),
+                ),
+                originalSnapshot = State.Snapshot(
+                    name = "Bench",
+                    type = ExerciseTypeUiModel.WEIGHTED,
+                    description = "",
+                    tagUuids = emptyList(),
+                    adhocPlan = null,
+                ),
+            ),
+        )
+
+        handler.invoke(Action.Click.OnConfirmDiscard(DiscardTarget.FLIP_TO_READ))
+
+        assertNull(stateFlow.value.adhocPlan)
+    }
+
     @Test
     fun `OnBackClick in clean Edit on existing flips to Read mode`() {
         val (stateFlow, store, handler) = setup(

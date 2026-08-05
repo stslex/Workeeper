@@ -441,6 +441,12 @@ internal class ClickHandler @Inject constructor(
         applyDiscardTarget(target)
     }
 
+    /**
+     * Every field the snapshot carries is restored here — and the plan is one of them. It has to
+     * be: `Snapshot.matches` counts `adhocPlan` when deciding `hasChanges`, so a plan edit is what
+     * RAISES the discard sheet. Restoring everything except the plan would answer «Отменить» by
+     * keeping the exact edit the sheet was asking about.
+     */
     private fun processFlipToReadMode() {
         updateState { current ->
             val snapshot = current.originalSnapshot
@@ -454,6 +460,7 @@ internal class ClickHandler @Inject constructor(
                     nameDuplicateError = false,
                     type = snapshot.type,
                     description = snapshot.description,
+                    adhocPlan = snapshot.adhocPlan,
                     tags = current.availableTags
                         .filter { tag -> tag.uuid in snapshot.tagUuids }
                         .toImmutableList(),
