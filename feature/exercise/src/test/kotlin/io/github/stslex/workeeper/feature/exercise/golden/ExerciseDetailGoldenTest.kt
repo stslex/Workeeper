@@ -63,6 +63,27 @@ internal class ExerciseDetailGoldenTest {
         }
     }
 
+    /**
+     * The `ОПИСАНИЕ` section's condition is a **disjunction**, and this is the arm the other
+     * goldens do not hold: a picture and no description. [screenLoaded] carries the
+     * description-with-no-picture arm and [screenEmpty] the neither case, so the three together
+     * are what separates `||` from `&&` — with `&&` this frame would lose its section and that
+     * one difference is the whole ruling.
+     */
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun screenImageNoDescription(theme: GoldenTheme, testInfo: TestInfo) {
+        golden(testInfo, theme) {
+            ExerciseDetailScreen(
+                state = baseState().copy(
+                    imagePath = "/exercise/preview.jpg",
+                    imageLastModified = 1L,
+                ),
+                consume = {},
+            )
+        }
+    }
+
     /** B11 coverage: the weightless variant — reps-only plan rows, reps-only record label. */
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)

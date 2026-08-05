@@ -47,6 +47,7 @@ import io.github.stslex.workeeper.feature.exercise.R
 import io.github.stslex.workeeper.feature.exercise.ui.components.ExerciseDescriptionBlock
 import io.github.stslex.workeeper.feature.exercise.ui.components.ExerciseHistoryRow
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.HistoryUiModel
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ImageDisplay
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PersonalRecordUiModel
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.TagUiModel
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
@@ -236,14 +237,21 @@ private fun DefaultPlanSection(state: State) {
  * the host, whose section rhythm differs from a form's.
  *
  * Read has no picker: an image chosen here would be a `pendingImage` on a screen with no Save.
- * So the block gets the viewer and nothing else, and draws an inert placeholder when there is
- * no picture to open.
+ * So the block gets the viewer and nothing else.
+ *
+ * **A section with nothing in it does not render.** Text OR picture puts it on the screen;
+ * neither takes the head away with it and `ИСТОРИЯ` follows the plan card directly. The
+ * disjunction is the point and an `&&` would be a different screen: a description with no photo,
+ * and a photo with no description, are both worth a section. **The dashed placeholder belongs to
+ * the editor**, where it is a target you can tap; on read it announces that there is nothing to
+ * announce, which is why the whole section leaves rather than the box alone.
  */
 @Composable
 private fun DescriptionSection(
     state: State,
     consume: (Action) -> Unit,
 ) {
+    if (state.description.isBlank() && state.effectiveImageDisplay is ImageDisplay.None) return
     Column {
         AppSectionHeader(
             modifier = Modifier.padding(
