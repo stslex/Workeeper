@@ -41,6 +41,8 @@ interface SingleTrainingStore : Store<State, Action, Event> {
          */
         val expandedExerciseUuids: ImmutableSet<String>,
         val pastSessions: ImmutableList<HistorySessionItem>,
+        /** Total finished sessions of this training — the История head's count (§3.3). */
+        val historyCount: Int,
         val activeSession: ActiveSessionDomain?,
         val canPermanentlyDelete: Boolean,
         val originalSnapshot: Snapshot?,
@@ -143,6 +145,7 @@ interface SingleTrainingStore : Store<State, Action, Event> {
                 exercises = persistentListOf(),
                 expandedExerciseUuids = persistentSetOf(),
                 pastSessions = persistentListOf(),
+                historyCount = 0,
                 activeSession = null,
                 canPermanentlyDelete = false,
                 originalSnapshot = null,
@@ -166,6 +169,11 @@ interface SingleTrainingStore : Store<State, Action, Event> {
 
             // Top-bar / detail clicks
             data object OnBackClick : Click
+
+            /** Topbar `⋮` — opens the [DialogState.DetailMenu] sheet (ED10). */
+            data object OnDetailMenuClick : Click
+
+            data object OnDetailMenuDismiss : Click
 
             data object OnEditClick : Click
 

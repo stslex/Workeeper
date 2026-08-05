@@ -513,6 +513,53 @@ internal class ClickHandlerTest {
         assertFalse(stateFlow.value.hasChanges)
     }
 
+    @Test
+    fun `the topbar menu opens as the DetailMenu sheet`() {
+        handler.invoke(Action.Click.OnDetailMenuClick)
+
+        assertEquals(DialogState.DetailMenu, stateFlow.value.dialogState)
+    }
+
+    @Test
+    fun `dismissing the menu hides it`() {
+        stateFlow.value = stateFlow.value.copy(dialogState = DialogState.DetailMenu)
+
+        handler.invoke(Action.Click.OnDetailMenuDismiss)
+
+        assertEquals(DialogState.Hidden, stateFlow.value.dialogState)
+    }
+
+    @Test
+    fun `archive closes the menu before its result lands`() {
+        stateFlow.value = stateFlow.value.copy(
+            uuid = "training-1",
+            dialogState = DialogState.DetailMenu,
+        )
+
+        handler.invoke(Action.Click.OnArchiveClick)
+
+        assertEquals(DialogState.Hidden, stateFlow.value.dialogState)
+    }
+
+    /**
+     * One sealed field means the menu and the confirm cannot be open at once: the confirm's
+     * write REPLACES the menu variant in the same transition (Rule 4 of
+     * compose-state-discipline; the exercise feature carries the same property across two
+     * fields, this one carries it by construction).
+     */
+    @Test
+    fun `permanent delete replaces the menu with its confirm in one write`() {
+        stateFlow.value = stateFlow.value.copy(
+            uuid = "training-1",
+            canPermanentlyDelete = true,
+            dialogState = DialogState.DetailMenu,
+        )
+
+        handler.invoke(Action.Click.OnPermanentDeleteClick)
+
+        assertTrue(stateFlow.value.dialogState is DialogState.PermanentDeleteConfirm)
+    }
+
     private fun exercise(
         uuid: String,
         position: Int = 0,

@@ -228,7 +228,7 @@ internal object ContrastContract {
             add(Declared("textDim", surface, TypeSlot.BODY, "AppTextField placeholder — `.tf.ghosty`"))
             // The screen-title rung. Same colour, larger type, weaker obligation — declared so
             // the distinction is visible rather than implied.
-            add(Declared("textPrimary", surface, TypeSlot.TITLE, "DetailTopbar, PastSessionHeader"))
+            add(Declared("textPrimary", surface, TypeSlot.TITLE, "PastSessionHeader"))
         }
 
         // accent is v3 `max`: links, timers, chart strokes, selected icons.

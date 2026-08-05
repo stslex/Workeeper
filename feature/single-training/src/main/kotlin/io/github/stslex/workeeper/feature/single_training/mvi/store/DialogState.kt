@@ -10,6 +10,15 @@ sealed interface DialogState {
     data object Hidden : DialogState
 
     /**
+     * The read screen's topbar `⋮` sheet (ED10): «В архив» · «Удалить навсегда». One sealed
+     * field carries it with the confirms rather than a second `bottomSheetState`, so a menu
+     * row that opens a confirm replaces this variant in one write and the double-open state
+     * is unrepresentable (Rule 4 of compose-state-discipline).
+     */
+    @Stable
+    data object DetailMenu : DialogState
+
+    /**
      * Edit-mode discard confirmation. Strings are pulled from the screen via
      * `stringResource(R.string.*)` because the kit's `AppDialog` accepts the values
      * directly — no per-instance payload is needed beyond the variant tag.

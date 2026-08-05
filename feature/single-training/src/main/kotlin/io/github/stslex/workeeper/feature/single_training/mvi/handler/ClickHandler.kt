@@ -49,6 +49,8 @@ internal class ClickHandler @Inject constructor(
     override fun invoke(action: Action.Click) {
         when (action) {
             Action.Click.OnBackClick -> processBackClick()
+            Action.Click.OnDetailMenuClick -> processDetailMenuClick()
+            Action.Click.OnDetailMenuDismiss -> processCloseDialog()
             Action.Click.OnEditClick -> processEditClick()
             Action.Click.OnArchiveClick -> processArchiveClick()
             Action.Click.OnPermanentDeleteClick -> processPermanentDeleteMenu()
@@ -80,6 +82,11 @@ internal class ClickHandler @Inject constructor(
 
     private fun processCloseDialog() {
         updateState { it.copy(dialogState = DialogState.Hidden) }
+    }
+
+    private fun processDetailMenuClick() {
+        sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
+        updateState { it.copy(dialogState = DialogState.DetailMenu) }
     }
 
     private fun processBackClick() {
@@ -123,6 +130,9 @@ internal class ClickHandler @Inject constructor(
         val uuid = state.value.uuid ?: return
         val name = state.value.name
         sendEvent(Event.HapticClick(HapticFeedbackType.LongPress))
+        // The action lives in the `⋮` sheet; close it before the result lands so nothing
+        // stacks on the open sheet.
+        updateState { it.copy(dialogState = DialogState.Hidden) }
         launch(
             onSuccess = { result ->
                 when (result) {

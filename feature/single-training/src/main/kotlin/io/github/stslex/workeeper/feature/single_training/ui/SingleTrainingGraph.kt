@@ -9,7 +9,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavGraphBuilder
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.ActiveSessionConflictDialog
-import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppConfirmDialog
+import io.github.stslex.workeeper.core.ui.kit.components.sheet.AppBottomSheet
 import io.github.stslex.workeeper.core.ui.kit.components.sheet.AppConfirmSheet
 import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
 import io.github.stslex.workeeper.core.ui.mvi.navComponentScreenWithState
@@ -20,6 +20,7 @@ import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTraini
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.State.Mode
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.State.PickerState
 import io.github.stslex.workeeper.feature.single_training.ui.components.ExercisePickerSheet
+import io.github.stslex.workeeper.feature.single_training.ui.components.TrainingDetailMenuSheetContent
 import io.github.stslex.workeeper.core.ui.kit.R as KitR
 
 @OptIn(ExperimentalSharedTransitionApi::class)
@@ -96,6 +97,16 @@ fun NavGraphBuilder.singleTrainingsGraph(
         when (val dialog = state.dialogState) {
             DialogState.Hidden -> Unit
 
+            // ED10: the `⋮` menu, minus `Изменить` (it lives on the dock now).
+            DialogState.DetailMenu -> AppBottomSheet(
+                onDismiss = { processor.consume(Action.Click.OnDetailMenuDismiss) },
+            ) {
+                TrainingDetailMenuSheetContent(
+                    canPermanentlyDelete = state.canPermanentlyDelete,
+                    consume = processor::consume,
+                )
+            }
+
             // §26 "Every modal on the three editors is a SHEET". Strings from the kit: one
             // component, one table, three editors — three copies is how a renamed label survives
             // on one screen after being corrected on another.
@@ -109,11 +120,16 @@ fun NavGraphBuilder.singleTrainingsGraph(
                 onDismiss = { processor.consume(Action.Click.OnDismissDiscard) },
             )
 
-            is DialogState.PermanentDeleteConfirm -> AppConfirmDialog(
+            // `#sh-del`'s form: the one true confirmation is a SHEET (D-OPEN-1 — §7.4 stands,
+            // no dialog primitive in this language). The impact line rides `emphasis`, the
+            // sheet's role-based rendering of what `AppConfirmDialog` drew as a panel.
+            is DialogState.PermanentDeleteConfirm -> AppConfirmSheet(
                 title = dialog.title,
                 body = dialog.body,
-                impactSummary = dialog.impactSummary,
+                emphasis = dialog.impactSummary,
                 confirmLabel = dialog.confirmLabel,
+                dismissLabel = stringResource(KitR.string.core_ui_kit_action_cancel),
+                confirmDestructive = true,
                 onConfirm = { processor.consume(Action.Click.OnPermanentDeleteConfirm) },
                 onDismiss = { processor.consume(Action.Click.OnPermanentDeleteDismiss) },
             )

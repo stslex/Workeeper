@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.supervisorScope
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -95,6 +96,24 @@ internal class CommonHandlerTest {
         handler.invoke(Action.Common.Init)
 
         assertFalse(stateFlow.value.isLoading)
+    }
+
+    /**
+     * §3.3: the История head's count is the TOTAL of finished sessions, not the size of the
+     * five-row page the list shows — the consumer is `TrainingDetailScreen.HistorySection`'s
+     * `trailingLabel`, which pluralises this number, not `pastSessions.size`.
+     */
+    @Test
+    fun `the История count is the total, not the visible page`() {
+        coEvery { interactor.getTraining(any()) } returns mockk(relaxed = true)
+        coEvery { interactor.getTrainingExercises(any()) } returns emptyList()
+        coEvery { interactor.getRecentSessions(any(), any()) } returns emptyList()
+        coEvery { interactor.countSessions(any()) } returns 12
+        val (stateFlow, handler) = setup(State.create(uuid = "training-1"))
+
+        handler.invoke(Action.Common.Init)
+
+        assertEquals(12, stateFlow.value.historyCount)
     }
 
     @Test

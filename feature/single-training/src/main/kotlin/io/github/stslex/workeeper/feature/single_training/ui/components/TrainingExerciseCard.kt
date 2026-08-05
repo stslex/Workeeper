@@ -2,10 +2,13 @@
 package io.github.stslex.workeeper.feature.single_training.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -23,6 +26,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import io.github.stslex.workeeper.core.ui.kit.components.surface.liftedSurface
 import io.github.stslex.workeeper.core.ui.kit.icons.AppIcons
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
@@ -46,6 +50,11 @@ import kotlinx.collections.immutable.toImmutableList
  * plus the two controls the editor adds: the drag handle and the `✕`. Expanded adds
  * [PlanEditorBody]'s rows and `.setbar` under the same head; an open card takes the lifted
  * surface, the same `.card.open` signature the past session draws.
+ *
+ * The collapsed form itself is [CardHeadContent], shared with the read screen's
+ * [TrainingExerciseReadCard] (ED9): one drawn form, two trailing treatments — the editor's
+ * two controls here, the `.chev` there. A second copy of the head is the drift this arc
+ * exists to remove.
  *
  * **`onTypeChange = null` IS the rule**: type belongs to the exercise, not to a
  * training-scoped editor, and the exclusion is carried by the argument — the body draws no
@@ -104,6 +113,41 @@ internal fun TrainingExerciseCard(
     }
 }
 
+/**
+ * The read screen's exercise card (ED9, `v3-editors.md` §3.3): [CardHeadContent] — the same
+ * collapsed form S4 shipped in the editor — minus the drag handle and the `✕`, plus the
+ * `.chev`. Always collapsed, always resting: an exercise on the read screen is a thing with
+ * contents you navigate INTO, not a row you edit, so the card carries one gesture and one
+ * promise.
+ */
+@Composable
+internal fun TrainingExerciseReadCard(
+    item: TrainingExerciseItem,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .liftedSurface(shape = AppUi.shapes.medium, lifted = false)
+            .clip(AppUi.shapes.medium)
+            .clickable(onClick = onClick)
+            .padding(AppDimension.cardPadding)
+            .testTag("TrainingExerciseReadCard_${item.exerciseUuid}"),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
+    ) {
+        CardHeadContent(item = item)
+        Icon(
+            modifier = Modifier.size(AppDimension.iconSm),
+            imageVector = AppIcons.ChevronRight,
+            // Decorative: the whole card is the tap target and reads as the exercise.
+            contentDescription = null,
+            tint = AppUi.colors.textDim,
+        )
+    }
+}
+
 @Composable
 private fun CardHead(
     item: TrainingExerciseItem,
@@ -119,42 +163,9 @@ private fun CardHead(
             .padding(AppDimension.cardPadding)
             .testTag("TrainingExerciseCardHead_${item.exerciseUuid}"),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(
-            AppDimension.Space.sm,
-        ),
+        horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
     ) {
-        Text(
-            text = "${item.position + 1}.",
-            style = AppUi.typography.bodyMedium,
-            color = AppUi.colors.textTertiary,
-        )
-        TypeIcon(type = item.exerciseType)
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = item.exerciseName,
-                style = AppUi.typography.bodyMedium,
-                color = AppUi.colors.textPrimary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            // `.plan-line` — the collapsed card's one-line summary (`#s-past`'s own form).
-            Text(
-                modifier = Modifier.testTag("TrainingExerciseCardPlanLine_${item.exerciseUuid}"),
-                text = item.planSummary.ifBlank {
-                    stringResource(R.string.feature_training_edit_no_plan)
-                },
-                style = AppUi.typography.mono.meta.copy(
-                    fontStyle = if (item.planSummary.isBlank()) {
-                        FontStyle.Italic
-                    } else {
-                        FontStyle.Normal
-                    },
-                ),
-                color = AppUi.colors.textTertiary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
+        CardHeadContent(item = item)
         // THE GESTURE IS ON THE CONTAINER, NOT ON THE GLYPH — a bare `pointerInput` gets none
         // of `IconButton`'s minimum-touch-target expansion, so the box is the 48dp target and
         // the glyph stays small.
@@ -191,6 +202,76 @@ private fun CardHead(
     }
 }
 
+/**
+ * The collapsed card's drawn form (`#s-past`, ED14): ordinal · type glyph · name over the
+ * `.plan-line` summary. Both hosts — the editor's [CardHead] and [TrainingExerciseReadCard] —
+ * compose this and add only their trailing controls.
+ */
+@Composable
+private fun RowScope.CardHeadContent(item: TrainingExerciseItem) {
+    Text(
+        text = "${item.position + 1}.",
+        style = AppUi.typography.bodyMedium,
+        color = AppUi.colors.textTertiary,
+    )
+    TypeIcon(type = item.exerciseType)
+    Column(modifier = Modifier.weight(1f)) {
+        Text(
+            text = item.exerciseName,
+            style = AppUi.typography.bodyMedium,
+            color = AppUi.colors.textPrimary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        // `.plan-line` — the collapsed card's one-line summary (`#s-past`'s own form).
+        Text(
+            modifier = Modifier.testTag("TrainingExerciseCardPlanLine_${item.exerciseUuid}"),
+            text = item.planSummary.ifBlank {
+                stringResource(R.string.feature_training_edit_no_plan)
+            },
+            style = AppUi.typography.mono.meta.copy(
+                fontStyle = if (item.planSummary.isBlank()) {
+                    FontStyle.Italic
+                } else {
+                    FontStyle.Normal
+                },
+            ),
+            color = AppUi.colors.textTertiary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+@Composable
+internal fun TypeIcon(type: ExerciseTypeUiModel) {
+    val isWeighted = type == ExerciseTypeUiModel.WEIGHTED
+    Box(
+        modifier = Modifier
+            .size(TYPE_ICON_BOX)
+            .clip(AppUi.shapes.small)
+            .background(AppUi.colors.surfaceTier4),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            modifier = Modifier.size(AppDimension.iconSm),
+            // §26 "The image moves into the pushed top bar" — the same two stroke marks the
+            // thumb and the hero draw. A stroke here too: a filled mark would
+            // ship the exercise type as two different pictures.
+            imageVector = if (isWeighted) AppIcons.ExerciseWeighted else AppIcons.ExerciseWeightless,
+            contentDescription = null,
+            tint = if (isWeighted) {
+                AppUi.colors.accentTintedForeground
+            } else {
+                AppUi.colors.setType.warmupForeground
+            },
+        )
+    }
+}
+
+/** The type glyph's tile — `iconSm` (18) plus the chip's own air, smaller than a control box. */
+private val TYPE_ICON_BOX = 28.dp
+
 @Preview(name = "Light", showBackground = true)
 @Preview(
     name = "Dark",
@@ -217,6 +298,18 @@ private fun TrainingExerciseCardPreview() {
                 onToggle = {},
                 onRemove = {},
                 onPlanAction = {},
+            )
+            TrainingExerciseReadCard(
+                item = TrainingExerciseItem(
+                    exerciseUuid = "2",
+                    exerciseName = "Pull-up",
+                    exerciseType = ExerciseTypeUiModel.WEIGHTLESS,
+                    tags = persistentListOf(),
+                    position = 1,
+                    planSets = null,
+                    planSummary = "",
+                ),
+                onClick = {},
             )
         }
     }

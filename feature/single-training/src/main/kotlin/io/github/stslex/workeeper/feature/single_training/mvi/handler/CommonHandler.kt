@@ -78,8 +78,9 @@ internal class CommonHandler @Inject constructor(
             val training = interactor.getTraining(uuid)
             val exercises = interactor.getTrainingExercises(uuid)
             val recent = interactor.getRecentSessions(uuid, HISTORY_LIMIT)
+            val historyCount = interactor.countSessions(uuid)
             val canPermanentlyDelete = interactor.canPermanentlyDelete(uuid)
-            LoadResult(training, exercises, recent, canPermanentlyDelete)
+            LoadResult(training, exercises, recent, historyCount, canPermanentlyDelete)
         }
     }
 
@@ -105,7 +106,7 @@ internal class CommonHandler @Inject constructor(
                     planSummary = planSets?.formatPlanSummary().orEmpty(),
                 )
             }.toImmutableList()
-        val past = result.recentSessions.toHistoryItems(training)
+        val past = result.recentSessions.toHistoryItems()
         val baseSnapshot = State.Snapshot(
             name = training.name,
             description = training.description.orEmpty(),
@@ -119,28 +120,27 @@ internal class CommonHandler @Inject constructor(
             tags = tags,
             exercises = exercises,
             pastSessions = past,
+            historyCount = result.historyCount,
             originalSnapshot = baseSnapshot,
             canPermanentlyDelete = result.canPermanentlyDelete,
             isLoading = false,
         )
     }
 
-    private fun List<SessionDomain>.toHistoryItems(
-        training: TrainingDomain,
-    ): ImmutableList<HistorySessionItem> = mapNotNull { session ->
-        val finished = session.finishedAt ?: return@mapNotNull null
-        HistorySessionItem(
-            sessionUuid = session.uuid,
-            dateLabel = resourceWrapper.formatMediumDate(finished),
-            trainingName = training.name,
-            exerciseCount = 0,
-        )
-    }.toImmutableList()
+    private fun List<SessionDomain>.toHistoryItems(): ImmutableList<HistorySessionItem> =
+        mapNotNull { session ->
+            val finished = session.finishedAt ?: return@mapNotNull null
+            HistorySessionItem(
+                sessionUuid = session.uuid,
+                dateLabel = resourceWrapper.formatMediumDate(finished),
+            )
+        }.toImmutableList()
 
     private data class LoadResult(
         val training: TrainingDomain?,
         val exercises: List<TrainingExerciseDetail>,
         val recentSessions: List<SessionDomain>,
+        val historyCount: Int,
         val canPermanentlyDelete: Boolean,
     )
 
