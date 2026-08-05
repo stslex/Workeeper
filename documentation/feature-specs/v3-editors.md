@@ -376,6 +376,14 @@ component, so **both** its modes (read-only with image / read-only with the plac
   test files outside those features — `app/app/.../PlanEditorExtensionIdentityTest.kt` and
   `core/ui/mvi/.../SavedStateHandleNavigationResultTest.kt` — on top of the feature-side
   `NavigationHandlerTest`s that go with their own features.
+  **After PR-B the surviving caller is the only caller in either mode.** Deleting the
+  exercise-side entry point left `PlanEditorStoreImpl.toMode`'s `State.Mode.Exercise` arm
+  unreachable in production: the sole construction of `Screen.PlanEditor.Existing`
+  (`live-workout/.../NavigationHandler.kt:26`) is fed by `Action.Navigation.OpenPlanEditor`, whose
+  `performedExerciseUuid: String` is non-null and comes from `LiveExerciseUiModel`, where it is
+  also non-null — so `performed != null` always wins and `Mode.Exercise` is only ever reached from
+  tests and a preview. It still compiles, so no gate reports it. Recorded here so the later
+  deletion arc does not mistake a dead branch for a second consumer it must preserve.
 - **B-E2** — nothing in the app ever deletes a tag; the dictionary only grows. The symbol with zero
   callers anywhere is `TagRepository.delete` (`TagRepository.kt:16`); `TagDao.delete(uuid)` has one
   production caller, `TagRepositoryImpl.delete` (`TagRepositoryImpl.kt:53`), which nothing calls.
