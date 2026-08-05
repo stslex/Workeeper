@@ -58,6 +58,8 @@ import io.github.stslex.workeeper.core.ui.kit.R as KitR
  *     meta    tags, one line
  *     head    УПРАЖНЕНИЯ                3
  *     cards   collapsed cards: .ord + glyph + title + .plan-line + .chev   (ED9)
+ *     head    ОПИСАНИЕ                                                     (D-OPEN-9, amended)
+ *             description, absent when blank
  *     head    ИСТОРИЯ                   2 СЕССИИ
  *     list    ruled rows
  *     dock    Изменить (128dp) · Начать сессию | Продолжить сессию         (ED10)
@@ -132,6 +134,7 @@ private fun Body(
         ) {
             TagMetaLine(tags = state.tags.map { it.name })
             ExercisesSection(state = state, consume = consume)
+            DescriptionSection(description = state.description)
             HistorySection(state = state, consume = consume)
             Spacer(Modifier.height(AppDimension.Space.md))
         }
@@ -212,6 +215,35 @@ private fun ExercisesSection(
                     )
                 }
             }
+        }
+    }
+}
+
+/**
+ * §3.3 (as amended) — `ОПИСАНИЕ` between the cards and `ИСТОРИЯ`, the same slot the exercise
+ * read screen gives it: D-OPEN-9's ruling is per-object, not per-screen — a description that
+ * can be typed and never read is a field with no reader, wherever the field lives. The form
+ * is the exercise block's own read-mode text half, description-only: a training has no image,
+ * so the block reduces to its text. A section with nothing in it does not render.
+ */
+@Composable
+private fun DescriptionSection(description: String) {
+    if (description.isBlank()) return
+    Column {
+        AppSectionHeader(
+            modifier = Modifier.padding(
+                top = AppDimension.Space.xxl,
+                bottom = AppDimension.Space.md,
+            ),
+            label = stringResource(R.string.feature_training_edit_label_description),
+        )
+        InGutter {
+            Text(
+                modifier = Modifier.testTag("TrainingDescriptionText"),
+                text = description,
+                style = AppUi.typography.text.body,
+                color = AppUi.colors.textSecondary,
+            )
         }
     }
 }

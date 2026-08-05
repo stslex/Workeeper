@@ -45,12 +45,22 @@ import org.junit.jupiter.params.provider.EnumSource
  */
 internal class TrainingDetailGoldenTest {
 
-    /** ED9's frame whole: meta line · cards with plans · ruled history rows · dock. */
+    /**
+     * ED9's frame whole: meta line · cards with plans · description · ruled history rows ·
+     * dock. The description renders HERE and only here — the other two frames keep the
+     * section-absent branch pinned (it renders only when there is something in it,
+     * D-OPEN-9's per-object amendment to §3.3).
+     */
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
     fun detailWithPlans(theme: GoldenTheme, testInfo: TestInfo) {
         golden(testInfo, theme, locale = LOCALE_RU) {
-            TrainingDetailScreen(state = detailState(), consume = {})
+            TrainingDetailScreen(
+                state = detailState().copy(
+                    description = "Фокус на жиме: четыре недели линейной прибавки.",
+                ),
+                consume = {},
+            )
         }
     }
 

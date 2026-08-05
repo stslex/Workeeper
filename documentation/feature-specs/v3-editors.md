@@ -184,10 +184,19 @@ topbar  ‹ · h1.sm name · ⋮
 meta    tags, one line
 head    УПРАЖНЕНИЯ                3
 cards   collapsed cards: .ord + title + .plan-line + .chev        (ED9)
+head    ОПИСАНИЕ                                                  (D-OPEN-9, amended below)
+        description, absent when blank
 head    ИСТОРИЯ                   2 СЕССИИ
 list    ruled rows
 dock    Изменить (128dp) · Начать сессию                          (ED10)
 ```
+
+**AMENDED (PR-C): the frame gains the description block, between the cards and `ИСТОРИЯ`.** The
+first draft of this frame omitted it, and the omission made the training's description
+**write-only** — the editor kept `.fgrp Описание` and nothing rendered it — which is the exact
+state D-OPEN-9 was ruled against on the exercise. The block is the exercise's own, in its
+description-only form (a training has no image, so the block reduces to its text half), and the
+same rule rides with it: **a section with nothing in it does not render.**
 
 ### 3.4 Training — edit (`TrainingEditScreen`)
 
@@ -271,7 +280,7 @@ was holding; §6 says which PR that step now ships in.
 | **D-OPEN-6** | **RULED** | read card and edit card are now visually near-identical. Intended, or does read drop the chip / sit on `surfaceTier1`? → **Identical.** No chip removal, no tier change. You read the plan in the shape you will perform it. | S2 — unblocked |
 | **D-OPEN-7** | **RULED**, and it **reverses §3.4** | collapsing cards in the training editor. → **Collapsed by default.** Entering the editor you see the whole list; you expand the one you mean — all-open makes a long training unscannable. The collapsed form is the drawn one: ordinal, type glyph, name, `.plan-line` summary, plus the head's drag handle and `✕`. §3.4's "All cards open" is struck; citable as **ED14**. | S4 — unblocked |
 | **D-OPEN-8** | **RULED** | a newly added exercise has **no plan**. Does it open on insert, or stay collapsed like the rest (ED14)? → **It opens; the rest stay collapsed.** Collapse-by-default governs **scanning** an existing list; an **insert is an addressed gesture whose next step is the plan**. Inserting several at once opens **the first only**. | S4 — unblocked |
-| **D-OPEN-9** | **RULED** | the read screen draws **no description block** today. If the image sits beside the description (D-OPEN-3), read either **gains a description section** or **keeps the image as `ExerciseHero`**. The gap this sits on: the drawing's read frame shows **no image and no description at all**, while `ExerciseHero` ships an image today and D-OPEN-3 ruled the image must be available on read — so an S2 built strictly to the drawing would **delete the image from read, against that ruling**. The omission is a gap in the drawing, not a ruling. → **Read gains a description block, with the image beside it** — the same pairing as the editor. **`ExerciseHero`'s role is replaced, not kept.** Otherwise "beside the description" would hold on one screen of two, and a description that can be typed and never read is a field with no reader. | S2 — unblocked |
+| **D-OPEN-9** | **RULED** | the read screen draws **no description block** today. If the image sits beside the description (D-OPEN-3), read either **gains a description section** or **keeps the image as `ExerciseHero`**. The gap this sits on: the drawing's read frame shows **no image and no description at all**, while `ExerciseHero` ships an image today and D-OPEN-3 ruled the image must be available on read — so an S2 built strictly to the drawing would **delete the image from read, against that ruling**. The omission is a gap in the drawing, not a ruling. → **Read gains a description block, with the image beside it** — the same pairing as the editor. **`ExerciseHero`'s role is replaced, not kept.** Otherwise "beside the description" would hold on one screen of two, and a description that can be typed and never read is a field with no reader. **The ruling is per-OBJECT, not per-screen (PR-C): a description without a reader is a defect wherever it appears** — which is why §3.3's frame gained the training's description block when its own omission reproduced the exact state this row was ruled against. | S2 — unblocked |
 | **D-OPEN-10** | **RULED** | what happens to a **pending deferred delete when the screen or the process dies inside the window** — commit, or drop? Leaving it undefined makes it a bug, not a default. → **Not committed. The row survives.** Committing at next launch would be a deletion the user never saw complete and never confirmed; the opposite error — the item is still there — is visible and repeatable. It also spares a persisted queue of pending operations. | S7 — unblocked |
 | **D-OPEN-11** | **RULED**, and it **narrows D-OPEN-2** | with a confirmation sheet on `✕`, and the editor committing nothing until Save, the removal is protected **three times** (confirm, undo, Cancel). Is the confirmation kept? → **No confirmation sheet on `✕`. Snackbar with undo only.** The action is already protected three ways — undo, `Отмена`, and the unsaved draft — and the sheet would fire once per exercise in the list. **The confirmation sheet stays reserved for the irreversible case:** permanent delete from the `⋮` menu. §4's table carries the three true confirmations; ED11 is reworded to match. | S4 — unblocked |
 
