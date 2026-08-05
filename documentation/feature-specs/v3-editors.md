@@ -398,3 +398,21 @@ component, so **both** its modes (read-only with image / read-only with the plac
   Opened by D-OPEN-4's ruling: auto-prune deletes a tag the moment its last link goes, which is
   the cheap answer; the screen is the one that lets you see and manage what the dictionary holds.
   Nothing in S6 depends on it.
+- **B-E6** — **`syncExercises`'s inherit arm is unreachable in effect, and a green test guards
+  it.** `TrainingRepositoryImpl.syncExercises` seeds a newly attached exercise's `plan_sets` from
+  the exercise's own `last_adhoc_sets`. Since S4 the training editor saves through
+  `updateTrainingWithPlans`, which overwrites `plan_sets` for **every** exercise in the UI list
+  later in the same transaction — and a freshly picked exercise carries `planSets = null`. So the
+  seeded value never survives its own transaction. The arm's only other route,
+  `updateTraining`, has **zero production callers** (29 call sites, all in
+  `TrainingRepositoryImplDbTest`), one of which — `updateTraining preserves existing plan_sets
+  across re-saves and inherits when newly attached` — passes while asserting behaviour production
+  can no longer exhibit.
+
+  **The behaviour is not the defect; the dead code is.** A newly added exercise having no plan is
+  ruled twice — D-OPEN-8 states it as the premise for auto-opening the inserted card ("the
+  inserted card has no plan yet — so it opens where it lands"), and ED8's sheet tells the user the
+  default plan is for performing the exercise **without** a training while the training-scoped
+  plan "is set in the training editor". Inheritance would falsify the copy the `(i)` exists to
+  show. Recorded rather than cleaned in PR-B: retiring the arm means retiring `updateTraining` and
+  rewriting its 29 test call sites, which is a data-layer change wider than the arc's editors.
