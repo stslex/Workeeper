@@ -441,3 +441,19 @@ component, so **both** its modes (read-only with image / read-only with the plac
   plan "is set in the training editor". Inheritance would falsify the copy the `(i)` exists to
   show. Recorded rather than cleaned in PR-B: retiring the arm means retiring `updateTraining` and
   rewriting its 29 test call sites, which is a data-layer change wider than the arc's editors.
+- **B-E7** — **the archive screen's with-history exercise delete promises a cascade RESTRICT
+  forbids, and calls the delete unguarded.** Found by PR-C's F2 measurement, recorded here so the
+  next arc inherits it rather than discovers it; the review's brief named it B-E6, which this
+  registry had already spent on the row above — next free number taken instead. For an archived
+  **exercise** with finished sessions, `PermanentDeleteDialog` renders
+  `feature_archive_dialog_permanent_delete_body_with_history` («Также будет удалена N сессия
+  истории…») — a promise that is true for **trainings** (sessions CASCADE off the training) and
+  was never true for exercises: `performed_exercise_table`'s FK to `exercise_table` is
+  `onDelete = RESTRICT` (`PerformedExerciseEntity.kt:24`), so the confirm's
+  `ArchiveClickHandler.processDeleteConfirm` → `exerciseRepository.permanentDelete` **throws**,
+  inside a `launch` with no `onError` — B17/B21's exact class: the failure surfaces nothing and
+  the dialog's promise reads as kept. Sibling scope mismatch, same family:
+  `canPermanentlyDeleteImmediately` counts **FINISHED** sessions and **ACTIVE** templates while
+  the RESTRICT FKs fire on any session state and on archived templates too, so the app-level
+  gate is narrower than the constraint it fronts. **Not this arc's work** — it is the
+  archive/all-exercises cluster's (B23's neighbourhood).
