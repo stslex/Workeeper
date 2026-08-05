@@ -3,10 +3,8 @@ package io.github.stslex.workeeper.feature.exercise.ui.mvi.mapper
 
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
-import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanEditorUIMapper.formatPlanSummary
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
-import io.github.stslex.workeeper.feature.exercise.R
 import io.github.stslex.workeeper.feature.exercise.domain.model.ExerciseTypeDomain
 import io.github.stslex.workeeper.feature.exercise.domain.model.HistoryEntryDomain
 import io.github.stslex.workeeper.feature.exercise.domain.model.PersonalRecordDomain
@@ -17,7 +15,6 @@ import io.github.stslex.workeeper.feature.exercise.domain.model.TagDomain
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.HistoryUiModel
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PersonalRecordUiModel
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.TagUiModel
-import kotlinx.collections.immutable.ImmutableList
 
 internal object ExerciseUiMapper {
 
@@ -70,13 +67,6 @@ internal object ExerciseUiMapper {
         dateLabel = resourceWrapper.formatDayMonth(finishedAt),
         setsSummaryLabel = sets.toSummaryLabel(),
     )
-
-    internal fun ImmutableList<PlanSetUiModel>?.toAdhocPlanSummary(
-        resourceWrapper: ResourceWrapper,
-    ): String = this
-        ?.takeIf { it.isNotEmpty() }
-        ?.formatPlanSummary()
-        ?: resourceWrapper.getString(R.string.feature_exercise_edit_plan_summary_no_plan)
 
     private fun List<SetSummaryDomain>.toSummaryLabel(): String {
         val visible = take(MAX_VISIBLE_SETS).map { it.toSummaryPart() }

@@ -26,7 +26,6 @@ import io.github.stslex.workeeper.feature.exercise.domain.model.ArchiveResult
 import io.github.stslex.workeeper.feature.exercise.domain.model.ExerciseChangeDomain
 import io.github.stslex.workeeper.feature.exercise.domain.model.SaveResult
 import io.github.stslex.workeeper.feature.exercise.domain.model.TrackNowConflict
-import io.github.stslex.workeeper.feature.exercise.ui.mvi.mapper.ExerciseUiMapper.toAdhocPlanSummary
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.mapper.ExerciseUiMapper.toDomain
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ImageDisplay
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ImageErrorType
@@ -84,7 +83,7 @@ internal class ClickHandler @Inject constructor(
             Action.Click.OnConfirmPermanentDelete -> processConfirmPermanentDelete()
             Action.Click.OnDismissPermanentDelete -> processCloseDialog()
             is Action.Click.OnUndoArchive -> processUndoArchive(action)
-            Action.Click.OnEditPlanClick -> processEditPlanClick()
+            Action.Click.OnPlanInfoClick -> processPlanInfoClick()
             is Action.Click.OnTypeToggle -> processTypeToggle(action.value)
             Action.Click.OnTypeChangeConfirm -> processTypeChangeConfirm()
             Action.Click.OnTypeChangeDismiss -> processTypeChangeDismiss()
@@ -528,14 +527,9 @@ internal class ClickHandler @Inject constructor(
         launch { interactor.restore(action.uuid) }
     }
 
-    /**
-     * Only an exercise that EXISTS routes to the plan editor. Creation edits its plan inline on
-     * this form, so there is no uuid-less branch here and no draft to hand to another screen.
-     */
-    private fun processEditPlanClick() {
+    private fun processPlanInfoClick() {
         sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
-        val uuid = state.value.uuid ?: return
-        consume(Action.Navigation.OpenPlanEditorExisting(exerciseUuid = uuid))
+        updateState { it.copy(bottomSheetState = BottomSheetState.PlanInfo) }
     }
 
     /**
@@ -586,13 +580,11 @@ internal class ClickHandler @Inject constructor(
         val pending = state.value.pendingTypeChange ?: return
         sendEvent(Event.Haptic(HapticFeedbackType.LongPress))
         updateState { latest ->
-            val nextPlan = latest.adhocPlan?.map { it.copy(weight = null) }?.toImmutableList()
             latest.copy(
                 type = pending,
                 pendingTypeChange = null,
                 dialogState = DialogState.Hidden,
-                adhocPlan = nextPlan,
-                adhocPlanSummaryLabel = nextPlan.toAdhocPlanSummary(resourceWrapper),
+                adhocPlan = latest.adhocPlan?.map { it.copy(weight = null) }?.toImmutableList(),
             )
         }
     }
@@ -612,14 +604,8 @@ internal class ClickHandler @Inject constructor(
         // Empty draft normalizes back to null so `state.adhocPlan == null` continues to
         // mean "no default plan attached" (the persisted shape on `last_adhoc_sets`).
         val nextPlan = nextDraft.takeIf { it.isNotEmpty() }
-        val nextSummary = nextPlan.toAdhocPlanSummary(resourceWrapper)
         sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
-        updateState { latest ->
-            latest.copy(
-                adhocPlan = nextPlan,
-                adhocPlanSummaryLabel = nextSummary,
-            )
-        }
+        updateState { latest -> latest.copy(adhocPlan = nextPlan) }
     }
 
     private fun processTagToggle(action: Action.Click.OnTagToggle) {
@@ -635,7 +621,7 @@ internal class ClickHandler @Inject constructor(
                 )
             }
         } else {
-            if (current.tags.size >= MAX_TAGS_PER_EXERCISE) {
+            if (current.tags.size >= State.MAX_TAGS_PER_EXERCISE) {
                 sendEvent(
                     Event.ShowTagLimitReached(
                         message = resourceWrapper.getString(R.string.feature_exercise_edit_tag_limit),
@@ -660,7 +646,7 @@ internal class ClickHandler @Inject constructor(
 
     private fun processTagCreate(action: Action.Click.OnTagCreate) {
         val current = state.value
-        if (current.tags.size >= MAX_TAGS_PER_EXERCISE) {
+        if (current.tags.size >= State.MAX_TAGS_PER_EXERCISE) {
             sendEvent(
                 Event.ShowTagLimitReached(
                     message = resourceWrapper.getString(R.string.feature_exercise_edit_tag_limit),
@@ -770,8 +756,4 @@ internal class ClickHandler @Inject constructor(
         context,
         Manifest.permission.CAMERA,
     ) == PackageManager.PERMISSION_GRANTED
-
-    companion object {
-        private const val MAX_TAGS_PER_EXERCISE = 10
-    }
 }

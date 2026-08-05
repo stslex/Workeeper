@@ -30,7 +30,6 @@
     <string name="feature_exercise_edit_title_edit">Изменить упражнение</string>
     <string name="feature_exercise_edit_close_description">Закрыть</string>
     <string name="feature_exercise_edit_label_name">Название</string>
-    <string name="feature_exercise_edit_label_type">Тип</string>
     <string name="feature_exercise_edit_label_tags">Теги</string>
     <string name="feature_exercise_edit_label_description">Описание</string>
     <string name="feature_exercise_edit_placeholder_description">Заметки — техника, особенности зала</string>
@@ -40,15 +39,9 @@
     <string name="feature_exercise_edit_error_name_required">Введите название</string>
     <string name="feature_exercise_edit_error_name_duplicate">Упражнение с таким именем уже есть</string>
 
-    <!-- Adhoc plan -->
-    <string name="feature_exercise_edit_label_default_plan">План по умолчанию (отдельно)</string>
-    <string name="feature_exercise_edit_default_plan_subtitle">Используется при отдельном трекинге упражнения</string>
-    <string name="feature_exercise_edit_plan_edit">Изменить план</string>
-    <string name="feature_exercise_edit_plan_add">+ Добавить план</string>
-    <string name="feature_exercise_edit_plan_summary_no_plan">плана пока нет</string>
-
-    <!-- Type chip — read-only on the edit form. The toggle moved into the plan editor (v1.42.0). -->
-    <string name="feature_exercise_edit_type_chip_hint">Меняется в редакторе плана</string>
+    <string name="feature_exercise_edit_plan_info_body">Это план на случай, когда упражнение выполняется само по себе — из его карточки, кнопкой «Записать сейчас», без тренировки.\n\nВнутри тренировки план у каждого упражнения свой: он задаётся в редакторе тренировки и этот план не трогает. Если планов нет ни там, ни тут, подходы добавляются прямо в сессии.</string>
+    <string name="feature_exercise_edit_plan_info_description">Что такое план по умолчанию</string>
+    <string name="feature_exercise_edit_tags_counter">%1$d из %2$d</string>
 
     <!-- Edit exercise — image -->
     <string name="feature_exercise_image_thumb_description">Прикреплённое фото упражнения</string>

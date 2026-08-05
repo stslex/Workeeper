@@ -42,7 +42,6 @@ interface ExerciseStore : Store<State, Action, Event> {
         val isLoading: Boolean,
         val canPermanentlyDelete: Boolean,
         val adhocPlan: ImmutableList<PlanSetUiModel>?,
-        val adhocPlanSummaryLabel: String,
         /** Target of an in-flight WEIGHTED -> WEIGHTLESS switch awaiting its confirm. */
         val pendingTypeChange: ExerciseTypeUiModel?,
         val imagePath: String?,
@@ -138,6 +137,13 @@ interface ExerciseStore : Store<State, Action, Event> {
 
         companion object {
 
+            /**
+             * One limit, two readers: `ClickHandler` enforces it and the ТЕГИ head's
+             * `N из 10` counter displays it (§3.2 — the counter renders only where a limit
+             * exists, which is this feature and not `feature/single-training`).
+             */
+            const val MAX_TAGS_PER_EXERCISE: Int = 10
+
             fun create(uuid: String?): State = State(
                 uuid = uuid,
                 mode = if (uuid == null) Mode.Edit(isCreate = true) else Mode.Read,
@@ -155,7 +161,6 @@ interface ExerciseStore : Store<State, Action, Event> {
                 isLoading = uuid != null,
                 canPermanentlyDelete = false,
                 adhocPlan = null,
-                adhocPlanSummaryLabel = "",
                 pendingTypeChange = null,
                 imagePath = null,
                 imageLastModified = 0L,
@@ -177,14 +182,6 @@ interface ExerciseStore : Store<State, Action, Event> {
             data class ImagePicked(val uri: Uri) : Common
 
             data object ImagePickCancelled : Common
-
-            /**
-             * Dispatched after returning from a `Screen.PlanEditor.Existing` save (DB
-             * round-trip). The handler does a *partial* reload — only `(type, adhocPlan)`
-             * are fetched and merged into State + `originalSnapshot` — so a pending
-             * unsaved name/description/tag/image edit on the parent form is preserved.
-             */
-            data object PlanEditorExistingReturned : Common
         }
 
         sealed interface Click : Action {
@@ -235,14 +232,14 @@ interface ExerciseStore : Store<State, Action, Event> {
 
             data class OnUndoArchive(val uuid: String) : Click
 
-            data object OnEditPlanClick : Click
+            /** The plan head's `(i)` — opens the [BottomSheetState.PlanInfo] sheet (ED8). */
+            data object OnPlanInfoClick : Click
 
             /**
-             * Mutates the in-memory ad-hoc plan during exercise create-mode. The new
-             * exercise has no UUID yet, so it cannot navigate to the full-screen
-             * `Screen.PlanEditor` route (which keys off `last_adhoc_sets`); instead, the
-             * inline body in `ExerciseEditScreen` emits the body action wrapped in this
-             * store action, and the handler delegates to `PlanDraftReducer`.
+             * Mutates the in-memory ad-hoc plan — the plan is edited **inline, in the form,
+             * in both modes** (ED1): the body in `ExerciseEditScreen` emits the body action
+             * wrapped in this store action, the handler delegates to `PlanDraftReducer`, and
+             * nothing is persisted until Save.
              */
             @Suppress("MviActionNamingRule")
             data class OnAdhocPlanEditorAction(
@@ -250,8 +247,8 @@ interface ExerciseStore : Store<State, Action, Event> {
             ) : Click
 
             /**
-             * The inline plan editor's WEIGHTED / WEIGHTLESS toggle. Creation owns the type on
-             * this form because the rows whose shape it decides are drawn on this form.
+             * The inline plan editor's WEIGHTED / WEIGHTLESS toggle. The form owns the type in
+             * both modes, because the rows whose shape it decides are drawn on this form.
              */
             data class OnTypeToggle(val value: ExerciseTypeUiModel) : Click
 
@@ -315,15 +312,6 @@ interface ExerciseStore : Store<State, Action, Event> {
             data class OpenImageViewer(val model: String, val editable: Boolean) : Navigation
 
             data class OpenChart(val exerciseUuid: String) : Navigation
-
-            /**
-             * Open `Screen.PlanEditor.Existing` for this exercise's default plan. Used in
-             * Edit mode when the exercise already has a persisted UUID. Returns to
-             * ExerciseDetail; the graph picks up `planEditorSavedAttr` and dispatches
-             * [Action.Common.PlanEditorExistingReturned] for a partial reload of
-             * `(type, adhocPlan)`.
-             */
-            data class OpenPlanEditorExisting(val exerciseUuid: String) : Navigation
         }
     }
 

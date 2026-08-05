@@ -36,18 +36,16 @@ class ExerciseScreenTest : BaseComposeTest() {
     )
 
     @Test
-    fun edit_inCreateMode_rendersInlinePlanEditorBodyAndAddSetButton() {
+    fun edit_inCreateMode_startsFromAnEmptyInlinePlan() {
         composeTestRule.setContent {
             AppTheme(themeMode = ThemeMode.LIGHT) {
                 ExerciseEditScreen(state = createState(), consume = {})
             }
         }
 
-        // Empty plan in create-mode shows the body's empty hint, not the legacy
-        // "Add plan" button (`ExerciseEditPlanEditButton`).
+        // ED13: no seeded sets — the card's empty hint is on screen, with the plan head's (i).
         composeTestRule.onNodeWithTag("PlanEditorBodyEmpty").performScrollTo().assertIsDisplayed()
-        composeTestRule.onNodeWithTag("ExerciseEditPlanAddSetButton").performScrollTo().assertIsDisplayed()
-        composeTestRule.onNodeWithTag("ExerciseEditPlanEditButton").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("ExerciseEditPlanInfoButton").assertIsDisplayed()
     }
 
     @Test
@@ -67,21 +65,25 @@ class ExerciseScreenTest : BaseComposeTest() {
 
         composeTestRule.onNodeWithTag("PlanEditorBodyRow_0").performScrollTo().assertIsDisplayed()
         composeTestRule.onNodeWithTag("PlanEditorBodyRow_1").performScrollTo().assertIsDisplayed()
-        composeTestRule.onNodeWithTag("ExerciseEditPlanAddSetButton").performScrollTo().assertIsDisplayed()
     }
 
     @Test
-    fun edit_inEditModeForExistingExercise_rendersLegacyAddPlanButton() {
+    fun edit_forExistingExercise_editsThePlanInlineToo() {
+        val state = editState().copy(
+            adhocPlan = persistentListOf(
+                PlanSetUiModel(weight = 60.0, reps = 10, type = SetTypeUiModel.WORK),
+            ),
+        )
+
         composeTestRule.setContent {
             AppTheme(themeMode = ThemeMode.LIGHT) {
-                ExerciseEditScreen(state = editState(), consume = {})
+                ExerciseEditScreen(state = state, consume = {})
             }
         }
 
-        // Edit-mode for an existing exercise still routes to the full-screen
-        // PlanEditor route via the legacy summary + button surface.
-        composeTestRule.onNodeWithTag("ExerciseEditPlanEditButton").performScrollTo().assertIsDisplayed()
-        composeTestRule.onNodeWithTag("ExerciseEditPlanAddSetButton").assertDoesNotExist()
-        composeTestRule.onNodeWithTag("PlanEditorBodyEmpty").assertDoesNotExist()
+        // ED1: the plan is edited where it is drawn — rows on this form, no summary line,
+        // no "edit plan" button, in EDIT mode as well as create.
+        composeTestRule.onNodeWithTag("PlanEditorBodyRow_0").performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithTag("ExerciseEditPlanEditButton").assertDoesNotExist()
     }
 }

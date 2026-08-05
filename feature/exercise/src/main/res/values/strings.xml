@@ -29,7 +29,6 @@
     <string name="feature_exercise_edit_title_edit">Edit exercise</string>
     <string name="feature_exercise_edit_close_description">Close</string>
     <string name="feature_exercise_edit_label_name">Name</string>
-    <string name="feature_exercise_edit_label_type">Type</string>
     <string name="feature_exercise_edit_label_tags">Tags</string>
     <string name="feature_exercise_edit_label_description">Description</string>
     <string name="feature_exercise_edit_placeholder_description">Optional notes — technique, gym-specific details</string>
@@ -39,15 +38,11 @@
     <string name="feature_exercise_edit_error_name_required">Name is required</string>
     <string name="feature_exercise_edit_error_name_duplicate">Exercise with this name already exists</string>
 
-    <!-- Adhoc plan -->
-    <string name="feature_exercise_edit_label_default_plan">Default plan (ad-hoc)</string>
-    <string name="feature_exercise_edit_default_plan_subtitle">Used when tracking this exercise outside any training</string>
-    <string name="feature_exercise_edit_plan_edit">Edit plan</string>
-    <string name="feature_exercise_edit_plan_add">+ Add plan</string>
-    <string name="feature_exercise_edit_plan_summary_no_plan">no plan yet</string>
-
-    <!-- Type chip — read-only on the edit form. The toggle moved into the plan editor (v1.42.0). -->
-    <string name="feature_exercise_edit_type_chip_hint">Change in plan editor</string>
+    <!-- The plan head's (i) sheet (ED8). Title reuses feature_exercise_detail_default_plan. -->
+    <string name="feature_exercise_edit_plan_info_body">This is the plan for when the exercise is performed on its own — from its card, with the “Log now” button, outside any training.\n\nInside a training every exercise has a plan of its own: it is set in the training editor and does not touch this one. If neither plan exists, sets are added right in the session.</string>
+    <string name="feature_exercise_edit_plan_info_description">What the default plan is for</string>
+    <!-- The ТЕГИ head’s counter — rendered only where a limit exists (this feature’s 10). -->
+    <string name="feature_exercise_edit_tags_counter">%1$d of %2$d</string>
 
     <!-- Edit exercise — image -->
     <string name="feature_exercise_image_thumb_description">Attached exercise photo</string>

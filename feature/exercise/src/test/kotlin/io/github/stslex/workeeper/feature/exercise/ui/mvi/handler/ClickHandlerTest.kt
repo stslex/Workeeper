@@ -215,6 +215,13 @@ internal class ClickHandlerTest {
     }
 
     @Test
+    fun `OnPlanInfoClick opens the plan-info sheet`() {
+        val (stateFlow, _, handler) = setup()
+        handler.invoke(Action.Click.OnPlanInfoClick)
+        assertEquals(BottomSheetState.PlanInfo, stateFlow.value.bottomSheetState)
+    }
+
+    @Test
     fun `OnEditClick from the sheet closes it in the same transition`() {
         val (stateFlow, _, handler) = setup(
             State.create(uuid = "uuid-1").copy(bottomSheetState = BottomSheetState.DetailMenu),
@@ -247,17 +254,6 @@ internal class ClickHandlerTest {
         )
         handler.invoke(Action.Click.OnArchiveMenuClick)
         assertEquals(BottomSheetState.Hidden, stateFlow.value.bottomSheetState)
-    }
-
-    @Test
-    fun `OnEditPlanClick on existing exercise navigates to PlanEditor Existing`() {
-        val (_, store, handler) = setup()
-        handler.invoke(Action.Click.OnEditPlanClick)
-        verify(exactly = 1) {
-            store.consume(
-                Action.Navigation.OpenPlanEditorExisting(exerciseUuid = "uuid-1"),
-            )
-        }
     }
 
     @Test
