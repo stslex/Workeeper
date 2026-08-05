@@ -26,8 +26,8 @@ import kotlinx.collections.immutable.toImmutableList
  * One of two things chosen from a track is what that component already is, so what is left here is
  * the enum ↔ index mapping and nothing about appearance: no fill, no outline, no colour. The
  * monochrome `.tabs` grammar the ruling names — track `surfaceTier1`, selected on `surfaceTier2` +
- * `slabtop`, labels `textPrimary` / `textSecondary` — is the kit component's, so a second host of
- * that grammar cannot drift from this one.
+ * `slabtop`, labels `--max` / `--meta` — is the kit component's, so a second host of that grammar
+ * cannot drift from this one.
  */
 @Composable
 internal fun TypeToggle(

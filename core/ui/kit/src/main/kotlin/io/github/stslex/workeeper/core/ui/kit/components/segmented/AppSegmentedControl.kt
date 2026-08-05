@@ -56,15 +56,18 @@ import kotlinx.collections.immutable.persistentListOf
  *   component used to draw are siblings of the thumb, so a lifted thumb would have a seam
  *   running down its edge. The mockup draws air instead.
  *
- * ## The label pair is `v3-editors.md` ED5's, not `.mseg`'s
+ * ## The label pair, and its three witnesses
  *
- * Selected [io.github.stslex.workeeper.core.ui.kit.theme.AppColors.textPrimary], resting
- * [io.github.stslex.workeeper.core.ui.kit.theme.AppColors.textSecondary]. The drawing paints the
- * resting label `--meta` (`textTertiary`) on both `.mseg` and `.tabs`; ED5 names `textSecondary`
- * for the segmented control's own grammar and this component follows the ruling, so **do not
- * "correct" it back to the drawn token**. **The accent trio has no reader here** — a monochrome
- * control is the point of that row, and `accentTintedForeground` resolves to `--max` anyway, so
- * reaching for it would change the role this site declares without changing a pixel.
+ * Selected [io.github.stslex.workeeper.core.ui.kit.theme.AppColors.textPrimary] (`--max`), resting
+ * [io.github.stslex.workeeper.core.ui.kit.theme.AppColors.textTertiary] (`--meta`). Three
+ * independent sources agree and none dissents: `.tabs button` (`pass2d.html:142`), `.mseg button`
+ * (`pass2d.html:170`), and the shipped `.tabs` — `MetricTabs` in `feature/exercise-chart`, which
+ * animates between exactly this pair. **A fourth reading of this control must move all three or
+ * none.**
+ *
+ * **The accent trio has no reader here** — a monochrome control is the point of `v3-editors.md`
+ * ED5, and `accentTintedForeground` resolves to `--max` anyway, so reaching for it would change
+ * the role this site declares without changing a pixel.
  */
 @Composable
 fun AppSegmentedControl(
@@ -106,7 +109,7 @@ fun AppSegmentedControl(
                     color = if (isSelected) {
                         AppUi.colors.textPrimary
                     } else {
-                        AppUi.colors.textSecondary
+                        AppUi.colors.textTertiary
                     },
                 )
             }

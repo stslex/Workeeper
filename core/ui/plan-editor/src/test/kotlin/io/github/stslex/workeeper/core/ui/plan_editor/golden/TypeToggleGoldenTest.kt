@@ -19,7 +19,7 @@ import org.junit.jupiter.params.provider.EnumSource
  *
  * The ruling is entirely colour and geometry, so a picture is the whole gate: track
  * `surfaceTier1`, the selected half lifted onto `surfaceTier2` + `slabtop`, labels `textPrimary`
- * on the selection and `textSecondary` beside it. Four claims, each a single static frame, and no
+ * on the selection and `textTertiary` beside it. Four claims, each a single static frame, and no
  * accent among them — which is what the ruling is for.
  *
  * **Two selections, not one.** A single image cannot distinguish "the selected half is lifted"
