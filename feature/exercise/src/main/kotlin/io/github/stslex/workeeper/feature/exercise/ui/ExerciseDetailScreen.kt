@@ -110,10 +110,10 @@ internal fun TopBar(
 /**
  * `v3-editors.md` §3.1's frame, in its order: tags · record · plan · description · history.
  *
- * Two blocks moved and one changed shape. The **description** now sits after the plan and before
- * the history, which is ED3's order — the description follows the screen's main slot — and it
- * carries the image, which used to be a full-width hero at the very top (D-OPEN-9). The **plan**
- * is the set-row card the editor draws, not a summary line (ED2).
+ * The **description** sits after the plan and before the history — ED3's order, where the
+ * description follows the screen's main slot — and it carries the image (D-OPEN-9). The **plan**
+ * is the set-row card the editor draws (ED2). Both are the frame's placements and not this
+ * file's: move either and this screen stops agreeing with the editor.
  */
 @Composable
 private fun Body(
@@ -178,8 +178,7 @@ private fun InGutter(
 /**
  * §3.1's `meta` line — the tags, on ONE mono line, and **the exercise type is not among them**
  * (ED12). The type is a property of the exercise and is declared once, on the plan head, where it
- * explains the shape of the rows underneath it; as a chip in this row it read as a tag the user
- * could have applied.
+ * explains the shape of the rows underneath it; a chip here would read as a tag the user applied.
  *
  * The separator is the app's own meta separator — `ExerciseHistoryRow`'s set summary and
  * `.prhero`'s date line both use it — so a meta line looks like a meta line wherever it appears.

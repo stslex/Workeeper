@@ -61,10 +61,10 @@ import kotlinx.collections.immutable.persistentListOf
  * Selected [io.github.stslex.workeeper.core.ui.kit.theme.AppColors.textPrimary], resting
  * [io.github.stslex.workeeper.core.ui.kit.theme.AppColors.textSecondary]. The drawing paints the
  * resting label `--meta` (`textTertiary`) on both `.mseg` and `.tabs`; ED5 names `textSecondary`
- * for the segmented control's own grammar and this component follows the ruling. **The accent
- * trio does not appear here** — a monochrome control is the point of that row, and
- * `accentTintedForeground` (which this used to read) is `--max` by another name, so the rename
- * is what makes the role legible rather than what moves a pixel.
+ * for the segmented control's own grammar and this component follows the ruling, so **do not
+ * "correct" it back to the drawn token**. **The accent trio has no reader here** — a monochrome
+ * control is the point of that row, and `accentTintedForeground` resolves to `--max` anyway, so
+ * reaching for it would change the role this site declares without changing a pixel.
  */
 @Composable
 fun AppSegmentedControl(
@@ -121,9 +121,9 @@ private val TRACK_PADDING = AppDimension.Space.xs
  * `.mseg button{border-radius:8px}` — a rung that exists ([AppDimension.Radius.small]), and the
  * round-down `AppIconButton` documents for the track's missing 12 lands on the same 8.
  *
- * **NOT the theme's `shapes.small` (6dp)**: that value was D3's false citation, and the text form
- * carried it until ED5. One `val` for both forms, for the reason [TRACK_PADDING] and
- * [TRACK_HEIGHT] are one — a per-form copy is how the two drift.
+ * **NOT the theme's `shapes.small` (6dp)**: that value is D3's false citation. One `val` for both
+ * forms, for the reason [TRACK_PADDING] and [TRACK_HEIGHT] are one — a per-form copy is how the
+ * two drift.
  */
 private val SEGMENT_SHAPE = RoundedCornerShape(AppDimension.Radius.small)
 

@@ -39,13 +39,13 @@ import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ImageDisplay
  * per screen is the drift this arc exists to remove. The section head is the host's, because the
  * two hosts sit in different rhythms — a scrolling read frame and a form.
  *
- * ## Why the picture is here at all
+ * ## The picture
  *
- * It used to be two things: `ExerciseTopBarThumb` on the editor and a full-width hero on read.
- * ED6 deleted the first and D-OPEN-9 replaced the second, so this block carries the whole
- * affordance now — including the placeholder, which is [AppExerciseThumb]'s own type mark and
- * therefore never needed a home in this feature. **The placement is the statement**: the image is
- * optional and descriptive, so it sits with the other optional descriptive thing.
+ * This block is the exercise image's **only** affordance, on both screens (ED6, D-OPEN-3,
+ * D-OPEN-9) — do not give a bar or a form row a second one. The placeholder is
+ * [AppExerciseThumb]'s own type mark, so the glyph needs no copy in this feature.
+ * **The placement is the statement**: the image is optional and descriptive, so it sits with the
+ * other optional descriptive thing.
  *
  * ## The two callbacks encode D-OPEN-3's rule once
  *

@@ -15,14 +15,12 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.EnumSource
 
 /**
- * The type toggle after ED5 — the one instrument that can say the accent is gone.
+ * The type toggle under ED5 — the one instrument that can say there is no accent here.
  *
  * The ruling is entirely colour and geometry, so a picture is the whole gate: track
  * `surfaceTier1`, the selected half lifted onto `surfaceTier2` + `slabtop`, labels `textPrimary`
- * on the selection and `textSecondary` beside it. What it replaces — an `accent` outline, an
- * `accentTintedBackground` fill and `accentTintedForeground` text on a 48dp outlined box — is
- * three colours and one height away from that, and every one of the four differences is a static
- * frame.
+ * on the selection and `textSecondary` beside it. Four claims, each a single static frame, and no
+ * accent among them — which is what the ruling is for.
  *
  * **Two selections, not one.** A single image cannot distinguish "the selected half is lifted"
  * from "the left half is lifted": both are true of the weighted picture. Moving the selection is
