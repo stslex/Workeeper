@@ -248,10 +248,18 @@ while the snackbar lives. The order is strict and it *is* the rule:
 timer expires → snackbar dismissed → only then the delete commits
 ```
 
-Never delete first and undo by re-inserting. The rejected alternative was payload retention and
-re-insert, which for an exercise with history is not one row — it is the exercise, its tag links,
-its plan rows and its logged sets, all of which a deferred delete simply never removes. The
-accepted cost: "deleted" is a UI state the DB does not share while the snackbar lives.
+Never delete first and undo by re-inserting.
+
+**MEASURED (PR-C): the expensive with-history case this section once reasoned about does not
+exist.** The paragraph that stood here weighed a rejected payload-retention undo against "an
+exercise with history — the exercise, its tag links, its plan rows and its logged sets", which
+presumes a with-history delete is possible. The schema forbids it: `PerformedExerciseEntity`'s
+FK to `ExerciseEntity` is `onDelete = RESTRICT` (`PerformedExerciseEntity.kt:24`) and
+`TrainingExerciseEntity`'s is too (`TrainingExerciseEntity.kt:24`) — CASCADE runs only toward
+the session and training parents (`:18` in each) — so an exercise with any performed row or any
+plan row cannot be deleted at the SQLite level, and the only deletable exercise is one with
+neither: no history, nothing expensive to retain. What the deferred mechanism costs is only what
+it always cost: "deleted" is a UI state the DB does not share while the snackbar lives.
 
 **A deferred delete that loses its process is not committed — ruled (D-OPEN-10).** The row
 survives. Committing at next launch would be a deletion the user never saw complete and never
