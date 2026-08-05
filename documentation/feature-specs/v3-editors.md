@@ -62,7 +62,7 @@ Verified by grep against `dev @ 5b3c1cb2`. Each symbol is named so CC deletes ra
 - `DefaultPlanSection`'s summary branch — **two identically-named private composables exist**. The
   one that dies is `ExerciseEditScreen.kt:201-255`, which branches on `isCreate` and renders the
   summary label in its else-branch. `ExerciseDetailScreen.kt:224` has **no branch** and renders
-  `PlanCard` unconditionally — that one is PR-2's to rebuild, not PR-3's to delete.
+  `PlanCard` unconditionally — that one is S2's to rebuild, not S3's to delete.
 - `adhocPlanSummaryLabel` — **measured, not assumed**: its only read is `ExerciseEditScreen.kt:236`,
   inside the branch above. The read screen never references it, so it dies with the branch.
 - `ExerciseTopBarThumb` and its **one** call site, `ExerciseEditScreen.kt:92` (ED6). The read screen
@@ -73,7 +73,7 @@ Verified by grep against `dev @ 5b3c1cb2`. Each symbol is named so CC deletes ra
   call site; the image moves beside the description (D-OPEN-9). Perimeter counted by kind: 1
   production call site, 2 previews and 3 `testTag` literals, all three kinds inside
   `ExerciseHero.kt` itself, and **no test asserts the tags**. Whether the component file survives
-  as the placeholder-icon source — `exercise-image.md` reuses it for the thumb — is PR-2's
+  as the placeholder-icon source — `exercise-image.md` reuses it for the thumb — is S2's
   mechanical call, not a decision: §3.1 gives the placeholder to the description block, without
   saying which file the glyph ends up in.
 
@@ -83,7 +83,7 @@ Verified by grep against `dev @ 5b3c1cb2`. Each symbol is named so CC deletes ra
 - `SingleTrainingGraph`'s `planEditorSavedAttr` bridge and the `Action.Common.Reload` it fires —
   `SingleTrainingGraph.kt:45` is the **only** production dispatch site of `Reload` in the feature,
   so deleting the bridge leaves `CommonHandler`'s `Reload` branch unreachable and the action goes
-  with it. PR-4's "check for other callers" is answered: none.
+  with it. S4's "check for other callers" is answered: none.
 - `TrainingExerciseEditRow`'s plan summary row and its `AppButton.Tertiary`
 
 **Kit / shared**
@@ -124,7 +124,7 @@ arc exists to remove.
 
 **The drawn read frame omits both blocks, and the omission is a gap in the drawing, not a ruling.**
 The drawing shows no image and no description on read at all, while the build ships an image there
-today and D-OPEN-3 ruled the image must be available on read. A PR-2 built strictly to the drawing
+today and D-OPEN-3 ruled the image must be available on read. An S2 built strictly to the drawing
 would therefore **delete the image from read**, against that ruling. The build says as much in its
 own hand: the hero's call site carries the comment *"hero only when a custom image is present (in
 code, not drawn in the mockup — kept as shipped)"*.
@@ -136,16 +136,16 @@ and the full perimeter. Placement is after the plan and before `ИСТОРИЯ`:
 image down from the top of the body where HEAD draws it.
 
 **One component, two hosts — the same class as the set row.** The description-plus-image block now
-appears on read (§3.1) and on the editor (§3.2). It is **built once, in PR-2**, in read-only and
+appears on read (§3.1) and on the editor (§3.2). It is **built once, in S2**, in read-only and
 editable modes exactly as `PlanEditorBody` and its read-only host are one component in two modes;
-**PR-3 consumes it and does not rebuild it**. A second copy is the drift this arc exists to remove.
+**S3 consumes it and does not rebuild it**. A second copy is the drift this arc exists to remove.
 Unlike the set row it needs no kit module — both hosts live in `feature/exercise`, so
 `feature/exercise/.../ui/components/` is its home, next to the `ExerciseHero.kt` it replaces.
 
 **The block carries the image affordance on both screens**, since the thumb (ED6) and the hero
 (D-OPEN-9) are the two things that used to and both are gone. So it **owns the placeholder icon**
 too — the glyph shown when `imageDisplay` is `None`, which today lives in `ExerciseHero.kt` and
-which `exercise-image.md` also reuses for the thumb. Where that glyph ends up is PR-2's call and it
+which `exercise-image.md` also reuses for the thumb. Where that glyph ends up is S2's call and it
 is **mechanical, not a decision**: nothing in §5 rides on it.
 
 ### 3.2 Exercise — create / edit (`ExerciseEditScreen`)
@@ -173,8 +173,8 @@ is deleted), not among the plan and not among the tags. The placement is the sta
 is optional and descriptive, so it sits with the other optional descriptive thing.
 
 **This block is not built here.** It is §3.1's description-plus-image component in its editable
-mode — one component, two hosts. PR-2 builds it, PR-3 consumes it, and PR-3 does **not** rebuild
-it; that makes PR-3's dependency on PR-2 a code dependency, not an ordering one (§6). The
+mode — one component, two hosts. S2 builds it, S3 consumes it, and S3 does **not** rebuild
+it; that makes S3's dependency on S2 a code dependency, not an ordering one (§6). The
 placeholder icon travels with the block, so the editor does not carry its own.
 
 ### 3.3 Training — read (`TrainingDetailScreen`)
@@ -254,59 +254,93 @@ operations, replayed at startup, for a five-second window.
 
 ## 5. Decisions
 
-**No decision remains open. Every PR, PR-1 through PR-8, is startable.**
+**No decision remains open. Every step, S1 through S8, is startable.**
 
 D-OPEN-1..11 are all ruled: 1..7 in the first pass, and 8..11 — the decisions those rulings
 themselves created — in the second. The rows stay, each with the question it asked and the ruling
-that closed it, because later PRs cite the ids. The `Blocks` column records which PR each one was
-holding.
+that closed it, because later steps cite the ids. The `Blocks` column records which step each one
+was holding; §6 says which PR that step now ships in.
 
 | # | Status | Decision, and the ruling | Blocks |
 |---|---|---|---|
-| **D-OPEN-1** | **RULED** | dialog vs sheet for delete confirmation. → **Sheet.** §7.4 stands; **no dialog primitive is added** to this language. | PR-7 — unblocked |
-| **D-OPEN-2** | **RULED**, both halves | which "delete an exercise", and deferred-delete (a) vs retain-and-re-insert (b). → **Scope:** removing an exercise from a training removes it **from that training only**; confirmation sheet + undo snackbar — **since narrowed by D-OPEN-11 to undo snackbar alone, no confirmation.** Cite both rows, never this one alone. → **Mechanism, for every undoable delete: deferred (a).** Nothing is deleted while the snackbar lives; the order is strict and it *is* the rule — timer expires → snackbar dismissed → only then the delete commits. **Never delete first and undo by re-inserting.** ED11 carries this as its mechanism sentence. | PR-7 — unblocked |
-| **D-OPEN-3** | **RULED** | **where the image entry point lives now that ED6 removed the thumb.** #213 shipped the thumb on the **editor only** — `ExerciseTopBarThumb` has exactly one call site, `ExerciseEditScreen.kt:92`; the read screen's trailing slot is the `⋮` `AppIconButton` and its image affordance is `ExerciseHero` in the scrolling body, so ED6's read half is already true at HEAD. The photo, the viewer and the source picker all still exist. → **The image is available on both read and edit, and its entry point sits BESIDE THE DESCRIPTION** — not in the top bar, not among the plan, not among the tags. Its placement is what states that it is optional and descriptive. **The thumb deletion (ED6) stands.** | PR-3 — unblocked |
-| **D-OPEN-4** | **RULED** | orphan tags. The symbol with **zero callers anywhere** is `TagRepository.delete` (`TagRepository.kt:16`); `TagDao.delete(uuid)` has exactly one production caller, `TagRepositoryImpl.delete` (`TagRepositoryImpl.kt:53`), which nothing calls. Nothing in the app ever deletes a tag, and `Создать` writes the dictionary immediately, before the exercise is saved. → **Auto-prune.** A tag with no remaining links is deleted from the dictionary; `TagRepository.delete` gains its first caller. A tag editor screen showing each tag's links is a **future item, not this arc** — recorded as **B-E5**. | PR-6 — unblocked |
-| **D-OPEN-5** | **RULED** | dashed `--hair-s` as a control outline (`+ тег`, `.addex`) measures **1.52 dark / 1.35 light** against 3.0. → **Keep the dashed `--hair-s` outline.** The **label** identifies the control; the dash is decoration and owes no contrast threshold. Same answer for `+ тег` and `.addex`, as the row required. The measurement and this reasoning are recorded here so the pair is not re-litigated. | PR-6 — unblocked |
-| **D-OPEN-6** | **RULED** | read card and edit card are now visually near-identical. Intended, or does read drop the chip / sit on `surfaceTier1`? → **Identical.** No chip removal, no tier change. You read the plan in the shape you will perform it. | PR-2 — unblocked |
-| **D-OPEN-7** | **RULED**, and it **reverses §3.4** | collapsing cards in the training editor. → **Collapsed by default.** Entering the editor you see the whole list; you expand the one you mean — all-open makes a long training unscannable. The collapsed form is the drawn one: ordinal, type glyph, name, `.plan-line` summary, plus the head's drag handle and `✕`. §3.4's "All cards open" is struck; citable as **ED14**. | PR-4 — unblocked |
-| **D-OPEN-8** | **RULED** | a newly added exercise has **no plan**. Does it open on insert, or stay collapsed like the rest (ED14)? → **It opens; the rest stay collapsed.** Collapse-by-default governs **scanning** an existing list; an **insert is an addressed gesture whose next step is the plan**. Inserting several at once opens **the first only**. | PR-4 — unblocked |
-| **D-OPEN-9** | **RULED** | the read screen draws **no description block** today. If the image sits beside the description (D-OPEN-3), read either **gains a description section** or **keeps the image as `ExerciseHero`**. The gap this sits on: the drawing's read frame shows **no image and no description at all**, while `ExerciseHero` ships an image today and D-OPEN-3 ruled the image must be available on read — so a PR-2 built strictly to the drawing would **delete the image from read, against that ruling**. The omission is a gap in the drawing, not a ruling. → **Read gains a description block, with the image beside it** — the same pairing as the editor. **`ExerciseHero`'s role is replaced, not kept.** Otherwise "beside the description" would hold on one screen of two, and a description that can be typed and never read is a field with no reader. | PR-2 — unblocked |
-| **D-OPEN-10** | **RULED** | what happens to a **pending deferred delete when the screen or the process dies inside the window** — commit, or drop? Leaving it undefined makes it a bug, not a default. → **Not committed. The row survives.** Committing at next launch would be a deletion the user never saw complete and never confirmed; the opposite error — the item is still there — is visible and repeatable. It also spares a persisted queue of pending operations. | PR-7 — unblocked |
-| **D-OPEN-11** | **RULED**, and it **narrows D-OPEN-2** | with a confirmation sheet on `✕`, and the editor committing nothing until Save, the removal is protected **three times** (confirm, undo, Cancel). Is the confirmation kept? → **No confirmation sheet on `✕`. Snackbar with undo only.** The action is already protected three ways — undo, `Отмена`, and the unsaved draft — and the sheet would fire once per exercise in the list. **The confirmation sheet stays reserved for the irreversible case:** permanent delete from the `⋮` menu. §4's table carries the three true confirmations; ED11 is reworded to match. | PR-4 — unblocked |
+| **D-OPEN-1** | **RULED** | dialog vs sheet for delete confirmation. → **Sheet.** §7.4 stands; **no dialog primitive is added** to this language. | S7 — unblocked |
+| **D-OPEN-2** | **RULED**, both halves | which "delete an exercise", and deferred-delete (a) vs retain-and-re-insert (b). → **Scope:** removing an exercise from a training removes it **from that training only**; confirmation sheet + undo snackbar — **since narrowed by D-OPEN-11 to undo snackbar alone, no confirmation.** Cite both rows, never this one alone. → **Mechanism, for every undoable delete: deferred (a).** Nothing is deleted while the snackbar lives; the order is strict and it *is* the rule — timer expires → snackbar dismissed → only then the delete commits. **Never delete first and undo by re-inserting.** ED11 carries this as its mechanism sentence. | S7 — unblocked |
+| **D-OPEN-3** | **RULED** | **where the image entry point lives now that ED6 removed the thumb.** #213 shipped the thumb on the **editor only** — `ExerciseTopBarThumb` has exactly one call site, `ExerciseEditScreen.kt:92`; the read screen's trailing slot is the `⋮` `AppIconButton` and its image affordance is `ExerciseHero` in the scrolling body, so ED6's read half is already true at HEAD. The photo, the viewer and the source picker all still exist. → **The image is available on both read and edit, and its entry point sits BESIDE THE DESCRIPTION** — not in the top bar, not among the plan, not among the tags. Its placement is what states that it is optional and descriptive. **The thumb deletion (ED6) stands.** | S3 — unblocked |
+| **D-OPEN-4** | **RULED** | orphan tags. The symbol with **zero callers anywhere** is `TagRepository.delete` (`TagRepository.kt:16`); `TagDao.delete(uuid)` has exactly one production caller, `TagRepositoryImpl.delete` (`TagRepositoryImpl.kt:53`), which nothing calls. Nothing in the app ever deletes a tag, and `Создать` writes the dictionary immediately, before the exercise is saved. → **Auto-prune.** A tag with no remaining links is deleted from the dictionary; `TagRepository.delete` gains its first caller. A tag editor screen showing each tag's links is a **future item, not this arc** — recorded as **B-E5**. | S6 — unblocked |
+| **D-OPEN-5** | **RULED** | dashed `--hair-s` as a control outline (`+ тег`, `.addex`) measures **1.52 dark / 1.35 light** against 3.0. → **Keep the dashed `--hair-s` outline.** The **label** identifies the control; the dash is decoration and owes no contrast threshold. Same answer for `+ тег` and `.addex`, as the row required. The measurement and this reasoning are recorded here so the pair is not re-litigated. | S6 — unblocked |
+| **D-OPEN-6** | **RULED** | read card and edit card are now visually near-identical. Intended, or does read drop the chip / sit on `surfaceTier1`? → **Identical.** No chip removal, no tier change. You read the plan in the shape you will perform it. | S2 — unblocked |
+| **D-OPEN-7** | **RULED**, and it **reverses §3.4** | collapsing cards in the training editor. → **Collapsed by default.** Entering the editor you see the whole list; you expand the one you mean — all-open makes a long training unscannable. The collapsed form is the drawn one: ordinal, type glyph, name, `.plan-line` summary, plus the head's drag handle and `✕`. §3.4's "All cards open" is struck; citable as **ED14**. | S4 — unblocked |
+| **D-OPEN-8** | **RULED** | a newly added exercise has **no plan**. Does it open on insert, or stay collapsed like the rest (ED14)? → **It opens; the rest stay collapsed.** Collapse-by-default governs **scanning** an existing list; an **insert is an addressed gesture whose next step is the plan**. Inserting several at once opens **the first only**. | S4 — unblocked |
+| **D-OPEN-9** | **RULED** | the read screen draws **no description block** today. If the image sits beside the description (D-OPEN-3), read either **gains a description section** or **keeps the image as `ExerciseHero`**. The gap this sits on: the drawing's read frame shows **no image and no description at all**, while `ExerciseHero` ships an image today and D-OPEN-3 ruled the image must be available on read — so an S2 built strictly to the drawing would **delete the image from read, against that ruling**. The omission is a gap in the drawing, not a ruling. → **Read gains a description block, with the image beside it** — the same pairing as the editor. **`ExerciseHero`'s role is replaced, not kept.** Otherwise "beside the description" would hold on one screen of two, and a description that can be typed and never read is a field with no reader. | S2 — unblocked |
+| **D-OPEN-10** | **RULED** | what happens to a **pending deferred delete when the screen or the process dies inside the window** — commit, or drop? Leaving it undefined makes it a bug, not a default. → **Not committed. The row survives.** Committing at next launch would be a deletion the user never saw complete and never confirmed; the opposite error — the item is still there — is visible and repeatable. It also spares a persisted queue of pending operations. | S7 — unblocked |
+| **D-OPEN-11** | **RULED**, and it **narrows D-OPEN-2** | with a confirmation sheet on `✕`, and the editor committing nothing until Save, the removal is protected **three times** (confirm, undo, Cancel). Is the confirmation kept? → **No confirmation sheet on `✕`. Snackbar with undo only.** The action is already protected three ways — undo, `Отмена`, and the unsaved draft — and the sheet would fire once per exercise in the list. **The confirmation sheet stays reserved for the irreversible case:** permanent delete from the `⋮` menu. §4's table carries the three true confirmations; ED11 is reworded to match. | S4 — unblocked |
 
 ---
 
-## 6. PR ladder
+## 6. Four PRs, eight steps
 
-Each PR is independently bisect-green and carries its own goldens. Dependencies are stated; where
-none is stated the PR is free-standing.
+**The unit of review is a stage: one stage = one PR.** The eight items S1..S8 are **commits**, not
+PRs. Their ids and their content are unchanged — what changed is how they are submitted. Four
+branches, four reviews, four device passes.
 
-**PR-3 depends on PR-2 in code, not merely in order.** The description block does not exist before
-PR-2, and PR-3 imports it rather than writing a second copy (§3.1, §3.2) — so PR-3 does not compile
-against a tree without PR-2 and cannot be stacked ahead of it. Contrast PR-1, which is an ordering
-dependency only: the type toggle exists at HEAD and PR-1 restyles it, so PR-3 would build either
-way and would simply draw the old toggle.
-
-| PR | Content | Depends on |
+| PR | What it is | Steps, in commit order |
 |---|---|---|
-| **PR-1** | `TypeToggle` → monochrome `.tabs` grammar (ED5). `AppSegmentedControl` **is** the text variant (`items: ImmutableList<String>` → `Text`), with `AppSegmentedIconControl` as its sibling in the same file. #191 left the text form untouched — 6dp, no selection semantics — so *collapse onto it* means bringing it up to the `.tabs` grammar, not choosing between two controls. | — |
-| **PR-2** | Read-only set-row card extracted to `core/ui/plan-editor`; `ExerciseDetailScreen`'s `DefaultPlanSection` / `PlanCard` / `PlanLine` / `PlanValue` rebuilt onto it. Type onto the section head, tags to one `.meta` line (ED2, ED12). Read card and edit card are identical (D-OPEN-6). **Read gains the `ОПИСАНИЕ` block with the image beside it, replacing `ExerciseHero`'s role** (D-OPEN-9) — §3.1 records that the drawing omits both blocks and that building strictly to it would delete the image from read. **PR-2 owns that block**: one component, read-only and editable modes, and the placeholder icon travels with it. | — |
-| **PR-3** | Exercise editor: inline plan, section rhythm, placeholders out, `TypeChipReadOnly` out, thumb out, `i` sheet in, image entry point beside the description (ED1, ED3, ED4, ED6, ED8, ED13, D-OPEN-3). **Consumes PR-2's description block in its editable mode; does not rebuild it.** Deletes the exercise-side route symbols from §2, whose three measurements (the two `DefaultPlanSection`s, `adhocPlanSummaryLabel`'s single read, the thumb's single call site) are settled — do not re-derive them. | PR-1 (ordering), **PR-2 (code)** |
-| **PR-4** | Training editor: row → card, collapsed by default with the plan body inside on expand (ED14); an exercise inserted from the picker opens, and a multi-insert opens the first only (D-OPEN-8). `✕` removes from this training with an undo snackbar and **no confirmation** (D-OPEN-11). Route symbols deleted (ED1), `Action.Common.Reload` among them — §2 records it has no other dispatch site. | PR-3 |
-| **PR-5** | Training read screen: cards vs list, `Изменить` to the dock (ED9, ED10). | — |
-| **PR-6** | Tags: one kit component, the sheet, the `+ тег` chip (dashed `--hair-s` kept, D-OPEN-5), the counter where a limit exists (ED7). Auto-prune on the last link (D-OPEN-4) — `TagRepository.delete`'s first caller, closing B-E2. | — |
-| **PR-7** | Deletion and undo (ED11): the one sheet confirmation on permanent delete (D-OPEN-1, D-OPEN-11), removal scoped to the training (D-OPEN-2), deferred delete throughout, and **nothing committed when the process dies inside the window** (D-OPEN-10). | — |
-| **PR-8** | States and clamps: no record, empty history, weightless read, empty plan on read; single-line ellipsis on `.prhero`'s meta line. The pushed-bar title is **not** in scope — it already clamps (B-E4). | PR-2, PR-5 |
+| **PR-A** | foundation | S1, S2 |
+| **PR-B** | the arc's heart | S3, S4 |
+| **PR-C** | periphery | S5, S6, S7 |
+| **PR-D** | states and close | S8, then the consolidated regression pass |
 
-`feature/plan-editor` survives all eight (B-E1).
+**Dependencies are unchanged and are now satisfied by order:**
+
+- **S2 after S1**, in the same branch — PR-A.
+- **S3 and S4 after PR-A is merged.** PR-B branches from the merge, not from an unmerged PR-A.
+- **S8 after PR-A and PR-C**, which PR-D's position gives it.
+
+PR-D's second half is the arc's **consolidated regression pass**: every screen the arc touched
+re-compared against the drawing in one sitting, every golden the arc recorded re-read rather than
+re-recorded, and one on-device run across the drawn screens. It is the only place the arc is
+checked whole; the three PRs before it each see only their own screens.
+
+**S3 depends on S2 in code, not merely in order.** The description block does not exist before
+S2, and S3 imports it rather than writing a second copy (§3.1, §3.2) — so S3 does not compile
+against a tree without S2. That is why the S2/S3 seam is also the PR-A/PR-B seam: the code
+dependency crosses a merge, where it is a fact rather than a convention. Contrast S1, which is an
+ordering dependency only: the type toggle exists at HEAD and S1 restyles it, so S3 would build
+either way and would simply draw the old toggle.
+
+The step table keeps its own `Depends on` column so a step read on its own still states what it
+needs.
+
+| Step | Content | Depends on |
+|---|---|---|
+| **S1** | `TypeToggle` → monochrome `.tabs` grammar (ED5). `AppSegmentedControl` **is** the text variant (`items: ImmutableList<String>` → `Text`), with `AppSegmentedIconControl` as its sibling in the same file. #191 left the text form untouched — 6dp, no selection semantics — so *collapse onto it* means bringing it up to the `.tabs` grammar, not choosing between two controls. | — |
+| **S2** | Read-only set-row card extracted to `core/ui/plan-editor`; `ExerciseDetailScreen`'s `DefaultPlanSection` / `PlanCard` / `PlanLine` / `PlanValue` rebuilt onto it. Type onto the section head, tags to one `.meta` line (ED2, ED12). Read card and edit card are identical (D-OPEN-6). **Read gains the `ОПИСАНИЕ` block with the image beside it, replacing `ExerciseHero`'s role** (D-OPEN-9) — §3.1 records that the drawing omits both blocks and that building strictly to it would delete the image from read. **S2 owns that block**: one component, read-only and editable modes, and the placeholder icon travels with it. | — |
+| **S3** | Exercise editor: inline plan, section rhythm, placeholders out, `TypeChipReadOnly` out, thumb out, `i` sheet in, image entry point beside the description (ED1, ED3, ED4, ED6, ED8, ED13, D-OPEN-3). **Consumes S2's description block in its editable mode; does not rebuild it.** Deletes the exercise-side route symbols from §2, whose three measurements (the two `DefaultPlanSection`s, `adhocPlanSummaryLabel`'s single read, the thumb's single call site) are settled — do not re-derive them. | S1 (ordering), **S2 (code)** |
+| **S4** | Training editor: row → card, collapsed by default with the plan body inside on expand (ED14); an exercise inserted from the picker opens, and a multi-insert opens the first only (D-OPEN-8). `✕` removes from this training with an undo snackbar and **no confirmation** (D-OPEN-11). Route symbols deleted (ED1), `Action.Common.Reload` among them — §2 records it has no other dispatch site. | S3 |
+| **S5** | Training read screen: cards vs list, `Изменить` to the dock (ED9, ED10). | — |
+| **S6** | Tags: one kit component, the sheet, the `+ тег` chip (dashed `--hair-s` kept, D-OPEN-5), the counter where a limit exists (ED7). Auto-prune on the last link (D-OPEN-4) — `TagRepository.delete`'s first caller, closing B-E2. | — |
+| **S7** | Deletion and undo (ED11): the one sheet confirmation on permanent delete (D-OPEN-1, D-OPEN-11), removal scoped to the training (D-OPEN-2), deferred delete throughout, and **nothing committed when the process dies inside the window** (D-OPEN-10). | — |
+| **S8** | States and clamps: no record, empty history, weightless read, empty plan on read; single-line ellipsis on `.prhero`'s meta line. The pushed-bar title is **not** in scope — it already clamps (B-E4). | S2, S5 |
+
+`feature/plan-editor` survives all eight steps and all four PRs (B-E1).
 
 ---
 
 ## 7. Gates
 
-Per commit, unchanged from the arc: compile · detekt with **zero suppressions** · unit tests ·
-Paparazzi goldens in both themes · bisect-green · cyclic-proof.
+Two units now, and they are not the same unit. §6 makes a PR four commits wide; that changes which
+gate runs where, and nothing about how hard each one is.
+
+**Per commit — unchanged, and it matters *more* now, not less.** Compile · detekt with **zero
+suppressions** · unit tests · Paparazzi goldens in both themes · bisect-green · cyclic-proof. Every
+step commits green **on its own**. A red commit in the middle of a four-commit branch is still a
+bisect landmine after the merge: merging does not smooth it over, and `git bisect` will land on it
+months from now with no memory of why it was allowed. "The PR was green" is not the property being
+bought here.
+
+**Per PR — review, the §13 element-by-element comparison against the drawing, and the on-device
+pass.** One branch, one review, one device pass. The comparison covers **every screen-touching
+commit in that PR** and is attached **once**, to the PR, not per commit.
 
 Carried verification discipline, restated because every one of these has already produced a false
 green in this project:
@@ -317,9 +351,6 @@ green in this project:
 - every gate proven in **both** directions: it fires on the violation and is silent on the clean tree.
 - a golden locks in what **is**, not what **should be**. Look at each new golden; recording one and
   reading one are different acts (§7.10a caught `+ + Добавить` exactly this way).
-
-Per §13, **every screen PR attaches an element-by-element comparison against the drawing** before
-review.
 
 New goldens this arc: type toggle (2 states × 2 themes), read-only set card (weighted / weightless
 / empty × 2), editor plan card empty state, tag row (selected / empty × 2), training exercise card
@@ -341,7 +372,7 @@ component, so **both** its modes (read-only with image / read-only with the plac
 - **B-E2** — nothing in the app ever deletes a tag; the dictionary only grows. The symbol with zero
   callers anywhere is `TagRepository.delete` (`TagRepository.kt:16`); `TagDao.delete(uuid)` has one
   production caller, `TagRepositoryImpl.delete` (`TagRepositoryImpl.kt:53`), which nothing calls.
-  **Closed by PR-6**: D-OPEN-4 ruled auto-prune, which gives `TagRepository.delete` its first
+  **Closed by S6**: D-OPEN-4 ruled auto-prune, which gives `TagRepository.delete` its first
   caller.
 - **B-E3** — `AppTagPicker` and `AppDatePickerDialog` ship with zero production consumers
   (carried from extraction §7.11, unchanged by this arc).
@@ -351,4 +382,4 @@ component, so **both** its modes (read-only with image / read-only with the plac
 - **B-E5** — **future item, not this arc.** A tag editor screen showing each tag and its links.
   Opened by D-OPEN-4's ruling: auto-prune deletes a tag the moment its last link goes, which is
   the cheap answer; the screen is the one that lets you see and manage what the dictionary holds.
-  Nothing in PR-6 depends on it.
+  Nothing in S6 depends on it.
