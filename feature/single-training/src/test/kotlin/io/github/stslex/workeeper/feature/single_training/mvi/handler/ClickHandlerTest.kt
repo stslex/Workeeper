@@ -1015,6 +1015,65 @@ internal class ClickHandlerTest {
         assertEquals(null, stateFlow.value.exercises.single().planSets)
     }
 
+    /**
+     * Round 7, the opposite ordering of the picker re-add: the resolution is ASYNC, and the
+     * removed card's «Отменить» can restore it while the query is in flight. The completion
+     * must dedup against the state it lands on — a blind append seats the same uuid twice,
+     * and Save cannot write a duplicate (training_uuid, exercise_uuid) key.
+     */
+    @Test
+    fun `a late picker resolution does not duplicate a card the undo restored`() {
+        stateFlow.value = stateFlow.value.copy(
+            mode = State.Mode.Edit(isCreate = false),
+            exercises = persistentListOf(exercise("ex-1")),
+        )
+        val events = mutableListOf<Event>()
+        every { store.sendEvent(capture(events)) } answers { }
+        handler.invoke(Action.Click.OnExerciseRemove("ex-1"))
+        val undo = events.filterIsInstance<Event.ShowExerciseRemovedUndo>().single()
+
+        // The picker's query dispatches but does NOT complete: the mock captures both
+        // lambdas so the resolution can land after the undo, the filed ordering.
+        var pendingOnSuccess: (suspend CoroutineScope.(Any?) -> Unit)? = null
+        var pendingAction: (suspend CoroutineScope.() -> Any?)? = null
+        every {
+            store.launch(any(), any(), any(), any(), any<suspend CoroutineScope.() -> Any?>())
+        } answers {
+            pendingOnSuccess = arg(1)
+            pendingAction = arg(4)
+            mockk(relaxed = true)
+        }
+        coEvery { interactor.resolveExercises(listOf("ex-1")) } returns listOf(
+            PickerExercise(
+                exercise = ExerciseDomain("ex-1", "Bench", ExerciseTypeDomain.WEIGHTED, null, null),
+                labels = emptyList(),
+            ),
+        )
+        stateFlow.value = stateFlow.value.copy(
+            pickerState = State.PickerState.Open(
+                query = "",
+                results = persistentListOf(),
+                selectedUuids = persistentListOf("ex-1"),
+            ),
+        )
+        handler.invoke(Action.Click.OnPickerConfirm)
+
+        handler.invoke(
+            Action.Click.OnUndoExerciseRemove(
+                item = undo.item,
+                wasExpanded = undo.wasExpanded,
+                draftEpoch = undo.draftEpoch,
+            ),
+        )
+        assertEquals(listOf("ex-1"), stateFlow.value.exercises.map { it.exerciseUuid })
+
+        // The in-flight resolution lands AFTER the restore.
+        runBlocking { pendingOnSuccess!!(this, pendingAction!!()) }
+
+        assertEquals(listOf("ex-1"), stateFlow.value.exercises.map { it.exerciseUuid })
+        assertEquals(listOf(0), stateFlow.value.exercises.map { it.position })
+    }
+
     @Test
     fun `the dashed add chip opens the tag picker sheet`() {
         handler.invoke(Action.Click.OnTagAddClick)

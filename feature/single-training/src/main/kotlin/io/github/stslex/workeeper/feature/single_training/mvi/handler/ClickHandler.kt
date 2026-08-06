@@ -769,7 +769,14 @@ internal class ClickHandler @Inject constructor(
         launch(
             onSuccess = { resolved ->
                 updateStateImmediate { latest ->
-                    val nextItems = resolved.mapIndexed { localIndex, picker ->
+                    // Against LATEST, not the state the picker opened over: the resolution
+                    // is async and the removed card's «Отменить» can restore it while the
+                    // query is in flight — a blind append would seat the same uuid twice,
+                    // and Save cannot write a duplicate (training_uuid, exercise_uuid) key.
+                    val fresh = resolved.filterNot { picker ->
+                        latest.exercises.any { it.exerciseUuid == picker.exercise.uuid }
+                    }
+                    val nextItems = fresh.mapIndexed { localIndex, picker ->
                         TrainingExerciseItem(
                             exerciseUuid = picker.exercise.uuid,
                             exerciseName = picker.exercise.name,
