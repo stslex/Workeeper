@@ -3,7 +3,13 @@ package io.github.stslex.workeeper.core.ui.kit.snackbar
 
 import androidx.compose.material3.SnackbarResult
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -19,6 +25,7 @@ import org.junit.jupiter.api.Test
  * Each case asserts BOTH lambdas — the fired one fired once and the other not at all —
  * because the defect this routing exists to prevent is delete-AND-undo running together.
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 internal class SnackbarOutcomeTest {
 
     private class Recorder {
@@ -146,7 +153,32 @@ internal class SnackbarOutcomeTest {
         assertTrue(withTimeoutOrNull(POLL_MILLIS) { SnackbarManager.snackbar.first() } == null)
     }
 
+    /**
+     * The window has CLOSED once [AppSnackbarModel.onDismissed] is entered, so the commit
+     * it carries runs [NonCancellable]: the host dying mid-transaction must not tear it in
+     * half — and must not requeue a model whose delete already landed, which would re-show
+     * an «Отменить» that can no longer undo anything. A commit either never starts (the
+     * requeue's case) or finishes.
+     */
+    @Test
+    fun `the host dying cannot tear a commit that began`() = runTest {
+        var committed = false
+        val model = AppSnackbarModel(
+            message = "m",
+            onDismissed = {
+                delay(COMMIT_MILLIS)
+                committed = true
+            },
+        )
+        val job = launch { resolveSnackbarOutcome(null, model) }
+        runCurrent() // the commit is mid-flight, suspended inside its own work
+        job.cancel()
+        advanceUntilIdle()
+        assertTrue(committed)
+    }
+
     private companion object {
         const val POLL_MILLIS = 50L
+        const val COMMIT_MILLIS = 100L
     }
 }

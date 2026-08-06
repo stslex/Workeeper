@@ -4,6 +4,8 @@ package io.github.stslex.workeeper.core.ui.kit.snackbar
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.runtime.Stable
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 
 /**
  * One transient message. **There is deliberately no `withDismissAction` here.**
@@ -44,7 +46,9 @@ data class AppSnackbarModel(
  *
  *  - [SnackbarResult.ActionPerformed] → [AppSnackbarModel.action], and ONLY it;
  *  - [SnackbarResult.Dismissed] and `null` — the host's timeout cancelled the show —
- *    → [AppSnackbarModel.onDismissed], and ONLY it.
+ *    → [AppSnackbarModel.onDismissed], and ONLY it, run [NonCancellable]: the undo window
+ *    has CLOSED by then, so the commit it carries must not be torn mid-transaction by the
+ *    host dying — a commit either never starts (the requeue's case, below) or finishes.
  *
  * Both callbacks run inside the app-level collector — the one coroutine every toast in the
  * process shares, and the only thing that outlives the screen that scheduled a deferred
@@ -59,7 +63,7 @@ suspend fun resolveSnackbarOutcome(result: SnackbarResult?, model: AppSnackbarMo
     try {
         when (result) {
             SnackbarResult.ActionPerformed -> model.action()
-            SnackbarResult.Dismissed, null -> model.onDismissed()
+            SnackbarResult.Dismissed, null -> withContext(NonCancellable) { model.onDismissed() }
         }
     } catch (cancellation: CancellationException) {
         throw cancellation
@@ -79,9 +83,11 @@ suspend fun resolveSnackbarOutcome(result: SnackbarResult?, model: AppSnackbarMo
  * while the process is still alive. Only process death may drop it — D-OPEN-10's recorded
  * shape, unchanged.
  *
- * Cancellation landing INSIDE the commit requeues too (routing did not complete): the
- * delete is idempotent, and the re-shown window errs on the side of offering «Отменить»
- * twice rather than committing zero times.
+ * The requeue covers the model the host dies holding BEFORE the outcome is known — a
+ * commit that BEGAN always finishes ([resolveSnackbarOutcome] runs it [NonCancellable]),
+ * so a requeued model is one whose window genuinely never closed. A callback that throws
+ * [CancellationException] of its own still escapes and requeues: that is the collector's
+ * stop signal, not an outcome.
  */
 suspend fun resolveSnackbarOutcomeOrRequeue(
     model: AppSnackbarModel,
