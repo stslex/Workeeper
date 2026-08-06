@@ -469,3 +469,18 @@ component, so **both** its modes (read-only with image / read-only with the plac
   degrades this back to B17/B21's recorded silent class until the predicate work lands.
   The predicate itself stays where the row above put it: the archive/all-exercises
   cluster's, not this arc's.
+- **B-E8** — **stacked set undos in one card can restore out of order, and index arithmetic
+  cannot fix it.** Raised by review round 3 (P2) on the queued «Отменить» toasts. Each undo
+  re-inserts its row at the index captured at removal, and captured indices live in DIFFERENT
+  list frames: remove B, then A, then C from `[A,B,C,D]`, undo in toast order, and the last
+  undo needs «a row was restored at index 0» to shift C right when that row was B and to
+  leave A's spot alone when it was A — the two events are byte-identical in index terms, so
+  no transform over indices alone can tell them apart. Exact composition needs stable row
+  identity through the draft, and `PlanSetUiModel` deliberately carries none (weight, reps
+  and type ARE the row); the exercise-card undo has the same ceiling — `position` is
+  reindexed on every removal. Adding identity to plan rows is a `core/ui/plan_editor` model
+  change that ripples through every plan surface, not a review-round edit. Recorded instead:
+  the single-outstanding undo — the drawn affordance — is exact; stacked undos restore every
+  row with its values intact and possibly the order swapped, in the DRAFT only, where the
+  screen shows exactly what a later Save would persist. The undo handlers' KDocs cite this
+  row.
