@@ -537,7 +537,11 @@ internal class ClickHandlerTest {
         assertTrue(undo.wasExpanded)
 
         handler.invoke(
-            Action.Click.OnUndoExerciseRemove(item = undo.item, wasExpanded = undo.wasExpanded),
+            Action.Click.OnUndoExerciseRemove(
+                item = undo.item,
+                wasExpanded = undo.wasExpanded,
+                draftEpoch = undo.draftEpoch,
+            ),
         )
 
         assertEquals(listOf("ex-1", "ex-2"), stateFlow.value.exercises.map { it.exerciseUuid })
@@ -569,10 +573,144 @@ internal class ClickHandlerTest {
                 exerciseUuid = undo.exerciseUuid,
                 set = undo.set,
                 index = undo.index,
+                draftEpoch = undo.draftEpoch,
             ),
         )
         assertEquals(listOf(set), stateFlow.value.exercises.single().planSets)
         assertEquals("60×10", stateFlow.value.exercises.single().planSummary)
+    }
+
+    /**
+     * The toast is app-level and outlives the draft (5s, accessibility-stretched), so its
+     * «Отменить» can land after Save flipped to Read. The removal is persisted by then — a
+     * reinserted row would sit on the Read screen with no saved row behind it. The epoch
+     * guard makes the stale tap edit nothing ([State.draftEpoch]).
+     */
+    @Test
+    fun `a stale set undo after save flipped to read edits nothing`() {
+        val set = PlanSetUiModel(weight = 60.0, reps = 10, type = SetTypeUiModel.WORK)
+        stateFlow.value = stateFlow.value.copy(
+            mode = State.Mode.Edit(isCreate = false),
+            exercises = persistentListOf(
+                exercise("ex-1").copy(planSets = persistentListOf(set), planSummary = "60×10"),
+            ),
+        )
+        val events = mutableListOf<Event>()
+        every { store.sendEvent(capture(events)) } answers { }
+        handler.invoke(
+            Action.Click.OnExercisePlanAction("ex-1", PlanEditorBodyAction.OnSetRemove(0)),
+        )
+        val undo = events.filterIsInstance<Event.ShowSetRemovedUndo>().single()
+
+        // What processSaveClick's success does on this screen: the draft ends, Read begins.
+        stateFlow.value = stateFlow.value.copy(mode = State.Mode.Read)
+
+        handler.invoke(
+            Action.Click.OnUndoSetRemove(
+                exerciseUuid = undo.exerciseUuid,
+                set = undo.set,
+                index = undo.index,
+                draftEpoch = undo.draftEpoch,
+            ),
+        )
+
+        assertEquals(null, stateFlow.value.exercises.single().planSets)
+    }
+
+    /**
+     * The guard is a disjunction and each handler carries its own copy, so each clause gets
+     * the case that ONLY it blocks, per handler: flipped-to-Read leaves the epoch matching
+     * (mode clause alone), a re-entered draft is Edit again (epoch clause alone). This is
+     * the set undo's epoch-clause case and the pair below is the exercise undo's mode-clause
+     * case — without them, deleting either clause leaves the suite green.
+     */
+    @Test
+    fun `a stale set undo does not edit a re-entered draft`() {
+        val set = PlanSetUiModel(weight = 60.0, reps = 10, type = SetTypeUiModel.WORK)
+        stateFlow.value = stateFlow.value.copy(
+            mode = State.Mode.Edit(isCreate = false),
+            exercises = persistentListOf(
+                exercise("ex-1").copy(planSets = persistentListOf(set), planSummary = "60×10"),
+            ),
+        )
+        val events = mutableListOf<Event>()
+        every { store.sendEvent(capture(events)) } answers { }
+        handler.invoke(
+            Action.Click.OnExercisePlanAction("ex-1", PlanEditorBodyAction.OnSetRemove(0)),
+        )
+        val undo = events.filterIsInstance<Event.ShowSetRemovedUndo>().single()
+
+        stateFlow.value = stateFlow.value.copy(mode = State.Mode.Read) // Save's flip.
+        handler.invoke(Action.Click.OnEditClick) // Mode is Edit again — only the epoch differs.
+        assertEquals(undo.draftEpoch + 1, stateFlow.value.draftEpoch)
+
+        handler.invoke(
+            Action.Click.OnUndoSetRemove(
+                exerciseUuid = undo.exerciseUuid,
+                set = undo.set,
+                index = undo.index,
+                draftEpoch = undo.draftEpoch,
+            ),
+        )
+
+        assertEquals(null, stateFlow.value.exercises.single().planSets)
+    }
+
+    /** The exercise undo's mode-clause case — the epoch still matches after Save's flip. */
+    @Test
+    fun `a stale exercise undo after save flipped to read edits nothing`() {
+        stateFlow.value = stateFlow.value.copy(
+            mode = State.Mode.Edit(isCreate = false),
+            exercises = persistentListOf(exercise("ex-1"), exercise("ex-2", position = 1)),
+        )
+        val events = mutableListOf<Event>()
+        every { store.sendEvent(capture(events)) } answers { }
+        handler.invoke(Action.Click.OnExerciseRemove("ex-1"))
+        val undo = events.filterIsInstance<Event.ShowExerciseRemovedUndo>().single()
+
+        stateFlow.value = stateFlow.value.copy(mode = State.Mode.Read) // Save's flip.
+
+        handler.invoke(
+            Action.Click.OnUndoExerciseRemove(
+                item = undo.item,
+                wasExpanded = undo.wasExpanded,
+                draftEpoch = undo.draftEpoch,
+            ),
+        )
+
+        assertEquals(listOf("ex-2"), stateFlow.value.exercises.map { it.exerciseUuid })
+    }
+
+    /**
+     * Save → Edit again, all inside the toast's window: the re-entered draft is a NEW one,
+     * not the one the toast edited, and OnEditClick's epoch bump is what makes the stale
+     * «Отменить» miss it — here it would re-insert an exercise the saved training no longer
+     * holds.
+     */
+    @Test
+    fun `a stale exercise undo does not edit a re-entered draft`() {
+        stateFlow.value = stateFlow.value.copy(
+            mode = State.Mode.Edit(isCreate = false),
+            exercises = persistentListOf(exercise("ex-1"), exercise("ex-2", position = 1)),
+        )
+        val events = mutableListOf<Event>()
+        every { store.sendEvent(capture(events)) } answers { }
+        handler.invoke(Action.Click.OnExerciseRemove("ex-1"))
+        val undo = events.filterIsInstance<Event.ShowExerciseRemovedUndo>().single()
+
+        stateFlow.value = stateFlow.value.copy(mode = State.Mode.Read) // Save's flip.
+        handler.invoke(Action.Click.OnEditClick)
+        assertEquals(undo.draftEpoch + 1, stateFlow.value.draftEpoch)
+
+        handler.invoke(
+            Action.Click.OnUndoExerciseRemove(
+                item = undo.item,
+                wasExpanded = undo.wasExpanded,
+                draftEpoch = undo.draftEpoch,
+            ),
+        )
+
+        assertEquals(listOf("ex-2"), stateFlow.value.exercises.map { it.exerciseUuid })
     }
 
     @Test

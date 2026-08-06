@@ -25,6 +25,15 @@ interface SingleTrainingStore : Store<State, Action, Event> {
     data class State(
         val uuid: String?,
         val mode: Mode,
+        /**
+         * Which edit session the current draft belongs to — bumped on every entry into
+         * [Mode.Edit]. The draft-undo toasts carry it back with their action: a toast
+         * outlives the draft it edited (5s, accessibility-stretched), so Save or Cancel can
+         * end the draft — and Edit can start a new one — while «Отменить» is still on
+         * screen. The undo handlers no-op unless the epoch still matches, so a stale undo
+         * cannot put an unsaved row onto the Read screen or into a draft it never edited.
+         */
+        val draftEpoch: Int,
         val name: String,
         val nameError: Boolean,
         val description: String,
@@ -137,6 +146,7 @@ interface SingleTrainingStore : Store<State, Action, Event> {
             fun create(uuid: String?): State = State(
                 uuid = uuid,
                 mode = if (uuid == null) Mode.Edit(isCreate = true) else Mode.Read,
+                draftEpoch = 0,
                 name = "",
                 nameError = false,
                 description = "",
@@ -215,6 +225,7 @@ interface SingleTrainingStore : Store<State, Action, Event> {
             data class OnUndoExerciseRemove(
                 val item: TrainingExerciseItem,
                 val wasExpanded: Boolean,
+                val draftEpoch: Int,
             ) : Click
 
             /** «Отменить» on the set-removed toast: [set] back at [index] in one card's draft. */
@@ -222,6 +233,7 @@ interface SingleTrainingStore : Store<State, Action, Event> {
                 val exerciseUuid: String,
                 val set: PlanSetUiModel,
                 val index: Int,
+                val draftEpoch: Int,
             ) : Click
 
             data class OnExerciseReorder(val from: Int, val to: Int) : Click
@@ -307,6 +319,8 @@ interface SingleTrainingStore : Store<State, Action, Event> {
             val exerciseUuid: String,
             val set: PlanSetUiModel,
             val index: Int,
+            /** [State.draftEpoch] at removal — the undo applies only to the same draft. */
+            val draftEpoch: Int,
         ) : Event
 
         /**
@@ -319,6 +333,8 @@ interface SingleTrainingStore : Store<State, Action, Event> {
             val message: String,
             val item: TrainingExerciseItem,
             val wasExpanded: Boolean,
+            /** [State.draftEpoch] at removal — the undo applies only to the same draft. */
+            val draftEpoch: Int,
         ) : Event
     }
 

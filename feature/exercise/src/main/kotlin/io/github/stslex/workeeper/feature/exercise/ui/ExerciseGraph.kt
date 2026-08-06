@@ -152,13 +152,19 @@ fun NavGraphBuilder.exerciseGraph(
                     ),
                 )
 
+                // The toast is app-level and can outlive the draft, so the action carries
+                // the event's draftEpoch back and the handler decides whether it applies.
                 is Event.ShowSetRemovedUndo -> SnackbarManager.showSnackbar(
                     AppSnackbarModel(
                         message = event.message,
                         actionLabel = undoToastLabel,
                         action = {
                             processor.consume(
-                                Action.Click.OnUndoSetRemove(set = event.set, index = event.index),
+                                Action.Click.OnUndoSetRemove(
+                                    set = event.set,
+                                    index = event.index,
+                                    draftEpoch = event.draftEpoch,
+                                ),
                             )
                         },
                     ),

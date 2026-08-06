@@ -27,6 +27,15 @@ interface ExerciseStore : Store<State, Action, Event> {
     data class State(
         val uuid: String?,
         val mode: Mode,
+        /**
+         * Which edit session the current draft belongs to — bumped on every entry into
+         * [Mode.Edit]. The set-removed toast carries it back with its undo action: a toast
+         * outlives the draft it edited (5s, accessibility-stretched), so Save or Cancel can
+         * end the draft — and Edit can start a new one — while «Отменить» is still on
+         * screen. The undo handler no-ops unless the epoch still matches, so a stale undo
+         * cannot put an unsaved row onto the Read screen or into a draft it never edited.
+         */
+        val draftEpoch: Int,
         val name: String,
         val nameError: Boolean,
         val nameDuplicateError: Boolean,
@@ -147,6 +156,7 @@ interface ExerciseStore : Store<State, Action, Event> {
             fun create(uuid: String?): State = State(
                 uuid = uuid,
                 mode = if (uuid == null) Mode.Edit(isCreate = true) else Mode.Read,
+                draftEpoch = 0,
                 name = "",
                 nameError = false,
                 nameDuplicateError = false,
@@ -265,7 +275,11 @@ interface ExerciseStore : Store<State, Action, Event> {
             data object OnTagPickerDismiss : Click
 
             /** «Отменить» on the set-removed toast: put [set] back at [index] in the draft. */
-            data class OnUndoSetRemove(val set: PlanSetUiModel, val index: Int) : Click
+            data class OnUndoSetRemove(
+                val set: PlanSetUiModel,
+                val index: Int,
+                val draftEpoch: Int,
+            ) : Click
 
             data class OnTagToggle(val tagUuid: String) : Click
 
@@ -356,6 +370,8 @@ interface ExerciseStore : Store<State, Action, Event> {
             val message: String,
             val set: PlanSetUiModel,
             val index: Int,
+            /** [State.draftEpoch] at removal — the undo applies only to the same draft. */
+            val draftEpoch: Int,
         ) : Event
 
         data class NavigateLaunchCamera(val tempUri: Uri) : Event

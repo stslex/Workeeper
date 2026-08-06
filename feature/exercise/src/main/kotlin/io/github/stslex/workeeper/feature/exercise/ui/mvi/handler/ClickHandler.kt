@@ -147,6 +147,8 @@ internal class ClickHandler @Inject constructor(
         updateState { current ->
             current.copy(
                 mode = Mode.Edit(isCreate = false),
+                // A new draft: undo toasts of the previous one must not edit this one.
+                draftEpoch = current.draftEpoch + 1,
                 // Reachable from the dock and the overflow sheet alike — the flip to Edit
                 // closes the sheet in the same transition either way.
                 bottomSheetState = BottomSheetState.Hidden,
@@ -639,6 +641,7 @@ internal class ClickHandler @Inject constructor(
                     ),
                     set = draft[bodyAction.index],
                     index = bodyAction.index,
+                    draftEpoch = current.draftEpoch,
                 ),
             )
         }
@@ -647,6 +650,11 @@ internal class ClickHandler @Inject constructor(
     /** The set-removed toast's «Отменить»: the draft takes the row back where it was. */
     private fun processUndoSetRemove(action: Action.Click.OnUndoSetRemove) {
         updateState { latest ->
+            // The toast can outlive the draft (Save/Cancel ended it, Edit may have begun a
+            // new one) — a stale «Отменить» edits nothing. [State.draftEpoch]'s KDoc.
+            if (latest.mode !is Mode.Edit || action.draftEpoch != latest.draftEpoch) {
+                return@updateState latest
+            }
             val draft = latest.adhocPlan ?: persistentListOf()
             val at = action.index.coerceIn(0, draft.size)
             latest.copy(

@@ -46,7 +46,9 @@ fun NavGraphBuilder.singleTrainingsGraph(
                 is Event.ShowSaveError -> SnackbarManager.showSnackbar(message = event.message)
 
                 // §4's table, rows 1 and 2: DRAFT edits with an undo toast — the undo
-                // re-inserts the removed thing, and nothing is persisted or deferred.
+                // re-inserts the removed thing, and nothing is persisted or deferred. The
+                // toast is app-level and can outlive the draft, so the action carries the
+                // event's draftEpoch back and the handler decides whether it still applies.
                 is Event.ShowSetRemovedUndo -> SnackbarManager.showSnackbar(
                     AppSnackbarModel(
                         message = event.message,
@@ -57,6 +59,7 @@ fun NavGraphBuilder.singleTrainingsGraph(
                                     exerciseUuid = event.exerciseUuid,
                                     set = event.set,
                                     index = event.index,
+                                    draftEpoch = event.draftEpoch,
                                 ),
                             )
                         },
@@ -72,6 +75,7 @@ fun NavGraphBuilder.singleTrainingsGraph(
                                 Action.Click.OnUndoExerciseRemove(
                                     item = event.item,
                                     wasExpanded = event.wasExpanded,
+                                    draftEpoch = event.draftEpoch,
                                 ),
                             )
                         },

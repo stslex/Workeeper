@@ -288,8 +288,12 @@ internal class ClickHandlerTest {
             PlanSetUiModel(weight = 60.0, reps = 10, type = SetTypeUiModel.WORK),
             PlanSetUiModel(weight = 80.0, reps = 8, type = SetTypeUiModel.WORK),
         )
+        // Edit mode: the plan editor renders there alone, and the undo only applies there.
         val (stateFlow, store, handler) = setup(
-            State.create(uuid = "uuid-1").copy(adhocPlan = plan),
+            State.create(uuid = "uuid-1").copy(
+                mode = Mode.Edit(isCreate = false),
+                adhocPlan = plan,
+            ),
         )
         val events = mutableListOf<Event>()
         every { store.sendEvent(capture(events)) } answers { }
@@ -301,8 +305,90 @@ internal class ClickHandlerTest {
         val undo = events.filterIsInstance<Event.ShowSetRemovedUndo>().single()
         assertEquals(plan.last(), undo.set)
 
-        handler.invoke(Action.Click.OnUndoSetRemove(set = undo.set, index = undo.index))
+        handler.invoke(
+            Action.Click.OnUndoSetRemove(
+                set = undo.set,
+                index = undo.index,
+                draftEpoch = undo.draftEpoch,
+            ),
+        )
         assertEquals(plan, stateFlow.value.adhocPlan)
+    }
+
+    /**
+     * The toast is app-level and outlives the draft (5s, accessibility-stretched), so its
+     * «Отменить» can land after Save flipped to Read. The removal is persisted by then — a
+     * reinserted row would sit on the Read screen with no saved row behind it. The epoch
+     * guard makes the stale tap edit nothing ([State.draftEpoch]).
+     */
+    @Test
+    fun `a stale set undo after save flipped to read edits nothing`() {
+        val plan = persistentListOf(
+            PlanSetUiModel(weight = 60.0, reps = 10, type = SetTypeUiModel.WORK),
+        )
+        val (stateFlow, store, handler) = setup(
+            State.create(uuid = "uuid-1").copy(
+                mode = Mode.Edit(isCreate = false),
+                adhocPlan = plan,
+            ),
+        )
+        val events = mutableListOf<Event>()
+        every { store.sendEvent(capture(events)) } answers { }
+        handler.invoke(
+            Action.Click.OnAdhocPlanEditorAction(PlanEditorBodyAction.OnSetRemove(0)),
+        )
+        val undo = events.filterIsInstance<Event.ShowSetRemovedUndo>().single()
+
+        // What handleSaveSuccess does on this screen: the draft ends, Read begins.
+        stateFlow.value = stateFlow.value.copy(mode = Mode.Read)
+
+        handler.invoke(
+            Action.Click.OnUndoSetRemove(
+                set = undo.set,
+                index = undo.index,
+                draftEpoch = undo.draftEpoch,
+            ),
+        )
+
+        assertNull(stateFlow.value.adhocPlan)
+    }
+
+    /**
+     * Save → Edit again, all inside the toast's window: the re-entered draft is a NEW one,
+     * not the one the toast edited, and OnEditClick's epoch bump is what makes the stale
+     * «Отменить» miss it.
+     */
+    @Test
+    fun `a stale set undo does not edit a re-entered draft`() {
+        val plan = persistentListOf(
+            PlanSetUiModel(weight = 60.0, reps = 10, type = SetTypeUiModel.WORK),
+        )
+        val (stateFlow, store, handler) = setup(
+            State.create(uuid = "uuid-1").copy(
+                mode = Mode.Edit(isCreate = false),
+                adhocPlan = plan,
+            ),
+        )
+        val events = mutableListOf<Event>()
+        every { store.sendEvent(capture(events)) } answers { }
+        handler.invoke(
+            Action.Click.OnAdhocPlanEditorAction(PlanEditorBodyAction.OnSetRemove(0)),
+        )
+        val undo = events.filterIsInstance<Event.ShowSetRemovedUndo>().single()
+
+        stateFlow.value = stateFlow.value.copy(mode = Mode.Read) // Save's flip.
+        handler.invoke(Action.Click.OnEditClick)
+        assertEquals(undo.draftEpoch + 1, stateFlow.value.draftEpoch)
+
+        handler.invoke(
+            Action.Click.OnUndoSetRemove(
+                set = undo.set,
+                index = undo.index,
+                draftEpoch = undo.draftEpoch,
+            ),
+        )
+
+        assertNull(stateFlow.value.adhocPlan)
     }
 
     /** The toast fires on the REMOVE alone — a value edit is not a removal. */

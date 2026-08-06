@@ -126,6 +126,8 @@ internal class ClickHandler @Inject constructor(
         updateState { current ->
             current.copy(
                 mode = Mode.Edit(isCreate = false),
+                // A new draft: undo toasts of the previous one must not edit this one.
+                draftEpoch = current.draftEpoch + 1,
                 expandedExerciseUuids = persistentSetOf(),
                 originalSnapshot = current.toSnapshot(),
             )
@@ -449,6 +451,7 @@ internal class ClickHandler @Inject constructor(
                     ),
                     item = removed,
                     wasExpanded = action.exerciseUuid in current.expandedExerciseUuids,
+                    draftEpoch = current.draftEpoch,
                 ),
             )
         }
@@ -538,6 +541,7 @@ internal class ClickHandler @Inject constructor(
                     exerciseUuid = action.exerciseUuid,
                     set = priorDraft[bodyAction.index],
                     index = bodyAction.index,
+                    draftEpoch = state.value.draftEpoch,
                 ),
             )
         }
@@ -546,6 +550,11 @@ internal class ClickHandler @Inject constructor(
     /** The set-removed toast's «Отменить»: the addressed card's draft takes the row back. */
     private fun processUndoSetRemove(action: Action.Click.OnUndoSetRemove) {
         updateState { current ->
+            // The toast can outlive the draft (Save/Cancel ended it, Edit may have begun a
+            // new one) — a stale «Отменить» edits nothing. [State.draftEpoch]'s KDoc.
+            if (current.mode !is Mode.Edit || action.draftEpoch != current.draftEpoch) {
+                return@updateState current
+            }
             val target = current.exercises.firstOrNull { it.exerciseUuid == action.exerciseUuid }
                 ?: return@updateState current
             val draft = target.planSets ?: persistentListOf()
@@ -575,6 +584,10 @@ internal class ClickHandler @Inject constructor(
      */
     private fun processUndoExerciseRemove(action: Action.Click.OnUndoExerciseRemove) {
         updateState { current ->
+            // Same stale-toast guard as the set undo above — [State.draftEpoch]'s KDoc.
+            if (current.mode !is Mode.Edit || action.draftEpoch != current.draftEpoch) {
+                return@updateState current
+            }
             if (current.exercises.any { it.exerciseUuid == action.item.exerciseUuid }) {
                 return@updateState current
             }
