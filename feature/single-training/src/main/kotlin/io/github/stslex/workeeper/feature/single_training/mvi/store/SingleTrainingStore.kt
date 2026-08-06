@@ -57,6 +57,15 @@ interface SingleTrainingStore : Store<State, Action, Event> {
          * opens the inserted card (D-OPEN-8), and a `remember` could not see the insert.
          */
         val expandedExerciseUuids: ImmutableSet<String>,
+        /**
+         * Set restorations that landed while their card was absent: both removals queue
+         * toasts, so the set toast's «Отменить» can fire after the exercise itself was
+         * removed — the lookup finds no card, and dropping the restore would lose the row
+         * with BOTH undos tapped. Stashed here instead; the exercise undo that brings the
+         * card back applies its stashes in tap order — the card's plan is frozen while it
+         * is absent, so the captured index is exact. Cleared with the draft.
+         */
+        val pendingSetRestores: ImmutableList<PendingSetRestore>,
         val pastSessions: ImmutableList<HistorySessionItem>,
         /** Total finished sessions of this training — the История head's count (§3.3). */
         val historyCount: Int,
@@ -135,6 +144,14 @@ interface SingleTrainingStore : Store<State, Action, Event> {
             }
         }
 
+        /** One stashed set restore — see [State.pendingSetRestores]. */
+        @Stable
+        data class PendingSetRestore(
+            val exerciseUuid: String,
+            val set: PlanSetUiModel,
+            val index: Int,
+        )
+
         @Stable
         sealed interface PickerState {
 
@@ -163,6 +180,7 @@ interface SingleTrainingStore : Store<State, Action, Event> {
                 tagSearchQuery = "",
                 exercises = persistentListOf(),
                 expandedExerciseUuids = persistentSetOf(),
+                pendingSetRestores = persistentListOf(),
                 pastSessions = persistentListOf(),
                 historyCount = 0,
                 activeSession = null,

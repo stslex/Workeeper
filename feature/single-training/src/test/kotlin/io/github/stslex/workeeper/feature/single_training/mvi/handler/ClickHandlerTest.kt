@@ -820,6 +820,88 @@ internal class ClickHandlerTest {
         assertEquals("", stateFlow.value.tagSearchQuery)
     }
 
+    /**
+     * Round 4: both removals queue toasts, so the set toast's «Отменить» can land while
+     * its card is absent. The restore stashes ([State.pendingSetRestores]) and the exercise
+     * undo applies it — tapping Undo on BOTH operations loses nothing.
+     */
+    @Test
+    fun `a set undo whose card was already removed waits for the card`() {
+        val set = PlanSetUiModel(weight = 60.0, reps = 10, type = SetTypeUiModel.WORK)
+        stateFlow.value = stateFlow.value.copy(
+            mode = State.Mode.Edit(isCreate = false),
+            exercises = persistentListOf(
+                exercise("ex-1").copy(planSets = persistentListOf(set), planSummary = "60×10"),
+                exercise("ex-2", position = 1),
+            ),
+        )
+        val events = mutableListOf<Event>()
+        every { store.sendEvent(capture(events)) } answers { }
+        handler.invoke(
+            Action.Click.OnExercisePlanAction("ex-1", PlanEditorBodyAction.OnSetRemove(0)),
+        )
+        val setUndo = events.filterIsInstance<Event.ShowSetRemovedUndo>().single()
+        handler.invoke(Action.Click.OnExerciseRemove("ex-1"))
+        val exerciseUndo = events.filterIsInstance<Event.ShowExerciseRemovedUndo>().single()
+
+        // The set toast shows first (FIFO); its undo lands while the card is absent.
+        handler.invoke(
+            Action.Click.OnUndoSetRemove(
+                exerciseUuid = setUndo.exerciseUuid,
+                set = setUndo.set,
+                index = setUndo.index,
+                draftEpoch = setUndo.draftEpoch,
+            ),
+        )
+        assertEquals(listOf("ex-2"), stateFlow.value.exercises.map { it.exerciseUuid })
+
+        handler.invoke(
+            Action.Click.OnUndoExerciseRemove(
+                item = exerciseUndo.item,
+                wasExpanded = exerciseUndo.wasExpanded,
+                draftEpoch = exerciseUndo.draftEpoch,
+            ),
+        )
+
+        assertEquals(listOf("ex-1", "ex-2"), stateFlow.value.exercises.map { it.exerciseUuid })
+        assertEquals(listOf(set), stateFlow.value.exercises.first().planSets)
+        assertEquals("60×10", stateFlow.value.exercises.first().planSummary)
+        assertTrue(stateFlow.value.pendingSetRestores.isEmpty())
+    }
+
+    /** A stash belongs to its draft: entering Edit again starts clean. */
+    @Test
+    fun `stashed set restores die with the draft`() {
+        val set = PlanSetUiModel(weight = 60.0, reps = 10, type = SetTypeUiModel.WORK)
+        stateFlow.value = stateFlow.value.copy(
+            mode = State.Mode.Edit(isCreate = false),
+            exercises = persistentListOf(
+                exercise("ex-1").copy(planSets = persistentListOf(set), planSummary = "60×10"),
+            ),
+        )
+        val events = mutableListOf<Event>()
+        every { store.sendEvent(capture(events)) } answers { }
+        handler.invoke(
+            Action.Click.OnExercisePlanAction("ex-1", PlanEditorBodyAction.OnSetRemove(0)),
+        )
+        val setUndo = events.filterIsInstance<Event.ShowSetRemovedUndo>().single()
+        handler.invoke(Action.Click.OnExerciseRemove("ex-1"))
+        handler.invoke(
+            Action.Click.OnUndoSetRemove(
+                exerciseUuid = setUndo.exerciseUuid,
+                set = setUndo.set,
+                index = setUndo.index,
+                draftEpoch = setUndo.draftEpoch,
+            ),
+        )
+        assertEquals(1, stateFlow.value.pendingSetRestores.size)
+
+        stateFlow.value = stateFlow.value.copy(mode = State.Mode.Read) // Save's flip.
+        handler.invoke(Action.Click.OnEditClick)
+
+        assertTrue(stateFlow.value.pendingSetRestores.isEmpty())
+    }
+
     @Test
     fun `the dashed add chip opens the tag picker sheet`() {
         handler.invoke(Action.Click.OnTagAddClick)

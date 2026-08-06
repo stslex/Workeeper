@@ -126,8 +126,10 @@ internal class ClickHandler @Inject constructor(
         updateState { current ->
             current.copy(
                 mode = Mode.Edit(isCreate = false),
-                // A new draft: undo toasts of the previous one must not edit this one.
+                // A new draft: undo toasts of the previous one must not edit this one, and
+                // its stashed restores must not resurface either.
                 draftEpoch = current.draftEpoch + 1,
+                pendingSetRestores = persistentListOf(),
                 expandedExerciseUuids = persistentSetOf(),
                 originalSnapshot = current.toSnapshot(),
             )
@@ -388,6 +390,7 @@ internal class ClickHandler @Inject constructor(
         return copy(
             mode = Mode.Read,
             expandedExerciseUuids = persistentSetOf(),
+            pendingSetRestores = persistentListOf(),
             name = snapshot.name,
             nameError = false,
             description = snapshot.description,
@@ -572,7 +575,18 @@ internal class ClickHandler @Inject constructor(
                 return@updateState current
             }
             val target = current.exercises.firstOrNull { it.exerciseUuid == action.exerciseUuid }
-                ?: return@updateState current
+                // The card itself was removed after this set was (both toasts queue): the
+                // restore stashes for the exercise undo to apply — dropped here, the row
+                // would be lost with BOTH undos tapped ([State.pendingSetRestores]).
+                ?: return@updateState current.copy(
+                    pendingSetRestores = (
+                        current.pendingSetRestores + State.PendingSetRestore(
+                            exerciseUuid = action.exerciseUuid,
+                            set = action.set,
+                            index = action.index,
+                        )
+                        ).toImmutableList(),
+                )
             val draft = target.planSets ?: persistentListOf()
             val at = action.index.coerceIn(0, draft.size)
             val nextPlan = draft.toMutableList()
@@ -611,13 +625,38 @@ internal class ClickHandler @Inject constructor(
             if (current.exercises.any { it.exerciseUuid == action.item.exerciseUuid }) {
                 return@updateState current
             }
+            // Stashed set restores that fired while this card was absent go back into it
+            // now, in tap order — [State.pendingSetRestores]. The plan was frozen while
+            // the card was gone, so each captured index still points where it did.
+            val stashes = current.pendingSetRestores
+                .filter { it.exerciseUuid == action.item.exerciseUuid }
+            val restoredItem = stashes
+                .fold(action.item) { item, stash ->
+                    val draft = item.planSets ?: persistentListOf()
+                    val at = stash.index.coerceIn(0, draft.size)
+                    item.copy(
+                        planSets = draft.toMutableList()
+                            .apply { add(at, stash.set) }
+                            .toImmutableList(),
+                    )
+                }
+                .let { item ->
+                    if (stashes.isEmpty()) {
+                        item
+                    } else {
+                        item.copy(planSummary = item.planSets?.formatPlanSummary().orEmpty())
+                    }
+                }
             val at = action.item.position.coerceIn(0, current.exercises.size)
             val nextExercises = current.exercises.toMutableList()
-                .apply { add(at, action.item) }
+                .apply { add(at, restoredItem) }
                 .mapIndexed { index, item -> item.copy(position = index) }
                 .toImmutableList()
             current.copy(
                 exercises = nextExercises,
+                pendingSetRestores = current.pendingSetRestores
+                    .filterNot { it.exerciseUuid == action.item.exerciseUuid }
+                    .toImmutableList(),
                 expandedExerciseUuids = if (action.wasExpanded) {
                     (current.expandedExerciseUuids + action.item.exerciseUuid).toImmutableSet()
                 } else {
