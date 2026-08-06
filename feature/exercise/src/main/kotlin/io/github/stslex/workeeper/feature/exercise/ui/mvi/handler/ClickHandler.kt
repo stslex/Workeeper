@@ -674,11 +674,20 @@ internal class ClickHandler @Inject constructor(
             ) {
                 return@updateState latest
             }
+            // The type-change wipe runs over rows PRESENT in the draft, and this row was
+            // out riding its toast — it re-enters through the same invariant: a WEIGHTLESS
+            // exercise's rows carry no weights (`saveItem` strips them in the DB, and a
+            // weight the snapshot keeps but the DB strips diverges on the next reload).
+            val restored = if (latest.type == ExerciseTypeUiModel.WEIGHTLESS) {
+                action.set.copy(weight = null)
+            } else {
+                action.set
+            }
             val draft = latest.adhocPlan ?: persistentListOf()
             val at = action.index.coerceIn(0, draft.size)
             latest.copy(
                 adhocPlan = draft.toMutableList()
-                    .apply { add(at, action.set) }
+                    .apply { add(at, restored) }
                     .toImmutableList(),
             )
         }

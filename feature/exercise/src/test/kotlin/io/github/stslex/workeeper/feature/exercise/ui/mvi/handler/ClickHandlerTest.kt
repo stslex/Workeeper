@@ -396,6 +396,48 @@ internal class ClickHandlerTest {
     }
 
     /**
+     * Round 9: the type-change wipe runs over rows PRESENT in the draft, and a set riding
+     * its toast is absent — the undo must re-enter through the same invariant, or a
+     * WEIGHTLESS exercise carries a hidden weight the DB strips and the snapshot keeps.
+     * With the sole weighted row removed the draft holds no weights, so the switch is
+     * immediate — no confirm sheet stands between the removal and the undo.
+     */
+    @Test
+    fun `an undo restored across a type switch re-enters weightless`() {
+        val plan = persistentListOf(
+            PlanSetUiModel(weight = 60.0, reps = 10, type = SetTypeUiModel.WORK),
+        )
+        val (stateFlow, store, handler) = setup(
+            State.create(uuid = "00000000-0000-0000-0000-000000000001").copy(
+                mode = Mode.Edit(isCreate = false),
+                type = ExerciseTypeUiModel.WEIGHTED,
+                adhocPlan = plan,
+            ),
+        )
+        val events = mutableListOf<Event>()
+        every { store.sendEvent(capture(events)) } answers { }
+        handler.invoke(
+            Action.Click.OnAdhocPlanEditorAction(PlanEditorBodyAction.OnSetRemove(0)),
+        )
+        val undo = events.filterIsInstance<Event.ShowSetRemovedUndo>().single()
+
+        handler.invoke(Action.Click.OnTypeToggle(ExerciseTypeUiModel.WEIGHTLESS))
+        assertEquals(ExerciseTypeUiModel.WEIGHTLESS, stateFlow.value.type)
+
+        handler.invoke(
+            Action.Click.OnUndoSetRemove(
+                set = undo.set,
+                index = undo.index,
+                draftEpoch = undo.draftEpoch,
+            ),
+        )
+
+        val restored = stateFlow.value.adhocPlan!!.single()
+        assertNull(restored.weight)
+        assertEquals(10, restored.reps)
+    }
+
+    /**
      * The in-flight interval (round 3): Save has captured its snapshot but the write has
      * not landed — mode is still Edit and the epoch still matches, so [State.isSaving] is
      * the only clause standing between «Отменить» and a row the database will never hold.
