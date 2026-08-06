@@ -67,3 +67,33 @@ suspend fun resolveSnackbarOutcome(result: SnackbarResult?, model: AppSnackbarMo
         // Contained by the KDoc's contract: the pipeline outlives the failure.
     }
 }
+
+/**
+ * One toast's whole lifetime at the host: [show] displays it (the host times it — B25) and
+ * the result routes through [resolveSnackbarOutcome] — and if the host dies BETWEEN taking
+ * the model off the queue and completing that routing, the model goes back on the queue for
+ * the collector that replaces it. The queue does not replay ([SnackbarManager]'s channel
+ * delivers once), and the collector is a `LaunchedEffect` that dies with its composition —
+ * so without the requeue, an activity recreated under a visible toast drops the model with
+ * neither callback run, and a deferred delete's confirmed commit silently never happens
+ * while the process is still alive. Only process death may drop it — D-OPEN-10's recorded
+ * shape, unchanged.
+ *
+ * Cancellation landing INSIDE the commit requeues too (routing did not complete): the
+ * delete is idempotent, and the re-shown window errs on the side of offering «Отменить»
+ * twice rather than committing zero times.
+ */
+suspend fun resolveSnackbarOutcomeOrRequeue(
+    model: AppSnackbarModel,
+    show: suspend () -> SnackbarResult?,
+) {
+    var routed = false
+    try {
+        resolveSnackbarOutcome(show(), model)
+        routed = true
+    } finally {
+        if (!routed) {
+            SnackbarManager.showSnackbar(model)
+        }
+    }
+}

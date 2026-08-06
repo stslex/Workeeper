@@ -38,7 +38,7 @@ import io.github.stslex.workeeper.core.ui.kit.components.navbar.AppNavBar
 import io.github.stslex.workeeper.core.ui.kit.components.navbar.AppNavBarItem
 import io.github.stslex.workeeper.core.ui.kit.components.snackbar.AppSnackbar
 import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
-import io.github.stslex.workeeper.core.ui.kit.snackbar.resolveSnackbarOutcome
+import io.github.stslex.workeeper.core.ui.kit.snackbar.resolveSnackbarOutcomeOrRequeue
 import io.github.stslex.workeeper.core.ui.kit.snackbar.toastTimeoutMillis
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
@@ -99,24 +99,26 @@ fun App() {
         LaunchedEffect(accessibilityManager) {
             SnackbarManager.snackbar
                 .collect { model ->
-                    val result = withTimeoutOrNull(
-                        toastTimeoutMillis(
-                            accessibilityManager = accessibilityManager,
-                            hasAction = model.actionLabel != null,
-                        ),
-                    ) {
-                        snackbarHostState.showSnackbar(
-                            message = model.message,
-                            actionLabel = model.actionLabel,
-                            duration = SnackbarDuration.Indefinite,
-                        )
-                    }
                     // ActionPerformed → action; Dismissed or timeout → onDismissed. The
                     // routing is the kit's own named function so the deferred-delete window
-                    // (ED11) is asserted at its selector, not read off this collector — and
-                    // the callbacks' failures are contained there: one throwing commit must
-                    // not cancel the collector every toast in the process shares.
-                    resolveSnackbarOutcome(result, model)
+                    // (ED11) is asserted at its selector, not read off this collector — the
+                    // callbacks' failures are contained there, and a model this collector
+                    // dies holding (the activity recreates under a visible toast) goes back
+                    // on the queue for the collector that replaces it.
+                    resolveSnackbarOutcomeOrRequeue(model) {
+                        withTimeoutOrNull(
+                            toastTimeoutMillis(
+                                accessibilityManager = accessibilityManager,
+                                hasAction = model.actionLabel != null,
+                            ),
+                        ) {
+                            snackbarHostState.showSnackbar(
+                                message = model.message,
+                                actionLabel = model.actionLabel,
+                                duration = SnackbarDuration.Indefinite,
+                            )
+                        }
+                    }
                 }
         }
 

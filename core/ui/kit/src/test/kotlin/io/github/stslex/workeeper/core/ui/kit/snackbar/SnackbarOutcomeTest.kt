@@ -3,7 +3,9 @@ package io.github.stslex.workeeper.core.ui.kit.snackbar
 
 import androidx.compose.material3.SnackbarResult
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -95,5 +97,56 @@ internal class SnackbarOutcomeTest {
             escaped = true
         }
         assertTrue(escaped)
+    }
+
+    /**
+     * The requeue half ([resolveSnackbarOutcomeOrRequeue]): the queue delivers once and the
+     * collector dies with its composition, so a model the host holds when recreation
+     * cancels it must go BACK — dropped, a deferred delete's confirmed commit silently
+     * never runs while the process is alive. Each case drains what it queues: the manager
+     * is a singleton and a leftover would leak into a sibling test.
+     */
+    @Test
+    fun `a show cancelled mid-flight requeues the model`() = runTest {
+        val model = AppSnackbarModel(message = "requeue-show")
+        var escaped = false
+        try {
+            resolveSnackbarOutcomeOrRequeue(model) {
+                throw CancellationException("host recreating")
+            }
+        } catch (expected: CancellationException) {
+            escaped = true
+        }
+        assertTrue(escaped)
+        assertEquals("requeue-show", SnackbarManager.snackbar.first().message)
+    }
+
+    @Test
+    fun `cancellation inside the commit requeues the model`() = runTest {
+        val model = AppSnackbarModel(
+            message = "requeue-commit",
+            onDismissed = { throw CancellationException("host recreating mid-commit") },
+        )
+        var escaped = false
+        try {
+            resolveSnackbarOutcomeOrRequeue(model) { null }
+        } catch (expected: CancellationException) {
+            escaped = true
+        }
+        assertTrue(escaped)
+        assertEquals("requeue-commit", SnackbarManager.snackbar.first().message)
+    }
+
+    @Test
+    fun `a routed outcome does not requeue`() = runTest {
+        val recorder = Recorder()
+        resolveSnackbarOutcomeOrRequeue(recorder.model()) { SnackbarResult.Dismissed }
+        assertEquals(1, recorder.dismissals)
+        // Nothing queued: an immediate poll of the singleton queue must come up empty.
+        assertTrue(withTimeoutOrNull(POLL_MILLIS) { SnackbarManager.snackbar.first() } == null)
+    }
+
+    private companion object {
+        const val POLL_MILLIS = 50L
     }
 }
