@@ -8,25 +8,21 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 
 /**
- * One transient message. **There is deliberately no `withDismissAction` here.**
- *
- * There used to be, and it was a lie at every call site that set it: `AppSnackbar` maps
- * [AppSnackbarModel] onto `AppToast`, which draws a message and an optional action and nothing
- * else — because `session-v3f.html`'s `.toast` is `<span>` + `<button>Отменить</button>` with no
- * dismiss mark anywhere. Two features passed `withDismissAction = true` and were silently ignored.
- *
- * The parameter goes rather than an undrawn glyph arriving: adding a dismiss mark would be an
- * appearance decision, and §0.1 gives those to the drawing. Why M3's recommendation no longer
- * binds once the host times the toast itself — B25, resolution.
+ * One transient message. **There is deliberately no `withDismissAction` here, and none may
+ * be added.** `AppSnackbar` maps [AppSnackbarModel] onto `AppToast`, which draws a message
+ * and an optional action and nothing else — `session-v3f.html`'s `.toast` is `<span>` +
+ * `<button>Отменить</button>` with no dismiss mark anywhere, a dismiss mark would be an
+ * appearance decision, and §0.1 gives those to the drawing. Why M3's recommendation does
+ * not bind once the host times the toast itself — B25, resolution.
  *
  * ## [onDismissed] — the undo window's close, for a deferred delete (ED11)
  *
  * The host owns the toast's lifetime (B25), so the host is the only thing that knows when the
  * undo window CLOSED — timeout or user dismissal, both of which mean «Отменить» was declined.
  * A deferred delete (ED11's strict order: timer expires → snackbar dismissed → only then the
- * delete commits) hands its commit here; [action] is its inverse and fires instead of it, never
- * with it. Unlike the deleted `withDismissAction`, this cannot be a silent lie at the call
- * site: the host's own outcome routing ([resolveSnackbarOutcome]) invokes it.
+ * delete commits) hands its commit here; [action] is its inverse and fires instead of it,
+ * never with it. The host's own outcome routing ([resolveSnackbarOutcome]) guarantees the
+ * invocation — a call site cannot wire this and have it silently ignored.
  *
  * Suspend, and run inside the host's collector: nothing else outlives the popped screen that
  * scheduled the delete without outliving the process — which is D-OPEN-10 for free, since a

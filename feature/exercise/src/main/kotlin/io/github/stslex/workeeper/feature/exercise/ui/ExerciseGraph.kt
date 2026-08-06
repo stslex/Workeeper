@@ -138,20 +138,6 @@ fun NavGraphBuilder.exerciseGraph(
 
                 is Event.ShowTagLimitReached -> SnackbarManager.showSnackbar(message = event.message)
 
-                // ED11's deferred delete: the toast is hosted app-level — ABOVE the popped
-                // destination — and its own lifetime IS the undo window. `action` (Отменить)
-                // does nothing because nothing has been deleted; `onDismissed` is the commit,
-                // run by the host's collector, which outlives this screen (D-OPEN-10: a
-                // process death cancels it and the row survives).
-                is Event.ShowPermanentDeleteUndo -> SnackbarManager.showSnackbar(
-                    AppSnackbarModel(
-                        message = event.message,
-                        actionLabel = undoToastLabel,
-                        action = { },
-                        onDismissed = event.commit,
-                    ),
-                )
-
                 // The toast is app-level and can outlive the draft, so the action carries
                 // the event's draftEpoch back and the handler decides whether it applies.
                 is Event.ShowSetRemovedUndo -> SnackbarManager.showSnackbar(

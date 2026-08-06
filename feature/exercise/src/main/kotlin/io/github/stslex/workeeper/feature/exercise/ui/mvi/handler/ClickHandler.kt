@@ -16,6 +16,8 @@ import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.core.utils.CommonExt.parseOrRandom
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.BlockedArchiveItem
 import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagItem
+import io.github.stslex.workeeper.core.ui.kit.snackbar.AppSnackbarModel
+import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.core.ui.plan_editor.domain.PlanDraftReducer
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
@@ -45,6 +47,7 @@ import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import kotlin.uuid.Uuid
+import io.github.stslex.workeeper.core.ui.kit.R as KitR
 import io.github.stslex.workeeper.core.ui.plan_editor.R as CoreEditorR
 
 @Suppress("TooManyFunctions", "LargeClass")
@@ -528,25 +531,32 @@ internal class ClickHandler @Inject constructor(
     }
 
     /**
-     * The DEFERRED delete (ED11's strict order): nothing is deleted here. The confirm pops
-     * the screen and hands [Event.ShowPermanentDeleteUndo] a commit lambda; the app-level
-     * snackbar host — the one thing that owns the toast's lifetime (B25) — runs it only when
-     * the undo window closes. «Отменить» means the delete simply never runs; there is no
-     * re-insert path to get wrong. GUARD: no `interactor.permanentlyDelete` call may appear
-     * in this method — a delete before the window closes is the inversion ED11 forbids.
+     * The DEFERRED delete (ED11's strict order): nothing is deleted here. The confirm hands
+     * the APP-LEVEL queue a model whose [AppSnackbarModel.onDismissed] is the commit and
+     * pops the screen; the snackbar host — the one thing that owns the toast's lifetime
+     * (B25) — runs it only when the undo window closes. Straight onto [SnackbarManager],
+     * never through the screen's event flow: the pop is the next line, a screen-scoped
+     * event dies with its collector (buffered or subscriber-less, either way silently),
+     * and this one carries a COMMIT that must outlive the screen. «Отменить» means the
+     * delete simply never runs; there is no re-insert path to get wrong. GUARD: no
+     * `interactor.permanentlyDelete` call may appear in this method outside `onDismissed`
+     * — a delete before the window closes is the inversion ED11 forbids.
      */
     private fun processConfirmPermanentDelete() {
         val uuid = state.value.uuid ?: return
         sendEvent(Event.Haptic(HapticFeedbackType.LongPress))
         updateState { it.copy(dialogState = DialogState.Hidden) }
-        sendEvent(
-            Event.ShowPermanentDeleteUndo(
+        SnackbarManager.showSnackbar(
+            AppSnackbarModel(
                 message = resourceWrapper.getString(
                     R.string.feature_exercise_detail_permanent_delete_success,
                 ),
+                actionLabel = resourceWrapper.getString(KitR.string.core_ui_kit_toast_undo),
+                // «Отменить» declines a delete that has not run — declining is doing nothing.
+                action = { },
                 // Captures the interactor — app-scoped repositories underneath — never the
                 // Store, whose scope dies with the pop below.
-                commit = { interactor.permanentlyDelete(uuid) },
+                onDismissed = { interactor.permanentlyDelete(uuid) },
             ),
         )
         consume(Action.Navigation.Back)

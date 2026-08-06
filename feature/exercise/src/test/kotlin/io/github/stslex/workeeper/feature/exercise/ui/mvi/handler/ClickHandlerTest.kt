@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagItem
+import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanEditorBodyAction
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
@@ -32,7 +33,9 @@ import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -264,16 +267,17 @@ internal class ClickHandlerTest {
 
     /**
      * ED11's strict order at the handler seam: confirming opens the undo window and DELETES
-     * NOTHING — the interactor is untouched until the window's close signal runs the event's
-     * own commit. Both directions on one flow: zero calls before, exactly one after.
+     * NOTHING — the interactor is untouched until the window's close signal runs the model's
+     * own `onDismissed`. Both directions on one flow: zero calls before, exactly one after.
+     * The model is received from [SnackbarManager] itself — it rides the APP-LEVEL queue
+     * from birth, because a screen-scoped event dies with the popped screen's collector
+     * while carrying the commit.
      */
     @Test
-    fun `confirm permanent delete defers - nothing runs until the commit`() {
+    fun `confirm permanent delete defers - nothing runs until the commit`() = runTest {
         val (_, store, handler) = setup(
             State.create(uuid = "uuid-1").copy(canPermanentlyDelete = true),
         )
-        val events = mutableListOf<Event>()
-        every { store.sendEvent(capture(events)) } answers { }
 
         handler.invoke(Action.Click.OnPermanentDeleteMenuClick)
         handler.invoke(Action.Click.OnConfirmPermanentDelete)
@@ -281,8 +285,8 @@ internal class ClickHandlerTest {
         coVerify(exactly = 0) { interactor.permanentlyDelete(any()) }
         verify { store.consume(Action.Navigation.Back) }
 
-        val pending = events.filterIsInstance<Event.ShowPermanentDeleteUndo>().single()
-        runBlocking { pending.commit() }
+        val pending = SnackbarManager.snackbar.first()
+        pending.onDismissed()
         coVerify(exactly = 1) { interactor.permanentlyDelete("uuid-1") }
     }
 
@@ -396,7 +400,7 @@ internal class ClickHandlerTest {
     }
 
     /**
-     * Round 9: the type-change wipe runs over rows PRESENT in the draft, and a set riding
+     * The type-change wipe runs over rows PRESENT in the draft, and a set riding
      * its toast is absent — the undo must re-enter through the same invariant, or a
      * WEIGHTLESS exercise carries a hidden weight the DB strips and the snapshot keeps.
      * With the sole weighted row removed the draft holds no weights, so the switch is
@@ -438,7 +442,7 @@ internal class ClickHandlerTest {
     }
 
     /**
-     * The in-flight interval (round 3): Save has captured its snapshot but the write has
+     * The in-flight interval: Save has captured its snapshot but the write has
      * not landed — mode is still Edit and the epoch still matches, so [State.isSaving] is
      * the only clause standing between «Отменить» and a row the database will never hold.
      * The inert `launch` mock IS the in-flight simulation: dispatched, never completed.

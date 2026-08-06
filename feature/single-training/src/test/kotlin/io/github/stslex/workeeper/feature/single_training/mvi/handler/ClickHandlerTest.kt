@@ -716,7 +716,7 @@ internal class ClickHandlerTest {
     }
 
     /**
-     * The in-flight interval (round 3): Save has captured its snapshot but the write has
+     * The in-flight interval: Save has captured its snapshot but the write has
      * not landed — mode is still Edit and the epoch still matches, so [State.isSaving] is
      * the only clause standing between «Отменить» and a row the database will never hold.
      * The inert `launch` mock IS the in-flight simulation: dispatched, never completed.
@@ -821,7 +821,7 @@ internal class ClickHandlerTest {
     }
 
     /**
-     * Round 4: both removals queue toasts, so the set toast's «Отменить» can land while
+     * Both removals queue toasts, so the set toast's «Отменить» can land while
      * its card is absent. The restore stashes ([State.pendingSetRestores]) and the exercise
      * undo applies it — tapping Undo on BOTH operations loses nothing.
      */
@@ -903,7 +903,7 @@ internal class ClickHandlerTest {
     }
 
     /**
-     * Round 6: the stash's card can return by the PICKER, not only by its undo — the
+     * The stash's card can return by the PICKER, not only by its undo — the
      * exercise toast expired and the user re-added the same exercise. The fresh card owes
      * the dead removal chain nothing: the stash discards on insert, so a later
      * remove-and-undo of the NEW card cannot resurrect the old set.
@@ -1016,7 +1016,7 @@ internal class ClickHandlerTest {
     }
 
     /**
-     * Round 7, the opposite ordering of the picker re-add: the resolution is ASYNC, and the
+     * The opposite ordering of the picker re-add: the resolution is ASYNC, and the
      * removed card's «Отменить» can restore it while the query is in flight. The completion
      * must dedup against the state it lands on — a blind append seats the same uuid twice,
      * and Save cannot write a duplicate (training_uuid, exercise_uuid) key.

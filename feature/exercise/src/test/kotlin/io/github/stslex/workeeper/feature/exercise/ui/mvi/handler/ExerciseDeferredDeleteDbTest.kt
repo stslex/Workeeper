@@ -7,6 +7,8 @@ import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.data.database.exercise.ExerciseEntity
 import io.github.stslex.workeeper.core.data.database.exercise.ExerciseTypeEntity
 import io.github.stslex.workeeper.core.data.database.testfixtures.RepositoryTestEnv
+import io.github.stslex.workeeper.core.ui.kit.snackbar.AppSnackbarModel
+import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
 import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractorImpl
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
@@ -17,6 +19,7 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
@@ -37,11 +40,13 @@ import kotlin.uuid.Uuid
  *
  * The window itself is the app-level snackbar's lifetime; its close signal is
  * `resolveSnackbarOutcome` (asserted in `SnackbarOutcomeTest`), and what it runs on close is
- * the [Event.ShowPermanentDeleteUndo.commit] captured here. So the three directions are:
+ * the [AppSnackbarModel.onDismissed] received here from [SnackbarManager] itself — the model
+ * rides the app-level queue from birth, never the screen's own event flow. So the three
+ * directions are:
  *
  *  - confirming DELETES NOTHING — the row survives until the window closes (never
  *    delete-first-and-reinsert);
- *  - the window closing — [Event.ShowPermanentDeleteUndo.commit] — removes the row;
+ *  - the window closing — [AppSnackbarModel.onDismissed] — removes the row;
  *  - «Отменить», or a process death inside the window (D-OPEN-10), never runs the commit,
  *    and the row survives. The two are one case at this seam on purpose: undo's action is
  *    a no-op and death is a cancellation, and both leave the commit un-run.
@@ -124,13 +129,13 @@ internal class ExerciseDeferredDeleteDbTest {
         return uuid
     }
 
-    private fun confirmDelete(uuid: Uuid): Event.ShowPermanentDeleteUndo {
-        val (_, events, handler) = handlerFor(
+    private suspend fun confirmDelete(uuid: Uuid): AppSnackbarModel {
+        val (_, _, handler) = handlerFor(
             State.create(uuid = uuid.toString()).copy(canPermanentlyDelete = true),
         )
         handler.invoke(Action.Click.OnPermanentDeleteMenuClick)
         handler.invoke(Action.Click.OnConfirmPermanentDelete)
-        return events.filterIsInstance<Event.ShowPermanentDeleteUndo>().single()
+        return SnackbarManager.snackbar.first()
     }
 
     @Test
@@ -151,7 +156,7 @@ internal class ExerciseDeferredDeleteDbTest {
         assertNotNull(env.exerciseDao.getById(uuid))
 
         // What `resolveSnackbarOutcome` runs on Dismissed/timeout.
-        pending.commit()
+        pending.onDismissed()
 
         assertNull(env.exerciseDao.getById(uuid))
     }
@@ -178,7 +183,7 @@ internal class ExerciseDeferredDeleteDbTest {
         val uuid = seedExercise()
         var pending: suspend () -> Unit
         run {
-            pending = confirmDelete(uuid).commit
+            pending = confirmDelete(uuid).onDismissed
         }
 
         pending()
