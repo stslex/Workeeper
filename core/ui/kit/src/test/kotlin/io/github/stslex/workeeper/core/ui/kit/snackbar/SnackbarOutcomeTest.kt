@@ -2,8 +2,10 @@
 package io.github.stslex.workeeper.core.ui.kit.snackbar
 
 import androidx.compose.material3.SnackbarResult
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 /**
@@ -51,5 +53,47 @@ internal class SnackbarOutcomeTest {
         resolveSnackbarOutcome(null, recorder.model())
         assertEquals(0, recorder.actions)
         assertEquals(1, recorder.dismissals)
+    }
+
+    /**
+     * The containment half of the routing's contract: both callbacks run inside the
+     * app-level collector, which outlives every screen — a throwing commit (B-E7's RESTRICT
+     * gap can reach one until its arc widens the eligibility predicate) must degrade to
+     * B17/B21's silent class, not cancel the one collector every toast shares. These two
+     * pass exactly when [resolveSnackbarOutcome] returns instead of rethrowing.
+     */
+    @Test
+    fun `a throwing commit is contained — the collector outlives it`() = runTest {
+        val model = AppSnackbarModel(
+            message = "m",
+            onDismissed = { error("RESTRICT") },
+        )
+        resolveSnackbarOutcome(null, model)
+    }
+
+    @Test
+    fun `a throwing action is contained — the collector outlives it`() = runTest {
+        val model = AppSnackbarModel(
+            message = "m",
+            actionLabel = "undo",
+            action = { error("boom") },
+        )
+        resolveSnackbarOutcome(SnackbarResult.ActionPerformed, model)
+    }
+
+    /** The collector's own stop signal is not a callback failure — it must still escape. */
+    @Test
+    fun `cancellation is not contained`() = runTest {
+        val model = AppSnackbarModel(
+            message = "m",
+            onDismissed = { throw CancellationException("collector stopping") },
+        )
+        var escaped = false
+        try {
+            resolveSnackbarOutcome(null, model)
+        } catch (expected: CancellationException) {
+            escaped = true
+        }
+        assertTrue(escaped)
     }
 }

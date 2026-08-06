@@ -113,7 +113,9 @@ fun App() {
                     }
                     // ActionPerformed → action; Dismissed or timeout → onDismissed. The
                     // routing is the kit's own named function so the deferred-delete window
-                    // (ED11) is asserted at its selector, not read off this collector.
+                    // (ED11) is asserted at its selector, not read off this collector — and
+                    // the callbacks' failures are contained there: one throwing commit must
+                    // not cancel the collector every toast in the process shares.
                     resolveSnackbarOutcome(result, model)
                 }
         }

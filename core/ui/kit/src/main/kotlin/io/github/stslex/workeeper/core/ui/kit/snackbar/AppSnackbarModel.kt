@@ -3,6 +3,7 @@ package io.github.stslex.workeeper.core.ui.kit.snackbar
 
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.runtime.Stable
+import kotlinx.coroutines.CancellationException
 
 /**
  * One transient message. **There is deliberately no `withDismissAction` here.**
@@ -44,10 +45,25 @@ data class AppSnackbarModel(
  *  - [SnackbarResult.ActionPerformed] → [AppSnackbarModel.action], and ONLY it;
  *  - [SnackbarResult.Dismissed] and `null` — the host's timeout cancelled the show —
  *    → [AppSnackbarModel.onDismissed], and ONLY it.
+ *
+ * Both callbacks run inside the app-level collector — the one coroutine every toast in the
+ * process shares, and the only thing that outlives the screen that scheduled a deferred
+ * delete. So a callback's failure is CONTAINED here: a throwing commit (B-E7's RESTRICT
+ * gap can reach one until its arc widens the eligibility predicate) degrades to the failure
+ * surfacing nothing — B17/B21's recorded class — rather than cancelling the collector,
+ * which would crash the composition and take every later toast with it.
+ * [CancellationException] is the collector's own stop signal, never a callback failure,
+ * and still propagates.
  */
 suspend fun resolveSnackbarOutcome(result: SnackbarResult?, model: AppSnackbarModel) {
-    when (result) {
-        SnackbarResult.ActionPerformed -> model.action()
-        SnackbarResult.Dismissed, null -> model.onDismissed()
+    try {
+        when (result) {
+            SnackbarResult.ActionPerformed -> model.action()
+            SnackbarResult.Dismissed, null -> model.onDismissed()
+        }
+    } catch (cancellation: CancellationException) {
+        throw cancellation
+    } catch (@Suppress("TooGenericExceptionCaught") _: Exception) {
+        // Contained by the KDoc's contract: the pipeline outlives the failure.
     }
 }

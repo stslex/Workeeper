@@ -457,3 +457,15 @@ component, so **both** its modes (read-only with image / read-only with the plac
   the RESTRICT FKs fire on any session state and on archived templates too, so the app-level
   gate is narrower than the constraint it fronts. **Not this arc's work** — it is the
   archive/all-exercises cluster's (B23's neighbourhood).
+- **B-E7, amendment — the same gate fronts S7's deferred delete, and there the throw was a
+  crash, not a silence.** Raised by review round 2 (P1): `canPermanentlyDeleteImmediately`
+  also gates the exercise screen's delete menu item, so an exercise referenced only by
+  archived templates — or by an unfinished session — offers a delete whose commit hits the
+  same RESTRICT the row above records. S7 runs that commit inside the app-level snackbar
+  collector (`resolveSnackbarOutcome`), and there an uncaught throw does not vanish the way
+  the archive screen's `launch`-with-no-`onError` does — it cancels the collector,
+  crashes the composition, and takes every later toast in the process with it. The host now
+  contains callback failures at the routing (rethrowing only `CancellationException`), which
+  degrades this back to B17/B21's recorded silent class until the predicate work lands.
+  The predicate itself stays where the row above put it: the archive/all-exercises
+  cluster's, not this arc's.
