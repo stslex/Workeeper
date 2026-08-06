@@ -623,7 +623,14 @@ internal class ClickHandler @Inject constructor(
                 return@updateState current
             }
             if (current.exercises.any { it.exerciseUuid == action.item.exerciseUuid }) {
-                return@updateState current
+                // The card is already back by another route (the picker): stashes for it
+                // belong to the dead removal chain and must not wait around to resurrect
+                // into the NEW card's own remove-and-undo.
+                return@updateState current.copy(
+                    pendingSetRestores = current.pendingSetRestores
+                        .filterNot { it.exerciseUuid == action.item.exerciseUuid }
+                        .toImmutableList(),
+                )
             }
             // Stashed set restores that fired while this card was absent go back into it
             // now, in tap order — [State.pendingSetRestores]. The plan was frozen while
@@ -777,6 +784,14 @@ internal class ClickHandler @Inject constructor(
                     }
                     latest.copy(
                         exercises = (latest.exercises + nextItems).toImmutableList(),
+                        // A picker insert is a FRESH card: a stash left by the removed
+                        // card's chain must not resurrect into it on a later undo
+                        // ([State.pendingSetRestores]'s lifecycle).
+                        pendingSetRestores = latest.pendingSetRestores
+                            .filterNot { stash ->
+                                nextItems.any { it.exerciseUuid == stash.exerciseUuid }
+                            }
+                            .toImmutableList(),
                         pickerState = PickerState.Closed,
                         // D-OPEN-8: an insert is an addressed gesture whose next step is the
                         // plan, so the inserted card opens — the FIRST only on a multi-insert.

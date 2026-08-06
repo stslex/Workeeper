@@ -902,6 +902,119 @@ internal class ClickHandlerTest {
         assertTrue(stateFlow.value.pendingSetRestores.isEmpty())
     }
 
+    /**
+     * Round 6: the stash's card can return by the PICKER, not only by its undo — the
+     * exercise toast expired and the user re-added the same exercise. The fresh card owes
+     * the dead removal chain nothing: the stash discards on insert, so a later
+     * remove-and-undo of the NEW card cannot resurrect the old set.
+     */
+    @Test
+    fun `a picker re-add discards the stash for the returned card`() {
+        val set = PlanSetUiModel(weight = 60.0, reps = 10, type = SetTypeUiModel.WORK)
+        stateFlow.value = stateFlow.value.copy(
+            mode = State.Mode.Edit(isCreate = false),
+            exercises = persistentListOf(
+                exercise("ex-1").copy(planSets = persistentListOf(set), planSummary = "60×10"),
+            ),
+        )
+        val events = mutableListOf<Event>()
+        every { store.sendEvent(capture(events)) } answers { }
+        handler.invoke(
+            Action.Click.OnExercisePlanAction("ex-1", PlanEditorBodyAction.OnSetRemove(0)),
+        )
+        val setUndo = events.filterIsInstance<Event.ShowSetRemovedUndo>().single()
+        handler.invoke(Action.Click.OnExerciseRemove("ex-1"))
+        handler.invoke(
+            Action.Click.OnUndoSetRemove(
+                exerciseUuid = setUndo.exerciseUuid,
+                set = setUndo.set,
+                index = setUndo.index,
+                draftEpoch = setUndo.draftEpoch,
+            ),
+        )
+        assertEquals(1, stateFlow.value.pendingSetRestores.size)
+
+        // The exercise toast expires unheeded; the user re-adds the card by the picker.
+        every {
+            store.launch(any(), any(), any(), any(), any<suspend CoroutineScope.() -> Any?>())
+        } answers {
+            val onSuccess = arg<suspend CoroutineScope.(Any?) -> Unit>(1)
+            val action = arg<suspend CoroutineScope.() -> Any?>(4)
+            runBlocking { onSuccess(this, action()) }
+            mockk(relaxed = true)
+        }
+        coEvery { interactor.resolveExercises(listOf("ex-1")) } returns listOf(
+            PickerExercise(
+                exercise = ExerciseDomain("ex-1", "Bench", ExerciseTypeDomain.WEIGHTED, null, null),
+                labels = emptyList(),
+            ),
+        )
+        stateFlow.value = stateFlow.value.copy(
+            pickerState = State.PickerState.Open(
+                query = "",
+                results = persistentListOf(),
+                selectedUuids = persistentListOf("ex-1"),
+            ),
+        )
+        handler.invoke(Action.Click.OnPickerConfirm)
+        assertTrue(stateFlow.value.pendingSetRestores.isEmpty())
+
+        // The NEW card's own remove-and-undo must not resurrect the old set.
+        handler.invoke(Action.Click.OnExerciseRemove("ex-1"))
+        val exerciseUndo = events.filterIsInstance<Event.ShowExerciseRemovedUndo>().last()
+        handler.invoke(
+            Action.Click.OnUndoExerciseRemove(
+                item = exerciseUndo.item,
+                wasExpanded = exerciseUndo.wasExpanded,
+                draftEpoch = exerciseUndo.draftEpoch,
+            ),
+        )
+        assertEquals(null, stateFlow.value.exercises.single().planSets)
+    }
+
+    /** The same discard on the undo's own already-back branch — the picker beat it there. */
+    @Test
+    fun `an exercise undo that finds its card already back discards the stash`() {
+        val set = PlanSetUiModel(weight = 60.0, reps = 10, type = SetTypeUiModel.WORK)
+        stateFlow.value = stateFlow.value.copy(
+            mode = State.Mode.Edit(isCreate = false),
+            exercises = persistentListOf(
+                exercise("ex-1").copy(planSets = persistentListOf(set), planSummary = "60×10"),
+            ),
+        )
+        val events = mutableListOf<Event>()
+        every { store.sendEvent(capture(events)) } answers { }
+        handler.invoke(
+            Action.Click.OnExercisePlanAction("ex-1", PlanEditorBodyAction.OnSetRemove(0)),
+        )
+        val setUndo = events.filterIsInstance<Event.ShowSetRemovedUndo>().single()
+        handler.invoke(Action.Click.OnExerciseRemove("ex-1"))
+        handler.invoke(
+            Action.Click.OnUndoSetRemove(
+                exerciseUuid = setUndo.exerciseUuid,
+                set = setUndo.set,
+                index = setUndo.index,
+                draftEpoch = setUndo.draftEpoch,
+            ),
+        )
+        val exerciseUndo = events.filterIsInstance<Event.ShowExerciseRemovedUndo>().single()
+
+        // The picker already returned the card (state set directly, the insert's shape).
+        stateFlow.value = stateFlow.value.copy(
+            exercises = persistentListOf(exercise("ex-1")),
+        )
+        handler.invoke(
+            Action.Click.OnUndoExerciseRemove(
+                item = exerciseUndo.item,
+                wasExpanded = exerciseUndo.wasExpanded,
+                draftEpoch = exerciseUndo.draftEpoch,
+            ),
+        )
+
+        assertTrue(stateFlow.value.pendingSetRestores.isEmpty())
+        assertEquals(null, stateFlow.value.exercises.single().planSets)
+    }
+
     @Test
     fun `the dashed add chip opens the tag picker sheet`() {
         handler.invoke(Action.Click.OnTagAddClick)
