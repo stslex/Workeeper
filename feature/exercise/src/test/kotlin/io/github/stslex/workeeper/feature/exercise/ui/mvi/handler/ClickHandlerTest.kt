@@ -12,6 +12,8 @@ import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
 import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor
+import io.github.stslex.workeeper.feature.exercise.domain.model.SaveResult
+import io.github.stslex.workeeper.feature.exercise.domain.model.TagDomain
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PendingImage
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.BottomSheetState
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.DialogState
@@ -20,12 +22,14 @@ import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Di
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Event
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State.Mode
+import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
 import kotlinx.collections.immutable.persistentListOf
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.runBlocking
@@ -389,6 +393,131 @@ internal class ClickHandlerTest {
         )
 
         assertNull(stateFlow.value.adhocPlan)
+    }
+
+    /**
+     * The in-flight interval (round 3): Save has captured its snapshot but the write has
+     * not landed — mode is still Edit and the epoch still matches, so [State.isSaving] is
+     * the only clause standing between «Отменить» and a row the database will never hold.
+     * The inert `launch` mock IS the in-flight simulation: dispatched, never completed.
+     */
+    @Test
+    fun `an undo during the save's write edits nothing`() {
+        val plan = persistentListOf(
+            PlanSetUiModel(weight = 60.0, reps = 10, type = SetTypeUiModel.WORK),
+        )
+        val (stateFlow, store, handler) = setup(
+            State.create(uuid = "00000000-0000-0000-0000-000000000001").copy(
+                mode = Mode.Edit(isCreate = false),
+                name = "Bench",
+                adhocPlan = plan,
+            ),
+        )
+        val events = mutableListOf<Event>()
+        every { store.sendEvent(capture(events)) } answers { }
+        handler.invoke(
+            Action.Click.OnAdhocPlanEditorAction(PlanEditorBodyAction.OnSetRemove(0)),
+        )
+        val undo = events.filterIsInstance<Event.ShowSetRemovedUndo>().single()
+
+        handler.invoke(Action.Click.OnSaveClick)
+        assertTrue(stateFlow.value.isSaving)
+
+        handler.invoke(
+            Action.Click.OnUndoSetRemove(
+                set = undo.set,
+                index = undo.index,
+                draftEpoch = undo.draftEpoch,
+            ),
+        )
+
+        assertNull(stateFlow.value.adhocPlan)
+    }
+
+    /**
+     * `DuplicateName` keeps the draft in Edit — the failure that re-arms its undos. The
+     * `launch` mock runs the save's action and outcome synchronously; `updateStateImmediate`
+     * is given a real implementation because both outcome branches land through it.
+     */
+    @Test
+    fun `a duplicate-name save re-arms the draft's undos`() {
+        val plan = persistentListOf(
+            PlanSetUiModel(weight = 60.0, reps = 10, type = SetTypeUiModel.WORK),
+        )
+        val (stateFlow, store, handler) = setup(
+            State.create(uuid = "00000000-0000-0000-0000-000000000001").copy(
+                mode = Mode.Edit(isCreate = false),
+                name = "Bench",
+                adhocPlan = plan,
+            ),
+        )
+        coEvery { store.updateStateImmediate(any<suspend (State) -> State>()) } coAnswers {
+            val update = firstArg<suspend (State) -> State>()
+            stateFlow.value = update(stateFlow.value)
+        }
+        val events = mutableListOf<Event>()
+        every { store.sendEvent(capture(events)) } answers { }
+        handler.invoke(
+            Action.Click.OnAdhocPlanEditorAction(PlanEditorBodyAction.OnSetRemove(0)),
+        )
+        val undo = events.filterIsInstance<Event.ShowSetRemovedUndo>().single()
+
+        every {
+            store.launch(any(), any(), any(), any(), any<suspend CoroutineScope.() -> Any?>())
+        } answers {
+            val onSuccess = arg<suspend CoroutineScope.(Any?) -> Unit>(1)
+            val action = arg<suspend CoroutineScope.() -> Any?>(4)
+            runBlocking { onSuccess(this, action()) }
+            mockk(relaxed = true)
+        }
+        coEvery { interactor.saveExercise(any()) } returns SaveResult.DuplicateName
+
+        handler.invoke(Action.Click.OnSaveClick)
+        assertTrue(stateFlow.value.nameDuplicateError)
+        assertFalse(stateFlow.value.isSaving)
+
+        handler.invoke(
+            Action.Click.OnUndoSetRemove(
+                set = undo.set,
+                index = undo.index,
+                draftEpoch = undo.draftEpoch,
+            ),
+        )
+
+        assertEquals(plan, stateFlow.value.adhocPlan)
+    }
+
+    /**
+     * The repository returns the EXISTING row for a name that already exists, so a create
+     * reached with a padded already-selected name must not chip it twice — the persisted
+     * links dedup on Save, and the draft must agree with them.
+     */
+    @Test
+    fun `createTag resolving to an already-selected tag does not duplicate the chip`() {
+        val (stateFlow, store, handler) = setup(
+            State.create(uuid = "uuid-1").copy(
+                tags = persistentListOf(AppTagItem(uuid = "t1", name = "Push")),
+                tagSearchQuery = " Push ",
+            ),
+        )
+        coEvery { store.updateStateImmediate(any<suspend (State) -> State>()) } coAnswers {
+            val update = firstArg<suspend (State) -> State>()
+            stateFlow.value = update(stateFlow.value)
+        }
+        every {
+            store.launch(any(), any(), any(), any(), any<suspend CoroutineScope.() -> Any?>())
+        } answers {
+            val onSuccess = arg<suspend CoroutineScope.(Any?) -> Unit>(1)
+            val action = arg<suspend CoroutineScope.() -> Any?>(4)
+            runBlocking { onSuccess(this, action()) }
+            mockk(relaxed = true)
+        }
+        coEvery { interactor.createTag("Push") } returns TagDomain(uuid = "t1", name = "Push")
+
+        handler.invoke(Action.Click.OnTagCreate(" Push "))
+
+        assertEquals(listOf("t1"), stateFlow.value.tags.map { it.uuid })
+        assertEquals("", stateFlow.value.tagSearchQuery)
     }
 
     /** The toast fires on the REMOVE alone — a value edit is not a removal. */

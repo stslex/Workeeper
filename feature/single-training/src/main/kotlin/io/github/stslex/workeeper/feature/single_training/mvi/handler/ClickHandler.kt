@@ -39,7 +39,7 @@ import kotlinx.coroutines.withContext
 import kotlin.uuid.Uuid
 import io.github.stslex.workeeper.core.ui.plan_editor.R as CoreEditorR
 
-@Suppress("TooManyFunctions", "LongMethod")
+@Suppress("TooManyFunctions", "LongMethod", "LargeClass")
 @SingleIn(SingleTrainingScope::class)
 internal class ClickHandler @Inject constructor(
     private val interactor: SingleTrainingInteractor,
@@ -329,7 +329,14 @@ internal class ClickHandler @Inject constructor(
                 planSets = item.planSets?.map { it.toDomain() },
             )
         }
+        // The snapshot above is captured: from here until an outcome lands, an undo would
+        // reach the screen and miss the write ([State.isSaving]'s KDoc).
+        updateState { it.copy(isSaving = true) }
         launch(
+            onError = {
+                // The draft is still alive — its undos re-arm with it.
+                updateStateImmediate { latest -> latest.copy(isSaving = false) }
+            },
             onSuccess = {
                 if (isCreate) {
                     withContext(mainDispatcher) { consume(Action.Navigation.Back) }
@@ -338,6 +345,7 @@ internal class ClickHandler @Inject constructor(
                         latest.copy(
                             uuid = resolvedUuid,
                             mode = Mode.Read,
+                            isSaving = false,
                             originalSnapshot = latest.toSnapshot(),
                         )
                     }
@@ -547,12 +555,20 @@ internal class ClickHandler @Inject constructor(
         }
     }
 
-    /** The set-removed toast's «Отменить»: the addressed card's draft takes the row back. */
+    /**
+     * The set-removed toast's «Отменить»: the addressed card's draft takes the row back.
+     * Two stacked removals in one card can restore out of order — B-E8 records why exact
+     * composition needs row identity the plan rows do not carry.
+     */
     private fun processUndoSetRemove(action: Action.Click.OnUndoSetRemove) {
         updateState { current ->
             // The toast can outlive the draft (Save/Cancel ended it, Edit may have begun a
-            // new one) — a stale «Отменить» edits nothing. [State.draftEpoch]'s KDoc.
-            if (current.mode !is Mode.Edit || action.draftEpoch != current.draftEpoch) {
+            // new one) or land while a save's captured snapshot is in flight — a stale
+            // «Отменить» edits nothing. [State.draftEpoch] and [State.isSaving], both KDocs.
+            if (current.isSaving ||
+                current.mode !is Mode.Edit ||
+                action.draftEpoch != current.draftEpoch
+            ) {
                 return@updateState current
             }
             val target = current.exercises.firstOrNull { it.exerciseUuid == action.exerciseUuid }
@@ -584,8 +600,12 @@ internal class ClickHandler @Inject constructor(
      */
     private fun processUndoExerciseRemove(action: Action.Click.OnUndoExerciseRemove) {
         updateState { current ->
-            // Same stale-toast guard as the set undo above — [State.draftEpoch]'s KDoc.
-            if (current.mode !is Mode.Edit || action.draftEpoch != current.draftEpoch) {
+            // Same stale-toast guard as the set undo above — [State.draftEpoch] and
+            // [State.isSaving], both KDocs.
+            if (current.isSaving ||
+                current.mode !is Mode.Edit ||
+                action.draftEpoch != current.draftEpoch
+            ) {
                 return@updateState current
             }
             if (current.exercises.any { it.exerciseUuid == action.item.exerciseUuid }) {
@@ -651,13 +671,21 @@ internal class ClickHandler @Inject constructor(
         launch(
             onSuccess = { tag ->
                 updateStateImmediate { current ->
+                    // The repository returns the EXISTING row for a name that already
+                    // exists, so «Создать» over an already-selected name must not chip it
+                    // twice — the persisted links dedup on Save, the draft must agree.
+                    val alreadySelected = current.tags.any { it.uuid == tag.uuid }
                     current.copy(
-                        tags = (
-                            current.tags + AppTagItem(
-                                uuid = tag.uuid,
-                                name = tag.name,
-                            )
-                            ).toImmutableList(),
+                        tags = if (alreadySelected) {
+                            current.tags
+                        } else {
+                            (
+                                current.tags + AppTagItem(
+                                    uuid = tag.uuid,
+                                    name = tag.name,
+                                )
+                                ).toImmutableList()
+                        },
                         tagSearchQuery = "",
                     )
                 }

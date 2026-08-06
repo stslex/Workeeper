@@ -7,7 +7,10 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Text
@@ -18,6 +21,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import io.github.stslex.workeeper.core.ui.kit.R
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButton
 import io.github.stslex.workeeper.core.ui.kit.components.input.AppTextField
@@ -30,6 +34,7 @@ import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.ImmutableSet
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.persistentSetOf
+import kotlinx.collections.immutable.toImmutableList
 
 /**
  * The tag picker's sheet (ED7): search field · the dictionary as selectable chips, a tap
@@ -59,16 +64,12 @@ fun AppTagPickerSheetContent(
     onDone: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val normalizedQuery = searchQuery.trim()
     val filtered = remember(searchQuery, availableTags) {
-        if (searchQuery.isBlank()) {
-            availableTags
-        } else {
-            availableTags.filter { it.name.startsWith(searchQuery, ignoreCase = true) }
-        }
+        tagPickerFiltered(searchQuery, availableTags)
     }
     val canCreate = remember(searchQuery, availableTags) {
-        searchQuery.isNotBlank() &&
-            availableTags.none { it.name.equals(searchQuery, ignoreCase = true) }
+        tagPickerCanCreate(searchQuery, availableTags)
     }
     Column(modifier = modifier.fillMaxWidth()) {
         Text(
@@ -89,8 +90,14 @@ fun AppTagPickerSheetContent(
         )
         Spacer(Modifier.height(AppDimension.Space.md))
         if (filtered.isNotEmpty()) {
+            // Bounded and scrollable, or a tall dictionary walks the create row and «Готово»
+            // out of the window (landscape, keyboard open). 360dp is the exercise picker's
+            // own bound for the same seat in the same sheet family (`ExercisePickerSheet`).
             FlowRow(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = CHIP_AREA_MAX_HEIGHT)
+                    .verticalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.xs),
                 verticalArrangement = Arrangement.spacedBy(AppDimension.Space.xs),
             ) {
@@ -107,8 +114,8 @@ fun AppTagPickerSheetContent(
         if (canCreate) {
             AppSheetItem(
                 modifier = Modifier.testTag(CREATE_ROW_TAG),
-                title = stringResource(R.string.core_ui_kit_tag_create_format, searchQuery),
-                onClick = { onTagCreate(searchQuery) },
+                title = stringResource(R.string.core_ui_kit_tag_create_format, normalizedQuery),
+                onClick = { onTagCreate(normalizedQuery) },
             )
         }
         Spacer(Modifier.height(AppDimension.Space.lg))
@@ -121,6 +128,41 @@ fun AppTagPickerSheetContent(
         )
     }
 }
+
+/**
+ * The dictionary filter, trimmed before matching so the same normalization backs both
+ * predicates. Named so it is directly assertable (§27's discipline).
+ */
+internal fun tagPickerFiltered(
+    query: String,
+    availableTags: ImmutableList<AppTagItem>,
+): ImmutableList<AppTagItem> {
+    val normalized = query.trim()
+    return if (normalized.isEmpty()) {
+        availableTags
+    } else {
+        availableTags.filter { it.name.startsWith(normalized, ignoreCase = true) }
+            .toImmutableList()
+    }
+}
+
+/**
+ * «+ Создать «X»» appears exactly when the TRIMMED query has no exact match. The trim is
+ * load-bearing: the feature handlers trim before `createTag`, and the repository returns
+ * the EXISTING row for a name that already exists — so an untrimmed « Push » here would
+ * offer a create that resolves to the already-selected `Push` and duplicate its chip.
+ */
+internal fun tagPickerCanCreate(
+    query: String,
+    availableTags: ImmutableList<AppTagItem>,
+): Boolean {
+    val normalized = query.trim()
+    return normalized.isNotEmpty() &&
+        availableTags.none { it.name.equals(normalized, ignoreCase = true) }
+}
+
+/** The exercise picker's own list bound (`ExercisePickerSheet`), for the same seat. */
+private val CHIP_AREA_MAX_HEIGHT = 360.dp
 
 /** Stable across both hosts, so a UI test does not need to know which editor opened it. */
 const val SEARCH_FIELD_TAG: String = "AppTagPickerSearch"

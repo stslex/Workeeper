@@ -34,6 +34,13 @@ interface SingleTrainingStore : Store<State, Action, Event> {
          * cannot put an unsaved row onto the Read screen or into a draft it never edited.
          */
         val draftEpoch: Int,
+        /**
+         * A save's write is in flight: the snapshot is already captured, so the draft may
+         * not take an undo any more — a row restored now would reach the screen and miss
+         * the database. Set when Save dispatches, cleared on every outcome (the success
+         * flip to Read, or the failure that keeps the draft alive and re-arms its undos).
+         */
+        val isSaving: Boolean,
         val name: String,
         val nameError: Boolean,
         val description: String,
@@ -147,6 +154,7 @@ interface SingleTrainingStore : Store<State, Action, Event> {
                 uuid = uuid,
                 mode = if (uuid == null) Mode.Edit(isCreate = true) else Mode.Read,
                 draftEpoch = 0,
+                isSaving = false,
                 name = "",
                 nameError = false,
                 description = "",

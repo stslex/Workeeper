@@ -286,7 +286,14 @@ internal class ClickHandler @Inject constructor(
         // so navigator.popBack() lands on the UI thread.
 
         val resolvedUuid = Uuid.parseOrRandom(current.uuid)
+        // The snapshot above is captured: from here until an outcome lands, an undo would
+        // reach the screen and miss the write ([State.isSaving]'s KDoc).
+        updateState { it.copy(isSaving = true) }
         launch(
+            onError = {
+                // The draft is still alive — its undos re-arm with it.
+                updateStateImmediate { latest -> latest.copy(isSaving = false) }
+            },
             onSuccess = { outcome ->
                 when (outcome) {
                     is SaveOutcome.Success -> handleSaveSuccess(
@@ -297,10 +304,13 @@ internal class ClickHandler @Inject constructor(
                     )
 
                     SaveOutcome.DuplicateName -> updateStateImmediate {
-                        it.copy(nameDuplicateError = true)
+                        it.copy(nameDuplicateError = true, isSaving = false)
                     }
 
-                    SaveOutcome.ImageSaveFailed -> Unit // error toast already emitted.
+                    // Error toast already emitted; the draft stays in Edit, undos re-arm.
+                    SaveOutcome.ImageSaveFailed -> updateStateImmediate {
+                        it.copy(isSaving = false)
+                    }
                 }
             },
         ) {
@@ -393,6 +403,7 @@ internal class ClickHandler @Inject constructor(
                 latest.copy(
                     uuid = resolvedUuid,
                     mode = Mode.Read,
+                    isSaving = false,
                     originalSnapshot = savedSnapshot,
                     imagePath = finalImagePath,
                     imageLastModified = System.currentTimeMillis(),
@@ -647,12 +658,20 @@ internal class ClickHandler @Inject constructor(
         }
     }
 
-    /** The set-removed toast's «Отменить»: the draft takes the row back where it was. */
+    /**
+     * The set-removed toast's «Отменить»: the draft takes the row back where it was.
+     * Two stacked removals can restore out of order — B-E8 records why exact composition
+     * needs row identity the plan rows do not carry.
+     */
     private fun processUndoSetRemove(action: Action.Click.OnUndoSetRemove) {
         updateState { latest ->
             // The toast can outlive the draft (Save/Cancel ended it, Edit may have begun a
-            // new one) — a stale «Отменить» edits nothing. [State.draftEpoch]'s KDoc.
-            if (latest.mode !is Mode.Edit || action.draftEpoch != latest.draftEpoch) {
+            // new one) or land while a save's captured snapshot is in flight — a stale
+            // «Отменить» edits nothing. [State.draftEpoch] and [State.isSaving], both KDocs.
+            if (latest.isSaving ||
+                latest.mode !is Mode.Edit ||
+                action.draftEpoch != latest.draftEpoch
+            ) {
                 return@updateState latest
             }
             val draft = latest.adhocPlan ?: persistentListOf()
@@ -730,13 +749,21 @@ internal class ClickHandler @Inject constructor(
         launch(
             onSuccess = { tag ->
                 updateStateImmediate { state ->
+                    // The repository returns the EXISTING row for a name that already
+                    // exists, so «Создать» over an already-selected name must not chip it
+                    // twice — the persisted links dedup on Save, the draft must agree.
+                    val alreadySelected = state.tags.any { it.uuid == tag.uuid }
                     state.copy(
-                        tags = (
-                            state.tags + AppTagItem(
-                                uuid = tag.uuid,
-                                name = tag.name,
-                            )
-                            ).toImmutableList(),
+                        tags = if (alreadySelected) {
+                            state.tags
+                        } else {
+                            (
+                                state.tags + AppTagItem(
+                                    uuid = tag.uuid,
+                                    name = tag.name,
+                                )
+                                ).toImmutableList()
+                        },
                         tagSearchQuery = "",
                     )
                 }

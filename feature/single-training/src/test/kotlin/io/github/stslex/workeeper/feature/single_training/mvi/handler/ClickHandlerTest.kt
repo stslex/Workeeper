@@ -3,6 +3,7 @@ package io.github.stslex.workeeper.feature.single_training.mvi.handler
 
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
+import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagItem
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanEditorBodyAction
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
@@ -12,6 +13,7 @@ import io.github.stslex.workeeper.feature.single_training.domain.SingleTrainingI
 import io.github.stslex.workeeper.feature.single_training.domain.model.ExerciseDomain
 import io.github.stslex.workeeper.feature.single_training.domain.model.ExerciseTypeDomain
 import io.github.stslex.workeeper.feature.single_training.domain.model.PickerExercise
+import io.github.stslex.workeeper.feature.single_training.domain.model.TagDomain
 import io.github.stslex.workeeper.feature.single_training.mvi.model.TrainingExerciseItem
 import io.github.stslex.workeeper.feature.single_training.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.Action
@@ -711,6 +713,111 @@ internal class ClickHandlerTest {
         )
 
         assertEquals(listOf("ex-2"), stateFlow.value.exercises.map { it.exerciseUuid })
+    }
+
+    /**
+     * The in-flight interval (round 3): Save has captured its snapshot but the write has
+     * not landed — mode is still Edit and the epoch still matches, so [State.isSaving] is
+     * the only clause standing between «Отменить» and a row the database will never hold.
+     * The inert `launch` mock IS the in-flight simulation: dispatched, never completed.
+     */
+    @Test
+    fun `an undo during the save's write edits nothing`() {
+        val set = PlanSetUiModel(weight = 60.0, reps = 10, type = SetTypeUiModel.WORK)
+        stateFlow.value = stateFlow.value.copy(
+            mode = State.Mode.Edit(isCreate = false),
+            name = "Push Day",
+            exercises = persistentListOf(
+                exercise("ex-1").copy(planSets = persistentListOf(set), planSummary = "60×10"),
+            ),
+        )
+        val events = mutableListOf<Event>()
+        every { store.sendEvent(capture(events)) } answers { }
+        handler.invoke(
+            Action.Click.OnExercisePlanAction("ex-1", PlanEditorBodyAction.OnSetRemove(0)),
+        )
+        val undo = events.filterIsInstance<Event.ShowSetRemovedUndo>().single()
+
+        handler.invoke(Action.Click.OnSaveClick)
+        assertTrue(stateFlow.value.isSaving)
+
+        handler.invoke(
+            Action.Click.OnUndoSetRemove(
+                exerciseUuid = undo.exerciseUuid,
+                set = undo.set,
+                index = undo.index,
+                draftEpoch = undo.draftEpoch,
+            ),
+        )
+
+        assertEquals(null, stateFlow.value.exercises.single().planSets)
+    }
+
+    /** A failed write keeps the draft alive, and the draft's undos re-arm with it. */
+    @Test
+    fun `a failed save re-arms the draft's undos`() {
+        val set = PlanSetUiModel(weight = 60.0, reps = 10, type = SetTypeUiModel.WORK)
+        stateFlow.value = stateFlow.value.copy(
+            mode = State.Mode.Edit(isCreate = false),
+            name = "Push Day",
+            exercises = persistentListOf(
+                exercise("ex-1").copy(planSets = persistentListOf(set), planSummary = "60×10"),
+            ),
+        )
+        val events = mutableListOf<Event>()
+        every { store.sendEvent(capture(events)) } answers { }
+        handler.invoke(
+            Action.Click.OnExercisePlanAction("ex-1", PlanEditorBodyAction.OnSetRemove(0)),
+        )
+        val undo = events.filterIsInstance<Event.ShowSetRemovedUndo>().single()
+
+        every {
+            store.launch(any(), any(), any(), any(), any<suspend CoroutineScope.() -> Any?>())
+        } answers {
+            val onError = arg<suspend (Throwable) -> Unit>(0)
+            runBlocking { onError(RuntimeException("db full")) }
+            mockk(relaxed = true)
+        }
+        handler.invoke(Action.Click.OnSaveClick)
+        assertFalse(stateFlow.value.isSaving)
+
+        handler.invoke(
+            Action.Click.OnUndoSetRemove(
+                exerciseUuid = undo.exerciseUuid,
+                set = undo.set,
+                index = undo.index,
+                draftEpoch = undo.draftEpoch,
+            ),
+        )
+
+        assertEquals(listOf(set), stateFlow.value.exercises.single().planSets)
+    }
+
+    /**
+     * The repository returns the EXISTING row for a name that already exists, so a create
+     * reached with a padded already-selected name must not chip it twice — the persisted
+     * links dedup on Save, and the draft must agree with them.
+     */
+    @Test
+    fun `createTag resolving to an already-selected tag does not duplicate the chip`() {
+        stateFlow.value = stateFlow.value.copy(
+            tags = persistentListOf(AppTagItem(uuid = "t1", name = "Push")),
+            tagSearchQuery = " Push ",
+        )
+        every {
+            store.launch(any(), any(), any(), any(), any<suspend CoroutineScope.() -> Any?>())
+        } answers {
+            val onSuccess = arg<suspend CoroutineScope.(Any?) -> Unit>(1)
+            val action = arg<suspend CoroutineScope.() -> Any?>(4)
+            runBlocking { onSuccess(this, action()) }
+            mockk(relaxed = true)
+        }
+        coEvery { interactor.createTag("Push") } returns TagDomain(uuid = "t1", name = "Push")
+
+        handler.invoke(Action.Click.OnTagCreate(" Push "))
+
+        assertEquals(listOf("t1"), stateFlow.value.tags.map { it.uuid })
+        assertEquals("", stateFlow.value.tagSearchQuery)
     }
 
     @Test
