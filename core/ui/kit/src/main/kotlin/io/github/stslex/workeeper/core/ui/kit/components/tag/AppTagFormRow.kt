@@ -20,9 +20,8 @@ import kotlinx.collections.immutable.persistentListOf
  * with the section head's own word, no button row stacked over a text field; the search and
  * the dictionary live in the sheet.
  *
- * ONE component for both editors, which is this row's whole reason to be in the kit: the two
- * `internal` `TagPickerInline` copies it replaces differed only in test tags, two string ids,
- * one `@Suppress` and previews (`v3-editors.md` §2, B36).
+ * ONE component for both editors — this row's whole reason to be in the kit (ED7,
+ * `v3-editors.md` §2, B36): a feature must not grow its own copy of it.
  */
 @Composable
 fun AppTagFormRow(
