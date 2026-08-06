@@ -6,9 +6,8 @@ import androidx.compose.runtime.Stable
 /**
  * One tag of the shared dictionary, as the kit's tag components consume it.
  *
- * This is the model both feature editors used to duplicate as their own `TagUiModel`
- * (`v3-editors.md` §2, "one of the two internal TagPickerInline copies dies"): the picker is
- * ONE kit component now (ED7), so the two byte-identical models collapse onto its own.
+ * Kit-owned because the tag picker is ONE kit component (ED7): a feature that embeds it
+ * carries this model in its `State` rather than declaring a per-feature copy —
  * `BlockedArchiveItem` is the precedent for a kit-owned model carried in feature State.
  */
 @Stable
