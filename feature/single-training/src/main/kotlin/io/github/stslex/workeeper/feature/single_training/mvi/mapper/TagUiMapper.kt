@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.single_training.mvi.mapper
 
+import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagItem
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
@@ -8,11 +9,10 @@ import io.github.stslex.workeeper.feature.single_training.domain.model.ExerciseT
 import io.github.stslex.workeeper.feature.single_training.domain.model.PlanSetDomain
 import io.github.stslex.workeeper.feature.single_training.domain.model.SetTypeDomain
 import io.github.stslex.workeeper.feature.single_training.domain.model.TagDomain
-import io.github.stslex.workeeper.feature.single_training.mvi.model.TagUiModel
 
 internal object TagUiMapper {
 
-    fun TagDomain.toUi(): TagUiModel = TagUiModel(uuid = uuid, name = name)
+    fun TagDomain.toUi(): AppTagItem = AppTagItem(uuid = uuid, name = name)
 
     fun ExerciseTypeDomain.toUi(): ExerciseTypeUiModel = when (this) {
         ExerciseTypeDomain.WEIGHTED -> ExerciseTypeUiModel.WEIGHTED

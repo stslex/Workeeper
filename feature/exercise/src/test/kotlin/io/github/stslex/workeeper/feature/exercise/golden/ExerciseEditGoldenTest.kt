@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.exercise.golden
 
+import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagItem
 import io.github.stslex.workeeper.core.ui.kit.golden.GoldenTheme
 import io.github.stslex.workeeper.core.ui.kit.golden.LOCALE_RU
 import io.github.stslex.workeeper.core.ui.kit.golden.golden
@@ -11,7 +12,6 @@ import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.exercise.ui.ExerciseEditScreen
 import io.github.stslex.workeeper.feature.exercise.ui.components.PlanInfoSheetContent
-import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.TagUiModel
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State
 import kotlinx.collections.immutable.toImmutableList
 import org.junit.jupiter.api.TestInfo
@@ -49,8 +49,8 @@ internal class ExerciseEditGoldenTest {
                 state = State.create(uuid = null).copy(
                     isLoading = false,
                     availableTags = listOf(
-                        TagUiModel(uuid = "t1", name = "грудь"),
-                        TagUiModel(uuid = "t2", name = "трицепс"),
+                        AppTagItem(uuid = "t1", name = "грудь"),
+                        AppTagItem(uuid = "t2", name = "трицепс"),
                     ).toImmutableList(),
                 ),
                 consume = {},
@@ -130,10 +130,10 @@ internal class ExerciseEditGoldenTest {
             name = name,
             type = ExerciseTypeUiModel.WEIGHTED,
             description = "Локти чуть согнуты, без рывка.",
-            tags = listOf(TagUiModel(uuid = "t1", name = "грудь")).toImmutableList(),
+            tags = listOf(AppTagItem(uuid = "t1", name = "грудь")).toImmutableList(),
             availableTags = listOf(
-                TagUiModel(uuid = "t1", name = "грудь"),
-                TagUiModel(uuid = "t2", name = "трицепс"),
+                AppTagItem(uuid = "t1", name = "грудь"),
+                AppTagItem(uuid = "t2", name = "трицепс"),
             ).toImmutableList(),
             adhocPlan = listOf(
                 PlanSetUiModel(weight = 40.0, reps = 12, type = SetTypeUiModel.WARMUP),

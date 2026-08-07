@@ -1,9 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="core_ui_kit_action_cancel">Отмена</string>
     <string name="core_ui_kit_action_save">Сохранить</string>
     <string name="core_ui_kit_action_back">Назад</string>
-    <string name="core_ui_kit_more_description">More</string>
 
     <string name="feature_exercise_detail_type_weighted">С весом</string>
     <string name="feature_exercise_detail_type_weightless">Без веса</string>
@@ -51,4 +50,13 @@
     <string name="core_ui_kit_reorderable_drag_handle">Переставить</string>
 
     <string name="core_ui_kit_sheet_close">Закрыть</string>
+
+    <!-- One tag picker, one table (ED7): the form row's add chip, the sheet's own copy. -->
+    <string name="core_ui_kit_tag_sheet_title">Теги</string>
+    <string name="core_ui_kit_tag_search_hint">Поиск тегов…</string>
+    <string name="core_ui_kit_tag_create_format">+ Создать «%1$s»</string>
+    <string name="core_ui_kit_tag_done">Готово</string>
+    <string name="core_ui_kit_tag_add_chip">+ тег</string>
+    <string name="core_ui_kit_tag_remove_description">Убрать тег</string>
+    <string name="core_ui_kit_toast_undo" tools:ignore="DuplicateStrings">Отменить</string>
 </resources>

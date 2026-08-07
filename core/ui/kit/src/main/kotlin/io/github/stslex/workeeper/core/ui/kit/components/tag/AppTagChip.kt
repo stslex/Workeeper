@@ -6,16 +6,18 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import io.github.stslex.workeeper.core.ui.kit.R
+import io.github.stslex.workeeper.core.ui.kit.components.border.dashedBorder
+import io.github.stslex.workeeper.core.ui.kit.icons.AppIcons
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
@@ -59,13 +61,52 @@ object AppTagChip {
                 modifier = Modifier
                     .size(AppDimension.iconXs)
                     .clickable(onClick = onRemove),
-                imageVector = Icons.Default.Close,
-                contentDescription = "Remove",
+                imageVector = AppIcons.Close,
+                contentDescription = stringResource(R.string.core_ui_kit_tag_remove_description),
                 tint = AppUi.colors.textSecondary,
             )
         }
     }
+
+    /**
+     * The dashed «+ тег» chip (ED7): the form's whole add affordance, opening the picker
+     * sheet. The dash is `.addex`'s treatment at chip scale — drawn dashed as D-OPEN-5 keeps
+     * it (the label identifies the control; the dash owes no threshold), painted
+     * `borderDefault` because that is the control-outline slot the drawn `--hair-s` reroutes
+     * to (B19), exactly as `AppDashedAddButton` already paints it. No fill: the outline IS
+     * the chip.
+     */
+    @Composable
+    fun Add(
+        onClick: () -> Unit,
+        modifier: Modifier = Modifier,
+    ) {
+        Row(
+            modifier = modifier
+                .clip(AppUi.shapes.small)
+                .dashedBorder(
+                    color = AppUi.colors.borderDefault,
+                    cornerRadius = CHIP_CORNER,
+                )
+                .clickable(onClick = onClick)
+                .padding(horizontal = 7.dp, vertical = 2.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.xs),
+        ) {
+            Text(
+                text = stringResource(R.string.core_ui_kit_tag_add_chip),
+                style = AppUi.typography.labelSmall,
+                color = AppUi.colors.textTertiary,
+            )
+        }
+    }
 }
+
+/**
+ * `AppUi.shapes.small`'s 6dp, as a `Dp` for [dashedBorder] — the CHIP small, not
+ * `AppDimension.Radius.small`'s 8dp. Change `provideAppShapes` and this must follow.
+ */
+private val CHIP_CORNER = 6.dp
 
 @Composable
 internal fun ChipShell(
@@ -111,6 +152,7 @@ private fun AppTagChipPreview() {
                 AppTagChip.Selectable(label = "Selected", selected = true, onSelectedChange = {})
                 AppTagChip.Selectable(label = "Idle", selected = false, onSelectedChange = {})
                 AppTagChip.Removable(label = "Pull", onRemove = {})
+                AppTagChip.Add(onClick = {})
             }
         }
     }

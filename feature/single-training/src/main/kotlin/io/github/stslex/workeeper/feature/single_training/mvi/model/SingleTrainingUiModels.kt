@@ -21,8 +21,6 @@ data class TrainingExerciseItem(
 data class HistorySessionItem(
     val sessionUuid: String,
     val dateLabel: String,
-    val trainingName: String,
-    val exerciseCount: Int,
 )
 
 @Stable

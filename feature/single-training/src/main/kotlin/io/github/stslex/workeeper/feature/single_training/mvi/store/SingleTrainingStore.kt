@@ -3,12 +3,13 @@ package io.github.stslex.workeeper.feature.single_training.mvi.store
 
 import androidx.compose.runtime.Stable
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagItem
 import io.github.stslex.workeeper.core.ui.mvi.Store
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanEditorBodyAction
+import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.feature.single_training.domain.model.ActiveSessionDomain
 import io.github.stslex.workeeper.feature.single_training.mvi.model.HistorySessionItem
 import io.github.stslex.workeeper.feature.single_training.mvi.model.PickerExerciseItem
-import io.github.stslex.workeeper.feature.single_training.mvi.model.TagUiModel
 import io.github.stslex.workeeper.feature.single_training.mvi.model.TrainingExerciseItem
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.Action
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.Event
@@ -24,11 +25,31 @@ interface SingleTrainingStore : Store<State, Action, Event> {
     data class State(
         val uuid: String?,
         val mode: Mode,
+        /**
+         * Which edit session the current draft belongs to — bumped on every entry into
+         * [Mode.Edit]. The draft-undo toasts carry it back with their action: a toast
+         * outlives the draft it edited (5s, accessibility-stretched), so Save or Cancel can
+         * end the draft — and Edit can start a new one — while «Отменить» is still on
+         * screen. The undo handlers no-op unless the epoch still matches, so a stale undo
+         * cannot put an unsaved row onto the Read screen or into a draft it never edited.
+         */
+        val draftEpoch: Int,
+        /**
+         * A save's write is in flight: the snapshot is already captured, so the draft may
+         * not take an undo any more — a row restored now would reach the screen and miss
+         * the database. Discard is refused for the same reason in the other direction: a
+         * rollback now would hand the landing save's flip-to-Read a reverted form to
+         * snapshot, splitting the screen from the row the write just committed. Set when
+         * Save dispatches, cleared on every outcome (the success flip to Read, or the
+         * failure that keeps the draft alive and re-arms its undos) — and defensively on
+         * Edit entry, so a flag orphaned with a dead draft cannot gag the next one.
+         */
+        val isSaving: Boolean,
         val name: String,
         val nameError: Boolean,
         val description: String,
-        val tags: ImmutableList<TagUiModel>,
-        val availableTags: ImmutableList<TagUiModel>,
+        val tags: ImmutableList<AppTagItem>,
+        val availableTags: ImmutableList<AppTagItem>,
         val tagSearchQuery: String,
         val exercises: ImmutableList<TrainingExerciseItem>,
         /**
@@ -40,7 +61,18 @@ interface SingleTrainingStore : Store<State, Action, Event> {
          * opens the inserted card (D-OPEN-8), and a `remember` could not see the insert.
          */
         val expandedExerciseUuids: ImmutableSet<String>,
+        /**
+         * Set restorations that landed while their card was absent: both removals queue
+         * toasts, so the set toast's «Отменить» can fire after the exercise itself was
+         * removed — the lookup finds no card, and dropping the restore would lose the row
+         * with BOTH undos tapped. Stashed here instead; the exercise undo that brings the
+         * card back applies its stashes in tap order — the card's plan is frozen while it
+         * is absent, so the captured index is exact. Cleared with the draft.
+         */
+        val pendingSetRestores: ImmutableList<PendingSetRestore>,
         val pastSessions: ImmutableList<HistorySessionItem>,
+        /** Total finished sessions of this training — the История head's count (§3.3). */
+        val historyCount: Int,
         val activeSession: ActiveSessionDomain?,
         val canPermanentlyDelete: Boolean,
         val originalSnapshot: Snapshot?,
@@ -116,6 +148,14 @@ interface SingleTrainingStore : Store<State, Action, Event> {
             }
         }
 
+        /** One stashed set restore — see [State.pendingSetRestores]. */
+        @Stable
+        data class PendingSetRestore(
+            val exerciseUuid: String,
+            val set: PlanSetUiModel,
+            val index: Int,
+        )
+
         @Stable
         sealed interface PickerState {
 
@@ -134,6 +174,8 @@ interface SingleTrainingStore : Store<State, Action, Event> {
             fun create(uuid: String?): State = State(
                 uuid = uuid,
                 mode = if (uuid == null) Mode.Edit(isCreate = true) else Mode.Read,
+                draftEpoch = 0,
+                isSaving = false,
                 name = "",
                 nameError = false,
                 description = "",
@@ -142,7 +184,9 @@ interface SingleTrainingStore : Store<State, Action, Event> {
                 tagSearchQuery = "",
                 exercises = persistentListOf(),
                 expandedExerciseUuids = persistentSetOf(),
+                pendingSetRestores = persistentListOf(),
                 pastSessions = persistentListOf(),
+                historyCount = 0,
                 activeSession = null,
                 canPermanentlyDelete = false,
                 originalSnapshot = null,
@@ -166,6 +210,11 @@ interface SingleTrainingStore : Store<State, Action, Event> {
 
             // Top-bar / detail clicks
             data object OnBackClick : Click
+
+            /** Topbar `⋮` — opens the [DialogState.DetailMenu] sheet (ED10). */
+            data object OnDetailMenuClick : Click
+
+            data object OnDetailMenuDismiss : Click
 
             data object OnEditClick : Click
 
@@ -202,6 +251,21 @@ interface SingleTrainingStore : Store<State, Action, Event> {
 
             data class OnExerciseRemove(val exerciseUuid: String) : Click
 
+            /** «Отменить» on the exercise-removed toast: the draft takes [item] back. */
+            data class OnUndoExerciseRemove(
+                val item: TrainingExerciseItem,
+                val wasExpanded: Boolean,
+                val draftEpoch: Int,
+            ) : Click
+
+            /** «Отменить» on the set-removed toast: [set] back at [index] in one card's draft. */
+            data class OnUndoSetRemove(
+                val exerciseUuid: String,
+                val set: PlanSetUiModel,
+                val index: Int,
+                val draftEpoch: Int,
+            ) : Click
+
             data class OnExerciseReorder(val from: Int, val to: Int) : Click
 
             /** The card head's tap (ED14): expand the one you mean, collapse the one open. */
@@ -217,6 +281,12 @@ interface SingleTrainingStore : Store<State, Action, Event> {
                 val exerciseUuid: String,
                 val action: PlanEditorBodyAction,
             ) : Click
+
+            /** The form's dashed «+ тег» chip — opens the [DialogState.TagPicker] sheet. */
+            data object OnTagAddClick : Click
+
+            /** «Готово», the scrim or the drag — selection already applied live (ED7). */
+            data object OnTagPickerDismiss : Click
 
             data class OnTagToggle(val tagUuid: String) : Click
 
@@ -268,6 +338,34 @@ interface SingleTrainingStore : Store<State, Action, Event> {
         data class ShowArchiveBlocked(val message: String) : Event
 
         data class ShowSaveError(val message: String) : Event
+
+        /**
+         * `− подход` in an expanded card is a DRAFT edit (§4's table): nothing is persisted,
+         * so the undo puts [set] back at [index] in [exerciseUuid]'s draft — no timer, no
+         * deferred anything. Item-wise so queued toasts compose.
+         */
+        data class ShowSetRemovedUndo(
+            val message: String,
+            val exerciseUuid: String,
+            val set: PlanSetUiModel,
+            val index: Int,
+            /** [State.draftEpoch] at removal — the undo applies only to the same draft. */
+            val draftEpoch: Int,
+        ) : Event
+
+        /**
+         * `✕` removes from THIS training only, unconfirmed (D-OPEN-11) — the undo snackbar is
+         * the affordance ED11 pairs with that absence. A draft edit like the row above it:
+         * the undo re-inserts [item] where it stood (and re-opens it if it was expanded),
+         * and nothing was persisted in between.
+         */
+        data class ShowExerciseRemovedUndo(
+            val message: String,
+            val item: TrainingExerciseItem,
+            val wasExpanded: Boolean,
+            /** [State.draftEpoch] at removal — the undo applies only to the same draft. */
+            val draftEpoch: Int,
+        ) : Event
     }
 
     companion object {

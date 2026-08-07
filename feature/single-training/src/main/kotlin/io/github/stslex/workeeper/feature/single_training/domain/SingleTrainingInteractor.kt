@@ -22,6 +22,9 @@ interface SingleTrainingInteractor {
 
     suspend fun getRecentSessions(trainingUuid: String, limit: Int): List<SessionDomain>
 
+    /** Total finished sessions of this training — the История head's count (§3.3). */
+    suspend fun countSessions(trainingUuid: String): Int
+
     fun observeAvailableTags(): Flow<List<TagDomain>>
 
     /**

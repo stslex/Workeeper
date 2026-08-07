@@ -27,6 +27,8 @@ import io.github.stslex.workeeper.core.ui.kit.components.input.AppTextField
 import io.github.stslex.workeeper.core.ui.kit.components.reorderable.rememberReorderableColumnState
 import io.github.stslex.workeeper.core.ui.kit.components.reorderable.reorderableColumnDragHandle
 import io.github.stslex.workeeper.core.ui.kit.components.reorderable.reorderableColumnItem
+import io.github.stslex.workeeper.core.ui.kit.components.section.AppLabel
+import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagFormRow
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppIconButton
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopBar
 import io.github.stslex.workeeper.core.ui.kit.icons.AppIcons
@@ -36,7 +38,6 @@ import io.github.stslex.workeeper.feature.single_training.R
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.Action
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.State
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.State.Mode
-import io.github.stslex.workeeper.feature.single_training.ui.components.TagPickerInline
 import io.github.stslex.workeeper.feature.single_training.ui.components.TrainingExerciseCard
 import io.github.stslex.workeeper.core.ui.kit.R as KitR
 
@@ -107,6 +108,10 @@ internal fun TrainingEditScreen(
                     )
                 }
             }
+            // ED3's order, which OVERTURNS the drawn §7.1 frame (its Overturns cell says so):
+            // name, then the screen's main slot — the exercises — then tags, then description.
+            ExercisesEditSection(state = state, consume = consume)
+            TagsSection(state = state, consume = consume)
             FormSection(label = stringResource(R.string.feature_training_edit_label_description)) { fieldLabel ->
                 // No explicit height — `.tf.multi` is the same box taller and the FIELD owns
                 // that number (§7.2). A call site that sets its own guesses at a value the
@@ -120,18 +125,6 @@ internal fun TrainingEditScreen(
                     singleLine = false,
                 )
             }
-            FormSection(label = stringResource(R.string.feature_training_edit_label_tags)) { fieldLabel ->
-                TagPickerInline(
-                    selectedTags = state.tags,
-                    availableTags = state.availableTags,
-                    searchQuery = state.tagSearchQuery,
-                    onSearchQueryChange = { consume(Action.Input.OnTagSearchChange(it)) },
-                    onTagToggle = { consume(Action.Click.OnTagToggle(it)) },
-                    onTagRemove = { consume(Action.Click.OnTagRemove(it)) },
-                    onTagCreate = { consume(Action.Click.OnTagCreate(it)) },
-                )
-            }
-            ExercisesEditSection(state = state, consume = consume)
             Spacer(Modifier.height(AppDimension.Space.md))
         }
         EditActionBar(consume = consume)
@@ -203,6 +196,29 @@ private fun ExercisesEditSection(
             modifier = Modifier.testTag("TrainingEditAddExerciseButton"),
             text = stringResource(R.string.feature_training_edit_add_exercise),
             onClick = { consume(Action.Click.OnAddExerciseClick) },
+        )
+    }
+}
+
+/**
+ * ED3: tags are not typed into, so ТЕГИ is a SECTION with a `.section-head`, not a labelled
+ * field — the exercise editor's own grammar, minus its counter: this feature has no tag
+ * limit, and a counter where no limit exists is a lie (§3.2). The row is ED7's: selected
+ * chips with `✕` plus the dashed «+ тег» chip opening the picker sheet.
+ */
+@Composable
+private fun TagsSection(
+    state: State,
+    consume: (Action) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(AppDimension.Space.md)) {
+        // The scroll column already carries this screen's gutter, so the bare label rung is
+        // used rather than `AppSectionHeader`, whose row brings its own `screenEdge` padding.
+        AppLabel(text = stringResource(R.string.feature_training_edit_label_tags))
+        AppTagFormRow(
+            selectedTags = state.tags,
+            onTagRemove = { consume(Action.Click.OnTagRemove(it)) },
+            onAddClick = { consume(Action.Click.OnTagAddClick) },
         )
     }
 }

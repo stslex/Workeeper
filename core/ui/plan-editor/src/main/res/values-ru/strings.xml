@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="core_ui_plan_editor_screen_title_format">План: %1$s</string>
     <string name="core_ui_plan_editor_screen_title_default">План</string>
     <string name="core_ui_plan_editor_screen_back">Назад</string>
@@ -18,4 +18,5 @@
     <string name="core_ui_plan_editor_type_change_weightless_body">Значения веса из планов этого упражнения будут очищены. Это нельзя отменить.</string>
     <string name="core_ui_plan_editor_type_change_weightless_impact">Все веса в планах очищены</string>
     <string name="core_ui_plan_editor_type_change_weightless_confirm">Переключить</string>
+    <string name="core_ui_plan_editor_toast_set_removed" tools:ignore="DuplicateStrings">Подход удалён</string>
 </resources>

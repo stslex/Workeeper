@@ -109,4 +109,11 @@ sealed interface BottomSheetState {
      */
     @Stable
     data object PlanInfo : BottomSheetState
+
+    /**
+     * ED7: the tag picker's sheet — search, the dictionary as selectable chips, the create
+     * row, «Готово». Opened by the form's dashed «+ тег» chip; selection applies live.
+     */
+    @Stable
+    data object TagPicker : BottomSheetState
 }

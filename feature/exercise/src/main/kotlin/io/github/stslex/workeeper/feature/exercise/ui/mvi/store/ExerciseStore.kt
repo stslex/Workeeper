@@ -4,6 +4,7 @@ package io.github.stslex.workeeper.feature.exercise.ui.mvi.store
 import android.net.Uri
 import androidx.compose.runtime.Stable
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagItem
 import io.github.stslex.workeeper.core.ui.mvi.Store
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanEditorBodyAction
@@ -14,7 +15,6 @@ import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ImageErrorType
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ImageSourceUiModel
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PendingImage
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PersonalRecordUiModel
-import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.TagUiModel
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Event
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State
@@ -27,13 +27,34 @@ interface ExerciseStore : Store<State, Action, Event> {
     data class State(
         val uuid: String?,
         val mode: Mode,
+        /**
+         * Which edit session the current draft belongs to — bumped on every entry into
+         * [Mode.Edit]. The set-removed toast carries it back with its undo action: a toast
+         * outlives the draft it edited (5s, accessibility-stretched), so Save or Cancel can
+         * end the draft — and Edit can start a new one — while «Отменить» is still on
+         * screen. The undo handler no-ops unless the epoch still matches, so a stale undo
+         * cannot put an unsaved row onto the Read screen or into a draft it never edited.
+         */
+        val draftEpoch: Int,
+        /**
+         * A save's write is in flight: the snapshot is already captured, so the draft may
+         * not take an undo any more — a row restored now would reach the screen and miss
+         * the database. Discard is refused for the same reason in the other direction: a
+         * rollback now would leave the landing save's [originalSnapshot] holding the
+         * saved values while the visible fields show the reverted ones. Set
+         * when Save dispatches, cleared on every outcome (the success flip to Read, or
+         * the failure that keeps the draft alive and re-arms its undos — `DuplicateName`
+         * and a failed image commit both stay in Edit) — and defensively on Edit entry,
+         * so a flag orphaned with a dead draft cannot gag the next one.
+         */
+        val isSaving: Boolean,
         val name: String,
         val nameError: Boolean,
         val nameDuplicateError: Boolean,
         val type: ExerciseTypeUiModel,
         val description: String,
-        val tags: ImmutableList<TagUiModel>,
-        val availableTags: ImmutableList<TagUiModel>,
+        val tags: ImmutableList<AppTagItem>,
+        val availableTags: ImmutableList<AppTagItem>,
         val tagSearchQuery: String,
         val recentHistory: ImmutableList<HistoryUiModel>,
         /** Total finished sessions containing this exercise — the История head's count. */
@@ -147,6 +168,8 @@ interface ExerciseStore : Store<State, Action, Event> {
             fun create(uuid: String?): State = State(
                 uuid = uuid,
                 mode = if (uuid == null) Mode.Edit(isCreate = true) else Mode.Read,
+                draftEpoch = 0,
+                isSaving = false,
                 name = "",
                 nameError = false,
                 nameDuplicateError = false,
@@ -258,6 +281,19 @@ interface ExerciseStore : Store<State, Action, Event> {
             /** Dismiss the weight-wipe confirm, leaving the type as it was. */
             data object OnTypeChangeDismiss : Click
 
+            /** The form's dashed «+ тег» chip — opens the [BottomSheetState.TagPicker] sheet. */
+            data object OnTagAddClick : Click
+
+            /** «Готово», the scrim or the drag — selection already applied live (ED7). */
+            data object OnTagPickerDismiss : Click
+
+            /** «Отменить» on the set-removed toast: put [set] back at [index] in the draft. */
+            data class OnUndoSetRemove(
+                val set: PlanSetUiModel,
+                val index: Int,
+                val draftEpoch: Int,
+            ) : Click
+
             data class OnTagToggle(val tagUuid: String) : Click
 
             data class OnTagRemove(val tagUuid: String) : Click
@@ -324,7 +360,19 @@ interface ExerciseStore : Store<State, Action, Event> {
 
         data class ShowTagLimitReached(val message: String) : Event
 
-        data class ShowPermanentDeleteSuccess(val message: String) : Event
+        /**
+         * `− подход` in the editor is a DRAFT edit (§4's table): nothing is persisted, so
+         * the undo restores the draft — [set] back at [index] — and there is no timer and
+         * no deferred anything. Item-wise rather than a whole-draft snapshot, so queued
+         * toasts compose: each undo restores exactly the row its toast named.
+         */
+        data class ShowSetRemovedUndo(
+            val message: String,
+            val set: PlanSetUiModel,
+            val index: Int,
+            /** [State.draftEpoch] at removal — the undo applies only to the same draft. */
+            val draftEpoch: Int,
+        ) : Event
 
         data class NavigateLaunchCamera(val tempUri: Uri) : Event
 

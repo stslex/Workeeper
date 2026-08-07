@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Detail -->
-    <string name="feature_training_detail_back">Назад</string>
     <string name="feature_training_detail_more">Ещё</string>
     <string name="feature_training_detail_exercises">Упражнения</string>
     <string name="feature_training_detail_past_sessions">История</string>
@@ -20,14 +19,14 @@
     <string name="feature_training_detail_other_session_active_format">Активна сессия «%1$s». Завершите её сначала.</string>
     <string name="feature_training_detail_conflict_unnamed">Тренировка</string>
     <string name="feature_training_detail_conflict_progress_format">%1$d из %2$d упражнений выполнено</string>
-    <string name="feature_training_detail_chevron">Открыть</string>
     <string name="feature_training_detail_active_pill">Активна</string>
 
-    <plurals name="feature_training_detail_exercise_count">
-        <item quantity="one">%d упражнение</item>
-        <item quantity="few">%d упражнения</item>
-        <item quantity="many">%d упражнений</item>
-        <item quantity="other">%d упражнения</item>
+
+    <plurals name="feature_training_detail_session_count">
+        <item quantity="one">%d сессия</item>
+        <item quantity="few">%d сессии</item>
+        <item quantity="many">%d сессий</item>
+        <item quantity="other">%d сессии</item>
     </plurals>
 
     <!-- Edit -->
@@ -40,13 +39,12 @@
     <string name="feature_training_edit_label_tags">Теги</string>
     <string name="feature_training_edit_label_exercises_format">Упражнения (%1$d)</string>
     <string name="feature_training_edit_add_exercise">Добавить упражнение</string>
+    <string name="feature_training_edit_exercise_removed">Упражнение убрано из тренировки</string>
     <string name="feature_training_edit_no_plan">плана пока нет</string>
     <string name="feature_training_edit_remove_exercise">Удалить упражнение</string>
     <string name="feature_training_edit_drag_handle">Переместить</string>
     <string name="feature_training_edit_error_name_required">Введите название</string>
     <string name="feature_training_edit_error_no_exercises">Добавьте хотя бы одно упражнение</string>
-    <string name="feature_training_edit_tag_search_placeholder">Введите чтобы найти или создать</string>
-    <string name="feature_training_edit_tag_create_format">+ Создать «%1$s»</string>
 
     <!-- Exercise picker -->
     <string name="feature_training_picker_title">Добавить упражнения</string>

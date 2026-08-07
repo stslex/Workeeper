@@ -4,6 +4,7 @@ package io.github.stslex.workeeper.feature.exercise.ui.mvi.handler
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
+import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagItem
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseScope
@@ -14,7 +15,6 @@ import io.github.stslex.workeeper.feature.exercise.domain.model.PlanSetDomain
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.mapper.ExerciseUiMapper.toDomain
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.mapper.ExerciseUiMapper.toUi
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PendingImage
-import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.TagUiModel
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State
@@ -131,7 +131,7 @@ internal class CommonHandler @Inject constructor(
         val tags = result.labels
             .map { name ->
                 val matched = availableTags.firstOrNull { it.name.equals(name, ignoreCase = true) }
-                matched ?: TagUiModel(uuid = name, name = name)
+                matched ?: AppTagItem(uuid = name, name = name)
             }
             .toImmutableList()
         val imagePath = exercise.imagePath

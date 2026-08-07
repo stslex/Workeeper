@@ -184,10 +184,19 @@ topbar  ‹ · h1.sm name · ⋮
 meta    tags, one line
 head    УПРАЖНЕНИЯ                3
 cards   collapsed cards: .ord + title + .plan-line + .chev        (ED9)
+head    ОПИСАНИЕ                                                  (D-OPEN-9, amended below)
+        description, absent when blank
 head    ИСТОРИЯ                   2 СЕССИИ
 list    ruled rows
 dock    Изменить (128dp) · Начать сессию                          (ED10)
 ```
+
+**AMENDED (PR-C): the frame gains the description block, between the cards and `ИСТОРИЯ`.** The
+first draft of this frame omitted it, and the omission made the training's description
+**write-only** — the editor kept `.fgrp Описание` and nothing rendered it — which is the exact
+state D-OPEN-9 was ruled against on the exercise. The block is the exercise's own, in its
+description-only form (a training has no image, so the block reduces to its text half), and the
+same rule rides with it: **a section with nothing in it does not render.**
 
 ### 3.4 Training — edit (`TrainingEditScreen`)
 
@@ -239,10 +248,18 @@ while the snackbar lives. The order is strict and it *is* the rule:
 timer expires → snackbar dismissed → only then the delete commits
 ```
 
-Never delete first and undo by re-inserting. The rejected alternative was payload retention and
-re-insert, which for an exercise with history is not one row — it is the exercise, its tag links,
-its plan rows and its logged sets, all of which a deferred delete simply never removes. The
-accepted cost: "deleted" is a UI state the DB does not share while the snackbar lives.
+Never delete first and undo by re-inserting.
+
+**MEASURED (PR-C): the expensive with-history case this section once reasoned about does not
+exist.** The paragraph that stood here weighed a rejected payload-retention undo against "an
+exercise with history — the exercise, its tag links, its plan rows and its logged sets", which
+presumes a with-history delete is possible. The schema forbids it: `PerformedExerciseEntity`'s
+FK to `ExerciseEntity` is `onDelete = RESTRICT` (`PerformedExerciseEntity.kt:24`) and
+`TrainingExerciseEntity`'s is too (`TrainingExerciseEntity.kt:24`) — CASCADE runs only toward
+the session and training parents (`:18` in each) — so an exercise with any performed row or any
+plan row cannot be deleted at the SQLite level, and the only deletable exercise is one with
+neither: no history, nothing expensive to retain. What the deferred mechanism costs is only what
+it always cost: "deleted" is a UI state the DB does not share while the snackbar lives.
 
 **A deferred delete that loses its process is not committed — ruled (D-OPEN-10).** The row
 survives. Committing at next launch would be a deletion the user never saw complete and never
@@ -266,12 +283,12 @@ was holding; §6 says which PR that step now ships in.
 | **D-OPEN-1** | **RULED** | dialog vs sheet for delete confirmation. → **Sheet.** §7.4 stands; **no dialog primitive is added** to this language. | S7 — unblocked |
 | **D-OPEN-2** | **RULED**, both halves | which "delete an exercise", and deferred-delete (a) vs retain-and-re-insert (b). → **Scope:** removing an exercise from a training removes it **from that training only**; confirmation sheet + undo snackbar — **since narrowed by D-OPEN-11 to undo snackbar alone, no confirmation.** Cite both rows, never this one alone. → **Mechanism, for every undoable delete: deferred (a).** Nothing is deleted while the snackbar lives; the order is strict and it *is* the rule — timer expires → snackbar dismissed → only then the delete commits. **Never delete first and undo by re-inserting.** ED11 carries this as its mechanism sentence. | S7 — unblocked |
 | **D-OPEN-3** | **RULED** | **where the image entry point lives now that ED6 removed the thumb.** #213 shipped the thumb on the **editor only** — `ExerciseTopBarThumb` has exactly one call site, `ExerciseEditScreen.kt:92`; the read screen's trailing slot is the `⋮` `AppIconButton` and its image affordance is `ExerciseHero` in the scrolling body, so ED6's read half is already true at HEAD. The photo, the viewer and the source picker all still exist. → **The image is available on both read and edit, and its entry point sits BESIDE THE DESCRIPTION** — not in the top bar, not among the plan, not among the tags. Its placement is what states that it is optional and descriptive. **The thumb deletion (ED6) stands.** | S3 — unblocked |
-| **D-OPEN-4** | **RULED** | orphan tags. The symbol with **zero callers anywhere** is `TagRepository.delete` (`TagRepository.kt:16`); `TagDao.delete(uuid)` has exactly one production caller, `TagRepositoryImpl.delete` (`TagRepositoryImpl.kt:53`), which nothing calls. Nothing in the app ever deletes a tag, and `Создать` writes the dictionary immediately, before the exercise is saved. → **Auto-prune.** A tag with no remaining links is deleted from the dictionary; `TagRepository.delete` gains its first caller. A tag editor screen showing each tag's links is a **future item, not this arc** — recorded as **B-E5**. | S6 — unblocked |
+| **D-OPEN-4** | **RULED** | orphan tags. The symbol with **zero callers anywhere** is `TagRepository.delete` (`TagRepository.kt:16`); `TagDao.delete(uuid)` has exactly one production caller, `TagRepositoryImpl.delete` (`TagRepositoryImpl.kt:53`), which nothing calls. Nothing in the app ever deletes a tag, and `Создать` writes the dictionary immediately, before the exercise is saved. → **Auto-prune.** A tag with no remaining links is deleted from the dictionary — shipped as `TagDao.deleteOrphans()` inside both save transactions, which this ruling's own in-transaction ordering forced; the per-uuid `TagRepository.delete` chain is deleted rather than left callerless (B-E2's closure note has the derivation). A tag editor screen showing each tag's links is a **future item, not this arc** — recorded as **B-E5**. | S6 — unblocked |
 | **D-OPEN-5** | **RULED** | dashed `--hair-s` as a control outline (`+ тег`, `.addex`) measures **1.52 dark / 1.35 light** against 3.0. → **Keep the dashed `--hair-s` outline.** The **label** identifies the control; the dash is decoration and owes no contrast threshold. Same answer for `+ тег` and `.addex`, as the row required. The measurement and this reasoning are recorded here so the pair is not re-litigated. | S6 — unblocked |
 | **D-OPEN-6** | **RULED** | read card and edit card are now visually near-identical. Intended, or does read drop the chip / sit on `surfaceTier1`? → **Identical.** No chip removal, no tier change. You read the plan in the shape you will perform it. | S2 — unblocked |
 | **D-OPEN-7** | **RULED**, and it **reverses §3.4** | collapsing cards in the training editor. → **Collapsed by default.** Entering the editor you see the whole list; you expand the one you mean — all-open makes a long training unscannable. The collapsed form is the drawn one: ordinal, type glyph, name, `.plan-line` summary, plus the head's drag handle and `✕`. §3.4's "All cards open" is struck; citable as **ED14**. | S4 — unblocked |
 | **D-OPEN-8** | **RULED** | a newly added exercise has **no plan**. Does it open on insert, or stay collapsed like the rest (ED14)? → **It opens; the rest stay collapsed.** Collapse-by-default governs **scanning** an existing list; an **insert is an addressed gesture whose next step is the plan**. Inserting several at once opens **the first only**. | S4 — unblocked |
-| **D-OPEN-9** | **RULED** | the read screen draws **no description block** today. If the image sits beside the description (D-OPEN-3), read either **gains a description section** or **keeps the image as `ExerciseHero`**. The gap this sits on: the drawing's read frame shows **no image and no description at all**, while `ExerciseHero` ships an image today and D-OPEN-3 ruled the image must be available on read — so an S2 built strictly to the drawing would **delete the image from read, against that ruling**. The omission is a gap in the drawing, not a ruling. → **Read gains a description block, with the image beside it** — the same pairing as the editor. **`ExerciseHero`'s role is replaced, not kept.** Otherwise "beside the description" would hold on one screen of two, and a description that can be typed and never read is a field with no reader. | S2 — unblocked |
+| **D-OPEN-9** | **RULED** | the read screen draws **no description block** today. If the image sits beside the description (D-OPEN-3), read either **gains a description section** or **keeps the image as `ExerciseHero`**. The gap this sits on: the drawing's read frame shows **no image and no description at all**, while `ExerciseHero` ships an image today and D-OPEN-3 ruled the image must be available on read — so an S2 built strictly to the drawing would **delete the image from read, against that ruling**. The omission is a gap in the drawing, not a ruling. → **Read gains a description block, with the image beside it** — the same pairing as the editor. **`ExerciseHero`'s role is replaced, not kept.** Otherwise "beside the description" would hold on one screen of two, and a description that can be typed and never read is a field with no reader. **The ruling is per-OBJECT, not per-screen (PR-C): a description without a reader is a defect wherever it appears** — which is why §3.3's frame gained the training's description block when its own omission reproduced the exact state this row was ruled against. | S2 — unblocked |
 | **D-OPEN-10** | **RULED** | what happens to a **pending deferred delete when the screen or the process dies inside the window** — commit, or drop? Leaving it undefined makes it a bug, not a default. → **Not committed. The row survives.** Committing at next launch would be a deletion the user never saw complete and never confirmed; the opposite error — the item is still there — is visible and repeatable. It also spares a persisted queue of pending operations. | S7 — unblocked |
 | **D-OPEN-11** | **RULED**, and it **narrows D-OPEN-2** | with a confirmation sheet on `✕`, and the editor committing nothing until Save, the removal is protected **three times** (confirm, undo, Cancel). Is the confirmation kept? → **No confirmation sheet on `✕`. Snackbar with undo only.** The action is already protected three ways — undo, `Отмена`, and the unsaved draft — and the sheet would fire once per exercise in the list. **The confirmation sheet stays reserved for the irreversible case:** permanent delete from the `⋮` menu. §4's table carries the three true confirmations; ED11 is reworded to match. | S4 — unblocked |
 
@@ -318,7 +335,7 @@ needs.
 | **S3** | Exercise editor: inline plan, section rhythm, placeholders out, `TypeChipReadOnly` out, thumb out, `i` sheet in, image entry point beside the description (ED1, ED3, ED4, ED6, ED8, ED13, D-OPEN-3). **Consumes S2's description block in its editable mode; does not rebuild it.** Deletes the exercise-side route symbols from §2, whose three measurements (the two `DefaultPlanSection`s, `adhocPlanSummaryLabel`'s single read, the thumb's single call site) are settled — do not re-derive them. | S1 (ordering), **S2 (code)** |
 | **S4** | Training editor: row → card, collapsed by default with the plan body inside on expand (ED14); an exercise inserted from the picker opens, and a multi-insert opens the first only (D-OPEN-8). `✕` removes from this training with an undo snackbar and **no confirmation** (D-OPEN-11). Route symbols deleted (ED1), `Action.Common.Reload` among them — §2 records it has no other dispatch site. | S3 |
 | **S5** | Training read screen: cards vs list, `Изменить` to the dock (ED9, ED10). | — |
-| **S6** | Tags: one kit component, the sheet, the `+ тег` chip (dashed `--hair-s` kept, D-OPEN-5), the counter where a limit exists (ED7). Auto-prune on the last link (D-OPEN-4) — `TagRepository.delete`'s first caller, closing B-E2. | — |
+| **S6** | Tags: one kit component, the sheet, the `+ тег` chip (dashed `--hair-s` kept, D-OPEN-5), the counter where a limit exists (ED7). Auto-prune on the last link (D-OPEN-4) — `TagDao.deleteOrphans()` inside both save transactions, closing B-E2 (whose row records why the repository method went instead of gaining a caller). | — |
 | **S7** | Deletion and undo (ED11): the one sheet confirmation on permanent delete (D-OPEN-1, D-OPEN-11), removal scoped to the training (D-OPEN-2), deferred delete throughout, and **nothing committed when the process dies inside the window** (D-OPEN-10). | — |
 | **S8** | States and clamps: no record, empty history, weightless read, empty plan on read; single-line ellipsis on `.prhero`'s meta line. The pushed-bar title is **not** in scope — it already clamps (B-E4). | S2, S5 |
 
@@ -387,8 +404,16 @@ component, so **both** its modes (read-only with image / read-only with the plac
 - **B-E2** — nothing in the app ever deletes a tag; the dictionary only grows. The symbol with zero
   callers anywhere is `TagRepository.delete` (`TagRepository.kt:16`); `TagDao.delete(uuid)` has one
   production caller, `TagRepositoryImpl.delete` (`TagRepositoryImpl.kt:53`), which nothing calls.
-  **Closed by S6**: D-OPEN-4 ruled auto-prune, which gives `TagRepository.delete` its first
-  caller.
+  **Closed by S6, and not by the sentence this row first predicted.** This row said auto-prune
+  would give `TagRepository.delete` its first caller; D-OPEN-4's own ordering — the prune runs
+  **inside the same transaction as the link writes** — put the pruner where those transactions
+  live instead: `TagDao.deleteOrphans()`, one set-based statement over both link tables, called
+  from `ExerciseRepositoryImpl.saveItem` and `TrainingRepositoryImpl.updateTrainingWithPlans`
+  (a sibling repository's method is unreachable inside `useWriterConnection`'s transaction — a
+  dispatcher hop off the writer connection). That left `TagRepository.delete` provably
+  unreachable, so PR-C deleted the whole per-uuid chain — `TagRepository.delete`,
+  `TagRepositoryImpl.delete`, `TagDao.delete(uuid)` and their two DB tests — rather than
+  shipping zero-caller API.
 - **B-E3** — `AppTagPicker` and `AppDatePickerDialog` ship with zero production consumers
   (carried from extraction §7.11, unchanged by this arc).
 - **B-E4** — no clamp is declared for `.prhero`'s meta line; a long training name grows it. The
@@ -416,3 +441,61 @@ component, so **both** its modes (read-only with image / read-only with the plac
   plan "is set in the training editor". Inheritance would falsify the copy the `(i)` exists to
   show. Recorded rather than cleaned in PR-B: retiring the arm means retiring `updateTraining` and
   rewriting its 29 test call sites, which is a data-layer change wider than the arc's editors.
+- **B-E7** — **the archive screen's with-history exercise delete promises a cascade RESTRICT
+  forbids, and calls the delete unguarded.** Found by PR-C's F2 measurement, recorded here so the
+  next arc inherits it rather than discovers it; the review's brief named it B-E6, which this
+  registry had already spent on the row above — next free number taken instead. For an archived
+  **exercise** with finished sessions, `PermanentDeleteDialog` renders
+  `feature_archive_dialog_permanent_delete_body_with_history` («Также будет удалена N сессия
+  истории…») — a promise that is true for **trainings** (sessions CASCADE off the training) and
+  was never true for exercises: `performed_exercise_table`'s FK to `exercise_table` is
+  `onDelete = RESTRICT` (`PerformedExerciseEntity.kt:24`), so the confirm's
+  `ArchiveClickHandler.processDeleteConfirm` → `exerciseRepository.permanentDelete` **throws**,
+  inside a `launch` with no `onError` — B17/B21's exact class: the failure surfaces nothing and
+  the dialog's promise reads as kept. Sibling scope mismatch, same family:
+  `canPermanentlyDeleteImmediately` counts **FINISHED** sessions and **ACTIVE** templates while
+  the RESTRICT FKs fire on any session state and on archived templates too, so the app-level
+  gate is narrower than the constraint it fronts. **Not this arc's work** — it is the
+  archive/all-exercises cluster's (B23's neighbourhood).
+- **B-E7, amendment — the same gate fronts S7's deferred delete, and there the throw was a
+  crash, not a silence.** Raised by review round 2 (P1): `canPermanentlyDeleteImmediately`
+  also gates the exercise screen's delete menu item, so an exercise referenced only by
+  archived templates — or by an unfinished session — offers a delete whose commit hits the
+  same RESTRICT the row above records. S7 runs that commit inside the app-level snackbar
+  collector (`resolveSnackbarOutcome`), and there an uncaught throw does not vanish the way
+  the archive screen's `launch`-with-no-`onError` does — it cancels the collector,
+  crashes the composition, and takes every later toast in the process with it. The host now
+  contains callback failures at the routing (rethrowing only `CancellationException`), which
+  degrades this back to B17/B21's recorded silent class until the predicate work lands.
+  The predicate itself stays where the row above put it: the archive/all-exercises
+  cluster's, not this arc's.
+- **B-E8** — **stacked set undos in one card can restore out of order, and index arithmetic
+  cannot fix it.** Raised by review round 3 (P2) on the queued «Отменить» toasts. Each undo
+  re-inserts its row at the index captured at removal, and captured indices live in DIFFERENT
+  list frames: remove B, then A, then C from `[A,B,C,D]`, undo in toast order, and the last
+  undo needs «a row was restored at index 0» to shift C right when that row was B and to
+  leave A's spot alone when it was A — the two events are byte-identical in index terms, so
+  no transform over indices alone can tell them apart. Exact composition needs stable row
+  identity through the draft, and `PlanSetUiModel` deliberately carries none (weight, reps
+  and type ARE the row); the exercise-card undo has the same ceiling — `position` is
+  reindexed on every removal. Adding identity to plan rows is a `core/ui/plan_editor` model
+  change that ripples through every plan surface, not a review-round edit. Recorded instead:
+  the single-outstanding undo — the drawn affordance — is exact; stacked undos restore every
+  row with its values intact and possibly the order swapped, in the DRAFT only, where the
+  screen shows exactly what a later Save would persist. The undo handlers' KDocs cite this
+  row.
+- **B-E9** — **the training's own permanent delete never received ED11's deferred
+  mechanism.** Raised by review round 11 (P2, the `@claude` pass).
+  `feature/single-training`'s `ClickHandler.processPermanentDeleteConfirm` confirms through
+  the sheet and then deletes immediately inside `launch {}` — no snackbar, no undo, no
+  deferral — while ED11 states the mechanism for «Permanent deletion of the entity (`⋮`)»
+  generically and S7 ships it for the exercise read screen
+  (`processConfirmPermanentDelete` hands the app-level host a commit lambda). Nothing in
+  the schema blocks the training: sessions CASCADE off the training row — B-E7's row
+  records that asymmetry — so a deferred commit cannot hit the RESTRICT that gates the
+  exercise cluster. The flow is PR-B's shipped machinery, kept by PR-C's §1a row 8 as
+  «existing gate, kept»: S5's verdict measured the MENU (ED10's two items, the
+  `canPermanentlyDelete` gate) and never re-measured the confirm's mechanism against ED11.
+  Recorded rather than retrofitted: grafting the app-level snackbar custody onto the
+  training's commit is S7-family work on PR-B's flow, not a review-round edit — Ilya
+  places it (PR-D or a follow-up).

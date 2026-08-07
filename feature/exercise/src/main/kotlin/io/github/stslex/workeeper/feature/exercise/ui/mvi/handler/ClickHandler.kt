@@ -15,9 +15,13 @@ import io.github.stslex.workeeper.core.core.images.model.ImageSaveResult
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.core.utils.CommonExt.parseOrRandom
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.BlockedArchiveItem
+import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagItem
+import io.github.stslex.workeeper.core.ui.kit.snackbar.AppSnackbarModel
+import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.core.ui.plan_editor.domain.PlanDraftReducer
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
+import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanEditorBodyAction
 import io.github.stslex.workeeper.feature.exercise.R
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseScope
@@ -31,7 +35,6 @@ import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ImageDisplay
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ImageErrorType
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ImageSourceUiModel
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PendingImage
-import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.TagUiModel
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.BottomSheetState
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
@@ -44,6 +47,7 @@ import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import kotlin.uuid.Uuid
+import io.github.stslex.workeeper.core.ui.kit.R as KitR
 import io.github.stslex.workeeper.core.ui.plan_editor.R as CoreEditorR
 
 @Suppress("TooManyFunctions", "LargeClass")
@@ -88,6 +92,9 @@ internal class ClickHandler @Inject constructor(
             Action.Click.OnTypeChangeConfirm -> processTypeChangeConfirm()
             Action.Click.OnTypeChangeDismiss -> processTypeChangeDismiss()
             is Action.Click.OnAdhocPlanEditorAction -> processAdhocPlanEditorAction(action)
+            is Action.Click.OnUndoSetRemove -> processUndoSetRemove(action)
+            Action.Click.OnTagAddClick -> processTagAddClick()
+            Action.Click.OnTagPickerDismiss -> processTagPickerDismiss()
             is Action.Click.OnTagToggle -> processTagToggle(action)
             is Action.Click.OnTagRemove -> processTagRemove(action)
             is Action.Click.OnTagCreate -> processTagCreate(action)
@@ -130,6 +137,9 @@ internal class ClickHandler @Inject constructor(
             consume(Action.Navigation.Back)
             return
         }
+        // The write is in flight — nothing may roll the draft back now, and a create's
+        // POP_SCREEN would double-pop under the save's own Back ([State.isSaving]'s KDoc).
+        if (current.isSaving) return
         val target = if (mode.isCreate) DiscardTarget.POP_SCREEN else DiscardTarget.FLIP_TO_READ
         if (current.hasChanges) {
             updateState { it.copy(dialogState = DialogState.DiscardConfirm(target)) }
@@ -143,6 +153,10 @@ internal class ClickHandler @Inject constructor(
         updateState { current ->
             current.copy(
                 mode = Mode.Edit(isCreate = false),
+                // A new draft: undo toasts of the previous one must not edit this one, and
+                // a stuck flag from an orphaned save must not gag its undos.
+                draftEpoch = current.draftEpoch + 1,
+                isSaving = false,
                 // Reachable from the dock and the overflow sheet alike — the flip to Edit
                 // closes the sheet in the same transition either way.
                 bottomSheetState = BottomSheetState.Hidden,
@@ -280,7 +294,14 @@ internal class ClickHandler @Inject constructor(
         // so navigator.popBack() lands on the UI thread.
 
         val resolvedUuid = Uuid.parseOrRandom(current.uuid)
+        // The snapshot above is captured: from here until an outcome lands, an undo would
+        // reach the screen and miss the write ([State.isSaving]'s KDoc).
+        updateState { it.copy(isSaving = true) }
         launch(
+            onError = {
+                // The draft is still alive — its undos re-arm with it.
+                updateStateImmediate { latest -> latest.copy(isSaving = false) }
+            },
             onSuccess = { outcome ->
                 when (outcome) {
                     is SaveOutcome.Success -> handleSaveSuccess(
@@ -291,10 +312,13 @@ internal class ClickHandler @Inject constructor(
                     )
 
                     SaveOutcome.DuplicateName -> updateStateImmediate {
-                        it.copy(nameDuplicateError = true)
+                        it.copy(nameDuplicateError = true, isSaving = false)
                     }
 
-                    SaveOutcome.ImageSaveFailed -> Unit // error toast already emitted.
+                    // Error toast already emitted; the draft stays in Edit, undos re-arm.
+                    SaveOutcome.ImageSaveFailed -> updateStateImmediate {
+                        it.copy(isSaving = false)
+                    }
                 }
             },
         ) {
@@ -387,6 +411,7 @@ internal class ClickHandler @Inject constructor(
                 latest.copy(
                     uuid = resolvedUuid,
                     mode = Mode.Read,
+                    isSaving = false,
                     originalSnapshot = savedSnapshot,
                     imagePath = finalImagePath,
                     imageLastModified = System.currentTimeMillis(),
@@ -427,6 +452,8 @@ internal class ClickHandler @Inject constructor(
             consume(Action.Navigation.Back)
             return
         }
+        // Same in-flight guard as processBackClick — the two entries raise one sheet.
+        if (current.isSaving) return
         val target = if (mode.isCreate) DiscardTarget.POP_SCREEN else DiscardTarget.FLIP_TO_READ
         if (current.hasChanges) {
             updateState { it.copy(dialogState = DialogState.DiscardConfirm(target)) }
@@ -438,6 +465,10 @@ internal class ClickHandler @Inject constructor(
     private fun processConfirmDiscard(target: DiscardTarget) {
         sendEvent(Event.Haptic(HapticFeedbackType.LongPress))
         updateState { it.copy(dialogState = DialogState.Hidden) }
+        // Guarded on its own, not only at the entries that raise the sheet: the confirm
+        // is a second action, and a save dispatched between the two would land on the
+        // rollback below ([State.isSaving]'s KDoc).
+        if (state.value.isSaving) return
         applyDiscardTarget(target)
     }
 
@@ -448,6 +479,9 @@ internal class ClickHandler @Inject constructor(
      * keeping the exact edit the sheet was asking about.
      */
     private fun processFlipToReadMode() {
+        // The choke point for every route back to Read that bypasses the save's own
+        // outcome — refused while the write is in flight ([State.isSaving]'s KDoc).
+        if (state.value.isSaving) return
         updateState { current ->
             val snapshot = current.originalSnapshot
             if (snapshot == null) {
@@ -510,24 +544,36 @@ internal class ClickHandler @Inject constructor(
         }
     }
 
+    /**
+     * The DEFERRED delete (ED11's strict order): nothing is deleted here. The confirm hands
+     * the APP-LEVEL queue a model whose [AppSnackbarModel.onDismissed] is the commit and
+     * pops the screen; the snackbar host — the one thing that owns the toast's lifetime
+     * (B25) — runs it only when the undo window closes. Straight onto [SnackbarManager],
+     * never through the screen's event flow: the pop is the next line, a screen-scoped
+     * event dies with its collector (buffered or subscriber-less, either way silently),
+     * and this one carries a COMMIT that must outlive the screen. «Отменить» means the
+     * delete simply never runs; there is no re-insert path to get wrong. GUARD: no
+     * `interactor.permanentlyDelete` call may appear in this method outside `onDismissed`
+     * — a delete before the window closes is the inversion ED11 forbids.
+     */
     private fun processConfirmPermanentDelete() {
         val uuid = state.value.uuid ?: return
         sendEvent(Event.Haptic(HapticFeedbackType.LongPress))
         updateState { it.copy(dialogState = DialogState.Hidden) }
-        launch(
-            onSuccess = {
-                sendEvent(
-                    Event.ShowPermanentDeleteSuccess(
-                        message = resourceWrapper.getString(
-                            R.string.feature_exercise_detail_permanent_delete_success,
-                        ),
-                    ),
-                )
-                withContext(mainDispatcher) { consume(Action.Navigation.Back) }
-            },
-        ) {
-            interactor.permanentlyDelete(uuid)
-        }
+        SnackbarManager.showSnackbar(
+            AppSnackbarModel(
+                message = resourceWrapper.getString(
+                    R.string.feature_exercise_detail_permanent_delete_success,
+                ),
+                actionLabel = resourceWrapper.getString(KitR.string.core_ui_kit_toast_undo),
+                // «Отменить» declines a delete that has not run — declining is doing nothing.
+                action = { },
+                // Captures the interactor — app-scoped repositories underneath — never the
+                // Store, whose scope dies with the pop below.
+                onDismissed = { interactor.permanentlyDelete(uuid) },
+            ),
+        )
+        consume(Action.Navigation.Back)
     }
 
     private fun processUndoArchive(action: Action.Click.OnUndoArchive) {
@@ -607,8 +653,9 @@ internal class ClickHandler @Inject constructor(
     private fun processAdhocPlanEditorAction(action: Action.Click.OnAdhocPlanEditorAction) {
         val current = state.value
         val isWeighted = current.type == ExerciseTypeUiModel.WEIGHTED
+        val draft = current.adhocPlan ?: persistentListOf()
         val nextDraft = PlanDraftReducer.reduce(
-            draft = current.adhocPlan ?: persistentListOf(),
+            draft = draft,
             action = action.action,
             isWeighted = isWeighted,
         )
@@ -617,6 +664,72 @@ internal class ClickHandler @Inject constructor(
         val nextPlan = nextDraft.takeIf { it.isNotEmpty() }
         sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
         updateState { latest -> latest.copy(adhocPlan = nextPlan) }
+        // `− подход` gets its undo toast (§4's table): a DRAFT edit, so the undo re-inserts
+        // the removed row and nothing waits on a timer — the deferred machinery is the
+        // permanent delete's alone.
+        val bodyAction = action.action
+        if (bodyAction is PlanEditorBodyAction.OnSetRemove && nextDraft.size < draft.size) {
+            sendEvent(
+                Event.ShowSetRemovedUndo(
+                    message = resourceWrapper.getString(
+                        CoreEditorR.string.core_ui_plan_editor_toast_set_removed,
+                    ),
+                    set = draft[bodyAction.index],
+                    index = bodyAction.index,
+                    draftEpoch = current.draftEpoch,
+                ),
+            )
+        }
+    }
+
+    /**
+     * The set-removed toast's «Отменить»: the draft takes the row back where it was.
+     * Two stacked removals can restore out of order — B-E8 records why exact composition
+     * needs row identity the plan rows do not carry.
+     */
+    private fun processUndoSetRemove(action: Action.Click.OnUndoSetRemove) {
+        updateState { latest ->
+            // The toast can outlive the draft (Save/Cancel ended it, Edit may have begun a
+            // new one) or land while a save's captured snapshot is in flight — a stale
+            // «Отменить» edits nothing. [State.draftEpoch] and [State.isSaving], both KDocs.
+            if (latest.isSaving ||
+                latest.mode !is Mode.Edit ||
+                action.draftEpoch != latest.draftEpoch
+            ) {
+                return@updateState latest
+            }
+            // The type-change wipe runs over rows PRESENT in the draft, and this row was
+            // out riding its toast — it re-enters through the same invariant: a WEIGHTLESS
+            // exercise's rows carry no weights (`saveItem` strips them in the DB, and a
+            // weight the snapshot keeps but the DB strips diverges on the next reload).
+            val restored = if (latest.type == ExerciseTypeUiModel.WEIGHTLESS) {
+                action.set.copy(weight = null)
+            } else {
+                action.set
+            }
+            val draft = latest.adhocPlan ?: persistentListOf()
+            val at = action.index.coerceIn(0, draft.size)
+            latest.copy(
+                adhocPlan = draft.toMutableList()
+                    .apply { add(at, restored) }
+                    .toImmutableList(),
+            )
+        }
+    }
+
+    private fun processTagAddClick() {
+        sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
+        updateState { it.copy(bottomSheetState = BottomSheetState.TagPicker) }
+    }
+
+    /** The query clears with the sheet, so reopening starts from the whole dictionary. */
+    private fun processTagPickerDismiss() {
+        updateState {
+            it.copy(
+                bottomSheetState = BottomSheetState.Hidden,
+                tagSearchQuery = "",
+            )
+        }
     }
 
     private fun processTagToggle(action: Action.Click.OnTagToggle) {
@@ -669,13 +782,25 @@ internal class ClickHandler @Inject constructor(
         launch(
             onSuccess = { tag ->
                 updateStateImmediate { state ->
+                    // The repository returns the EXISTING row for a name that already
+                    // exists, so «Создать» over an already-selected name must not chip it
+                    // twice — the persisted links dedup on Save, the draft must agree.
+                    val alreadySelected = state.tags.any { it.uuid == tag.uuid }
+                    // The cap check above runs at dispatch, and two rapid creates both
+                    // pass it while the first write is in flight — the append re-checks
+                    // where the chip actually lands.
+                    val overCap = state.tags.size >= State.MAX_TAGS_PER_EXERCISE
                     state.copy(
-                        tags = (
-                            state.tags + TagUiModel(
-                                uuid = tag.uuid,
-                                name = tag.name,
-                            )
-                            ).toImmutableList(),
+                        tags = if (alreadySelected || overCap) {
+                            state.tags
+                        } else {
+                            (
+                                state.tags + AppTagItem(
+                                    uuid = tag.uuid,
+                                    name = tag.name,
+                                )
+                                ).toImmutableList()
+                        },
                         tagSearchQuery = "",
                     )
                 }

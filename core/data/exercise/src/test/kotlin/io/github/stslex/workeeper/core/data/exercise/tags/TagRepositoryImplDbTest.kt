@@ -15,7 +15,6 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import org.robolectric.annotation.Config
 import tech.apter.junit.jupiter.robolectric.RobolectricExtension
-import kotlin.uuid.Uuid
 
 @ExtendWith(RobolectricExtension::class)
 @Config(application = RepositoryTestEnv.TestApplication::class, sdk = [33])
@@ -78,15 +77,6 @@ internal class TagRepositoryImplDbTest {
     }
 
     @Test
-    fun `delete removes the tag from the DAO`() = runTest {
-        val tag = repository.add("Mobility")
-
-        repository.delete(tag.uuid)
-
-        assertTrue(env.tagDao.observeAll().first().isEmpty())
-    }
-
-    @Test
     fun `observeAll emits the live ordered list as inserts happen`() = runTest {
         assertTrue(repository.observeAll().first().isEmpty())
         repository.add("Zeta")
@@ -108,14 +98,5 @@ internal class TagRepositoryImplDbTest {
         // The original casing is preserved on the persisted row — `add` does not overwrite
         // the name when reusing.
         assertEquals("Push", env.tagDao.observeAll().first().single().name)
-    }
-
-    @Test
-    fun `delete with unknown uuid is a no-op`() = runTest {
-        repository.add("Push")
-
-        repository.delete(Uuid.random().toString())
-
-        assertEquals(1, env.tagDao.observeAll().first().size)
     }
 }

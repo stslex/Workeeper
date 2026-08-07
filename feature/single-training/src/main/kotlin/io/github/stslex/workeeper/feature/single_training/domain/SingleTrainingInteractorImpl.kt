@@ -80,6 +80,10 @@ class SingleTrainingInteractorImpl internal constructor(
         sessionRepository.getRecentFinishedByTraining(trainingUuid, limit).map { it.toDomain() }
     }
 
+    override suspend fun countSessions(trainingUuid: String): Int = withContext(defaultDispatcher) {
+        trainingRepository.countSessionsUsing(trainingUuid)
+    }
+
     override fun observeAvailableTags(): Flow<List<TagDomain>> = tagRepository
         .observeAll()
         .map { tags -> tags.map { it.toDomain() } }

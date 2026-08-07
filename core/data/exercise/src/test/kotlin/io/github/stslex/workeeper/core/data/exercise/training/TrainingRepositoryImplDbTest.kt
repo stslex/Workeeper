@@ -9,6 +9,8 @@ import io.github.stslex.workeeper.core.data.database.session.SessionEntity
 import io.github.stslex.workeeper.core.data.database.session.SessionStateEntity
 import io.github.stslex.workeeper.core.data.database.sets.PlanSetDataModel
 import io.github.stslex.workeeper.core.data.database.sets.SetTypeDataModel
+import io.github.stslex.workeeper.core.data.database.tag.ExerciseTagEntity
+import io.github.stslex.workeeper.core.data.database.tag.TagEntity
 import io.github.stslex.workeeper.core.data.database.testfixtures.RepositoryTestEnv
 import io.github.stslex.workeeper.core.data.database.training.TrainingEntity
 import io.github.stslex.workeeper.core.data.database.training.TrainingExerciseEntity
@@ -768,6 +770,47 @@ internal class TrainingRepositoryImplDbTest {
         assertEquals(60.0, persistedPlan?.single()?.weight)
         assertEquals(10, persistedPlan?.single()?.reps)
     }
+
+    /**
+     * D-OPEN-4, auto-prune on the TRAINING save path: a save that drops a tag's last link
+     * sweeps its dictionary row in the same transaction, while a tag whose only remaining
+     * link is an EXERCISE's survives — the fixture only the `exercise_tag_table` conjunct
+     * keeps alive (§27's per-predicate-fixture rule, mirrored from the exercise-side test).
+     */
+    @Test
+    fun `updateTrainingWithPlans prunes its orphaned tag and keeps the exercise-held one`() =
+        runTest {
+            val exerciseUuid = Uuid.random()
+            seedLibraryExercise(exerciseUuid, "Bench")
+            val sharedTag = TagEntity(name = "shared")
+            env.tagDao.insert(sharedTag)
+            env.exerciseTagDao.insert(
+                listOf(ExerciseTagEntity(exerciseUuid = exerciseUuid, tagUuid = sharedTag.uuid)),
+            )
+
+            val trainingUuid = Uuid.random()
+            repository.updateTrainingWithPlans(
+                training = TrainingChangeDataModel(
+                    uuid = trainingUuid.toString(),
+                    name = "Push Day",
+                    timestamp = 1_000L,
+                    labels = listOf("shared", "solo"),
+                ),
+                plans = emptyList(),
+            )
+            repository.updateTrainingWithPlans(
+                training = TrainingChangeDataModel(
+                    uuid = trainingUuid.toString(),
+                    name = "Push Day",
+                    timestamp = 2_000L,
+                    labels = emptyList(),
+                ),
+                plans = emptyList(),
+            )
+
+            val tagNames = env.tagDao.observeAll().first().map { it.name }
+            assertEquals(listOf("shared"), tagNames)
+        }
 
     /**
      * The transactional guarantee itself, and the test that MUST fail without the

@@ -4,6 +4,7 @@ package io.github.stslex.workeeper.feature.single_training.mvi.handler
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
+import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagItem
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanEditorUIMapper.formatPlanSummary
 import io.github.stslex.workeeper.feature.single_training.di.SingleTrainingHandlerStore
@@ -14,7 +15,6 @@ import io.github.stslex.workeeper.feature.single_training.domain.model.TrainingD
 import io.github.stslex.workeeper.feature.single_training.domain.model.TrainingExerciseDetail
 import io.github.stslex.workeeper.feature.single_training.mvi.mapper.TagUiMapper.toUi
 import io.github.stslex.workeeper.feature.single_training.mvi.model.HistorySessionItem
-import io.github.stslex.workeeper.feature.single_training.mvi.model.TagUiModel
 import io.github.stslex.workeeper.feature.single_training.mvi.model.TrainingExerciseItem
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.Action
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.State
@@ -78,8 +78,9 @@ internal class CommonHandler @Inject constructor(
             val training = interactor.getTraining(uuid)
             val exercises = interactor.getTrainingExercises(uuid)
             val recent = interactor.getRecentSessions(uuid, HISTORY_LIMIT)
+            val historyCount = interactor.countSessions(uuid)
             val canPermanentlyDelete = interactor.canPermanentlyDelete(uuid)
-            LoadResult(training, exercises, recent, canPermanentlyDelete)
+            LoadResult(training, exercises, recent, historyCount, canPermanentlyDelete)
         }
     }
 
@@ -87,7 +88,7 @@ internal class CommonHandler @Inject constructor(
         val training = result.training ?: return copy(isLoading = false)
         val tags = training.labels.map { name ->
             availableTags.firstOrNull { it.name.equals(name, ignoreCase = true) }
-                ?: TagUiModel(uuid = name, name = name)
+                ?: AppTagItem(uuid = name, name = name)
         }.toImmutableList()
         val exercises = result.exercises
             .sortedBy { it.position }
@@ -105,7 +106,7 @@ internal class CommonHandler @Inject constructor(
                     planSummary = planSets?.formatPlanSummary().orEmpty(),
                 )
             }.toImmutableList()
-        val past = result.recentSessions.toHistoryItems(training)
+        val past = result.recentSessions.toHistoryItems()
         val baseSnapshot = State.Snapshot(
             name = training.name,
             description = training.description.orEmpty(),
@@ -119,28 +120,27 @@ internal class CommonHandler @Inject constructor(
             tags = tags,
             exercises = exercises,
             pastSessions = past,
+            historyCount = result.historyCount,
             originalSnapshot = baseSnapshot,
             canPermanentlyDelete = result.canPermanentlyDelete,
             isLoading = false,
         )
     }
 
-    private fun List<SessionDomain>.toHistoryItems(
-        training: TrainingDomain,
-    ): ImmutableList<HistorySessionItem> = mapNotNull { session ->
-        val finished = session.finishedAt ?: return@mapNotNull null
-        HistorySessionItem(
-            sessionUuid = session.uuid,
-            dateLabel = resourceWrapper.formatMediumDate(finished),
-            trainingName = training.name,
-            exerciseCount = 0,
-        )
-    }.toImmutableList()
+    private fun List<SessionDomain>.toHistoryItems(): ImmutableList<HistorySessionItem> =
+        mapNotNull { session ->
+            val finished = session.finishedAt ?: return@mapNotNull null
+            HistorySessionItem(
+                sessionUuid = session.uuid,
+                dateLabel = resourceWrapper.formatMediumDate(finished),
+            )
+        }.toImmutableList()
 
     private data class LoadResult(
         val training: TrainingDomain?,
         val exercises: List<TrainingExerciseDetail>,
         val recentSessions: List<SessionDomain>,
+        val historyCount: Int,
         val canPermanentlyDelete: Boolean,
     )
 

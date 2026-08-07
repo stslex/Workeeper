@@ -95,11 +95,7 @@ data class AppTypography(
     /** Unused in production; exists so `Typography()` is complete. */
     val headlineMedium: TextStyle = text.title
 
-    /**
-     * Screen titles — `DetailTopbar`, `PlanEditorScreen`, `PastSessionScreen`,
-     * `PastSessionHeader`. All four, not three: `DetailTopbar` reaches every detail screen in
-     * the app, so this alias is wider than its call-site count suggests.
-     */
+    /** Screen titles — `PlanEditorScreen`, `PastSessionScreen`, `PastSessionHeader`. */
     val headlineSmall: TextStyle = text.title
 
     /** Dialog titles — `AppConfirmationDialog`, `AppBlockedArchiveDialog`, and friends. */

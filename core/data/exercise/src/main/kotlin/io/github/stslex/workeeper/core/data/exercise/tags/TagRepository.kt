@@ -12,6 +12,4 @@ interface TagRepository {
     suspend fun findByName(name: String): TagDataModel?
 
     suspend fun add(name: String): TagDataModel
-
-    suspend fun delete(uuid: String)
 }

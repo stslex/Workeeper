@@ -3,7 +3,6 @@
     <string name="core_ui_kit_action_cancel">Cancel</string>
     <string name="core_ui_kit_action_save">Save</string>
     <string name="core_ui_kit_action_back">Back</string>
-    <string name="core_ui_kit_more_description">More</string>
 
     <string name="feature_exercise_detail_type_weighted">Weighted</string>
     <string name="feature_exercise_detail_type_weightless">Weightless</string>
@@ -75,4 +74,13 @@
     <string name="core_ui_kit_reorderable_drag_handle">Reorder</string>
 
     <string name="core_ui_kit_sheet_close">Close</string>
+
+    <!-- One tag picker, one table (ED7): the form row's add chip, the sheet's own copy. -->
+    <string name="core_ui_kit_tag_sheet_title">Tags</string>
+    <string name="core_ui_kit_tag_search_hint">Search tags…</string>
+    <string name="core_ui_kit_tag_create_format">+ Create «%1$s»</string>
+    <string name="core_ui_kit_tag_done">Done</string>
+    <string name="core_ui_kit_tag_add_chip">+ tag</string>
+    <string name="core_ui_kit_tag_remove_description">Remove tag</string>
+    <string name="core_ui_kit_toast_undo" tools:ignore="DuplicateStrings">Undo</string>
 </resources>
