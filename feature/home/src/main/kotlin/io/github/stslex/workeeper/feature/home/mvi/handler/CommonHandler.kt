@@ -10,6 +10,7 @@ import io.github.stslex.workeeper.feature.home.di.HomeHandlerStore
 import io.github.stslex.workeeper.feature.home.di.HomeScope
 import io.github.stslex.workeeper.feature.home.domain.HomeInteractor
 import io.github.stslex.workeeper.feature.home.mvi.mapper.HomeUiMapper.toUi
+import io.github.stslex.workeeper.feature.home.mvi.mapper.StartCardModeMapper.toDomain
 import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.Action
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -32,7 +33,10 @@ internal class CommonHandler @Inject constructor(
             "Home screen initialized, observing active session. The recent list is paged and " +
                 "collects itself from State.pagingUiState — see PagingHandler."
         }
-        interactor.observeWeekReadout(System.currentTimeMillis()).launch { readout ->
+        interactor.observeStartCardReadout(
+            mode = state.value.startCardMode.toDomain(),
+            nowMillis = System.currentTimeMillis(),
+        ).launch { readout ->
             val body = readout.toUi(resourceWrapper)
             updateStateImmediate { current -> current.copy(startCardBody = body) }
         }

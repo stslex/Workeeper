@@ -9,6 +9,12 @@
     <string name="feature_home_charts">Charts</string>
 
     <string name="feature_home_start_action">Start</string>
+    <string name="feature_home_start_mode_forgotten_label">Longest not done</string>
+    <string name="feature_home_start_empty_sessions">No workouts yet</string>
+    <string name="feature_home_start_empty_tags">Exercises have no tags yet — tag muscle groups and they will show up here</string>
+    <string name="feature_home_start_never_run">never yet</string>
+    <string name="feature_home_start_groups_footnote">days since the group’s last workout</string>
+    <string name="feature_home_start_other_training">Another training</string>
     <string name="feature_home_start_week_day_mon">Mo</string>
     <string name="feature_home_start_week_day_tue">Tu</string>
     <string name="feature_home_start_week_day_wed">We</string>
@@ -49,5 +55,16 @@
     <plurals name="feature_home_start_week_sessions_count" tools:ignore="ImpliedQuantity">
         <item quantity="one">workout</item>
         <item quantity="other">workouts</item>
+    </plurals>
+
+    <!-- Unit word only, same construction as the week unit above. -->
+    <plurals name="feature_home_start_days_count" tools:ignore="ImpliedQuantity">
+        <item quantity="one">day</item>
+        <item quantity="other">days</item>
+    </plurals>
+
+    <plurals name="feature_home_start_days_idle_count">
+        <item quantity="one">%d day</item>
+        <item quantity="other">%d days</item>
     </plurals>
 </resources>

@@ -44,6 +44,7 @@ import io.github.stslex.workeeper.core.ui.kit.theme.continuityAlphaSpec
 import io.github.stslex.workeeper.core.ui.kit.theme.continuityPositionalSpec
 import io.github.stslex.workeeper.feature.home.R
 import io.github.stslex.workeeper.feature.home.mvi.model.RecentSessionItem
+import io.github.stslex.workeeper.feature.home.mvi.model.StartCardBodyUi
 import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.Action
 import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.State
 import io.github.stslex.workeeper.feature.home.ui.components.ActiveSessionBanner
@@ -184,13 +185,25 @@ private fun HomeBody(
         }
         if (state.showStartCta) {
             item(key = "start") {
+                val body = state.startCardBody
                 HomeStartCard(
-                    body = state.startCardBody,
+                    mode = state.startCardMode,
+                    body = body,
                     modifier = Modifier.padding(
                         horizontal = AppDimension.screenEdge,
                         vertical = AppDimension.Space.md,
                     ),
-                    onStartClick = { consume(Action.Click.OnStartTrainingClick) },
+                    onStartClick = {
+                        // §3.4: on «Забытая тренировка» the primary action starts THAT
+                        // training; every other body opens the picker.
+                        val forgotten = body as? StartCardBodyUi.Forgotten
+                        if (forgotten != null) {
+                            consume(Action.Click.OnStartForgottenTraining(forgotten.trainingUuid))
+                        } else {
+                            consume(Action.Click.OnStartTrainingClick)
+                        }
+                    },
+                    onOtherTrainingClick = { consume(Action.Click.OnStartTrainingClick) },
                 )
             }
         }

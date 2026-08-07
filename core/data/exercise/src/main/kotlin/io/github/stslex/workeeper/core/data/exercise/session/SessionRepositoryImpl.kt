@@ -123,6 +123,20 @@ class SessionRepositoryImpl @Inject internal constructor(
         .observeFinishedTimesBetween(startInclusive, endExclusive)
         .flowOn(ioDispatcher)
 
+    override fun observeLastFinishedSession(): Flow<SessionRepository.LastFinishedSession?> = dao
+        .observeLastFinishedSession()
+        .map { row ->
+            row?.let {
+                SessionRepository.LastFinishedSession(
+                    sessionUuid = it.sessionUuid.toString(),
+                    finishedAt = it.finishedAt,
+                    trainingName = it.trainingName,
+                    isAdhoc = it.isAdhoc,
+                )
+            }
+        }
+        .flowOn(ioDispatcher)
+
     override suspend fun getSessionDetail(
         sessionUuid: String,
     ): SessionDetailDataModel? = transition {

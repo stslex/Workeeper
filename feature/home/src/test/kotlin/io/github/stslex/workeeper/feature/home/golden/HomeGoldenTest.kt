@@ -15,9 +15,11 @@ import io.github.stslex.workeeper.core.ui.kit.golden.LOCALE_RU
 import io.github.stslex.workeeper.core.ui.kit.golden.golden
 import io.github.stslex.workeeper.core.ui.kit.golden.goldenSubject
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
+import io.github.stslex.workeeper.core.ui.start_mode.model.StartCardModeUi
 import io.github.stslex.workeeper.feature.home.R
 import io.github.stslex.workeeper.feature.home.mvi.model.RecentSessionItem
 import io.github.stslex.workeeper.feature.home.mvi.model.StartCardBodyUi
+import io.github.stslex.workeeper.feature.home.mvi.model.TagIdleRowUi
 import io.github.stslex.workeeper.feature.home.mvi.model.WeekDayUi
 import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.State
 import io.github.stslex.workeeper.feature.home.ui.HomeScreen
@@ -26,6 +28,7 @@ import io.github.stslex.workeeper.feature.home.ui.components.HomeStartCard
 import io.github.stslex.workeeper.feature.home.ui.components.PagingErrorFooter
 import io.github.stslex.workeeper.feature.home.ui.components.PagingLoadingFooter
 import io.github.stslex.workeeper.feature.home.ui.components.RecentSessionRow
+import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.flowOf
 import org.junit.jupiter.api.TestInfo
@@ -229,13 +232,124 @@ internal class HomeGoldenTest {
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
     fun startCard(theme: GoldenTheme, testInfo: TestInfo) =
-        goldenSubject(testInfo, theme) {
-            HomeStartCard(
-                body = week,
-                onStartClick = {},
-                modifier = Modifier.padding(AppDimension.screenEdge),
-            )
-        }
+        startCardGolden(testInfo, theme, StartCardModeUi.WEEK, week)
+
+    /** §3.2 — the gap with its name-and-date anchor. */
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun startCardDaysSince(theme: GoldenTheme, testInfo: TestInfo) = startCardGolden(
+        testInfo,
+        theme,
+        StartCardModeUi.DAYS_SINCE_LAST,
+        StartCardBodyUi.DaysSince(
+            daysCountLabel = "4",
+            daysUnitLabel = "дня",
+            anchorLabel = "Ноги и плечи · 03/08/26",
+        ),
+    )
+
+    /** §3.3 — three tags, bars proportional to idleness, «дней» once in the footnote. */
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun startCardTagIdle(theme: GoldenTheme, testInfo: TestInfo) = startCardGolden(
+        testInfo,
+        theme,
+        StartCardModeUi.LAGGING_GROUPS,
+        StartCardBodyUi.TagIdle(
+            rows = persistentListOf(
+                TagIdleRowUi(name = "спина", barFraction = 1f, daysCountLabel = "14"),
+                TagIdleRowUi(name = "грудь", barFraction = 0.5f, daysCountLabel = "7"),
+                TagIdleRowUi(name = "ноги", barFraction = 0.14f, daysCountLabel = "2"),
+            ),
+            footnoteLabel = "дней с последней тренировки группы",
+        ),
+    )
+
+    /** §3.4 — name over the meta line, and the `.setbar` foot with «Другая тренировка». */
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun startCardForgotten(theme: GoldenTheme, testInfo: TestInfo) = startCardGolden(
+        testInfo,
+        theme,
+        StartCardModeUi.FORGOTTEN_TRAINING,
+        StartCardBodyUi.Forgotten(
+            trainingUuid = "t1",
+            trainingName = "Спина и бицепс",
+            metaLabel = "21 день · 6 упражнений",
+        ),
+    )
+
+    /** HD1's witness — the never-run template ranks first and says «ещё ни разу». */
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun startCardForgottenNeverRun(theme: GoldenTheme, testInfo: TestInfo) = startCardGolden(
+        testInfo,
+        theme,
+        StartCardModeUi.FORGOTTEN_TRAINING,
+        StartCardBodyUi.Forgotten(
+            trainingUuid = "t2",
+            trainingName = "Новый план",
+            metaLabel = "ещё ни разу · 3 упражнения",
+        ),
+    )
+
+    /**
+     * HD2–HD4 — each mode's own empty state, mode still selected in the head, the plain
+     * «Начать» still offered. Week and days-since share the no-sessions copy (one piece of
+     * news) but not a picture: the head label differs.
+     */
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun startCardEmptyWeek(theme: GoldenTheme, testInfo: TestInfo) = startCardGolden(
+        testInfo,
+        theme,
+        StartCardModeUi.WEEK,
+        StartCardBodyUi.Empty(message = "Ещё ни одной тренировки"),
+    )
+
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun startCardEmptyDaysSince(theme: GoldenTheme, testInfo: TestInfo) = startCardGolden(
+        testInfo,
+        theme,
+        StartCardModeUi.DAYS_SINCE_LAST,
+        StartCardBodyUi.Empty(message = "Ещё ни одной тренировки"),
+    )
+
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun startCardEmptyTags(theme: GoldenTheme, testInfo: TestInfo) = startCardGolden(
+        testInfo,
+        theme,
+        StartCardModeUi.LAGGING_GROUPS,
+        StartCardBodyUi.Empty(
+            message = "Упражнения без тегов — отмечайте группы, и они появятся здесь",
+        ),
+    )
+
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun startCardEmptyTemplates(theme: GoldenTheme, testInfo: TestInfo) = startCardGolden(
+        testInfo,
+        theme,
+        StartCardModeUi.FORGOTTEN_TRAINING,
+        StartCardBodyUi.Empty(message = "Пока нет шаблонов"),
+    )
+
+    private fun startCardGolden(
+        testInfo: TestInfo,
+        theme: GoldenTheme,
+        mode: StartCardModeUi,
+        body: StartCardBodyUi,
+    ) = goldenSubject(testInfo, theme) {
+        HomeStartCard(
+            mode = mode,
+            body = body,
+            onStartClick = {},
+            onOtherTrainingClick = {},
+            modifier = Modifier.padding(AppDimension.screenEdge),
+        )
+    }
 
     // ---- whole surface: every verdict the selector can return -------------------------------------
 

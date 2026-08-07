@@ -4,6 +4,7 @@ package io.github.stslex.workeeper.feature.home.mvi.handler
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.feature.home.di.HomeHandlerStore
 import io.github.stslex.workeeper.feature.home.domain.HomeInteractor
+import io.github.stslex.workeeper.feature.home.domain.model.StartCardModeDomain
 import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.Action
 import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.State
 import io.github.stslex.workeeper.feature.home.mvi.store.emptyPagingState
@@ -49,8 +50,11 @@ internal class CommonHandlerTest {
     }
 
     @Test
-    fun `Init subscribes to the week readout for the start card`() {
-        val store = mockk<HomeHandlerStore>(relaxed = true)
+    fun `Init subscribes to the start card readout for the current mode`() {
+        val stateFlow = MutableStateFlow(emptyPagingState())
+        val store = mockk<HomeHandlerStore>(relaxed = true).apply {
+            every { state } returns stateFlow
+        }
         val handler = CommonHandler(
             interactor = interactor,
             resourceWrapper = resources,
@@ -59,6 +63,8 @@ internal class CommonHandlerTest {
 
         handler.invoke(Action.Common.Init)
 
-        verify(exactly = 1) { interactor.observeWeekReadout(any()) }
+        verify(exactly = 1) {
+            interactor.observeStartCardReadout(mode = StartCardModeDomain.WEEK, nowMillis = any())
+        }
     }
 }

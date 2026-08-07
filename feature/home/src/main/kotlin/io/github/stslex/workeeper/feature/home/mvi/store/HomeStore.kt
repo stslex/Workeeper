@@ -6,6 +6,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.paging.PagingData
 import io.github.stslex.workeeper.core.ui.kit.components.PagingUiState
 import io.github.stslex.workeeper.core.ui.mvi.Store
+import io.github.stslex.workeeper.core.ui.start_mode.model.StartCardModeUi
 import io.github.stslex.workeeper.feature.home.mvi.model.PickerTrainingItem
 import io.github.stslex.workeeper.feature.home.mvi.model.RecentSessionItem
 import io.github.stslex.workeeper.feature.home.mvi.model.StartCardBodyUi
@@ -16,6 +17,8 @@ interface HomeStore : Store<HomeStore.State, HomeStore.Action, HomeStore.Event> 
     @Stable
     data class State(
         val activeSession: ActiveSessionInfo?,
+        /** The start card's selected readout mode. Fixed at WEEK until the mode sheet lands. */
+        val startCardMode: StartCardModeUi,
         /**
          * The start card's readout, null until its flow's first emission. Not a second
          * loading discriminator: the card itself is gated by [showStartCta], and a null
@@ -89,6 +92,7 @@ interface HomeStore : Store<HomeStore.State, HomeStore.Action, HomeStore.Event> 
                 pagingUiState: PagingUiState<PagingData<RecentSessionItem>>,
             ): State = State(
                 activeSession = null,
+                startCardMode = StartCardModeUi.WEEK,
                 startCardBody = null,
                 pagingUiState = pagingUiState,
                 nowMillis = 0L,
@@ -108,6 +112,15 @@ interface HomeStore : Store<HomeStore.State, HomeStore.Action, HomeStore.Event> 
             data object OnSettingsClick : Click
             data class OnRecentSessionClick(val sessionUuid: String) : Click
             data object OnStartTrainingClick : Click
+
+            /**
+             * «Забытая тренировка» only: the primary button starts the forgotten template
+             * directly (home-start-card.md §3.4) — no picker in between. Routes through the
+             * same conflict resolution as a picker selection, defensively: the card is
+             * hidden while a session runs, but the resolver is the invariant's keeper.
+             */
+            data class OnStartForgottenTraining(val trainingUuid: String) : Click
+
             data class OnPickerTrainingSelected(val trainingUuid: String) : Click
 
             // v2.3 — first row of the Start workout picker; routes to the blank-init Live

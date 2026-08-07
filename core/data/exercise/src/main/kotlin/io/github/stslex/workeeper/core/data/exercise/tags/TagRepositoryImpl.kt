@@ -48,4 +48,16 @@ class TagRepositoryImpl @Inject internal constructor(
             entity.toData()
         }
     }
+
+    override fun observeTagIdleStats(limit: Int): Flow<List<TagRepository.TagIdleStat>> = dao
+        .observeTagIdleStats(limit)
+        .map { rows ->
+            rows.map { row ->
+                TagRepository.TagIdleStat(
+                    name = row.tagName,
+                    lastTrainedAt = row.lastTrainedAt,
+                )
+            }
+        }
+        .flowOn(ioDispatcher)
 }

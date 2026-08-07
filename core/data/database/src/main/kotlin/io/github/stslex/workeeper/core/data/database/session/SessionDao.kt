@@ -211,6 +211,29 @@ interface SessionDao {
         endExclusive: Long,
     ): Flow<List<Long>>
 
+    /**
+     * The most recent finished session with its training name — the «Дни без тренировки»
+     * anchor (home-start-card.md §3.2). Same predicates as [pagedRecentWithStats], and the
+     * `finished_at IS NOT NULL` is load-bearing for the same reason: `ORDER BY … DESC` on a
+     * nullable column parks nulls at the tail, so a timestampless FINISHED row would win
+     * `LIMIT 1` from below without it. The INNER JOIN excludes nothing — the CASCADE FK on
+     * `training_uuid` means no orphaned session can exist.
+     */
+    @Query(
+        """
+        SELECT s.uuid AS session_uuid,
+               s.finished_at AS finished_at,
+               t.name AS training_name,
+               t.is_adhoc AS is_adhoc
+        FROM session_table s
+        INNER JOIN training_table t ON t.uuid = s.training_uuid
+        WHERE s.state = 'FINISHED' AND s.finished_at IS NOT NULL
+        ORDER BY s.finished_at DESC
+        LIMIT 1
+        """,
+    )
+    fun observeLastFinishedSession(): Flow<LastFinishedSessionRow?>
+
     @Query(
         """
         SELECT * FROM session_table

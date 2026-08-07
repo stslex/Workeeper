@@ -34,6 +34,7 @@ internal class ClickHandler @Inject constructor(
             Action.Click.OnSettingsClick -> processSettingsClick()
             is Action.Click.OnRecentSessionClick -> processRecentSessionClick(action.sessionUuid)
             Action.Click.OnStartTrainingClick -> processStartTrainingClick()
+            is Action.Click.OnStartForgottenTraining -> processStartForgotten(action.trainingUuid)
             is Action.Click.OnPickerTrainingSelected -> processPickerSelected(action.trainingUuid)
             Action.Click.OnStartBlankClick -> processStartBlankClick()
             Action.Click.OnPickerSeeAllClick -> processPickerSeeAll()
@@ -95,6 +96,16 @@ internal class ClickHandler @Inject constructor(
     private fun processPickerSelected(trainingUuid: String) {
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
         updateState { it.copy(picker = State.PickerState.Hidden) }
+        resolveConflictAndStart(trainingUuid)
+    }
+
+    /** «Забытая тренировка»'s primary action — no picker, same conflict resolution. */
+    private fun processStartForgotten(trainingUuid: String) {
+        sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
+        resolveConflictAndStart(trainingUuid)
+    }
+
+    private fun resolveConflictAndStart(trainingUuid: String) {
         launch {
             when (val resolution = interactor.resolveStartConflict(trainingUuid)) {
                 StartSessionConflict.ProceedFresh -> consumeOnMain(

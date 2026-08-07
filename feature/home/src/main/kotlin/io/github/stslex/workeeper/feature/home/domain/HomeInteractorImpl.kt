@@ -13,10 +13,11 @@ import io.github.stslex.workeeper.feature.home.di.HomeScope
 import io.github.stslex.workeeper.feature.home.domain.mapper.HomeDomainMapper.toDomain
 import io.github.stslex.workeeper.feature.home.domain.model.ActiveSessionWithStatsDomain
 import io.github.stslex.workeeper.feature.home.domain.model.RecentSessionDomain
+import io.github.stslex.workeeper.feature.home.domain.model.StartCardModeDomain
+import io.github.stslex.workeeper.feature.home.domain.model.StartCardReadoutDomain
 import io.github.stslex.workeeper.feature.home.domain.model.StartSessionConflict
 import io.github.stslex.workeeper.feature.home.domain.model.TrainingListItemDomain
-import io.github.stslex.workeeper.feature.home.domain.model.WeekReadoutDomain
-import io.github.stslex.workeeper.feature.home.domain.usecase.ObserveWeekReadoutUseCase
+import io.github.stslex.workeeper.feature.home.domain.usecase.ObserveStartCardReadoutUseCase
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
@@ -30,7 +31,7 @@ class HomeInteractorImpl internal constructor(
     private val sessionRepository: SessionRepository,
     private val trainingRepository: TrainingRepository,
     private val sessionConflictResolver: SessionConflictResolver,
-    private val observeWeekReadoutUseCase: ObserveWeekReadoutUseCase,
+    private val observeStartCardReadoutUseCase: ObserveStartCardReadoutUseCase,
     @DefaultDispatcher private val defaultDispatcher: CoroutineDispatcher,
 ) : HomeInteractor {
 
@@ -39,8 +40,10 @@ class HomeInteractorImpl internal constructor(
             .map { row -> row?.toDomain() }
             .flowOn(defaultDispatcher)
 
-    override fun observeWeekReadout(nowMillis: Long): Flow<WeekReadoutDomain> =
-        observeWeekReadoutUseCase(nowMillis)
+    override fun observeStartCardReadout(
+        mode: StartCardModeDomain,
+        nowMillis: Long,
+    ): Flow<StartCardReadoutDomain> = observeStartCardReadoutUseCase(mode, nowMillis)
 
     override fun pagedRecent(): Flow<PagingData<RecentSessionDomain>> =
         sessionRepository.pagedRecentWithStats()

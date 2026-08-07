@@ -113,6 +113,23 @@ internal class ClickHandlerTest {
     }
 
     @Test
+    fun `OnStartForgottenTraining emits a haptic and starts the conflict resolution`() {
+        val store = newStore(baseState)
+        val handler = ClickHandler(interactor = interactor, resourceWrapper = resources, store = store)
+
+        handler.invoke(Action.Click.OnStartForgottenTraining(trainingUuid = "tpl-9"))
+
+        val captured = slot<Event>()
+        verify(exactly = 1) { store.sendEvent(capture(captured)) }
+        assertEquals(true, captured.captured is Event.HapticClick)
+        // The resolution itself runs inside the launched coroutine (stubbed here); what this
+        // pins is that the action goes through the resolver path, not straight to navigation.
+        verify(exactly = 1) {
+            store.launch(any(), any(), any(), any(), any<suspend CoroutineScope.() -> Unit>())
+        }
+    }
+
+    @Test
     fun `OnConflictDismiss clears pendingConflict`() {
         val state = baseState.copy(
             pendingConflict = State.ConflictInfo(

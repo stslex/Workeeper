@@ -5,8 +5,10 @@ import io.github.stslex.workeeper.core.data.exercise.session.SessionConflictReso
 import io.github.stslex.workeeper.core.data.exercise.session.SessionRepository
 import io.github.stslex.workeeper.core.data.exercise.training.TrainingRepository
 import io.github.stslex.workeeper.feature.home.domain.model.ActiveSessionWithStatsDomain
+import io.github.stslex.workeeper.feature.home.domain.model.StartCardModeDomain
+import io.github.stslex.workeeper.feature.home.domain.model.StartCardReadoutDomain
 import io.github.stslex.workeeper.feature.home.domain.model.WeekReadoutDomain
-import io.github.stslex.workeeper.feature.home.domain.usecase.ObserveWeekReadoutUseCase
+import io.github.stslex.workeeper.feature.home.domain.usecase.ObserveStartCardReadoutUseCase
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -22,12 +24,13 @@ internal class HomeInteractorImplTest {
     private val sessionRepository = mockk<SessionRepository>(relaxed = true)
     private val trainingRepository = mockk<TrainingRepository>(relaxed = true)
     private val sessionConflictResolver = mockk<SessionConflictResolver>(relaxed = true)
-    private val observeWeekReadoutUseCase = mockk<ObserveWeekReadoutUseCase>(relaxed = true)
+    private val observeStartCardReadoutUseCase =
+        mockk<ObserveStartCardReadoutUseCase>(relaxed = true)
     private val interactor = HomeInteractorImpl(
         sessionRepository = sessionRepository,
         trainingRepository = trainingRepository,
         sessionConflictResolver = sessionConflictResolver,
-        observeWeekReadoutUseCase = observeWeekReadoutUseCase,
+        observeStartCardReadoutUseCase = observeStartCardReadoutUseCase,
         defaultDispatcher = Dispatchers.Unconfined,
     )
 
@@ -61,13 +64,21 @@ internal class HomeInteractorImplTest {
     }
 
     @Test
-    fun `observeWeekReadout delegates to the use case with the caller's now`() = runTest {
-        val readout = WeekReadoutDomain(sessionsThisWeek = 2, trainedDayIndexes = setOf(0, 3))
-        every { observeWeekReadoutUseCase(nowMillis = 42L) } returns flowOf(readout)
+    fun `observeStartCardReadout delegates to the use case with mode and now`() = runTest {
+        val readout = StartCardReadoutDomain.Week(
+            WeekReadoutDomain(sessionsThisWeek = 2, trainedDayIndexes = setOf(0, 3)),
+        )
+        every {
+            observeStartCardReadoutUseCase(mode = StartCardModeDomain.WEEK, nowMillis = 42L)
+        } returns flowOf(readout)
 
-        val emitted = interactor.observeWeekReadout(nowMillis = 42L).first()
+        val emitted = interactor
+            .observeStartCardReadout(mode = StartCardModeDomain.WEEK, nowMillis = 42L)
+            .first()
 
         assertEquals(readout, emitted)
-        verify(exactly = 1) { observeWeekReadoutUseCase(nowMillis = 42L) }
+        verify(exactly = 1) {
+            observeStartCardReadoutUseCase(mode = StartCardModeDomain.WEEK, nowMillis = 42L)
+        }
     }
 }

@@ -4,9 +4,10 @@ package io.github.stslex.workeeper.feature.home.domain
 import androidx.paging.PagingData
 import io.github.stslex.workeeper.feature.home.domain.model.ActiveSessionWithStatsDomain
 import io.github.stslex.workeeper.feature.home.domain.model.RecentSessionDomain
+import io.github.stslex.workeeper.feature.home.domain.model.StartCardModeDomain
+import io.github.stslex.workeeper.feature.home.domain.model.StartCardReadoutDomain
 import io.github.stslex.workeeper.feature.home.domain.model.StartSessionConflict
 import io.github.stslex.workeeper.feature.home.domain.model.TrainingListItemDomain
-import io.github.stslex.workeeper.feature.home.domain.model.WeekReadoutDomain
 import kotlinx.coroutines.flow.Flow
 
 interface HomeInteractor {
@@ -14,10 +15,13 @@ interface HomeInteractor {
     fun observeActiveSession(): Flow<ActiveSessionWithStatsDomain?>
 
     /**
-     * The start card's «Неделя» readout: finished-session count and trained weekdays for
-     * the calendar week containing [nowMillis] (home-start-card.md §3.1).
+     * The start card's readout for [mode] (home-start-card.md §3) — the mode's data or the
+     * mode's own empty state, computed against the moment [nowMillis].
      */
-    fun observeWeekReadout(nowMillis: Long): Flow<WeekReadoutDomain>
+    fun observeStartCardReadout(
+        mode: StartCardModeDomain,
+        nowMillis: Long,
+    ): Flow<StartCardReadoutDomain>
 
     /**
      * The whole finished-session history, newest first, paged.
