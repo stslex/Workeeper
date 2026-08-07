@@ -137,6 +137,9 @@ internal class ClickHandler @Inject constructor(
             consume(Action.Navigation.Back)
             return
         }
+        // The write is in flight — nothing may roll the draft back now, and a create's
+        // POP_SCREEN would double-pop under the save's own Back ([State.isSaving]'s KDoc).
+        if (current.isSaving) return
         val target = if (mode.isCreate) DiscardTarget.POP_SCREEN else DiscardTarget.FLIP_TO_READ
         if (current.hasChanges) {
             updateState { it.copy(dialogState = DialogState.DiscardConfirm(target)) }
@@ -150,8 +153,10 @@ internal class ClickHandler @Inject constructor(
         updateState { current ->
             current.copy(
                 mode = Mode.Edit(isCreate = false),
-                // A new draft: undo toasts of the previous one must not edit this one.
+                // A new draft: undo toasts of the previous one must not edit this one, and
+                // a stuck flag from an orphaned save must not gag its undos.
                 draftEpoch = current.draftEpoch + 1,
+                isSaving = false,
                 // Reachable from the dock and the overflow sheet alike — the flip to Edit
                 // closes the sheet in the same transition either way.
                 bottomSheetState = BottomSheetState.Hidden,
@@ -447,6 +452,8 @@ internal class ClickHandler @Inject constructor(
             consume(Action.Navigation.Back)
             return
         }
+        // Same in-flight guard as processBackClick — the two entries raise one sheet.
+        if (current.isSaving) return
         val target = if (mode.isCreate) DiscardTarget.POP_SCREEN else DiscardTarget.FLIP_TO_READ
         if (current.hasChanges) {
             updateState { it.copy(dialogState = DialogState.DiscardConfirm(target)) }
@@ -458,6 +465,10 @@ internal class ClickHandler @Inject constructor(
     private fun processConfirmDiscard(target: DiscardTarget) {
         sendEvent(Event.Haptic(HapticFeedbackType.LongPress))
         updateState { it.copy(dialogState = DialogState.Hidden) }
+        // Guarded on its own, not only at the entries that raise the sheet: the confirm
+        // is a second action, and a save dispatched between the two would land on the
+        // rollback below ([State.isSaving]'s KDoc).
+        if (state.value.isSaving) return
         applyDiscardTarget(target)
     }
 
@@ -468,6 +479,9 @@ internal class ClickHandler @Inject constructor(
      * keeping the exact edit the sheet was asking about.
      */
     private fun processFlipToReadMode() {
+        // The choke point for every route back to Read that bypasses the save's own
+        // outcome — refused while the write is in flight ([State.isSaving]'s KDoc).
+        if (state.value.isSaving) return
         updateState { current ->
             val snapshot = current.originalSnapshot
             if (snapshot == null) {
@@ -772,8 +786,12 @@ internal class ClickHandler @Inject constructor(
                     // exists, so «Создать» over an already-selected name must not chip it
                     // twice — the persisted links dedup on Save, the draft must agree.
                     val alreadySelected = state.tags.any { it.uuid == tag.uuid }
+                    // The cap check above runs at dispatch, and two rapid creates both
+                    // pass it while the first write is in flight — the append re-checks
+                    // where the chip actually lands.
+                    val overCap = state.tags.size >= State.MAX_TAGS_PER_EXERCISE
                     state.copy(
-                        tags = if (alreadySelected) {
+                        tags = if (alreadySelected || overCap) {
                             state.tags
                         } else {
                             (

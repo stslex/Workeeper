@@ -37,8 +37,12 @@ interface SingleTrainingStore : Store<State, Action, Event> {
         /**
          * A save's write is in flight: the snapshot is already captured, so the draft may
          * not take an undo any more — a row restored now would reach the screen and miss
-         * the database. Set when Save dispatches, cleared on every outcome (the success
-         * flip to Read, or the failure that keeps the draft alive and re-arms its undos).
+         * the database. Discard is refused for the same reason in the other direction: a
+         * rollback now would hand the landing save's flip-to-Read a reverted form to
+         * snapshot, splitting the screen from the row the write just committed. Set when
+         * Save dispatches, cleared on every outcome (the success flip to Read, or the
+         * failure that keeps the draft alive and re-arms its undos) — and defensively on
+         * Edit entry, so a flag orphaned with a dead draft cannot gag the next one.
          */
         val isSaving: Boolean,
         val name: String,

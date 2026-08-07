@@ -30,6 +30,7 @@ import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
 import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -534,6 +535,116 @@ internal class ClickHandlerTest {
     }
 
     /**
+     * The same in-flight interval, the other direction: with the write dispatched, Отмена
+     * may not raise the discard sheet — a rollback landing before the save's outcome
+     * would leave [State.originalSnapshot] holding the saved values over reverted fields
+     * ([State.isSaving]'s KDoc). The inert `launch` mock IS the in-flight simulation.
+     */
+    @Test
+    fun `a cancel during the save's write raises nothing and reverts nothing`() {
+        val (stateFlow, _, handler) = setup(
+            State.create(uuid = "00000000-0000-0000-0000-000000000001").copy(
+                mode = Mode.Edit(isCreate = false),
+                type = ExerciseTypeUiModel.WEIGHTED,
+                name = "Bench v2",
+                originalSnapshot = State.Snapshot(
+                    name = "Bench",
+                    type = ExerciseTypeUiModel.WEIGHTED,
+                    description = "",
+                    tagUuids = emptyList(),
+                    adhocPlan = null,
+                ),
+            ),
+        )
+        handler.invoke(Action.Click.OnSaveClick)
+        assertTrue(stateFlow.value.isSaving)
+
+        handler.invoke(Action.Click.OnCancelClick)
+
+        assertEquals(DialogState.Hidden, stateFlow.value.dialogState)
+        assertTrue(stateFlow.value.mode is Mode.Edit)
+        assertEquals("Bench v2", stateFlow.value.name)
+    }
+
+    /** The back gesture is the second entry to the same sheet — guarded the same way. */
+    @Test
+    fun `a back during the save's write raises nothing`() {
+        val (stateFlow, _, handler) = setup(
+            State.create(uuid = "00000000-0000-0000-0000-000000000001").copy(
+                mode = Mode.Edit(isCreate = false),
+                type = ExerciseTypeUiModel.WEIGHTED,
+                name = "Bench v2",
+                isSaving = true,
+                originalSnapshot = State.Snapshot(
+                    name = "Bench",
+                    type = ExerciseTypeUiModel.WEIGHTED,
+                    description = "",
+                    tagUuids = emptyList(),
+                    adhocPlan = null,
+                ),
+            ),
+        )
+
+        handler.invoke(Action.Click.OnBackClick)
+
+        assertEquals(DialogState.Hidden, stateFlow.value.dialogState)
+        assertTrue(stateFlow.value.mode is Mode.Edit)
+    }
+
+    /**
+     * The confirm is a second action after the sheet was raised, so it carries its own
+     * guard — proven where only IT stands: a create's POP_SCREEN discard, which never
+     * reaches the flip choke point and would double-pop under the save's own Back. (A
+     * FLIP_TO_READ fixture here is vacuous — `processFlipToReadMode`'s guard masks a
+     * deleted confirm guard.)
+     */
+    @Test
+    fun `a confirmed discard during the save's write pops nothing`() {
+        val (stateFlow, store, handler) = setup(
+            State.create(uuid = null).copy(
+                name = "Bench",
+                isSaving = true,
+                dialogState = DialogState.DiscardConfirm(DiscardTarget.POP_SCREEN),
+            ),
+        )
+
+        handler.invoke(Action.Click.OnConfirmDiscard(DiscardTarget.POP_SCREEN))
+
+        assertEquals(DialogState.Hidden, stateFlow.value.dialogState)
+        verify(exactly = 0) { store.consume(Action.Navigation.Back) }
+    }
+
+    /** The raw action reaches the same choke point and is refused the same way. */
+    @Test
+    fun `FlipToReadMode during the save's write flips nothing`() {
+        val (stateFlow, _, handler) = setup(
+            State.create(uuid = "00000000-0000-0000-0000-000000000001").copy(
+                mode = Mode.Edit(isCreate = false),
+                name = "Bench v2",
+                isSaving = true,
+            ),
+        )
+
+        handler.invoke(Action.Click.FlipToReadMode)
+
+        assertTrue(stateFlow.value.mode is Mode.Edit)
+        assertEquals("Bench v2", stateFlow.value.name)
+    }
+
+    /** A flag orphaned with a dead draft must not gag the next draft's undos. */
+    @Test
+    fun `Edit entry resets a stuck isSaving`() {
+        val (stateFlow, _, handler) = setup(
+            State.create(uuid = "00000000-0000-0000-0000-000000000001").copy(
+                mode = Mode.Read,
+                isSaving = true,
+            ),
+        )
+        handler.invoke(Action.Click.OnEditClick)
+        assertFalse(stateFlow.value.isSaving)
+    }
+
+    /**
      * The repository returns the EXISTING row for a name that already exists, so a create
      * reached with a padded already-selected name must not chip it twice — the persisted
      * links dedup on Save, and the draft must agree with them.
@@ -564,6 +675,43 @@ internal class ClickHandlerTest {
 
         assertEquals(listOf("t1"), stateFlow.value.tags.map { it.uuid })
         assertEquals("", stateFlow.value.tagSearchQuery)
+    }
+
+    /**
+     * The dispatch-time cap check can be passed twice while the first create's write is
+     * still in flight, so the append re-checks the cap where the chip lands: the second
+     * create resolves a row but chips nothing past [State.MAX_TAGS_PER_EXERCISE]. The
+     * parked launch mock IS the in-flight interval — both creates dispatch at nine tags,
+     * then their outcomes land in order.
+     */
+    @Test
+    fun `a second create landing on a full draft chips nothing past the cap`() {
+        val nineTags = (1..9).map { AppTagItem(uuid = "t$it", name = "Tag$it") }
+        val (stateFlow, store, handler) = setup(
+            State.create(uuid = "uuid-1").copy(tags = nineTags.toImmutableList()),
+        )
+        coEvery { store.updateStateImmediate(any<suspend (State) -> State>()) } coAnswers {
+            val update = firstArg<suspend (State) -> State>()
+            stateFlow.value = update(stateFlow.value)
+        }
+        val parked = mutableListOf<Pair<suspend CoroutineScope.(Any?) -> Unit, suspend CoroutineScope.() -> Any?>>()
+        every {
+            store.launch(any(), any(), any(), any(), any<suspend CoroutineScope.() -> Any?>())
+        } answers {
+            parked += arg<suspend CoroutineScope.(Any?) -> Unit>(1) to
+                arg<suspend CoroutineScope.() -> Any?>(4)
+            mockk(relaxed = true)
+        }
+        coEvery { interactor.createTag("Legs") } returns TagDomain(uuid = "t10", name = "Legs")
+        coEvery { interactor.createTag("Core") } returns TagDomain(uuid = "t11", name = "Core")
+
+        handler.invoke(Action.Click.OnTagCreate("Legs"))
+        handler.invoke(Action.Click.OnTagCreate("Core"))
+
+        parked.forEach { (onSuccess, action) -> runBlocking { onSuccess(this, action()) } }
+
+        assertEquals(10, stateFlow.value.tags.size)
+        assertEquals("t10", stateFlow.value.tags.last().uuid)
     }
 
     /** The toast fires on the REMOVE alone — a value edit is not a removal. */

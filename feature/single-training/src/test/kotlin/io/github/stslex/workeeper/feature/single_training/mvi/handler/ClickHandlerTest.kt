@@ -794,6 +794,69 @@ internal class ClickHandlerTest {
     }
 
     /**
+     * The same in-flight interval, the other direction: with the write dispatched, Отмена
+     * may not raise the discard sheet — a rollback landing before the save's flip to Read
+     * would be snapshotted as the original ([State.isSaving]'s KDoc). The inert `launch`
+     * mock IS the in-flight simulation: dispatched, never completed.
+     */
+    @Test
+    fun `a cancel during the save's write raises nothing and reverts nothing`() {
+        stateFlow.value = stateFlow.value.copy(
+            mode = State.Mode.Edit(isCreate = false),
+            name = "Push Day v2",
+            exercises = persistentListOf(exercise("ex-1")),
+            originalSnapshot = State.Snapshot(
+                name = "Push Day",
+                description = "",
+                tagUuids = emptyList(),
+                exercises = persistentListOf(exercise("ex-1")),
+            ),
+        )
+        handler.invoke(Action.Click.OnSaveClick)
+        assertTrue(stateFlow.value.isSaving)
+
+        handler.invoke(Action.Click.OnCancelClick)
+
+        assertEquals(DialogState.Hidden, stateFlow.value.dialogState)
+        assertTrue(stateFlow.value.mode is State.Mode.Edit)
+        assertEquals("Push Day v2", stateFlow.value.name)
+    }
+
+    /**
+     * The confirm is a second action after the sheet was raised, so it carries its own
+     * guard: a save dispatched between the two must not land on the rollback.
+     */
+    @Test
+    fun `a confirmed discard during the save's write reverts nothing`() {
+        stateFlow.value = stateFlow.value.copy(
+            mode = State.Mode.Edit(isCreate = false),
+            isSaving = true,
+            name = "Push Day v2",
+            originalSnapshot = State.Snapshot(
+                name = "Push Day",
+                description = "",
+                tagUuids = emptyList(),
+                exercises = persistentListOf(exercise("ex-1")),
+            ),
+            dialogState = DialogState.DiscardConfirm,
+        )
+
+        handler.invoke(Action.Click.OnConfirmDiscard)
+
+        assertEquals(DialogState.Hidden, stateFlow.value.dialogState)
+        assertTrue(stateFlow.value.mode is State.Mode.Edit)
+        assertEquals("Push Day v2", stateFlow.value.name)
+    }
+
+    /** A flag orphaned with a dead draft must not gag the next draft's undos. */
+    @Test
+    fun `Edit entry resets a stuck isSaving`() {
+        stateFlow.value = stateFlow.value.copy(mode = State.Mode.Read, isSaving = true)
+        handler.invoke(Action.Click.OnEditClick)
+        assertFalse(stateFlow.value.isSaving)
+    }
+
+    /**
      * The repository returns the EXISTING row for a name that already exists, so a create
      * reached with a padded already-selected name must not chip it twice — the persisted
      * links dedup on Save, and the draft must agree with them.

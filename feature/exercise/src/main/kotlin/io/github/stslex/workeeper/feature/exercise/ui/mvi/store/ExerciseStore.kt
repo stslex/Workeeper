@@ -39,9 +39,13 @@ interface ExerciseStore : Store<State, Action, Event> {
         /**
          * A save's write is in flight: the snapshot is already captured, so the draft may
          * not take an undo any more — a row restored now would reach the screen and miss
-         * the database. Set when Save dispatches, cleared on every outcome (the success
-         * flip to Read, or the failure that keeps the draft alive and re-arms its undos —
-         * `DuplicateName` and a failed image commit both stay in Edit).
+         * the database. Discard is refused for the same reason in the other direction: a
+         * rollback now would leave the landing save's [originalSnapshot] holding the
+         * saved values while the visible fields show the reverted ones. Set
+         * when Save dispatches, cleared on every outcome (the success flip to Read, or
+         * the failure that keeps the draft alive and re-arms its undos — `DuplicateName`
+         * and a failed image commit both stay in Edit) — and defensively on Edit entry,
+         * so a flag orphaned with a dead draft cannot gag the next one.
          */
         val isSaving: Boolean,
         val name: String,

@@ -107,6 +107,10 @@ internal class ClickHandler @Inject constructor(
             consume(Action.Navigation.Back)
             return
         }
+        // The write is in flight: the draft is committing, so Отмена may not offer to
+        // roll back what the database is about to hold — the save's own outcome is what
+        // ends the draft ([State.isSaving]'s KDoc).
+        if (current.isSaving) return
         if (current.hasChanges) {
             updateState { it.copy(dialogState = DialogState.DiscardConfirm) }
         } else {
@@ -126,9 +130,11 @@ internal class ClickHandler @Inject constructor(
         updateState { current ->
             current.copy(
                 mode = Mode.Edit(isCreate = false),
-                // A new draft: undo toasts of the previous one must not edit this one, and
-                // its stashed restores must not resurface either.
+                // A new draft: undo toasts of the previous one must not edit this one, its
+                // stashed restores must not resurface, and a stuck flag from an orphaned
+                // save must not gag its undos.
                 draftEpoch = current.draftEpoch + 1,
+                isSaving = false,
                 pendingSetRestores = persistentListOf(),
                 expandedExerciseUuids = persistentSetOf(),
                 originalSnapshot = current.toSnapshot(),
@@ -365,6 +371,10 @@ internal class ClickHandler @Inject constructor(
     private fun processConfirmDiscard() {
         sendEvent(Event.HapticClick(HapticFeedbackType.LongPress))
         updateState { it.copy(dialogState = DialogState.Hidden) }
+        // Guarded on its own, not only at the entries that raise the sheet: the confirm
+        // is a second action, and a save dispatched between the two would land on the
+        // rollback below ([State.isSaving]'s KDoc).
+        if (state.value.isSaving) return
         applyDiscard()
     }
 
