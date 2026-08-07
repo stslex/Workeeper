@@ -7,6 +7,7 @@
     <string name="feature_settings_section_data">Данные</string>
 
     <string name="feature_settings_theme_row_title">Тема</string>
+    <string name="feature_settings_start_card_row_title">Карточка старта</string>
     <string name="feature_settings_theme_system">Системная</string>
     <string name="feature_settings_theme_light">Светлая</string>
     <string name="feature_settings_theme_dark">Тёмная</string>

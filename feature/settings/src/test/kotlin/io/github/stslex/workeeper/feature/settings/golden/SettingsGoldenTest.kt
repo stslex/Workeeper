@@ -4,6 +4,7 @@ package io.github.stslex.workeeper.feature.settings.golden
 import io.github.stslex.workeeper.core.ui.kit.golden.GoldenTheme
 import io.github.stslex.workeeper.core.ui.kit.golden.golden
 import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
+import io.github.stslex.workeeper.core.ui.start_mode.model.StartCardModeUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupAuthUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupInfoUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupPreferencesUi
@@ -107,6 +108,10 @@ internal class SettingsGoldenTest {
 private fun baseState(): State = State.initial(
     appVersion = "1.48.0",
     appVersionCode = 49,
+).copy(
+    // The Appearance group's second row (HS5): fixture holds the default so the sub-line
+    // renders «Неделя» rather than the pre-emission blank.
+    startCardMode = StartCardModeUi.WEEK,
 )
 
 /**

@@ -25,6 +25,9 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
+import io.github.stslex.workeeper.core.ui.start_mode.StartCardModeSheet
+import io.github.stslex.workeeper.core.ui.start_mode.model.StartCardModeUi
+import io.github.stslex.workeeper.core.ui.start_mode.startCardModeName
 import io.github.stslex.workeeper.feature.settings.R
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupAuthUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupInfoUi
@@ -84,6 +87,16 @@ internal fun SettingsScreen(
                     ThemeRow(
                         selected = state.themeMode,
                         onSelect = { mode -> consume(Action.Input.OnThemeChange(mode)) },
+                    )
+                    // HS5's second entry point. Appearance is the group that fits: like the
+                    // theme row above it, this configures what a surface shows, not data.
+                    SettingsGroupRow(
+                        modifier = Modifier.testTag("SettingsStartCardModeRow"),
+                        title = stringResource(R.string.feature_settings_start_card_row_title),
+                        // Null until the preference's first emission — no guessed default.
+                        subtitle = state.startCardMode?.let { mode -> startCardModeName(mode) },
+                        chevron = RowChevron.InApp,
+                        onClick = { consume(Action.Click.OnStartCardModeClick) },
                     )
                 }
                 BackupSection(
@@ -160,6 +173,11 @@ internal fun SettingsScreen(
             is DialogState.FrequencyPicker -> FrequencyPickerBottomSheet(
                 state = dialog,
                 onAction = { consume(it) },
+            )
+            DialogState.StartCardModePicker -> StartCardModeSheet(
+                selected = state.startCardMode ?: StartCardModeUi.WEEK,
+                onSelect = { mode -> consume(Action.Input.OnStartCardModeChange(mode)) },
+                onDismiss = { consume(Action.Click.OnStartCardModeSheetDismiss) },
             )
         }
         RestoreProgressOverlay(state = state.restoreProgress)

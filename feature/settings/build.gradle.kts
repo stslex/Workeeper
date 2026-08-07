@@ -26,6 +26,8 @@ dependencies {
 
     implementation(project(":core:data:dataStore"))
     implementation(project(":core:ui:kit"))
+    // HS5: the Home start card's mode sheet — one sheet, two entry points.
+    implementation(project(":core:ui:start-mode"))
     implementation(project(":core:ui:mvi"))
     implementation(project(":core:ui:navigation"))
     implementation(project(":core:data:exercise"))
