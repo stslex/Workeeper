@@ -484,3 +484,18 @@ component, so **both** its modes (read-only with image / read-only with the plac
   row with its values intact and possibly the order swapped, in the DRAFT only, where the
   screen shows exactly what a later Save would persist. The undo handlers' KDocs cite this
   row.
+- **B-E9** — **the training's own permanent delete never received ED11's deferred
+  mechanism.** Raised by review round 11 (P2, the `@claude` pass).
+  `feature/single-training`'s `ClickHandler.processPermanentDeleteConfirm` confirms through
+  the sheet and then deletes immediately inside `launch {}` — no snackbar, no undo, no
+  deferral — while ED11 states the mechanism for «Permanent deletion of the entity (`⋮`)»
+  generically and S7 ships it for the exercise read screen
+  (`processConfirmPermanentDelete` hands the app-level host a commit lambda). Nothing in
+  the schema blocks the training: sessions CASCADE off the training row — B-E7's row
+  records that asymmetry — so a deferred commit cannot hit the RESTRICT that gates the
+  exercise cluster. The flow is PR-B's shipped machinery, kept by PR-C's §1a row 8 as
+  «existing gate, kept»: S5's verdict measured the MENU (ED10's two items, the
+  `canPermanentlyDelete` gate) and never re-measured the confirm's mechanism against ED11.
+  Recorded rather than retrofitted: grafting the app-level snackbar custody onto the
+  training's commit is S7-family work on PR-B's flow, not a review-round edit — Ilya
+  places it (PR-D or a follow-up).
