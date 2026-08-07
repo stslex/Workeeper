@@ -25,7 +25,12 @@ dependencies {
     implementation(project(":core:ui:kit"))
     implementation(project(":core:ui:mvi"))
     implementation(project(":core:ui:navigation"))
+    // The start card's mode catalog + picker sheet, shared with feature:settings (HS5).
+    implementation(project(":core:ui:start-mode"))
     implementation(project(":core:data:exercise"))
+    // ObserveWeekReadoutUseCase takes a kotlinx-datetime TimeZone so tests can pin one;
+    // core:core keeps the dependency `implementation`, so it does not arrive transitively.
+    implementation(libs.kotlinx.datetime)
 
     testImplementation(libs.androidx.paging.testing)
     testImplementation(kotlin("test"))

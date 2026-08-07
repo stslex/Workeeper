@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="core_ui_start_mode_name_week">Week</string>
+    <string name="core_ui_start_mode_name_days_since_last">Days without training</string>
+    <string name="core_ui_start_mode_name_lagging_groups">Lagging groups</string>
+    <string name="core_ui_start_mode_name_forgotten_training">Forgotten training</string>
+</resources>

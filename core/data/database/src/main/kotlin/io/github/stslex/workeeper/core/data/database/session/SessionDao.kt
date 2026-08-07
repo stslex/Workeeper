@@ -190,6 +190,27 @@ interface SessionDao {
     )
     fun pagedRecentWithStats(): PagingSource<Int, RecentSessionRow>
 
+    /**
+     * Finish timestamps inside `[startInclusive, endExclusive)` — the Home start card's
+     * «Неделя» readout (home-start-card.md §3.1): the count is the numeral, the weekday of
+     * each timestamp fills a pill. `finished_at IS NOT NULL` carries the projection, not
+     * only the filter: without it a FINISHED row with no timestamp would surface as a null
+     * in a non-null `List<Long>`.
+     */
+    @Query(
+        """
+        SELECT finished_at FROM session_table
+        WHERE state = 'FINISHED'
+          AND finished_at IS NOT NULL
+          AND finished_at >= :startInclusive
+          AND finished_at < :endExclusive
+        """,
+    )
+    fun observeFinishedTimesBetween(
+        startInclusive: Long,
+        endExclusive: Long,
+    ): Flow<List<Long>>
+
     @Query(
         """
         SELECT * FROM session_table

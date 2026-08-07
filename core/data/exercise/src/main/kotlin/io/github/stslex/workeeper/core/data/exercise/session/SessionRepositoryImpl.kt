@@ -116,6 +116,13 @@ class SessionRepositoryImpl @Inject internal constructor(
         .flowOn(ioDispatcher)
         .map { pagingData -> pagingData.map { it.toData() } }
 
+    override fun observeFinishedTimesBetween(
+        startInclusive: Long,
+        endExclusive: Long,
+    ): Flow<List<Long>> = dao
+        .observeFinishedTimesBetween(startInclusive, endExclusive)
+        .flowOn(ioDispatcher)
+
     override suspend fun getSessionDetail(
         sessionUuid: String,
     ): SessionDetailDataModel? = transition {

@@ -2,7 +2,9 @@
 package io.github.stslex.workeeper.feature.home.golden
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.paging.LoadState
 import androidx.paging.LoadStates
@@ -12,8 +14,11 @@ import io.github.stslex.workeeper.core.ui.kit.golden.GoldenTheme
 import io.github.stslex.workeeper.core.ui.kit.golden.LOCALE_RU
 import io.github.stslex.workeeper.core.ui.kit.golden.golden
 import io.github.stslex.workeeper.core.ui.kit.golden.goldenSubject
+import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.feature.home.R
 import io.github.stslex.workeeper.feature.home.mvi.model.RecentSessionItem
+import io.github.stslex.workeeper.feature.home.mvi.model.StartCardBodyUi
+import io.github.stslex.workeeper.feature.home.mvi.model.WeekDayUi
 import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.State
 import io.github.stslex.workeeper.feature.home.ui.HomeScreen
 import io.github.stslex.workeeper.feature.home.ui.components.ActiveSessionBanner
@@ -21,6 +26,7 @@ import io.github.stslex.workeeper.feature.home.ui.components.HomeStartCard
 import io.github.stslex.workeeper.feature.home.ui.components.PagingErrorFooter
 import io.github.stslex.workeeper.feature.home.ui.components.PagingLoadingFooter
 import io.github.stslex.workeeper.feature.home.ui.components.RecentSessionRow
+import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.flowOf
 import org.junit.jupiter.api.TestInfo
 import org.junit.jupiter.params.ParameterizedTest
@@ -119,12 +125,28 @@ internal class HomeGoldenTest {
         elapsedDurationLabel = "12:04",
     )
 
+    /** The «Неделя» readout, mid-week: three sessions, Mon/Wed/Fri filled. */
+    private val week = StartCardBodyUi.Week(
+        sessionsCountLabel = "3",
+        sessionsUnitLabel = "тренировки",
+        days = listOf("Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс").mapIndexed { index, label ->
+            WeekDayUi(label = label, isFilled = index == 0 || index == 2 || index == 4)
+        }.toImmutableList(),
+    )
+
+    /** The same readout with nothing logged — what an empty history's card actually shows. */
+    private val zeroWeek = week.copy(
+        sessionsCountLabel = "0",
+        sessionsUnitLabel = "тренировок",
+        days = week.days.map { it.copy(isFilled = false) }.toImmutableList(),
+    )
+
     private fun state(
         items: List<RecentSessionItem>,
         activeSession: State.ActiveSessionInfo? = null,
     ) = State.init(
         pagingUiState = PagingUiState { flowOf(PagingData.from(items)) },
-    ).copy(activeSession = activeSession, isActiveLoaded = true)
+    ).copy(activeSession = activeSession, isActiveLoaded = true, startCardBody = week)
 
     /**
      * **`PagingData.from` never settles inside one Paparazzi frame**, so an empty screen built with
@@ -136,6 +158,7 @@ internal class HomeGoldenTest {
      * states its load states outright.
      */
     private fun pagingState(refresh: LoadState) = state(emptyList()).copy(
+        startCardBody = zeroWeek,
         pagingUiState = PagingUiState {
             flowOf(
                 PagingData.empty(
@@ -198,11 +221,21 @@ internal class HomeGoldenTest {
     fun activeSessionBanner(theme: GoldenTheme, testInfo: TestInfo) =
         goldenSubject(testInfo, theme) { ActiveSessionBanner(info = session, onClick = {}) }
 
-    /** Undrawn region 2, same reason. */
+    /**
+     * The rebuilt shell with its default readout (home-start-card.md §2, §3.1) — no longer an
+     * undrawn region: the card is now specified, and this pair is its record. The lift's
+     * shadow needs the page around the subject, hence the padding inside the frame.
+     */
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
     fun startCard(theme: GoldenTheme, testInfo: TestInfo) =
-        goldenSubject(testInfo, theme) { HomeStartCard(onClick = {}) }
+        goldenSubject(testInfo, theme) {
+            HomeStartCard(
+                body = week,
+                onStartClick = {},
+                modifier = Modifier.padding(AppDimension.screenEdge),
+            )
+        }
 
     // ---- whole surface: every verdict the selector can return -------------------------------------
 

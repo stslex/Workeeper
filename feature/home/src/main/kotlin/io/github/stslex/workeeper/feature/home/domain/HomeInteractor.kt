@@ -6,11 +6,18 @@ import io.github.stslex.workeeper.feature.home.domain.model.ActiveSessionWithSta
 import io.github.stslex.workeeper.feature.home.domain.model.RecentSessionDomain
 import io.github.stslex.workeeper.feature.home.domain.model.StartSessionConflict
 import io.github.stslex.workeeper.feature.home.domain.model.TrainingListItemDomain
+import io.github.stslex.workeeper.feature.home.domain.model.WeekReadoutDomain
 import kotlinx.coroutines.flow.Flow
 
 interface HomeInteractor {
 
     fun observeActiveSession(): Flow<ActiveSessionWithStatsDomain?>
+
+    /**
+     * The start card's «Неделя» readout: finished-session count and trained weekdays for
+     * the calendar week containing [nowMillis] (home-start-card.md §3.1).
+     */
+    fun observeWeekReadout(nowMillis: Long): Flow<WeekReadoutDomain>
 
     /**
      * The whole finished-session history, newest first, paged.

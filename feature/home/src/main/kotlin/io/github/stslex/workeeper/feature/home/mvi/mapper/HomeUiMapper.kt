@@ -8,13 +8,42 @@ import io.github.stslex.workeeper.feature.home.R
 import io.github.stslex.workeeper.feature.home.domain.model.ActiveSessionWithStatsDomain
 import io.github.stslex.workeeper.feature.home.domain.model.RecentSessionDomain
 import io.github.stslex.workeeper.feature.home.domain.model.TrainingListItemDomain
+import io.github.stslex.workeeper.feature.home.domain.model.WeekReadoutDomain
 import io.github.stslex.workeeper.feature.home.mvi.model.PickerTrainingItem
 import io.github.stslex.workeeper.feature.home.mvi.model.RecentSessionItem
+import io.github.stslex.workeeper.feature.home.mvi.model.StartCardBodyUi
+import io.github.stslex.workeeper.feature.home.mvi.model.WeekDayUi
 import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.State.ActiveSessionInfo
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 
 internal object HomeUiMapper {
+
+    /** Monday-first, matching `WeekReadoutDomain.trainedDayIndexes` (0 = Monday). */
+    private val WEEK_DAY_LABELS = listOf(
+        R.string.feature_home_start_week_day_mon,
+        R.string.feature_home_start_week_day_tue,
+        R.string.feature_home_start_week_day_wed,
+        R.string.feature_home_start_week_day_thu,
+        R.string.feature_home_start_week_day_fri,
+        R.string.feature_home_start_week_day_sat,
+        R.string.feature_home_start_week_day_sun,
+    )
+
+    fun WeekReadoutDomain.toUi(resourceWrapper: ResourceWrapper): StartCardBodyUi.Week =
+        StartCardBodyUi.Week(
+            sessionsCountLabel = sessionsThisWeek.toString(),
+            sessionsUnitLabel = resourceWrapper.getQuantityString(
+                R.plurals.feature_home_start_week_sessions_count,
+                sessionsThisWeek,
+            ),
+            days = WEEK_DAY_LABELS.mapIndexed { index, labelRes ->
+                WeekDayUi(
+                    label = resourceWrapper.getString(labelRes),
+                    isFilled = index in trainedDayIndexes,
+                )
+            }.toImmutableList(),
+        )
 
     fun ActiveSessionWithStatsDomain.toUi(
         nowMillis: Long,

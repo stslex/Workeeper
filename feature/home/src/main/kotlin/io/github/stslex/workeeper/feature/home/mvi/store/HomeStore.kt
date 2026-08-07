@@ -8,6 +8,7 @@ import io.github.stslex.workeeper.core.ui.kit.components.PagingUiState
 import io.github.stslex.workeeper.core.ui.mvi.Store
 import io.github.stslex.workeeper.feature.home.mvi.model.PickerTrainingItem
 import io.github.stslex.workeeper.feature.home.mvi.model.RecentSessionItem
+import io.github.stslex.workeeper.feature.home.mvi.model.StartCardBodyUi
 import kotlinx.collections.immutable.ImmutableList
 
 interface HomeStore : Store<HomeStore.State, HomeStore.Action, HomeStore.Event> {
@@ -15,6 +16,12 @@ interface HomeStore : Store<HomeStore.State, HomeStore.Action, HomeStore.Event> 
     @Stable
     data class State(
         val activeSession: ActiveSessionInfo?,
+        /**
+         * The start card's readout, null until its flow's first emission. Not a second
+         * loading discriminator: the card itself is gated by [showStartCta], and a null
+         * body renders the shell without a reading for the frames before Room answers.
+         */
+        val startCardBody: StartCardBodyUi?,
         val pagingUiState: PagingUiState<PagingData<RecentSessionItem>>,
         val nowMillis: Long,
         val isActiveLoaded: Boolean,
@@ -82,6 +89,7 @@ interface HomeStore : Store<HomeStore.State, HomeStore.Action, HomeStore.Event> 
                 pagingUiState: PagingUiState<PagingData<RecentSessionItem>>,
             ): State = State(
                 activeSession = null,
+                startCardBody = null,
                 pagingUiState = pagingUiState,
                 nowMillis = 0L,
                 isActiveLoaded = false,

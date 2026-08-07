@@ -185,11 +185,12 @@ private fun HomeBody(
         if (state.showStartCta) {
             item(key = "start") {
                 HomeStartCard(
+                    body = state.startCardBody,
                     modifier = Modifier.padding(
                         horizontal = AppDimension.screenEdge,
                         vertical = AppDimension.Space.md,
                     ),
-                    onClick = { consume(Action.Click.OnStartTrainingClick) },
+                    onStartClick = { consume(Action.Click.OnStartTrainingClick) },
                 )
             }
         }

@@ -47,4 +47,18 @@ internal class CommonHandlerTest {
         verify(exactly = 0) { interactor.pagedRecent() }
         assertEquals(emptyPagingState(), stateFlow.value)
     }
+
+    @Test
+    fun `Init subscribes to the week readout for the start card`() {
+        val store = mockk<HomeHandlerStore>(relaxed = true)
+        val handler = CommonHandler(
+            interactor = interactor,
+            resourceWrapper = resources,
+            store = store,
+        )
+
+        handler.invoke(Action.Common.Init)
+
+        verify(exactly = 1) { interactor.observeWeekReadout(any()) }
+    }
 }

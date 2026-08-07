@@ -32,6 +32,10 @@ internal class CommonHandler @Inject constructor(
             "Home screen initialized, observing active session. The recent list is paged and " +
                 "collects itself from State.pagingUiState — see PagingHandler."
         }
+        interactor.observeWeekReadout(System.currentTimeMillis()).launch { readout ->
+            val body = readout.toUi(resourceWrapper)
+            updateStateImmediate { current -> current.copy(startCardBody = body) }
+        }
         interactor.observeActiveSession().launch { row ->
             logger.i {
                 "Received update for active session: ${row ?: "null"}. Updating state with new active session data."

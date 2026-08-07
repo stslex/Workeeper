@@ -15,6 +15,8 @@ import io.github.stslex.workeeper.feature.home.domain.model.ActiveSessionWithSta
 import io.github.stslex.workeeper.feature.home.domain.model.RecentSessionDomain
 import io.github.stslex.workeeper.feature.home.domain.model.StartSessionConflict
 import io.github.stslex.workeeper.feature.home.domain.model.TrainingListItemDomain
+import io.github.stslex.workeeper.feature.home.domain.model.WeekReadoutDomain
+import io.github.stslex.workeeper.feature.home.domain.usecase.ObserveWeekReadoutUseCase
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
@@ -24,10 +26,11 @@ import kotlinx.coroutines.withContext
 @Suppress("LongParameterList")
 @Inject
 @SingleIn(HomeScope::class)
-class HomeInteractorImpl(
+class HomeInteractorImpl internal constructor(
     private val sessionRepository: SessionRepository,
     private val trainingRepository: TrainingRepository,
     private val sessionConflictResolver: SessionConflictResolver,
+    private val observeWeekReadoutUseCase: ObserveWeekReadoutUseCase,
     @DefaultDispatcher private val defaultDispatcher: CoroutineDispatcher,
 ) : HomeInteractor {
 
@@ -35,6 +38,9 @@ class HomeInteractorImpl(
         sessionRepository.observeActiveSessionWithStats()
             .map { row -> row?.toDomain() }
             .flowOn(defaultDispatcher)
+
+    override fun observeWeekReadout(nowMillis: Long): Flow<WeekReadoutDomain> =
+        observeWeekReadoutUseCase(nowMillis)
 
     override fun pagedRecent(): Flow<PagingData<RecentSessionDomain>> =
         sessionRepository.pagedRecentWithStats()

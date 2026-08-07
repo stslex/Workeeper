@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="core_ui_start_mode_name_week">Неделя</string>
+    <string name="core_ui_start_mode_name_days_since_last">Дни без тренировки</string>
+    <string name="core_ui_start_mode_name_lagging_groups">Отставшие группы</string>
+    <string name="core_ui_start_mode_name_forgotten_training">Забытая тренировка</string>
+</resources>
