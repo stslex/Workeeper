@@ -4,7 +4,6 @@
     <string name="feature_training_detail_more">Ещё</string>
     <string name="feature_training_detail_exercises">Упражнения</string>
     <string name="feature_training_detail_past_sessions">История</string>
-    <string name="feature_training_detail_no_history">Сессий ещё не было</string>
     <string name="feature_training_detail_start_session">Начать сессию</string>
     <string name="feature_training_detail_resume_session">Продолжить сессию</string>
     <string name="feature_training_detail_edit">Изменить</string>

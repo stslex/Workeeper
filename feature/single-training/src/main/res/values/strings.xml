@@ -5,7 +5,6 @@
     <string name="feature_training_detail_more">More</string>
     <string name="feature_training_detail_exercises">Exercises</string>
     <string name="feature_training_detail_past_sessions">Past sessions</string>
-    <string name="feature_training_detail_no_history">No sessions yet</string>
     <string name="feature_training_detail_start_session">Start session</string>
     <string name="feature_training_detail_resume_session">Resume session</string>
     <string name="feature_training_detail_edit">Edit</string>

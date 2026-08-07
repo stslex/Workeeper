@@ -52,14 +52,70 @@ internal class ExerciseDetailGoldenTest {
     }
 
     /**
-     * The empty branch of every optional section at once: no description, no plan, no
-     * record, no history — the "no sessions yet" line under the Recent label.
+     * Every optional section absent at once (S8): no tags, no record, no plan, no
+     * description, no history — the read frame reduces to the top bar and the dock,
+     * because a section with nothing in it does not render.
      */
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
     fun screenEmpty(theme: GoldenTheme, testInfo: TestInfo) {
         golden(testInfo, theme) {
             ExerciseDetailScreen(state = baseState(), consume = {})
+        }
+    }
+
+    /**
+     * S8(a): `personalRecord == null` — the `.prhero` block is ABSENT and the screen opens
+     * on the tags line and then the plan section. No placeholder, no empty hero: a record
+     * that does not exist has nothing to display. The record session's history row loses
+     * its PR tag with it (the tag keys on the record's session uuid).
+     */
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun screenNoRecord(theme: GoldenTheme, testInfo: TestInfo) {
+        golden(testInfo, theme) {
+            ExerciseDetailScreen(
+                state = loadedState().copy(personalRecord = null),
+                consume = {},
+            )
+        }
+    }
+
+    /**
+     * S8(b): zero sessions — the ИСТОРИЯ section is ABSENT, head and all; the description
+     * is the frame's last block. Difference partner of [screenLoaded], which carries the
+     * ruled list this frame drops. The record is held constant on purpose — a differential
+     * fixture, not a reachable state: a real record derives from logged sessions, and
+     * [screenEmpty] holds the every-section-absent frame.
+     */
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun screenEmptyHistory(theme: GoldenTheme, testInfo: TestInfo) {
+        golden(testInfo, theme) {
+            ExerciseDetailScreen(
+                state = loadedState().copy(
+                    historyCount = 0,
+                    recentHistory = persistentListOf(),
+                ),
+                consume = {},
+            )
+        }
+    }
+
+    /**
+     * S8(d): no sets at all — the ПЛАН ПО УМОЛЧАНИЮ section is ABSENT, and the type
+     * declaration on its head (ED12) leaves with it. The editor's empty card (head plus
+     * setbar with a disabled «− подход») belongs to the editor, where the setbar is a
+     * target; read has no target.
+     */
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun screenEmptyPlan(theme: GoldenTheme, testInfo: TestInfo) {
+        golden(testInfo, theme) {
+            ExerciseDetailScreen(
+                state = loadedState().copy(adhocPlan = null),
+                consume = {},
+            )
         }
     }
 
@@ -84,7 +140,12 @@ internal class ExerciseDetailGoldenTest {
         }
     }
 
-    /** B11 coverage: the weightless variant — reps-only plan rows, reps-only record label. */
+    /**
+     * B11 coverage and S8(c): the weightless read — plan rows carry ONE value box, reps
+     * only, exactly as the editor and the session draw a weightless set; the section head's
+     * trailing label declares the weightless type (БЕЗ ВЕСА in the shipped locale; this
+     * harness renders its EN resource); the record label is reps-only.
+     */
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
     fun screenWeightless(theme: GoldenTheme, testInfo: TestInfo) {
@@ -172,6 +233,24 @@ internal class ExerciseDetailGoldenTest {
                 weightLabel = null,
                 repsLabel = "15",
                 metaLabel = "12 июля 2026 г.",
+            )
+        }
+    }
+
+    /**
+     * S8(e), B-E4: the meta line clamps to ONE line with an ellipsis instead of growing the
+     * hero — the fixture is the drawn `date · training` form with a training name long
+     * enough that the line must truncate at this width.
+     */
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun recordHeroMetaClamped(theme: GoldenTheme, testInfo: TestInfo) {
+        goldenSubject(testInfo, theme) {
+            PersonalRecordHero(
+                weightLabel = "9",
+                repsLabel = "12",
+                metaLabel = "12 июля 2026 г. · верх (с подтягиваниями и добиваниями на блоке)",
+                onClick = {},
             )
         }
     }
