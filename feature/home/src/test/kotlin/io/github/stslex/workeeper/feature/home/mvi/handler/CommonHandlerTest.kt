@@ -4,7 +4,6 @@ package io.github.stslex.workeeper.feature.home.mvi.handler
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.feature.home.di.HomeHandlerStore
 import io.github.stslex.workeeper.feature.home.domain.HomeInteractor
-import io.github.stslex.workeeper.feature.home.domain.model.StartCardModeDomain
 import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.Action
 import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.State
 import io.github.stslex.workeeper.feature.home.mvi.store.emptyPagingState
@@ -50,11 +49,8 @@ internal class CommonHandlerTest {
     }
 
     @Test
-    fun `Init subscribes to the start card readout for the current mode`() {
-        val stateFlow = MutableStateFlow(emptyPagingState())
-        val store = mockk<HomeHandlerStore>(relaxed = true).apply {
-            every { state } returns stateFlow
-        }
+    fun `Init builds the start card pipeline from the persisted mode`() {
+        val store = mockk<HomeHandlerStore>(relaxed = true)
         val handler = CommonHandler(
             interactor = interactor,
             resourceWrapper = resources,
@@ -63,8 +59,9 @@ internal class CommonHandlerTest {
 
         handler.invoke(Action.Common.Init)
 
-        verify(exactly = 1) {
-            interactor.observeStartCardReadout(mode = StartCardModeDomain.WEEK, nowMillis = any())
-        }
+        // The persisted mode is the pipeline's head (HS6, DataStore as the single source of
+        // truth); the per-mode readout hangs off it via flatMapLatest and is only reached
+        // once the pipeline is collected.
+        verify(exactly = 1) { interactor.observeStartCardMode() }
     }
 }

@@ -6,12 +6,15 @@ import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
+import io.github.stslex.workeeper.core.ui.start_mode.model.StartCardModeUi
 import io.github.stslex.workeeper.feature.home.R
 import io.github.stslex.workeeper.feature.home.di.HomeHandlerStore
 import io.github.stslex.workeeper.feature.home.di.HomeScope
 import io.github.stslex.workeeper.feature.home.domain.HomeInteractor
 import io.github.stslex.workeeper.feature.home.domain.model.StartSessionConflict
 import io.github.stslex.workeeper.feature.home.mvi.mapper.HomeUiMapper.toPickerItems
+import io.github.stslex.workeeper.feature.home.mvi.mapper.StartCardModeMapper.toDomain
+import io.github.stslex.workeeper.feature.home.mvi.store.BottomSheetState
 import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.Action
 import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.Event
 import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.State
@@ -29,6 +32,9 @@ internal class ClickHandler @Inject constructor(
 
     override fun invoke(action: Action.Click) {
         when (action) {
+            Action.Click.OnModeLabelClick -> processModeLabelClick()
+            is Action.Click.OnModeSelected -> processModeSelected(action.mode)
+            Action.Click.OnModeSheetDismiss -> processModeSheetDismiss()
             Action.Click.OnActiveSessionClick -> processSessionClick()
             Action.Click.OnChartsClick -> processChartsClick()
             Action.Click.OnSettingsClick -> processSettingsClick()
@@ -43,6 +49,26 @@ internal class ClickHandler @Inject constructor(
             Action.Click.OnConflictDeleteAndStart -> processConflictDeleteAndStart()
             Action.Click.OnConflictDismiss -> processConflictDismiss()
         }
+    }
+
+    private fun processModeLabelClick() {
+        sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
+        updateState { it.copy(bottomSheet = BottomSheetState.StartModePicker) }
+    }
+
+    /**
+     * Persist-only on purpose: `State.startCardMode` and the body follow through
+     * `CommonHandler`'s DataStore-driven pipeline, so head and readout swap together —
+     * a mode label over a sibling mode's data never renders.
+     */
+    private fun processModeSelected(mode: StartCardModeUi) {
+        sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
+        updateState { it.copy(bottomSheet = BottomSheetState.Hidden) }
+        launch { interactor.setStartCardMode(mode.toDomain()) }
+    }
+
+    private fun processModeSheetDismiss() {
+        updateState { it.copy(bottomSheet = BottomSheetState.Hidden) }
     }
 
     private fun processSessionClick() {
@@ -70,7 +96,7 @@ internal class ClickHandler @Inject constructor(
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
         updateState { current ->
             current.copy(
-                picker = State.PickerState.Visible(
+                bottomSheet = BottomSheetState.TrainingPicker(
                     templates = persistentListOf(),
                     isLoading = true,
                 ),
@@ -79,9 +105,9 @@ internal class ClickHandler @Inject constructor(
         interactor.observeRecentTrainings(PICKER_LIMIT).launch { trainings ->
             val now = state.value.nowMillis.takeIf { it > 0L } ?: System.currentTimeMillis()
             updateStateImmediate { current ->
-                if (current.picker is State.PickerState.Visible) {
+                if (current.bottomSheet is BottomSheetState.TrainingPicker) {
                     current.copy(
-                        picker = State.PickerState.Visible(
+                        bottomSheet = BottomSheetState.TrainingPicker(
                             templates = trainings.toPickerItems(now, resourceWrapper),
                             isLoading = false,
                         ),
@@ -95,7 +121,7 @@ internal class ClickHandler @Inject constructor(
 
     private fun processPickerSelected(trainingUuid: String) {
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
-        updateState { it.copy(picker = State.PickerState.Hidden) }
+        updateState { it.copy(bottomSheet = BottomSheetState.Hidden) }
         resolveConflictAndStart(trainingUuid)
     }
 
@@ -159,17 +185,17 @@ internal class ClickHandler @Inject constructor(
 
     private fun processPickerSeeAll() {
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
-        updateState { it.copy(picker = State.PickerState.Hidden) }
+        updateState { it.copy(bottomSheet = BottomSheetState.Hidden) }
         consume(Action.Navigation.OpenAllTrainings)
     }
 
     private fun processStartBlankClick() {
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
-        updateState { it.copy(picker = State.PickerState.Hidden) }
+        updateState { it.copy(bottomSheet = BottomSheetState.Hidden) }
         consume(Action.Navigation.OpenLiveWorkoutBlank)
     }
 
     private fun processPickerDismiss() {
-        updateState { it.copy(picker = State.PickerState.Hidden) }
+        updateState { it.copy(bottomSheet = BottomSheetState.Hidden) }
     }
 }

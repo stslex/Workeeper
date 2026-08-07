@@ -4,4 +4,10 @@
     <string name="core_ui_start_mode_name_days_since_last">Дни без тренировки</string>
     <string name="core_ui_start_mode_name_lagging_groups">Отставшие группы</string>
     <string name="core_ui_start_mode_name_forgotten_training">Забытая тренировка</string>
+
+    <string name="core_ui_start_mode_sheet_title">Что показывать</string>
+    <string name="core_ui_start_mode_description_week">Дни недели, в которые была тренировка</string>
+    <string name="core_ui_start_mode_description_days_since_last">Сколько прошло с последней сессии</string>
+    <string name="core_ui_start_mode_description_lagging_groups">Какие группы мышц дольше всего не тренировались</string>
+    <string name="core_ui_start_mode_description_forgotten_training">Шаблон, который дольше всего не запускали</string>
 </resources>

@@ -24,6 +24,15 @@ interface HomeInteractor {
     ): Flow<StartCardReadoutDomain>
 
     /**
+     * The persisted readout mode (HS6) — «Неделя» while the key is absent or holds an
+     * unknown value.
+     */
+    fun observeStartCardMode(): Flow<StartCardModeDomain>
+
+    /** Persists the chosen readout mode (HS6). */
+    suspend fun setStartCardMode(mode: StartCardModeDomain)
+
+    /**
      * The whole finished-session history, newest first, paged.
      *
      * Was `observeRecent(limit)` at a hardcoded `HOME_RECENT_LIMIT = 10`. Ten rows is not a

@@ -9,6 +9,7 @@
     <string name="feature_home_charts">Charts</string>
 
     <string name="feature_home_start_action">Start</string>
+    <string name="feature_home_start_mode_switch">Choose what to show</string>
     <string name="feature_home_start_mode_forgotten_label">Longest not done</string>
     <string name="feature_home_start_empty_sessions">No workouts yet</string>
     <string name="feature_home_start_empty_tags">Exercises have no tags yet — tag muscle groups and they will show up here</string>

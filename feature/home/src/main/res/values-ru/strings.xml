@@ -9,6 +9,7 @@
     <string name="feature_home_charts">Прогресс</string>
 
     <string name="feature_home_start_action">Начать</string>
+    <string name="feature_home_start_mode_switch">Выбрать, что показывать</string>
     <string name="feature_home_start_mode_forgotten_label">Дольше всего не делали</string>
     <string name="feature_home_start_empty_sessions">Ещё ни одной тренировки</string>
     <string name="feature_home_start_empty_tags">Упражнения без тегов — отмечайте группы, и они появятся здесь</string>

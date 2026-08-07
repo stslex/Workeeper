@@ -28,6 +28,8 @@ dependencies {
     // The start card's mode catalog + picker sheet, shared with feature:settings (HS5).
     implementation(project(":core:ui:start-mode"))
     implementation(project(":core:data:exercise"))
+    // HS6: the start card's mode is a CommonDataStore preference beside themePreference.
+    implementation(project(":core:data:dataStore"))
     // ObserveWeekReadoutUseCase takes a kotlinx-datetime TimeZone so tests can pin one;
     // core:core keeps the dependency `implementation`, so it does not arrive transitively.
     implementation(libs.kotlinx.datetime)

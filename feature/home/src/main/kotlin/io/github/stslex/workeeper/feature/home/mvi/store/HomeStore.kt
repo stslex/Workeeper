@@ -7,10 +7,8 @@ import androidx.paging.PagingData
 import io.github.stslex.workeeper.core.ui.kit.components.PagingUiState
 import io.github.stslex.workeeper.core.ui.mvi.Store
 import io.github.stslex.workeeper.core.ui.start_mode.model.StartCardModeUi
-import io.github.stslex.workeeper.feature.home.mvi.model.PickerTrainingItem
 import io.github.stslex.workeeper.feature.home.mvi.model.RecentSessionItem
 import io.github.stslex.workeeper.feature.home.mvi.model.StartCardBodyUi
-import kotlinx.collections.immutable.ImmutableList
 
 interface HomeStore : Store<HomeStore.State, HomeStore.Action, HomeStore.Event> {
 
@@ -28,7 +26,7 @@ interface HomeStore : Store<HomeStore.State, HomeStore.Action, HomeStore.Event> 
         val pagingUiState: PagingUiState<PagingData<RecentSessionItem>>,
         val nowMillis: Long,
         val isActiveLoaded: Boolean,
-        val picker: PickerState,
+        val bottomSheet: BottomSheetState,
         val pendingConflict: ConflictInfo?,
     ) : Store.State {
 
@@ -43,18 +41,6 @@ interface HomeStore : Store<HomeStore.State, HomeStore.Action, HomeStore.Event> 
             val elapsedDurationLabel: String,
         ) {
             fun elapsedMillis(now: Long): Long = (now - startedAt).coerceAtLeast(0L)
-        }
-
-        @Stable
-        sealed interface PickerState {
-            @Stable
-            data object Hidden : PickerState
-
-            @Stable
-            data class Visible(
-                val templates: ImmutableList<PickerTrainingItem>,
-                val isLoading: Boolean,
-            ) : PickerState
         }
 
         /**
@@ -84,7 +70,6 @@ interface HomeStore : Store<HomeStore.State, HomeStore.Action, HomeStore.Event> 
          */
         val isLoading: Boolean get() = !isActiveLoaded
         val showStartCta: Boolean get() = activeSession == null && !isLoading
-        val showPicker: Boolean get() = picker is PickerState.Visible
 
         companion object {
 
@@ -97,7 +82,7 @@ interface HomeStore : Store<HomeStore.State, HomeStore.Action, HomeStore.Event> 
                 pagingUiState = pagingUiState,
                 nowMillis = 0L,
                 isActiveLoaded = false,
-                picker = PickerState.Hidden,
+                bottomSheet = BottomSheetState.Hidden,
                 pendingConflict = null,
             )
         }
@@ -107,6 +92,15 @@ interface HomeStore : Store<HomeStore.State, HomeStore.Action, HomeStore.Event> 
     sealed interface Action : Store.Action {
 
         sealed interface Click : Action {
+
+            /** The card's head (HS4): the mode label + caret, opening the mode sheet. */
+            data object OnModeLabelClick : Click
+
+            /** A row of the mode sheet: persist the mode (HS6) and close the sheet. */
+            data class OnModeSelected(val mode: StartCardModeUi) : Click
+
+            data object OnModeSheetDismiss : Click
+
             data object OnActiveSessionClick : Click
             data object OnChartsClick : Click
             data object OnSettingsClick : Click

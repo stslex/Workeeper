@@ -60,10 +60,6 @@ import kotlinx.collections.immutable.toImmutableList
  * compact, never full-bleed. The mode changes the body only; the head, the button and the
  * card's geometry hold across all four modes and their empty states. Surface `--slab` +
  * `--slabtop` via [liftedSurface].
- *
- * The caret is inert until the mode sheet lands (a later commit of this arc) — an inert
- * caret is honest where a stub sheet would not be. The head already takes the
- * platform-minimum hit area (HS4) so wiring the tap later changes no geometry.
  */
 @Composable
 internal fun HomeStartCard(
@@ -71,6 +67,7 @@ internal fun HomeStartCard(
     body: StartCardBodyUi?,
     onStartClick: () -> Unit,
     onOtherTrainingClick: () -> Unit,
+    onModeClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val shape = RoundedCornerShape(AppDimension.Radius.medium)
@@ -82,7 +79,7 @@ internal fun HomeStartCard(
             .testTag("HomeStartCard"),
     ) {
         Column(modifier = Modifier.padding(AppDimension.cardPadding)) {
-            StartCardHead(mode = mode)
+            StartCardHead(mode = mode, onClick = onModeClick)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -136,9 +133,10 @@ internal fun HomeStartCard(
 
 /**
  * HS4 — the head is the switcher: the mode's label (`.label` treatment, [AppLabel])
- * carrying a caret, one target, not a `⋮` at the right edge. Hit area holds the platform
- * minimum height regardless of the 11sp type; width stays on the label so the target is the
- * label, not the whole card width.
+ * carrying a caret, ONE target opening the mode sheet — not a `⋮` at the right edge. Hit
+ * area holds the platform minimum height regardless of the 11sp type; width stays on the
+ * label so the target is the label, not the whole card width. No ripple, like the `.exhead`
+ * referent (`ExerciseHeader`): a Material ripple would be a different treatment than drawn.
  *
  * «Забытая тренировка»'s head reads «Дольше всего не делали» (the arc's RU copy) — the one
  * mode whose card label is not the mode's name; the sheet still names it «Забытая
@@ -147,6 +145,7 @@ internal fun HomeStartCard(
 @Composable
 private fun StartCardHead(
     mode: StartCardModeUi,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val label = when (mode) {
@@ -158,9 +157,16 @@ private fun StartCardHead(
         StartCardModeUi.LAGGING_GROUPS,
         -> startCardModeName(mode)
     }
+    val interactionSource = remember { MutableInteractionSource() }
     Row(
         modifier = modifier
             .height(AppDimension.heightMd)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClickLabel = stringResource(R.string.feature_home_start_mode_switch),
+                onClick = onClick,
+            )
             .testTag("HomeStartModeHead"),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.xs),
@@ -422,6 +428,7 @@ private fun HomeStartCardLightPreview() {
             body = previewWeek(),
             onStartClick = {},
             onOtherTrainingClick = {},
+            onModeClick = {},
         )
     }
 }
@@ -435,6 +442,7 @@ private fun HomeStartCardDarkPreview() {
             body = previewWeek(),
             onStartClick = {},
             onOtherTrainingClick = {},
+            onModeClick = {},
         )
     }
 }
@@ -452,6 +460,7 @@ private fun HomeStartCardDaysSincePreview() {
             ),
             onStartClick = {},
             onOtherTrainingClick = {},
+            onModeClick = {},
         )
     }
 }
@@ -472,6 +481,7 @@ private fun HomeStartCardTagIdlePreview() {
             ),
             onStartClick = {},
             onOtherTrainingClick = {},
+            onModeClick = {},
         )
     }
 }
@@ -489,6 +499,7 @@ private fun HomeStartCardForgottenPreview() {
             ),
             onStartClick = {},
             onOtherTrainingClick = {},
+            onModeClick = {},
         )
     }
 }
@@ -504,6 +515,7 @@ private fun HomeStartCardEmptyPreview() {
             ),
             onStartClick = {},
             onOtherTrainingClick = {},
+            onModeClick = {},
         )
     }
 }

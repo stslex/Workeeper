@@ -3,18 +3,23 @@ package io.github.stslex.workeeper.feature.home.mvi.handler
 
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
+import io.github.stslex.workeeper.core.ui.start_mode.model.StartCardModeUi
 import io.github.stslex.workeeper.feature.home.di.HomeHandlerStore
 import io.github.stslex.workeeper.feature.home.domain.HomeInteractor
+import io.github.stslex.workeeper.feature.home.domain.model.StartCardModeDomain
+import io.github.stslex.workeeper.feature.home.mvi.store.BottomSheetState
 import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.Action
 import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.Event
 import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.State
 import io.github.stslex.workeeper.feature.home.mvi.store.emptyPagingState
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
@@ -85,11 +90,11 @@ internal class ClickHandlerTest {
 
     @Test
     fun `OnPickerSeeAllClick hides picker and consumes OpenAllTrainings`() {
-        val visiblePicker = State.PickerState.Visible(
+        val visiblePicker = BottomSheetState.TrainingPicker(
             templates = kotlinx.collections.immutable.persistentListOf(),
             isLoading = false,
         )
-        val store = newStore(baseState.copy(picker = visiblePicker))
+        val store = newStore(baseState.copy(bottomSheet = visiblePicker))
         val handler = ClickHandler(interactor = interactor, resourceWrapper = resources, store = store)
 
         handler.invoke(Action.Click.OnPickerSeeAllClick)
@@ -98,18 +103,82 @@ internal class ClickHandlerTest {
     }
 
     @Test
+    fun `OnModeLabelClick opens the mode sheet with a haptic`() {
+        val flow = MutableStateFlow(baseState)
+        val store = newStoreWithFlow(flow)
+        val handler = ClickHandler(interactor = interactor, resourceWrapper = resources, store = store)
+
+        handler.invoke(Action.Click.OnModeLabelClick)
+
+        assertEquals(BottomSheetState.StartModePicker, flow.value.bottomSheet)
+        val captured = slot<Event>()
+        verify(exactly = 1) { store.sendEvent(capture(captured)) }
+        assertEquals(true, captured.captured is Event.HapticClick)
+    }
+
+    @Test
+    fun `OnModeLabelClick while the training picker is up replaces the sheet`() {
+        val flow = MutableStateFlow(
+            baseState.copy(
+                bottomSheet = BottomSheetState.TrainingPicker(
+                    templates = kotlinx.collections.immutable.persistentListOf(),
+                    isLoading = false,
+                ),
+            ),
+        )
+        val store = newStoreWithFlow(flow)
+        val handler = ClickHandler(interactor = interactor, resourceWrapper = resources, store = store)
+
+        handler.invoke(Action.Click.OnModeLabelClick)
+
+        assertEquals(BottomSheetState.StartModePicker, flow.value.bottomSheet)
+    }
+
+    @Test
+    fun `OnModeSelected hides the sheet and persists the MAPPED mode through the interactor`() {
+        val flow = MutableStateFlow(baseState.copy(bottomSheet = BottomSheetState.StartModePicker))
+        // A store whose launch actually RUNS its body: the persistence call and the UI→domain
+        // mapping live inside that coroutine, and a stubbed no-op launch would wave a swapped
+        // mapper arm straight through.
+        val store = newStoreWithFlow(flow, executeLaunch = true)
+        val handler = ClickHandler(interactor = interactor, resourceWrapper = resources, store = store)
+
+        handler.invoke(Action.Click.OnModeSelected(StartCardModeUi.LAGGING_GROUPS))
+
+        assertEquals(BottomSheetState.Hidden, flow.value.bottomSheet)
+        // startCardMode is NOT written here — the DataStore round trip owns it, so head and
+        // body swap together when the new mode's first readout lands.
+        assertEquals(StartCardModeUi.WEEK, flow.value.startCardMode)
+        coVerify(exactly = 1) {
+            interactor.setStartCardMode(StartCardModeDomain.LAGGING_GROUPS)
+        }
+    }
+
+    @Test
+    fun `OnModeSheetDismiss hides the sheet without a haptic`() {
+        val flow = MutableStateFlow(baseState.copy(bottomSheet = BottomSheetState.StartModePicker))
+        val store = newStoreWithFlow(flow)
+        val handler = ClickHandler(interactor = interactor, resourceWrapper = resources, store = store)
+
+        handler.invoke(Action.Click.OnModeSheetDismiss)
+
+        assertEquals(BottomSheetState.Hidden, flow.value.bottomSheet)
+        verify(exactly = 0) { store.sendEvent(any()) }
+    }
+
+    @Test
     fun `OnPickerTrainingSelected hides the picker before resolving conflict`() {
-        val visiblePicker = State.PickerState.Visible(
+        val visiblePicker = BottomSheetState.TrainingPicker(
             templates = kotlinx.collections.immutable.persistentListOf(),
             isLoading = false,
         )
-        val flow = MutableStateFlow(baseState.copy(picker = visiblePicker))
+        val flow = MutableStateFlow(baseState.copy(bottomSheet = visiblePicker))
         val store = newStoreWithFlow(flow)
         val handler = ClickHandler(interactor = interactor, resourceWrapper = resources, store = store)
 
         handler.invoke(Action.Click.OnPickerTrainingSelected(trainingUuid = "tpl-1"))
 
-        assertEquals(State.PickerState.Hidden, flow.value.picker)
+        assertEquals(BottomSheetState.Hidden, flow.value.bottomSheet)
     }
 
     @Test
@@ -173,7 +242,10 @@ internal class ClickHandlerTest {
     private fun newStore(state: State): HomeHandlerStore =
         newStoreWithFlow(MutableStateFlow(state))
 
-    private fun newStoreWithFlow(flow: MutableStateFlow<State>): HomeHandlerStore =
+    private fun newStoreWithFlow(
+        flow: MutableStateFlow<State>,
+        executeLaunch: Boolean = false,
+    ): HomeHandlerStore =
         mockk(relaxed = true) {
             every { this@mockk.state } returns flow
             every { updateState(any()) } answers {
@@ -189,6 +261,9 @@ internal class ClickHandlerTest {
                     any<suspend CoroutineScope.() -> Unit>(),
                 )
             } answers {
+                if (executeLaunch) {
+                    runBlocking { arg<suspend CoroutineScope.() -> Unit>(4).invoke(this) }
+                }
                 mockk(relaxed = true)
             }
         }

@@ -347,6 +347,7 @@ internal class HomeGoldenTest {
             body = body,
             onStartClick = {},
             onOtherTrainingClick = {},
+            onModeClick = {},
             modifier = Modifier.padding(AppDimension.screenEdge),
         )
     }

@@ -4,4 +4,10 @@
     <string name="core_ui_start_mode_name_days_since_last">Days without training</string>
     <string name="core_ui_start_mode_name_lagging_groups">Lagging groups</string>
     <string name="core_ui_start_mode_name_forgotten_training">Forgotten training</string>
+
+    <string name="core_ui_start_mode_sheet_title">What to show</string>
+    <string name="core_ui_start_mode_description_week">The weekdays a workout happened on</string>
+    <string name="core_ui_start_mode_description_days_since_last">How long since the last session</string>
+    <string name="core_ui_start_mode_description_lagging_groups">Which muscle groups have gone longest untrained</string>
+    <string name="core_ui_start_mode_description_forgotten_training">The template that has gone longest without a run</string>
 </resources>

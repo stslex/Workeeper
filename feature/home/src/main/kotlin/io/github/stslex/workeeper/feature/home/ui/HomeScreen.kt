@@ -204,6 +204,7 @@ private fun HomeBody(
                         }
                     },
                     onOtherTrainingClick = { consume(Action.Click.OnStartTrainingClick) },
+                    onModeClick = { consume(Action.Click.OnModeLabelClick) },
                 )
             }
         }
