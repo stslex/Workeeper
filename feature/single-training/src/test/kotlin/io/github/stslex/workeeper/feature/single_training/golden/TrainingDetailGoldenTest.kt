@@ -34,8 +34,8 @@ import org.junit.jupiter.params.provider.EnumSource
  *
  * [detailNoPlanExercise] pins the collapsed card's no-plan italic on READ — the same string
  * the editor's card renders, because the two heads are one composable.
- * [detailEmptyHistory] pins the ИСТОРИЯ head without a count over the «Сессий ещё не было»
- * line — the empty half S8 will extend, drawn here because the section renders in every state.
+ * [detailEmptyHistory] pins the ИСТОРИЯ section ABSENT at zero sessions (S8): a section with
+ * nothing in it does not render, head and all — the exercise read screen's rule, per object.
  *
  * Russian, deliberately — the section heads, the dock labels and the no-plan italic are all
  * strings the shipped app renders in Russian (`TrainingEditGoldenTest`'s own reasoning).
@@ -80,7 +80,7 @@ internal class TrainingDetailGoldenTest {
         }
     }
 
-    /** No sessions yet: head without a trailing count, the empty line instead of rules. */
+    /** S8: zero sessions — no ИСТОРИЯ section at all; the exercise cards end the frame. */
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
     fun detailEmptyHistory(theme: GoldenTheme, testInfo: TestInfo) {

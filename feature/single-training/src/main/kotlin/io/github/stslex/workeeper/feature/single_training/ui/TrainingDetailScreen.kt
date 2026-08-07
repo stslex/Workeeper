@@ -253,12 +253,16 @@ private fun DescriptionSection(description: String) {
  * full-bleed `.list` ruled ABOVE the first row and BELOW every row — the exercise read
  * screen's own treatment (§3.5), deliberately N+1 rules (extraction C5; reported, not
  * resolved). ED9's second form: a ruled list, against the cards above it.
+ *
+ * **A section with nothing in it does not render** (S8): zero sessions is nothing to list,
+ * so the head goes with the rows — the exercise read screen's own rule, per object.
  */
 @Composable
 private fun HistorySection(
     state: State,
     consume: (Action) -> Unit,
 ) {
+    if (state.pastSessions.isEmpty()) return
     Column {
         AppSectionHeader(
             modifier = Modifier.padding(
@@ -276,24 +280,14 @@ private fun HistorySection(
                     )
                 },
         )
-        if (state.pastSessions.isEmpty()) {
-            InGutter {
-                Text(
-                    text = stringResource(R.string.feature_training_detail_no_history),
-                    style = AppUi.typography.mono.meta,
-                    color = AppUi.colors.textDim,
+        Column {
+            HistoryRule()
+            state.pastSessions.forEach { session ->
+                TrainingHistoryRow(
+                    item = session,
+                    onClick = { consume(Action.Click.OnPastSessionClick(session.sessionUuid)) },
                 )
-            }
-        } else {
-            Column {
                 HistoryRule()
-                state.pastSessions.forEach { session ->
-                    TrainingHistoryRow(
-                        item = session,
-                        onClick = { consume(Action.Click.OnPastSessionClick(session.sessionUuid)) },
-                    )
-                    HistoryRule()
-                }
             }
         }
     }

@@ -206,12 +206,15 @@ private const val META_SEPARATOR = " · "
  * §3.1 — `ПЛАН ПО УМОЛЧАНИЮ` with the type as its trailing label (ED12), over the read-only
  * [PlanSetCard] (ED2). Read and edit draw the same card by ruling (D-OPEN-6).
  *
- * **Rendered whether or not there is a plan.** The head is where the type is stated, so hiding
- * the section for an exercise with no plan hides the type as well; the card's own empty branch
- * covers the state. §3.1's frame marks `prhero` conditional and this section not.
+ * **A section with nothing in it does not render** — the read frame's one rule (S8, the same
+ * rule the description block and the history follow). The empty card — head plus a setbar whose
+ * «− подход» is disabled — belongs to the editor, where the setbar is a target; read has no
+ * target. The type declaration (ED12) leaves with the head: it explains the shape of the rows
+ * underneath it, and with no rows there is nothing to explain.
  */
 @Composable
 private fun DefaultPlanSection(state: State) {
+    if (state.adhocPlan.isNullOrEmpty()) return
     Column {
         AppSectionHeader(
             modifier = Modifier.padding(
@@ -277,12 +280,16 @@ private fun DescriptionSection(
  * borderDefault) — deliberately N+1 rules, the drawn conflict with `AppSection`'s
  * between-only rule (extraction C5; reported, not resolved). The record row's trailing
  * tag replaces the chevron and opens the PR explainer.
+ *
+ * **A section with nothing in it does not render** (S8): zero sessions is nothing to list,
+ * so the head goes with the rows and the screen is shorter.
  */
 @Composable
 private fun HistorySection(
     state: State,
     consume: (Action) -> Unit,
 ) {
+    if (state.recentHistory.isEmpty()) return
     Column {
         AppSectionHeader(
             modifier = Modifier.padding(
@@ -300,26 +307,16 @@ private fun HistorySection(
                     )
                 },
         )
-        if (state.recentHistory.isEmpty()) {
-            InGutter {
-                Text(
-                    text = stringResource(R.string.feature_exercise_detail_no_history),
-                    style = AppUi.typography.mono.meta,
-                    color = AppUi.colors.textDim,
+        Column {
+            HistoryRule()
+            state.recentHistory.forEach { history ->
+                ExerciseHistoryRow(
+                    item = history,
+                    isRecord = history.sessionUuid == state.personalRecord?.sessionUuid,
+                    onClick = { consume(Action.Click.OnHistoryRowClick(history.sessionUuid)) },
+                    onPrTagClick = { consume(Action.Click.OnHistoryPrTagClick) },
                 )
-            }
-        } else {
-            Column {
                 HistoryRule()
-                state.recentHistory.forEach { history ->
-                    ExerciseHistoryRow(
-                        item = history,
-                        isRecord = history.sessionUuid == state.personalRecord?.sessionUuid,
-                        onClick = { consume(Action.Click.OnHistoryRowClick(history.sessionUuid)) },
-                        onPrTagClick = { consume(Action.Click.OnHistoryPrTagClick) },
-                    )
-                    HistoryRule()
-                }
             }
         }
     }

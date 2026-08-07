@@ -96,7 +96,7 @@ internal fun TrainingEditScreen(
                     accessibilityLabel = fieldLabel,
                     value = state.name,
                     onValueChange = { consume(Action.Input.OnNameChange(it)) },
-                    placeholder = stringResource(R.string.feature_training_edit_label_name),
+                    // ED4: no placeholder repeating the label — an empty name field is empty.
                     isError = errorText != null,
                 )
                 if (errorText != null) {

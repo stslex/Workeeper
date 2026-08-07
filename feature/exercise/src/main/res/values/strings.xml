@@ -2,7 +2,6 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Exercise detail -->
     <string name="feature_exercise_detail_recent">History</string>
-    <string name="feature_exercise_detail_no_history">No sessions yet</string>
     <string name="feature_exercise_detail_track_now">Log now</string>
     <string name="feature_exercise_detail_default_plan">Default plan</string>
     <string name="feature_exercise_track_now_default_training_name" tools:ignore="DuplicateStrings">Track now</string>
