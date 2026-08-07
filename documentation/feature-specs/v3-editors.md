@@ -42,8 +42,8 @@ mockup pass and ED14 with the §5 rulings.
 | **ED8** | **Long explanations move under an `i` button.** A section head carries a short label; the reason lives in a sheet. The referent is the session's exercise description (`.mini.info` → `#sh-desc`). | this arc's own first draft (a two-label head reading as one long title) |
 | **ED9** | **Training read screen: exercises are cards** (`#s-past` collapsed card — ordinal, name, `.plan-line`, chevron), **history stays a ruled list**. Different object, different form. | nothing — the screen was never drawn |
 | **ED10** | **`Изменить` moves from the `⋮` menu to the dock** on the training read screen, matching `#s-ex`. | build (menu item) |
-| **ED11** | **Undo everywhere; confirmation only where the act is irreversible.** A set, and an exercise removed from a training: **snackbar with undo, no confirmation** (D-OPEN-11). **Permanent deletion of the entity** (`⋮`): confirmation sheet, then the same snackbar. **Mechanism, for every undoable delete: deferred.** Nothing is deleted while the snackbar lives. The order is strict and it *is* the rule — timer expires → snackbar dismissed → only then the delete commits. Never delete first and undo by re-inserting (D-OPEN-2). **A deferred delete that loses its process is not committed** — the row survives (D-OPEN-10). | build (no undo anywhere); and this row's own earlier "confirmation, then a snackbar" on every exercise delete |
-| **ED12** | **Type of the exercise is declared on the plan section head** (`С ВЕСОМ` / `БЕЗ ВЕСА`) on the read screen, not as a tag chip. Tags render as one `.meta` line. | extraction §3.2 (type as first `.tag`) |
+| **ED11** | **Undo everywhere; confirmation only where the act is irreversible.** A set, and an exercise removed from a training: **snackbar with undo, no confirmation** (D-OPEN-11). **Permanent deletion of the entity** (`⋮`): confirmation sheet, then the same snackbar. **Mechanism, for every undoable delete: deferred.** Nothing is deleted while the snackbar lives. The order is strict and it *is* the rule — timer expires → snackbar dismissed → only then the delete commits. Never delete first and undo by re-inserting (D-OPEN-2). **A deferred delete that loses its process is not committed** — the row survives (D-OPEN-10). **Shipped as:** everywhere except the training's own permanent delete, which still confirms and deletes immediately — B-E9, placed by Ilya as follow-up work. | build (no undo anywhere); and this row's own earlier "confirmation, then a snackbar" on every exercise delete |
+| **ED12** | **Type of the exercise is declared on the plan section head** (`С ВЕСОМ` / `БЕЗ ВЕСА`) on the read screen, not as a tag chip. Tags render as one `.meta` line. **Shipped as:** declared whenever the plan section renders; an empty plan renders no section on read (S8), so a plan-less exercise states no type there — the head explains rows that must exist to be explained. | extraction §3.2 (type as first `.tag`) |
 | **ED13** | **Creation starts from an empty plan** — no seeded sets. `− подход` is `:disabled` while the draft is empty. | this arc's own earlier drawing |
 | **ED14** | **Training-editor cards are collapsed by default.** Collapsed is the drawn form — ordinal, type glyph, name, `.plan-line` summary (`#s-past`, as ED9) — plus the head's drag handle and `✕`. Entering the editor you see the whole list; you expand the one you mean. **Collapsed-by-default governs the INITIAL state, not a limit of one: expansion is per card**, never an accordion — an accordion trades scroll stability for height (collapsing a card above the viewport shifts the page under the user's finger mid-edit), and height is the cheaper of the two. | **this document's own §3.4** ("All cards open") — reversed by D-OPEN-7 |
 
@@ -109,14 +109,21 @@ Appearance is the drawing; this section names structure and the states the drawi
 topbar    ‹ · h1.sm name · ⋮
 meta      tags, one line, mono                       (type is NOT here — ED12)
 prhero    record                                     (absent when personalRecord == null)
-head      ПЛАН ПО УМОЛЧАНИЮ            С ВЕСОМ
+head      ПЛАН ПО УМОЛЧАНИЮ            С ВЕСОМ      (absent with the card when the plan is empty — S8)
 card      set rows, read-only                        (ED2)
 head      ОПИСАНИЕ
           description, image beside it               (D-OPEN-9, pairing from D-OPEN-3)
-head      ИСТОРИЯ                    4 СЕССИИ
+head      ИСТОРИЯ                    4 СЕССИИ        (absent with the list at zero sessions — S8)
 list      history rows, PR row carries .prtag not .chev
 dock      Изменить (128dp) · Записать сейчас
 ```
+
+**S8 made the frame's one rule explicit: a section with nothing in it does not render.** Every
+optional block above — the record, the plan with its ED12 type label, the description, the
+history — leaves whole, head and all, when it has nothing; only the top bar and the dock are
+unconditional, so an empty exercise is a short screen, not a screen of empty sections. The
+editor's empty plan card (head plus a setbar with «− подход» disabled) stays the editor's:
+there the setbar is a target, and read has no target.
 
 The set row is **the same component** `PlanEditorBody` draws. Extract it to
 `core/ui/plan-editor` as a read-only host rather than copying it — a copy is the drift this
@@ -186,7 +193,7 @@ head    УПРАЖНЕНИЯ                3
 cards   collapsed cards: .ord + title + .plan-line + .chev        (ED9)
 head    ОПИСАНИЕ                                                  (D-OPEN-9, amended below)
         description, absent when blank
-head    ИСТОРИЯ                   2 СЕССИИ
+head    ИСТОРИЯ                   2 СЕССИИ                        (absent with the rows at zero sessions — S8)
 list    ruled rows
 dock    Изменить (128dp) · Начать сессию                          (ED10)
 ```
@@ -300,12 +307,12 @@ was holding; §6 says which PR that step now ships in.
 PRs. Their ids and their content are unchanged — what changed is how they are submitted. Four
 branches, four reviews, four device passes.
 
-| PR | What it is | Steps, in commit order |
-|---|---|---|
-| **PR-A** | foundation | S1, S2 |
-| **PR-B** | the arc's heart | S3, S4 |
-| **PR-C** | periphery | S5, S6, S7 |
-| **PR-D** | states and close | S8, then the consolidated regression pass |
+| PR | What it is | Steps, in commit order | Merged |
+|---|---|---|---|
+| **PR-A** | foundation | S1, S2 | #214, `4482e310` |
+| **PR-B** | the arc's heart | S3, S4 | #215, `2ec74acb` |
+| **PR-C** | periphery | S5, S6, S7 | #216, `8e381813` |
+| **PR-D** | states and close | S8, then the consolidated regression pass | this PR — S8 at `3c095cdd`, the pass's one fix at `392296e2` |
 
 **Dependencies are unchanged and are now satisfied by order:**
 
@@ -327,6 +334,10 @@ either way and would simply draw the old toggle.
 
 The step table keeps its own `Depends on` column so a step read on its own still states what it
 needs.
+
+**All eight steps are SHIPPED.** S1/S2 in PR-A (#214, `4482e310`); S3/S4 in PR-B (#215,
+`2ec74acb`); S5/S6/S7 in PR-C (#216, `8e381813`); S8 in PR-D (`3c095cdd`, plus the regression
+pass's ED4 fix `392296e2`). The table keeps its planning form because later rows cite it.
 
 | Step | Content | Depends on |
 |---|---|---|
@@ -401,6 +412,19 @@ component, so **both** its modes (read-only with image / read-only with the plac
   also non-null — so `performed != null` always wins and `Mode.Exercise` is only ever reached from
   tests and a preview. It still compiles, so no gate reports it. Recorded here so the later
   deletion arc does not mistake a dead branch for a second consumer it must preserve.
+  **CONFIRMED at the arc's close (PR-D) — the census, measured, `Screen.PlanEditor` by word
+  boundary plus every `feature.plan_editor` import outside the module.** Production: **one**
+  route construction, `live-workout/.../NavigationHandler.kt:26` (fed by that feature's own
+  `Action.Navigation.OpenPlanEditor` — `ClickHandler.kt:357`, `LiveWorkoutStore.kt:303`); **one**
+  return bridge, `LiveWorkoutGraph.kt` (`planEditorSavedAttr`, two lines); **two** host
+  references, `AppNavigationHost.kt` (the `planEditorGraph` import and
+  `.reportScreenPlace<Screen.PlanEditor>()`); the definition in `core/ui/navigation/Screen.kt`.
+  Tests outside the module: `PlanEditorExtensionIdentityTest`,
+  `SavedStateHandleNavigationResultTest`, live-workout's `NavigationHandlerTest` — plus one
+  **prose-only** mention in `NavigationLifecycleRegressionTest`'s KDoc that still lists Exercise
+  and SingleTraining as reload consumers, stale since PR-B; a KDoc, not a caller. The arc did
+  not touch the module; the exercise-side reference that survived PR-B is the kit's
+  `PlanEditorBodyAction` (a `core/ui/plan-editor` symbol), not the route.
 - **B-E2** — nothing in the app ever deletes a tag; the dictionary only grows. The symbol with zero
   callers anywhere is `TagRepository.delete` (`TagRepository.kt:16`); `TagDao.delete(uuid)` has one
   production caller, `TagRepositoryImpl.delete` (`TagRepositoryImpl.kt:53`), which nothing calls.
@@ -416,9 +440,18 @@ component, so **both** its modes (read-only with image / read-only with the plac
   shipping zero-caller API.
 - **B-E3** — `AppTagPicker` and `AppDatePickerDialog` ship with zero production consumers
   (carried from extraction §7.11, unchanged by this arc).
+  **Half-closed at the arc's close (PR-D), measured:** `AppTagPicker` no longer exists —
+  S6's tag rework deleted it (`df703c11`, "one picker, and it lives in a sheet"); the
+  zero-consumer component was retired, not consumed. `AppDatePickerDialog` still ships with
+  zero references outside its own file — that half carries forward.
 - **B-E4** — no clamp is declared for `.prhero`'s meta line; a long training name grows it. The
   pushed-bar title is **not** part of this blocker: `AppTopBar` declares `maxLines = 1` +
   `TextOverflow.Ellipsis` (`AppTopBar.kt:89-90`) and has since the file was introduced.
+  **CLOSED by S8, and the premise was true of the plan, not of the shipped hero:** the meta
+  line has clamped (`maxLines = 1` + `Ellipsis`) since `PersonalRecordHero` was built
+  (`e7577ba7`, PR-A) — the row predates the component and nobody re-measured. What S8 added is
+  the **witness**: `recordHeroMetaClamped` ×2 photographs a `date · training` line long enough
+  to truncate, and the top-bar clamp was re-confirmed at its current lines rather than assumed.
 - **B-E5** — **future item, not this arc.** A tag editor screen showing each tag and its links.
   Opened by D-OPEN-4's ruling: auto-prune deletes a tag the moment its last link goes, which is
   the cheap answer; the screen is the one that lets you see and manage what the dictionary holds.
@@ -499,3 +532,26 @@ component, so **both** its modes (read-only with image / read-only with the plac
   Recorded rather than retrofitted: grafting the app-level snackbar custody onto the
   training's commit is S7-family work on PR-B's flow, not a review-round edit — Ilya
   places it (PR-D or a follow-up).
+  **At the arc's close: still open.** PR-D's brief did not place it, so the arc ends with the
+  training's permanent delete outside ED11's mechanism (the row above and ED11's own shipped-as
+  note both point here). With the four PRs done, "PR-D or a follow-up" has resolved to a
+  follow-up — the placement is still Ilya's.
+
+---
+
+## 9. What the drawing did not carry
+
+The arc is closed. Four things the mockup pass reliably failed to specify, so the next arc
+budgets for them instead of discovering them:
+
+1. **States.** No-record, empty history, weightless read, empty plan on read — none drawn; all
+   four resolved by one undrawn rule (a section with nothing in it does not render), and only in
+   S8, the arc's last commit.
+2. **The training's description.** §3.3's first frame omitted it, silently making the editor's
+   field write-only — D-OPEN-9's per-object re-ruling restored it in PR-C.
+3. **Order.** PR-B shipped the training editor out of ED3's sequence and §13's element-by-element
+   comparison passed — the comparison verifies presence more reliably than sequence, which is why
+   PR-D ran a dedicated six-surface ordering pass (result: clean).
+4. **ED5's resting label.** A colour with no `Overturns` referent shipped once before anyone
+   checked `pass2d.html:142` — a drawing overrules a row that does not name what it overrules
+   (§7), and a transcription slip reads exactly like a ruling until measured.
