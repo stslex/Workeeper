@@ -26,7 +26,6 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
 import io.github.stslex.workeeper.core.ui.start_mode.StartCardModeSheet
-import io.github.stslex.workeeper.core.ui.start_mode.model.StartCardModeUi
 import io.github.stslex.workeeper.core.ui.start_mode.startCardModeName
 import io.github.stslex.workeeper.feature.settings.R
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupAuthUi
@@ -174,8 +173,12 @@ internal fun SettingsScreen(
                 state = dialog,
                 onAction = { consume(it) },
             )
+            // Passed through, never substituted — the same rule the row's sub-line above
+            // follows. Until the preference's first emission the sheet checks nothing; a
+            // guessed WEEK here would be a reading of a value we do not have, and it is the
+            // wrong reading for every user whose persisted mode is one of the other three.
             DialogState.StartCardModePicker -> StartCardModeSheet(
-                selected = state.startCardMode ?: StartCardModeUi.WEEK,
+                selected = state.startCardMode,
                 onSelect = { mode -> consume(Action.Input.OnStartCardModeChange(mode)) },
                 onDismiss = { consume(Action.Click.OnStartCardModeSheetDismiss) },
             )

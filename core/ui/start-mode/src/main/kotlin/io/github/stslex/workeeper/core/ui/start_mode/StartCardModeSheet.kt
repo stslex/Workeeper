@@ -34,10 +34,18 @@ import io.github.stslex.workeeper.core.ui.start_mode.model.StartCardModeUi
  * One sheet, two entry points: the card's head on Home and the Settings entry both open
  * exactly this window, which is why it lives in this shared module rather than in either
  * feature.
+ *
+ * **[selected] is nullable, and null means NOTHING is checked** — not "check the default".
+ * The mode is persisted (HS6), so a host that opens this sheet before the preference's first
+ * emission does not know the answer yet, and this sheet is a readout of that answer. Showing
+ * WEEK checked there is a guess the user can neither see through nor trust: it is
+ * indistinguishable from a real reading of WEEK, and it is wrong whenever the persisted mode
+ * is one of the other three. No selection says the same thing the Settings row's blank
+ * sub-line says — we do not know yet — and the tap that opened the sheet still did something.
  */
 @Composable
 fun StartCardModeSheet(
-    selected: StartCardModeUi,
+    selected: StartCardModeUi?,
     onSelect: (StartCardModeUi) -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
@@ -53,10 +61,12 @@ fun StartCardModeSheet(
 /**
  * The sheet's body, separate from the window so Paparazzi can photograph it —
  * `ModalBottomSheet` renders in its own window, outside the golden harness's model.
+ *
+ * [selected] carries the same contract as the window's: null checks nothing.
  */
 @Composable
 fun StartCardModeSheetContent(
-    selected: StartCardModeUi,
+    selected: StartCardModeUi?,
     onSelect: (StartCardModeUi) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -108,9 +118,13 @@ private fun ModeRow(
         }
         if (isSelected) {
             Icon(
+                // The check is the whole readout, and it is a glyph with no content
+                // description — so nothing but a tag makes "this row is checked" assertable.
+                // Read with `useUnmergedTree`: the row's `clickable` merges its descendants.
                 modifier = Modifier
                     .padding(start = AppDimension.Space.sm)
-                    .size(AppDimension.Icon.small),
+                    .size(AppDimension.Icon.small)
+                    .testTag("StartCardModeCheck_${mode.name}"),
                 imageVector = AppIcons.Check,
                 contentDescription = null,
                 tint = AppUi.colors.textPrimary,
