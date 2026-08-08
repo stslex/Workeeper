@@ -7,11 +7,14 @@ import io.github.stslex.workeeper.core.ui.start_mode.model.StartCardModeUi
 import io.github.stslex.workeeper.feature.home.di.HomeHandlerStore
 import io.github.stslex.workeeper.feature.home.domain.HomeInteractor
 import io.github.stslex.workeeper.feature.home.domain.model.StartCardModeDomain
+import io.github.stslex.workeeper.feature.home.domain.model.StartSessionConflict
+import io.github.stslex.workeeper.feature.home.mvi.model.StartCardBodyUi
 import io.github.stslex.workeeper.feature.home.mvi.store.BottomSheetState
 import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.Action
 import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.Event
 import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.State
 import io.github.stslex.workeeper.feature.home.mvi.store.emptyPagingState
+import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
@@ -181,21 +184,76 @@ internal class ClickHandlerTest {
         assertEquals(BottomSheetState.Hidden, flow.value.bottomSheet)
     }
 
+    /**
+     * §3.4's branch, where it now lives. The card sends ONE action carrying nothing, so the
+     * uuid this asserts can only have come from the body in state at click time — which is
+     * also the point of moving it: `CommonHandler` swaps mode and body in one `copy`, so the
+     * pair cannot be read half-updated the way a Composable-captured `body` could.
+     */
     @Test
-    fun `OnStartForgottenTraining emits a haptic and starts the conflict resolution`() {
-        val store = newStore(baseState)
+    fun `OnStartActionClick under a Forgotten body starts THAT training, no picker`() {
+        val flow = MutableStateFlow(
+            baseState.copy(
+                startCardMode = StartCardModeUi.FORGOTTEN_TRAINING,
+                startCardBody = StartCardBodyUi.Forgotten(
+                    trainingUuid = "tpl-9",
+                    trainingName = "Спина и бицепс",
+                    metaLabel = "21 день · 6 упражнений",
+                ),
+            ),
+        )
+        val store = newStoreWithFlow(flow, executeLaunch = true)
+        coEvery {
+            interactor.resolveStartConflict("tpl-9")
+        } returns StartSessionConflict.ProceedFresh
         val handler = ClickHandler(interactor = interactor, resourceWrapper = resources, store = store)
 
-        handler.invoke(Action.Click.OnStartForgottenTraining(trainingUuid = "tpl-9"))
+        handler.invoke(Action.Click.OnStartActionClick)
 
+        coVerify(exactly = 1) {
+            store.consumeOnMain(Action.Navigation.OpenLiveWorkoutFresh(trainingUuid = "tpl-9"))
+        }
+        // No picker in between — that is what "starts THAT training directly" means.
+        assertEquals(BottomSheetState.Hidden, flow.value.bottomSheet)
         val captured = slot<Event>()
         verify(exactly = 1) { store.sendEvent(capture(captured)) }
         assertEquals(true, captured.captured is Event.HapticClick)
-        // The resolution itself runs inside the launched coroutine (stubbed here); what this
-        // pins is that the action goes through the resolver path, not straight to navigation.
-        verify(exactly = 1) {
-            store.launch(any(), any(), any(), any(), any<suspend CoroutineScope.() -> Unit>())
-        }
+    }
+
+    /**
+     * The other arm, on the mode that can produce a `Forgotten` body but currently does not
+     * (HD2: «Забытая тренировка» with no template left to start degrades to `Empty`). The
+     * mode being FORGOTTEN_TRAINING is deliberate — it pins that the discriminator is the
+     * BODY, so an arm keyed on the mode instead would send this tap to a uuid it does not
+     * have.
+     */
+    @Test
+    fun `OnStartActionClick under an Empty body opens the picker instead`() {
+        val flow = MutableStateFlow(
+            baseState.copy(
+                startCardMode = StartCardModeUi.FORGOTTEN_TRAINING,
+                startCardBody = StartCardBodyUi.Empty(message = "Пока нет шаблонов"),
+            ),
+        )
+        val store = newStoreWithFlow(flow)
+        val handler = ClickHandler(interactor = interactor, resourceWrapper = resources, store = store)
+
+        handler.invoke(Action.Click.OnStartActionClick)
+
+        assertEquals(true, flow.value.bottomSheet is BottomSheetState.TrainingPicker)
+        verify(exactly = 0) { store.consume(any()) }
+    }
+
+    /** The frame before the readout's first emission: still the picker, never a crash. */
+    @Test
+    fun `OnStartActionClick before the body arrives opens the picker`() {
+        val flow = MutableStateFlow(baseState.copy(startCardBody = null))
+        val store = newStoreWithFlow(flow)
+        val handler = ClickHandler(interactor = interactor, resourceWrapper = resources, store = store)
+
+        handler.invoke(Action.Click.OnStartActionClick)
+
+        assertEquals(true, flow.value.bottomSheet is BottomSheetState.TrainingPicker)
     }
 
     @Test

@@ -105,15 +105,20 @@ interface HomeStore : Store<HomeStore.State, HomeStore.Action, HomeStore.Event> 
             data object OnChartsClick : Click
             data object OnSettingsClick : Click
             data class OnRecentSessionClick(val sessionUuid: String) : Click
+
+            /**
+             * The picker route, by itself: the card's `.setbar` «Другая тренировка» (§3.4),
+             * which always opens the picker whatever the mode is. [OnStartActionClick] can
+             * also end here — that is the handler's decision, not this action's meaning.
+             */
             data object OnStartTrainingClick : Click
 
             /**
-             * «Забытая тренировка» only: the primary button starts the forgotten template
-             * directly (home-start-card.md §3.4) — no picker in between. Routes through the
-             * same conflict resolution as a picker selection, defensively: the card is
-             * hidden while a session runs, but the resolver is the invariant's keeper.
+             * The card's primary button — ONE action for all four modes, carrying nothing.
+             * Which branch it takes is §3.4's rule, decided in `ClickHandler` off the body
+             * in state at click time; the card composable neither knows nor names the modes.
              */
-            data class OnStartForgottenTraining(val trainingUuid: String) : Click
+            data object OnStartActionClick : Click
 
             data class OnPickerTrainingSelected(val trainingUuid: String) : Click
 

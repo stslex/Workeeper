@@ -44,7 +44,6 @@ import io.github.stslex.workeeper.core.ui.kit.theme.continuityAlphaSpec
 import io.github.stslex.workeeper.core.ui.kit.theme.continuityPositionalSpec
 import io.github.stslex.workeeper.feature.home.R
 import io.github.stslex.workeeper.feature.home.mvi.model.RecentSessionItem
-import io.github.stslex.workeeper.feature.home.mvi.model.StartCardBodyUi
 import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.Action
 import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.State
 import io.github.stslex.workeeper.feature.home.ui.components.ActiveSessionBanner
@@ -185,24 +184,20 @@ private fun HomeBody(
         }
         if (state.showStartCta) {
             item(key = "start") {
-                val body = state.startCardBody
                 HomeStartCard(
                     mode = state.startCardMode,
-                    body = body,
+                    body = state.startCardBody,
                     modifier = Modifier.padding(
                         horizontal = AppDimension.screenEdge,
                         vertical = AppDimension.Space.md,
                     ),
-                    onStartClick = {
-                        // §3.4: on «Забытая тренировка» the primary action starts THAT
-                        // training; every other body opens the picker.
-                        val forgotten = body as? StartCardBodyUi.Forgotten
-                        if (forgotten != null) {
-                            consume(Action.Click.OnStartForgottenTraining(forgotten.trainingUuid))
-                        } else {
-                            consume(Action.Click.OnStartTrainingClick)
-                        }
-                    },
+                    // One action, carrying nothing. Which training the primary button starts
+                    // is §3.4's rule, and it is decided in `ClickHandler` off the body in
+                    // state — the branch used to sit here, which put a decision in the graph
+                    // and made a fifth mode a two-site change.
+                    onStartClick = { consume(Action.Click.OnStartActionClick) },
+                    // The `.setbar` way out is NOT that decision: it opens the picker
+                    // whatever the mode is, which is why it keeps its own action.
                     onOtherTrainingClick = { consume(Action.Click.OnStartTrainingClick) },
                     onModeClick = { consume(Action.Click.OnModeLabelClick) },
                 )

@@ -14,6 +14,7 @@ import io.github.stslex.workeeper.feature.home.domain.HomeInteractor
 import io.github.stslex.workeeper.feature.home.domain.model.StartSessionConflict
 import io.github.stslex.workeeper.feature.home.mvi.mapper.HomeUiMapper.toPickerItems
 import io.github.stslex.workeeper.feature.home.mvi.mapper.StartCardModeMapper.toDomain
+import io.github.stslex.workeeper.feature.home.mvi.model.StartCardBodyUi
 import io.github.stslex.workeeper.feature.home.mvi.store.BottomSheetState
 import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.Action
 import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.Event
@@ -40,7 +41,7 @@ internal class ClickHandler @Inject constructor(
             Action.Click.OnSettingsClick -> processSettingsClick()
             is Action.Click.OnRecentSessionClick -> processRecentSessionClick(action.sessionUuid)
             Action.Click.OnStartTrainingClick -> processStartTrainingClick()
-            is Action.Click.OnStartForgottenTraining -> processStartForgotten(action.trainingUuid)
+            Action.Click.OnStartActionClick -> processStartActionClick()
             is Action.Click.OnPickerTrainingSelected -> processPickerSelected(action.trainingUuid)
             Action.Click.OnStartBlankClick -> processStartBlankClick()
             Action.Click.OnPickerSeeAllClick -> processPickerSeeAll()
@@ -123,6 +124,36 @@ internal class ClickHandler @Inject constructor(
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
         updateState { it.copy(bottomSheet = BottomSheetState.Hidden) }
         resolveConflictAndStart(trainingUuid)
+    }
+
+    /**
+     * The card's primary button, for every mode — §3.4: on «Забытая тренировка» it starts
+     * THAT training directly, with no picker in between; every other body opens the picker.
+     *
+     * The rule is executed here, so this is where it is written down. The card dispatches
+     * one action and names no mode, which means a fifth mode adds an arm to this `when` and
+     * to nothing else — with the branch up in the composable it would have needed one there
+     * too, and the compiler would not have said so.
+     *
+     * **The discriminator is the BODY, not the mode**, and the `when` is exhaustive rather
+     * than an `as?` so the sealed type carries that. `Forgotten` occurs only under
+     * FORGOTTEN_TRAINING, and that mode degrades to `Empty` when there is no template left
+     * to start (HD2) — which must open the picker exactly as an `Empty` under any other mode
+     * does. Reading it from `state.value` at click time is also what makes head and action
+     * atomic: `CommonHandler` swaps mode and body in one `copy`, so the uuid started is
+     * always the one the card was showing when it was tapped.
+     */
+    private fun processStartActionClick() {
+        when (val body = state.value.startCardBody) {
+            is StartCardBodyUi.Forgotten -> processStartForgotten(body.trainingUuid)
+
+            is StartCardBodyUi.Week,
+            is StartCardBodyUi.DaysSince,
+            is StartCardBodyUi.TagIdle,
+            is StartCardBodyUi.Empty,
+            null,
+            -> processStartTrainingClick()
+        }
     }
 
     /** «Забытая тренировка»'s primary action — no picker, same conflict resolution. */
