@@ -150,8 +150,9 @@ internal class ClickHandlerTest {
 
         assertEquals(BottomSheetState.Hidden, flow.value.bottomSheet)
         // startCardMode is NOT written here — the DataStore round trip owns it, so head and
-        // body swap together when the new mode's first readout lands.
-        assertEquals(StartCardModeUi.WEEK, flow.value.startCardMode)
+        // body swap together when the new mode's first readout lands. Still null, because
+        // `State.init` seeds no mode: selecting a mode does not make the card claim one.
+        assertEquals(null, flow.value.startCardMode)
         coVerify(exactly = 1) {
             interactor.setStartCardMode(StartCardModeDomain.LAGGING_GROUPS)
         }

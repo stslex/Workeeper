@@ -42,6 +42,7 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
 import io.github.stslex.workeeper.core.ui.kit.theme.continuityAlphaSpec
 import io.github.stslex.workeeper.core.ui.kit.theme.continuityPositionalSpec
+import io.github.stslex.workeeper.core.ui.start_mode.model.StartCardModeUi
 import io.github.stslex.workeeper.feature.home.R
 import io.github.stslex.workeeper.feature.home.mvi.model.RecentSessionItem
 import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.Action
@@ -337,6 +338,10 @@ private fun LazyListScope.emptyRegion(
 /**
  * Preview state. `State.INITIAL` is gone — the state carries a `PagingUiState`, which is a flow
  * factory and cannot be a constant — so previews build one over a fixed [PagingData].
+ *
+ * `startCardMode` is set explicitly rather than inherited: `State.init` leaves it null (the
+ * frame before DataStore answers), and a preview of the screen wants the settled card. The
+ * unresolved head has its own preview, on the card itself.
  */
 private fun previewState(
     activeSession: State.ActiveSessionInfo? = null,
@@ -349,6 +354,7 @@ private fun previewState(
     activeSession = activeSession,
     isActiveLoaded = isActiveLoaded,
     nowMillis = nowMillis,
+    startCardMode = StartCardModeUi.WEEK,
 )
 
 @Preview

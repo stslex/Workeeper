@@ -144,12 +144,24 @@ internal class HomeGoldenTest {
         days = week.days.map { it.copy(isFilled = false) }.toImmutableList(),
     )
 
+    /**
+     * `startCardMode` is stated, not inherited. `State.init` leaves it null — the frame before
+     * DataStore answers, where the head names nothing — and these are pictures of a SETTLED
+     * screen, so the fixture declares the mode it is photographing exactly as it already
+     * declares the body. It used to arrive from a WEEK seed in `State.init`; the seed is gone,
+     * and every picture below is byte-identical to the one recorded under it.
+     */
     private fun state(
         items: List<RecentSessionItem>,
         activeSession: State.ActiveSessionInfo? = null,
     ) = State.init(
         pagingUiState = PagingUiState { flowOf(PagingData.from(items)) },
-    ).copy(activeSession = activeSession, isActiveLoaded = true, startCardBody = week)
+    ).copy(
+        activeSession = activeSession,
+        isActiveLoaded = true,
+        startCardMode = StartCardModeUi.WEEK,
+        startCardBody = week,
+    )
 
     /**
      * **`PagingData.from` never settles inside one Paparazzi frame**, so an empty screen built with

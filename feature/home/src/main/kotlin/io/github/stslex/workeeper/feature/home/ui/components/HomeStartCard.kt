@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -27,6 +28,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
@@ -60,16 +63,27 @@ import kotlinx.collections.immutable.toImmutableList
  * compact, never full-bleed. The mode changes the body only; the head, the button and the
  * card's geometry hold across all four modes and their empty states. Surface `--slab` +
  * `--slabtop` via [liftedSurface].
+ *
+ * **[mode] is null until the persisted preference arrives (HS6), and the card says so by
+ * naming nothing**: no label, no readout, just the shell and its action. The alternative is
+ * to seed WEEK, which announces a mode the user may never have chosen — on every cold start,
+ * in the screen's most prominent element — and reads exactly like a real reading of WEEK.
+ * The head stays a target throughout: the sheet opens, and with nothing yet known it checks
+ * nothing (`StartCardModeSheet`), which is the same answer given twice rather than a guess.
  */
 @Composable
 internal fun HomeStartCard(
-    mode: StartCardModeUi,
+    mode: StartCardModeUi?,
     body: StartCardBodyUi?,
     onStartClick: () -> Unit,
     onOtherTrainingClick: () -> Unit,
     onModeClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // No mode, no readout — structurally, not by trust. `CommonHandler` writes the pair in one
+    // `copy`, so a body without a mode cannot occur today; that is an invariant of a handler,
+    // not of this signature, and the card is the thing that would render the mismatch.
+    val reading = if (mode == null) null else body
     val shape = RoundedCornerShape(AppDimension.Radius.medium)
     Column(
         modifier = modifier
@@ -87,12 +101,12 @@ internal fun HomeStartCard(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Box(modifier = Modifier.weight(1f)) {
-                    when (body) {
-                        is StartCardBodyUi.Week -> WeekReading(body)
-                        is StartCardBodyUi.DaysSince -> DaysSinceReading(body)
-                        is StartCardBodyUi.TagIdle -> TagIdleRows(body.rows)
-                        is StartCardBodyUi.Forgotten -> ForgottenReading(body)
-                        is StartCardBodyUi.Empty -> EmptyReading(body.message)
+                    when (reading) {
+                        is StartCardBodyUi.Week -> WeekReading(reading)
+                        is StartCardBodyUi.DaysSince -> DaysSinceReading(reading)
+                        is StartCardBodyUi.TagIdle -> TagIdleRows(reading.rows)
+                        is StartCardBodyUi.Forgotten -> ForgottenReading(reading)
+                        is StartCardBodyUi.Empty -> EmptyReading(reading.message)
                         null -> Unit
                     }
                 }
@@ -104,15 +118,15 @@ internal fun HomeStartCard(
                         .testTag("HomeStartButton"),
                 )
             }
-            when (body) {
+            when (reading) {
                 is StartCardBodyUi.Week -> WeekRail(
-                    days = body.days,
+                    days = reading.days,
                     modifier = Modifier.padding(top = AppDimension.Space.md),
                 )
 
                 is StartCardBodyUi.TagIdle -> Text(
                     modifier = Modifier.padding(top = AppDimension.Space.sm),
-                    text = body.footnoteLabel,
+                    text = reading.footnoteLabel,
                     style = AppUi.typography.mono.caption,
                     color = AppUi.colors.textDim,
                 )
@@ -125,7 +139,7 @@ internal fun HomeStartCard(
             }
         }
         // `.setbar` — «Забытая тренировка» only (§3.4): the way out to any other template.
-        if (body is StartCardBodyUi.Forgotten) {
+        if (reading is StartCardBodyUi.Forgotten) {
             OtherTrainingBar(onClick = onOtherTrainingClick)
         }
     }
@@ -141,37 +155,76 @@ internal fun HomeStartCard(
  * «Забытая тренировка»'s head reads «Дольше всего не делали» (the arc's RU copy) — the one
  * mode whose card label is not the mode's name; the sheet still names it «Забытая
  * тренировка».
+ *
+ * A null [mode] draws the **caret alone**. The label is the one thing here that asserts
+ * something, so it is the one thing withheld; the caret and the row's `heightMd` are the
+ * control, and dropping them too would leave the tap target the width of nothing — a head
+ * that cannot be pressed for the frames before the preference lands, which is the "reads as
+ * broken" failure in a second costume.
+ *
+ * Withholding the label must not cost the control, and it costs it twice over if unguarded:
+ *
+ * - a lone caret is `Icon.small` wide — 16dp, a third of the platform minimum — so the head
+ *   takes a **minimum width** while it has no label, making the target the 48dp square its
+ *   height already implies;
+ * - the label was also the head's accessible **name** (`clickable` merges descendants, and
+ *   the caret is decorative), so a `contentDescription` stands in while it is absent.
+ *
+ * Both are *values* toggled on a stable `Modifier` chain rather than a chain toggled by
+ * condition (compose-state-discipline, Rule 2), and both are inert once a label exists —
+ * `0.dp` and an unset description — so no drawn head moves by a pixel or changes what it
+ * announces.
  */
 @Composable
 private fun StartCardHead(
-    mode: StartCardModeUi,
+    mode: StartCardModeUi?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val label = when (mode) {
-        StartCardModeUi.FORGOTTEN_TRAINING ->
-            stringResource(R.string.feature_home_start_mode_forgotten_label)
+    // `?.let` rather than a `null ->` arm on the `when`: the arm would leave the other
+    // branches leaning on a smart cast of the subject through a multi-condition entry, which
+    // is a frontend detail to be relying on for a label. This way the `when` stays exhaustive
+    // over the enum and never sees a null.
+    val label = mode?.let { current ->
+        when (current) {
+            StartCardModeUi.FORGOTTEN_TRAINING ->
+                stringResource(R.string.feature_home_start_mode_forgotten_label)
 
-        StartCardModeUi.WEEK,
-        StartCardModeUi.DAYS_SINCE_LAST,
-        StartCardModeUi.LAGGING_GROUPS,
-        -> startCardModeName(mode)
+            StartCardModeUi.WEEK,
+            StartCardModeUi.DAYS_SINCE_LAST,
+            StartCardModeUi.LAGGING_GROUPS,
+            -> startCardModeName(current)
+        }
     }
     val interactionSource = remember { MutableInteractionSource() }
+    val switchLabel = stringResource(R.string.feature_home_start_mode_switch)
     Row(
         modifier = modifier
             .height(AppDimension.heightMd)
+            .widthIn(min = if (label == null) AppDimension.heightMd else 0.dp)
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
-                onClickLabel = stringResource(R.string.feature_home_start_mode_switch),
+                onClickLabel = switchLabel,
                 onClick = onClick,
             )
+            // `clickable` merges descendants, so the head's accessible NAME was the label —
+            // the one thing withheld here. `onClickLabel` does not stand in for it: it names
+            // the ACTION («double tap to …»), which leaves an unnamed control behind. The one
+            // string that fits is the switch's own, so a screen reader hears it as name and
+            // hint both for as long as the mode is unknown; saying it twice is a smaller cost
+            // than a button with no name, and it costs nothing once a label exists.
+            .semantics { if (label == null) contentDescription = switchLabel }
             .testTag("HomeStartModeHead"),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.xs),
     ) {
-        AppLabel(text = label)
+        label?.let { text ->
+            AppLabel(
+                text = text,
+                modifier = Modifier.testTag("HomeStartModeLabel"),
+            )
+        }
         Icon(
             modifier = Modifier.size(AppDimension.Icon.small),
             imageVector = AppIcons.ChevronDown,
@@ -497,6 +550,21 @@ private fun HomeStartCardForgottenPreview() {
                 trainingName = "Спина и бицепс",
                 metaLabel = "21 день · 6 упражнений",
             ),
+            onStartClick = {},
+            onOtherTrainingClick = {},
+            onModeClick = {},
+        )
+    }
+}
+
+/** The frame before DataStore answers: the shell, the caret, the action — and no claim. */
+@Preview(name = "Mode unknown — Dark")
+@Composable
+private fun HomeStartCardUnknownModePreview() {
+    AppTheme(themeMode = ThemeMode.DARK) {
+        HomeStartCard(
+            mode = null,
+            body = null,
             onStartClick = {},
             onOtherTrainingClick = {},
             onModeClick = {},

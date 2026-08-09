@@ -42,6 +42,12 @@ import io.github.stslex.workeeper.core.ui.start_mode.model.StartCardModeUi
  * indistinguishable from a real reading of WEEK, and it is wrong whenever the persisted mode
  * is one of the other three. No selection says the same thing the Settings row's blank
  * sub-line says — we do not know yet — and the tap that opened the sheet still did something.
+ *
+ * **Both hosts must pass their state through unaltered** — `SettingsScreen`'s
+ * `DialogState.StartCardModePicker` branch and `HomeGraph`'s `BottomSheetState.StartModePicker`
+ * branch. Only the first has a test pinning it (`SettingsStartCardModeSheetTest`); an elvis
+ * reintroduced at the Home call site would currently red nothing, so it is named here, on the
+ * component both of them call, rather than left to be rediscovered.
  */
 @Composable
 fun StartCardModeSheet(

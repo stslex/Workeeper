@@ -15,8 +15,26 @@ interface HomeStore : Store<HomeStore.State, HomeStore.Action, HomeStore.Event> 
     @Stable
     data class State(
         val activeSession: ActiveSessionInfo?,
-        /** The start card's selected readout mode. Fixed at WEEK until the mode sheet lands. */
-        val startCardMode: StartCardModeUi,
+
+        /**
+         * The start card's selected readout mode — **null until DataStore's first emission**,
+         * and null renders no head label at all.
+         *
+         * Not seeded with WEEK. The mode is persisted (HS6), so a cold start does not know it
+         * yet, and a seed is not a default: it is an announcement, in the most prominent
+         * element of the screen, of a mode the user may never have chosen — on every launch,
+         * not in some narrow window. It is also indistinguishable from a real reading of WEEK,
+         * which is what makes it worse than an empty head.
+         *
+         * **HS3's default is not lost with the seed, because it never lived here.** It is
+         * `CommonDataStoreImpl.DEFAULT_START_CARD_MODE` — the fallback the preference is READ
+         * with — so a user who has never chosen still gets «Неделя», as the answer to "what is
+         * persisted" rather than as a guess made while that question was still outstanding.
+         *
+         * It lands with [startCardBody] in one `copy` (see `CommonHandler.observeStartCard`),
+         * so head and readout are never a frame apart.
+         */
+        val startCardMode: StartCardModeUi?,
         /**
          * The start card's readout, null until its flow's first emission. Not a second
          * loading discriminator: the card itself is gated by [showStartCta], and a null
@@ -77,7 +95,8 @@ interface HomeStore : Store<HomeStore.State, HomeStore.Action, HomeStore.Event> 
                 pagingUiState: PagingUiState<PagingData<RecentSessionItem>>,
             ): State = State(
                 activeSession = null,
-                startCardMode = StartCardModeUi.WEEK,
+                // Both null, together: nothing is known about the card until DataStore says.
+                startCardMode = null,
                 startCardBody = null,
                 pagingUiState = pagingUiState,
                 nowMillis = 0L,
