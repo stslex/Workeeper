@@ -68,6 +68,13 @@ interface TrainingRepository {
     fun observeRecentTemplates(limit: Int): Flow<List<TrainingListItem>>
 
     /**
+     * Hot stream of the single most forgotten template — «Забытая тренировка»: the
+     * non-adhoc, non-archived training whose last finished session is furthest in the past,
+     * with never-run templates ranking first (HD1). Null when no template exists at all.
+     */
+    fun observeMostForgottenTemplate(): Flow<TrainingListItem?>
+
+    /**
      * Bulk-archive a batch of trainings in a single transaction. Trainings with an active
      * (in-progress) session are excluded; the returned [BulkArchiveOutcome] reports how
      * many were archived and which got skipped.

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="feature_home_title">Главная</string>
     <string name="feature_home_active_session_label">Сессия в процессе</string>
     <string name="feature_home_active_session_progress_format">%1$d из %2$d</string>
@@ -8,8 +8,21 @@
     <string name="feature_home_settings">Настройки</string>
     <string name="feature_home_charts">Прогресс</string>
 
-    <string name="feature_home_start_cta_title">Начать тренировку</string>
-    <string name="feature_home_start_cta_subtitle">Выберите шаблон тренировки</string>
+    <string name="feature_home_start_action">Начать</string>
+    <string name="feature_home_start_mode_switch">Выбрать, что показывать</string>
+    <string name="feature_home_start_mode_forgotten_label">Дольше всего не делали</string>
+    <string name="feature_home_start_empty_sessions">Ещё ни одной тренировки</string>
+    <string name="feature_home_start_empty_tags">Упражнения без тегов — отмечайте группы, и они появятся здесь</string>
+    <string name="feature_home_start_never_run">ещё ни разу</string>
+    <string name="feature_home_start_groups_footnote">дней с последней тренировки группы</string>
+    <string name="feature_home_start_other_training">Другая тренировка</string>
+    <string name="feature_home_start_week_day_mon">Пн</string>
+    <string name="feature_home_start_week_day_tue">Вт</string>
+    <string name="feature_home_start_week_day_wed">Ср</string>
+    <string name="feature_home_start_week_day_thu">Чт</string>
+    <string name="feature_home_start_week_day_fri">Пт</string>
+    <string name="feature_home_start_week_day_sat">Сб</string>
+    <string name="feature_home_start_week_day_sun">Вс</string>
     <string name="feature_home_recent_adhoc_label">Свободная тренировка</string>
     <string name="feature_home_recent_stats_format">%1$s · %2$s</string>
 
@@ -39,5 +52,29 @@
         <item quantity="few">%d подхода</item>
         <item quantity="many">%d подходов</item>
         <item quantity="other">%d подходов</item>
+    </plurals>
+
+    <!-- Unit word only — see values/strings.xml. «21 тренировка» stays correct: the `one`
+         quantity covers 21, 31, … here and that is exactly the form Russian wants. -->
+    <plurals name="feature_home_start_week_sessions_count" tools:ignore="ImpliedQuantity">
+        <item quantity="one">тренировка</item>
+        <item quantity="few">тренировки</item>
+        <item quantity="many">тренировок</item>
+        <item quantity="other">тренировки</item>
+    </plurals>
+
+    <!-- Unit word only, same construction as the week unit above. -->
+    <plurals name="feature_home_start_days_count" tools:ignore="ImpliedQuantity">
+        <item quantity="one">день</item>
+        <item quantity="few">дня</item>
+        <item quantity="many">дней</item>
+        <item quantity="other">дня</item>
+    </plurals>
+
+    <plurals name="feature_home_start_days_idle_count">
+        <item quantity="one">%d день</item>
+        <item quantity="few">%d дня</item>
+        <item quantity="many">%d дней</item>
+        <item quantity="other">%d дня</item>
     </plurals>
 </resources>

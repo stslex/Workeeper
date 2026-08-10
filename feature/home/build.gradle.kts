@@ -25,11 +25,25 @@ dependencies {
     implementation(project(":core:ui:kit"))
     implementation(project(":core:ui:mvi"))
     implementation(project(":core:ui:navigation"))
+    // The start card's mode catalog + picker sheet, shared with feature:settings (HS5).
+    implementation(project(":core:ui:start-mode"))
     implementation(project(":core:data:exercise"))
+    // HS6: the start card's mode is a CommonDataStore preference beside themePreference.
+    implementation(project(":core:data:dataStore"))
+    // ObserveWeekReadoutUseCase takes a kotlinx-datetime TimeZone so tests can pin one;
+    // core:core keeps the dependency `implementation`, so it does not arrive transitively.
+    implementation(libs.kotlinx.datetime)
 
     testImplementation(libs.androidx.paging.testing)
     testImplementation(kotlin("test"))
     testImplementation(testFixtures(project(":core:ui:kit")))
+    // Compose's semantics-tree surface on the JVM side, for HomeStartCardModeLabelTest: the
+    // head's label is present-or-absent, which is a semantics claim a golden cannot make
+    // (it would be a picture of an absence) and a handler test cannot reach. `src/androidTest`
+    // is dispatch-only and therefore not a gate. Robolectric and the Jupiter
+    // RobolectricExtension already arrive from the convention plugin; this is the missing
+    // `runComposeUiTest`. Same reasoning as core:ui:kit and feature:settings.
+    testImplementation(libs.androidx.compose.ui.test.junit4)
 
     androidTestImplementation(libs.bundles.android.test)
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)

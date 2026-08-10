@@ -7,6 +7,7 @@
     <string name="feature_settings_section_data">Data</string>
 
     <string name="feature_settings_theme_row_title">Theme</string>
+    <string name="feature_settings_start_card_row_title">Start card</string>
     <string name="feature_settings_theme_system">System</string>
     <string name="feature_settings_theme_light">Light</string>
     <string name="feature_settings_theme_dark">Dark</string>

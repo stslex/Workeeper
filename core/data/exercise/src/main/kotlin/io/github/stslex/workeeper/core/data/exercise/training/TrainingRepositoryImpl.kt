@@ -200,6 +200,11 @@ class TrainingRepositoryImpl @Inject internal constructor(
         .map { rows -> rows.map { row -> row.toData(labels = trainingTagDao.getTagNames(row.uuid)) } }
         .flowOn(ioDispatcher)
 
+    override fun observeMostForgottenTemplate(): Flow<TrainingListItem?> = dao
+        .observeMostForgottenTemplate()
+        .map { row -> row?.toData() }
+        .flowOn(ioDispatcher)
+
     override suspend fun countSessionsUsing(
         trainingUuid: String,
     ): Int = withContext(ioDispatcher) {

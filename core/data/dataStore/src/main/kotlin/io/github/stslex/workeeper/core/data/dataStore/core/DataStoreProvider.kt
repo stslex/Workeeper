@@ -15,12 +15,16 @@ import java.util.concurrent.ConcurrentHashMap
 // assisted type; the app-scoped singleton lives on the consumer `CommonDataStoreImpl`). The `Context`
 // dropped from Hilt's `@ApplicationContext` to a plain param resolved from the app graph's
 // `create(applicationContext)` bound instance.
-class DataStoreProvider @AssistedInject constructor(
+// `open` (class and property) is the HS6 test seam, not an extension point: the memoizing
+// companion below is process-lifetime by design and cannot express "a second process", so the
+// persistence gate substitutes a generation-scoped DataStore over one file to simulate
+// process death. Production code must not subclass this.
+open class DataStoreProvider @AssistedInject constructor(
     @Assisted private val name: String,
     context: Context,
 ) {
 
-    val dataStore: DataStore<Preferences> = provideDataStore(context.applicationContext, name)
+    open val dataStore: DataStore<Preferences> = provideDataStore(context.applicationContext, name)
 
     private companion object {
 

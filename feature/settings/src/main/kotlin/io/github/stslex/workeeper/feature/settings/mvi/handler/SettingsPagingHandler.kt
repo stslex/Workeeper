@@ -7,6 +7,7 @@ import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.settings.di.SettingsHandlerStore
 import io.github.stslex.workeeper.feature.settings.di.SettingsScope
 import io.github.stslex.workeeper.feature.settings.domain.SettingsInteractor
+import io.github.stslex.workeeper.feature.settings.mvi.mapper.StartCardModeMapper.toUi
 import io.github.stslex.workeeper.feature.settings.mvi.mapper.ThemeModeMapper.toUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.ArchivedCountsUi
 import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStore.Action
@@ -22,6 +23,7 @@ internal class SettingsPagingHandler @Inject constructor(
         when (action) {
             Action.Paging.Init -> {
                 observeTheme()
+                observeStartCardMode()
                 observeArchivedCounts()
             }
         }
@@ -33,6 +35,15 @@ internal class SettingsPagingHandler @Inject constructor(
             .map { ArchivedCountsUi(exercises = it.exercises, trainings = it.trainings) }
             .launch { counts ->
                 updateStateImmediate { it.copy(archivedCounts = counts) }
+            }
+    }
+
+    /** The Appearance row's sub-line and the sheet's check — both follow the preference. */
+    private fun observeStartCardMode() {
+        interactor.observeStartCardMode()
+            .map { it.toUi() }
+            .launch { mode ->
+                updateStateImmediate { it.copy(startCardMode = mode) }
             }
     }
 

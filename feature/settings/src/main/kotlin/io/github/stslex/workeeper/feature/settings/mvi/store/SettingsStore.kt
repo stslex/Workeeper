@@ -7,6 +7,7 @@ import androidx.compose.runtime.Stable
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
 import io.github.stslex.workeeper.core.ui.mvi.Store
+import io.github.stslex.workeeper.core.ui.start_mode.model.StartCardModeUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.ArchivedCountsUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupAuthUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupErrorUi
@@ -24,6 +25,12 @@ interface SettingsStore : Store<State, Action, Event> {
     @Stable
     data class State(
         val themeMode: ThemeMode,
+
+        /**
+         * The Home start card's readout mode (HS5), or null until the preference's first
+         * emission — the row shows no sub-line rather than flashing a guessed default.
+         */
+        val startCardMode: StartCardModeUi?,
         val appVersion: String,
         val appVersionCode: Int,
         val backupAuth: BackupAuthUi,
@@ -50,6 +57,7 @@ interface SettingsStore : Store<State, Action, Event> {
                 appVersionCode: Int,
             ): State = State(
                 themeMode = ThemeMode.SYSTEM,
+                startCardMode = null,
                 appVersion = appVersion,
                 appVersionCode = appVersionCode,
                 backupAuth = BackupAuthUi.NotAuthenticated,
@@ -74,6 +82,12 @@ interface SettingsStore : Store<State, Action, Event> {
 
         sealed interface Click : Action {
 
+            /** The Appearance row for the Home start card — opens the shared mode sheet. */
+            data object OnStartCardModeClick : Click
+
+            /** Sheet dismissal — no haptic, per the cancel/dismiss convention. */
+            data object OnStartCardModeSheetDismiss : Click
+
             data object OnArchiveClick : Click
             data object OnGitHubClick : Click
             data object OnLicenseClick : Click
@@ -83,6 +97,9 @@ interface SettingsStore : Store<State, Action, Event> {
         sealed interface Input : Action {
 
             data class OnThemeChange(val mode: ThemeMode) : Input
+
+            /** A row of the mode sheet: persist (HS6) and close; state follows DataStore. */
+            data class OnStartCardModeChange(val mode: StartCardModeUi) : Input
         }
 
         sealed interface Navigation : Action {

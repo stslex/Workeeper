@@ -5,6 +5,7 @@ import io.github.stslex.workeeper.core.core.platform.PlatformInfoProvider
 import io.github.stslex.workeeper.core.data.dataStore.store.CommonDataStore
 import io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.data.exercise.training.TrainingRepository
+import io.github.stslex.workeeper.feature.settings.domain.model.StartCardModeDomain
 import io.github.stslex.workeeper.feature.settings.domain.model.ThemeModeDomain
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -64,6 +65,43 @@ internal class SettingsInteractorImplTest {
         coEvery { commonDataStore.setThemePreference(any()) } returns Unit
         interactor.setThemeMode(ThemeModeDomain.LIGHT)
         coVerify(exactly = 1) { commonDataStore.setThemePreference(ThemeModeDomain.LIGHT.value) }
+    }
+
+    @Test
+    fun `observeStartCardMode maps stored string to the domain mode`() = runTest(testDispatcher) {
+        every { commonDataStore.homeStartCardMode } returns flowOf("FORGOTTEN_TRAINING")
+        assertEquals(
+            StartCardModeDomain.FORGOTTEN_TRAINING,
+            interactor.observeStartCardMode().first(),
+        )
+    }
+
+    @Test
+    fun `observeStartCardMode returns WEEK for unknown stored value`() = runTest(testDispatcher) {
+        every { commonDataStore.homeStartCardMode } returns flowOf("INVALID")
+        assertEquals(StartCardModeDomain.WEEK, interactor.observeStartCardMode().first())
+    }
+
+    @Test
+    fun `setStartCardMode forwards the persistence encoding to the data store`() =
+        runTest(testDispatcher) {
+            coEvery { commonDataStore.setHomeStartCardMode(any()) } returns Unit
+            interactor.setStartCardMode(StartCardModeDomain.LAGGING_GROUPS)
+            coVerify(exactly = 1) { commonDataStore.setHomeStartCardMode("LAGGING_GROUPS") }
+        }
+
+    /**
+     * The persistence contract (HS6): the strings must match feature/home's enum of the same
+     * name — two features, one preference — and the WEEK default is what an absent key reads
+     * as. Pinned on both sides of the feature boundary.
+     */
+    @Test
+    fun `the storage encoding and the WEEK default are pinned`() {
+        assertEquals("WEEK", StartCardModeDomain.WEEK.value)
+        assertEquals("DAYS_SINCE_LAST", StartCardModeDomain.DAYS_SINCE_LAST.value)
+        assertEquals("LAGGING_GROUPS", StartCardModeDomain.LAGGING_GROUPS.value)
+        assertEquals("FORGOTTEN_TRAINING", StartCardModeDomain.FORGOTTEN_TRAINING.value)
+        assertEquals(StartCardModeDomain.WEEK, StartCardModeDomain.fromValue("not-a-mode"))
     }
     /**
      * B15's premise was that the archive counts had no data source. They have had one since the

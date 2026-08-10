@@ -42,6 +42,7 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
 import io.github.stslex.workeeper.core.ui.kit.theme.continuityAlphaSpec
 import io.github.stslex.workeeper.core.ui.kit.theme.continuityPositionalSpec
+import io.github.stslex.workeeper.core.ui.start_mode.model.StartCardModeUi
 import io.github.stslex.workeeper.feature.home.R
 import io.github.stslex.workeeper.feature.home.mvi.model.RecentSessionItem
 import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.Action
@@ -185,11 +186,21 @@ private fun HomeBody(
         if (state.showStartCta) {
             item(key = "start") {
                 HomeStartCard(
+                    mode = state.startCardMode,
+                    body = state.startCardBody,
                     modifier = Modifier.padding(
                         horizontal = AppDimension.screenEdge,
                         vertical = AppDimension.Space.md,
                     ),
-                    onClick = { consume(Action.Click.OnStartTrainingClick) },
+                    // One action, carrying nothing. Which training the primary button starts
+                    // is §3.4's rule, and it is decided in `ClickHandler` off the body in
+                    // state — the branch used to sit here, which put a decision in the graph
+                    // and made a fifth mode a two-site change.
+                    onStartClick = { consume(Action.Click.OnStartActionClick) },
+                    // The `.setbar` way out is NOT that decision: it opens the picker
+                    // whatever the mode is, which is why it keeps its own action.
+                    onOtherTrainingClick = { consume(Action.Click.OnStartTrainingClick) },
+                    onModeClick = { consume(Action.Click.OnModeLabelClick) },
                 )
             }
         }
@@ -327,6 +338,10 @@ private fun LazyListScope.emptyRegion(
 /**
  * Preview state. `State.INITIAL` is gone — the state carries a `PagingUiState`, which is a flow
  * factory and cannot be a constant — so previews build one over a fixed [PagingData].
+ *
+ * `startCardMode` is set explicitly rather than inherited: `State.init` leaves it null (the
+ * frame before DataStore answers), and a preview of the screen wants the settled card. The
+ * unresolved head has its own preview, on the card itself.
  */
 private fun previewState(
     activeSession: State.ActiveSessionInfo? = null,
@@ -339,6 +354,7 @@ private fun previewState(
     activeSession = activeSession,
     isActiveLoaded = isActiveLoaded,
     nowMillis = nowMillis,
+    startCardMode = StartCardModeUi.WEEK,
 )
 
 @Preview

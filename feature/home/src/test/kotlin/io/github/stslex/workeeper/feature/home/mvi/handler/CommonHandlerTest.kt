@@ -47,4 +47,21 @@ internal class CommonHandlerTest {
         verify(exactly = 0) { interactor.pagedRecent() }
         assertEquals(emptyPagingState(), stateFlow.value)
     }
+
+    @Test
+    fun `Init builds the start card pipeline from the persisted mode`() {
+        val store = mockk<HomeHandlerStore>(relaxed = true)
+        val handler = CommonHandler(
+            interactor = interactor,
+            resourceWrapper = resources,
+            store = store,
+        )
+
+        handler.invoke(Action.Common.Init)
+
+        // The persisted mode is the pipeline's head (HS6, DataStore as the single source of
+        // truth); the per-mode readout hangs off it via flatMapLatest and is only reached
+        // once the pipeline is collected.
+        verify(exactly = 1) { interactor.observeStartCardMode() }
+    }
 }

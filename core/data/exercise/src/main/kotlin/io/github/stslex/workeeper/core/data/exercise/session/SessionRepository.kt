@@ -45,6 +45,30 @@ interface SessionRepository {
     fun pagedRecentWithStats(): Flow<PagingData<RecentSessionDataModel>>
 
     /**
+     * Hot stream of finish timestamps inside `[startInclusive, endExclusive)` — the Home
+     * start card's «Неделя» readout. Emits epoch millis only; the consumer derives the
+     * count and the per-weekday fills.
+     */
+    fun observeFinishedTimesBetween(
+        startInclusive: Long,
+        endExclusive: Long,
+    ): Flow<List<Long>>
+
+    /**
+     * Hot stream of the single most recent finished session — the «Дни без тренировки»
+     * readout's anchor. Null while no session has ever finished.
+     */
+    fun observeLastFinishedSession(): Flow<LastFinishedSession?>
+
+    /** The «Дни без тренировки» anchor: when the last finished session ended, and its name. */
+    data class LastFinishedSession(
+        val sessionUuid: String,
+        val finishedAt: Long,
+        val trainingName: String,
+        val isAdhoc: Boolean,
+    )
+
+    /**
      * One-shot hierarchical fetch for the Past session detail screen. Returns the session
      * row plus all performed exercises and their sets. Returns `null` when the session
      * does not exist (e.g. it was deleted between navigation and load).

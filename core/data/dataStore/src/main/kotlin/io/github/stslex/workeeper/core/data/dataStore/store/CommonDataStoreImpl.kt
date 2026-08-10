@@ -36,6 +36,9 @@ class CommonDataStoreImpl(
 
     override val themePreference: Flow<String> = getString(KEY_THEME_PREFERENCE, DEFAULT_THEME)
 
+    override val homeStartCardMode: Flow<String> =
+        getString(KEY_HOME_START_CARD_MODE, DEFAULT_START_CARD_MODE)
+
     override suspend fun setHomeSelectedStartDate(value: Long) {
         updateLong(KEY_HOME_SELECTED_START_DATE, value)
     }
@@ -48,12 +51,21 @@ class CommonDataStoreImpl(
         updateString(KEY_THEME_PREFERENCE, value)
     }
 
+    override suspend fun setHomeStartCardMode(value: String) {
+        updateString(KEY_HOME_START_CARD_MODE, value)
+    }
+
     private companion object {
 
         const val KEY_HOME_SELECTED_START_DATE = "home_selected_start_date"
         const val KEY_HOME_SELECTED_END_DATE = "home_selected_end_date"
         const val KEY_THEME_PREFERENCE = "theme_preference"
+        const val KEY_HOME_START_CARD_MODE = "home_start_card_mode"
         const val DEFAULT_THEME = "SYSTEM"
+
+        // `StartCardModeDomain.WEEK.value` in feature/home — HS3's default, pinned by
+        // CommonDataStorePersistenceTest so the two constants cannot drift apart silently.
+        const val DEFAULT_START_CARD_MODE = "WEEK"
         const val NAME = "common_prefs"
     }
 }

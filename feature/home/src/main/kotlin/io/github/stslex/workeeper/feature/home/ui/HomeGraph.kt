@@ -7,10 +7,11 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.navigation.NavGraphBuilder
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.ActiveSessionConflictDialog
 import io.github.stslex.workeeper.core.ui.mvi.navComponentScreen
+import io.github.stslex.workeeper.core.ui.start_mode.StartCardModeSheet
 import io.github.stslex.workeeper.feature.home.di.HomeFeature
+import io.github.stslex.workeeper.feature.home.mvi.store.BottomSheetState
 import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.Action
 import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.Event
-import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.State
 import io.github.stslex.workeeper.feature.home.ui.components.TrainingPickerSheet
 
 @Suppress("UnusedParameter")
@@ -36,15 +37,23 @@ fun NavGraphBuilder.homeGraph(
             consume = processor::consume,
         )
 
-        (state.picker as? State.PickerState.Visible)?.let { visible ->
-            TrainingPickerSheet(
-                state = visible,
+        when (val sheet = state.bottomSheet) {
+            BottomSheetState.Hidden -> Unit
+
+            is BottomSheetState.TrainingPicker -> TrainingPickerSheet(
+                state = sheet,
                 onSelect = { uuid ->
                     processor.consume(Action.Click.OnPickerTrainingSelected(trainingUuid = uuid))
                 },
                 onStartBlank = { processor.consume(Action.Click.OnStartBlankClick) },
                 onSeeAll = { processor.consume(Action.Click.OnPickerSeeAllClick) },
                 onDismiss = { processor.consume(Action.Click.OnPickerDismiss) },
+            )
+
+            BottomSheetState.StartModePicker -> StartCardModeSheet(
+                selected = state.startCardMode,
+                onSelect = { mode -> processor.consume(Action.Click.OnModeSelected(mode)) },
+                onDismiss = { processor.consume(Action.Click.OnModeSheetDismiss) },
             )
         }
 

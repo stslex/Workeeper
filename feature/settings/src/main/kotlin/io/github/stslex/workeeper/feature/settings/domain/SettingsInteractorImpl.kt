@@ -10,6 +10,7 @@ import io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.data.exercise.training.TrainingRepository
 import io.github.stslex.workeeper.feature.settings.di.SettingsScope
 import io.github.stslex.workeeper.feature.settings.domain.model.ArchivedCountsDomain
+import io.github.stslex.workeeper.feature.settings.domain.model.StartCardModeDomain
 import io.github.stslex.workeeper.feature.settings.domain.model.ThemeModeDomain
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
@@ -37,6 +38,15 @@ class SettingsInteractorImpl(
 
     override suspend fun setThemeMode(mode: ThemeModeDomain) {
         commonDataStore.setThemePreference(mode.value)
+    }
+
+    override fun observeStartCardMode(): Flow<StartCardModeDomain> = commonDataStore
+        .homeStartCardMode
+        .map { value -> StartCardModeDomain.fromValue(value) }
+        .flowOn(defaultDispatcher)
+
+    override suspend fun setStartCardMode(mode: StartCardModeDomain) {
+        commonDataStore.setHomeStartCardMode(mode.value)
     }
 
     /** Both counts already exist as `Flow<Int>`; this is a pass-through pair, combined. */

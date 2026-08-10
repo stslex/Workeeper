@@ -49,6 +49,7 @@ include(":core:data:backup:google-drive")
 include(":core:data:backup:scheduling")
 include(":core:data:backup:worker")
 include(":core:ui:plan-editor")
+include(":core:ui:start-mode")
 
 include(":feature:exercise")
 include(":feature:exercise-chart")

@@ -26,6 +26,8 @@ dependencies {
 
     implementation(project(":core:data:dataStore"))
     implementation(project(":core:ui:kit"))
+    // HS5: the Home start card's mode sheet — one sheet, two entry points.
+    implementation(project(":core:ui:start-mode"))
     implementation(project(":core:ui:mvi"))
     implementation(project(":core:ui:navigation"))
     implementation(project(":core:data:exercise"))
@@ -36,6 +38,12 @@ dependencies {
     testImplementation(kotlin("test"))
     testImplementation(libs.androidx.paging.testing)
     testImplementation(testFixtures(project(":core:ui:kit")))
+    // Compose's semantics-tree surface on the JVM side, for SettingsStartCardModeSheetTest:
+    // the mode sheet is a window, so Paparazzi cannot photograph it through SettingsScreen,
+    // and `src/androidTest` is dispatch-only and therefore not a gate. Robolectric and the
+    // Jupiter RobolectricExtension already come from the convention plugin; this line adds
+    // the missing `runComposeUiTest`. Same reasoning as core:ui:kit's copy of it.
+    testImplementation(libs.androidx.compose.ui.test.junit4)
 
     androidTestImplementation(libs.bundles.android.test)
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)

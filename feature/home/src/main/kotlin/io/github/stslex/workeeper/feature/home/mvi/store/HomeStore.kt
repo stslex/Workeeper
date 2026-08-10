@@ -6,19 +6,45 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.paging.PagingData
 import io.github.stslex.workeeper.core.ui.kit.components.PagingUiState
 import io.github.stslex.workeeper.core.ui.mvi.Store
-import io.github.stslex.workeeper.feature.home.mvi.model.PickerTrainingItem
+import io.github.stslex.workeeper.core.ui.start_mode.model.StartCardModeUi
 import io.github.stslex.workeeper.feature.home.mvi.model.RecentSessionItem
-import kotlinx.collections.immutable.ImmutableList
+import io.github.stslex.workeeper.feature.home.mvi.model.StartCardBodyUi
 
 interface HomeStore : Store<HomeStore.State, HomeStore.Action, HomeStore.Event> {
 
     @Stable
     data class State(
         val activeSession: ActiveSessionInfo?,
+
+        /**
+         * The start card's selected readout mode — **null until DataStore's first emission**,
+         * and null renders no head label at all.
+         *
+         * Not seeded with WEEK. The mode is persisted (HS6), so a cold start does not know it
+         * yet, and a seed is not a default: it is an announcement, in the most prominent
+         * element of the screen, of a mode the user may never have chosen — on every launch,
+         * not in some narrow window. It is also indistinguishable from a real reading of WEEK,
+         * which is what makes it worse than an empty head.
+         *
+         * **HS3's default is not lost with the seed, because it never lived here.** It is
+         * `CommonDataStoreImpl.DEFAULT_START_CARD_MODE` — the fallback the preference is READ
+         * with — so a user who has never chosen still gets «Неделя», as the answer to "what is
+         * persisted" rather than as a guess made while that question was still outstanding.
+         *
+         * It lands with [startCardBody] in one `copy` (see `CommonHandler.observeStartCard`),
+         * so head and readout are never a frame apart.
+         */
+        val startCardMode: StartCardModeUi?,
+        /**
+         * The start card's readout, null until its flow's first emission. Not a second
+         * loading discriminator: the card itself is gated by [showStartCta], and a null
+         * body renders the shell without a reading for the frames before Room answers.
+         */
+        val startCardBody: StartCardBodyUi?,
         val pagingUiState: PagingUiState<PagingData<RecentSessionItem>>,
         val nowMillis: Long,
         val isActiveLoaded: Boolean,
-        val picker: PickerState,
+        val bottomSheet: BottomSheetState,
         val pendingConflict: ConflictInfo?,
     ) : Store.State {
 
@@ -33,18 +59,6 @@ interface HomeStore : Store<HomeStore.State, HomeStore.Action, HomeStore.Event> 
             val elapsedDurationLabel: String,
         ) {
             fun elapsedMillis(now: Long): Long = (now - startedAt).coerceAtLeast(0L)
-        }
-
-        @Stable
-        sealed interface PickerState {
-            @Stable
-            data object Hidden : PickerState
-
-            @Stable
-            data class Visible(
-                val templates: ImmutableList<PickerTrainingItem>,
-                val isLoading: Boolean,
-            ) : PickerState
         }
 
         /**
@@ -74,7 +88,6 @@ interface HomeStore : Store<HomeStore.State, HomeStore.Action, HomeStore.Event> 
          */
         val isLoading: Boolean get() = !isActiveLoaded
         val showStartCta: Boolean get() = activeSession == null && !isLoading
-        val showPicker: Boolean get() = picker is PickerState.Visible
 
         companion object {
 
@@ -82,10 +95,13 @@ interface HomeStore : Store<HomeStore.State, HomeStore.Action, HomeStore.Event> 
                 pagingUiState: PagingUiState<PagingData<RecentSessionItem>>,
             ): State = State(
                 activeSession = null,
+                // Both null, together: nothing is known about the card until DataStore says.
+                startCardMode = null,
+                startCardBody = null,
                 pagingUiState = pagingUiState,
                 nowMillis = 0L,
                 isActiveLoaded = false,
-                picker = PickerState.Hidden,
+                bottomSheet = BottomSheetState.Hidden,
                 pendingConflict = null,
             )
         }
@@ -95,11 +111,34 @@ interface HomeStore : Store<HomeStore.State, HomeStore.Action, HomeStore.Event> 
     sealed interface Action : Store.Action {
 
         sealed interface Click : Action {
+
+            /** The card's head (HS4): the mode label + caret, opening the mode sheet. */
+            data object OnModeLabelClick : Click
+
+            /** A row of the mode sheet: persist the mode (HS6) and close the sheet. */
+            data class OnModeSelected(val mode: StartCardModeUi) : Click
+
+            data object OnModeSheetDismiss : Click
+
             data object OnActiveSessionClick : Click
             data object OnChartsClick : Click
             data object OnSettingsClick : Click
             data class OnRecentSessionClick(val sessionUuid: String) : Click
+
+            /**
+             * The picker route, by itself: the card's `.setbar` «Другая тренировка» (§3.4),
+             * which always opens the picker whatever the mode is. [OnStartActionClick] can
+             * also end here — that is the handler's decision, not this action's meaning.
+             */
             data object OnStartTrainingClick : Click
+
+            /**
+             * The card's primary button — ONE action for all four modes, carrying nothing.
+             * Which branch it takes is §3.4's rule, decided in `ClickHandler` off the body
+             * in state at click time; the card composable neither knows nor names the modes.
+             */
+            data object OnStartActionClick : Click
+
             data class OnPickerTrainingSelected(val trainingUuid: String) : Click
 
             // v2.3 — first row of the Start workout picker; routes to the blank-init Live
