@@ -99,6 +99,24 @@ jobs:
       - name: Build with Gradle
         run: ./gradlew assembleDebug --full-stacktrace
 
+      # The `androidTest` variants had NO gate on any PR. `assembleDebug` does not build them,
+      # and the only workflow that does — `ui_tests.yml` — is `workflow_dispatch`/`workflow_call`
+      # only. So the instrumented source sets were compiled exactly once per release, inside
+      # `android_deploy_prod.yml`'s `ui_tests` job, downstream of both `guard` and `build`.
+      #
+      # Measured, not assumed: the v1.49.0 deploy (run 31429081872) died on two of them —
+      # `:core:ui:kit:checkDebugAndroidTestDuplicateClasses` and
+      # `mergeDebugAndroidTestJavaResource`, from a Paparazzi test-fixture leak that landed
+      # 2026-07-26 and sat unseen for a month because the last standalone `ui_tests` run was
+      # 2026-05-03. Both are build-graph failures: this step alone reproduces them, and it needs
+      # no emulator, so the cheap half of the instrumented gate now runs on every PR.
+      #
+      # This assembles the test APKs; it does not run them. Executing them still needs a device
+      # and stays in `ui_tests.yml` — a test that goes red on an assertion (as the chart test in
+      # that same run did) is out of this step's reach by construction.
+      - name: Assemble instrumented tests
+        run: ./gradlew assembleDebugAndroidTest --full-stacktrace
+
       # Visual gate for the v3 redesign. Deliberately placed BEFORE detekt.
       #
       # detekt cannot currently corrupt this: LintConventionPlugin sets

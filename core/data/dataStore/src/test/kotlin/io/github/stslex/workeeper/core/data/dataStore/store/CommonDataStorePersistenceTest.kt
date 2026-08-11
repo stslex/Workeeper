@@ -11,8 +11,10 @@ import io.github.stslex.workeeper.core.data.dataStore.core.DataStoreProviderFact
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.job
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -63,9 +65,20 @@ internal class CommonDataStorePersistenceTest {
         return CommonDataStoreImpl(GenerationFactory(file, scope))
     }
 
-    /** Process death: the generation's scope dies; only the file remains. */
-    private fun killGeneration() {
-        scopes.removeLast().cancel()
+    /**
+     * Process death: the generation's scope dies; only the file remains.
+     *
+     * [cancelAndJoin], never a bare `cancel`: DataStore drops the file from its process-global
+     * `activeFiles` set inside an `invokeOnCompletion` handler on this scope's `Job`
+     * (`SimpleActor.init` -> `DataStoreImpl.onComplete` -> `StorageConnection.close`), which runs when
+     * the job *completes*, not when `cancel` returns. Its `Dispatchers.IO` children keep the job in
+     * Cancelling for as long as they take to unwind, so opening the next generation without joining
+     * races that removal and trips `check(!activeFiles.contains(path))` — "There are multiple
+     * DataStores active for the same file" (FileStorage.kt:52). That race is what made this test flake
+     * red on a loaded CI runner while staying green locally.
+     */
+    private suspend fun killGeneration() {
+        scopes.removeLast().coroutineContext.job.cancelAndJoin()
     }
 
     @BeforeEach
@@ -76,7 +89,9 @@ internal class CommonDataStorePersistenceTest {
 
     @AfterEach
     fun teardown() {
-        scopes.forEach { it.cancel() }
+        // Joined for the same reason as [killGeneration]: the file must be released, and no writer may
+        // still be unwinding against it, before the delete below.
+        runBlocking { scopes.forEach { it.coroutineContext.job.cancelAndJoin() } }
         scopes.clear()
         file.delete()
     }
