@@ -157,11 +157,9 @@ internal class LiveWorkoutScreenTest : BaseComposeTest() {
         nowMillis = 60_000L,
         elapsedDurationLabel = "01:00",
         totalCount = 1,
-        progressLabel = "0 of 1 done",
+        headerMetaLabel = "0 из 1 упражнений · 0 из 1 подходов",
         exercises = exercises,
         // The card body (set rows + Add-set CTA) only renders when the exercise is in
-        // `expandedExerciseUuids`. The store seeds this from `activeExerciseUuids` at
-        // load time; the test bypasses load and must opt the row in explicitly.
         expandedExerciseUuids = persistentSetOf(PE_UUID),
         isLoading = false,
     )

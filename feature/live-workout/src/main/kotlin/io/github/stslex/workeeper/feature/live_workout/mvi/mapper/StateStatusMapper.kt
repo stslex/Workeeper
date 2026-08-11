@@ -1,39 +1,29 @@
 package io.github.stslex.workeeper.feature.live_workout.mvi.mapper
 
-import dagger.hilt.android.scopes.ViewModelScoped
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
+import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutScope
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMapper.withPresentation
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExerciseStatusUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveExerciseUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
-import kotlinx.collections.immutable.toImmutableSet
-import javax.inject.Inject
 
-@ViewModelScoped
-internal class StateStatusMapper @Inject constructor(
+@Inject
+@SingleIn(LiveWorkoutScope::class)
+internal class StateStatusMapper(
     private val resourceWrapper: ResourceWrapper,
 ) {
 
     fun recomputeStatuses(state: LiveWorkoutStore.State): LiveWorkoutStore.State {
         val refreshed = recomputeOnly(state.exercises, state.activeExerciseUuids)
-        // Prune expanded entries that no longer correspond to a DONE or CURRENT row.
-        // SKIPPED/PENDING rows can't be expanded so any leftover entry is stale.
-        val visibleUuids = refreshed
-            .asSequence()
-            .filter {
-                it.status == ExerciseStatusUiModel.DONE ||
-                    it.status == ExerciseStatusUiModel.CURRENT
-            }
-            .map { it.performedExerciseUuid }
-            .toSet()
-        return state.copy(
-            exercises = refreshed,
-            expandedExerciseUuids = state.expandedExerciseUuids
-                .filter { it in visibleUuids }
-                .toImmutableSet(),
-        ).withPresentation(resourceWrapper)
+        // Deliberately does NOT touch `expandedExerciseUuids`: under the amended disclosure
+        // model (spec §7 superseded) completing, skipping or otherwise recomputing an
+        // exercise never opens or closes a card. Only the header tap, the first-entry
+        // initialisation and the mid-session add write that set.
+        return state.copy(exercises = refreshed).withPresentation(resourceWrapper)
     }
 
     fun recomputeOnly(

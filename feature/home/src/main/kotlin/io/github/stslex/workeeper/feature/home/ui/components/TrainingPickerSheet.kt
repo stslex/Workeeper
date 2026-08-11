@@ -34,12 +34,12 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
 import io.github.stslex.workeeper.feature.home.R
 import io.github.stslex.workeeper.feature.home.mvi.model.PickerTrainingItem
-import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.State
+import io.github.stslex.workeeper.feature.home.mvi.store.BottomSheetState
 import kotlinx.collections.immutable.persistentListOf
 
 @Composable
 internal fun TrainingPickerSheet(
-    state: State.PickerState.Visible,
+    state: BottomSheetState.TrainingPicker,
     onSelect: (String) -> Unit,
     onStartBlank: () -> Unit,
     onSeeAll: () -> Unit,
@@ -170,7 +170,7 @@ private fun PickerRow(
 private fun TrainingPickerSheetLoadedLightPreview() {
     AppTheme(themeMode = ThemeMode.LIGHT) {
         TrainingPickerSheet(
-            state = State.PickerState.Visible(
+            state = BottomSheetState.TrainingPicker(
                 templates = persistentListOf(
                     PickerTrainingItem(
                         trainingUuid = "t1",
@@ -194,7 +194,7 @@ private fun TrainingPickerSheetLoadedLightPreview() {
 private fun TrainingPickerSheetLoadingDarkPreview() {
     AppTheme(themeMode = ThemeMode.DARK) {
         TrainingPickerSheet(
-            state = State.PickerState.Visible(templates = persistentListOf(), isLoading = true),
+            state = BottomSheetState.TrainingPicker(templates = persistentListOf(), isLoading = true),
             onSelect = {},
             onStartBlank = {},
             onSeeAll = {},
@@ -208,7 +208,7 @@ private fun TrainingPickerSheetLoadingDarkPreview() {
 private fun TrainingPickerSheetEmptyDarkPreview() {
     AppTheme(themeMode = ThemeMode.DARK) {
         TrainingPickerSheet(
-            state = State.PickerState.Visible(templates = persistentListOf(), isLoading = false),
+            state = BottomSheetState.TrainingPicker(templates = persistentListOf(), isLoading = false),
             onSelect = {},
             onStartBlank = {},
             onSeeAll = {},

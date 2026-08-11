@@ -1,20 +1,22 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.live_workout.mvi.handler
 
-import dagger.hilt.android.scopes.ViewModelScoped
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.core.time.formatElapsedDuration
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutHandlerStore
+import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutScope
 import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMapper.toState
+import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMapper.withExpansionCarriedFrom
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Action
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
-import javax.inject.Inject
 
-@ViewModelScoped
+@SingleIn(LiveWorkoutScope::class)
 internal class CommonHandler @Inject constructor(
     private val interactor: LiveWorkoutInteractor,
     private val resourceWrapper: ResourceWrapper,
@@ -41,7 +43,9 @@ internal class CommonHandler @Inject constructor(
                     updateStateImmediate { it.copy(isLoading = false) }
                     return@launch
                 }
-                updateStateImmediate { createdState }
+                updateStateImmediate { previous ->
+                    createdState.withExpansionCarriedFrom(previous)
+                }
                 startTimer()
             },
         ) {
@@ -73,9 +77,11 @@ internal class CommonHandler @Inject constructor(
     private fun processReload() {
         val sessionUuid = state.value.sessionUuid?.takeIf { it.isNotBlank() } ?: return
         launch(
-            onSuccess = { state ->
-                if (state == null) return@launch
-                updateStateImmediate { state }
+            onSuccess = { reloaded ->
+                if (reloaded == null) return@launch
+                // A plan-editor round-trip is not "leaving the screen session" (§7), so the
+                // user's manual expansions must survive this replacement.
+                updateStateImmediate { previous -> reloaded.withExpansionCarriedFrom(previous) }
             },
         ) {
             interactor.loadSession(sessionUuid)

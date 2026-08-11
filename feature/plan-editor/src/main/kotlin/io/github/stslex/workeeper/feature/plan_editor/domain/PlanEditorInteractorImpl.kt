@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.plan_editor.domain
 
-import dagger.hilt.android.scopes.ViewModelScoped
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
 import io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.data.exercise.training.TrainingExerciseRepository
+import io.github.stslex.workeeper.feature.plan_editor.di.PlanEditorScope
 import io.github.stslex.workeeper.feature.plan_editor.domain.mapper.PlanEditorDomainMapper.toData
 import io.github.stslex.workeeper.feature.plan_editor.domain.mapper.PlanEditorDomainMapper.toDomain
 import io.github.stslex.workeeper.feature.plan_editor.domain.model.ExerciseTypeDomain
@@ -12,10 +14,10 @@ import io.github.stslex.workeeper.feature.plan_editor.domain.model.PlanEditorLoa
 import io.github.stslex.workeeper.feature.plan_editor.domain.model.PlanSetDomain
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
-import javax.inject.Inject
 
-@ViewModelScoped
-internal class PlanEditorInteractorImpl @Inject constructor(
+@Inject
+@SingleIn(PlanEditorScope::class)
+class PlanEditorInteractorImpl(
     private val exerciseRepository: ExerciseRepository,
     private val trainingExerciseRepository: TrainingExerciseRepository,
     @DefaultDispatcher private val defaultDispatcher: CoroutineDispatcher,

@@ -1,9 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="core_ui_kit_action_cancel">Cancel</string>
     <string name="core_ui_kit_action_save">Save</string>
     <string name="core_ui_kit_action_back">Back</string>
-    <string name="core_ui_kit_more_description">More</string>
 
     <string name="feature_exercise_detail_type_weighted">Weighted</string>
     <string name="feature_exercise_detail_type_weightless">Weightless</string>
@@ -12,13 +11,49 @@
     <string name="core_ui_kit_plan_editor_title_default">Plan</string>
     <string name="core_ui_kit_plan_editor_subtitle">Sets pre-fill in Live workout. Tracked sets update this plan.</string>
     <string name="core_ui_kit_plan_editor_unit_kg">kg</string>
-    <string name="core_ui_kit_plan_editor_unit_reps">reps</string>
-    <string name="core_ui_kit_plan_editor_add_set">+ Add set</string>
-    <string name="core_ui_kit_plan_editor_remove_set">Remove set</string>
+    <string name="core_ui_kit_plan_editor_unit_reps" tools:ignore="DuplicateStrings">reps</string>
+    <string name="core_ui_kit_plan_editor_unit_reps_full" tools:ignore="DuplicateStrings">reps</string>
     <string name="core_ui_kit_plan_editor_set_type_warmup">Warmup</string>
     <string name="core_ui_kit_plan_editor_set_type_work">Work</string>
     <string name="core_ui_kit_plan_editor_set_type_failure">Failure</string>
     <string name="core_ui_kit_plan_editor_set_type_drop">Drop</string>
+    <!--
+      The set-type CHIP marks: the work set is the drawn dot, the other three take the first
+      letter of their own name in the current language (§26, "Set types take their first letter").
+      New — no mockup draws a mark for the three non-work types, so this is a decision and not a
+      transcription; the chip keeps its 34x32 and takes no other treatment, the letter occupying
+      exactly the dot's place. THE THREE LETTERS ARE TRANSLATED AND MUST STAY RESOURCES: a literal
+      in the component draws W over разминка in a Russian build. `..._mark_work` is the same glyph
+      in every language, and is a resource anyway so that the four marks live in one table.
+    -->
+    <string name="core_ui_kit_set_type_mark_warmup">W</string>
+    <string name="core_ui_kit_set_type_mark_work" translatable="false">·</string>
+    <string name="core_ui_kit_set_type_mark_failure">F</string>
+    <string name="core_ui_kit_set_type_mark_drop">D</string>
+    <!--
+      TalkBack's reorder actions on a `ReorderableColumn` row. They are the only non-gesture way
+      to reorder, so they are announced verbatim and must exist in every language the app ships.
+    -->
+    <string name="core_ui_kit_reorder_move_up">Move up</string>
+    <string name="core_ui_kit_reorder_move_down">Move down</string>
+    <string name="core_ui_kit_setbar_add">+ set</string>
+    <string name="core_ui_kit_setbar_remove">− set</string>
+    <!--
+      The discard SHEET's four strings (§26, "Every modal on the three editors is a SHEET").
+      ONE TABLE, in the kit, because one component serves all three editors — a per-feature copy
+      is how the same sheet ends up saying two different things on two screens. The Russian is the
+      drawing verbatim (`pass2d.html` `#s-editor` form 3) and the English follows it.
+
+      The dismiss label is «Продолжить правку» and not «Отмена»: «Отмена» reads as closing the
+      window rather than as declining to discard, which is the wrong thing to promise on the
+      gentle branch.
+    -->
+    <string name="core_ui_kit_discard_sheet_title">Leave without saving?</string>
+    <string name="core_ui_kit_discard_sheet_body">Unsaved edits will be lost.</string>
+    <string name="core_ui_kit_discard_sheet_confirm">Leave without saving</string>
+    <string name="core_ui_kit_discard_sheet_dismiss">Keep editing</string>
+    <!-- Announced by TalkBack when a field is in its error state; the outline is the sighted half. -->
+    <string name="core_ui_kit_field_error">Invalid input</string>
     <string name="core_ui_kit_plan_editor_empty_hint">No sets yet — tap “Add set” to start the plan.</string>
 
     <string name="core_ui_kit_active_session_conflict_title">Active session in progress</string>
@@ -31,9 +66,21 @@
     <string name="core_ui_kit_discard_session_confirm_warning">This session will be deleted. Cannot be undone.</string>
     <string name="core_ui_kit_discard_session_confirm_delete">Delete</string>
 
+    <string name="core_ui_kit_record_label">Record</string>
     <string name="core_ui_kit_pr_explainer_title">Personal record</string>
     <string name="core_ui_kit_pr_explainer_body">The heaviest set of this exercise across all finished sessions.</string>
     <string name="core_ui_kit_pr_explainer_confirm">OK</string>
 
     <string name="core_ui_kit_reorderable_drag_handle">Reorder</string>
+
+    <string name="core_ui_kit_sheet_close">Close</string>
+
+    <!-- One tag picker, one table (ED7): the form row's add chip, the sheet's own copy. -->
+    <string name="core_ui_kit_tag_sheet_title">Tags</string>
+    <string name="core_ui_kit_tag_search_hint">Search tags…</string>
+    <string name="core_ui_kit_tag_create_format">+ Create «%1$s»</string>
+    <string name="core_ui_kit_tag_done">Done</string>
+    <string name="core_ui_kit_tag_add_chip">+ tag</string>
+    <string name="core_ui_kit_tag_remove_description">Remove tag</string>
+    <string name="core_ui_kit_toast_undo" tools:ignore="DuplicateStrings">Undo</string>
 </resources>

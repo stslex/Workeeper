@@ -22,6 +22,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.window.Dialog
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButton
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButtonSize
+import io.github.stslex.workeeper.core.ui.kit.components.input.AppFieldLabel
 import io.github.stslex.workeeper.core.ui.kit.components.input.AppTextField
 import io.github.stslex.workeeper.core.ui.kit.components.pr.PersonalRecordBadge
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
@@ -82,6 +83,20 @@ internal fun FinishConfirmDialog(
                 label = stringResource(R.string.feature_live_workout_finish_stat_sets),
                 value = stats.setsLoggedLabel,
             )
+            if (stats.unfilledSetCount > 0) {
+                // Stated, never silent (§6.1). An empty row can hold no record and displays
+                // identically to a deliberate zero, so discarding is safe — but the user
+                // still gets told it is happening before they commit.
+                Text(
+                    text = pluralStringResource(
+                        R.plurals.feature_live_workout_finish_unfilled_discarded,
+                        stats.unfilledSetCount,
+                        stats.unfilledSetCount,
+                    ),
+                    style = AppUi.typography.bodySmall,
+                    color = AppUi.colors.textTertiary,
+                )
+            }
             if (stats.newPersonalRecords.isNotEmpty()) {
                 NewPersonalRecordsSection(records = stats.newPersonalRecords)
             }
@@ -117,12 +132,17 @@ private fun FinishNameField(
     onNameChange: (String) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(AppDimension.Space.xs)) {
+        // `.flabel` — the label sits above the box, because M3's floating one is drawn nowhere
+        // and `AppTextField` therefore has no `label` parameter (§26, "The editors' text field").
+        AppFieldLabel(text = label)
         AppTextField(
             value = name,
             onValueChange = onNameChange,
-            label = label,
             placeholder = placeholder,
             isError = error != null,
+            // Same string the `.flabel` above draws — the drawn label is a sibling node and does
+            // not name the field to a screen reader.
+            accessibilityLabel = label,
             keyboardOptions = KeyboardOptions(
                 imeAction = ImeAction.Done,
             ),

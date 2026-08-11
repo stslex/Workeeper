@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Exercise detail -->
-    <string name="feature_exercise_detail_recent">Recent</string>
-    <string name="feature_exercise_detail_no_history">No sessions yet</string>
-    <string name="feature_exercise_detail_track_now" tools:ignore="DuplicateStrings">Track now</string>
+    <string name="feature_exercise_detail_recent">History</string>
+    <string name="feature_exercise_detail_track_now">Log now</string>
     <string name="feature_exercise_detail_default_plan">Default plan</string>
     <string name="feature_exercise_track_now_default_training_name" tools:ignore="DuplicateStrings">Track now</string>
     <string name="feature_exercise_track_now_conflict_unnamed">Workout</string>
     <string name="feature_exercise_track_now_conflict_progress_format" tools:ignore="PluralsCandidate">%1$d of %2$d exercises done</string>
     <string name="feature_exercise_detail_edit">Edit</string>
+    <string name="feature_exercise_detail_action_more">More actions</string>
     <string name="feature_exercise_detail_archive">Archive</string>
     <string name="feature_exercise_detail_archive_success_format">&#8216;%1$s&#8217; archived</string>
     <string name="feature_exercise_detail_archive_blocked_title">Cannot archive</string>
@@ -16,8 +16,6 @@
     <string name="feature_exercise_detail_archive_blocked_next_step">Remove it from those trainings first, then archive.</string>
     <string name="feature_exercise_detail_archive_blocked_ok">OK</string>
     <string name="feature_exercise_detail_archive_undo">Undo</string>
-    <string name="feature_exercise_detail_history_meta_format">%1$s · %2$s</string>
-    <string name="feature_exercise_detail_history_meta_adhoc_format">%1$s · ad-hoc</string>
     <string name="feature_exercise_detail_permanent_delete">Delete permanently</string>
     <string name="feature_exercise_detail_permanent_delete_confirm_title">Delete &#8216;%1$s&#8217; permanently?</string>
     <string name="feature_exercise_detail_permanent_delete_confirm_body">This exercise has no history. This cannot be undone.</string>
@@ -30,36 +28,24 @@
     <string name="feature_exercise_edit_title_edit">Edit exercise</string>
     <string name="feature_exercise_edit_close_description">Close</string>
     <string name="feature_exercise_edit_label_name">Name</string>
-    <string name="feature_exercise_edit_label_type">Type</string>
     <string name="feature_exercise_edit_label_tags">Tags</string>
     <string name="feature_exercise_edit_label_description">Description</string>
     <string name="feature_exercise_edit_placeholder_description">Optional notes — technique, gym-specific details</string>
-    <string name="feature_exercise_edit_tag_search_placeholder">Type to filter or create new</string>
-    <string name="feature_exercise_edit_tag_create_format">+ Create &#8220;%1$s&#8221;</string>
     <string name="feature_exercise_edit_tag_limit">Maximum 10 tags per exercise</string>
     <string name="feature_exercise_edit_error_name_required">Name is required</string>
     <string name="feature_exercise_edit_error_name_duplicate">Exercise with this name already exists</string>
-    <string name="feature_exercise_edit_discard_title">Discard changes?</string>
-    <string name="feature_exercise_edit_discard_body">Your changes will be lost.</string>
-    <string name="feature_exercise_edit_discard_confirm">Discard</string>
-    <string name="feature_exercise_edit_discard_dismiss">Keep editing</string>
 
-    <!-- Adhoc plan -->
-    <string name="feature_exercise_edit_label_default_plan">Default plan (ad-hoc)</string>
-    <string name="feature_exercise_edit_default_plan_subtitle">Used when tracking this exercise outside any training</string>
-    <string name="feature_exercise_edit_plan_edit">Edit plan</string>
-    <string name="feature_exercise_edit_plan_add">+ Add plan</string>
-    <string name="feature_exercise_edit_plan_summary_no_plan">no plan yet</string>
-
-    <!-- Type chip — read-only on the edit form. The toggle moved into the plan editor (v1.42.0). -->
-    <string name="feature_exercise_edit_type_chip_hint">Change in plan editor</string>
+    <!-- The plan head's (i) sheet (ED8). Title reuses feature_exercise_detail_default_plan. -->
+    <string name="feature_exercise_edit_plan_info_body">This is the plan for when the exercise is performed on its own — from its card, with the “Log now” button, outside any training.\n\nInside a training every exercise has a plan of its own: it is set in the training editor and does not touch this one. If neither plan exists, sets are added right in the session.</string>
+    <string name="feature_exercise_edit_plan_info_description">What the default plan is for</string>
+    <!-- The ТЕГИ head’s counter — rendered only where a limit exists (this feature’s 10). -->
+    <string name="feature_exercise_edit_tags_counter">%1$d of %2$d</string>
 
     <!-- Edit exercise — image -->
-    <string name="feature_exercise_image_edit_title">Exercise image</string>
-    <string name="feature_exercise_image_action_add">Add image</string>
-    <string name="feature_exercise_image_action_edit">Edit image</string>
-    <string name="feature_exercise_image_action_remove">Remove</string>
     <string name="feature_exercise_image_thumb_description">Attached exercise photo</string>
+    <!-- The thumb in the pushed bar is one control with two destinations, so it needs two labels. -->
+    <string name="feature_exercise_image_thumb_open_description">Open photo full screen</string>
+    <string name="feature_exercise_image_thumb_pick_description">Add a photo</string>
     <string name="feature_exercise_image_placeholder_description">No exercise photo attached</string>
 
     <!-- Source dialog -->
@@ -78,6 +64,8 @@
     <string name="feature_exercise_image_error_decode_failed">Image format not supported</string>
 
     <!-- Personal record card -->
-    <string name="feature_exercise_detail_pr_weighted_format">%1$s × %2$d</string>
-    <string name="feature_exercise_detail_pr_weightless_format" tools:ignore="PluralsCandidate">%1$d reps</string>
+    <plurals name="feature_exercise_detail_history_count">
+        <item quantity="one">%d session</item>
+        <item quantity="other">%d sessions</item>
+    </plurals>
 </resources>

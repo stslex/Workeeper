@@ -2,11 +2,23 @@
 <resources xmlns:tools="http://schemas.android.com/tools"
     tools:ignore="DuplicateStrings">
     <string name="feature_all_exercises_title">Упражнения</string>
-    <string name="feature_all_exercises_empty_headline">Пока нет упражнений</string>
-    <string name="feature_all_exercises_empty_supporting">Нажмите +, чтобы создать первое упражнение</string>
+    <string name="feature_all_exercises_empty_headline">Здесь появятся твои упражнения</string>
+    <string name="feature_all_exercises_empty_supporting">Добавь первое — дальше его можно будет класть в любую тренировку.</string>
+    <string name="feature_all_exercises_empty_create">Добавить упражнение</string>
     <string name="feature_all_exercises_fab_create">Создать упражнение</string>
-    <string name="feature_all_exercises_overflow_format">+%1$d</string>
-    <string name="feature_all_exercises_chevron_description">Открыть упражнение</string>
+
+    <!--
+      The drawing writes «со весом» (`#s-list`, the type frame). That is a typo — the preposition
+      takes the bare form before «вес» — and a typo is not a string decision, so this is the one
+      character where the transcription deliberately departs from the contract. Recorded in the
+      delta mapping rather than fixed silently.
+    -->
+    <string name="feature_all_exercises_type_weighted">с весом</string>
+    <string name="feature_all_exercises_type_weightless">без веса</string>
+
+    <string name="feature_all_exercises_paging_loading">Загружаю</string>
+    <string name="feature_all_exercises_paging_error">Не удалось загрузить дальше</string>
+    <string name="feature_all_exercises_paging_retry">Повторить</string>
     <string name="feature_all_exercises_permanent_delete_title">Удалить «%1$s» навсегда?</string>
     <string name="feature_all_exercises_permanent_delete_body">Упражнение не использовалось и не имеет истории. Это действие необратимо.</string>
     <string name="feature_all_exercises_permanent_delete_impact">История не пострадает</string>
@@ -80,4 +92,17 @@
     </plurals>
     <string name="feature_all_exercises_blocked_archive_next_step">Они используются в активных тренировках. Сначала уберите их оттуда, затем архивируйте.</string>
     <string name="feature_all_exercises_blocked_archive_confirm">Понятно</string>
+
+    <!--
+      §26 "List states reached by an action" — PROPOSED, drawn in `#s-empty`, awaiting the device
+      pass. Neither block takes a glyph: the tile is the discriminator between "empty by itself"
+      and "you arrived here by an action you can undo". Filtered-to-empty has no supporting
+      sentence because the filter is OR, so "remove a tag" cannot recover and there is no honest
+      instruction to put in the slot.
+    -->
+    <string name="feature_all_exercises_filtered_empty_headline">По этим тегам ничего нет</string>
+    <string name="feature_all_exercises_filtered_empty_clear">Сбросить фильтр</string>
+    <string name="feature_all_exercises_selection_empty_headline">Здесь пусто, но выбор цел</string>
+    <string name="feature_all_exercises_selection_empty_supporting">Отметки останутся, пока не выйдешь из режима.</string>
+    <string name="feature_all_exercises_refresh_error">Не удалось загрузить список</string>
 </resources>

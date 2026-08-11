@@ -4,7 +4,7 @@ import androidx.compose.runtime.Stable
 import kotlinx.collections.immutable.ImmutableList
 
 @Stable
-internal sealed interface DialogState {
+sealed interface DialogState {
 
     @Stable
     data object Hidden : DialogState
@@ -46,15 +46,6 @@ internal sealed interface DialogState {
         ) : ConfirmDialog
 
         @Stable
-        data class SkipExercise(
-            override val title: String,
-            override val body: String,
-            override val confirmLabel: String,
-            override val dismissLabel: String,
-            val exerciseUuid: String,
-        ) : ConfirmDialog
-
-        @Stable
         data class CancelSession(
             override val title: String,
             override val body: String,
@@ -70,6 +61,12 @@ internal sealed interface DialogState {
         val exercisesSummaryLabel: String,
         val setsLoggedLabel: String,
         val newPersonalRecords: ImmutableList<NewPrEntry>,
+        /**
+         * Visible rows the user never filled in. Rendered as an explicit line in
+         * `FinishConfirmDialog` when non-zero, so the discard at finish is stated rather than
+         * silent (§6.1). Zero hides the line entirely.
+         */
+        val unfilledSetCount: Int = 0,
         val requiresName: Boolean = false,
         val nameDraft: String = "",
         val nameLabel: String = "",

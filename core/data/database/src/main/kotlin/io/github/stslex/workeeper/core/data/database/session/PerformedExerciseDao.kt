@@ -1,8 +1,8 @@
 package io.github.stslex.workeeper.core.data.database.session
 
-import androidx.room.Dao
-import androidx.room.Insert
-import androidx.room.Query
+import androidx.room3.Dao
+import androidx.room3.Insert
+import androidx.room3.Query
 import kotlin.uuid.Uuid
 
 @Dao
@@ -51,4 +51,12 @@ interface PerformedExerciseDao {
 
     @Query("UPDATE performed_exercise_table SET skipped = :skipped WHERE uuid = :uuid")
     suspend fun setSkipped(uuid: Uuid, skipped: Boolean)
+
+    /**
+     * Removes one performed exercise from its session (v3 §6.1 "deleted"). Set rows are
+     * deleted explicitly by the repository transaction first — this table carries no FK
+     * cascade onto `set_table` by `performed_exercise_uuid`.
+     */
+    @Query("DELETE FROM performed_exercise_table WHERE uuid = :uuid")
+    suspend fun deleteByUuid(uuid: Uuid)
 }

@@ -14,13 +14,18 @@ package io.github.stslex.workeeper.core.data.backup.google_drive.auth
  * Returns `null` on any failure — network unavailable, scope missing, parse
  * error — so the caller can degrade gracefully (e.g. keep the GSA-derived email
  * or placeholder) rather than blocking sign-in.
+ *
+ * Public solely for cross-module Metro aggregation (App-Scope Collapse Step 3, PF.3): `UserInfoFetcherImpl`
+ * carries `@ContributesBinding(AppScope)`, so this bound interface — and the [UserInfo] it returns — must be
+ * visible to app/app's `AppGraph`. Not for external use (the only consumer is gd-internal `DriveBackupAuth`).
  */
-internal interface UserInfoFetcher {
+interface UserInfoFetcher {
 
     suspend fun fetch(accessToken: String): UserInfo?
 }
 
-internal data class UserInfo(
+/** Public for the same cross-module Metro-aggregation reason as [UserInfoFetcher]; not for external use. */
+data class UserInfo(
     val email: String?,
     val name: String?,
 )

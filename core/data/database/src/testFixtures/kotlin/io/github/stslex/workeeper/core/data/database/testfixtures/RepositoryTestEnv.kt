@@ -2,8 +2,10 @@
 package io.github.stslex.workeeper.core.data.database.testfixtures
 
 import android.app.Application
-import androidx.room.Room
-import androidx.room.withTransaction
+import androidx.room3.Room
+import androidx.room3.immediateTransaction
+import androidx.room3.useWriterConnection
+import androidx.sqlite.driver.AndroidSQLiteDriver
 import androidx.test.core.app.ApplicationProvider
 import io.github.stslex.workeeper.core.data.database.AppDatabase
 import io.github.stslex.workeeper.core.data.database.common.DbTransitionRunner
@@ -32,23 +34,30 @@ class RepositoryTestEnv {
             ApplicationProvider.getApplicationContext(),
             AppDatabase::class.java,
         )
+        .setDriver(AndroidSQLiteDriver())
         .allowMainThreadQueries()
         .build()
 
     val transition: DbTransitionRunner = object : DbTransitionRunner {
-        // `coroutineScope` is nested INSIDE `withTransaction` so the receiver passed to
-        // `block` inherits Room's `TransactionElement` from the transaction context. Any
-        // `async {}` children launched inside `block` (e.g. `TrainingRepositoryImpl.getTraining`)
-        // therefore reuse the transaction's connection instead of contending with it on the
-        // single-connection in-memory SQLite that Robolectric provides.
+        // Room 3: `withTransaction {}` → `useWriterConnection { it.immediateTransaction {} }`
+        // (the migration guide's documented equivalent). `coroutineScope` is nested INSIDE so
+        // the receiver passed to `block` inherits the transaction context; any `async {}` children
+        // launched inside `block` (e.g. `TrainingRepositoryImpl.getTraining`) reuse the transaction's
+        // connection instead of contending with it on the single-connection in-memory SQLite that
+        // Robolectric provides. This is the same primitive as production (DbCascadeBindingContainer).
         override suspend fun <T> invoke(
             block: suspend CoroutineScope.() -> T,
-        ): T = database.withTransaction {
-            coroutineScope {
-                block()
+        ): T = database.useWriterConnection { transactor ->
+            transactor.immediateTransaction {
+                coroutineScope {
+                    block()
+                }
             }
         }
     }
+
+    /** The raw [AppDatabase] — for tests that exercise the Room 3 connection API directly. */
+    fun rawDatabase(): AppDatabase = database
 
     val sessionDao get() = database.sessionDao
     val performedExerciseDao get() = database.performedExerciseDao

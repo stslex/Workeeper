@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.single_training.domain
 
-import dagger.hilt.android.scopes.ViewModelScoped
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
 import io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.data.exercise.session.SessionConflictResolver
@@ -9,12 +10,13 @@ import io.github.stslex.workeeper.core.data.exercise.session.SessionRepository
 import io.github.stslex.workeeper.core.data.exercise.tags.TagRepository
 import io.github.stslex.workeeper.core.data.exercise.training.TrainingExerciseRepository
 import io.github.stslex.workeeper.core.data.exercise.training.TrainingRepository
+import io.github.stslex.workeeper.feature.single_training.di.SingleTrainingScope
 import io.github.stslex.workeeper.feature.single_training.domain.mapper.SingleTrainingDomainMapper.toData
 import io.github.stslex.workeeper.feature.single_training.domain.mapper.SingleTrainingDomainMapper.toDomain
 import io.github.stslex.workeeper.feature.single_training.domain.model.ActiveSessionDomain
 import io.github.stslex.workeeper.feature.single_training.domain.model.ArchiveResult
+import io.github.stslex.workeeper.feature.single_training.domain.model.ExercisePlanDomain
 import io.github.stslex.workeeper.feature.single_training.domain.model.PickerExercise
-import io.github.stslex.workeeper.feature.single_training.domain.model.PlanSetDomain
 import io.github.stslex.workeeper.feature.single_training.domain.model.SessionDomain
 import io.github.stslex.workeeper.feature.single_training.domain.model.StartSessionConflict
 import io.github.stslex.workeeper.feature.single_training.domain.model.TagDomain
@@ -26,11 +28,11 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
-import javax.inject.Inject
 
 @Suppress("TooManyFunctions", "LongParameterList")
-@ViewModelScoped
-internal class SingleTrainingInteractorImpl @Inject constructor(
+@Inject
+@SingleIn(SingleTrainingScope::class)
+class SingleTrainingInteractorImpl internal constructor(
     private val trainingRepository: TrainingRepository,
     private val trainingExerciseRepository: TrainingExerciseRepository,
     private val exerciseRepository: ExerciseRepository,
@@ -78,14 +80,29 @@ internal class SingleTrainingInteractorImpl @Inject constructor(
         sessionRepository.getRecentFinishedByTraining(trainingUuid, limit).map { it.toDomain() }
     }
 
+    override suspend fun countSessions(trainingUuid: String): Int = withContext(defaultDispatcher) {
+        trainingRepository.countSessionsUsing(trainingUuid)
+    }
+
     override fun observeAvailableTags(): Flow<List<TagDomain>> = tagRepository
         .observeAll()
         .map { tags -> tags.map { it.toDomain() } }
         .flowOn(defaultDispatcher)
 
-    override suspend fun saveTraining(snapshot: TrainingChangeDomain) {
+    override suspend fun saveTraining(
+        snapshot: TrainingChangeDomain,
+        plans: List<ExercisePlanDomain>,
+    ) {
         withContext(defaultDispatcher) {
-            trainingRepository.updateTraining(snapshot.toData())
+            trainingRepository.updateTrainingWithPlans(
+                training = snapshot.toData(),
+                plans = plans.map { plan ->
+                    TrainingRepository.ExercisePlanWrite(
+                        exerciseUuid = plan.exerciseUuid,
+                        planSets = plan.planSets?.map { it.toData() },
+                    )
+                },
+            )
         }
     }
 
@@ -121,16 +138,6 @@ internal class SingleTrainingInteractorImpl @Inject constructor(
         .observeAnyActiveSession()
         .map { it?.toDomain() }
         .flowOn(defaultDispatcher)
-
-    override suspend fun setPlanForExercise(
-        trainingUuid: String,
-        exerciseUuid: String,
-        plan: List<PlanSetDomain>?,
-    ) {
-        withContext(defaultDispatcher) {
-            trainingExerciseRepository.setPlan(trainingUuid, exerciseUuid, plan?.map { it.toData() })
-        }
-    }
 
     override suspend fun searchExercisesForPicker(
         query: String,

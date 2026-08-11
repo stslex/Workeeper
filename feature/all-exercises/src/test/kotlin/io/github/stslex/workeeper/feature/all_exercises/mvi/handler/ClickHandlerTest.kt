@@ -116,8 +116,18 @@ internal class ClickHandlerTest {
         verify(exactly = 0) { store.sendEvent(any()) }
     }
 
+    /**
+     * §26 "Haptics" gives `Confirm` to "подтверждённое удаление, **после диалога**, а не по нажатию
+     * кнопки" — so the buzz after this dialog's confirm is `Confirm`, not `LongPress`. The test
+     * asserted `LongPress` because that is what the code did; inverting it with the ledger rather
+     * than deleting it keeps the site gated.
+     *
+     * The path itself is unreachable in production (B23: nothing writes `pendingPermanentDelete` to
+     * non-null). This test constructs the state by hand, which is exactly why it passed on a path
+     * production cannot enter — worth knowing when reading it.
+     */
     @Test
-    fun `OnConfirmPermanentDelete with pending clears state and emits LongPress haptic`() {
+    fun `OnConfirmPermanentDelete with pending clears state and emits Confirm haptic`() {
         stateFlow.value = stateFlow.value.copy(
             pendingPermanentDelete = State.PendingDelete(uuid = "uuid-1", name = "Bench"),
         )
@@ -125,7 +135,42 @@ internal class ClickHandlerTest {
         assertEquals(null, stateFlow.value.pendingPermanentDelete)
         val captured = mutableListOf<Event>()
         verify { store.sendEvent(capture(captured)) }
-        assertTrue(captured.any { it is Event.Haptic && it.type == HapticFeedbackType.LongPress })
+        assertTrue(captured.any { it is Event.Haptic && it.type == HapticFeedbackType.Confirm })
+    }
+
+    /**
+     * The FAB morph fires **nothing** (§26 "Haptics": it follows the long press that already fired,
+     * and two in a row read as a fault). The screen's selection top bar routes its archive action
+     * to the same handler, so this covers both affordances.
+     */
+    @Test
+    fun `OnBulkDelete fires no haptic — the morph is silent`() {
+        stateFlow.value = stateFlow.value.copy(
+            selectionMode = State.SelectionMode.On(selectedUuids = persistentSetOf("uuid-1")),
+        )
+        handler.invoke(Action.Click.OnBulkDelete)
+        val captured = mutableListOf<Event>()
+        verify(exactly = 0) { store.sendEvent(capture(captured)) }
+    }
+
+    /** No haptic on a filter chip: `SegmentTick` belongs to the nav bar's tab change. */
+    @Test
+    fun `OnTagFilterToggle fires no haptic`() {
+        handler.invoke(Action.Click.OnTagFilterToggle("tag-1"))
+        verify(exactly = 0) { store.sendEvent(any()) }
+    }
+
+    /** The confirmed archive is where `Confirm` fires — after the dialog, not on the FAB. */
+    @Test
+    fun `OnBulkDeleteConfirm emits Confirm haptic`() {
+        stateFlow.value = stateFlow.value.copy(
+            selectionMode = State.SelectionMode.On(selectedUuids = persistentSetOf("uuid-1")),
+            pendingBulkDelete = State.PendingBulkDelete(count = 1),
+        )
+        handler.invoke(Action.Click.OnBulkDeleteConfirm)
+        val captured = mutableListOf<Event>()
+        verify { store.sendEvent(capture(captured)) }
+        assertTrue(captured.any { it is Event.Haptic && it.type == HapticFeedbackType.Confirm })
     }
 
     @Test
@@ -281,5 +326,109 @@ internal class ClickHandlerTest {
     private fun assertHaptic(event: Event, expected: HapticFeedbackType) {
         assertTrue(event is Event.Haptic, "expected Event.Haptic but got $event")
         assertEquals(expected, (event as Event.Haptic).type)
+    }
+    /**
+     * The filtered-to-empty state's only action, and it is one tap rather than N.
+     *
+     * No haptic: [ClickHandler] fires none on a filter change and the vocabulary is four constants,
+     * none of which is "a filter changed". Asserted rather than assumed — silence is also what an
+     * accidental deletion produces.
+     */
+    @Test
+    fun `OnClearTagFilter empties the whole filter in one act`() {
+        stateFlow.value = stateFlow.value.copy(
+            activeTagFilter = persistentSetOf("tag-1", "tag-2", "tag-3"),
+        )
+        handler.invoke(Action.Click.OnClearTagFilter)
+        assertEquals(emptySet<String>(), stateFlow.value.activeTagFilter.toSet())
+    }
+
+    @Test
+    fun `OnClearTagFilter fires no haptic`() {
+        stateFlow.value = stateFlow.value.copy(activeTagFilter = persistentSetOf("tag-1"))
+        handler.invoke(Action.Click.OnClearTagFilter)
+        verify(exactly = 0) { store.sendEvent(any()) }
+    }
+
+    /** Guarded, so a redundant emit cannot restart the paging flow the filter feeds. */
+    @Test
+    fun `OnClearTagFilter on an already-empty filter changes nothing`() {
+        val before = stateFlow.value
+        handler.invoke(Action.Click.OnClearTagFilter)
+        assertEquals(before, stateFlow.value)
+        verify(exactly = 0) { store.updateState(any()) }
+    }
+    /**
+     * Entering selection is the gesture `LongPress` is for. Exactly one haptic.
+     */
+    @Test
+    fun `entering selection by long press fires LongPress`() {
+        handler.invoke(Action.Click.OnExerciseLongPress("uuid-1"))
+        val captured = mutableListOf<Event>()
+        verify(exactly = 1) { store.sendEvent(capture(captured)) }
+        assertTrue(captured.single().let { it is Event.Haptic && it.type == HapticFeedbackType.LongPress })
+        assertTrue(stateFlow.value.selectionMode is State.SelectionMode.On)
+    }
+
+    /**
+     * The defect this file exists to pin, and it shipped: a long press **inside** selection is a
+     * toggle, so it gets `ContextClick` and nothing else. The handler used to fire `LongPress`
+     * first and then delegate, putting two haptics on one gesture — where the sibling screen, whose
+     * fix predates this one, fires exactly one. `exactly = 1` is the whole assertion; a
+     * `captured.any { … }` check would have passed on the broken code.
+     */
+    @Test
+    fun `long press inside selection fires ContextClick, not a second LongPress`() {
+        stateFlow.value = stateFlow.value.copy(
+            selectionMode = State.SelectionMode.On(selectedUuids = persistentSetOf("uuid-1")),
+        )
+        val captured = mutableListOf<Event>()
+        handler.invoke(Action.Click.OnExerciseLongPress("uuid-2"))
+        verify(exactly = 1) { store.sendEvent(capture(captured)) }
+        assertEquals(
+            HapticFeedbackType.ContextClick,
+            (captured.single() as Event.Haptic).type,
+        )
+    }
+
+    /** Toggling what is in the selection is `ContextClick`, once. */
+    @Test
+    fun `selection toggle fires ContextClick`() {
+        stateFlow.value = stateFlow.value.copy(
+            selectionMode = State.SelectionMode.On(selectedUuids = persistentSetOf("uuid-1")),
+        )
+        val captured = mutableListOf<Event>()
+        handler.invoke(Action.Click.OnSelectionToggle("uuid-2"))
+        verify(exactly = 1) { store.sendEvent(capture(captured)) }
+        assertEquals(HapticFeedbackType.ContextClick, (captured.single() as Event.Haptic).type)
+    }
+
+    /** Leaving the mode is `ContextClick` too — it changes the selection to nothing. */
+    @Test
+    fun `selection exit fires ContextClick`() {
+        stateFlow.value = stateFlow.value.copy(
+            selectionMode = State.SelectionMode.On(selectedUuids = persistentSetOf("uuid-1")),
+        )
+        val captured = mutableListOf<Event>()
+        handler.invoke(Action.Click.OnSelectionExit)
+        verify(exactly = 1) { store.sendEvent(capture(captured)) }
+        assertEquals(HapticFeedbackType.ContextClick, (captured.single() as Event.Haptic).type)
+    }
+    /**
+     * The empty state's CTA opens create and fires **nothing**. The FAB fires `ContextClick`; a
+     * button inside an empty state does not, and routing the CTA through [Action.Click.OnFabClick]
+     * gave this screen a haptic its sibling's identical `.empty` button does not have.
+     *
+     * **Residual, stated rather than papered over:** this asserts the *handler*. That the screen
+     * dispatches this action and not `OnFabClick` is screen wiring, which no unit test and no
+     * golden can see — a Compose UI test could, but `ui_tests.yml` is `workflow_dispatch`-only and
+     * does not gate PRs. Proven by mutation to be uncovered, and left named. Same class as the
+     * paging-tail selector before it was extracted.
+     */
+    @Test
+    fun `OnEmptyCreate opens create and fires no haptic`() {
+        handler.invoke(Action.Click.OnEmptyCreate)
+        verify { store.consume(Action.Navigation.OpenCreate) }
+        verify(exactly = 0) { store.sendEvent(any()) }
     }
 }

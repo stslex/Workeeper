@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.core.data.exercise.session
 
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
+import io.github.stslex.workeeper.core.core.di.AppScope
 import io.github.stslex.workeeper.core.data.exercise.session.model.ActiveSessionInfo
-import javax.inject.Inject
 
 /**
  * Central decision helper for "what should happen when the user asks to start a session"
@@ -17,7 +19,12 @@ import javax.inject.Inject
  * - [Resolution.NeedsUserChoice] — active session belongs to a different training; the
  *   caller surfaces the conflict modal and routes the choice through its handler.
  */
-class SessionConflictResolver @Inject constructor(
+// App-Scope Collapse Step 6 (cut): self-bound Metro graph node (no supertype → @SingleIn+@Inject, mirror
+// LoggerHolder), exposed as an AppGraph accessor so home + single-training resolve it via
+// context.appDeps<T>() post-Hilt. Its sole ctor dep SessionRepository is already @ContributesBinding(AppScope).
+@SingleIn(AppScope::class)
+@Inject
+class SessionConflictResolver(
     private val sessionRepository: SessionRepository,
 ) {
 

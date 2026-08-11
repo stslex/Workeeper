@@ -42,7 +42,7 @@ internal class DialogClickHandlerTest {
     private val resourceWrapper = mockk<ResourceWrapper>(relaxed = true)
     private val pickerHandler = mockk<ExercisePickerHandler>(relaxed = true)
     private val statusMapper = StateStatusMapper(resourceWrapper)
-    private val setMutator = LiveSetMutator(resourceWrapper, statusMapper)
+    private val setMutator = LiveSetMutator(statusMapper)
 
     // region Dismiss actions — every dismiss flips DialogState to Hidden
 
@@ -97,24 +97,6 @@ internal class DialogClickHandlerTest {
             baseState().copy(dialogState = finishDialog(requiresName = false)),
         )
         handler(stateFlow).invoke(Action.DialogClick.OnFinishDismiss)
-
-        assertEquals(DialogState.Hidden, stateFlow.value.dialogState)
-    }
-
-    @Test
-    fun `OnSkipExerciseDismiss hides the dialog`() {
-        val stateFlow = MutableStateFlow(
-            baseState().copy(
-                dialogState = DialogState.ConfirmDialog.SkipExercise(
-                    title = "title",
-                    body = "body",
-                    confirmLabel = "confirm",
-                    dismissLabel = "dismiss",
-                    exerciseUuid = "pe-1",
-                ),
-            ),
-        )
-        handler(stateFlow).invoke(Action.DialogClick.OnSkipExerciseDismiss)
 
         assertEquals(DialogState.Hidden, stateFlow.value.dialogState)
     }
@@ -460,75 +442,6 @@ internal class DialogClickHandlerTest {
 
         assertTrue(
             store.events.any { it is Event.ShowError && it.message == "Reset failed" },
-        )
-    }
-
-    // endregion
-
-    // region OnSkipExerciseConfirm
-
-    @Test
-    fun `OnSkipExerciseConfirm flips status to SKIPPED and calls setSkipped`() = runTest {
-        val store = FakeLiveWorkoutHandlerStore(
-            baseState(loggedExercise()).copy(
-                dialogState = DialogState.ConfirmDialog.SkipExercise(
-                    title = "title",
-                    body = "body",
-                    confirmLabel = "confirm",
-                    dismissLabel = "dismiss",
-                    exerciseUuid = "pe-1",
-                ),
-            ),
-        )
-        val handler = DialogClickHandler(
-            interactor = interactor,
-            resourceWrapper = resourceWrapper,
-            pickerHandler = pickerHandler,
-            setMutator = setMutator,
-            store = store,
-        )
-
-        handler.invoke(Action.DialogClick.OnSkipExerciseConfirm("pe-1"))
-        store.runLatestLaunch(this)
-
-        assertEquals(
-            ExerciseStatusUiModel.SKIPPED,
-            store.state.value.exercises.first().status,
-        )
-        assertEquals(DialogState.Hidden, store.state.value.dialogState)
-        coVerify(exactly = 1) { interactor.setSkipped("pe-1", true) }
-    }
-
-    @Test
-    fun `OnSkipExerciseConfirm failure surfaces SkipFailed error`() = runTest {
-        coEvery { interactor.setSkipped(any(), any()) } throws IllegalStateException("boom")
-        every {
-            resourceWrapper.getString(R.string.feature_live_workout_error_skip_failed)
-        } returns "Skip failed"
-        val store = FakeLiveWorkoutHandlerStore(
-            baseState(loggedExercise()).copy(
-                dialogState = DialogState.ConfirmDialog.SkipExercise(
-                    title = "title",
-                    body = "body",
-                    confirmLabel = "confirm",
-                    dismissLabel = "dismiss",
-                    exerciseUuid = "pe-1",
-                ),
-            ),
-        )
-        val handler = DialogClickHandler(
-            interactor = interactor,
-            resourceWrapper = resourceWrapper,
-            pickerHandler = pickerHandler,
-            setMutator = setMutator,
-            store = store,
-        )
-
-        handler.invoke(Action.DialogClick.OnSkipExerciseConfirm("pe-1"))
-        store.runLatestLaunch(this)
-
-        assertTrue(
-            store.events.any { it is Event.ShowError && it.message == "Skip failed" },
         )
     }
 

@@ -23,7 +23,6 @@ fun Project.configureApplication(
     pluginManager.apply {
         apply(libs.findPluginId("application"))
         apply(libs.findPluginId("composeCompiler"))
-        apply(libs.findPluginId("vkompose"))
         apply(libs.findPluginId("serialization"))
         apply(libs.findPluginId("gms"))
         apply(libs.findPluginId("firebaseCrashlytics"))

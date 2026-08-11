@@ -5,7 +5,6 @@ import android.content.res.Configuration
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,27 +13,20 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.window.Dialog
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButton
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButtonSize
-import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppConfirmDialog
+import io.github.stslex.workeeper.core.ui.kit.components.sheet.AppConfirmSheet
+import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppIconButton
+import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopBar
+import io.github.stslex.workeeper.core.ui.kit.icons.AppIcons
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
@@ -43,7 +35,6 @@ import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.plan_editor.R
-import io.github.stslex.workeeper.feature.plan_editor.ui.components.TypeToggle
 import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorStore.Action
 import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorStore.State
@@ -51,60 +42,45 @@ import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorSto
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 import io.github.stslex.workeeper.core.ui.kit.R as KitR
+import io.github.stslex.workeeper.core.ui.plan_editor.R as CoreEditorR
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun PlanEditorScreen(
     state: State,
     consume: (Action) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val title = if (state.exerciseName.isBlank()) {
         stringResource(R.string.core_ui_plan_editor_screen_title_default)
     } else {
         stringResource(R.string.core_ui_plan_editor_screen_title_format, state.exerciseName)
     }
-    val saveLabel = if (state.mode is Mode.Draft) {
-        stringResource(R.string.feature_plan_editor_action_done)
-    } else {
-        stringResource(R.string.core_ui_plan_editor_screen_save)
-    }
+    val saveLabel = stringResource(R.string.core_ui_plan_editor_screen_save)
     Scaffold(
         modifier = modifier
             .fillMaxSize()
-            .nestedScroll(scrollBehavior.nestedScrollConnection)
             .testTag("PlanEditorScreen"),
         topBar = {
-            TopAppBar(
-                scrollBehavior = scrollBehavior,
-                title = {
-                    Text(
-                        text = title,
-                        style = AppUi.typography.headlineSmall,
-                        color = AppUi.colors.textPrimary,
+            // §26 "The editors' six code-diverges": the bar is the extracted `.topbar`, the same
+            // component as on the other two editors — not a raw M3 `TopAppBar` with its own
+            // colours and its own title rung. It does not collapse on scroll either: nothing in
+            // either mockup draws a bar that collapses, and `AppTopBar` is a 56dp row on
+            // `surfaceTier0` with no surface of its own to collapse into.
+            // The back mark is the kit's `AppIcons.ChevronLeft`, not a filled Material import
+            // (B34).
+            AppTopBar(
+                title = title,
+                smallTitle = true,
+                navigation = {
+                    AppIconButton(
+                        modifier = Modifier.testTag("PlanEditorBack"),
+                        icon = AppIcons.ChevronLeft,
+                        contentDescription = stringResource(
+                            R.string.core_ui_plan_editor_screen_back,
+                        ),
+                        onClick = { consume(Action.Click.OnBackClick) },
                     )
                 },
-                navigationIcon = {
-                    IconButton(
-                        modifier = Modifier.testTag("PlanEditorBack"),
-                        onClick = { consume(Action.Click.OnBackClick) },
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(
-                                R.string.core_ui_plan_editor_screen_back,
-                            ),
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = AppUi.colors.surfaceTier0,
-                    scrolledContainerColor = AppUi.colors.surfaceTier0,
-                    navigationIconContentColor = AppUi.colors.textPrimary,
-                    titleContentColor = AppUi.colors.textPrimary,
-                    actionIconContentColor = AppUi.colors.textPrimary,
-                ),
             )
         },
         bottomBar = {
@@ -126,25 +102,12 @@ internal fun PlanEditorScreen(
                 .verticalScroll(rememberScrollState()),
         ) {
             PlanEditorHeader(exerciseName = state.exerciseName)
-            // Type toggle is editable from PlanEditor whenever the type ownership is the
-            // editor's own concern (Mode.Exercise — owns parent exercise.type, Mode.Draft —
-            // seeds the in-flight exercise's type). Mode.PerformedExercise renders nothing
-            // here: type lives on the parent exercise and isn't editable through a
-            // training-scoped editor.
-            if (state.mode is Mode.Exercise || state.mode is Mode.Draft) {
-                Spacer(Modifier.height(AppDimension.Space.lg))
-                Text(
-                    text = stringResource(R.string.feature_plan_editor_label_type),
-                    style = AppUi.typography.labelSmall,
-                    color = AppUi.colors.textTertiary,
-                )
-                Spacer(Modifier.height(AppDimension.Space.xs))
-                TypeToggle(
-                    selected = state.type,
-                    onSelect = { type -> consume(Action.Click.OnTypeToggle(type)) },
-                )
-            }
             Spacer(Modifier.height(AppDimension.Space.lg))
+            // THIS SCREEN NO LONGER DRAWS THE TOGGLE — `PlanEditorBody` does, so the toggle and
+            // the rows whose shape it decides are one instance rather than a copy per host.
+            // What this screen still owns is the RULE: `Mode.PerformedExercise` passes null and
+            // gets no toggle, because type lives on the parent exercise and is not editable
+            // through a training-scoped editor.
             PlanEditorBody(
                 draft = state.draft,
                 isWeighted = state.isWeighted,
@@ -152,105 +115,46 @@ internal fun PlanEditorScreen(
                     consume(Action.EditorAction(editorAction))
                 },
                 setTypeTooltipText = stringResource(
-                    R.string.core_ui_plan_editor_set_type_tooltip,
+                    CoreEditorR.string.core_ui_plan_editor_set_type_tooltip,
                 ),
+                onTypeChange = if (state.mode is Mode.PerformedExercise) {
+                    null
+                } else {
+                    { type -> consume(Action.Click.OnTypeToggle(type)) }
+                },
             )
-            Spacer(Modifier.height(AppDimension.Space.lg))
-            AppButton.Tertiary(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("PlanEditorAddSet"),
-                text = stringResource(KitR.string.core_ui_kit_plan_editor_add_set),
-                onClick = { consume(Action.Click.OnAddSet) },
-                size = AppButtonSize.MEDIUM,
-            )
+            // NO ADD BUTTON HERE, and none in the exercise create-flow either: add and remove
+            // live in the card's foot (§26, "Sets: add and remove move to the card's foot").
+            // `PlanEditorBody` owns both, so the two hosts cannot drift on where a set comes
+            // from.
         }
 
-        if (state.confirmDiscardOpen) {
-            DiscardDialog(
-                onSave = { consume(Action.Click.OnConfirmSave) },
-                onDiscard = { consume(Action.Click.OnConfirmDiscard) },
-                onContinue = { consume(Action.Click.OnDismissDiscard) },
-            )
-        }
-
+        // ONE sealed channel, and there must not be a second — a `Boolean` beside `dialogState`
+        // lets this screen open two modals at once (§26; `mvi-dialog-state`).
         when (val dialog = state.dialogState) {
             DialogState.Hidden -> Unit
 
-            is DialogState.TypeChangeConfirm -> AppConfirmDialog(
+            DialogState.DiscardConfirm -> AppConfirmSheet(
+                title = stringResource(KitR.string.core_ui_kit_discard_sheet_title),
+                body = stringResource(KitR.string.core_ui_kit_discard_sheet_body),
+                confirmLabel = stringResource(KitR.string.core_ui_kit_discard_sheet_confirm),
+                dismissLabel = stringResource(KitR.string.core_ui_kit_discard_sheet_dismiss),
+                confirmDestructive = true,
+                onConfirm = { consume(Action.Click.OnConfirmDiscard) },
+                onDismiss = { consume(Action.Click.OnDismissDiscard) },
+            )
+
+            // The impact summary rides as `emphasis` — a brighter paragraph, not the dialog's
+            // `failureBackground` panel, because the drawn sheet has no panel (see the component).
+            is DialogState.TypeChangeConfirm -> AppConfirmSheet(
                 title = dialog.title,
                 body = dialog.body,
-                impactSummary = dialog.impactSummary,
+                emphasis = dialog.impactSummary,
                 confirmLabel = dialog.confirmLabel,
+                dismissLabel = stringResource(KitR.string.core_ui_kit_action_cancel),
                 onConfirm = { consume(Action.Click.OnTypeChangeConfirm) },
                 onDismiss = { consume(Action.Click.OnTypeChangeDismiss) },
             )
-        }
-    }
-}
-
-/**
- * Three-action discard dialog (v2.4 5.5 / D2): Save / Discard / Continue editing. The
- * standard `AppConfirmDialog` only renders two actions; this dialog inlines a custom
- * three-button row so the user can commit or abandon edits without leaving the screen
- * twice.
- */
-@Composable
-private fun DiscardDialog(
-    onSave: () -> Unit,
-    onDiscard: () -> Unit,
-    onContinue: () -> Unit,
-) {
-    val dialogBg = if (AppUi.colors.isDark) AppUi.colors.surfaceTier1 else AppUi.colors.surfaceTier2
-    Dialog(onDismissRequest = onContinue) {
-        Column(
-            modifier = Modifier
-                .testTag("PlanEditorDiscardDialog")
-                .clip(AppUi.shapes.medium)
-                .background(dialogBg)
-                .padding(AppDimension.Space.lg),
-            verticalArrangement = Arrangement.spacedBy(AppDimension.Space.md),
-        ) {
-            Text(
-                text = stringResource(R.string.core_ui_plan_editor_discard_title),
-                style = AppUi.typography.titleLarge,
-                color = AppUi.colors.textPrimary,
-            )
-            Text(
-                text = stringResource(R.string.core_ui_plan_editor_discard_body),
-                style = AppUi.typography.bodyMedium,
-                color = AppUi.colors.textSecondary,
-            )
-            // FlowRow so the three buttons wrap onto a second line on narrow screens
-            // rather than overflowing horizontally. End-aligned matches the
-            // AppConfirmDialog convention.
-            FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(
-                    space = AppDimension.Space.sm,
-                    alignment = Alignment.End,
-                ),
-                verticalArrangement = Arrangement.spacedBy(AppDimension.Space.xs),
-            ) {
-                AppButton.Tertiary(
-                    modifier = Modifier.testTag("PlanEditorDiscardContinue"),
-                    text = stringResource(R.string.core_ui_plan_editor_discard_continue),
-                    onClick = onContinue,
-                    size = AppButtonSize.MEDIUM,
-                )
-                AppButton.Destructive(
-                    modifier = Modifier.testTag("PlanEditorDiscardDiscard"),
-                    text = stringResource(R.string.core_ui_plan_editor_discard_discard),
-                    onClick = onDiscard,
-                    size = AppButtonSize.MEDIUM,
-                )
-                AppButton.Primary(
-                    modifier = Modifier.testTag("PlanEditorDiscardSave"),
-                    text = stringResource(R.string.core_ui_plan_editor_screen_save),
-                    onClick = onSave,
-                    size = AppButtonSize.MEDIUM,
-                )
-            }
         }
     }
 }
@@ -332,7 +236,6 @@ private fun PlanEditorScreenPreview() {
                 ).toImmutableList(),
                 initialType = ExerciseTypeUiModel.WEIGHTED,
                 pendingTypeChange = null,
-                confirmDiscardOpen = false,
                 isSaving = false,
                 dialogState = DialogState.Hidden,
             ),

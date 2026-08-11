@@ -2,11 +2,10 @@
 package io.github.stslex.workeeper.feature.exercise.ui.mvi.mapper
 
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
+import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagItem
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
-import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanEditorUIMapper.formatPlanSummary
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
-import io.github.stslex.workeeper.feature.exercise.R
 import io.github.stslex.workeeper.feature.exercise.domain.model.ExerciseTypeDomain
 import io.github.stslex.workeeper.feature.exercise.domain.model.HistoryEntryDomain
 import io.github.stslex.workeeper.feature.exercise.domain.model.PersonalRecordDomain
@@ -16,14 +15,12 @@ import io.github.stslex.workeeper.feature.exercise.domain.model.SetTypeDomain
 import io.github.stslex.workeeper.feature.exercise.domain.model.TagDomain
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.HistoryUiModel
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PersonalRecordUiModel
-import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.TagUiModel
-import kotlinx.collections.immutable.ImmutableList
 
 internal object ExerciseUiMapper {
 
     private const val MAX_VISIBLE_SETS = 5
 
-    internal fun TagDomain.toUi(): TagUiModel = TagUiModel(uuid = uuid, name = name)
+    internal fun TagDomain.toUi(): AppTagItem = AppTagItem(uuid = uuid, name = name)
 
     internal fun ExerciseTypeDomain.toUi(): ExerciseTypeUiModel = when (this) {
         ExerciseTypeDomain.WEIGHTED -> ExerciseTypeUiModel.WEIGHTED
@@ -63,33 +60,13 @@ internal object ExerciseUiMapper {
 
     internal fun HistoryEntryDomain.toUi(
         resourceWrapper: ResourceWrapper,
-    ): HistoryUiModel {
-        val dateLabel = resourceWrapper.formatMediumDate(finishedAt)
-        val metaLabel = if (isAdhoc) {
-            resourceWrapper.getString(
-                R.string.feature_exercise_detail_history_meta_adhoc_format,
-                dateLabel,
-            )
-        } else {
-            resourceWrapper.getString(
-                R.string.feature_exercise_detail_history_meta_format,
-                dateLabel,
-                trainingName,
-            )
-        }
-        return HistoryUiModel(
-            sessionUuid = sessionUuid,
-            setsSummaryLabel = sets.toSummaryLabel(),
-            metaLabel = metaLabel,
-        )
-    }
-
-    internal fun ImmutableList<PlanSetUiModel>?.toAdhocPlanSummary(
-        resourceWrapper: ResourceWrapper,
-    ): String = this
-        ?.takeIf { it.isNotEmpty() }
-        ?.formatPlanSummary()
-        ?: resourceWrapper.getString(R.string.feature_exercise_edit_plan_summary_no_plan)
+    ): HistoryUiModel = HistoryUiModel(
+        sessionUuid = sessionUuid,
+        // §3.5: the day-month date is the row name — `22 июля`, no year. Sessions from a
+        // previous year read ambiguously; the mockup accepts that (delta table notes it).
+        dateLabel = resourceWrapper.formatDayMonth(finishedAt),
+        setsSummaryLabel = sets.toSummaryLabel(),
+    )
 
     private fun List<SetSummaryDomain>.toSummaryLabel(): String {
         val visible = take(MAX_VISIBLE_SETS).map { it.toSummaryPart() }
@@ -97,6 +74,7 @@ internal object ExerciseUiMapper {
         return visible.joinToString(separator = " · ") + suffix
     }
 
+    // §3.5 meta line: `7×12` — tight, no spaces around the separator (mono carries the ×).
     private fun SetSummaryDomain.toSummaryPart(): String {
         val setWeight = weight ?: return reps.toString()
         val weightLabel = if (setWeight % 1.0 == 0.0) {
@@ -104,7 +82,7 @@ internal object ExerciseUiMapper {
         } else {
             setWeight.toString().trimEnd('0').trimEnd('.')
         }
-        return "$weightLabel × $reps"
+        return "$weightLabel×$reps"
     }
 
     internal fun PersonalRecordDomain.toUi(
@@ -112,30 +90,13 @@ internal object ExerciseUiMapper {
         type: ExerciseTypeUiModel,
     ): PersonalRecordUiModel = PersonalRecordUiModel(
         sessionUuid = sessionUuid,
-        displayLabel = formatPrLabel(weight, reps, type, resourceWrapper),
-        relativeDateLabel = resourceWrapper.getAbbreviatedRelativeTime(finishedAt),
+        weightLabel = when (type) {
+            ExerciseTypeUiModel.WEIGHTED -> (weight ?: 0.0).formatWeight()
+            ExerciseTypeUiModel.WEIGHTLESS -> null
+        },
+        repsLabel = reps.toString(),
+        absoluteDateLabel = resourceWrapper.formatMediumDate(finishedAt),
     )
-
-    private fun formatPrLabel(
-        weight: Double?,
-        reps: Int,
-        type: ExerciseTypeUiModel,
-        resourceWrapper: ResourceWrapper,
-    ): String = when (type) {
-        ExerciseTypeUiModel.WEIGHTED -> {
-            val weightLabel = (weight ?: 0.0).formatWeight()
-            resourceWrapper.getString(
-                R.string.feature_exercise_detail_pr_weighted_format,
-                weightLabel,
-                reps,
-            )
-        }
-
-        ExerciseTypeUiModel.WEIGHTLESS -> resourceWrapper.getString(
-            R.string.feature_exercise_detail_pr_weightless_format,
-            reps,
-        )
-    }
 
     private fun Double.formatWeight(): String = if (this % 1.0 == 0.0) {
         toLong().toString()

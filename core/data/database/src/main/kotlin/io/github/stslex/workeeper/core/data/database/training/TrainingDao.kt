@@ -1,10 +1,10 @@
 package io.github.stslex.workeeper.core.data.database.training
 
 import androidx.paging.PagingSource
-import androidx.room.Dao
-import androidx.room.Insert
-import androidx.room.Query
-import androidx.room.Update
+import androidx.room3.Dao
+import androidx.room3.Insert
+import androidx.room3.Query
+import androidx.room3.Update
 import kotlinx.coroutines.flow.Flow
 import kotlin.uuid.Uuid
 
@@ -91,6 +91,32 @@ interface TrainingDao {
         """,
     )
     fun observeRecentTemplates(limit: Int): Flow<List<TrainingListItemRow>>
+
+    /**
+     * «Забытая тренировка» (home-start-card.md §3.4): the template whose last run is
+     * furthest in the past. Inverts [pagedActiveWithStats]' sort — and per HD1 a template
+     * NEVER run ranks first: by the metric it is the most forgotten thing there is, so
+     * `(last_session_at IS NULL) DESC` leads. Among never-run templates the oldest-created
+     * wins (forgotten longest), `uuid` as the deterministic tail. `is_adhoc = 1` rows are
+     * sessions, not templates, and archived rows are excluded — both per the spec.
+     */
+    @Query(
+        """
+        SELECT t.uuid, t.name, t.description, t.is_adhoc, t.archived, t.created_at, t.archived_at,
+               (SELECT COUNT(*) FROM training_exercise_table WHERE training_uuid = t.uuid) AS exercise_count,
+               (SELECT MAX(s.finished_at) FROM session_table s
+                  WHERE s.training_uuid = t.uuid AND s.state = 'FINISHED') AS last_session_at,
+               (SELECT s.uuid FROM session_table s
+                  WHERE s.training_uuid = t.uuid AND s.state = 'IN_PROGRESS' LIMIT 1) AS active_session_uuid,
+               (SELECT s.started_at FROM session_table s
+                  WHERE s.training_uuid = t.uuid AND s.state = 'IN_PROGRESS' LIMIT 1) AS active_session_started_at
+        FROM training_table t
+        WHERE t.archived = 0 AND t.is_adhoc = 0
+        ORDER BY (last_session_at IS NULL) DESC, last_session_at ASC, t.created_at ASC, t.uuid ASC
+        LIMIT 1
+        """,
+    )
+    fun observeMostForgottenTemplate(): Flow<TrainingListItemRow?>
 
     @Query("SELECT * FROM training_table WHERE archived = 1 ORDER BY name COLLATE NOCASE ASC")
     fun pagedArchived(): PagingSource<Int, TrainingEntity>

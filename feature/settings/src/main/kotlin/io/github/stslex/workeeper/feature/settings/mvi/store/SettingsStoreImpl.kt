@@ -2,7 +2,7 @@
 package io.github.stslex.workeeper.feature.settings.mvi.store
 
 import androidx.annotation.VisibleForTesting
-import dagger.hilt.android.lifecycle.HiltViewModel
+import dev.zacsweers.metro.Inject
 import io.github.stslex.workeeper.core.ui.mvi.BaseStore
 import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
 import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
@@ -17,10 +17,11 @@ import io.github.stslex.workeeper.feature.settings.mvi.handler.SettingsPagingHan
 import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStore.Action
 import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStore.Event
 import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStore.State
-import javax.inject.Inject
 
-@HiltViewModel
-internal class SettingsStoreImpl @Inject constructor(
+// Metro constructs this Store (class-level @Inject). Retention is
+// owned by the Android ViewModelStore via rememberMetroStoreProcessor — so NO @SingleIn here.
+@Inject
+class SettingsStoreImpl internal constructor(
     navigationHandler: SettingsNavigationHandler,
     pagingHandler: SettingsPagingHandler,
     clickHandler: SettingsClickHandler,

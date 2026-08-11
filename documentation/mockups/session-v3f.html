@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Workeeper — активная сессия v3</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root{
+          --ff-data:"Archivo","IBM Plex Sans",system-ui,sans-serif;
+          --ff-ui:"IBM Plex Sans",system-ui,-apple-system,sans-serif;
+          --ff-mono:"IBM Plex Mono",ui-monospace,monospace;
+          --e-out:cubic-bezier(.16,1,.3,1);--e-spring:cubic-bezier(.34,1.56,.64,1);
+          --d-fast:140ms;--d-base:260ms;--gutter:20px;
+          --base:#0B0D0F;--sec:#12161A;--field:#171C21;--slab:#1E242A;--raise:#242B32;--hair-s:#2B333B;
+          --dim:#6B7078;--meta:#8B95A1;--body:#B7C0CA;--max:#F1F5F9;--idle:#8B95A1;
+          --molten:#F0A22E;--molten-solid:#F0A22E;--molten-bg:rgba(240,162,46,.09);--molten-br:rgba(240,162,46,.42);
+          --rust:#C4574A;
+          --hair:rgba(255,255,255,.05);--donefill:rgba(255,255,255,.05);--flash:rgba(241,245,249,.13);
+          --slabtop:inset 0 1px 0 rgba(255,255,255,.055);--scrim:rgba(4,5,6,.66);
+        }
+        body.light{
+          --base:#F6F7F9;--sec:#EFF1F4;--field:#E9ECF0;--slab:#FFFFFF;--raise:#DFE3E8;--hair-s:#D2D7DD;
+          --dim:#98A0A9;--meta:#69727C;--body:#2C333A;--max:#0D1114;--idle:#7C858F;
+          --molten:#C2410C;--molten-solid:#F97316;--molten-bg:rgba(249,115,22,.11);--molten-br:rgba(194,65,12,.34);
+          --rust:#B03B2E;
+          --hair:rgba(13,17,20,.07);--donefill:rgba(13,17,20,.06);--flash:rgba(13,17,20,.09);
+          --slabtop:0 1px 3px rgba(13,17,20,.07),0 6px 18px rgba(13,17,20,.05);--scrim:rgba(13,17,20,.34);
+        }
+        *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+        html,body{margin:0;padding:0}
+        body{background:#050607;font-family:var(--ff-ui);font-size:15px;line-height:1.45;-webkit-font-smoothing:antialiased;display:flex;justify-content:center}
+        .app{width:100%;max-width:452px;min-height:100vh;background:var(--base);color:var(--body);display:flex;flex-direction:column;padding-bottom:150px;transition:background var(--d-base) var(--e-out),color var(--d-base) var(--e-out)}
+
+        .label{font-family:var(--ff-mono);font-size:11px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
+        .meta{font-family:var(--ff-mono);font-size:12.5px;color:var(--meta)}
+        .data-l{font-family:var(--ff-data);font-variation-settings:"wdth" 115,"wght" 700;font-size:25px;line-height:1;color:var(--idle);font-variant-numeric:tabular-nums;transition:color var(--d-base) var(--e-out)}
+        .data-s{font-family:var(--ff-data);font-variation-settings:"wdth" 116,"wght" 700;font-size:32px;line-height:1;color:var(--max);font-variant-numeric:tabular-nums}
+        .unit{font-family:var(--ff-mono);font-size:11.5px;color:var(--dim)}
+
+        .topbar{min-height:60px;display:flex;align-items:center;gap:6px;padding:6px var(--gutter)}
+        .icon-btn{width:44px;height:44px;border:0;background:none;color:var(--meta);display:grid;place-items:center;border-radius:12px;cursor:pointer;transition:background var(--d-fast),color var(--d-fast)}
+        .icon-btn:hover{background:var(--sec);color:var(--max)}
+        .icon-btn svg{width:21px;height:21px;stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round}
+        .icon-btn.lead{margin-left:-12px}.icon-btn.trail{margin-right:-12px}
+
+        .session{padding:0 var(--gutter)}
+        .shead{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
+        .shead h2{font-size:22px;font-weight:600;color:var(--max);margin:0;letter-spacing:-.015em}
+        .rail{display:flex;margin-top:22px;height:9px;gap:12px}
+        .rail.m-groups{gap:6px}.rail.m-single{gap:0}
+        .rail .grp{flex:1;display:flex;gap:3px;min-width:0;position:relative}
+        /* разовое: пилюли обычные (работа настоящая), пунктир снизу — место в плане временное */
+        .rail .grp.temp::after{content:"";position:absolute;left:0;right:0;bottom:-5px;border-bottom:1px dashed var(--dim)}
+        .rail.m-groups .grp,.rail.m-single .grp{gap:0}
+        .rail .pill{flex:1;background:var(--raise);border-radius:4px;overflow:hidden;min-width:0}
+        .rail .pill b{display:block;height:100%;width:0;background:var(--max);border-radius:4px;transition:width 420ms var(--e-out)}
+        .rail .pill.pr b{background:var(--molten-solid)}
+        .rail .grp.skip .pill{background:transparent;border:1px dashed var(--hair-s)}
+        .railmeta{display:flex;justify-content:space-between;margin-top:13px}
+
+        .cards{padding:0 var(--gutter);margin-top:26px;display:flex;flex-direction:column;gap:10px}
+        .card{background:var(--sec);border-radius:18px;overflow:hidden;position:relative;transition:background var(--d-base) var(--e-out),opacity var(--d-base)}
+        .card.active{background:var(--slab);box-shadow:var(--slabtop)}
+        .card.skip{opacity:.5}
+        .chead{display:flex;align-items:flex-start;gap:11px;padding:16px;cursor:pointer}
+        .chead-body{flex:1;min-width:0}
+        .ctitle-row{display:flex;align-items:baseline;gap:8px;min-width:0}
+        .ctitle{font-size:16.5px;font-weight:600;color:var(--max);line-height:1.25;letter-spacing:-.01em;transition:color var(--d-base);min-width:0}
+        .card.fin .ctitle{color:var(--meta);font-weight:500}
+        .card.skip .ctitle{color:var(--meta);text-decoration:line-through;text-decoration-color:var(--dim)}
+        .tempbadge{flex:none;font-family:var(--ff-mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--body);border:1px dashed var(--dim);border-radius:5px;padding:2px 6px;display:none}
+        .card.temp .tempbadge{display:block}
+        /* подстрочник всегда план — длина стабильна, карточка не едет */
+        .sub{font-family:var(--ff-mono);font-size:12px;color:var(--dim);margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        /* прогресс упражнения — та же система, что общая шкала, но тоньше */
+        .pstrip{display:flex;gap:2.5px;height:4px;margin-top:10px}
+        .pstrip i{flex:1;background:var(--raise);border-radius:2px;overflow:hidden}
+        .pstrip i b{display:block;height:100%;width:0;background:var(--max);border-radius:2px;transition:width 380ms var(--e-out)}
+        .pstrip i.pr b{background:var(--molten-solid)}
+        .card.skip .pstrip i{background:transparent;border:1px dashed var(--hair-s)}
+        .card.skip .pstrip i b{background:transparent}
+
+        .ordchip{width:24px;height:24px;flex:none;border-radius:8px;display:grid;place-items:center;margin-top:1px;background:transparent;color:var(--dim);font-family:var(--ff-mono);font-size:11.5px;transition:background var(--d-base) var(--e-out),color var(--d-base) var(--e-out)}
+        .card.active .ordchip{background:var(--max);color:var(--base);font-weight:500}
+        .card.fin .ordchip{background:var(--donefill);color:var(--meta)}
+        .card.skip .ordchip{background:transparent;border:1px dashed var(--hair-s)}
+        /* разовое: участвует полностью, отличается только пунктиром — позиции в плане у него нет */
+        .card.temp .ordchip{background:transparent;border:1px dashed var(--dim);color:var(--dim)}
+        .card.temp.active .ordchip{background:transparent;border:1px dashed var(--max);color:var(--max);font-weight:500}
+        .card.temp.fin .ordchip{background:transparent;border:1px dashed var(--meta);color:var(--meta)}
+        .ordchip svg{width:13px;height:13px;stroke:currentColor;stroke-width:3;fill:none;stroke-linecap:round;stroke-linejoin:round;display:none}
+        .card.fin .ordchip svg{display:block}
+        .card.fin .ordchip i{display:none}
+        .ordchip i{font-style:normal}
+
+        .chead-act{display:flex;gap:2px;flex:none;margin:-6px -6px 0 0}
+        .mini{width:34px;height:34px;border:0;background:none;color:var(--dim);display:grid;place-items:center;border-radius:9px;cursor:pointer;transition:color var(--d-fast),background var(--d-fast)}
+        .mini:hover{color:var(--body);background:var(--hair)}
+        .mini svg{width:17px;height:17px;stroke:currentColor;stroke-width:1.8;fill:none;stroke-linecap:round;stroke-linejoin:round}
+        .mini.rot svg{transition:transform var(--d-base) var(--e-out)}
+        .card.active .mini.rot svg{transform:rotate(90deg)}
+        .cbody{display:grid;grid-template-rows:0fr;transition:grid-template-rows var(--d-base) var(--e-out)}
+        .card.active .cbody{grid-template-rows:1fr}
+        .cbody>.inner{overflow:hidden}
+        .sets{padding:0 12px}
+
+        .set{display:flex;align-items:center;gap:9px;padding:9px 4px;border-top:1px solid var(--hair);border-radius:12px}
+        .set:first-child{border-top:0}
+        .set-i{font-family:var(--ff-mono);font-size:12px;color:var(--dim);width:13px;flex:none}
+        .field{flex:1;background:var(--field);border-radius:12px;height:52px;padding:0 12px;display:flex;align-items:center;justify-content:space-between;transition:background var(--d-base) var(--e-out)}
+        .set.done .field{background:var(--donefill)}
+        .set.done .data-l{color:var(--max)}
+        .tchip,.prtag{min-width:34px;height:32px;flex:none;border-radius:9px;display:grid;place-items:center;font-family:var(--ff-mono)}
+        .tchip{border:1px solid var(--hair-s);color:var(--dim);font-size:12px}
+        .prtag{border:1px solid var(--molten-br);color:var(--molten);font-size:10px;font-weight:600;letter-spacing:.1em;padding:0 6px}
+        .mark{width:46px;height:46px;flex:none;border:0;padding:0;cursor:pointer;position:relative;background:none;display:grid;place-items:center}
+        .mark .shape{position:absolute;inset:4px;border-radius:50%;border:2px solid var(--hair-s);background:transparent;transition:border-radius var(--d-base) var(--e-spring),background var(--d-base) var(--e-out),border-color var(--d-base) var(--e-out),inset var(--d-base) var(--e-spring),transform var(--d-base) var(--e-spring)}
+        .mark .pulse{position:absolute;inset:4px;border-radius:50%;border:2px solid var(--max);opacity:0;pointer-events:none}
+        .mark svg{position:relative;width:19px;height:19px;stroke:var(--base);stroke-width:2.7;fill:none;stroke-linecap:round;stroke-linejoin:round}
+        .mark svg path{stroke-dasharray:26;stroke-dashoffset:26;transition:stroke-dashoffset var(--d-base) var(--e-out) 60ms}
+        .set.done .mark .shape{border-radius:13px;background:var(--max);border-color:var(--max);inset:2px}
+        .set.done .mark svg path{stroke-dashoffset:0}
+        .mark:active .shape{transform:scale(.9)}
+        .set.flash{animation:rf 620ms var(--e-out)}
+        @keyframes rf{0%{background:var(--flash)}100%{background:transparent}}
+        .set.flash .mark .pulse{animation:rp 560ms var(--e-out)}
+        @keyframes rp{0%{opacity:.75;transform:scale(1)}100%{opacity:0;transform:scale(1.95)}}
+        .set.pr .field{background:var(--molten-bg)}
+        .set.pr .data-l{color:var(--molten)}
+        .set.pr.done .mark .shape{background:var(--molten-solid);border-color:var(--molten-solid)}
+        .card.prfx::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(105deg,transparent 32%,var(--molten-bg) 44%,rgba(249,115,22,.3) 50%,transparent 70%);animation:sweep 900ms var(--e-out) forwards}
+        @keyframes sweep{from{transform:translateX(-120%)}to{transform:translateX(120%)}}
+
+        .setbar{display:flex;border-top:1px solid var(--hair)}
+        .setbar button{flex:1;background:none;border:0;color:var(--meta);cursor:pointer;font-family:var(--ff-mono);font-size:12px;letter-spacing:.06em;text-transform:uppercase;padding:15px 0 14px;transition:color var(--d-fast)}
+        .setbar button:hover{color:var(--max)}
+        .setbar button+button{border-left:1px solid var(--hair)}
+        .setbar button:disabled{opacity:.35;cursor:default}
+
+        .addex{display:flex;align-items:center;justify-content:center;gap:9px;height:60px;margin:12px var(--gutter) 0;border:1px dashed var(--hair-s);border-radius:16px;color:var(--meta);cursor:pointer;background:none;width:calc(100% - var(--gutter)*2);font-family:var(--ff-ui);font-size:15px;transition:border-color var(--d-fast),color var(--d-fast)}
+        .addex:hover{border-color:var(--dim);color:var(--body)}
+        .addex svg{width:17px;height:17px;stroke:currentColor;stroke-width:1.9;fill:none;stroke-linecap:round}
+
+        .dock{position:sticky;bottom:0;margin-top:auto;padding:16px var(--gutter) 20px;background:linear-gradient(to top,var(--base) 62%,transparent)}
+        .btn{width:100%;height:56px;border:0;border-radius:16px;cursor:pointer;font-family:var(--ff-ui);font-size:16px;font-weight:600;background:var(--max);color:var(--base);transition:transform var(--d-fast) var(--e-spring)}
+        .btn:active{transform:scale(.985)}
+        .btn.ghost{background:var(--field);color:var(--body)}
+        .btn.danger{background:none;color:var(--rust);font-weight:500}
+
+        .scrim{position:fixed;inset:0;background:var(--scrim);opacity:0;pointer-events:none;transition:opacity var(--d-base);z-index:85}
+        .scrim.on{opacity:1;pointer-events:auto}
+        .sheet{position:fixed;bottom:0;left:50%;width:100%;max-width:452px;transform:translate(-50%,110%);background:var(--field);color:var(--body);border-radius:26px 26px 0 0;padding:10px 20px 32px;z-index:90;transition:transform var(--d-base) var(--e-out)}
+        .sheet.on{transform:translate(-50%,0)}
+        .grab{width:36px;height:4px;border-radius:2px;background:var(--hair-s);margin:0 auto 20px}
+        .sheet h3{margin:0 0 12px;font-size:19px;font-weight:600;color:var(--max)}
+        .sheet p{margin:0 0 22px;color:var(--meta);font-size:14.5px;line-height:1.55}
+        .sheet .desc{font-size:15px;line-height:1.62;color:var(--body);margin-bottom:22px}
+        .stack{display:flex;flex-direction:column;gap:9px}
+        .mitem{display:flex;align-items:center;gap:13px;width:100%;background:none;border:0;padding:15px 4px;color:var(--body);font-family:var(--ff-ui);font-size:16px;cursor:pointer;text-align:left;border-radius:12px;transition:background var(--d-fast)}
+        .mitem:hover{background:var(--hair)}
+        .mitem.rust{color:var(--rust)}
+        .mitem svg{width:19px;height:19px;stroke:currentColor;stroke-width:1.8;fill:none;stroke-linecap:round;stroke-linejoin:round;flex:none}
+        .mrow{display:flex;align-items:center;gap:14px;padding:12px 4px;border-radius:12px}
+        .mrow div{flex:1;min-width:0}
+        .mrow .t{font-size:16px;color:var(--max)}
+        .sw{width:46px;height:28px;border-radius:14px;background:var(--hair-s);position:relative;cursor:pointer;flex:none;transition:background var(--d-base) var(--e-out);border:0}
+        .sw i{position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:var(--meta);transition:transform var(--d-base) var(--e-spring),background var(--d-base)}
+        .sw.on{background:var(--max)}.sw.on i{transform:translateX(18px);background:var(--base)}
+        .msep{height:1px;background:var(--hair);margin:6px 0}
+
+        .toast{position:fixed;bottom:118px;left:50%;transform:translate(-50%,16px);width:calc(100% - 32px);max-width:420px;background:var(--slab);border:1px solid var(--hair-s);border-radius:16px;padding:14px 16px;display:flex;align-items:center;gap:14px;z-index:95;opacity:0;pointer-events:none;transition:opacity var(--d-base) var(--e-out),transform var(--d-base) var(--e-out);box-shadow:0 14px 40px rgba(0,0,0,.4)}
+        .toast.on{opacity:1;transform:translate(-50%,0);pointer-events:auto}
+        .toast span{flex:1;font-size:14.5px;color:var(--max)}
+        .toast button{background:none;border:0;color:var(--molten);font-family:var(--ff-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;padding:6px 2px}
+
+        .tools{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:452px;background:#14181C;border-top:1px solid #2A3138;display:flex;align-items:center;gap:6px;padding:11px 16px;overflow-x:auto;z-index:80;scrollbar-width:none}
+        .tools::-webkit-scrollbar{display:none}
+        .tools button{flex:none;height:36px;padding:0 14px;border-radius:10px;border:1px solid #333B43;background:none;color:#C7CED6;font-family:var(--ff-mono);font-size:11.5px;letter-spacing:.05em;text-transform:uppercase;cursor:pointer}
+        .tools button.on{background:#F1F5F9;color:#0B0D0F;border-color:#F1F5F9}
+        .tools .sep{flex:none;width:1px;height:22px;background:#333B43;margin:0 2px}
+        @media (prefers-reduced-motion:reduce){*{animation-duration:1ms!important;transition-duration:1ms!important}}
+    </style>
+</head>
+<body>
+<div class="app">
+    <div class="topbar">
+        <button class="icon-btn lead"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+        <span style="flex:1"></span>
+        <button class="icon-btn trail" onclick="openSheet('sh-session')"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="19" r="1.4"/></svg></button>
+    </div>
+    <div class="session">
+        <div class="shead">
+            <div><h2>верх (с подтягиваниями)</h2><div class="meta" style="margin-top:6px" id="sMeta"></div></div>
+            <div class="data-s">12:04</div>
+        </div>
+        <div class="rail" id="rail"></div>
+        <div class="railmeta"><span class="label" id="railMode"></span><span class="label" id="railNums"></span></div>
+    </div>
+    <div class="cards" id="cards"></div>
+    <button class="addex" onclick="addExercise()"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Добавить упражнение</button>
+    <div class="dock"><button class="btn">Завершить сессию</button></div>
+</div>
+
+<div class="scrim" id="scrim" onclick="closeSheets()"></div>
+
+<div class="sheet" id="sh-ex"><div class="grab"></div><h3 id="exTitle"></h3>
+    <div class="mrow" id="onceRow">
+        <div><div class="t">Только на сегодня</div><div class="meta" style="margin-top:3px">останется в этой сессии, но не попадёт в план тренировки</div></div>
+        <button class="sw" id="onceSw" onclick="toggleOnce()"><i></i></button>
+    </div>
+    <div class="msep" id="onceSep"></div>
+    <button class="mitem" onclick="act('skip')"><svg viewBox="0 0 24 24"><path d="M5 5l8 7-8 7zM19 5v14"/></svg><span id="skipLabel">Пропустить упражнение</span></button>
+    <button class="mitem rust" onclick="act('del')"><svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13"/></svg>Удалить упражнение</button>
+</div>
+
+<div class="sheet" id="sh-del"><div class="grab"></div>
+    <h3>Удалить из плана тренировки?</h3>
+    <p id="delBody"></p>
+    <div class="stack">
+        <button class="btn ghost" onclick="closeSheets()">Оставить</button>
+        <button class="btn danger" onclick="doDelete()">Удалить из плана</button>
+    </div>
+</div>
+
+<div class="sheet" id="sh-desc"><div class="grab"></div><h3 id="dTitle"></h3><div class="desc" id="dBody"></div>
+    <button class="btn ghost" onclick="closeSheets()">Закрыть</button></div>
+
+<div class="sheet" id="sh-session"><div class="grab"></div>
+    <button class="mitem" onclick="closeSheets();addExercise()"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Добавить упражнение</button>
+    <button class="mitem" onclick="closeSheets()"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Изменить порядок</button>
+    <button class="mitem rust" onclick="closeSheets()"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>Отменить сессию</button>
+</div>
+
+<div class="toast" id="toast"><span id="toastText"></span><button onclick="undo()">Отменить</button></div>
+
+<div class="tools">
+    <button class="on" data-p="0" onclick="preset(0,this)">2×4</button>
+    <button data-p="1" onclick="preset(1,this)">5×4</button>
+    <button data-p="2" onclick="preset(2,this)">8×4</button>
+    <button data-p="3" onclick="preset(3,this)">16×5</button>
+    <span class="sep"></span>
+    <button id="thBtn" onclick="toggleTheme()">Светлая</button>
+</div>
+
+<script>
+    const NAMES=['подтягивания','Тяга Т-грифа прямым широким хватом','Отведение гантелей через стороны','Молотки с гантелями','Подъём блина перед собой','жим платформы (узко)','румынская тяга','сгибание ног','разгибание ног','сведение ног','приседания с мешком','Копенгагенская планка','Тяга вертикального блока','Тяга штанги к поясу','жим гантелей сидя','French press'];
+    const DESC='Лопатки вниз и назад до начала движения, корпус зафиксирован. Опускание медленнее подъёма.';
+    let uid=0;
+    function make(nEx,nSets){
+      uid=0;
+      return Array.from({length:nEx},(_,i)=>({
+        id:++uid,n:NAMES[i%NAMES.length],type:i===0?'bw':'w',
+        skip:false,adhoc:false,once:false,userOpen:null,desc:i%3===0?DESC:'',
+        sets:Array.from({length:nSets},(_,j)=>({
+          w:20+i*3,r:i===0?8:12,
+          done:(i===0&&j<2)||(i===1&&nEx>2),
+          pr:(i===2&&j===2)
+        }))
+      }));
+    }
+    const PRESETS=[[2,4],[5,4],[8,4],[16,5]];
+    let LV=make(2,4), slot=null, snapshot=null, pendEx=null, toastTimer=null;
+    const cardsEl=document.getElementById('cards'), railEl=document.getElementById('rail');
+
+    const hasProgress=e=>e.sets.some(s=>s.done)&&!e.sets.every(s=>s.done);
+    const isDone=e=>e.sets.length>0&&e.sets.every(s=>s.done);
+    function isOpen(e){
+      if(e.skip)return false;
+      if(e.userOpen===true)return true;
+      if(e.userOpen===false)return false;
+      if(isDone(e))return false;
+      if(hasProgress(e))return true;
+      return slot===e.id;
+    }
+    function nextSlot(){
+      const c=LV.find(e=>!e.skip&&!isDone(e)&&!hasProgress(e)&&e.userOpen!==false);
+      slot=c?c.id:null;
+    }
+    const planText=e=>e.type==='w'?e.sets.map(s=>s.w+'×'+s.r).join(' · '):e.sets.map(s=>s.r+' повт').join(' · ');
+
+    /* ---------- rail ---------- */
+    function railMode(){
+      const w=railEl.clientWidth||412;
+      const act=LV.filter(e=>!e.skip);
+      const nEx=act.length||1,total=act.reduce((a,e)=>a+e.sets.length,0)||1;
+      if((w-(nEx-1)*12-(total-nEx)*3)/total>=9)return'sets';
+      if((w-(LV.length-1)*6)/LV.length>=11)return'groups';
+      return'single';
+    }
+    function buildRail(){
+      const mode=railMode();
+      railEl.className='rail m-'+mode;railEl.innerHTML='';railEl._single=null;
+      if(mode==='single'){
+        const g=document.createElement('div');g.className='grp';
+        g.innerHTML='<div class="pill"><b></b></div>';railEl.appendChild(g);
+        railEl._single=g.querySelector('b');
+        LV.forEach(e=>{e._gb=null;e.sets.forEach(s=>s._b=null)});
+      }else LV.forEach(e=>{
+        const g=document.createElement('div');g.className='grp'+(e.skip?' skip':(e.once?' temp':''));
+        if(mode==='groups'){
+          g.innerHTML=`<div class="pill${e.sets.some(s=>s.pr)?' pr':''}"><b></b></div>`;
+          e._gb=g.querySelector('b');e.sets.forEach(s=>s._b=null);
+        }else{e._gb=null;e.sets.forEach(s=>{
+          const p=document.createElement('div');p.className='pill'+(s.pr?' pr':'');
+          p.innerHTML='<b></b>';g.appendChild(p);s._b=p.querySelector('b')})}
+        railEl.appendChild(g);
+      });
+      requestAnimationFrame(fillAll);
+      document.getElementById('railMode').textContent=
+        {sets:'детализация: подходы',groups:'детализация: упражнения',single:'детализация: общая'}[mode];
+    }
+    function fillAll(){
+      const act=LV.filter(e=>!e.skip);
+      const d=act.reduce((a,e)=>a+e.sets.filter(s=>s.done).length,0);
+      const t=act.reduce((a,e)=>a+e.sets.length,0)||1;
+      if(railEl._single)railEl._single.style.width=(d/t*100)+'%';
+      LV.forEach(e=>{
+        if(e._gb)e._gb.style.width=(e.skip?0:e.sets.filter(s=>s.done).length/e.sets.length*100)+'%';
+        e.sets.forEach(s=>{if(s._b)s._b.style.width=s.done&&!e.skip?'100%':'0'});
+        if(e._strip)e.sets.forEach((s,i)=>{const b=e._strip.children[i]?.querySelector('b');
+          if(b)b.style.width=s.done&&!e.skip?'100%':'0'});
+      });
+    }
+    function stats(){
+      const act=LV.filter(e=>!e.skip);
+      const d=act.reduce((a,e)=>a+e.sets.filter(s=>s.done).length,0);
+      const t=act.reduce((a,e)=>a+e.sets.length,0);
+      const fin=act.filter(isDone).length,sk=LV.filter(e=>e.skip).length;
+      document.getElementById('sMeta').textContent=
+        fin+' из '+act.length+' упражнений · '+d+' из '+t+' подходов'+(sk?' · пропущено '+sk:'');
+      const tmp=LV.filter(e=>e.once&&!e.skip).length;
+      document.getElementById('railNums').textContent=
+        LV.length+' упражнений · '+t+' подходов'+(tmp?' · разовых: '+tmp:'');
+    }
+
+    /* ---------- cards ---------- */
+    function build(){
+      cardsEl.innerHTML='';
+      LV.forEach((e,ei)=>{
+        const card=document.createElement('div');card.className='card';e._card=card;
+        card.innerHTML=`<div class="chead">
+          <span class="ordchip"><i>${ei+1}</i><svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 7"/></svg></span>
+          <div class="chead-body">
+            <div class="ctitle-row"><span class="ctitle"></span><span class="tempbadge">разовое</span></div>
+            <div class="sub"></div>
+            <div class="pstrip"></div>
+          </div>
+          <div class="chead-act">
+            ${e.desc?'<button class="mini info"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.6v.1"/></svg></button>':''}
+            <button class="mini menu"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="19" r="1.4"/></svg></button>
+            <button class="mini rot"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button></div></div>
+          <div class="cbody"><div class="inner"><div class="sets"></div>
+            <div class="setbar"><button class="addS">+ подход</button><button class="delS">− подход</button></div>
+          </div></div>`;
+        card.querySelector('.ctitle').textContent=e.n;
+        e._sub=card.querySelector('.sub');
+        e._strip=card.querySelector('.pstrip');
+        card.querySelector('.chead').onclick=ev=>{
+          if(ev.target.closest('.info')||ev.target.closest('.menu'))return;toggleOpen(e)};
+        card.querySelector('.menu').onclick=()=>openExMenu(ei);
+        const info=card.querySelector('.info');
+        if(info)info.onclick=()=>{document.getElementById('dTitle').textContent=e.n;
+          document.getElementById('dBody').textContent=e.desc;openSheet('sh-desc')};
+        card.querySelector('.addS').onclick=()=>addSet(e);
+        card.querySelector('.delS').onclick=()=>delSet(e);
+        drawStrip(e);drawSets(e);
+        cardsEl.appendChild(card);
+      });
+      apply();
+    }
+    function drawStrip(e){
+      e._strip.innerHTML='';
+      e.sets.forEach(s=>{const i=document.createElement('i');
+        if(s.pr)i.className='pr';i.innerHTML='<b></b>';e._strip.appendChild(i)});
+    }
+    function drawSets(e){
+      const host=e._card.querySelector('.sets');host.innerHTML='';
+      e.sets.forEach((s,i)=>{
+        const f=e.type==='w'
+          ?`<div class="field"><span class="data-l">${s.w}</span><span class="unit">кг</span></div><div class="field"><span class="data-l">${s.r}</span><span class="unit">повт</span></div>`
+          :`<div class="field" style="flex:2"><span class="data-l">${s.r}</span><span class="unit">повторений</span></div>`;
+        const row=document.createElement('div');
+        row.className='set'+(s.done?' done':'')+(s.pr?' pr':'');
+        row.innerHTML=`<span class="set-i">${i+1}</span>${f}
+          ${s.pr?'<span class="prtag">PR</span>':'<div class="tchip">·</div>'}
+          <button class="mark"><span class="shape"></span><span class="pulse"></span>
+          <svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></button>`;
+        row.querySelector('.mark').onclick=()=>{
+          s.done=!s.done;row.classList.toggle('done',s.done);
+          if(s.done){row.classList.remove('flash');void row.offsetWidth;row.classList.add('flash');
+            if(navigator.vibrate)navigator.vibrate(s.pr?[12,40,22]:10);
+            if(s.pr){e._card.classList.remove('prfx');void e._card.offsetWidth;e._card.classList.add('prfx');
+              setTimeout(()=>e._card.classList.remove('prfx'),1000)}}
+          if(e.userOpen===null&&slot===e.id&&(hasProgress(e)||isDone(e)))nextSlot();
+          if(slot===null)nextSlot();
+          fillAll();stats();
+          setTimeout(apply,isDone(e)?420:0);
+        };
+        host.appendChild(row);
+      });
+      const d=e._card.querySelector('.delS');if(d)d.disabled=e.sets.length<=1;
+    }
+    function apply(){
+      LV.forEach(e=>{
+        const c=e._card;if(!c)return;
+        c.classList.toggle('active',isOpen(e));
+        c.classList.toggle('fin',isDone(e)&&!e.skip);
+        c.classList.toggle('skip',e.skip);
+        c.classList.toggle('temp',e.once);
+        e._sub.textContent=e.skip?'пропущено':planText(e);
+      });
+    }
+    function toggleOpen(e){
+      if(e.skip)return;
+      if(isOpen(e)){e.userOpen=false;if(slot===e.id)nextSlot()}
+      else{e.userOpen=true;if(!hasProgress(e)&&!isDone(e))slot=e.id}
+      apply();
+    }
+    function addSet(e){
+      snap();e.sets.push({w:e.sets.at(-1)?.w??20,r:e.sets.at(-1)?.r??12,done:false});
+      if(e.userOpen===false)e.userOpen=null;
+      drawStrip(e);drawSets(e);buildRail();stats();apply();toast('Подход добавлен');
+    }
+    function delSet(e){
+      if(e.sets.length<=1)return;
+      snap();e.sets.pop();
+      drawStrip(e);drawSets(e);if(slot===null)nextSlot();
+      buildRail();stats();apply();toast('Подход удалён');
+    }
+
+    /* ---------- menu ---------- */
+    function openExMenu(ei){
+      pendEx=ei;const e=LV[ei];
+      document.getElementById('exTitle').textContent=e.n;
+      document.getElementById('skipLabel').textContent=e.skip?'Вернуть в сессию':'Пропустить упражнение';
+      const show=e.adhoc?'':'none';
+      document.getElementById('onceRow').style.display=e.adhoc?'flex':'none';
+      document.getElementById('onceSep').style.display=show;
+      document.getElementById('onceSw').classList.toggle('on',e.once);
+      openSheet('sh-ex');
+    }
+    function toggleOnce(){
+      const e=LV[pendEx];e.once=!e.once;
+      document.getElementById('onceSw').classList.toggle('on',e.once);
+      buildRail();stats();apply();
+    }
+    function act(what){
+      const e=LV[pendEx];closeSheets();
+      if(what==='skip'){snap();e.skip=!e.skip;if(e.skip)e.userOpen=null;
+        if(slot===e.id||slot===null)nextSlot();
+        buildRail();stats();apply();return}
+      if(what==='del'){
+        document.getElementById('delBody').textContent=e.adhoc
+          ? '«'+e.n+'» было добавлено в этой сессии. Записанные подходы пропадут.'
+          : '«'+e.n+'» исчезнет из плана тренировки и не появится в следующих сессиях. Если не хочешь делать его только сегодня — лучше пропустить.';
+        setTimeout(()=>openSheet('sh-del'),220)}
+    }
+    function doDelete(){
+      snap();const n=LV[pendEx].n;LV.splice(pendEx,1);closeSheets();
+      if(slot===null)nextSlot();render();toast('«'+cut(n)+'» удалено из плана');
+    }
+    function addExercise(){
+      snap();const n=NAMES[LV.length%NAMES.length];
+      LV.push({id:++uid,n,type:'w',skip:false,adhoc:true,once:false,userOpen:null,desc:'',
+        sets:Array.from({length:LV[0]?LV[0].sets.length:4},()=>({w:20,r:12,done:false}))});
+      if(slot===null)nextSlot();render();toast('«'+cut(n)+'» добавлено');
+    }
+    const cut=s=>s.length>24?s.slice(0,24)+'…':s;
+    function snap(){snapshot={d:LV.map(e=>({...e,sets:e.sets.map(s=>({...s}))})),s:slot}}
+    function toast(t){const el=document.getElementById('toast');
+      document.getElementById('toastText').textContent=t;el.classList.add('on');
+      clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('on'),5000)}
+    function undo(){if(!snapshot)return;LV=snapshot.d;slot=snapshot.s;snapshot=null;
+      render();document.getElementById('toast').classList.remove('on')}
+    function render(){if(slot===null||!LV.some(e=>e.id===slot))nextSlot();build();buildRail();stats()}
+    function preset(i,btn){document.querySelectorAll('.tools button[data-p]').forEach(b=>b.classList.remove('on'));
+      btn.classList.add('on');LV=make(...PRESETS[i]);slot=null;snapshot=null;render()}
+    function openSheet(id){document.getElementById('scrim').classList.add('on');document.getElementById(id).classList.add('on')}
+    function closeSheets(){document.getElementById('scrim').classList.remove('on');document.querySelectorAll('.sheet').forEach(s=>s.classList.remove('on'))}
+    function toggleTheme(){document.getElementById('thBtn').textContent=document.body.classList.toggle('light')?'Тёмная':'Светлая'}
+    window.addEventListener('resize',buildRail);
+    render();
+</script>
+</body>
+</html>

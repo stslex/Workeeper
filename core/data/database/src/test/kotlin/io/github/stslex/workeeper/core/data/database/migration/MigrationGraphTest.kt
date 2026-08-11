@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.core.data.database.migration
 
-import androidx.room.migration.Migration
-import androidx.sqlite.db.SupportSQLiteDatabase
+import androidx.room3.migration.Migration
+import androidx.sqlite.SQLiteConnection
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -84,6 +84,6 @@ internal class MigrationGraphTest {
 
     private fun stubMigration(start: Int, end: Int): Migration =
         object : Migration(start, end) {
-            override fun migrate(db: SupportSQLiteDatabase) = Unit
+            override suspend fun migrate(connection: SQLiteConnection) = Unit
         }
 }

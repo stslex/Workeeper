@@ -6,4 +6,4 @@ import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStore.Actio
 import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStore.Event
 import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStore.State
 
-internal interface SettingsHandlerStore : HandlerStore<State, Action, Event>
+interface SettingsHandlerStore : HandlerStore<State, Action, Event>

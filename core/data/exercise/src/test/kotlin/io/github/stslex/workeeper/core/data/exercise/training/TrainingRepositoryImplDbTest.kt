@@ -2,19 +2,24 @@
 package io.github.stslex.workeeper.core.data.exercise.training
 
 import androidx.paging.testing.asSnapshot
+import io.github.stslex.workeeper.core.data.database.converters.PlanSetsConverter
 import io.github.stslex.workeeper.core.data.database.exercise.ExerciseEntity
 import io.github.stslex.workeeper.core.data.database.exercise.ExerciseTypeEntity
 import io.github.stslex.workeeper.core.data.database.session.SessionEntity
 import io.github.stslex.workeeper.core.data.database.session.SessionStateEntity
 import io.github.stslex.workeeper.core.data.database.sets.PlanSetDataModel
 import io.github.stslex.workeeper.core.data.database.sets.SetTypeDataModel
+import io.github.stslex.workeeper.core.data.database.tag.ExerciseTagEntity
+import io.github.stslex.workeeper.core.data.database.tag.TagEntity
 import io.github.stslex.workeeper.core.data.database.testfixtures.RepositoryTestEnv
 import io.github.stslex.workeeper.core.data.database.training.TrainingEntity
 import io.github.stslex.workeeper.core.data.database.training.TrainingExerciseEntity
 import io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepository
 import io.mockk.coEvery
 import io.mockk.mockk
+import io.mockk.spyk
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
@@ -22,6 +27,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -728,6 +734,133 @@ internal class TrainingRepositoryImplDbTest {
             )
             assertFalse(repository.canBulkPermanentDelete(setOf(cleanUuid.toString())))
         }
+
+    /**
+     * The training editor's Save is ONE act: the training row and every listed exercise's
+     * plan commit in one transaction. Happy path first — the persisted `plan_sets` read back
+     * through the real DAO.
+     */
+    @Test
+    fun `updateTrainingWithPlans persists the training and every plan`() = runTest {
+        val trainingUuid = Uuid.random()
+        val exerciseUuid = Uuid.random()
+        seedLibraryExercise(exerciseUuid, "Bench")
+
+        repository.updateTrainingWithPlans(
+            training = TrainingChangeDataModel(
+                uuid = trainingUuid.toString(),
+                name = "Push Day",
+                timestamp = 1_000L,
+                exerciseUuids = listOf(exerciseUuid.toString()),
+            ),
+            plans = listOf(
+                TrainingRepository.ExercisePlanWrite(
+                    exerciseUuid = exerciseUuid.toString(),
+                    planSets = listOf(
+                        PlanSetDataModel(weight = 60.0, reps = 10, type = SetTypeDataModel.WORK),
+                    ),
+                ),
+            ),
+        )
+
+        assertNotNull(env.trainingDao.getById(trainingUuid))
+        val row = env.trainingExerciseDao.getByTraining(trainingUuid).single()
+        val persistedPlan = PlanSetsConverter.fromJson(row.planSets)
+        assertEquals(1, persistedPlan?.size)
+        assertEquals(60.0, persistedPlan?.single()?.weight)
+        assertEquals(10, persistedPlan?.single()?.reps)
+    }
+
+    /**
+     * D-OPEN-4, auto-prune on the TRAINING save path: a save that drops a tag's last link
+     * sweeps its dictionary row in the same transaction, while a tag whose only remaining
+     * link is an EXERCISE's survives — the fixture only the `exercise_tag_table` conjunct
+     * keeps alive (§27's per-predicate-fixture rule, mirrored from the exercise-side test).
+     */
+    @Test
+    fun `updateTrainingWithPlans prunes its orphaned tag and keeps the exercise-held one`() =
+        runTest {
+            val exerciseUuid = Uuid.random()
+            seedLibraryExercise(exerciseUuid, "Bench")
+            val sharedTag = TagEntity(name = "shared")
+            env.tagDao.insert(sharedTag)
+            env.exerciseTagDao.insert(
+                listOf(ExerciseTagEntity(exerciseUuid = exerciseUuid, tagUuid = sharedTag.uuid)),
+            )
+
+            val trainingUuid = Uuid.random()
+            repository.updateTrainingWithPlans(
+                training = TrainingChangeDataModel(
+                    uuid = trainingUuid.toString(),
+                    name = "Push Day",
+                    timestamp = 1_000L,
+                    labels = listOf("shared", "solo"),
+                ),
+                plans = emptyList(),
+            )
+            repository.updateTrainingWithPlans(
+                training = TrainingChangeDataModel(
+                    uuid = trainingUuid.toString(),
+                    name = "Push Day",
+                    timestamp = 2_000L,
+                    labels = emptyList(),
+                ),
+                plans = emptyList(),
+            )
+
+            val tagNames = env.tagDao.observeAll().first().map { it.name }
+            assertEquals(listOf("shared"), tagNames)
+        }
+
+    /**
+     * The transactional guarantee itself, and the test that MUST fail without the
+     * transaction: the plan write throws after the training row and its exercise rows are
+     * already written, and NOTHING survives — no training row, no exercise rows. The mockk
+     * here is the one place the skill allows it: a spy on the real DAO so the sync's own
+     * calls stay real and only the plan update throws, mid-transaction.
+     */
+    @Test
+    fun `updateTrainingWithPlans leaves nothing behind when a plan write throws`() = runTest {
+        val trainingUuid = Uuid.random()
+        val exerciseUuid = Uuid.random()
+        seedLibraryExercise(exerciseUuid, "Bench")
+        val throwingDao = spyk(env.trainingExerciseDao)
+        coEvery { throwingDao.updatePlanSets(any(), any(), any()) } throws
+            IllegalStateException("simulated plan-write failure")
+        val throwingRepository = TrainingRepositoryImpl(
+            dao = env.trainingDao,
+            trainingExerciseDao = throwingDao,
+            tagDao = env.tagDao,
+            trainingTagDao = env.trainingTagDao,
+            sessionDao = env.sessionDao,
+            exerciseRepository = exerciseRepository,
+            ioDispatcher = UnconfinedTestDispatcher(),
+            dbTransition = env.transition,
+        )
+
+        assertThrows(IllegalStateException::class.java) {
+            runBlocking {
+                throwingRepository.updateTrainingWithPlans(
+                    training = TrainingChangeDataModel(
+                        uuid = trainingUuid.toString(),
+                        name = "Push Day",
+                        timestamp = 1_000L,
+                        exerciseUuids = listOf(exerciseUuid.toString()),
+                    ),
+                    plans = listOf(
+                        TrainingRepository.ExercisePlanWrite(
+                            exerciseUuid = exerciseUuid.toString(),
+                            planSets = emptyList(),
+                        ),
+                    ),
+                )
+            }
+        }
+
+        // Rolled back whole: the training row AND the exercise rows the same call wrote.
+        assertNull(env.trainingDao.getById(trainingUuid))
+        assertTrue(env.trainingExerciseDao.getByTraining(trainingUuid).isEmpty())
+    }
 
     private suspend fun seedLibraryExercise(uuid: Uuid, name: String) {
         env.exerciseDao.insert(

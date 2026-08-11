@@ -4,21 +4,18 @@ package io.github.stslex.workeeper.core.data.backup.worker
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
-import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
-import dagger.assisted.Assisted
-import dagger.assisted.AssistedInject
 import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.core.data.backup.api.BackupStorage
 import io.github.stslex.workeeper.core.data.backup.api.SnapshotExportRunner
 import io.github.stslex.workeeper.core.data.backup.api.error.BackupError
 import io.github.stslex.workeeper.core.data.backup.api.model.BackupManifest
+import io.github.stslex.workeeper.core.data.backup.api.notification.BackupNotificationHelper
 import io.github.stslex.workeeper.core.data.backup.api.result.BackupResult
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.AutoBackupController
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupErrorCode
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupPreferencesRepository
-import io.github.stslex.workeeper.core.data.backup.worker.notification.BackupNotificationHelper
 import io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProvider
 import java.io.File
 
@@ -42,10 +39,11 @@ import java.io.File
  * [DatabaseSnapshotProvider.captureSnapshot] which produces a WAL-checkpointed
  * copy in [Context.getCacheDir].
  */
-@HiltWorker
-internal class BackupWorker @AssistedInject constructor(
-    @Assisted appContext: Context,
-    @Assisted workerParams: WorkerParameters,
+// Plain CoroutineWorker constructed directly by MetroWorkerFactory, which reads the 6 app-scope
+// deps from the graph and passes them here.
+internal class BackupWorker(
+    appContext: Context,
+    workerParams: WorkerParameters,
     private val backupStorage: BackupStorage,
     private val snapshotProvider: DatabaseSnapshotProvider,
     private val preferences: BackupPreferencesRepository,

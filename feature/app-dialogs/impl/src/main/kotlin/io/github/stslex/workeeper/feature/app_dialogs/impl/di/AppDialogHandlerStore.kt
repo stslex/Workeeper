@@ -6,4 +6,4 @@ import io.github.stslex.workeeper.feature.app_dialogs.impl.mvi.store.AppDialogSt
 import io.github.stslex.workeeper.feature.app_dialogs.impl.mvi.store.AppDialogStore.Event
 import io.github.stslex.workeeper.feature.app_dialogs.impl.mvi.store.AppDialogStore.State
 
-internal interface AppDialogHandlerStore : HandlerStore<State, Action, Event>
+interface AppDialogHandlerStore : HandlerStore<State, Action, Event>

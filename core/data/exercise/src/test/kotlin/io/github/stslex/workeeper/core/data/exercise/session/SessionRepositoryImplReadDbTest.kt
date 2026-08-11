@@ -156,56 +156,28 @@ internal class SessionRepositoryImplReadDbTest {
     }
 
     @Test
-    fun `observeRecent returns finished sessions ordered desc by finished_at and respects limit`() =
-        runTest {
-            val training = env.seedTraining()
-            val older = env.seedSession(
-                trainingUuid = training.uuid,
-                state = SessionStateEntity.FINISHED,
-                startedAt = 0L,
-                finishedAt = 1_000L,
-            )
-            val middle = env.seedSession(
-                trainingUuid = training.uuid,
-                state = SessionStateEntity.FINISHED,
-                startedAt = 0L,
-                finishedAt = 2_000L,
-            )
-            val newest = env.seedSession(
-                trainingUuid = training.uuid,
-                state = SessionStateEntity.FINISHED,
-                startedAt = 0L,
-                finishedAt = 3_000L,
-            )
-            // In-progress sessions must NOT show up in observeRecent.
-            env.seedSession(trainingUuid = training.uuid)
-
-            val emitted = repository.observeRecent(limit = 2).first()
-
-            assertEquals(2, emitted.size)
-            assertEquals(newest.uuid.toString(), emitted[0].uuid)
-            assertEquals(middle.uuid.toString(), emitted[1].uuid)
-            assertTrue(emitted.none { it.uuid == older.uuid.toString() })
-        }
-
-    @Test
-    fun `observeRecentWithStats returns finished sessions with exercise and set counts`() = runTest {
+    fun `pagedRecentWithStats maps every finished session with its counts, newest first`() = runTest {
+        // Replaces two cases — `observeRecent … respects limit` and `observeRecentWithStats …` —
+        // that between them asserted a ceiling this repository no longer has. The count here is
+        // deliberately ABOVE the old hardcoded ten, because "row eleven is reachable" is the whole
+        // behavioural change and any fixture of ten or fewer passes with the limit still in place.
         val training = env.seedTraining(name = "Push Day", isAdhoc = false)
         val exerciseA = env.seedExercise(name = "Bench")
         val exerciseB = env.seedExercise(name = "Pull")
-        val session = env.seedSession(
+
+        val counted = env.seedSession(
             trainingUuid = training.uuid,
             state = SessionStateEntity.FINISHED,
             startedAt = 1_000L,
-            finishedAt = 2_000L,
+            finishedAt = 100_000L,
         )
         val performedA = env.seedPerformed(
-            sessionUuid = session.uuid,
+            sessionUuid = counted.uuid,
             exerciseUuid = exerciseA.uuid,
             position = 0,
         )
         env.seedPerformed(
-            sessionUuid = session.uuid,
+            sessionUuid = counted.uuid,
             exerciseUuid = exerciseB.uuid,
             position = 1,
             skipped = true,
@@ -213,17 +185,31 @@ internal class SessionRepositoryImplReadDbTest {
         env.seedSet(performedExerciseUuid = performedA.uuid, position = 0)
         env.seedSet(performedExerciseUuid = performedA.uuid, position = 1)
 
-        val emitted = repository.observeRecentWithStats(limit = 5).first()
+        repeat(RECENT_FIXTURE_SIZE) { index ->
+            env.seedSession(
+                trainingUuid = training.uuid,
+                state = SessionStateEntity.FINISHED,
+                startedAt = 0L,
+                finishedAt = (index + 1) * 1_000L,
+            )
+        }
+        // In-progress must not appear: it is Home's banner, not its list.
+        env.seedSession(trainingUuid = training.uuid)
 
-        assertEquals(1, emitted.size)
-        val row = emitted.single()
-        assertEquals(session.uuid.toString(), row.sessionUuid)
+        val snapshot = repository.pagedRecentWithStats().asSnapshot()
+
+        assertEquals(RECENT_FIXTURE_SIZE + 1, snapshot.size)
+        val finishedAts = snapshot.map { it.finishedAt }
+        assertEquals(finishedAts.sortedDescending(), finishedAts)
+
+        val row = snapshot.first()
+        assertEquals(counted.uuid.toString(), row.sessionUuid)
         assertEquals("Push Day", row.trainingName)
         assertEquals(false, row.isAdhoc)
-        assertEquals(2_000L, row.finishedAt)
-        // Skipped performed_exercise row excluded.
+        assertEquals(100_000L, row.finishedAt)
+        // Skipped performed_exercise row excluded from exercise_count...
         assertEquals(1, row.exerciseCount)
-        // Both sets land under the non-skipped performed exercise.
+        // ...while both sets still land under the non-skipped one.
         assertEquals(2, row.setCount)
     }
 
@@ -482,4 +468,10 @@ internal class SessionRepositoryImplReadDbTest {
             ),
         ) as PagingSource.LoadResult.Page
         ).data
+
+    private companion object {
+
+        /** Above the ten the replaced query was capped at — see the case that uses it. */
+        const val RECENT_FIXTURE_SIZE = 12
+    }
 }

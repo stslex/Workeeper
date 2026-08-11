@@ -1,29 +1,40 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="core_ui_kit_action_cancel">Отмена</string>
     <string name="core_ui_kit_action_save">Сохранить</string>
     <string name="core_ui_kit_action_back">Назад</string>
-    <string name="core_ui_kit_more_description">More</string>
 
     <string name="feature_exercise_detail_type_weighted">С весом</string>
     <string name="feature_exercise_detail_type_weightless">Без веса</string>
 
     <string name="core_ui_kit_plan_editor_title_format">%1$s · план</string>
     <string name="core_ui_kit_plan_editor_title_default">План</string>
-    <string name="core_ui_kit_plan_editor_subtitle">Сеты подставятся в Live-тренировке. Записанные сеты обновят план.</string>
+    <string name="core_ui_kit_plan_editor_subtitle">Подходы подставятся в Live-тренировке. Записанные подходы обновят план.</string>
     <string name="core_ui_kit_plan_editor_unit_kg">кг</string>
     <string name="core_ui_kit_plan_editor_unit_reps">повт</string>
-    <string name="core_ui_kit_plan_editor_add_set">+ Добавить сет</string>
-    <string name="core_ui_kit_plan_editor_remove_set">Удалить сет</string>
+    <string name="core_ui_kit_plan_editor_unit_reps_full">повторений</string>
     <string name="core_ui_kit_plan_editor_set_type_warmup">Разминка</string>
     <string name="core_ui_kit_plan_editor_set_type_work">Рабочий</string>
     <string name="core_ui_kit_plan_editor_set_type_failure">Отказ</string>
     <string name="core_ui_kit_plan_editor_set_type_drop">Дроп</string>
-    <string name="core_ui_kit_plan_editor_empty_hint">Сетов пока нет — нажмите «Добавить сет», чтобы создать план.</string>
+    <!-- Первая буква названия: Разминка / Отказ / Дроп. Рабочий подход буквой не обозначается. -->
+    <string name="core_ui_kit_set_type_mark_warmup">Р</string>
+    <string name="core_ui_kit_set_type_mark_failure">О</string>
+    <string name="core_ui_kit_set_type_mark_drop">Д</string>
+    <string name="core_ui_kit_reorder_move_up">Переместить вверх</string>
+    <string name="core_ui_kit_reorder_move_down">Переместить вниз</string>
+    <string name="core_ui_kit_setbar_add">+ подход</string>
+    <string name="core_ui_kit_setbar_remove">− подход</string>
+    <string name="core_ui_kit_discard_sheet_title">Выйти без сохранения?</string>
+    <string name="core_ui_kit_discard_sheet_body">Несохранённые правки будут потеряны.</string>
+    <string name="core_ui_kit_discard_sheet_confirm">Выйти без сохранения</string>
+    <string name="core_ui_kit_discard_sheet_dismiss">Продолжить правку</string>
+    <string name="core_ui_kit_field_error">Ошибка ввода</string>
+    <string name="core_ui_kit_plan_editor_empty_hint">Подходов пока нет — нажмите «Добавить подход», чтобы создать план.</string>
 
     <string name="core_ui_kit_active_session_conflict_title">Активная тренировка</string>
     <string name="core_ui_kit_active_session_conflict_body_format">%1$s — %2$s</string>
-    <string name="core_ui_kit_active_session_conflict_warning">Записанные сеты будут потеряны при удалении.</string>
+    <string name="core_ui_kit_active_session_conflict_warning">Записанные подходы будут потеряны при удалении.</string>
     <string name="core_ui_kit_active_session_conflict_resume">Продолжить</string>
     <string name="core_ui_kit_active_session_conflict_delete_and_start">Удалить и начать новую</string>
 
@@ -31,9 +42,21 @@
     <string name="core_ui_kit_discard_session_confirm_warning">Сессия будет удалена. Отменить нельзя.</string>
     <string name="core_ui_kit_discard_session_confirm_delete">Удалить</string>
 
+    <string name="core_ui_kit_record_label">Рекорд</string>
     <string name="core_ui_kit_pr_explainer_title">Личный рекорд</string>
     <string name="core_ui_kit_pr_explainer_body">Самый тяжёлый подход этого упражнения за все завершённые сессии.</string>
     <string name="core_ui_kit_pr_explainer_confirm">Понятно</string>
 
     <string name="core_ui_kit_reorderable_drag_handle">Переставить</string>
+
+    <string name="core_ui_kit_sheet_close">Закрыть</string>
+
+    <!-- One tag picker, one table (ED7): the form row's add chip, the sheet's own copy. -->
+    <string name="core_ui_kit_tag_sheet_title">Теги</string>
+    <string name="core_ui_kit_tag_search_hint">Поиск тегов…</string>
+    <string name="core_ui_kit_tag_create_format">+ Создать «%1$s»</string>
+    <string name="core_ui_kit_tag_done">Готово</string>
+    <string name="core_ui_kit_tag_add_chip">+ тег</string>
+    <string name="core_ui_kit_tag_remove_description">Убрать тег</string>
+    <string name="core_ui_kit_toast_undo" tools:ignore="DuplicateStrings">Отменить</string>
 </resources>

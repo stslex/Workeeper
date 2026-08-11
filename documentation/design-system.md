@@ -163,56 +163,40 @@ Status — Info:     uses text secondary (low key).
 
 ### Typography
 
-Single font family token. Inter loaded via Google Fonts with system
-fallback chain.
+**Stale as written; superseded by the v3 type system.** This section described a
+single Inter family fetched through `GoogleFont.Provider` at two weights, and a
+fifteen-slot Material scale with its own sizes. None of that is what ships. It is
+replaced rather than patched because the shape changed, not only the numbers.
 
-```
-fontFamily token: AppTypography.fontFamily
-  default = FontFamily(GoogleFont("Inter")) with fallback FontFamily.SansSerif
+What ships now, and where to read it:
 
-Two weights only:
-  regular = FontWeight.Normal (400)
-  medium  = FontWeight.Medium (500)
+- **`core/ui/kit/.../theme/AppTypography.kt`** is the source of truth — three
+  bundled families, six sizes, and the fifteen Material names as *aliases* onto
+  those six. Nothing is fetched at runtime.
+- **`core/ui/kit/licenses/README.md`** carries the font provenance: which cut of
+  which family, its hash, and why that cut.
+- **`documentation/feature-specs/v3-redesign-spec.md` §4** is the contract for the
+  scale itself; the mockups are the contract for appearance.
 
-No bold (700) anywhere in the app. Weight contrast comes from 400/500.
-```
+| family | slots | weights |
+| --- | --- | --- |
+| IBM Plex Sans | everything that is words | 400 / 500 / 600 |
+| Archivo (`wdth 116 / wght 700`) | numerals and the timer, nothing else | 700 |
+| IBM Plex Mono | units and metadata | 400 / 500 / 600 |
 
-#### Type scale
+Scale: **34 / 26 / 19 / 15 / 12.5 / 11**. The three heading rungs (34 / 26 / 19)
+are set in 600; the rest in 400. `text.title` carries `-0.39sp` of tracking and no
+other `(family, rung)` pair carries any, beyond the 0.5sp on every caption rung.
 
-Maps directly to Material 3 typography slots (so M3 components pick
-them up automatically), but with values calibrated for calm dense
-density — slightly smaller than M3 defaults, slightly tighter
-line-height.
+Two constraints that are enforced rather than documented:
 
-```
-displayLarge        — unused (kept at M3 default for completeness)
-displayMedium       — unused
-displaySmall        — unused
-headlineLarge       — 28sp / 36sp / 500   — only used in onboarding (not v1)
-headlineMedium      — 22sp / 28sp / 500   — full-screen titles (Stats — v2)
-headlineSmall       — 20sp / 26sp / 500   — Exercise detail name, screen heroes
-titleLarge          — 18sp / 24sp / 500   — section headers, dialog titles
-titleMedium         — 16sp / 22sp / 500   — TopAppBar title, list emphasis
-titleSmall          — 14sp / 20sp / 500   — secondary titles
-bodyLarge           — 16sp / 22sp / 400   — main body text (rare)
-bodyMedium          — 14sp / 20sp / 400   — primary body in lists, descriptions
-bodySmall           — 13sp / 18sp / 400   — meta info, captions
-labelLarge          — 14sp / 20sp / 500   — primary buttons
-labelMedium         — 12sp / 16sp / 500   — chips, secondary buttons
-labelSmall          — 11sp / 14sp / 500   — pills, badges, section eyebrows
-```
-
-Letter spacing follows M3 defaults except section eyebrows
-(`labelSmall` used as `text-transform: uppercase` headers) which use
-`letterSpacing = 0.6sp` and `letterSpacing = 0.5sp` for the smallest
-labels — these are the only places where letter spacing is touched.
-
-#### Tabular numbers
-
-Set entry rows, weight values, rep counts use `fontFeatureSettings =
-"tnum"`. Numbers stay column-aligned when values change. Critical for
-Live workout. Implementation: extension `Modifier.tabularNumbers()`
-or wrap in a `TextStyle.copy(fontFeatureSettings = "tnum")`.
+- **Archivo takes digits and `: . , - + / %` only, never a `stringResource`** — it
+  has no Cyrillic. Guarded by `NumericFontFamilyOnLocalizedTextRule` and
+  `CyrillicTextGoldenTest`.
+- **Every numeric slot sets `fontFeatureSettings = "tnum"`** — Archivo's digits are
+  proportional. Guarded by `TnumCanaryGoldenTest` and `AppTypographyContractTest`.
+  Note that the same setting on an IBM Plex style is a **no-op**: neither Plex
+  family ships a `tnum` feature, being tabular by default already.
 
 ### Spacing (`AppDimension`)
 
@@ -258,8 +242,8 @@ Component heights (unified — every component pulls from this set
 instead of declaring its own height inline):
 
 ```
-heightXs = 32.dp     — small button, dense list rows, segmented
-heightSm = 40.dp     — medium button, default list item, chip row
+heightXs = 32.dp     — small button, dense list rows, segment button
+heightSm = 40.dp     — medium button, default list item, chip row, segmented track
 heightMd = 48.dp     — large button, number input, primary CTA
 heightLg = 56.dp     — text field, TopAppBar (M3 standard)
 heightXl = 64.dp     — BottomBar, modal headers (M3 standard)
@@ -273,9 +257,11 @@ Component-specific notes:
   Live workout where target size matters).
 - AppTextField — heightLg (M3 default).
 - AppTopAppBar — heightLg.
-- AppBottomBar — uses M3 NavigationBar default (80dp in M3 v1.2+),
-  no override.
-- AppSegmentedControl — heightXs (slightly compact).
+- AppNavBar — 56dp of content (heightMd pill + 2 x Space.xs padding,
+  the drawn 60px derived the same way `.topbar`'s was) plus the
+  navigation-bar inset. Was `AppBottomBar` at the M3 NavigationBar
+  default; both that component and its 80dp are gone.
+- AppSegmentedControl — heightSm track (40dp) = heightXs segment (32dp) + 2 x Space.xs padding.
 
 ### Shape (corner radius)
 
@@ -460,21 +446,34 @@ Visual: AppShapes.medium, border-only (no fill), surface tier 0 fill
 
 ### 4. AppNumberInput
 
-Specialized for weight / reps in Live workout. Large tap target,
-large numbers, optimized keyboard.
+The mockup's `.field` — a value and its unit on a recessed panel
+(extraction §1.6). Specialized for weight / reps in Live workout and
+the past-session read-back. Large tap target, large numbers, optimized
+keyboard.
 
 ```
 package: io.github.stslex.workeeper.core.ui.kit.components.input
 
-API: AppNumberInput(value, onValueChange, decimals = 0, suffix = null,
-                    modifier, enabled = true)
+API: AppNumberInput(value, onValueChange, modifier, decimals = 0,
+                    suffix = null, enabled = true, isError = false,
+                    isRecord = false, isDone = false, isLogged = false)
 
 Visual:
   height: AppDimension.heightMd (48.dp)
-  text: titleLarge, tabularNumbers
-  background: surface tier 2
-  shape: AppShapes.small
-  suffix display ("kg", "reps") — tertiary text trailing inside the field
+  text: AppTypography.dataValue (26sp Archivo wdth 116 / wght 700);
+        values longer than 3 glyphs step down to numeric.section
+        (19sp bold) instead of clipping
+  value color: textTertiary resting → textPrimary when isDone or
+        isLogged → record.textPrimary when isRecord (record wins)
+  background: surface tier 3 (field); the isDone `donefill` and
+        isRecord `record.background` washes REPLACE the tier
+        (isLogged keeps the plain tier — colour without the wash)
+  shape: RoundedCornerShape(AppDimension.Radius.small) (8.dp)
+  border: none by default (recessed by tier alone); hairline
+        status.error outline when isError
+  suffix display ("kg", "reps") — mono.caption trailing inside the
+        field; textDim resting, promotes to textSecondary over the
+        isDone / isRecord washes
 
 KeyboardOptions:
   decimals = 0 → KeyboardType.Number
@@ -584,22 +583,41 @@ Visual:
     scrolls under (via M3 scrollBehavior)
 ```
 
-### 11. AppBottomBar
+### 11. AppNavBar
 
-3-tab bottom navigation. Hardcoded structure (Home / Trainings /
-Exercises) — not a generic component, but lives in the kit because
-it's used app-wide.
+3-destination bottom navigation, **icon-only**. The v3 rebuild
+(`pass2d.html` `#s-nav`, the `.nb.track.slide` variant) — see
+v3-redesign-spec §26 "Bottom navigation" and "Nav pill motion".
+
+Replaces `AppBottomBar` **and** app/app's `WorkeeperBottomAppBar`;
+both are deleted. The destination model deliberately did **not** move
+into the kit with the treatment: the kit cannot reach
+`core:ui:navigation` or app/app's string resources, which is why the
+old kit-resident `AppBottomBarDestination` shipped hardcoded English
+labels in a Russian app. `BottomBarItem` stays in app/app and passes
+resolved icons and strings down.
 
 ```
-package: io.github.stslex.workeeper.core.ui.kit.components.bottombar
+package: io.github.stslex.workeeper.core.ui.kit.components.navbar
 
-API: AppBottomBar(currentDestination, onDestinationChange, modifier)
+API: AppNavBar(items, selectedIndex, onSelect, modifier)
+     AppNavBarItem(icon, contentDescription, testTag)
 
 Visual:
-  height: M3 NavigationBar default (80.dp in M3 v1.2+)
-  background: surface tier 0 with border subtle on top
-  active tab: accent tint, label visible
-  inactive tab: text tertiary, label visible (always show labels)
+  height: 56dp (heightMd 48 pill + 2 x Space.xs) + navigation-bar inset
+          — the drawn 60px derived, exactly as .topbar's identical 60px was
+  background: surface tier 1 (--sec), hairline (borderSubtle) on top edge
+  active: icon textPrimary on a lifted surfaceTier2 pill (liftedSurface)
+  inactive: icon textTertiary, no container
+  glyphs: iconMd, AppIcons.Home / .Trainings / .Exercises
+          (the latter two are the empty-state marks, one vector each)
+
+Motion:
+  pill offset 340ms out (transit); scaleX gel peak 1 + 0.30 x k at 42%,
+  transform-origin on the leading edge (character, §26 ledger)
+
+Haptics: none. The caller fires SegmentTick, matching every other
+         haptic in the app.
 ```
 
 ### 12. AppBottomSheet
@@ -715,12 +733,13 @@ API: AppSegmentedControl(items, selected, onSelectedChange, modifier)
 where items is a List of text labels.
 
 Visual:
-  height: AppDimension.heightXs (32.dp)
+  track height: AppDimension.heightSm (40.dp) = heightXs + 2 x Space.xs
+  segment height: AppDimension.heightXs (32.dp)
   shape: AppShapes.small
   background: surface tier 1
-  selected segment: accent tinted bg, accent text
+  selected segment: liftedSurface (surfaceTier2 + slabtop), accent tinted foreground
   unselected: text tertiary
-  divider between segments: border subtle
+  gap between segments: Space.xs (4.dp), no rule
 ```
 
 ### 19. AppSnackbar
@@ -821,7 +840,7 @@ core/ui/kit/
     theme/
       AppTheme.kt           — composable AppTheme { content }
       AppColors.kt          — data class + provideAppColors()
-      AppTypography.kt      — Inter font family + 13-slot type scale
+      AppTypography.kt      — three bundled families, six sizes, 15 M3 aliases
       AppDimension.kt       — extended with semantic aliases
       AppShapes.kt          — small/medium/large
       AppMotion.kt          — durations + easings
@@ -842,7 +861,7 @@ core/ui/kit/
       tag/AppTagChip.kt
       tag/AppTagPicker.kt
       topbar/AppTopAppBar.kt
-      bottombar/AppBottomBar.kt
+      navbar/AppNavBar.kt
       sheet/AppBottomSheet.kt
       fab/AppFAB.kt
       loading/AppLoadingIndicator.kt
@@ -864,7 +883,11 @@ AppTheme(darkTheme = isSystemInDarkTheme()) {
 val colors = LocalAppColors.current        // semantic colors
 val typography = LocalAppTypography.current
 val motion = LocalAppMotion.current
-val dimension = LocalAppDimension.current  // already exists
+
+// Spacing/radius are NOT a CompositionLocal: `AppDimension` is a plain
+// object, read directly (e.g. `AppDimension.Radius.largest`). There is no
+// `LocalAppDimension`.
+val radius = AppDimension.Radius.largest
 
 Text(
     text = "Sample",
@@ -914,6 +937,10 @@ Implement Workeeper design system v1 per documentation/design-system.md.
 GOAL
 Replace and extend `core/ui/kit/theme/` with the full token system from the spec, and create 20 shared components under `core/ui/kit/components/`. Wire AppTheme to expose both Material 3 (via MaterialTheme) and custom App tokens (via CompositionLocal).
 
+**Historical.** What follows is the prompt that built the v1 kit, kept as a record of how it
+was specified. It names Inter, `GoogleFont.Provider` and a 13-slot scale, none of which has
+shipped since #177 — read it as an account of the past, not as instructions.
+
 PROCESS — TWO PASSES
 
 PASS 1 — TOKENS AND THEME
@@ -946,7 +973,7 @@ Goal: implement the 20 shared components.
    - Have `internal` visibility on private composables; `public` on the entry-point composable.
    - Follow existing project naming and detekt rules.
 3. AppDatePickerDialog — copy logic from the two current implementations (feature/single-training, feature/exercise), unify to one file, delete the originals from feature modules and update their imports.
-4. AppBottomBar — encode the 3-destination structure (Home / Trainings / Exercises). Destinations and icons are hard-coded in the kit (not configurable). When a feature module needs the bottom bar, it just calls `AppBottomBar()`.
+4. ~~AppBottomBar — encode the 3-destination structure (Home / Trainings / Exercises). Destinations and icons are hard-coded in the kit (not configurable). When a feature module needs the bottom bar, it just calls `AppBottomBar()`.~~ **Superseded, and this instruction is the origin of a shipped defect — kept struck through rather than deleted so the reason survives.** Hard-coding the destinations in the kit is exactly what forced English literal labels: the kit reaches neither `core:ui:navigation` (for `Screen.BottomBar`) nor app/app's `R.string.bottom_bar_label_*`. The rebuilt `AppNavBar` (§11) takes destinations as a parameter and `BottomBarItem` stays in app/app. No feature module calls it — the host does.
 5. Verify all components compile and previews render: `./gradlew :core:ui:kit:assembleDebug`.
 6. Run `./gradlew detekt lintDebug` — pass.
 7. STOP and report.

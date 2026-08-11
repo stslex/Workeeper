@@ -2,17 +2,19 @@
 package io.github.stslex.workeeper.core.data.database_test
 
 import android.content.Context
-import androidx.room.Room
+import androidx.room3.Room
+import androidx.sqlite.driver.AndroidSQLiteDriver
 import io.github.stslex.workeeper.core.data.database.AppDatabase
 
 /**
  * androidTest-side counterpart to `RepositoryTestEnv`.
  *
  * Builds an in-memory `AppDatabase` for instrumentation tests that need a real Room
- * stack injected through Hilt. `RepositoryTestEnv` lives in
- * `core/data/database/src/testFixtures/` and serves Robolectric-based repository unit
- * tests; this provider serves on-device androidTest consumers via
- * [io.github.stslex.workeeper.core.data.database_test.di.TestDatabaseModule].
+ * stack. `RepositoryTestEnv` lives in `core/data/database/src/testFixtures/` and serves
+ * Robolectric-based repository unit tests; this provider serves on-device androidTest
+ * consumers. App-Scope Collapse Step 6 (Phase 3.2): the Metro test harness passes the
+ * instance this returns as the `appDatabase` `create()` bound-instance root via
+ * `buildAppGraph(...)` (previously the deleted Hilt `TestDatabaseModule`).
  */
 object InMemoryDatabaseProvider {
 
@@ -21,6 +23,7 @@ object InMemoryDatabaseProvider {
             context,
             AppDatabase::class.java,
         )
+        .setDriver(AndroidSQLiteDriver())
         .allowMainThreadQueries()
         .build()
 }

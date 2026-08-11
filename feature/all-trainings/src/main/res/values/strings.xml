@@ -1,16 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="feature_all_trainings_title">Trainings</string>
-    <string name="feature_all_trainings_empty_headline">No trainings yet</string>
-    <string name="feature_all_trainings_empty_supporting">Tap + to create your first training</string>
+    <string name="feature_all_trainings_empty_headline">Your trainings will appear here</string>
+    <string name="feature_all_trainings_empty_supporting">Build a template in advance, or start an empty one and add exercises as you go.</string>
     <string name="feature_all_trainings_fab_create">Create training</string>
-    <string name="feature_all_trainings_chevron_description">Open training</string>
 
     <string name="feature_all_trainings_status_in_progress_format">in progress · started %1$s ago</string>
     <string name="feature_all_trainings_status_last_format">last: %1$s</string>
     <string name="feature_all_trainings_status_never">never trained</string>
-    <string name="feature_all_trainings_active_pill">Active</string>
-    <string name="feature_all_trainings_overflow_format">+%1$d</string>
 
     <string name="feature_all_trainings_relative_just_now">just now</string>
     <string name="feature_all_trainings_relative_minutes_format">%1$dm</string>
@@ -39,4 +36,22 @@
         <item quantity="other">%d trainings will move to archive. Restore from Settings → Archive.</item>
     </plurals>
     <string name="feature_all_trainings_bulk_archive_impact">Reversible · history preserved</string>
+    <string name="feature_all_trainings_paging_loading">Loading</string>
+    <string name="feature_all_trainings_paging_error">Couldn’t load more</string>
+    <string name="feature_all_trainings_paging_retry">Retry</string>
+    <string name="feature_all_trainings_empty_create">Create a training</string>
+    <string name="feature_all_trainings_empty_start_blank">Start an empty training</string>
+
+    <!--
+      §26 "List states reached by an action" — PROPOSED, drawn in `#s-empty`, awaiting the device
+      pass. Neither block takes a glyph: the tile is the discriminator between "empty by itself"
+      and "you arrived here by an action you can undo". Filtered-to-empty has no supporting
+      sentence because the filter is OR, so "remove a tag" cannot recover and there is no honest
+      instruction to put in the slot.
+    -->
+    <string name="feature_all_trainings_filtered_empty_headline">Nothing matches these tags</string>
+    <string name="feature_all_trainings_filtered_empty_clear">Clear filter</string>
+    <string name="feature_all_trainings_selection_empty_headline">Nothing here, but your selection is kept</string>
+    <string name="feature_all_trainings_selection_empty_supporting">Your selection stays until you leave selection mode.</string>
+    <string name="feature_all_trainings_refresh_error">Couldn’t load the list</string>
 </resources>

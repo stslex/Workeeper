@@ -9,10 +9,24 @@ import androidx.compose.runtime.Stable
  * never in a local Composable `var ... by remember`, and never as an `Event`.
  */
 @Stable
-internal sealed interface DialogState {
+sealed interface DialogState {
 
     @Stable
     data object Hidden : DialogState
+
+    /**
+     * Leave without saving? — the discard sheet.
+     *
+     * **The discard confirmation is a VARIANT of this field and must never be a `Boolean` beside
+     * it.** A second modal channel makes "discard sheet and type-change sheet open at once" a
+     * representable state, and the screen would draw both; one sealed field makes it
+     * unrepresentable, which is what the `mvi-dialog-state` skill is for (§26).
+     *
+     * It carries no payload: the sheet's four strings live in the kit, one table for all three
+     * editors (`core_ui_kit_discard_sheet_*`).
+     */
+    @Stable
+    data object DiscardConfirm : DialogState
 
     /**
      * "Switching to weightless will clear weights on N plan rows" confirmation. The

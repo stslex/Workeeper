@@ -5,40 +5,42 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.SwapHoriz
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import io.github.stslex.workeeper.core.ui.kit.components.loading.AppLoadingIndicator
-import io.github.stslex.workeeper.core.ui.kit.components.tooltip.AppTooltip
-import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopAppBar
+import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppIconButton
+import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopBar
+import io.github.stslex.workeeper.core.ui.kit.icons.AppIcons
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.R
+import io.github.stslex.workeeper.feature.exercise_chart.mvi.mapper.ChartReadoutMapper
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartFooterStatsUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartPointUiModel
-import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartTooltipUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ExercisePickerItemUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.Action
+import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.Content
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.EmptyReason
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.State
 import io.github.stslex.workeeper.feature.exercise_chart.ui.components.ChartCanvas
 import io.github.stslex.workeeper.feature.exercise_chart.ui.components.ChartEmptyState
 import io.github.stslex.workeeper.feature.exercise_chart.ui.components.ChartFooterStats
+import io.github.stslex.workeeper.feature.exercise_chart.ui.components.ChartReadout
+import io.github.stslex.workeeper.feature.exercise_chart.ui.components.ExerciseHeader
 import io.github.stslex.workeeper.feature.exercise_chart.ui.components.ExercisePickerSheet
-import io.github.stslex.workeeper.feature.exercise_chart.ui.components.MetricToggle
+import io.github.stslex.workeeper.feature.exercise_chart.ui.components.MetricTabs
 import io.github.stslex.workeeper.feature.exercise_chart.ui.components.PresetChipsRow
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
@@ -60,7 +62,18 @@ internal fun ExerciseChartScreen(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.Top,
         ) {
-            ChartTopBar(state = state, consume = consume)
+            ChartTopBar(consume = consume)
+
+            // The switcher lives below the topbar, not in it (extraction §4.2's hint: the
+            // title is large and the topbar's one arrow means back). No exercise → no header;
+            // the EXERCISE_NOT_FOUND empty state carries the picker affordance instead.
+            state.selectedExercise?.let { exercise ->
+                ExerciseHeader(
+                    name = exercise.name,
+                    actionLabel = stringResource(R.string.feature_exercise_chart_picker_open),
+                    onClick = { consume(Action.Click.OnPickerOpen) },
+                )
+            }
 
             Box(modifier = Modifier.weight(1f)) {
                 ChartContent(state = state, consume = consume)
@@ -71,6 +84,8 @@ internal fun ExerciseChartScreen(
             ExercisePickerSheet(
                 items = state.recentExercises,
                 selectedUuid = state.selectedExercise?.uuid,
+                query = state.pickerQuery,
+                onQueryChange = { consume(Action.Click.OnPickerQueryChange(it)) },
                 onDismiss = { consume(Action.Click.OnPickerDismiss) },
                 onItemSelect = { consume(Action.Click.OnPickerItemSelect(it)) },
             )
@@ -78,45 +93,26 @@ internal fun ExerciseChartScreen(
     }
 }
 
+/**
+ * The v3 `.topbar` (extraction §4.1): back · spacer · nothing. No title — the exercise name
+ * is the `.exhead` below. The mockup draws a trailing `⋮` with no handler and no drawn
+ * target (§4.9: "no target drawn"), and the feature has no menu action to put behind one —
+ * a dead control conforms to nothing, so the slot ships empty. Reported with the PR.
+ */
 @Composable
 private fun ChartTopBar(
-    state: State,
     consume: (Action) -> Unit,
 ) {
-    AppTopAppBar(
-        title = state.selectedExercise?.name
-            ?: stringResource(R.string.feature_exercise_chart_title),
-        navigationIcon = {
-            IconButton(
+    AppTopBar(
+        navigation = {
+            AppIconButton(
+                icon = AppIcons.ChevronLeft,
+                contentDescription = stringResource(
+                    io.github.stslex.workeeper.core.ui.kit.R.string.core_ui_kit_action_back,
+                ),
                 onClick = { consume(Action.Click.OnBack) },
                 modifier = Modifier.testTag("ExerciseChartBack"),
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = stringResource(R.string.feature_exercise_chart_back),
-                )
-            }
-        },
-        actions = {
-            // Picker stays accessible whenever there is anything to pick from — including
-            // the EXERCISE_NOT_FOUND and NO_DATA_FOR_EXERCISE empty branches, where the
-            // picker is the user's recovery path.
-            if (state.isPickerAccessible) {
-                // Tooltip on long-press explains the action — the swap icon alone has
-                // historically been opaque to users (spec 5.6, sort-button affordance).
-                val pickerLabel = stringResource(R.string.feature_exercise_chart_picker_open)
-                AppTooltip(text = pickerLabel) {
-                    IconButton(
-                        onClick = { consume(Action.Click.OnPickerOpen) },
-                        modifier = Modifier.testTag("ExerciseChartPickerOpen"),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.SwapHoriz,
-                            contentDescription = pickerLabel,
-                        )
-                    }
-                }
-            }
+            )
         },
     )
 }
@@ -126,26 +122,34 @@ private fun ChartContent(
     state: State,
     consume: (Action) -> Unit,
 ) {
-    when {
-        state.isLoading && state.points.isEmpty() && state.emptyReason == null -> Box(
+    // One branch on one resolved decision (State.content). The canvas is reachable only
+    // through Content.Plot, which State refuses to produce for an unplottable dataset —
+    // there is no arrangement of fields here that can put an empty chart on screen.
+    when (val content = state.content) {
+        Content.Loading -> Box(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center,
         ) {
             AppLoadingIndicator()
         }
 
-        state.emptyReason != null -> EmptyContent(state = state, consume = consume)
+        is Content.Empty -> EmptyContent(
+            reason = content.reason,
+            state = state,
+            consume = consume,
+        )
 
-        else -> ChartPopulated(state = state, consume = consume)
+        Content.Plot -> ChartPopulated(state = state, consume = consume)
     }
 }
 
 @Composable
 private fun EmptyContent(
+    reason: EmptyReason,
     state: State,
     consume: (Action) -> Unit,
 ) {
-    when (state.emptyReason) {
+    when (reason) {
         EmptyReason.NO_FINISHED_SESSIONS -> ChartEmptyState(
             modifier = Modifier
                 .fillMaxSize()
@@ -183,8 +187,6 @@ private fun EmptyContent(
                 testTag = "ExerciseChartNoDataForExercise",
             )
         }
-
-        null -> Unit
     }
 }
 
@@ -193,32 +195,28 @@ private fun ChartPopulated(
     state: State,
     consume: (Action) -> Unit,
 ) {
-    // Window comes from FoldResult via State so the canvas reflects whatever the mapper
-    // decided — including the ±14d sparse-data tightening for the ALL preset. Falling back
-    // to the points' own min/max only matters during the brief load gap before the first
-    // FoldResult lands.
-    val windowStartDay = state.windowStartDay
-        ?: state.points.minOfOrNull { it.day }
-        ?: return
-    val windowEndDay = state.windowEndDay
-        ?: state.points.maxOfOrNull { it.day }
-        ?: return
+    // The record marking is derived, not stored: one source (the mapper's argmax) feeds the
+    // readout's flag and the canvas's molten point alike.
+    val recordIndex = remember(state.points) { ChartReadoutMapper.recordIndex(state.points) }
 
-    Column(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(AppDimension.Space.md),
-    ) {
+    // The mockup's vertical rhythm, spelled per element rather than one spacedBy: ranges
+    // margin-bottom 14px + readout padding-top 18px = 32px → xxl (sum-of-parts, §0.2),
+    // chartwrap margin-top 14px → md, statrows margin-top 26px → xl.
+    Column(modifier = Modifier.fillMaxSize()) {
         ChartControls(state = state, consume = consume)
+        state.readout?.let { readout ->
+            Spacer(modifier = Modifier.height(AppDimension.Space.xxl))
+            ChartReadout(readout = readout)
+        }
+        Spacer(modifier = Modifier.height(AppDimension.Space.md))
         ChartCanvas(
             points = state.points,
-            activeTooltip = state.activeTooltip,
-            windowStartDay = windowStartDay,
-            windowEndDay = windowEndDay,
-            onPointTap = { consume(Action.Click.OnPointTap(it)) },
-            onCanvasTap = { consume(Action.Click.OnTooltipDismiss) },
-            onTooltipTap = { consume(Action.Click.OnTooltipTap) },
+            activeIndex = state.activeIndex,
+            recordIndex = recordIndex,
+            onScrub = { consume(Action.Click.OnScrub(it)) },
         )
         state.footerStats?.let { stats ->
+            Spacer(modifier = Modifier.height(AppDimension.Space.xl))
             ChartFooterStats(stats = stats)
         }
     }
@@ -229,21 +227,25 @@ private fun ChartControls(
     state: State,
     consume: (Action) -> Unit,
 ) {
+    // Mockup order (§4.1): .tabs above .ranges — metric first, window second. 16dp of air
+    // ABOVE the block (`.tabs{margin:16px gutter 0}`; with tabs gated away the ranges'
+    // inline `margin-top:16px` plays the same role), 16dp between tabs and ranges (the
+    // inline override), still gated WEIGHTED (spec §11).
     Column(
-        verticalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
+        modifier = Modifier.padding(top = AppDimension.Space.lg),
+        verticalArrangement = Arrangement.spacedBy(AppDimension.Space.lg),
     ) {
+        if (state.showMetricToggle) {
+            MetricTabs(
+                modifier = Modifier.padding(horizontal = AppDimension.screenEdge),
+                selected = state.metric,
+                onSelect = { consume(Action.Click.OnMetricSelect(it)) },
+            )
+        }
         PresetChipsRow(
             selected = state.preset,
             onSelect = { consume(Action.Click.OnPresetSelect(it)) },
         )
-        if (state.showMetricToggle) {
-            Box(modifier = Modifier.padding(horizontal = AppDimension.screenEdge)) {
-                MetricToggle(
-                    selected = state.metric,
-                    onSelect = { consume(Action.Click.OnMetricSelect(it)) },
-                )
-            }
-        }
     }
 }
 
@@ -287,21 +289,20 @@ private fun ExerciseChartScreenPopulatedPreview() {
                     ExercisePickerItemUiModel("uuid-2", "Squat", ExerciseTypeUiModel.WEIGHTED),
                 ),
                 points = listOf(
-                    ChartPointUiModel(LocalDate.of(2026, 4, 5), 0L, 80.0, "s1", 80.0, 5, 1),
-                    ChartPointUiModel(LocalDate.of(2026, 4, 12), 0L, 90.0, "s2", 90.0, 5, 1),
-                    ChartPointUiModel(LocalDate.of(2026, 4, 19), 0L, 95.0, "s3", 95.0, 5, 1),
-                    ChartPointUiModel(LocalDate.of(2026, 4, 26), 0L, 105.0, "s4", 105.0, 3, 2),
+                    ChartPointUiModel(LocalDate.of(2026, 4, 5), 0L, 80.0, 1),
+                    ChartPointUiModel(LocalDate.of(2026, 4, 12), 0L, 90.0, 1),
+                    ChartPointUiModel(LocalDate.of(2026, 4, 19), 0L, 95.0, 1),
+                    ChartPointUiModel(LocalDate.of(2026, 4, 26), 0L, 105.0, 2),
                 ).toImmutableList(),
                 footerStats = ChartFooterStatsUiModel(
-                    minTitle = "Min",
-                    minValue = "80 kg",
-                    maxTitle = "Max",
-                    maxValue = "105 kg",
+                    minTitle = "Minimum",
+                    minValue = "80",
+                    maxTitle = "Maximum",
+                    maxValue = "105",
                     lastTitle = "Last",
-                    lastValue = "105 kg",
+                    lastValue = "105",
+                    unit = "kg",
                 ),
-                windowStartDay = LocalDate.of(2026, 4, 5),
-                windowEndDay = LocalDate.of(2026, 5, 1),
             ),
             consume = {},
         )
@@ -359,52 +360,6 @@ private fun ExerciseChartScreenNoDataForExercisePreview() {
                     ExercisePickerItemUiModel("uuid-1", "Bench press", ExerciseTypeUiModel.WEIGHTED),
                 ),
                 emptyReason = EmptyReason.NO_DATA_FOR_EXERCISE,
-            ),
-            consume = {},
-        )
-    }
-}
-
-@Suppress("MagicNumber")
-@Preview
-@Composable
-private fun ExerciseChartScreenWithTooltipPreview() {
-    AppTheme(themeMode = ThemeMode.DARK) {
-        ExerciseChartScreen(
-            state = State.create(initialUuid = "uuid-1").copy(
-                isLoading = false,
-                selectedExercise = ExercisePickerItemUiModel(
-                    "uuid-1",
-                    "Bench press",
-                    ExerciseTypeUiModel.WEIGHTED,
-                ),
-                recentExercises = persistentListOf(
-                    ExercisePickerItemUiModel("uuid-1", "Bench press", ExerciseTypeUiModel.WEIGHTED),
-                    ExercisePickerItemUiModel("uuid-2", "Squat", ExerciseTypeUiModel.WEIGHTED),
-                ),
-                points = listOf(
-                    ChartPointUiModel(LocalDate.of(2026, 4, 5), 0L, 80.0, "s1", 80.0, 5, 1),
-                    ChartPointUiModel(LocalDate.of(2026, 4, 12), 0L, 90.0, "s2", 90.0, 5, 1),
-                    ChartPointUiModel(LocalDate.of(2026, 4, 19), 0L, 95.0, "s3", 95.0, 5, 1),
-                    ChartPointUiModel(LocalDate.of(2026, 4, 26), 0L, 105.0, "s4", 105.0, 3, 2),
-                ).toImmutableList(),
-                footerStats = ChartFooterStatsUiModel(
-                    minTitle = "Min",
-                    minValue = "80 kg",
-                    maxTitle = "Max",
-                    maxValue = "105 kg",
-                    lastTitle = "Last",
-                    lastValue = "105 kg",
-                ),
-                windowStartDay = LocalDate.of(2026, 4, 5),
-                windowEndDay = LocalDate.of(2026, 5, 1),
-                activeTooltip = ChartTooltipUiModel(
-                    sessionUuid = "s3",
-                    exerciseName = "Bench press",
-                    dateLabel = "Apr 19, 2026",
-                    displayLabel = "95 kg × 5",
-                    setCountLabel = null,
-                ),
             ),
             consume = {},
         )

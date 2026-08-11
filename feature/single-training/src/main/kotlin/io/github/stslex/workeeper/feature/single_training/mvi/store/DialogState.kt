@@ -4,10 +4,27 @@ package io.github.stslex.workeeper.feature.single_training.mvi.store
 import androidx.compose.runtime.Stable
 
 @Stable
-internal sealed interface DialogState {
+sealed interface DialogState {
 
     @Stable
     data object Hidden : DialogState
+
+    /**
+     * The read screen's topbar `⋮` sheet (ED10): «В архив» · «Удалить навсегда». One sealed
+     * field carries it with the confirms rather than a second `bottomSheetState`, so a menu
+     * row that opens a confirm replaces this variant in one write and the double-open state
+     * is unrepresentable (Rule 4 of compose-state-discipline).
+     */
+    @Stable
+    data object DetailMenu : DialogState
+
+    /**
+     * ED7: the tag picker's sheet — search, the dictionary as selectable chips, the create
+     * row, «Готово». Opened by the form's dashed «+ тег» chip; selection applies live. No
+     * counter here or anywhere on this feature: it has no tag limit (§3.2).
+     */
+    @Stable
+    data object TagPicker : DialogState
 
     /**
      * Edit-mode discard confirmation. Strings are pulled from the screen via

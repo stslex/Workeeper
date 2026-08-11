@@ -8,6 +8,7 @@ import android.content.res.Resources
 import android.text.format.DateUtils
 import android.text.format.Formatter
 import io.github.stslex.workeeper.core.data.backup.api.error.BackupError
+import io.github.stslex.workeeper.core.data.backup.api.model.AuthResolution
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreStateRepository
 import io.github.stslex.workeeper.core.data.backup.api.result.BackupResult
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.AutoBackupController
@@ -26,6 +27,7 @@ import io.github.stslex.workeeper.feature.settings.domain.model.BackupSummaryDom
 import io.github.stslex.workeeper.feature.settings.domain.model.SignInOutcomeDomain
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupAuthUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupErrorUi
+import io.github.stslex.workeeper.feature.settings.mvi.model.BackupInfoUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupOperationUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupScheduleUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.RestoreProgressUi
@@ -50,7 +52,6 @@ import kotlinx.coroutines.test.setMain
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
-import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
@@ -140,11 +141,11 @@ internal class BackupClickHandlerTest {
         handler.invoke(Action.Backup.ObserveAuth)
 
         authFlow.value = BackupAuthDomain.Authenticated(
-            AccountDomain(email = "a@b.com", displayName = "Alice"),
+            AccountDomain(email = "a@example.com", displayName = "Alice"),
         )
 
         assertEquals(
-            BackupAuthUi.Authenticated(email = "a@b.com", displayName = "Alice"),
+            BackupAuthUi.Authenticated(email = "a@example.com", displayName = "Alice"),
             store.stateFlow.value.backupAuth,
         )
     }
@@ -163,7 +164,7 @@ internal class BackupClickHandlerTest {
         )
 
         handler.invoke(Action.Backup.ObserveAuth)
-        authFlow.value = BackupAuthDomain.Authenticated(AccountDomain("a@b.com", "Alice"))
+        authFlow.value = BackupAuthDomain.Authenticated(AccountDomain("a@example.com", "Alice"))
 
         val info = store.stateFlow.value.backupInfo
         assertNotNull(info)
@@ -173,11 +174,13 @@ internal class BackupClickHandlerTest {
     @Test
     fun `ObserveAuth transition to NotAuthenticated clears backupInfo`() = runTest(testDispatcher) {
         handler.invoke(Action.Backup.ObserveAuth)
-        authFlow.value = BackupAuthDomain.Authenticated(AccountDomain("a@b.com", "Alice"))
+        authFlow.value = BackupAuthDomain.Authenticated(AccountDomain("a@example.com", "Alice"))
 
         authFlow.value = BackupAuthDomain.NotAuthenticated
 
-        assertNull(store.stateFlow.value.backupInfo)
+        // `Unknown`, not null. Signing out does not mean "this account has no backups" — it means
+        // we no longer know, which is exactly the distinction the sealed type exists to keep.
+        assertEquals(BackupInfoUi.Unknown, store.stateFlow.value.backupInfo)
     }
 
     @Test
@@ -223,7 +226,7 @@ internal class BackupClickHandlerTest {
     fun `SignIn NeedsResolution emits AuthResolutionRequested with same intentSender`() =
         runTest(testDispatcher) {
             val sender = mockk<IntentSender>(relaxed = true)
-            coEvery { interactor.signIn() } returns SignInOutcomeDomain.NeedsResolution(sender)
+            coEvery { interactor.signIn() } returns SignInOutcomeDomain.NeedsResolution(AuthResolution(sender))
 
             handler.invoke(Action.Backup.SignIn)
 
@@ -279,7 +282,7 @@ internal class BackupClickHandlerTest {
         runTest(testDispatcher) {
             val sender = mockk<IntentSender>(relaxed = true)
             coEvery { interactor.requestDriveFileAccess() } returns
-                SignInOutcomeDomain.NeedsResolution(sender)
+                SignInOutcomeDomain.NeedsResolution(AuthResolution(sender))
 
             handler.invoke(Action.Backup.ToggleAiExport(true))
 
@@ -294,11 +297,11 @@ internal class BackupClickHandlerTest {
         runTest(testDispatcher) {
             preferencesFlow.value = preferencesFlow.value.copy(autoBackupBootstrapped = true)
             coEvery { interactor.requestDriveFileAccess() } returns
-                SignInOutcomeDomain.NeedsResolution(mockk(relaxed = true))
+                SignInOutcomeDomain.NeedsResolution(AuthResolution(mockk<IntentSender>(relaxed = true)))
             handler.invoke(Action.Backup.ToggleAiExport(true))
 
             coEvery { interactor.completeSignIn(any()) } returns
-                BackupResult.Success(AccountDomain(email = "a@b.com", displayName = null))
+                BackupResult.Success(AccountDomain(email = "a@example.com", displayName = null))
             coEvery { interactor.isDriveFileGranted() } returns true
 
             handler.invoke(Action.Backup.HandleAuthResult(mockk(relaxed = true)))
@@ -311,11 +314,11 @@ internal class BackupClickHandlerTest {
         runTest(testDispatcher) {
             preferencesFlow.value = preferencesFlow.value.copy(autoBackupBootstrapped = true)
             coEvery { interactor.requestDriveFileAccess() } returns
-                SignInOutcomeDomain.NeedsResolution(mockk(relaxed = true))
+                SignInOutcomeDomain.NeedsResolution(AuthResolution(mockk<IntentSender>(relaxed = true)))
             handler.invoke(Action.Backup.ToggleAiExport(true))
 
             coEvery { interactor.completeSignIn(any()) } returns
-                BackupResult.Success(AccountDomain(email = "a@b.com", displayName = null))
+                BackupResult.Success(AccountDomain(email = "a@example.com", displayName = null))
             coEvery { interactor.isDriveFileGranted() } returns false
 
             handler.invoke(Action.Backup.HandleAuthResult(mockk(relaxed = true)))
@@ -328,7 +331,7 @@ internal class BackupClickHandlerTest {
     fun `ToggleAiExport on marks the operation in-flight until the resolution completes`() =
         runTest(testDispatcher) {
             coEvery { interactor.requestDriveFileAccess() } returns
-                SignInOutcomeDomain.NeedsResolution(mockk(relaxed = true))
+                SignInOutcomeDomain.NeedsResolution(AuthResolution(mockk<IntentSender>(relaxed = true)))
 
             handler.invoke(Action.Backup.ToggleAiExport(true))
 
@@ -342,7 +345,7 @@ internal class BackupClickHandlerTest {
     fun `ToggleAiExport ignores a re-entrant enable while a grant is already in flight`() =
         runTest(testDispatcher) {
             coEvery { interactor.requestDriveFileAccess() } returns
-                SignInOutcomeDomain.NeedsResolution(mockk(relaxed = true))
+                SignInOutcomeDomain.NeedsResolution(AuthResolution(mockk<IntentSender>(relaxed = true)))
 
             handler.invoke(Action.Backup.ToggleAiExport(true)) // in flight, awaiting resolution
             handler.invoke(Action.Backup.ToggleAiExport(true)) // re-entrant: must be ignored
@@ -380,7 +383,7 @@ internal class BackupClickHandlerTest {
     fun `HandleAuthResult Failure(MissingRequiredScope) emits MISSING_REQUIRED_SCOPE`() =
         runTest(testDispatcher) {
             val intent = mockk<Intent>(relaxed = true)
-            coEvery { interactor.completeSignIn(intent) } returns BackupResult.Failure(
+            coEvery { interactor.completeSignIn(any()) } returns BackupResult.Failure(
                 BackupError.MissingRequiredScope,
             )
 
@@ -409,7 +412,7 @@ internal class BackupClickHandlerTest {
     @Test
     fun `HandleAuthResult Failure emits ShowBackupError`() = runTest(testDispatcher) {
         val intent = mockk<Intent>(relaxed = true)
-        coEvery { interactor.completeSignIn(intent) } returns BackupResult.Failure(
+        coEvery { interactor.completeSignIn(any()) } returns BackupResult.Failure(
             BackupError.AuthRevoked,
         )
         handler.invoke(Action.Backup.HandleAuthResult(intent))
@@ -426,8 +429,8 @@ internal class BackupClickHandlerTest {
                 schedule = BackupSchedule.Daily,
             )
             val intent = mockk<Intent>(relaxed = true)
-            val expectedAccount = AccountDomain(email = "a@b.com", displayName = "A")
-            coEvery { interactor.completeSignIn(intent) } returns BackupResult.Success(expectedAccount)
+            val expectedAccount = AccountDomain(email = "a@example.com", displayName = "A")
+            coEvery { interactor.completeSignIn(any()) } returns BackupResult.Success(expectedAccount)
 
             handler.invoke(Action.Backup.HandleAuthResult(intent))
 
@@ -444,7 +447,7 @@ internal class BackupClickHandlerTest {
         runTest(testDispatcher) {
             preferencesFlow.value = preferencesFlow.value.copy(autoBackupBootstrapped = false)
             val intent = mockk<Intent>(relaxed = true)
-            coEvery { interactor.completeSignIn(intent) } returns BackupResult.Success(
+            coEvery { interactor.completeSignIn(any()) } returns BackupResult.Success(
                 AccountDomain("first@example.com", "First"),
             )
 
@@ -683,7 +686,9 @@ internal class BackupClickHandlerTest {
 
             handler.invoke(Action.Backup.LoadBackupList)
 
-            assertNull(store.stateFlow.value.backupInfo)
+            // A FAILED list call leaves the state where it was: `Unknown`. Reporting `Empty`
+            // here would turn a network failure into a claim about the account.
+            assertEquals(BackupInfoUi.Unknown, store.stateFlow.value.backupInfo)
             assertTrue(store.events.isEmpty(), "LoadBackupList failure must stay silent")
         }
 

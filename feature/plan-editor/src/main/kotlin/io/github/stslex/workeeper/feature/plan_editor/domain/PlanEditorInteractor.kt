@@ -5,7 +5,7 @@ import io.github.stslex.workeeper.feature.plan_editor.domain.model.ExerciseTypeD
 import io.github.stslex.workeeper.feature.plan_editor.domain.model.PlanEditorLoadResult
 import io.github.stslex.workeeper.feature.plan_editor.domain.model.PlanSetDomain
 
-internal interface PlanEditorInteractor {
+interface PlanEditorInteractor {
 
     /**
      * Loads exercise metadata + initial plan. When [trainingUuid] is null the plan is read

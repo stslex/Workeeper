@@ -4,9 +4,13 @@ import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import androidx.paging.map
+import dev.zacsweers.metro.ContributesBinding
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.coroutine.asyncMap
 import io.github.stslex.workeeper.core.core.coroutine.asyncMapIndexed
 import io.github.stslex.workeeper.core.core.coroutine.asyncScope
+import io.github.stslex.workeeper.core.core.di.AppScope
 import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.data.database.common.DbTransitionRunner
 import io.github.stslex.workeeper.core.data.database.converters.PlanSetsConverter
@@ -22,17 +26,17 @@ import io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.data.exercise.training.TrainingRepository.BulkArchiveOutcome
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
-import javax.inject.Inject
-import javax.inject.Singleton
 import kotlin.uuid.Uuid
 
 @Suppress("TooManyFunctions", "LongParameterList")
-@Singleton
-class TrainingRepositoryImpl @Inject constructor(
+@ContributesBinding(AppScope::class)
+@SingleIn(AppScope::class)
+class TrainingRepositoryImpl @Inject internal constructor(
     private val dao: TrainingDao,
     private val trainingExerciseDao: TrainingExerciseDao,
     private val tagDao: TagDao,
@@ -58,19 +62,51 @@ class TrainingRepositoryImpl @Inject constructor(
 
     override suspend fun updateTraining(training: TrainingChangeDataModel) {
         withContext(ioDispatcher) {
-            val entity = training.toEntity()
-            val existing = dao.getById(entity.uuid)
-            if (existing == null) {
-                dao.insert(entity)
-            } else {
-                dao.update(entity)
-            }
-            val syncLabelsDeferred = async {
-                syncLabels(entity.uuid, training.labels)
-            }
-            syncExercises(entity.uuid, training.exerciseUuids)
-            syncLabelsDeferred.await()
+            writeTraining(training)
         }
+    }
+
+    override suspend fun updateTrainingWithPlans(
+        training: TrainingChangeDataModel,
+        plans: List<TrainingRepository.ExercisePlanWrite>,
+    ) {
+        withContext(ioDispatcher) {
+            dbTransition {
+                // After the sync, inside the transaction: the sync truncates and re-inserts
+                // the rows these updates land on. See the interface KDoc — the ordering is
+                // the guarantee now, not a caller's comment.
+                val trainingUuid = writeTraining(training)
+                plans.forEach { plan ->
+                    trainingExerciseDao.updatePlanSets(
+                        trainingUuid = trainingUuid,
+                        exerciseUuid = Uuid.parse(plan.exerciseUuid),
+                        planSets = PlanSetsConverter.toJson(plan.planSets),
+                    )
+                }
+                // Auto-prune on SAVE COMMIT, inside the same transaction as the link writes
+                // (D-OPEN-4). Deliberately NOT inside `writeTraining`: `updateTraining` shares
+                // that helper without a transaction around it, and a prune outside the link
+                // writes' transaction is the ordering the ruling forbids.
+                tagDao.deleteOrphans()
+            }
+        }
+    }
+
+    /** The one write path both save shapes share. Returns the row's resolved uuid. */
+    private suspend fun writeTraining(training: TrainingChangeDataModel): Uuid = coroutineScope {
+        val entity = training.toEntity()
+        val existing = dao.getById(entity.uuid)
+        if (existing == null) {
+            dao.insert(entity)
+        } else {
+            dao.update(entity)
+        }
+        val syncLabelsDeferred = async {
+            syncLabels(entity.uuid, training.labels)
+        }
+        syncExercises(entity.uuid, training.exerciseUuids)
+        syncLabelsDeferred.await()
+        entity.uuid
     }
 
     override suspend fun removeTraining(uuid: String) {
@@ -162,6 +198,11 @@ class TrainingRepositoryImpl @Inject constructor(
     ): Flow<List<TrainingListItem>> = dao
         .observeRecentTemplates(limit)
         .map { rows -> rows.map { row -> row.toData(labels = trainingTagDao.getTagNames(row.uuid)) } }
+        .flowOn(ioDispatcher)
+
+    override fun observeMostForgottenTemplate(): Flow<TrainingListItem?> = dao
+        .observeMostForgottenTemplate()
+        .map { row -> row?.toData() }
         .flowOn(ioDispatcher)
 
     override suspend fun countSessionsUsing(

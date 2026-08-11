@@ -10,17 +10,26 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStoreFile
-import dagger.hilt.android.qualifiers.ApplicationContext
+import dev.zacsweers.metro.ContributesBinding
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
+import io.github.stslex.workeeper.core.core.di.AppScope
 import io.github.stslex.workeeper.core.data.backup.api.model.Account
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
-import javax.inject.Inject
-import javax.inject.Singleton
 
-@Singleton
-internal class AccountDataStoreImpl @Inject constructor(
-    @ApplicationContext private val context: Context,
+/**
+ * Metro-owned. `@ContributesBinding(AppScope)` binds it to [AccountDataStore] for the gd readers.
+ * Public because `@ContributesBinding` on an `internal` class does not aggregate across Gradle
+ * modules. The `Context` is a plain param resolved from the app graph's `create(applicationContext)`
+ * bound instance.
+ */
+@ContributesBinding(AppScope::class)
+@SingleIn(AppScope::class)
+@Inject
+class AccountDataStoreImpl(
+    private val context: Context,
 ) : AccountDataStore {
 
     private val dataStore: DataStore<Preferences> by lazy {

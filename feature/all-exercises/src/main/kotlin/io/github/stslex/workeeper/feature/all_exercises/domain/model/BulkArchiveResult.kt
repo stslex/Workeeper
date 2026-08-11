@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.all_exercises.domain.model
 
-internal data class BulkArchiveResult(
+data class BulkArchiveResult(
     val archivedCount: Int,
     val blocked: List<BlockedExerciseDomain>,
 ) {
@@ -11,7 +11,7 @@ internal data class BulkArchiveResult(
      * active training. [activeTrainings] names those trainings so the UI can tell the
      * user which trainings to detach it from before archiving.
      */
-    internal data class BlockedExerciseDomain(
+    data class BlockedExerciseDomain(
         val name: String,
         val activeTrainings: List<String>,
     )

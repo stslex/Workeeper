@@ -1,29 +1,38 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.exercise_chart.mvi.handler
 
-import dagger.hilt.android.scopes.ViewModelScoped
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.exercise_chart.di.ExerciseChartHandlerStore
+import io.github.stslex.workeeper.feature.exercise_chart.di.ExerciseChartScope
 import io.github.stslex.workeeper.feature.exercise_chart.domain.ExerciseChartInteractor
+import io.github.stslex.workeeper.feature.exercise_chart.mvi.mapper.ChartReadoutMapper
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.mapper.ExerciseChartUiMapper.toDomain
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.mapper.ExerciseChartUiMapper.toUi
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.mapper.ExerciseChartUiMapper.toUiPoints
+import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartMetricUiModel
+import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartPointUiModel
+import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartPresetUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ExercisePickerItemUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.Action
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.EmptyReason
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.State
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
-import javax.inject.Inject
 
-@ViewModelScoped
+@SingleIn(ExerciseChartScope::class)
 internal class CommonHandler @Inject constructor(
     private val interactor: ExerciseChartInteractor,
     private val resourceWrapper: ResourceWrapper,
     store: ExerciseChartHandlerStore,
 ) : Handler<Action.Common>, ExerciseChartHandlerStore by store {
+
+    /** The in-flight chart load, if any. Held only so the next one can cancel it. */
+    private var loadJob: Job? = null
 
     override fun invoke(action: Action.Common) {
         when (action) {
@@ -87,15 +96,63 @@ internal class CommonHandler @Inject constructor(
         val current = state.value
         val metric = current.metric.toDomain()
         val type = exercise.type.toDomain()
-        launchDefault(
+        // The retarget sources — metric tabs, preset chips, picker — are one path with
+        // three triggers, and a user can fire them faster than the DB answers. Two guards,
+        // because neither alone is enough: the previous request is cancelled so it stops
+        // competing, and the response carries the request that asked for it so a winner
+        // that is already stale cannot be applied. Without them the last response to LAND
+        // won outright, and since `metric` is never rewritten by a load, the chart could
+        // settle showing Сессия's data under a highlighted Сет tab, permanently.
+        val request = ChartRequest(
+            exerciseUuid = exercise.uuid,
+            preset = current.preset,
+            metric = current.metric,
+        )
+        loadJob?.cancel()
+        loadJob = launchDefault(
             onSuccess = { result ->
+                if (state.value.requestOf() != request) return@launchDefault
+                // Rule 1 (compose-state-discipline): everything below is mapped in the
+                // collector body, off Main.immediate; the lambda only copies State. The
+                // prior points/activeIndex are read here rather than from the lambda
+                // argument — a scrub landing in between would be lost either way (it is a
+                // second writer of activeIndex), and the guard above has just established
+                // that this response is the live one.
+                val prior = state.value
+                val newPoints = result.toUiPoints()
+                // §4.8: the copy states the threshold — the chart appears after TWO
+                // recorded sessions. Below two points there is no line to draw (the
+                // canvas is index-spaced), so sub-threshold is an empty state, not a
+                // degenerate chart, and the readout/scrub state stays clear.
+                val subThreshold = newPoints.size < State.MIN_CHART_POINTS
+                // The scrub position survives a reload only when the day buckets are the
+                // same — a metric switch replots identical days (the mockup keeps
+                // `active` across setMetric). A preset or exercise change produces new
+                // buckets and the readout resets to the most recent point.
+                val sameDays = prior.points.map(ChartPointUiModel::day) ==
+                    newPoints.map(ChartPointUiModel::day)
+                val activeIndex = if (subThreshold) {
+                    null
+                } else {
+                    prior.activeIndex
+                        ?.takeIf { index -> sameDays && index in newPoints.indices }
+                        ?: (newPoints.size - 1)
+                }
+                val footerStats = result.footer?.toUi(type, resourceWrapper)
+                val readout = ChartReadoutMapper.toReadout(
+                    points = newPoints,
+                    activeIndex = activeIndex,
+                    metric = current.metric,
+                    type = exercise.type,
+                    resourceWrapper = resourceWrapper,
+                )
                 updateStateImmediate {
                     it.copy(
-                        points = result.toUiPoints(),
-                        footerStats = result.footer?.toUi(metric, type, resourceWrapper),
-                        windowStartDay = result.windowStartDay,
-                        windowEndDay = result.windowEndDay,
-                        emptyReason = if (result.points.isEmpty()) {
+                        points = newPoints,
+                        footerStats = footerStats,
+                        activeIndex = activeIndex,
+                        readout = readout,
+                        emptyReason = if (subThreshold) {
                             EmptyReason.NO_DATA_FOR_EXERCISE
                         } else {
                             null
@@ -117,6 +174,18 @@ internal class CommonHandler @Inject constructor(
 
     @Suppress("unused")
     private fun State.placeholder(): State = this
+
+    /** The live selection, in the shape a pending [ChartRequest] can be compared against. */
+    private fun State.requestOf(): ChartRequest? = selectedExercise?.let { selected ->
+        ChartRequest(exerciseUuid = selected.uuid, preset = preset, metric = metric)
+    }
+
+    /** What a load was asked for. A response that no longer matches the live state is dropped. */
+    private data class ChartRequest(
+        val exerciseUuid: String,
+        val preset: ChartPresetUiModel,
+        val metric: ChartMetricUiModel,
+    )
 
     private data class InitResult(
         val selected: ExercisePickerItemUiModel?,

@@ -3,8 +3,8 @@ package io.github.stslex.workeeper.feature.single_training.domain
 
 import io.github.stslex.workeeper.feature.single_training.domain.model.ActiveSessionDomain
 import io.github.stslex.workeeper.feature.single_training.domain.model.ArchiveResult
+import io.github.stslex.workeeper.feature.single_training.domain.model.ExercisePlanDomain
 import io.github.stslex.workeeper.feature.single_training.domain.model.PickerExercise
-import io.github.stslex.workeeper.feature.single_training.domain.model.PlanSetDomain
 import io.github.stslex.workeeper.feature.single_training.domain.model.SessionDomain
 import io.github.stslex.workeeper.feature.single_training.domain.model.StartSessionConflict
 import io.github.stslex.workeeper.feature.single_training.domain.model.TagDomain
@@ -14,7 +14,7 @@ import io.github.stslex.workeeper.feature.single_training.domain.model.TrainingE
 import kotlinx.coroutines.flow.Flow
 
 @Suppress("TooManyFunctions")
-internal interface SingleTrainingInteractor {
+interface SingleTrainingInteractor {
 
     suspend fun getTraining(uuid: String): TrainingDomain?
 
@@ -22,9 +22,19 @@ internal interface SingleTrainingInteractor {
 
     suspend fun getRecentSessions(trainingUuid: String, limit: Int): List<SessionDomain>
 
+    /** Total finished sessions of this training — the История head's count (§3.3). */
+    suspend fun countSessions(trainingUuid: String): Int
+
     fun observeAvailableTags(): Flow<List<TagDomain>>
 
-    suspend fun saveTraining(snapshot: TrainingChangeDomain)
+    /**
+     * The training row and every listed exercise's plan, persisted as ONE transaction — a
+     * failure anywhere leaves nothing behind one «Сохранено».
+     */
+    suspend fun saveTraining(
+        snapshot: TrainingChangeDomain,
+        plans: List<ExercisePlanDomain>,
+    )
 
     suspend fun createTag(name: String): TagDomain
 
@@ -35,12 +45,6 @@ internal interface SingleTrainingInteractor {
     suspend fun canPermanentlyDelete(uuid: String): Boolean
 
     fun observeAnyActiveSession(): Flow<ActiveSessionDomain?>
-
-    suspend fun setPlanForExercise(
-        trainingUuid: String,
-        exerciseUuid: String,
-        plan: List<PlanSetDomain>?,
-    )
 
     suspend fun searchExercisesForPicker(
         query: String,

@@ -4,7 +4,6 @@ package io.github.stslex.workeeper.feature.live_workout.mvi.mapper
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.core.time.formatElapsedDuration
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
-import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanEditorUIMapper.formatPlanSummary
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.live_workout.R
@@ -26,12 +25,17 @@ import io.github.stslex.workeeper.feature.live_workout.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.State
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.ImmutableMap
+import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.collections.immutable.toImmutableMap
 import kotlinx.collections.immutable.toImmutableSet
+import io.github.stslex.workeeper.core.ui.kit.R as KitR
 
 @Suppress("TooManyFunctions")
 internal object LiveWorkoutMapper {
+
+    /** The mockup's mid-dot joiner, used by `.sub` (`planText`, session-v3f.html:282). */
+    private const val SUB_SEPARATOR = " · "
 
     fun SessionSnapshotDomain.toState(
         nowMillis: Long,
@@ -61,11 +65,16 @@ internal object LiveWorkoutMapper {
             totalCount = 0,
             setsLogged = 0,
             progress = 0f,
-            progressLabel = "",
+            headerMetaLabel = "",
             exercises = ui,
             setDrafts = emptyMap<State.DraftKey, LiveSetUiModel>().toImmutableMap(),
             activeExerciseUuids = activeExerciseUuids,
-            expandedExerciseUuids = activeExerciseUuids,
+            // First entry: the FIRST card in the list is expanded — the whole initialisation
+            // rule of the amended disclosure model (spec §7 superseded). Status plays no
+            // part in it.
+            expandedExerciseUuids = ui.firstOrNull()
+                ?.let { persistentSetOf(it.performedExerciseUuid) }
+                ?: persistentSetOf(),
             preSessionPrSnapshot = prSnapshot,
             isAddExerciseInFlight = false,
             isFinishInFlight = false,
@@ -114,6 +123,8 @@ internal object LiveWorkoutMapper {
                 statusLabel = "",
                 planSets = c.plan,
                 performedSets = c.performed,
+                isPlanAttached = c.snapshot.isPlanAttached,
+                description = c.snapshot.description,
             )
         }.toImmutableList()
     }
@@ -182,11 +193,6 @@ internal object LiveWorkoutMapper {
             presentedExercises.sumOf { exercise -> exercise.performedSets.count { it.isDone } }
         val safeTotal = totalCount.coerceAtLeast(1)
         val progress = (doneCount.toFloat() / safeTotal.toFloat()).coerceIn(0f, 1f)
-        val setCountLabel = resourceWrapper.getQuantityString(
-            R.plurals.feature_live_workout_set_count,
-            setsLogged,
-            setsLogged,
-        )
         return withVisible.copy(
             trainingNameLabel = trainingName.ifBlank {
                 resourceWrapper.getString(R.string.feature_live_workout_training_name_placeholder)
@@ -195,13 +201,60 @@ internal object LiveWorkoutMapper {
             totalCount = totalCount,
             setsLogged = setsLogged,
             progress = progress,
-            progressLabel = resourceWrapper.getString(
-                R.string.feature_live_workout_progress_format,
-                doneCount,
-                totalCount,
-                setCountLabel,
-            ),
+            headerMetaLabel = presentedExercises.toHeaderMetaLabel(resourceWrapper),
             exercises = presentedExercises,
+        )
+    }
+
+    /**
+     * The `.shead` meta line, built exactly as the mockup's JS builds it (extraction §1.3):
+     * `{fin} из {act} упражнений · {d} из {t} подходов`, plus ` · пропущено {sk}` only when
+     * skipped > 0. `fin` counts exercises where every set is done (= status DONE), `act`
+     * excludes skipped, `d`/`t` count sets over non-skipped exercises only — the same
+     * denominator discipline as the rail. Blank for an empty session; a "0 из 0" line would
+     * describe nothing.
+     */
+    private fun List<LiveExerciseUiModel>.toHeaderMetaLabel(
+        resourceWrapper: ResourceWrapper,
+    ): String {
+        if (isEmpty()) return ""
+        val nonSkipped = filter { it.status != ExerciseStatusUiModel.SKIPPED }
+        val skippedCount = size - nonSkipped.size
+        val base = resourceWrapper.getString(
+            R.string.feature_live_workout_meta_format,
+            nonSkipped.count { it.status == ExerciseStatusUiModel.DONE },
+            nonSkipped.size,
+            nonSkipped.sumOf { exercise -> exercise.visibleSets.count { it.isDone } },
+            nonSkipped.sumOf { it.visibleSets.size },
+        )
+        return if (skippedCount > 0) {
+            resourceWrapper.getString(
+                R.string.feature_live_workout_meta_skipped_format,
+                base,
+                skippedCount,
+            )
+        } else {
+            base
+        }
+    }
+
+    /**
+     * Carries the open set across a wholesale State replacement.
+     *
+     * `Action.Common.Init` and `.Reload` both rebuild State from a fresh snapshot, and
+     * re-entering composition re-fires `Init` — so a round-trip to the full-screen plan
+     * editor would otherwise reset expansion. That fix stays under the amended disclosure
+     * model: if the previous State had a loaded session, its open set wins (pruned to
+     * exercises that still exist); only a genuinely fresh Store keeps the first-card
+     * initialisation this snapshot arrived with.
+     */
+    fun State.withExpansionCarriedFrom(previous: State): State {
+        if (previous.exercises.isEmpty()) return this
+        val liveUuids = exercises.mapTo(mutableSetOf()) { it.performedExerciseUuid }
+        return copy(
+            expandedExerciseUuids = previous.expandedExerciseUuids
+                .filterTo(mutableSetOf()) { it in liveUuids }
+                .toImmutableSet(),
         )
     }
 
@@ -221,6 +274,7 @@ internal object LiveWorkoutMapper {
                 setsLogged,
             ),
             newPersonalRecords = computeNewPersonalRecords(resourceWrapper),
+            unfilledSetCount = unfilledSetCount,
             requiresName = trainingName.isBlank(),
             nameDraft = trainingName,
             nameLabel = resourceWrapper.getString(R.string.feature_live_workout_finish_name_label),
@@ -341,49 +395,43 @@ internal object LiveWorkoutMapper {
         toString().trimEnd('0').trimEnd('.')
     }
 
+    /**
+     * The card's `.sub` line — **always the plan**, never a status readout (extraction §1.5,
+     * quoting the mockup's own comment: "подстрочник всегда план — длина стабильна, карточка
+     * не едет"). The only substitution is `пропущено` on a skipped card. Format per the
+     * mockup's `planText`: weighted `{w}×{r} · {w}×{r}`, bodyweight `{r} повт · {r} повт`;
+     * one line, ellipsised by the composable.
+     */
     private fun LiveExerciseUiModel.toStatusLabel(resourceWrapper: ResourceWrapper): String =
-        when (status) {
-            ExerciseStatusUiModel.DONE -> {
-                val count = performedSets.count { it.isDone }
-                val setCountLabel = resourceWrapper.getQuantityString(
-                    R.plurals.feature_live_workout_status_set_count,
-                    count,
-                    count,
-                )
-                resourceWrapper.getString(
-                    R.string.feature_live_workout_status_completed_format,
-                    setCountLabel,
-                )
-            }
+        when {
+            status == ExerciseStatusUiModel.SKIPPED ->
+                resourceWrapper.getString(R.string.feature_live_workout_status_skipped)
 
-            ExerciseStatusUiModel.CURRENT -> {
-                if (planSets.isEmpty()) {
-                    resourceWrapper.getString(R.string.feature_live_workout_status_no_plan)
-                } else if (performedSets.none { it.isDone }) {
-                    resourceWrapper.getString(
-                        R.string.feature_live_workout_status_plan_format,
-                        planSets.formatPlanSummary(),
-                    )
-                } else {
-                    resourceWrapper.getString(
-                        R.string.feature_live_workout_status_progress_format,
-                        performedSets.count { it.isDone },
-                        planSets.size,
-                    )
-                }
-            }
+            planSets.isEmpty() ->
+                resourceWrapper.getString(R.string.feature_live_workout_status_no_plan)
 
-            ExerciseStatusUiModel.PENDING -> {
-                val summary = if (planSets.isEmpty()) {
-                    resourceWrapper.getString(R.string.feature_live_workout_status_no_plan)
-                } else {
-                    planSets.formatPlanSummary()
-                }
-                resourceWrapper.getString(R.string.feature_live_workout_status_plan_format, summary)
-            }
-
-            ExerciseStatusUiModel.SKIPPED -> resourceWrapper.getString(R.string.feature_live_workout_status_skipped)
+            else -> planSets.toPlanSubLabel(resourceWrapper, exerciseType)
         }
+
+    private fun List<PlanSetUiModel>.toPlanSubLabel(
+        resourceWrapper: ResourceWrapper,
+        exerciseType: ExerciseTypeUiModel,
+    ): String = when (exerciseType) {
+        // A WEIGHTED exercise can still carry reps-only plan sets — `PlanDraftReducer`
+        // writes `weight = null` and a cleared weight field parses to null — so the null
+        // branch stays reps-only, matching `PlanEditorUIMapper.formatPlanSummary`.
+        // Substituting 0.0 would print a 0 kg target the user never set.
+        ExerciseTypeUiModel.WEIGHTED -> joinToString(SUB_SEPARATOR) { set ->
+            set.weight
+                ?.let { weight -> "${weight.formatPrWeight()}×${set.reps}" }
+                ?: set.reps.toString()
+        }
+
+        ExerciseTypeUiModel.WEIGHTLESS -> {
+            val unit = resourceWrapper.getString(KitR.string.core_ui_kit_plan_editor_unit_reps)
+            joinToString(SUB_SEPARATOR) { set -> "${set.reps} $unit" }
+        }
+    }
 
     private fun formatExerciseSummary(
         resourceWrapper: ResourceWrapper,

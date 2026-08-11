@@ -10,11 +10,21 @@ import io.gitlab.arturbosch.detekt.api.Severity
 import org.jetbrains.kotlin.psi.KtImportDirective
 
 /**
- * Domain layer must not depend on data MODEL types from `core.data.*` —
- * the data → domain conversion lives in `feature/<X>/domain/mapper/` and
- * is the only place such imports are allowed.
+ * Domain layer must stay platform-neutral (KMP-portable), so it enforces two things on
+ * files under `feature/<X>/domain/`:
  *
- * The rule flags imports under `feature/<X>/domain/` whose simple name
+ * 1. **No `android.*` imports.** The domain layer must not reference Android framework
+ *    types — they must be neutralised behind an `expect`/`actual` seam or a neutral
+ *    abstraction and converted at the mvi/ui edge. `androidx.*` is intentionally NOT
+ *    flagged: `androidx.paging` / `androidx.datastore` types are multiplatform-portable
+ *    and used legitimately in domain interactors (`startsWith("android.")` excludes
+ *    `androidx.`). This check applies to `/domain/mapper/` too — a mapper must be portable.
+ *    Limitation: it inspects import directives only; an inline fully-qualified
+ *    `android.foo.Bar` reference with no import is not caught.
+ * 2. **No data MODEL types from `core.data.*`** — the data → domain conversion lives in
+ *    `feature/<X>/domain/mapper/` and is the only place such imports are allowed.
+ *
+ * For the data-model check, the rule flags imports under `feature/<X>/domain/` whose simple name
  * matches a known data-shape suffix (e.g. `DataModel`, `Entity`,
  * `*Row`) OR whose package path includes `.model.`. Repository
  * interfaces, dispatcher qualifiers, storage helpers, and other
@@ -41,7 +51,8 @@ class DomainLayerPurityRule(
     override val issue = Issue(
         id = javaClass.simpleName,
         severity = Severity.Defect,
-        description = "Domain layer must not import core.data.* model types except in /mapper/.",
+        description = "Domain layer must stay platform-neutral: no android.* imports, and no " +
+            "core.data.* model types except in /mapper/.",
         debt = Debt.TWENTY_MINS,
     )
 
@@ -50,12 +61,38 @@ class DomainLayerPurityRule(
 
         val filePath = importDirective.containingKtFile.virtualFilePath
         if (filePath.isInTestSourceSet()) return
-        if (!filePath.isInFeatureDomain() || filePath.isInDomainMapper()) return
+        if (!filePath.isInFeatureDomain()) return
 
         val importPath = importDirective.importPath?.pathStr ?: return
+
+        // (1) Platform leak. Applies to ALL of /feature/*/domain/, mappers included — the
+        // domain layer must be KMP-portable. `startsWith("android.")` excludes `androidx.*`
+        // (multiplatform-portable, legitimately used in domain).
+        // TODO(tech-debt): inline `android.*` FQN (no import) is not detected — the rule
+        //  inspects import directives only. This gap SELF-CLOSES at the KMP split: commonMain
+        //  physically cannot see `android.*`, so an inline android FQN won't compile there. FQN
+        //  detection in Detekt is only needed for the transitional period (domain still in
+        //  androidMain but required portable), covered by review until then. Domain is
+        //  FQN-clean today (verified), so the gap is inactive.
+        if (importPath.startsWith(ANDROID_PREFIX)) {
+            report(
+                CodeSmell(
+                    issue,
+                    Entity.from(importDirective),
+                    "Domain file imports platform type `${importPath.substringAfterLast('.')}` " +
+                        "from `$importPath`. The domain layer must be platform-neutral " +
+                        "(KMP-portable) — neutralise it behind an expect/actual seam or a " +
+                        "neutral abstraction and convert at the mvi/ui edge.",
+                ),
+            )
+            return
+        }
+
+        // (2) Data-model leak. The /domain/mapper/ exemption applies to THIS check only — a
+        // mapper's job is data → domain conversion, so the core.data import is its contract.
+        if (filePath.isInDomainMapper()) return
         if (!importPath.startsWith(CORE_DATA_PREFIX)) return
         if (importPath.isFromApiSubmodule()) return
-
         if (!importPath.isDataModelLike()) return
 
         val simpleName = importPath.substringAfterLast('.')
@@ -111,6 +148,9 @@ class DomainLayerPurityRule(
     }
 
     private companion object {
+        // Trailing dot is load-bearing: it makes `androidx.` fall outside the prefix, so
+        // multiplatform-portable androidx types in domain/ are not misflagged as leaks.
+        const val ANDROID_PREFIX = "android."
         const val CORE_DATA_PREFIX = "io.github.stslex.workeeper.core.data."
 
         val DATA_MODEL_SUFFIXES = listOf(

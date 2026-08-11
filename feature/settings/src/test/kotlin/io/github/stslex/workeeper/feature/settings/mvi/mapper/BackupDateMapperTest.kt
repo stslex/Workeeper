@@ -6,6 +6,7 @@ import android.content.res.Resources
 import android.text.format.DateUtils
 import io.github.stslex.workeeper.feature.settings.R
 import io.github.stslex.workeeper.feature.settings.domain.model.BackupSummaryDomain
+import io.github.stslex.workeeper.feature.settings.mvi.model.BackupInfoUi
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkStatic
@@ -110,8 +111,9 @@ internal class BackupDateMapperTest {
 
         val info = BackupDateMapper.toInfo(summaries = emptyList(), context = context, now = 0L)
 
-        assertEquals("Never backed up", info.lastBackupText)
-        assertEquals("No backups yet", info.backupCountText)
+        // `Empty`, not `Unknown`: the mapper only ever runs on a RESULT, so "we asked and there are
+        // none" is the only empty it can produce. `Unknown` is the interval before the call.
+        assertEquals(BackupInfoUi.Empty(backupCountText = "No backups yet"), info)
     }
 
     @Test
@@ -134,7 +136,12 @@ internal class BackupDateMapperTest {
             now = 1_700_000_007_200_000L,
         )
 
-        assertEquals("Last backup: 2 hours ago", info.lastBackupText)
-        assertEquals("2 backups stored", info.backupCountText)
+        assertEquals(
+            BackupInfoUi.Present(
+                lastBackupText = "Last backup: 2 hours ago",
+                backupCountText = "2 backups stored",
+            ),
+            info,
+        )
     }
 }

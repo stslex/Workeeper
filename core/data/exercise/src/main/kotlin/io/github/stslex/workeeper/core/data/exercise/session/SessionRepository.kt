@@ -33,13 +33,40 @@ interface SessionRepository {
 
     suspend fun getActive(): SessionDataModel?
 
-    fun observeRecent(limit: Int): Flow<List<SessionDataModel>>
+    /**
+     * Paged stream of finished sessions, newest first, with the per-row stats the Home recent
+     * list needs (training name, exercise count, set count).
+     *
+     * Replaces `observeRecentWithStats(limit)`, which Home called at a hardcoded 10 — so the
+     * screen showed ten sessions and the rest of a user's history was unreachable from it. The
+     * query's filters, including the one that excludes rows silently, are documented on
+     * `SessionDao.pagedRecentWithStats`.
+     */
+    fun pagedRecentWithStats(): Flow<PagingData<RecentSessionDataModel>>
 
     /**
-     * Hot stream of the most recent finished sessions (newest first), with the per-row
-     * stats the Home recent list needs (training name, exercise count, set count).
+     * Hot stream of finish timestamps inside `[startInclusive, endExclusive)` — the Home
+     * start card's «Неделя» readout. Emits epoch millis only; the consumer derives the
+     * count and the per-weekday fills.
      */
-    fun observeRecentWithStats(limit: Int): Flow<List<RecentSessionDataModel>>
+    fun observeFinishedTimesBetween(
+        startInclusive: Long,
+        endExclusive: Long,
+    ): Flow<List<Long>>
+
+    /**
+     * Hot stream of the single most recent finished session — the «Дни без тренировки»
+     * readout's anchor. Null while no session has ever finished.
+     */
+    fun observeLastFinishedSession(): Flow<LastFinishedSession?>
+
+    /** The «Дни без тренировки» anchor: when the last finished session ended, and its name. */
+    data class LastFinishedSession(
+        val sessionUuid: String,
+        val finishedAt: Long,
+        val trainingName: String,
+        val isAdhoc: Boolean,
+    )
 
     /**
      * One-shot hierarchical fetch for the Past session detail screen. Returns the session
@@ -83,12 +110,19 @@ interface SessionRepository {
      * same transaction before the session-state flip and graduation. This pairs the v2.3
      * finish-dialog rename with the finish itself so a crash between the two writes can
      * never leave a named-but-unfinished session or an unfinishable named training.
+     *
+     * [discardedSetUuids] are unfilled rows (`reps <= 0`, v3 §6.1) to delete as PART of the
+     * finish. They must be inside this transaction, not deleted before it: if any later step
+     * throws or the session row is gone, the caller reports a failed finish and leaves the
+     * session active — and a deletion done outside would already have destroyed the rows with
+     * no finish to justify it.
      */
     suspend fun finishSessionAtomic(
         sessionUuid: String,
         finishedAt: Long,
         planUpdates: List<PlanUpdate>,
         newTrainingName: String? = null,
+        discardedSetUuids: List<String> = emptyList(),
     ): Boolean
 
     suspend fun deleteSession(uuid: String)
@@ -108,10 +142,18 @@ interface SessionRepository {
     ): AdhocSessionResult
 
     /**
-     * Atomically attaches [exerciseUuid] to the active session: writes a
-     * `training_exercise_table` plan row and a `performed_exercise_table` row at the next
-     * position. Used both for inline-created (`is_adhoc = true`) exercises and for library
-     * picks.
+     * Atomically attaches [exerciseUuid] to the active session: always writes a
+     * `performed_exercise_table` row at the next position, and writes a
+     * `training_exercise_table` plan row **only when [attachToPlan] is true**. Used both for
+     * inline-created (`is_adhoc = true`) exercises and for library picks.
+     *
+     * [attachToPlan] is the write half of the plan-attached axis (v3 §6.2). Passing `false`
+     * produces a one-off: the exercise is fully part of this session but is never added to
+     * the saved training template, so the next session does not inherit it. The encoding is
+     * the **absence of the plan row** — there is no column and no migration. Note this axis
+     * is *not* `exercise_table.is_adhoc`: that flag describes the exercise ("created
+     * inline"), this one describes the exercise↔training relation. A library exercise with
+     * `is_adhoc = 0` added as a one-off today is the case that separates them.
      *
      * The new plan row's `plan_sets` is seeded from `exercise.last_adhoc_sets` so the user
      * sees their last-logged baseline as a suggestion. Inline-created exercises with no
@@ -119,18 +161,25 @@ interface SessionRepository {
      * finish-time `PlanUpdateRule` (grow-but-not-shrink) operates uniformly regardless of
      * how `plan_sets` was initialized.
      *
-     * Returns both the new `performed_exercise_table.uuid` and the parsed plan list so the
-     * caller can stitch the row into in-memory State without re-loading the session.
+     * [AddExerciseResult.planSets] is returned on **both** paths — it is read from
+     * `exercise.last_adhoc_sets`, not from the plan row — so a one-off still seeds the UI
+     * baseline and still round-trips through the `getAdhocPlans` read-time fallback.
+     *
+     * Returns the new `performed_exercise_table.uuid`, the parsed plan list, and an echo of
+     * whether a plan row was written, so the caller can stitch the row into in-memory State
+     * without re-loading the session.
      */
     suspend fun addExerciseToActiveSession(
         sessionUuid: String,
         trainingUuid: String,
         exerciseUuid: String,
+        attachToPlan: Boolean = true,
     ): AddExerciseResult
 
     data class AddExerciseResult(
         val performedExerciseUuid: String,
         val planSets: List<PlanSetDataModel>?,
+        val isPlanAttached: Boolean,
     )
 
     /**
@@ -142,6 +191,21 @@ interface SessionRepository {
      * Discard.
      */
     suspend fun discardAdhocSession(sessionUuid: String, trainingUuid: String)
+
+    /**
+     * Removes ONE exercise from an in-progress session (v3 §6.1 "deleted: excluded, plan
+     * cleaned"): its set rows, its performed row, optionally its plan row
+     * ([removeFromPlan], v3 §6.2 — the row's absence IS the one-off encoding), and finally
+     * the exercise entity itself when it was inline-created and this was its only session
+     * membership (the per-exercise sibling of [discardAdhocSession]'s cascade). One
+     * transaction; a failure rolls the whole removal back.
+     */
+    suspend fun removeExerciseFromSession(
+        performedExerciseUuid: String,
+        exerciseUuid: String,
+        trainingUuid: String?,
+        removeFromPlan: Boolean,
+    )
 
     data class AdhocSessionResult(
         val sessionUuid: String,

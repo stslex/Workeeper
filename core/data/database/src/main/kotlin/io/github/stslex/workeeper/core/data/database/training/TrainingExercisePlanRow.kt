@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.core.data.database.training
 
-import androidx.room.ColumnInfo
+import androidx.room3.ColumnInfo
 import kotlin.uuid.Uuid
 
 data class TrainingExercisePlanRow(

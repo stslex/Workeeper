@@ -4,7 +4,7 @@ import AppExt.implementation
 import AppExt.implementationBundle
 import AppExt.ksp
 import AppExt.libs
-import androidx.room.gradle.RoomExtension
+import androidx.room3.gradle.RoomExtension
 import com.google.devtools.ksp.gradle.KspExtension
 import org.gradle.api.Plugin
 import org.gradle.api.Project
@@ -33,6 +33,9 @@ class RoomLibraryConventionPlugin : Plugin<Project> {
 
             dependencies {
                 implementationBundle("room")
+                // Room 3 requires a SQLiteDriver via setDriver(); AndroidSQLiteDriver
+                // (framework SQLite) is referenced in AppDatabaseFactory and the test builders.
+                implementation("androidx-sqlite-framework")
 
                 ksp("androidx-room-compiler")
                 implementation("androidx-paging-runtime")

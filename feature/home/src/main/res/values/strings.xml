@@ -8,8 +8,21 @@
     <string name="feature_home_settings">Settings</string>
     <string name="feature_home_charts">Charts</string>
 
-    <string name="feature_home_start_cta_title">Start a workout</string>
-    <string name="feature_home_start_cta_subtitle">Pick a training template</string>
+    <string name="feature_home_start_action">Start</string>
+    <string name="feature_home_start_mode_switch">Choose what to show</string>
+    <string name="feature_home_start_mode_forgotten_label">Longest not done</string>
+    <string name="feature_home_start_empty_sessions">No workouts yet</string>
+    <string name="feature_home_start_empty_tags">Exercises have no tags yet — tag muscle groups and they will show up here</string>
+    <string name="feature_home_start_never_run">never yet</string>
+    <string name="feature_home_start_groups_footnote">days since the group’s last workout</string>
+    <string name="feature_home_start_other_training">Another training</string>
+    <string name="feature_home_start_week_day_mon">Mo</string>
+    <string name="feature_home_start_week_day_tue">Tu</string>
+    <string name="feature_home_start_week_day_wed">We</string>
+    <string name="feature_home_start_week_day_thu">Th</string>
+    <string name="feature_home_start_week_day_fri">Fr</string>
+    <string name="feature_home_start_week_day_sat">Sa</string>
+    <string name="feature_home_start_week_day_sun">Su</string>
     <string name="feature_home_recent_adhoc_label">Ad-hoc workout</string>
     <string name="feature_home_recent_stats_format">%1$s · %2$s</string>
 
@@ -22,6 +35,11 @@
     <string name="feature_home_conflict_unnamed">Workout</string>
     <string name="feature_home_conflict_progress_format" tools:ignore="PluralsCandidate">%1$d of %2$d exercises done</string>
 
+    <string name="feature_home_paging_loading">Loading</string>
+    <string name="feature_home_paging_error">Couldn’t load more</string>
+    <string name="feature_home_paging_retry">Retry</string>
+    <string name="feature_home_refresh_error">Couldn’t load the list</string>
+
     <plurals name="feature_home_recent_exercises_count">
         <item quantity="one">%d exercise</item>
         <item quantity="other">%d exercises</item>
@@ -30,5 +48,24 @@
     <plurals name="feature_home_recent_sets_count">
         <item quantity="one">%d set</item>
         <item quantity="other">%d sets</item>
+    </plurals>
+
+    <!-- Unit word only — the numeral renders separately in the Archivo slot, which carries
+         digits only (C2), so the unit cannot join it. Selection still runs on the real count,
+         so locales where `one` covers 21, 31, … still pick the right form. -->
+    <plurals name="feature_home_start_week_sessions_count" tools:ignore="ImpliedQuantity">
+        <item quantity="one">workout</item>
+        <item quantity="other">workouts</item>
+    </plurals>
+
+    <!-- Unit word only, same construction as the week unit above. -->
+    <plurals name="feature_home_start_days_count" tools:ignore="ImpliedQuantity">
+        <item quantity="one">day</item>
+        <item quantity="other">days</item>
+    </plurals>
+
+    <plurals name="feature_home_start_days_idle_count">
+        <item quantity="one">%d day</item>
+        <item quantity="other">%d days</item>
     </plurals>
 </resources>

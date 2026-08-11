@@ -2,13 +2,13 @@
 package io.github.stslex.workeeper.feature.recovery
 
 import android.content.Context
+import io.github.stslex.workeeper.core.data.backup.api.RecoveryDiagnosticsExporter
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreStateRepository
 import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialog
 import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialogUserAction
 import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialogUserChoice
 import io.github.stslex.workeeper.feature.app_dialogs.api.observer.AppDialogObserver
 import io.github.stslex.workeeper.feature.app_dialogs.api.publisher.AppDialogPublisher
-import io.github.stslex.workeeper.feature.recovery.diagnostics.RecoveryDiagnosticsExporter
 import io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinator
 import io.github.stslex.workeeper.feature.recovery.domain.UndoRestoreOutcome
 import io.mockk.coEvery
@@ -34,9 +34,10 @@ import org.junit.jupiter.api.Test
  * assertion — a negative assertion (`exactly = 0`) would otherwise pass for a
  * coroutine that simply has not run yet.
  *
- * [RestoreRecoveryCoordinator] is a relaxed mock: its real [restartApp] calls
- * `Runtime.getRuntime().exit(0)`, which would kill the test JVM if ever invoked.
- * `restartApp` is non-suspend, so it is asserted with `verify`, not `coVerify`.
+ * [RestoreRecoveryCoordinator] is a relaxed mock: its real [restartApp] delegates to
+ * `AppReinitializer.reinitialize()`, whose Android actual calls `Runtime.getRuntime().exit(0)`
+ * and would kill the test JVM if ever invoked. `restartApp` is non-suspend, so it is
+ * asserted with `verify`, not `coVerify`.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 internal class RestoreDialogChoiceObserverTest {

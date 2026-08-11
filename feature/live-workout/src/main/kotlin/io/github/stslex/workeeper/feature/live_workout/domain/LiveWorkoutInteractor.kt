@@ -4,7 +4,6 @@ package io.github.stslex.workeeper.feature.live_workout.domain
 import io.github.stslex.workeeper.feature.live_workout.domain.model.AddExerciseResult
 import io.github.stslex.workeeper.feature.live_workout.domain.model.AdhocSessionResult
 import io.github.stslex.workeeper.feature.live_workout.domain.model.ExercisePickerEntry
-import io.github.stslex.workeeper.feature.live_workout.domain.model.ExerciseTypeDomain
 import io.github.stslex.workeeper.feature.live_workout.domain.model.FinishResult
 import io.github.stslex.workeeper.feature.live_workout.domain.model.InlineAdhocResult
 import io.github.stslex.workeeper.feature.live_workout.domain.model.PersonalRecordDomain
@@ -12,7 +11,7 @@ import io.github.stslex.workeeper.feature.live_workout.domain.model.PlanSetDomai
 import io.github.stslex.workeeper.feature.live_workout.domain.model.SessionSnapshotDomain
 
 @Suppress("TooManyFunctions")
-internal interface LiveWorkoutInteractor {
+interface LiveWorkoutInteractor {
 
     suspend fun startSession(trainingUuid: String): String
 
@@ -29,19 +28,28 @@ internal interface LiveWorkoutInteractor {
     ): AdhocSessionResult
 
     /**
-     * Atomically appends [exerciseUuid] to the active session's plan and performed list.
-     * Per H1 (mid-session changes mutate the plan permanently), the plan row written here
-     * survives session finish even if no sets are logged for it. The plan row's plan_sets
-     * is seeded from `exercise.last_adhoc_sets` so picking a library row with history
-     * surfaces the user's last-logged sets as a baseline.
+     * Atomically appends [exerciseUuid] to the active session's performed list, and to the
+     * training's plan **only when [attachToPlan] is true**.
      *
-     * Returns the new performed-exercise UUID and the parsed plan list so the picker
-     * handler can stitch the row directly into `State.exercises` without re-loading.
+     * [attachToPlan] is the write half of the plan-attached axis (v3 §6.2); see
+     * [LiveExerciseDomain.isPlanAttached] for why this is not `is_adhoc`. With `true` the
+     * historical H1 behaviour holds — the plan row survives session finish even if no sets
+     * are logged. With `false` the exercise is a one-off: it is fully part of this session
+     * and counts toward progress, but the saved training template is left untouched, so the
+     * next session does not inherit it.
+     *
+     * The plan_sets baseline is seeded from `exercise.last_adhoc_sets` on **both** paths, so
+     * picking a library row with history surfaces the user's last-logged sets either way.
+     *
+     * Returns the new performed-exercise UUID, the parsed plan list, and whether a plan row
+     * was written, so the picker handler can stitch the row directly into `State.exercises`
+     * without re-loading.
      */
     suspend fun addExerciseToActiveSession(
         sessionUuid: String,
         trainingUuid: String,
         exerciseUuid: String,
+        attachToPlan: Boolean = true,
     ): AddExerciseResult
 
     /**
@@ -77,15 +85,13 @@ internal interface LiveWorkoutInteractor {
 
     /**
      * Single-exercise lazy PR fetch used by the mid-session add-exercise handler. Returns
-     * the heaviest finished-session set for [exerciseUuid] under the [type]-aware ordering,
-     * or `null` for an exercise with no history (typical for newly inline-created entries).
-     * The handler merges the result into `State.preSessionPrSnapshot` via map-plus
-     * semantics so parallel fetches are race-safe.
+     * the record-holding finished-session set for [exerciseUuid], or `null` for an exercise
+     * with no history (typical for newly inline-created entries). The exercise type is read
+     * from the DB by the query itself, so the handler cannot hand it a stale one. The handler
+     * merges the result into `State.preSessionPrSnapshot` via map-plus semantics so parallel
+     * fetches are race-safe.
      */
-    suspend fun fetchPrSnapshotForExercise(
-        exerciseUuid: String,
-        type: ExerciseTypeDomain,
-    ): PersonalRecordDomain?
+    suspend fun fetchPrSnapshotForExercise(exerciseUuid: String): PersonalRecordDomain?
 
     suspend fun loadSession(sessionUuid: String): SessionSnapshotDomain?
 
@@ -97,7 +103,38 @@ internal interface LiveWorkoutInteractor {
 
     suspend fun deleteSet(performedExerciseUuid: String, position: Int)
 
+    /**
+     * Toggles the skip flag WITHOUT touching set rows (v3 §6.1: skip is "excluded from the
+     * denominator, plan untouched, reversible in place" — reversal is only lossless if the
+     * logged sets survive). An earlier revision wiped the sets here, which is why a
+     * confirmation dialog used to guard it; both are gone together.
+     */
     suspend fun setSkipped(performedExerciseUuid: String, skipped: Boolean)
+
+    /**
+     * Removes one exercise from the active session (v3 §6.1 "deleted"): sets + performed
+     * row (+ the plan row when [removeFromPlan] — §6.2's row-absence encoding) + the
+     * stranded-inline-exercise cleanup, in one transaction.
+     */
+    suspend fun deleteExerciseFromSession(
+        performedExerciseUuid: String,
+        exerciseUuid: String,
+        trainingUuid: String?,
+        removeFromPlan: Boolean,
+    )
+
+    /**
+     * The one-off toggle (v3 §6.1/§6.2): [attached] `false` deletes the pair's plan row —
+     * the exercise stays in the session and out of the template — and `true` re-inserts it
+     * with [planSets]. Non-ad-hoc trainings only; an ad-hoc session has no plan rows to
+     * detach from by construction.
+     */
+    suspend fun setPlanAttachment(
+        trainingUuid: String,
+        exerciseUuid: String,
+        attached: Boolean,
+        planSets: List<PlanSetDomain>?,
+    )
 
     suspend fun resetExerciseSets(performedExerciseUuid: String)
 

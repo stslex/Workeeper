@@ -2,15 +2,17 @@
 package io.github.stslex.workeeper.feature.image_viewer.mvi.handler
 
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import dagger.hilt.android.scopes.ViewModelScoped
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
+import io.github.stslex.workeeper.core.ui.navigation.Screen.ExerciseImageRequest
 import io.github.stslex.workeeper.feature.image_viewer.di.ImageViewerHandlerStore
+import io.github.stslex.workeeper.feature.image_viewer.di.ImageViewerScope
 import io.github.stslex.workeeper.feature.image_viewer.mvi.store.ImageViewerStore.Action
 import io.github.stslex.workeeper.feature.image_viewer.mvi.store.ImageViewerStore.Event
 import io.github.stslex.workeeper.feature.image_viewer.mvi.store.ImageViewerStore.State
-import javax.inject.Inject
 
-@ViewModelScoped
+@SingleIn(ImageViewerScope::class)
 internal class ClickHandler @Inject constructor(
     store: ImageViewerHandlerStore,
 ) : Handler<Action.Click>, ImageViewerHandlerStore by store {
@@ -19,7 +21,43 @@ internal class ClickHandler @Inject constructor(
         when (action) {
             Action.Click.OnBackClick -> processBack()
             Action.Click.OnDoubleTap -> processDoubleTap()
+            Action.Click.OnMenuClick -> processMenuClick()
+            Action.Click.OnSheetDismiss -> processSheetDismiss()
+            Action.Click.OnReplaceClick -> processRequest(ExerciseImageRequest.REPLACE)
+            Action.Click.OnRemoveClick -> processRequest(ExerciseImageRequest.REMOVE)
         }
+    }
+
+    /**
+     * Guarded as well as hidden. `editable` already decides whether the `⋮` is drawn, so this
+     * branch is unreachable through the UI — and that is exactly the shape B23 records as a state
+     * a test can build and production cannot. It is here because the alternative is a
+     * representable state (`Menu` on a non-editable route) whose only defence is a composable
+     * remembering to check a flag, and the sheet it opens stages edits the caller cannot save.
+     */
+    private fun processMenuClick() {
+        if (state.value.editable.not()) return
+        sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
+        updateState { it.copy(sheetState = State.SheetState.Menu) }
+    }
+
+    private fun processSheetDismiss() {
+        updateState { it.copy(sheetState = State.SheetState.Hidden) }
+    }
+
+    /**
+     * Both verbs pop with a REQUEST and perform nothing (§26, "The image moves into the pushed
+     * top bar"). The editor owns the source sheet, the camera permission, the temp URI and the
+     * uncommitted `PendingImage`; moving any of that here to save one hop would put the picture's
+     * lifecycle in two places.
+     *
+     * The sheet is closed in the SAME transition as the pop, not left for the dismiss to catch —
+     * a sheet that outlives its screen is what `bottomSheetState` fields are for.
+     */
+    private fun processRequest(request: ExerciseImageRequest) {
+        sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
+        updateState { it.copy(sheetState = State.SheetState.Hidden) }
+        consume(Action.Navigation.BackWithRequest(request))
     }
 
     private fun processBack() {

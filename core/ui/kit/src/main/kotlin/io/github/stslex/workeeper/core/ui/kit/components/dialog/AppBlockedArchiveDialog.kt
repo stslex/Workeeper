@@ -45,56 +45,89 @@ fun AppBlockedArchiveDialog(
     modifier: Modifier = Modifier,
     archivedSummary: String? = null,
 ) {
-    val dialogBg = if (AppUi.colors.isDark) AppUi.colors.surfaceTier1 else AppUi.colors.surfaceTier2
     Dialog(onDismissRequest = onDismiss) {
-        Column(
-            modifier = modifier
-                .clip(AppUi.shapes.medium)
-                .background(dialogBg)
-                .padding(AppDimension.Space.lg),
-            verticalArrangement = Arrangement.spacedBy(AppDimension.Space.md),
-        ) {
+        AppBlockedArchiveDialogContent(
+            title = title,
+            items = items,
+            nextStep = nextStep,
+            confirmLabel = confirmLabel,
+            onDismiss = onDismiss,
+            modifier = modifier,
+            archivedSummary = archivedSummary,
+        )
+    }
+}
+
+/**
+ * The dialog's **content**, without the window.
+ *
+ * Same split, and the same reason, as [AppConfirmDialogContent]: `Dialog {}` composes into its own
+ * window and Paparazzi models a single one, so this — the only surface that reports a partially
+ * blocked bulk archive — had a drawn treatment and no visual gate at all. The window is the part
+ * Paparazzi cannot model; the content is not, and it is where every colour, rung and the scrolling
+ * cap actually live.
+ *
+ * [AppBlockedArchiveDialog] is the only production caller. This exists so goldens can render the
+ * same pixels without a window, which is why it must stay a pure function of its arguments.
+ */
+@Composable
+fun AppBlockedArchiveDialogContent(
+    title: String,
+    items: ImmutableList<BlockedArchiveItem>,
+    nextStep: String,
+    confirmLabel: String,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
+    archivedSummary: String? = null,
+) {
+    val dialogBg = if (AppUi.colors.isDark) AppUi.colors.surfaceTier1 else AppUi.colors.surfaceTier2
+    Column(
+        modifier = modifier
+            .clip(AppUi.shapes.medium)
+            .background(dialogBg)
+            .padding(AppDimension.Space.lg),
+        verticalArrangement = Arrangement.spacedBy(AppDimension.Space.md),
+    ) {
+        Text(
+            text = title,
+            style = AppUi.typography.titleLarge,
+            color = AppUi.colors.textPrimary,
+        )
+        if (archivedSummary != null) {
             Text(
-                text = title,
-                style = AppUi.typography.titleLarge,
-                color = AppUi.colors.textPrimary,
-            )
-            if (archivedSummary != null) {
-                Text(
-                    text = archivedSummary,
-                    style = AppUi.typography.bodyMedium,
-                    color = AppUi.colors.textSecondary,
-                )
-            }
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = MAX_LIST_HEIGHT)
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
-            ) {
-                items.forEach { item ->
-                    BlockedRow(item)
-                }
-            }
-            Text(
-                text = nextStep,
+                text = archivedSummary,
                 style = AppUi.typography.bodyMedium,
                 color = AppUi.colors.textSecondary,
             )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(
-                    space = AppDimension.Space.sm,
-                    alignment = Alignment.End,
-                ),
-            ) {
-                AppButton.Primary(
-                    text = confirmLabel,
-                    onClick = onDismiss,
-                    size = AppButtonSize.MEDIUM,
-                )
+        }
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = MAX_LIST_HEIGHT)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
+        ) {
+            items.forEach { item ->
+                BlockedRow(item)
             }
+        }
+        Text(
+            text = nextStep,
+            style = AppUi.typography.bodyMedium,
+            color = AppUi.colors.textSecondary,
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(
+                space = AppDimension.Space.sm,
+                alignment = Alignment.End,
+            ),
+        ) {
+            AppButton.Primary(
+                text = confirmLabel,
+                onClick = onDismiss,
+                size = AppButtonSize.MEDIUM,
+            )
         }
     }
 }

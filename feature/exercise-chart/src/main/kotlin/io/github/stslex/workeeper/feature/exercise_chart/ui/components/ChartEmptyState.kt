@@ -4,14 +4,13 @@ package io.github.stslex.workeeper.feature.exercise_chart.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.tooling.preview.Preview
 import io.github.stslex.workeeper.core.ui.kit.components.empty.AppEmptyState
+import io.github.stslex.workeeper.core.ui.kit.icons.AppIcons
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
@@ -37,7 +36,9 @@ internal fun ChartEmptyState(
             .testTag(testTag),
         headline = title,
         supportingText = subtitle,
-        icon = Icons.Outlined.Inventory2,
+        // The mockup's chart glyph (pass2d §s-empty) — a rising zig-zag, not a box: the
+        // empty chart's promise is a line that will appear, and the icon draws that line.
+        icon = AppIcons.ChartLine,
         actionLabel = ctaLabel.takeIf { onCta != null },
         onAction = onCta,
     )

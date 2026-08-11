@@ -10,7 +10,6 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.rememberLifecycleOwner
 import io.github.stslex.workeeper.core.core.logger.FirebaseAnalyticsHolder
 import io.github.stslex.workeeper.core.core.logger.FirebaseCrashlyticsHolder
@@ -50,35 +49,13 @@ interface StoreProcessor<S : State, A : Action, E : Event> {
 }
 
 /**
- * Remembers and returns a [StoreProcessor] for the provided [screen].
+ * Remembers and returns a [StoreProcessor], wiring it to the store lifecycle, initializing
+ * analytics/render tracing, and disposing store resources when the composable leaves the composition.
  *
- * The created processor is wired to the store lifecycle, initializes analytics/render tracing,
- * and disposes store resources when the composable leaves the composition.
- *
- * @param screen The navigation screen used to create the component.
- * @param key Optional key passed to [hiltViewModel] for store instance scoping.
+ * App-Scope Collapse Step 6 (cut): the two Hilt-backed overloads (`hiltViewModel`-resolved) were removed
+ * with Hilt — every feature resolves its Store through the backend-agnostic [StoreCreator] overload below
+ * (via `rememberMetroStoreProcessor`, which supplies a Metro-constructed Store).
  */
-@Composable
-inline fun <
-    reified TStoreImpl : BaseStore<*, *, *>,
-    TScreen : Screen,
-    reified TFactory : StoreFactory<TScreen, TStoreImpl>,
-    > rememberStoreProcessor(
-    screen: TScreen,
-    key: String? = null,
-): StoreProcessor<*, *, *> = rememberStoreProcessor {
-    hiltViewModel<TStoreImpl, TFactory>(key = key) { storeFactory ->
-        storeFactory.create(screen)
-    }
-}
-
-@Composable
-inline fun <reified TStoreImpl : BaseStore<*, *, *>> rememberStoreProcessor(
-    key: String? = null,
-): StoreProcessor<*, *, *> = rememberStoreProcessor {
-    hiltViewModel<TStoreImpl>(key = key)
-}
-
 @Composable
 inline fun <reified TStoreImpl : BaseStore<*, *, *>> rememberStoreProcessor(
     storeCreator: StoreCreator<TStoreImpl>,

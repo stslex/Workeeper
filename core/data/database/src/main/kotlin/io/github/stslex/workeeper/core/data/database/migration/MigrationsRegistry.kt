@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.core.data.database.migration
 
-import androidx.room.migration.Migration
+import androidx.room3.migration.Migration
 
 /**
  * Live schema version of `AppDatabase`. The `@Database(version = APP_DATABASE_VERSION)`
@@ -17,13 +17,15 @@ const val APP_DATABASE_VERSION: Int = 6
 /**
  * Single source of truth for every Room migration registered on the live database.
  *
- * `CoreDatabaseModule` spreads this into `Room.databaseBuilder.addMigrations(*MIGRATIONS)`,
- * pre-restore checks consult it via [hasMigrationPath], and the registry test in the
- * test source set introspects it to assert that every consecutive version pair from
- * [MIN_SUPPORTED_SCHEMA_VERSION] forward has a registered path.
+ * `buildAppDatabase` (`AppDatabaseFactory.kt`) is the sole registration site: it walks the
+ * array element-by-element — `.apply { MIGRATIONS.forEach { addMigrations(it) } }`, not a
+ * spread — onto the one `Room.databaseBuilder(...)` chain the app builds. Pre-restore checks
+ * consult it via [hasMigrationPath], and the registry test in the test source set introspects
+ * it to assert that every consecutive version pair from [MIN_SUPPORTED_SCHEMA_VERSION] forward
+ * has a registered path.
  *
  * Append new entries here (and only here) when a schema bump lands. Never duplicate
- * the list inside the DI module or any other call-site — divergence between the
+ * the list inside the factory or any other call-site — divergence between the
  * builder and this array is exactly the bug the registry test prevents.
  */
 internal val MIGRATIONS: Array<Migration> = arrayOf(

@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.exercise_chart.domain.model
 
+import java.time.Instant
+import java.time.ZoneId
+
 /**
- * Date filter presets for the chart screen. `windowStartMillis(now)` returns the inclusive
+ * Date filter presets for the chart screen. [windowStartMillis] returns the inclusive
  * start of the visible window (or `null` for [ALL], meaning unbounded).
  */
-internal enum class ChartPresetDomain(
+enum class ChartPresetDomain(
     private val windowDays: Long?,
 ) {
     MONTH_1(windowDays = 30L),
@@ -14,11 +17,15 @@ internal enum class ChartPresetDomain(
     ALL(windowDays = null),
     ;
 
-    fun windowStartMillis(now: Long): Long? = windowDays?.let { days ->
-        now - days * MILLIS_PER_DAY
-    }
-
-    private companion object {
-        const val MILLIS_PER_DAY: Long = 24L * 60L * 60L * 1000L
+    /**
+     * Inclusive window start as epoch millis, or `null` for [ALL]. Subtracts [windowDays]
+     * **calendar** days from [now] in [zone], preserving local time-of-day, so a window that
+     * spans a DST transition stays aligned to the correct calendar boundary. A naive
+     * `now - days * 24h` drifts by the transition's offset and, when [now] is within an hour
+     * of local midnight, lands the boundary on the wrong day — a bug a UTC test zone (which
+     * has no DST) can never surface.
+     */
+    fun windowStartMillis(now: Long, zone: ZoneId): Long? = windowDays?.let { days ->
+        Instant.ofEpochMilli(now).atZone(zone).minusDays(days).toInstant().toEpochMilli()
     }
 }

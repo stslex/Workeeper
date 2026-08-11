@@ -2,15 +2,9 @@
 package io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store
 
 import io.github.stslex.workeeper.core.ui.navigation.Screen
-import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
-import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
-import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorStore.State
-import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertThrows
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 /**
@@ -123,41 +117,5 @@ internal class PlanEditorStateRouteArgTest {
         val mode = screen.toMode()
 
         assertEquals(State.Mode.Exercise(exerciseUuid = "ex-1"), mode)
-    }
-
-    @Test
-    fun `Draft route maps to Mode Draft and hydrates seed type`() {
-        val screen = Screen.PlanEditor.Draft(
-            initialType = ExerciseTypeUiModel.WEIGHTLESS,
-            initialPlanJson = null,
-        )
-
-        val state = screen.toInitialState()
-
-        assertEquals(State.Mode.Draft, state.mode)
-        assertEquals(ExerciseTypeUiModel.WEIGHTLESS, state.type)
-        assertEquals(ExerciseTypeUiModel.WEIGHTLESS, state.initialType)
-        assertTrue(state.draft.isEmpty())
-        // Draft mode skips the DB load — the editor renders immediately.
-        assertFalse(state.isLoading)
-    }
-
-    @Test
-    fun `Draft route hydrates seed plan when initialPlanJson is present`() {
-        val seed = listOf(
-            PlanSetUiModel(weight = 70.0, reps = 8, type = SetTypeUiModel.WORK),
-            PlanSetUiModel(weight = 80.0, reps = 5, type = SetTypeUiModel.WORK),
-        )
-        val screen = Screen.PlanEditor.Draft(
-            initialType = ExerciseTypeUiModel.WEIGHTED,
-            initialPlanJson = Json.encodeToString(seed),
-        )
-
-        val state = screen.toInitialState()
-
-        assertEquals(State.Mode.Draft, state.mode)
-        assertEquals(seed, state.draft.toList())
-        assertEquals(seed, state.initialDraft.toList())
-        assertEquals(ExerciseTypeUiModel.WEIGHTED, state.type)
     }
 }

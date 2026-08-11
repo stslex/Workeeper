@@ -129,6 +129,7 @@ internal class ExercisePickerHandlerTest {
         } returns AddExerciseResult(
             performedExerciseUuid = "pe-inline-1",
             planSets = null,
+            isPlanAttached = true,
         )
 
         val handler = ExercisePickerHandler(
@@ -147,7 +148,7 @@ internal class ExercisePickerHandlerTest {
         )
         // reusedExisting = false → no history → PR baseline fetch is skipped.
         coVerify(exactly = 0) {
-            interactor.fetchPrSnapshotForExercise(any(), any())
+            interactor.fetchPrSnapshotForExercise(any())
         }
     }
 
@@ -168,6 +169,7 @@ internal class ExercisePickerHandlerTest {
         } returns AddExerciseResult(
             performedExerciseUuid = "pe-library-1",
             planSets = null,
+            isPlanAttached = true,
         )
 
         val handler = ExercisePickerHandler(
@@ -182,10 +184,7 @@ internal class ExercisePickerHandlerTest {
 
         // reusedExisting = true → existing row may have history → PR baseline is fetched.
         coVerify(exactly = 1) {
-            interactor.fetchPrSnapshotForExercise(
-                exerciseUuid = "ex-library-1",
-                type = ExerciseTypeDomain.WEIGHTED,
-            )
+            interactor.fetchPrSnapshotForExercise(exerciseUuid = "ex-library-1")
         }
     }
 

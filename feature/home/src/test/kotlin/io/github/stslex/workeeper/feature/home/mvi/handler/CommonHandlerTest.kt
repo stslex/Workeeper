@@ -6,6 +6,7 @@ import io.github.stslex.workeeper.feature.home.di.HomeHandlerStore
 import io.github.stslex.workeeper.feature.home.domain.HomeInteractor
 import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.Action
 import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.State
+import io.github.stslex.workeeper.feature.home.mvi.store.emptyPagingState
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -18,13 +19,12 @@ internal class CommonHandlerTest {
 
     private val interactor = mockk<HomeInteractor>(relaxed = true) {
         every { observeActiveSession() } returns emptyFlow()
-        every { observeRecent(any()) } returns emptyFlow()
     }
     private val resources = mockk<ResourceWrapper>(relaxed = true)
 
     @Test
-    fun `Init subscribes to active session and recent flows`() {
-        val stateFlow = MutableStateFlow(State.INITIAL)
+    fun `Init subscribes to the active session and NOT to the paged recent list`() {
+        val stateFlow = MutableStateFlow(emptyPagingState())
         val store = mockk<HomeHandlerStore>(relaxed = true).apply {
             every { state } returns stateFlow
             every { updateState(any()) } answers {
@@ -41,7 +41,27 @@ internal class CommonHandlerTest {
         handler.invoke(Action.Common.Init)
 
         verify { interactor.observeActiveSession() }
-        verify { interactor.observeRecent(any()) }
-        assertEquals(State.INITIAL, stateFlow.value)
+        // `Init` no longer subscribes to the recent list at all: it is paged, and its flow is
+        // built once in `PagingHandler.pagingUiState` and collected by the screen. Asserted as an
+        // absence deliberately — the old case verified a call this handler must NOT make now.
+        verify(exactly = 0) { interactor.pagedRecent() }
+        assertEquals(emptyPagingState(), stateFlow.value)
+    }
+
+    @Test
+    fun `Init builds the start card pipeline from the persisted mode`() {
+        val store = mockk<HomeHandlerStore>(relaxed = true)
+        val handler = CommonHandler(
+            interactor = interactor,
+            resourceWrapper = resources,
+            store = store,
+        )
+
+        handler.invoke(Action.Common.Init)
+
+        // The persisted mode is the pipeline's head (HS6, DataStore as the single source of
+        // truth); the per-mode readout hangs off it via flatMapLatest and is only reached
+        // once the pipeline is collected.
+        verify(exactly = 1) { interactor.observeStartCardMode() }
     }
 }

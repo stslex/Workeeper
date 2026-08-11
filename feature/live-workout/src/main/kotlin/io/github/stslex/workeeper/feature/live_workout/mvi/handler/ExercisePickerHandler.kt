@@ -2,7 +2,8 @@
 package io.github.stslex.workeeper.feature.live_workout.mvi.handler
 
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import dagger.hilt.android.scopes.ViewModelScoped
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExercisePickerAction
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExercisePickerUiModel
@@ -10,10 +11,11 @@ import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.feature.live_workout.R
 import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutHandlerStore
+import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutScope
 import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor
 import io.github.stslex.workeeper.feature.live_workout.domain.model.ExercisePickerEntry
 import io.github.stslex.workeeper.feature.live_workout.domain.model.PersonalRecordDomain
-import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMapper.toDomain
+import io.github.stslex.workeeper.feature.live_workout.mvi.handler.PendingUndoOps.pushUndo
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMapper.toUi
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.StateStatusMapper
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ErrorType
@@ -22,13 +24,13 @@ import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveExerciseUiM
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.BottomSheetState
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Event
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.State
+import io.github.stslex.workeeper.feature.live_workout.mvi.store.PendingUndo
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.ImmutableMap
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.collections.immutable.toImmutableMap
 import kotlinx.collections.immutable.toImmutableSet
-import javax.inject.Inject
 
 /**
  * Sub-handler isolated from `ClickHandler` to keep the v2.7 decomposition concern from
@@ -38,7 +40,7 @@ import javax.inject.Inject
  * Routed via `Action.Click.PickerAction` from the parent click handler — see
  * [ClickHandler] delegation.
  */
-@ViewModelScoped
+@SingleIn(LiveWorkoutScope::class)
 internal class ExercisePickerHandler @Inject constructor(
     private val interactor: LiveWorkoutInteractor,
     private val resourceWrapper: ResourceWrapper,
@@ -170,6 +172,7 @@ internal class ExercisePickerHandler @Inject constructor(
         if (!inFlightAlreadySet) {
             updateState { it.copy(isAddExerciseInFlight = true) }
         }
+        val prior = current
         launch(
             onError = { _ ->
                 updateState {
@@ -191,10 +194,7 @@ internal class ExercisePickerHandler @Inject constructor(
             // map-plus update is skipped, which keeps the in-moment PR badge suppressed.
             val pr: PersonalRecordDomain? = if (picked.fetchPr) {
                 runCatching {
-                    interactor.fetchPrSnapshotForExercise(
-                        exerciseUuid = picked.exerciseUuid,
-                        type = picked.type.toDomain(),
-                    )
+                    interactor.fetchPrSnapshotForExercise(exerciseUuid = picked.exerciseUuid)
                 }.getOrNull()
             } else {
                 null
@@ -223,6 +223,11 @@ internal class ExercisePickerHandler @Inject constructor(
                     exercises = nextExercises,
                     activeExerciseUuids = activeNext,
                     expandedExerciseUuids = expandedNext,
+                    // §6.1: the one-off toggle appears only on mid-session additions —
+                    // this set is that gate.
+                    midSessionAddedUuids = (
+                        latest.midSessionAddedUuids + addResult.performedExerciseUuid
+                        ).toImmutableSet(),
                     isAddExerciseInFlight = false,
                     bottomSheetState = BottomSheetState.Hidden,
                     preSessionPrSnapshot = latest.preSessionPrSnapshot.mergePr(
@@ -234,6 +239,25 @@ internal class ExercisePickerHandler @Inject constructor(
                     statusMapper.recomputeStatuses(it)
                 }
             }
+            // «{name}» добавлено — undo removes the rows the add just wrote.
+            pushUndo(
+                interactor,
+                PendingUndo(
+                    id = PendingUndoOps.nextUndoId(),
+                    message = resourceWrapper.getString(
+                        R.string.feature_live_workout_toast_exercise_added,
+                        picked.name.truncateForToast(),
+                    ),
+                    restoreExercises = prior.exercises,
+                    restoreDrafts = prior.setDrafts,
+                    restoreOverrides = prior.rowCountOverrides,
+                    undoCompensation = PendingUndo.UndoCompensation.RemoveAddedExercise(
+                        performedExerciseUuid = addResult.performedExerciseUuid,
+                        exerciseUuid = picked.exerciseUuid,
+                        removeFromPlan = addResult.isPlanAttached,
+                    ),
+                ),
+            )
             sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
         }
     }

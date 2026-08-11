@@ -2,7 +2,7 @@
 package io.github.stslex.workeeper.feature.archive.mvi.store
 
 import androidx.annotation.VisibleForTesting
-import dagger.hilt.android.lifecycle.HiltViewModel
+import dev.zacsweers.metro.Inject
 import io.github.stslex.workeeper.core.ui.mvi.BaseStore
 import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
 import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
@@ -14,10 +14,13 @@ import io.github.stslex.workeeper.feature.archive.mvi.handler.ArchivePagingHandl
 import io.github.stslex.workeeper.feature.archive.mvi.store.ArchiveStore.Action
 import io.github.stslex.workeeper.feature.archive.mvi.store.ArchiveStore.Event
 import io.github.stslex.workeeper.feature.archive.mvi.store.ArchiveStore.State
-import javax.inject.Inject
 
-@HiltViewModel
-internal class ArchiveStoreImpl @Inject constructor(
+// Metro constructs this Store (class-level @Inject). Retention is owned by the Android ViewModelStore
+// via rememberMetroStoreProcessor — so NO @SingleIn here. The class is `public` (its accessor is on the
+// public extension), but the primary constructor is `internal` so the handler ctor params stay internal —
+// :app's generated extension impl calls the ctor at the IR level (no Kotlin `internal` barrier).
+@Inject
+class ArchiveStoreImpl internal constructor(
     navigationHandler: ArchiveNavigationHandler,
     pagingHandler: ArchivePagingHandler,
     clickHandler: ArchiveClickHandler,

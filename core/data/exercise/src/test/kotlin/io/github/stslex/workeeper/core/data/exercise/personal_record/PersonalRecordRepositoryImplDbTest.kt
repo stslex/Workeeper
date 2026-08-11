@@ -10,7 +10,6 @@ import io.github.stslex.workeeper.core.data.database.session.model.SetEntity
 import io.github.stslex.workeeper.core.data.database.session.model.SetTypeEntity
 import io.github.stslex.workeeper.core.data.database.testfixtures.RepositoryTestEnv
 import io.github.stslex.workeeper.core.data.database.training.TrainingEntity
-import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseTypeDataModel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
@@ -53,10 +52,7 @@ internal class PersonalRecordRepositoryImplDbTest {
         seedFinishedSet(trainingUuid, exerciseUuid, weight = 100.0, reps = 5, finishedAt = 2_000L)
         seedFinishedSet(trainingUuid, exerciseUuid, weight = 100.0, reps = 4, finishedAt = 3_000L)
 
-        val pr = repository.getPersonalRecord(
-            exerciseUuid = exerciseUuid.toString(),
-            type = ExerciseTypeDataModel.WEIGHTED,
-        )
+        val pr = repository.getPersonalRecord(exerciseUuid.toString())
 
         assertEquals(100.0, pr?.weight)
         // Reps DESC tiebreaker: 5 reps wins over 4 reps when weight is equal.
@@ -71,10 +67,7 @@ internal class PersonalRecordRepositoryImplDbTest {
         seedFinishedSet(trainingUuid, exerciseUuid, weight = null, reps = 8, finishedAt = 1_000L)
         seedFinishedSet(trainingUuid, exerciseUuid, weight = null, reps = 12, finishedAt = 2_000L)
 
-        val pr = repository.getPersonalRecord(
-            exerciseUuid = exerciseUuid.toString(),
-            type = ExerciseTypeDataModel.WEIGHTLESS,
-        )
+        val pr = repository.getPersonalRecord(exerciseUuid.toString())
 
         assertEquals(12, pr?.reps)
         assertNull(pr?.weight)
@@ -85,10 +78,7 @@ internal class PersonalRecordRepositoryImplDbTest {
         runTest {
             val (_, exerciseUuid) = seedTrainingAndExercise()
 
-            val pr = repository.getPersonalRecord(
-                exerciseUuid = exerciseUuid.toString(),
-                type = ExerciseTypeDataModel.WEIGHTED,
-            )
+            val pr = repository.getPersonalRecord(exerciseUuid.toString())
 
             assertNull(pr)
         }
@@ -98,23 +88,20 @@ internal class PersonalRecordRepositoryImplDbTest {
         val (trainingUuid, exerciseUuid) = seedTrainingAndExercise()
         seedFinishedSet(trainingUuid, exerciseUuid, weight = 100.0, reps = 5, finishedAt = 1_000L)
 
-        val pr = repository.observePersonalRecord(
-            exerciseUuid = exerciseUuid.toString(),
-            type = ExerciseTypeDataModel.WEIGHTED,
-        ).first()
+        val pr = repository.observePersonalRecord(exerciseUuid.toString()).first()
 
         assertEquals(100.0, pr?.weight)
     }
 
     @Test
-    fun `observePersonalRecords with empty input emits an empty map`() = runTest {
-        val map = repository.observePersonalRecords(emptyMap()).first()
+    fun `observePersonalRecordsBatch with empty input emits an empty map`() = runTest {
+        val map = repository.observePersonalRecordsBatch(emptySet()).first()
 
         assertTrue(map.isEmpty())
     }
 
     @Test
-    fun `observePersonalRecords returns one PR per requested exercise`() = runTest {
+    fun `observePersonalRecordsBatch returns one PR per requested exercise`() = runTest {
         val (trainingUuid, weightedUuid) = seedTrainingAndExercise()
         val weightlessUuid = Uuid.random()
         env.exerciseDao.insert(
@@ -139,11 +126,8 @@ internal class PersonalRecordRepositoryImplDbTest {
             finishedAt = 2_000L,
         )
 
-        val records = repository.observePersonalRecords(
-            uuidsByType = mapOf(
-                weightedUuid.toString() to ExerciseTypeDataModel.WEIGHTED,
-                weightlessUuid.toString() to ExerciseTypeDataModel.WEIGHTLESS,
-            ),
+        val records = repository.observePersonalRecordsBatch(
+            setOf(weightedUuid.toString(), weightlessUuid.toString()),
         ).first()
 
         assertEquals(2, records.size)
@@ -179,10 +163,7 @@ internal class PersonalRecordRepositoryImplDbTest {
         )
 
         val records = repository.observePersonalRecordsBatch(
-            uuidsByType = mapOf(
-                weightedUuid.toString() to ExerciseTypeDataModel.WEIGHTED,
-                secondExerciseUuid.toString() to ExerciseTypeDataModel.WEIGHTED,
-            ),
+            setOf(weightedUuid.toString(), secondExerciseUuid.toString()),
         ).first()
 
         assertEquals(100.0, records[weightedUuid.toString()]?.weight)
@@ -210,9 +191,7 @@ internal class PersonalRecordRepositoryImplDbTest {
             setUuid = prSetUuid,
         )
 
-        val ids = repository.observePrSetUuids(
-            uuidsByType = mapOf(exerciseUuid.toString() to ExerciseTypeDataModel.WEIGHTED),
-        ).first()
+        val ids = repository.observePrSetUuids(setOf(exerciseUuid.toString())).first()
 
         assertEquals(setOf(prSetUuid.toString()), ids)
     }

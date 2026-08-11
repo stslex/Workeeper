@@ -2,9 +2,6 @@
 package io.github.stslex.workeeper
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.EnterExitState
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.animateDp
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -15,19 +12,10 @@ import androidx.compose.animation.slideOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.systemBarsPadding
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SnackbarResult.ActionPerformed
-import androidx.compose.material3.SnackbarResult.Dismissed
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -35,32 +23,46 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalAccessibilityManager
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.rememberNavController
-import io.github.stslex.workeeper.bottom_app_bar.WorkeeperBottomAppBar
+import io.github.stslex.workeeper.bottom_app_bar.BottomBarItem
+import io.github.stslex.workeeper.core.ui.kit.components.navbar.AppNavBar
+import io.github.stslex.workeeper.core.ui.kit.components.navbar.AppNavBarItem
 import io.github.stslex.workeeper.core.ui.kit.components.snackbar.AppSnackbar
 import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
-import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
+import io.github.stslex.workeeper.core.ui.kit.snackbar.resolveSnackbarOutcomeOrRequeue
+import io.github.stslex.workeeper.core.ui.kit.snackbar.toastTimeoutMillis
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.navigation.NavigatorHolder
-import io.github.stslex.workeeper.core.ui.navigation.Screen
+import io.github.stslex.workeeper.di.AppGraphOwner
 import io.github.stslex.workeeper.feature.app_dialogs.impl.ui.AppDialogHost
 import io.github.stslex.workeeper.host.AppNavigationHost
 import io.github.stslex.workeeper.host.BottomBarNavigationListener.Companion.rememberBottomBarNavigationListener
 import io.github.stslex.workeeper.navigation.NavigatorExt.NavigationEventBusSetup
-
-private val TOP_APP_BAR_HEIGHT = 64.dp
-private val TOP_APP_BAR_ACTION_PADDING = 4.dp
+import kotlinx.coroutines.withTimeoutOrNull
 
 @Composable
 fun App() {
-    val viewModel: AppRootViewModel = hiltViewModel()
+    // AppRootViewModel is a plain ViewModel constructed via viewModel {} with deps read from the app
+    // graph — commonDataStore off the public contract, navigatorEventBus off the internal AppGraph
+    // (concrete, app/app-owned).
+    val context = LocalContext.current
+    val viewModel: AppRootViewModel = viewModel {
+        val graph = (context.applicationContext as AppGraphOwner).appGraph
+        AppRootViewModel(
+            commonDataStore = graph.commonDataStore,
+            navigatorEventBus = graph.navigatorEventBus,
+        )
+    }
     val themeMode by viewModel.themeMode.collectAsState()
 
     AppTheme(themeMode = themeMode) {
@@ -69,6 +71,7 @@ fun App() {
         val navigatorEventBus = viewModel.navigatorEventBus
 
         val bottomBarNavigationListener = rememberBottomBarNavigationListener(holder)
+        val hapticFeedback = LocalHapticFeedback.current
 
         NavigationEventBusSetup(
             navigatorHolder = holder,
@@ -77,18 +80,44 @@ fun App() {
 
         val snackbarHostState = remember { SnackbarHostState() }
 
-        LaunchedEffect(Unit) {
+        // B25 branch B: the host owns the toast's lifetime, because the drawing gives a number
+        // Material3 has no rung for.
+        //
+        // `showSnackbar`'s `duration` defaults to `Indefinite` whenever an `actionLabel` is
+        // present — a deliberate M3 default, paired with a dismiss affordance this app's `.toast`
+        // does not draw. The result was three undo toasts that never went away. `SnackbarDuration`
+        // offers only 4000ms and 10000ms; `session-v3f.html` says 5000, so the timeout is applied
+        // here instead of rounded onto a rung.
+        //
+        // The snackbar is therefore shown as `Indefinite` and cancelled by `withTimeoutOrNull` —
+        // cancelling the caller removes it from display, which M3's own KDoc guarantees. The
+        // accessibility recommendation is applied by `toastTimeoutMillis` rather than left to M3:
+        // an `Indefinite` snackbar short-circuits `calculateRecommendedTimeoutMillis` before the
+        // system manager is reached, so it is the one duration that silently ignores a user's
+        // display-timeout preference. A finite base restores it.
+        val accessibilityManager = LocalAccessibilityManager.current
+        LaunchedEffect(accessibilityManager) {
             SnackbarManager.snackbar
                 .collect { model ->
-                    val result = snackbarHostState.showSnackbar(
-                        message = model.message,
-                        actionLabel = model.actionLabel,
-                        withDismissAction = model.withDismissAction,
-                    )
-                    when (result) {
-                        ActionPerformed -> model.action()
-
-                        Dismissed -> Unit // No-op
+                    // ActionPerformed → action; Dismissed or timeout → onDismissed. The
+                    // routing is the kit's own named function so the deferred-delete window
+                    // (ED11) is asserted at its selector, not read off this collector — the
+                    // callbacks' failures are contained there, and a model this collector
+                    // dies holding (the activity recreates under a visible toast) goes back
+                    // on the queue for the collector that replaces it.
+                    resolveSnackbarOutcomeOrRequeue(model) {
+                        withTimeoutOrNull(
+                            toastTimeoutMillis(
+                                accessibilityManager = accessibilityManager,
+                                hasAction = model.actionLabel != null,
+                            ),
+                        ) {
+                            snackbarHostState.showSnackbar(
+                                message = model.message,
+                                actionLabel = model.actionLabel,
+                                duration = SnackbarDuration.Indefinite,
+                            )
+                        }
                     }
                 }
         }
@@ -105,51 +134,47 @@ fun App() {
                     .zIndex(1f),
                 visible = bottomBarNavigationListener.bottomBarDestination.value != null,
                 enter = fadeIn(
-                    tween(AppUi.motion.normal),
+                    tween(AppUi.motion.base),
                 ) + scaleIn(
-                    tween(AppUi.motion.normal),
+                    tween(AppUi.motion.base),
                 ) + slideIn(
                     initialOffset = { IntOffset(0, 0) },
-                    animationSpec = tween(AppUi.motion.normal),
+                    animationSpec = tween(AppUi.motion.base),
                 ),
                 exit = fadeOut(
-                    tween(AppUi.motion.normal),
+                    tween(AppUi.motion.base),
                 ) + scaleOut(
-                    tween(AppUi.motion.normal),
+                    tween(AppUi.motion.base),
                 ) + slideOut(
                     targetOffset = { fullSize -> IntOffset(0, fullSize.height) },
-                    animationSpec = tween(AppUi.motion.normal),
+                    animationSpec = tween(AppUi.motion.base),
                 ),
             ) {
-                val cornerRadius by transition.animateDp(
-                    transitionSpec = {
-                        tween(
-                            durationMillis = AppUi.motion.normal,
-                            easing = FastOutSlowInEasing,
+                // The v2 bar clipped its own top corners from `Radius.largest` (128dp) down to 0
+                // across the enter transition. That treatment goes with the bar: `#s-nav` draws a
+                // flat `--sec` track with a hairline along its top edge, and a 128dp top radius
+                // both contradicts the drawn shape and cuts the hairline off at both ends. The
+                // show/hide transition itself is untouched — only the shape animation the deleted
+                // component owned.
+                AppNavBar(
+                    items = BottomBarItem.entries.map { item ->
+                        AppNavBarItem(
+                            icon = item.icon,
+                            contentDescription = stringResource(item.titleRes),
+                            testTag = item.testTag,
                         )
                     },
-                    label = "bottom-bar-corner-radius",
-                ) { state ->
-                    when (state) {
-                        EnterExitState.PreEnter -> AppDimension.Radius.largest
-                        EnterExitState.Visible -> 0.dp
-                        EnterExitState.PostExit -> AppDimension.Radius.largest
-                    }
-                }
-
-                WorkeeperBottomAppBar(
-                    modifier = Modifier.clip(
-                        RoundedCornerShape(
-                            topStart = cornerRadius,
-                            topEnd = cornerRadius,
-                            bottomStart = 0.dp,
-                            bottomEnd = 0.dp,
-                        ),
-                    ),
-                    selectedItem = bottomBarNavigationListener.bottomBarDestination,
-                ) {
-                    navigatorEventBus.navTo(it.screen)
-                }
+                    selectedIndex = bottomBarNavigationListener.selectedIndex.value,
+                    onSelect = { index ->
+                        val item = BottomBarItem.entries[index]
+                        // §26 "Haptics": SegmentTick on a nav tab change. Fired here rather than
+                        // inside `AppNavBar` because every haptic in this app is fired at a
+                        // feature/graph level — `core/ui/kit/src/main` has none, measured.
+                        hapticFeedback.performHapticFeedback(HapticFeedbackType.SegmentTick)
+                        navigatorEventBus.navTo(item.screen)
+                    },
+                    modifier = Modifier.testTag("WorkeeperBottomAppBar"),
+                )
             }
 
             AppNavigationHost(
@@ -157,27 +182,14 @@ fun App() {
                 navigatorHolder = holder,
             )
 
-            if (bottomBarNavigationListener.bottomBarDestination.value != null) {
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .systemBarsPadding()
-                        .height(TOP_APP_BAR_HEIGHT)
-                        .padding(end = TOP_APP_BAR_ACTION_PADDING),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    IconButton(
-                        modifier = Modifier.testTag("AppSettingsEntry"),
-                        onClick = { navigatorEventBus.navTo(Screen.Settings) },
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Settings,
-                            contentDescription = "Settings",
-                            tint = AppUi.colors.textPrimary,
-                        )
-                    }
-                }
-            }
+            // NO host-owned affordance goes here. The host may not place a control in a band a
+            // screen owns and can replace whole — §26, "A host-owned affordance may not float over
+            // a bar a screen replaces", and B26 for what the last one cost.
+            //
+            // Interim, stated rather than papered over: all-trainings, all-exercises and archive
+            // have **no settings entry of their own** until that pass rules the resting bar. Home
+            // keeps its own (`HomeScreen`'s `actions`), and Home is one tap away on the nav bar, so
+            // the three screens reach settings in two taps. Do not restore this overlay for them.
 
             SnackbarHost(
                 modifier = Modifier.align(Alignment.BottomCenter),

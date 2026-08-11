@@ -45,7 +45,6 @@ private fun Project.configureKotlinAndroid(
 
     pluginManager.apply {
         apply(libs.findPluginId("robolectric-junit5"))
-        apply(libs.findPluginId("hilt"))
     }
 
     compileSdk = libs.findVersionInt("compileSdk")
@@ -96,9 +95,11 @@ private fun Project.configureKotlinAndroid(
             "androidx-core-ktx",
             "kotlinx-collections-immutable",
             "coroutines",
-            "hilt-android"
+            // App-Scope Collapse Step 6 (cut): bare javax.inject (was pulled via hilt-android) — every
+            // Android module needs javax.inject.Qualifier on its classpath so Metro's includeJavax()
+            // recognises the @DefaultDispatcher/@IODispatcher/@MainImmediateDispatcher qualifiers.
+            "javax-inject"
         )
-        ksp("hilt-compiler")
     }
 
     tasks.withType<Test>().configureEach {

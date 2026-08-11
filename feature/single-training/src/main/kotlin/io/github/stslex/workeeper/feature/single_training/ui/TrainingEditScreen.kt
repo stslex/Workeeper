@@ -13,30 +13,32 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButton
-import io.github.stslex.workeeper.core.ui.kit.components.button.AppButtonSize
+import io.github.stslex.workeeper.core.ui.kit.components.button.AppDashedAddButton
+import io.github.stslex.workeeper.core.ui.kit.components.input.AppFieldLabel
 import io.github.stslex.workeeper.core.ui.kit.components.input.AppTextField
-import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopAppBar
+import io.github.stslex.workeeper.core.ui.kit.components.reorderable.rememberReorderableColumnState
+import io.github.stslex.workeeper.core.ui.kit.components.reorderable.reorderableColumnDragHandle
+import io.github.stslex.workeeper.core.ui.kit.components.reorderable.reorderableColumnItem
+import io.github.stslex.workeeper.core.ui.kit.components.section.AppLabel
+import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagFormRow
+import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppIconButton
+import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopBar
+import io.github.stslex.workeeper.core.ui.kit.icons.AppIcons
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.feature.single_training.R
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.Action
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.State
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.State.Mode
-import io.github.stslex.workeeper.feature.single_training.ui.components.TagPickerInline
-import io.github.stslex.workeeper.feature.single_training.ui.components.TrainingExerciseEditRow
+import io.github.stslex.workeeper.feature.single_training.ui.components.TrainingExerciseCard
 import io.github.stslex.workeeper.core.ui.kit.R as KitR
 
 @Composable
@@ -57,19 +59,20 @@ internal fun TrainingEditScreen(
             .background(AppUi.colors.surfaceTier0)
             .testTag("TrainingEditScreen"),
     ) {
-        AppTopAppBar(
-            title = stringResource(titleRes),
-            navigationIcon = {
-                IconButton(
+        // §26 "The editors' six code-diverges" and "The three bar shapes" — see the twin in
+        // `ExerciseEditScreen` for the full reasoning. `AppTopBar`, the pushed shape:
+        // `.icon-btn.lead` + `h1.sm` + the record's own name, with the create/edit string
+        // standing in only while the name is blank.
+        AppTopBar(
+            title = state.name.ifBlank { stringResource(titleRes) },
+            smallTitle = true,
+            navigation = {
+                AppIconButton(
                     modifier = Modifier.testTag("TrainingEditCloseButton"),
+                    icon = AppIcons.ChevronLeft,
+                    contentDescription = stringResource(R.string.feature_training_edit_close),
                     onClick = { consume(Action.Click.OnCancelClick) },
-                ) {
-                    Icon(
-                        modifier = Modifier.size(AppDimension.iconSm),
-                        imageVector = Icons.Default.Close,
-                        contentDescription = stringResource(R.string.feature_training_edit_close),
-                    )
-                }
+                )
             },
         )
         Column(
@@ -80,7 +83,7 @@ internal fun TrainingEditScreen(
             verticalArrangement = Arrangement.spacedBy(AppDimension.sectionSpacing),
         ) {
             Spacer(Modifier.height(AppDimension.Space.sm))
-            FormSection(label = stringResource(R.string.feature_training_edit_label_name)) {
+            FormSection(label = stringResource(R.string.feature_training_edit_label_name)) { fieldLabel ->
                 val errorText = if (state.nameError) {
                     stringResource(R.string.feature_training_edit_error_name_required)
                 } else {
@@ -90,9 +93,10 @@ internal fun TrainingEditScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("TrainingEditNameField"),
+                    accessibilityLabel = fieldLabel,
                     value = state.name,
                     onValueChange = { consume(Action.Input.OnNameChange(it)) },
-                    placeholder = stringResource(R.string.feature_training_edit_label_name),
+                    // ED4: no placeholder repeating the label — an empty name field is empty.
                     isError = errorText != null,
                 )
                 if (errorText != null) {
@@ -104,33 +108,26 @@ internal fun TrainingEditScreen(
                     )
                 }
             }
-            FormSection(label = stringResource(R.string.feature_training_edit_label_description)) {
+            // ED3's order, which OVERTURNS the drawn §7.1 frame (its Overturns cell says so):
+            // name, then the screen's main slot — the exercises — then tags, then description.
+            ExercisesEditSection(state = state, consume = consume)
+            TagsSection(state = state, consume = consume)
+            FormSection(label = stringResource(R.string.feature_training_edit_label_description)) { fieldLabel ->
+                // No explicit height — `.tf.multi` is the same box taller and the FIELD owns
+                // that number (§7.2). A call site that sets its own guesses at a value the
+                // drawing already puts at 96.
                 AppTextField(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(120.dp)
-                        .testTag("TrainingEditDescriptionField"),
+                    modifier = Modifier.testTag("TrainingEditDescriptionField"),
+                    accessibilityLabel = fieldLabel,
                     value = state.description,
                     onValueChange = { consume(Action.Input.OnDescriptionChange(it)) },
                     placeholder = stringResource(R.string.feature_training_edit_placeholder_description),
                     singleLine = false,
                 )
             }
-            FormSection(label = stringResource(R.string.feature_training_edit_label_tags)) {
-                TagPickerInline(
-                    selectedTags = state.tags,
-                    availableTags = state.availableTags,
-                    searchQuery = state.tagSearchQuery,
-                    onSearchQueryChange = { consume(Action.Input.OnTagSearchChange(it)) },
-                    onTagToggle = { consume(Action.Click.OnTagToggle(it)) },
-                    onTagRemove = { consume(Action.Click.OnTagRemove(it)) },
-                    onTagCreate = { consume(Action.Click.OnTagCreate(it)) },
-                )
-            }
-            ExercisesEditSection(state = state, consume = consume)
             Spacer(Modifier.height(AppDimension.Space.md))
         }
-        EditActionBar(state = state, consume = consume)
+        EditActionBar(consume = consume)
     }
 }
 
@@ -139,68 +136,112 @@ private fun ExercisesEditSection(
     state: State,
     consume: (Action) -> Unit,
 ) {
+    // `ReorderableColumnState`, not the lazy variant: this screen is one `verticalScroll`
+    // column, so nesting a lazy scroller would break the layout. past-session makes the same
+    // choice with the same component.
+    val reorderState = rememberReorderableColumnState { from, to ->
+        consume(Action.Click.OnExerciseReorder(from = from, to = to))
+    }
     Column(verticalArrangement = Arrangement.spacedBy(AppDimension.Space.sm)) {
-        Row(
+        // The count keeps the section label and NO ADD BUTTON SITS BESIDE IT — this is a
+        // B33(a) `Icons.Default.Add` site, and the resolution is not a stroke plus: the
+        // action is `.addex` at the foot of the list, which is drawn and carries the plus inside
+        // it (§26, "Sets: add and remove move to the card's foot"; extraction §7.6).
+        Text(
             modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
-        ) {
-            Text(
-                modifier = Modifier.weight(1f),
-                text = stringResource(
-                    R.string.feature_training_edit_label_exercises_format,
-                    state.exercises.size,
-                ),
-                style = AppUi.typography.labelSmall,
-                color = AppUi.colors.textTertiary,
-            )
-            AppButton.Tertiary(
-                modifier = Modifier.testTag("TrainingEditAddExerciseButton"),
-                text = stringResource(R.string.feature_training_edit_add_exercise),
-                onClick = { consume(Action.Click.OnAddExerciseClick) },
-                size = AppButtonSize.SMALL,
-                leadingIcon = Icons.Default.Add,
-            )
-        }
+            text = stringResource(
+                R.string.feature_training_edit_label_exercises_format,
+                state.exercises.size,
+            ),
+            style = AppUi.typography.labelSmall,
+            color = AppUi.colors.textTertiary,
+        )
         state.exercises.forEachIndexed { index, exercise ->
-            TrainingExerciseEditRow(
-                item = exercise,
-                isFirst = index == 0,
-                isLast = index == state.exercises.lastIndex,
-                onMoveUp = {
-                    consume(Action.Click.OnExerciseReorder(from = index, to = index - 1))
-                },
-                onMoveDown = {
-                    consume(Action.Click.OnExerciseReorder(from = index, to = index + 1))
-                },
-                onRemove = { consume(Action.Click.OnExerciseRemove(exercise.exerciseUuid)) },
-                onEditPlan = { consume(Action.Click.OnEditPlanClick(exercise.exerciseUuid)) },
-            )
+            // KEYED, and the drag does not survive the first swap without it. The handle's
+            // `pointerInput(state, key)` is restarted whenever `key` changes, and in a positional
+            // loop the first reorder puts a different exercise in this slot — which cancels the
+            // long-press coroutine mid-drag, so one press could never cross more than one
+            // neighbour. `key` moves the whole subtree with the item instead. `PastExerciseCard`
+            // does the same thing for the same reason (§26, "Reorder is long-press drag").
+            key(exercise.exerciseUuid) {
+                TrainingExerciseCard(
+                    item = exercise,
+                    expanded = exercise.exerciseUuid in state.expandedExerciseUuids,
+                    onToggle = {
+                        consume(Action.Click.OnExerciseCardToggle(exercise.exerciseUuid))
+                    },
+                    onRemove = { consume(Action.Click.OnExerciseRemove(exercise.exerciseUuid)) },
+                    onPlanAction = { planAction ->
+                        consume(
+                            Action.Click.OnExercisePlanAction(
+                                exerciseUuid = exercise.exerciseUuid,
+                                action = planAction,
+                            ),
+                        )
+                    },
+                    modifier = Modifier.reorderableColumnItem(
+                        state = reorderState,
+                        key = exercise.exerciseUuid,
+                        index = index,
+                        lastIndex = state.exercises.lastIndex,
+                    ),
+                    dragHandleModifier = Modifier.reorderableColumnDragHandle(
+                        state = reorderState,
+                        key = exercise.exerciseUuid,
+                    ),
+                )
+            }
         }
+        AppDashedAddButton(
+            modifier = Modifier.testTag("TrainingEditAddExerciseButton"),
+            text = stringResource(R.string.feature_training_edit_add_exercise),
+            onClick = { consume(Action.Click.OnAddExerciseClick) },
+        )
+    }
+}
+
+/**
+ * ED3: tags are not typed into, so ТЕГИ is a SECTION with a `.section-head`, not a labelled
+ * field — the exercise editor's own grammar, minus its counter: this feature has no tag
+ * limit, and a counter where no limit exists is a lie (§3.2). The row is ED7's: selected
+ * chips with `✕` plus the dashed «+ тег» chip opening the picker sheet.
+ */
+@Composable
+private fun TagsSection(
+    state: State,
+    consume: (Action) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(AppDimension.Space.md)) {
+        // The scroll column already carries this screen's gutter, so the bare label rung is
+        // used rather than `AppSectionHeader`, whose row brings its own `screenEdge` padding.
+        AppLabel(text = stringResource(R.string.feature_training_edit_label_tags))
+        AppTagFormRow(
+            selectedTags = state.tags,
+            onTagRemove = { consume(Action.Click.OnTagRemove(it)) },
+            onAddClick = { consume(Action.Click.OnTagAddClick) },
+        )
     }
 }
 
 @Composable
 private fun FormSection(
     label: String,
-    content: @Composable () -> Unit,
+    content: @Composable (fieldLabel: String) -> Unit,
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(AppDimension.Space.xs),
     ) {
-        Text(
-            text = label,
-            style = AppUi.typography.labelSmall,
-            color = AppUi.colors.textTertiary,
-        )
-        content()
+        // `.flabel` — see the twin in `ExerciseEditScreen`. One implementation, in the kit.
+        AppFieldLabel(text = label)
+        // Handed down rather than re-resolved at the call site: the drawn label and the one
+        // a screen reader hears must be the same string, and two `stringResource` calls drift.
+        content(label)
     }
 }
 
 @Composable
 private fun EditActionBar(
-    state: State,
     consume: (Action) -> Unit,
 ) {
     Row(
@@ -223,7 +264,8 @@ private fun EditActionBar(
                 .testTag("TrainingEditSaveButton"),
             text = stringResource(KitR.string.core_ui_kit_action_save),
             onClick = { consume(Action.Click.OnSaveClick) },
-            enabled = state.canSave,
+            // No `enabled` — §26 "Save is never disabled". See `State`'s note: on this screen a
+            // save predicate would hide TWO error branches, not one.
         )
     }
 }

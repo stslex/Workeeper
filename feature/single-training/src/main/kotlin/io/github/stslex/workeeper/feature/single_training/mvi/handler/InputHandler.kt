@@ -1,20 +1,21 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.single_training.mvi.handler
 
-import dagger.hilt.android.scopes.ViewModelScoped
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.single_training.di.SingleTrainingHandlerStore
+import io.github.stslex.workeeper.feature.single_training.di.SingleTrainingScope
 import io.github.stslex.workeeper.feature.single_training.domain.SingleTrainingInteractor
 import io.github.stslex.workeeper.feature.single_training.mvi.mapper.TagUiMapper.toUi
 import io.github.stslex.workeeper.feature.single_training.mvi.model.PickerExerciseItem
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.Action
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.State.PickerState
 import kotlinx.collections.immutable.toImmutableList
-import javax.inject.Inject
 
 private const val DESCRIPTION_MAX_LENGTH = 2000
 
-@ViewModelScoped
+@SingleIn(SingleTrainingScope::class)
 internal class InputHandler @Inject constructor(
     private val interactor: SingleTrainingInteractor,
     store: SingleTrainingHandlerStore,

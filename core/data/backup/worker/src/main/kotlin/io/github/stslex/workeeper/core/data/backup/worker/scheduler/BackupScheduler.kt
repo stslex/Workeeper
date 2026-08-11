@@ -11,7 +11,10 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
-import dagger.hilt.android.qualifiers.ApplicationContext
+import dev.zacsweers.metro.ContributesBinding
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
+import io.github.stslex.workeeper.core.core.di.AppScope
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.AutoBackupController
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.AutoBackupWorkInfo
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupPreferences
@@ -22,12 +25,15 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import java.util.concurrent.TimeUnit
-import javax.inject.Inject
-import javax.inject.Singleton
 
-@Singleton
-internal class BackupScheduler @Inject constructor(
-    @ApplicationContext context: Context,
+// App-Scope Collapse Step 3 (SB1): Hilt @Inject/@Singleton stripped, @Binds removed from BackupWorkerModule;
+// Metro-owned via @ContributesBinding(AppScope) (bound type AutoBackupController). Public for cross-module
+// aggregation (D1 — never hand-construct; resolve AutoBackupController via DI). Context plain.
+@ContributesBinding(AppScope::class)
+@SingleIn(AppScope::class)
+@Inject
+class BackupScheduler(
+    context: Context,
     private val preferencesRepository: BackupPreferencesRepository,
 ) : AutoBackupController {
 

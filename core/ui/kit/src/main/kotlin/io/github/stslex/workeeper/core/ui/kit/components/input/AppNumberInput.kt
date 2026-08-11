@@ -1,5 +1,7 @@
 package io.github.stslex.workeeper.core.ui.kit.components.input
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
@@ -8,21 +10,59 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.sp
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 
+/**
+ * The mockup's `.field` — a value and its unit on a recessed panel (extraction §1.6).
+ *
+ * ## The value is `dataValue` — blocker B1, landed
+ *
+ * `.data-l` is 25px Archivo `wdth 115 / wght 700` → the 26 rung, named
+ * `AppTypography.dataValue`. At 26sp bold the WCAG threshold is **3:1**, which retires the
+ * measurement that used to sit here: at the previous 19sp/600 the value owed 4.5:1 and molten
+ * could not pay it in light (4.14). At this rung the mockup's colour ramp ships as drawn:
+ *
+ *  - resting: `textTertiary`. The mockup paints `--idle`, whose light value (#7C858F) sits at
+ *    3.11:1 on the field — inside quantisation noise of the 3:1 line — and whose dark value IS
+ *    `meta`'s hex. Same correction §2.4 applied to light `meta`: the mockup was drawn, not
+ *    measured; the pending value uses the meta value in both themes. The brightness principle
+ *    survives — pending is dimmer than done.
+ *  - done ([isDone]): `textPrimary` — `.set.done .data-l{color:var(--max)}`.
+ *  - logged ([isLogged]): `textPrimary` on the **plain** `surfaceTier3` field — the past
+ *    session's inline override (`pass2d.html:306`, `style="color:var(--max)"` on every
+ *    ordinary row). A past set is complete by construction, so its value takes full
+ *    contrast, but it is *not* "done-during-a-session": the `donefill` wash marks the act
+ *    of completing, and a finished record carries no such act. Colour without the wash.
+ *  - record ([isRecord]): `record.textPrimary` — `.set.pr .data-l{color:var(--molten)}`,
+ *    legal at TITLE. Record wins over done and logged, as in the stylesheet (`.pr` is
+ *    declared after `.done`, and the past markup omits its inline override on the PR row).
+ *
+ * ## The washes replace the fill — blocker B7, landed
+ *
+ * `.set.done .field{background:var(--donefill)}` and `.set.pr .field{background:var(--molten-bg)}`
+ * **replace** the field tier; the translucent wash composites over the card behind the row
+ * (`sec`, or `slab` when the card is lifted). An earlier revision stacked the record wash on
+ * `surfaceTier3` because the done ROW washed `surfaceTier4` behind it and the CSS-faithful
+ * composite failed on that backdrop (3.99 dark). B7 removed the row wash — the backdrop that
+ * failed no longer exists, and over the card tiers every pair clears its threshold
+ * (`ContrastContract`, the `donefill` and `record.background` rows `over` tier1/tier2).
+ *
+ * No default border: the mockup's field is recessed by tier alone. The error outline remains.
+ */
 @Composable
 fun AppNumberInput(
     value: String,
@@ -32,25 +72,56 @@ fun AppNumberInput(
     suffix: String? = null,
     enabled: Boolean = true,
     isError: Boolean = false,
+    isRecord: Boolean = false,
+    isDone: Boolean = false,
+    isLogged: Boolean = false,
 ) {
     val keyboardType = if (decimals > 0) KeyboardType.Decimal else KeyboardType.Number
-    val textStyle = AppUi.typography.titleLarge.copy(
-        color = AppUi.colors.textPrimary,
-        fontFeatureSettings = "tnum",
+    val valueColor by animateColorAsState(
+        targetValue = when {
+            isRecord -> AppUi.colors.record.textPrimary
+            isDone || isLogged -> AppUi.colors.textPrimary
+            else -> AppUi.colors.textTertiary
+        },
+        animationSpec = tween(durationMillis = AppUi.motion.base, easing = AppUi.motion.out),
+        label = "field-value",
     )
-    val borderColor = when {
-        isError -> AppUi.colors.status.error
-        else -> AppUi.colors.borderSubtle
+    val background by animateColorAsState(
+        targetValue = when {
+            isRecord -> AppUi.colors.record.background
+            isDone -> AppUi.colors.donefill
+            else -> AppUi.colors.surfaceTier3
+        },
+        animationSpec = tween(durationMillis = AppUi.motion.base, easing = AppUi.motion.out),
+        label = "field-bg",
+    )
+    // B1's width budget, measured: at 26sp Archivo a 5-glyph value ("102.5") needs ~66dp
+    // and the weighted row's value box has ~52. The mockup never draws a decimal weight —
+    // its own geometry cannot fit one either — so values past [MAX_GLYPHS_AT_FULL_SIZE]
+    // glyphs step down one numeric rung (19sp bold, still TITLE-threshold at 3:1) instead
+    // of clipping. A clipped logged value is data loss on screen; the downstep is the
+    // interim answer and the width question is reported with the session-rebuild PR.
+    val valueStyle = if (value.length > MAX_GLYPHS_AT_FULL_SIZE) {
+        AppUi.typography.numeric.section
+    } else {
+        AppUi.typography.dataValue
     }
+    val shape = RoundedCornerShape(AppDimension.Radius.small)
     Row(
         modifier = modifier
-            .clip(AppUi.shapes.small)
-            .background(AppUi.colors.surfaceTier2)
-            .border(
-                width = AppDimension.borderHairline,
-                color = borderColor,
-                shape = AppUi.shapes.small,
-            )
+            .clip(shape)
+            .background(background)
+            .let { base ->
+                if (isError) {
+                    base.border(
+                        width = AppDimension.borderHairline,
+                        color = AppUi.colors.status.error,
+                        shape = shape,
+                    )
+                } else {
+                    base
+                }
+            }
             .height(AppDimension.heightMd)
             .padding(horizontal = AppDimension.Space.md),
         verticalAlignment = Alignment.CenterVertically,
@@ -61,21 +132,40 @@ fun AppNumberInput(
                 onValueChange = onValueChange,
                 enabled = enabled,
                 singleLine = true,
-                textStyle = textStyle,
+                textStyle = valueStyle.copy(color = valueColor),
                 keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
                 cursorBrush = SolidColor(AppUi.colors.accent),
             )
         }
         suffix?.let {
+            val unitColor by animateColorAsState(
+                // The mockup's `.unit` is `--dim` in every state. Measured, that fails on the
+                // washes: over a LIFTED card (slab) in dark, `textDim` lands at 4.40 (record
+                // wash) / 4.45 (donefill) against the 4.5 an 11sp label owes — the same
+                // failure B7 exists to close, one backdrop later. On washed fields the unit
+                // promotes one step to `textSecondary`; a completed row brightening as a
+                // whole is §1's principle, not a contradiction of it.
+                targetValue = if (isRecord || isDone) {
+                    AppUi.colors.textSecondary
+                } else {
+                    AppUi.colors.textDim
+                },
+                animationSpec = tween(durationMillis = AppUi.motion.base, easing = AppUi.motion.out),
+                label = "field-unit",
+            )
             Text(
                 modifier = Modifier.padding(start = AppDimension.Space.xs),
                 text = it,
-                style = AppUi.typography.bodySmall.copy(letterSpacing = 0.5.sp),
-                color = AppUi.colors.textTertiary,
+                // Mono at the 11 rung — the drawn `.unit` family (was a text-family meta).
+                style = AppUi.typography.mono.caption,
+                color = unitColor,
             )
         }
     }
 }
+
+/** "100" keeps the full 26sp; "102.5" and longer step down. */
+private const val MAX_GLYPHS_AT_FULL_SIZE = 3
 
 @Preview(name = "Light", showBackground = true)
 @Preview(
@@ -98,6 +188,8 @@ private fun AppNumberInputPreview() {
             AppNumberInput(value = "120", onValueChange = {}, suffix = "kg", decimals = 1)
             AppNumberInput(value = "8", onValueChange = {}, suffix = "reps", decimals = 0)
             AppNumberInput(value = "abc", onValueChange = {}, suffix = "kg", isError = true)
+            AppNumberInput(value = "142.5", onValueChange = {}, suffix = "kg", isRecord = true)
+            AppNumberInput(value = "100", onValueChange = {}, suffix = "kg", isDone = true)
         }
     }
 }

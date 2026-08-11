@@ -14,6 +14,8 @@ import io.github.stslex.workeeper.core.data.database.session.model.SetEntity
 import io.github.stslex.workeeper.core.data.database.session.model.SetTypeEntity
 import io.github.stslex.workeeper.core.data.database.sets.PlanSetDataModel
 import io.github.stslex.workeeper.core.data.database.sets.SetTypeDataModel
+import io.github.stslex.workeeper.core.data.database.tag.TagEntity
+import io.github.stslex.workeeper.core.data.database.tag.TrainingTagEntity
 import io.github.stslex.workeeper.core.data.database.testfixtures.RepositoryTestEnv
 import io.github.stslex.workeeper.core.data.database.training.TrainingEntity
 import io.github.stslex.workeeper.core.data.database.training.TrainingExerciseEntity
@@ -21,6 +23,7 @@ import io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepository.SaveResult
 import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseChangeDataModel
 import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseTypeDataModel
+import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
@@ -28,6 +31,7 @@ import io.mockk.mockkObject
 import io.mockk.spyk
 import io.mockk.unmockkObject
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
@@ -35,6 +39,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -146,9 +151,50 @@ internal class ExerciseRepositoryImplDbTest {
 
         val updated = repository.getLabels(uuid.toString()).sorted()
         assertEquals(listOf("legs", "quads"), updated)
-        // Tag rows are reused by name, so all three tag names exist in tag_table.
+        // D-OPEN-4, auto-prune: the save that dropped "lower"'s last link swept its
+        // dictionary row IN THE SAME TRANSACTION. Before S6 this assertion read
+        // `containsAll(listOf("legs", "lower", "quads"))` — the dictionary only grew (B-E2).
+        val tagNames = env.tagDao.observeAll().first().map { it.name }.sorted()
+        assertEquals(listOf("legs", "quads"), tagNames)
+    }
+
+    /**
+     * The prune's predicate is a conjunction over BOTH link tables, and each conjunct needs a
+     * fixture only IT keeps alive (§27, "a test that two predicates both satisfy tells you
+     * nothing about either"): a tag whose only remaining link is a TRAINING's must survive an
+     * exercise save that drops its exercise link.
+     */
+    @Test
+    fun `a tag still linked by a training survives an exercise save that unlinks it`() = runTest {
+        val trainingUuid = Uuid.random()
+        env.trainingDao.insert(
+            TrainingEntity(
+                uuid = trainingUuid,
+                name = "Push Day",
+                description = null,
+                isAdhoc = false,
+                archived = false,
+                createdAt = 0L,
+                archivedAt = null,
+            ),
+        )
+        val sharedTag = TagEntity(name = "shared")
+        env.tagDao.insert(sharedTag)
+        env.trainingTagDao.insert(
+            listOf(TrainingTagEntity(trainingUuid = trainingUuid, tagUuid = sharedTag.uuid)),
+        )
+
+        val uuid = Uuid.random()
+        repository.saveItem(
+            exerciseChange(uuid = uuid, name = "Squat", labels = listOf("shared", "solo")),
+        )
+        repository.saveItem(
+            exerciseChange(uuid = uuid, name = "Squat", labels = emptyList()),
+        )
+
         val tagNames = env.tagDao.observeAll().first().map { it.name }
-        assertTrue(tagNames.containsAll(listOf("legs", "lower", "quads")))
+        // "solo" had no other link and is swept; "shared" is held by the training's link.
+        assertEquals(listOf("shared"), tagNames)
     }
 
     @Test
@@ -374,6 +420,88 @@ internal class ExerciseRepositoryImplDbTest {
             assertNotNull(planJson)
             assertTrue(planJson!!.contains("\"weight\":null"))
         }
+
+    @Test
+    fun `saveItem as WEIGHTLESS clears the weights it would strand in other trainings`() =
+        runTest {
+            val exerciseUuid = Uuid.random()
+            val trainingUuid = Uuid.random()
+            seedWeightedExerciseWithPlans(exerciseUuid, trainingUuid)
+
+            // The written row itself carries weights, so this also pins the cascade running
+            // AFTER the row write inside `saveItem` — not before it, where it would be undone.
+            repository.saveItem(
+                exerciseChange(uuid = exerciseUuid, name = "Pull Up", lastAdhoc = WEIGHTED_PLAN)
+                    .copy(type = ExerciseTypeDataModel.WEIGHTLESS),
+            )
+
+            val parsedAdhoc = repository.getAdhocPlan(exerciseUuid.toString())
+            assertEquals(1, parsedAdhoc?.size)
+            assertNull(parsedAdhoc?.first()?.weight)
+            val planJson = env.trainingExerciseDao.getPlanSets(trainingUuid, exerciseUuid)
+            assertNotNull(planJson)
+            assertTrue(planJson!!.contains("\"weight\":null"))
+        }
+
+    /**
+     * The save and its cascade are ONE act, as on the training side. A failure in the cascade
+     * must take the type change with it, or the user is told «Сохранено» over a WEIGHTLESS row
+     * whose plans still carry weights.
+     *
+     * Real in-memory Room, not Robolectric-mocked Room: only a real transaction can answer
+     * whether the rollback happened.
+     */
+    @Test
+    fun `saveItem as WEIGHTLESS leaves nothing behind when the cascade throws`() = runTest {
+        val exerciseUuid = Uuid.random()
+        val trainingUuid = Uuid.random()
+        seedWeightedExerciseWithPlans(exerciseUuid, trainingUuid)
+        val throwingDao = spyk(env.trainingExerciseDao)
+        coEvery { throwingDao.updatePlanSets(any(), any(), any()) } throws
+            IllegalStateException("simulated plan-write failure")
+        val throwingRepository = ExerciseRepositoryImpl(
+            dao = env.exerciseDao,
+            tagDao = env.tagDao,
+            exerciseTagDao = env.exerciseTagDao,
+            trainingExerciseDao = throwingDao,
+            sessionDao = env.sessionDao,
+            setDao = env.setDao,
+            imageStorage = imageStorage,
+            transition = env.transition,
+            bgDispatcher = UnconfinedTestDispatcher(),
+        )
+
+        assertThrows(IllegalStateException::class.java) {
+            runBlocking {
+                throwingRepository.saveItem(
+                    exerciseChange(uuid = exerciseUuid, name = "Renamed", lastAdhoc = WEIGHTED_PLAN)
+                        .copy(type = ExerciseTypeDataModel.WEIGHTLESS),
+                )
+            }
+        }
+
+        val row = env.exerciseDao.getById(exerciseUuid)
+        assertNotNull(row)
+        assertEquals(ExerciseTypeEntity.WEIGHTED, row?.type)
+        assertEquals("Pull Up", row?.name)
+        assertTrue(row?.lastAdhocSets?.contains("\"weight\":20.0") == true)
+    }
+
+    @Test
+    fun `saveItem as WEIGHTED leaves the plan weights it is entitled to keep`() = runTest {
+        val exerciseUuid = Uuid.random()
+        val trainingUuid = Uuid.random()
+        seedWeightedExerciseWithPlans(exerciseUuid, trainingUuid)
+
+        repository.saveItem(
+            exerciseChange(uuid = exerciseUuid, name = "Pull Up", lastAdhoc = WEIGHTED_PLAN),
+        )
+
+        val planJson = env.trainingExerciseDao.getPlanSets(trainingUuid, exerciseUuid)
+        assertNotNull(planJson)
+        assertTrue(planJson!!.contains("\"weight\":15.0"))
+        assertEquals(20.0, repository.getAdhocPlan(exerciseUuid.toString())?.first()?.weight)
+    }
 
     @Test
     fun `deleteItem deletes the row and the image file when present`() = runTest {
@@ -1235,6 +1363,44 @@ internal class ExerciseRepositoryImplDbTest {
         assertTrue(unique.map { it.uuid }.containsAll(listOf(a.toString(), b.toString())))
     }
 
+    /** A WEIGHTED exercise with a weighted adhoc plan and a weighted plan row in one training. */
+    private suspend fun seedWeightedExerciseWithPlans(exerciseUuid: Uuid, trainingUuid: Uuid) {
+        env.exerciseDao.insert(
+            ExerciseEntity(
+                uuid = exerciseUuid,
+                name = "Pull Up",
+                type = ExerciseTypeEntity.WEIGHTED,
+                description = null,
+                imagePath = null,
+                archived = false,
+                createdAt = 0L,
+                archivedAt = null,
+                lastAdhocSets = """[{"weight":20.0,"reps":5,"type":"WORK"}]""",
+            ),
+        )
+        env.trainingDao.insert(
+            TrainingEntity(
+                uuid = trainingUuid,
+                name = "Push",
+                description = null,
+                isAdhoc = false,
+                archived = false,
+                createdAt = 0L,
+                archivedAt = null,
+            ),
+        )
+        env.trainingExerciseDao.insert(
+            listOf(
+                TrainingExerciseEntity(
+                    trainingUuid = trainingUuid,
+                    exerciseUuid = exerciseUuid,
+                    position = 0,
+                    planSets = """[{"weight":15.0,"reps":8,"type":"WORK"}]""",
+                ),
+            ),
+        )
+    }
+
     private fun exerciseChange(
         uuid: Uuid,
         name: String,
@@ -1253,4 +1419,11 @@ internal class ExerciseRepositoryImplDbTest {
         labels = labels,
         lastAdHocSets = lastAdhoc,
     )
+
+    private companion object {
+
+        val WEIGHTED_PLAN = listOf(
+            PlanSetDataModel(weight = 20.0, reps = 5, type = SetTypeDataModel.WORK),
+        )
+    }
 }

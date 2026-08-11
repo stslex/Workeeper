@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.live_workout.mvi.handler
 
-import dagger.hilt.android.scopes.ViewModelScoped
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutHandlerStore
+import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutScope
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Action
-import javax.inject.Inject
 
-@ViewModelScoped
+@SingleIn(LiveWorkoutScope::class)
 internal class InputHandler @Inject constructor(
     store: LiveWorkoutHandlerStore,
 ) : Handler<Action.Input>, LiveWorkoutHandlerStore by store {

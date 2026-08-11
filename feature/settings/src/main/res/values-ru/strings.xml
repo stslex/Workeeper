@@ -3,26 +3,28 @@
     <string name="feature_settings_title">Настройки</string>
 
     <string name="feature_settings_section_about">О приложении</string>
-    <string name="feature_settings_section_appearance">Внешний вид</string>
+    <string name="feature_settings_section_appearance">Оформление</string>
     <string name="feature_settings_section_data">Данные</string>
 
-    <string name="feature_settings_theme_system">Как в системе</string>
+    <string name="feature_settings_theme_row_title">Тема</string>
+    <string name="feature_settings_start_card_row_title">Карточка старта</string>
+    <string name="feature_settings_theme_system">Системная</string>
     <string name="feature_settings_theme_light">Светлая</string>
     <string name="feature_settings_theme_dark">Тёмная</string>
 
     <string name="feature_settings_about_app_name">Workeeper</string>
     <string name="feature_settings_about_version_format">Версия %1$s (%2$d)</string>
     <string name="feature_settings_about_license">Лицензия GPLv3</string>
-    <string name="feature_settings_about_github">Открыть на GitHub</string>
+    <string name="feature_settings_about_github">Исходный код</string>
     <string name="feature_settings_about_privacy">Политика конфиденциальности</string>
 
     <string name="feature_settings_archive_entry">Архив</string>
 
-    <string name="feature_settings_backup_title">Облачная резервная копия</string>
+    <string name="feature_settings_backup_title">Резервные копии</string>
     <string name="feature_settings_backup_sign_in">Войти в Google Drive</string>
-    <string name="feature_settings_backup_sign_out">Выйти</string>
-    <string name="feature_settings_backup_create">Создать резервную копию</string>
-    <string name="feature_settings_backup_restore">Восстановить из резервной копии</string>
+    <string name="feature_settings_backup_sign_out">Выйти из аккаунта</string>
+    <string name="feature_settings_backup_create">Создать копию сейчас</string>
+    <string name="feature_settings_backup_restore">Восстановить из копии</string>
     <string name="feature_settings_backup_revert_last_restore_label">Откатить последнее восстановление</string>
     <string name="feature_settings_backup_restore_title">Восстановить резервную копию?</string>
     <string name="feature_settings_backup_restore_warning">Заменит текущие данные резервной копией от %1$s (%2$s). Это действие необратимо.</string>
@@ -48,35 +50,51 @@
     <string name="feature_settings_backup_sign_out_impact">Автоматические резервные копии остановятся</string>
 
     <string name="feature_settings_backup_info_last_backup_never">Резервных копий ещё нет</string>
-    <string name="feature_settings_backup_info_last_backup_format">Последняя копия: %1$s</string>
+    <string name="feature_settings_backup_info_last_backup_format">последняя %1$s</string>
     <string name="feature_settings_backup_info_count_zero">Ещё нет резервных копий</string>
 
     <string name="feature_settings_backup_restore_in_progress">Восстановление резервной копии…</string>
     <string name="feature_settings_backup_restore_completed">Восстановление завершено. Перезапуск приложения…</string>
 
     <plurals name="feature_settings_backup_info_count">
-        <item quantity="one">Сохранена %d копия</item>
-        <item quantity="few">Сохранены %d копии</item>
-        <item quantity="many">Сохранено %d копий</item>
-        <item quantity="other">Сохранено %d копий</item>
+        <item quantity="one">%d копия</item>
+        <item quantity="few">%d копии</item>
+        <item quantity="many">%d копий</item>
+        <item quantity="other">%d копий</item>
     </plurals>
 
     <!-- Auto-backup scheduling -->
     <string name="feature_settings_backup_frequency_daily">Ежедневно</string>
     <string name="feature_settings_backup_frequency_weekly">Еженедельно</string>
+    <string name="feature_settings_backup_auto_row_title">Автокопия</string>
+    <string name="feature_settings_backup_auto_next_short">следующая %1$s</string>
+    <string name="feature_settings_backup_auto_on">Вкл</string>
+    <string name="feature_settings_backup_auto_off">Выкл</string>
     <string name="feature_settings_backup_frequency_manual_only">Только вручную</string>
     <string name="feature_settings_backup_frequency_picker_title">Частота резервного копирования</string>
     <string name="feature_settings_backup_frequency_picker_save">Сохранить</string>
     <string name="feature_settings_backup_allow_mobile_data_label">Разрешить мобильные данные</string>
     <string name="feature_settings_backup_allow_mobile_data_caption">Резервные копии будут использовать мобильные данные при отсутствии Wi-Fi</string>
-    <string name="feature_settings_backup_auto_row_label">Авто-копирование: %1$s</string>
-    <string name="feature_settings_backup_ai_export_label">Экспорт данных для ИИ в Google Drive</string>
+    <string name="feature_settings_backup_ai_export_label">Снимок для ИИ-ассистента</string>
     <string name="feature_settings_backup_ai_export_caption">Сохраняет копию ваших тренировок в виде обычного текста (JSON) в видимую и доступную для общего доступа папку в Google Drive (не в скрытую резервную копию), чтобы ИИ-ассистент, которому вы дали доступ, мог её прочитать.</string>
     <string name="feature_settings_backup_ai_export_access_needed">Для экспорта в ИИ нужен доступ к Google Drive</string>
-    <string name="feature_settings_backup_auto_next_backup">Следующая копия: %1$s</string>
     <string name="feature_settings_backup_auto_paused_banner_title">Авто-копирование приостановлено</string>
     <string name="feature_settings_backup_auto_paused_banner_body">Войдите в Google Drive снова, чтобы возобновить.</string>
     <string name="feature_settings_backup_auto_paused_banner_action">Войти</string>
     <string name="feature_settings_backup_auto_enabled_default">Авто-копирование включено, ежедневно</string>
     <string name="feature_settings_backup_auto_enabled_change_action">Изменить</string>
+
+    <!-- The Archive row's drawn sub-line (§26). B15: the counts existed all along. -->
+    <plurals name="feature_settings_archive_exercise_count">
+        <item quantity="one">%d упражнение</item>
+        <item quantity="few">%d упражнения</item>
+        <item quantity="many">%d упражнений</item>
+        <item quantity="other">%d упражнения</item>
+    </plurals>
+    <plurals name="feature_settings_archive_training_count">
+        <item quantity="one">%d тренировка</item>
+        <item quantity="few">%d тренировки</item>
+        <item quantity="many">%d тренировок</item>
+        <item quantity="other">%d тренировки</item>
+    </plurals>
 </resources>

@@ -1,3 +1,18 @@
+# Test-source exclusion note (KMP).
+# Every `excludes` list below that enumerates test source sets also carries
+# '**/androidHostTest/**'. That is the AGP KMP android target's host (JVM) unit-test source
+# set — the KMP equivalent of src/test/kotlin — and it matches NONE of detekt's default
+# test globs ('**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**',
+# '**/androidUnitTest/**', '**/androidInstrumentedTest/**', '**/jsTest/**', '**/iosTest/**').
+# KMP modules add it to their detekt `source.setFrom` explicitly (see core/core/build.gradle.kts),
+# so without the glob below those tests would be judged as production code.
+# Rules that inherit detekt's default `excludes` (no `excludes` key here) do NOT get the glob —
+# spell the list out locally when a rule must ignore host tests. Audited against detekt 1.23.8's
+# bundled default-detekt-config.yml: every rule detekt itself excludes from test code and that is
+# active here now spells its list out below, so nothing active inherits a host-test-blind default.
+# (detekt-formatting's bundled config declares no `excludes` at all — ktlint rules are meant to
+# apply to test sources too, so the `formatting:` block below is deliberately untouched.)
+
 build:
   maxIssues: 0
   excludeCorrectable: false
@@ -76,11 +91,17 @@ complexity:
   LargeClass:
     active: true
     threshold: 600
-    excludes: [ '**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/jsTest/**', '**/iosTest/**' ]
+    excludes: [
+      '**/test/**', '**/androidTest/**', '**/androidHostTest/**',
+      '**/commonTest/**', '**/jvmTest/**', '**/jsTest/**', '**/iosTest/**'
+    ]
   LongMethod:
     active: true
     threshold: 120
-    excludes: [ '**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/jsTest/**', '**/iosTest/**' ]
+    excludes: [
+      '**/test/**', '**/androidTest/**', '**/androidHostTest/**',
+      '**/commonTest/**', '**/jvmTest/**', '**/jsTest/**', '**/iosTest/**'
+    ]
     ignoreAnnotated:
       - androidx.compose.runtime.Composable
   LongParameterList:
@@ -91,6 +112,10 @@ complexity:
     ignoreDataClasses: true
     ignoreAnnotated:
       - androidx.compose.runtime.Composable
+      # KMP C.1 (Metro migration): a Metro @DependencyGraph.Factory `create(...)` binds one
+      # app-scoped dependency per parameter, so its parameter count is intrinsically the
+      # dependency count, not an extractable smell.
+      - dev.zacsweers.metro.DependencyGraph.Factory
     excludes:
       - '**/*StoreImpl*'
       - '**/*Store.kt'
@@ -115,11 +140,13 @@ complexity:
     ignoreOverridden: false
     ignoreAnnotated:
       - 'androidx.room.Dao'
+      - 'androidx.room3.Dao'
     excludes:
       - '**/core/core/logger/Logger.kt'
       - '**/core/core/logger/Log.kt'
       - '**/test/**'
       - '**/androidTest/**'
+      - '**/androidHostTest/**'
 
 coroutines:
   active: true
@@ -197,6 +224,15 @@ exceptions:
     active: false
   TooGenericExceptionCaught:
     active: true
+    # Spelled out (not inherited) so that '**/androidHostTest/**' can be added: detekt's own
+    # default for this rule already excludes every test source set it knows about, but that list
+    # predates the AGP KMP android host-test source set. Every other entry reproduces detekt
+    # 1.23.8's default list verbatim.
+    excludes: [
+      '**/test/**', '**/androidTest/**', '**/androidHostTest/**', '**/commonTest/**',
+      '**/jvmTest/**', '**/androidUnitTest/**', '**/androidInstrumentedTest/**',
+      '**/jsTest/**', '**/iosTest/**'
+    ]
     exceptionNames:
       - ArrayIndexOutOfBoundsException
       - Error
@@ -236,6 +272,15 @@ naming:
     active: false
   FunctionNaming:
     active: true
+    # Spelled out (not inherited) so that '**/androidHostTest/**' can be added: backtick-quoted
+    # test function names ("fun `does the thing`()") do not match functionPattern, and detekt's
+    # default exclude list has no entry for the KMP android host-test source set. Every other
+    # entry reproduces detekt's default list verbatim.
+    excludes: [
+      '**/test/**', '**/androidTest/**', '**/androidHostTest/**', '**/commonTest/**',
+      '**/jvmTest/**', '**/androidUnitTest/**', '**/androidInstrumentedTest/**',
+      '**/jsTest/**', '**/iosTest/**'
+    ]
     functionPattern: '[a-z][a-zA-Z0-9]*'
     excludeClassPattern: '$^'
     ignoreAnnotated: [ 'Composable' ]
@@ -288,10 +333,16 @@ performance:
     active: false
   ForEachOnRange:
     active: true
-    excludes: [ '**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/jsTest/**', '**/iosTest/**' ]
+    excludes: [
+      '**/test/**', '**/androidTest/**', '**/androidHostTest/**',
+      '**/commonTest/**', '**/jvmTest/**', '**/jsTest/**', '**/iosTest/**'
+    ]
   SpreadOperator:
     active: true
-    excludes: [ '**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/jsTest/**', '**/iosTest/**' ]
+    excludes: [
+      '**/test/**', '**/androidTest/**', '**/androidHostTest/**',
+      '**/commonTest/**', '**/jvmTest/**', '**/jsTest/**', '**/iosTest/**'
+    ]
   UnnecessaryTemporaryInstantiation:
     active: true
 
@@ -403,7 +454,10 @@ style:
     maxJumpCount: 1
   MagicNumber:
     active: true
-    excludes: [ '**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/jsTest/**', '**/iosTest/**' ]
+    excludes: [
+      '**/test/**', '**/androidTest/**', '**/androidHostTest/**',
+      '**/commonTest/**', '**/jvmTest/**', '**/jsTest/**', '**/iosTest/**'
+    ]
     ignoreNumbers: [ '-1', '0', '1', '2' ]
     ignoreHashCodeFunction: true
     ignorePropertyDeclaration: false
@@ -523,7 +577,10 @@ style:
     active: false
   WildcardImport:
     active: true
-    excludes: [ '**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/jsTest/**', '**/iosTest/**' ]
+    excludes: [
+      '**/test/**', '**/androidTest/**', '**/androidHostTest/**',
+      '**/commonTest/**', '**/jvmTest/**', '**/jsTest/**', '**/iosTest/**'
+    ]
     excludeImports: [ 'java.util.*', 'kotlinx.android.synthetic.*' ]
 
 
@@ -646,8 +703,14 @@ mvi-architecture:
   MviStoreStateRule:
     active: true
   KoinScopeRule:
-    active: false  # Disabled: Project now uses Hilt instead of Koin
-  HiltScopeRule:
+    active: false  # Disabled: Project uses Metro DI (not Koin)
+  MetroScopeRule:
+    active: true
+  ContributesBindingScopeRule:
+    active: true
+  ContributesToScopeRule:
+    active: true
+  ScreenInjectionRule:
     active: true
   ComposableStateRule:
     active: true
@@ -658,4 +721,14 @@ mvi-architecture:
   UiLayerNoDataRule:
     active: true
   DiscardedScopeResultRule:
+    active: true
+  NoActualForExpectSuppressionRule:
+    active: true
+  NumericFontFamilyOnLocalizedTextRule:
+    active: true
+  ActiveSurfaceSingleReaderRule:
+    active: true
+  FadeToTransparentRule:
+    active: true
+  PagingCollectionRule:
     active: true

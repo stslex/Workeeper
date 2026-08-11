@@ -1,6 +1,6 @@
 ---
 name: add-feature
-description: Scaffold a new `feature/<name>` Gradle module that follows the project's MVI + Hilt + Compose conventions — including the lifecycle-safe navigation command-bus pattern (Action.Navigation + NavigationHandler with @Inject Navigator routing through the singleton NavigatorEventBus), the design system (`core/ui/kit` components and `AppUi.*` tokens), Store contract, handlers, DI, navigation entry, and a smoke UI test stub.
+description: Scaffold a new `feature/<name>` Gradle module that follows the project's MVI + Metro + Compose conventions — the feature-scope token, the contributed `@GraphExtension` and its factory, the `Feature` / `FeatureAssisted` composition seam, Store contract, handlers, the lifecycle-safe navigation command bus (Action.Navigation + a NavigationHandler injecting `Navigator`, routed through the app-scoped NavigatorEventBus), the design system (`core/ui/kit` components and `AppUi.*` tokens), the navigation entry, and the test stubs.
 ---
 
 # Add a feature module
@@ -19,45 +19,90 @@ description: Scaffold a new `feature/<name>` Gradle module that follows the proj
   `core/ui/navigation/src/main/kotlin/io.github/stslex/workeeper/core/ui/navigation/Screen.kt`.
 - These docs are the source of truth for everything below — read them before scaffolding:
   - [documentation/architecture.md](../../documentation/architecture.md) — module map, MVI
-    contract, [Navigation](../../documentation/architecture.md#navigation), DI scopes.
+    contract, [Dependency injection (Metro)](../../documentation/architecture.md#dependency-injection-metro),
+    [Navigation](../../documentation/architecture.md#navigation).
   - [documentation/design-system.md](../../documentation/design-system.md) — token catalog
-    and the 21 `core/ui/kit` components.
+    and the shared `core/ui/kit` components.
   - [documentation/lint-rules.md](../../documentation/lint-rules.md) — the State / Action /
-    Event / Handler / Composable rules that gate a new module.
+    Event / Handler / Composable / Metro-scope rules that gate a new module.
+
+DI is 100% Metro (`dev.zacsweers.metro`). There is no Hilt anywhere in the tree: no
+`@HiltViewModel`, `@InstallIn`, `@ViewModelScoped`, `@AndroidEntryPoint`, `@Module`, and no
+`javax.inject.Inject` in feature code. If a snippet you are copying from an old branch has
+any of those, it is stale.
 
 ## Reference implementations
 
-The cleanest references for the **current** architecture (post-navigation-lifecycle PR):
+- **No route args (`Feature`):** `feature/archive/` — the template every other feature graph
+  follows, and the most heavily commented. Also `feature/home/`, `feature/all-trainings/`,
+  `feature/all-exercises/`, and `feature/settings/` (the widest graph in the repo — read it
+  when the new feature has many collaborators).
+- **Route args (`FeatureAssisted`):** `feature/exercise/`, `feature/single-training/`,
+  `feature/live-workout/`, `feature/past-session/`, `feature/image-viewer/`,
+  `feature/exercise-chart/`, `feature/plan-editor/`. The route arg is a `@Provides` bound
+  instance on the extension factory — there is **no** assisted injection on any Store.
 
-- **No route args (plain `Feature`):** `feature/home/`,
-  `feature/all-trainings/`, `feature/all-exercises/`, `feature/settings/`.
-- **Route args (`FeatureAssisted` + `StoreFactory`):** `feature/exercise/`,
-  `feature/single-training/`, `feature/live-workout/`, `feature/past-session/`,
-  `feature/image-viewer/`, `feature/exercise-chart/`, `feature/plan-editor/`.
+Per-file:
 
-Pick the closest match for the new feature's needs:
-
-- Graph composable: `feature/home/.../ui/HomeGraph.kt`,
-  `feature/exercise/.../ui/ExerciseGraph.kt` (uses `navComponentScreenWithState` to
-  read PlanEditor saved-result).
-- NavigationHandler: `feature/home/.../mvi/handler/NavigationHandler.kt`,
-  `feature/exercise/.../ui/mvi/handler/NavigationHandler.kt` — both `@ViewModelScoped`
-  with `@Inject Navigator`.
-- StoreImpl (no args): `feature/home/.../mvi/store/HomeStoreImpl.kt`.
-- StoreImpl (assisted): `feature/exercise/.../ui/mvi/store/ExerciseStoreImpl.kt`,
-  `feature/live-workout/.../mvi/store/LiveWorkoutStoreImpl.kt`.
-- Feature (no args): `feature/home/.../di/HomeFeature.kt`.
-- Feature (assisted): `feature/exercise/.../di/ExerciseFeature.kt`,
-  `feature/live-workout/.../di/LiveWorkoutFeature.kt`.
+- Scope token: `feature/archive/.../di/ArchiveScope.kt`.
+- Graph extension: `feature/archive/.../di/ArchiveGraph.kt`,
+  `feature/settings/.../di/SettingsGraph.kt` (3 `@Binds`),
+  `feature/exercise/.../di/ExerciseGraph.kt` (route arg on the factory).
+- Composition seam: `feature/archive/.../di/ArchiveFeature.kt` (plain),
+  `feature/exercise/.../di/ExerciseFeature.kt` (assisted).
+- HandlerStore: `feature/archive/.../di/ArchiveHandlerStore.kt` + `ArchiveHandlerStoreImpl.kt`.
+- StoreImpl: `feature/archive/.../mvi/store/ArchiveStoreImpl.kt` (plain),
+  `feature/exercise/.../ui/mvi/store/ExerciseStoreImpl.kt` (route arg as a ctor param).
+- NavigationHandler: `feature/archive/.../mvi/handler/ArchiveNavigationHandler.kt`.
+- Nav graph composable: `feature/archive/.../ui/ArchiveGraph.kt`.
+- Identity test: `app/app/src/test/kotlin/.../di/ArchiveExtensionIdentityTest.kt`.
 
 Older features (`feature/exercise`, `feature/single-training`) keep the MVI under
 `ui/mvi/`; newer ones keep it under `mvi/`. Both layouts compile; mirror the existing
 shape when extending an existing module.
 
+## DI shape and scoping (get this right first)
+
+A feature owns five DI files under `feature/<name>/.../di/`: the scope token, the graph
+extension, the HandlerStore interface, its `Impl`, and the `<Name>Feature` composition seam.
+The graph extension is *contributed*
+to `AppScope`, so it inherits every app-scoped binding — nothing is hand-threaded across the
+boundary and the factory's creator method takes no arguments (except a route arg, if any).
+
+Which nodes carry `@SingleIn(<Name>Scope::class)`:
+
+| Node | Annotations |
+|---|---|
+| `<Name>StoreImpl` | `@Inject` on the class — **never `@SingleIn`** |
+| `<Name>HandlerStoreImpl` | `@Inject` + `@SingleIn(<Name>Scope::class)` |
+| every `*Handler` | `@SingleIn(<Name>Scope::class)` + `@Inject constructor(...)` |
+| `<Name>InteractorImpl`, use cases | `@Inject` + `@SingleIn(<Name>Scope::class)` |
+| `*Repository` / `*DataStore` / `*Storage` | `@SingleIn(AppScope::class)`, in `core/` — never in a feature |
+
+**Why the Store must NOT be scoped.** Retention belongs to the Android `ViewModelStore`:
+`rememberMetroStoreProcessor` builds the Store inside a `viewModel { }` initializer, so it
+survives configuration change and is cleared on back-stack pop. `MetroScopeRule` exempts
+`*StoreImpl` by name for exactly this reason. Because the accessor is not cached, **read the
+store accessor exactly once per created extension** — each read builds a fresh Store whose
+`BaseStore.init` re-runs `setStore(this)` on the shared emitter.
+
+**Why the HandlerStoreImpl MUST be scoped.** The Store injects the **concrete** key
+(`storeEmitter: <Name>HandlerStoreImpl`); every handler injects the **interface** key
+(`store: <Name>HandlerStore`, reached through `@Binds`). Both are legal bindings of the same
+`@Inject` class, and `@SingleIn(<Name>Scope::class)` is the only thing collapsing them to one
+object. Drop it and **everything still compiles** — `nonPublicContributionSeverity=ERROR`
+(root `gradle.properties`) gates `AppScope` contributions only, so an internal feature scope
+gets no compiler check. Metro then builds emitter #1 for the handlers and #2 for the Store;
+`BaseStore.init {}` calls `setStore(this)` on #2 only, and the first dispatched action hits
+`requireNotNull(_store)` on #1 — the screen crashes on open. `MetroScopeRule` deliberately
+does **not** let `*HandlerStoreImpl` inherit the `*StoreImpl` exemption, and
+`ArchiveExtensionIdentityTest` in `:app` pins the invariant with two `assertSame`s read from
+one extension.
+
 ## Step-by-step
 
 1. Every feature has a `domain/` package containing:
-   - `domain/<Name>Interactor.kt` and `<Name>InteractorImpl.kt`
+   - `domain/<Name>Interactor.kt` (interface) and `<Name>InteractorImpl.kt`
    - `domain/model/` with at least one `*Domain` type per concept the feature surfaces
    - `domain/mapper/<Name>DomainMapper.kt` with `toDomain()` extensions on every
      `core.data.*` type the interactor consumes (and `toData()` for write-side mappings)
@@ -68,55 +113,71 @@ shape when extending an existing module.
    types. Display fallbacks like "Unnamed" / "Track Now" go in the UI mapper via
    `stringResource(R.string.*)` or `resourceWrapper.getString(R.string.*)`, not in
    domain. See [documentation/architecture.md → Domain model
-   layer](../../documentation/architecture.md#domain-model-layer) for the contract.
-   Reference: `feature/exercise/domain/`.
+   layer](../../documentation/architecture.md#domain-model-layer).
 
-2. Create the module directory tree under `feature/<name>/`. Current layout (mirrors
-   `feature/home/`, `feature/all-trainings/`, `feature/exercise/`):
+   Both the interface and the `Impl` are **public** (not `internal`): the `@Binds` that
+   binds them is declared on the public graph-extension interface, which cannot expose an
+   internal type. Reference: `feature/archive/.../domain/ArchiveInteractorImpl.kt`.
+
+2. Create the module directory tree under `feature/<name>/`:
 
    ```
    feature/<name>/
    ├── build.gradle.kts
    └── src/
-       ├── main/AndroidManifest.xml
-       ├── main/kotlin/io/github/stslex/workeeper/feature/<name_snake>/
-       │   ├── di/                 # <Name>Module, <Name>HandlerStore[+Impl], <Name>Feature
-       │   ├── domain/             # only if the feature has its own business logic
-       │   ├── mvi/                # OR ui/mvi/ — mirror the closest existing feature
-       │   │   ├── handler/        # ClickHandler, InputHandler, NavigationHandler,
-       │   │   │                   # optional PagingHandler / CommonHandler
-       │   │   ├── mapper/         # Domain → Ui mappers
-       │   │   ├── model/          # *UiModel types
-       │   │   └── store/          # <Name>Store contract + <Name>StoreImpl
-       │   └── ui/
-       │       ├── components/
-       │       ├── <Name>Screen.kt
-       │       └── <Name>Graph.kt   # NavGraphBuilder.<feature>Graph extension
+       ├── main/
+       │   ├── res/values/strings.xml   # + values-ru/strings.xml
+       │   └── kotlin/io/github/stslex/workeeper/feature/<name_snake>/
+       │       ├── di/             # <Name>Scope, <Name>Graph, <Name>HandlerStore[+Impl],
+       │       │                   # <Name>Feature
+       │       ├── domain/         # only if the feature has its own business logic
+       │       ├── mvi/            # OR ui/mvi/ — mirror the closest existing feature
+       │       │   ├── handler/    # ClickHandler, InputHandler, NavigationHandler,
+       │       │   │               # optional PagingHandler / CommonHandler
+       │       │   ├── mapper/     # Domain → Ui mappers (internal objects, not injected)
+       │       │   ├── model/      # *UiModel types
+       │       │   └── store/      # <Name>Store contract + <Name>StoreImpl
+       │       └── ui/
+       │           ├── components/
+       │           ├── <Name>Screen.kt
+       │           └── <Name>Graph.kt   # NavGraphBuilder.<feature>Graph extension
        ├── test/kotlin/...         # JUnit 5 unit tests (handlers, interactor)
        └── androidTest/kotlin/...  # @Smoke UI tests
    ```
 
-   There is no `<Name>Component.kt` file. Route arguments come into the Store via
-   Dagger assisted injection (see step 9), not via a navigation `Component` subclass.
+   There is **no** `AndroidManifest.xml` and no `<Name>Component.kt`. The namespace is
+   derived from the Gradle path by `configureKotlinAndroid` (`:feature:workout-history` →
+   `io.github.stslex.workeeper.feature.workout_history`), so the package directory is the
+   snake_case form of the module name.
 
-3. Generate `feature/<name>/build.gradle.kts`. Mirror `feature/home/build.gradle.kts`:
+3. Generate `feature/<name>/build.gradle.kts`. Mirror `feature/archive/build.gradle.kts`:
 
    ```kotlin
    plugins {
        alias(libs.plugins.convention.composeLibrary)
+       alias(libs.plugins.metro)
+   }
+
+   // Metro reads javax.inject qualifiers so the inherited app-scoped bindings keep them —
+   // @DefaultDispatcher / @IODispatcher are core:core annotations meta-annotated
+   // @javax.inject.Qualifier. Without this, two same-typed CoroutineDispatcher bindings
+   // would silently merge; with it, (type + qualifier) stays the Metro binding key.
+   metro {
+       interop {
+           includeJavax()
+       }
    }
 
    dependencies {
        implementation(project(":core:core"))
 
-       implementation(project(":core:dataStore"))
        implementation(project(":core:ui:kit"))
        implementation(project(":core:ui:mvi"))
        implementation(project(":core:ui:navigation"))
-       implementation(project(":core:exercise"))
+       implementation(project(":core:data:exercise"))
 
        testImplementation(kotlin("test"))
-       testImplementation(libs.androidx.paging.testing) // only if the feature uses PagingHandler
+       testImplementation(libs.androidx.paging.testing) // only with a PagingHandler
 
        androidTestImplementation(libs.bundles.android.test)
        androidTestImplementation(libs.androidx.compose.ui.test.junit4)
@@ -125,10 +186,21 @@ shape when extending an existing module.
    }
    ```
 
-   Drop dependencies the feature does not use.
+   Both plugin lines are required: `convention.composeLibrary` brings Compose / lint /
+   KSP, `libs.plugins.metro` brings the DI compiler plugin, and the `metro { interop { … } }`
+   block is what keeps the qualified dispatchers distinct. Drop dependencies the feature does
+   not use; add `project(":core:core-android")` only if it touches an Android-only core type,
+   and `project(":core:data:dataStore")` only if it reads preferences.
 
-4. Add the module to the root settings: `include(":feature:<name>")` in
-   `settings.gradle.kts`.
+4. Register the module:
+   - `include(":feature:<name>")` in `settings.gradle.kts`.
+   - `implementation(project(":feature:<name>"))` in `app/app/build.gradle.kts` — the
+     contributed `@GraphExtension.Factory` only merges into `AppGraph` from `:app`'s compile
+     classpath.
+
+   `app/app/.../di/AppGraph.kt` itself needs **no edit**: `@ContributesTo(AppScope::class)`
+   on the feature's extension factory is what merges it in. Add an accessor to `AppGraph`
+   only when something actually reads it (see the accessor policy in its KDoc).
 
 5. Add the route. Edit
    `core/ui/navigation/src/main/kotlin/io.github/stslex/workeeper/core/ui/navigation/Screen.kt`
@@ -137,7 +209,7 @@ shape when extending an existing module.
    single-instance destinations are `data object`. Existing examples: `Screen.Settings`
    / `Screen.Archive` (data objects), `Screen.Training(uuid)` /
    `Screen.Exercise(uuid)` / `Screen.LiveWorkout(sessionUuid, trainingUuid)` /
-   `Screen.PlanEditor(performedExerciseUuid, exerciseUuid, trainingUuid)`.
+   `Screen.PlanEditor(...)`.
 
    Route arguments must be value-type fields (`String?`, `Long`, etc.) — never
    `NavController`, `NavBackStackEntry`, `SavedStateHandle`, or `Context`. Use the
@@ -148,13 +220,12 @@ shape when extending an existing module.
    by the custom Detekt rules in
    [documentation/lint-rules.md](../../documentation/lint-rules.md#custom-detekt-mvi-rules):
 
-   - `internal interface <Name>Store : Store<State, Action, Event>`.
+   - `interface <Name>Store : Store<State, Action, Event>`.
    - `data class State(val ...) : Store.State` — properties are `val`; collections use
      `kotlinx.collections.immutable` (`ImmutableList`, `ImmutableSet`). A
-     `companion object { fun create(...) = State(...) }` (or `INITIAL = State(...)`)
-     keeps fixture construction in tests cheap. For an assisted-injected Store the
-     factory takes the route-arg fields (e.g.
-     `fun create(uuid: String?): State`).
+     `companion object { fun init(...) = State(...) }` (or `INITIAL = State(...)`)
+     keeps fixture construction in tests cheap. For a route-arg Store the factory takes
+     the route-arg fields (e.g. `fun create(uuid: String?): State`).
    - `sealed interface Action : Store.Action` with nested categories under
      `Click`, `Input`, `Navigation`, optionally `Paging`, `Common`. **Navigation actions
      are always grouped under `Action.Navigation` — never modeled as `Event.Navigate*`.**
@@ -166,25 +237,27 @@ shape when extending an existing module.
 
 7. Generate handlers under `mvi/handler/`. Each handler:
 
-   - Is `internal class`, `@ViewModelScoped`, with `@Inject` constructor injection.
-     `MviHandlerConstructorRule` enforces `@Inject` and at least one parameter for
-     every handler. (The literal name `NavigationHandler` is technically exempt at the
-     rule level for historical reasons, but the current architecture uses
-     `@Inject Navigator` constructor injection on it identically to other handlers —
-     do not rely on the exemption in new code.)
+   - Is `internal class`, `@SingleIn(<Name>Scope::class)`, with a Metro
+     `@Inject constructor` taking at least one parameter — `MviHandlerConstructorRule`
+     enforces both. (The literal name `NavigationHandler` is exempt from the `@Inject`
+     half at the rule level for historical reasons; do not rely on it in new code.)
    - Implements `Handler<Action.<Category>>` from
      `core/ui/mvi/src/main/kotlin/io/github/stslex/workeeper/core/ui/mvi/handler/Handler.kt`.
-   - Receives the feature's `<Name>HandlerStore` interface (defined in `di/`) to read
-     state, mutate state via `updateState { it.copy(...) }`, dispatch other actions via
-     `consume(...)`, and emit events via `sendEvent(...)`. The `NavigationHandler` is
-     the exception — it receives only the singleton `Navigator` and never touches
-     store state.
+   - Receives the feature's `<Name>HandlerStore` **interface** (never the `Impl`) and
+     delegates to it — `internal class ClickHandler @Inject constructor(..., store:
+     <Name>HandlerStore) : Handler<Action.Click>, <Name>HandlerStore by store` — to read
+     `state`, mutate via `updateState { it.copy(...) }`, dispatch via `consume(...)`, and
+     emit via `sendEvent(...)`. The `NavigationHandler` is the exception: it receives only
+     the `Navigator` and never touches store state.
+   - Never injects the `Screen` route arg. `ScreenInjectionRule` fails any `@Inject` class
+     other than a `*StoreImpl` primary constructor that takes a `Screen` type — route state
+     reaches a handler as Store state, not out of DI.
 
-8. Generate `mvi/handler/NavigationHandler.kt`. The canonical shape:
+8. Generate `mvi/handler/<Name>NavigationHandler.kt`. The canonical shape:
 
    ```kotlin
-   @ViewModelScoped
-   internal class NavigationHandler @Inject constructor(
+   @SingleIn(<Name>Scope::class)
+   internal class <Name>NavigationHandler @Inject constructor(
        private val navigator: Navigator,
    ) : Handler<Action.Navigation> {
 
@@ -198,28 +271,31 @@ shape when extending an existing module.
    }
    ```
 
-   The injected `Navigator` is the singleton `NavigatorEventBus` (bound by
-   `app/app/.../di/NavigationModule.kt`). It is a controller-free command bus — the
-   handler **never** holds a `NavController`, `NavBackStackEntry`, `SavedStateHandle`,
-   `Activity`, or `Context`. Calling `navigator.navTo` / `navigator.popBack` /
-   `navigator.replaceTo` is pure command dispatch; the App/UI bridge
-   (`NavigatorExt.NavigationEventBusSetup` in `app/app/.../navigation/NavigatorExt.kt`)
-   collects each command on the current `NavController` and executes the AndroidX
-   Navigation operation. See
+   The injected `Navigator` is the app-scoped `NavigatorEventBus`
+   (`@SingleIn(AppScope) @ContributesBinding(AppScope, binding<Navigator>()) @Inject` in
+   `app/app/.../navigation/NavigatorEventBus.kt`) — the extension inherits it, nothing is
+   passed in. It is a controller-free command bus: the handler **never** holds a
+   `NavController`, `NavBackStackEntry`, `SavedStateHandle`, `Activity`, or `Context`.
+   Calling `navigator.navTo` / `popBack` / `replaceTo` is pure command dispatch; the App/UI
+   bridge (`NavigatorExt.NavigationEventBusSetup`) collects each command on the current
+   `NavController`. See
    [architecture.md → Navigation](../../documentation/architecture.md#navigation).
 
 9. Generate `mvi/store/<Name>StoreImpl.kt` extending `BaseStore<State, Action, Event>`.
+   Class-level `@Inject`, **no `@SingleIn`**, `public` class with an `internal`
+   constructor (the accessor is on the public extension; `:app` calls the ctor at the IR
+   level, so `internal` handler params are fine).
 
-   **Without route args** — plain `@HiltViewModel`:
+   **Without route args:**
 
    ```kotlin
-   @HiltViewModel
-   internal class <Name>StoreImpl @Inject constructor(
-       navigationHandler: NavigationHandler,
-       clickHandler: ClickHandler,
-       commonHandler: CommonHandler,
+   @Inject
+   class <Name>StoreImpl internal constructor(
+       navigationHandler: <Name>NavigationHandler,
+       clickHandler: <Name>ClickHandler,
+       commonHandler: <Name>CommonHandler,
        storeDispatchers: StoreDispatchers,
-       handlerStore: <Name>HandlerStoreImpl,
+       storeEmitter: <Name>HandlerStoreImpl,
        analyticsHolder: AnalyticsHolder,
        loggerHolder: LoggerHolder,
    ) : BaseStore<State, Action, Event>(
@@ -228,35 +304,16 @@ shape when extending an existing module.
        handlerCreator = { action ->
            when (action) {
                is Action.Navigation -> navigationHandler
-               is Action.Common -> commonHandler
                is Action.Click -> clickHandler
+               is Action.Common -> commonHandler
            }
        },
-       storeEmitter = handlerStore,
+       storeEmitter = storeEmitter,
        storeDispatchers = storeDispatchers,
        initialActions = listOf(Action.Common.Init),
        analyticsHolder = analyticsHolder,
        loggerHolder = loggerHolder,
-   )
-   ```
-
-   **With route args** — `@HiltViewModel(assistedFactory = Factory::class)` plus
-   `@AssistedInject` constructor and an `@AssistedFactory interface Factory : StoreFactory<Screen.<X>, StoreImpl>`:
-
-   ```kotlin
-   @HiltViewModel(assistedFactory = <Name>StoreImpl.Factory::class)
-   internal class <Name>StoreImpl @AssistedInject constructor(
-       @Assisted screen: Screen.<X>,
-       navigationHandler: NavigationHandler,
-       /* other handlers, dispatchers, holders */
-   ) : BaseStore<State, Action, Event>(
-       /* ... */
-       initialState = State.create(uuid = screen.uuid),
-       /* ... */
    ) {
-
-       @AssistedFactory
-       interface Factory : StoreFactory<Screen.<X>, <Name>StoreImpl>
 
        companion object {
 
@@ -266,58 +323,137 @@ shape when extending an existing module.
    }
    ```
 
-   The Store retains only the screen's value-type fields it needs in initial state
-   (`screen.uuid`, `screen.sessionUuid`, etc.). It MUST NOT retain
+   **With route args** — identical, plus the `Screen` as an ordinary first parameter:
+
+   ```kotlin
+   @Inject
+   class <Name>StoreImpl internal constructor(
+       screen: Screen.<X>,
+       navigationHandler: <Name>NavigationHandler,
+       /* other handlers, dispatchers, holders */
+   ) : BaseStore<State, Action, Event>(
+       /* ... */
+       initialState = State.create(uuid = screen.uuid),
+       /* ... */
+   )
+   ```
+
+   Note `storeEmitter` takes the **concrete** `<Name>HandlerStoreImpl`, while handlers take
+   the interface — that split is what step "DI shape and scoping" is about. The Store
+   retains only the screen's value-type fields it needs; it MUST NOT retain
    `NavBackStackEntry`, `SavedStateHandle`, or any controller reference.
 
-10. Generate the Hilt module at `di/<Name>Module.kt` with
-    `@InstallIn(ViewModelComponent::class)`. Bind the `<Name>HandlerStore` (and any
-    interactor) as `@ViewModelScoped`. Reference: `feature/all-trainings/.../di/AllTrainingsModule.kt`.
+10. Generate `di/<Name>HandlerStore.kt` — a **public** interface, because the `@Binds` for it
+    sits on the public extension:
 
-11. Generate `di/<Name>HandlerStore.kt` (the interface, e.g.
-    `internal interface SettingsHandlerStore : HandlerStore<State, Action, Event>`)
-    and `di/<Name>HandlerStoreImpl.kt` (`@ViewModelScoped`, `@Inject constructor()`,
-    extending `BaseHandlerStore<State, Action, Event>`). Reference:
-    `feature/home/.../di/HomeHandlerStoreImpl.kt`.
+    ```kotlin
+    interface <Name>HandlerStore : HandlerStore<State, Action, Event>
+    ```
 
-12. Generate `di/<Name>Feature.kt`.
+    and `di/<Name>HandlerStoreImpl.kt`:
 
-    **Without route args** — `Feature<TProcessor, TScreen>`:
+    ```kotlin
+    @Inject
+    @SingleIn(<Name>Scope::class)
+    class <Name>HandlerStoreImpl : <Name>HandlerStore,
+        BaseHandlerStore<State, Action, Event>()
+    ```
+
+11. Generate `di/<Name>Scope.kt` — the inert feature-scope token, the Metro analogue of
+    Hilt's old `@ViewModelScoped`. It stays `internal` (Metro reads the scope `KClass` at
+    the IR level):
+
+    ```kotlin
+    internal abstract class <Name>Scope private constructor()
+    ```
+
+12. Generate `di/<Name>Graph.kt` — the contributed graph extension. Interface and factory
+    are **public** because `:app` generates the extension impl and references them:
+
+    ```kotlin
+    @GraphExtension(<Name>Scope::class)
+    interface <Name>Graph {
+
+        /** Root accessor: the retained Store. Read EXACTLY ONCE per created extension. */
+        val <name>Store: <Name>StoreImpl
+
+        @Binds
+        val <Name>InteractorImpl.bindInteractor: <Name>Interactor
+
+        @Binds
+        val <Name>HandlerStoreImpl.bindHandlerStore: <Name>HandlerStore
+
+        @ContributesTo(AppScope::class)
+        @GraphExtension.Factory
+        fun interface Factory {
+            fun create<Name>Graph(): <Name>Graph
+        }
+    }
+    ```
+
+    - `AppScope` is the **project** token
+      (`io.github.stslex.workeeper.core.core.di.AppScope`), never
+      `dev.zacsweers.metro.AppScope` — the built-in has the same simple name, is a different
+      class, and a contribution to it silently fails to aggregate. Detekt does **not** cover
+      you here: `ContributesBindingScopeRule` only inspects `@ContributesBinding` and
+      `ContributesToScopeRule` only inspects `@BindingContainer`, so a `@GraphExtension.Factory`
+      with the wrong `@ContributesTo` scope compiles green. Check the import.
+    - The creator method name must be **unique across all contributed extension factories**
+      (they all merge into `AppGraph`), so `create<Name>Graph()`, never a bare `create()`.
+    - **With route args**, bind the arg on the factory instead of taking an argument list:
+      `fun create<Name>Graph(@Provides screen: Screen.<X>): <Name>Graph`. One extension is
+      built per navigation entry, carrying that entry's arg.
+    - Do **not** re-declare app-scoped deps as `@Provides` — the extension inherits every
+      `AppScope` binding. Add an extra accessor only when a test reads it (see the
+      dispatcher/`Context` accessors on `SettingsGraph` and `ExerciseGraph`, and the two
+      handler-store observability accessors on `ArchiveGraph`).
+
+13. Generate `di/<Name>Feature.kt` — the composition seam.
+
+    **Without route args:**
 
     ```kotlin
     internal typealias <Name>StoreProcessor = StoreProcessor<State, Action, Event>
 
     internal object <Name>Feature : Feature<<Name>StoreProcessor, Screen.<X>>() {
 
+        @Suppress("UNCHECKED_CAST")
         @Composable
-        override fun processor(): <Name>StoreProcessor = createProcessor<<Name>StoreImpl>()
+        override fun processor(): <Name>StoreProcessor {
+            val context = LocalContext.current
+            return rememberMetroStoreProcessor<<Name>StoreImpl> {
+                context.appDeps<<Name>Graph.Factory>()
+                    .create<Name>Graph()
+                    .<name>Store
+            } as <Name>StoreProcessor
+        }
     }
     ```
 
-    **With route args** — `FeatureAssisted<TProcessor, TScreen>`:
+    **With route args** — subclass `FeatureAssisted` and pass the screen to the factory:
 
     ```kotlin
-    internal typealias <Name>StoreProcessor = StoreProcessor<State, Action, Event>
-
     internal object <Name>Feature : FeatureAssisted<<Name>StoreProcessor, Screen.<X>>() {
 
+        @Suppress("UNCHECKED_CAST")
         @Composable
-        override fun processor(screen: Screen.<X>): <Name>StoreProcessor =
-            createProcessor<<Name>StoreImpl, <Name>StoreImpl.Factory>(screen)
+        override fun processor(screen: Screen.<X>): <Name>StoreProcessor { /* … */ }
     }
     ```
 
-    Reference (no args): `feature/home/.../di/HomeFeature.kt`,
-    `feature/all-trainings/.../di/AllTrainingsFeature.kt`. Reference (assisted):
-    `feature/exercise/.../di/ExerciseFeature.kt`,
-    `feature/live-workout/.../di/LiveWorkoutFeature.kt`.
+    `context.appDeps<T>()` reads the app graph through the `AppDepsHolder` seam on
+    `BaseApplication` and re-narrows it to the contributed factory. The extension is created
+    **inside** the `rememberMetroStoreProcessor` lambda, so it is built at most once per
+    retained Store (per `NavBackStackEntry` `ViewModelStore`) — that is what bounds the
+    `@SingleIn(<Name>Scope)` instances to the Store's lifetime. `LocalContext` is read only
+    to reach the seam; never pass it into the graph.
 
-13. Generate `ui/<Name>Graph.kt` — a
+14. Generate `ui/<Name>Graph.kt` — a
     `fun NavGraphBuilder.<feature>Graph(modifier: Modifier = Modifier, ...)` extension.
 
     Inside, call `navComponentScreen(<Name>Feature) { processor -> ... }` and consume
     only **UI-side** events through `processor.Handle { event -> ... }` (haptics,
-    external links, snackbar emissions, scroll commands, dialog state). Pass
+    external links, snackbar emissions, scroll commands). Pass
     `processor.state.value` and `processor::consume` into your `<Name>Screen`.
 
     **If the feature reads a navigation result from a return-screen**, use
@@ -326,45 +462,56 @@ shape when extending an existing module.
     the flag after consumption with
     `stateHandle.setAttrDefaultValue(<SaveHandlerAttr>)` so re-entry does not
     retrigger the consumer. Reference: `feature/exercise/.../ui/ExerciseGraph.kt`,
-    `feature/single-training/.../ui/SingleTrainingGraph.kt`,
-    `feature/live-workout/.../ui/LiveWorkoutGraph.kt`. The `stateHandle` is the
+    `feature/single-training/.../ui/SingleTrainingGraph.kt`. The `stateHandle` is the
     current `NavBackStackEntry.savedStateHandle` — keep it scoped to the graph block;
     do not pass it into Store, Handler, or any DI binding.
 
-14. Wire the navigation graph into the host. Edit
+15. Wire the navigation graph into the host. Edit
     `app/app/src/main/java/io/github/stslex/workeeper/host/AppNavigationHost.kt` and
-    call your new
-    `<feature>Graph(modifier = ..., sharedTransitionScope = this@SharedTransitionLayout)`.
-    The `sharedTransitionScope` parameter is only required for graphs that participate
-    in shared element transitions — see how `allTrainingsGraph` and `settingsGraph`
-    differ.
+    call your new `<feature>Graph(modifier = ...)`. Add
+    `sharedTransitionScope = this@SharedTransitionLayout` only for graphs that participate
+    in shared element transitions — see how `allTrainingsGraph` and `settingsGraph` differ.
 
     The `modifier` you pass into the graph **must** include
-    `Modifier.reportScreenPlace<Screen.<X>>()` so the TTID / AppCreate /
-    ActivityCreate Firebase traces stop on first display. Without it those metrics
-    will be aborted by the next navigation. See
-    [documentation/performance.md → New-screen contributor checklist](../../documentation/performance.md#new-screen-contributor-checklist).
+    `.reportScreenPlace<Screen.<X>>()` so the TTID / AppCreate / ActivityCreate Firebase
+    traces stop on first display, and a `.testTag("<Name>Graph")` to match the siblings.
+    See [documentation/performance.md → New-screen contributor
+    checklist](../../documentation/performance.md#new-screen-contributor-checklist).
 
-15. If the feature is bottom-bar visible, add an entry in
+16. If the feature is bottom-bar visible, add an entry in
     `app/app/src/main/java/io/github/stslex/workeeper/bottom_app_bar/BottomBarItem.kt`.
 
-16. Generate the screen. `<Name>Screen.kt` is a `@Composable` ending in `Screen` and
+17. Generate the screen. `<Name>Screen.kt` is a `@Composable` ending in `Screen` and
     must take both a `*State` parameter and an action/event handler parameter —
     enforced by `ComposableStateRule`.
 
-17. Build the UI from `core/ui/kit` components and tokens (see Design system contract
+18. Build the UI from `core/ui/kit` components and tokens (see Design system contract
     below). Hardcoded `Color()`, `sp`, or `dp` outside `core/ui/kit/theme/` are not
     allowed. Every `public` or `internal` `@Composable` you add must ship with
     `@Preview` functions in the same file — see Composable previews below.
-    Keep UI-layer boundaries strict: Composables/Graph files should render
-    preformatted state only. Date/time/number formatting, relative-time labels,
-    list-to-string shaping, and locale-sensitive text mapping belong in
-    handler/mapper/state layers.
+    Keep UI-layer boundaries strict: Composables/Graph files render preformatted state
+    only. Date/time/number formatting, relative-time labels, list-to-string shaping, and
+    locale-sensitive text mapping belong in handler/mapper/state layers.
 
-18. Add a smoke UI test stub under
-    `feature/<name>/src/androidTest/kotlin/.../<Name>ScreenTest.kt` annotated `@Smoke`.
-    Most new features start as a stub with a `TODO(feature-rewrite-tests)` marker
-    (see the `write-ui-test` skill).
+19. Add the tests:
+    - A smoke UI stub under
+      `feature/<name>/src/androidTest/kotlin/.../<Name>ScreenTest.kt`, annotated `@Smoke`
+      and `@RunWith(AndroidJUnit4::class)`, extending `BaseComposeTest` with a
+      `createComposeRule()` `@get:Rule`. Most new features start as a stub with a
+      `TODO(feature-rewrite-tests)` marker and one `@Ignore`d placeholder `@Test` so
+      AndroidJUnit4 has something to discover (see the `write-ui-test` skill and
+      `feature/archive/.../ArchiveScreenTest.kt`).
+    - A `<Name>ExtensionIdentityTest` in
+      `app/app/src/test/kotlin/io/github/stslex/workeeper/di/` — a `@GraphExtension`
+      cannot be created standalone, so the assertion must live where the parent `AppGraph`
+      is compiled. Build the graph with `createGraphFactory<AppGraph.Factory>().create(...)`,
+      reach the extension via `asContribution<<Name>Graph.Factory>().create<Name>Graph()`,
+      and assert the Store resolves and its app-scoped deps are `assertSame` as the
+      parent's. All 13 features that own a `@GraphExtension` have one. Copy
+      `ArchiveExtensionIdentityTest` when the feature has handlers that share the emitter —
+      its last two tests are the ones sensitive to a missing `@SingleIn` on the
+      `HandlerStoreImpl`.
+    - Handler unit tests per the `write-handler-test` skill.
 
 ## Canonical navigation pattern (recap)
 
@@ -378,41 +525,26 @@ The shape:
    `NavigationHandler` (typically `is Action.Navigation -> navigationHandler`).
 3. `NavigationHandler` calls `navigator.navTo(Screen.X)`, `navigator.replaceTo(Screen.X)`,
    `navigator.popBack(...)`, or `navigator.restartApp()`.
-4. `NavigatorEventBus` (the singleton implementation of `Navigator`) emits a
+4. `NavigatorEventBus` (the app-scoped implementation of `Navigator`) emits a
    `NavCommand` on its internal `SharedFlow`.
 5. The App/UI bridge (`NavigatorExt.NavigationEventBusSetup`) collects the command
    keyed on the current `NavController` and executes the AndroidX Navigation operation.
 
 ```kotlin
 // In <Name>Store.kt:
-internal interface <Name>Store : Store<State, Action, Event> {
+interface <Name>Store : Store<State, Action, Event> {
 
     sealed interface Action : Store.Action {
         sealed interface Navigation : Action {
             data object Back : Navigation
             data object OpenArchive : Navigation
-            // ... any other navigation targets
         }
         // ... Click, Input, Paging, Common as needed
     }
 
     sealed interface Event : Store.Event {
-        // ONLY UI-side effects: Haptic*, Snackbar*, Show*, Scroll*, *Success, *Error, *Completed.
+        // ONLY UI-side effects: Haptic*, Snackbar*, Show*, Scroll*, *Success, *Error.
         // NEVER Navigate*. Navigation is Action.Navigation, full stop.
-    }
-}
-
-// In mvi/handler/NavigationHandler.kt:
-@ViewModelScoped
-internal class NavigationHandler @Inject constructor(
-    private val navigator: Navigator,
-) : Handler<Action.Navigation> {
-
-    override fun invoke(action: Action.Navigation) {
-        when (action) {
-            Action.Navigation.Back -> navigator.popBack()
-            Action.Navigation.OpenArchive -> navigator.navTo(Screen.Archive)
-        }
     }
 }
 ```
@@ -423,16 +555,12 @@ The graph composable (`<feature>Graph`) consumes **only** UI-side events:
 fun NavGraphBuilder.<feature>Graph(modifier: Modifier = Modifier) {
     navComponentScreen(<Name>Feature) { processor ->
         val haptic = LocalHapticFeedback.current
-        val context = LocalContext.current
 
         processor.Handle { event ->
             when (event) {
                 is Event.Haptic -> haptic.performHapticFeedback(event.type)
-                is Event.ShowExternalLink -> context.startActivity(
-                    Intent(Intent.ACTION_VIEW, event.url.toUri())
-                        .apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) },
-                )
-                // snackbar emissions, scroll commands, ...
+                is Event.ShowRestoredSnackbar -> SnackbarManager.showSnackbar(/* ... */)
+                // scroll commands, ...
             }
         }
 
@@ -448,28 +576,34 @@ fun NavGraphBuilder.<feature>Graph(modifier: Modifier = Modifier) {
 The graph composable **never** calls `navController.navigate(...)` /
 `popBackStack()` directly, **never** consumes a `Navigate*` event (no such event
 exists — emitting one is wrong by convention), and **never** captures
-`NavController` outside `App.kt` / `NavigatorExt`. Stores, Handlers, ViewModels,
-Interactors, and any DI singleton MUST NOT retain `NavHostController`,
-`NavController`, `NavBackStackEntry`, `SavedStateHandle`, `Activity`, or
-`Context`. The only object that may live in singleton scope is the command-only
+`NavController` outside `App.kt` / `NavigatorExt`. Stores, Handlers, Interactors, and any
+app-scoped graph node MUST NOT retain `NavHostController`, `NavController`,
+`NavBackStackEntry`, `SavedStateHandle`, `Activity`, or `Context` (the app `Context` bound
+instance on `AppGraph` is the one legitimate exception, and it is the *application*
+context). The only navigation object living in app scope is the command-only
 `NavigatorEventBus`.
 
 ## Design system contract
 
 All visible UI is built from `core/ui/kit` components and `AppUi.*` token accessors.
-Full catalog is in [documentation/design-system.md](../../documentation/design-system.md).
-Quick reference:
+Full catalog is in [documentation/design-system.md](../../documentation/design-system.md);
+the directory itself is the authority on what exists today.
 
 **Tokens** — read via `AppUi.*` inside any `@Composable`:
 
 - `AppUi.colors` — `LocalAppColors.current` (semantic palette: `accent`, `textPrimary`,
   `textSecondary`, `textTertiary`, surface tiers, semantic statuses).
-- `AppUi.typography` — `LocalAppTypography.current` (Inter family, 13-slot M3 scale).
+- `AppUi.typography` — `LocalAppTypography.current`. Three bundled families (IBM Plex Sans,
+  Archivo `wdth 116` for numerals only, IBM Plex Mono) over six sizes, with the 15 M3 names
+  as aliases: `display*` / `headline*` / `title*` / `body*` / `label*`, plus `timer`.
+  **Never route a `stringResource` through the numeric family** — it has no Cyrillic, and a
+  detekt rule fails the build on it.
 - `AppUi.shapes` — `LocalAppShapes.current` (`small` / `medium` / `large`).
 - `AppUi.motion` — `LocalAppMotion.current` (durations + easings).
 - `AppUi.elevation` — `LocalAppElevation.current` (color-based surface tier mapping).
-- `LocalAppDimension.current` for spacing aliases (`screenEdge`, `cardPadding`,
-  `iconMd`, `heightSm`, etc.).
+- `AppDimension` — a plain `object` (no CompositionLocal), referenced directly for spacing
+  and sizing aliases: `AppDimension.screenEdge`, `.cardPadding`, `.Space.xs`, `.iconSm`,
+  `.heightXs`, `.Radius.medium`, etc.
 
 **Components** — every shared UI primitive lives under
 `core/ui/kit/src/main/kotlin/io/github/stslex/workeeper/core/ui/kit/components/`:
@@ -477,11 +611,14 @@ Quick reference:
 | Component | File |
 |---|---|
 | `AppButton` | `components/button/AppButton.kt` |
+| `AppCheckmarkButton` | `components/button/AppCheckmarkButton.kt` |
 | `AppCard` | `components/card/AppCard.kt` |
 | `AppTextField` | `components/input/AppTextField.kt` |
 | `AppNumberInput` | `components/input/AppNumberInput.kt` |
 | `AppDialog` | `components/dialog/AppDialog.kt` |
 | `AppConfirmDialog` | `components/dialog/AppConfirmDialog.kt` |
+| `AppConfirmationDialog` | `components/dialog/AppConfirmationDialog.kt` |
+| `AppBlockedArchiveDialog` | `components/dialog/AppBlockedArchiveDialog.kt` |
 | `AppDatePickerDialog` | `components/dialog/AppDatePickerDialog.kt` |
 | `AppEmptyState` | `components/empty/AppEmptyState.kt` |
 | `AppListItem` | `components/list/AppListItem.kt` |
@@ -495,7 +632,10 @@ Quick reference:
 | `AppSetTypeChip` | `components/setchip/AppSetTypeChip.kt` |
 | `AppSegmentedControl` | `components/segmented/AppSegmentedControl.kt` |
 | `AppSnackbar` | `components/snackbar/AppSnackbar.kt` |
-| `AppSwipeAction` | `components/swipe/AppSwipeAction.kt` |
+| `AppTooltip` | `components/tooltip/AppTooltip.kt` |
+
+Plus the non-`App*`-prefixed helpers in the same tree: `PagingUiState.kt`, the
+`components/pr/` personal-record widgets, and `components/reorderable/`.
 
 **Forbidden in feature code**:
 
@@ -565,14 +705,6 @@ private fun MyComponentEmptyPreview() {
         MyComponent(state = stubEmptyState())
     }
 }
-
-@Preview
-@Composable
-private fun MyComponentErrorPreview() {
-    AppTheme(themeMode = ThemeMode.DARK) {
-        MyComponent(state = stubErrorState())
-    }
-}
 ```
 
 Or with `@PreviewParameter` to halve the function count:
@@ -602,48 +734,64 @@ Preview functions are `private` and named `<ComponentName>Preview` (or
 ./gradlew :feature:<name>:detekt :feature:<name>:lintDebug --no-configuration-cache
 ./gradlew :feature:<name>:assembleDebug
 ./gradlew :feature:<name>:testDebugUnitTest
+./gradlew :app:app:testDebugUnitTest   # runs the <Name>ExtensionIdentityTest
 ```
 
-The detekt run exercises the custom MVI rules; if any fire, fix them rather than
+`:feature:<name>:assembleDebug` alone does **not** prove the DI wiring: a
+`@GraphExtension` is only merged when `:app` compiles, and a missing `@SingleIn` on the
+`HandlerStoreImpl` compiles green everywhere. The `:app:app` identity test is the check
+that actually fires.
+
+The detekt run exercises the custom MVI + Metro rules; if any fire, fix them rather than
 baselining (see the `refactor-with-mvi-rules` skill).
 
 ## Common pitfalls
 
-- **Do not skip `BaseStore`.** Stores must extend `BaseStore`; this is enforced by
+- **Do not put `@SingleIn` on the `*StoreImpl`.** It is deliberately unscoped — the
+  `ViewModelStore` retains it. `MetroScopeRule` exempts `*StoreImpl` by name, so a stray
+  `@SingleIn` will not be caught by lint; it will just pin the Store to the extension.
+- **Do not forget `@SingleIn(<Name>Scope::class)` on the `*HandlerStoreImpl`.** It compiles
+  green and crashes the screen on the first action. See "DI shape and scoping" above.
+- **Do not read the store accessor twice** off one created extension — each read builds a
+  fresh Store and rebinds the shared emitter away from the previous one.
+- **Do not name two extension factory creators the same.** Every
+  `@ContributesTo(AppScope::class)` factory merges into `AppGraph`; two `create()` methods
+  collide with "return types are incompatible". Use `create<Name>Graph()`.
+- **Do not use `dev.zacsweers.metro.AppScope`.** The project token is
+  `io.github.stslex.workeeper.core.core.di.AppScope`; the Metro built-in has the same simple
+  name and silently fails to aggregate. `ContributesBindingScopeRule` catches it on a
+  `@ContributesBinding` and `ContributesToScopeRule` on a `@BindingContainer` — but **not**
+  on a `@GraphExtension.Factory`. Verify that import by hand.
+- **Do not inject `Screen` anywhere but a Store's primary constructor.**
+  `ScreenInjectionRule` fails handlers, interactors, mappers, and secondary constructors.
+- **Do not use Hilt annotations or `javax.inject.Inject`.** Metro's `@Inject` /
+  `@SingleIn` / `@Binds` / `@Provides` / `@GraphExtension` are the only DI vocabulary.
+  `javax.inject` survives on the classpath **only** for the qualifier interop, so
+  `@Singleton` still resolves while the graph ignores it — `MetroScopeRule` flags the
+  resulting missing `@SingleIn`.
+- **Do not skip `BaseStore`.** Stores must extend `BaseStore`; enforced by
   `MviStoreExtensionRule`.
 - **Do not put state mutation in `@Composable` functions.** All mutation flows through
   `BaseStore.consume(action)` → handler → `updateState`.
-- **Do not use `MutableList` / `MutableSet` / `MutableMap` in `State`.** Use the
-  `kotlinx.collections.immutable` types. `MviStateImmutabilityRule` will reject them.
-- **Do not use `var` in `State`.** Same rule — properties must be `val`.
+- **Do not use `MutableList` / `MutableSet` / `MutableMap` or `var` in `State`.** Use the
+  `kotlinx.collections.immutable` types and `val`. `MviStateImmutabilityRule` rejects them.
 - **Do not model navigation as `Event.Navigate*`.** Every navigation target is
-  `Action.Navigation.<X>` consumed by the feature's `NavigationHandler`. See the
-  Canonical navigation pattern above and the `refactor-with-mvi-rules` skill.
+  `Action.Navigation.<X>` consumed by the feature's `NavigationHandler`.
 - **Do not retain `NavController`, `NavHostController`, `NavBackStackEntry`,
-  `SavedStateHandle`, `Activity`, or `Context` in any Store, Handler, ViewModel, or
-  Hilt singleton.** Stores and Handlers depend on `Navigator` (the command-bus
-  abstraction) only. The bridge code in `App.kt` /
-  `NavigatorExt.NavigationEventBusSetup` is the only place that touches the
-  `NavController`.
-- **Do not introduce a `Component<Screen>` subclass for the feature.** Route arguments
-  enter the Store via `@Assisted screen: Screen.<X>` (assisted injection) — the old
-  `Component` / `RootComponent` / `LocalRootComponent` / `Component.create` machinery
-  no longer exists.
-- **Do not call `navController.navigate(...)` or `navController.popBackStack()` from a
-  graph composable.** Dispatch `Action.Navigation.<X>` instead. The bridge executes
-  it.
-- **Do not pass `SavedStateHandle` into a Store, Handler, or DI binding.** It is
-  passed only as a parameter to the graph block via
-  `navComponentScreenWithState(...)` and used in-place.
+  `SavedStateHandle`, `Activity`, or a UI `Context` in any Store, Handler, or graph node.**
+  Stores and Handlers depend on `Navigator` only.
+- **Do not hand app-scoped deps to the extension factory.** The extension inherits every
+  `AppScope` binding; a `@Provides` duplicate fails Metro's duplicate-binding check.
 - **Do not hardcode colors / sizes / type styles in feature code.** Pull from
-  `AppUi.*` and the `core/ui/kit` components. See the Design system contract above.
+  `AppUi.*` and the `core/ui/kit` components.
 - **Do not ship a `public` or `internal` `@Composable` without a `@Preview`.** Both
-  light and dark must be covered (two preview functions, or one with a
-  `@PreviewParameter`-driven `ThemeMode`), each visually-distinct state needs its own
-  preview, and stub data must be realistic. See Composable previews above. Private
-  helpers are exempt.
-- **Do not forget the `convention.composeLibrary` plugin alias** in
-  `build.gradle.kts`. Plain `kotlin("jvm")` modules will not get Hilt, Compose, or
-  the lint convention.
+  light and dark must be covered, each visually-distinct state needs its own preview, and
+  stub data must be realistic. Private helpers are exempt.
+- **Do not forget either plugin line.** `convention.composeLibrary` alone gives no DI;
+  `libs.plugins.metro` without `metro { interop { includeJavax() } }` merges the qualified
+  dispatcher bindings.
+- **Do not forget `implementation(project(":feature:<name>"))` in `app/app`.** Aggregation
+  happens on `:app`'s compile classpath; without the edge the extension factory never
+  reaches `AppGraph` (and `AppNavigationHost`'s import of the graph will not resolve).
 - **Do not bypass `Screen` for navigation.** Every navigable destination must be a
   `@Serializable` entry in `core/ui/navigation/.../Screen.kt`.

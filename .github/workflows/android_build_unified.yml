@@ -99,8 +99,77 @@ jobs:
       - name: Build with Gradle
         run: ./gradlew assembleDebug --full-stacktrace
 
+      # The `androidTest` variants had NO gate on any PR. `assembleDebug` does not build them,
+      # and the only workflow that does — `ui_tests.yml` — is `workflow_dispatch`/`workflow_call`
+      # only. So the instrumented source sets were compiled exactly once per release, inside
+      # `android_deploy_prod.yml`'s `ui_tests` job, downstream of both `guard` and `build`.
+      #
+      # Measured, not assumed: the v1.49.0 deploy (run 31429081872) died on two of them —
+      # `:core:ui:kit:checkDebugAndroidTestDuplicateClasses` and
+      # `mergeDebugAndroidTestJavaResource`, from a Paparazzi test-fixture leak that landed
+      # 2026-07-26 and sat unseen for a month because the last standalone `ui_tests` run was
+      # 2026-05-03. Both are build-graph failures: this step alone reproduces them, and it needs
+      # no emulator, so the cheap half of the instrumented gate now runs on every PR.
+      #
+      # This assembles the test APKs; it does not run them. Executing them still needs a device
+      # and stays in `ui_tests.yml` — a test that goes red on an assertion (as the chart test in
+      # that same run did) is out of this step's reach by construction.
+      - name: Assemble instrumented tests
+        run: ./gradlew assembleDebugAndroidTest --full-stacktrace
+
+      # Visual gate for the v3 redesign. Deliberately placed BEFORE detekt.
+      #
+      # detekt cannot currently corrupt this: LintConventionPlugin sets
+      # `autoCorrect = false` precisely so the gate never rewrites the tree it verifies.
+      # Running the goldens first means that guarantee does not have to hold — the visual
+      # gate reads the checked-out tree before any other step could have touched it,
+      # whatever a future edit to that setting does.
+      #
+      # `verifyPaparazziDebug` is finalized by `:core:ui:kit:assertGoldenLiveness`, which
+      # fails the build if the golden tests did not actually execute. A Paparazzi task that
+      # discovers no tests still exits 0, so "green" alone does not mean the gate ran.
+      #
+      # This job restores the build cache and `gradle-ci.properties` sets `org.gradle.caching=true`,
+      # so the gate's test task was eligible for FROM-CACHE — which restores the JUnit XML that
+      # `assertGoldenLiveness` reads, making the liveness claim answer with a previous build's
+      # evidence. Closed in `core/ui/kit/build.gradle.kts`, where the task is marked
+      # non-cacheable and never up-to-date in Paparazzi mode, rather than with `--no-build-cache`
+      # here: the flag would also strip cache hits from every upstream compile task in this graph,
+      # and would leave local runs of the gate just as replayable as before.
+      - name: Verify screenshot goldens
+        run: ./gradlew verifyPaparazziDebug --full-stacktrace
+
+      - name: Upload screenshot diffs
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: paparazzi-failure-diffs
+          # alpha05 made this directory variant-aware (…/failures/<variant>/). Each failure
+          # writes an expected|delta|actual triptych — a red visual gate with no visible diff
+          # is barely better than no gate.
+          path: |
+            **/build/paparazzi/failures/**
+          if-no-files-found: ignore
+          retention-days: 30
+
+      # The custom detekt rules had NO CI coverage before this step. `:lint-rules` is a plain
+      # JVM module, so its tests live under `test` — and the pipeline's only test invocation
+      # was `testDebugUnitTest`, a task that does not exist for it. Every rule guarding the
+      # MVI/Metro/typography invariants was therefore unverified on every PR. Must run before
+      # `detekt`, since detekt is what consumes the jar these tests cover.
+      - name: Run custom detekt rule tests
+        run: ./gradlew :lint-rules:test --full-stacktrace
+
       - name: Run detekt
         run: ./gradlew detekt --full-stacktrace
+
+      # A real email address and a real name shipped as fixture data and RENDERED INTO COMMITTED
+      # PNGs, through the reviews that landed the settings rebuild. Individually obvious,
+      # collectively invisible — the same class the token-parity seam is checked for, and checked
+      # the same way: named exceptions with citations, never a loosened pattern. `-v` because a
+      # gate that passes silently reports nothing (shell_gate.py's own lesson).
+      - name: Check for personal data in tracked files
+        run: python3 documentation/personal_data_gate.py -v
 
       - name: Run Android Lint
         run: ./gradlew lintDebug --no-configuration-cache --full-stacktrace

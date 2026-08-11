@@ -4,17 +4,125 @@ package io.github.stslex.workeeper.feature.home.mvi.mapper
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.core.time.formatElapsedDuration
 import io.github.stslex.workeeper.core.core.time.formatRelativeTime
+import io.github.stslex.workeeper.core.core.utils.DateTimeUtil
 import io.github.stslex.workeeper.feature.home.R
 import io.github.stslex.workeeper.feature.home.domain.model.ActiveSessionWithStatsDomain
 import io.github.stslex.workeeper.feature.home.domain.model.RecentSessionDomain
+import io.github.stslex.workeeper.feature.home.domain.model.StartCardReadoutDomain
 import io.github.stslex.workeeper.feature.home.domain.model.TrainingListItemDomain
+import io.github.stslex.workeeper.feature.home.domain.model.WeekReadoutDomain
 import io.github.stslex.workeeper.feature.home.mvi.model.PickerTrainingItem
 import io.github.stslex.workeeper.feature.home.mvi.model.RecentSessionItem
+import io.github.stslex.workeeper.feature.home.mvi.model.StartCardBodyUi
+import io.github.stslex.workeeper.feature.home.mvi.model.TagIdleRowUi
+import io.github.stslex.workeeper.feature.home.mvi.model.WeekDayUi
 import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.State.ActiveSessionInfo
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 
 internal object HomeUiMapper {
+
+    /** Monday-first, matching `WeekReadoutDomain.trainedDayIndexes` (0 = Monday). */
+    private val WEEK_DAY_LABELS = listOf(
+        R.string.feature_home_start_week_day_mon,
+        R.string.feature_home_start_week_day_tue,
+        R.string.feature_home_start_week_day_wed,
+        R.string.feature_home_start_week_day_thu,
+        R.string.feature_home_start_week_day_fri,
+        R.string.feature_home_start_week_day_sat,
+        R.string.feature_home_start_week_day_sun,
+    )
+
+    fun StartCardReadoutDomain.toUi(resourceWrapper: ResourceWrapper): StartCardBodyUi =
+        when (this) {
+            is StartCardReadoutDomain.Week -> readout.toUi(resourceWrapper)
+
+            is StartCardReadoutDomain.DaysSince -> StartCardBodyUi.DaysSince(
+                daysCountLabel = daysSince.toString(),
+                daysUnitLabel = resourceWrapper.getQuantityString(
+                    R.plurals.feature_home_start_days_count,
+                    daysSince,
+                ),
+                anchorLabel = resourceWrapper.getString(
+                    R.string.feature_home_recent_stats_format,
+                    if (lastIsAdhoc) {
+                        resourceWrapper.getString(R.string.feature_home_recent_adhoc_label)
+                    } else {
+                        lastTrainingName
+                    },
+                    DateTimeUtil.formatMillis(lastFinishedAt),
+                ),
+            )
+
+            is StartCardReadoutDomain.TagIdle -> {
+                val maxIdle = entries.maxOf { it.daysIdle }
+                StartCardBodyUi.TagIdle(
+                    rows = entries.map { entry ->
+                        TagIdleRowUi(
+                            name = entry.name,
+                            barFraction = if (maxIdle > 0) {
+                                entry.daysIdle.toFloat() / maxIdle
+                            } else {
+                                0f
+                            },
+                            daysCountLabel = entry.daysIdle.toString(),
+                        )
+                    }.toImmutableList(),
+                    footnoteLabel = resourceWrapper.getString(
+                        R.string.feature_home_start_groups_footnote,
+                    ),
+                )
+            }
+
+            is StartCardReadoutDomain.Forgotten -> StartCardBodyUi.Forgotten(
+                trainingUuid = trainingUuid,
+                trainingName = trainingName,
+                metaLabel = resourceWrapper.getString(
+                    R.string.feature_home_recent_stats_format,
+                    daysIdle?.let { days ->
+                        resourceWrapper.getQuantityString(
+                            R.plurals.feature_home_start_days_idle_count,
+                            days,
+                            days,
+                        )
+                    } ?: resourceWrapper.getString(R.string.feature_home_start_never_run),
+                    resourceWrapper.getQuantityString(
+                        R.plurals.feature_home_recent_exercises_count,
+                        exerciseCount,
+                        exerciseCount,
+                    ),
+                ),
+            )
+
+            StartCardReadoutDomain.NoSessions -> StartCardBodyUi.Empty(
+                message = resourceWrapper.getString(R.string.feature_home_start_empty_sessions),
+            )
+
+            StartCardReadoutDomain.NoTaggedHistory -> StartCardBodyUi.Empty(
+                message = resourceWrapper.getString(R.string.feature_home_start_empty_tags),
+            )
+
+            // The picker's copy is this state's copy — one string per fact, so the key is
+            // shared even though its name says picker.
+            StartCardReadoutDomain.NoTemplates -> StartCardBodyUi.Empty(
+                message = resourceWrapper.getString(R.string.feature_home_picker_empty),
+            )
+        }
+
+    fun WeekReadoutDomain.toUi(resourceWrapper: ResourceWrapper): StartCardBodyUi.Week =
+        StartCardBodyUi.Week(
+            sessionsCountLabel = sessionsThisWeek.toString(),
+            sessionsUnitLabel = resourceWrapper.getQuantityString(
+                R.plurals.feature_home_start_week_sessions_count,
+                sessionsThisWeek,
+            ),
+            days = WEEK_DAY_LABELS.mapIndexed { index, labelRes ->
+                WeekDayUi(
+                    label = resourceWrapper.getString(labelRes),
+                    isFilled = index in trainedDayIndexes,
+                )
+            }.toImmutableList(),
+        )
 
     fun ActiveSessionWithStatsDomain.toUi(
         nowMillis: Long,
@@ -33,37 +141,48 @@ internal object HomeUiMapper {
         elapsedDurationLabel = formatElapsedDuration(nowMillis - startedAt),
     )
 
-    fun List<RecentSessionDomain>.toRecentItems(
+    /**
+     * One row, mapped per paged item.
+     *
+     * Was `List<RecentSessionDomain>.toRecentItems(…)`, mapping a whole ten-row snapshot at once.
+     * Under a `Pager` the unit of mapping is the item, so the list form is gone rather than kept
+     * beside this one — two mappers for one row is how the two drift.
+     *
+     * [nowMillis] is supplied by the caller rather than read here, and `PagingHandler` reads the
+     * clock once per `PagingData` generation: rows in one list must agree about what "yesterday"
+     * means.
+     */
+    fun RecentSessionDomain.toRecentItem(
         nowMillis: Long,
         resourceWrapper: ResourceWrapper,
-    ): ImmutableList<RecentSessionItem> = map { session ->
-        val trainingName = if (session.isAdhoc) {
+    ): RecentSessionItem {
+        val displayName = if (isAdhoc) {
             resourceWrapper.getString(R.string.feature_home_recent_adhoc_label)
         } else {
-            session.trainingName
+            trainingName
         }
         val statsLabel = resourceWrapper.getString(
             R.string.feature_home_recent_stats_format,
             resourceWrapper.getQuantityString(
                 R.plurals.feature_home_recent_exercises_count,
-                session.exerciseCount,
-                session.exerciseCount,
+                exerciseCount,
+                exerciseCount,
             ),
             resourceWrapper.getQuantityString(
                 R.plurals.feature_home_recent_sets_count,
-                session.setCount,
-                session.setCount,
+                setCount,
+                setCount,
             ),
         )
-        RecentSessionItem(
-            sessionUuid = session.sessionUuid,
-            trainingName = trainingName,
-            isAdhoc = session.isAdhoc,
-            finishedAtRelativeLabel = formatRelativeTime(nowMillis, session.finishedAt),
-            durationLabel = formatElapsedDuration(session.finishedAt - session.startedAt),
+        return RecentSessionItem(
+            sessionUuid = sessionUuid,
+            trainingName = displayName,
+            isAdhoc = isAdhoc,
+            finishedAtRelativeLabel = formatRelativeTime(nowMillis, finishedAt),
+            durationLabel = formatElapsedDuration(finishedAt - startedAt),
             statsLabel = statsLabel,
         )
-    }.toImmutableList()
+    }
 
     fun List<TrainingListItemDomain>.toPickerItems(
         nowMillis: Long,

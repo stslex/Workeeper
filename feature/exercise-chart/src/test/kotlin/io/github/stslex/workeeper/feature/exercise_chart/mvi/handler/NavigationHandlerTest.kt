@@ -24,12 +24,4 @@ internal class NavigationHandlerTest {
         handler.invoke(Action.Navigation.OpenHome)
         verify(exactly = 1) { navigator.navTo(Screen.BottomBar.Home) }
     }
-
-    @Test
-    fun `OpenPastSession navigates to Screen PastSession with the session uuid`() {
-        handler.invoke(Action.Navigation.OpenPastSession(sessionUuid = "session-1"))
-        verify(exactly = 1) {
-            navigator.navTo(Screen.PastSession(sessionUuid = "session-1"))
-        }
-    }
 }

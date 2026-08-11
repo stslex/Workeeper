@@ -68,9 +68,7 @@ internal class PastSessionInteractorImplTest {
         )
         coEvery { sessionRepository.getSessionDetail("session-1") } returns detail
         every {
-            personalRecordRepository.observePrSetUuids(
-                mapOf("exercise-1" to ExerciseTypeDataModel.WEIGHTED),
-            )
+            personalRecordRepository.observePrSetUuids(setOf("exercise-1"))
         } returns flowOf(setOf("set-prev"))
 
         val result = interactor.observeDetailWithPrs("session-1").first()

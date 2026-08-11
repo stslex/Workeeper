@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.Button
@@ -21,6 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -106,13 +108,78 @@ object AppButton {
                 contentColor = AppUi.colors.accent,
                 disabledContentColor = AppUi.colors.textDisabled,
             ),
-            shape = AppUi.shapes.medium,
+            shape = buttonShape(),
         ) {
             ButtonContent(
                 text = text,
                 textStyle = textStyle,
                 leadingIcon = leadingIcon,
                 trailingIcon = trailingIcon,
+            )
+        }
+    }
+
+    /**
+     * The mockup's `.btn.ghost` — `field` fill, `body` text (extraction §1.8). The quiet
+     * companion action: sheet Close buttons, `Оставить` in the plan-removal sheet.
+     */
+    @Composable
+    fun Ghost(
+        text: String,
+        onClick: () -> Unit,
+        modifier: Modifier = Modifier,
+        enabled: Boolean = true,
+        size: AppButtonSize = AppButtonSize.LARGE,
+        leadingIcon: ImageVector? = null,
+        trailingIcon: ImageVector? = null,
+    ) {
+        BaseFilledButton(
+            text = text,
+            onClick = onClick,
+            modifier = modifier,
+            enabled = enabled,
+            size = size,
+            leadingIcon = leadingIcon,
+            trailingIcon = trailingIcon,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = AppUi.colors.surfaceTier3,
+                contentColor = AppUi.colors.textSecondary,
+                disabledContainerColor = AppUi.colors.surfaceTier4,
+                disabledContentColor = AppUi.colors.textDisabled,
+            ),
+        )
+    }
+
+    /**
+     * The mockup's `.btn.danger` — a TEXT button in `rust` at weight 500, no fill
+     * (extraction §1.8). Distinct from [Destructive], the filled variant other screens use:
+     * the v3 sheets draw their destructive confirm as text.
+     */
+    @Composable
+    fun DangerText(
+        text: String,
+        onClick: () -> Unit,
+        modifier: Modifier = Modifier,
+        enabled: Boolean = true,
+        size: AppButtonSize = AppButtonSize.LARGE,
+    ) {
+        val (height, horizontalPad, textStyle) = sizeMetrics(size)
+        TextButton(
+            modifier = modifier.height(height),
+            onClick = onClick,
+            enabled = enabled,
+            contentPadding = PaddingValues(horizontal = horizontalPad),
+            colors = ButtonDefaults.textButtonColors(
+                contentColor = AppUi.colors.status.error,
+                disabledContentColor = AppUi.colors.textDisabled,
+            ),
+            shape = buttonShape(),
+        ) {
+            ButtonContent(
+                text = text,
+                textStyle = textStyle.copy(fontWeight = FontWeight.Medium),
+                leadingIcon = null,
+                trailingIcon = null,
             )
         }
     }
@@ -163,7 +230,7 @@ internal fun BaseFilledButton(
         enabled = enabled,
         contentPadding = PaddingValues(horizontal = horizontalPad),
         colors = colors,
-        shape = AppUi.shapes.medium,
+        shape = buttonShape(),
     ) {
         ButtonContent(
             text = text,
@@ -173,6 +240,13 @@ internal fun BaseFilledButton(
         )
     }
 }
+
+/**
+ * The mockup's `.btn{border-radius:16px}` (extraction §1.8) — `Radius.medium`, replacing the
+ * v2.4 `shapes.medium` (10dp). One shape for every variant and size.
+ */
+@Composable
+internal fun buttonShape(): RoundedCornerShape = RoundedCornerShape(AppDimension.Radius.medium)
 
 @Composable
 internal fun ButtonContent(

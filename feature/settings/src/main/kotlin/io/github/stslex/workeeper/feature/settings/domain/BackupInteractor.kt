@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.settings.domain
 
-import android.content.Intent
+import io.github.stslex.workeeper.core.data.backup.api.model.AuthResolutionOutcome
 import io.github.stslex.workeeper.core.data.backup.api.result.BackupResult
 import io.github.stslex.workeeper.feature.settings.domain.model.AccountDomain
 import io.github.stslex.workeeper.feature.settings.domain.model.BackupAuthDomain
@@ -9,7 +9,7 @@ import io.github.stslex.workeeper.feature.settings.domain.model.BackupSummaryDom
 import io.github.stslex.workeeper.feature.settings.domain.model.SignInOutcomeDomain
 import kotlinx.coroutines.flow.Flow
 
-internal interface BackupInteractor {
+interface BackupInteractor {
 
     val authState: Flow<BackupAuthDomain>
 
@@ -29,7 +29,7 @@ internal interface BackupInteractor {
     /** One-shot read of whether `drive.file` is currently granted (post-grant reconciliation). */
     suspend fun isDriveFileGranted(): Boolean
 
-    suspend fun completeSignIn(resultIntent: Intent?): BackupResult<AccountDomain>
+    suspend fun completeSignIn(outcome: AuthResolutionOutcome): BackupResult<AccountDomain>
 
     suspend fun signOut(): BackupResult<Unit>
 

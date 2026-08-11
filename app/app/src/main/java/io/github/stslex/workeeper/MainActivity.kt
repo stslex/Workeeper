@@ -8,24 +8,21 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import dagger.hilt.android.AndroidEntryPoint
-import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolderProducer
 import io.github.stslex.workeeper.core.ui.mvi.performance.FirebaseScreenRenderRecorder
 import io.github.stslex.workeeper.core.ui.mvi.performance.PerformanceMetricsRecorder
 import io.github.stslex.workeeper.core.ui.mvi.performance.RecordAction
+import io.github.stslex.workeeper.di.AppGraphOwner
 import io.github.stslex.workeeper.feature.recovery.RecoveryActivity
 import io.github.stslex.workeeper.feature.recovery.domain.StartupCheck
-import io.github.stslex.workeeper.feature.recovery.domain.StartupMigrationCoordinator
-import javax.inject.Inject
 
-@AndroidEntryPoint
+// App-Scope Collapse Step 6 (cut): Hilt-free. Reads its two app-scope deps from the internal AppGraph via
+// the AppGraphOwner interface (never a concrete-Application cast) — MainActivity is in app/app so it can
+// see the internal seam (the tighter idiom vs the public `context.appDeps<T>()` accessor).
 class MainActivity : ComponentActivity() {
 
-    @Inject
-    lateinit var activityProducer: ActivityHolderProducer
-
-    @Inject
-    internal lateinit var startupMigrationCoordinator: StartupMigrationCoordinator
+    private val appGraph get() = (application as AppGraphOwner).appGraph
+    private val activityProducer get() = appGraph.activityHolderProducer
+    private val startupMigrationCoordinator get() = appGraph.startupMigrationCoordinator
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge(

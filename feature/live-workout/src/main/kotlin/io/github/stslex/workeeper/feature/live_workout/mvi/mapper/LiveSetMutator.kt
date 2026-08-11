@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.live_workout.mvi.mapper
 
-import dagger.hilt.android.scopes.ViewModelScoped
-import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
+import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutScope
 import io.github.stslex.workeeper.feature.live_workout.domain.mapper.LiveWorkoutDomainMapper.beatsBaseline
 import io.github.stslex.workeeper.feature.live_workout.domain.model.PlanSetDomain
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveSetRowsResolver.withVisibleSets
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMapper.toDomain
-import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMapper.withPresentation
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExerciseStatusUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveExerciseUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveSetUiModel
@@ -17,7 +17,6 @@ import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStor
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.collections.immutable.toImmutableMap
-import javax.inject.Inject
 
 /**
  * Set-level state mutator: every transition that rewrites `performedSets`,
@@ -25,13 +24,12 @@ import javax.inject.Inject
  * (status mapper + presentation + visible-row resolver) so handlers stay focused on
  * action dispatch, side effects, and IO.
  *
- * `@ViewModelScoped` per the Hilt scope rule for `*Mapper` names — one instance per
- * `LiveWorkoutStoreImpl`. Not a singleton: we never want a long-lived instance
- * holding `ResourceWrapper` across the app.
+ * `@SingleIn(LiveWorkoutScope)` (Metro; formerly Hilt `@ViewModelScoped`) — one instance per
+ * `LiveWorkoutStoreImpl`.
  */
-@ViewModelScoped
-internal class LiveSetMutator @Inject constructor(
-    private val resourceWrapper: ResourceWrapper,
+@Inject
+@SingleIn(LiveWorkoutScope::class)
+internal class LiveSetMutator(
     private val statusMapper: StateStatusMapper,
 ) {
 
@@ -165,22 +163,36 @@ internal class LiveSetMutator @Inject constructor(
             state.copy(
                 exercises = updated,
                 setDrafts = nextDrafts,
+                rowCountOverrides = (state.rowCountOverrides - performedExerciseUuid)
+                    .toImmutableMap(),
                 dialogState = DialogState.Hidden,
             ),
         )
     }
 
     /**
-     * Adds a new draft row at the next position seeded from `lastKnownSetSeed`
-     * (latest draft → latest performed → last plan row). Returns `state` unchanged if
-     * the exercise UUID is unknown — handler should not crash on a stale dispatch.
+     * `+ подход` (extraction §1.7): appends a row directly after the last VISIBLE one,
+     * seeded by copying it (`addSet` copies the last set's w/r — session-v3f.html:423) and
+     * never marked as a record (`addSet` omits `pr`). The row-count override moves with it,
+     * so an exercise the user truncated grows back one row at a time rather than snapping
+     * to the plan length.
+     *
+     * Statuses are recomputed because §6.4 says adding a set to a COMPLETED exercise
+     * returns it to incomplete — the fresh unfilled row breaks `isDoneLive` and the card
+     * re-derives. Returns `state` unchanged on a stale dispatch.
      */
     fun applyAddSet(state: State, performedExerciseUuid: String): State {
         val exercise = findExercise(state, performedExerciseUuid) ?: return state
-        val nextPosition = nextSetPosition(state, exercise)
-        val seed = lastKnownSetSeed(state, exercise)?.copy(
+        val visible = exercise.visibleSets
+        val nextPosition = visible.size
+        val seed = visible.lastOrNull()?.copy(
             position = nextPosition,
             isDone = false,
+            isPersonalRecord = false,
+        ) ?: lastKnownSetSeed(state, exercise)?.copy(
+            position = nextPosition,
+            isDone = false,
+            isPersonalRecord = false,
         ) ?: LiveSetUiModel(
             position = nextPosition,
             weight = null,
@@ -189,45 +201,87 @@ internal class LiveSetMutator @Inject constructor(
             isDone = false,
         )
         val key = State.DraftKey(performedExerciseUuid, nextPosition)
+        // Rows first, statuses second: `isDoneLive` reads `visibleSets`, so the fresh row
+        // must be resolved before the DONE derivation runs or a completed exercise stays
+        // completed (§6.4's rule would silently not fire).
         return state.copy(
             setDrafts = (state.setDrafts + (key to seed)).toImmutableMap(),
-        ).withVisibleSets()
+            rowCountOverrides = (state.rowCountOverrides + (performedExerciseUuid to nextPosition + 1))
+                .toImmutableMap(),
+        ).withVisibleSets().let { statusMapper.recomputeStatuses(it) }
     }
 
-    fun applySkip(state: State, performedExerciseUuid: String): State {
-        val updated = state.exercises.map { exercise ->
-            if (exercise.performedExerciseUuid != performedExerciseUuid) return@map exercise
-            exercise.copy(performedSets = persistentListOf())
+    /** What [applyRemoveLastSet] did, so the handler knows whether a DB row must go too. */
+    data class RemoveLastSetResult(
+        val state: State,
+        /** Set when the removed row was a persisted (done) set; null for draft/plan rows. */
+        val removedPerformedPosition: Int?,
+    )
+
+    /**
+     * `− подход` (§6.4): removes the LAST visible row — always the last, middle deletion is
+     * not planned — even when it is a done set (the mockup's `delSet` pops regardless,
+     * session-v3f.html:429). Refuses to go below one row; the setbar disables the button
+     * there and this guard backs it. The plan is untouched: truncation lives entirely in
+     * [State.rowCountOverrides].
+     */
+    fun applyRemoveLastSet(state: State, performedExerciseUuid: String): RemoveLastSetResult {
+        val exercise = findExercise(state, performedExerciseUuid)
+            ?: return RemoveLastSetResult(state, null)
+        val visible = exercise.visibleSets
+        if (visible.size <= 1) return RemoveLastSetResult(state, null)
+        val last = visible.last()
+        val removedPerformed = exercise.performedSets
+            .firstOrNull { it.position == last.position }
+        val updated = state.exercises.map { ex ->
+            if (ex.performedExerciseUuid != performedExerciseUuid) return@map ex
+            ex.copy(
+                performedSets = ex.performedSets
+                    .filterNot { it.position == last.position }
+                    .toImmutableList(),
+            )
         }.toImmutableList()
         val nextDrafts = state.setDrafts
-            .filterKeys { it.performedExerciseUuid != performedExerciseUuid }
+            .filterKeys {
+                it.performedExerciseUuid != performedExerciseUuid || it.position < last.position
+            }
             .toImmutableMap()
-        return markSkipped(
-            state.copy(
-                exercises = updated,
-                setDrafts = nextDrafts,
-                dialogState = DialogState.Hidden,
-            ),
-            performedExerciseUuid,
+        val nextState = state.copy(
+            exercises = updated,
+            setDrafts = nextDrafts,
+            rowCountOverrides = (state.rowCountOverrides + (performedExerciseUuid to visible.size - 1))
+                .toImmutableMap(),
+        ).withVisibleSets().let { statusMapper.recomputeStatuses(it) }
+        return RemoveLastSetResult(
+            state = nextState,
+            removedPerformedPosition = removedPerformed?.position,
         )
     }
 
     /**
-     * Reproduces the snapshot → status pipeline in-memory: the targeted exercise
-     * becomes SKIPPED while the rest are re-derived so the CURRENT marker walks past
-     * the skipped row but still honors the user's explicit active set.
+     * §6.1 skip: a reversible flag, NOT a destructive reset — performed sets and drafts all
+     * survive, which is what makes `Вернуть в сессию` lossless. Un-skipping seeds the row
+     * PENDING and lets the status pipeline re-derive DONE/CURRENT from the preserved sets.
+     * (The earlier revision wiped sets here; the confirmation dialog that guarded that wipe
+     * is gone with it — extraction §6.1/C9.)
      */
-    private fun markSkipped(state: State, performedExerciseUuid: String): State {
+    fun applySkipToggle(state: State, performedExerciseUuid: String, skipped: Boolean): State {
         val rebuilt = state.exercises.map { exercise ->
             if (exercise.performedExerciseUuid == performedExerciseUuid) {
-                exercise.copy(status = ExerciseStatusUiModel.SKIPPED)
+                exercise.copy(
+                    status = if (skipped) {
+                        ExerciseStatusUiModel.SKIPPED
+                    } else {
+                        ExerciseStatusUiModel.PENDING
+                    },
+                )
             } else {
                 exercise
             }
         }.let { items ->
             statusMapper.recomputeOnly(items, state.activeExerciseUuids)
         }
-        return state.copy(exercises = rebuilt).withPresentation(resourceWrapper)
+        return statusMapper.recomputeStatuses(state.copy(exercises = rebuilt))
     }
 
     fun nextSetPosition(state: State, exercise: LiveExerciseUiModel): Int {

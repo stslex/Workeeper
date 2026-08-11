@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.core.data.exercise.session
 
+import dev.zacsweers.metro.ContributesBinding
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
+import io.github.stslex.workeeper.core.core.di.AppScope
 import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.data.database.session.PerformedExerciseDao
 import io.github.stslex.workeeper.core.data.database.session.PerformedExerciseEntity
@@ -9,12 +13,11 @@ import io.github.stslex.workeeper.core.data.exercise.session.model.toData
 import io.github.stslex.workeeper.core.data.exercise.session.model.toEntity
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
-import javax.inject.Inject
-import javax.inject.Singleton
 import kotlin.uuid.Uuid
 
-@Singleton
-internal class PerformedExerciseRepositoryImpl @Inject constructor(
+@ContributesBinding(AppScope::class)
+@SingleIn(AppScope::class)
+class PerformedExerciseRepositoryImpl @Inject internal constructor(
     private val dao: PerformedExerciseDao,
     @IODispatcher private val ioDispatcher: CoroutineDispatcher,
 ) : PerformedExerciseRepository {

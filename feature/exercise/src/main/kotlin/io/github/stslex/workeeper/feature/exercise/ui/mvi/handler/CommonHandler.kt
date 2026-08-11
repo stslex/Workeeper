@@ -1,20 +1,20 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.exercise.ui.mvi.handler
 
-import dagger.hilt.android.scopes.ViewModelScoped
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
+import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagItem
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
-import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanDraftResult
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
+import io.github.stslex.workeeper.feature.exercise.di.ExerciseScope
 import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor
 import io.github.stslex.workeeper.feature.exercise.domain.model.ExerciseDomain
 import io.github.stslex.workeeper.feature.exercise.domain.model.HistoryEntryDomain
 import io.github.stslex.workeeper.feature.exercise.domain.model.PlanSetDomain
-import io.github.stslex.workeeper.feature.exercise.ui.mvi.mapper.ExerciseUiMapper.toAdhocPlanSummary
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.mapper.ExerciseUiMapper.toDomain
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.mapper.ExerciseUiMapper.toUi
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PendingImage
-import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.TagUiModel
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State
@@ -24,11 +24,9 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
-import kotlinx.serialization.json.Json
 import java.io.File
-import javax.inject.Inject
 
-@ViewModelScoped
+@SingleIn(ExerciseScope::class)
 internal class CommonHandler @Inject constructor(
     private val interactor: ExerciseInteractor,
     private val resourceWrapper: ResourceWrapper,
@@ -40,8 +38,6 @@ internal class CommonHandler @Inject constructor(
             Action.Common.Init -> processInit()
             is Action.Common.ImagePicked -> processImagePicked(action)
             Action.Common.ImagePickCancelled -> processImagePickCancelled()
-            Action.Common.PlanEditorExistingReturned -> processPlanEditorExistingReturned()
-            is Action.Common.PlanEditorDraftReturned -> processPlanEditorDraftReturned(action)
         }
     }
 
@@ -77,16 +73,24 @@ internal class CommonHandler @Inject constructor(
                 updateStateImmediate { current -> current.applyLoaded(result) }
                 if (result.exercise != null) observePersonalRecord(uuid)
             },
+            // Clearing `isLoading` here is load-bearing, not tidiness. The route does not
+            // compose until the load lands (§26; `ExerciseGraph`), so a throw that left the
+            // flag latched would leave the user on a permanently empty frame with no way back
+            // into the screen. `launch` defaults `onError` to `{}` (B17, B21), so this arm must
+            // be written out — an empty one is the latched flag.
+            onError = { updateStateImmediate { it.copy(isLoading = false) } },
         ) {
             val exercise = async { interactor.getExercise(uuid) }
             val labels = async { interactor.getLabels(uuid) }
             val history = async { interactor.getRecentHistory(uuid) }
+            val historyCount = async { interactor.countSessions(uuid) }
             val canPermanentlyDelete = async { interactor.canPermanentlyDelete(uuid) }
             val adhocPlan = async { interactor.getAdhocPlan(uuid) }
             LoadResult(
                 exercise = exercise.await(),
                 labels = labels.await(),
                 history = history.await(),
+                historyCount = historyCount.await(),
                 canPermanentlyDelete = canPermanentlyDelete.await(),
                 adhocPlan = adhocPlan.await(),
             )
@@ -94,67 +98,11 @@ internal class CommonHandler @Inject constructor(
     }
 
     /**
-     * Existing-mode return: PlanEditor wrote `(type, last_adhoc_sets)` to disk. Pull just
-     * those two fields and merge into State + the originalSnapshot baseline so the screen
-     * doesn't think the user has unsaved type/plan edits any more, while name /
-     * description / tags / image stay exactly as the user has them on the form.
-     */
-    private fun processPlanEditorExistingReturned() {
-        val uuid = state.value.uuid?.takeIf { it.isNotBlank() } ?: return
-        launch(
-            onSuccess = { partial ->
-                if (partial.exercise == null) return@launch
-                val newType = partial.exercise.type.toUi()
-                val newPlan = partial.adhocPlan
-                    ?.map { it.toUi() }
-                    ?.toImmutableList()
-                updateStateImmediate { current ->
-                    current.copy(
-                        type = newType,
-                        adhocPlan = newPlan,
-                        adhocPlanSummaryLabel = newPlan.toAdhocPlanSummary(resourceWrapper),
-                        // Reset the dirty baseline so a subsequent Save doesn't re-mark
-                        // type/plan as dirty. Other fields stay untouched.
-                        originalSnapshot = current.originalSnapshot?.copy(
-                            type = newType,
-                            adhocPlan = newPlan,
-                        ),
-                    )
-                }
-            },
-        ) {
-            val exercise = async { interactor.getExercise(uuid) }
-            val adhocPlan = async { interactor.getAdhocPlan(uuid) }
-            PartialReload(
-                exercise = exercise.await(),
-                adhocPlan = adhocPlan.await(),
-            )
-        }
-    }
-
-    /**
-     * Draft-mode return: PlanEditor never persisted anything. Decode the JSON payload and
-     * merge `(type, adhocPlan)` into State. Do NOT update [State.originalSnapshot] —
-     * the draft is treated as an unsaved edit until the parent form's own Save fires.
-     */
-    private fun processPlanEditorDraftReturned(action: Action.Common.PlanEditorDraftReturned) {
-        val result = runCatching {
-            Json.decodeFromString(PlanDraftResult.serializer(), action.resultJson)
-        }.getOrNull() ?: return
-        val plan = result.plan.toImmutableList()
-        updateState { current ->
-            current.copy(
-                type = result.type,
-                adhocPlan = plan,
-                adhocPlanSummaryLabel = plan.toAdhocPlanSummary(resourceWrapper),
-            )
-        }
-    }
-
-    /**
-     * Restarts the PR collection whenever the user's selected type changes — switching
-     * WEIGHTED ↔ WEIGHTLESS in edit mode would otherwise leave the original subscription
-     * running with the stale `isWeightless` flag and re-emit a wrong PR after save.
+     * The query no longer takes a type — it reads `exercise_table.type` itself — so the
+     * subscription cannot go stale on the *query* side. The restart is still needed on the
+     * *rendering* side: the PR card formats weight-bearing and rep-only records differently,
+     * so switching WEIGHTED ↔ WEIGHTLESS in edit mode must re-map the latest record through
+     * the new type rather than leave the old label on screen.
      */
     @OptIn(ExperimentalCoroutinesApi::class)
     private fun observePersonalRecord(uuid: String) {
@@ -162,7 +110,7 @@ internal class CommonHandler @Inject constructor(
             .map { it.type.toDomain() }
             .distinctUntilChanged()
             .flatMapLatest { type ->
-                interactor.observePersonalRecord(uuid, type)
+                interactor.observePersonalRecord(uuid)
                     .map { record -> record?.toUi(resourceWrapper, type.toUi()) }
             }
             .launch { pr ->
@@ -183,7 +131,7 @@ internal class CommonHandler @Inject constructor(
         val tags = result.labels
             .map { name ->
                 val matched = availableTags.firstOrNull { it.name.equals(name, ignoreCase = true) }
-                matched ?: TagUiModel(uuid = name, name = name)
+                matched ?: AppTagItem(uuid = name, name = name)
             }
             .toImmutableList()
         val imagePath = exercise.imagePath
@@ -196,11 +144,10 @@ internal class CommonHandler @Inject constructor(
             description = exercise.description.orEmpty(),
             tags = tags,
             recentHistory = result.history.map { it.toUi(resourceWrapper) }.toImmutableList(),
+            historyCount = result.historyCount,
             isLoading = false,
             canPermanentlyDelete = result.canPermanentlyDelete,
             adhocPlan = adhocPlan,
-            originalAdhocPlan = adhocPlan,
-            adhocPlanSummaryLabel = adhocPlan.toAdhocPlanSummary(resourceWrapper),
             imagePath = imagePath,
             imageLastModified = imageLastModified,
             pendingImage = PendingImage.Unchanged,
@@ -218,12 +165,8 @@ internal class CommonHandler @Inject constructor(
         val exercise: ExerciseDomain?,
         val labels: List<String>,
         val history: List<HistoryEntryDomain>,
+        val historyCount: Int,
         val canPermanentlyDelete: Boolean,
-        val adhocPlan: List<PlanSetDomain>?,
-    )
-
-    private data class PartialReload(
-        val exercise: ExerciseDomain?,
         val adhocPlan: List<PlanSetDomain>?,
     )
 }

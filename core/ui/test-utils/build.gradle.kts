@@ -3,13 +3,12 @@ plugins {
 }
 
 dependencies {
+    // FakeImageStorage implements core:core's ImageStorage/ImageRef/ImageSaveResult; the real
+    // ImageStorageImpl (core:core-android) is never referenced here.
     implementation(projects.core.core)
     implementation(projects.core.ui.kit)
     implementation(projects.core.ui.mvi)
     implementation(projects.core.ui.navigation)
-
-    // Hilt — TestInstallIn lives in dagger.hilt.testing, only available via hilt.test.
-    api(libs.hilt.test)
 
     // Compose Testing
     api(libs.androidx.compose.ui.test.junit4)

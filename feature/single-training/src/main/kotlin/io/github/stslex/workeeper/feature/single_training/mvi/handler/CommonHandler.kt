@@ -1,26 +1,27 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.single_training.mvi.handler
 
-import dagger.hilt.android.scopes.ViewModelScoped
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
+import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagItem
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanEditorUIMapper.formatPlanSummary
 import io.github.stslex.workeeper.feature.single_training.di.SingleTrainingHandlerStore
+import io.github.stslex.workeeper.feature.single_training.di.SingleTrainingScope
 import io.github.stslex.workeeper.feature.single_training.domain.SingleTrainingInteractor
 import io.github.stslex.workeeper.feature.single_training.domain.model.SessionDomain
 import io.github.stslex.workeeper.feature.single_training.domain.model.TrainingDomain
 import io.github.stslex.workeeper.feature.single_training.domain.model.TrainingExerciseDetail
 import io.github.stslex.workeeper.feature.single_training.mvi.mapper.TagUiMapper.toUi
 import io.github.stslex.workeeper.feature.single_training.mvi.model.HistorySessionItem
-import io.github.stslex.workeeper.feature.single_training.mvi.model.TagUiModel
 import io.github.stslex.workeeper.feature.single_training.mvi.model.TrainingExerciseItem
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.Action
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.State
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
-import javax.inject.Inject
 
-@ViewModelScoped
+@SingleIn(SingleTrainingScope::class)
 internal class CommonHandler @Inject constructor(
     private val interactor: SingleTrainingInteractor,
     private val resourceWrapper: ResourceWrapper,
@@ -30,17 +31,7 @@ internal class CommonHandler @Inject constructor(
     override fun invoke(action: Action.Common) {
         when (action) {
             Action.Common.Init -> processInit()
-            // Reload re-runs the training + exercise + history load pipeline so the per-
-            // row planSets / planSummary refresh after returning from the full-screen
-            // PlanEditor route. Skips the create branch (uuid == null) since there's
-            // nothing to load yet.
-            Action.Common.Reload -> processReload()
         }
-    }
-
-    private fun processReload() {
-        val uuid = state.value.uuid?.takeIf { it.isNotBlank() } ?: return
-        loadTraining(uuid)
     }
 
     private fun processInit() {
@@ -77,12 +68,19 @@ internal class CommonHandler @Inject constructor(
             onSuccess = { result ->
                 updateState { current -> current.applyLoaded(result) }
             },
+            // Clearing `isLoading` here is load-bearing, not tidiness. The route does not
+            // compose until the load lands (§26; `SingleTrainingGraph`), so a throw that left
+            // the flag latched would leave the user on a permanently empty frame with no way
+            // back into the screen. `launch` defaults `onError` to `{}` (B17, B21), so this arm
+            // must be written out — an empty one is the latched flag.
+            onError = { updateStateImmediate { it.copy(isLoading = false) } },
         ) {
             val training = interactor.getTraining(uuid)
             val exercises = interactor.getTrainingExercises(uuid)
             val recent = interactor.getRecentSessions(uuid, HISTORY_LIMIT)
+            val historyCount = interactor.countSessions(uuid)
             val canPermanentlyDelete = interactor.canPermanentlyDelete(uuid)
-            LoadResult(training, exercises, recent, canPermanentlyDelete)
+            LoadResult(training, exercises, recent, historyCount, canPermanentlyDelete)
         }
     }
 
@@ -90,7 +88,7 @@ internal class CommonHandler @Inject constructor(
         val training = result.training ?: return copy(isLoading = false)
         val tags = training.labels.map { name ->
             availableTags.firstOrNull { it.name.equals(name, ignoreCase = true) }
-                ?: TagUiModel(uuid = name, name = name)
+                ?: AppTagItem(uuid = name, name = name)
         }.toImmutableList()
         val exercises = result.exercises
             .sortedBy { it.position }
@@ -108,17 +106,12 @@ internal class CommonHandler @Inject constructor(
                     planSummary = planSets?.formatPlanSummary().orEmpty(),
                 )
             }.toImmutableList()
-        val past = result.recentSessions.toHistoryItems(training)
+        val past = result.recentSessions.toHistoryItems()
         val baseSnapshot = State.Snapshot(
             name = training.name,
             description = training.description.orEmpty(),
             tagUuids = tags.map { it.uuid },
-            exerciseSignature = exercises.map {
-                State.ExerciseSignature(
-                    it.exerciseUuid,
-                    it.position,
-                )
-            },
+            exercises = exercises,
         )
         return copy(
             uuid = training.uuid,
@@ -127,28 +120,27 @@ internal class CommonHandler @Inject constructor(
             tags = tags,
             exercises = exercises,
             pastSessions = past,
+            historyCount = result.historyCount,
             originalSnapshot = baseSnapshot,
             canPermanentlyDelete = result.canPermanentlyDelete,
             isLoading = false,
         )
     }
 
-    private fun List<SessionDomain>.toHistoryItems(
-        training: TrainingDomain,
-    ): ImmutableList<HistorySessionItem> = mapNotNull { session ->
-        val finished = session.finishedAt ?: return@mapNotNull null
-        HistorySessionItem(
-            sessionUuid = session.uuid,
-            dateLabel = resourceWrapper.formatMediumDate(finished),
-            trainingName = training.name,
-            exerciseCount = 0,
-        )
-    }.toImmutableList()
+    private fun List<SessionDomain>.toHistoryItems(): ImmutableList<HistorySessionItem> =
+        mapNotNull { session ->
+            val finished = session.finishedAt ?: return@mapNotNull null
+            HistorySessionItem(
+                sessionUuid = session.uuid,
+                dateLabel = resourceWrapper.formatMediumDate(finished),
+            )
+        }.toImmutableList()
 
     private data class LoadResult(
         val training: TrainingDomain?,
         val exercises: List<TrainingExerciseDetail>,
         val recentSessions: List<SessionDomain>,
+        val historyCount: Int,
         val canPermanentlyDelete: Boolean,
     )
 
@@ -161,5 +153,5 @@ internal fun State.toSnapshot(): State.Snapshot = State.Snapshot(
     name = name,
     description = description,
     tagUuids = tags.map { it.uuid },
-    exerciseSignature = exercises.map { State.ExerciseSignature(it.exerciseUuid, it.position) },
+    exercises = exercises,
 )

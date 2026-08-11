@@ -3,10 +3,12 @@ package io.github.stslex.workeeper.feature.archive.domain
 
 import androidx.paging.PagingData
 import androidx.paging.map
-import dagger.hilt.android.scopes.ViewModelScoped
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
 import io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.data.exercise.training.TrainingRepository
+import io.github.stslex.workeeper.feature.archive.di.ArchiveScope
 import io.github.stslex.workeeper.feature.archive.domain.mapper.ArchivedItemDomainMapper.toDomain
 import io.github.stslex.workeeper.feature.archive.domain.model.ArchivedItem
 import kotlinx.coroutines.CoroutineDispatcher
@@ -14,12 +16,14 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
-import javax.inject.Inject
 
-@ViewModelScoped
-internal class ArchiveInteractorImpl @Inject constructor(
+@Inject
+@SingleIn(ArchiveScope::class)
+class ArchiveInteractorImpl(
     private val exerciseRepository: ExerciseRepository,
     private val trainingRepository: TrainingRepository,
+    // Qualified: Metro reads the javax @DefaultDispatcher (via includeJavax interop), so this
+    // resolves to the (CoroutineDispatcher + @DefaultDispatcher) bound instance — no strip.
     @DefaultDispatcher private val defaultDispatcher: CoroutineDispatcher,
 ) : ArchiveInteractor {
 

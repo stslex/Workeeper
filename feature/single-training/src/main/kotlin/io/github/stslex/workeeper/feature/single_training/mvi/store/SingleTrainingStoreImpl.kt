@@ -2,15 +2,11 @@
 package io.github.stslex.workeeper.feature.single_training.mvi.store
 
 import androidx.annotation.VisibleForTesting
-import dagger.assisted.Assisted
-import dagger.assisted.AssistedFactory
-import dagger.assisted.AssistedInject
-import dagger.hilt.android.lifecycle.HiltViewModel
+import dev.zacsweers.metro.Inject
 import io.github.stslex.workeeper.core.ui.mvi.BaseStore
 import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
 import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
 import io.github.stslex.workeeper.core.ui.mvi.holders.LoggerHolder
-import io.github.stslex.workeeper.core.ui.mvi.processor.StoreFactory
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.single_training.di.SingleTrainingHandlerStoreImpl
 import io.github.stslex.workeeper.feature.single_training.mvi.handler.ClickHandler
@@ -21,9 +17,15 @@ import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTraini
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.Event
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.State
 
-@HiltViewModel(assistedFactory = SingleTrainingStoreImpl.Factory::class)
-internal class SingleTrainingStoreImpl @AssistedInject constructor(
-    @Assisted screen: Screen.Training,
+// Metro constructs this Store (class-level @Inject). The Screen.Training route arg is a bound instance
+// on the extension factory (shape B), so it is an ordinary ctor param — no assisted machinery.
+// Retention is owned by the Android ViewModelStore via rememberMetroStoreProcessor — no @SingleIn.
+// The class is `public` (its accessor is on the public extension) but the primary constructor is
+// `internal`, so the handler ctor params stay internal — :app calls the ctor at the IR level.
+// NOTE: the route arg must be read HERE only; ScreenInjectionRule forbids injecting Screen elsewhere.
+@Inject
+class SingleTrainingStoreImpl internal constructor(
+    screen: Screen.Training,
     navigationHandler: NavigationHandler,
     clickHandler: ClickHandler,
     inputHandler: InputHandler,
@@ -49,9 +51,6 @@ internal class SingleTrainingStoreImpl @AssistedInject constructor(
     analyticsHolder = analyticsHolder,
     loggerHolder = loggerHolder,
 ) {
-
-    @AssistedFactory
-    interface Factory : StoreFactory<Screen.Training, SingleTrainingStoreImpl>
 
     companion object {
 

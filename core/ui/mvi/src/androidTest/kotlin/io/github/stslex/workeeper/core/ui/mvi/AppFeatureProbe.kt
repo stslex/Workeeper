@@ -2,8 +2,6 @@
 package io.github.stslex.workeeper.core.ui.mvi
 
 import androidx.compose.runtime.Composable
-import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.ui.mvi.AppRootProbeStore.Action
 import io.github.stslex.workeeper.core.ui.mvi.AppRootProbeStore.Event
 import io.github.stslex.workeeper.core.ui.mvi.AppRootProbeStore.State
@@ -13,7 +11,8 @@ import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
 import io.github.stslex.workeeper.core.ui.mvi.holders.LoggerHolder
 import io.github.stslex.workeeper.core.ui.mvi.processor.StoreProcessor
-import javax.inject.Inject
+import io.github.stslex.workeeper.core.ui.mvi.processor.rememberMetroStoreProcessor
+import kotlinx.coroutines.Dispatchers
 
 internal interface AppRootProbeStore : Store<State, Action, Event> {
 
@@ -28,12 +27,9 @@ internal interface AppRootProbeStore : Store<State, Action, Event> {
     }
 }
 
-@ViewModelScoped
-internal class AppRootProbeHandlerStore @Inject constructor() :
-    BaseHandlerStore<State, Action, Event>()
+internal class AppRootProbeHandlerStore : BaseHandlerStore<State, Action, Event>()
 
-@ViewModelScoped
-internal class AppRootProbeStartHandler @Inject constructor(
+internal class AppRootProbeStartHandler(
     private val store: AppRootProbeHandlerStore,
 ) : Handler<Action.Init> {
 
@@ -42,8 +38,7 @@ internal class AppRootProbeStartHandler @Inject constructor(
     }
 }
 
-@HiltViewModel
-internal class AppRootProbeStoreImpl @Inject constructor(
+internal class AppRootProbeStoreImpl(
     handler: AppRootProbeStartHandler,
     storeEmitter: AppRootProbeHandlerStore,
     storeDispatchers: StoreDispatchers,
@@ -67,8 +62,30 @@ internal class AppRootProbeStoreImpl @Inject constructor(
 
 internal typealias AppRootProbeStoreProcessor = StoreProcessor<State, Action, Event>
 
+/**
+ * App-Scope Collapse Step 6 (Phase 3.4): de-Hilt'd. The former `@HiltViewModel` / `@Inject` /
+ * `@ViewModelScoped` probe classes are now plain classes, and the Store is resolved through the same
+ * Metro path every production `AppFeature` uses (`rememberMetroStoreProcessor`, see `AppDialogFeature`) —
+ * the deps (`StoreDispatchers`, `AnalyticsHolder`, `LoggerHolder`) are constructed directly with reals,
+ * no app graph. This preserves the mount-site scope invariant [AppFeatureScopeTest] asserts:
+ * `rememberMetroStoreProcessor` retains the Store in the current `LocalViewModelStoreOwner`.
+ */
 internal object AppRootProbeFeature : AppFeature<AppRootProbeStoreProcessor>() {
 
+    @Suppress("UNCHECKED_CAST")
     @Composable
-    override fun processor(): AppRootProbeStoreProcessor = createProcessor<AppRootProbeStoreImpl>()
+    override fun processor(): AppRootProbeStoreProcessor =
+        rememberMetroStoreProcessor<AppRootProbeStoreImpl> {
+            val handlerStore = AppRootProbeHandlerStore()
+            AppRootProbeStoreImpl(
+                handler = AppRootProbeStartHandler(handlerStore),
+                storeEmitter = handlerStore,
+                storeDispatchers = StoreDispatchers(
+                    defaultDispatcher = Dispatchers.Default,
+                    mainImmediateDispatcher = Dispatchers.Main.immediate,
+                ),
+                analyticsHolder = AnalyticsHolder(),
+                loggerHolder = LoggerHolder(),
+            )
+        } as AppRootProbeStoreProcessor
 }

@@ -10,12 +10,17 @@ import io.github.stslex.workeeper.feature.past_session.domain.model.SetTypeDomai
 import io.github.stslex.workeeper.feature.past_session.mvi.model.PastExerciseUiModel
 import io.github.stslex.workeeper.feature.past_session.mvi.model.PastSessionUiModel
 import io.github.stslex.workeeper.feature.past_session.mvi.model.PastSetUiModel
+import io.github.stslex.workeeper.feature.past_session.mvi.store.BottomSheetState
+import io.github.stslex.workeeper.feature.past_session.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStore.Action
 import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStore.Event
 import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStore.State
 import io.mockk.coVerify
 import io.mockk.mockk
+import kotlinx.collections.immutable.ImmutableSet
 import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.persistentSetOf
+import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -33,7 +38,6 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
@@ -42,14 +46,19 @@ internal class ClickHandlerTest {
     private val interactor = mockk<PastSessionInteractor>(relaxed = true)
 
     @Test
-    fun `OnDeleteClick shows dialog and emits ContextClick haptic`() = runTest {
+    fun `OnDeleteClick opens the confirmation and closes the sheet it came from`() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
-        val store = TestStore(loadedState(), this, dispatcher)
+        val store = TestStore(
+            loadedState().copy(bottomSheetState = BottomSheetState.SessionMenu),
+            this,
+            dispatcher,
+        )
         val handler = ClickHandler(interactor = interactor, store = store)
 
         handler.invoke(Action.Click.OnDeleteClick)
 
-        assertTrue(store.state.value.deleteDialogVisible)
+        assertEquals(DialogState.DeleteConfirm, store.state.value.dialogState)
+        assertEquals(BottomSheetState.Hidden, store.state.value.bottomSheetState)
         assertEquals(
             listOf(Event.HapticClick(HapticFeedbackType.ContextClick)),
             store.events,
@@ -57,17 +66,81 @@ internal class ClickHandlerTest {
     }
 
     @Test
+    fun `OnSessionMenuClick opens the overflow sheet with a haptic`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val store = TestStore(loadedState(), this, dispatcher)
+        val handler = ClickHandler(interactor = interactor, store = store)
+
+        handler.invoke(Action.Click.OnSessionMenuClick)
+
+        assertEquals(BottomSheetState.SessionMenu, store.state.value.bottomSheetState)
+        assertEquals(
+            listOf(Event.HapticClick(HapticFeedbackType.ContextClick)),
+            store.events,
+        )
+    }
+
+    @Test
+    fun `OnSheetDismiss hides the sheet`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val store = TestStore(
+            loadedState().copy(bottomSheetState = BottomSheetState.SessionMenu),
+            this,
+            dispatcher,
+        )
+        val handler = ClickHandler(interactor = interactor, store = store)
+
+        handler.invoke(Action.Click.OnSheetDismiss)
+
+        assertEquals(BottomSheetState.Hidden, store.state.value.bottomSheetState)
+    }
+
+    @Test
+    fun `OnPrTagClick opens the explainer and OnPrExplainerDismiss hides it`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val store = TestStore(loadedState(), this, dispatcher)
+        val handler = ClickHandler(interactor = interactor, store = store)
+
+        handler.invoke(Action.Click.OnPrTagClick)
+        assertEquals(DialogState.PrExplainer, store.state.value.dialogState)
+
+        handler.invoke(Action.Click.OnPrExplainerDismiss)
+        assertEquals(DialogState.Hidden, store.state.value.dialogState)
+    }
+
+    @Test
+    fun `OnDeleteClick while the explainer is shown replaces the dialog`() = runTest {
+        // The sealed shape's guarantee (mvi-dialog-state): opening from a non-Hidden state
+        // replaces the previous dialog rather than stacking on it.
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val store = TestStore(
+            loadedState(dialogState = DialogState.PrExplainer),
+            this,
+            dispatcher,
+        )
+        val handler = ClickHandler(interactor = interactor, store = store)
+
+        handler.invoke(Action.Click.OnDeleteClick)
+
+        assertEquals(DialogState.DeleteConfirm, store.state.value.dialogState)
+    }
+
+    @Test
     fun `OnDeleteConfirm deletes the session closes dialog and navigates back with snackbar`() =
         runTest {
             val dispatcher = StandardTestDispatcher(testScheduler)
-            val store = TestStore(loadedState(deleteDialogVisible = true), this, dispatcher)
+            val store = TestStore(
+                loadedState(dialogState = DialogState.DeleteConfirm),
+                this,
+                dispatcher,
+            )
             val handler = ClickHandler(interactor = interactor, store = store)
 
             handler.invoke(Action.Click.OnDeleteConfirm)
             advanceUntilIdle()
 
             coVerify(exactly = 1) { interactor.deleteSession(SESSION_UUID) }
-            assertFalse(store.state.value.deleteDialogVisible)
+            assertEquals(DialogState.Hidden, store.state.value.dialogState)
             assertEquals(
                 listOf(
                     Event.HapticClick(HapticFeedbackType.Confirm),
@@ -119,10 +192,70 @@ internal class ClickHandlerTest {
         }
     }
 
+    // --- the amended §7 disclosure model: a header tap is a pure toggle -----------------
+
+    @Test
+    fun `OnExerciseHeaderClick expands exactly the tapped card and touches nothing else`() =
+        runTest {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            val store = TestStore(
+                twoExerciseState(expanded = persistentSetOf(PERFORMED_EXERCISE_UUID)),
+                this,
+                dispatcher,
+            )
+            val handler = ClickHandler(interactor = interactor, store = store)
+            val phaseBefore = store.state.value.phase
+
+            handler.invoke(Action.Click.OnExerciseHeaderClick(SECOND_EXERCISE_UUID))
+
+            assertEquals(
+                setOf(PERFORMED_EXERCISE_UUID, SECOND_EXERCISE_UUID),
+                store.state.value.expandedExerciseUuids,
+            )
+            assertEquals(phaseBefore, store.state.value.phase)
+            assertTrue(store.events.isEmpty())
+            assertTrue(store.consumedActions.isEmpty())
+        }
+
+    @Test
+    fun `OnExerciseHeaderClick collapses the tapped card and only that card`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val store = TestStore(
+            twoExerciseState(
+                expanded = persistentSetOf(PERFORMED_EXERCISE_UUID, SECOND_EXERCISE_UUID),
+            ),
+            this,
+            dispatcher,
+        )
+        val handler = ClickHandler(interactor = interactor, store = store)
+
+        handler.invoke(Action.Click.OnExerciseHeaderClick(PERFORMED_EXERCISE_UUID))
+
+        assertEquals(setOf(SECOND_EXERCISE_UUID), store.state.value.expandedExerciseUuids)
+        assertTrue(store.events.isEmpty())
+        assertTrue(store.consumedActions.isEmpty())
+    }
+
+    @Test
+    fun `OnExerciseHeaderClick with an unknown uuid changes nothing`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val store = TestStore(
+            twoExerciseState(expanded = persistentSetOf(PERFORMED_EXERCISE_UUID)),
+            this,
+            dispatcher,
+        )
+        val handler = ClickHandler(interactor = interactor, store = store)
+        val before = store.state.value
+
+        handler.invoke(Action.Click.OnExerciseHeaderClick("performed-unknown"))
+
+        assertEquals(before, store.state.value)
+    }
+
     private fun currentSet(store: TestStore): PastSetUiModel =
         ((store.state.value.phase as State.Phase.Loaded).detail.exercises.single().sets.single())
 
-    private fun loadedState(deleteDialogVisible: Boolean = false): State =
+    private fun loadedState(dialogState: DialogState = DialogState.Hidden): State =
         State.create(sessionUuid = SESSION_UUID)
             .copy(
                 phase = State.Phase.Loaded(
@@ -139,6 +272,7 @@ internal class ClickHandlerTest {
                                 position = 0,
                                 skipped = false,
                                 isWeighted = true,
+                                setSummary = "100×8",
                                 sets = persistentListOf(
                                     PastSetUiModel(
                                         setUuid = SET_UUID,
@@ -156,8 +290,28 @@ internal class ClickHandlerTest {
                         ),
                     ),
                 ),
-                deleteDialogVisible = deleteDialogVisible,
+                dialogState = dialogState,
             )
+
+    /** Two cards, [expanded] preset — the multi-open fixture the §7 purity tests need. */
+    private fun twoExerciseState(expanded: ImmutableSet<String>): State {
+        val base = loadedState()
+        val loaded = base.phase as State.Phase.Loaded
+        val second = loaded.detail.exercises.single().copy(
+            performedExerciseUuid = SECOND_EXERCISE_UUID,
+            exerciseName = "Row",
+            position = 1,
+            sets = persistentListOf(),
+        )
+        return base.copy(
+            phase = State.Phase.Loaded(
+                detail = loaded.detail.copy(
+                    exercises = (loaded.detail.exercises + second).toImmutableList(),
+                ),
+            ),
+            expandedExerciseUuids = expanded,
+        )
+    }
 
     private class TestStore(
         initialState: State,
@@ -243,6 +397,7 @@ internal class ClickHandlerTest {
         const val SESSION_UUID = "session-1"
         const val SET_UUID = "set-1"
         const val PERFORMED_EXERCISE_UUID = "performed-1"
+        const val SECOND_EXERCISE_UUID = "performed-2"
         const val SET_POSITION = 2
     }
 }

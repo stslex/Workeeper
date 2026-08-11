@@ -16,13 +16,23 @@ content in this file.
 ./gradlew connectedDebugAndroidTest
 
 # Static analysis
-./gradlew detekt
-./gradlew detekt --auto-correct
+./gradlew detekt                  # gate: reports, never writes (autoCorrect is off)
+./gradlew detekt --auto-correct   # opt in to the formatter role for this run only
 ./gradlew lintDebug
 
-# Pre-commit hook (currently disabled at the script level — see lint-rules.md)
+# Pre-commit hook — installs .githooks (core.hooksPath). Runs detekt on every
+# commit; its early exit skips lintDebug only. See lint-rules.md.
 ./setup-hooks.sh
 ```
+
+## Merge flow
+
+Open the PR; do not merge it. Wait for review — CI **and** the bot. Every comment is fixed or
+resolved with a comment saying why not. **Ilya merges, never you.** Review comments are claims:
+reproduce, classify (correct / correct-but-already-decided / wrong / correct-and-new), and report
+the classification before pushing fixes. Waiting on review does not block the next task — stack it,
+state the stack in both PR descriptions, and re-run every gate after a rebase.
+Full rule, with the stacking costs it comes with: [AGENTS.md](AGENTS.md) § "Merge flow".
 
 ## Canonical project knowledge
 
@@ -60,7 +70,7 @@ Project-specific skills live under [`.claude/skills/`](.claude/skills/). Invoke 
 skill when the user asks for one of these tasks:
 
 - [`add-feature`](.claude/skills/add-feature.md) — scaffold a new `feature/<name>` module
-  (build script, MVI contract, handlers, Hilt module, navigation entry, smoke test stub).
+  (build script, MVI contract, handlers, DI graph, navigation entry, smoke test stub).
 - [`write-handler-test`](.claude/skills/write-handler-test.md) — write a JUnit 5 unit test for
   an MVI handler or `*StoreImpl` using the project's mocked `HandlerStore` + `TestScope`
   pattern.
@@ -69,11 +79,11 @@ skill when the user asks for one of these tasks:
   fixture from the `core/data/database` testFixtures source set.
 - [`write-ui-test`](.claude/skills/write-ui-test.md) — write a `@Smoke` Compose UI test using
   `BaseComposeTest`, `ActionCapture`, `MockDataFactory`, and `PagingTestUtils`.
-- [`add-database-migration`](.claude/skills/add-database-migration.md) — bump the Room schema
-  version, add a `MIGRATION_X_Y` object, register it in `CoreDatabaseModule`, and add a
-  `MigrationTestHelper`-based test.
+- [`add-database-migration`](.claude/skills/add-database-migration.md) — bump
+  `APP_DATABASE_VERSION`, add a `Migration<N>` object, append it to the `MIGRATIONS` array in
+  `MigrationsRegistry.kt`, and add a `MigrationTestHelper`-based test.
 - [`refactor-with-mvi-rules`](.claude/skills/refactor-with-mvi-rules.md) — resolve a custom
-  Detekt MVI / Hilt scope / Composable rule violation by applying the conformant fix
+  Detekt MVI / Metro scope / Composable rule violation by applying the conformant fix
   (see also [`compose-state-discipline`](.claude/skills/compose-state-discipline.md), which
   covers Rule 4: dialogs and bottom sheets live in `State`, not `Event`).
 - [`mvi-dialog-state`](.claude/skills/mvi-dialog-state.md) — model two-or-more dialogs /
@@ -88,7 +98,19 @@ skill when the user asks for one of these tasks:
 
 - `master` is the release branch; ongoing work targets `dev`.
 - UI tests (`ui_tests.yml`) are `workflow_dispatch`-only and do not gate PRs.
-- The pre-commit hook in `.githooks/pre-commit` returns early — CI is the lint gate.
+- `mockup_gate.yml` runs `documentation/mockups/shell_gate.py` on every PR except those into
+  `master`, plus its `--target f52462c7` known negative, which must go red. Editing
+  `documentation/mockups/pass2d.html` **or** `AppColors.kt` can red it; reproduce with
+  `python3 documentation/mockups/shell_gate.py --base "$(git merge-base origin/$PR_BASE HEAD)" -v`,
+  where `$PR_BASE` is the branch the PR targets — `dev` for most work, but the branch below
+  you in a stack, which is what CI uses and is not the same baseline.
+  A `:root` token change must be declared with an `Allow-root-change: <names>` commit trailer —
+  the workflow reads the declaration out of the commits in the range, never from a flag.
+- The pre-commit hook in `.githooks/pre-commit` **runs `./gradlew detekt` on every commit**
+  (`core.hooksPath = .githooks`). Its early `exit 0` sits *after* the detekt block, so it skips
+  `lintDebug` only — Android Lint is CI-gated, detekt is gated both locally and in CI.
+- detekt runs with `autoCorrect = false`: it reports, it never writes to the tree it verifies.
+  Formatting is an explicit per-run opt-in (`./gradlew detekt --auto-correct`).
 - Privacy policy at `docs/index.md` and `docs/_config.yml` are locked by Play Console; do not
   modify them.
 - Set types live in `core/database/.../exercise/model/SetsEntityType.kt`; check the migration
@@ -105,19 +127,39 @@ cancel/finish path, and the cascade-delete predicate.
   list (`pagedActive`, `getAllActive`, `pagedActiveByTags`, `getRecentlyTrainedExercises`
   all filter `is_adhoc = 0`). The only surface that loads it is the active session's
   `TrainingExerciseEntity` join.
-- **Graduate.** On session finish, every plan-attached exercise flips to `is_adhoc = 0`
-  inside the `finishSessionAtomic` transaction (`exerciseDao.graduateAdhocForTraining`).
-  After graduate the row is indistinguishable from a library entry.
+- **Graduate.** On session finish, every exercise **performed in the session** flips to
+  `is_adhoc = 0` inside the `finishSessionAtomic` transaction
+  (`exerciseDao.graduateAdhocForSession`). After graduate the row is indistinguishable
+  from a library entry.
 - **Delete (defence-in-depth).** Cancel / empty-finish-Discard for an ad-hoc training
   cascades through `SessionRepository.discardAdhocSession` — session + training +
   inline-created exercise rows in one transaction. The DAO cascade-delete query
-  filters by **both** `is_adhoc = 1` **AND** join via `training_exercise_table` for the
-  cancelled training, so library exercises picked into the session (their
+  filters by **both** `is_adhoc = 1` **AND** join via `performed_exercise_table` for the
+  cancelled session, so library exercises picked into the session (their
   `is_adhoc = 0`) are never deleted.
+
+Both predicates join through `performed_exercise_table`, **not** `training_exercise_table`.
+That changed in v3 step 5: a one-off (non-plan-attached) exercise has no plan row by
+construction, so a plan-table join stranded every inline-created one-off at `is_adhoc = 1` —
+permanently invisible to `pagedActive` — and left it behind on cancel. Session membership is
+the honest predicate, and it is a superset of the old one for plan-attached exercises.
 
 Rule: every new exercise list query (paged, observable, search) must filter
 `is_adhoc = 0`. The only acceptable exception is when a query needs all rows for a
 specific defensive reason — document it inline.
+
+## `plan-attached` is a second, independent axis (v3 §6.2)
+
+`is_adhoc` describes the **exercise** ("created inline"). `plan-attached` describes the
+**exercise↔training relation** ("is in this training's saved plan"), and is encoded as the
+**presence of a `training_exercise_table` row** — no column, no migration. Never conflate
+them: a library exercise with `is_adhoc = 0` added mid-session as a one-off is not ad-hoc by
+any definition, yet it is not plan-attached.
+
+Read the flag from **key presence** in `TrainingExerciseRepository.getPlans`, never from plan
+nullability: a row with `plan_sets IS NULL` is attached-with-no-plan, which is a third state.
+`map[uuid] == null` cannot tell it apart from an absent key — use `containsKey`. See
+`LiveExerciseDomain.isPlanAttached`.
 
 ## Read-path pattern: batch DAO + Kotlin-side groupBy
 

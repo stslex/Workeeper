@@ -8,9 +8,13 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import androidx.core.net.toUri
-import dagger.hilt.android.qualifiers.ApplicationContext
+import dev.zacsweers.metro.ContributesBinding
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
+import io.github.stslex.workeeper.core.core.di.AppScope
 import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
 import io.github.stslex.workeeper.core.core.logger.Log
+import io.github.stslex.workeeper.core.data.backup.api.RecoveryDiagnosticsExporter
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreStateRepository
 import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialog
 import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialogUserAction
@@ -18,7 +22,6 @@ import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialogUserCho
 import io.github.stslex.workeeper.feature.app_dialogs.api.observer.AppDialogObserver
 import io.github.stslex.workeeper.feature.app_dialogs.api.publisher.AppDialogPublisher
 import io.github.stslex.workeeper.feature.recovery.boot.RecoveryBootstrap
-import io.github.stslex.workeeper.feature.recovery.diagnostics.RecoveryDiagnosticsExporter
 import io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinator
 import io.github.stslex.workeeper.feature.recovery.domain.UndoRestoreOutcome
 import kotlinx.coroutines.CoroutineDispatcher
@@ -26,8 +29,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
-import javax.inject.Inject
-import javax.inject.Singleton
 import io.github.stslex.workeeper.feature.recovery.R as RecoveryR
 
 /**
@@ -37,9 +38,10 @@ import io.github.stslex.workeeper.feature.recovery.R as RecoveryR
  * undo / report / export side-effects, then calls
  * [AppDialogObserver.acknowledgeReaction] to clear the dialog.
  *
- * **Bootstrap (BLOCKER 1).** This `@Singleton` is constructed at
- * `BaseApplication.onCreate` via a Hilt `@EntryPoint`, mirroring the
- * existing `RecoveryEntryPoint` and `ImageStorageEntryPoint` patterns.
+ * **Bootstrap (BLOCKER 1).** This `@SingleIn(AppScope)` observer is
+ * `@ContributesBinding(AppScope)`-bound to [RecoveryBootstrap] and constructed at
+ * `BaseApplication.onCreate` by eagerly reading the `recoveryBootstrap` accessor on
+ * the app graph (`appGraph.recoveryBootstrap`).
  * Construction triggers the `init { ... launchIn(scope) }` block below,
  * registering a subscriber on the observer's `SharedFlow` BEFORE any
  * `MainActivity.onCreate` runs. The first user dispatch lands on a live
@@ -71,9 +73,12 @@ import io.github.stslex.workeeper.feature.recovery.R as RecoveryR
  * failure window — without it, an IO-error rollback would dismiss the
  * dialog while the user's data was never actually rolled back.
  */
-@Singleton
-internal class RestoreDialogChoiceObserver @Inject constructor(
-    @ApplicationContext private val context: Context,
+@SingleIn(AppScope::class)
+@ContributesBinding(AppScope::class)
+// Public for cross-module @ContributesBinding aggregation into the app graph (D1; never hand-construct
+// — resolve via DI). Metro-owned via @ContributesBinding(AppScope) bound to RecoveryBootstrap.
+class RestoreDialogChoiceObserver @Inject constructor(
+    private val context: Context,
     private val observer: AppDialogObserver,
     private val coordinator: RestoreRecoveryCoordinator,
     private val restoreStateRepository: RestoreStateRepository,

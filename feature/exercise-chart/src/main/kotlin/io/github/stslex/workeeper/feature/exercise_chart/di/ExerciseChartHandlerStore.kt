@@ -6,4 +6,4 @@ import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChart
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.Event
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.State
 
-internal interface ExerciseChartHandlerStore : HandlerStore<State, Action, Event>
+interface ExerciseChartHandlerStore : HandlerStore<State, Action, Event>

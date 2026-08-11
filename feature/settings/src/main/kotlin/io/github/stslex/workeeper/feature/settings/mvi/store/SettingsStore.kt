@@ -7,6 +7,8 @@ import androidx.compose.runtime.Stable
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
 import io.github.stslex.workeeper.core.ui.mvi.Store
+import io.github.stslex.workeeper.core.ui.start_mode.model.StartCardModeUi
+import io.github.stslex.workeeper.feature.settings.mvi.model.ArchivedCountsUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupAuthUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupErrorUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupInfoUi
@@ -18,20 +20,34 @@ import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStore.Actio
 import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStore.Event
 import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStore.State
 
-internal interface SettingsStore : Store<State, Action, Event> {
+interface SettingsStore : Store<State, Action, Event> {
 
     @Stable
     data class State(
         val themeMode: ThemeMode,
+
+        /**
+         * The Home start card's readout mode (HS5), or null until the preference's first
+         * emission — the row shows no sub-line rather than flashing a guessed default.
+         */
+        val startCardMode: StartCardModeUi?,
         val appVersion: String,
         val appVersionCode: Int,
         val backupAuth: BackupAuthUi,
         val backupOperation: BackupOperationUi,
         val dialogState: DialogState,
-        val backupInfo: BackupInfoUi?,
+        val backupInfo: BackupInfoUi,
         val backupPreferences: BackupPreferencesUi?,
         val restoreProgress: RestoreProgressUi,
         val canRevertLastRestore: Boolean,
+
+        /**
+         * The Archive row's drawn sub-line, or null until the counts arrive.
+         *
+         * §26 draws it («4 упражнения · 1 тренировка»). B15 held it open on the premise that no data
+         * source existed; both counts have been `Flow<Int>` since the archive screen was built.
+         */
+        val archivedCounts: ArchivedCountsUi?,
     ) : Store.State {
 
         companion object {
@@ -41,15 +57,17 @@ internal interface SettingsStore : Store<State, Action, Event> {
                 appVersionCode: Int,
             ): State = State(
                 themeMode = ThemeMode.SYSTEM,
+                startCardMode = null,
                 appVersion = appVersion,
                 appVersionCode = appVersionCode,
                 backupAuth = BackupAuthUi.NotAuthenticated,
                 backupOperation = BackupOperationUi.Idle,
                 dialogState = DialogState.Hidden,
-                backupInfo = null,
+                backupInfo = BackupInfoUi.Unknown,
                 backupPreferences = null,
                 restoreProgress = RestoreProgressUi.Idle,
                 canRevertLastRestore = false,
+                archivedCounts = null,
             )
         }
     }
@@ -64,6 +82,12 @@ internal interface SettingsStore : Store<State, Action, Event> {
 
         sealed interface Click : Action {
 
+            /** The Appearance row for the Home start card — opens the shared mode sheet. */
+            data object OnStartCardModeClick : Click
+
+            /** Sheet dismissal — no haptic, per the cancel/dismiss convention. */
+            data object OnStartCardModeSheetDismiss : Click
+
             data object OnArchiveClick : Click
             data object OnGitHubClick : Click
             data object OnLicenseClick : Click
@@ -73,6 +97,9 @@ internal interface SettingsStore : Store<State, Action, Event> {
         sealed interface Input : Action {
 
             data class OnThemeChange(val mode: ThemeMode) : Input
+
+            /** A row of the mode sheet: persist (HS6) and close; state follows DataStore. */
+            data class OnStartCardModeChange(val mode: StartCardModeUi) : Input
         }
 
         sealed interface Navigation : Action {

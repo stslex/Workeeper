@@ -7,7 +7,7 @@ import io.github.stslex.workeeper.feature.exercise_chart.domain.model.ChartPrese
 import io.github.stslex.workeeper.feature.exercise_chart.domain.model.ExerciseTypeDomain
 import io.github.stslex.workeeper.feature.exercise_chart.domain.model.RecentExerciseDomain
 
-internal interface ExerciseChartInteractor {
+interface ExerciseChartInteractor {
 
     suspend fun getRecentlyTrainedExercises(): List<RecentExerciseDomain>
 

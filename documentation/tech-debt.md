@@ -36,6 +36,38 @@ Each tracked location should carry a `TODO(tech-debt): <category> — <ref>` mar
 
 ---
 
+## Room 2→3 cross-version upgrade proof — manual, NOT in the automated suite
+
+| Severity | Location | Description |
+|---|---|---|
+| 🟡 | [core/data/database/.../Room3RoundTripDeviceTest.kt](../core/data/database/src/androidTest/kotlin/io/github/stslex/workeeper/core/data/database/Room3RoundTripDeviceTest.kt) | **Two distinct guarantees — one automated, one manual.** (1) COVERED repeatably by `Room3RoundTripDeviceTest` (normal `connectedAndroidTest`): Room 3 round-trips the production schema on a real file — write → close → re-open a fresh `AppDatabase` on the same file → read exact values → PagingSource DAO → transactional write persists (self-seeding; known-negative proves the read can observe absence). (2) NOT automated: that a file written *specifically by the Room 2.8.4 runtime* is readable by Room 3 — the real Play cross-version upgrade path. Proven ONCE manually on 2026-07-18 (Room-2 write APK + Room-3 read APK, 3/3, plus a real dev-app launch on the Room-2 file with zero Room integrity/migration/driver exceptions), but it is NOT in the suite because it requires a cross-branch, two-APK, seeded-file dance that `connectedAndroidTest`'s auto-uninstall defeats. **To re-run the cross-version proof before the final land:** (a) on a Room-2 tip author a test that writes the real file-backed `app.db` via the production builder with known values, `./gradlew :core:data:database:installDebugAndroidTest` then `adb shell am instrument -w -e class <FQN> io.github.stslex.workeeper.core.data.database.test/androidx.test.runner.AndroidJUnitRunner`; (b) `adb shell run-as io.github.stslex.workeeper.core.data.database.test ls -l databases/` → confirm `app.db` + size (the "before"); (c) switch to the Room-3 tip, `installDebugAndroidTest` (install -r, NO uninstall), `run-as ls -l` AGAIN and confirm `app.db` survived byte-identical (the ★ vacuity gate — if gone, the test is vacuous, STOP); (d) `am instrument` a Room-3 read test asserting the exact Room-2 values. Do NOT use `connectedAndroidTest` for this — it uninstalls the test APK and wipes the file. **Trigger to act:** before the final ff-merge, if the cross-version proof is wanted fresh; or if `installDebugAndroidTest`/AGP behaviour changes. |
+
+---
+
+## Flaky UI test — ApplicationBottomBarTest.navigateToExercisesAndBack
+
+| Severity | Location | Description |
+|---|---|---|
+| 🟡 | [app/app/.../ApplicationBottomBarTest.kt](../app/app/src/androidTest/kotlin/io/github/stslex/workeeper/app/ApplicationBottomBarTest.kt) | **`navigateToExercisesAndBack` is intermittently flaky: 1/3 fail on the room3 branch, 0/2 on the Room-2 baseline; it failed once under heavy emulator load (full suites took 12–36 min) and passed 4 consecutive times since.** Sample too small to conclude pre-existing vs environmental — do NOT read this as "proven pre-existing". The mechanism is a race by construction: `checkAppClosed()` calls `assertDoesNotExist(AppRoot)` immediately after `Espresso.pressBack()`, with no wait for the activity-finish/recompose to settle. It loads a PagingSource from Room on the way to Exercises, so it is not Room-free, but the failure signature (AppRoot still present right after back) is a teardown-timing race, not a data error. **Do NOT add retries or arbitrary waits as a "fix"** — if hardened, gate on an idling resource / `waitUntil` for AppRoot's absence, not `Thread.sleep`. **Trigger to act:** it fails again on a non-loaded machine, or a UI-test-stability pass is scheduled. |
+
+---
+
+## Robolectric is not a valid oracle for transaction / async-child rollback semantics
+
+| Severity | Location | Description |
+|---|---|---|
+| 🟡 | [core/data/database/.../testfixtures/RepositoryTestEnv.kt](../core/data/database/src/testFixtures/kotlin/io/github/stslex/workeeper/core/data/database/testfixtures/RepositoryTestEnv.kt) ↔ [AtomicRollbackDeviceTest.kt](../core/data/database/src/androidTest/kotlin/io/github/stslex/workeeper/core/data/database/AtomicRollbackDeviceTest.kt) | **Robolectric's shadow in-memory SQLite gives FALSE NEGATIVES on transaction rollback when writes happen in `async {}` / `coroutineScope` children.** Established empirically during the Room 2→3 investigation: a Robolectric probe reported that concurrent-`async`-child writes inside `withTransaction {}` did NOT roll back on a throw — **three times** (rounds 6, 8, and a sequential variant). The **real device** (`AtomicRollbackDeviceTest`, file-backed DB) proves all four shapes (control / known-negative / shape-A `asyncScope` / shape-B concurrent `async`) roll back correctly under Room 2. So the Robolectric result was an artifact of its single-connection shadow SQLite, not a production bug. **Rule:** any test asserting transaction atomicity, rollback, or async-child-in-transaction behaviour MUST be androidTest + file-backed, never Robolectric + in-memory. `RepositoryTestEnv`'s own KDoc already hedges ("single-connection in-memory SQLite that Robolectric provides"). **Flagged, not fixed here:** [SessionRepositoryImplFinishAtomicDbTest.kt:221](../core/data/exercise/src/test/kotlin/io/github/stslex/workeeper/core/data/exercise/session/SessionRepositoryImplFinishAtomicDbTest.kt) (`rolls back … when an inner write throws`) passes on Robolectric today, but its oracle is now known-weak for exactly this assertion class — it happens to pass because `finishSessionAtomic`'s `asyncScope` writers are sequential (shape A), the shape Robolectric handles. Do NOT move or rewrite it in this phase; a future pass should relocate it (or an equivalent) to androidTest. **Trigger to act:** any new atomicity/rollback assertion is proposed on Robolectric, or the migration off Robolectric for DB tests is scheduled. |
+
+---
+
+## Palette slot names describe v2 tiers, not v3 roles
+
+| Severity | Location | Description |
+|---|---|---|
+| 🟢 | [core/ui/kit/.../theme/AppColors.kt](../core/ui/kit/src/main/kotlin/io/github/stslex/workeeper/core/ui/kit/theme/AppColors.kt) | **Renaming debt, deliberately incurred.** v3 step 3 kept the v2 slot names (`surfaceTier0..4`, `accentTintedBackground`) and mapped them onto v3 tokens in KDoc rather than renaming, because renaming is a thousand-line mechanical diff with no pixel behind it. The cost surfaced in step 4: `surfaceTier4` and `accentTintedBackground` both carry the v3 `raise` hex in its *utility* role — progress track, selected tag, hover — while the name `raise` reads as "elevated surface", which is a different thing entirely and is **not** what either slot does. A reader who goes looking for "the raised surface" finds two slots that are not it. Compounding it, `object Icon` (5 properties) and `object Button` (4) have **zero readers** repo-wide and shadow the live flat `icon*`/`height*` scale — `Icon.small = 16.dp` sits next to `iconSm = 18.dp` with 0 and 29 readers respectively, kept alive only by `@Suppress("unused")` on the object. **Trigger to act:** the next time a palette or dimension change touches these files for its own reasons — rename to role names (`base`/`sec`/`slab`/`field`/`raise`) and delete the two dead scales in the same pass. Do not do it as a standalone PR; the diff is large and the review value is near zero on its own. |
+
+---
+
 ## Reactive Aggregations
 
 | Severity | Location | Description |
@@ -177,6 +209,63 @@ Five stub files with `TODO(feature-rewrite-tests)` markers carry an `@Ignore`d p
 
 **Plan:** address as a dedicated test-coverage PR after v2 stabilises. Don't try to fill in feature PRs.
 
+### `BaseApplication.onCreate` bootstrap chain — zero androidTest coverage (App-Scope Collapse Step 6, Phase 3.4)
+
+The consolidated `:app:app` androidTest harness boots
+[`TestApplication`](../app/app/src/androidTest/kotlin/io/github/stslex/workeeper/harness/TestApplication.kt),
+a `BaseApplication` subclass that overrides `onCreateGraphBootstrap()` to a **no-op**. That means the
+production `onCreate` bootstrap chain — the recovery pre-flight (`handlePostRestoreLaunch` /
+`checkAndRouteOrProceed`, run under `runBlocking` before `MainActivity`), the orphaned-image-temp-file
+cleanup, and the app-dialog observer subscribe-before-`MainActivity` (`bootstrapAppDialogObserver`) — has
+**zero instrumented coverage**. `TestApplication` must skip it: `Application.onCreate` fires at process
+start, before any test's `@Before` installs a graph via `MetroTestRule`, so running the graph-touching
+bootstrap there would force graph construction with the wrong roots.
+
+- **This is NOT a regression.** Pre-cut, every `@HiltAndroidTest` booted `dagger.hilt.android.testing.HiltTestApplication`,
+  which is **not** a `BaseApplication` and never ran this bootstrap chain either — the chain has *never*
+  had androidTest coverage. Phase 3.4 makes the gap *visible* (a named override), it does not create it.
+- **Covered only by the on-device restore cycle** — the manual/device restore-gate baseline
+  (`metro-batch-anchor` reference), not by any automated instrumented test.
+- **Trigger to act:** if the bootstrap chain grows behaviour worth guarding (e.g. a new pre-flight
+  scenario), add a dedicated `:app:app` androidTest that constructs a `TestApplication`, installs a graph
+  via `MetroTestRule`, then invokes the bootstrap explicitly — rather than relying on `onCreate`.
+- **Still open after Phase 3.6.** The relocated `ExerciseCreatePersistenceTest` restored the *feature*
+  create→persist seam (UI→Store→repository→Room over an in-memory DB); it does **not** touch this
+  `onCreate` bootstrap chain. This gap is specifically about `onCreateGraphBootstrap()` being a no-op and
+  is unchanged by that restore.
+
+---
+
+## Firebase-transitive dagger-core on the app runtime classpath (App-Scope Collapse Step 6, Phase 5)
+
+After the Hilt dependency excision (Phase 5), **zero `hilt` artifacts** remain on any compile or runtime
+classpath (`./gradlew :app:dev:dependencies --configuration debugRuntimeClasspath | grep -i hilt` is
+empty). One `com.google.dagger:dagger:2.57.2` remains on the app runtime classpaths — this is
+**dagger-core (the JSR-330 DI runtime), NOT Hilt** — pulled transitively by
+`com.google.firebase:firebase-sessions:3.0.5` (Firebase uses Dagger internally).
+
+- **ACCEPTED, not a Step-6 leftover.** It predates the Hilt→Metro migration — Firebase always shipped its
+  own Dagger; removing our Hilt never had any bearing on it. `grep -i hilt` is the correct success check
+  (empty everywhere); `grep -i "hilt\|dagger"` will always find this one Firebase-owned line.
+- **Not ours to remove.** Firebase (analytics / crashlytics / performance) is a required production
+  dependency; forcing `dagger` out via a `firebase` `exclude` risks breaking Firebase Sessions at runtime.
+- **Trigger to revisit:** only if Firebase drops its internal Dagger usage (then the line disappears on its
+  own), or if a future audit explicitly decides to exclude it and validates Firebase still works.
+
+## Stale Hilt-generated Java footgun when switching to a de-Hilt'd branch (App-Scope Collapse Step 6)
+
+Switching into this branch (or any branch where a module's androidTest was de-Hilt'd) with a **warm
+`build/` dir** can fail `:core:ui:mvi:compileDebugAndroidTestJavaWithJavac` (or another module's
+equivalent) on **orphaned Hilt-generated Java** — e.g. `AppFeatureScopeTest_TestComponentDataSupplier.java`
+referencing `DaggerDefault_HiltComponents_SingletonC`. Cause: once a test drops `@HiltAndroidTest`, that
+module's `kspDebugAndroidTestKotlin` becomes `SKIPPED`, and a **SKIPPED KSP task does not delete** the
+`.java` files a prior run generated into `build/generated/ksp/debugAndroidTest/`; `--rerun-tasks` re-runs
+the compile (which reads the stale files) but not the cleanup.
+
+- **Remedy:** `./gradlew clean` (the files are gitignored build output — clean wipes them).
+- **CI is unaffected** — it always builds from a clean checkout with no pre-existing `build/`.
+- Applies to local incremental builds only; it is a build-hygiene artifact, not a code defect.
+
 ---
 
 ## Navigation lifecycle — RESOLVED in PR #143
@@ -253,7 +342,7 @@ next PR that adds a real-DB instrumentation fixture (similar to the
 | LiveWorkout finish session → `replaceTo` lands on PastSession; back does not return to finished LiveWorkout | manual |
 
 Documented at [architecture.md → Navigation](architecture.md#navigation),
-[lint-rules.md → HiltScopeRule scope expectations](lint-rules.md#scope-expectations-for-the-navigation-layer),
+[lint-rules.md → MetroScopeRule scope expectations](lint-rules.md#scope-expectations-for-the-navigation-layer),
 and the lifecycle-safe navigation refactor section in
 [`refactor-with-mvi-rules`](../.claude/skills/refactor-with-mvi-rules.md).
 
@@ -291,6 +380,57 @@ Entries below are the active follow-ups; the spec links back here from its
 
 ---
 
+## App-Scope Collapse (Hilt→Metro) — Step-6 status (no assisted blockers remain)
+
+Tracked on the `feature/metro-batch` branch (App-Scope Collapse: the final DI migration moving the
+app-scope Hilt graph to Metro). Steps 1–5 migrate bindings under a reversible dual-path; **Step 6** is
+the single irreversible cut that drops `@HiltAndroidApp` and removes Hilt from the app graph entirely.
+
+**The assisted→Metro mechanic EXISTS** (proven at `589777d9`): Metro 1.1.1 has native assisted injection —
+a hand-written `@AssistedFactory` interface converted to `dev.zacsweers.metro.*`, `generateAssistedFactories`
+left off, Metro generates the factory impl. **No Metro bump, no Kotlin-2.4.0 upgrade, no cascade into the
+~695-LOC custom Detekt rules.** Any earlier "no assisted→Metro mechanic" / `interop { includeDagger() }`
+framing is stale — deleted.
+
+**The two entries once tracked here are SEPARATE, unrelated problems** (never an assisted capability gap):
+**CommonDataStore is DONE** (below, resolved at `589777d9`); **ImageStorage is not an assisted problem** —
+it is a permanent `create()` bound-instance root (§Test-override root in the execution spec), with only a
+bounded prod-side construction tail left for Step 6.
+
+| Severity | Location | Description |
+|---|---|---|
+| ✅ RESOLVED (`589777d9`) | [DataStoreProviderFactory.kt](../core/data/dataStore/src/main/kotlin/io/github/stslex/workeeper/core/data/dataStore/core/DataStoreProviderFactory.kt) ↔ [CommonDataStoreImpl.kt](../core/data/dataStore/src/main/kotlin/io/github/stslex/workeeper/core/data/dataStore/store/CommonDataStoreImpl.kt) | **`CommonDataStore` — Metro-owned, DONE at `589777d9`.** Migrated via Metro-native assisted: the `dagger.assisted.*` trio was converted to `dev.zacsweers.metro.*` (`DataStoreProviderFactory.kt:3` `import dev.zacsweers.metro.AssistedFactory`; `DataStoreProvider` `@AssistedInject` via `dev.zacsweers.metro`), `generateAssistedFactories` left off so Metro generates the factory impl. `CommonDataStoreImpl` is now `@ContributesBinding(AppScope::class)` + `@SingleIn(AppScope)` on the now-**public** class (`CommonDataStoreImpl.kt:24-25`); the produced `DataStoreProvider` stays **unscoped** (Metro forbids scoping assisted types), the app-scoped singleton lives on the consumer. `core/data/dataStore` applies the Metro plugin **alongside** the convention's Hilt-KSP with no opt-out — after the assisted conversion no `dagger.assisted.*` remains for Hilt-KSP, so the two processors coexist (§D10 in the execution spec). No Metro bump, no residual dual-processor collision. Live consumers (`AppRootViewModel` + `feature/settings`) resolve it through the app-scope graph. |
+| 🟢 bounded Step-6 tail | [core/core-android/.../images/ImageStorageImpl.kt](../core/core-android/src/main/kotlin/io/github/stslex/workeeper/core/core/images/ImageStorageImpl.kt) ↔ [AppGraphSourceModule.kt](../app/app/src/main/java/io/github/stslex/workeeper/di/AppGraphSourceModule.kt) | **`ImageStorage` — permanent `create()` bound-instance root; NOT an assisted blocker, NOT a flip.** `ImageStorageImpl` is a plain `@Inject constructor(@ApplicationContext Context, @IODispatcher CoroutineDispatcher)` (`ImageStorageImpl.kt:30`) — **zero `@Assisted`**. It is deliberately **NOT** `@ContributesBinding`-flipped: an androidTest fake expressed as a contribution never merges into the main-compiled `@DependencyGraph` (`core:ui:test-utils` is `androidTestImplementation`-only, off the app main classpath), so a contribution flip would silently fall back to the real file-I/O impl — a false-green. Resolution (execution spec §Test-override root, 5c Option A′): `ImageStorage` **stays a permanent `create()` bound-instance root** — the graph owns it, tests inject `FakeImageStorage()` via `create()`. **Remaining bounded Step-6 task (NOT a blocker, NOT a rename):** at the atomic cut the *prod-side construction* of `ImageStorageImpl` moves from Hilt ownership (currently fed into `create()` via `AppGraphSourceModule`, `@TestInstallIn`-swappable) to a Metro/manual factory — someone non-Hilt must construct the prod `ImageStorageImpl` and pass it to `create()`. The **test path already survives** (`TestAppGraphModule` calls `createGraphFactory<AppGraph.Factory>().create(...)` directly, proven). **Count that matters — reproducible snapshot @ `7c8b9400`, the androidTest suites that actually resolve/assert on `ImageStorage` (the swap that must keep working):** `git grep -l 'ImageStorage' -- '*/src/androidTest/*.kt' \| wc -l` → **2** (`AppGraphAdoptBackSeamTest`, `ImageStorageFakeAwarenessTest`). Distinct broader surfaces (do not conflate): `@HiltAndroidTest` suites = **8** (`git grep -l '@HiltAndroidTest' -- '*/src/androidTest/*.kt' \| wc -l`); androidTest files importing `core:ui:test-utils` = **16** (`git grep -l 'import io.github.stslex.workeeper.core.ui.test' -- '*/src/androidTest/*.kt' \| wc -l`). The earlier "15 suites" figure was unanchored memory — do not use it. **Trigger to act:** Step-6 atomic cut (prod-construction owner migration); orthogonal to the DB-cascade DI flip. |
+
+---
+
+## Metro `@GraphExtension` migration — internal-constructor dependency on IR-level visibility
+
+Tracked on `spike/graph-extension-all-trainings` (feature graphs → contributed `@GraphExtension`).
+
+The per-feature public-API surface is minimised (all-trainings: 11 declarations, not the 14 ceiling)
+by keeping the store's handler dependencies **internal**: `AllTrainingsStoreImpl` is a `public` class
+with an **`internal` primary constructor** (`@Inject class AllTrainingsStoreImpl internal
+constructor(navigationHandler: NavigationHandler, ...)`), so `NavigationHandler` / `PagingHandler` /
+`ClickHandler` never become public API.
+
+**The dependency:** `:app` generates the extension impl and constructs the store by calling that
+`internal` constructor of another Gradle module. This works because Metro emits the constructor call in
+**IR, after the frontend visibility checks** — and Kotlin `internal` constructors are emitted `public`
+in bytecode, so there is no runtime barrier. It is a dependency on `internal` *not* being enforced at
+Metro's codegen layer.
+
+- **Blast radius:** every ported feature (13 at arc completion) that uses the internal-constructor
+  pattern to keep handlers internal.
+- **Detection is LOUD, compile-time:** if a Kotlin/Metro change ever enforced `internal` at the IR
+  call site, `:app:app:compileDebugKotlin` would fail — not a runtime failure.
+- **Rollback:** make the store's primary constructor `public` across all ported features (reverts the
+  3-handler saving; surface returns to the 14-ceiling shape). Mechanical, no behavior change.
+- **Axis:** watch on the **Kotlin bump** specifically (frontend/IR visibility semantics), not the
+  Metro bump alone.
+
+---
+
 ## v2.0 Foundations Stage — closed entries
 
 The v2.0 stage addressed the following items. They are listed here for traceability before they roll into the next audit cleanup.
@@ -316,3 +456,9 @@ These were tracked as debt in earlier versions of this doc. Verified resolved by
 - ✅ `feature/single-training/.../ui/components/TrainingHistoryRow.kt` date — pre-formatted via `CommonHandler`.
 - ✅ `feature/live-workout/.../ui/components/LiveExerciseCard.kt` status-line — `exercise.statusLabel` pre-formatted in `LiveWorkoutMapper`.
 - ✅ `feature/settings/.../ui/ArchiveGraph.kt` timestamp formatting — moved to `ArchiveUiMapper`. (Note: snackbar template substitution remains as a separate, smaller debt — see UI Mapping Boundary table above.)
+
+---
+
+## Component death candidates (v3 stage 4, 2026-07-29)
+
+- `AppSection` — ruled lists won on three consecutive screens (exercise detail, settings, history); `SettingsSection` is already deleted (#191). When the derived screens stop consuming it, delete rather than restyle.

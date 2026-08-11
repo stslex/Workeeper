@@ -11,13 +11,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
-import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagChip
+import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTag
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartPresetUiModel
 
+/**
+ * The mockup's `.ranges` (extraction §4.4): four `.tag` chips at §3.2 geometry, gap 8dp. On
+ * this screen the chips ARE interactive and the selected one wears `.tag.on` — the variant
+ * `AppTag`'s KDoc commissions for exactly this row. The edit-form `AppTagChip` this row used
+ * to borrow is the caption-rung sibling, a different component.
+ */
 @Composable
 internal fun PresetChipsRow(
     selected: ChartPresetUiModel,
@@ -31,11 +37,11 @@ internal fun PresetChipsRow(
         horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
     ) {
         ChartPresetUiModel.entries.forEach { preset ->
-            AppTagChip.Selectable(
+            AppTag(
                 modifier = Modifier.testTag("ChartPresetChip_${preset.name}"),
                 label = stringResource(preset.labelRes),
                 selected = preset == selected,
-                onSelectedChange = { onSelect(preset) },
+                onClick = { onSelect(preset) },
             )
         }
     }

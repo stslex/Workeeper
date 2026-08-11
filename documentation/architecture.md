@@ -17,8 +17,8 @@ The build is configured in `settings.gradle.kts`. Every module is included from 
 
 - `app/app` — shared application code: `App.kt` composable root, `MainActivity`,
   `bottom_app_bar/`, `host/AppNavigationHost.kt`, `navigation/NavigatorEventBus.kt`,
-  `navigation/NavigatorReceiver.kt`, `navigation/NavigatorExt.kt`,
-  `di/NavigationModule.kt`.
+  `navigation/NavigatorReceiver.kt`, `navigation/NavigatorExt.kt`, and the Metro app graph
+  (`di/AppGraph.kt`, `di/AppGraphBuilder.kt`, `di/AppGraphOwner.kt`).
 - `app/dev` — debuggable development variant with its own application id and Firebase config.
 - `app/store` — release variant signed for Play Store distribution.
 
@@ -27,11 +27,16 @@ The build is configured in `settings.gradle.kts`. Every module is included from 
 - `core/core` — base utilities: `AppCoroutineScope`, dispatcher qualifiers
   (`MainDispatcher`, `MainImmediateDispatcher`, `DefaultDispatcher`, `IODispatcher`),
   Firebase logging holders, `AppResult`, common extensions.
-- `core/database` — Room database (`AppDatabase`), entities, DAOs, type converters, migrations,
-  schemas under `core/database/schemas/`.
-- `core/exercise` — repository contracts and implementations
-  (`ExerciseRepository`, `TrainingRepository`, `LabelRepository`) plus their data models.
-- `core/dataStore` — Preferences DataStore wiring (`CommonDataStore`, `BaseDataStore`,
+- `core/core-android` — the Android-only half of `core/core`: `DispatchersBindingContainer`,
+  `ResourceWrapperBindingContainer`, `ImageStorageFactory`, platform providers.
+- `core/data/database` — Room database (`AppDatabase`), `AppDatabaseFactory`, entities, DAOs,
+  type converters, `migration/` (incl. `MigrationsRegistry`), schemas under
+  `core/data/database/schemas/`.
+- `core/data/database-test` — `InMemoryDatabaseProvider`, the androidTest-side in-memory
+  `AppDatabase` builder.
+- `core/data/exercise` — repository contracts and implementations
+  (`ExerciseRepository`, `TrainingRepository`, `SessionRepository`, …) plus their data models.
+- `core/data/dataStore` — Preferences DataStore wiring (`CommonDataStore`, `BaseDataStore`,
   `DataStoreProviderFactory`).
 - `core/ui/kit` — reusable Compose UI: theme (`AppTheme`, `AppDimension`, `AppUi`), components
   (`AppSnackBar`, `BasePagingColumnItem`, `TextInputField`), shared models
@@ -136,7 +141,8 @@ for the canonical pattern.
 Handlers receive a `HandlerStore<S, A, E>` (see
 `core/ui/mvi/src/main/kotlin/io/github/stslex/workeeper/core/ui/mvi/handler/HandlerStore.kt`)
 that exposes `state`, `lastAction`, `consume(action)`, `updateState`, `sendEvent`, and `launch`
-helpers. The feature owns a `<Name>HandlerStoreImpl` annotated `@ViewModelScoped` that extends
+helpers. The feature owns a `<Name>HandlerStoreImpl` annotated
+`@SingleIn(<Name>Scope::class)` that extends
 `BaseHandlerStore<State, Action, Event>` and is passed into the Store via DI. Example:
 `feature/exercise/src/main/kotlin/io/github/stslex/workeeper/feature/exercise/di/ExerciseHandlerStoreImpl.kt`.
 
@@ -150,15 +156,24 @@ from background coroutines](#dispatching-navigation-from-background-coroutines).
 
 Compose talks to MVI through `StoreProcessor` (see
 `core/ui/mvi/src/main/kotlin/io/github/stslex/workeeper/core/ui/mvi/processor/StoreProcessor.kt`).
-Two `rememberStoreProcessor` overloads in the same file cover both store shapes:
+There is ONE backend-agnostic `rememberStoreProcessor(StoreCreator)` overload; features reach
+it through `rememberMetroStoreProcessor` (`.../processor/MetroStoreProcessor.kt`), which
+retains the Metro-constructed Store directly in the `ViewModelStore` of the current
+`LocalViewModelStoreOwner` (the `NavBackStackEntry` inside a `NavHost`) via `viewModel {}` —
+`BaseStore` already IS an `androidx.lifecycle.ViewModel`, so no shim is needed. Both store
+shapes go through it:
 
-1. Plain `Feature` — `hiltViewModel<TStoreImpl>(key)` creates a Store with no route
-   arguments (e.g. `Screen.BottomBar.Home`).
-2. `FeatureAssisted` + `StoreFactory<TScreen, TStoreImpl>` —
-   `hiltViewModel<TStoreImpl, TFactory>(key) { it.create(screen) }` injects the screen
-   route data into the Store via Dagger assisted injection. The screen object comes
-   from the current `NavBackStackEntry.toRoute()` inside the graph composable, so the
-   Store never retains a `NavBackStackEntry` itself.
+1. Plain `Feature` — the feature's `processor()` resolves `context.appDeps<XxxGraph.Factory>()`,
+   creates its graph extension, and reads the Store accessor. No route arguments (e.g.
+   `Screen.BottomBar.Home`).
+2. `FeatureAssisted` — `processor(screen)` passes the route arg to the extension factory as a
+   bound instance, so the Store receives it as a normal constructor parameter. The screen
+   object comes from the current `NavBackStackEntry.toRoute()` inside the graph composable, so
+   the Store never retains a `NavBackStackEntry` itself.
+
+The graph extension is created INSIDE the `rememberMetroStoreProcessor` factory lambda, so it
+is built at most once per retained Store — binding the extension and its feature-scoped nodes
+to exactly the Store's lifetime.
 
 In both cases the helper:
 
@@ -179,16 +194,16 @@ invoked from the feature's graph composable through `navComponentScreen` /
 
 - **`Feature<TProcessor, TScreen>`** — the screen has no route arguments (e.g.
   `Screen.BottomBar.Home`, `Screen.Settings`, `Screen.Archive`). The Store derives its
-  initial state from defaults / repository observations only. Construction goes through
-  the standard `@HiltViewModel` ctor.
+  initial state from defaults / repository observations only. The extension factory's
+  creator method takes no arguments.
 - **`FeatureAssisted<TProcessor, TScreen>`** — the screen carries arguments that seed
   the initial state (e.g. `Screen.Exercise(uuid)`, `Screen.LiveWorkout(sessionUuid,
   trainingUuid)`, `Screen.PastSession(sessionUuid)`, `Screen.PlanEditor(...)`,
   `Screen.ExerciseChart(exerciseUuid)`, `Screen.ExerciseImage(model)`,
-  `Screen.Training(uuid)`). The Store is annotated
-  `@HiltViewModel(assistedFactory = StoreImpl.Factory::class)` and constructor-injected
-  via `@AssistedInject` with `@Assisted screen: Screen.<X>`. The matching
-  `interface Factory : StoreFactory<Screen.<X>, StoreImpl>` is the assisted factory.
+  `Screen.Training(uuid)`). The route arg enters as a `@Provides` bound instance on the
+  feature's `@GraphExtension.Factory` creator method, and the Store takes it as a plain
+  constructor parameter — there is no assisted factory. See
+  [Store construction and route arguments](#store-construction-and-route-arguments).
 
 The screen object passed to the Store is the value parsed from the current
 `NavBackStackEntry.toRoute()` (handled by `navScreen<TScreen>`); it is NOT a
@@ -310,23 +325,24 @@ Each feature module follows the same conventional shape. Using
 ```
 feature/exercise/src/main/kotlin/io/github/stslex/workeeper/feature/exercise/
 ├── di/
-│   ├── ExerciseModule.kt            # Hilt @InstallIn(ViewModelComponent::class)
+│   ├── ExerciseScope.kt             # inert feature-scope token
+│   ├── ExerciseGraph.kt             # @GraphExtension(ExerciseScope) + contributed Factory
 │   ├── ExerciseHandlerStore.kt      # HandlerStore facade interface
-│   ├── ExerciseHandlerStoreImpl.kt  # @ViewModelScoped BaseHandlerStore subclass
+│   ├── ExerciseHandlerStoreImpl.kt  # @SingleIn(ExerciseScope) BaseHandlerStore subclass
 │   └── ExerciseFeature.kt           # Feature / FeatureAssisted object exposing the StoreProcessor
 ├── ui/
 │   ├── ExerciseDetailScreen.kt      # Top-level Compose screen (Read mode)
 │   ├── ExerciseEditScreen.kt        # Top-level Compose screen (Edit mode)
-│   ├── ExerciseGraph.kt             # NavGraphBuilder.exerciseGraph extension
+│   ├── ExerciseGraph.kt             # NavGraphBuilder.exerciseGraph extension (navigation, not DI)
 │   ├── components/                  # Sub-widgets
 │   └── mvi/
 │       ├── store/
 │       │   ├── ExerciseStore.kt     # Contract: State, Action, Event
-│       │   └── ExerciseStoreImpl.kt # @HiltViewModel(assistedFactory=Factory::class)
+│       │   └── ExerciseStoreImpl.kt # @Inject, unscoped; takes Screen.Exercise as a ctor param
 │       ├── handler/
 │       │   ├── ClickHandler.kt
 │       │   ├── InputHandler.kt
-│       │   ├── NavigationHandler.kt # @ViewModelScoped @Inject (Navigator)
+│       │   ├── NavigationHandler.kt # @SingleIn(ExerciseScope) @Inject (Navigator)
 │       │   └── CommonHandler.kt
 │       ├── mapper/                  # Domain → Ui mappers
 │       └── model/                   # *UiModel types
@@ -338,118 +354,174 @@ Notes:
   while the simpler `feature/all-trainings`, `feature/all-exercises`, and `feature/home`
   keep it directly under `mvi/`. Both layouts work with the linting rules; pick the one
   that already exists when adding to an existing feature.
-- There is no per-feature `Component<Screen>` subclass any more. Route arguments are
-  injected directly into the Store via `@Assisted screen: Screen.<X>` (see
-  [`@HiltViewModel` and assisted factories](#hiltviewmodel-and-assisted-factories) and
+- There is no per-feature `Component<Screen>` subclass any more. Route arguments reach the
+  Store as a `@Provides` bound instance on the feature's `@GraphExtension.Factory` (see
+  [Store construction and route arguments](#store-construction-and-route-arguments) and
   [`Feature` vs `FeatureAssisted`](#when-to-use-feature-vs-featureassisted)).
 - `<Name>HandlerStore` interfaces and their `Impl`s live under both `mvi/` and `di/`
   packages in some features for historical reasons — the `Impl` is in `di/` because it
-  is a Hilt binding; the public interface used by handlers stays close to the Store
+  is a graph binding; the public interface used by handlers stays close to the Store
   contract.
 
-## Dependency injection (Hilt)
+## Dependency injection (Metro)
 
-The DI graph is built around two scopes.
+DI is [Metro](https://github.com/ZacSweers/metro) (`dev.zacsweers.metro`) end to end.
+Hilt and Dagger are gone: there is no `@HiltAndroidApp`, `@AndroidEntryPoint`,
+`@HiltViewModel`, `@InstallIn`, or `SingletonComponent` anywhere in the tree, and no Hilt
+artifact in `gradle/libs.versions.toml`. The graph is built around two tiers.
 
-### Singleton graph (`SingletonComponent`)
+### App-scope graph (`AppScope`)
 
-Lives in `core/*/di/Core*Module.kt`:
+`AppGraph` (`app/app/src/main/java/io/github/stslex/workeeper/di/AppGraph.kt`) is the single
+`@DependencyGraph(scope = AppScope::class)` for the process — the tier Hilt's `@Singleton` /
+`SingletonComponent` used to occupy. `AppScope` itself is an inert token in
+`core/core/src/commonMain/kotlin/io/github/stslex/workeeper/core/core/di/AppScope.kt`.
 
-- `core/database/.../di/CoreDatabaseModule.kt` provides `AppDatabase`, `ExerciseDao`,
-  `TrainingDao`, `TrainingLabelDao`. Database is built with `Room.databaseBuilder`,
-  `MIGRATION_1_2` is registered, schemas are exported under `core/database/schemas/`.
-- `core/dataStore/.../di/CoreDataStoreModule.kt` binds `CommonDataStore`.
-- `core/exercise/.../di/CoreExerciseModule.kt` binds `ExerciseRepository`, `TrainingRepository`,
-  `LabelRepository`.
-- `core/core/.../di/CoreModule.kt` provides four qualified `CoroutineDispatcher` instances
-  (`@MainDispatcher`, `@MainImmediateDispatcher`, `@DefaultDispatcher`, `@IODispatcher`).
-- `core/ui/mvi/.../di/StoreDispatchers.kt` is a singleton data class injecting
-  `@DefaultDispatcher` and `@MainImmediateDispatcher` for use by every store.
-- `app/app/src/main/java/io/github/stslex/workeeper/di/NavigationModule.kt` provides the
-  `@Singleton NavigatorEventBus` and binds it as `Navigator` at the application level.
-  `NavigatorEventBus` is a controller-free command bus — see [Navigation](#navigation).
+`buildAppGraph(...)` (`app/app/.../di/AppGraphBuilder.kt`) is the ONLY construction site. It
+threads three `create()` bound-instance roots — `applicationContext`, `appDatabase`,
+`imageStorage`. The latter two come from plain top-level factories,
+`buildAppDatabase(...)` in `core/data/database/.../AppDatabaseFactory.kt` and
+`buildImageStorage(...)` in `core/core-android/.../images/ImageStorageFactory.kt`. Those are
+deliberately NOT Metro `@Provides`/`@ContributesBinding`: the values enter the graph as bound
+instances, so a binding would duplicate them and fail Metro's duplicate-binding check. The
+same three roots are the test-override seam: `MetroTestRule`
+(`app/app/src/androidTest/.../harness/MetroTestRule.kt`) rebuilds the graph per test over an
+in-memory `AppDatabase` and a `FakeImageStorage` — see [Testing](testing.md).
 
-Repositories, DataStores, and `AppDatabase` are `@Singleton`. `HiltScopeRule` enforces this for
-classes whose name contains `Repository`, `DataStore`, `Database`, or `StoreDispatchers`.
+Everything else contributes INTO that graph rather than being listed on it:
 
-### Feature graph (`ViewModelComponent`)
+- `core/data/database/.../di/DbCascadeBindingContainer.kt` — a
+  `@BindingContainer @ContributesTo(AppScope::class)` object deriving the 9 Room DAOs and
+  `DbTransitionRunner` from the `AppDatabase` root.
+- `core/core-android/.../di/DispatchersBindingContainer.kt` — the four qualified
+  `CoroutineDispatcher`s (`@MainDispatcher`, `@MainImmediateDispatcher`, `@DefaultDispatcher`,
+  `@IODispatcher`; the qualifier annotations live in `core/core` `commonMain`).
+- `core/data/exercise/.../*RepositoryImpl.kt` and
+  `core/data/dataStore/.../store/CommonDataStoreImpl.kt` — `@ContributesBinding(AppScope::class)`
+  `@SingleIn(AppScope::class)` `@Inject` on the impl. A contributing class must be `public`:
+  `@ContributesBinding` on an `internal` class does not aggregate across Gradle modules.
+- `app/app/.../navigation/NavigatorEventBus.kt` —
+  `@SingleIn(AppScope) @ContributesBinding(AppScope, binding<Navigator>()) @Inject`, a
+  controller-free command bus (see [Navigation](#navigation)).
+- `core/ui/mvi/.../di/StoreDispatchers.kt` — the app-scoped pair (`@DefaultDispatcher` +
+  `@MainImmediateDispatcher`) every Store takes as a constructor dependency.
 
-Each feature owns `feature/<name>/.../di/<Name>Module.kt` annotated
-`@InstallIn(ViewModelComponent::class)`. Bindings:
+Any Metro-constructed class whose name contains `Repository`, `DataStore`, `Database`,
+`Storage`, or `StoreDispatchers` must be `@SingleIn(AppScope::class)` — `MetroScopeRule`
+enforces it by name match. `AppDatabase` itself carries no annotation: it is a `create()`
+bound instance, which already gives it graph lifetime.
 
-- `<Name>Interactor` (where present) — `@ViewModelScoped`.
-- `<Name>HandlerStore` — `@ViewModelScoped`, implementation extends `BaseHandlerStore`.
+`BaseApplication` holds the graph for the whole process and hands it out through interface
+seams, never a concrete-`Application` cast: `AppGraphOwner` (in-module readers such as
+`MainActivity`), `AppDepsHolder` + `Context.appDeps<T>()` (feature-side readers), and the
+typed `RecoveryDepsHolder` / `BackupWorkerDepsHolder` (the two framework readers that must
+not depend on `core:ui:mvi`).
 
-Handlers (`ClickHandler`, `InputHandler`, `NavigationHandler`, etc.) are `@ViewModelScoped`
-classes that constructor-inject the feature's `<Name>HandlerStoreImpl` plus any
-repositories or `Navigator` they need. They implement `Handler<Action.<Category>>`.
-`MviHandlerConstructorRule` requires a primary constructor with `@Inject`. The literal
-class name `NavigationHandler` is exempt at the rule level for historical reasons, but
-the current architecture uses `@Inject Navigator` constructor injection on it
-identically to other handlers. New code should not rely on the exemption.
+### Feature graphs (`@GraphExtension`)
 
-`HiltScopeRule` enforces `@ViewModelScoped` for classes whose name contains `Handler`,
-`Interactor`, or `Mapper`. `*Store` interfaces (excluding `*HandlerStore`) implement
-`Store` and route through `@HiltViewModel`. Names containing `Repository`, `DataStore`,
-`Database`, `Storage`, or `StoreDispatchers` must be `@Singleton`. The
-`NavigatorEventBus` class is named with the `Bus` suffix specifically so it does not
-match any of those scope predicates — its `@Singleton` annotation is provided by
-`NavigationModule` rather than tagged on the class.
+Each Store-hosting feature owns two files under `feature/<name>/.../di/`:
 
-### `@HiltViewModel` and assisted factories
+- `<Name>Scope.kt` — an inert scope token (`abstract class <Name>Scope private constructor()`),
+  the Metro analogue of Hilt's `@ViewModelScoped`.
+- `<Name>Graph.kt` — a `@GraphExtension(<Name>Scope::class)` interface whose nested
+  `@GraphExtension.Factory` carries `@ContributesTo(AppScope::class)`. The extension is merged
+  into `AppGraph` when `:app` compiles and INHERITS every app-scoped binding, so nothing is
+  hand-threaded across the boundary.
 
-A Store that needs no route arguments is a plain `@HiltViewModel`:
+Bindings on the extension:
+
+- Root accessor — the feature's `*StoreImpl`.
+- `<Name>Interactor` (where present) — `@Binds` from its `Impl`, `@SingleIn(<Name>Scope::class)`.
+- `<Name>HandlerStore` — `@Binds` from the `BaseHandlerStore` subclass.
+
+The factory's creator method name must be UNIQUE across all contributed extension factories
+(every one of them merges into `AppGraph`), hence `createExerciseGraph(...)` /
+`createHomeGraph()` rather than a shared `create()`.
+
+Handlers (`ClickHandler`, `InputHandler`, `NavigationHandler`, etc.) are
+`@SingleIn(<Name>Scope::class)` classes that constructor-inject the feature's
+`<Name>HandlerStoreImpl` plus any repositories or `Navigator` they need. They implement
+`Handler<Action.<Category>>`. `MviHandlerConstructorRule` requires a primary constructor with
+`@Inject`. The literal class name `NavigationHandler` is exempt at the rule level for
+historical reasons, but the current architecture uses `@Inject Navigator` constructor
+injection on it identically to other handlers. New code should not rely on the exemption.
+
+`MetroScopeRule` enforces `@SingleIn(<Feature>Scope::class)` for classes whose name contains
+`Handler`, `Interactor`, or `Mapper` (a `*Handler` must not be `@SingleIn(AppScope)` —
+feature-scoped only). `*Store` classes are UNSCOPED: they carry a class-level `@Inject` and
+are retained by the `ViewModelStore` via `rememberMetroStoreProcessor`. Names containing
+`Repository`, `DataStore`, `Database`, `Storage`, or `StoreDispatchers` must be
+`@SingleIn(AppScope::class)`. The `NavigatorEventBus` class is named with the `Bus` suffix
+specifically so it does not match any of those scope predicates — it is
+`@SingleIn(AppScope) @ContributesBinding(AppScope, binding<Navigator>()) @Inject`.
+
+### Store construction and route arguments
+
+Every Store is a plain Metro `@Inject` class — there is no assisted machinery on any Store.
+A Store that needs no route arguments:
 
 ```kotlin
-@HiltViewModel
-internal class HomeStoreImpl @Inject constructor(
+@Inject
+class HomeStoreImpl internal constructor(
     navigationHandler: NavigationHandler,
     /* other handlers, dispatchers, holders */
 ) : BaseStore<State, Action, Event>(/* ... */)
 ```
 
-A Store that needs route arguments uses Dagger assisted-injection. The screen route is
-the assisted argument:
+A Store that needs route arguments takes the `Screen` as an ordinary constructor
+dependency. The arg enters the feature's graph extension as a `@Provides` bound instance on
+the factory, so one extension is built per navigation entry, carrying that entry's arg:
 
 ```kotlin
-@HiltViewModel(assistedFactory = ExerciseStoreImpl.Factory::class)
-internal class ExerciseStoreImpl @AssistedInject constructor(
-    @Assisted screen: Screen.Exercise,
+@Inject
+class ExerciseStoreImpl internal constructor(
+    screen: Screen.Exercise,
     navigationHandler: NavigationHandler,
     /* other handlers, dispatchers, holders */
 ) : BaseStore<State, Action, Event>(
     /* ... */
     initialState = State.create(uuid = screen.uuid),
     /* ... */
-) {
+)
+```
 
-    @AssistedFactory
-    interface Factory : StoreFactory<Screen.Exercise, ExerciseStoreImpl>
+```kotlin
+@ContributesTo(AppScope::class)
+@GraphExtension.Factory
+fun interface Factory {
+    fun createExerciseGraph(@Provides screen: Screen.Exercise): ExerciseGraph
 }
 ```
 
-The `StoreFactory<TScreen, TStoreImpl>` interface is defined in
-`core/ui/mvi/.../processor/StoreFactory.kt`. The screen object is parsed from the
-current `NavBackStackEntry.toRoute()` by `navScreen<TScreen>` and handed to
-`rememberStoreProcessor`, which calls
-`hiltViewModel<TStoreImpl, TFactory>(key) { it.create(screen) }`. The Store retains
-only the screen's value-type fields it needs in initial state (e.g. `screen.uuid`,
-`screen.sessionUuid`, `screen.trainingUuid`); the `NavBackStackEntry` is never
-referenced by the Store.
+Because the arg is an ordinary binding in the feature scope, any node in that scope could
+declare it as a dependency and read navigation state straight out of DI. The Detekt rule
+`ScreenInjectionRule` forbids that: a `Screen` type may be injected ONLY into a Store's
+primary constructor. The screen object is parsed from the current
+`NavBackStackEntry.toRoute()` by `navScreen<TScreen>` and handed to the feature's
+`processor(screen)`. The Store retains only the screen's value-type fields it needs in
+initial state (e.g. `screen.uuid`, `screen.sessionUuid`, `screen.trainingUuid`); the
+`NavBackStackEntry` is never referenced by the Store.
 
-Plain `DataStoreProvider` instances are created via the assisted factory in
-`core/dataStore/src/main/kotlin/io/github/stslex/workeeper/core/dataStore/core/DataStoreProviderFactory.kt`
-when a runtime parameter (e.g. file name) is required.
+Plain `DataStoreProvider` instances are created via a Metro-native `@AssistedFactory` in
+`core/data/dataStore/src/main/kotlin/io/github/stslex/workeeper/core/data/dataStore/core/DataStoreProviderFactory.kt`
+when a runtime parameter (e.g. file name) is required — the one remaining assisted
+construction in the tree.
 
 ### Application bootstrap
 
-- `app/app/src/main/java/io/github/stslex/workeeper/BaseApplication.kt` is `abstract` and
-  initializes `FirebaseCrashlyticsHolder` and the `Log.isLogging` flag.
-- `app/dev/src/main/java/.../App.kt` and `app/store/src/main/java/.../App.kt` (one per variant)
-  apply `@HiltAndroidApp` and override `isDebugLoggingAllow`.
-- `MainActivity` (`app/app/src/main/java/io/github/stslex/workeeper/MainActivity.kt`) is
-  `@AndroidEntryPoint`, injects `ActivityHolderProducer`, and sets the Compose root via
-  `setContent { App() }`.
+- `app/app/src/main/java/io/github/stslex/workeeper/BaseApplication.kt` is `abstract`. It
+  initializes `FirebaseCrashlyticsHolder` and the `Log.isLogging` flag, holds the Metro
+  `AppGraph` (`by lazy`, built from the three `create()` roots), and implements the
+  `AppGraphOwner` / `AppDepsHolder` / `RecoveryDepsHolder` / `BackupWorkerDepsHolder` seams.
+  Its graph-touching startup work sits behind the overridable `onCreateGraphBootstrap()`
+  seam so the androidTest `TestApplication` can no-op it.
+- `app/dev/src/main/kotlin/.../DevMobileApp.kt` and
+  `app/store/src/main/kotlin/.../StoreMobileApp.kt` (one per variant) subclass it and override
+  `isDebugLoggingAllow`. No DI annotation is involved — plain subclasses.
+- `MainActivity` (`app/app/src/main/java/io/github/stslex/workeeper/MainActivity.kt`) is a
+  plain `ComponentActivity`. It reads its app-scope deps as
+  `(application as AppGraphOwner).appGraph`, produces the `ActivityHolderProducer`, and sets
+  the Compose root via `setContent { App() }`.
 
 ### Domain model layer
 
@@ -485,42 +557,61 @@ when a runtime parameter (e.g. file name) is required.
 
 ### Room database
 
-The schema is defined by `AppDatabase` in `core/database/.../AppDatabase.kt`. Every
+The schema is defined by `AppDatabase` in `core/data/database/.../AppDatabase.kt`. Every
 `@Entity` is registered in the `@Database(entities = [...])` array, and every
 `TypeConverter` is on `@TypeConverters` at the database level (project-wide
 converters live next to the entities they serialize, e.g.
-`PlanSetsConverter` for `List<PlanSetDataModel>?`).
+`PlanSetsConverter` for `List<PlanSetDataModel>?`). The `version` on that annotation is
+the `APP_DATABASE_VERSION` constant, not a literal.
+
+The database is constructed by `buildAppDatabase(context)` in
+`core/data/database/.../AppDatabaseFactory.kt` — the only `Room.databaseBuilder` chain in
+the app. `BaseApplication` calls it and threads the result into `buildAppGraph(...)` as the
+`appDatabase` bound instance; the 9 DAOs and `DbTransitionRunner` derive from it inside
+`DbCascadeBindingContainer`. The factory must live in this module because `MIGRATIONS` is
+`internal` to it.
 
 **Migration policy (release).** From schema version 5 onward, no destructive
 migrations. Every schema bump requires:
 
-1. An explicit `Migration(from, to)` object registered via `addMigrations(...)` on
-   the `Room.databaseBuilder` chain in `core/database/.../di/CoreDatabaseModule.kt`.
-2. A migration test in `core/database/src/androidTest/.../AppDatabaseMigrationTest.kt`
+1. `APP_DATABASE_VERSION` bumped in `core/data/database/.../migration/MigrationsRegistry.kt`.
+2. An explicit `Migration(from, to)` object under
+   `core/data/database/.../migration/`, appended to the `MIGRATIONS` array in that same
+   `MigrationsRegistry.kt`. That array is the single registration site —
+   `buildAppDatabase(...)` spreads it onto the builder, and no other `addMigrations(...)`
+   call exists. `MigrationsRegistryTest` fails any commit that bumps the version without a
+   matching entry, and `hasMigrationPath(from, to)` exposes the same registry to the
+   pre-restore backup compatibility check.
+3. A migration test in `core/data/database/src/androidTest/.../AppDatabaseMigrationTest.kt`
    using Room's `MigrationTestHelper`. The test runs the migration against a seeded
    v(N) DB and asserts the resulting v(N+1) DB has the expected shape and data.
-3. The new schema JSON committed under `core/database/schemas/<full-class>/` —
+4. The new schema JSON committed under `core/data/database/schemas/<full-class>/` —
    Room's `exportSchema = true` produces it during build.
 
-Versions 2, 3, and 4 were pre-release only; no users ever held those schemas, so no
-`fallbackToDestructiveMigrationFrom` clause is registered for them. The builder chain
-has no destructive fallback. Bumping past v5 with no matching `Migration` will crash on
-boot (intentional safety net).
+Versions 1-4 were pre-Play-Store only; no published users ever held those schemas, so no
+`fallbackToDestructiveMigrationFrom` clause is registered for them, and
+`MIN_SUPPORTED_SCHEMA_VERSION` is derived from `MIGRATIONS` (currently 5). The builder chain
+has **no destructive fallback and must never gain one** — a missing or failing migration
+fails closed and routes to the Scenario 2 startup-migration recovery flow, rather than
+silently dropping and recreating the user's database.
 
 `androidx.room:room-testing` is wired by the `roomLibrary` convention plugin
 (`build-logic/.../RoomLibraryConventionPlugin.kt`) as `androidTestImplementation`
-so `MigrationTestHelper` is available to migration tests.
+so `MigrationTestHelper` is available to migration tests. The step-by-step recipe lives in
+[`.claude/skills/add-database-migration.md`](../.claude/skills/add-database-migration.md).
 
 ### Repositories
 
-`core/exercise/src/main/kotlin/io/github/stslex/workeeper/core/exercise/` exposes three
-repository interfaces, each with an `Impl` that wraps a DAO and maps between entities and
-domain models:
+`core/data/exercise/src/main/kotlin/io/github/stslex/workeeper/core/data/exercise/` exposes the
+repository interfaces, each with an `Impl` that wraps one or more DAOs and maps between
+entities and `*DataModel` types. Every `Impl` is
+`@ContributesBinding(AppScope::class) @SingleIn(AppScope::class) @Inject`:
 
-- `exercise/ExerciseRepository` plus `ExerciseDataModel`, `ExerciseChangeDataModel`,
-  `SetsDataModel`, `SetsDataType`.
-- `training/TrainingRepository` plus `TrainingDataModel`, `TrainingChangeDataModel`.
-- `labels/LabelRepository` plus `LabelDataModel`.
+- `exercise/ExerciseRepository`
+- `training/TrainingRepository`, `training/TrainingExerciseRepository`
+- `session/SessionRepository`, `session/PerformedExerciseRepository`, `session/SetRepository`
+- `tags/TagRepository`
+- `stats/StatsRepository`, `personal_record/PersonalRecordRepository`
 
 ### Reactive aggregations
 
@@ -625,9 +716,9 @@ destructive — see [Room database](#room-database)), not in domain models.
 
 - `core/BaseDataStore.kt` is the abstract reader/writer base.
 - `core/DataStoreProvider.kt` and `DataStoreProviderFactory.kt` build a `DataStore<Preferences>`
-  via Hilt's `@AssistedFactory`.
-- `store/CommonDataStore.kt` is the application-wide preferences interface; bound in
-  `di/CoreDataStoreModule.kt`.
+  via a Metro `@AssistedFactory`.
+- `store/CommonDataStore.kt` is the application-wide preferences interface; `CommonDataStoreImpl`
+  contributes it with `@ContributesBinding(AppScope::class, binding = binding<CommonDataStore>())`.
 
 ## Navigation
 
@@ -685,13 +776,21 @@ and any other layer that wants to make a navigation **decision** depends on
 not — emitting a navigation command at any point is safe; it queues until the
 bridge is attached.
 
-`restartApp()` is the destructive variant: the bus emits
-`NavCommand.RestartApp`, and the App/UI bridge cold-starts the app from a
-fresh process (clears the task stack, finishes the activity affinity, calls
-`Runtime.exit(0)`). It exists because some operations (e.g. a Room database
-file swap after a Drive backup restore) invalidate the in-process DAO graph
-and singletons, and the only safe recovery is a full process restart. Feature
-code never imports `Context` or `Intent` to do this — it just calls
+`restartApp()` is the destructive variant, and unlike the queued commands
+above it does **not** travel over the command bus. `NavigatorEventBus`
+constructor-injects an `AppReinitializer` (a platform-neutral seam in
+`core/core/.../platform/`) and `restartApp()` calls
+`appReinitializer.reinitialize()` directly. The Android actual
+(`AndroidAppReinitializer`) cold-starts the app from a fresh process: it
+relaunches the launcher intent with
+`FLAG_ACTIVITY_NEW_TASK | FLAG_ACTIVITY_CLEAR_TASK` on the **application**
+`Context` and calls `Runtime.exit(0)`. It exists because some operations
+(e.g. a Room database file swap after a Drive backup restore) invalidate the
+in-process DAO graph and singletons, and the only safe recovery is a full
+process restart. Restart bypasses the bus on purpose: the bus is `replay = 0`,
+so a command emitted while no bridge subscriber is attached would be silently
+dropped — resolving the seam directly removes that hazard. Feature code never
+imports `Context` or `Intent` to do this — it just calls
 `navigator.restartApp()` like any other command.
 
 ### `NavigatorEventBus` (singleton command bus implementation)
@@ -704,8 +803,12 @@ implementation. It implements two interfaces:
   consumer side collected by the App/UI bridge.
 
 ```kotlin
-@Singleton
-class NavigatorEventBus @Inject constructor() : Navigator, NavigatorReceiver {
+@ContributesBinding(AppScope::class, binding = binding<Navigator>())
+@SingleIn(AppScope::class)
+@Inject
+class NavigatorEventBus(
+    private val appReinitializer: AppReinitializer,
+) : Navigator, NavigatorReceiver {
 
     private val _commands = MutableSharedFlow<NavCommand>(
         extraBufferCapacity = 64,
@@ -717,7 +820,10 @@ class NavigatorEventBus @Inject constructor() : Navigator, NavigatorReceiver {
         _commands.tryEmit(NavCommand.PopBack(previousStackAttr.toList()))
     }
     override fun replaceTo(screen: Screen) { _commands.tryEmit(NavCommand.ReplaceTo(screen)) }
-    override fun restartApp() { _commands.tryEmit(NavCommand.RestartApp) }
+
+    // Terminal + platform-owned: invoke the injected seam directly instead of
+    // emitting a NavCommand onto the replay=0 bus (no subscriber ⇒ silent drop).
+    override fun restartApp() { appReinitializer.reinitialize() }
 }
 ```
 
@@ -744,19 +850,21 @@ contract that **is** load-bearing: the bus stays usable across bridge
 detach / re-attach cycles, and the next bridge observes every command
 emitted after its subscription point in dispatch order.
 
-The class is annotated `@Singleton` directly and constructor-injects with
-`@Inject constructor()`. `NavigationModule`
-(`app/app/.../di/NavigationModule.kt`) additionally `@Provides @Singleton`
-the same instance as a `Navigator` binding so callers depending on the
-abstract interface receive the same singleton. The class name carries the
-`Bus` suffix on purpose so it does not match any `HiltScopeRule` predicate
+The class is annotated `@SingleIn(AppScope::class)` directly and constructor-injects
+with `@Inject`. It carries
+`@ContributesBinding(AppScope, binding<Navigator>())` so callers depending on the
+abstract interface receive the same app-scoped instance — no separate module binding is
+needed. The class name carries the
+`Bus` suffix on purpose so it does not match any `MetroScopeRule` predicate
 (`Repository`, `DataStore`, `Database`, `Storage`, `StoreDispatchers`,
 `Handler`, `Interactor`, `Mapper`, `Store`).
 
 `NavCommand` (`core/ui/navigation/.../NavCommand.kt`) is a
 `sealed interface` with four variants — `NavTo(screen)`,
-`ReplaceTo(screen)`, `PopBack(attrs)`, and `RestartApp` — corresponding
-1-to-1 with the `Navigator` operations. Living in `core/ui/navigation`
+`ReplaceTo(screen)`, `PopBack(attrs)`, and `OpenRecovery`. The three
+back-stack commands correspond 1-to-1 with `Navigator` operations;
+`restartApp()` is deliberately **not** a `NavCommand` — it invokes the
+`AppReinitializer` seam directly (see above). Living in `core/ui/navigation`
 (next to `Navigator`) lets the bus, the bridge, and any test double share
 the same sealed surface without crossing the `app/app` module boundary.
 
@@ -824,13 +932,15 @@ its key/value pairs into
 `navController.previousBackStackEntry.savedStateHandle` before the pop, which
 is how navigation results flow back to the previous screen (see
 [Navigation results via SavedStateHandle](#navigation-results-via-savedstatehandle)).
-`NavCommand.RestartApp` is the one branch that does not call into
+`NavCommand.OpenRecovery` is the one branch that does not call into
 `NavController`: it reads `LocalContext.current` (captured at bridge attach)
-to launch a fresh `MAIN/LAUNCHER` intent with
-`FLAG_ACTIVITY_NEW_TASK | FLAG_ACTIVITY_CLEAR_TASK`, finishes the activity
-affinity, and calls `Runtime.getRuntime().exit(0)`. The bridge is the only
-place that holds `Context` for the navigation pipeline; no feature module
-imports `Context` for restart purposes.
+to launch `RecoveryActivity` in a fresh task (`FLAG_ACTIVITY_NEW_TASK`).
+Process restart is **not** one of these branches — it never reaches
+`processCommand` at all, because `restartApp()` invokes the `AppReinitializer`
+seam directly instead of emitting a `NavCommand` (see the destructive
+app-restart section below). The bridge is the only place that holds `Context`
+for the navigation pipeline; no feature module imports `Context` for restart
+or recovery purposes.
 
 ### Lifetime rules
 
@@ -847,7 +957,7 @@ class naming makes it greppable):
 - `NavHostController`, `NavController`, `NavBackStackEntry`,
   `SavedStateHandle`, `Activity`, and `Context` MUST NOT be stored as a
   field of any `ViewModel` / `Store` / `Handler` / `Interactor` / `Mapper`
-  class, and MUST NOT be passed into a Hilt `@Singleton`-scoped binding.
+  class, and MUST NOT be passed into a `@SingleIn(AppScope::class)` binding.
 - `NavigatorEventBus` IS allowed in singleton / ViewModel / Store / Handler
   layers because it stores only a `SharedFlow<NavCommand>` and the four
   emit methods. No controller reference exists inside it.
@@ -868,11 +978,12 @@ through the graph composable directly. The pattern:
 1. UI emits an `Action.Navigation.<Something>` via `processor.consume(...)`.
 2. The Store's `handlerCreator` lambda routes that action to the feature's
    `NavigationHandler`.
-3. `NavigationHandler` has `Navigator` injected via Hilt DI and calls
+3. `NavigationHandler` has `Navigator` constructor-injected by Metro and calls
    `navigator.navTo(...)`, `navigator.replaceTo(...)`, `navigator.popBack(...)`,
    or `navigator.restartApp()`. The `Navigator` is the singleton
-   `NavigatorEventBus` — emitting is pure command dispatch with no side
-   effect on `NavController`.
+   `NavigatorEventBus` — the three back-stack calls are pure command dispatch
+   with no side effect on `NavController`; `restartApp()` is the exception,
+   invoking the `AppReinitializer` seam directly (see below).
 4. The App/UI bridge collects the command on its current `NavController` and
    executes it.
 
@@ -889,7 +1000,7 @@ sealed interface Action : Store.Action {
 }
 
 // As a separate handler class in mvi/handler/:
-@ViewModelScoped
+@SingleIn(<Name>Scope::class)
 internal class NavigationHandler @Inject constructor(
     private val navigator: Navigator,
 ) : Handler<Action.Navigation> {
@@ -933,7 +1044,7 @@ Reference implementation: `feature/all-trainings/ui/AllTrainingsGraph.kt`
 `feature/exercise/ui/ExerciseGraph.kt` +
 `feature/exercise/ui/mvi/handler/NavigationHandler.kt`.
 
-### Destructive app-restart through the bus
+### Destructive app-restart through the `AppReinitializer` seam
 
 Some operations invalidate the in-process Singleton graph (Room DAOs, cached
 repository state, observed Flows). The canonical case is a Drive backup
@@ -942,8 +1053,9 @@ restore that swaps the live database file via
 already-resolved DAO points at a stale file handle, so only a cold start
 recovers correctness.
 
-The pattern routes this through the same command bus as any other navigation
-decision instead of through a feature-local helper:
+The pattern still expresses restart as a `Navigator` call (not a feature-local
+helper), but — unlike the back-stack commands — it resolves to a direct seam
+invocation rather than a bus emission:
 
 1. The feature's domain/MVI layer (e.g. `BackupClickHandler` after a
    successful restore) emits `Action.Navigation.RestartApp` via
@@ -956,10 +1068,16 @@ decision instead of through a feature-local helper:
    Action.Navigation.RestartApp -> navigator.restartApp()
    ```
 
-3. `NavigatorEventBus.restartApp()` emits `NavCommand.RestartApp`.
-4. `NavigatorExt.processCommand` handles the `RestartApp` branch by relaunching
-   the package's launch intent (`FLAG_ACTIVITY_NEW_TASK | CLEAR_TASK`),
-   finishing the activity affinity, and calling `Runtime.getRuntime().exit(0)`.
+3. `NavigatorEventBus.restartApp()` invokes the constructor-injected
+   `AppReinitializer` seam directly — `appReinitializer.reinitialize()` —
+   rather than emitting a `NavCommand`. Restart is terminal and
+   platform-owned, so it bypasses the `replay = 0` bus, which would silently
+   drop the command when no bridge subscriber is attached.
+4. The Android actual `AndroidAppReinitializer.reinitialize()` relaunches the
+   package's launch intent (`FLAG_ACTIVITY_NEW_TASK | CLEAR_TASK`) on the
+   application `Context` and calls `Runtime.getRuntime().exit(0)`. (A future
+   iOS actual performs an in-place reinit instead — iOS has no self-restart
+   API.)
 
 What this pattern replaces — and why:
 
@@ -970,9 +1088,12 @@ What this pattern replaces — and why:
   that touches the framework" surface in two: most navigation went through
   the bus, restart went through an Event. Promoting restart into
   `Navigator.restartApp()` re-unifies the surface: every navigation-shaped
-  side effect — including process restart — is a `NavCommand` translated
-  by `NavigatorExt`, and no feature module imports `Context` /
-  `Runtime` / `Intent` for navigation purposes.
+  side effect is expressed as a `Navigator` call, and no feature module
+  imports `Context` / `Runtime` / `Intent` for navigation purposes. The
+  back-stack commands are `NavCommand`s translated by `NavigatorExt`; process
+  restart resolves to the `AppReinitializer` seam (`reinitialize()`), keeping
+  both the framework `Context` and the process-kill primitive out of feature
+  and domain code.
 - `Event.AppRestartRequested` is intentionally not part of the contract —
   app restart is a navigation **decision**, not a UI-side effect. Encoding it
   as an `Action.Navigation` variant means the same MVI rules apply
@@ -981,8 +1102,9 @@ What this pattern replaces — and why:
 Reference implementation:
 `feature/settings/.../mvi/handler/BackupClickHandler.kt::scheduleAppRestart`
 (producer), `feature/settings/.../mvi/handler/SettingsNavigationHandler.kt`
-(router), and `app/app/.../navigation/NavigatorExt.kt::restartApp`
-(executor).
+(router), `app/app/.../navigation/NavigatorEventBus.kt::restartApp`
+(seam dispatch), and
+`core/core/.../platform/AndroidAppReinitializer.kt::reinitialize` (executor).
 
 ### Navigation results via `SavedStateHandle`
 
@@ -1306,7 +1428,8 @@ calling `LocalHapticFeedback.current.performHapticFeedback(...)` — see
   exceptions, invoke `onError`, and switch to the immediate dispatcher for `onSuccess` / per-flow
   emissions.
 - `StoreDispatchers` (`core/ui/mvi/.../di/StoreDispatchers.kt`) injects `@DefaultDispatcher`
-  and `@MainImmediateDispatcher` from `core/core/.../di/CoreModule.kt`.
+  and `@MainImmediateDispatcher`, both contributed by
+  `core/core-android/.../di/DispatchersBindingContainer.kt`.
 
 ### Localization
 
@@ -1973,8 +2096,9 @@ Versions live in `gradle/libs.versions.toml`. The notable pins at the time of wr
 - Kotlin `2.3.20` with KSP `2.3.6`.
 - Android Gradle Plugin `9.1.0`. `compileSdk = 36`, `targetSdk = 36`, `minSdk = 28`.
 - Compose BOM `2025.12.01`, `compose-compiler` plugin tied to Kotlin.
-- Hilt `2.59.2` with `hilt-navigation-compose 1.3.0`.
-- Room `2.8.4` with paging support.
+- Metro `1.3.2` — the sole DI framework, applied repo-wide as a Kotlin compiler plugin.
+  No Hilt / Dagger artifact is in the catalog.
+- Room 3 (`androidx.room3`) `3.0.0` with paging support.
 - Detekt `1.23.8` plus `detekt-rules-compose 0.5.3`.
 - JUnit Jupiter `5.13.4`, Robolectric `4.16`, MockK `1.14.7`,
   Compose UI Test (`androidx-compose-ui-test-junit4 1.10.0`).
@@ -1993,8 +2117,10 @@ Architectural names that the Detekt rules enforce; full rule details and code ex
 - `*Handler` classes must have a primary constructor annotated `@Inject` (with the documented
   exception of `NavigationHandler`) and constructor-inject their dependencies.
 - Classes whose name contains `Repository`, `DataStore`, `Database`, or `StoreDispatchers` must
-  carry `@Singleton`. Classes whose name contains `Handler`, `Store`, `Interactor`, or `Mapper`
-  must carry `@ViewModelScoped`.
+  carry `@SingleIn(AppScope::class)`. Classes whose name contains `Handler`, `Interactor`, or
+  `Mapper` must carry `@SingleIn(<Feature>Scope::class)` (a `*Handler` must not be
+  `@SingleIn(AppScope)`); `*Store` classes are unscoped (class-level `@Inject`, retained by the
+  `ViewModelStore` via `rememberMetroStoreProcessor`).
 - Composables ending in `Screen` must have both a `*State` parameter and an `Action`/`Event`
   handler parameter.
 

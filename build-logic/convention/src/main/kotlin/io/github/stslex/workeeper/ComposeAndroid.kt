@@ -5,7 +5,6 @@ import AppExt.implementation
 import AppExt.implementationBundle
 import AppExt.implementationPlatform
 import com.android.build.api.dsl.CommonExtension
-import com.vk.gradle.plugin.compose.utils.VkomposeExtension
 import org.gradle.api.Project
 
 /**
@@ -19,40 +18,12 @@ internal fun Project.configureAndroidCompose(
 
         implementationPlatform("androidx-compose-bom")
         debugImplementation("androidx-compose-tooling")
+        // App-Scope Collapse Step 6 (Phase 5): `hilt-navigation-compose` removed — it was the sole path
+        // by which `com.google.dagger:hilt-android` reached every compose module's classpath, and no code
+        // uses `hiltViewModel()` anymore (the Metro `rememberMetroStoreProcessor` path replaced it). The
+        // `viewModel<T>()` it provided arrives independently via `androidx.lifecycle:lifecycle-viewmodel-compose`,
+        // already in the `lifecycle` bundle above.
         implementationBundle("accompanist", "compose", "lifecycle")
-        implementation("appcompat", "material", "hilt-navigation-compose")
+        implementation("appcompat", "material")
     }
-
-//    TODO - not support kotlin 2.2.21 yet - see https://github.com/VKCOM/vkompose/releases
-//    extensions.configure<VkomposeExtension>(action = ::configureVkompose)
-}
-
-private fun Project.configureVkompose(
-    extension: VkomposeExtension,
-): Unit = with(extension) {
-    skippabilityCheck = true
-    skippabilityCheck {
-        // For more see
-        // https://android-review.googlesource.com/c/platform/frameworks/support/+/2668595
-        // https://issuetracker.google.com/issues/309765121
-        stabilityConfigurationPath = "/path/file.config"
-    }
-
-    recompose {
-        isHighlighterEnabled = true
-        isLoggerEnabled = true
-        // or
-        // logger {
-        //  logModifierChanges = true // true by default since 0.5
-        //  logFunctionChanges = true // true by default since 0.5. log when function arguments (like lambdas or function references) of composable function are changed
-        // }
-    }
-
-    testTag {
-        isApplierEnabled = true
-        isDrawerEnabled = false
-        isCleanerEnabled = false
-    }
-
-    sourceInformationClean = true
 }

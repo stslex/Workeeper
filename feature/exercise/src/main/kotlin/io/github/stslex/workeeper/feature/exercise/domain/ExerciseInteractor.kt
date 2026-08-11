@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.exercise.domain
 
-import android.net.Uri
+import io.github.stslex.workeeper.core.core.images.ImageRef
 import io.github.stslex.workeeper.core.core.images.model.ImageSaveResult
 import io.github.stslex.workeeper.feature.exercise.domain.model.ArchiveResult
 import io.github.stslex.workeeper.feature.exercise.domain.model.ExerciseChangeDomain
 import io.github.stslex.workeeper.feature.exercise.domain.model.ExerciseDomain
-import io.github.stslex.workeeper.feature.exercise.domain.model.ExerciseTypeDomain
 import io.github.stslex.workeeper.feature.exercise.domain.model.HistoryEntryDomain
 import io.github.stslex.workeeper.feature.exercise.domain.model.PersonalRecordDomain
 import io.github.stslex.workeeper.feature.exercise.domain.model.PlanSetDomain
@@ -16,7 +15,7 @@ import io.github.stslex.workeeper.feature.exercise.domain.model.TrackNowConflict
 import kotlinx.coroutines.flow.Flow
 
 @Suppress("TooManyFunctions")
-internal interface ExerciseInteractor {
+interface ExerciseInteractor {
 
     suspend fun getExercise(uuid: String): ExerciseDomain?
 
@@ -27,6 +26,13 @@ internal interface ExerciseInteractor {
         limit: Int = DEFAULT_HISTORY_LIMIT,
     ): List<HistoryEntryDomain>
 
+    /**
+     * Total finished sessions containing this exercise — the История section head's
+     * trailing count (§3.5 draws `4 сессии` beside three visible rows). May exceed the
+     * row list slightly: the list additionally filters sessions with no logged sets.
+     */
+    suspend fun countSessions(exerciseUuid: String): Int
+
     fun observeAvailableTags(): Flow<List<TagDomain>>
 
     /**
@@ -34,10 +40,7 @@ internal interface ExerciseInteractor {
      * change (Room invalidation). Drives the read-mode PR card; collected only when the
      * screen is bound to an existing exercise (create mode has no uuid yet).
      */
-    fun observePersonalRecord(
-        exerciseUuid: String,
-        type: ExerciseTypeDomain,
-    ): Flow<PersonalRecordDomain?>
+    fun observePersonalRecord(exerciseUuid: String): Flow<PersonalRecordDomain?>
 
     suspend fun saveExercise(snapshot: ExerciseChangeDomain): SaveResult
 
@@ -55,11 +58,9 @@ internal interface ExerciseInteractor {
 
     suspend fun setAdhocPlan(uuid: String, plan: List<PlanSetDomain>?)
 
-    suspend fun clearWeightsFromAllPlansForExercise(uuid: String)
+    suspend fun saveImage(ref: ImageRef, exerciseUuid: String): ImageSaveResult
 
-    suspend fun saveImage(uri: Uri, exerciseUuid: String): ImageSaveResult
-
-    suspend fun createTempCaptureUri(): Uri
+    suspend fun createTempCaptureRef(): ImageRef
 
     suspend fun deleteImageFile(path: String): Boolean
 

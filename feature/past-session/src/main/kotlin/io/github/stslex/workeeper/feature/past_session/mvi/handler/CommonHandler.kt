@@ -1,18 +1,20 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.past_session.mvi.handler
 
-import dagger.hilt.android.scopes.ViewModelScoped
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.past_session.di.PastSessionHandlerStore
+import io.github.stslex.workeeper.feature.past_session.di.PastSessionScope
 import io.github.stslex.workeeper.feature.past_session.domain.PastSessionInteractor
 import io.github.stslex.workeeper.feature.past_session.mvi.mapper.PastSessionUiMapper.toUi
+import io.github.stslex.workeeper.feature.past_session.mvi.mapper.PastSessionUiMapper.withExpansionCarriedFrom
 import io.github.stslex.workeeper.feature.past_session.mvi.model.ErrorType
 import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStore.Action
 import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStore.State
-import javax.inject.Inject
 
-@ViewModelScoped
+@SingleIn(PastSessionScope::class)
 internal class CommonHandler @Inject constructor(
     private val interactor: PastSessionInteractor,
     private val resourceWrapper: ResourceWrapper,
@@ -45,7 +47,11 @@ internal class CommonHandler @Inject constructor(
             val phase = result?.let {
                 State.Phase.Loaded(detail = it.detail.toUi(resourceWrapper, it.prSetUuids))
             } ?: State.Phase.Error(ErrorType.SessionNotFound)
-            updateStateImmediate { current -> current.copy(phase = phase) }
+            // Disclosure survives the replacement: first Loaded seeds the first card open;
+            // later emissions (PR-flow re-fetches) carry the user's open set, pruned.
+            updateStateImmediate { current ->
+                current.copy(phase = phase).withExpansionCarriedFrom(current)
+            }
         }
     }
 }

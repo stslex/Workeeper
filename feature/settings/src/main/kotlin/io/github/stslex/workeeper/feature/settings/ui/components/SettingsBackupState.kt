@@ -11,7 +11,7 @@ import io.github.stslex.workeeper.feature.settings.mvi.model.BackupPreferencesUi
 internal data class SettingsBackupState(
     val auth: BackupAuthUi,
     val operation: BackupOperationUi,
-    val info: BackupInfoUi?,
+    val info: BackupInfoUi,
     val preferences: BackupPreferencesUi?,
     val canRevertLastRestore: Boolean,
 )

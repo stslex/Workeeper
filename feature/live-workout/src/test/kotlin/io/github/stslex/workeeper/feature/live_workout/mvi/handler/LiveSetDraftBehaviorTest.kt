@@ -8,6 +8,7 @@ import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutHandlerStore
 import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveSetMutator
+import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveSetRowsResolver.withVisibleSets
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.StateStatusMapper
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExerciseStatusUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveExerciseUiModel
@@ -41,7 +42,7 @@ internal class LiveSetDraftBehaviorTest {
     private val resourceWrapper = mockk<ResourceWrapper>(relaxed = true)
     private val pickerHandler = mockk<ExercisePickerHandler>(relaxed = true)
     private val statusMapper = StateStatusMapper(resourceWrapper)
-    private val setMutator = LiveSetMutator(resourceWrapper, statusMapper)
+    private val setMutator = LiveSetMutator(statusMapper)
 
     @Test
     fun `OnSetTypeSelect with no draft seeds from plan and preserves weight and reps`() {
@@ -267,7 +268,7 @@ internal class LiveSetDraftBehaviorTest {
     ).copy(
         isLoading = false,
         exercises = persistentListOf(exercise),
-    )
+    ).withVisibleSets()
 
     private fun exerciseWithPlan(
         plan: kotlinx.collections.immutable.ImmutableList<PlanSetUiModel>,

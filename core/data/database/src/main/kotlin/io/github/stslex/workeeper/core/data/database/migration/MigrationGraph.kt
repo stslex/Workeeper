@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.core.data.database.migration
 
-import androidx.room.migration.Migration
+import androidx.room3.migration.Migration
 
 /**
  * Public convenience wrapper over [hasMigrationPath] that reads the live [MIGRATIONS]

@@ -1,17 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.recovery.domain
 
-import android.content.Context
-import dagger.hilt.android.qualifiers.ApplicationContext
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
+import io.github.stslex.workeeper.core.core.di.AppScope
 import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.core.data.backup.api.result.BackupResult
-import io.github.stslex.workeeper.core.data.database.AppDatabase
 import io.github.stslex.workeeper.core.data.database.migration.APP_DATABASE_VERSION
 import io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProvider
+import io.github.stslex.workeeper.core.data.database.snapshot.LiveDatabaseLocator
 import io.github.stslex.workeeper.feature.recovery.diagnostics.StartupMigrationReporter
 import java.io.File
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * Discriminator for the routing decision the [StartupMigrationCoordinator]
@@ -97,10 +96,10 @@ enum class StartupMigrationFailureReason {
  *
  * Spec: `documentation/feature-specs/backup-recovery.md` → "Scenario 2".
  */
-@Singleton
+@SingleIn(AppScope::class)
 class StartupMigrationCoordinator @Inject internal constructor(
-    @ApplicationContext private val context: Context,
     private val snapshotProvider: DatabaseSnapshotProvider,
+    private val liveDatabaseLocator: LiveDatabaseLocator,
     private val reporter: StartupMigrationReporter,
 ) {
 
@@ -123,7 +122,7 @@ class StartupMigrationCoordinator @Inject internal constructor(
     }
 
     private suspend fun computeDecision(): StartupCheck {
-        val liveDb = context.getDatabasePath(AppDatabase.NAME)
+        val liveDb = liveDatabaseLocator.liveDatabaseFile()
         if (!liveDb.exists()) {
             // Fresh install — no database file yet. Room creates one at the
             // current schema on first DAO call. Nothing to recover.

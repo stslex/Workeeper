@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.image_viewer.mvi.handler
 
-import dagger.hilt.android.scopes.ViewModelScoped
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.image_viewer.di.ImageViewerHandlerStore
+import io.github.stslex.workeeper.feature.image_viewer.di.ImageViewerScope
 import io.github.stslex.workeeper.feature.image_viewer.mvi.store.ImageViewerStore.Action
-import javax.inject.Inject
 
-@ViewModelScoped
+@SingleIn(ImageViewerScope::class)
 internal class CommonHandler @Inject constructor(
     store: ImageViewerHandlerStore,
 ) : Handler<Action.Common>, ImageViewerHandlerStore by store {

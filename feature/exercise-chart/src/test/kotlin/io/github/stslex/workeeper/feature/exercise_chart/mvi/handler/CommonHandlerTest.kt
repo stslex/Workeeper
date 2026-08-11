@@ -8,6 +8,8 @@ import io.github.stslex.workeeper.feature.exercise_chart.domain.model.ChartFoldD
 import io.github.stslex.workeeper.feature.exercise_chart.domain.model.ChartPointDomain
 import io.github.stslex.workeeper.feature.exercise_chart.domain.model.ExerciseTypeDomain
 import io.github.stslex.workeeper.feature.exercise_chart.domain.model.RecentExerciseDomain
+import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartMetricUiModel
+import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ExercisePickerItemUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.Action
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.EmptyReason
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.State
@@ -19,6 +21,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -55,7 +58,7 @@ internal class CommonHandlerTest {
         )
         coEvery { interactor.getLastTrainedExerciseUuid() } returns "uuid-1"
         coEvery { interactor.loadChartData(any(), any(), any(), any(), any()) } returns
-            ChartFoldDomain(emptyList(), null, null, null)
+            ChartFoldDomain(emptyList(), null)
 
         handler.invoke(Action.Common.Init)
 
@@ -105,13 +108,73 @@ internal class CommonHandlerTest {
         )
         coEvery { interactor.getLastTrainedExerciseUuid() } returns "uuid-2"
         coEvery { interactor.loadChartData(any(), any(), any(), any(), any()) } returns
-            ChartFoldDomain(emptyList(), null, null, null)
+            ChartFoldDomain(emptyList(), null)
 
         handler.invoke(Action.Common.Init)
 
         assertEquals("uuid-1", flow.value.selectedExercise?.uuid)
         coVerify(exactly = 0) { interactor.getLastTrainedExerciseUuid() }
     }
+
+    /**
+     * The coherence guard, from the user's side: they tap a second metric before the first
+     * load answers. The first response must not be applied — a chart that settles on the
+     * losing request's data while the tab strip highlights the winner is wrong for as long
+     * as the screen lives, since nothing rewrites `metric` afterwards.
+     */
+    @Test
+    fun `a response whose metric no longer matches the live state is dropped`() {
+        val flow = MutableStateFlow(
+            State.create(initialUuid = "uuid-1").copy(selectedExercise = benchItem),
+        )
+        val store = newStore(flow)
+        val handler = CommonHandler(interactor = interactor, resourceWrapper = resources, store = store)
+        // The tap lands while this load is in flight.
+        coEvery { interactor.loadChartData(any(), any(), any(), any(), any()) } answers {
+            flow.value = flow.value.copy(metric = ChartMetricUiModel.VOLUME_PER_SESSION)
+            ChartFoldDomain(points = listOf(pointDomain(), pointDomain()), footer = null)
+        }
+
+        handler.loadChart(benchItem)
+
+        assertTrue(
+            flow.value.points.isEmpty(),
+            "a stale response was applied: the chart would show the losing metric's data",
+        )
+        assertEquals(ChartMetricUiModel.VOLUME_PER_SESSION, flow.value.metric)
+    }
+
+    /** The discriminator: an uncontested response is still applied. */
+    @Test
+    fun `a response that still matches the live state is applied`() {
+        val flow = MutableStateFlow(
+            State.create(initialUuid = "uuid-1").copy(selectedExercise = benchItem),
+        )
+        val store = newStore(flow)
+        val handler = CommonHandler(interactor = interactor, resourceWrapper = resources, store = store)
+        coEvery { interactor.loadChartData(any(), any(), any(), any(), any()) } returns
+            ChartFoldDomain(points = listOf(pointDomain(), pointDomain()), footer = null)
+
+        handler.loadChart(benchItem)
+
+        assertEquals(2, flow.value.points.size)
+    }
+
+    private fun pointDomain(): ChartPointDomain = ChartPointDomain(
+        day = java.time.LocalDate.of(2026, 4, 1),
+        dayMillis = 0L,
+        value = 100.0,
+        sessionUuid = "s",
+        weight = 100.0,
+        reps = 5,
+        setCount = 1,
+    )
+
+    private val benchItem = ExercisePickerItemUiModel(
+        uuid = "uuid-1",
+        name = "Bench",
+        type = io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel.WEIGHTED,
+    )
 
     @Test
     fun `loadChart with empty result sets NO_DATA_FOR_EXERCISE`() {
@@ -123,7 +186,7 @@ internal class CommonHandlerTest {
         )
         coEvery { interactor.getLastTrainedExerciseUuid() } returns null
         coEvery { interactor.loadChartData(any(), any(), any(), any(), any()) } returns
-            ChartFoldDomain(emptyList(), null, null, null)
+            ChartFoldDomain(emptyList(), null)
 
         handler.invoke(Action.Common.Init)
 
@@ -132,7 +195,8 @@ internal class CommonHandlerTest {
     }
 
     @Test
-    fun `loadChart with non-empty result clears emptyReason`() {
+    fun `loadChart with a single point is sub-threshold — empty state, no readout`() {
+        // §4.8: the chart appears after two recorded sessions. One point is no line.
         val flow = MutableStateFlow(
             State.create(initialUuid = "uuid-1").copy(
                 emptyReason = EmptyReason.NO_DATA_FOR_EXERCISE,
@@ -144,32 +208,58 @@ internal class CommonHandlerTest {
             RecentExerciseDomain("uuid-1", "Bench", ExerciseTypeDomain.WEIGHTED, 1_000L),
         )
         coEvery { interactor.getLastTrainedExerciseUuid() } returns null
-        val nonEmptyPoints = listOf(
-            ChartPointDomain(
-                day = java.time.LocalDate.of(2026, 4, 28),
-                dayMillis = 0L,
-                value = 100.0,
-                sessionUuid = "s",
-                weight = 100.0,
-                reps = 5,
-                setCount = 1,
-            ),
-        )
         coEvery { interactor.loadChartData(any(), any(), any(), any(), any()) } returns
             ChartFoldDomain(
-                points = nonEmptyPoints,
+                points = listOf(chartPointDomain(day = java.time.LocalDate.of(2026, 4, 28))),
                 footer = null,
-                windowStartDay = java.time.LocalDate.of(2026, 4, 28),
-                windowEndDay = java.time.LocalDate.of(2026, 5, 12),
+            )
+
+        handler.invoke(Action.Common.Init)
+
+        assertEquals(EmptyReason.NO_DATA_FOR_EXERCISE, flow.value.emptyReason)
+        assertNull(flow.value.activeIndex)
+        assertNull(flow.value.readout)
+    }
+
+    @Test
+    fun `loadChart with two points clears emptyReason and scrubs the last point`() {
+        val flow = MutableStateFlow(
+            State.create(initialUuid = "uuid-1").copy(
+                emptyReason = EmptyReason.NO_DATA_FOR_EXERCISE,
+            ),
+        )
+        val store = newStore(flow)
+        val handler = CommonHandler(interactor = interactor, resourceWrapper = resources, store = store)
+        coEvery { interactor.getRecentlyTrainedExercises() } returns listOf(
+            RecentExerciseDomain("uuid-1", "Bench", ExerciseTypeDomain.WEIGHTED, 1_000L),
+        )
+        coEvery { interactor.getLastTrainedExerciseUuid() } returns null
+        coEvery { interactor.loadChartData(any(), any(), any(), any(), any()) } returns
+            ChartFoldDomain(
+                points = listOf(
+                    chartPointDomain(day = java.time.LocalDate.of(2026, 4, 21)),
+                    chartPointDomain(day = java.time.LocalDate.of(2026, 4, 28)),
+                ),
+                footer = null,
             )
 
         handler.invoke(Action.Common.Init)
 
         assertNull(flow.value.emptyReason)
-        assertEquals(1, flow.value.points.size)
-        assertEquals(java.time.LocalDate.of(2026, 4, 28), flow.value.windowStartDay)
-        assertEquals(java.time.LocalDate.of(2026, 5, 12), flow.value.windowEndDay)
+        assertEquals(2, flow.value.points.size)
+        assertEquals(1, flow.value.activeIndex)
+        assertNotNull(flow.value.readout)
     }
+
+    private fun chartPointDomain(day: java.time.LocalDate): ChartPointDomain = ChartPointDomain(
+        day = day,
+        dayMillis = 0L,
+        value = 100.0,
+        sessionUuid = "s",
+        weight = 100.0,
+        reps = 5,
+        setCount = 1,
+    )
 
     @Test
     fun `default state preset is ALL`() {

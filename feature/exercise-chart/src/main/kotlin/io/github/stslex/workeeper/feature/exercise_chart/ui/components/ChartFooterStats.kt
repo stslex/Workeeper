@@ -7,12 +7,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
@@ -22,10 +23,12 @@ import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartFooterStatsUiModel
 
 /**
- * Footer stats: vertical stack, one stat per row. Title sits left, value right,
- * baseline-aligned. Single-line, no ellipsis — values are short formatted numbers
- * (e.g. "250 кг × повт."). The pre-v2.4 three-column row glued long Russian
- * labels together; the vertical layout sidesteps width competition entirely. (5.6 / D.)
+ * The three `.statrow`s (extraction §4.7): ruled top and bottom — the first row carries the
+ * mockup's inline `border-top`, every row its class `border-bottom` — with `.meta` (mono
+ * 12.5, `--meta`) on the left and `.val` (mono 15/500, `--body`, tabular by family) plus its
+ * dimmer `.unit` on the right. Rules run full-bleed; content sits inside the gutter; row
+ * padding 14px → 12dp. The rule treatment mirrors exercise-detail's history rows
+ * (`HorizontalDivider`, 1dp, `borderSubtle` — hair-s has no slot by design).
  */
 @Composable
 internal fun ChartFooterStats(
@@ -35,60 +38,73 @@ internal fun ChartFooterStats(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = AppDimension.screenEdge)
             .testTag("ChartFooterStats"),
-        verticalArrangement = Arrangement.spacedBy(AppDimension.Space.xs),
     ) {
-        StatRow(title = stats.minTitle, value = stats.minValue)
-        StatRow(title = stats.maxTitle, value = stats.maxValue)
-        StatRow(title = stats.lastTitle, value = stats.lastValue)
+        HorizontalDivider(
+            thickness = AppDimension.Border.small,
+            color = AppUi.colors.borderSubtle,
+        )
+        StatRow(title = stats.minTitle, value = stats.minValue, unit = stats.unit)
+        HorizontalDivider(
+            thickness = AppDimension.Border.small,
+            color = AppUi.colors.borderSubtle,
+        )
+        StatRow(title = stats.maxTitle, value = stats.maxValue, unit = stats.unit)
+        HorizontalDivider(
+            thickness = AppDimension.Border.small,
+            color = AppUi.colors.borderSubtle,
+        )
+        StatRow(title = stats.lastTitle, value = stats.lastValue, unit = stats.unit)
+        HorizontalDivider(
+            thickness = AppDimension.Border.small,
+            color = AppUi.colors.borderSubtle,
+        )
     }
 }
 
 @Composable
-private fun StatRow(title: String, value: String) {
+private fun StatRow(
+    title: String,
+    value: String,
+    unit: String?,
+) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(
+                horizontal = AppDimension.screenEdge,
+                vertical = AppDimension.Space.md,
+            ),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         Text(
             text = title,
-            style = AppUi.typography.bodyMedium,
-            color = AppUi.colors.textSecondary,
+            style = AppUi.typography.mono.meta,
+            color = AppUi.colors.textTertiary,
             maxLines = 1,
             overflow = TextOverflow.Clip,
         )
-        Text(
-            text = value,
-            style = AppUi.typography.bodyMedium,
-            color = AppUi.colors.textPrimary,
-            textAlign = TextAlign.End,
-            maxLines = 1,
-            overflow = TextOverflow.Clip,
-        )
-    }
-}
-
-@Preview
-@Composable
-private fun ChartFooterStatsLightPreview() {
-    AppTheme(themeMode = ThemeMode.LIGHT) {
-        Column(
-            modifier = Modifier
-                .background(AppUi.colors.surfaceTier0)
-                .padding(AppDimension.Space.lg),
-        ) {
-            ChartFooterStats(
-                stats = ChartFooterStatsUiModel(
-                    minTitle = "Min",
-                    minValue = "80 kg",
-                    maxTitle = "Max",
-                    maxValue = "110 kg",
-                    lastTitle = "Last",
-                    lastValue = "105 kg",
-                ),
+        Row(verticalAlignment = Alignment.Bottom) {
+            Text(
+                modifier = Modifier.alignByBaseline(),
+                text = value,
+                style = AppUi.typography.mono.body.copy(fontWeight = FontWeight.Medium),
+                color = AppUi.colors.textSecondary,
+                maxLines = 1,
+                overflow = TextOverflow.Clip,
             )
+            unit?.let {
+                Text(
+                    modifier = Modifier
+                        .alignByBaseline()
+                        .padding(start = AppDimension.Space.xs),
+                    text = it,
+                    style = AppUi.typography.mono.caption,
+                    color = AppUi.colors.textDim,
+                    maxLines = 1,
+                )
+            }
         }
     }
 }
@@ -97,19 +113,36 @@ private fun ChartFooterStatsLightPreview() {
 @Composable
 private fun ChartFooterStatsDarkPreview() {
     AppTheme(themeMode = ThemeMode.DARK) {
-        Column(
-            modifier = Modifier
-                .background(AppUi.colors.surfaceTier0)
-                .padding(AppDimension.Space.lg),
-        ) {
+        Column(modifier = Modifier.background(AppUi.colors.surfaceTier0)) {
             ChartFooterStats(
                 stats = ChartFooterStatsUiModel(
-                    minTitle = "Мин",
-                    minValue = "250 кг × повт.",
-                    maxTitle = "Макс",
-                    maxValue = "260 кг × повт.",
-                    lastTitle = "Последнее",
-                    lastValue = "255 кг × повт.",
+                    minTitle = "Минимум",
+                    minValue = "2 940",
+                    maxTitle = "Максимум",
+                    maxValue = "4 620",
+                    lastTitle = "Последний",
+                    lastValue = "4 620",
+                    unit = "кг",
+                ),
+            )
+        }
+    }
+}
+
+@Preview
+@Composable
+private fun ChartFooterStatsWeightlessLightPreview() {
+    AppTheme(themeMode = ThemeMode.LIGHT) {
+        Column(modifier = Modifier.background(AppUi.colors.surfaceTier0)) {
+            ChartFooterStats(
+                stats = ChartFooterStatsUiModel(
+                    minTitle = "Minimum",
+                    minValue = "8 reps",
+                    maxTitle = "Maximum",
+                    maxValue = "12 reps",
+                    lastTitle = "Last",
+                    lastValue = "12 reps",
+                    unit = null,
                 ),
             )
         }

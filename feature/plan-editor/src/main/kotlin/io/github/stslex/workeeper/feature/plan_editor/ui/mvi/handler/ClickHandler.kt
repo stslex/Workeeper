@@ -2,16 +2,16 @@
 package io.github.stslex.workeeper.feature.plan_editor.ui.mvi.handler
 
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import dagger.hilt.android.scopes.ViewModelScoped
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.core.ui.plan_editor.domain.PlanDraftReducer
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
-import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanDraftResult
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanEditorBodyAction
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
-import io.github.stslex.workeeper.feature.plan_editor.R
 import io.github.stslex.workeeper.feature.plan_editor.di.PlanEditorHandlerStore
+import io.github.stslex.workeeper.feature.plan_editor.di.PlanEditorScope
 import io.github.stslex.workeeper.feature.plan_editor.domain.PlanEditorInteractor
 import io.github.stslex.workeeper.feature.plan_editor.ui.mapper.PlanEditorMapper.toDomain
 import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.DialogState
@@ -20,11 +20,10 @@ import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorSto
 import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorStore.Event
 import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorStore.State.Mode
 import kotlinx.collections.immutable.toImmutableList
-import kotlinx.serialization.json.Json
-import javax.inject.Inject
+import io.github.stslex.workeeper.core.ui.plan_editor.R as CoreEditorR
 
 @Suppress("TooManyFunctions")
-@ViewModelScoped
+@SingleIn(PlanEditorScope::class)
 internal class ClickHandler @Inject constructor(
     private val interactor: PlanEditorInteractor,
     private val resourceWrapper: ResourceWrapper,
@@ -42,7 +41,6 @@ internal class ClickHandler @Inject constructor(
             Action.Click.OnSave -> processSave()
             Action.Click.OnBackClick -> processBack()
             Action.Click.OnConfirmDiscard -> processDiscard()
-            Action.Click.OnConfirmSave -> processConfirmSave()
             Action.Click.OnDismissDiscard -> processDismissDiscard()
         }
     }
@@ -99,16 +97,16 @@ internal class ClickHandler @Inject constructor(
             // Pre-resolve display strings outside the updateState lambda — Rule 1 of
             // compose-state-discipline.
             val title = resourceWrapper.getString(
-                R.string.feature_plan_editor_type_change_weightless_title,
+                CoreEditorR.string.core_ui_plan_editor_type_change_weightless_title,
             )
             val body = resourceWrapper.getString(
-                R.string.feature_plan_editor_type_change_weightless_body,
+                CoreEditorR.string.core_ui_plan_editor_type_change_weightless_body,
             )
             val impactSummary = resourceWrapper.getString(
-                R.string.feature_plan_editor_type_change_weightless_impact,
+                CoreEditorR.string.core_ui_plan_editor_type_change_weightless_impact,
             )
             val confirmLabel = resourceWrapper.getString(
-                R.string.feature_plan_editor_type_change_weightless_confirm,
+                CoreEditorR.string.core_ui_plan_editor_type_change_weightless_confirm,
             )
             updateState {
                 it.copy(
@@ -151,57 +149,43 @@ internal class ClickHandler @Inject constructor(
     }
 
     private fun processBack() {
-        // Back gesture dismisses the topmost dialog before propagating.
-        if (state.value.dialogState !is DialogState.Hidden) {
+        // ONE RULE FOR EVERY MODAL: back dismisses the topmost one, and no variant is exempt.
+        // In practice this arm is a fallback rather than the live path — each modal here is an
+        // `AppConfirmSheet`, which owns back inside its own window and routes it to
+        // `onDismissRequest` before the route sees anything. It must stay non-destructive for
+        // exactly that reason: a variant that navigated away instead would turn a stray back
+        // press into a silent discard.
+        val dialog = state.value.dialogState
+        if (dialog !is DialogState.Hidden) {
             updateState { it.copy(dialogState = DialogState.Hidden, pendingTypeChange = null) }
             return
         }
         if (state.value.isDirty) {
-            updateState { it.copy(confirmDiscardOpen = true) }
+            updateState { it.copy(dialogState = DialogState.DiscardConfirm) }
         } else {
             consume(Action.Navigation.Back)
         }
     }
 
     private fun processDismissDiscard() {
-        updateState { it.copy(confirmDiscardOpen = false) }
+        updateState { it.copy(dialogState = DialogState.Hidden) }
     }
 
     private fun processDiscard() {
         sendEvent(Event.HapticClick(HapticFeedbackType.LongPress))
-        updateState { it.copy(confirmDiscardOpen = false) }
+        updateState { it.copy(dialogState = DialogState.Hidden) }
         consume(Action.Navigation.Back)
     }
 
-    private fun processConfirmSave() {
-        updateState { it.copy(confirmDiscardOpen = false) }
-        processSave()
-    }
+    // NO SAVE ACTION ON THE DISCARD SHEET: it appears only when there is something to lose and
+    // saving already lives on the form, so a third action would be a second door to a room the
+    // user is standing in (§26, "Every modal on the three editors is a SHEET").
 
     private fun processSave() {
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
         val current = state.value
         if (current.isSaving) return
-        when (current.mode) {
-            Mode.Draft -> {
-                // Use the explicit serializer overload so the call resolves to a
-                // member function rather than the (deprecated-conflicting)
-                // `kotlinx.serialization.encodeToString` extension — see
-                // issuetracker.google.com/issues/350432371.
-                val resultJson = Json.encodeToString(
-                    PlanDraftResult.serializer(),
-                    PlanDraftResult(
-                        type = current.type,
-                        plan = current.draft.toList(),
-                    ),
-                )
-                consume(Action.Navigation.BackAfterDraftSave(resultJson = resultJson))
-            }
-
-            is Mode.Exercise,
-            is Mode.PerformedExercise,
-            -> persistAndPop(current.mode)
-        }
+        persistAndPop(current.mode)
     }
 
     private fun persistAndPop(mode: Mode) {
@@ -210,7 +194,6 @@ internal class ClickHandler @Inject constructor(
         val (exerciseUuid, trainingUuid) = when (mode) {
             is Mode.Exercise -> mode.exerciseUuid to null
             is Mode.PerformedExercise -> mode.exerciseUuid to mode.trainingUuid
-            Mode.Draft -> error("persistAndPop unreachable for Draft")
         }
         val plan = current.draft.takeIf { it.isNotEmpty() }?.map { it.toDomain() }
         val type = current.type.toDomain()

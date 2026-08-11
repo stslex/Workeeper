@@ -1,10 +1,10 @@
 package io.github.stslex.workeeper.core.data.database.exercise
 
 import androidx.paging.PagingSource
-import androidx.room.Dao
-import androidx.room.Insert
-import androidx.room.Query
-import androidx.room.Update
+import androidx.room3.Dao
+import androidx.room3.Insert
+import androidx.room3.Query
+import androidx.room3.Update
 import kotlinx.coroutines.flow.Flow
 import kotlin.uuid.Uuid
 
@@ -148,20 +148,27 @@ interface ExerciseDao {
     suspend fun getAdhocPlansBatch(uuids: List<Uuid>): List<ExerciseAdhocPlanRow>
 
     /**
-     * Ad-hoc exercises (`is_adhoc = 1`) currently joined to [trainingUuid] via the
-     * `training_exercise_table` plan rows. Used by `discardAdhocSession` to cascade-delete
+     * Ad-hoc exercises (`is_adhoc = 1`) performed in [sessionUuid], joined via
+     * `performed_exercise_table`. Used by `discardAdhocSession` to cascade-delete
      * inline-created exercises when a Quick start / Track Now session is discarded. The
      * defence-in-depth predicate (flag AND join) ensures library exercises just picked
      * into the session — whose `is_adhoc` is `false` — are never deleted.
+     *
+     * The join runs through `performed_exercise_table`, **not** `training_exercise_table`,
+     * because a one-off (non-plan-attached) exercise has no plan row by construction — see
+     * `LiveExerciseDomain.isPlanAttached`. Joining through the plan table would leak every
+     * inline-created one-off as an orphan `is_adhoc = 1` row that no user-facing list can
+     * ever show. Every exercise in the session has a performed row, so this join is a
+     * superset of the old one for plan-attached exercises and loses nothing.
      */
     @Query(
         """
         SELECT e.* FROM exercise_table e
-        INNER JOIN training_exercise_table te ON te.exercise_uuid = e.uuid
-        WHERE te.training_uuid = :trainingUuid AND e.is_adhoc = 1
+        INNER JOIN performed_exercise_table pe ON pe.exercise_uuid = e.uuid
+        WHERE pe.session_uuid = :sessionUuid AND e.is_adhoc = 1
         """,
     )
-    suspend fun getAdhocExercisesForTraining(trainingUuid: Uuid): List<ExerciseEntity>
+    suspend fun getAdhocExercisesForSession(sessionUuid: Uuid): List<ExerciseEntity>
 
     @Insert
     suspend fun insert(exercise: ExerciseEntity)
@@ -188,23 +195,68 @@ interface ExerciseDao {
     suspend fun deleteByUuids(uuids: List<Uuid>)
 
     /**
-     * Flip `is_adhoc` to `0` for every ad-hoc exercise plan row attached to [trainingUuid].
+     * Deletes [uuid] only when it is an inline-created (`is_adhoc = 1`) exercise that
+     * **nothing references any more** — the per-exercise sibling of the
+     * [getAdhocExercisesForSession] cascade. Called after a performed row is removed from a
+     * session (v3 §6.1 exercise deletion): if that was the row's only session, the ad-hoc
+     * exercise would otherwise be stranded invisible forever (`is_adhoc = 1` is filtered by
+     * every user-facing list). A library exercise (`is_adhoc = 0`) is untouchable here by
+     * construction.
+     *
+     * ## Both reference tables are checked, and the second one is load-bearing
+     *
+     * `training_exercise_table` holds `onDelete = RESTRICT` on `exercise_uuid`, so deleting
+     * a still-planned exercise does not fail quietly — it throws
+     * `SQLiteConstraintException` and takes the **whole enclosing transaction** down with
+     * it, silently resurrecting the performed row and sets the user just deleted. An
+     * earlier revision checked session membership alone; an ad-hoc session reaches exactly
+     * that state, because `createAdhocSession` and `addExerciseToActiveSession` both insert
+     * plan rows even for an ad-hoc training. Pinned by
+     * `SessionRepositoryImplRemoveExerciseDbTest`.
+     *
+     * Checking it is also the honest predicate rather than a workaround: an exercise a
+     * training still plans is not an orphan, and deleting it would gut that plan.
+     */
+    @Query(
+        """
+        DELETE FROM exercise_table
+        WHERE uuid = :uuid AND is_adhoc = 1
+          AND NOT EXISTS (
+              SELECT 1 FROM performed_exercise_table WHERE exercise_uuid = :uuid
+          )
+          AND NOT EXISTS (
+              SELECT 1 FROM training_exercise_table WHERE exercise_uuid = :uuid
+          )
+        """,
+    )
+    suspend fun deleteIfAdhocOrphan(uuid: Uuid)
+
+    /**
+     * Flip `is_adhoc` to `0` for every ad-hoc exercise performed in [sessionUuid].
      * Called inside the `finishSession` transaction so inline-created ad-hoc exercises
      * graduate to regular library entries the moment the session is preserved. The
      * `is_adhoc = 1` predicate excludes library exercises that were merely picked into the
      * session — they are already at `is_adhoc = 0` and would only generate redundant writes.
+     *
+     * The subquery reads `performed_exercise_table`, **not** `training_exercise_table`,
+     * because a one-off (non-plan-attached) exercise has no plan row by construction — see
+     * `LiveExerciseDomain.isPlanAttached`. Graduating through the plan table would strand
+     * every inline-created one-off at `is_adhoc = 1`, permanently invisible to `pagedActive`
+     * and every other library query. Session membership is the honest predicate: the user
+     * performed it, so it is real. Plan-attached exercises all have performed rows too, so
+     * this is a superset of the old behaviour.
      */
     @Query(
         """
         UPDATE exercise_table SET is_adhoc = 0
         WHERE is_adhoc = 1
           AND uuid IN (
-              SELECT te.exercise_uuid FROM training_exercise_table te
-              WHERE te.training_uuid = :trainingUuid
+              SELECT pe.exercise_uuid FROM performed_exercise_table pe
+              WHERE pe.session_uuid = :sessionUuid
           )
         """,
     )
-    suspend fun graduateAdhocForTraining(trainingUuid: Uuid)
+    suspend fun graduateAdhocForSession(sessionUuid: Uuid)
 
     /**
      * UUID of the exercise from the most recently finished session. `null` when no finished

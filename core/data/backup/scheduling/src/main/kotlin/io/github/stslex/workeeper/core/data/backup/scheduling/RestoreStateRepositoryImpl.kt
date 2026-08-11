@@ -11,15 +11,16 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStoreFile
-import dagger.hilt.android.qualifiers.ApplicationContext
+import dev.zacsweers.metro.ContributesBinding
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
+import io.github.stslex.workeeper.core.core.di.AppScope
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreInProgressContext
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreStateRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * DataStore-backed implementation of [RestoreStateRepository]. Lives in the
@@ -38,9 +39,14 @@ import javax.inject.Singleton
  * `restore_in_progress` key mid-flow would lose a user's pending dialog on
  * app update.
  */
-@Singleton
-internal class RestoreStateRepositoryImpl @Inject constructor(
-    @ApplicationContext private val context: Context,
+// App-Scope Collapse Step 3 (SB1): Hilt @Inject/@Singleton stripped, @Binds removed; Metro-owned via
+// @ContributesBinding(AppScope). Public for cross-module aggregation (D1; never hand-construct — resolve
+// via DI). Context is plain (from the graph's create(applicationContext); @ApplicationContext is not javax).
+@ContributesBinding(AppScope::class)
+@SingleIn(AppScope::class)
+@Inject
+class RestoreStateRepositoryImpl(
+    private val context: Context,
 ) : RestoreStateRepository {
 
     private val dataStore: DataStore<Preferences> by lazy {

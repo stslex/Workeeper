@@ -11,11 +11,9 @@ dependencies {
     implementation(libs.ksp.gradlePlugin)
     compileOnly(libs.room.gradlePlugin)
     compileOnly(libs.android.tools.common)
-    compileOnly(libs.vkompose.gradlePlugin)
     compileOnly(libs.composeCompiler.gradlePlugin)
     compileOnly(libs.fbCrashlytics.gradlePlugin)
     compileOnly(libs.detekt.gradle)
-    compileOnly(libs.hilt.gradlePlugin)
 }
 
 tasks {
@@ -42,6 +40,10 @@ gradlePlugin {
         register("androidLibrary") {
             id = libs.plugins.convention.androidLibrary.get().pluginId
             implementationClass = "AndroidLibraryConventionPlugin"
+        }
+        register("kmpLibrary") {
+            id = libs.plugins.convention.kmpLibrary.get().pluginId
+            implementationClass = "KmpLibraryConventionPlugin"
         }
         register("composeLibrary") {
             id = libs.plugins.convention.composeLibrary.get().pluginId

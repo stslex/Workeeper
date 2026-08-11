@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.past_session.domain.model
 
-internal data class SessionDetailDomain(
+data class SessionDetailDomain(
     val sessionUuid: String,
     val trainingUuid: String,
     val trainingName: String,
@@ -11,7 +11,7 @@ internal data class SessionDetailDomain(
     val exercises: List<PerformedExerciseDetailDomain>,
 )
 
-internal data class PerformedExerciseDetailDomain(
+data class PerformedExerciseDetailDomain(
     val performedExerciseUuid: String,
     val exerciseUuid: String,
     val exerciseName: String,

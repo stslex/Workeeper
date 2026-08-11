@@ -52,6 +52,22 @@ Run these locally before you push. They are also enforced in CI by
 ./gradlew testDebugUnitTest
 ```
 
+If you touched `documentation/mockups/pass2d.html` or the colour tokens in `AppColors.kt`, one more
+check applies — `.github/workflows/mockup_gate.yml` runs it on your PR:
+
+```bash
+# The baseline must be the branch your PR targets, which is what CI uses. That is `dev` for
+# most work — but the branch below you if your PR is stacked, and substituting `dev` there
+# reports the parent PR's token changes as yours.
+PR_BASE=dev
+python3 documentation/mockups/shell_gate.py --base "$(git merge-base "origin/$PR_BASE" HEAD)" -v
+```
+
+It needs Python 3.12+ and a headless Chromium on `PATH`. A change to a `:root` token must be
+declared on the commit that makes it, with an `Allow-root-change: rust, meta` trailer naming exactly
+the tokens that changed; the gate fails if the declaration and the diff disagree in either
+direction. See [documentation/ci-cd.md](documentation/ci-cd.md#mockup-appearance-gate).
+
 If detekt produces formatting findings, run `./gradlew detekt --auto-correct` to fix them
 in-place. The pre-commit hook at `.githooks/pre-commit` is currently disabled (returns early
 without running checks) — see
@@ -91,14 +107,19 @@ When adding to a feature module:
 - The Store contract (`State`, `Action`, `Event`) must conform to the MVI Detekt rules:
   immutable data-class State, sealed Action / Event, and the Store interface.
 - New handlers belong in `feature/<name>/.../mvi/handler/<Category>Handler.kt`. Use
-  constructor injection with `@Inject` and annotate the class `@ViewModelScoped`. This
-  applies to `NavigationHandler` too — `@ViewModelScoped @Inject Navigator` is the
-  canonical shape after the lifecycle-safe navigation refactor.
+  constructor injection with `@Inject` and annotate the class
+  `@SingleIn(<Feature>Scope::class)` (feature scope, never `AppScope`). This applies to
+  `NavigationHandler` too — a `@SingleIn(<Feature>Scope::class) @Inject`-constructed
+  handler depending on `Navigator` is the canonical shape after the lifecycle-safe
+  navigation refactor.
 - Repositories, DataStores, the database, `Storage`, and `StoreDispatchers` are
-  `@Singleton`. Handlers, Interactors, and Mappers are `@ViewModelScoped`. Stores
-  (`*Store` interfaces and their `*StoreImpl` ViewModels) are `@HiltViewModel`, with an
-  optional assisted-factory variant for screens that need route arguments at
-  construction.
+  `@SingleIn(AppScope::class)`. Handlers, Interactors, and Mappers are
+  `@SingleIn(<Feature>Scope::class)`. Stores (`*Store` interfaces and their `*StoreImpl`
+  ViewModels) are UNSCOPED — a class-level `@Inject` with no scope annotation, retained
+  by the `ViewModelStore` via `rememberMetroStoreProcessor`. A screen that needs route
+  arguments takes them as a `@Provides` bound instance on its feature's
+  `@GraphExtension.Factory`, not as an `@Assisted` Store parameter (`ScreenInjectionRule`
+  keeps the arg confined to the Store's primary constructor).
 
 ### Navigation
 
@@ -107,10 +128,11 @@ When adding to a feature module:
   `data class` route (`String?`, `Long`, etc.) — never `NavController`,
   `NavBackStackEntry`, `SavedStateHandle`, `Activity`, or `Context`.
 - Stores and `NavigationHandler`s depend on `Navigator` (the command-bus interface in
-  `core/ui/navigation`). Hilt provides the singleton implementation
-  `NavigatorEventBus` (`app/app/.../navigation/NavigatorEventBus.kt`), which stores
-  only a `SharedFlow<NavigationCommand>` and three emit methods. It holds no
-  controller.
+  `core/ui/navigation`). The Metro app graph provides the app-scoped implementation
+  `NavigatorEventBus` (`app/app/.../navigation/NavigatorEventBus.kt`), declared
+  `@SingleIn(AppScope) @ContributesBinding(AppScope, binding<Navigator>()) @Inject`,
+  which stores only a `SharedFlow<NavigationCommand>` and three emit methods. It holds
+  no controller.
 - The App/UI bridge — `App.kt` + `NavigatorExt.NavigationEventBusSetup` — is the
   ONLY place AndroidX Navigation operations execute. `App.kt` owns
   `rememberNavController()` and feeds it into the bridge through a
@@ -119,8 +141,8 @@ When adding to a feature module:
   every recomposition / activity recreation.
 - `NavHostController`, `NavController`, `NavBackStackEntry`, `SavedStateHandle`,
   `Activity`, and `Context` MUST NOT be retained by any `ViewModel`, `Store`,
-  `Handler`, `Interactor`, `Mapper`, or Hilt-`@Singleton` binding. The only object
-  allowed to live at singleton scope is the command-only `NavigatorEventBus`.
+  `Handler`, `Interactor`, `Mapper`, or `@SingleIn(AppScope)` binding. The only object
+  allowed to live at app scope is the command-only `NavigatorEventBus`.
 - `SavedStateHandle` is composable-graph scoped. Use
   `navComponentScreenWithState(<Feature>) { stateHandle, processor -> ... }` when a
   screen consumes a navigation result, and reset the consumed value via
@@ -134,7 +156,7 @@ The full architectural rationale lives in
 the lifecycle-safe navigation refactor checklist in
 [`.claude/skills/refactor-with-mvi-rules.md`](.claude/skills/refactor-with-mvi-rules.md),
 and the lint-rule scope expectations in
-[documentation/lint-rules.md → HiltScopeRule scope expectations](documentation/lint-rules.md#scope-expectations-for-the-navigation-layer).
+[documentation/lint-rules.md → MetroScopeRule scope expectations](documentation/lint-rules.md#scope-expectations-for-the-navigation-layer).
 
 ### Other surfaces
 
@@ -188,13 +210,22 @@ every PR; UI tests are opt-in via `ui_tests.yml`. See
 ## Schema and data migrations
 
 Room is set to `exportSchema = true` and writes to
-`core/database/schemas/io.github.stslex.workeeper.core.database.AppDatabase/`. When you change
-an entity:
+`core/data/database/schemas/io.github.stslex.workeeper.core.data.database.AppDatabase/`. When
+you change an entity:
 
-1. Bump the `version` in `AppDatabase`.
-2. Add a new `Migration<n>_<n+1>` under `core/database/.../migrations/` and register it in
-   `core/database/.../di/CoreDatabaseModule.kt`.
-3. Commit the freshly generated `<version>.json` schema file.
+1. Bump `APP_DATABASE_VERSION` in
+   `core/data/database/.../migration/MigrationsRegistry.kt`. `AppDatabase` reads that
+   constant on `@Database(version = ...)`; do not hardcode a version on the annotation.
+2. Add a new `Migration<n+1>` object under `core/data/database/.../migration/` and append it
+   to the `MIGRATIONS` array in the same `MigrationsRegistry.kt`. That array is the only
+   registration site — `buildAppDatabase(...)` in `AppDatabaseFactory.kt` spreads it onto the
+   `Room.databaseBuilder` chain, and there is deliberately no destructive fallback there.
+3. Add a `MigrationTestHelper` test in
+   `core/data/database/src/androidTest/.../AppDatabaseMigrationTest.kt`.
+4. Commit the freshly generated `<version>.json` schema file.
+
+The step-by-step recipe lives in
+[`.claude/skills/add-database-migration.md`](.claude/skills/add-database-migration.md).
 
 ## Releases
 

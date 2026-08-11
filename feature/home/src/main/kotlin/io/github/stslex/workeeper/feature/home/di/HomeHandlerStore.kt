@@ -6,4 +6,4 @@ import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.Action
 import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.Event
 import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.State
 
-internal interface HomeHandlerStore : HandlerStore<State, Action, Event>
+interface HomeHandlerStore : HandlerStore<State, Action, Event>

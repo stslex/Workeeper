@@ -32,7 +32,10 @@ include(":app:dev")
 include(":app:store")
 
 include(":core:core")
-
+// Android half of the kotlin-only core:core (KMP): hosts the Android-framework impls plus the two
+// Metro @ContributesTo(AppScope) binding containers. Only :app:app and the two modules that name an
+// Android-only type (feature:home, feature:settings) depend on it.
+include(":core:core-android")
 include(":core:ui:kit")
 include(":core:ui:navigation")
 include(":core:ui:mvi")
@@ -46,6 +49,7 @@ include(":core:data:backup:google-drive")
 include(":core:data:backup:scheduling")
 include(":core:data:backup:worker")
 include(":core:ui:plan-editor")
+include(":core:ui:start-mode")
 
 include(":feature:exercise")
 include(":feature:exercise-chart")

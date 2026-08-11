@@ -8,11 +8,17 @@ import com.google.android.gms.auth.api.identity.AuthorizationResult
 import com.google.android.gms.auth.api.identity.ClearTokenRequest
 import com.google.android.gms.auth.api.identity.RevokeAccessRequest
 import com.google.android.gms.common.api.Scope
+import dev.zacsweers.metro.ContributesBinding
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
+import io.github.stslex.workeeper.core.core.di.AppScope
 import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.core.data.backup.api.BackupAuth
 import io.github.stslex.workeeper.core.data.backup.api.error.BackupError
 import io.github.stslex.workeeper.core.data.backup.api.model.Account
+import io.github.stslex.workeeper.core.data.backup.api.model.AuthResolution
+import io.github.stslex.workeeper.core.data.backup.api.model.AuthResolutionOutcome
 import io.github.stslex.workeeper.core.data.backup.api.model.AuthState
 import io.github.stslex.workeeper.core.data.backup.api.model.SignInResult
 import io.github.stslex.workeeper.core.data.backup.api.result.BackupResult
@@ -30,8 +36,6 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * `BackupAuth` implementation backed by GMS Identity's `AuthorizationClient` for
@@ -53,8 +57,9 @@ import javax.inject.Singleton
  * itself only carries the token. Userinfo failures degrade to the
  * `GoogleSignInAccount`-derived email when present, then to a placeholder.
  */
-@Singleton
-internal class DriveBackupAuth @Inject constructor(
+@ContributesBinding(AppScope::class)
+@SingleIn(AppScope::class)
+class DriveBackupAuth @Inject internal constructor(
     private val authorizationClient: AuthorizationClient,
     private val accountStore: AccountDataStore,
     private val userInfoFetcher: UserInfoFetcher,
@@ -102,8 +107,11 @@ internal class DriveBackupAuth @Inject constructor(
             )
     }
 
-    override suspend fun completeSignIn(intentData: Intent?): BackupResult<Account> =
+    override suspend fun completeSignIn(outcome: AuthResolutionOutcome): BackupResult<Account> =
         withContext(dispatcher) {
+            // The mvi edge wraps the ActivityResult Intent (or null, on cancel) here. Downcast
+            // at the platform boundary; a null/non-Intent payload means a cancelled resolution.
+            val intentData = outcome.platform as? Intent
             if (intentData == null) {
                 return@withContext BackupResult.Failure(
                     BackupError.Unknown(IllegalStateException("intentData is null")),
@@ -195,7 +203,7 @@ internal class DriveBackupAuth @Inject constructor(
                         IllegalStateException("hasResolution=true but pendingIntent=null"),
                     ),
                 )
-            return SignInResult.NeedsResolution(pendingIntent.intentSender)
+            return SignInResult.NeedsResolution(AuthResolution(pendingIntent.intentSender))
         }
         val missing = result.missingRequiredScopes()
         if (missing.isNotEmpty()) {

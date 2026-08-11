@@ -6,4 +6,4 @@ import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorSto
 import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorStore.Event
 import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorStore.State
 
-internal interface PlanEditorHandlerStore : HandlerStore<State, Action, Event>
+interface PlanEditorHandlerStore : HandlerStore<State, Action, Event>

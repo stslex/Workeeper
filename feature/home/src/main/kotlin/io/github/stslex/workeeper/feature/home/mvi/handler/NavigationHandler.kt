@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.home.mvi.handler
 
-import dagger.hilt.android.scopes.ViewModelScoped
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.core.ui.navigation.Navigator
 import io.github.stslex.workeeper.core.ui.navigation.Screen
+import io.github.stslex.workeeper.feature.home.di.HomeScope
 import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.Action
-import javax.inject.Inject
 
-@ViewModelScoped
+@SingleIn(HomeScope::class)
 internal class NavigationHandler @Inject constructor(
     private val navigator: Navigator,
 ) : Handler<Action.Navigation> {

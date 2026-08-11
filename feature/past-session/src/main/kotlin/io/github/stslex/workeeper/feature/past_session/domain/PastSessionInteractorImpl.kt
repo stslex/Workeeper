@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.past_session.domain
 
-import dagger.hilt.android.scopes.ViewModelScoped
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.data.exercise.personal_record.PersonalRecordRepository
 import io.github.stslex.workeeper.core.data.exercise.session.SessionRepository
 import io.github.stslex.workeeper.core.data.exercise.session.SetRepository
+import io.github.stslex.workeeper.feature.past_session.di.PastSessionScope
 import io.github.stslex.workeeper.feature.past_session.domain.mapper.PastSessionDomainMapper.toData
 import io.github.stslex.workeeper.feature.past_session.domain.mapper.PastSessionDomainMapper.toDomain
 import io.github.stslex.workeeper.feature.past_session.domain.model.DetailWithPrs
@@ -16,10 +18,10 @@ import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
-import javax.inject.Inject
 
-@ViewModelScoped
-internal class PastSessionInteractorImpl @Inject constructor(
+@Inject
+@SingleIn(PastSessionScope::class)
+class PastSessionInteractorImpl internal constructor(
     private val sessionRepository: SessionRepository,
     private val setRepository: SetRepository,
     private val personalRecordRepository: PersonalRecordRepository,
@@ -41,10 +43,10 @@ internal class PastSessionInteractorImpl @Inject constructor(
             emit(null)
             return@flow
         }
-        val uuidsByType = initial.exercises.associate { it.exerciseUuid to it.exerciseType }
+        val exerciseUuids = initial.exercises.mapTo(mutableSetOf()) { it.exerciseUuid }
         emitAll(
             personalRecordRepository
-                .observePrSetUuids(uuidsByType)
+                .observePrSetUuids(exerciseUuids)
                 .map { prSetUuids ->
                     val fresh = sessionRepository.getSessionDetail(sessionUuid) ?: initial
                     DetailWithPrs(detail = fresh.toDomain(), prSetUuids = prSetUuids)

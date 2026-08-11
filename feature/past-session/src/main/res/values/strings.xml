@@ -14,10 +14,30 @@
     <string name="feature_past_session_deleted_snackbar">Session deleted</string>
     <string name="feature_past_session_save_failed_snackbar">Could not save change — try again</string>
 
-    <string name="feature_past_session_skipped_chip">Skipped</string>
+    <!-- The skipped card's plan-line (the session screen's `.sub` shows the literal
+         `пропущено`; this is the past card's sibling treatment). Lowercase as drawn. -->
+    <string name="feature_past_session_skipped_line">skipped</string>
     <string name="feature_past_session_no_sets">No sets logged</string>
 
+    <!-- §2.4 section head: two peer labels; the right one declares the mode. -->
+    <string name="feature_past_session_section_logged">Logged</string>
+    <string name="feature_past_session_section_editable">editable</string>
+
+    <!-- v3 header eyebrow (extraction §2.3): "Завершена · 23 июля 2026". Uppercasing is the
+         AppLabel style's job, not the string's. -->
+    <string name="feature_past_session_finished_at_label">Finished · %1$s</string>
+    <!-- Topbar overflow (extraction §2.2 draws a vertical three-dot, not a delete glyph). -->
+    <string name="feature_past_session_action_more">More</string>
+    <string name="feature_past_session_menu_delete_session">Delete session</string>
+
     <string name="feature_past_session_totals_format">%1$s · %2$s</string>
+    <string name="feature_past_session_totals_format_with_tonnage">%1$s · %2$s · %3$s</string>
+    <!--
+        Session tonnage (v3 §11.1). `%,d` groups against the configuration locale, which is
+        what gives the mockup's "4 820" in ru and "4,820" in en from one format — the group
+        separator ru uses is non-breaking, so the figure cannot wrap apart.
+    -->
+    <string name="feature_past_session_tonnage_format">%,d kg</string>
 
     <plurals name="feature_past_session_exercises_count">
         <item quantity="one">%d exercise</item>

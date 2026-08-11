@@ -2,22 +2,26 @@
 package io.github.stslex.workeeper.feature.past_session.mvi.handler
 
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import dagger.hilt.android.scopes.ViewModelScoped
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.past_session.di.PastSessionHandlerStore
+import io.github.stslex.workeeper.feature.past_session.di.PastSessionScope
 import io.github.stslex.workeeper.feature.past_session.domain.PastSessionInteractor
 import io.github.stslex.workeeper.feature.past_session.domain.model.SetDomain
 import io.github.stslex.workeeper.feature.past_session.domain.model.SetTypeDomain
 import io.github.stslex.workeeper.feature.past_session.mvi.mapper.PastSessionUiMapper.toDomain
 import io.github.stslex.workeeper.feature.past_session.mvi.model.ErrorType
+import io.github.stslex.workeeper.feature.past_session.mvi.store.BottomSheetState
+import io.github.stslex.workeeper.feature.past_session.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStore.Action
 import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStore.Event
 import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStore.State
 import kotlinx.collections.immutable.toImmutableList
+import kotlinx.collections.immutable.toImmutableSet
 import kotlinx.coroutines.Job
-import javax.inject.Inject
 
-@ViewModelScoped
+@SingleIn(PastSessionScope::class)
 internal class ClickHandler @Inject constructor(
     private val interactor: PastSessionInteractor,
     store: PastSessionHandlerStore,
@@ -28,13 +32,41 @@ internal class ClickHandler @Inject constructor(
     override fun invoke(action: Action.Click) {
         when (action) {
             Action.Click.OnBackClick -> processBack()
+            Action.Click.OnSessionMenuClick -> processSessionMenuClick()
+            Action.Click.OnSheetDismiss -> processSheetDismiss()
             Action.Click.OnDeleteClick -> processDeleteClick()
             Action.Click.OnDeleteConfirm -> processDeleteConfirm()
             Action.Click.OnDeleteDismiss -> processDeleteDismiss()
+            Action.Click.OnPrTagClick -> processPrTagClick()
+            Action.Click.OnPrExplainerDismiss -> processPrExplainerDismiss()
             Action.Click.OnRetryLoad -> consume(Action.Common.Init)
             is Action.Click.OnSetTypeChange -> processSetTypeChange(action)
             is Action.Click.OnSetReorder -> processSetReorder(action)
             Action.Click.OnDragStarted -> processOnDragStarted()
+            is Action.Click.OnExerciseHeaderClick -> processExerciseHeaderClick(action)
+        }
+    }
+
+    /**
+     * The amended §7 disclosure model, complete: a header tap flips this card's membership
+     * in the open set, and nothing else happens anywhere — no status recompute, no side
+     * effects on other cards, no haptic (matching `feature/live-workout`'s toggle). A uuid
+     * that no longer exists in the loaded detail is a no-op, not a phantom entry.
+     */
+    private fun processExerciseHeaderClick(action: Action.Click.OnExerciseHeaderClick) {
+        updateState { current ->
+            val loaded = current.phase as? State.Phase.Loaded ?: return@updateState current
+            val uuid = action.performedExerciseUuid
+            if (loaded.detail.exercises.none { it.performedExerciseUuid == uuid }) {
+                return@updateState current
+            }
+            current.copy(
+                expandedExerciseUuids = if (uuid in current.expandedExerciseUuids) {
+                    current.expandedExerciseUuids - uuid
+                } else {
+                    current.expandedExerciseUuids + uuid
+                }.toImmutableSet(),
+            )
         }
     }
 
@@ -47,19 +79,42 @@ internal class ClickHandler @Inject constructor(
         consume(Action.Navigation.Back)
     }
 
+    private fun processSessionMenuClick() {
+        sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
+        updateState { it.copy(bottomSheetState = BottomSheetState.SessionMenu) }
+    }
+
+    private fun processSheetDismiss() {
+        updateState { it.copy(bottomSheetState = BottomSheetState.Hidden) }
+    }
+
+    /** Opening from the sheet: the sheet closes and the confirmation replaces it. */
     private fun processDeleteClick() {
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
-        updateState { it.copy(deleteDialogVisible = true) }
+        updateState {
+            it.copy(
+                bottomSheetState = BottomSheetState.Hidden,
+                dialogState = DialogState.DeleteConfirm,
+            )
+        }
     }
 
     private fun processDeleteDismiss() {
-        updateState { it.copy(deleteDialogVisible = false) }
+        updateState { it.copy(dialogState = DialogState.Hidden) }
+    }
+
+    private fun processPrTagClick() {
+        updateState { it.copy(dialogState = DialogState.PrExplainer) }
+    }
+
+    private fun processPrExplainerDismiss() {
+        updateState { it.copy(dialogState = DialogState.Hidden) }
     }
 
     private fun processDeleteConfirm() {
         sendEvent(Event.HapticClick(HapticFeedbackType.Confirm))
         val sessionUuid = state.value.sessionUuid
-        updateState { it.copy(deleteDialogVisible = false) }
+        updateState { it.copy(dialogState = DialogState.Hidden) }
         launch(
             onSuccess = {
                 sendEvent(Event.DeletedSnackbar)

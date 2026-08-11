@@ -13,10 +13,16 @@ internal object BackupDateMapper {
         summaries: List<BackupSummaryDomain>,
         context: Context,
         now: Long = System.currentTimeMillis(),
-    ): BackupInfoUi = BackupInfoUi(
-        lastBackupText = formatLastBackup(summaries.firstOrNull()?.createdAtEpochMs, context, now),
-        backupCountText = formatBackupCount(summaries.size, context),
-    )
+    ): BackupInfoUi = if (summaries.isEmpty()) {
+        // The mapper only ever runs on a RESULT, so it can never produce `Unknown` — that state
+        // belongs to the interval before this is called, and is `State.INITIAL`'s job.
+        BackupInfoUi.Empty(backupCountText = formatBackupCount(summaries.size, context))
+    } else {
+        BackupInfoUi.Present(
+            lastBackupText = formatLastBackup(summaries.first().createdAtEpochMs, context, now),
+            backupCountText = formatBackupCount(summaries.size, context),
+        )
+    }
 
     fun formatLastBackup(
         epochMs: Long?,

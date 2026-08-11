@@ -57,7 +57,7 @@ internal class NavigatorEventBusTest {
     @Test
     fun `navTo emits NavTo command with the supplied screen`() = runTest {
         val dispatcher = UnconfinedTestDispatcher(testScheduler)
-        val bus = NavigatorEventBus()
+        val bus = NavigatorEventBus(mockk(relaxed = true))
         val screen = Screen.Exercise(uuid = "ex-1")
 
         val collector = async(dispatcher) { bus.commands.first() }
@@ -70,7 +70,7 @@ internal class NavigatorEventBusTest {
     @Test
     fun `navTo emits NavTo command for bottom-bar singleTop screens`() = runTest {
         val dispatcher = UnconfinedTestDispatcher(testScheduler)
-        val bus = NavigatorEventBus()
+        val bus = NavigatorEventBus(mockk(relaxed = true))
         val screen = Screen.BottomBar.AllTrainings
 
         val collector = async(dispatcher) { bus.commands.first() }
@@ -83,7 +83,7 @@ internal class NavigatorEventBusTest {
     @Test
     fun `replaceTo emits ReplaceTo command with the supplied screen`() = runTest {
         val dispatcher = UnconfinedTestDispatcher(testScheduler)
-        val bus = NavigatorEventBus()
+        val bus = NavigatorEventBus(mockk(relaxed = true))
         val screen = Screen.PastSession(sessionUuid = "session-1")
 
         val collector = async(dispatcher) { bus.commands.first() }
@@ -96,7 +96,7 @@ internal class NavigatorEventBusTest {
     @Test
     fun `popBack with no attributes emits an empty PopBack command`() = runTest {
         val dispatcher = UnconfinedTestDispatcher(testScheduler)
-        val bus = NavigatorEventBus()
+        val bus = NavigatorEventBus(mockk(relaxed = true))
 
         val collector = async(dispatcher) { bus.commands.first() }
         testScheduler.advanceUntilIdle()
@@ -108,7 +108,7 @@ internal class NavigatorEventBusTest {
     @Test
     fun `popBack preserves attribute key value pairs in vararg order`() = runTest {
         val dispatcher = UnconfinedTestDispatcher(testScheduler)
-        val bus = NavigatorEventBus()
+        val bus = NavigatorEventBus(mockk(relaxed = true))
         val firstAttr: Pair<String, Any?> = "plan-editor-saved" to true
         val secondAttr: Pair<String, Any?> = "another-attr" to "value"
 
@@ -125,7 +125,7 @@ internal class NavigatorEventBusTest {
     @Test
     fun `popBack tolerates null values in attribute pairs`() = runTest {
         val dispatcher = UnconfinedTestDispatcher(testScheduler)
-        val bus = NavigatorEventBus()
+        val bus = NavigatorEventBus(mockk(relaxed = true))
         val attr: Pair<String, Any?> = "result" to null
 
         val collector = async(dispatcher) { bus.commands.first() }
@@ -138,7 +138,7 @@ internal class NavigatorEventBusTest {
     @Test
     fun `openRecovery emits OpenRecovery command`() = runTest {
         val dispatcher = UnconfinedTestDispatcher(testScheduler)
-        val bus = NavigatorEventBus()
+        val bus = NavigatorEventBus(mockk(relaxed = true))
 
         val collector = async(dispatcher) { bus.commands.first() }
         testScheduler.advanceUntilIdle()
@@ -150,7 +150,7 @@ internal class NavigatorEventBusTest {
     @Test
     fun `multiple emissions are observed in dispatch order`() = runTest {
         val dispatcher = UnconfinedTestDispatcher(testScheduler)
-        val bus = NavigatorEventBus()
+        val bus = NavigatorEventBus(mockk(relaxed = true))
         val firstScreen = Screen.Exercise(uuid = "ex-1")
         val secondScreen = Screen.PastSession(sessionUuid = "session-1")
 
@@ -173,7 +173,7 @@ internal class NavigatorEventBusTest {
 
     @Test
     fun `bus exposes the same instance across Navigator and NavigatorReceiver surfaces`() {
-        val bus = NavigatorEventBus()
+        val bus = NavigatorEventBus(mockk(relaxed = true))
 
         // The singleton design relies on the producer interface (`Navigator`) and the
         // consumer interface (`NavigatorReceiver`) pointing at the same SharedFlow. If

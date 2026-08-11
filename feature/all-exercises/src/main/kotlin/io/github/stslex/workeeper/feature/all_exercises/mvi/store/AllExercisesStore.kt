@@ -17,7 +17,7 @@ import kotlinx.collections.immutable.ImmutableSet
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.persistentSetOf
 
-internal interface AllExercisesStore : Store<State, Action, Event> {
+interface AllExercisesStore : Store<State, Action, Event> {
 
     @Stable
     data class State(
@@ -103,7 +103,27 @@ internal interface AllExercisesStore : Store<State, Action, Event> {
 
             data object OnFabClick : Click
 
+            /**
+             * The empty state's primary CTA. Distinct from [OnFabClick] although both open the
+             * create screen: the FAB fires `ContextClick` and a button in an empty state does not,
+             * and routing the CTA through [OnFabClick] gave this screen a haptic its sibling's
+             * identical `.empty` button does not have. Same shape and same reason as
+             * all-trainings' `OnEmptyCreate`.
+             */
+            data object OnEmptyCreate : Click
+
             data class OnTagFilterToggle(val tagUuid: String) : Click
+
+            /**
+             * Clears the whole tag filter in one act.
+             *
+             * The filtered-to-empty state's only action. It clears rather than creates: a create
+             * button under a filter the user has just used answers a question they did not ask,
+             * and leaves the filter in place so the thing they create disappears on arrival.
+             * Distinct from [OnTagFilterToggle] because untoggling N chips is N taps while the
+             * state being recovered from is one condition, not N.
+             */
+            data object OnClearTagFilter : Click
 
             data object OnConfirmPermanentDelete : Click
 

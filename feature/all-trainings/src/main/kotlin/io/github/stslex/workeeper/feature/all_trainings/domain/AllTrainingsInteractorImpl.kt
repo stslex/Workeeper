@@ -3,10 +3,13 @@ package io.github.stslex.workeeper.feature.all_trainings.domain
 
 import androidx.paging.PagingData
 import androidx.paging.map
-import dagger.hilt.android.scopes.ViewModelScoped
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
+import io.github.stslex.workeeper.core.data.exercise.session.SessionRepository
 import io.github.stslex.workeeper.core.data.exercise.tags.TagRepository
 import io.github.stslex.workeeper.core.data.exercise.training.TrainingRepository
+import io.github.stslex.workeeper.feature.all_trainings.di.AllTrainingsScope
 import io.github.stslex.workeeper.feature.all_trainings.domain.mapper.AllTrainingsDomainMapper.toDomain
 import io.github.stslex.workeeper.feature.all_trainings.domain.model.BulkArchiveResult
 import io.github.stslex.workeeper.feature.all_trainings.domain.model.TagDomain
@@ -16,12 +19,13 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
-import javax.inject.Inject
 
-@ViewModelScoped
-internal class AllTrainingsInteractorImpl @Inject constructor(
+@Inject
+@SingleIn(AllTrainingsScope::class)
+class AllTrainingsInteractorImpl(
     private val trainingRepository: TrainingRepository,
     private val tagRepository: TagRepository,
+    private val sessionRepository: SessionRepository,
     @DefaultDispatcher private val defaultDispatcher: CoroutineDispatcher,
 ) : AllTrainingsInteractor {
 
@@ -35,6 +39,11 @@ internal class AllTrainingsInteractorImpl @Inject constructor(
     override fun observeAvailableTags(): Flow<List<TagDomain>> = tagRepository
         .observeAll()
         .map { tags -> tags.map { it.toDomain() } }
+        .flowOn(defaultDispatcher)
+
+    override fun observeHasActiveSession(): Flow<Boolean> = sessionRepository
+        .observeActive()
+        .map { it != null }
         .flowOn(defaultDispatcher)
 
     override suspend fun archiveTrainings(

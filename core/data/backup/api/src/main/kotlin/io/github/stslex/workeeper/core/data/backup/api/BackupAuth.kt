@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.core.data.backup.api
 
-import android.content.Intent
 import io.github.stslex.workeeper.core.data.backup.api.model.Account
+import io.github.stslex.workeeper.core.data.backup.api.model.AuthResolution
+import io.github.stslex.workeeper.core.data.backup.api.model.AuthResolutionOutcome
 import io.github.stslex.workeeper.core.data.backup.api.model.AuthState
 import io.github.stslex.workeeper.core.data.backup.api.model.SignInResult
 import io.github.stslex.workeeper.core.data.backup.api.result.BackupResult
@@ -27,8 +28,8 @@ interface BackupAuth {
     /**
      * Attempts to obtain a session. Returns [SignInResult.Success] when a cached
      * credential is reused, [SignInResult.NeedsResolution] when the provider
-     * requires user interaction (caller must launch the supplied `IntentSender` and
-     * forward the result via [completeSignIn]), or [SignInResult.Failure] when
+     * requires user interaction (caller must act on the supplied [AuthResolution]
+     * and forward the outcome via [completeSignIn]), or [SignInResult.Failure] when
      * sign-in could not be attempted.
      */
     suspend fun signIn(): SignInResult
@@ -44,19 +45,19 @@ interface BackupAuth {
      * Requests the optional `drive.file` scope on the already-connected account (incremental
      * grant for AI export). Same [SignInResult] contract as [signIn]: [SignInResult.Success]
      * if already granted, [SignInResult.NeedsResolution] to launch the consent flow (forward
-     * the result via [completeSignIn]), or [SignInResult.Failure]. Does NOT start a fresh
+     * the outcome via [completeSignIn]), or [SignInResult.Failure]. Does NOT start a fresh
      * sign-in — it adds a scope to the existing session.
      */
     suspend fun requestDriveFileAccess(): SignInResult
 
     /**
      * Completes a sign-in that previously returned [SignInResult.NeedsResolution].
-     * [intentData] is the `Intent` delivered by the activity result of the sender
-     * launched by the caller; `null` indicates the user cancelled. Returns the
-     * resolved [Account] or a [BackupResult.Failure] when the resolution Intent did
-     * not yield a usable credential.
+     * [outcome] is the opaque [AuthResolutionOutcome] wrapping the platform result
+     * delivered by the UI edge; a null/absent payload indicates the user cancelled.
+     * Returns the resolved [Account] or a [BackupResult.Failure] when the resolution
+     * did not yield a usable credential.
      */
-    suspend fun completeSignIn(intentData: Intent?): BackupResult<Account>
+    suspend fun completeSignIn(outcome: AuthResolutionOutcome): BackupResult<Account>
 
     /**
      * Drops the current session and clears any cached credential. Returns

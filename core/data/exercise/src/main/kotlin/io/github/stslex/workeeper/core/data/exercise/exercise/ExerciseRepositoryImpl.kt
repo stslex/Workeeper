@@ -5,10 +5,14 @@ import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import androidx.paging.map
+import dev.zacsweers.metro.ContributesBinding
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.coroutine.asyncForEach
 import io.github.stslex.workeeper.core.core.coroutine.asyncMap
 import io.github.stslex.workeeper.core.core.coroutine.asyncMapNotNull
 import io.github.stslex.workeeper.core.core.coroutine.asyncScope
+import io.github.stslex.workeeper.core.core.di.AppScope
 import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.core.images.ImageStorage
 import io.github.stslex.workeeper.core.core.utils.CommonExt.runIf
@@ -41,17 +45,17 @@ import io.github.stslex.workeeper.core.data.exercise.exercise.model.toEntity
 import io.github.stslex.workeeper.core.data.exercise.exercise.model.toSummary
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
-import javax.inject.Inject
-import javax.inject.Singleton
 import kotlin.uuid.Uuid
 
 @Suppress("TooManyFunctions", "LongParameterList")
-@Singleton
-internal class ExerciseRepositoryImpl @Inject constructor(
+@ContributesBinding(AppScope::class)
+@SingleIn(AppScope::class)
+class ExerciseRepositoryImpl @Inject internal constructor(
     private val dao: ExerciseDao,
     private val tagDao: TagDao,
     private val exerciseTagDao: ExerciseTagDao,
@@ -114,6 +118,19 @@ internal class ExerciseRepositoryImpl @Inject constructor(
             return@transition SaveResult.DuplicateName
         }
         syncLabels(entity.uuid, item.labels)
+        // A WEIGHTLESS row may not leave weights behind it anywhere — not in its own
+        // `last_adhoc_sets`, not in any `training_exercise.plan_sets` that references it.
+        // Derived from the type being written, NOT taken as a parameter and NOT left to the
+        // caller: a rule about row consistency belongs where the row is written, beside
+        // `syncLabels`, and a caller-obligation form is one a new writer of this column can
+        // omit without noticing. Inside this transaction, so save and cascade are one act.
+        if (item.type == ExerciseTypeDataModel.WEIGHTLESS) {
+            clearWeightsForExercise(entity.uuid)
+        }
+        // Auto-prune on SAVE COMMIT, inside the same transaction as the link writes above
+        // (D-OPEN-4) — a save that drops a tag's last link takes the dictionary row with it,
+        // atomically. The DAO KDoc carries where-not-to-run-this.
+        tagDao.deleteOrphans()
         SaveResult.Success
     }
 
@@ -191,30 +208,42 @@ internal class ExerciseRepositoryImpl @Inject constructor(
     }
 
     override suspend fun clearWeightsFromAllPlansForExercise(exerciseUuid: String) {
-        transition {
-            val parsed = Uuid.parse(exerciseUuid)
-            val exercise = dao.getById(parsed) ?: return@transition
-            val adhoc = PlanSetsConverter.fromJson(exercise.lastAdhocSets)
-            val updateDeferred = runIfNotNull(adhoc) { adhocNotNull ->
-                async {
-                    val cleared = adhocNotNull.map { it.copy(weight = null) }
-                    dao.updateLastAdhocSets(parsed, PlanSetsConverter.toJson(cleared))
-                }
+        transition { clearWeightsForExercise(Uuid.parse(exerciseUuid)) }
+    }
+
+    /**
+     * The cascade's body, callable from inside an already-open transaction — [saveItem] runs
+     * it as part of one act, and [clearWeightsFromAllPlansForExercise] wraps it for the
+     * type-only write path. One body, so the two entry points cannot drift.
+     *
+     * Rows whose weights are already null are left alone: the save path calls this on EVERY
+     * weightless save, and a write per link per save with nothing to change is cost for no
+     * effect.
+     */
+    private suspend fun clearWeightsForExercise(exerciseUuid: Uuid) = coroutineScope {
+        val exercise = dao.getById(exerciseUuid) ?: return@coroutineScope
+        val adhoc = PlanSetsConverter.fromJson(exercise.lastAdhocSets)
+            ?.takeIf { plan -> plan.any { it.weight != null } }
+        val updateDeferred = runIfNotNull(adhoc) { plan ->
+            async {
+                val cleared = plan.map { it.copy(weight = null) }
+                dao.updateLastAdhocSets(exerciseUuid, PlanSetsConverter.toJson(cleared))
             }
-            val getAllForExerciseDeferred = async {
-                trainingExerciseDao.getAllForExercise(parsed).asyncForEach { row ->
-                    val parsedPlan = PlanSetsConverter.fromJson(row.planSets) ?: return@asyncForEach
-                    val cleared = parsedPlan.map { it.copy(weight = null) }
-                    trainingExerciseDao.updatePlanSets(
-                        trainingUuid = row.trainingUuid,
-                        exerciseUuid = row.exerciseUuid,
-                        planSets = PlanSetsConverter.toJson(cleared),
-                    )
-                }
-            }
-            updateDeferred?.await()
-            getAllForExerciseDeferred.await()
         }
+        val getAllForExerciseDeferred = async {
+            trainingExerciseDao.getAllForExercise(exerciseUuid).asyncForEach { row ->
+                val parsedPlan = PlanSetsConverter.fromJson(row.planSets) ?: return@asyncForEach
+                if (parsedPlan.none { it.weight != null }) return@asyncForEach
+                val cleared = parsedPlan.map { it.copy(weight = null) }
+                trainingExerciseDao.updatePlanSets(
+                    trainingUuid = row.trainingUuid,
+                    exerciseUuid = row.exerciseUuid,
+                    planSets = PlanSetsConverter.toJson(cleared),
+                )
+            }
+        }
+        updateDeferred?.await()
+        getAllForExerciseDeferred.await()
     }
 
     override suspend fun deleteItem(uuid: String) {

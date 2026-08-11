@@ -39,7 +39,7 @@ internal class ClickHandlerTest {
     private val resourceWrapper = mockk<ResourceWrapper>(relaxed = true)
     private val pickerHandler = mockk<ExercisePickerHandler>(relaxed = true)
     private val statusMapper = StateStatusMapper(resourceWrapper)
-    private val setMutator = LiveSetMutator(resourceWrapper, statusMapper)
+    private val setMutator = LiveSetMutator(statusMapper)
 
     @Test
     fun `OnExerciseHeaderClick toggles expansion for DONE exercises`() {
@@ -68,7 +68,8 @@ internal class ClickHandlerTest {
     }
 
     @Test
-    fun `OnExerciseHeaderClick is no-op for SKIPPED exercises`() {
+    fun `OnExerciseHeaderClick toggles SKIPPED cards like any other`() {
+        // Amended contract: four rules, no exceptions — the old skip no-op is retired.
         val stateFlow =
             MutableStateFlow(baseState(doneExercise(status = ExerciseStatusUiModel.SKIPPED)))
         val store = handlerStore(stateFlow)
@@ -81,13 +82,16 @@ internal class ClickHandlerTest {
         )
 
         handler.invoke(Action.Click.OnExerciseHeaderClick("pe-1"))
+        assertEquals(persistentSetOf("pe-1"), stateFlow.value.expandedExerciseUuids)
 
+        handler.invoke(Action.Click.OnExerciseHeaderClick("pe-1"))
         assertEquals(persistentSetOf<String>(), stateFlow.value.expandedExerciseUuids)
-        assertEquals(persistentSetOf<String>(), stateFlow.value.activeExerciseUuids)
     }
 
     @Test
-    fun `OnExerciseHeaderClick on PENDING adds uuid to activeExerciseUuids and expandedExerciseUuids`() {
+    fun `OnExerciseHeaderClick expands exactly the tapped card and touches nothing else`() {
+        // Amended contract rule 4: expand -> it expands, NOTHING else happens anywhere — no
+        // active-set promotion, no status recompute, no sibling cards moved.
         val stateFlow = MutableStateFlow(
             baseState(doneExercise(status = ExerciseStatusUiModel.PENDING))
                 .copy(
@@ -99,6 +103,7 @@ internal class ClickHandlerTest {
                             position = 1,
                         ),
                     ),
+                    expandedExerciseUuids = persistentSetOf("pe-1"),
                 ),
         )
         val store = handlerStore(stateFlow)
@@ -112,55 +117,20 @@ internal class ClickHandlerTest {
 
         handler.invoke(Action.Click.OnExerciseHeaderClick("pe-2"))
 
-        assertEquals(persistentSetOf("pe-2"), stateFlow.value.activeExerciseUuids)
-        assertEquals(persistentSetOf("pe-2"), stateFlow.value.expandedExerciseUuids)
-        // Status of pe-2 flips to CURRENT after recompute.
-        val pe2 = stateFlow.value.exercises.first { it.performedExerciseUuid == "pe-2" }
-        assertEquals(ExerciseStatusUiModel.CURRENT, pe2.status)
-    }
-
-    @Test
-    fun `OnExerciseHeaderClick on auto-default CURRENT promotes to active and toggles expanded`() {
-        val stateFlow = MutableStateFlow(
-            baseState(
-                exercise = doneExercise(status = ExerciseStatusUiModel.CURRENT),
-            ),
-        )
-        val store = handlerStore(stateFlow)
-        val handler = ClickHandler(
-            interactor = interactor,
-            resourceWrapper = resourceWrapper,
-            pickerHandler = pickerHandler,
-            setMutator = setMutator,
-            store = store,
-        )
-
-        handler.invoke(Action.Click.OnExerciseHeaderClick("pe-1"))
-
-        assertEquals(persistentSetOf("pe-1"), stateFlow.value.activeExerciseUuids)
-        assertEquals(persistentSetOf("pe-1"), stateFlow.value.expandedExerciseUuids)
-
-        // Tapping again collapses (removes from expanded), but the uuid stays in activeUuids.
-        handler.invoke(Action.Click.OnExerciseHeaderClick("pe-1"))
+        // Both stay open — multiple open cards are legal and expected.
+        assertEquals(setOf("pe-1", "pe-2"), stateFlow.value.expandedExerciseUuids.toSet())
+        // No explicit active-set marker: the toggle leaves it untouched.
         assertEquals(persistentSetOf<String>(), stateFlow.value.activeExerciseUuids)
-        assertEquals(persistentSetOf<String>(), stateFlow.value.expandedExerciseUuids)
+        val pe2 = stateFlow.value.exercises.first { it.performedExerciseUuid == "pe-2" }
+        assertEquals(ExerciseStatusUiModel.PENDING, pe2.status)
     }
 
     @Test
-    fun `OnExerciseHeaderClick on auto-default CURRENT promotes to active and toggles expanded with sets`() {
+    fun `OnExerciseHeaderClick collapse is pure — sets, statuses and siblings untouched`() {
         val stateFlow = MutableStateFlow(
-            baseState(
-                exercise = doneExercise(status = ExerciseStatusUiModel.CURRENT).copy(
-                    performedSets = persistentListOf(
-                        LiveSetUiModel(
-                            position = 0,
-                            weight = 100.0,
-                            reps = 5,
-                            type = SetTypeUiModel.WORK,
-                            isDone = true,
-                        ),
-                    ),
-                ),
+            baseState(loggedExercise()).copy(
+                expandedExerciseUuids = persistentSetOf("pe-1"),
+                activeExerciseUuids = persistentSetOf("pe-1"),
             ),
         )
         val store = handlerStore(stateFlow)
@@ -174,13 +144,11 @@ internal class ClickHandlerTest {
 
         handler.invoke(Action.Click.OnExerciseHeaderClick("pe-1"))
 
-        assertEquals(persistentSetOf("pe-1"), stateFlow.value.activeExerciseUuids)
-        assertEquals(persistentSetOf("pe-1"), stateFlow.value.expandedExerciseUuids)
-
-        // Tapping again collapses (removes from expanded), but the uuid stays in activeUuids.
-        handler.invoke(Action.Click.OnExerciseHeaderClick("pe-1"))
-        assertEquals(persistentSetOf("pe-1"), stateFlow.value.activeExerciseUuids)
         assertEquals(persistentSetOf<String>(), stateFlow.value.expandedExerciseUuids)
+        // Rule 3: collapse -> it collapses, nothing else — the logged set and the (now
+        // consumer-less) active marker are exactly as they were.
+        assertEquals(persistentSetOf("pe-1"), stateFlow.value.activeExerciseUuids)
+        assertEquals(1, stateFlow.value.exercises.first().performedSets.size)
     }
 
     @Test
@@ -246,6 +214,167 @@ internal class ClickHandlerTest {
         val empty = stateFlow.value.dialogState as? DialogState.EmptyFinish
         assertTrue(empty != null)
         assertEquals(true, empty?.canDiscard)
+    }
+
+    @Test
+    fun `OnSkipExercise toggles to SKIPPED preserving sets and persists the flag`() = runTest {
+        val store = FakeLiveWorkoutHandlerStore(baseState(loggedExercise()))
+        val handler = ClickHandler(
+            interactor = interactor,
+            resourceWrapper = resourceWrapper,
+            pickerHandler = pickerHandler,
+            setMutator = setMutator,
+            store = store,
+        )
+
+        handler.invoke(Action.Click.OnSkipExercise("pe-1"))
+        store.runLatestLaunch(this)
+
+        // §6.1 / C9: no dialog, no wipe — the logged set survives the skip.
+        assertEquals(ExerciseStatusUiModel.SKIPPED, store.state.value.exercises.first().status)
+        assertEquals(1, store.state.value.exercises.first().performedSets.size)
+        assertEquals(DialogState.Hidden, store.state.value.dialogState)
+        coVerify(exactly = 1) { interactor.setSkipped("pe-1", true) }
+    }
+
+    @Test
+    fun `OnSkipExercise on a skipped exercise returns it to the session`() = runTest {
+        val store = FakeLiveWorkoutHandlerStore(
+            baseState(loggedExercise().copy(status = ExerciseStatusUiModel.SKIPPED)),
+        )
+        val handler = ClickHandler(
+            interactor = interactor,
+            resourceWrapper = resourceWrapper,
+            pickerHandler = pickerHandler,
+            setMutator = setMutator,
+            store = store,
+        )
+
+        handler.invoke(Action.Click.OnSkipExercise("pe-1"))
+        store.runLatestLaunch(this)
+
+        assertTrue(store.state.value.exercises.first().status != ExerciseStatusUiModel.SKIPPED)
+        assertEquals(1, store.state.value.exercises.first().performedSets.size)
+        coVerify(exactly = 1) { interactor.setSkipped("pe-1", false) }
+    }
+
+    @Test
+    fun `OnToggleOneOff detaches an attached exercise and persists the flip`() = runTest {
+        val store = FakeLiveWorkoutHandlerStore(baseState(loggedExercise()))
+        val handler = ClickHandler(
+            interactor = interactor,
+            resourceWrapper = resourceWrapper,
+            pickerHandler = pickerHandler,
+            setMutator = setMutator,
+            store = store,
+        )
+
+        handler.invoke(Action.Click.OnToggleOneOff("pe-1"))
+        store.runLatestLaunch(this)
+
+        assertEquals(false, store.state.value.exercises.first().isPlanAttached)
+        coVerify(exactly = 1) {
+            interactor.setPlanAttachment("training-1", "ex-1", attached = false, planSets = any())
+        }
+    }
+
+    @Test
+    fun `undo of a deleted exercise restores it without any DB delete`() = runTest {
+        val store = FakeLiveWorkoutHandlerStore(baseState(loggedExercise()))
+        val dialogHandler = DialogClickHandler(
+            interactor = interactor,
+            resourceWrapper = resourceWrapper,
+            pickerHandler = pickerHandler,
+            setMutator = setMutator,
+            store = store,
+        )
+        val clickHandler = ClickHandler(
+            interactor = interactor,
+            resourceWrapper = resourceWrapper,
+            pickerHandler = pickerHandler,
+            setMutator = setMutator,
+            store = store,
+        )
+
+        dialogHandler.invoke(Action.DialogClick.OnDeleteExerciseConfirm("pe-1"))
+        // Soft removal: gone from State, pending undo armed, DB untouched (deferred).
+        assertTrue(store.state.value.exercises.isEmpty())
+        assertTrue(store.state.value.pendingUndo != null)
+        coVerify(exactly = 0) {
+            interactor.deleteExerciseFromSession(any(), any(), any(), any())
+        }
+
+        clickHandler.invoke(Action.Click.OnUndoClick)
+
+        assertEquals(1, store.state.value.exercises.size)
+        assertEquals(null, store.state.value.pendingUndo)
+        coVerify(exactly = 0) {
+            interactor.deleteExerciseFromSession(any(), any(), any(), any())
+        }
+    }
+
+    @Test
+    fun `an adhoc session still removes the plan row on delete`() = runTest {
+        // Ad-hoc trainings carry real plan rows, and leaving one behind made the orphan
+        // cleanup trip the FK's RESTRICT and roll the whole removal back.
+        val store = FakeLiveWorkoutHandlerStore(
+            baseState(loggedExercise()).copy(isAdhoc = true),
+        )
+        val dialogHandler = DialogClickHandler(
+            interactor = interactor,
+            resourceWrapper = resourceWrapper,
+            pickerHandler = pickerHandler,
+            setMutator = setMutator,
+            store = store,
+        )
+        val clickHandler = ClickHandler(
+            interactor = interactor,
+            resourceWrapper = resourceWrapper,
+            pickerHandler = pickerHandler,
+            setMutator = setMutator,
+            store = store,
+        )
+
+        dialogHandler.invoke(Action.DialogClick.OnDeleteExerciseConfirm("pe-1"))
+        val undoId = store.state.value.pendingUndo?.id
+        clickHandler.invoke(Action.Click.OnUndoTimeout(undoId ?: return@runTest))
+        store.runLatestLaunch(this)
+
+        coVerify(exactly = 1) {
+            interactor.deleteExerciseFromSession("pe-1", "ex-1", "training-1", removeFromPlan = true)
+        }
+    }
+
+    @Test
+    fun `undo timeout commits the deferred exercise delete`() = runTest {
+        val store = FakeLiveWorkoutHandlerStore(baseState(loggedExercise()))
+        val dialogHandler = DialogClickHandler(
+            interactor = interactor,
+            resourceWrapper = resourceWrapper,
+            pickerHandler = pickerHandler,
+            setMutator = setMutator,
+            store = store,
+        )
+        val clickHandler = ClickHandler(
+            interactor = interactor,
+            resourceWrapper = resourceWrapper,
+            pickerHandler = pickerHandler,
+            setMutator = setMutator,
+            store = store,
+        )
+
+        dialogHandler.invoke(Action.DialogClick.OnDeleteExerciseConfirm("pe-1"))
+        val undoId = store.state.value.pendingUndo?.id
+        assertTrue(undoId != null)
+
+        clickHandler.invoke(Action.Click.OnUndoTimeout(undoId ?: return@runTest))
+        store.runLatestLaunch(this)
+
+        assertEquals(null, store.state.value.pendingUndo)
+        assertTrue(store.state.value.exercises.isEmpty())
+        coVerify(exactly = 1) {
+            interactor.deleteExerciseFromSession("pe-1", "ex-1", "training-1", removeFromPlan = true)
+        }
     }
 
     @Test

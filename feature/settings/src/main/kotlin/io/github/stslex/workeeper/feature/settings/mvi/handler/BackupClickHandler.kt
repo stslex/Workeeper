@@ -2,8 +2,10 @@
 package io.github.stslex.workeeper.feature.settings.mvi.handler
 
 import android.content.Context
-import dagger.hilt.android.qualifiers.ApplicationContext
-import dagger.hilt.android.scopes.ViewModelScoped
+import android.content.IntentSender
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
+import io.github.stslex.workeeper.core.data.backup.api.model.AuthResolutionOutcome
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreStateRepository
 import io.github.stslex.workeeper.core.data.backup.api.result.BackupResult
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.AutoBackupController
@@ -16,6 +18,7 @@ import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialog
 import io.github.stslex.workeeper.feature.app_dialogs.api.publisher.AppDialogPublisher
 import io.github.stslex.workeeper.feature.settings.di.SettingsHandlerStore
+import io.github.stslex.workeeper.feature.settings.di.SettingsScope
 import io.github.stslex.workeeper.feature.settings.domain.BackupInteractor
 import io.github.stslex.workeeper.feature.settings.domain.model.SignInOutcomeDomain
 import io.github.stslex.workeeper.feature.settings.mvi.mapper.BackupDateMapper
@@ -25,6 +28,7 @@ import io.github.stslex.workeeper.feature.settings.mvi.mapper.BackupUiMapper.toC
 import io.github.stslex.workeeper.feature.settings.mvi.mapper.BackupUiMapper.toUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupAuthUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupErrorUi
+import io.github.stslex.workeeper.feature.settings.mvi.model.BackupInfoUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupOperationUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupScheduleUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.RestoreProgressUi
@@ -36,9 +40,8 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
-import javax.inject.Inject
 
-@ViewModelScoped
+@SingleIn(SettingsScope::class)
 internal class BackupClickHandler @Inject constructor(
     private val interactor: BackupInteractor,
     private val preferencesRepository: BackupPreferencesRepository,
@@ -46,7 +49,9 @@ internal class BackupClickHandler @Inject constructor(
     private val restoreStateRepository: RestoreStateRepository,
     private val snapshotProvider: DatabaseSnapshotProvider,
     private val appDialogPublisher: AppDialogPublisher,
-    @ApplicationContext private val context: Context,
+    // Plain Context: the application Context is bound bare into the graph as a
+    // create() bound-instance — one Context per graph.
+    private val context: Context,
     store: SettingsHandlerStore,
 ) : Handler<Action.Backup>, SettingsHandlerStore by store {
 
@@ -137,7 +142,7 @@ internal class BackupClickHandler @Inject constructor(
 
                     ui is BackupAuthUi.NotAuthenticated -> {
                         updateState { current ->
-                            current.copy(backupInfo = null, backupPreferences = null)
+                            current.copy(backupInfo = BackupInfoUi.Unknown, backupPreferences = null)
                         }
                     }
 
@@ -198,7 +203,11 @@ internal class BackupClickHandler @Inject constructor(
                         updateStateImmediate { current ->
                             current.copy(backupOperation = BackupOperationUi.Idle)
                         }
-                        sendEvent(Event.AuthResolutionRequested(result.intentSender))
+                        // Downcast the opaque resolution to the Android launch handle at the mvi
+                        // edge (android.* is allowed here; the domain never unpacks .platform).
+                        sendEvent(
+                            Event.AuthResolutionRequested(result.resolution.platform as IntentSender),
+                        )
                     }
 
                     SignInOutcomeDomain.PartialGrant -> {
@@ -253,7 +262,9 @@ internal class BackupClickHandler @Inject constructor(
                 }
             },
         ) {
-            interactor.completeSignIn(resultIntent)
+            // Wrap the Android ActivityResult Intent (or null on cancel) into the neutral
+            // outcome handle before crossing back into the domain.
+            interactor.completeSignIn(AuthResolutionOutcome(resultIntent))
         }
     }
 
@@ -297,7 +308,7 @@ internal class BackupClickHandler @Inject constructor(
 
                     // Keep TogglingAiExport set; handleAuthResult resolves the grant and resets it.
                     is SignInOutcomeDomain.NeedsResolution -> sendEvent(
-                        Event.AuthResolutionRequested(outcome.intentSender),
+                        Event.AuthResolutionRequested(outcome.resolution.platform as IntentSender),
                     )
 
                     is SignInOutcomeDomain.PartialGrant,

@@ -12,7 +12,7 @@ import io.github.stslex.workeeper.core.ui.kit.components.dialog.BlockedArchiveIt
  * "Dialogs and bottom sheets are State, not Events" section of compose-state-discipline.md.
  */
 @Stable
-internal sealed interface DialogState {
+sealed interface DialogState {
 
     @Stable
     data object Hidden : DialogState
@@ -23,6 +23,24 @@ internal sealed interface DialogState {
      */
     @Stable
     data class DiscardConfirm(val target: ExerciseStore.DiscardTarget) : DialogState
+
+    /**
+     * "Switching to weightless will clear the weights you have typed" confirmation, raised by the
+     * inline plan editor's type toggle. The pending target lives in `State.pendingTypeChange` so
+     * the confirm handler knows which value to commit; this variant carries only the pre-resolved
+     * strings (Rule 1 — no `stringResource` inside an `updateState` lambda).
+     *
+     * **The wipe here is local and that is not an oversight.** A record being created has no row
+     * on disk and nothing else references it, so there is no cross-plan cascade to run — the only
+     * weights in existence are the ones in this draft.
+     */
+    @Stable
+    data class TypeChangeConfirm(
+        val title: String,
+        val body: String,
+        val impactSummary: String,
+        val confirmLabel: String,
+    ) : DialogState
 
     /**
      * Surfaced when archiving an exercise that is still referenced by an active training.
@@ -45,6 +63,10 @@ internal sealed interface DialogState {
     @Stable
     data object ImageSourcePicker : DialogState
 
+    /** What counts as a record — opened from the history record row's PR tag. */
+    @Stable
+    data object PrExplainer : DialogState
+
     /** Camera permission denied → "Open Settings or Cancel" prompt. */
     @Stable
     data object PermissionDenied : DialogState
@@ -60,4 +82,38 @@ internal sealed interface DialogState {
         val activeSessionName: String,
         val progressLabel: String,
     ) : DialogState
+}
+
+/**
+ * The topbar `⋮` overflow, Store-homed like every other modal on this screen (Rule 4 of
+ * compose-state-discipline). The v2.4 `DropdownMenu` rendered from an anchored composable
+ * with no state backing; the v3 sheet survives the same way the dialogs do. Kept separate
+ * from [DialogState] deliberately — the past-session rebuild established the two-field
+ * shape (`dialogState` + `bottomSheetState`), and a menu item that opens a dialog closes
+ * the sheet in the same state transition.
+ */
+@Stable
+sealed interface BottomSheetState {
+
+    @Stable
+    data object Hidden : BottomSheetState
+
+    /** `⋮` → Изменить · В архив · Удалить навсегда (the last only when deletable). */
+    @Stable
+    data object DetailMenu : BottomSheetState
+
+    /**
+     * The editor plan head's `(i)` (ED8): what a default plan is for, in a sheet rather than
+     * as a subtitle under the head — a long explanation is a reason, and reasons live behind
+     * the `i`. Referent: the session's `.mini.info` → `#sh-desc`.
+     */
+    @Stable
+    data object PlanInfo : BottomSheetState
+
+    /**
+     * ED7: the tag picker's sheet — search, the dictionary as selectable chips, the create
+     * row, «Готово». Opened by the form's dashed «+ тег» chip; selection applies live.
+     */
+    @Stable
+    data object TagPicker : BottomSheetState
 }

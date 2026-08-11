@@ -138,7 +138,7 @@ Contract rules:
 - **Export DTOs** (`@Serializable`), package `…/export/model/`: `WorkoutExportDto` (envelope),
   `ExerciseExportDto`, `TrainingExportDto`, `PlanExerciseExportDto`, `PlanSetExportDto`,
   `SessionExportDto`, `PerformedExerciseExportDto`, `SetExportDto`. Data-layer only (Detekt).
-- **`DatabaseJsonExporter` / `…Impl`** (`@Singleton`), package `…/export/`: reads all 9 DAOs, assembles
+- **`DatabaseJsonExporter` / `…Impl`** (`@SingleIn(AppScope::class)`), package `…/export/`: reads all 9 DAOs, assembles
   the nested DTO graph, encodes via `kotlinx.serialization.json`. Returns the JSON as `String`/bytes;
   it does **not** know about Drive.
 - **Mapper** object(s), package `…/export/mapper/`: entity/DataModel → export DTO. No inline mapping
@@ -152,7 +152,7 @@ Contract rules:
 - **`DriveApi` made space-aware:** list takes a `spaces` arg; upload takes a `parents` arg. Binary
   callers pass `appDataFolder` (unchanged); snapshot caller passes the `Workeeper/` folder id and
   `spaces=drive`.
-- **`DriveSnapshotStorage`** (`@Singleton`, sibling of `DriveBackupStorage`):
+- **`DriveSnapshotStorage`** (`@SingleIn(AppScope::class)`, sibling of `DriveBackupStorage`):
   - **Folder management (D8):** `files.list` with
     `q = "mimeType='application/vnd.google-apps.folder' and name='Workeeper' and trashed=false"`,
     `spaces=drive`. With `drive.file` the app sees only files it created, so it finds/creates its own
@@ -186,7 +186,7 @@ Contract rules:
   the Drive impl (api/impl split per project convention).
 
 ### 4.4 Orchestration seam — `SnapshotExportRunner`
-- **`SnapshotExportRunner` / `…Impl`** (`@Singleton`, data layer), one suspend method
+- **`SnapshotExportRunner` / `…Impl`** (`@SingleIn(AppScope::class)`, data layer), one suspend method
   `runIfEligible()`:
   1. toggle on? else no-op.
   2. `drive.file` granted? else no-op (and, if toggle is on but grant missing, set a one-time
@@ -200,11 +200,11 @@ Contract rules:
   binary outcome but internally no-ops without auth/toggle. The binary `Result`/error path is
   unaffected regardless of what the runner does.
 
-### 4.5 Hilt & Detekt compliance
-- All new data-layer singletons `@InstallIn(SingletonComponent::class)` `@Singleton`, matching the
-  existing Drive graph. `HiltScopeRule` forces `@Singleton` for `*Storage`; confirm it does not reject
-  the `Exporter`/`Runner` suffixes (unlisted suffixes are unconstrained) — if it does, rename to a
-  compliant suffix.
+### 4.5 Metro & Detekt compliance
+- All new data-layer app-scoped bindings `@SingleIn(AppScope::class)` (+ `@ContributesBinding(AppScope)`),
+  matching the existing Drive graph. `MetroScopeRule` forces `@SingleIn(AppScope::class)` for `*Storage`;
+  confirm it does not reject the `Exporter`/`Runner` suffixes (unlisted suffixes are unconstrained) — if
+  it does, rename to a compliant suffix.
 - New `*Handler` (if any, §5) needs `@Inject` primary ctor with ≥1 param implementing `Handler`
   (`MviHandlerConstructorRule`). No suppressions anywhere; empirical `detekt` run required per phase.
 
@@ -333,7 +333,7 @@ zero data loss — the cheapest first lever. (2) Then introduce the deferred sum
    (known repo failure mode — obfuscated serialNames). Hard requirement before release.
 5. `AuthorizationResult.getGrantedScopes()` available in the GMS version on the classpath (to gate on
    the actual grant, D1).
-6. `HiltScopeRule` behavior for `Exporter` / `Runner` suffixes (rename to a compliant suffix if the
+6. `MetroScopeRule` behavior for `Exporter` / `Runner` suffixes (rename to a compliant suffix if the
    rule constrains them).
 
 ## 11. Phasing (STOP gates between phases; bisectable; Detekt green per phase)

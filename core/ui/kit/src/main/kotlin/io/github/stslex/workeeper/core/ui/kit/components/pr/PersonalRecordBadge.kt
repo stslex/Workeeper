@@ -46,14 +46,14 @@ fun PersonalRecordBadge(
     }
     Row(
         modifier = tappableModifier
-            .background(palette.border)
+            .background(palette.solid)
             .padding(horizontal = AppDimension.Space.sm, vertical = AppDimension.Space.xxs),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
             text = PR_LABEL,
-            color = AppUi.colors.onAccent,
+            color = palette.onSolid,
             style = AppUi.typography.labelSmall.copy(letterSpacing = 0.6.sp),
         )
     }

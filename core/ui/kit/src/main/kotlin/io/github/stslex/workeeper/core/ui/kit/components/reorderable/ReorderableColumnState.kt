@@ -87,6 +87,30 @@ class ReorderableColumnState internal constructor(
         keysByIndex[index] = key
     }
 
+    /**
+     * Forget a row that has left composition.
+     *
+     * **Registration without this is a leak with teeth, not a tidiness problem.** `onItemPlaced`
+     * is the only writer and a removed row simply stops calling it, so its bounds, its index and
+     * its slot in [keysByIndex] all survive it. A drag then crosses a centre that belongs to
+     * nothing rendered — the swap commits and re-anchors against a dead key, so the row jumps and
+     * the haptic fires for a move that cannot happen — and [moveDown]'s own guard, which reads
+     * `keysByIndex.keys.maxOrNull()`, still believes there is a row below the real last one.
+     *
+     * Called from `reorderableColumnItem`'s `DisposableEffect`, so both consumers get it without
+     * either having to recreate the state when membership changes.
+     */
+    internal fun onItemDisposed(key: Any) {
+        itemTops.remove(key)
+        itemBottoms.remove(key)
+        val index = itemIndices.remove(key)
+        // Only clear the slot if it still points at THIS key: a reorder may already have handed
+        // that index to someone else, and dropping it would strand the row that now holds it.
+        if (index != null && keysByIndex[index] == key) {
+            keysByIndex.remove(index)
+        }
+    }
+
     internal fun onDragStart(key: Any) {
         val sourceIndex = itemIndices[key] ?: return
         val top = itemTops[key] ?: return
@@ -112,6 +136,10 @@ class ReorderableColumnState internal constructor(
 
         // Direction must be based on the latest gesture delta, not on total dragOffset.
         // Otherwise after re-anchor dragOffset can change sign and immediately swap back.
+        // The invariant that currently makes the wrong expression harmless is the loop's, not
+        // this line's, so this is defence against a change to the commit path — which would
+        // break it with nothing going red. Mutating it today is a no-op; why, in §27 "Gates",
+        // "A guard can be correct, load-bearing, and still un-mutatable".
         val direction = if (deltaY > 0f) 1 else -1
 
         var safety = MAX_SWAPS_PER_FRAME

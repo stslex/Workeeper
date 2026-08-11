@@ -18,6 +18,7 @@ import io.github.stslex.workeeper.feature.live_workout.domain.model.SetTypeDomai
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMapper.toFinishStats
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMapper.toState
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMapper.toUiList
+import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMapper.withExpansionCarriedFrom
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExerciseStatusUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveExerciseUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveSetUiModel
@@ -79,6 +80,93 @@ internal class LiveWorkoutMapperTest {
 
         assertEquals(ExerciseStatusUiModel.SKIPPED, state.exercises[0].status)
         assertEquals(ExerciseStatusUiModel.CURRENT, state.exercises[1].status)
+    }
+
+    @Test
+    fun `first entry expands exactly the first card — even a completed one`() {
+        // The amended disclosure model's whole initialisation rule (spec §7 superseded):
+        // FIRST in the list, status not consulted.
+        val snapshot = SessionSnapshotDomain(
+            session = sessionAt(1000L),
+            trainingName = "Push Day",
+            isAdhoc = false,
+            exercises = listOf(
+                fullyDone(uuid = "pe-1", position = 0),
+                pending(uuid = "pe-2", position = 1),
+            ),
+            preSessionPrSnapshot = emptyMap(),
+        )
+
+        val state = snapshot.toState(nowMillis = 1000L, resourceWrapper = resourceWrapper)
+
+        assertEquals(persistentSetOf("pe-1"), state.expandedExerciseUuids)
+    }
+
+    @Test
+    fun `withExpansionCarriedFrom keeps the previous open set, pruned to live cards`() {
+        val snapshot = SessionSnapshotDomain(
+            session = sessionAt(1000L),
+            trainingName = "Push Day",
+            isAdhoc = false,
+            exercises = listOf(
+                pending(uuid = "pe-1", position = 0),
+                pending(uuid = "pe-2", position = 1),
+            ),
+            preSessionPrSnapshot = emptyMap(),
+        )
+        val reloaded = snapshot.toState(nowMillis = 1000L, resourceWrapper = resourceWrapper)
+        val previous = reloaded.copy(
+            expandedExerciseUuids = persistentSetOf("pe-2", "pe-deleted"),
+        )
+
+        val carried = reloaded.withExpansionCarriedFrom(previous)
+
+        // The plan-editor round-trip fix survives the automaton's retirement: the user's
+        // open set wins over the fresh first-card init, minus cards that no longer exist.
+        assertEquals(persistentSetOf("pe-2"), carried.expandedExerciseUuids)
+    }
+
+    @Test
+    fun `withExpansionCarriedFrom keeps the first-card init when nothing was loaded before`() {
+        val snapshot = SessionSnapshotDomain(
+            session = sessionAt(1000L),
+            trainingName = "Push Day",
+            isAdhoc = false,
+            exercises = listOf(pending(uuid = "pe-1", position = 0)),
+            preSessionPrSnapshot = emptyMap(),
+        )
+        val loaded = snapshot.toState(nowMillis = 1000L, resourceWrapper = resourceWrapper)
+        val freshStore = State.create(sessionUuid = "s", trainingUuid = "t")
+
+        val carried = loaded.withExpansionCarriedFrom(freshStore)
+
+        assertEquals(persistentSetOf("pe-1"), carried.expandedExerciseUuids)
+    }
+
+    @Test
+    fun `REPRO a weighted plan set with no weight renders reps-only, never a fake zero`() {
+        // Null weights are real: `PlanDraftReducer` writes them and a cleared weight field
+        // parses to null, so a WEIGHTED exercise can legitimately carry reps-only plan
+        // sets. The card subtitle must not invent a 0 kg target for them — the app's
+        // established rendering (`PlanEditorUIMapper.formatPlanSummary`) is reps-only.
+        val snapshot = SessionSnapshotDomain(
+            session = sessionAt(1000L),
+            trainingName = "Push Day",
+            isAdhoc = false,
+            exercises = listOf(
+                pending(uuid = "pe-1", position = 0).copy(
+                    planSets = listOf(
+                        PlanSetDomain(weight = null, reps = 12, type = SetTypeDomain.WORK),
+                        PlanSetDomain(weight = 60.0, reps = 8, type = SetTypeDomain.WORK),
+                    ),
+                ),
+            ),
+            preSessionPrSnapshot = emptyMap(),
+        )
+
+        val state = snapshot.toState(nowMillis = 1000L, resourceWrapper = resourceWrapper)
+
+        assertEquals("12 · 60×8", state.exercises.first().statusLabel)
     }
 
     @Test
@@ -152,6 +240,7 @@ internal class LiveWorkoutMapperTest {
                 PlanSetDomain(weight = 100.0, reps = 5, type = SetTypeDomain.WORK),
             ),
             performedSets = emptyList(),
+            isPlanAttached = true,
         )
 
     private fun fullyDone(uuid: String, position: Int): LiveExerciseDomain =
@@ -261,7 +350,7 @@ internal class LiveWorkoutMapperTest {
             totalCount = 2,
             setsLogged = 4,
             progress = 1f,
-            progressLabel = "",
+            headerMetaLabel = "",
             exercises = persistentListOf(
                 exerciseUi(
                     exerciseUuid = "ex-1",
@@ -444,7 +533,7 @@ internal class LiveWorkoutMapperTest {
         totalCount = 0,
         setsLogged = 0,
         progress = 0f,
-        progressLabel = "",
+        headerMetaLabel = "",
         exercises = persistentListOf(),
         setDrafts = persistentMapOf(),
         activeExerciseUuids = persistentSetOf(),

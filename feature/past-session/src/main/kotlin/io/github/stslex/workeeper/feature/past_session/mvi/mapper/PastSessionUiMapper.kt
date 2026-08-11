@@ -13,22 +13,70 @@ import io.github.stslex.workeeper.feature.past_session.domain.model.SetTypeDomai
 import io.github.stslex.workeeper.feature.past_session.mvi.model.PastExerciseUiModel
 import io.github.stslex.workeeper.feature.past_session.mvi.model.PastSessionUiModel
 import io.github.stslex.workeeper.feature.past_session.mvi.model.PastSetUiModel
+import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStore.State
 import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.collections.immutable.toImmutableList
+import kotlinx.collections.immutable.toImmutableSet
+import kotlin.math.roundToLong
 
 internal object PastSessionUiMapper {
 
     private const val WEIGHT_DECIMAL_FACTOR = 10.0
 
+    /**
+     * Settles [State.expandedExerciseUuids] across a wholesale phase replacement — the
+     * amended §7 disclosure model's only two writers besides the header tap.
+     *
+     * `observeDetailWithPrs` re-emits on every PR-flow change (an edit that moves a record
+     * re-fetches the whole detail), and each emission replaces the Loaded phase. Without this
+     * carry, an edit round-trip would silently reset the user's open cards.
+     *
+     * - Previous phase not Loaded (first entry, or retry after an error): the FIRST card in
+     *   the list is expanded. Status is not consulted — that is the whole initialisation
+     *   rule, same as `LiveWorkoutMapper`'s first-entry seeding.
+     * - Previous phase Loaded: the previous open set wins, pruned to exercises that still
+     *   exist. Pruning is defensive — this screen cannot remove single exercises today, but
+     *   a stale uuid surviving in the set would be an invisible leak, not a harmless one.
+     */
+    fun State.withExpansionCarriedFrom(previous: State): State {
+        val loaded = phase as? State.Phase.Loaded ?: return this
+        val previousLoaded = previous.phase as? State.Phase.Loaded
+        return if (previousLoaded == null) {
+            copy(
+                expandedExerciseUuids = loaded.detail.exercises.firstOrNull()
+                    ?.let { persistentSetOf(it.performedExerciseUuid) }
+                    ?: persistentSetOf(),
+            )
+        } else {
+            val liveUuids = loaded.detail.exercises
+                .mapTo(mutableSetOf()) { it.performedExerciseUuid }
+            copy(
+                expandedExerciseUuids = previous.expandedExerciseUuids
+                    .filterTo(mutableSetOf()) { it in liveUuids }
+                    .toImmutableSet(),
+            )
+        }
+    }
+
     fun SessionDetailDomain.toUi(
         resourceWrapper: ResourceWrapper,
         prSetUuids: Set<String> = emptySet(),
     ): PastSessionUiModel {
-        val totalSets = exercises.sumOf { it.sets.size }
+        // Unfilled rows (`reps <= 0`) are not work and must not inflate the session summary
+        // (§6.1). No production writer can persist one today, so this is defence-in-depth
+        // over legacy or imported data — the count must agree with the live-session
+        // denominator, which excludes them.
+        val totalSets = exercises.sumOf { exercise -> exercise.sets.count { it.reps > 0 } }
         val activeExercises = exercises.count { !it.skipped }
         val finishedAtLabel = resourceWrapper.formatMediumDate(finishedAt)
         val durationLabel = formatElapsedDuration(finishedAt - startedAt)
-        val totalsLabel = buildTotalsLabel(resourceWrapper, activeExercises, totalSets)
+        val totalsLabel = buildTotalsLabel(
+            resourceWrapper = resourceWrapper,
+            exerciseCount = activeExercises,
+            setCount = totalSets,
+            tonnageKg = exercises.tonnageKg(),
+        )
         val trainingName = if (isAdhoc) {
             resourceWrapper.getString(R.string.feature_past_session_adhoc_label)
         } else {
@@ -44,10 +92,49 @@ internal object PastSessionUiMapper {
         )
     }
 
+    /**
+     * Session tonnage — the third figure of the v3 header, restored by spec §11.1.
+     *
+     * **This reverses a deliberate v2.4 decision.** Commit `8a3f8192` ("v2.4 5.7") deleted the
+     * equivalent `computeVolume` from this very mapper on the grounds that the per-set view
+     * and the chart surface volume more usefully than one rolled-up number. §11.1 decides
+     * otherwise and this is its implementation; the reasoning is not lost, it is overruled.
+     *
+     * ## The predicate is not `weight ?: 0.0` over everything
+     *
+     * It mirrors `SessionDao.getBestSessionVolumes` exactly — `e.type = 'WEIGHTED' AND
+     * s.weight IS NOT NULL` — and the WEIGHTLESS clause is the load-bearing half.
+     * `SetEntity.weight` is nullable but *not* type-constrained: residual non-null weights on
+     * weightless rows exist in shipped data, and scrubbing them by migration was explicitly
+     * rejected (spec §12) because it discards logged data irreversibly. A naive sum over
+     * every set would quietly absorb those as kilograms. Excluding WEIGHTLESS exercises
+     * wholesale is both the honest semantic — bodyweight work lifts no measured kg — and the
+     * only reading that agrees with the app's other volume aggregate.
+     *
+     * No `reps > 0` clause is needed: a zero-rep set contributes a zero product either way.
+     * Skipped exercises are *not* excluded, matching the set count this figure sits beside.
+     */
+    private fun List<PerformedExerciseDetailDomain>.tonnageKg(): Double = this
+        .filter { exercise -> exercise.exerciseType == ExerciseTypeDomain.WEIGHTED }
+        .sumOf { exercise ->
+            exercise.sets.sumOf { set -> (set.weight ?: 0.0) * set.reps }
+        }
+
+    /**
+     * "5 exercises · 14 sets · 4,820 kg".
+     *
+     * Two format strings rather than one with an empty third argument: a session that lifted
+     * nothing — every exercise weightless, or a weighted session logged without weights —
+     * would otherwise read "· 0 kg", which states a measurement that was never taken. The
+     * figure simply drops out. Grouping is `%,d` in the resource, formatted against the
+     * configuration locale — "4,820" in en, "4 820" in ru — without a number formatter this
+     * codebase does not have.
+     */
     private fun buildTotalsLabel(
         resourceWrapper: ResourceWrapper,
         exerciseCount: Int,
         setCount: Int,
+        tonnageKg: Double,
     ): String {
         val exercises = resourceWrapper.getQuantityString(
             R.plurals.feature_past_session_exercises_count,
@@ -59,10 +146,19 @@ internal object PastSessionUiMapper {
             setCount,
             setCount,
         )
+        val roundedTonnage = tonnageKg.roundToLong()
+        if (roundedTonnage <= 0L) {
+            return resourceWrapper.getString(
+                R.string.feature_past_session_totals_format,
+                exercises,
+                sets,
+            )
+        }
         return resourceWrapper.getString(
-            R.string.feature_past_session_totals_format,
+            R.string.feature_past_session_totals_format_with_tonnage,
             exercises,
             sets,
+            resourceWrapper.getString(R.string.feature_past_session_tonnage_format, roundedTonnage),
         )
     }
 
@@ -77,6 +173,7 @@ internal object PastSessionUiMapper {
                     position = exercise.position,
                     skipped = exercise.skipped,
                     isWeighted = exercise.exerciseType == ExerciseTypeDomain.WEIGHTED,
+                    setSummary = exercise.setSummary(),
                     sets = exercise.sets.toUiSets(
                         performedExerciseUuid = exercise.performedExerciseUuid,
                         prSetUuids = prSetUuids,
@@ -84,6 +181,44 @@ internal object PastSessionUiMapper {
                 )
             }
             .toImmutableList()
+
+    /**
+     * The collapsed card's summary line — `pass2d.html:312`, `10×15 · 10×15 · 10×15`.
+     *
+     * Only sets that represent work appear: `reps > 0` is the same sentinel the set count
+     * uses, so a card cannot summarise rows the header does not count.
+     *
+     * **The bare-reps form is a property of the exercise TYPE, not of one set's weight.** A
+     * weightless exercise has no weight dimension at all, so its sets collapse to bare rep
+     * counts rather than "0×15". A *weighted* exercise whose set has no logged weight is a
+     * different situation and must not borrow that form: a blank weight is accepted as valid
+     * input on this screen and persists as `null`, so `"49×15 · 15 · 71×15"` is reachable,
+     * and among neighbours whose leading number is a weight the lone `15` reads as 15 kg.
+     * That set keeps the `×` shape with [MISSING_WEIGHT] in the weight position, so the
+     * figure is legibly absent instead of silently re-typed.
+     *
+     * `×` is U+00D7 and rides in `mono.meta` (IBM Plex Mono), never the numeric family —
+     * the C2 charset constraint is on `numericFontFamily`, which this line never touches.
+     * [MISSING_WEIGHT] is U+2014 and rides in the same slot for the same reason.
+     */
+    private fun PerformedExerciseDetailDomain.setSummary(): String = sets
+        .asSequence()
+        .filter { set -> set.reps > 0 }
+        .map { set ->
+            if (exerciseType != ExerciseTypeDomain.WEIGHTED) {
+                set.reps.toString()
+            } else {
+                val weight = set.weight?.let(::formatWeight) ?: MISSING_WEIGHT
+                "$weight$SUMMARY_TIMES${set.reps}"
+            }
+        }
+        .joinToString(separator = SUMMARY_SEPARATOR)
+
+    private const val SUMMARY_SEPARATOR = " · "
+    private const val SUMMARY_TIMES = "×"
+
+    /** An em dash: a weighted set that logged no weight, so the slot is stated as empty. */
+    private const val MISSING_WEIGHT = "—"
 
     private fun List<SetDomain>.toUiSets(
         performedExerciseUuid: String,

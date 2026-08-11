@@ -1,18 +1,22 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.core.data.exercise.training
 
+import dev.zacsweers.metro.ContributesBinding
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
+import io.github.stslex.workeeper.core.core.di.AppScope
 import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.data.database.converters.PlanSetsConverter
 import io.github.stslex.workeeper.core.data.database.sets.PlanSetDataModel
 import io.github.stslex.workeeper.core.data.database.training.TrainingExerciseDao
+import io.github.stslex.workeeper.core.data.database.training.TrainingExerciseEntity
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
-import javax.inject.Inject
-import javax.inject.Singleton
 import kotlin.uuid.Uuid
 
-@Singleton
-internal class TrainingExerciseRepositoryImpl @Inject constructor(
+@ContributesBinding(AppScope::class)
+@SingleIn(AppScope::class)
+class TrainingExerciseRepositoryImpl @Inject internal constructor(
     private val dao: TrainingExerciseDao,
     @IODispatcher private val ioDispatcher: CoroutineDispatcher,
 ) : TrainingExerciseRepository {
@@ -49,6 +53,34 @@ internal class TrainingExerciseRepositoryImpl @Inject constructor(
                 trainingUuid = Uuid.parse(trainingUuid),
                 exerciseUuid = Uuid.parse(exerciseUuid),
                 planSets = PlanSetsConverter.toJson(planSets),
+            )
+        }
+    }
+
+    override suspend fun attachExercise(
+        trainingUuid: String,
+        exerciseUuid: String,
+        planSets: List<PlanSetDataModel>?,
+    ) {
+        withContext(ioDispatcher) {
+            val trainingId = Uuid.parse(trainingUuid)
+            val nextPosition = (dao.getMaxPosition(trainingId) ?: -1) + 1
+            dao.insert(
+                TrainingExerciseEntity(
+                    trainingUuid = trainingId,
+                    exerciseUuid = Uuid.parse(exerciseUuid),
+                    position = nextPosition,
+                    planSets = PlanSetsConverter.toJson(planSets),
+                ),
+            )
+        }
+    }
+
+    override suspend fun detachExercise(trainingUuid: String, exerciseUuid: String) {
+        withContext(ioDispatcher) {
+            dao.deleteByTrainingAndExercise(
+                trainingUuid = Uuid.parse(trainingUuid),
+                exerciseUuid = Uuid.parse(exerciseUuid),
             )
         }
     }
