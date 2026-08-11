@@ -44,6 +44,25 @@ Each tracked location should carry a `TODO(tech-debt): <category> — <ref>` mar
 
 ---
 
+## androidTest navigation-library coupling — two named detekt exclusions (nav3 stage 1.1)
+
+**Rule:** nothing under `app/app/src/androidTest` imports `androidx.navigation*`. The instrumented
+navigation oracle reaches the app through the semantics tree and through Room only, so the same
+suite survives the Nav2 → Nav3 swap without edits. Enforced by `:app:app:detektAndroidTestNavigation`
+(its own `Detekt` task over `src/androidTest/{kotlin,java}`, config `lint-rules/detekt-androidtest.yml`)
+— the plain `detekt` task cannot see that source set at all.
+
+| Severity | Location | Description |
+|---|---|---|
+| 🟡 | [app/app/.../androidTest/.../ExerciseCreatePersistenceTest.kt](../app/app/src/androidTest/kotlin/io/github/stslex/workeeper/app/ExerciseCreatePersistenceTest.kt) | Mounts its own `NavHost` + `rememberNavController()` inside `setContent` as scaffolding for a DI / persistence assertion (it reads `exerciseDao` back after a Store→Room write). Not part of the navigation oracle. **Named path exclusion, not a baseline** — a baseline rots silently, an exclusion is visible in the config it weakens. **Revisit at stage 1.3 — `NavHost` disappears** and the scaffolding has to be rewritten anyway; that is the moment to move it onto `MainActivity` or delete the bespoke host. |
+| 🟡 | [app/app/.../androidTest/.../AllTrainingsExtensionDbVisibilityTest.kt](../app/app/src/androidTest/kotlin/io/github/stslex/workeeper/app/AllTrainingsExtensionDbVisibilityTest.kt) | Same shape and same reason: a bespoke `NavHost` mounting `allTrainingsGraph` to prove the graph extension reads the parent in-memory database. **Revisit at stage 1.3.** |
+
+Refactoring either onto `MainActivity` was outside the stage 1.1 scope fence, which added tests only.
+Both exclusions are load-bearing rather than decorative: removing them from the config reds the task
+on exactly these two files (4 import lines), which is how they were verified.
+
+---
+
 ## Flaky UI test — ApplicationBottomBarTest.navigateToExercisesAndBack
 
 | Severity | Location | Description |
