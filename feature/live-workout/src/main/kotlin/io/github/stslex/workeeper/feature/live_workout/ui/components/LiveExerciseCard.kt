@@ -280,6 +280,7 @@ private fun HeaderActions(
             )
         }
         AppMiniIconButton(
+            modifier = Modifier.testTag("LiveExerciseCard_Menu_${exercise.performedExerciseUuid}"),
             icon = AppIcons.MoreVertical,
             contentDescription = stringResource(R.string.feature_live_workout_more),
             onClick = {

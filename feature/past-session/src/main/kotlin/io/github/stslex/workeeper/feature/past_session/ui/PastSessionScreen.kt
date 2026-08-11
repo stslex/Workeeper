@@ -125,6 +125,7 @@ internal fun TopBar(
         smallTitle = true,
         navigation = {
             AppIconButton(
+                modifier = Modifier.testTag("PastSessionBackButton"),
                 icon = AppIcons.ChevronLeft,
                 contentDescription = stringResource(KitR.string.core_ui_kit_action_back),
                 onClick = { consume(Action.Click.OnBackClick) },

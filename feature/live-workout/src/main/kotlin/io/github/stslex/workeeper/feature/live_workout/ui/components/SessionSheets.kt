@@ -83,6 +83,7 @@ internal fun ExerciseMenuSheetContent(
         AppSheetItem(
             title = stringResource(R.string.feature_live_workout_action_edit_plan),
             onClick = { consume(LiveWorkoutStore.Action.Click.OnEditPlan(uuid)) },
+            modifier = Modifier.testTag("ExerciseMenu_EditPlan"),
         )
         AppSheetItem(
             title = stringResource(R.string.feature_live_workout_action_reset_sets),
