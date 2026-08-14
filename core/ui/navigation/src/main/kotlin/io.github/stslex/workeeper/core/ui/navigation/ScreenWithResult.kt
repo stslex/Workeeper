@@ -41,6 +41,23 @@ object NavResultKey {
 
     private const val PREFIX = "nav-result"
 
+    /**
+     * **The key is the [KClass] that is passed, not the destination that is popped.** A
+     * sealed destination and its variant are different keys: `Screen.PlanEditor::class` and
+     * `Screen.PlanEditor.Existing::class` do not name the same channel.
+     *
+     * Producer and consumer must therefore pass the *same* reference. `Screen.PlanEditor` is
+     * the one that matters today — `plan-editor`'s `NavigationHandler` produces with the
+     * sealed parent and `LiveWorkoutGraph` reads with it, while the route actually registered
+     * and popped is the concrete `Existing`. That mismatch is fine, and deliberate: the
+     * runtime type never enters the key.
+     *
+     * Narrowing either side to the variant would still compile and still typecheck — [R] is
+     * identical — and the result would simply stop arriving. Per the `.catch { onError(it) }`
+     * swallow in `AppCoroutineScopeImpl`, nothing would throw; the consumer would hold default
+     * state. If a result ever goes missing with both sides looking correct, compare the two
+     * `KClass` references first.
+     */
     fun of(destination: KClass<out ScreenWithResult<*>>): String =
         "$PREFIX:${destination.qualifiedName ?: destination.toString()}"
 }

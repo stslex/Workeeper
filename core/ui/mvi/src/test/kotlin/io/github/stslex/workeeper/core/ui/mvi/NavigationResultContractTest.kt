@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 import kotlin.reflect.KClass
@@ -141,6 +142,26 @@ internal class NavigationResultContractTest {
         producer.produce(Screen.PlanEditor::class, true)
         consumerTick()
         assertEquals(2, reloads, "a re-armed result must be delivered again")
+    }
+
+    /**
+     * A sealed destination and one of its variants are different channels.
+     *
+     * `Screen.PlanEditor` is what both sides of the plan-editor result pass, while the route
+     * registered and popped is the concrete `Existing` — the runtime type never enters the
+     * key, only the reference passed does. Narrowing one side to the variant would still
+     * compile and still typecheck, and the result would simply stop arriving; per the
+     * `.catch { onError(it) }` swallow in `AppCoroutineScopeImpl`, silently.
+     *
+     * Pinned here so that stops being a matter of everyone remembering.
+     */
+    @Test
+    fun `a destination and its variant do not share a result channel`() {
+        assertNotEquals(
+            NavResultKey.of(Screen.PlanEditor::class),
+            NavResultKey.of(Screen.PlanEditor.Existing::class),
+            "producer and consumer must pass the same KClass; a variant is a different channel",
+        )
     }
 
     @Test
