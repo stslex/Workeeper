@@ -23,14 +23,12 @@ import kotlinx.coroutines.flow.map
  * modules.
  *
  * The store is minted through [DataStoreProviderFactory] (same pattern as `CommonDataStoreImpl`),
- * NOT with a per-instance `PreferenceDataStoreFactory.create` — a `DataStore` is a per-file
+ * never with a per-instance `PreferenceDataStoreFactory.create` — a `DataStore` is a per-file
  * singleton and `DataStoreProvider`'s memoization is static (process-lifetime), while this class is
  * `@SingleIn(AppScope)` (graph-lifetime). A second `AppGraph` in one process — which is what the
  * instrumented harness's per-test graph rebuild does — must resolve the SAME store, or DataStore
  * 1.1+ throws `IllegalStateException: multiple DataStores active` on the second collection.
- * The file is unchanged by this routing: both the old inline `create` and the provider resolve
- * `context.preferencesDataStoreFile("backup_account_prefs")`. Regression cover:
- * `app/app` androidTest `AccountDataStoreSingletonTest`.
+ * Invariant pinned by `app/app` androidTest `AccountDataStoreSingletonTest`.
  */
 @ContributesBinding(AppScope::class)
 @SingleIn(AppScope::class)

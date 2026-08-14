@@ -36,23 +36,14 @@ import org.junit.runner.RunWith
  *
  * ## Expectation: 15/15
  *
- * This class landed 14/15: [archiveOpensFromSettingsAndSettingsReturns] threw
- * `IllegalStateException: There are multiple DataStores active for the same file:
- * .../files/datastore/backup_account_prefs.preferences_pb` — a production defect
- * (`AccountDataStoreImpl` built its store per-instance, bypassing `DataStoreProvider`'s static,
- * process-lifetime memoization, so `MetroTestRule`'s per-test graph rebuild opened a second
- * `DataStore` over one file and the second test to reach Settings' backup section threw). The test
- * was committed red rather than muted, and the defect is now fixed by routing the store through
- * `DataStoreProviderFactory`; the failure shape is pinned red-proven in
- * [AccountDataStoreSingletonTest]. A red here on that exception again is a regression, not a known
- * issue.
- *
- * Three sibling bypasses remain (`BackupPreferencesRepositoryImpl`, `RestoreStateRepositoryImpl`,
- * `AppDialogRepository`) — each needs a new `:core:data:dataStore` module edge and is recorded in
- * `documentation/tech-debt.md`. Nothing in this class currently trips them, but a future test that
- * touches Settings' backup section twice via those stores, or raises an app dialog twice, will
- * throw the identical exception on a DIFFERENT prefs file — read the file name in the message
- * before triaging it as this defect returned.
+ * A red here throwing `IllegalStateException: There are multiple DataStores active for the same
+ * file` is a DataStore singleton-bypass collision: a `@SingleIn(AppScope)` holder minting its own
+ * store instead of resolving it through `DataStoreProviderFactory` collides the moment
+ * [MetroTestRule] rebuilds the graph for the next test. Triage by the file name in the message:
+ * `backup_account_prefs` is a regression — that invariant is pinned by
+ * [AccountDataStoreSingletonTest] — while `backup_scheduling_prefs`, `restore_state_prefs` and
+ * `app_dialogs_prefs` are the three known bypasses filed in `documentation/tech-debt.md`
+ * surfacing, not a navigation regression. Nothing in this class trips those three today.
  *
  * @see NavPaths for the journeys, and for why arrival waits on an explicit timeout.
  * @see NavSeed for the rows, and for the two schema rules a call site cannot see.
