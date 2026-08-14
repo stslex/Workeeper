@@ -174,7 +174,7 @@ internal class NavigationLifecycleRegressionTest {
         assertEquals(
             listOf(
                 NavCommand.NavTo(Screen.Exercise(uuid = "ex-2")),
-                NavCommand.PopBack(emptyList()),
+                NavCommand.PopBack,
             ),
             secondObserved,
         )

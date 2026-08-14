@@ -43,8 +43,8 @@ class NavigatorEventBus(
         consume(NavCommand.NavTo(screen))
     }
 
-    override fun popBack(vararg previousStackAttr: Pair<String, Any?>) {
-        consume(NavCommand.PopBack(previousStackAttr.toList()))
+    override fun popBack() {
+        consume(NavCommand.PopBack)
     }
 
     override fun <S, R : Any> popBackWithResult(

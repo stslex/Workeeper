@@ -4,6 +4,7 @@ package io.github.stslex.workeeper.navigation
 import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.core.core.logger.Logger
 import io.github.stslex.workeeper.core.ui.navigation.NavCommand
+import io.github.stslex.workeeper.core.ui.navigation.NavResultKey
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.mockk.every
 import io.mockk.mockk
@@ -18,6 +19,7 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
@@ -25,8 +27,9 @@ import org.junit.jupiter.api.Test
  * Verifies the singleton command-bus contract:
  *  - `navTo(screen)` emits exactly one `NavCommand.NavTo(screen)`.
  *  - `replaceTo(screen)` emits exactly one `NavCommand.ReplaceTo(screen)`.
- *  - `popBack(...)` emits exactly one `NavCommand.PopBack(attrsList)` carrying
- *    every key/value pair in vararg order.
+ *  - `popBack()` emits exactly one `NavCommand.PopBack`.
+ *  - `popBackWithResult(destination, result)` emits one `NavCommand.PopBackWithResult`
+ *    keyed by the destination, carrying the value unchanged.
  *  - Multiple emissions arrive on the receiver in the order they were dispatched.
  *
  * Each test attaches a collector before invoking the producer because the bus uses
@@ -94,7 +97,7 @@ internal class NavigatorEventBusTest {
     }
 
     @Test
-    fun `popBack with no attributes emits an empty PopBack command`() = runTest {
+    fun `popBack emits the PopBack command`() = runTest {
         val dispatcher = UnconfinedTestDispatcher(testScheduler)
         val bus = NavigatorEventBus(mockk(relaxed = true))
 
@@ -102,37 +105,41 @@ internal class NavigatorEventBusTest {
         testScheduler.advanceUntilIdle()
         bus.popBack()
 
-        assertEquals(NavCommand.PopBack(emptyList()), collector.await())
+        assertEquals(NavCommand.PopBack, collector.await())
     }
 
+    /**
+     * Replaces the three vararg-attribute cases this file used to carry. They asserted the
+     * shape of a transport that no longer exists — ordered `Pair<String, Any?>`, and a null
+     * value standing in for "no result". Both are now expressed by the type on the
+     * destination, so what is worth pinning here is that the bus keys the command off that
+     * destination and carries the value through unchanged.
+     */
     @Test
-    fun `popBack preserves attribute key value pairs in vararg order`() = runTest {
+    fun `popBackWithResult keys the command by destination and carries the result`() = runTest {
         val dispatcher = UnconfinedTestDispatcher(testScheduler)
         val bus = NavigatorEventBus(mockk(relaxed = true))
-        val firstAttr: Pair<String, Any?> = "plan-editor-saved" to true
-        val secondAttr: Pair<String, Any?> = "another-attr" to "value"
 
         val collector = async(dispatcher) { bus.commands.first() }
         testScheduler.advanceUntilIdle()
-        bus.popBack(firstAttr, secondAttr)
+        bus.popBackWithResult(Screen.PlanEditor::class, true)
 
         assertEquals(
-            NavCommand.PopBack(listOf(firstAttr, secondAttr)),
+            NavCommand.PopBackWithResult(
+                key = NavResultKey.of(Screen.PlanEditor::class),
+                result = true,
+            ),
             collector.await(),
         )
     }
 
     @Test
-    fun `popBack tolerates null values in attribute pairs`() = runTest {
-        val dispatcher = UnconfinedTestDispatcher(testScheduler)
-        val bus = NavigatorEventBus(mockk(relaxed = true))
-        val attr: Pair<String, Any?> = "result" to null
-
-        val collector = async(dispatcher) { bus.commands.first() }
-        testScheduler.advanceUntilIdle()
-        bus.popBack(attr)
-
-        assertEquals(NavCommand.PopBack(listOf(attr)), collector.await())
+    fun `popBackWithResult distinguishes destinations`() = runTest {
+        assertNotEquals(
+            NavResultKey.of(Screen.PlanEditor::class),
+            NavResultKey.of(Screen.ExerciseImage::class),
+            "two destinations must not share a result key",
+        )
     }
 
     @Test
@@ -165,7 +172,7 @@ internal class NavigatorEventBusTest {
             listOf(
                 NavCommand.NavTo(firstScreen),
                 NavCommand.ReplaceTo(secondScreen),
-                NavCommand.PopBack(emptyList()),
+                NavCommand.PopBack,
             ),
             collector.await(),
         )

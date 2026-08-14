@@ -9,7 +9,11 @@ interface Navigator {
 
     fun navTo(screen: Screen)
 
-    fun popBack(vararg previousStackAttr: Pair<String, Any?>)
+    /**
+     * Pop the current destination. To hand a value back, use [popBackWithResult] — which
+     * requires the destination to declare what it returns.
+     */
+    fun popBack()
 
     /**
      * Pop [destination] off the back stack, handing [result] to whoever opened it.

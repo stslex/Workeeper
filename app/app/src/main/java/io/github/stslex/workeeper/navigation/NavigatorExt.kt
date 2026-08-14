@@ -47,7 +47,7 @@ object NavigatorExt {
         logger.i { "Processing navigation command: $command" }
         when (command) {
             is NavCommand.NavTo -> navTo(navController, command.screen)
-            is NavCommand.PopBack -> popBack(navController, command.attrs)
+            is NavCommand.PopBack -> popBack(navController)
             is NavCommand.PopBackWithResult -> popBackWithResult(
                 navController = navController,
                 key = command.key,
@@ -81,20 +81,8 @@ object NavigatorExt {
         }
     }
 
-    private fun popBack(
-        navController: NavController,
-        previousStackAttr: List<Pair<String, Any?>>,
-    ) {
-        logger.d {
-            val attrs = previousStackAttr.joinToString { "${it.first}=${it.second}" }
-            "popBack($attrs)"
-        }
-
-        navController.previousBackStackEntry
-            ?.savedStateHandle
-            ?.let { saveHandle ->
-                previousStackAttr.forEach { (key, value) -> saveHandle[key] = value }
-            }
+    private fun popBack(navController: NavController) {
+        logger.d("popBack")
         navController.popBackStack()
     }
 
