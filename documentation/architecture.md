@@ -820,9 +820,15 @@ class NavigatorEventBus(
     override val commands: SharedFlow<NavCommand> = _commands.asSharedFlow()
 
     override fun navTo(screen: Screen) { _commands.tryEmit(NavCommand.NavTo(screen)) }
-    override fun popBack() {
-        _commands.tryEmit(NavCommand.PopBack(previousStackAttr.toList()))
+    override fun popBack() { _commands.tryEmit(NavCommand.PopBack) }
+
+    override fun <S, R : Any> popBackWithResult(
+        destination: KClass<S>,
+        result: R,
+    ) where S : ScreenWithResult<R> {
+        _commands.tryEmit(NavCommand.PopBackWithResult(NavResultKey.of(destination), result))
     }
+
     override fun replaceTo(screen: Screen) { _commands.tryEmit(NavCommand.ReplaceTo(screen)) }
 
     // Terminal + platform-owned: invoke the injected seam directly instead of
@@ -864,9 +870,11 @@ needed. The class name carries the
 `Handler`, `Interactor`, `Mapper`, `Store`).
 
 `NavCommand` (`core/ui/navigation/.../NavCommand.kt`) is a
-`sealed interface` with four variants — `NavTo(screen)`,
-`ReplaceTo(screen)`, `PopBack(attrs)`, and `OpenRecovery`. The three
-back-stack commands correspond 1-to-1 with `Navigator` operations;
+`sealed interface` with five variants — `NavTo(screen)`,
+`ReplaceTo(screen)`, `PopBack`, `PopBackWithResult(key, result)`, and
+`OpenRecovery`. The four back-stack commands correspond 1-to-1 with `Navigator`
+operations; `PopBackWithResult` is the one place the result's key and value are
+untyped, and it is confined to this module for that reason —
 `restartApp()` is deliberately **not** a `NavCommand` — it invokes the
 `AppReinitializer` seam directly (see above). Living in `core/ui/navigation`
 (next to `Navigator`) lets the bus, the bridge, and any test double share

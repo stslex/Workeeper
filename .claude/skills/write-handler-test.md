@@ -197,8 +197,10 @@ mocked `Navigator` instead):
 
 - `navTo(screen)` emits exactly one `NavCommand.NavTo(screen)`.
 - `replaceTo(screen)` emits exactly one `NavCommand.ReplaceTo(screen)`.
-- `popBack(...)` emits exactly one `NavCommand.PopBack(attrsList)` preserving
-  vararg order and tolerating null values.
+- `popBack()` emits exactly one `NavCommand.PopBack`.
+- `popBackWithResult(destination, result)` emits exactly one
+  `NavCommand.PopBackWithResult` keyed by the destination, carrying the value
+  unchanged. Two destinations must not share a key.
 - Sequential emissions arrive in dispatch order; concurrent collectors observe the
   same hot stream.
 
