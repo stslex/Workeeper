@@ -3,7 +3,6 @@ package io.github.stslex.workeeper.feature.all_trainings.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.ExperimentalSharedTransitionApi
-import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalHapticFeedback
 import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
@@ -14,9 +13,8 @@ import io.github.stslex.workeeper.feature.all_trainings.mvi.store.AllTrainingsSt
 import io.github.stslex.workeeper.feature.all_trainings.mvi.store.AllTrainingsStore.Event
 
 @OptIn(ExperimentalSharedTransitionApi::class)
-@Suppress("UnusedParameter", "LongMethod")
+@Suppress("LongMethod")
 fun NavGraphScope.allTrainingsGraph(
-    sharedTransitionScope: SharedTransitionScope,
     modifier: Modifier = Modifier,
 ) {
     navComponentScreen(AllTrainingsFeature) { processor ->

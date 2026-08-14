@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.core.ui.navigation
 
-import androidx.compose.animation.AnimatedContentScope
 import androidx.compose.runtime.Composable
 import androidx.lifecycle.SavedStateHandle
 import androidx.navigation.NavGraphBuilder
@@ -34,7 +33,7 @@ value class NavGraphScope(val builder: NavGraphBuilder)
  * screen never parses its own arguments.
  */
 inline fun <reified S : Screen> NavGraphScope.navScreen(
-    noinline content: @Composable AnimatedContentScope.(S) -> Unit,
+    noinline content: @Composable (S) -> Unit,
 ) {
     builder.composable<S> { backStackEntry ->
         content(backStackEntry.toRoute())
@@ -49,7 +48,7 @@ inline fun <reified S : Screen> NavGraphScope.navScreen(
  * be back to string keys and erased values — the shape [ScreenWithResult] replaced.
  */
 inline fun <reified S : Screen> NavGraphScope.navScreenWithState(
-    noinline content: @Composable AnimatedContentScope.(S, SavedStateHandle) -> Unit,
+    noinline content: @Composable (S, SavedStateHandle) -> Unit,
 ) {
     builder.composable<S> { backStackEntry ->
         content(backStackEntry.toRoute(), backStackEntry.savedStateHandle)

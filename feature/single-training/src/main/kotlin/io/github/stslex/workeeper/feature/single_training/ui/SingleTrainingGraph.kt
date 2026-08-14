@@ -3,7 +3,6 @@ package io.github.stslex.workeeper.feature.single_training.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.ExperimentalSharedTransitionApi
-import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -28,9 +27,8 @@ import kotlinx.collections.immutable.toImmutableSet
 import io.github.stslex.workeeper.core.ui.kit.R as KitR
 
 @OptIn(ExperimentalSharedTransitionApi::class)
-@Suppress("UnusedParameter", "LongMethod", "CyclomaticComplexMethod")
+@Suppress("LongMethod", "CyclomaticComplexMethod")
 fun NavGraphScope.singleTrainingsGraph(
-    sharedTransitionScope: SharedTransitionScope,
     modifier: Modifier = Modifier,
 ) {
     navComponentScreen(SingleTrainingFeature) { processor ->

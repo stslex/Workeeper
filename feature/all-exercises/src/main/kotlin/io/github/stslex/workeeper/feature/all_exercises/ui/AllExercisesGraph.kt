@@ -3,7 +3,6 @@ package io.github.stslex.workeeper.feature.all_exercises.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.ExperimentalSharedTransitionApi
-import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalHapticFeedback
 import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
@@ -14,10 +13,8 @@ import io.github.stslex.workeeper.feature.all_exercises.mvi.store.AllExercisesSt
 import io.github.stslex.workeeper.feature.all_exercises.mvi.store.AllExercisesStore.Event
 
 @OptIn(ExperimentalSharedTransitionApi::class)
-@Suppress("UnusedParameter")
 fun NavGraphScope.allExercisesGraph(
     modifier: Modifier = Modifier,
-    sharedTransitionScope: SharedTransitionScope,
 ) {
     navComponentScreen(AllExercisesFeature) { processor ->
         val haptic = LocalHapticFeedback.current

@@ -85,25 +85,21 @@ internal fun AppNavigationHost(
                     modifier = bottomBarModifier
                         .reportScreenPlace<Screen.BottomBar.Home>()
                         .testTag("HomeGraph"),
-                    sharedTransitionScope = this@SharedTransitionLayout,
                 )
                 allTrainingsGraph(
                     modifier = bottomBarModifier
                         .reportScreenPlace<Screen.BottomBar.AllTrainings>()
                         .testTag("AllTrainingsGraph"),
-                    sharedTransitionScope = this@SharedTransitionLayout,
                 )
                 allExercisesGraph(
                     modifier = bottomBarModifier
                         .reportScreenPlace<Screen.BottomBar.AllExercises>()
                         .testTag("AllExercisesGraph"),
-                    sharedTransitionScope = this@SharedTransitionLayout,
                 )
                 singleTrainingsGraph(
                     modifier = standardModifier
                         .reportScreenPlace<Screen.Training>()
                         .testTag("SingleTrainingGraph"),
-                    sharedTransitionScope = this@SharedTransitionLayout,
                 )
                 exerciseGraph(
                     modifier = standardModifier
@@ -114,7 +110,6 @@ internal fun AppNavigationHost(
                     modifier = standardModifier
                         .reportScreenPlace<Screen.LiveWorkout>()
                         .testTag("LiveWorkoutGraph"),
-                    sharedTransitionScope = this@SharedTransitionLayout,
                 )
                 pastSessionGraph(
                     modifier = standardModifier

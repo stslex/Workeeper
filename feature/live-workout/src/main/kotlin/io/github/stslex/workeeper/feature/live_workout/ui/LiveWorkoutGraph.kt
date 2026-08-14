@@ -2,7 +2,6 @@
 package io.github.stslex.workeeper.feature.live_workout.ui
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalHapticFeedback
 import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
@@ -13,9 +12,8 @@ import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutFeature
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Action
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Event
 
-@Suppress("LongMethod", "CyclomaticComplexMethod", "UnusedParameter")
+@Suppress("LongMethod", "CyclomaticComplexMethod")
 fun NavGraphScope.liveWorkoutGraph(
-    sharedTransitionScope: SharedTransitionScope,
     modifier: Modifier = Modifier,
 ) {
     navComponentScreenWithResults(LiveWorkoutFeature) { results, processor ->

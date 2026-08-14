@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.core.ui.mvi
 
-import androidx.compose.animation.AnimatedContentScope
 import androidx.compose.runtime.Composable
 import androidx.lifecycle.SavedStateHandle
 import io.github.stslex.workeeper.core.ui.mvi.processor.StoreProcessor
@@ -23,7 +22,7 @@ inline fun <
     reified TScreen : Screen,
     > NavGraphScope.navComponentScreen(
     feature: FeatureAssisted<TProcessor, TScreen>,
-    crossinline content: @Composable AnimatedContentScope.(TProcessor) -> Unit,
+    crossinline content: @Composable (TProcessor) -> Unit,
 ) {
     navScreen<TScreen> { screen ->
         content(feature.processor(screen))
@@ -43,7 +42,7 @@ inline fun <
     reified TScreen : Screen,
     > NavGraphScope.navComponentScreenWithResults(
     feature: FeatureAssisted<TProcessor, TScreen>,
-    crossinline content: @Composable AnimatedContentScope.(NavResults, TProcessor) -> Unit,
+    crossinline content: @Composable (NavResults, TProcessor) -> Unit,
 ) {
     navScreenWithState<TScreen> { screen, state ->
         content(NavResults(state), feature.processor(screen))
@@ -55,7 +54,7 @@ inline fun <
     reified TScreen : Screen,
     > NavGraphScope.navComponentScreen(
     feature: Feature<TProcessor, TScreen>,
-    crossinline content: @Composable AnimatedContentScope.(TProcessor) -> Unit,
+    crossinline content: @Composable (TProcessor) -> Unit,
 ) {
     navScreen<TScreen> {
         content(feature.processor())
