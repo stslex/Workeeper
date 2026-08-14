@@ -44,11 +44,115 @@ Each tracked location should carry a `TODO(tech-debt): <category> — <ref>` mar
 
 ---
 
+## androidTest navigation-library coupling — two named detekt exclusions (nav3 stage 1.1)
+
+**Rule:** nothing under `app/app/src/androidTest` imports `androidx.navigation*`. The instrumented
+navigation oracle reaches the app through the semantics tree and through Room only, so the same
+suite survives the Nav2 → Nav3 swap without edits. Enforced by `:app:app:detektAndroidTestNavigation`
+(its own `Detekt` task over `src/androidTest/{kotlin,java}`, config `lint-rules/detekt-androidtest.yml`)
+— the plain `detekt` task cannot see that source set at all.
+
+| Severity | Location | Description |
+|---|---|---|
+| 🟡 | [app/app/.../androidTest/.../ExerciseCreatePersistenceTest.kt](../app/app/src/androidTest/kotlin/io/github/stslex/workeeper/app/ExerciseCreatePersistenceTest.kt) | Mounts its own `NavHost` + `rememberNavController()` inside `setContent` as scaffolding for a DI / persistence assertion (it reads `exerciseDao` back after a Store→Room write). Not part of the navigation oracle. **Named path exclusion, not a baseline** — a baseline rots silently, an exclusion is visible in the config it weakens. **Revisit at stage 1.3 — `NavHost` disappears** and the scaffolding has to be rewritten anyway; that is the moment to move it onto `MainActivity` or delete the bespoke host. |
+| 🟡 | [app/app/.../androidTest/.../AllTrainingsExtensionDbVisibilityTest.kt](../app/app/src/androidTest/kotlin/io/github/stslex/workeeper/app/AllTrainingsExtensionDbVisibilityTest.kt) | Same shape and same reason: a bespoke `NavHost` mounting `allTrainingsGraph` to prove the graph extension reads the parent in-memory database. **Revisit at stage 1.3.** |
+
+Refactoring either onto `MainActivity` was outside the stage 1.1 scope fence, which added tests only.
+Both exclusions are load-bearing rather than decorative: removing them from the config reds the task
+on exactly these two files (4 import lines), which is how they were verified.
+
+---
+
+## Bottom-bar selection semantics are not published — `ApplicationBottomBarTest` is 4/4 red (nav3 stage 1.1, 2026-08-14)
+
+**Not the flaky-teardown entry below.** That one is a race in `checkAppClosed()` affecting one test
+intermittently. This is a deterministic, every-run failure of all four, on a different assertion, and
+the two must not be conflated when triaging.
+
+| Severity | Location | Description |
+|---|---|---|
+| 🟡 | [core/ui/kit/.../navbar/AppNavBar.kt](../core/ui/kit/src/main/kotlin/io/github/stslex/workeeper/core/ui/kit/components/navbar/AppNavBar.kt) ↔ [app/app/.../ApplicationBottomBarTest.kt](../app/app/src/androidTest/kotlin/io/github/stslex/workeeper/app/ApplicationBottomBarTest.kt) | **`AppNavBar` publishes no `Selected` semantics at all, so every selection assertion in `ApplicationBottomBarTest` fails.** **Mechanism:** each item is a `Box` carrying `Modifier.clickable(interactionSource, indication = null)` and a `testTag` — there is no `Modifier.selectable`, no `Role.Tab`, and no `NavigationBarItem`. `SemanticsProperties.Selected` is therefore never written, and `assertIsSelected()` / `assertIsNotSelected()` cannot pass on any item, selected or not. The selected item is expressed **visually only** (pill offset + icon tint), which is also an accessibility defect: TalkBack has no way to announce which destination is current. **Proof:** grep on the component returns zero hits for `selectable`, `Role.`, `NavigationBarItem` and `semantics`; the test class has exactly **4** `@Test` methods and all four reach `checkSelectedBottomAppBar` (three via `checkScreenOpen`, plus `navigateToExercisesTrainingsAndBack` directly), so the failure count is 4 by construction, with assertion text `Failed to assert the following: (Selected = 'true')`. **Pre-existing, not introduced by the nav3 branch:** `AppNavBar.kt` is blob `149108b8` at `HEAD`, at `bcf70b63` and at `origin/dev` — byte-identical across all three. **Unblock condition: restore the semantics in PRODUCTION** — `Modifier.selectable(selected = …, role = Role.Tab)` on the item box, or adopt `NavigationBarItem`. **Do NOT "fix" this by editing the test**: the assertions are correct and the a11y gap is real; weakening them converts a production defect into a silent one. **Pinned expectation — at stage 1.3 this is mechanical:** exactly these **4** failures, all in `ApplicationBottomBarTest`, all with the assertion string above, and **nothing else**, means the instrumented suite is clean. Any fifth failure, or a different assertion string, is new and must be triaged rather than waved through. **Deadline: before stage 1.3.** |
+
+**Masking dependency — the a11y fix must not land without a decision (added 2026-08-14).**
+`navigateToExercisesAndBack` is BOTH one of the four deterministically red tests pinned above AND the
+carrier of the intermittent `checkAppClosed()` teardown race filed in its own entry below. Today the
+flake is **masked**: the test already fails deterministically on the selection assertion, so the race
+cannot produce a distinguishable extra failure and the pin holds trivially. The a11y fix — scheduled
+before stage 1.3 — turns this class green and **unmasks** the race. From that moment "exactly these
+failures and nothing else" starts breaking by chance, and 1.3 triage becomes ambiguous in exactly the
+way this pin exists to prevent. Two ways out; the a11y PR ships with one of them chosen (Ilya's call,
+recorded here so that PR cannot close this entry without it):
+**(a)** fix the teardown race in the same PR as the a11y fix, so the class is genuinely deterministic
+when 1.3 triages against it; or
+**(b)** re-pin with the flake as a named, expected intermittent that does not invalidate a run — with
+an explicit rerun rule (e.g. a single retry of exactly that test, anything else is a finding).
+
+---
+
+## DataStore singleton bypass — three remaining stragglers (nav3 stage 1.1, 2026-08-14)
+
+**Rule:** a `DataStore` is a per-file singleton. `DataStoreProvider` enforces this with a **static**
+`ConcurrentHashMap<String, DataStore<Preferences>>` in its companion — memoized per file name for the
+**lifetime of the process**, not the lifetime of the DI graph. Any class that calls
+`PreferenceDataStoreFactory.create { … }` itself bypasses that map.
+
+**Why this surfaces now.** `MetroTestRule` installs a fresh `AppGraph` per test, so every
+`@SingleIn(AppScope)` holder is rebuilt. A bypassing holder builds a *second* `DataStore` over the
+same file, and DataStore 1.1+ throws `IllegalStateException: There are multiple DataStores active for
+the same file: …` rather than sharing. **The failure is second-touch, not first-touch:** the first
+test to reach the surface passes and the next one throws, which reads as flakiness if the mechanism
+is not known.
+
+**Proof this is real and not theoretical:** the identical failure is already observed on the fourth
+member of this family, `AccountDataStoreImpl` — `RouteReachabilityTest.archiveOpensFromSettingsAndSettingsReturns`
+throws it through `DriveBackupAuth`'s `observeAccount` collector on
+`…/files/datastore/backup_account_prefs.preferences_pb`. That one is fixed separately; its module
+already depends on `:core:data:dataStore`, so it needs no build change.
+
+**Why these three are not fixed alongside it:** each lives in a module with **no dependency edge on
+`:core:data:dataStore`** (`core/data/backup/scheduling` and `feature/app-dialogs/impl` build scripts
+both lack it, verified). Adding a module edge is a build-graph change, out of a test-only commit's
+scope fence.
+
+| Severity | Location | Description |
+|---|---|---|
+| 🟡 | [core/data/backup/scheduling/.../BackupPreferencesRepositoryImpl.kt:48](../core/data/backup/scheduling/src/main/kotlin/io/github/stslex/workeeper/core/data/backup/scheduling/BackupPreferencesRepositoryImpl.kt) | File `backup_scheduling_prefs`. **Reachable from `AppGraph` directly** — `AppGraph.kt:140` exposes `backupPreferencesRepository`. |
+| 🟡 | [core/data/backup/scheduling/.../RestoreStateRepositoryImpl.kt:53](../core/data/backup/scheduling/src/main/kotlin/io/github/stslex/workeeper/core/data/backup/scheduling/RestoreStateRepositoryImpl.kt) | File `restore_state_prefs`. Not a direct `AppGraph` accessor; reached through the restore flow. |
+| 🟡 | [feature/app-dialogs/impl/.../AppDialogRepository.kt:51](../feature/app-dialogs/impl/src/main/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/data/AppDialogRepository.kt) | File `app_dialogs_prefs`. **Reachable from `AppGraph` directly** — `AppGraph.kt:168` exposes `appDialogRepository`. |
+
+**Consequence to expect.** Two of the three hang off `AppGraph` accessors, so **any future
+instrumented test that touches Settings' backup section twice, or that raises an app dialog twice,
+hits the identical `IllegalStateException`** — including the stage 1.2/1.3 additions to this very
+suite (`StoreRetentionTest`, `BackStackStateRestorationTest`). Read such a failure as this entry, not
+as a navigation regression.
+
+**Unblock condition:** add the `:core:data:dataStore` edge to each module and route the store through
+`DataStoreProvider` (extend `BaseDataStore`, or inject the provider) so the static memoization
+applies. **Deadline: before stage 1.3** — the suite grows there, and the failure count grows with it.
+
+---
+
+## `AllTrainingsItemName_*` / `AllTrainingsItemMeta_*` are not row handles (nav3 stage 1.1, 2026-08-14)
+
+| Severity | Location | Description |
+|---|---|---|
+| 🟢 | [core/ui/kit/.../list/AppListRow.kt:115](../core/ui/kit/src/main/kotlin/io/github/stslex/workeeper/core/ui/kit/components/list/AppListRow.kt) ↔ [feature/all-trainings/.../TrainingRow.kt:79](../feature/all-trainings/src/main/kotlin/io/github/stslex/workeeper/feature/all_trainings/ui/components/TrainingRow.kt) | **These two tags look like per-row selectors and cannot be used as one.** **Mechanism:** `AppListRow` applies `nameTestTag` / `metaTestTag` to the name and meta **`Text`s** (`AppListRow.kt:115` and `:123`), which are descendants of the inner `Row`. The click arrives on that `Row` via the `rowModifier` seam — `TrainingRow.kt:77` passes `combinedClickable(onClick, onLongClick)` — and `Modifier.clickable` merges descendant semantics, so the child's tag is **absent from the merged tree** that `onNodeWithTag` queries by default, while the node that actually carries the click action **has no tag of its own**. Net effect: the tag is unreachable for a click, and `useUnmergedTree = true` would find the `Text` but clicking it would not dispatch the row's handler. **Proof — measured, not reasoned:** selecting by tag times out on a row that is demonstrably on screen; the same row, same timing, responds to a text selector. **Current workaround:** `NavPaths.openTraining` clicks by unique seeded name and carries this explanation at its call site. **Unblock condition:** add a row-level `testTag` on the `rowModifier` chain (alongside `combinedClickable`, i.e. on the node that owns the click) — `AllTrainingsItemRow_<uuid>`. Exactly **one** call site changes: `NavPaths.openTraining`. The existing name/meta tags are still legitimate for asserting *text content*; they are simply not handles. **Deadline: before stage 1.3** — `StoreRetentionTest` and `BackStackStateRestorationTest` both need to open list rows, and each one written against a text selector is another call site to unpick later. |
+
+---
+
+## Release signing material is required at configuration time — every unsigned task fails without `keystore.properties` (nav3 stage 1.1, 2026-08-14)
+
+| Severity | Location | Description |
+|---|---|---|
+| 🟡 | [build-logic/convention/.../ConfigureApplication.kt:95](../build-logic/convention/src/main/kotlin/io/github/stslex/workeeper/ConfigureApplication.kt) | **A machine without release signing material cannot run a debug build, Paparazzi, or unit tests.** **Mechanism:** `configureSigning` runs at plugin-apply time and assigns `keystoreProperties.getProperty("keyAlias")` (and friends) into both the `release` **and `debug`** signing configs. `gradleKeystoreProperties` returns an **empty** `Properties` when `keystore.properties` is absent, so every `getProperty` call returns null and the AGP setter throws at **configuration** — before any task runs, for tasks that never sign anything (`assembleDebug`, `verifyPaparazziDebug`, `testDebugUnitTest` all die identically). **The failure message names neither the file nor the remedy:** `An exception occurred applying plugin request [id: 'workeeper.android.application.dev'] > getProperty(...) must not be null`. **Proof — measured, 2026-08-14:** fresh clone at `bcf70b63` on a new machine, `verifyPaparazziDebug` → exactly that configuration failure; after restoring `keystore.properties` + `keystore.jks`, the same invocation is green (631/631 tasks). Every new contributor and every fresh machine hits this and has to reverse-engineer it. **Unblock condition:** make the keystore lookup lazy — resolve the properties inside a `provider {}` (or guard on `localProperties.isFile` and skip/stub the signing config with a clear warning naming `keystore.properties`), so resolution fails only when a task that actually signs runs. **Out of the nav3 stage 1.1 scope fence** — `build-logic` is fenced; filed here instead of fixed. **Deadline: none pinned** — first ripe `build-logic` PR; until then it taxes every fresh checkout. |
+
+---
+
 ## Flaky UI test — ApplicationBottomBarTest.navigateToExercisesAndBack
 
 | Severity | Location | Description |
 |---|---|---|
-| 🟡 | [app/app/.../ApplicationBottomBarTest.kt](../app/app/src/androidTest/kotlin/io/github/stslex/workeeper/app/ApplicationBottomBarTest.kt) | **`navigateToExercisesAndBack` is intermittently flaky: 1/3 fail on the room3 branch, 0/2 on the Room-2 baseline; it failed once under heavy emulator load (full suites took 12–36 min) and passed 4 consecutive times since.** Sample too small to conclude pre-existing vs environmental — do NOT read this as "proven pre-existing". The mechanism is a race by construction: `checkAppClosed()` calls `assertDoesNotExist(AppRoot)` immediately after `Espresso.pressBack()`, with no wait for the activity-finish/recompose to settle. It loads a PagingSource from Room on the way to Exercises, so it is not Room-free, but the failure signature (AppRoot still present right after back) is a teardown-timing race, not a data error. **Do NOT add retries or arbitrary waits as a "fix"** — if hardened, gate on an idling resource / `waitUntil` for AppRoot's absence, not `Thread.sleep`. **Trigger to act:** it fails again on a non-loaded machine, or a UI-test-stability pass is scheduled. |
+| 🟡 | [app/app/.../ApplicationBottomBarTest.kt](../app/app/src/androidTest/kotlin/io/github/stslex/workeeper/app/ApplicationBottomBarTest.kt) | **`navigateToExercisesAndBack` is intermittently flaky: 1/3 fail on the room3 branch, 0/2 on the Room-2 baseline; it failed once under heavy emulator load (full suites took 12–36 min) and passed 4 consecutive times since.** Sample too small to conclude pre-existing vs environmental — do NOT read this as "proven pre-existing". The mechanism is a race by construction: `checkAppClosed()` calls `assertDoesNotExist(AppRoot)` immediately after `Espresso.pressBack()`, with no wait for the activity-finish/recompose to settle. It loads a PagingSource from Room on the way to Exercises, so it is not Room-free, but the failure signature (AppRoot still present right after back) is a teardown-timing race, not a data error. **Do NOT add retries or arbitrary waits as a "fix"** — if hardened, gate on an idling resource / `waitUntil` for AppRoot's absence, not `Thread.sleep`. **Trigger to act:** it fails again on a non-loaded machine, or a UI-test-stability pass is scheduled. **Coupled to the bottom-bar selection entry above:** while that defect stands, this race is masked — the test already fails deterministically before teardown matters. The a11y fix unmasks it; see the masking-dependency note in that entry (option (a) there resolves this entry in the same PR). |
 
 ---
 

@@ -46,10 +46,15 @@ sealed interface Screen {
     ) : Screen
 
     /**
-     * Live workout screen. At least one of [sessionUuid] / [trainingUuid] must be non-null:
-     *  - `sessionUuid` non-null: resume the in-progress session.
+     * Live workout screen. Both uuids are nullable, and all three combinations are shipped
+     * routes:
+     *  - `sessionUuid` non-null: resume that in-progress session.
      *  - `sessionUuid` null + `trainingUuid` non-null: create a fresh session for that
      *    training.
+     *  - both null: blank-init ad-hoc entry. The session and the training row behind it are
+     *    created downstream, so nothing needs to exist before navigating. This is the
+     *    destination `AllTrainingsStore.Action.Navigation.OpenBlankSession` and Home's
+     *    blank-start row both ask for.
      */
     @Serializable
     data class LiveWorkout(
@@ -136,8 +141,11 @@ sealed interface Screen {
      *
      * [Existing] edits the plan attached to a persisted exercise / performed-exercise /
      * training-exercise row. PlanEditor saves directly to DB and signals the caller via
-     * [planEditorSavedAttr] = true so the caller can perform a partial reload of `(type, plan)`
-     * (Exercise) or a full reload (Single-training, Live-workout) on resume.
+     * [planEditorSavedAttr] = true.
+     *
+     * **Live-workout is the only consumer.** `LiveWorkoutGraph` reads the flag and issues a
+     * full reload on resume. Exercise and Single-training navigate here but never read it
+     * back — a change to their reload behaviour has to add the consumer first.
      *
      * **Creating an exercise does not route here.** A record with no persisted UUID is built on
      * the exercise form, which hosts `PlanEditorBody` inline — so there is no in-flight draft to

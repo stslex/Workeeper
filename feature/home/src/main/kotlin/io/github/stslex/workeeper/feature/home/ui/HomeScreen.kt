@@ -116,6 +116,7 @@ internal fun HomeScreen(
                 }
                 IconButton(
                     onClick = { consume(Action.Click.OnSettingsClick) },
+                    modifier = Modifier.testTag("HomeSettingsButton"),
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Settings,

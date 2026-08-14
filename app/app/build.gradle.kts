@@ -85,8 +85,51 @@ dependencies {
 
     androidTestImplementation(libs.bundles.android.test)
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    // AccountDataStoreSingletonTest pins the prefs-name -> relative-file mapping with the SAME
+    // preferencesDataStoreFile() the production sites call; test scope only.
+    androidTestImplementation(libs.androidx.datastore.preferences)
     // App-Scope Collapse Step 6 (Phase 3.3): RecoveryActivityDbFreeTest's fail-fast AppDatabase root
     // override (a tripwire mockk whose openHelper throws) was relocated here from feature/recovery.
     androidTestImplementation(libs.mockk.android)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 }
+
+// The instrumented navigation oracle reaches the app through the semantics tree and
+// through Room, never through the navigation library — so that the same suite survives
+// the Nav2 -> Nav3 swap unedited. The prohibition that enforces it is import-scoped:
+// no `androidx.navigation*` import under app/app/src/androidTest.
+//
+// It needs its own task because the plain `detekt` task cannot see this source set --
+// its source resolves to src/main and src/test only, and probing :app:app's task
+// reports 0 files under src/androidTest. A rule added to lint-rules/detekt.yml would
+// therefore be a no-op here and a repo-wide gate everywhere else.
+//
+// Scoped to the WHOLE source set, not to the four oracle classes: the point is that a
+// future test cannot reintroduce the coupling. No baseline is set -- baselines rot
+// silently; the two pre-existing violators are named exclusions in the config.
+// See documentation/feature-specs/nav3-migration.md § 1.1.2 and documentation/tech-debt.md.
+val detektAndroidTestNavigation = tasks.register<io.gitlab.arturbosch.detekt.Detekt>(
+    "detektAndroidTestNavigation",
+) {
+    group = "verification"
+    description = "Fails if app/app/src/androidTest imports the navigation library."
+    // Both source roots: ExampleInstrumentedTest lives under src/androidTest/java, and a rule
+    // that reads only one of the two is a gate with a hole in it.
+    setSource(files("src/androidTest/kotlin", "src/androidTest/java"))
+    config.setFrom(rootProject.file("lint-rules/detekt-androidtest.yml"))
+    buildUponDefaultConfig = false
+    // No baseline, by decision. See the note above.
+    reports {
+        html.required.set(false)
+        xml.required.set(true)
+        txt.required.set(true)
+        sarif.required.set(false)
+        md.required.set(false)
+    }
+}
+
+// The gate everyone actually runs is bare `./gradlew detekt` — the pre-commit hook and CI's
+// "Run detekt" step both invoke it directly, and no workflow runs `check` or `build` — so the
+// task must ride the detekt lifecycle itself. `check` keeps its edge for `./gradlew build`.
+tasks.named("detekt") { dependsOn(detektAndroidTestNavigation) }
+tasks.named("check") { dependsOn(detektAndroidTestNavigation) }

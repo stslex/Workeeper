@@ -239,6 +239,7 @@ internal fun TopBar(consume: (Action) -> Unit) {
     AppTopBar(
         navigation = {
             AppIconButton(
+                modifier = Modifier.testTag("LiveWorkoutBackButton"),
                 icon = AppIcons.ChevronLeft,
                 contentDescription = stringResource(R.string.feature_live_workout_back),
                 onClick = { consume(Action.Click.OnBackClick) },
@@ -246,6 +247,7 @@ internal fun TopBar(consume: (Action) -> Unit) {
         },
         actions = {
             AppIconButton(
+                modifier = Modifier.testTag("LiveWorkoutMenuButton"),
                 icon = AppIcons.MoreVertical,
                 contentDescription = stringResource(R.string.feature_live_workout_more),
                 onClick = { consume(Action.Click.OnSessionMenuClick) },
