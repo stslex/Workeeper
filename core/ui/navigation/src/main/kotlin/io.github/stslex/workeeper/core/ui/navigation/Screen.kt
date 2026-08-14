@@ -91,37 +91,29 @@ sealed interface Screen {
      * **It also carries the picture's two verbs** (§26, "The image moves into the pushed top
      * bar"). The editor's form has no image row: replace and remove live *where the picture is*
      * rather than beside the 46dp stand-in for it in the bar. The viewer performs neither — it
-     * pops back with
-     * [exerciseImageRequestAttr] and the editor, which owns the permission plumbing, the temp-URI
-     * dance and the uncommitted `PendingImage`, does the work. **A request, not a result** — none
-     * of that machinery moves, and the viewer stays a viewer.
+     * pops back with an [ExerciseImageRequest] name, and the editor, which owns the permission
+     * plumbing, the temp-URI dance and the uncommitted `PendingImage`, does the work.
+     * **A request, not a result** — none of that machinery moves, and the viewer stays a viewer.
+     *
+     * The result is the request's [Enum.name] rather than the enum itself: what crosses a
+     * destination boundary has to survive being written down, and a `String` is the shape both
+     * the current transport and Nav3 can carry without a serializer. Resolving the name back to
+     * the enum is the consumer's job, and belongs in its Store — see
+     * `ExerciseStore.Action.Common.ImageRequestReceived`.
      */
     @Serializable
     data class ExerciseImage(
         val model: String,
         /**
-         * Whether the caller can act on [exerciseImageRequestAttr]. The viewer offers replace and
-         * remove only when this is `true`, because a request nobody can honour is worse than no
-         * affordance: the exercise DETAIL screen opens this viewer too, and it has no Save and no
-         * dirty interception, so a staged replacement there would look applied and vanish on the
-         * way out. The caller states its own capability rather than the viewer guessing at it.
+         * Whether the caller can act on the request this viewer produces. The viewer offers
+         * replace and remove only when this is `true`, because a request nobody can honour is
+         * worse than no affordance: the exercise DETAIL screen opens this viewer too, and it has
+         * no Save and no dirty interception, so a staged replacement there would look applied and
+         * vanish on the way out. The caller states its own capability rather than the viewer
+         * guessing at it.
          */
         val editable: Boolean = false,
-    ) : Screen {
-
-        companion object {
-
-            private const val SAVED_STATE_EXERCISE_IMAGE_REQUEST: String = "exercise-image-request"
-
-            /**
-             * What the viewer asked for on its way out — a [ExerciseImageRequest] name, or `null`
-             * for an ordinary back. Default `null` so the consumer's `LaunchedEffect` fires only
-             * after a real choice, rather than once on arrival.
-             */
-            val exerciseImageRequestAttr: SaveHandlerAttr<String> =
-                SaveHandlerAttr(SAVED_STATE_EXERCISE_IMAGE_REQUEST, null)
-        }
-    }
+    ) : Screen, ScreenWithResult<String>
 
     /**
      * The two verbs the image viewer can hand back. An enum rather than two booleans or a raw
