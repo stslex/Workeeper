@@ -4,13 +4,13 @@ package io.github.stslex.workeeper.feature.image_viewer.ui
 import androidx.activity.compose.BackHandler
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.navigation.NavGraphBuilder
 import io.github.stslex.workeeper.core.ui.mvi.navComponentScreen
+import io.github.stslex.workeeper.core.ui.navigation.NavGraphScope
 import io.github.stslex.workeeper.feature.image_viewer.di.ImageViewerFeature
 import io.github.stslex.workeeper.feature.image_viewer.mvi.store.ImageViewerStore.Action
 import io.github.stslex.workeeper.feature.image_viewer.mvi.store.ImageViewerStore.Event
 
-fun NavGraphBuilder.imageViewerGraph(
+fun NavGraphScope.imageViewerGraph(
     modifier: Modifier = Modifier,
 ) {
     navComponentScreen(ImageViewerFeature) { processor ->

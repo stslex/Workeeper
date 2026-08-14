@@ -4,8 +4,8 @@ package io.github.stslex.workeeper.core.ui.mvi
 import androidx.compose.animation.AnimatedContentScope
 import androidx.compose.runtime.Composable
 import androidx.lifecycle.SavedStateHandle
-import androidx.navigation.NavGraphBuilder
 import io.github.stslex.workeeper.core.ui.mvi.processor.StoreProcessor
+import io.github.stslex.workeeper.core.ui.navigation.NavGraphScope
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.core.ui.navigation.navScreen
 import io.github.stslex.workeeper.core.ui.navigation.navScreenWithState
@@ -21,24 +21,12 @@ import io.github.stslex.workeeper.core.ui.navigation.navScreenWithState
 inline fun <
     TProcessor : StoreProcessor<*, *, *>,
     reified TScreen : Screen,
-    > NavGraphBuilder.navComponentScreen(
+    > NavGraphScope.navComponentScreen(
     feature: FeatureAssisted<TProcessor, TScreen>,
     crossinline content: @Composable AnimatedContentScope.(TProcessor) -> Unit,
 ) {
     navScreen<TScreen> { screen ->
         content(feature.processor(screen))
-    }
-}
-
-inline fun <
-    TProcessor : StoreProcessor<*, *, *>,
-    reified TScreen : Screen,
-    > NavGraphBuilder.navComponentScreenWithState(
-    feature: FeatureAssisted<TProcessor, TScreen>,
-    crossinline content: @Composable AnimatedContentScope.(SavedStateHandle, TProcessor) -> Unit,
-) {
-    navScreenWithState<TScreen> { screen, state ->
-        content(state, feature.processor(screen))
     }
 }
 
@@ -53,7 +41,7 @@ inline fun <
 inline fun <
     TProcessor : StoreProcessor<*, *, *>,
     reified TScreen : Screen,
-    > NavGraphBuilder.navComponentScreenWithResults(
+    > NavGraphScope.navComponentScreenWithResults(
     feature: FeatureAssisted<TProcessor, TScreen>,
     crossinline content: @Composable AnimatedContentScope.(NavResults, TProcessor) -> Unit,
 ) {
@@ -65,23 +53,11 @@ inline fun <
 inline fun <
     TProcessor : StoreProcessor<*, *, *>,
     reified TScreen : Screen,
-    > NavGraphBuilder.navComponentScreen(
+    > NavGraphScope.navComponentScreen(
     feature: Feature<TProcessor, TScreen>,
     crossinline content: @Composable AnimatedContentScope.(TProcessor) -> Unit,
 ) {
     navScreen<TScreen> {
         content(feature.processor())
-    }
-}
-
-inline fun <
-    TProcessor : StoreProcessor<*, *, *>,
-    reified TScreen : Screen,
-    > NavGraphBuilder.navComponentScreenWithState(
-    feature: Feature<TProcessor, TScreen>,
-    crossinline content: @Composable AnimatedContentScope.(SavedStateHandle, TProcessor) -> Unit,
-) {
-    navScreenWithState<TScreen> { screen, state ->
-        content(state, feature.processor())
     }
 }

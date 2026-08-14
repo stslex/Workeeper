@@ -6,16 +6,16 @@ import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.navigation.NavGraphBuilder
 import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
 import io.github.stslex.workeeper.core.ui.mvi.navComponentScreen
+import io.github.stslex.workeeper.core.ui.navigation.NavGraphScope
 import io.github.stslex.workeeper.feature.all_exercises.di.AllExercisesFeature
 import io.github.stslex.workeeper.feature.all_exercises.mvi.store.AllExercisesStore.Action
 import io.github.stslex.workeeper.feature.all_exercises.mvi.store.AllExercisesStore.Event
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Suppress("UnusedParameter")
-fun NavGraphBuilder.allExercisesGraph(
+fun NavGraphScope.allExercisesGraph(
     modifier: Modifier = Modifier,
     sharedTransitionScope: SharedTransitionScope,
 ) {

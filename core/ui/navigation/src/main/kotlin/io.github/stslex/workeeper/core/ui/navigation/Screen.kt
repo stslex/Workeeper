@@ -1,13 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.core.ui.navigation
 
-import androidx.compose.animation.AnimatedContentScope
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
-import androidx.lifecycle.SavedStateHandle
-import androidx.navigation.NavGraphBuilder
-import androidx.navigation.compose.composable
-import androidx.navigation.toRoute
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.InternalSerializationApi
 import kotlinx.serialization.Serializable
@@ -165,21 +159,5 @@ sealed interface Screen {
         fun Screen.isCurrentScreen(
             route: String,
         ): Boolean = this::class.serializer().descriptor.serialName == route
-    }
-}
-
-inline fun <reified S : Screen> NavGraphBuilder.navScreen(
-    noinline content: @Composable AnimatedContentScope.(S) -> Unit,
-) {
-    composable<S> { backStackEntry ->
-        content(backStackEntry.toRoute())
-    }
-}
-
-inline fun <reified S : Screen> NavGraphBuilder.navScreenWithState(
-    noinline content: @Composable AnimatedContentScope.(S, SavedStateHandle) -> Unit,
-) {
-    composable<S> { backStackEntry ->
-        content(backStackEntry.toRoute(), backStackEntry.savedStateHandle)
     }
 }
