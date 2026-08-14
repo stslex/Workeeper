@@ -268,9 +268,9 @@ The conformant fix shape, when migrating an existing screen:
    nullable, and `null` means "no result".
 
 References: `feature/exercise/.../ui/mvi/handler/NavigationHandler.kt` (Metro
-`@Inject Navigator`), `feature/exercise/.../ui/ExerciseGraph.kt` (image-request
-saved-result consumption with reset), `feature/plan-editor/.../ui/mvi/handler/NavigationHandler.kt`
-(`navigator.popBack(planEditorSavedAttr.toPairValue(true))` to write the result on
+`@Inject Navigator`), `feature/exercise/.../ui/ExerciseGraph.kt` (forwards the image
+request to its Store), `feature/plan-editor/.../ui/mvi/handler/NavigationHandler.kt`
+(`navigator.popBackWithResult(Screen.PlanEditor::class, true)` to hand the result back on
 pop). The full architectural rationale is in
 [architecture.md → Navigation](../../documentation/architecture.md#navigation).
 

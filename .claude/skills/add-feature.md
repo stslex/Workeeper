@@ -479,9 +479,10 @@ one extension.
 
 15. Wire the navigation graph into the host. Edit
     `app/app/src/main/java/io/github/stslex/workeeper/host/AppNavigationHost.kt` and
-    call your new `<feature>Graph(modifier = ...)`. Add
-    `sharedTransitionScope = this@SharedTransitionLayout` only for graphs that participate
-    in shared element transitions — see how `allTrainingsGraph` and `settingsGraph` differ.
+    call your new `<feature>Graph(modifier = ...)` inside the `with(NavGraphScope(this))`
+    block, alongside its siblings. **Do not add a `sharedTransitionScope` parameter** — no
+    graph takes one, and nothing in the app performs a shared-element transition yet; the
+    first one to be written brings the accessor that reaches the scope with it.
 
     The `modifier` you pass into the graph **must** include
     `.reportScreenPlace<Screen.<X>>()` so the TTID / AppCreate / ActivityCreate Firebase

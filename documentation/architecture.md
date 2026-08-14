@@ -1206,7 +1206,8 @@ the same `PlanEditorStore` but differ in how they enter and exit:
   plan)` from disk via `PlanEditorInteractor.loadPlan`. On Save the editor
   persists `(type, plan)` (Mode.Exercise also writes `exercise_table.type`
   and runs `clearWeightsFromAllPlansForExercise` when type flips to
-  WEIGHTLESS) and pops back with `planEditorSavedAttr = true`. The caller
+  WEIGHTLESS) and pops back handing `true` to `Screen.PlanEditor`'s declared
+  result. The caller
   performs a *partial* reload — only `(type, adhocPlan)` are refreshed in
   parent state — so any unsaved name/description/tag/image edit is
   preserved (this is the v1.41.0 dirty-baseline regression fix).
@@ -1409,12 +1410,14 @@ Two outcomes:
 `app/app/src/main/java/io/github/stslex/workeeper/host/AppNavigationHost.kt` receives the
 composition-scoped `NavigatorHolder` (which wraps the `rememberNavController()` created in
 `App.kt`) and wraps the `NavHost` in a `SharedTransitionLayout` (Jetpack Compose
-`ExperimentalSharedTransitionApi`). The single shared `SharedTransitionScope` is passed to
-each feature's `<Name>Graph` extension function (`homeGraph`, `allTrainingsGraph`,
-`allExercisesGraph`, `singleTrainingsGraph`, `exerciseGraph`,
-`liveWorkoutGraph`, `pastSessionGraph`, `imageViewerGraph`, `settingsGraph`,
-`archiveGraph`, `exerciseChartGraph`, `planEditorGraph`), so transitions can be wired
-across the whole graph from a single root scope. The start destination is
+`ExperimentalSharedTransitionApi`). The layout is the anchor a shared-element transition
+would attach to; **no graph receives the scope as a parameter.** Nothing in the app performs
+a shared-element transition today, so the graphs that used to take a
+`SharedTransitionScope` and never read it no longer declare one. When the first transition
+is written, the scope reaches it through `LocalNavAnimatedContentScope` (see
+[the CompositionLocal decision](#compositionlocal-in-the-navigation-path--a-decision-for-nav3-not-a-rule-in-force)),
+and that change introduces the accessor and its first consumer together. The start
+destination is
 `Screen.BottomBar.Home`. Each graph is added via `navComponentScreen<Feature>` /
 `navComponentScreenWithResults<Feature>`, which expands to a `composable<Screen>` block
 under the hood (see `core/ui/navigation/.../NavGraphScope.kt::navScreen`). The graphs

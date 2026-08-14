@@ -1387,7 +1387,7 @@ Expected outcomes:
   - exercise_table.last_adhoc_sets == [{60,10}] (unchanged).
   - parent state.adhocPlan == [{60,10}] (unchanged).
 Invariants:
-  - planEditorSavedAttr NOT signaled.
+  - No PlanEditor result produced (the read yields null).
   - No partial reload triggered.
 Coverage references:
   - Cancel from Existing PlanEditor

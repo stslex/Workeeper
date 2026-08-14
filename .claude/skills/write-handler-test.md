@@ -178,9 +178,9 @@ Notes:
   signature directly.
 - One `@Test` per `Action.Navigation.<X>` subclass. Each verifies exactly one
   `navigator.navTo(Screen.<X>)` / `navigator.replaceTo(Screen.<X>)` /
-  `navigator.popBack(...)` call, with `exactly = 1`. For `popBack` carrying result
-  attributes (e.g. `Screen.PlanEditor.planEditorSavedAttr.toPairValue(true)`), assert
-  on the exact pair too — see
+  `navigator.popBack()` call, with `exactly = 1`. A destination that hands a value back
+  pops via `navigator.popBackWithResult(Screen.<X>::class, value)` instead — assert the
+  destination and the value together, and pass the same `KClass` the producer does. See
   `feature/plan-editor/.../mvi/handler/NavigationHandlerTest.kt`.
 - For variants (`SettingsNavigationHandler`, `ArchiveNavigationHandler`) that retain a
   feature-specific class name, instantiate with the same `(navigator)` constructor —
