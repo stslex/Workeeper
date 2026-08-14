@@ -126,6 +126,14 @@ applies. **Deadline: before stage 1.3** — the suite grows there, and the failu
 
 ---
 
+## Release signing material is required at configuration time — every unsigned task fails without `keystore.properties` (nav3 stage 1.1, 2026-08-14)
+
+| Severity | Location | Description |
+|---|---|---|
+| 🟡 | [build-logic/convention/.../ConfigureApplication.kt:95](../build-logic/convention/src/main/kotlin/io/github/stslex/workeeper/ConfigureApplication.kt) | **A machine without release signing material cannot run a debug build, Paparazzi, or unit tests.** **Mechanism:** `configureSigning` runs at plugin-apply time and assigns `keystoreProperties.getProperty("keyAlias")` (and friends) into both the `release` **and `debug`** signing configs. `gradleKeystoreProperties` returns an **empty** `Properties` when `keystore.properties` is absent, so every `getProperty` call returns null and the AGP setter throws at **configuration** — before any task runs, for tasks that never sign anything (`assembleDebug`, `verifyPaparazziDebug`, `testDebugUnitTest` all die identically). **The failure message names neither the file nor the remedy:** `An exception occurred applying plugin request [id: 'workeeper.android.application.dev'] > getProperty(...) must not be null`. **Proof — measured, 2026-08-14:** fresh clone at `bcf70b63` on a new machine, `verifyPaparazziDebug` → exactly that configuration failure; after restoring `keystore.properties` + `keystore.jks`, the same invocation is green (631/631 tasks). Every new contributor and every fresh machine hits this and has to reverse-engineer it. **Unblock condition:** make the keystore lookup lazy — resolve the properties inside a `provider {}` (or guard on `localProperties.isFile` and skip/stub the signing config with a clear warning naming `keystore.properties`), so resolution fails only when a task that actually signs runs. **Out of the nav3 stage 1.1 scope fence** — `build-logic` is fenced; filed here instead of fixed. **Deadline: none pinned** — first ripe `build-logic` PR; until then it taxes every fresh checkout. |
+
+---
+
 ## Flaky UI test — ApplicationBottomBarTest.navigateToExercisesAndBack
 
 | Severity | Location | Description |
