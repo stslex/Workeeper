@@ -165,6 +165,15 @@ internal class NavSeed(private val db: AppDatabase) {
 
         // Fixed rather than "now": a seed that moves with the wall clock makes a relative-time
         // label ("2 minutes ago") change under the test, and the failure reads as flakiness.
+        //
+        // Know what "fixed" buys, though: it stops drift WITHIN a run, not across the calendar.
+        // These epochs are a moment in 2023, so any relative-time meta string rendered from them
+        // ("2 minutes ago") is already "years ago" and changes again every month with no code
+        // change. Nothing breaks today only because every selector in this suite is name-based.
+        //
+        // The rule that keeps it that way: NEVER assert on a relative-time meta string. Such an
+        // assertion is green on the day it is written and red on a calendar schedule. Assert on
+        // seeded names (unique per test) or on absolute values the seed controls.
         const val FIXED_CREATED_AT: Long = 1_700_000_000_000L
         const val FIXED_STARTED_AT: Long = 1_700_000_100_000L
         const val FIXED_FINISHED_AT: Long = 1_700_000_200_000L
