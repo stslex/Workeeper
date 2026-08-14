@@ -11,6 +11,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.stslex.workeeper.core.data.database.exercise.ExerciseTypeEntity
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
+import io.github.stslex.workeeper.core.ui.navigation.NavGraphScope
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.core.ui.test.TestActivity
 import io.github.stslex.workeeper.core.ui.test.annotations.Regression
@@ -69,7 +70,7 @@ internal class ExerciseCreatePersistenceTest {
                     navController = navController,
                     startDestination = Screen.Exercise(uuid = null),
                 ) {
-                    exerciseGraph()
+                    NavGraphScope(this).exerciseGraph()
                 }
             }
         }

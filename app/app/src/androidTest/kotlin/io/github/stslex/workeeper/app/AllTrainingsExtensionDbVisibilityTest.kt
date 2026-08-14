@@ -13,6 +13,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.stslex.workeeper.core.data.database.training.TrainingEntity
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
+import io.github.stslex.workeeper.core.ui.navigation.NavGraphScope
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.core.ui.test.TestActivity
 import io.github.stslex.workeeper.core.ui.test.annotations.Regression
@@ -74,7 +75,7 @@ internal class AllTrainingsExtensionDbVisibilityTest {
                         navController = navController,
                         startDestination = Screen.BottomBar.AllTrainings,
                     ) {
-                        allTrainingsGraph(sharedTransitionScope = this@SharedTransitionLayout)
+                        NavGraphScope(this).allTrainingsGraph()
                     }
                 }
             }

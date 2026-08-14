@@ -22,6 +22,19 @@ import androidx.navigation.toRoute
  * `reified` screen types) and must reach it from another module. Reaching for it from a
  * feature would mean importing [NavGraphBuilder] to name its type, which is exactly what
  * the navigation-import gate is there to catch.
+ *
+ * **The constructor is a wider seam than the import gate measures, and it is transitional.**
+ * The gate counts `androidx.navigation` imports; it cannot see that anything holding a
+ * `NavGraphBuilder` — `NavHost`'s own content lambda, say — can wrap one without naming the
+ * type. Two instrumented tests do exactly that (`ExerciseCreatePersistenceTest`,
+ * `AllTrainingsExtensionDbVisibilityTest`), mounting their own `NavHost` as DI/persistence
+ * scaffolding and calling `NavGraphScope(this)`.
+ *
+ * That is scaffolding, not architecture, and it does not survive: at 1.3 the wrapped type
+ * changes and every such call site breaks loudly rather than silently. Both files are already
+ * filed for a 1.3 rewrite (#221 §3, where they are the two named exclusions from the
+ * androidTest navigation-import gate). Nothing in production constructs this except
+ * `AppNavigationHost`, which is the one place that is supposed to.
  */
 @JvmInline
 value class NavGraphScope(val builder: NavGraphBuilder)
