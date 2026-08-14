@@ -85,6 +85,9 @@ dependencies {
 
     androidTestImplementation(libs.bundles.android.test)
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    // AccountDataStoreSingletonTest pins the prefs-name -> relative-file mapping with the SAME
+    // preferencesDataStoreFile() the production sites call; test scope only.
+    androidTestImplementation(libs.androidx.datastore.preferences)
     // App-Scope Collapse Step 6 (Phase 3.3): RecoveryActivityDbFreeTest's fail-fast AppDatabase root
     // override (a tripwire mockk whose openHelper throws) was relocated here from feature/recovery.
     androidTestImplementation(libs.mockk.android)

@@ -1,20 +1,18 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.core.data.backup.google_drive.auth
 
-import android.content.Context
 import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.datastore.preferences.preferencesDataStoreFile
 import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.di.AppScope
 import io.github.stslex.workeeper.core.data.backup.api.model.Account
+import io.github.stslex.workeeper.core.data.dataStore.core.DataStoreProviderFactory
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -22,21 +20,26 @@ import kotlinx.coroutines.flow.map
 /**
  * Metro-owned. `@ContributesBinding(AppScope)` binds it to [AccountDataStore] for the gd readers.
  * Public because `@ContributesBinding` on an `internal` class does not aggregate across Gradle
- * modules. The `Context` is a plain param resolved from the app graph's `create(applicationContext)`
- * bound instance.
+ * modules.
+ *
+ * The store is minted through [DataStoreProviderFactory] (same pattern as `CommonDataStoreImpl`),
+ * NOT with a per-instance `PreferenceDataStoreFactory.create` — a `DataStore` is a per-file
+ * singleton and `DataStoreProvider`'s memoization is static (process-lifetime), while this class is
+ * `@SingleIn(AppScope)` (graph-lifetime). A second `AppGraph` in one process — which is what the
+ * instrumented harness's per-test graph rebuild does — must resolve the SAME store, or DataStore
+ * 1.1+ throws `IllegalStateException: multiple DataStores active` on the second collection.
+ * The file is unchanged by this routing: both the old inline `create` and the provider resolve
+ * `context.preferencesDataStoreFile("backup_account_prefs")`. Regression cover:
+ * `app/app` androidTest `AccountDataStoreSingletonTest`.
  */
 @ContributesBinding(AppScope::class)
 @SingleIn(AppScope::class)
 @Inject
 class AccountDataStoreImpl(
-    private val context: Context,
+    storeFactory: DataStoreProviderFactory,
 ) : AccountDataStore {
 
-    private val dataStore: DataStore<Preferences> by lazy {
-        PreferenceDataStoreFactory.create {
-            context.preferencesDataStoreFile(ACCOUNT_PREFS_NAME)
-        }
-    }
+    private val dataStore: DataStore<Preferences> = storeFactory.create(ACCOUNT_PREFS_NAME).dataStore
 
     override fun observeAccount(): Flow<Account?> = dataStore.data.map(::accountFromPrefs)
 

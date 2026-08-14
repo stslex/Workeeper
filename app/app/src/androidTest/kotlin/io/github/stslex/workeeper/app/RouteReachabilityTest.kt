@@ -34,28 +34,25 @@ import org.junit.runner.RunWith
  * the graph tag, which is independent of that defect — so the oracle stands on its own rather than
  * leaning on a class that does not pass. See `documentation/tech-debt.md`.
  *
- * ## One test lands red, on a production defect
+ * ## Expectation: 15/15
  *
- * 14 of 15 pass. [archiveOpensFromSettingsAndSettingsReturns] throws
+ * This class landed 14/15: [archiveOpensFromSettingsAndSettingsReturns] threw
  * `IllegalStateException: There are multiple DataStores active for the same file:
- * .../files/datastore/backup_account_prefs.preferences_pb`. That is a defect in production code,
- * not in this suite, and the test is committed red rather than muted or deleted.
+ * .../files/datastore/backup_account_prefs.preferences_pb` — a production defect
+ * (`AccountDataStoreImpl` built its store per-instance, bypassing `DataStoreProvider`'s static,
+ * process-lifetime memoization, so `MetroTestRule`'s per-test graph rebuild opened a second
+ * `DataStore` over one file and the second test to reach Settings' backup section threw). The test
+ * was committed red rather than muted, and the defect is now fixed by routing the store through
+ * `DataStoreProviderFactory`; the failure shape is pinned red-proven in
+ * [AccountDataStoreSingletonTest]. A red here on that exception again is a regression, not a known
+ * issue.
  *
- * `AccountDataStoreImpl` builds its store with a per-instance
- * `by lazy { PreferenceDataStoreFactory.create { ... } }`, bypassing `DataStoreProvider`, whose
- * memoization is a **static** `ConcurrentHashMap` keyed on the file name — process-lifetime, not
- * graph-lifetime. `MetroTestRule` installs a fresh `AppGraph` per test, so the
- * `@SingleIn(AppScope)` instance is rebuilt each time and a second `DataStore` is opened over the
- * same file; DataStore 1.1+ throws instead of sharing. Two tests here reach Settings' backup
- * section, so whichever runs second is the one that throws — in the recorded run
- * [settingsOpensFromHomeAndHomeReturns] ran first and passed, and this one threw through
- * `DriveBackupAuth`'s `observeAccount` collector. The order is JUnit's, so do not read the
- * identity of the red test as fixed; the count (exactly one) is what the mechanism pins.
- *
- * **Unblocked by the next commit**, which routes `AccountDataStoreImpl` through
- * `DataStoreProvider`. Its module already depends on `:core:data:dataStore`, so that fix adds no
- * dependency edge. Three further bypasses remain and each would need one — they are out of this
- * commit's scope and recorded in `documentation/tech-debt.md`.
+ * Three sibling bypasses remain (`BackupPreferencesRepositoryImpl`, `RestoreStateRepositoryImpl`,
+ * `AppDialogRepository`) — each needs a new `:core:data:dataStore` module edge and is recorded in
+ * `documentation/tech-debt.md`. Nothing in this class currently trips them, but a future test that
+ * touches Settings' backup section twice via those stores, or raises an app dialog twice, will
+ * throw the identical exception on a DIFFERENT prefs file — read the file name in the message
+ * before triaging it as this defect returned.
  *
  * @see NavPaths for the journeys, and for why arrival waits on an explicit timeout.
  * @see NavSeed for the rows, and for the two schema rules a call site cannot see.
