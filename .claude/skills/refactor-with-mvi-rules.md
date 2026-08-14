@@ -230,10 +230,11 @@ The rules:
   `Activity`, and `Context` MUST NOT be retained** by any `ViewModel`, `Store`,
   `Handler`, `Interactor`, `Mapper`, or `@SingleIn(AppScope)` binding. They MUST NOT be
   passed in via constructor or function parameter to those layers.
-- **`SavedStateHandle` is composable-graph scoped.** It enters via
-  `navComponentScreenWithState(<Feature>) { stateHandle, processor -> ... }` (which
-  unwraps the **current** `NavBackStackEntry.savedStateHandle`) and is consumed in
-  place. It MUST NOT be passed into the Store, Handler, or any DI binding.
+- **`SavedStateHandle` never reaches a graph composable.** Navigation results arrive
+  as `NavResults`, handed to the content lambda by
+  `navComponentScreenWithResults(<Feature>) { results, processor -> ... }`, which holds
+  the handle privately. It MUST NOT be passed into the Store, Handler, or any DI
+  binding — and there is no longer a graph-level reference to pass.
 - **`NavigatorHolder` stays composition-scoped.** It wraps a live `NavHostController`
   and is created via `remember(navController)` in `App.kt`. It MUST NOT be promoted
   to a singleton, cached statically, or passed through DI.
@@ -249,13 +250,25 @@ The conformant fix shape, when migrating an existing screen:
    (assisted injection through the screen's `StoreFactory<Screen.<X>, StoreImpl>`).
    The Store retains only the screen's value-type fields. It does NOT retain the
    `NavBackStackEntry` or `SavedStateHandle`.
-4. If the screen reads a navigation-result attr, do it inside the graph composable
-   via `navComponentScreenWithState(<Feature>) { stateHandle, processor -> ... }`
-   and reset the attr via `stateHandle.setAttrDefaultValue(...)` after consumption
-   so re-entry does not retrigger it.
+4. If the screen reads a navigation result, declare the type on the producing
+   destination (`Screen.<X> : ScreenWithResult<R>`), produce it with
+   `navigator.popBackWithResult(Screen.<X>::class, value)`, and consume it as:
+
+   ```kotlin
+   navComponentScreenWithResults(<Feature>) { results, processor ->
+       results.OnResult(Screen.<X>::class) { value ->
+           processor.consume(Action.Common.<Something>(value))
+       }
+   ```
+
+   **Forward it to the Store; do not interpret it in the graph.** Parsing and
+   branching are state-shaped work and belong in a Handler — see
+   `ExerciseStore.Action.Common.ImageRequestReceived` and its `CommonHandler` branch.
+   `OnResult` clears after delivering, so there is no reset to remember; reading is
+   nullable, and `null` means "no result".
 
 References: `feature/exercise/.../ui/mvi/handler/NavigationHandler.kt` (Metro
-`@Inject Navigator`), `feature/exercise/.../ui/ExerciseGraph.kt` (PlanEditor
+`@Inject Navigator`), `feature/exercise/.../ui/ExerciseGraph.kt` (image-request
 saved-result consumption with reset), `feature/plan-editor/.../ui/mvi/handler/NavigationHandler.kt`
 (`navigator.popBack(planEditorSavedAttr.toPairValue(true))` to write the result on
 pop). The full architectural rationale is in
@@ -270,9 +283,12 @@ When reviewing a PR that touches navigation, run through this list before approv
 - [ ] No `NavController` / `NavHostController` constructor parameter on any
       `@Inject` Store / `@Assisted`-injected / `@SingleIn(<Feature>Scope)` /
       `@SingleIn(AppScope)`-bound class.
-- [ ] No `SavedStateHandle` retained outside the composable graph block. It is
-      acceptable as a parameter to a `navComponentScreenWithState` content lambda or
-      to a private composable helper inside the graph; not as a Store/Handler field.
+- [ ] No `SavedStateHandle` anywhere outside `core:ui:mvi`'s `NavResults`. A graph
+      that wants a navigation result uses `navComponentScreenWithResults` +
+      `results.OnResult(...)`; a graph that interprets the result instead of
+      forwarding it has taken on the Store's job.
+- [ ] No `androidx.navigation` import in a feature module. Graphs register against
+      `NavGraphScope`, never `NavGraphBuilder`.
 - [ ] No new "navigator" type that wraps a `NavController` and is bound at
       `@SingleIn(AppScope)` scope. The only acceptable app-scoped command-bus is
       `NavigatorEventBus`.

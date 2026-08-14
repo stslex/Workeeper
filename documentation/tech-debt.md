@@ -404,6 +404,13 @@ What changed:
   `stateHandle.getStateFlow(...).collectAsState()`. Consumers reset the flag via
   `stateHandle.setAttrDefaultValue(...)` so re-entry does not retrigger.
 
+  > **Superseded by Nav3 stage 1.2.** This bullet records what PR #143 shipped and is
+  > kept as history. `SaveHandlerAttr` and the attr-based transport no longer exist:
+  > the result type is declared on the destination (`ScreenWithResult<R>`), produced
+  > with `navigator.popBackWithResult(...)`, and consumed via `NavResults.OnResult`,
+  > which clears as part of delivering. See
+  > [architecture.md → Navigation results](architecture.md#navigation-results).
+
 Verification requirements (live in test code, not docs):
 
 - `NavigatorEventBusTest` covers `navTo` / `replaceTo` / `popBack` emission shape

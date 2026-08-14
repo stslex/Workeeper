@@ -243,9 +243,15 @@ Navigation is a **lifecycle-safe command bus**. Decisions live in Store/Handler 
 - `NavHostController`, `NavController`, `NavBackStackEntry`, `SavedStateHandle`,
   `Activity`, and `Context` MUST NOT be retained by any ViewModel / Store / Handler /
   Interactor / Mapper / Hilt singleton.
-- `SavedStateHandle` is composable-graph scoped only — use
-  `navComponentScreenWithState(<Feature>) { stateHandle, processor -> ... }` and
-  reset consumed flags via `stateHandle.setAttrDefaultValue(<SaveHandlerAttr>)`.
+- Navigation **results** are typed on the destination: it implements
+  `ScreenWithResult<R>`, the producer calls
+  `navigator.popBackWithResult(Screen.<X>::class, value)`, and the consumer's graph uses
+  `navComponentScreenWithResults(<Feature>) { results, processor -> ... }` with
+  `results.OnResult(Screen.<X>::class) { … }`. Reading is nullable — `null` means "no
+  result". `OnResult` clears after delivering, so there is no reset to remember.
+- **A graph forwards a result to the Store; it does not interpret one.** Parsing and
+  branching belong in a Handler. `SavedStateHandle` no longer reaches a graph composable
+  at all — `NavResults` holds it privately.
 
 Full reference:
 [documentation/architecture.md → Navigation](documentation/architecture.md#navigation),

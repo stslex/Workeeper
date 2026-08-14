@@ -39,7 +39,7 @@ feature/all-exercises/             — the library tab
     di/AllExercisesModule.kt + HandlerStore + Processor
     domain/AllExercisesInteractor[Impl].kt
     ui/
-      AllExercisesGraph.kt         — NavGraphBuilder extension
+      AllExercisesGraph.kt         — NavGraphScope extension
       AllExercisesScreen.kt        — top-level Composable
       components/
         ExerciseRow.kt             — single library row

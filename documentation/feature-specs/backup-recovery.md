@@ -420,7 +420,7 @@ Scenario 2 "Implementation status" above for the Option Y rationale):
 sealed interface NavCommand {
     data class NavTo(val screen: Screen) : NavCommand
     data class ReplaceTo(val screen: Screen) : NavCommand
-    data class PopBack(val attrs: List<Pair<String, Any?>>) : NavCommand
+    data object PopBack : NavCommand
     data object RestartApp : NavCommand
     data object OpenRecovery : NavCommand        // new
 }

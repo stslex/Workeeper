@@ -220,6 +220,6 @@ single training.
   `feature/all-exercises` routes to `Screen.Exercise(uuid, trainingUuid = null)`.
 - **Shared element transitions** are wired through the single `SharedTransitionLayout` in
   `app/app/src/main/java/io/github/stslex/workeeper/host/AppNavigationHost.kt`. Each feature's
-  `<feature>Graph(...)` extension on `NavGraphBuilder` accepts the root
+  `<feature>Graph(...)` extension on `NavGraphScope` accepts the root
   `SharedTransitionScope` so item-level transitions can be coordinated across the bottom-bar
   graphs and the detail screens.
