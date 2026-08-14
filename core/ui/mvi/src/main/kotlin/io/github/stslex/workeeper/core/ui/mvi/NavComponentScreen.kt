@@ -34,8 +34,8 @@ inline fun <
  *
  * The content lambda gets a [NavResults] rather than a raw [SavedStateHandle]: the result is
  * typed off the destination, and the transport stays inside this module. Registered only for
- * the [FeatureAssisted] shape, because both consumers today are assisted and an unused
- * overload is API that 1.3 would have to keep working for no caller.
+ * the [FeatureAssisted] shape: both consumers are assisted, and an unused overload is API that
+ * has to be kept working for no caller.
  */
 inline fun <
     TProcessor : StoreProcessor<*, *, *>,

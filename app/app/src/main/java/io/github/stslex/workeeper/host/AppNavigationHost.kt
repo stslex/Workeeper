@@ -78,8 +78,8 @@ internal fun AppNavigationHost(
             },
         ) {
             // The one place the navigation library's builder is wrapped. Every graph below
-            // registers against NavGraphScope and names neither NavGraphBuilder nor, at 1.3,
-            // EntryProviderBuilder — so the swap re-points this line and the graphs hold still.
+            // registers against NavGraphScope and never names the library's own builder, so
+            // re-pointing this line is enough to change what backs them.
             with(NavGraphScope(this)) {
                 homeGraph(
                     modifier = bottomBarModifier

@@ -31,51 +31,38 @@ import org.junit.runner.RunWith
  * not stylistic. `AppCoroutineScopeImpl.launch(flow, …)` applies `.catch { onError(it) }`, so a
  * flow error inside an MVI Store is swallowed: if a result stops arriving, nothing throws, no
  * crash is reported, and the screen quietly holds the state it already had. A test written around
- * "the navigation completed" or "no exception was raised" passes in exactly that case — it would
- * have licensed a false claim that the contract still worked.
+ * "the navigation completed" or "no exception was raised" passes in exactly that case.
  *
  * So each test drives the app to a state where the *absence* of the result is visible, performs
  * the action that produces it, and asserts the screen changed:
  *
  *  - the plan editor: an inline-created exercise has no plan, so its card reads "no plan". After a
- *    plan is saved the card must read the plan instead. If the result never lands, `LiveWorkout`
- *    never reloads and the card still says "no plan" — the failure this test exists to catch.
+ *    plan is saved the card must read the plan instead.
  *  - the image viewer: asking to replace a picture is what opens the source sheet on the screen
  *    that owns the image. If the request never lands, no sheet appears.
  *
- * ## What each half proves, measured
+ * ## Load-bearing limitation: only one half discriminates
  *
- * Both were mutation-tested before being trusted — the Store dispatch was removed and the suite
- * re-run. The two halves did not come out the same, and the difference is recorded here rather
- * than smoothed over.
+ * **[imageReplaceRequestReachesTheExerciseThatOpenedTheViewer] is a true regression test** for the
+ * whole chain — produced, transported, resolved from name to verb, dispatched. Remove the
+ * handler's dispatch and it fails on its observable assertion, and on nothing else.
  *
- * **[imageReplaceRequestReachesTheExerciseThatOpenedTheViewer] discriminates.** With
- * `CommonHandler`'s `REPLACE -> consume(OnEditImageClick)` removed, it fails on its observable
- * assertion — the source sheet never appears — and on nothing else. It is a true regression test
- * for the whole chain: result produced, transported, resolved from name to verb, dispatched.
+ * **[planEditorSaveReachesTheLiveSessionThatOpenedIt] is not.** It passes whether or not the
+ * result reaches the Store: the session comes back showing the new plan either way, because
+ * something other than the result re-runs the one-shot `loadSession` on return. So it is honest
+ * regression cover for a user-visible outcome — save a plan, the session shows it — and is **not**
+ * evidence that the result transport works.
  *
- * **[planEditorSaveReachesTheLiveSessionThatOpenedIt] does NOT.** With
- * `PlanResultReceived`'s reload removed it still passes: the session comes
- * back showing the new plan anyway. `LiveWorkoutInteractor.loadSession` is a one-shot read, so
- * something else re-runs it on return — the remaining explanation being that the LiveWorkout Store
- * does not survive the round trip and `Action.Common.Init` reloads from scratch. If so,
- * `processReload`'s `withExpansionCarriedFrom(previous)` — written so "the user's manual expansions
- * survive this replacement" — is preserving state that was already gone, and `Reload` itself may be
- * redundant.
- *
- * **That question belongs to `StoreRetentionTest`,** which stage 1.1's spec specified and #221 did
- * not ship (filed in `documentation/tech-debt.md`). Until it exists, this half is honest regression
- * cover for a user-visible outcome — save a plan, the session shows it — and is NOT evidence that
- * the result transport works. Do not cite it as such, and do not let its green mask a broken
- * PlanEditor result flow: nothing here would catch that today.
+ * Do not cite it as such, and do not let its green mask a broken `Screen.PlanEditor` result flow:
+ * nothing in this suite would catch that today. Why the screen recovers, and what should pin it,
+ * are open in `documentation/tech-debt.md`.
  *
  * ## What this class does NOT do
  *
  * It never constructs a `Screen`, never reads a result, and never names `SavedStateHandle`,
  * `NavResults` or `ScreenWithResult`. It reaches the app through the semantics tree and Room, the
- * same two channels as the rest of the suite — which is what lets it run unchanged across the
- * Nav2 → Nav3 swap, where the transport underneath these flows is replaced outright. If this class
- * needs editing at 1.3, the swap changed behaviour.
+ * same two channels as the rest of the suite, so the transport underneath can be replaced without
+ * touching it.
  *
  * @see NavPaths for the journeys, and for why arrival waits on an explicit timeout.
  * @see NavSeed for the rows, and for the two schema rules a call site cannot see.
@@ -103,7 +90,7 @@ internal class NavigationResultTest {
     /**
      * `Screen.PlanEditor` → `Boolean` → `LiveWorkout` reloads.
      *
-     * Seed-free, on the path stage 1.1 established as the app's only plan-editor-result journey:
+     * Seed-free, on the app's only plan-editor-result journey:
      * Home → blank session → add an exercise inline → its kebab → Edit plan → add a set → Save.
      *
      * The card's sub-label is the instrument. An inline-created exercise is not plan-attached, so

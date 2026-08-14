@@ -31,12 +31,11 @@ import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorSto
  * take; the registered ROUTE is the concrete [Screen.PlanEditor.Existing]. `navComponentScreen`
  * reifies one type for both, so it would try to register the sealed interface as a route.
  *
- * The alternatives were a third type parameter on `navComponentScreen` to separate route from
- * feature — new API for exactly one caller, which 1.3 then has to keep working — or retyping
- * `PlanEditorFeature` to `Existing`, which reaches into a feature's DI graph and its store's
- * assisted contract for a cosmetic gain. Neither is worth it. This registers through the same
- * project-owned scope and primitive as every other graph and names no navigation-library type,
- * which is what the contract is actually for.
+ * The alternatives are a third type parameter on `navComponentScreen` to separate route from
+ * feature — new API for exactly one caller — or retyping `PlanEditorFeature` to `Existing`,
+ * which reaches into this feature's DI graph and its store's assisted contract for a cosmetic
+ * gain. Neither is worth it: this registers through the same project-owned scope and primitive
+ * as every other graph and names no navigation-library type, which is what the contract is for.
  */
 fun NavGraphScope.planEditorGraph(
     modifier: Modifier = Modifier,

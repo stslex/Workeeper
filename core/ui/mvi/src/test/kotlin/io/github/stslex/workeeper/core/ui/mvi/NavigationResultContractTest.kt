@@ -21,28 +21,20 @@ import kotlin.reflect.KClass
  * The navigation-result contract: a destination declares what it hands back, a producer
  * hands one back, and the consumer reads it at that type.
  *
- * **This test is deliberately written against the contract and not against the transport.**
- * It is the migrated successor of `SavedStateHandleNavigationResultTest`, which asserted
- * the mechanism directly — `SavedStateHandle`, the literal key `"plan-editor-saved"`,
- * `getStateFlow`, `setAttrDefaultValue`. All four are gone at 1.3, and a test written
- * against them would go with them, taking the only characterization of result transport
- * the project has.
- *
- * Rewritten this way it has a job at 1.3 instead: it is the **witness that the typed
- * contract survived a transport swap**. Every assertion below is about
+ * **Written against the contract, not against the transport.** Every assertion is about
  * [ScreenWithResult] semantics — what the type is, when a result is present, when it is
  * `null`, when it is delivered, when it is cleared, and whether two destinations can
- * collide. None of that changes when Nav2's `SavedStateHandle` is replaced.
+ * collide. None of that depends on how the value physically travels, so this file is the
+ * witness that the contract still holds when the transport underneath is replaced.
  *
- * **One line knows the transport: [transport].** That is the seam, marked so 1.3 can find
- * it. When the swap lands, that factory changes and every assertion in this file stays
- * exactly as written — and if one of them then fails, the swap changed behaviour.
+ * **One line knows the transport: [transport].** That is the seam. Change that factory and
+ * every assertion here stays exactly as written; if one then fails, the behaviour moved.
  *
  * What is NOT covered here, and why: `NavResults.OnResult` is a `@Composable` and needs a
  * composition to run, which this module's unit tests have no host for. Its two behaviours
  * — deliver only on a non-null result, and clear after delivering — are the composition of
  * [NavResults.result] and [NavResults.clear], and both are covered directly, including the
- * full re-arm cycle the old test simulated against `LaunchedEffect`.
+ * full re-arm cycle.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 internal class NavigationResultContractTest {
@@ -50,7 +42,7 @@ internal class NavigationResultContractTest {
     /**
      * The only transport-aware line in this file — see the class KDoc.
      *
-     * At 1.3 this returns a [NavResults] over whatever Nav3 uses; nothing else here moves.
+     * Point it at a different transport and nothing else in this file moves.
      */
     private fun transport(): Pair<NavResults, TestProducer> {
         val handle = SavedStateHandle()
@@ -59,7 +51,7 @@ internal class NavigationResultContractTest {
 
     /**
      * Stands in for `Navigator.popBackWithResult`, whose real implementation lives in
-     * `:app:app` and needs a `NavController` to pop.
+     * `:app:app` and needs a live back stack to pop.
      *
      * It is not a hand-rolled stand-in for the *key*, which is the part that matters: it
      * calls the same [NavResultKey.of] production calls, so producer and consumer agree

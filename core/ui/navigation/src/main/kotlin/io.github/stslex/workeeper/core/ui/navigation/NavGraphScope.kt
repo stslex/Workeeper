@@ -23,18 +23,12 @@ import androidx.navigation.toRoute
  * feature would mean importing [NavGraphBuilder] to name its type, which is exactly what
  * the navigation-import gate is there to catch.
  *
- * **The constructor is a wider seam than the import gate measures, and it is transitional.**
- * The gate counts `androidx.navigation` imports; it cannot see that anything holding a
- * `NavGraphBuilder` — `NavHost`'s own content lambda, say — can wrap one without naming the
- * type. Two instrumented tests do exactly that (`ExerciseCreatePersistenceTest`,
- * `AllTrainingsExtensionDbVisibilityTest`), mounting their own `NavHost` as DI/persistence
- * scaffolding and calling `NavGraphScope(this)`.
- *
- * That is scaffolding, not architecture, and it does not survive: when the wrapped type
- * changes, every such call site breaks loudly rather than silently. Both files are filed for
- * rewrite in `documentation/tech-debt.md`, alongside the androidTest navigation-import gate
- * they are the two named exclusions from. Nothing in production constructs this except
- * `AppNavigationHost`, which is the one place that is supposed to.
+ * **In production, `AppNavigationHost` is the only thing that may construct this.** The
+ * constructor is a wider seam than the navigation-import gate measures: that gate counts
+ * `androidx.navigation` imports, and anything already holding a `NavGraphBuilder` — a
+ * `NavHost` content lambda, say — can wrap one without naming the type. Two instrumented
+ * tests do exactly that as DI/persistence scaffolding; both are filed for rewrite in
+ * `documentation/tech-debt.md`.
  */
 @JvmInline
 value class NavGraphScope(val builder: NavGraphBuilder)

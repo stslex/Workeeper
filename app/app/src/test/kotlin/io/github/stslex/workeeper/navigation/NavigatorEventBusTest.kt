@@ -109,11 +109,9 @@ internal class NavigatorEventBusTest {
     }
 
     /**
-     * Replaces the three vararg-attribute cases this file used to carry. They asserted the
-     * shape of a transport that no longer exists — ordered `Pair<String, Any?>`, and a null
-     * value standing in for "no result". Both are now expressed by the type on the
-     * destination, so what is worth pinning here is that the bus keys the command off that
-     * destination and carries the value through unchanged.
+     * The bus keys the command off the destination and carries the value through unchanged.
+     * Absence is not expressed here at all — a destination that produced nothing pops via
+     * [Navigator.popBack], and the read side is what reports `null`.
      */
     @Test
     fun `popBackWithResult keys the command by destination and carries the result`() = runTest {
