@@ -9,11 +9,14 @@ import io.github.stslex.workeeper.core.core.di.AppScope
 import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.core.core.platform.AppReinitializer
 import io.github.stslex.workeeper.core.ui.navigation.NavCommand
+import io.github.stslex.workeeper.core.ui.navigation.NavResultKey
 import io.github.stslex.workeeper.core.ui.navigation.Navigator
 import io.github.stslex.workeeper.core.ui.navigation.Screen
+import io.github.stslex.workeeper.core.ui.navigation.ScreenWithResult
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlin.reflect.KClass
 
 /**
  * `@ContributesBinding(AppScope)` binds it to the [Navigator] interface for the feature readers; the app
@@ -40,8 +43,15 @@ class NavigatorEventBus(
         consume(NavCommand.NavTo(screen))
     }
 
-    override fun popBack(vararg previousStackAttr: Pair<String, Any?>) {
-        consume(NavCommand.PopBack(previousStackAttr.toList()))
+    override fun popBack() {
+        consume(NavCommand.PopBack)
+    }
+
+    override fun <S, R : Any> popBackWithResult(
+        destination: KClass<S>,
+        result: R,
+    ) where S : ScreenWithResult<R> {
+        consume(NavCommand.PopBackWithResult(NavResultKey.of(destination), result))
     }
 
     override fun replaceTo(screen: Screen) {

@@ -47,7 +47,12 @@ object NavigatorExt {
         logger.i { "Processing navigation command: $command" }
         when (command) {
             is NavCommand.NavTo -> navTo(navController, command.screen)
-            is NavCommand.PopBack -> popBack(navController, command.attrs)
+            is NavCommand.PopBack -> popBack(navController)
+            is NavCommand.PopBackWithResult -> popBackWithResult(
+                navController = navController,
+                key = command.key,
+                result = command.result,
+            )
 
             is NavCommand.ReplaceTo -> replaceTo(navController, command.screen)
             NavCommand.OpenRecovery -> openRecovery(context)
@@ -76,20 +81,30 @@ object NavigatorExt {
         }
     }
 
-    private fun popBack(
+    private fun popBack(navController: NavController) {
+        logger.d("popBack")
+        navController.popBackStack()
+    }
+
+    /**
+     * The Nav2 half of [io.github.stslex.workeeper.core.ui.navigation.ScreenWithResult]:
+     * write the result onto the entry underneath, then pop.
+     *
+     * Order matters and is the same as [popBack]'s — the value has to be on the previous
+     * entry's handle *before* the pop, or the consumer recomposes on arrival with nothing
+     * there and the result is lost. This is the only place the untyped shape touches the
+     * navigation library; both sides of it are typed off the destination.
+     */
+    private fun popBackWithResult(
         navController: NavController,
-        previousStackAttr: List<Pair<String, Any?>>,
+        key: String,
+        result: Any,
     ) {
-        logger.d {
-            val attrs = previousStackAttr.joinToString { "${it.first}=${it.second}" }
-            "popBack($attrs)"
-        }
+        logger.d { "popBackWithResult($key=$result)" }
 
         navController.previousBackStackEntry
             ?.savedStateHandle
-            ?.let { saveHandle ->
-                previousStackAttr.forEach { (key, value) -> saveHandle[key] = value }
-            }
+            ?.set(key, result)
         navController.popBackStack()
     }
 

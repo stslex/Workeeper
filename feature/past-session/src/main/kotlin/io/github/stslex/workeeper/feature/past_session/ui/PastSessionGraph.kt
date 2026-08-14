@@ -4,15 +4,15 @@ package io.github.stslex.workeeper.feature.past_session.ui
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
-import androidx.navigation.NavGraphBuilder
 import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
 import io.github.stslex.workeeper.core.ui.mvi.navComponentScreen
+import io.github.stslex.workeeper.core.ui.navigation.NavGraphScope
 import io.github.stslex.workeeper.feature.past_session.R
 import io.github.stslex.workeeper.feature.past_session.di.PastSessionFeature
 import io.github.stslex.workeeper.feature.past_session.mvi.model.ErrorType
 import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStore.Event
 
-fun NavGraphBuilder.pastSessionGraph(
+fun NavGraphScope.pastSessionGraph(
     modifier: Modifier = Modifier,
 ) {
     navComponentScreen(PastSessionFeature) { processor ->

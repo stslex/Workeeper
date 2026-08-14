@@ -143,11 +143,15 @@ When adding to a feature module:
   `Activity`, and `Context` MUST NOT be retained by any `ViewModel`, `Store`,
   `Handler`, `Interactor`, `Mapper`, or `@SingleIn(AppScope)` binding. The only object
   allowed to live at app scope is the command-only `NavigatorEventBus`.
-- `SavedStateHandle` is composable-graph scoped. Use
-  `navComponentScreenWithState(<Feature>) { stateHandle, processor -> ... }` when a
-  screen consumes a navigation result, and reset the consumed value via
-  `stateHandle.setAttrDefaultValue(<SaveHandlerAttr>)` so re-entry does not
-  retrigger the consumer.
+- Navigation **results** are typed on the destination: it implements
+  `ScreenWithResult<R>`, the producer calls
+  `navigator.popBackWithResult(Screen.<X>::class, value)`, and the consumer's graph uses
+  `navComponentScreenWithResults(<Feature>) { results, processor -> ... }` with
+  `results.OnResult(Screen.<X>::class) { … }`. Reading is nullable — `null` means "no
+  result". `OnResult` clears after delivering, so there is no reset to remember.
+- **A graph forwards a result to the Store; it does not interpret one.** Parsing and
+  branching belong in a Handler. `SavedStateHandle` no longer reaches a graph composable
+  at all — `NavResults` holds it privately.
 - Navigation decisions stay in `Action.Navigation.<X>` consumed by the feature's
   `NavigationHandler`. Never model navigation as `Event.Navigate*`.
 

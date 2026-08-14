@@ -6,9 +6,11 @@ import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.ComposeTestRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -81,6 +83,61 @@ internal class NavPaths(private val rule: ComposeTestRule) {
     fun typeInto(tag: String, text: String) {
         rule.waitUntilAtLeastOneExists(hasTestTag(tag), ARRIVAL_TIMEOUT_MS)
         rule.onNodeWithTag(tag).performTextInput(text)
+    }
+
+    /**
+     * Resolve the full testTag of the single node whose tag starts with [prefix].
+     *
+     * The read-only counterpart to [tapTagStartingWith], for the same reason it exists: per-entity
+     * tags whose uuid is minted at runtime. A caller that needs to assert on such a node twice —
+     * before and after an action — needs the tag itself, not just a click.
+     *
+     * [useUnmergedTree] is required for any tag on a `Text` inside a card that merges its
+     * descendants, which is the same trap `openTraining` documents: the tag exists, but not in the
+     * tree `onNodeWithTag` queries by default. `LiveExerciseCardSub_<uuid>` is one — its card takes
+     * a `Modifier.clickable` to expand, so the whole card is one merged node. Measured via a
+     * semantics dump, not reasoned: the tag is absent from the merged tree and present in the
+     * unmerged one.
+     */
+    fun tagStartingWith(prefix: String, useUnmergedTree: Boolean = false): String {
+        val matcher = SemanticsMatcher("TestTag starts with '$prefix'") { node ->
+            node.config.getOrNull(SemanticsProperties.TestTag)?.startsWith(prefix) == true
+        }
+        rule.waitUntil(ARRIVAL_TIMEOUT_MS) {
+            rule.onAllNodes(matcher, useUnmergedTree).fetchSemanticsNodes().isNotEmpty()
+        }
+        return rule.onAllNodes(matcher, useUnmergedTree).onFirst()
+            .fetchSemanticsNode()
+            .config[SemanticsProperties.TestTag]
+    }
+
+    /** [assertTextEquals] against a node that only exists in the unmerged tree. */
+    fun assertUnmergedText(tag: String, expected: String) {
+        rule.onNodeWithTag(tag, useUnmergedTree = true).assertTextEquals(expected)
+    }
+
+    /**
+     * Wait until [tag]'s text is no longer [previous].
+     *
+     * For asserting that a navigation result was consumed. The screen is already on-screen and
+     * already has its text when the result arrives, so there is no node to wait for — the change
+     * IS the signal, and it lands a recomposition after the Store reloads.
+     *
+     * Deliberately "changed away from" rather than "equals the expected new value": what is at
+     * risk is whether the result arrived at all, and pinning the exact new text would additionally
+     * couple this to a mapper's formatting, which has its own unit tests.
+     *
+     * Reads the unmerged tree for the reason [tagStartingWith] documents.
+     */
+    fun awaitTextChangedFrom(tag: String, previous: String) {
+        rule.waitUntil(ARRIVAL_TIMEOUT_MS) {
+            val nodes = rule.onAllNodesWithTag(tag, useUnmergedTree = true).fetchSemanticsNodes()
+            nodes.isNotEmpty() &&
+                nodes.none { node ->
+                    node.config.getOrNull(SemanticsProperties.Text)
+                        ?.any { it.text == previous } == true
+                }
+        }
     }
 
     // ----- bottom-bar roots ---------------------------------------------------------------------

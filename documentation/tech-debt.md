@@ -132,6 +132,37 @@ applies. **Deadline: before stage 1.3** — the suite grows there, and the failu
 
 ---
 
+## Two of stage 1.1's four oracle classes were never written (nav3 stage 1.1, 2026-08-14)
+
+Stage 1.1's spec specified **four** classes: `RouteReachabilityTest`, `StoreRetentionTest`,
+`NavigationResultTest` and `BackStackStateRestorationTest`. #221 shipped only the first — the
+Mac-side prompt renumbered its Phase 3 as "close the four gaps", colliding with the spec's own
+3a–3d (the four test classes), and three dropped without anyone noticing. The 28-test baseline
+at `dev` shows it: `RouteReachabilityTest` 15, and no sign of the other three.
+
+`NavigationResultTest` was written in stage 1.2 (PR #222) because that stage rewrote both result
+flows and nothing covered them. **The other two remain missing and are due before 1.3**, because
+they guard 1.3's own concern — the entry-scoping decorator — not 1.2's:
+
+| Class | What it must pin | Why before 1.3 |
+|---|---|---|
+| `StoreRetentionTest` | a Store survives a round trip to another destination and back, and is destroyed when its destination leaves the back stack for good | 1.3 replaces the mechanism that scopes Stores to entries; without this, a Store silently recreated per visit looks identical to one correctly retained |
+| `BackStackStateRestorationTest` | back-stack depth and per-entry state survive process death / configuration change | Nav3's back stack is app-owned state rather than library-owned; nothing currently fails if restoration regresses |
+
+**`StoreRetentionTest` has a specific first question, already surfaced.** `NavigationResultTest`'s
+plan-editor half was mutation-tested in PR #222 and does **not** discriminate: with
+the reload behind `Action.Common.PlanResultReceived` removed, the session still comes back showing
+the newly saved plan. `loadSession` is a one-shot read, so something re-runs it — most likely
+`Action.Common.Init`, which would mean the LiveWorkout Store is **not** retained across the
+PlanEditor round trip. If that is so, `processReload`'s `withExpansionCarriedFrom(previous)`
+preserves state that was already lost, and the reload itself may be redundant. Settle this in
+`StoreRetentionTest`; do not assume either answer.
+
+**Consequence to hold in mind meanwhile:** no test in the suite would currently catch a broken
+`Screen.PlanEditor` result flow. Per the `.catch { onError(it) }` swallow in
+`AppCoroutineScopeImpl`, that failure is silent — the screen shows default state and every test
+stays green.
+
 ## `AllTrainingsItemName_*` / `AllTrainingsItemMeta_*` are not row handles (nav3 stage 1.1, 2026-08-14)
 
 | Severity | Location | Description |
@@ -403,6 +434,13 @@ What changed:
   the previous screen's graph composable via `navComponentScreenWithState` +
   `stateHandle.getStateFlow(...).collectAsState()`. Consumers reset the flag via
   `stateHandle.setAttrDefaultValue(...)` so re-entry does not retrigger.
+
+  > **Superseded by Nav3 stage 1.2.** This bullet records what PR #143 shipped and is
+  > kept as history. `SaveHandlerAttr` and the attr-based transport no longer exist:
+  > the result type is declared on the destination (`ScreenWithResult<R>`), produced
+  > with `navigator.popBackWithResult(...)`, and consumed via `NavResults.OnResult`,
+  > which clears as part of delivering. See
+  > [architecture.md → Navigation results](architecture.md#navigation-results).
 
 Verification requirements (live in test code, not docs):
 

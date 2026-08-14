@@ -1,13 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.core.ui.navigation
 
-import androidx.compose.animation.AnimatedContentScope
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
-import androidx.lifecycle.SavedStateHandle
-import androidx.navigation.NavGraphBuilder
-import androidx.navigation.compose.composable
-import androidx.navigation.toRoute
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.InternalSerializationApi
 import kotlinx.serialization.Serializable
@@ -91,37 +85,29 @@ sealed interface Screen {
      * **It also carries the picture's two verbs** (§26, "The image moves into the pushed top
      * bar"). The editor's form has no image row: replace and remove live *where the picture is*
      * rather than beside the 46dp stand-in for it in the bar. The viewer performs neither — it
-     * pops back with
-     * [exerciseImageRequestAttr] and the editor, which owns the permission plumbing, the temp-URI
-     * dance and the uncommitted `PendingImage`, does the work. **A request, not a result** — none
-     * of that machinery moves, and the viewer stays a viewer.
+     * pops back with an [ExerciseImageRequest] name, and the editor, which owns the permission
+     * plumbing, the temp-URI dance and the uncommitted `PendingImage`, does the work.
+     * **A request, not a result** — none of that machinery moves, and the viewer stays a viewer.
+     *
+     * The result is the request's [Enum.name] rather than the enum itself: what crosses a
+     * destination boundary has to survive being written down, and a `String` is the shape both
+     * the current transport and Nav3 can carry without a serializer. Resolving the name back to
+     * the enum is the consumer's job, and belongs in its Store — see
+     * `ExerciseStore.Action.Common.ImageRequestReceived`.
      */
     @Serializable
     data class ExerciseImage(
         val model: String,
         /**
-         * Whether the caller can act on [exerciseImageRequestAttr]. The viewer offers replace and
-         * remove only when this is `true`, because a request nobody can honour is worse than no
-         * affordance: the exercise DETAIL screen opens this viewer too, and it has no Save and no
-         * dirty interception, so a staged replacement there would look applied and vanish on the
-         * way out. The caller states its own capability rather than the viewer guessing at it.
+         * Whether the caller can act on the request this viewer produces. The viewer offers
+         * replace and remove only when this is `true`, because a request nobody can honour is
+         * worse than no affordance: the exercise DETAIL screen opens this viewer too, and it has
+         * no Save and no dirty interception, so a staged replacement there would look applied and
+         * vanish on the way out. The caller states its own capability rather than the viewer
+         * guessing at it.
          */
         val editable: Boolean = false,
-    ) : Screen {
-
-        companion object {
-
-            private const val SAVED_STATE_EXERCISE_IMAGE_REQUEST: String = "exercise-image-request"
-
-            /**
-             * What the viewer asked for on its way out — a [ExerciseImageRequest] name, or `null`
-             * for an ordinary back. Default `null` so the consumer's `LaunchedEffect` fires only
-             * after a real choice, rather than once on arrival.
-             */
-            val exerciseImageRequestAttr: SaveHandlerAttr<String> =
-                SaveHandlerAttr(SAVED_STATE_EXERCISE_IMAGE_REQUEST, null)
-        }
-    }
+    ) : Screen, ScreenWithResult<String>
 
     /**
      * The two verbs the image viewer can hand back. An enum rather than two booleans or a raw
@@ -140,12 +126,16 @@ sealed interface Screen {
      * Full-screen plan editor, and it has ONE destination.
      *
      * [Existing] edits the plan attached to a persisted exercise / performed-exercise /
-     * training-exercise row. PlanEditor saves directly to DB and signals the caller via
-     * [planEditorSavedAttr] = true.
+     * training-exercise row. PlanEditor saves directly to DB and hands back `true` on save.
      *
-     * **Live-workout is the only consumer.** `LiveWorkoutGraph` reads the flag and issues a
-     * full reload on resume. Exercise and Single-training navigate here but never read it
-     * back — a change to their reload behaviour has to add the consumer first.
+     * **Live-workout is the only consumer.** It reloads the session so the new plan shows.
+     * Exercise and Single-training navigate here but never read the result back — a change
+     * to their reload behaviour has to add the consumer first. That claim is now checkable:
+     * the result type is declared here, so the compiler knows who reads it and as what.
+     *
+     * A back that is not a save produces no result, and the read yields `null`. Nothing
+     * distinguishes "did not save" from "pressed back", and nothing ever did — see
+     * [ScreenWithResult].
      *
      * **Creating an exercise does not route here.** A record with no persisted UUID is built on
      * the exercise form, which hosts `PlanEditorBody` inline — so there is no in-flight draft to
@@ -153,7 +143,7 @@ sealed interface Screen {
      */
     @Serializable
     @Stable
-    sealed interface PlanEditor : Screen {
+    sealed interface PlanEditor : Screen, ScreenWithResult<Boolean> {
 
         @Serializable
         data class Existing(
@@ -161,13 +151,6 @@ sealed interface Screen {
             val exerciseUuid: String?,
             val trainingUuid: String?,
         ) : PlanEditor
-
-        companion object {
-
-            private const val SAVED_STATE_PLAN_EDITOR_SAVED: String = "plan-editor-saved"
-
-            val planEditorSavedAttr = SaveHandlerAttr(SAVED_STATE_PLAN_EDITOR_SAVED, false)
-        }
     }
 
     companion object {
@@ -176,21 +159,5 @@ sealed interface Screen {
         fun Screen.isCurrentScreen(
             route: String,
         ): Boolean = this::class.serializer().descriptor.serialName == route
-    }
-}
-
-inline fun <reified S : Screen> NavGraphBuilder.navScreen(
-    noinline content: @Composable AnimatedContentScope.(S) -> Unit,
-) {
-    composable<S> { backStackEntry ->
-        content(backStackEntry.toRoute())
-    }
-}
-
-inline fun <reified S : Screen> NavGraphBuilder.navScreenWithState(
-    noinline content: @Composable AnimatedContentScope.(S, SavedStateHandle) -> Unit,
-) {
-    composable<S> { backStackEntry ->
-        content(backStackEntry.toRoute(), backStackEntry.savedStateHandle)
     }
 }

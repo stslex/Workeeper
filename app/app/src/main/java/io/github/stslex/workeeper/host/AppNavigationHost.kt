@@ -20,6 +20,7 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.mvi.performance.PerformanceMetricsRecorder
 import io.github.stslex.workeeper.core.ui.mvi.performance.RecordAction
+import io.github.stslex.workeeper.core.ui.navigation.NavGraphScope
 import io.github.stslex.workeeper.core.ui.navigation.NavigatorHolder
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.all_exercises.ui.allExercisesGraph
@@ -76,71 +77,71 @@ internal fun AppNavigationHost(
                 )
             },
         ) {
-            homeGraph(
-                modifier = bottomBarModifier
-                    .reportScreenPlace<Screen.BottomBar.Home>()
-                    .testTag("HomeGraph"),
-                sharedTransitionScope = this@SharedTransitionLayout,
-            )
-            allTrainingsGraph(
-                modifier = bottomBarModifier
-                    .reportScreenPlace<Screen.BottomBar.AllTrainings>()
-                    .testTag("AllTrainingsGraph"),
-                sharedTransitionScope = this@SharedTransitionLayout,
-            )
-            allExercisesGraph(
-                modifier = bottomBarModifier
-                    .reportScreenPlace<Screen.BottomBar.AllExercises>()
-                    .testTag("AllExercisesGraph"),
-                sharedTransitionScope = this@SharedTransitionLayout,
-            )
-            singleTrainingsGraph(
-                modifier = standardModifier
-                    .reportScreenPlace<Screen.Training>()
-                    .testTag("SingleTrainingGraph"),
-                sharedTransitionScope = this@SharedTransitionLayout,
-            )
-            exerciseGraph(
-                modifier = standardModifier
-                    .reportScreenPlace<Screen.Exercise>()
-                    .testTag("ExerciseGraph"),
-            )
-            liveWorkoutGraph(
-                modifier = standardModifier
-                    .reportScreenPlace<Screen.LiveWorkout>()
-                    .testTag("LiveWorkoutGraph"),
-                sharedTransitionScope = this@SharedTransitionLayout,
-            )
-            pastSessionGraph(
-                modifier = standardModifier
-                    .reportScreenPlace<Screen.PastSession>()
-                    .testTag("PastSessionGraph"),
-            )
-            imageViewerGraph(
-                modifier = standardModifier
-                    .reportScreenPlace<Screen.ExerciseImage>()
-                    .testTag("ImageViewerGraph"),
-            )
-            settingsGraph(
-                modifier = standardModifier
-                    .reportScreenPlace<Screen.Settings>()
-                    .testTag("SettingsGraph"),
-            )
-            archiveGraph(
-                modifier = standardModifier
-                    .reportScreenPlace<Screen.Archive>()
-                    .testTag("ArchiveGraph"),
-            )
-            exerciseChartGraph(
-                modifier = standardModifier
-                    .reportScreenPlace<Screen.ExerciseChart>()
-                    .testTag("ExerciseChartGraph"),
-            )
-            planEditorGraph(
-                modifier = standardModifier
-                    .reportScreenPlace<Screen.PlanEditor>()
-                    .testTag("PlanEditorGraph"),
-            )
+            // The one place the navigation library's builder is wrapped. Every graph below
+            // registers against NavGraphScope and never names the library's own builder, so
+            // re-pointing this line is enough to change what backs them.
+            with(NavGraphScope(this)) {
+                homeGraph(
+                    modifier = bottomBarModifier
+                        .reportScreenPlace<Screen.BottomBar.Home>()
+                        .testTag("HomeGraph"),
+                )
+                allTrainingsGraph(
+                    modifier = bottomBarModifier
+                        .reportScreenPlace<Screen.BottomBar.AllTrainings>()
+                        .testTag("AllTrainingsGraph"),
+                )
+                allExercisesGraph(
+                    modifier = bottomBarModifier
+                        .reportScreenPlace<Screen.BottomBar.AllExercises>()
+                        .testTag("AllExercisesGraph"),
+                )
+                singleTrainingsGraph(
+                    modifier = standardModifier
+                        .reportScreenPlace<Screen.Training>()
+                        .testTag("SingleTrainingGraph"),
+                )
+                exerciseGraph(
+                    modifier = standardModifier
+                        .reportScreenPlace<Screen.Exercise>()
+                        .testTag("ExerciseGraph"),
+                )
+                liveWorkoutGraph(
+                    modifier = standardModifier
+                        .reportScreenPlace<Screen.LiveWorkout>()
+                        .testTag("LiveWorkoutGraph"),
+                )
+                pastSessionGraph(
+                    modifier = standardModifier
+                        .reportScreenPlace<Screen.PastSession>()
+                        .testTag("PastSessionGraph"),
+                )
+                imageViewerGraph(
+                    modifier = standardModifier
+                        .reportScreenPlace<Screen.ExerciseImage>()
+                        .testTag("ImageViewerGraph"),
+                )
+                settingsGraph(
+                    modifier = standardModifier
+                        .reportScreenPlace<Screen.Settings>()
+                        .testTag("SettingsGraph"),
+                )
+                archiveGraph(
+                    modifier = standardModifier
+                        .reportScreenPlace<Screen.Archive>()
+                        .testTag("ArchiveGraph"),
+                )
+                exerciseChartGraph(
+                    modifier = standardModifier
+                        .reportScreenPlace<Screen.ExerciseChart>()
+                        .testTag("ExerciseChartGraph"),
+                )
+                planEditorGraph(
+                    modifier = standardModifier
+                        .reportScreenPlace<Screen.PlanEditor>()
+                        .testTag("PlanEditorGraph"),
+                )
+            }
         }
     }
 }

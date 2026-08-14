@@ -7,37 +7,52 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
-import androidx.navigation.NavGraphBuilder
 import io.github.stslex.workeeper.core.ui.kit.snackbar.AppSnackbarModel
 import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
+import io.github.stslex.workeeper.core.ui.navigation.NavGraphScope
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.core.ui.navigation.navScreen
 import io.github.stslex.workeeper.feature.plan_editor.di.PlanEditorFeature
+import io.github.stslex.workeeper.feature.plan_editor.di.PlanEditorStoreProcessor
 import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorStore.Action
 import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorStore.ErrorType
 import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorStore.Event
 
 /**
  * Registers the plan editor's one destination, [Screen.PlanEditor.Existing] — DB-backed, persists
- * `(type, plan)` to disk on Save and signals the caller via `planEditorSavedAttr`.
+ * `(type, plan)` to disk on Save and hands `true` back to the caller on the way out.
  *
  * **There is no creation destination.** An exercise with no persisted UUID is built on the exercise
  * form, which hosts `PlanEditorBody` inline; nothing routes here to make one.
+ *
+ * **Why this one graph calls [navScreen] and not `navComponentScreen`** — the twelfth call site,
+ * and the only one that is not uniform. [PlanEditorFeature] is typed on the sealed parent
+ * `Screen.PlanEditor`, because that is what the store's assisted injection and the DI factory
+ * take; the registered ROUTE is the concrete [Screen.PlanEditor.Existing]. `navComponentScreen`
+ * reifies one type for both, so it would try to register the sealed interface as a route.
+ *
+ * The alternatives are a third type parameter on `navComponentScreen` to separate route from
+ * feature — new API for exactly one caller — or retyping `PlanEditorFeature` to `Existing`,
+ * which reaches into this feature's DI graph and its store's assisted contract for a cosmetic
+ * gain. Neither is worth it: this registers through the same project-owned scope and primitive
+ * as every other graph and names no navigation-library type, which is what the contract is for.
  */
-fun NavGraphBuilder.planEditorGraph(
+fun NavGraphScope.planEditorGraph(
     modifier: Modifier = Modifier,
 ) {
     navScreen<Screen.PlanEditor.Existing> { screen ->
-        PlanEditorContent(modifier = modifier, screen = screen)
+        PlanEditorContent(
+            modifier = modifier,
+            processor = PlanEditorFeature.processor(screen),
+        )
     }
 }
 
 @Composable
 private fun PlanEditorContent(
     modifier: Modifier,
-    screen: Screen.PlanEditor,
+    processor: PlanEditorStoreProcessor,
 ) {
-    val processor = PlanEditorFeature.processor(screen)
     val haptic = LocalHapticFeedback.current
     val state by processor.state
     // Pre-resolve error copy in composable scope so the suspend Handle lambda below

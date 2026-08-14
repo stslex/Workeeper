@@ -5,7 +5,7 @@ import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.core.ui.navigation.Navigator
-import io.github.stslex.workeeper.core.ui.navigation.Screen.PlanEditor.Companion.planEditorSavedAttr
+import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.plan_editor.di.PlanEditorScope
 import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorStore.Action
 
@@ -17,8 +17,9 @@ internal class NavigationHandler @Inject constructor(
     override fun invoke(action: Action.Navigation) {
         when (action) {
             is Action.Navigation.Back -> navigator.popBack()
-            is Action.Navigation.BackAfterSave -> navigator.popBack(
-                planEditorSavedAttr.toPairValue(true),
+            is Action.Navigation.BackAfterSave -> navigator.popBackWithResult(
+                destination = Screen.PlanEditor::class,
+                result = true,
             )
         }
     }

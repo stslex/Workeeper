@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.home.ui
 
-import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.navigation.NavGraphBuilder
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.ActiveSessionConflictDialog
 import io.github.stslex.workeeper.core.ui.mvi.navComponentScreen
+import io.github.stslex.workeeper.core.ui.navigation.NavGraphScope
 import io.github.stslex.workeeper.core.ui.start_mode.StartCardModeSheet
 import io.github.stslex.workeeper.feature.home.di.HomeFeature
 import io.github.stslex.workeeper.feature.home.mvi.store.BottomSheetState
@@ -14,9 +13,7 @@ import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.Action
 import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.Event
 import io.github.stslex.workeeper.feature.home.ui.components.TrainingPickerSheet
 
-@Suppress("UnusedParameter")
-fun NavGraphBuilder.homeGraph(
-    sharedTransitionScope: SharedTransitionScope,
+fun NavGraphScope.homeGraph(
     modifier: Modifier = Modifier,
 ) {
     navComponentScreen(HomeFeature) { processor ->

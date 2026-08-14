@@ -44,8 +44,9 @@ The build is configured in `settings.gradle.kts`. Every module is included from 
 - `core/ui/mvi` — the MVI contract (see [MVI contract](#mvi-contract)).
 - `core/ui/navigation` — `Navigator` (command-bus interface), `NavCommand` (sealed
   command set emitted on the bus), `Screen` (sealed `@Serializable` route catalog),
-  `SaveHandlerAttr`, `NavigatorHolder` (Compose-scoped wrapper around the current
-  `NavHostController`), `navScreen` / `navScreenWithState` `NavGraphBuilder`
+  `ScreenWithResult<R>` (result type declared on the destination), `NavigatorHolder`
+  (Compose-scoped wrapper around the current `NavHostController`), `NavGraphScope`
+  (the project-owned registration receiver) and its `navScreen` / `navScreenWithState`
   extensions.
 - `core/ui/test-utils` — shared test infrastructure (`BaseComposeTest`, `MockDataFactory`,
   `PagingTestUtils`, `@Smoke`, `@Regression`).
@@ -188,7 +189,7 @@ In both cases the helper:
 `FeatureAssisted<TProcessor, TScreen>` (`core/ui/mvi/.../FeatureAssisted.kt`) are the two
 composition-time entry points each feature picks between. Their `processor()` method is
 invoked from the feature's graph composable through `navComponentScreen` /
-`navComponentScreenWithState` (`core/ui/mvi/.../NavComponentScreen.kt`).
+`navComponentScreenWithResults` (`core/ui/mvi/.../NavComponentScreen.kt`).
 
 #### When to use `Feature` vs `FeatureAssisted`
 
@@ -333,7 +334,7 @@ feature/exercise/src/main/kotlin/io/github/stslex/workeeper/feature/exercise/
 ├── ui/
 │   ├── ExerciseDetailScreen.kt      # Top-level Compose screen (Read mode)
 │   ├── ExerciseEditScreen.kt        # Top-level Compose screen (Edit mode)
-│   ├── ExerciseGraph.kt             # NavGraphBuilder.exerciseGraph extension (navigation, not DI)
+│   ├── ExerciseGraph.kt             # NavGraphScope.exerciseGraph extension (navigation, not DI)
 │   ├── components/                  # Sub-widgets
 │   └── mvi/
 │       ├── store/
@@ -746,15 +747,16 @@ Detail destinations carry route arguments as value-type fields:
 single-instance destinations are `data object` (`Screen.Settings`,
 `Screen.Archive`).
 
-Two `NavGraphBuilder` extensions consume these routes:
+Two `NavGraphScope` extensions consume these routes:
 
 - `navScreen<TScreen>(content)` — parses the route via
   `backStackEntry.toRoute()` and hands the resulting `TScreen` value to the
   graph composable.
-- `navScreenWithState<TScreen>(content)` — same, plus the current
-  `NavBackStackEntry.savedStateHandle` for navigation-result reads (see
-  [Navigation results via SavedStateHandle](#navigation-results-via-savedstatehandle)
-  below).
+- `navScreenWithState<TScreen>(content)` — same, plus the entry's
+  `SavedStateHandle`. **Not for feature use**: its only caller is
+  `navComponentScreenWithResults`, which wraps the handle in a `NavResults`
+  before anything sees it (see
+  [Navigation results](#navigation-results) below).
 
 ### `Navigator` (command bus interface)
 
@@ -764,7 +766,9 @@ else — no controller, no back stack:
 ```kotlin
 interface Navigator {
     fun navTo(screen: Screen)
-    fun popBack(vararg previousStackAttr: Pair<String, Any?>)
+    fun popBack()
+    fun <S, R : Any> popBackWithResult(destination: KClass<S>, result: R)
+        where S : ScreenWithResult<R>
     fun replaceTo(screen: Screen)
     fun restartApp()
 }
@@ -816,9 +820,15 @@ class NavigatorEventBus(
     override val commands: SharedFlow<NavCommand> = _commands.asSharedFlow()
 
     override fun navTo(screen: Screen) { _commands.tryEmit(NavCommand.NavTo(screen)) }
-    override fun popBack(vararg previousStackAttr: Pair<String, Any?>) {
-        _commands.tryEmit(NavCommand.PopBack(previousStackAttr.toList()))
+    override fun popBack() { _commands.tryEmit(NavCommand.PopBack) }
+
+    override fun <S, R : Any> popBackWithResult(
+        destination: KClass<S>,
+        result: R,
+    ) where S : ScreenWithResult<R> {
+        _commands.tryEmit(NavCommand.PopBackWithResult(NavResultKey.of(destination), result))
     }
+
     override fun replaceTo(screen: Screen) { _commands.tryEmit(NavCommand.ReplaceTo(screen)) }
 
     // Terminal + platform-owned: invoke the injected seam directly instead of
@@ -860,9 +870,11 @@ needed. The class name carries the
 `Handler`, `Interactor`, `Mapper`, `Store`).
 
 `NavCommand` (`core/ui/navigation/.../NavCommand.kt`) is a
-`sealed interface` with four variants — `NavTo(screen)`,
-`ReplaceTo(screen)`, `PopBack(attrs)`, and `OpenRecovery`. The three
-back-stack commands correspond 1-to-1 with `Navigator` operations;
+`sealed interface` with five variants — `NavTo(screen)`,
+`ReplaceTo(screen)`, `PopBack`, `PopBackWithResult(key, result)`, and
+`OpenRecovery`. The four back-stack commands correspond 1-to-1 with `Navigator`
+operations; `PopBackWithResult` is the one place the result's key and value are
+untyped, and it is confined to this module for that reason —
 `restartApp()` is deliberately **not** a `NavCommand` — it invokes the
 `AppReinitializer` seam directly (see above). Living in `core/ui/navigation`
 (next to `Navigator`) lets the bus, the bridge, and any test double share
@@ -931,7 +943,7 @@ post-subscription action regardless.
 its key/value pairs into
 `navController.previousBackStackEntry.savedStateHandle` before the pop, which
 is how navigation results flow back to the previous screen (see
-[Navigation results via SavedStateHandle](#navigation-results-via-savedstatehandle)).
+[Navigation results](#navigation-results)).
 `NavCommand.OpenRecovery` is the one branch that does not call into
 `NavController`: it reads `LocalContext.current` (captured at bridge attach)
 to launch `RecoveryActivity` in a fresh task (`FLAG_ACTIVITY_NEW_TASK`).
@@ -965,10 +977,11 @@ class naming makes it greppable):
   live `NavHostController` and MUST stay scoped to composition (created via
   `remember(navController)` in `App.kt`). It MUST NOT be cached statically,
   passed through DI, or stored in a `Singleton`.
-- `SavedStateHandle` MAY be passed through the composable graph / bridge
-  layer (e.g. inside a `navScreenWithState<TScreen>` content lambda) when
-  it belongs to the current `NavBackStackEntry`. It MUST NOT be retained in
-  a Store / ViewModel / Handler / DI singleton.
+- `SavedStateHandle` no longer reaches a graph composable at all. It is held
+  privately by `NavResults` (`core/ui/mvi/.../NavResults.kt`), which is what
+  `navComponentScreenWithResults` hands to the content lambda. It MUST NOT be
+  retained in a Store / ViewModel / Handler / DI singleton — now unreachable
+  from those layers by construction rather than by rule.
 
 ### Navigation flow (canonical pattern)
 
@@ -1106,49 +1119,87 @@ Reference implementation:
 (seam dispatch), and
 `core/core/.../platform/AndroidAppReinitializer.kt::reinitialize` (executor).
 
-### Navigation results via `SavedStateHandle`
+### Navigation results
 
-Some navigation flows return a result to the previous screen — most
-notably `Screen.PlanEditor`, which sets `planEditorSavedAttr.toPairValue(true)`
-inside the popped entry's `previousBackStackEntry.savedStateHandle` so the
-previous screen knows the plan was just saved and reloads.
+Some destinations return a value to whoever opened them — `Screen.PlanEditor`
+hands back `true` on save so the caller reloads, and `Screen.ExerciseImage`
+hands back a request name.
+
+**The result type is declared on the destination**, by implementing
+`ScreenWithResult<R>`:
+
+```kotlin
+sealed interface PlanEditor : Screen, ScreenWithResult<Boolean>
+data class ExerciseImage(...) : Screen, ScreenWithResult<String>
+```
+
+The ten destinations that produce nothing stay plain `Screen`.
 
 The mechanics:
 
 1. The producer (e.g. `feature/plan-editor`'s `NavigationHandler`) calls
-   `navigator.popBack(planEditorSavedAttr.toPairValue(true))` on save. The
-   `NavigatorEventBus` emits `NavCommand.PopBack(listOf("plan-editor-saved" to true))`.
-2. `NavigatorExt.popBack` writes the pair into
-   `navController.previousBackStackEntry?.savedStateHandle` *before* the
-   `popBackStack()` call, so the previous entry sees the result on resume.
-3. The consumer (e.g. `ExerciseGraph`) lives inside
-   `navComponentScreenWithState(ExerciseFeature) { stateHandle, processor -> ... }`
-   — `stateHandle` is the **current** `NavBackStackEntry.savedStateHandle`
-   provided by `navScreenWithState`. It collects the flag:
+   `navigator.popBackWithResult(Screen.PlanEditor::class, true)`. `R` is not
+   chosen at the call site — it resolves from the destination's own
+   `ScreenWithResult` parameter, so passing the wrong type does not compile.
+2. `NavigatorExt` writes the value onto `previousBackStackEntry.savedStateHandle`
+   *before* `popBackStack()`, keyed by `NavResultKey.of(destination)`. This is
+   the only place the transport is untyped, and it is Nav2-specific — the
+   `SavedStateHandle` transport does not exist in Nav3.
+3. The consumer's graph registers with `navComponentScreenWithResults`, whose
+   content lambda receives a `NavResults` rather than a raw `SavedStateHandle`:
 
    ```kotlin
-   val attrValue by stateHandle
-       .getStateFlow(Screen.PlanEditor.planEditorSavedAttr)
-       .collectAsState()
-
-   LaunchedEffect(attrValue) {
-       if (attrValue == true) {
-           processor.consume(Action.Common.PlanEditorExistingReturned)
-           stateHandle.setAttrDefaultValue(Screen.PlanEditor.planEditorSavedAttr)
+   navComponentScreenWithResults(LiveWorkoutFeature) { results, processor ->
+       results.OnResult(Screen.PlanEditor::class) { saved ->
+           processor.consume(Action.Common.PlanResultReceived(saved))
        }
-   }
    ```
 
-4. After consumption, the consumer resets the flag back to its default
-   (`false`) via `setAttrDefaultValue` so re-entering the screen later does
-   not retrigger the reload.
+   `OnResult` delivers once per result and clears it, so re-entry does not
+   re-fire. **Reading is nullable — `null` means "no result"**; there is no
+   `Cancelled` case, because "did not save" and "pressed back" were already
+   the same state and no consumer distinguishes them.
 
-The `SavedStateHandle` lives **only** inside the composable graph block. It
-is a `NavBackStackEntry`-scoped object and must not leak into the Store,
-Handler, ViewModel, or any singleton — it is parameter-only. Helper
-extensions `getStateFlow(SaveHandlerAttr)` and `setAttrDefaultValue(...)`
-in `core/ui/mvi/.../CommonExt.kt` make the pattern type-safe with the
-attr key + default declared on `Screen.PlanEditor.Companion`.
+**A graph forwards a result; it does not interpret one.** Reading a result is
+state, and state belongs in the Store — so the shape at every call site is
+`OnResult` → `processor.consume(Action…)`, with the parsing and the decision on
+the far side of that call. `ExerciseStore.Action.Common.ImageRequestReceived`
+is the reference: the graph passes the raw name, and `CommonHandler` resolves
+it exhaustively over `Screen.ExerciseImageRequest`.
+
+`NavResults` holds the `SavedStateHandle` privately and exposes nothing that
+leaks it, so the entry-scoped object still never reaches a Store, Handler,
+ViewModel, or singleton — now by construction rather than by convention.
+
+> **Note for tests.** `AppCoroutineScopeImpl.launch(flow, …)` applies
+> `.catch { onError(it) }`, so a flow error inside a Store is swallowed: a
+> broken result path surfaces as a screen quietly holding default state, not as
+> a throw. Assert the observable effect — the originating screen reflecting the
+> save — never the absence of an exception, or the test passes vacuously.
+
+### `CompositionLocal` in the navigation path — a decision for Nav3, not a rule in force
+
+The project's navigation rule is **no `CompositionLocal`; `Navigator` is injected**
+(`@Inject Navigator`, per the v2.1/v2.2 reference features). Recording the boundary of
+that rule here so the Nav3 swap does not have to re-derive it, and so the code it will
+produce does not later read as a violation.
+
+**The rule targets `Navigator`.** Its point is that navigation *decisions* are made in
+Store/Handler against an injected command bus, rather than reached for ambiently from
+composition — which is what keeps them testable and keeps `NavController` out of the
+ViewModel layer. An animation scope is not the navigator: it decides nothing, it is
+read only while composing, and nothing about it can be asserted in a Store test.
+
+Under Nav3 the animated-content scope is delivered as
+`LocalNavAnimatedContentScope` — a `CompositionLocal`, by the library's design, with no
+alternative supplied. Consuming it there is **within** the rule, not an exception to it.
+
+**Nothing consumes it today, and nothing was added to.** Stage 1.2 removed the unused
+`AnimatedContentScope` receiver from the content-lambda signature and added no accessor,
+because the repo contains no `sharedElement(` / `sharedBounds(` / `animatedEnterExit(`
+call at all — an accessor would have been API serving no caller. When a shared-element
+transition is actually written, that change introduces the accessor and its first
+consumer together.
 
 Currently `Screen.Exercise`, `Screen.Training` (single-training), and
 `Screen.LiveWorkout` consume the PlanEditor saved-result this way.
@@ -1163,7 +1214,8 @@ the same `PlanEditorStore` but differ in how they enter and exit:
   plan)` from disk via `PlanEditorInteractor.loadPlan`. On Save the editor
   persists `(type, plan)` (Mode.Exercise also writes `exercise_table.type`
   and runs `clearWeightsFromAllPlansForExercise` when type flips to
-  WEIGHTLESS) and pops back with `planEditorSavedAttr = true`. The caller
+  WEIGHTLESS) and pops back handing `true` to `Screen.PlanEditor`'s declared
+  result. The caller
   performs a *partial* reload — only `(type, adhocPlan)` are refreshed in
   parent state — so any unsaved name/description/tag/image edit is
   preserved (this is the v1.41.0 dirty-baseline regression fix).
@@ -1366,15 +1418,19 @@ Two outcomes:
 `app/app/src/main/java/io/github/stslex/workeeper/host/AppNavigationHost.kt` receives the
 composition-scoped `NavigatorHolder` (which wraps the `rememberNavController()` created in
 `App.kt`) and wraps the `NavHost` in a `SharedTransitionLayout` (Jetpack Compose
-`ExperimentalSharedTransitionApi`). The single shared `SharedTransitionScope` is passed to
-each feature's `<Name>Graph` extension function (`homeGraph`, `allTrainingsGraph`,
-`allExercisesGraph`, `singleTrainingsGraph`, `exerciseGraph`,
-`liveWorkoutGraph`, `pastSessionGraph`, `imageViewerGraph`, `settingsGraph`,
-`archiveGraph`, `exerciseChartGraph`, `planEditorGraph`), so transitions can be wired
-across the whole graph from a single root scope. The start destination is
+`ExperimentalSharedTransitionApi`). The layout is the anchor a shared-element transition
+would attach to; **no graph receives the scope as a parameter.** Nothing in the app performs
+a shared-element transition today, so the graphs that used to take a
+`SharedTransitionScope` and never read it no longer declare one. When the first transition
+is written, the scope reaches it through `LocalNavAnimatedContentScope` (see
+[the CompositionLocal decision](#compositionlocal-in-the-navigation-path--a-decision-for-nav3-not-a-rule-in-force)),
+and that change introduces the accessor and its first consumer together. The start
+destination is
 `Screen.BottomBar.Home`. Each graph is added via `navComponentScreen<Feature>` /
-`navComponentScreenWithState<Feature>`, which expands to a `composable<Screen>` block
-under the hood (see `core/ui/navigation/.../Screen.kt::navScreen`).
+`navComponentScreenWithResults<Feature>`, which expands to a `composable<Screen>` block
+under the hood (see `core/ui/navigation/.../NavGraphScope.kt::navScreen`). The graphs
+themselves register against `NavGraphScope`, never `NavGraphBuilder`; the host wraps
+the builder once in `AppNavigationHost`.
 
 Every graph composable's `modifier` chain must include
 `Modifier.reportScreenPlace<Screen.X>()` — the `onPlaced` callback that stops the TTID,

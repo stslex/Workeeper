@@ -218,8 +218,7 @@ single training.
   routes to `Screen.Exercise(uuid, trainingUuid)` (`feature/exercise`).
 - **All-exercises → exercise editor**: `Action.Navigation.OpenExercise` from
   `feature/all-exercises` routes to `Screen.Exercise(uuid, trainingUuid = null)`.
-- **Shared element transitions** are wired through the single `SharedTransitionLayout` in
-  `app/app/src/main/java/io/github/stslex/workeeper/host/AppNavigationHost.kt`. Each feature's
-  `<feature>Graph(...)` extension on `NavGraphBuilder` accepts the root
-  `SharedTransitionScope` so item-level transitions can be coordinated across the bottom-bar
-  graphs and the detail screens.
+- **Shared element transitions** have a single anchor, the `SharedTransitionLayout` in
+  `app/app/src/main/java/io/github/stslex/workeeper/host/AppNavigationHost.kt`. None are
+  implemented yet, and no `<feature>Graph(...)` takes a `SharedTransitionScope` parameter —
+  the first transition to be written brings the accessor that reaches the scope with it.

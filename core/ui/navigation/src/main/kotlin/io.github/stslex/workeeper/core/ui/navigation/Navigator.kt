@@ -2,13 +2,34 @@
 package io.github.stslex.workeeper.core.ui.navigation
 
 import androidx.compose.runtime.Stable
+import kotlin.reflect.KClass
 
 @Stable
 interface Navigator {
 
     fun navTo(screen: Screen)
 
-    fun popBack(vararg previousStackAttr: Pair<String, Any?>)
+    /**
+     * Pop the current destination. To hand a value back, use [popBackWithResult] — which
+     * requires the destination to declare what it returns.
+     */
+    fun popBack()
+
+    /**
+     * Pop [destination] off the back stack, handing [result] to whoever opened it.
+     *
+     * The result type is not chosen here — it is read off [destination]'s
+     * [ScreenWithResult] parameter, so `popBackWithResult(Screen.PlanEditor::class, "yes")`
+     * does not compile: `Screen.PlanEditor` declares `ScreenWithResult<Boolean>` and `R`
+     * resolves to `Boolean` before [result] is checked against it.
+     *
+     * Read back with `NavResults.result` / `NavResults.OnResult` in `core:ui:mvi`, keyed by
+     * the same [destination] class.
+     */
+    fun <S, R : Any> popBackWithResult(
+        destination: KClass<S>,
+        result: R,
+    ) where S : ScreenWithResult<R>
 
     /**
      * Navigate to [screen] and pop the current destination off the back stack. After this

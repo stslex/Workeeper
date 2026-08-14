@@ -153,6 +153,8 @@ Locked decisions:
 
    **The count is 12, not 26** — one registration per feature graph, matching the 12 graph tags exactly. The helpers themselves live in `core/ui/mvi/.../NavComponentScreen.kt` (four overloads: `navComponentScreen` / `navComponentScreenWithState`, each for `Feature` and `FeatureAssisted`), and delegate to `navScreen` / `navScreenWithState` in `core/ui/navigation/.../Screen.kt`. Eleven graphs call the wrapper; **`PlanEditorGraph.kt:30` does not use it at all** and calls `navScreen<Screen.PlanEditor.Existing>` directly, resolving its processor by hand — so the 1.2 sweep has eleven uniform sites plus one that needs its own decision.
 2. **Typed result contract.** `popBack(vararg previousStackAttr: Pair<String, Any?>)` is `savedStateHandle`'s shape — string keys, `Any?` values — and that transport does not exist in Nav3. Replace with a typed contract independent of transport. `SaveHandlerAttr` is renamed accordingly: the concept changes, not just the name.
+
+   > **Shipped in stage 1.2, with one correction to this line:** `SaveHandlerAttr` was **deleted, not renamed** — the type moved onto the destination as `ScreenWithResult<R>`, so there was nothing left to rename. `Navigator` also turned out to declare a single `popBack`, not an overload pair. See [nav3-stage-1-2.md](nav3-stage-1-2.md).
 3. **`AnimatedContentScope` leaves the content-lambda signature.** Under Nav3 it arrives via `LocalNavAnimatedContentScope`; expose it through an accessor instead of a receiver.
 4. **Result consumption moves out of graph composables.** `ExerciseGraph.kt` currently reads the image-request result inline via `.getStateFlow`; it moves behind the new contract.
 
