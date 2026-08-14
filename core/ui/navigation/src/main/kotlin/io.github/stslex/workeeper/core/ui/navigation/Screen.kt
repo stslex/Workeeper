@@ -140,12 +140,16 @@ sealed interface Screen {
      * Full-screen plan editor, and it has ONE destination.
      *
      * [Existing] edits the plan attached to a persisted exercise / performed-exercise /
-     * training-exercise row. PlanEditor saves directly to DB and signals the caller via
-     * [planEditorSavedAttr] = true.
+     * training-exercise row. PlanEditor saves directly to DB and hands back `true` on save.
      *
-     * **Live-workout is the only consumer.** `LiveWorkoutGraph` reads the flag and issues a
-     * full reload on resume. Exercise and Single-training navigate here but never read it
-     * back — a change to their reload behaviour has to add the consumer first.
+     * **Live-workout is the only consumer.** It reloads the session so the new plan shows.
+     * Exercise and Single-training navigate here but never read the result back — a change
+     * to their reload behaviour has to add the consumer first. That claim is now checkable:
+     * the result type is declared here, so the compiler knows who reads it and as what.
+     *
+     * A back that is not a save produces no result, and the read yields `null`. Nothing
+     * distinguishes "did not save" from "pressed back", and nothing ever did — see
+     * [ScreenWithResult].
      *
      * **Creating an exercise does not route here.** A record with no persisted UUID is built on
      * the exercise form, which hosts `PlanEditorBody` inline — so there is no in-flight draft to
@@ -153,7 +157,7 @@ sealed interface Screen {
      */
     @Serializable
     @Stable
-    sealed interface PlanEditor : Screen {
+    sealed interface PlanEditor : Screen, ScreenWithResult<Boolean> {
 
         @Serializable
         data class Existing(
@@ -161,13 +165,6 @@ sealed interface Screen {
             val exerciseUuid: String?,
             val trainingUuid: String?,
         ) : PlanEditor
-
-        companion object {
-
-            private const val SAVED_STATE_PLAN_EDITOR_SAVED: String = "plan-editor-saved"
-
-            val planEditorSavedAttr = SaveHandlerAttr(SAVED_STATE_PLAN_EDITOR_SAVED, false)
-        }
     }
 
     companion object {

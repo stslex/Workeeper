@@ -19,7 +19,7 @@ import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorSto
 
 /**
  * Registers the plan editor's one destination, [Screen.PlanEditor.Existing] — DB-backed, persists
- * `(type, plan)` to disk on Save and signals the caller via `planEditorSavedAttr`.
+ * `(type, plan)` to disk on Save and hands `true` back to the caller on the way out.
  *
  * **There is no creation destination.** An exercise with no persisted UUID is built on the exercise
  * form, which hosts `PlanEditorBody` inline; nothing routes here to make one.

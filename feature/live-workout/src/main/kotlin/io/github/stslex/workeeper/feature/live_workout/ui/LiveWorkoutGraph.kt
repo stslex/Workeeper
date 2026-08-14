@@ -3,16 +3,11 @@ package io.github.stslex.workeeper.feature.live_workout.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.SharedTransitionScope
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.navigation.NavGraphBuilder
 import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
-import io.github.stslex.workeeper.core.ui.mvi.getStateFlow
-import io.github.stslex.workeeper.core.ui.mvi.navComponentScreenWithState
-import io.github.stslex.workeeper.core.ui.mvi.setAttrDefaultValue
+import io.github.stslex.workeeper.core.ui.mvi.navComponentScreenWithResults
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutFeature
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Action
@@ -23,17 +18,13 @@ fun NavGraphBuilder.liveWorkoutGraph(
     sharedTransitionScope: SharedTransitionScope,
     modifier: Modifier = Modifier,
 ) {
-    navComponentScreenWithState(LiveWorkoutFeature) { stateHandle, processor ->
+    navComponentScreenWithResults(LiveWorkoutFeature) { results, processor ->
 
-        val attrValue by stateHandle
-            .getStateFlow(Screen.PlanEditor.planEditorSavedAttr)
-            .collectAsState()
-
-        LaunchedEffect(attrValue) {
-            if (attrValue == true) {
-                processor.consume(Action.Common.Reload)
-                stateHandle.setAttrDefaultValue(Screen.PlanEditor.planEditorSavedAttr)
-            }
+        // The plan editor saved; the session on screen is now stale. Forwarding is all
+        // this does — what a reload means is the Store's to decide, and Action.Common.Reload
+        // has named this graph as its trigger since it was written.
+        results.OnResult(Screen.PlanEditor::class) { saved ->
+            if (saved) processor.consume(Action.Common.Reload)
         }
 
         val haptic = LocalHapticFeedback.current

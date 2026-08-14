@@ -2,7 +2,7 @@
 package io.github.stslex.workeeper.feature.plan_editor.mvi.handler
 
 import io.github.stslex.workeeper.core.ui.navigation.Navigator
-import io.github.stslex.workeeper.core.ui.navigation.Screen.PlanEditor.Companion.planEditorSavedAttr
+import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.handler.NavigationHandler
 import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorStore.Action
 import io.mockk.mockk
@@ -21,10 +21,10 @@ internal class NavigationHandlerTest {
     }
 
     @Test
-    fun `BackAfterSave pops with the plan-editor-saved attribute set to true`() {
+    fun `BackAfterSave pops handing true back to the PlanEditor destination`() {
         handler.invoke(Action.Navigation.BackAfterSave)
         verify(exactly = 1) {
-            navigator.popBack(planEditorSavedAttr.toPairValue(true))
+            navigator.popBackWithResult(Screen.PlanEditor::class, true)
         }
     }
 }
