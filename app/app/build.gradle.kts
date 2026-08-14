@@ -128,6 +128,8 @@ val detektAndroidTestNavigation = tasks.register<io.gitlab.arturbosch.detekt.Det
     }
 }
 
-// Runs with the rest of the gate. `check` is what ./gradlew detekt-adjacent CI steps and
-// ./gradlew build both pull in, so the rule cannot be green merely by not being invoked.
+// The gate everyone actually runs is bare `./gradlew detekt` — the pre-commit hook and CI's
+// "Run detekt" step both invoke it directly, and no workflow runs `check` or `build` — so the
+// task must ride the detekt lifecycle itself. `check` keeps its edge for `./gradlew build`.
+tasks.named("detekt") { dependsOn(detektAndroidTestNavigation) }
 tasks.named("check") { dependsOn(detektAndroidTestNavigation) }
