@@ -11,17 +11,14 @@ import kotlin.reflect.KClass
  * destinations stay plain [Screen] and gain nothing; a marker every destination carries
  * would mark nothing.
  *
- * **The type lives here, on the destination, not at the call site.** That is the whole
- * point of the interface. `Screen.PlanEditor`'s KDoc once claimed three consumers and had
- * exactly one — wrong for months, and found only by grep. With [R] declared here, a
- * wrong-typed produce or read does not compile, and "who reads this, and as what" becomes
- * a question for the compiler rather than for a comment that nothing verifies.
+ * **The type lives here, on the destination, not at the call site.** With [R] declared
+ * here, a wrong-typed produce or read does not compile, and "who reads this, and as what"
+ * is a question for the compiler rather than for a comment that nothing verifies.
  *
  * **Reading is nullable; `null` means "no result".** There is deliberately no `Cancelled`
- * case and no sealed wrapper. Before this contract, `planEditorSavedAttr` defaulted to
- * `false` and `exerciseImageRequestAttr` to `null` — "did not save" and "pressed back"
- * were already the same state, and no consumer distinguished them. A sealed result would
- * split apart something nothing reads and add branching for zero information.
+ * case and no sealed wrapper: no consumer distinguishes "produced nothing" from "dismissed
+ * without producing", so a sealed result would add branching at every read site to carry
+ * information nobody reads.
  *
  * @param R what the destination hands back. Non-null: absence is expressed by the read
  * returning `null`, so a nullable [R] would make "no result" ambiguous with "a result that

@@ -30,10 +30,10 @@ import androidx.navigation.toRoute
  * `AllTrainingsExtensionDbVisibilityTest`), mounting their own `NavHost` as DI/persistence
  * scaffolding and calling `NavGraphScope(this)`.
  *
- * That is scaffolding, not architecture, and it does not survive: at 1.3 the wrapped type
- * changes and every such call site breaks loudly rather than silently. Both files are already
- * filed for a 1.3 rewrite (#221 §3, where they are the two named exclusions from the
- * androidTest navigation-import gate). Nothing in production constructs this except
+ * That is scaffolding, not architecture, and it does not survive: when the wrapped type
+ * changes, every such call site breaks loudly rather than silently. Both files are filed for
+ * rewrite in `documentation/tech-debt.md`, alongside the androidTest navigation-import gate
+ * they are the two named exclusions from. Nothing in production constructs this except
  * `AppNavigationHost`, which is the one place that is supposed to.
  */
 @JvmInline
@@ -57,8 +57,9 @@ inline fun <reified S : Screen> NavGraphScope.navScreen(
  * [navScreen] plus the entry's [SavedStateHandle].
  *
  * Not for feature use: the only caller is `navComponentScreenWithResults`, which wraps the
- * handle in a `NavResults` before anything sees it. A graph that took the raw handle would
- * be back to string keys and erased values — the shape [ScreenWithResult] replaced.
+ * handle in a `NavResults` before anything sees it. A graph holding the raw handle reads
+ * results by string key at an erased type, which is what [ScreenWithResult] exists to
+ * prevent.
  */
 inline fun <reified S : Screen> NavGraphScope.navScreenWithState(
     noinline content: @Composable (S, SavedStateHandle) -> Unit,

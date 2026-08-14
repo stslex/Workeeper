@@ -64,7 +64,7 @@ class NavResults @PublishedApi internal constructor(
      *
      * ```
      * results.OnResult(Screen.PlanEditor::class) { saved ->
-     *     if (saved) processor.consume(Action.Common.Reload)
+     *     processor.consume(Action.Common.PlanResultReceived(saved))
      * }
      * ```
      *

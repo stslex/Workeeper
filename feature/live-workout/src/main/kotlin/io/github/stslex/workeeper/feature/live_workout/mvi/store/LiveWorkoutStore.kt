@@ -311,11 +311,15 @@ interface LiveWorkoutStore :
             data object Init : Common
 
             /**
-             * Triggered by the LiveWorkoutGraph after returning from the PlanEditor
-             * route with a saved-flag set. Re-runs the session-load pipeline so the
-             * new plan is reflected on the next composition.
+             * The plan editor returned. [saved] is its declared result — `true` when a plan
+             * was written to disk.
+             *
+             * The graph forwards this without inspecting it; whether a result means the
+             * session must be re-read is a decision for the Handler. Re-running the
+             * session-load pipeline is what makes the new plan visible on the next
+             * composition, and it only happens when [saved] is `true`.
              */
-            data object Reload : Common
+            data class PlanResultReceived(val saved: Boolean) : Common
         }
     }
 

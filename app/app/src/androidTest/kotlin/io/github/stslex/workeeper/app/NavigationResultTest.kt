@@ -55,7 +55,7 @@ import org.junit.runner.RunWith
  * for the whole chain: result produced, transported, resolved from name to verb, dispatched.
  *
  * **[planEditorSaveReachesTheLiveSessionThatOpenedIt] does NOT.** With
- * `if (saved) processor.consume(Action.Common.Reload)` removed it still passes: the session comes
+ * `PlanResultReceived`'s reload removed it still passes: the session comes
  * back showing the new plan anyway. `LiveWorkoutInteractor.loadSession` is a one-shot read, so
  * something else re-runs it on return — the remaining explanation being that the LiveWorkout Store
  * does not survive the round trip and `Action.Common.Init` reloads from scratch. If so,

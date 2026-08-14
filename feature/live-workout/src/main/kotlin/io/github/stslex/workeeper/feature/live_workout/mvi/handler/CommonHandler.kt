@@ -28,10 +28,13 @@ internal class CommonHandler @Inject constructor(
     override fun invoke(action: Action.Common) {
         when (action) {
             Action.Common.Init -> processInit()
-            // Reload re-runs the session-load pipeline. Used after returning from the
-            // PlanEditor route so the LiveExerciseCard.planSets reflect the new draft.
-            // We skip session creation since this fires only on an existing session.
-            Action.Common.Reload -> processReload()
+            // The plan editor's result. Only a save changes what the session should show,
+            // so only a save re-reads it — the branch lives here rather than in the graph,
+            // which forwards the result without interpreting it.
+            //
+            // processReload skips session creation: this can only fire on a session that
+            // already exists, because the plan editor is reachable only from inside one.
+            is Action.Common.PlanResultReceived -> if (action.saved) processReload()
         }
     }
 

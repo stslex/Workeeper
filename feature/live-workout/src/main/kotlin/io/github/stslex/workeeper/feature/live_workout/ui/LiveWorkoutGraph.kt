@@ -18,11 +18,10 @@ fun NavGraphScope.liveWorkoutGraph(
 ) {
     navComponentScreenWithResults(LiveWorkoutFeature) { results, processor ->
 
-        // The plan editor saved; the session on screen is now stale. Forwarding is all
-        // this does — what a reload means is the Store's to decide, and Action.Common.Reload
-        // has named this graph as its trigger since it was written.
+        // The plan editor returned. Forwarding is all this does: whether the result means
+        // the session must be re-read is the Store's decision, not this composable's.
         results.OnResult(Screen.PlanEditor::class) { saved ->
-            if (saved) processor.consume(Action.Common.Reload)
+            processor.consume(Action.Common.PlanResultReceived(saved))
         }
 
         val haptic = LocalHapticFeedback.current

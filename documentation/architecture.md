@@ -1143,7 +1143,7 @@ The mechanics:
    ```kotlin
    navComponentScreenWithResults(LiveWorkoutFeature) { results, processor ->
        results.OnResult(Screen.PlanEditor::class) { saved ->
-           if (saved) processor.consume(Action.Common.Reload)
+           processor.consume(Action.Common.PlanResultReceived(saved))
        }
    ```
 

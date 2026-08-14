@@ -151,11 +151,11 @@ they guard 1.3's own concern — the entry-scoping decorator — not 1.2's:
 
 **`StoreRetentionTest` has a specific first question, already surfaced.** `NavigationResultTest`'s
 plan-editor half was mutation-tested in PR #222 and does **not** discriminate: with
-`LiveWorkoutGraph`'s `Action.Common.Reload` dispatch removed, the session still comes back showing
+the reload behind `Action.Common.PlanResultReceived` removed, the session still comes back showing
 the newly saved plan. `loadSession` is a one-shot read, so something re-runs it — most likely
 `Action.Common.Init`, which would mean the LiveWorkout Store is **not** retained across the
 PlanEditor round trip. If that is so, `processReload`'s `withExpansionCarriedFrom(previous)`
-preserves state that was already lost, and `Reload` may be redundant. Settle this in
+preserves state that was already lost, and the reload itself may be redundant. Settle this in
 `StoreRetentionTest`; do not assume either answer.
 
 **Consequence to hold in mind meanwhile:** no test in the suite would currently catch a broken
