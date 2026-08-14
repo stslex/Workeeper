@@ -65,19 +65,54 @@ Introduce a project-owned builder so the **12 call sites** never name either
 receiver. In 1.3 the DSL is re-pointed at `entryProvider` and the call sites do
 not move.
 
+**Correction, measured in Phase 1.** The 12 are **not** 12 uniform helper
+calls: 11 are `navComponentScreen*` invocations, and the 12th is
+`PlanEditorGraph.kt:30`, which calls `navScreen<Screen.PlanEditor.Existing>`
+directly and builds its processor by hand inside the content composable. Commit
+5 covers **both shapes** — the direct call moves onto the DSL too rather than
+being exempted, because §6 B counts its `NavGraphBuilder` receiver like any
+other. It moves cleanly: the hand-built `PlanEditorFeature.processor(screen)` is
+exactly what the `FeatureAssisted` overload already does.
+
 ### 2.3 `AnimatedContentScope` leaves the content-lambda signature
 
 Today the content lambda's receiver is Nav2's `AnimatedContentScope`, supplied
 by `composable {}`'s scope. Under Nav3 it arrives via
-`LocalNavAnimatedContentScope`. Remove it from the signature; expose it through
-an accessor.
+`LocalNavAnimatedContentScope`. Remove it from the signature.
 
-Documented exception: this puts a CompositionLocal in the navigation path, which
-the project's own rule otherwise forbids. **The rule targets `Navigator`.** The
-animation scope is not the navigator, and Nav3 delivers it this way by design.
-Record the exception in `documentation/architecture.md` so it does not later
-read as a violation. Shared-element call sites — 7 locations — consume the scope
-through the accessor from this stage on.
+**Correction, measured in Phase 1 (2026-08-14).** This section originally
+claimed "7 shared-element call sites" consume the scope. **There are zero.**
+The figure came from a grep on
+`SharedTransitionScope|SharedTransitionLayout|AnimatedContentScope|sharedElement`
+— that counts *type mentions*, and every hit was a declaration, not motion
+code. Repo-wide there is not one `sharedElement(`, `sharedBounds(`,
+`animatedEnterExit(`, or `rememberSharedContentState(` call in production
+source. No content lambda anywhere reads its `AnimatedContentScope` receiver.
+
+Three consequences:
+
+- **No accessor is needed, and none is added.** An accessor exists to serve
+  call sites; there are none to serve. Adding one now would ship an untested
+  API on a speculative need, and 1.3 would have to keep it working. When a
+  shared-element transition is actually written, that change introduces the
+  accessor and its first consumer together.
+- **The CompositionLocal exception is therefore not taken.** §4 commit 7 still
+  records the reasoning in `documentation/architecture.md` — the rule targets
+  `Navigator`, the animation scope is not the navigator, and Nav3 delivers it
+  via `LocalNavAnimatedContentScope` by design — so 1.3 can act on it without
+  re-deriving it. It is recorded as a *decision for when it is needed*, not as
+  an exception now in force.
+- **Commit 6 is subtractive only:** the unused receiver leaves four
+  `core:ui:mvi` overloads and two `core:ui:navigation` primitives, and the five
+  unused `sharedTransitionScope: SharedTransitionScope` parameters go with it.
+  No call site updates.
+
+Side win: deleting `LiveWorkoutGraph`'s `@Suppress("UnusedParameter")` — the
+suppression existed only to silence one of those five parameters.
+
+The Paparazzi warning in §6 D is defused at its root: a scope nothing renders
+from cannot move a golden. The run still happens and the count is still
+reported; a moved golden would mean something other than this stage moved it.
 
 ### 2.4 Result consumption moves into the Store
 
@@ -118,12 +153,35 @@ oracle green.
    `LiveWorkout` Store.
 3. Migrate the image-request result; consumption out of `ExerciseGraph` and into
    the `Exercise` Store.
-4. Delete `SaveHandlerAttr` and the `Pair<String, Any?>` overload of `popBack`.
+4. Delete `SaveHandlerAttr` and the `Pair<String, Any?>` parameter of `popBack`.
    Nothing may reference them by now — that is the proof step 1–3 were complete.
-5. Project-owned registration DSL; the 12 call sites move to it.
-6. `AnimatedContentScope` out of the signature; accessor in; 7 shared-element
-   sites updated.
-7. `documentation/architecture.md` — the CompositionLocal exception.
+
+   **Correction, measured in Phase 1.** `Navigator` declares exactly *one*
+   `popBack`, not two: `popBack(vararg previousStackAttr: Pair<String, Any?>)`.
+   There is no overload to delete — the commit removes the parameter, leaving
+   `popBack()`. The proof property is unchanged and is stated as a grep:
+   after this commit **neither `Pair<String, Any?>` nor `SaveHandlerAttr`
+   appears anywhere in the repo.** Both greps are pasted, empty, in the PR body.
+
+   `SavedStateHandleNavigationResultTest` is the one artifact that tests the
+   deleted transport directly. It **migrates rather than dies**: it is the only
+   characterization of result transport, and at 1.3 it becomes the witness that
+   the typed contract survived a transport swap. It is rewritten to assert the
+   *contract* — produce a result through the new API, read it through the new
+   API, assert the value — and renamed. If it still named `SavedStateHandle`
+   afterwards it would die at 1.3 with the mechanism, which is the whole reason
+   for keeping it.
+5. Project-owned registration DSL; the 12 call sites move to it — **both
+   shapes**, see §2.2.
+6. `AnimatedContentScope` out of the signature. No accessor, no call-site
+   updates, and the five unused `sharedTransitionScope` parameters go too —
+   see §2.3.
+7. `documentation/architecture.md` — the CompositionLocal decision, recorded
+   for 1.3 rather than taken now (§2.3). **`AGENTS.md` and
+   `.claude/skills/refactor-with-mvi-rules.md` are updated in the same commit**:
+   both currently document `setAttrDefaultValue` and the in-graph
+   `SavedStateHandle` read as the canonical pattern. A skill file that teaches
+   a deleted pattern is worse than no skill file — the next session follows it.
 
 ---
 
@@ -164,13 +222,42 @@ implementation modules; features and `:app:app` reach it only through project
 API. Evidence: grep output, enumerated. This is the measurable definition of
 "the contract hides the library", and it is what makes 1.3 small.
 
+**Measured baseline (Phase 1, at `dev`): 26 imports across 22 files** —
+`:app:app` 9 (5 main + 4 androidTest), `core/ui/navigation` 4, `core/ui/mvi` 1,
+and **one `NavGraphBuilder` import in each of the 12 feature modules**. Those
+12 are the criterion's work and go to **zero**.
+
+**Scope boundary on `:app:app`, stated rather than quietly missed.** The 5
+remaining main-source imports are the host and the command bridge —
+`App.kt` (`rememberNavController`), `AppNavigationHost.kt` (`NavHost`),
+`NavigatorExt.kt`, `BottomBarNavigationListener.kt`,
+`ClearFocusOnDestinationChanged.kt`. Emptying those means moving the host, and
+§1 assigns the host to **1.3** ("the diff is the DSL implementation, the host,
+and the retention wiring"). Doing it here would move 1.3's largest piece into
+1.2 under a criterion meant to shrink 1.3, and would do it without the Nav3
+host it has to become. They stay, deliberately, and are enumerated in the PR
+body. The 4 androidTest imports are the two pre-existing named exclusions from
+1.1 (§3 of #221), untouched.
+
+So B is met in full for every feature module — the thing that makes the 1.3
+call-site diff empty — and the residue is named, bounded, and owned by 1.3.
+
 **C — the pinned expected-failure list unchanged**: `ApplicationBottomBarTest`
 4/4 and nothing else. Any new failure is this stage's doing.
 
 **D — full gate**, standard convention: `--rerun-tasks --no-build-cache
 --no-configuration-cache`, detekt as a separate invocation, `verifyPaparazziDebug`
-(446 goldens — §2.3 touches 7 shared-element call sites, so goldens moving is a
-live possibility here, not a formality), plus bisect-green on every commit.
+(446 goldens), plus bisect-green on every commit. Every invocation reports its
+`N actionable tasks: N executed` line — `from cache` / `up-to-date` on a gate
+run means the flags did not take.
+
+On Paparazzi: §2.3's correction removes the reason this was called a live
+possibility — there are no shared-element call sites, and a scope nothing
+renders from cannot move a golden. The run is still mandatory and the count is
+still reported. **If a golden moves, STOP and report the diff; do not run
+`recordPaparazziDebug` under any circumstances.** A moved golden would mean
+something other than this stage's contract change moved it, which is worth more
+as a signal than as a re-recorded baseline.
 
 ---
 
