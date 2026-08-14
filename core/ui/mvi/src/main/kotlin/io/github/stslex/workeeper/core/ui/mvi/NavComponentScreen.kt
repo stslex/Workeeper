@@ -42,6 +42,26 @@ inline fun <
     }
 }
 
+/**
+ * Like [navComponentScreen], for a destination that reads a result back from one it opened.
+ *
+ * The content lambda gets a [NavResults] rather than a raw [SavedStateHandle]: the result is
+ * typed off the destination, and the transport stays inside this module. Registered only for
+ * the [FeatureAssisted] shape, because both consumers today are assisted and an unused
+ * overload is API that 1.3 would have to keep working for no caller.
+ */
+inline fun <
+    TProcessor : StoreProcessor<*, *, *>,
+    reified TScreen : Screen,
+    > NavGraphBuilder.navComponentScreenWithResults(
+    feature: FeatureAssisted<TProcessor, TScreen>,
+    crossinline content: @Composable AnimatedContentScope.(NavResults, TProcessor) -> Unit,
+) {
+    navScreenWithState<TScreen> { screen, state ->
+        content(NavResults(state), feature.processor(screen))
+    }
+}
+
 inline fun <
     TProcessor : StoreProcessor<*, *, *>,
     reified TScreen : Screen,

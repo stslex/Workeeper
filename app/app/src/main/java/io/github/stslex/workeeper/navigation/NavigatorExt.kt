@@ -48,6 +48,11 @@ object NavigatorExt {
         when (command) {
             is NavCommand.NavTo -> navTo(navController, command.screen)
             is NavCommand.PopBack -> popBack(navController, command.attrs)
+            is NavCommand.PopBackWithResult -> popBackWithResult(
+                navController = navController,
+                key = command.key,
+                result = command.result,
+            )
 
             is NavCommand.ReplaceTo -> replaceTo(navController, command.screen)
             NavCommand.OpenRecovery -> openRecovery(context)
@@ -90,6 +95,28 @@ object NavigatorExt {
             ?.let { saveHandle ->
                 previousStackAttr.forEach { (key, value) -> saveHandle[key] = value }
             }
+        navController.popBackStack()
+    }
+
+    /**
+     * The Nav2 half of [io.github.stslex.workeeper.core.ui.navigation.ScreenWithResult]:
+     * write the result onto the entry underneath, then pop.
+     *
+     * Order matters and is the same as [popBack]'s — the value has to be on the previous
+     * entry's handle *before* the pop, or the consumer recomposes on arrival with nothing
+     * there and the result is lost. This is the only place the untyped shape touches the
+     * navigation library; both sides of it are typed off the destination.
+     */
+    private fun popBackWithResult(
+        navController: NavController,
+        key: String,
+        result: Any,
+    ) {
+        logger.d { "popBackWithResult($key=$result)" }
+
+        navController.previousBackStackEntry
+            ?.savedStateHandle
+            ?.set(key, result)
         navController.popBackStack()
     }
 
