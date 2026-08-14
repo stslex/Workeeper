@@ -86,7 +86,7 @@ All `@Regression`, `internal`, `@RunWith(AndroidJUnit4::class)`, two-rule harnes
 
 **Three arrival tags are gated.** `ExerciseGraph.kt:222`, `SingleTrainingGraph.kt:111` and `PlanEditorGraph.kt:84` each sit behind `if (state.isLoading) return`, so the tagged node is absent until an async DB read resolves. For Exercise and Single-training the gate bites the edit path only (`uuid != null`); for `PlanEditor` every navigation is a load, so its tag is **never** present on the first composed frame. Arrival on those three uses `waitUntil` with an explicit timeout — **not `waitForIdle`**, which can return before the tag arrives when an async load sits behind the gate.
 
-**`RouteReachabilityTest`** — one test per destination not already covered by `ApplicationBottomBarTest`. Seed, open through the UI as a user would, assert the graph tag, dismiss, assert the origin returns. Parameterised destinations must be reached by clicking a seeded row — never by constructing a `Screen` instance, which would test library mechanics rather than behaviour.
+**`RouteReachabilityTest`** — one test per destination, **all twelve**, including the three bottom-bar roots. This clause originally scoped the class to "destinations not already covered by `ApplicationBottomBarTest`", on the premise that that class covers the three roots. Measurement falsified the premise: at `origin/dev` (`bcf70b63`) all four of its tests fail their selection assertion on every run — `AppNavBar` publishes no `Selected` semantics at all (see `documentation/tech-debt.md`) — re-established independently on two machines (Linux x86_64; macOS arm64, 2026-08-14). A clause whose premise has been falsified is a stale record, not authority — the same class of error as the "26 call sites" figure and the two stale `Screen` KDocs this stage already corrected. Arrival here is asserted on the graph tag, which is independent of the selection defect, so the oracle stands alone. Seed, open through the UI as a user would, assert the graph tag, dismiss, assert the origin returns. Parameterised destinations must be reached by clicking a seeded row — never by constructing a `Screen` instance, which would test library mechanics rather than behaviour.
 
 **`StoreRetentionTest`** — highest value, because the failure is silent. Under Nav3, a missing `rememberViewModelStoreNavEntryDecorator()` makes `viewModel { }` resolve against the Activity's store: nothing crashes, every Store becomes process-scoped.
 
@@ -132,7 +132,7 @@ The scroll mutation is more precise than "recreate list state" suggests: it is `
 
 ### 1.1.7 Out of scope for 1.1
 
-- Motion and visual continuity — invisible to both this suite and the 406 Paparazzi goldens, which capture statics. Accepted gap; manual review during 1.3.
+- Motion and visual continuity — invisible to both this suite and the 446 Paparazzi goldens, which capture statics. Accepted gap; manual review during 1.3.
 - Deep links — unused today; Nav3 has no deep-link API yet either.
 - Process death and `SavedStateConfiguration` — a 1.3 concern with its own test.
 - Any Nav3 code, any API change. This stage adds tests only.
@@ -174,4 +174,6 @@ Atomic by nature. Contents:
 - shared elements re-wired via `LocalNavAnimatedContentScope` with `SharedTransitionLayout` wrapping the `NavDisplay`. Simpler than the Nav2 arrangement — no per-feature threading of the scope;
 - `NavigationLifecycleRegressionTest` (both the unit and instrumented variants) is **deleted**, not ported: it guards a Nav2-specific bug class around a singleton-scoped controller-backed navigator, and that class does not exist under Nav3.
 
-Exit criteria: 1.1 oracle green; 406 goldens green; manual `ui_tests.yml` regression run linked in the PR; full gate both directions.
+Exit criteria: 1.1 oracle green; 446 goldens green; manual `ui_tests.yml` regression run linked in the PR; full gate both directions.
+
+(The golden count appeared as 406 in earlier drafts of this document — a transcription error: a truncated per-module table was summed, dropping exercise-chart's 28 and single-training's 12. The raw count was always 446 across 13 modules, re-measured 446/446 on 2026-08-14 at both `origin/dev` and the stage 1.1 branch.)
