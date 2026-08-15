@@ -90,7 +90,7 @@ class KmpLibraryConventionPlugin : Plugin<Project> {
             configureTargets(kmpExtension)
             configureCompilerOptions()
             configureHostTests()
-            registerCiAlias()
+            registerCiAliases()
             configureDetektSources(kmpExtension)
         }
     }
@@ -158,12 +158,26 @@ class KmpLibraryConventionPlugin : Plugin<Project> {
         }
     }
 
-    private fun Project.registerCiAlias() {
+    private fun Project.registerCiAliases() {
         tasks.register("testDebugUnitTest") {
             group = "verification"
             description =
                 "Alias: runs this KMP module's host (JVM) tests under the repo-wide task name."
             dependsOn(tasks.withType<Test>())
+        }
+        // Before this alias existed, NO CI gate compiled the iOS target — measured across
+        // assembleDebug / assembleDebugAndroidTest / testDebugUnitTest / lintDebug / detekt:
+        // zero iosSimulatorArm64 tasks in any of their graphs, because consumers only pull
+        // the androidMain compilation. A broken iosMain actual sailed through CI. `assemble`
+        // on a KMP module builds every target's klib (compileKotlinIosSimulatorArm64 + the
+        // test klib + the metadata jar) WITHOUT linking binaries, so it stays green on
+        // Linux runners — Kotlin/Native cross-compiles Apple klibs on any host; only
+        // linking needs macOS.
+        tasks.register("assembleDebug") {
+            group = "build"
+            description =
+                "Alias: builds every target of this KMP module (incl. iOS klibs) under the repo-wide task name."
+            dependsOn("assemble")
         }
     }
 

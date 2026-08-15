@@ -96,6 +96,20 @@ jobs:
             gradle-build-cache-${{ runner.os }}-
           save-always: true
 
+      # assembleDebug now compiles the iOS klibs of every KMP module (the convention's
+      # assembleDebug -> assemble alias — before it, NO gate in this workflow compiled the
+      # iOS target at all, so a broken iosMain actual sailed through CI). Kotlin/Native
+      # downloads its toolchain to ~/.konan on first use (~1GB); cache it or every
+      # uncached run pays the download. Keyed on the catalog because the K/N compiler
+      # version moves with the kotlin pin there.
+      - name: Restore Kotlin/Native toolchain
+        uses: actions/cache@v4
+        with:
+          path: ~/.konan
+          key: konan-${{ runner.os }}-${{ hashFiles('gradle/libs.versions.toml') }}
+          restore-keys: |
+            konan-${{ runner.os }}-
+
       - name: Build with Gradle
         run: ./gradlew assembleDebug --full-stacktrace
 
