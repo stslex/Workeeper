@@ -97,7 +97,9 @@ skill when the user asks for one of these tasks:
 ## Current focus
 
 - `master` is the release branch; ongoing work targets `dev`.
-- UI tests (`ui_tests.yml`) are `workflow_dispatch`-only and do not gate PRs.
+- UI tests (`ui_tests.yml`) run weekly (Mondays 05:00 UTC, against `dev`; the cron activates
+  once the workflow reaches `master` with a release) and on manual dispatch; they do not
+  gate PRs.
 - `mockup_gate.yml` runs `documentation/mockups/shell_gate.py` on every PR except those into
   `master`, plus its `--target f52462c7` known negative, which must go red. Editing
   `documentation/mockups/pass2d.html` **or** `AppColors.kt` can red it; reproduce with

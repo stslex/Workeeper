@@ -231,18 +231,21 @@ in the lower PR, and that moves the base of everything above it.**
 Navigation is a **lifecycle-safe command bus**. Decisions live in Store/Handler layer
 (depend on `Navigator`); execution lives in the App/UI bridge under composition.
 
-- `Navigator` is implemented by the `@Singleton NavigatorEventBus`
+- `Navigator` is implemented by the `@SingleIn(AppScope)` `NavigatorEventBus`
   (`app/app/.../navigation/NavigatorEventBus.kt`). It stores only a
-  `SharedFlow<NavigationCommand>` — no `NavController`.
-- `App.kt` owns `rememberNavController()`. `NavigatorExt.NavigationEventBusSetup`
-  collects commands on the current `NavController` via `LaunchedEffect(navController)`
-  and is the ONLY place AndroidX Navigation operations execute.
-- Feature `NavigationHandler`s are `@ViewModelScoped @Inject Navigator`. Route
-  arguments enter the Store via Dagger assisted injection
-  (`@Assisted screen: Screen.<X>`); there is no `Component<Screen>` subclass any more.
-- `NavHostController`, `NavController`, `NavBackStackEntry`, `SavedStateHandle`,
-  `Activity`, and `Context` MUST NOT be retained by any ViewModel / Store / Handler /
-  Interactor / Mapper / Hilt singleton.
+  `SharedFlow<NavCommand>` plus the keyed result flows — no back stack.
+- `App.kt` owns the back stack:
+  `rememberNavBackStack(screenSavedStateConfiguration, Screen.BottomBar.Home)`,
+  wrapped in a `NavigatorHolder`. `NavigatorExt.NavigationEventBusSetup`
+  collects commands via `LaunchedEffect(navigatorHolder)` and is the ONLY place
+  navigation commands execute — as list operations on the app-owned stack.
+- Feature `NavigationHandler`s are `@SingleIn(<Feature>Scope) @Inject` with
+  `Navigator` constructor-injected. Route arguments enter the Store as a
+  `@Provides` bound instance on the feature's `@GraphExtension.Factory`; there
+  is no `Component<Screen>` subclass any more.
+- The `NavBackStack`, any other `navigation3` type, `Activity`, and `Context`
+  MUST NOT be retained by any ViewModel / Store / Handler /
+  Interactor / Mapper / app-scoped singleton.
 - Navigation **results** are typed on the destination: it implements
   `ScreenWithResult<R>`, the producer calls
   `navigator.popBackWithResult(Screen.<X>::class, value)`, and the consumer's graph uses
@@ -250,8 +253,9 @@ Navigation is a **lifecycle-safe command bus**. Decisions live in Store/Handler 
   `results.OnResult(Screen.<X>::class) { … }`. Reading is nullable — `null` means "no
   result". `OnResult` clears after delivering, so there is no reset to remember.
 - **A graph forwards a result to the Store; it does not interpret one.** Parsing and
-  branching belong in a Handler. `SavedStateHandle` no longer reaches a graph composable
-  at all — `NavResults` holds it privately.
+  branching belong in a Handler. The raw transport (`NavResultsSource`, implemented by
+  `NavigatorEventBus`) never reaches a graph composable — `NavResults` holds it
+  privately.
 
 Full reference:
 [documentation/architecture.md → Navigation](documentation/architecture.md#navigation),
@@ -372,7 +376,9 @@ If no listed skill applies, continue with the normal repository instructions.
 ## Current focus
 
 - `master` is the release branch; ongoing work targets `dev`.
-- UI tests (`ui_tests.yml`) are `workflow_dispatch`-only and do not gate PRs.
+- UI tests (`ui_tests.yml`) run weekly (Mondays 05:00 UTC, against `dev`; the cron activates
+  once the workflow reaches `master` with a release) and on manual dispatch; they do not
+  gate PRs.
 - `mockup_gate.yml` runs `documentation/mockups/shell_gate.py` on every PR except those into
   `master`, plus its `--target f52462c7` known negative, which must go red. Editing
   `documentation/mockups/pass2d.html` **or** `AppColors.kt` can red it; reproduce with
