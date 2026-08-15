@@ -23,13 +23,10 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * Per-entry state and back-stack shape across leaving-and-returning — the last of stage 1.1's four
- * oracle classes, written at the pre-1.3 oracle-completion step.
- *
- * Guards the second axis stage 1.3 breaks silently: Nav3's back stack is app-owned state, and
- * per-entry `rememberSaveable` retention moves onto `rememberSaveableStateHolderNavEntryDecorator`.
- * Nothing crashes if either regresses — a list quietly re-opens at the top, a draft quietly
- * vanishes, the stack quietly collapses to its root on recreation.
+ * Per-entry state and back-stack shape across leaving-and-returning. Guards the silent
+ * regressions of per-entry `rememberSaveable` retention and back-stack restoration: nothing
+ * crashes when either breaks — a list quietly re-opens at the top, a draft quietly vanishes, the
+ * stack quietly collapses to its root on recreation.
  *
  * Four representative cases, not full coverage — the mechanism is shared:
  * 1. scroll position across a detail round trip (composition-local `rememberSaveable` state);
@@ -40,9 +37,8 @@ import org.junit.runner.RunWith
  *    reset is what this oracle pins;
  * 4. back-stack depth across activity recreation.
  *
- * The spec sketched case 1 against Archive's two `rememberLazyListState()` call sites; Archive
- * rows push to no detail destination (the row-open ruling never shipped — `ArchivedItemRow` has no
- * click), so a detail round trip is unreachable from there. The case runs on AllExercises instead:
+ * The list case runs on AllExercises rather than Archive because Archive rows push to no detail
+ * destination (`ArchivedItemRow` has no click) — a detail round trip is unreachable from there.
  * `LazyColumn`'s internal `rememberLazyListState()` takes the identical `rememberSaveable` path,
  * which is what is actually under test — entry retention, not the state declaration.
  */

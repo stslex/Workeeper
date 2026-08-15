@@ -19,26 +19,31 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * Store scoping across navigation — the third of stage 1.1's four oracle classes, written at the
- * pre-1.3 oracle-completion step (the 1.1 spec named it; it never shipped, filed in tech-debt.md).
- *
- * Guards the axis stage 1.3 breaks silently: under Nav3, a missing
- * `rememberViewModelStoreNavEntryDecorator()` makes `viewModel { }` resolve against the Activity's
- * store — nothing crashes, every Store becomes process-scoped. Three assertions, per the spec:
+ * Store scoping across navigation. Guards the silent failure mode of entry scoping: a Store
+ * resolved against the wrong `ViewModelStoreOwner` (the Activity instead of the entry) crashes
+ * nothing — every Store quietly becomes process-scoped. Three assertions:
  *
  * 1. **retention** — a Store's non-default state survives a round trip to another destination and
  *    back while its entry stays on the stack;
- * 2. **isolation** — the same destination opened for a different entity arrives at DEFAULT state
- *    (the assertion that separates entry-scoped from Activity-scoped; retention alone stays green
- *    under a broken scope);
+ * 2. **isolation** — the same destination opened for a different entity arrives at DEFAULT state;
  * 3. **disposal** — a Store dies with its entry: pop and re-open arrives at default state.
  *
- * The retention case is also the discriminator the tech-debt entry on `NavigationResultTest`'s
- * plan-editor half demanded ("settle this in `StoreRetentionTest`; do not assume either answer").
- * It settles it: see the test's own KDoc.
+ * **What actually discriminates, and why a naive retention assertion would not.**
+ * `BaseStore.init` re-fires `initialActions` on EVERY composition re-entry, retained or not
+ * (`StoreProcessor`'s `DisposableEffect`), so a screen can come back "looking right" purely from
+ * the re-fired load re-reading the database — state returns via I/O, not via a retained Store.
+ * The guards that see through that:
+ * - retention asserts state the re-fired load CANNOT reconstruct: the carried expansion SET
+ *   (`{first, second}`) versus the mapper's first-card-only seed, plus the no-session-fork check
+ *   (a recreated Store's Init re-runs session creation for blank route args — a forked card list
+ *   is the recreation signature);
+ * - isolation is mandatory because retention alone stays green under an Activity-scoped Store
+ *   (same instance, same state — nothing to lose). Do not weaken either without replacing what
+ *   it sees.
  *
  * All journeys reach the app through the semantics tree only — no `androidx.navigation` import,
- * enforced by `:app:app:detektAndroidTestNavigation` — so the class runs unchanged across the swap.
+ * enforced by `:app:app:detektAndroidTestNavigation` — so the class runs unchanged across a
+ * navigation-backend swap.
  */
 @OptIn(ExperimentalTestApi::class)
 @Regression
@@ -61,18 +66,15 @@ internal class StoreRetentionTest {
     }
 
     /**
-     * RETENTION — and the answer to the open question in tech-debt.md's "two oracle classes were
-     * never written" entry.
+     * RETENTION. The LiveWorkout Store keeps `expandedExerciseUuids` in State precisely so a
+     * plan-editor round trip preserves it. A blank session with two inline-added exercises has
+     * BOTH cards expanded (the mapper seeds the first, the picker-add inserts each new one). The
+     * round trip goes through a CLEAN plan editor dismissed with its back button —
+     * `interceptBack` is false, the exit is a plain `popBack()` with NO result — so the only
+     * thing that re-runs `loadSession` on return is the re-fired `Action.Common.Init`.
      *
-     * The LiveWorkout Store keeps `expandedExerciseUuids` in State precisely so a plan-editor round
-     * trip preserves it. A blank session with two inline-added exercises has BOTH cards expanded
-     * (the mapper seeds the first, the picker-add inserts each new one). The round trip goes
-     * through a CLEAN plan editor dismissed with its back button — `interceptBack` is false, the
-     * exit is a plain `popBack()` with NO result — so the only thing that re-runs `loadSession` on
-     * return is the re-fired `Action.Common.Init` (`BaseStore.init` re-fires `initialActions` on
-     * every composition re-entry).
-     *
-     * The outcomes are exactly inverted, which is what makes this a discriminator:
+     * The outcomes are exactly inverted, which is what makes this a discriminator rather than a
+     * naive survives-check (see the class KDoc):
      * - Store RETAINED  → `processInit` runs `withExpansionCarriedFrom(previous)` over live State →
      *   both cards still expanded (`LiveExerciseCard_AddSet_<uuid>` exists iff expanded);
      * - Store RECREATED → `previous.exercises` is empty, the carry guard returns the fresh snapshot
