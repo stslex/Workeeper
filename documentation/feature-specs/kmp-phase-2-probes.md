@@ -123,6 +123,17 @@ independent of `failOnNoDiscoveredTests`. The fix sets `isFailOnNoMatchingTests 
 Classic golden modules dodge this today only because each happens to keep at least one
 non-golden test.
 
+**Post-review addendum (PR #227 round 5).** The KMP convention now keeps Gradle's
+`failOnNoDiscoveredTests` default (`true`) instead of the Android convention's `false`:
+with `false`, a discovery regression (JUnit Platform wiring dropped) went GREEN over zero
+executed tests — reproduced, then closed; the same mutation reds under the default. The
+interplay with this section's filter is measured benign: a golden-only KMP module's plain
+run stays green, because the filter's `isFailOnNoMatchingTests = false` covers
+filtered-to-zero and the task-level check does not fire on filter-excluded tests. The two
+mechanisms are independent in both directions. The Android convention still sets `false`
+and carries the discovery-regression exposure for classic modules — an open cleanup, out
+of Phase 2's scope.
+
 ## P4. debugImplementation — one mechanical replacement, app tier untouched
 
 - **The real scope, measured:** 15 build files (the prompt said fourteen) use
