@@ -43,6 +43,7 @@ Full rule, with the stacking costs it comes with: [AGENTS.md](AGENTS.md) § "Mer
 - [documentation/lint-rules.md](documentation/lint-rules.md) — Detekt MVI rules + Android Lint.
 - [documentation/performance.md](documentation/performance.md) — Firebase Performance pipelines (TTID, Screen rendering, AppCreate / ActivityCreate).
 - [documentation/feature-specs/backup.md](documentation/feature-specs/backup.md) — Drive backup + restore + auto-backup scheduling: architecture, auth flow, scheduling, Cloud Console setup, error taxonomy, troubleshooting.
+- [documentation/feature-specs/kmp-phase-2-probes.md](documentation/feature-specs/kmp-phase-2-probes.md) — Phase 2 probe report: the measured KMP/CMP toolchain facts (Paparazzi-on-KMP, testFixtures absence, golden-gate divergences, Metro-from-androidMain, CMP-on-simulator, Room/KSP2) and the Phase-7 checklist they buy.
 - [documentation/feature-specs/app-dialogs.md](documentation/feature-specs/app-dialogs.md) — Cross-feature process-survival dialog catalog (`AppDialog`, `AppDialogStore`, `AppDialogHost`, DataStore-backed `pending_*` flags). Planned alongside backup-recovery.
 - [CONTRIBUTING.md](CONTRIBUTING.md) — contributor workflow, commit format.
 
