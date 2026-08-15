@@ -120,8 +120,17 @@ class KmpLibraryConventionPlugin : Plugin<Project> {
             namespace = if (moduleName.isNotEmpty()) "$APP_PREFIX.$moduleName" else APP_PREFIX
             compileSdk = libs.findVersionInt("compileSdk")
             minSdk = libs.findVersionInt("minSdk")
-            // Host (JVM) unit-test source set: src/androidHostTest.
-            withHostTest {}
+            // Host (JVM) unit-test source set: src/androidHostTest. withHostTest is
+            // SINGLE-CALL — a module that calls it again gets "Android host tests have
+            // already been enabled" (measured on the probe branch), so every host-test
+            // option a module could ever need must be set here, in the one call the
+            // convention owns. isIncludeAndroidResources mirrors the Android convention's
+            // repo-wide `unitTests.isIncludeAndroidResources = true` and is what lets
+            // Paparazzi resolve the module R class on the host test (without it:
+            // ClassNotFoundException ...R at PaparazziCallback.initResources — measured).
+            withHostTest {
+                isIncludeAndroidResources = true
+            }
             configureLintOptions(lint)
         }
 
