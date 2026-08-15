@@ -70,3 +70,4 @@ include(":feature:recovery")
 include(":lint-rules")
 
 include(":probe:ui-probe")
+include(":probe:data-probe")
