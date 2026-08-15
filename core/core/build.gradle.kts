@@ -1,5 +1,12 @@
 plugins {
     alias(libs.plugins.convention.kmpLibrary)
+    alias(libs.plugins.metro) // P5 MUTATION
+}
+
+metro {
+    interop {
+        includeJavax()
+    }
 }
 
 // Layer 1 of the KMP cascade: core:core compiles for android + iosSimulatorArm64 and is
