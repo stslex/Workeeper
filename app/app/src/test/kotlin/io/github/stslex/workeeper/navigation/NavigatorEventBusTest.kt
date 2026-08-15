@@ -20,6 +20,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
@@ -188,5 +189,56 @@ internal class NavigatorEventBusTest {
 
         // Both surfaces must observe the same underlying flow.
         assertEquals(receiver.commands, (producer as NavigatorEventBus).commands)
+    }
+
+    /**
+     * The pending-result lifecycle: a result survives ONLY the pop that delivers it. Any other
+     * navigation — forward, replace, or a plain back — clears every pending channel, so a value
+     * written over a non-consuming screen can never leak into a later, unrelated composition of
+     * the one consumer for that key. (The transport is process-wide and keyed by destination,
+     * not by entry — this clearing is what stands in for Nav2-style per-entry scoping.)
+     */
+    @Test
+    fun `navTo clears a pending result`() {
+        val bus = NavigatorEventBus(mockk(relaxed = true))
+        val key = NavResultKey.of(Screen.PlanEditor::class)
+        bus.setResult(key, true)
+
+        bus.navTo(Screen.Settings)
+
+        assertNull(bus.result(key).value)
+    }
+
+    @Test
+    fun `replaceTo clears a pending result`() {
+        val bus = NavigatorEventBus(mockk(relaxed = true))
+        val key = NavResultKey.of(Screen.PlanEditor::class)
+        bus.setResult(key, true)
+
+        bus.replaceTo(Screen.BottomBar.Home)
+
+        assertNull(bus.result(key).value)
+    }
+
+    @Test
+    fun `plain popBack clears a pending result`() {
+        val bus = NavigatorEventBus(mockk(relaxed = true))
+        val key = NavResultKey.of(Screen.PlanEditor::class)
+        bus.setResult(key, true)
+
+        bus.popBack()
+
+        assertNull(bus.result(key).value)
+    }
+
+    @Test
+    fun `popBackWithResult does not clear other pending channels`() {
+        val bus = NavigatorEventBus(mockk(relaxed = true))
+        val otherKey = NavResultKey.of(Screen.ExerciseImage::class)
+        bus.setResult(otherKey, "REPLACE")
+
+        bus.popBackWithResult(Screen.PlanEditor::class, result = true)
+
+        assertEquals("REPLACE", bus.result(otherKey).value)
     }
 }

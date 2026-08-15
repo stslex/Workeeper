@@ -134,10 +134,11 @@ sealed interface Screen : NavKey {
      * [Existing] edits the plan attached to a persisted exercise / performed-exercise /
      * training-exercise row. PlanEditor saves directly to DB and hands back `true` on save.
      *
-     * **Live-workout is the only consumer.** It reloads the session so the new plan shows.
-     * Exercise and Single-training navigate here but never read the result back — a change
-     * to their reload behaviour has to add the consumer first. That claim is now checkable:
-     * the result type is declared here, so the compiler knows who reads it and as what.
+     * **Live-workout is the only producer of this route AND the only consumer of its result**
+     * (measured: one `PlanEditor.Existing(` construction site in production, in live-workout's
+     * NavigationHandler). The result type is declared here, so the compiler knows who reads it
+     * and as what; a second producer must check the result-lifecycle notes on
+     * [NavResultsSource] before assuming its consumer sees anything.
      *
      * A back that is not a save produces no result, and the read yields `null`. Nothing
      * distinguishes "did not save" from "pressed back", and nothing ever did — see

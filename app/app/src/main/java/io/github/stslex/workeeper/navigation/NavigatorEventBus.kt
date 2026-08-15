@@ -62,11 +62,22 @@ class NavigatorEventBus(
     private fun resultFlow(key: String): MutableStateFlow<Any?> =
         results.getOrPut(key) { MutableStateFlow(null) }
 
+    // A pending result survives ONLY the pop that delivers it (popBackWithResult does not
+    // clear). Every other navigation resets every channel: the transport is process-wide and
+    // keyed by destination, not by entry, so without this a value written over a
+    // non-consuming screen would leak into a later, unrelated composition of the consumer.
+    // Pinned by NavigatorEventBusTest's pending-result lifecycle tests.
+    private fun clearAllResults() {
+        results.values.forEach { flow -> flow.value = null }
+    }
+
     override fun navTo(screen: Screen) {
+        clearAllResults()
         consume(NavCommand.NavTo(screen))
     }
 
     override fun popBack() {
+        clearAllResults()
         consume(NavCommand.PopBack)
     }
 
@@ -78,6 +89,7 @@ class NavigatorEventBus(
     }
 
     override fun replaceTo(screen: Screen) {
+        clearAllResults()
         consume(NavCommand.ReplaceTo(screen))
     }
 

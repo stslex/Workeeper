@@ -8,10 +8,14 @@ import kotlinx.coroutines.flow.StateFlow
  * The result transport behind the typed contract — a keyed store of nullable flows inside the
  * Navigator implementation, because the navigation layer owns no per-entry transport of its own.
  *
- * Two ordering invariants, both load-bearing:
+ * Three lifecycle invariants, all load-bearing:
  * - the value is written by `popBackWithResult` BEFORE the pop — the consumer recomposes on
  *   return, and a write-after-pop loses the value;
- * - the consumer clears after delivery, so re-entry does not re-deliver.
+ * - the consumer clears after delivery, so re-entry does not re-deliver;
+ * - a pending value survives ONLY the pop that delivers it: any other navigation clears every
+ *   channel. The store is process-wide and keyed by destination, not by entry, so this clearing
+ *   is what prevents a value written over a non-consuming screen from leaking into a later,
+ *   unrelated composition of the consumer.
  *
  * The consumer surface is `NavResults` (`core:ui:mvi`): nullable read, `null` means "no result".
  * Keys are [NavResultKey.of] strings.
