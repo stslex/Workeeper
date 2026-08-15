@@ -460,10 +460,13 @@ Verification requirements (live in test code, not docs):
 - Per-feature route-arg Store tests (`feature/exercise`, `feature/live-workout`,
   `feature/single-training`) verify the `@Assisted screen` value lands in
   `state.value` initial fields.
-- `app/dev/.../NavigationLifecycleRegressionTest.kt` (instrumented `@Regression`)
+- `app/app/src/androidTest/.../NavigationLifecycleRegressionTest.kt` (instrumented
+  `@Regression`; an earlier revision of this line misplaced it under `app/dev`)
   recreates `MainActivity` mid-flight and asserts that subsequent bottom-bar
   navigation calls land on the correct destination through the freshly-bound
-  bridge.
+  bridge. Disposition: **deleted at Nav3 stage 1.3 (#225)** — it guards a
+  Nav2-specific bug class around the controller-backed bridge; the JVM variant
+  is renamed `NavigatorEventBusLifecycleTest` in the same PR.
 
 ### Test gaps deferred to a follow-up (instrumentation)
 

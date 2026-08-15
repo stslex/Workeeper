@@ -15,9 +15,10 @@ commit. By the time 1.3 runs, the diff is the DSL implementation, the host, and
 the retention wiring — not 12 call sites.
 
 **Exit criterion, and the whole point: the 1.1 oracle stays green with zero
-edits.** Four classes, `RouteReachabilityTest` at 15/15. If a test has to change
-to accommodate this stage, the contract changed behaviour and the change is
-wrong.
+edits.** Four classes, `RouteReachabilityTest` at 15/15 — though only
+`RouteReachabilityTest` existed at #221; see §6 A's post-merge note. If a test
+has to change to accommodate this stage, the contract changed behaviour and the
+change is wrong.
 
 The Nav2 → Nav3 swap is atomic — two navigation systems cannot drive one host,
 so 1.3 has no internal bisect. Everything movable out of that step moves here.
@@ -205,6 +206,9 @@ criterion. Two options:
 
 Ilya decides. Default is (a).
 
+> **Settled: (a).** The oracle kept the name selector, no `AllTrainingsItemRow_<uuid>`
+> tag was added, and the tech-debt entry stayed open with its before-1.3 deadline.
+
 ---
 
 ## 6. Exit criteria
@@ -216,6 +220,15 @@ other three stage-1.1 classes. `git diff` against #221's HEAD shows **zero**
 changes under `app/app/src/androidTest` — except under option (b), where exactly
 one line in `NavPaths` changes and is named in the PR body.
 
+> **As merged, both sentences overstated what existed.** The oracle #221 shipped
+> was `RouteReachabilityTest` alone — `StoreRetentionTest` and
+> `BackStackStateRestorationTest` landed later, in #224, and `NavigationResultTest`
+> is this stage's own addition. And the diff was not zero: the merged stage
+> **added** `NavigationResultTest.kt` under that path, extended `NavPaths`, and
+> the DSL sweep touched the two named-exclusion scaffolding tests
+> (`NavGraphScope(this)` wrapping). The unedited-oracle property held for the
+> class that existed: `RouteReachabilityTest` is byte-identical to #221's.
+
 **B — no `androidx.navigation` import outside `core:ui:navigation` and
 `core:ui:mvi`.** After this stage the library is confined to its two
 implementation modules; features and `:app:app` reach it only through project
@@ -226,6 +239,14 @@ API. Evidence: grep output, enumerated. This is the measurable definition of
 `:app:app` 9 (5 main + 4 androidTest), `core/ui/navigation` 4, `core/ui/mvi` 1,
 and **one `NavGraphBuilder` import in each of the 12 feature modules**. Those
 12 are the criterion's work and go to **zero**.
+
+> **Measured post-merge: 13 imports across 9 files.** The 12 feature imports
+> went to zero, and so did `core:ui:mvi`'s one — the criterion met beyond its
+> letter. Survivors: `core/ui/navigation` 2 files (`NavGraphScope.kt`,
+> `NavigatorHolder.kt`), the 5 named `:app:app` main files, and the 2 androidTest
+> exclusions. Post-1.3, `androidx.navigation` imports are gone **entirely** —
+> the tree names only `androidx.navigation3`, confined to `core:ui:navigation`,
+> the `:app:app` host pair, and the test hosts.
 
 **Scope boundary on `:app:app`, stated rather than quietly missed.** The 5
 remaining main-source imports are the host and the command bridge —
