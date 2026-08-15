@@ -22,10 +22,9 @@ coroutines = "1.11.0"
 composeBom = "2026.07.00"
 composeGradle = "1.11.1"
 # CMP artifact lines. The core artifacts (runtime/foundation/ui/components-resources) release
-# at the plugin version; material3 decoupled onto its own line — 1.9.0 is what the CMP 1.11.1
-# plugin's (deprecated) material3 accessor resolves, measured via dependencyInsight on the
-# Phase 2 probe module. The accessor surface is @Deprecated("Specify dependency directly") in
-# 1.11.1, so the catalog carries the coordinates and no convention touches ComposePlugin.Dependencies.
+# at the plugin (composeGradle) version; material3 rides its own decoupled line. Keep this
+# pair in step when bumping CMP — the pairing for a given plugin version is what the plugin's
+# own accessors resolve (documentation/feature-specs/kmp-phase-2-probes.md, "Findings" §3).
 cmpMaterial3 = "1.9.0"
 navigation3 = "1.1.6"
 composeJunit = "1.11.4"
@@ -89,8 +88,7 @@ ksp-gradlePlugin = { group = "com.google.devtools.ksp", name = "com.google.devto
 android-tools-common = { group = "com.android.tools", name = "common", version.ref = "androidTools" }
 room-gradlePlugin = { group = "androidx.room3", name = "room3-gradle-plugin", version.ref = "room3" }
 # The Compose MULTIPLATFORM Gradle plugin artifact (org.jetbrains.compose), NOT the Kotlin
-# compose-compiler plugin — the alias was previously named composeCompiler-gradlePlugin,
-# which misread exactly that way.
+# compose-compiler plugin.
 cmp-gradlePlugin = { group = "org.jetbrains.compose", name = "compose-gradle-plugin", version.ref = "composeGradle" }
 
 # CMP runtime artifacts for commonMain (KMP+Compose convention). Jetbrains coordinates;

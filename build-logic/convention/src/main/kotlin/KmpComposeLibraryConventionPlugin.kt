@@ -16,32 +16,27 @@ import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
  * modules keep applying until Phase 7 completes; renaming/collapsing the two is Phase 7's
  * business, after core:ui:kit converts.
  *
- * Zero consumers at merge time — its shape is fixed by the Phase 2 probe battery
- * (documentation/feature-specs/kmp-phase-2-probes.md), not by a consumer:
+ * Zero consumers until Phase 7 converts a UI module — its shape is fixed by the Phase 2
+ * probe battery, not by a consumer. Every measurement cited below is recorded in
+ * documentation/feature-specs/kmp-phase-2-probes.md.
  *
- * - **Plugins.** `org.jetbrains.compose` (resource tooling + coordinate substitution on the
- *   android target) and the Kotlin compose-compiler plugin, both requirements of the CMP
- *   toolchain. NOT AtTen's `ComposePlugin.Dependencies` accessor route: that entire surface
- *   is `@Deprecated("Specify dependency directly")` in CMP 1.11.1, so commonMain deps come
- *   from the version catalog as plain coordinates (`cmp-*` aliases; material3 rides its own
- *   decoupled version line — measured 1.9.0 against plugin 1.11.1).
+ * - **Plugins.** `org.jetbrains.compose` and the Kotlin compose-compiler plugin. commonMain
+ *   deps come from the catalog as plain coordinates (`cmp-*` aliases): the whole
+ *   `ComposePlugin.Dependencies` accessor surface is deprecated in CMP 1.11.1, and
+ *   material3 rides its own decoupled version line (probe report, "Findings" §3).
  *
- * - **androidResources.enable = true.** AGP-KMP defaults android resources OFF. Two measured
- *   failures without it: Paparazzi's host-test R-class resolution
- *   (ClassNotFoundException ...R at PaparazziCallback.initResources) and CMP's deviceTest
- *   resources task (`copyAndroidDeviceTestComposeResourcesToAndroidAssets`: "Value not set"
- *   on outputDirectory). CMP-9547 is the same default biting at APK packaging.
+ * - **androidResources.enable = true.** AGP-KMP defaults android resources OFF; with them
+ *   off, Paparazzi's host-test R-class resolution and CMP's deviceTest resources task both
+ *   fail (probe report, P1 and P4c).
  *
  * - **commonMain CMP baseline.** runtime, foundation, material3, ui, ui-tooling-preview,
- *   components-resources — the probe-verified set. NO ui-tooling: it is debug-variant
- *   tooling with no variant to ride here, and on the runtime classpath its AAR leaks into
- *   Paparazzi's R-class walk (measured: ClassNotFoundException androidx.compose.ui.tooling.R).
+ *   components-resources. NO ui-tooling: it is debug-variant tooling with no variant to
+ *   ride here, and on the runtime classpath its AAR breaks Paparazzi's R-class walk
+ *   (probe report, P1 condition 5).
  *
- * What this convention deliberately does NOT wire, pending Phase 7's kit conversion: the
- * Paparazzi plugin + golden-gate (the KMP-aware gate variant is proven on the probe branch —
- * gradle/golden-gate-kmp-fix.gradle.kts — and lands when the first golden module converts,
- * together with a `verifyPaparazziDebug` alias: the KMP Paparazzi tasks are
- * `(record|verify)PaparazziAndroidMain`, so CI's exact command otherwise skips the module).
+ * Deliberately NOT wired, pending Phase 7's kit conversion: the Paparazzi plugin and the
+ * golden gate. The KMP-aware gate variant plus the `verifyPaparazziDebug` alias land with
+ * the first golden-module conversion (probe report, P3 and the Phase-7 checklist).
  */
 class KmpComposeLibraryConventionPlugin : Plugin<Project> {
 

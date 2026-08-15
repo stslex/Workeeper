@@ -56,10 +56,10 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
  *   declared with the raw configuration name: `"androidHostTestImplementation"(libs.mockk)`.
  *
  * - **detekt sources.** detekt's default source resolution is `src/main/…` + `src/test/…`,
- *   which in a KMP layout matches NOTHING — measured in Phase 1 as a task green over zero
- *   inputs. The convention derives detekt's sources from the live Kotlin source-set model
- *   (minus anything under the build directory), so a new source set can never silently
- *   escape the gate.
+ *   which in a KMP layout matches NOTHING — the task goes green over zero inputs. The
+ *   convention derives detekt's sources from the live Kotlin source-set model (minus
+ *   anything under the build directory), so a new source set can never silently escape
+ *   the gate.
  *
  * - **Android Lint.** The KMP android DSL is not a `CommonExtension`, so
  *   [LintConventionPlugin]'s lookup cannot see it; the shared option block is applied here
@@ -86,8 +86,7 @@ class KmpLibraryConventionPlugin : Plugin<Project> {
                 // The STANDALONE lint plugin: AGP's KmpTaskManager creates lint reporting
                 // tasks on a KMP module only when com.android.lint is co-applied. Without it
                 // the module has NO lint task and silently vanishes from the repo-wide
-                // lintDebug gate (measured: only lintAnalyzeAndroidHostTest ran, androidMain
-                // was never analyzed).
+                // lintDebug gate.
                 apply(libs.findPluginId("androidLint"))
                 apply(libs.findPluginId("convention.lint"))
             }
@@ -122,12 +121,12 @@ class KmpLibraryConventionPlugin : Plugin<Project> {
             minSdk = libs.findVersionInt("minSdk")
             // Host (JVM) unit-test source set: src/androidHostTest. withHostTest is
             // SINGLE-CALL — a module that calls it again gets "Android host tests have
-            // already been enabled" (measured on the probe branch), so every host-test
-            // option a module could ever need must be set here, in the one call the
-            // convention owns. isIncludeAndroidResources mirrors the Android convention's
-            // repo-wide `unitTests.isIncludeAndroidResources = true` and is what lets
-            // Paparazzi resolve the module R class on the host test (without it:
-            // ClassNotFoundException ...R at PaparazziCallback.initResources — measured).
+            // already been enabled" — so every host-test option a module could ever need
+            // must be set here, in the one call the convention owns.
+            // isIncludeAndroidResources mirrors the Android convention's repo-wide
+            // `unitTests.isIncludeAndroidResources = true` and is what lets Paparazzi
+            // resolve the module R class on the host test
+            // (documentation/feature-specs/kmp-phase-2-probes.md, P1).
             withHostTest {
                 isIncludeAndroidResources = true
             }
@@ -181,14 +180,11 @@ class KmpLibraryConventionPlugin : Plugin<Project> {
                 "Alias: runs this KMP module's host (JVM) tests under the repo-wide task name."
             dependsOn(tasks.withType<Test>())
         }
-        // Before this alias existed, NO CI gate compiled the iOS target — measured across
-        // assembleDebug / assembleDebugAndroidTest / testDebugUnitTest / lintDebug / detekt:
-        // zero iosSimulatorArm64 tasks in any of their graphs, because consumers only pull
-        // the androidMain compilation. A broken iosMain actual sailed through CI. `assemble`
-        // on a KMP module builds every target's klib (compileKotlinIosSimulatorArm64 + the
-        // test klib + the metadata jar) WITHOUT linking binaries, so it stays green on
-        // Linux runners — Kotlin/Native cross-compiles Apple klibs on any host; only
-        // linking needs macOS.
+        // Without this alias NO CI gate compiles the iOS target — consumers only pull the
+        // androidMain compilation, so a broken iosMain actual sails through CI. `assemble`
+        // on a KMP module builds every target's klib WITHOUT linking binaries, so it stays
+        // green on Linux runners — Kotlin/Native cross-compiles Apple klibs on any host;
+        // only linking needs macOS.
         tasks.register("assembleDebug") {
             group = "build"
             description =
