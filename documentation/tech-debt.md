@@ -63,29 +63,33 @@ on exactly these two files (4 import lines), which is how they were verified.
 
 ---
 
-## Bottom-bar selection semantics are not published — `ApplicationBottomBarTest` is 4/4 red (nav3 stage 1.1, 2026-08-14)
+## ✅ RESOLVED — Bottom-bar selection semantics are not published — `ApplicationBottomBarTest` was 4/4 red (nav3 stage 1.1, 2026-08-14; resolved 2026-08-15)
 
-**Not the flaky-teardown entry below.** That one is a race in `checkAppClosed()` affecting one test
-intermittently. This is a deterministic, every-run failure of all four, on a different assertion, and
-the two must not be conflated when triaging.
+**Resolution (navbar-a11y PR, 2026-08-15).** `AppNavBar`'s item `Box` now carries
+`Modifier.selectable(selected = index == selected, interactionSource, indication = null,
+role = Role.Tab)` and the item `Row` is a `selectableGroup()` — the production fix the entry
+demanded; the test was not edited. Proof in both directions on `nav_regression_api34` (arm64,
+API 34): red — the pinned baseline at `c34fe7cec`, 30 @Regression tests, exactly 4 failures, all
+`Failed to assert the following: (Selected = 'true')`; green — the same class 4/4 with zero test
+edits, repeated over 7 consecutive runs. `verifyPaparazziDebug` unchanged (the fix writes
+semantics, not pixels). TalkBack now announces the current destination via `Selected` +
+`Role.Tab`.
+
+**The stage-1.3 pin, re-pinned (2026-08-15):** the instrumented suite is clean **iff it is fully
+green — zero expected failures**. The teardown race that the old pin's masking note predicted
+would be unmasked was fixed in the same PR (option **(a)** of the two recorded below; the same-PR
+choice was delegated in the stage-1.3 session brief). Any failure in any instrumented class is now
+a finding to triage, never waved through.
+
+Original entry, kept for the record:
 
 | Severity | Location | Description |
 |---|---|---|
-| 🟡 | [core/ui/kit/.../navbar/AppNavBar.kt](../core/ui/kit/src/main/kotlin/io/github/stslex/workeeper/core/ui/kit/components/navbar/AppNavBar.kt) ↔ [app/app/.../ApplicationBottomBarTest.kt](../app/app/src/androidTest/kotlin/io/github/stslex/workeeper/app/ApplicationBottomBarTest.kt) | **`AppNavBar` publishes no `Selected` semantics at all, so every selection assertion in `ApplicationBottomBarTest` fails.** **Mechanism:** each item is a `Box` carrying `Modifier.clickable(interactionSource, indication = null)` and a `testTag` — there is no `Modifier.selectable`, no `Role.Tab`, and no `NavigationBarItem`. `SemanticsProperties.Selected` is therefore never written, and `assertIsSelected()` / `assertIsNotSelected()` cannot pass on any item, selected or not. The selected item is expressed **visually only** (pill offset + icon tint), which is also an accessibility defect: TalkBack has no way to announce which destination is current. **Proof:** grep on the component returns zero hits for `selectable`, `Role.`, `NavigationBarItem` and `semantics`; the test class has exactly **4** `@Test` methods and all four reach `checkSelectedBottomAppBar` (three via `checkScreenOpen`, plus `navigateToExercisesTrainingsAndBack` directly), so the failure count is 4 by construction, with assertion text `Failed to assert the following: (Selected = 'true')`. **Pre-existing, not introduced by the nav3 branch:** `AppNavBar.kt` is blob `149108b8` at `HEAD`, at `bcf70b63` and at `origin/dev` — byte-identical across all three. **Unblock condition: restore the semantics in PRODUCTION** — `Modifier.selectable(selected = …, role = Role.Tab)` on the item box, or adopt `NavigationBarItem`. **Do NOT "fix" this by editing the test**: the assertions are correct and the a11y gap is real; weakening them converts a production defect into a silent one. **Pinned expectation — at stage 1.3 this is mechanical:** exactly these **4** failures, all in `ApplicationBottomBarTest`, all with the assertion string above, and **nothing else**, means the instrumented suite is clean. Any fifth failure, or a different assertion string, is new and must be triaged rather than waved through. **Deadline: before stage 1.3.** |
+| ✅ | [core/ui/kit/.../navbar/AppNavBar.kt](../core/ui/kit/src/main/kotlin/io/github/stslex/workeeper/core/ui/kit/components/navbar/AppNavBar.kt) ↔ [app/app/.../ApplicationBottomBarTest.kt](../app/app/src/androidTest/kotlin/io/github/stslex/workeeper/app/ApplicationBottomBarTest.kt) | **`AppNavBar` publishes no `Selected` semantics at all, so every selection assertion in `ApplicationBottomBarTest` fails.** **Mechanism:** each item is a `Box` carrying `Modifier.clickable(interactionSource, indication = null)` and a `testTag` — there is no `Modifier.selectable`, no `Role.Tab`, and no `NavigationBarItem`. `SemanticsProperties.Selected` is therefore never written, and `assertIsSelected()` / `assertIsNotSelected()` cannot pass on any item, selected or not. The selected item is expressed **visually only** (pill offset + icon tint), which is also an accessibility defect: TalkBack has no way to announce which destination is current. **Proof:** grep on the component returns zero hits for `selectable`, `Role.`, `NavigationBarItem` and `semantics`; the test class has exactly **4** `@Test` methods and all four reach `checkSelectedBottomAppBar` (three via `checkScreenOpen`, plus `navigateToExercisesTrainingsAndBack` directly), so the failure count is 4 by construction, with assertion text `Failed to assert the following: (Selected = 'true')`. **Pre-existing, not introduced by the nav3 branch:** `AppNavBar.kt` is blob `149108b8` at `HEAD`, at `bcf70b63` and at `origin/dev` — byte-identical across all three. **Unblock condition: restore the semantics in PRODUCTION** — `Modifier.selectable(selected = …, role = Role.Tab)` on the item box, or adopt `NavigationBarItem`. **Do NOT "fix" this by editing the test**: the assertions are correct and the a11y gap is real; weakening them converts a production defect into a silent one. |
 
-**Masking dependency — the a11y fix must not land without a decision (added 2026-08-14).**
-`navigateToExercisesAndBack` is BOTH one of the four deterministically red tests pinned above AND the
-carrier of the intermittent `checkAppClosed()` teardown race filed in its own entry below. Today the
-flake is **masked**: the test already fails deterministically on the selection assertion, so the race
-cannot produce a distinguishable extra failure and the pin holds trivially. The a11y fix — scheduled
-before stage 1.3 — turns this class green and **unmasks** the race. From that moment "exactly these
-failures and nothing else" starts breaking by chance, and 1.3 triage becomes ambiguous in exactly the
-way this pin exists to prevent. Two ways out; the a11y PR ships with one of them chosen (Ilya's call,
-recorded here so that PR cannot close this entry without it):
-**(a)** fix the teardown race in the same PR as the a11y fix, so the class is genuinely deterministic
-when 1.3 triages against it; or
-**(b)** re-pin with the flake as a named, expected intermittent that does not invalidate a run — with
-an explicit rerun rule (e.g. a single retry of exactly that test, anything else is a finding).
+The superseded masking-dependency note (added 2026-08-14) recorded two ways out once the a11y fix
+unmasked the `checkAppClosed()` race: **(a)** fix the race in the same PR, or **(b)** re-pin with a
+named expected intermittent plus a rerun rule. Option (a) shipped.
 
 ---
 
@@ -179,11 +183,39 @@ stays green.
 
 ---
 
-## Flaky UI test — ApplicationBottomBarTest.navigateToExercisesAndBack
+## ✅ RESOLVED — Flaky UI test — ApplicationBottomBarTest.navigateToExercisesAndBack (resolved 2026-08-15)
+
+**Resolution (navbar-a11y PR, 2026-08-15 — option (a) of the selection entry above).**
+`checkAppClosed()` now gates on `waitUntil { onAllNodesWithTag("AppRoot")
+.fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty() }` with
+`NavPaths.ARRIVAL_TIMEOUT_MS` as the budget — exactly the entry's own prescription (a `waitUntil`
+on AppRoot's absence, no retries, no `Thread.sleep`). `atLeastOneRootRequired = false` is
+load-bearing: the default `true` throws `No compose hierarchies found` once the window is gone,
+i.e. at exactly the moment the wait should succeed — measured, 3/4 red on the first hardening
+attempt. The hardening covers all **three** back-press sites (the shared helper), not just the one
+test this entry named. Both directions proven on `nav_regression_api34`: green 4/4 after
+hardening; red via the named `no-backpress` mutation (back-press removed →
+`ComposeTimeoutException: Condition still not satisfied after 5000 ms`), mutation reverted, never
+committed. The race itself did **not** reproduce in 7 consecutive unhardened runs on an unloaded
+arm64 host — consistent with the original 1/3-under-load observation; the fix is justified by
+construction, not by local reproduction.
+
+Two stale details in the original text, corrected for the record: the trigger was
+`onBackPressedDispatcher.onBackPressed()` inside `runOnUiThread`, not `Espresso.pressBack()`; and
+the same unguarded construction sat at all three back-press call sites, so post-a11y-fix the race
+would have affected three tests, not one.
 
 | Severity | Location | Description |
 |---|---|---|
-| 🟡 | [app/app/.../ApplicationBottomBarTest.kt](../app/app/src/androidTest/kotlin/io/github/stslex/workeeper/app/ApplicationBottomBarTest.kt) | **`navigateToExercisesAndBack` is intermittently flaky: 1/3 fail on the room3 branch, 0/2 on the Room-2 baseline; it failed once under heavy emulator load (full suites took 12–36 min) and passed 4 consecutive times since.** Sample too small to conclude pre-existing vs environmental — do NOT read this as "proven pre-existing". The mechanism is a race by construction: `checkAppClosed()` calls `assertDoesNotExist(AppRoot)` immediately after `Espresso.pressBack()`, with no wait for the activity-finish/recompose to settle. It loads a PagingSource from Room on the way to Exercises, so it is not Room-free, but the failure signature (AppRoot still present right after back) is a teardown-timing race, not a data error. **Do NOT add retries or arbitrary waits as a "fix"** — if hardened, gate on an idling resource / `waitUntil` for AppRoot's absence, not `Thread.sleep`. **Trigger to act:** it fails again on a non-loaded machine, or a UI-test-stability pass is scheduled. **Coupled to the bottom-bar selection entry above:** while that defect stands, this race is masked — the test already fails deterministically before teardown matters. The a11y fix unmasks it; see the masking-dependency note in that entry (option (a) there resolves this entry in the same PR). |
+| ✅ | [app/app/.../ApplicationBottomBarTest.kt](../app/app/src/androidTest/kotlin/io/github/stslex/workeeper/app/ApplicationBottomBarTest.kt) | Original: **`navigateToExercisesAndBack` is intermittently flaky: 1/3 fail on the room3 branch, 0/2 on the Room-2 baseline; it failed once under heavy emulator load (full suites took 12–36 min) and passed 4 consecutive times since.** Sample too small to conclude pre-existing vs environmental. The mechanism is a race by construction: `checkAppClosed()` asserts non-existence immediately after the back press, with no wait for the activity-finish/recompose to settle. The failure signature (AppRoot still present right after back) is a teardown-timing race, not a data error. |
+
+---
+
+## Pre-commit hook silently skips every check inside a git worktree (2026-08-15)
+
+| Severity | Location | Description |
+|---|---|---|
+| 🟡 | [.githooks/pre-commit:8](../.githooks/pre-commit) | **A commit made from a `git worktree` runs no detekt at all, and says so only in passing.** **Mechanism:** the hook guards with `[ ! -d .git ]`; in a linked worktree `.git` is a **file** (a `gitdir:` pointer), so the guard reads "not a git repository" and `exit 0`s before the detekt block. The output line `Not in a git repository. Skipping pre-commit checks.` scrolls past and the commit lands unchecked — the local half of the detekt gate (the reason `setup-hooks.sh` exists) is silently absent exactly where agent sessions and parallel checkouts do their work. **Measured, 2026-08-15:** commit `0e699ffb2` from the stage-1.3 worktree printed the skip line and committed without running detekt; CI still gates, so nothing merged unchecked, but the fast local feedback the hook promises is gone. **Unblock condition:** replace the `-d .git` test with `git rev-parse --is-inside-work-tree >/dev/null 2>&1 \|\| { echo "Not in a git repository."; exit 0; }` — one line, works in both layouts. Not fixed in the PR that found it (a hook edit is outside that PR's scope fence); ripe for any hygiene PR. |
 
 ---
 
