@@ -111,6 +111,27 @@ internal class NavPaths(private val rule: ComposeTestRule) {
             .config[SemanticsProperties.TestTag]
     }
 
+    /**
+     * Resolve the full testTags of EVERY node whose tag starts with [prefix], after waiting for at
+     * least [atLeast] of them.
+     *
+     * The plural counterpart to [tagStartingWith], for journeys that mint more than one per-entity
+     * tag — a session holding two exercises has two `LiveExerciseCardSub_<uuid>` nodes, and a caller
+     * identifying "the one added second" needs the whole set to diff against. [atLeast] is part of
+     * the wait, not a post-hoc assert: the second card's tag lands a recomposition after the picker
+     * closes, so "fetch immediately and count" races the add.
+     */
+    fun tagsStartingWith(prefix: String, atLeast: Int, useUnmergedTree: Boolean = false): List<String> {
+        val matcher = SemanticsMatcher("TestTag starts with '$prefix'") { node ->
+            node.config.getOrNull(SemanticsProperties.TestTag)?.startsWith(prefix) == true
+        }
+        rule.waitUntil(ARRIVAL_TIMEOUT_MS) {
+            rule.onAllNodes(matcher, useUnmergedTree).fetchSemanticsNodes().size >= atLeast
+        }
+        return rule.onAllNodes(matcher, useUnmergedTree).fetchSemanticsNodes()
+            .map { it.config[SemanticsProperties.TestTag] }
+    }
+
     /** [assertTextEquals] against a node that only exists in the unmerged tree. */
     fun assertUnmergedText(tag: String, expected: String) {
         rule.onNodeWithTag(tag, useUnmergedTree = true).assertTextEquals(expected)
