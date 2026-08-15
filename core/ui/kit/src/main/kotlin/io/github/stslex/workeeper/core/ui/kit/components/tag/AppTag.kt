@@ -3,13 +3,14 @@ package io.github.stslex.workeeper.core.ui.kit.components.tag
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.tooling.preview.Preview
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
@@ -56,7 +57,16 @@ fun AppTag(
             )
             .then(
                 if (onClick != null) {
-                    Modifier.clickable(onClick = onClick)
+                    // `selectable`, not `clickable`: an interactive tag always renders its
+                    // `selected` state (the `.tag.on` ring), so the semantics tree must carry
+                    // it too — TalkBack and the retention oracle read `Selected` from here.
+                    // A single-choice row (the chart's range chips, the one production caller)
+                    // matches AppSegmentedControl's precedent: `Role.RadioButton`.
+                    Modifier.selectable(
+                        selected = selected,
+                        role = Role.RadioButton,
+                        onClick = onClick,
+                    )
                 } else {
                     Modifier
                 },
