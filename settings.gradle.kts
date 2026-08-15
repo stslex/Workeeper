@@ -68,3 +68,5 @@ include(":feature:app-dialogs:impl")
 include(":feature:recovery")
 
 include(":lint-rules")
+
+include(":probe:ui-probe")
