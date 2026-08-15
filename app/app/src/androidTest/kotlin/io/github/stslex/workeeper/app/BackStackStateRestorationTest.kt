@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.app
 
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.hasTestTag
@@ -216,16 +219,43 @@ internal class BackStackStateRestorationTest {
     /**
      * Swipe the list up until [tag] is composed. `performScrollToNode` cannot be trusted across a
      * paging append (the target index is not known to the lazy layout until the next page lands),
-     * so this walks in viewport-sized steps and lets each append settle inside the wait.
+     * so this walks in viewport-sized steps.
+     *
+     * PROGRESS-AWARE, not count-driven: on a software-rendered emulator (CI's x86_64 with
+     * swiftshader) the paging append lands well after `waitForIdle`, and a fixed swipe budget
+     * exhausted itself against an unloaded page — measured, run 31884113468, this journey timed
+     * out with the target still unloaded while every assertion after it was green on arm64. Each
+     * swipe now waits for observable progress (the target arriving, or the composed row window
+     * moving) before it counts; a beat with no progress is retried, not aborted, until the
+     * attempt budget runs out. The final wait stays the honest instrument.
      */
     private fun scrollListUntilComposed(tag: String) {
         repeat(MAX_SCROLL_SWIPES) {
             if (composeRule.onAllNodesWithTag(tag).fetchSemanticsNodes().isNotEmpty()) return
+            val windowBefore = composedRowTags()
             composeRule.onNodeWithTag("AllExercisesList").performTouchInput { swipeUp() }
             composeRule.waitForIdle()
+            try {
+                composeRule.waitUntil(NavPaths.ARRIVAL_TIMEOUT_MS) {
+                    composeRule.onAllNodesWithTag(tag).fetchSemanticsNodes().isNotEmpty() ||
+                        composedRowTags() != windowBefore
+                }
+            } catch (_: androidx.compose.ui.test.ComposeTimeoutException) {
+                // No visible progress this beat — a pacing miss, not a verdict; the next swipe
+                // retries and the final waitUntilAtLeastOneExists below stays the assertion.
+            }
         }
         composeRule.waitUntilAtLeastOneExists(hasTestTag(tag), NavPaths.ARRIVAL_TIMEOUT_MS)
     }
+
+    private fun composedRowTags(): List<String> =
+        composeRule.onAllNodes(
+            SemanticsMatcher("TestTag starts with '$ROW_PREFIX'") { node ->
+                node.config.getOrNull(SemanticsProperties.TestTag)?.startsWith(ROW_PREFIX) == true
+            },
+        )
+            .fetchSemanticsNodes()
+            .mapNotNull { node -> node.config.getOrNull(SemanticsProperties.TestTag) }
 
     private companion object {
 
@@ -242,6 +272,6 @@ internal class BackStackStateRestorationTest {
         /** One page is 10; two pages guarantee both a real scroll and a paging append. */
         const val SEEDED_ROWS = 14
 
-        const val MAX_SCROLL_SWIPES = 12
+        const val MAX_SCROLL_SWIPES = 24
     }
 }
