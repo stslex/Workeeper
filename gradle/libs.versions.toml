@@ -213,11 +213,15 @@ detekt-test = { module = "io.gitlab.arturbosch.detekt:detekt-test", version.ref 
 
 [plugins]
 kotlin = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
-# KMP toolchain (Phase C) — UNAPPLIED in C.0. androidKmpLibrary is AGP's KMP-native library
-# plugin (AGP 9.0+ rejects com.android.library + kotlin-multiplatform together). Consumed by
-# the promoted KmpLibraryConventionPlugin, which is itself applied to zero modules until C.1.
+# KMP toolchain (Phase C). androidKmpLibrary is AGP's KMP-native library plugin (AGP 9.0+
+# rejects com.android.library + kotlin-multiplatform together). Consumed by
+# KmpLibraryConventionPlugin; first live consumer is :core:core (C.1). androidLint is the
+# STANDALONE lint plugin: AGP creates lint reporting tasks on a KMP module only when it is
+# co-applied (KmpTaskManager guards on LINT_PLUGIN_ID) — without it a KMP module has no lint
+# task at all and vanishes from the repo-wide lintDebug gate.
 kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 androidKmpLibrary = { id = "com.android.kotlin.multiplatform.library", version.ref = "androidGradlePlugin" }
+androidLint = { id = "com.android.lint", version.ref = "androidGradlePlugin" }
 metro = { id = "dev.zacsweers.metro", version.ref = "metro" }
 composeCompiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 # Compose Multiplatform plugin (Phase C.1) — provides the `compose.*` runtime DSL for KMP/iOS.

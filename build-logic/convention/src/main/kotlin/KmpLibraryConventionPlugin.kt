@@ -61,11 +61,12 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
  *   (minus anything under the build directory), so a new source set can never silently
  *   escape the gate.
  *
- * - **Android Lint options.** The KMP android DSL is not a `CommonExtension`, so
+ * - **Android Lint.** The KMP android DSL is not a `CommonExtension`, so
  *   [LintConventionPlugin]'s lookup cannot see it; the shared option block is applied here
- *   via [configureLintOptions]. Note the KMP plugin registers NO lint reporting task —
- *   `./gradlew lintDebug` reaches this module only through consumers' `checkDependencies`
- *   analysis. Detekt is the primary static gate for KMP modules.
+ *   via [configureLintOptions]. The KMP plugin itself registers NO lint reporting task —
+ *   AGP creates one only when the standalone `com.android.lint` plugin is co-applied, so
+ *   the convention co-applies it and aliases `lintDebug` onto the resulting `lint` task.
+ *   Before that, androidMain lint analysis never ran under the repo-wide gate at all.
  *
  * - **Compiler flags.** `-Xexpect-actual-classes` (expect/actual classes/objects/annotations
  *   — the KMP DI-qualifier and Firebase-holder seams — are Beta; silence the warning
@@ -82,6 +83,12 @@ class KmpLibraryConventionPlugin : Plugin<Project> {
             pluginManager.apply {
                 apply(libs.findPluginId("kotlinMultiplatform"))
                 apply(libs.findPluginId("androidKmpLibrary"))
+                // The STANDALONE lint plugin: AGP's KmpTaskManager creates lint reporting
+                // tasks on a KMP module only when com.android.lint is co-applied. Without it
+                // the module has NO lint task and silently vanishes from the repo-wide
+                // lintDebug gate (measured: only lintAnalyzeAndroidHostTest ran, androidMain
+                // was never analyzed).
+                apply(libs.findPluginId("androidLint"))
                 apply(libs.findPluginId("convention.lint"))
             }
 
@@ -178,6 +185,15 @@ class KmpLibraryConventionPlugin : Plugin<Project> {
             description =
                 "Alias: builds every target of this KMP module (incl. iOS klibs) under the repo-wide task name."
             dependsOn("assemble")
+        }
+        // Third silent vanish, same shape: CI runs `./gradlew lintDebug`, and the KMP
+        // module's lint reporting task (from the standalone lint plugin above) is named
+        // `lint`. Without the alias, androidMain lint analysis never gates a PR.
+        tasks.register("lintDebug") {
+            group = "verification"
+            description =
+                "Alias: runs this KMP module's lint reporting under the repo-wide task name."
+            dependsOn("lint")
         }
     }
 
