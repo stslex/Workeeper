@@ -2,7 +2,7 @@
 
 **Arc:** three stages, three PRs, three CC sessions.
 **Module surface:** `:app:app`, `core:ui:navigation`, `core:ui:mvi`, `feature:app-dialogs`.
-**Baseline:** `dev @ 216dfce0`.
+**Baseline:** `dev @ 216dfce0` — the tip this document was drafted against. §1.1.5's measurements cite `bcf70b63`, the tip once this spec itself had landed on `dev`; two baselines, one arc, and the drift is the calendar, not an error.
 **Platform:** Android only. No CMP, no iOS, no `app:common` in this arc.
 
 ---
@@ -61,7 +61,7 @@ Enforcement: a `ForbiddenImport` rule scoped to that source set. A custom detekt
 | `@Regression` annotation, selected via `-Pandroid.testInstrumentationRunnerArguments.annotation=…` | `core.ui.test.annotations` |
 | 12 graph tags: `HomeGraph`, `AllTrainingsGraph`, `AllExercisesGraph`, `SingleTrainingGraph`, `ExerciseGraph`, `ExerciseChartGraph`, `LiveWorkoutGraph`, `PastSessionGraph`, `ArchiveGraph`, `SettingsGraph`, `PlanEditorGraph`, `ImageViewerGraph` | across features |
 | 219 `testTag` call sites | across features |
-| `ApplicationBottomBarTest` — bottom-bar switching | `:app:app` androidTest |
+| `ApplicationBottomBarTest` — bottom-bar switching. Listed as an asset while 4/4 red at the time — `AppNavBar` published no selection semantics (§1.1.5); green with the a11y fix in #223 | `:app:app` androidTest |
 
 ### 1.1.4 Entry audit — read-only, report before any edit
 
@@ -84,9 +84,11 @@ Known non-trivial cases, as resolved by the audit:
 
 All `@Regression`, `internal`, `@RunWith(AndroidJUnit4::class)`, two-rule harness.
 
+> **Delivery, as it actually landed.** This section reads as four stage-1.1 deliverables; the schedule split. #221 shipped `RouteReachabilityTest` only. `NavigationResultTest` landed in stage 1.2 (#222), written against the typed contract that stage introduced. `StoreRetentionTest` and `BackStackStateRestorationTest` landed in the oracle-completion PR (#224, stacked on the navbar a11y fix #223). The class designs below stand unchanged.
+
 **Three arrival tags are gated.** `ExerciseGraph.kt:222`, `SingleTrainingGraph.kt:111` and `PlanEditorGraph.kt:84` each sit behind `if (state.isLoading) return`, so the tagged node is absent until an async DB read resolves. For Exercise and Single-training the gate bites the edit path only (`uuid != null`); for `PlanEditor` every navigation is a load, so its tag is **never** present on the first composed frame. Arrival on those three uses `waitUntil` with an explicit timeout — **not `waitForIdle`**, which can return before the tag arrives when an async load sits behind the gate.
 
-**`RouteReachabilityTest`** — one test per destination, **all twelve**, including the three bottom-bar roots. This clause originally scoped the class to "destinations not already covered by `ApplicationBottomBarTest`", on the premise that that class covers the three roots. Measurement falsified the premise: at `origin/dev` (`bcf70b63`) all four of its tests fail their selection assertion on every run — `AppNavBar` publishes no `Selected` semantics at all (see `documentation/tech-debt.md`) — re-established independently on two machines (Linux x86_64; macOS arm64, 2026-08-14). A clause whose premise has been falsified is a stale record, not authority — the same class of error as the "26 call sites" figure and the two stale `Screen` KDocs this stage already corrected. Arrival here is asserted on the graph tag, which is independent of the selection defect, so the oracle stands alone. Seed, open through the UI as a user would, assert the graph tag, dismiss, assert the origin returns. Parameterised destinations must be reached by clicking a seeded row — never by constructing a `Screen` instance, which would test library mechanics rather than behaviour.
+**`RouteReachabilityTest`** — every destination, **all twelve**, including the three bottom-bar roots; 15 tests as shipped, because three destinations carry two variants each (Exercise and Single-training: create + seeded-row; LiveWorkout: blank entry + banner re-entry). This clause originally scoped the class to "destinations not already covered by `ApplicationBottomBarTest`", on the premise that that class covers the three roots. Measurement falsified the premise: at `origin/dev` (`bcf70b63`) all four of its tests fail their selection assertion on every run — `AppNavBar` publishes no `Selected` semantics at all (see `documentation/tech-debt.md`) — re-established independently on two machines (Linux x86_64; macOS arm64, 2026-08-14). A clause whose premise has been falsified is a stale record, not authority — the same class of error as the "26 call sites" figure and the two stale `Screen` KDocs this stage already corrected. Arrival here is asserted on the graph tag, which is independent of the selection defect, so the oracle stands alone. Seed, open through the UI as a user would, assert the graph tag, dismiss, assert the origin returns. Parameterised destinations must be reached by clicking a seeded row — never by constructing a `Screen` instance, which would test library mechanics rather than behaviour.
 
 **`StoreRetentionTest`** — highest value, because the failure is silent. Under Nav3, a missing `rememberViewModelStoreNavEntryDecorator()` makes `viewModel { }` resolve against the Activity's store: nothing crashes, every Store becomes process-scoped.
 
@@ -101,6 +103,8 @@ All `@Regression`, `internal`, `@RunWith(AndroidJUnit4::class)`, two-rule harnes
 
 These two are the entire result surface.
 
+> **The names above are the Nav2 attrs this section was written against.** Stage 1.2 replaced the transport: the result type is declared on the destination (`ScreenWithResult<R>`), produced with `popBackWithResult`, delivered through `NavResults.OnResult`, and forwarded into the feature's Store as an `Action` — the inline `.getStateFlow` read in `ExerciseGraph` is gone. The two flows, and the user-visible assertions, are unchanged.
+
 **`BackStackStateRestorationTest`** — three representative cases rather than full coverage; the mechanism is shared, so a third instance adds cost without information.
 
 - scroll position on a seeded list, across a detail round-trip. **Both list cases point at Archive**, whose `ArchiveScreen.kt:170` / `:225` are the only in-repo `rememberLazyListState()` call sites — `AllExercisesScreen` and `AllTrainingsScreen` rely on `LazyColumn`'s own default. What is under test is entry retention, not the state declaration: `LazyColumn` calls the same `rememberLazyListState()` internally and takes the same `rememberSaveable` path, so Archive is representative and no production change is needed to make the mutation land;
@@ -113,13 +117,15 @@ All four required.
 
 **A — every test proven red**, against a named mutation, reverted afterwards. Evidence: mutation, failing test, assertion message.
 
+> **As delivered, the proofs followed the classes** (see §1.1.5's delivery note): `RouteReachabilityTest` proven red in #221; `StoreRetentionTest` and `BackStackStateRestorationTest` in #224. `NavigationResultTest` (#222) split: its image half discriminates, its **plan-editor half does not** — the session shows the saved plan whether or not the result reaches the Store, because the re-fired `Action.Common.Init` on composition re-entry re-runs `loadSession` either way. `StoreRetentionTest` settled the open why in #224: the Store is retained, and `BaseStore.init` re-fires `initialActions` on every composition re-entry. The class's own KDoc carries the limitation.
+
 The scroll mutation is more precise than "recreate list state" suggests: it is `rememberLazyListState()` → `remember { LazyListState() }`, **not** a bare `LazyListState()`. A bare constructor breaks scrolling with no navigation involved at all, so it would go red for the wrong reason. `remember {}` survives recomposition but not entry disposal, which is exactly the failure the test has to be able to see.
 
 | Class | Mutation | Expected failure |
 |---|---|---|
 | `RouteReachabilityTest` | remove one `Action.Navigation` dispatch from a feature handler | that destination's arrival assertion |
 | `StoreRetentionTest` | scope the Store to the Activity instead of the entry | the **isolation** test (retention may stay green — that is the point) |
-| `NavigationResultTest` | drop one attr from the `popBack` call | that result test |
+| `NavigationResultTest` | replace the `popBackWithResult` call with a bare `popBack()` — the typed result is dropped (1.2 deleted `popBack`'s attr parameter, so the attr-era mutation no longer exists) | that result test |
 | `BackStackStateRestorationTest` | `rememberLazyListState()` → `remember { LazyListState() }` | the scroll test |
 
 **B — CI collects them.** Evidence: job log for `…annotations.Regression` showing the collected count > 0 and the new classes named. An unannotated test is never selected; a suite that exists but is not collected is worth nothing.
@@ -152,17 +158,27 @@ Locked decisions:
 1. **Own registration DSL.** `navComponentScreen*` currently extends `NavGraphBuilder`; under Nav3 the receiver becomes `EntryProviderBuilder`. Introduce a project-owned builder so the 12 call sites never name either.
 
    **The count is 12, not 26** — one registration per feature graph, matching the 12 graph tags exactly. The helpers themselves live in `core/ui/mvi/.../NavComponentScreen.kt` (four overloads: `navComponentScreen` / `navComponentScreenWithState`, each for `Feature` and `FeatureAssisted`), and delegate to `navScreen` / `navScreenWithState` in `core/ui/navigation/.../Screen.kt`. Eleven graphs call the wrapper; **`PlanEditorGraph.kt:30` does not use it at all** and calls `navScreen<Screen.PlanEditor.Existing>` directly, resolving its processor by hand — so the 1.2 sweep has eleven uniform sites plus one that needs its own decision.
+
+   > **Names and locations as shipped in 1.2:** accurate when written, superseded since. The overloads are **three**, not four — `navComponentScreen` (both feature shapes) plus `navComponentScreenWithResults` (`FeatureAssisted` only; an unused overload is API kept working for no caller) — and the primitives moved out of `Screen.kt` into `core/ui/navigation/.../NavGraphScope.kt`, where the project-owned receiver lives. 1.3 renames the result-carrying primitive `navScreenWithState` → `navScreenWithResults`.
 2. **Typed result contract.** `popBack(vararg previousStackAttr: Pair<String, Any?>)` is `savedStateHandle`'s shape — string keys, `Any?` values — and that transport does not exist in Nav3. Replace with a typed contract independent of transport. `SaveHandlerAttr` is renamed accordingly: the concept changes, not just the name.
 
    > **Shipped in stage 1.2, with one correction to this line:** `SaveHandlerAttr` was **deleted, not renamed** — the type moved onto the destination as `ScreenWithResult<R>`, so there was nothing left to rename. `Navigator` also turned out to declare a single `popBack`, not an overload pair. See [nav3-stage-1-2.md](nav3-stage-1-2.md).
 3. **`AnimatedContentScope` leaves the content-lambda signature.** Under Nav3 it arrives via `LocalNavAnimatedContentScope`; expose it through an accessor instead of a receiver.
+
+   > **Shipped in 1.2 with a correction to the second half:** the receiver left the signature, but **no accessor was added** — measurement found zero shared-element call sites, and an accessor with no callers is untested API 1.3 would have to keep working. It arrives with its first consumer. See [nav3-stage-1-2.md](nav3-stage-1-2.md) §2.3.
 4. **Result consumption moves out of graph composables.** `ExerciseGraph.kt` currently reads the image-request result inline via `.getStateFlow`; it moves behind the new contract.
 
+   > **Shipped in 1.2, for both consumers:** `LiveWorkoutGraph.kt`'s `planEditorSavedAttr` read got the same treatment. Each result now arrives via `NavResults.OnResult` and is forwarded into the feature's Store as an `Action`; the graph composable only forwards.
+
 Documented exception: item 3 introduces a CompositionLocal into the navigation path, which the project's own rule otherwise forbids. The rule targets `Navigator`; the animation scope is not the navigator, and Nav3 delivers it this way by design. Record the exception explicitly in `documentation/architecture.md` so it does not later read as a violation.
+
+> **The exception was not taken.** With no accessor (see item 3's correction) there is nothing in force to except. `architecture.md` records the reasoning as a *decision for when it is needed* — "a decision for Nav3, not a rule in force" — so 1.3 or a later shared-element change can act on it without re-deriving it.
 
 Exit criterion: the 1.1 oracle stays green with no edits. That is the proof the contract change did not alter behaviour.
 
 Open before implementation: the concrete shape of the typed result contract.
+
+> **Resolved and shipped in 1.2:** `ScreenWithResult<R>` on the destination, `popBackWithResult` to produce, `NavResults` to consume, `null` for absence. See [nav3-stage-1-2.md](nav3-stage-1-2.md) §2.1.
 
 ---
 
@@ -173,7 +189,7 @@ Atomic by nature. Contents:
 - `NavHost` → `NavDisplay`; the 1.2 DSL is re-pointed at `entryProvider`;
 - Store retention re-hosted on `rememberViewModelStoreNavEntryDecorator()` (`lifecycle-viewmodel-navigation3`);
 - route types registered in `SavedStateConfiguration` — without it, process death crashes in production only; needs its own test;
-- shared elements re-wired via `LocalNavAnimatedContentScope` with `SharedTransitionLayout` wrapping the `NavDisplay`. Simpler than the Nav2 arrangement — no per-feature threading of the scope;
+- shared elements: **nothing to re-wire** — 1.2 measured zero shared-element call sites ([nav3-stage-1-2.md](nav3-stage-1-2.md) §2.3). The `SharedTransitionLayout` wrapper stays where it is; `LocalNavAnimatedContentScope` arrives with the first real transition, not with this stage;
 - `NavigationLifecycleRegressionTest` (both the unit and instrumented variants) is **deleted**, not ported: it guards a Nav2-specific bug class around a singleton-scoped controller-backed navigator, and that class does not exist under Nav3.
 
 Exit criteria: 1.1 oracle green; 446 goldens green; manual `ui_tests.yml` regression run linked in the PR; full gate both directions.

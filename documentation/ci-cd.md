@@ -11,18 +11,21 @@ All workflow files live under `.github/workflows/`.
 | File | Trigger | Purpose |
 |---|---|---|
 | `android_build_unified.yml` | push to `master`, every `pull_request`, `workflow_dispatch` | detekt, Android Lint, build, unit tests, test reporting. Gates PRs. |
-| `ui_tests.yml` | `workflow_dispatch` only | Optional smoke / regression UI tests on an emulator. Does not gate PRs. |
+| `ui_tests.yml` | `workflow_dispatch`, `workflow_call` | Optional smoke / regression UI tests on an emulator. Does not gate PRs; called by `android_deploy_prod.yml` with `test_suite=smoke`. |
 | `mockup_gate.yml` | every `pull_request` **except** into `master`, `workflow_dispatch`, `workflow_call` | Runs `documentation/mockups/shell_gate.py` against the v3 shell mockup, plus its permanent known negative. Seconds; no emulator, no JDK, no secrets. |
+| `pr_guard.yml` | `pull_request` into `master` only | Fails any PR into `master` whose head branch is not `release/release-v.X.Y.Z`. |
+| `cut_release.yml` | `workflow_dispatch` only (`mode`: release / hotfix) | Bumps the version (minor from `dev`, patch from `master`), pushes a `release/release-v.X.Y.Z` branch and opens the release PR. |
+| `sync_master_to_dev.yml` | push to `master` | Opens an automated PR propagating `master` (version bumps, hotfixes) back onto `dev`. |
 | `android_deploy_beta.yml` | `workflow_dispatch` only | Bumps version, generates a Play Store changelog, uploads to the Beta track via Fastlane, tags `beta-v<version>`. |
 | `android_deploy_prod.yml` | `workflow_dispatch` only | Same flow targeting the production track, tags `release-v<version>`. |
 | `github_release_apk.yml` | push of `release-*` tag, `workflow_dispatch` | Builds the store-release APK and creates a GitHub Release with a generated changelog. |
-| `version_updater.yml` | `workflow_dispatch` only | Optional version bump and tag without deploying. |
 | `claude.yml` | issue / PR review / comment events | Runs `anthropics/claude-code-action@v1` when `@claude` is mentioned. |
 | `claude-code-review.yml` | `workflow_dispatch` only | Posts an automated PR review using Claude. |
 
 The `pull_request` event has no branch filter on `android_build_unified.yml`, so the build
 runs for PRs targeting any branch. `mockup_gate.yml` runs on every PR *except* those targeting
-`master`, and `pr_guard.yml` runs *only* on those. UI tests have to be triggered manually.
+`master`, and `pr_guard.yml` runs *only* on those. UI tests run on manual dispatch or inside
+the production deploy — never on a PR.
 
 ## Build and unit-test workflow
 
@@ -50,9 +53,11 @@ runs for PRs targeting any branch. `mockup_gate.yml` runs on every PR *except* t
 
 ```bash
 ./gradlew assembleDebug --full-stacktrace
+./gradlew assembleDebugAndroidTest --full-stacktrace   # compiles the instrumented tests; running them still needs a device
 ./gradlew verifyPaparazziDebug --full-stacktrace   # visual gate, before anything can rewrite the tree
 ./gradlew :lint-rules:test --full-stacktrace       # the custom detekt rules, before detekt consumes them
 ./gradlew detekt --full-stacktrace
+python3 documentation/personal_data_gate.py -v     # no real names/emails in tracked files
 ./gradlew lintDebug --no-configuration-cache --full-stacktrace
 ./gradlew testDebugUnitTest --full-stacktrace
 ```
@@ -75,8 +80,9 @@ Two reporting actions consume the JUnit XML output of `testDebugUnitTest`:
 - `mikepenz/action-junit-report@v4` writes a job-summary table titled **Detailed Unit Test
   Report** with per-test execution times and stack traces.
 
-Both actions read the same XML from `**/build/test-results/test*/*.xml` and
-`**/build/test-results/**/*.xml`.
+Both actions read the same XML from `**/build/test-results/test*.xml` and
+`**/build/test-results/**/*.xml` (the second glob is the one that matches Gradle's
+per-task `test*/` output directories; the first is flat-file belt-and-braces).
 
 ### Artifacts
 
@@ -148,8 +154,10 @@ property of the workflow.
 
 ## UI test workflow
 
-`ui_tests.yml` is `workflow_dispatch`-only and exposes a `test_suite` choice
-(`smoke` / `regression` / `all`). Two parallel jobs (`smoke-tests` and `regression-tests`) gate
+`ui_tests.yml` triggers on `workflow_dispatch` and `workflow_call`, exposing a `test_suite`
+choice (`smoke` / `regression` / `all`) plus, for callers, a `ref` to test.
+`android_deploy_prod.yml` calls it with `test_suite=smoke` as a deploy gate, skippable on
+retries via its `skip_ui_tests` input. Two parallel jobs (`smoke-tests` and `regression-tests`) gate
 their own execution with `if: inputs.test_suite == 'smoke' || inputs.test_suite == 'all'` (and
 similarly for regression). Both jobs:
 
@@ -236,12 +244,10 @@ or a push of any `release-*` tag. The job:
    attaches the APK. Releases whose tag contains `alpha`, `beta`, or `rc` are flagged
    pre-release.
 
-### Version updater (no deploy)
+### Version updater (no deploy) — removed
 
-`version_updater.yml` is `workflow_dispatch`-only with `channel` (`beta` / `release`) and
-`bump` (`true` / `false`) inputs. When `bump=true` it runs the version-bump script; either way
-it generates the changelog, commits, tags `beta-v<version>` or `release-v<version>`, and
-pushes. Use this when the deploy needs to be split from the version bump.
+`version_updater.yml` no longer exists: the release-flow migration deleted it, and its
+version-bump role now lives in `cut_release.yml` (which bumps on the release branch it cuts).
 
 ### Changelog scripts
 
@@ -272,7 +278,7 @@ Configured under repository secrets in GitHub:
 | `KEYSTORE_KEY_ALIAS`, `KEYSTORE_KEY_PASSWORD`, `KEYSTORE_STORE_PASSWORD` | every job that signs | Written into the generated `keystore.properties`. |
 | `GOOGLE_SERVICES_JSON_STORE`, `GOOGLE_SERVICES_JSON_DEV` | build / UI / release | Base64 of the per-variant `google-services.json`. |
 | `PLAY_CONFIG_JSON` | beta / prod deploy | Base64 of the Play Console service-account JSON used by Fastlane. |
-| `PUSH_TOKEN` | beta / prod deploy / version updater | Token used to push the version-bump commit and the release tag back to the repo. |
+| `PUSH_TOKEN` | beta / prod deploy, cut release, master→dev sync | Token used to push the version-bump commit and the release tag back to the repo. |
 | `CLAUDE_CODE_OAUTH_TOKEN` | `claude.yml`, `claude-code-review.yml` | Auth for `anthropics/claude-code-action`. |
 
 Generated at build time on CI (never committed):
