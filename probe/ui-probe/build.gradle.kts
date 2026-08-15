@@ -7,6 +7,8 @@ plugins {
     alias(libs.plugins.composeCompiler)
     // P1: Paparazzi on a com.android.kotlin.multiplatform.library module.
     alias(libs.plugins.paparazzi)
+    // P6b: Metro (compiler plugin) on a KMP module with a Native target.
+    alias(libs.plugins.metro)
 }
 
 kotlin {
@@ -43,3 +45,14 @@ kotlin {
 }
 
 apply(from = "$rootDir/gradle/golden-gate-kmp-fix.gradle.kts") // P3 fix-shape
+
+// P6 framework leg: the Phase-7 iosApp consumption shape — a framework exporting the
+// CMP-bearing module, linked for the simulator.
+kotlin {
+    iosSimulatorArm64 {
+        binaries.framework {
+            baseName = "ProbeUi"
+            isStatic = true
+        }
+    }
+}
