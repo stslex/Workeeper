@@ -136,7 +136,38 @@ applies. **Deadline: before stage 1.3** — the suite grows there, and the failu
 
 ---
 
-## Two of stage 1.1's four oracle classes were never written (nav3 stage 1.1, 2026-08-14)
+## ✅ RESOLVED — Two of stage 1.1's four oracle classes were never written (nav3 stage 1.1, 2026-08-14; resolved 2026-08-15)
+
+**Resolution (oracle-completion PR, 2026-08-15).** Both classes shipped:
+`StoreRetentionTest` (retention / isolation / disposal, each proven red by a named mutation —
+`activity-scoped-store` reds isolation + disposal with retention green, exactly the spec's stated
+reason isolation is mandatory; `store-per-visit` reds retention) and
+`BackStackStateRestorationTest` (scroll / draft / selection / recreation-depth, one named mutation
+each). Two deltas against the sketch below, both measured:
+
+1. **The open question is settled, and the recorded hypothesis was wrong in its inference.** The
+   LiveWorkout Store **IS retained** across the PlanEditor round trip — measured: two inline-added
+   exercises keep BOTH cards expanded across a clean-editor back, and the session does not fork
+   (a recreated Store would have minted a second blank session). What re-runs `loadSession` is the
+   re-fired `Action.Common.Init` — `BaseStore.init` re-fires `initialActions` on EVERY composition
+   re-entry, retained or not (`StoreProcessor`'s `DisposableEffect`) — so the reload-mutation
+   non-discrimination never implicated retention. `withExpansionCarriedFrom(previous)` carries
+   live retained state; the reload after a save is redundant with the re-fired Init's re-read,
+   which is an efficiency observation, not a correctness one.
+2. **`BackStackStateRestorationTest`'s list case runs on AllExercises, not Archive.** Archive rows
+   push to no detail destination (`ArchivedItemRow` has no click — the row-open ruling never
+   shipped), so "scroll across a detail round trip" is unreachable there; `LazyColumn`'s internal
+   `rememberLazyListState()` takes the identical `rememberSaveable` path, which is what is under
+   test. The spec's named mutation shape still lands (`remember { LazyListState() }` on the list).
+
+The "consequence to hold in mind" below (nothing catches a broken `Screen.PlanEditor` result flow)
+**still stands** — settling retention makes it PERMANENT under the current design: the re-fired
+Init re-reads the session on every return, so the result's only distinguishable effect is a
+redundant second read. A test cannot separate them without a production change. Filed as accepted
+until the Init-refire design itself is revisited (see the draft-wipe entry below for the same
+mechanism's user-visible cost).
+
+Original entry:
 
 Stage 1.1's spec specified **four** classes: `RouteReachabilityTest`, `StoreRetentionTest`,
 `NavigationResultTest` and `BackStackStateRestorationTest`. #221 shipped only the first — the
@@ -167,11 +198,19 @@ preserves state that was already lost, and the reload itself may be redundant. S
 `AppCoroutineScopeImpl`, that failure is silent — the screen shows default state and every test
 stays green.
 
+---
+
+## Exercise editor discards an unsaved draft on any return to its entry (found 2026-08-15)
+
+| Severity | Location | Description |
+|---|---|---|
+| 🟡 | [feature/exercise/.../ui/mvi/handler/CommonHandler.kt](../feature/exercise/src/main/kotlin/io/github/stslex/workeeper/feature/exercise/ui/mvi/handler/CommonHandler.kt) `applyLoaded` | **Type into the exercise editor, tap the description image, come back — the typed draft is gone.** **Mechanism:** `BaseStore.init` re-fires `initialActions` (`Action.Common.Init`) on every composition re-entry; `processInit` → `loadExercise` → `applyLoaded`, which unconditionally `copy(name = exercise.name, description = …, tags = …)` from the database. The Store itself is retained (measured — see the resolved oracle entry above); the wipe is in-Store state management, the same Init-refire family the LiveWorkout Store shields with `withExpansionCarriedFrom`. **Measured, 2026-08-15:** typed suffix verified present pre-hop, field back to the stored name post-hop, deterministic. **Pinned as-is** by `BackStackStateRestorationTest.editorDraftIsDiscardedByTheImageViewerRoundTrip`: stage 1.3 is a behaviour-preserving swap and must reproduce this too; the pin's KDoc says the test is updated WITH the fix. **Unblock condition:** carry the editable fields across a re-fired Init when a draft diverges from the loaded entity (an `isDirty` guard in `applyLoaded`, or `withDraftCarriedFrom` in the LiveWorkout idiom). **Deadline: after 1.3** — fixing it before would move the oracle mid-migration for no migration-related gain. |
+
 ## `AllTrainingsItemName_*` / `AllTrainingsItemMeta_*` are not row handles (nav3 stage 1.1, 2026-08-14)
 
 | Severity | Location | Description |
 |---|---|---|
-| 🟢 | [core/ui/kit/.../list/AppListRow.kt:115](../core/ui/kit/src/main/kotlin/io/github/stslex/workeeper/core/ui/kit/components/list/AppListRow.kt) ↔ [feature/all-trainings/.../TrainingRow.kt:79](../feature/all-trainings/src/main/kotlin/io/github/stslex/workeeper/feature/all_trainings/ui/components/TrainingRow.kt) | **These two tags look like per-row selectors and cannot be used as one.** **Mechanism:** `AppListRow` applies `nameTestTag` / `metaTestTag` to the name and meta **`Text`s** (`AppListRow.kt:115` and `:123`), which are descendants of the inner `Row`. The click arrives on that `Row` via the `rowModifier` seam — `TrainingRow.kt:77` passes `combinedClickable(onClick, onLongClick)` — and `Modifier.clickable` merges descendant semantics, so the child's tag is **absent from the merged tree** that `onNodeWithTag` queries by default, while the node that actually carries the click action **has no tag of its own**. Net effect: the tag is unreachable for a click, and `useUnmergedTree = true` would find the `Text` but clicking it would not dispatch the row's handler. **Proof — measured, not reasoned:** selecting by tag times out on a row that is demonstrably on screen; the same row, same timing, responds to a text selector. **Current workaround:** `NavPaths.openTraining` clicks by unique seeded name and carries this explanation at its call site. **Unblock condition:** add a row-level `testTag` on the `rowModifier` chain (alongside `combinedClickable`, i.e. on the node that owns the click) — `AllTrainingsItemRow_<uuid>`. Exactly **one** call site changes: `NavPaths.openTraining`. The existing name/meta tags are still legitimate for asserting *text content*; they are simply not handles. **Deadline: before stage 1.3** — `StoreRetentionTest` and `BackStackStateRestorationTest` both need to open list rows, and each one written against a text selector is another call site to unpick later. |
+| 🟢 | [core/ui/kit/.../list/AppListRow.kt:115](../core/ui/kit/src/main/kotlin/io/github/stslex/workeeper/core/ui/kit/components/list/AppListRow.kt) ↔ [feature/all-trainings/.../TrainingRow.kt:79](../feature/all-trainings/src/main/kotlin/io/github/stslex/workeeper/feature/all_trainings/ui/components/TrainingRow.kt) | **These two tags look like per-row selectors and cannot be used as one.** **Mechanism:** `AppListRow` applies `nameTestTag` / `metaTestTag` to the name and meta **`Text`s** (`AppListRow.kt:115` and `:123`), which are descendants of the inner `Row`. The click arrives on that `Row` via the `rowModifier` seam — `TrainingRow.kt:77` passes `combinedClickable(onClick, onLongClick)` — and `Modifier.clickable` merges descendant semantics, so the child's tag is **absent from the merged tree** that `onNodeWithTag` queries by default, while the node that actually carries the click action **has no tag of its own**. Net effect: the tag is unreachable for a click, and `useUnmergedTree = true` would find the `Text` but clicking it would not dispatch the row's handler. **Proof — measured, not reasoned:** selecting by tag times out on a row that is demonstrably on screen; the same row, same timing, responds to a text selector. **Current workaround:** `NavPaths.openTraining` clicks by unique seeded name and carries this explanation at its call site. **Unblock condition:** add a row-level `testTag` on the `rowModifier` chain (alongside `combinedClickable`, i.e. on the node that owns the click) — `AllTrainingsItemRow_<uuid>`. Exactly **one** call site changes: `NavPaths.openTraining`. The existing name/meta tags are still legitimate for asserting *text content*; they are simply not handles. **Deadline: none pinned (softened 2026-08-15)** — the original deadline said "before stage 1.3" because `StoreRetentionTest` and `BackStackStateRestorationTest` would need to open list rows; both shipped opening AllExercises rows (`AllExercisesItem_<uuid>` is a real row handle), so no new text-selector call site was added and `NavPaths.openTraining` remains the only one. Ripe for any hygiene PR. |
 
 ---
 
