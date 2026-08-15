@@ -5,7 +5,7 @@
 echo "Running pre-commit checks..."
 
 # Check if we're in a git repository. `-d .git` is NOT that check: in a git worktree
-# .git is a FILE, so the old test silently skipped every pre-commit check for every
+# .git is a FILE, so a directory test silently skips every pre-commit check for every
 # commit made from a worktree — a gate that turns itself off exactly where the
 # parallel-session workflow runs it. Ask git itself instead.
 if ! git rev-parse --git-dir >/dev/null 2>&1; then

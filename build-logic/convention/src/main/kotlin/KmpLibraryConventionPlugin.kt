@@ -65,8 +65,9 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
  *   [LintConventionPlugin]'s lookup cannot see it; the shared option block is applied here
  *   via [configureLintOptions]. The KMP plugin itself registers NO lint reporting task —
  *   AGP creates one only when the standalone `com.android.lint` plugin is co-applied, so
- *   the convention co-applies it and aliases `lintDebug` onto the resulting `lint` task.
- *   Before that, androidMain lint analysis never ran under the repo-wide gate at all.
+ *   the convention co-applies it and aliases `lintDebug` onto the resulting `lint` task —
+ *   without both, androidMain lint analysis is absent from the repo-wide gate
+ *   (documentation/feature-specs/kmp-phase-2-probes.md, "Findings" §1).
  *
  * - **Compiler flags.** `-Xexpect-actual-classes` (expect/actual classes/objects/annotations
  *   — the KMP DI-qualifier and Firebase-holder seams — are Beta; silence the warning
