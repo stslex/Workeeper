@@ -200,6 +200,14 @@ stays green.
 
 ---
 
+## `BaseStore.init` re-fires `initialActions` on every composition re-entry — repo-wide (found 2026-08-15)
+
+| Severity | Location | Description |
+|---|---|---|
+| 🟡 | [core/ui/mvi/.../BaseStore.kt:107](../core/ui/mvi/src/main/kotlin/io/github/stslex/workeeper/core/ui/mvi/BaseStore.kt) ↔ [core/ui/mvi/.../processor/StoreProcessor.kt](../core/ui/mvi/src/main/kotlin/io/github/stslex/workeeper/core/ui/mvi/processor/StoreProcessor.kt) | **Not a LiveWorkout quirk — a repo-wide mechanism.** `rememberStoreProcessor`'s `DisposableEffect` calls `store.dispose()` when the composable leaves composition and `store.init()` when it re-enters, and `init` re-fires `initialActions` unconditionally — on a RETAINED Store as much as a fresh one. Every navigate-away-and-return therefore re-runs every screen's initial actions. **Measured blast radius: 14 Stores** declare non-empty `initialActions`. Three cost classes: (1) **nine one-shot `Init` loaders** (exercise, exercise-chart, home, image-viewer, live-workout, past-session, plan-editor, single-training, settings) — one redundant DB read per return, and any in-State UI state not explicitly shielded is overwritten by the reload (`LiveWorkoutMapper.withExpansionCarriedFrom` is the hand-built shield; the exercise editor's draft-wipe entry below is the unshielded instance); (2) **three `Paging.Init` stores** (all-exercises, all-trainings, archive) — re-running paging setup, cheap if idempotent but unaudited; (3) **one `Observe` subscription** (app-dialogs) — re-fire is CORRECT there, because `dispose` cancelled the scope the subscription lived in. Consequences already banked on this mechanism: `Reload`-shaped actions can be redundant (LiveWorkout's plan-editor reload duplicates the re-fired Init's read — measured in the retention oracle work), and result flows whose only effect is a reload are unobservable next to it (the `NavigationResultTest` plan-editor half's documented limitation). **Fix shape, when ripe:** either make `init` fire `initialActions` once per STORE LIFETIME (a `hasInitialized` latch in `BaseStore` — the re-entry data refresh then becomes an explicit, per-screen decision instead of an accident), or per-screen `withXCarriedFrom` shields plus deleting the redundant reloads. The first is one mechanism instead of fourteen shields, but it changes every screen's re-entry freshness at once — decide deliberately, not in a drive-by. **Deadline: none pinned** — post-nav3; touching it mid-migration would have moved the oracle's substrate. |
+
+---
+
 ## Exercise editor discards an unsaved draft on any return to its entry (found 2026-08-15)
 
 | Severity | Location | Description |
