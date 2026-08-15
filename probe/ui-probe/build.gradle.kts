@@ -1,24 +1,11 @@
 plugins {
-    alias(libs.plugins.convention.kmpLibrary)
-    // Raw CMP plugin pair (no Compose convention exists yet — that convention's shape is
-    // exactly what this probe informs). org.jetbrains.compose provides the `compose.*`
-    // accessors below; the Kotlin compose-compiler plugin must ride alongside it.
-    alias(libs.plugins.composeMultiplatform)
-    alias(libs.plugins.composeCompiler)
+    // C-validation: the merged KMP+Compose convention replaces the raw plugin pair and the
+    // deprecated compose.* accessor deps the first probe rounds used.
+    alias(libs.plugins.convention.kmpComposeLibrary)
     // P1: Paparazzi on a com.android.kotlin.multiplatform.library module.
     alias(libs.plugins.paparazzi)
     // P6b: Metro (compiler plugin) on a KMP module with a Native target.
     alias(libs.plugins.metro)
-}
-
-kotlin {
-    sourceSets {
-        commonMain.dependencies {
-            implementation(compose.runtime)
-            implementation(compose.foundation)
-            implementation(compose.material3)
-        }
-    }
 }
 
 // P4b measured then removed: androidRuntimeClasspath(ui-tooling) put ui-tooling's AAR on
@@ -38,9 +25,7 @@ dependencies {
 }
 kotlin {
     android {
-        // P1/P4c: CMP resources + Paparazzi R-class resolution both need android
-        // resources enabled on an AGP-KMP module (default off).
-        androidResources { enable = true }
+        // androidResources.enable now comes from the convention (C-validation).
     }
 }
 
