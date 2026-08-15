@@ -5,6 +5,7 @@ import androidx.compose.ui.test.assertIsNotDisplayed
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -12,6 +13,7 @@ import io.github.stslex.workeeper.MainActivity
 import io.github.stslex.workeeper.bottom_app_bar.BottomBarItem
 import io.github.stslex.workeeper.core.ui.test.annotations.Regression
 import io.github.stslex.workeeper.harness.MetroTestRule
+import io.github.stslex.workeeper.harness.NavPaths
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -124,6 +126,21 @@ internal class ApplicationBottomBarTest {
     }
 
     private fun checkAppClosed() {
+        // `onBackPressed()` returns before the activity's `finish()` lands on the main
+        // looper, so the composition can still hold `AppRoot` for a few frames.
+        // `assertDoesNotExist` samples once with no wait of its own — gate on the
+        // absence instead of sampling it, or this races teardown (tech-debt.md,
+        // "Flaky UI test"). Not `waitForIdle`: idle can be reached before the frame
+        // that removes the root.
+        // `atLeastOneRootRequired = false`: once the window is gone there are ZERO compose
+        // roots, and the default throws "No compose hierarchies found" at exactly the
+        // moment the wait should succeed.
+        composeRule.waitUntil(timeoutMillis = NavPaths.ARRIVAL_TIMEOUT_MS) {
+            composeRule
+                .onAllNodesWithTag("AppRoot")
+                .fetchSemanticsNodes(atLeastOneRootRequired = false)
+                .isEmpty()
+        }
         composeRule
             .onNodeWithTag("AppRoot")
             .assertDoesNotExist()

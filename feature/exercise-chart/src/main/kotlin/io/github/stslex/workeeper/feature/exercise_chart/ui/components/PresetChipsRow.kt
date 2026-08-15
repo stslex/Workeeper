@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -33,7 +34,8 @@ internal fun PresetChipsRow(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = AppDimension.screenEdge),
+            .padding(horizontal = AppDimension.screenEdge)
+            .selectableGroup(),
         horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
     ) {
         ChartPresetUiModel.entries.forEach { preset ->

@@ -29,7 +29,8 @@ interface ScreenWithResult<R : Any> : Screen
 /**
  * The transport seam between a producing destination and its consumer.
  *
- * Public because the producer ([Navigator]) and the consumer (`core:ui:mvi`'s `NavResults`)
+ * Public because the producer (`NavigatorEventBus` in `:app:app` — the [Navigator]
+ * implementation, where the key is minted) and the consumer (`core:ui:mvi`'s `NavResults`)
  * live in different modules and must agree on it; it is an implementation detail of the
  * contract, not something features call. Features name [ScreenWithResult] and the typed
  * produce/read APIs — never this.

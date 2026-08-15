@@ -368,11 +368,7 @@ internal class MyFeaturePersistenceTest {
     fun scenario_does_thing() {
         composeRule.setContent {
             AppTheme(themeMode = ThemeMode.LIGHT) {
-                val navController = rememberNavController()
-                NavHost(
-                    navController = navController,
-                    startDestination = Screen.MyFeature(...),
-                ) {
+                TestSingleScreenHost(start = Screen.MyFeature(...)) {
                     myFeatureGraph()
                 }
             }
@@ -389,6 +385,10 @@ internal class MyFeaturePersistenceTest {
     }
 }
 ```
+
+`TestSingleScreenHost` (`core/ui/test-utils`) mounts the graph in a real `NavDisplay`
+with the production decorator pair, through the project DSL — the test names no
+`androidx.navigation*` type, which the androidTest import gate bans.
 
 The rule builds a fresh in-memory database per test, so there is no `clearAllTables()`
 step and no cross-test bleed to guard against.
@@ -546,7 +546,9 @@ in [ci-cd.md](ci-cd.md).
 ## CI behavior
 
 - **Unit tests run on every PR and on pushes to `master`** as part of `android_build_unified.yml`.
-- **UI tests are optional and manual.** The `ui_tests.yml` workflow is `workflow_dispatch`-only
+- **UI tests do not gate PRs.** The `ui_tests.yml` workflow runs weekly (Mondays
+  05:00 UTC, against `dev`; the cron only evaluates from the default branch, so it
+  activates once the workflow reaches `master` with a release) and on manual dispatch
   with a `smoke` / `regression` / `all` selector. They do not block PR merges. Run them
   locally before opening a PR that touches Compose code.
 

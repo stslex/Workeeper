@@ -7,14 +7,12 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import io.github.stslex.workeeper.app.app.R
 import io.github.stslex.workeeper.core.ui.kit.icons.AppIcons
 import io.github.stslex.workeeper.core.ui.navigation.Screen
-import io.github.stslex.workeeper.core.ui.navigation.Screen.Companion.isCurrentScreen
-import kotlinx.serialization.InternalSerializationApi
 
 /**
  * The bottom bar's destinations — **routing, and it stays in `app/app` for a reason the compiler
  * enforces rather than a preference.**
  *
- * It carries [Screen.BottomBar] and [getByRoute] — routing, not chrome. The *treatment* is
+ * It carries [Screen.BottomBar] and [getByScreen] — routing, not chrome. The *treatment* is
  * `core:ui:kit`'s `AppNavBar`, and the destinations deliberately did not follow it there: the kit
  * depends on neither `core:ui:navigation` (so it cannot name [Screen.BottomBar]) nor this module's
  * resources (so it cannot resolve `R.string.bottom_bar_label_*`). The deleted
@@ -60,9 +58,15 @@ enum class BottomBarItem(
 
     companion object {
 
-        @OptIn(InternalSerializationApi::class)
-        fun getByRoute(
-            route: String,
-        ): BottomBarItem? = entries.find { entry -> entry.screen.isCurrentScreen(route) }
+        /**
+         * Resolve the visible [Screen] to its bar item, by value identity — the three roots are
+         * `data object`s, so `==` IS type identity. Replaces the Nav2-era `getByRoute`, which
+         * compared a kotlinx `serialName` against the route string under an
+         * `InternalSerializationApi` opt-in; under Nav3 the back stack holds the typed key, and
+         * there is no route string to parse.
+         */
+        fun getByScreen(
+            screen: Screen,
+        ): BottomBarItem? = entries.find { entry -> entry.screen == screen }
     }
 }

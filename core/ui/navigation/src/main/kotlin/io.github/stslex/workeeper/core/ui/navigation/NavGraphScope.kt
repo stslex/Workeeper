@@ -2,63 +2,47 @@
 package io.github.stslex.workeeper.core.ui.navigation
 
 import androidx.compose.runtime.Composable
-import androidx.lifecycle.SavedStateHandle
-import androidx.navigation.NavGraphBuilder
-import androidx.navigation.compose.composable
-import androidx.navigation.toRoute
+import androidx.compose.runtime.Stable
+import androidx.navigation3.runtime.EntryProviderScope
+import androidx.navigation3.runtime.NavKey
 
 /**
- * The receiver every feature graph registers against.
+ * The receiver every feature graph is declared against — the project-owned indirection that kept
+ * the twelve `*Graph` call sites byte-identical across the Nav2 → Nav3 swap. Under Nav2 it
+ * wrapped a `NavGraphBuilder`; it now wraps Nav3's [EntryProviderScope] plus the app-owned
+ * [NavResultsSource] the result-carrying screens read through.
  *
- * It exists so that no feature names the navigation library's builder. Today [builder] is
- * Nav2's [NavGraphBuilder]; under Nav3 the same registration is written against
- * `EntryProviderBuilder`. Feature graphs are declared as `fun NavGraphScope.<name>Graph(…)`
- * and call [navScreen] / `navComponentScreen*`, none of which mention either type — so when
- * the swap lands, this class and the two primitives below are re-pointed and **no call site
- * moves.** That is the whole reason it is here: 1.3's diff should be the implementation,
- * not twelve graphs.
- *
- * [builder] is public because `core:ui:mvi`'s registration helpers are `inline` (they need
- * `reified` screen types) and must reach it from another module. Reaching for it from a
- * feature would mean importing [NavGraphBuilder] to name its type, which is exactly what
- * the navigation-import gate is there to catch.
- *
- * **In production, `AppNavigationHost` is the only thing that may construct this.** The
- * constructor is a wider seam than the navigation-import gate measures: that gate counts
- * `androidx.navigation` imports, and anything already holding a `NavGraphBuilder` — a
- * `NavHost` content lambda, say — can wrap one without naming the type. Two instrumented
- * tests do exactly that as DI/persistence scaffolding; both are filed for rewrite in
- * `documentation/tech-debt.md`.
+ * [builder] and [results] are public for the same reason the Nav2 `builder` was: `core:ui:mvi`'s
+ * `inline`/`reified` helpers (`navComponentScreen*`) need cross-module access. Reaching for
+ * either from a feature module would mean importing `androidx.navigation3` types to name them —
+ * which is what the navigation-import gate exists to catch (see its coverage note: the gate scans
+ * `app/app`'s instrumented sources; feature modules are kept honest by review and by this KDoc,
+ * not by a task).
  */
-@JvmInline
-value class NavGraphScope(val builder: NavGraphBuilder)
+@Stable
+class NavGraphScope(
+    val builder: EntryProviderScope<NavKey>,
+    val results: NavResultsSource,
+)
 
 /**
- * Register [S] as a destination.
- *
- * The route argument is decoded from the back stack entry and handed to [content], so a
- * screen never parses its own arguments.
+ * Register a destination for [S]. The Nav3 [entry] passes the typed key straight through — the
+ * `toRoute()` decode step Nav2 needed is gone, the key IS the argument object.
  */
 inline fun <reified S : Screen> NavGraphScope.navScreen(
     noinline content: @Composable (S) -> Unit,
 ) {
-    builder.composable<S> { backStackEntry ->
-        content(backStackEntry.toRoute())
-    }
+    builder.entry<S> { screen -> content(screen) }
 }
 
 /**
- * [navScreen] plus the entry's [SavedStateHandle].
- *
- * Not for feature use: the only caller is `navComponentScreenWithResults`, which wraps the
- * handle in a `NavResults` before anything sees it. A graph holding the raw handle reads
- * results by string key at an erased type, which is what [ScreenWithResult] exists to
- * prevent.
+ * [navScreen] plus the result transport, for destinations that consume a
+ * [ScreenWithResult] round trip. The only caller is `navComponentScreenWithResults`; under Nav2
+ * this handed over the entry's `SavedStateHandle`, and the [NavResultsSource] it hands over now
+ * carries the identical nullable contract (see the source's KDoc for the one accepted delta).
  */
-inline fun <reified S : Screen> NavGraphScope.navScreenWithState(
-    noinline content: @Composable (S, SavedStateHandle) -> Unit,
+inline fun <reified S : Screen> NavGraphScope.navScreenWithResults(
+    noinline content: @Composable (S, NavResultsSource) -> Unit,
 ) {
-    builder.composable<S> { backStackEntry ->
-        content(backStackEntry.toRoute(), backStackEntry.savedStateHandle)
-    }
+    builder.entry<S> { screen -> content(screen, results) }
 }

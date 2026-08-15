@@ -44,10 +44,12 @@ The build is configured in `settings.gradle.kts`. Every module is included from 
 - `core/ui/mvi` — the MVI contract (see [MVI contract](#mvi-contract)).
 - `core/ui/navigation` — `Navigator` (command-bus interface), `NavCommand` (sealed
   command set emitted on the bus), `Screen` (sealed `@Serializable` route catalog),
-  `ScreenWithResult<R>` (result type declared on the destination), `NavigatorHolder`
-  (Compose-scoped wrapper around the current `NavHostController`), `NavGraphScope`
-  (the project-owned registration receiver) and its `navScreen` / `navScreenWithState`
-  extensions.
+  `ScreenWithResult<R>` (result type declared on the destination), `NavResultsSource`
+  (the result transport interface), `NavigatorHolder` (Compose-scoped wrapper around
+  the app-owned `NavBackStack<NavKey>`), `screenSavedStateConfiguration`
+  (`ScreenSerialization.kt` — the polymorphic serializer registry that lets the back
+  stack survive process death), `NavGraphScope` (the project-owned registration
+  receiver) and its `navScreen` / `navScreenWithResults` extensions.
 - `core/ui/test-utils` — shared test infrastructure (`BaseComposeTest`, `MockDataFactory`,
   `PagingTestUtils`, `@Smoke`, `@Regression`).
 
@@ -160,17 +162,22 @@ Compose talks to MVI through `StoreProcessor` (see
 There is ONE backend-agnostic `rememberStoreProcessor(StoreCreator)` overload; features reach
 it through `rememberMetroStoreProcessor` (`.../processor/MetroStoreProcessor.kt`), which
 retains the Metro-constructed Store directly in the `ViewModelStore` of the current
-`LocalViewModelStoreOwner` (the `NavBackStackEntry` inside a `NavHost`) via `viewModel {}` —
-`BaseStore` already IS an `androidx.lifecycle.ViewModel`, so no shim is needed. Both store
-shapes go through it:
+`LocalViewModelStoreOwner` via `viewModel {}` — `BaseStore` already IS an
+`androidx.lifecycle.ViewModel`, so no shim is needed. Under Nav3 that per-entry owner is
+provided by `rememberViewModelStoreNavEntryDecorator`, listed EXPLICITLY in
+`AppNavigationHost`'s `entryDecorators` — `NavDisplay`'s default decorator set is
+saveable-only, and omitting the ViewModel decorator makes `viewModel {}` resolve against
+the Activity's store, silently process-scoping every Store
+(`StoreRetentionTest.isolation` guards it). Both store shapes go through it:
 
 1. Plain `Feature` — the feature's `processor()` resolves `context.appDeps<XxxGraph.Factory>()`,
    creates its graph extension, and reads the Store accessor. No route arguments (e.g.
    `Screen.BottomBar.Home`).
 2. `FeatureAssisted` — `processor(screen)` passes the route arg to the extension factory as a
    bound instance, so the Store receives it as a normal constructor parameter. The screen
-   object comes from the current `NavBackStackEntry.toRoute()` inside the graph composable, so
-   the Store never retains a `NavBackStackEntry` itself.
+   object is the typed back-stack key itself, handed to the graph composable by
+   `navScreen<TScreen>` — the key IS the argument object, so the Store never retains any
+   navigation library type.
 
 The graph extension is created INSIDE the `rememberMetroStoreProcessor` factory lambda, so it
 is built at most once per retained Store — binding the extension and its feature-scoped nodes
@@ -206,9 +213,9 @@ invoked from the feature's graph composable through `navComponentScreen` /
   constructor parameter — there is no assisted factory. See
   [Store construction and route arguments](#store-construction-and-route-arguments).
 
-The screen object passed to the Store is the value parsed from the current
-`NavBackStackEntry.toRoute()` (handled by `navScreen<TScreen>`); it is NOT a
-`NavBackStackEntry`, `SavedStateHandle`, or controller reference. The Store retains
+The screen object passed to the Store is the typed back-stack key (handed through by
+`navScreen<TScreen>` — there is no `toRoute()` decode step in Nav3); it is NOT an entry
+reference, a `SavedStateHandle`, or the back stack itself. The Store retains
 only the screen's value-type fields it needs.
 
 ### Holders
@@ -497,11 +504,11 @@ fun interface Factory {
 Because the arg is an ordinary binding in the feature scope, any node in that scope could
 declare it as a dependency and read navigation state straight out of DI. The Detekt rule
 `ScreenInjectionRule` forbids that: a `Screen` type may be injected ONLY into a Store's
-primary constructor. The screen object is parsed from the current
-`NavBackStackEntry.toRoute()` by `navScreen<TScreen>` and handed to the feature's
-`processor(screen)`. The Store retains only the screen's value-type fields it needs in
-initial state (e.g. `screen.uuid`, `screen.sessionUuid`, `screen.trainingUuid`); the
-`NavBackStackEntry` is never referenced by the Store.
+primary constructor. The screen object is the typed back-stack key, handed by
+`navScreen<TScreen>` to the feature's `processor(screen)`. The Store retains only the
+screen's value-type fields it needs in initial state (e.g. `screen.uuid`,
+`screen.sessionUuid`, `screen.trainingUuid`); no navigation library type is ever
+referenced by the Store.
 
 Plain `DataStoreProvider` instances are created via a Metro-native `@AssistedFactory` in
 `core/data/dataStore/src/main/kotlin/io/github/stslex/workeeper/core/data/dataStore/core/DataStoreProviderFactory.kt`
@@ -725,11 +732,11 @@ destructive — see [Room database](#room-database)), not in domain models.
 
 The navigation architecture is a **lifecycle-safe command bus**. Navigation
 **decisions** live in Store/Handler layer and use the `Navigator` interface;
-navigation **execution** (the actual `NavController.navigate(...)` /
-`popBackStack()`) lives in the App/UI bridge under composition. No
-ViewModel/Store/Handler/Singleton ever retains a `NavHostController`,
-`NavController`, `NavBackStackEntry`, `SavedStateHandle`, `Activity`, or
-`Context`.
+navigation **execution** (the actual list operations on the app-owned back
+stack) lives in the App/UI bridge under composition. No
+ViewModel/Store/Handler/Singleton ever retains the `NavBackStack`, any other
+`navigation3` type, an `Activity`, or a `Context` — the singleton bus stores
+only a `SharedFlow` (plus the keyed result flows).
 
 ### Routes
 
@@ -740,27 +747,35 @@ Detail destinations carry route arguments as value-type fields:
 `Screen.Training(uuid)`, `Screen.Exercise(uuid)`,
 `Screen.LiveWorkout(sessionUuid, trainingUuid)`,
 `Screen.PastSession(sessionUuid)`,
-`Screen.PlanEditor.Existing(performedExerciseUuid, exerciseUuid, trainingUuid)` /
-`Screen.PlanEditor.Draft(initialType, initialPlanJson)` — see
-[Plan editor: Existing vs Draft](#plan-editor-existing-vs-draft) below,
+`Screen.PlanEditor.Existing(performedExerciseUuid, exerciseUuid, trainingUuid)` — see
+[Plan editor: the one destination](#plan-editor-the-one-destination) below,
 `Screen.ExerciseChart(exerciseUuid)`, `Screen.ExerciseImage(model)`. Pure
 single-instance destinations are `data object` (`Screen.Settings`,
 `Screen.Archive`).
 
+`Screen` extends Nav3's `NavKey` — a pure marker interface from the KMP
+`navigation3-runtime` artifact, the one library type on the hierarchy. Features
+never name it; the androidTest import gate bans it. It is what lets the
+app-owned back stack persist through `rememberNavBackStack(configuration, …)`:
+the serializers are registered polymorphically under `NavKey` in
+`screenSavedStateConfiguration` (`ScreenSerialization.kt`), and
+`ScreenSerializationTest` round-trips every sealed leaf so a destination added
+without registration is a red unit test, not a process-death crash.
+
 Two `NavGraphScope` extensions consume these routes:
 
-- `navScreen<TScreen>(content)` — parses the route via
-  `backStackEntry.toRoute()` and hands the resulting `TScreen` value to the
-  graph composable.
-- `navScreenWithState<TScreen>(content)` — same, plus the entry's
-  `SavedStateHandle`. **Not for feature use**: its only caller is
-  `navComponentScreenWithResults`, which wraps the handle in a `NavResults`
+- `navScreen<TScreen>(content)` — registers an `entry<TScreen>` and passes the
+  typed key straight through to the graph composable. The `toRoute()` decode
+  step Nav2 needed is gone; the key IS the argument object.
+- `navScreenWithResults<TScreen>(content)` — same, plus the app-owned
+  `NavResultsSource`. **Not for feature use**: its only caller is
+  `navComponentScreenWithResults`, which wraps the source in a `NavResults`
   before anything sees it (see
   [Navigation results](#navigation-results) below).
 
 ### `Navigator` (command bus interface)
 
-`core/ui/navigation/.../Navigator.kt` exposes four operations and nothing
+`core/ui/navigation/.../Navigator.kt` exposes six operations and nothing
 else — no controller, no back stack:
 
 ```kotlin
@@ -771,6 +786,7 @@ interface Navigator {
         where S : ScreenWithResult<R>
     fun replaceTo(screen: Screen)
     fun restartApp()
+    fun openRecovery()
 }
 ```
 
@@ -800,11 +816,15 @@ imports `Context` or `Intent` to do this — it just calls
 ### `NavigatorEventBus` (singleton command bus implementation)
 
 `app/app/.../navigation/NavigatorEventBus.kt` is the singleton
-implementation. It implements two interfaces:
+implementation. It implements three interfaces:
 
 - `Navigator` — the producer side called by feature `NavigationHandler`s.
 - `NavigatorReceiver` (`commands: SharedFlow<NavCommand>`) — the
   consumer side collected by the App/UI bridge.
+- `NavResultsSource` — the result transport: a keyed store of nullable
+  `StateFlow`s, written by the command executor before the pop and cleared by
+  `NavResults` after delivery (see
+  [Navigation results](#navigation-results)).
 
 ```kotlin
 @ContributesBinding(AppScope::class, binding = binding<Navigator>())
@@ -812,48 +832,79 @@ implementation. It implements two interfaces:
 @Inject
 class NavigatorEventBus(
     private val appReinitializer: AppReinitializer,
-) : Navigator, NavigatorReceiver {
+) : Navigator, NavigatorReceiver, NavResultsSource {
 
     private val _commands = MutableSharedFlow<NavCommand>(
         extraBufferCapacity = 64,
     )
     override val commands: SharedFlow<NavCommand> = _commands.asSharedFlow()
 
-    override fun navTo(screen: Screen) { _commands.tryEmit(NavCommand.NavTo(screen)) }
-    override fun popBack() { _commands.tryEmit(NavCommand.PopBack) }
+    private val results = ConcurrentHashMap<String, MutableStateFlow<Any?>>()
 
+    override fun result(key: String): StateFlow<Any?> = resultFlow(key)
+
+    override fun setResult(key: String, result: Any) {
+        resultFlow(key).value = result
+    }
+
+    override fun clearResult(key: String) {
+        resultFlow(key).value = null
+    }
+
+    private fun resultFlow(key: String): MutableStateFlow<Any?> =
+        results.getOrPut(key) { MutableStateFlow(null) }
+
+    override fun navTo(screen: Screen) {
+        consume(NavCommand.NavTo(screen))
+    }
+
+    // popBack / replaceTo / openRecovery consume() their NavCommand the same way;
+    // popBackWithResult mints the key first:
     override fun <S, R : Any> popBackWithResult(
         destination: KClass<S>,
         result: R,
     ) where S : ScreenWithResult<R> {
-        _commands.tryEmit(NavCommand.PopBackWithResult(NavResultKey.of(destination), result))
+        consume(NavCommand.PopBackWithResult(NavResultKey.of(destination), result))
     }
 
-    override fun replaceTo(screen: Screen) { _commands.tryEmit(NavCommand.ReplaceTo(screen)) }
+    override fun restartApp() {
+        // Restart is terminal and platform-owned — resolve the process-scoped
+        // AppReinitializer by constructor injection and invoke it directly rather than
+        // routing a NavCommand through the replay=0 command bus (which would silently
+        // drop with no mounted subscriber, the OpenRecovery hazard).
+        appReinitializer.reinitialize()
+    }
 
-    // Terminal + platform-owned: invoke the injected seam directly instead of
-    // emitting a NavCommand onto the replay=0 bus (no subscriber ⇒ silent drop).
-    override fun restartApp() { appReinitializer.reinitialize() }
+    private fun consume(command: NavCommand) {
+        log.d { "Processing navigation command: $command" }
+        _commands.tryEmit(command).also { emitted ->
+            if (emitted.not()) {
+                log.w { "Failed to emit navigation command: $command" }
+            }
+        }
+    }
 }
 ```
 
 Why singleton:
 
-- Stores live as long as a `NavBackStackEntry`'s ViewModel scope; the bridge
+- Stores live as long as a back-stack entry's ViewModel scope (the per-entry
+  `ViewModelStore` from `rememberViewModelStoreNavEntryDecorator`); the bridge
   lives as long as the current Compose composition. The bus must outlive both,
   so a Store can emit a command at any time without coupling its lifetime to
   the current bridge instance. The bridge re-attaches on every recomposition /
   activity recreation and observes commands emitted **after** its
   subscription.
-- The bus stores **no controller**. It holds a `SharedFlow` and three emit
-  methods. There is nothing for the Android Framework to leak through it.
+- The bus stores **no back stack**. It holds a `SharedFlow`, the emit
+  methods, and the keyed result flows. There is nothing for the Android
+  Framework to leak through it.
 
 The bus uses `MutableSharedFlow(replay = 0, extraBufferCapacity = 64)`. The
 `extraBufferCapacity` lets `tryEmit` succeed without blocking when subscribers
 are slow, but it is **not a replay buffer**: emissions made while no
 subscriber is attached are not redelivered to a subscriber that attaches
 later. This matches the production lifecycle — the bridge attaches in
-`App.kt` via `LaunchedEffect(navController)` before any feature
+`App.kt` via `LaunchedEffect(navigatorHolder)` before any feature
 `NavigationHandler` could fire `Action.Navigation.<X>` for that composition,
 so pre-subscription emissions are not part of the lifecycle contract. The
 contract that **is** load-bearing: the bus stays usable across bridge
@@ -882,53 +933,69 @@ the same sealed surface without crossing the `app/app` module boundary.
 
 ### App/UI bridge: `NavigatorExt.NavigationEventBusSetup`
 
-`App.kt` owns the `NavHostController`. It is created with
-`rememberNavController()` inside the composition and wrapped in a
-`NavigatorHolder` value class for type clarity:
+`App.kt` owns the back stack. It is created with `rememberNavBackStack` —
+the COMMON overload with an explicit `SavedStateConfiguration`, never the
+Android-only reflection one: the configuration
+(`screenSavedStateConfiguration`, `core/ui/navigation/.../ScreenSerialization.kt`)
+is what lets the stack survive process death, and `ScreenSerializationTest`
+round-trips every `Screen` leaf through it. The stack is wrapped in a
+`NavigatorHolder` for type clarity:
 
 ```kotlin
 @Composable
 fun App() {
     AppTheme(themeMode = themeMode) {
-        val navController = rememberNavController()
-        val holder = remember(navController) { NavigatorHolder(navController) }
+        val backStack = rememberNavBackStack(
+            screenSavedStateConfiguration,
+            Screen.BottomBar.Home,
+        )
+        val holder = remember(backStack) { NavigatorHolder(backStack) }
         val navigatorEventBus = viewModel.navigatorEventBus
 
         NavigationEventBusSetup(
             navigatorHolder = holder,
             navigator = navigatorEventBus,
+            results = navigatorEventBus,
         )
 
-        // ... NavHost wired through AppNavigationHost(navigatorHolder = holder)
+        // ... NavDisplay wired through
+        // AppNavigationHost(navigatorHolder = holder, results = navigatorEventBus)
     }
 }
 ```
 
 `NavigatorExt.NavigationEventBusSetup` (`app/app/.../navigation/NavigatorExt.kt`)
-is the **only** place AndroidX Navigation operations are executed. It collects
-`navigator.commands` keyed on the current `navController` and processes each
-command:
+is the **only** place navigation commands are executed. It collects
+`navigator.commands` keyed on the holder and processes each command:
 
 ```kotlin
 @Composable
 fun NavigationEventBusSetup(
     navigatorHolder: NavigatorHolder,
     navigator: NavigatorReceiver,
+    results: NavResultsSource,
 ) {
-    val navController = navigatorHolder.navController
-    LaunchedEffect(navController) {
+    val context = LocalContext.current
+    LaunchedEffect(navigatorHolder) {
         navigator.commands.collect { command ->
-            processCommand(navController, command)
+            processCommand(
+                holder = navigatorHolder,
+                command = command,
+                results = results,
+                context = context,
+            )
         }
     }
 }
 ```
 
-The `LaunchedEffect(navController)` is the lifecycle anchor: when the
+The `LaunchedEffect(navigatorHolder)` is the lifecycle anchor: when the
 composition is destroyed and a new one starts (config change, activity
 recreation), the effect cancels its old collection and re-collects on the
-freshly-created `NavController`. The `NavigatorEventBus` instance is the
-same; the executor is new. The new executor observes commands emitted
+freshly-remembered holder. The `NavigatorEventBus` instance is the
+same; the executor is new — and the stack's *contents* survive the
+recreation (and process death) through the `SavedStateConfiguration` above.
+The new executor observes commands emitted
 **after** it subscribes — the bus's `MutableSharedFlow(replay = 0,
 extraBufferCapacity = 64)` does not replay pre-subscription emissions.
 That trade-off is intentional: the production bridge is attached
@@ -938,15 +1005,28 @@ a long-lived background coroutine emitted while the activity was being
 recreated — and the next user-visible navigation will originate from a
 post-subscription action regardless.
 
-`processCommand` translates each `NavCommand` to the matching
-`navController.navigate(...)` / `popBackStack(...)` call. `popBack` writes
-its key/value pairs into
-`navController.previousBackStackEntry.savedStateHandle` before the pop, which
-is how navigation results flow back to the previous screen (see
-[Navigation results](#navigation-results)).
-`NavCommand.OpenRecovery` is the one branch that does not call into
-`NavController`: it reads `LocalContext.current` (captured at bridge attach)
-to launch `RecoveryActivity` in a fresh task (`FLAG_ACTIVITY_NEW_TASK`).
+`processCommand` executes each `NavCommand` as a list operation on the
+app-owned stack:
+
+- `NavTo` of an `isSingleTop` destination (a bottom-bar root) — replace the
+  top entry (`stack[stack.lastIndex] = screen`). Replace-last IS the
+  singleTop semantic here: tab round trips arrive reset (pinned by
+  `BackStackStateRestorationTest.selectionModeArrivesResetAfterABottomBarRoundTrip`),
+  and re-tapping the ACTIVE tab does not mint a fresh entry — the roots are
+  `data object`s and entry state is keyed by the key's identity, so replacing
+  with an equal key is deliberately a no-op.
+- `NavTo` of a normal destination — `stack.add(screen)`.
+- `PopBack` — `removeLastOrNull()`, guarded so it only pops when something is
+  underneath: system back at the root belongs to the platform (the activity
+  finishes), and `NavDisplay` must never be handed an empty stack.
+- `PopBackWithResult` — `results.setResult(key, result)` into the app-owned
+  `NavResultsSource` **before** the pop, which is how navigation results flow
+  back to the previous screen (see [Navigation results](#navigation-results)).
+- `ReplaceTo` — replace the top entry.
+- `OpenRecovery` — the one branch that does not touch the stack: it uses the
+  `Context` captured at bridge attach to launch `RecoveryActivity` in a fresh
+  task (`FLAG_ACTIVITY_NEW_TASK`).
+
 Process restart is **not** one of these branches — it never reaches
 `processCommand` at all, because `restartApp()` invokes the `AppReinitializer`
 seam directly instead of emitting a `NavCommand` (see the destructive
@@ -957,31 +1037,36 @@ or recovery purposes.
 ### Lifetime rules
 
 The reason the bus is split between a singleton command bus and a
-composition-scoped executor is that the AndroidX `NavController` (and
-`NavHostController`, `NavBackStackEntry`, `SavedStateHandle`) cannot be
-retained beyond the composition that owns them. Doing so leaks the
-`Activity` they were created against and crashes on `setGraph` / `navigate`
-once the underlying `NavHost` is recomposed.
+composition-scoped executor is that the back stack is composition-owned
+state: `rememberNavBackStack` creates it inside the composition and its saved
+state follows the activity's `SavedStateRegistry`. Retaining it (or any other
+`navigation3` type) in a longer-lived layer pins a stale instance across
+recreation — the restored composition builds a fresh stack, and anything the
+old reference mutates is no longer what `NavDisplay` renders.
 
 The rules, enforced by reading code review (no Detekt rule yet, but the
-class naming makes it greppable):
+class naming makes it greppable — and the androidTest import gate bans
+`androidx.navigation3` imports outside the allowed modules):
 
-- `NavHostController`, `NavController`, `NavBackStackEntry`,
-  `SavedStateHandle`, `Activity`, and `Context` MUST NOT be stored as a
+- The `NavBackStack`, `NavKey` entry references, `EntryProviderScope`,
+  `Activity`, and `Context` MUST NOT be stored as a
   field of any `ViewModel` / `Store` / `Handler` / `Interactor` / `Mapper`
   class, and MUST NOT be passed into a `@SingleIn(AppScope::class)` binding.
 - `NavigatorEventBus` IS allowed in singleton / ViewModel / Store / Handler
-  layers because it stores only a `SharedFlow<NavCommand>` and the four
-  emit methods. No controller reference exists inside it.
-- `NavigatorHolder` (`core/ui/navigation/.../NavigatorHolder.kt`) wraps a
-  live `NavHostController` and MUST stay scoped to composition (created via
-  `remember(navController)` in `App.kt`). It MUST NOT be cached statically,
-  passed through DI, or stored in a `Singleton`.
-- `SavedStateHandle` no longer reaches a graph composable at all. It is held
-  privately by `NavResults` (`core/ui/mvi/.../NavResults.kt`), which is what
-  `navComponentScreenWithResults` hands to the content lambda. It MUST NOT be
-  retained in a Store / ViewModel / Handler / DI singleton — now unreachable
-  from those layers by construction rather than by rule.
+  layers because it stores only a `SharedFlow<NavCommand>`, the emit
+  methods, and the keyed result flows. No back-stack reference exists inside
+  it.
+- `NavigatorHolder` (`core/ui/navigation/.../NavigatorHolder.kt`) wraps the
+  app-owned `NavBackStack` and MUST stay scoped to composition (created via
+  `remember(backStack)` in `App.kt`). It MUST NOT be cached statically,
+  passed through DI, or stored in a `Singleton`. It is exposed to `:app:app`'s
+  command executor and host ONLY; no feature module may name a `NavBackStack`.
+- No raw transport reaches a graph composable at all. The result transport
+  (`NavResultsSource`) is held privately by `NavResults`
+  (`core/ui/mvi/.../NavResults.kt`), which is what
+  `navComponentScreenWithResults` hands to the content lambda — the typed
+  surface is the only thing a feature sees, by construction rather than by
+  rule.
 
 ### Navigation flow (canonical pattern)
 
@@ -994,11 +1079,11 @@ through the graph composable directly. The pattern:
 3. `NavigationHandler` has `Navigator` constructor-injected by Metro and calls
    `navigator.navTo(...)`, `navigator.replaceTo(...)`, `navigator.popBack(...)`,
    or `navigator.restartApp()`. The `Navigator` is the singleton
-   `NavigatorEventBus` — the three back-stack calls are pure command dispatch
-   with no side effect on `NavController`; `restartApp()` is the exception,
+   `NavigatorEventBus` — the back-stack calls are pure command dispatch
+   with no side effect on the stack itself; `restartApp()` is the exception,
    invoking the `AppReinitializer` seam directly (see below).
-4. The App/UI bridge collects the command on its current `NavController` and
-   executes it.
+4. The App/UI bridge collects the command and executes it as a list
+   operation on the app-owned back stack.
 
 Concretely, a feature defines:
 
@@ -1027,8 +1112,8 @@ internal class NavigationHandler @Inject constructor(
 }
 ```
 
-The handler holds **no controller**, **no `SavedStateHandle`**, **no
-`NavBackStackEntry`** — only the `Navigator` command-bus reference. It is
+The handler holds **no back stack**, **no transport**, **no entry
+reference** — only the `Navigator` command-bus reference. It is
 JVM-unit-testable by mocking `Navigator` and verifying the emitted method
 call.
 
@@ -1046,10 +1131,9 @@ The graph composable consumes only **UI-side events** through
   conventions section below.
 - `Event.Scroll*` — translated to a `LazyListState` scroll command in scope.
 
-The graph composable **never** calls `navController.navigate(...)` /
-`popBackStack()` directly, **never** consumes an `Event.Navigate*`
-(such an event must not exist — it would be misnamed), and **never**
-captures `NavController` outside the bridge.
+The graph composable **never** mutates the back stack directly, **never**
+consumes an `Event.Navigate*` (such an event must not exist — it would be
+misnamed), and **never** captures the `NavBackStack` outside the bridge.
 
 Reference implementation: `feature/all-trainings/ui/AllTrainingsGraph.kt`
 (graph) and `feature/all-trainings/mvi/handler/NavigationHandler.kt`
@@ -1141,12 +1225,19 @@ The mechanics:
    `navigator.popBackWithResult(Screen.PlanEditor::class, true)`. `R` is not
    chosen at the call site — it resolves from the destination's own
    `ScreenWithResult` parameter, so passing the wrong type does not compile.
-2. `NavigatorExt` writes the value onto `previousBackStackEntry.savedStateHandle`
-   *before* `popBackStack()`, keyed by `NavResultKey.of(destination)`. This is
-   the only place the transport is untyped, and it is Nav2-specific — the
-   `SavedStateHandle` transport does not exist in Nav3.
+2. `NavigatorExt` publishes the value into the app-owned `NavResultsSource`
+   (implemented by `NavigatorEventBus` — a keyed store of nullable
+   `StateFlow`s, keyed by `NavResultKey.of(destination)` strings) *before*
+   the pop. The order is load-bearing: the value has to be readable before
+   the pop reveals the consumer, or it recomposes on arrival with nothing
+   there and the result is lost. This is the only place the transport is
+   untyped. **Accepted delta:** a result does not survive process death
+   inside the set→collect window — the window is one recomposition wide, and
+   no user journey holds a result across process death (see
+   `NavResultsSource`'s KDoc).
 3. The consumer's graph registers with `navComponentScreenWithResults`, whose
-   content lambda receives a `NavResults` rather than a raw `SavedStateHandle`:
+   content lambda receives a `NavResults` rather than the raw
+   `NavResultsSource`:
 
    ```kotlin
    navComponentScreenWithResults(LiveWorkoutFeature) { results, processor ->
@@ -1167,9 +1258,9 @@ the far side of that call. `ExerciseStore.Action.Common.ImageRequestReceived`
 is the reference: the graph passes the raw name, and `CommonHandler` resolves
 it exhaustively over `Screen.ExerciseImageRequest`.
 
-`NavResults` holds the `SavedStateHandle` privately and exposes nothing that
-leaks it, so the entry-scoped object still never reaches a Store, Handler,
-ViewModel, or singleton — now by construction rather than by convention.
+`NavResults` holds the `NavResultsSource` privately and exposes nothing that
+leaks it, so the transport still never reaches a Store, Handler,
+ViewModel, or graph branch — by construction rather than by convention.
 
 > **Note for tests.** `AppCoroutineScopeImpl.launch(flow, …)` applies
 > `.catch { onError(it) }`, so a flow error inside a Store is swallowed: a
@@ -1186,7 +1277,7 @@ produce does not later read as a violation.
 
 **The rule targets `Navigator`.** Its point is that navigation *decisions* are made in
 Store/Handler against an injected command bus, rather than reached for ambiently from
-composition — which is what keeps them testable and keeps `NavController` out of the
+composition — which is what keeps them testable and keeps the back stack out of the
 ViewModel layer. An animation scope is not the navigator: it decides nothing, it is
 read only while composing, and nothing about it can be asserted in a Store test.
 
@@ -1201,13 +1292,12 @@ call at all — an accessor would have been API serving no caller. When a shared
 transition is actually written, that change introduces the accessor and its first
 consumer together.
 
-Currently `Screen.Exercise`, `Screen.Training` (single-training), and
-`Screen.LiveWorkout` consume the PlanEditor saved-result this way.
+Currently `Screen.LiveWorkout` consumes the PlanEditor result this way, and
+`Screen.Exercise` consumes the `Screen.ExerciseImage` request name.
 
-### Plan editor: Existing vs Draft
+### Plan editor: the one destination
 
-`Screen.PlanEditor` is a sealed interface with two destinations that share
-the same `PlanEditorStore` but differ in how they enter and exit:
+`Screen.PlanEditor` is a sealed interface with ONE destination:
 
 - **`Screen.PlanEditor.Existing(performedExerciseUuid, exerciseUuid, trainingUuid)`** —
   the "edit a persisted plan" route. `CommonHandler.Init` reads `(type,
@@ -1220,33 +1310,31 @@ the same `PlanEditorStore` but differ in how they enter and exit:
   parent state — so any unsaved name/description/tag/image edit is
   preserved (this is the v1.41.0 dirty-baseline regression fix).
 
-- **`Screen.PlanEditor.Draft(initialType, initialPlanJson)`** — the "edit a
-  plan for a brand-new exercise that has no UUID yet" route. `CommonHandler`
-  skips the DB load (`Mode.Draft` has no anchor); the seed comes straight
-  from the route args. On Done the editor encodes a `PlanDraftResult`
-  (`(type, plan)`) as JSON and pops back via `planEditorDraftResultAttr`.
-  The caller decodes the JSON and merges `(type, adhocPlan)` into local
-  state without touching `originalSnapshot` — the draft is treated as an
-  unsaved edit until the parent's own Save fires. PlanEditor.Draft never
-  writes to disk.
+**There is no creation destination.** An exercise with no persisted UUID is
+built on the exercise form, which hosts `PlanEditorBody` inline — so there is
+no in-flight draft to carry to another screen and hand back. Every
+destination here edits something that exists.
 
-Type ownership lives in PlanEditor for both destinations. The toggle and
+Type ownership lives in PlanEditor. The toggle and
 the type-change-confirm dialog (with weight-wipe semantics for
 WEIGHTED → WEIGHTLESS flips) are the plan editor's responsibility, not the
 parent form's. `Mode.PerformedExercise` (used by single-training and
 live-workout callsites) hides the toggle — the type lives on the parent
 exercise and isn't editable through a training-scoped editor.
 
-Two separate `composable<Screen.PlanEditor.Existing>` and
-`composable<Screen.PlanEditor.Draft>` destinations register inside
-`planEditorGraph`. A single composable with a polymorphic discriminator
-would also work in theory, but typed-nav route resolution on sealed
-parents has known edge cases — the two-route form is robust.
+`planEditorGraph` registers the concrete route via
+`navScreen<Screen.PlanEditor.Existing>` — the one graph that calls `navScreen`
+rather than `navComponentScreen`, because `PlanEditorFeature` is typed on the
+sealed parent `Screen.PlanEditor` (what the store's DI factory takes) while
+the registered ROUTE is the concrete `Existing`, and `navComponentScreen`
+reifies one type for both. See the graph's KDoc for the alternatives
+considered and rejected.
 
 #### Dispatching navigation from background coroutines
 
-`NavigationHandler.invoke` calls into `Navigator` which touches `NavController` —
-that work must happen on the main thread. When a click handler emits a navigation
+`NavigationHandler.invoke` calls into `Navigator`, whose commands end in
+writes to the snapshot-state back stack — that work must happen on the main
+thread. When a click handler emits a navigation
 action from inside a background coroutine (e.g. `repository.archive` success
 callback), it must dispatch to main before calling `consume`.
 
@@ -1275,7 +1363,7 @@ fun processArchiveClick(uuid: String) {
     }
 }
 
-// WRONG — raw consume from background dispatcher will crash NavController
+// WRONG — raw consume from background dispatcher mutates the back stack off-main
 fun processArchiveClick(uuid: String) {
     launch(defaultDispatcher) {
         interactor.archive(uuid)
@@ -1347,8 +1435,8 @@ BackHandler(enabled = state.interceptBack) {
 }
 ```
 
-When `interceptBack` is false: the gesture goes natively through `NavController`,
-predictive preview animation runs, no store involvement.
+When `interceptBack` is false: the gesture goes natively through `NavDisplay`'s
+back handling, predictive preview animation runs, no store involvement.
 
 When `interceptBack` is true: gesture is intercepted, emits `OnBackClick` into the
 store, and the store decides what to do (typically: show a discard dialog).
@@ -1416,8 +1504,9 @@ Two outcomes:
 ### Navigation host and shared element transitions
 
 `app/app/src/main/java/io/github/stslex/workeeper/host/AppNavigationHost.kt` receives the
-composition-scoped `NavigatorHolder` (which wraps the `rememberNavController()` created in
-`App.kt`) and wraps the `NavHost` in a `SharedTransitionLayout` (Jetpack Compose
+composition-scoped `NavigatorHolder` (which wraps the back stack created by
+`rememberNavBackStack` in `App.kt`) and wraps the `NavDisplay` in a
+`SharedTransitionLayout` (Jetpack Compose
 `ExperimentalSharedTransitionApi`). The layout is the anchor a shared-element transition
 would attach to; **no graph receives the scope as a parameter.** Nothing in the app performs
 a shared-element transition today, so the graphs that used to take a
@@ -1425,12 +1514,26 @@ a shared-element transition today, so the graphs that used to take a
 is written, the scope reaches it through `LocalNavAnimatedContentScope` (see
 [the CompositionLocal decision](#compositionlocal-in-the-navigation-path--a-decision-for-nav3-not-a-rule-in-force)),
 and that change introduces the accessor and its first consumer together. The start
-destination is
-`Screen.BottomBar.Home`. Each graph is added via `navComponentScreen<Feature>` /
-`navComponentScreenWithResults<Feature>`, which expands to a `composable<Screen>` block
-under the hood (see `core/ui/navigation/.../NavGraphScope.kt::navScreen`). The graphs
-themselves register against `NavGraphScope`, never `NavGraphBuilder`; the host wraps
-the builder once in `AppNavigationHost`.
+destination is `Screen.BottomBar.Home`.
+
+`NavDisplay` mounts with an EXPLICIT `entryDecorators` list —
+`rememberSaveableStateHolderNavEntryDecorator()` plus
+`rememberViewModelStoreNavEntryDecorator()`. The default set is saveable-only:
+without the ViewModel decorator, `viewModel {}` resolves against the
+Activity's store, nothing crashes, and every Store silently becomes
+process-scoped — the exact failure `StoreRetentionTest.isolation`'s
+activity-scoped-store mutation pins. Its `onBack` pops only while the stack
+holds more than one entry: system back at the root belongs to the platform
+(the activity finishes — `ApplicationBottomBarTest` pins it), and
+`NavDisplay` must never see an empty stack.
+
+Each graph is added via `navComponentScreen<Feature>` /
+`navComponentScreenWithResults<Feature>`, which expands to an `entry<Screen>`
+registration under the hood (see `core/ui/navigation/.../NavGraphScope.kt::navScreen`).
+The graphs themselves register against `NavGraphScope`, never the library's
+`EntryProviderScope`; the host wraps the builder once in `AppNavigationHost` —
+the one place the navigation library's builder is named, so re-pointing that
+line is enough to change what backs the twelve registrations.
 
 Every graph composable's `modifier` chain must include
 `Modifier.reportScreenPlace<Screen.X>()` — the `onPlaced` callback that stops the TTID,
@@ -1438,14 +1541,22 @@ AppCreate, and ActivityCreate traces. Skipping it leaves all three pipelines
 mis-attributed for that screen. See
 [performance.md → New-screen contributor checklist](performance.md#new-screen-contributor-checklist).
 
-`BottomBarNavigationListener` (`app/app/.../host/BottomBarNavigationListener.kt`) is a
-composition-scoped `OnDestinationChangedListener` that tracks which `BottomBar` screen is
-current so `App.kt` can show or hide the `WorkeeperBottomAppBar` with an animated
-visibility transition. It registers and disposes inside a `DisposableEffect(navController)`
-so the listener never outlives its controller.
+`BottomBarNavigationListener` (`app/app/.../host/BottomBarNavigationListener.kt`) tracks
+which `BottomBar` screen is current so `App.kt` can show or hide the bottom bar with an
+animated visibility transition. It collects a `snapshotFlow { holder.currentScreen }`
+inside a `LaunchedEffect(holder)` — `NavBackStack` is a `SnapshotStateList`, so the flow
+fires on every stack change, and `snapshotFlow` emits the CURRENT value on first
+collection, preserving the fires-for-the-initial-destination semantic the Nav2 listener
+got from registration replay. The visible screen maps to its tab via
+`BottomBarItem.getByScreen` — value identity (`entry.screen == screen`; the roots are
+`data object`s, so `==` IS type identity), with no route string to parse. The listener
+also latches `selectedIndex` separately from the nullable `bottomBarDestination`, so the
+nav pill does not snap back to the first item while the bar's exit animation is still
+composing — see the class KDoc.
 
 `ClearFocusOnDestinationChanged` (`app/app/.../host/ClearFocusOnDestinationChanged.kt`)
-follows the same pattern to clear keyboard focus on every navigation tick.
+follows the same `snapshotFlow`-over-the-stack pattern to clear keyboard focus on every
+navigation tick, including once at startup.
 
 ### Bottom navigation
 

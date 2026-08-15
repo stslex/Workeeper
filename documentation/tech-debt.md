@@ -63,29 +63,33 @@ on exactly these two files (4 import lines), which is how they were verified.
 
 ---
 
-## Bottom-bar selection semantics are not published — `ApplicationBottomBarTest` is 4/4 red (nav3 stage 1.1, 2026-08-14)
+## ✅ RESOLVED — Bottom-bar selection semantics are not published — `ApplicationBottomBarTest` was 4/4 red (nav3 stage 1.1, 2026-08-14; resolved 2026-08-15)
 
-**Not the flaky-teardown entry below.** That one is a race in `checkAppClosed()` affecting one test
-intermittently. This is a deterministic, every-run failure of all four, on a different assertion, and
-the two must not be conflated when triaging.
+**Resolution (navbar-a11y PR, 2026-08-15).** `AppNavBar`'s item `Box` now carries
+`Modifier.selectable(selected = index == selected, interactionSource, indication = null,
+role = Role.Tab)` and the item `Row` is a `selectableGroup()` — the production fix the entry
+demanded; the test was not edited. Proof in both directions on `nav_regression_api34` (arm64,
+API 34): red — the pinned baseline at `c34fe7cec`, 30 @Regression tests, exactly 4 failures, all
+`Failed to assert the following: (Selected = 'true')`; green — the same class 4/4 with zero test
+edits, repeated over 7 consecutive runs. `verifyPaparazziDebug` unchanged (the fix writes
+semantics, not pixels). TalkBack now announces the current destination via `Selected` +
+`Role.Tab`.
+
+**The stage-1.3 pin, re-pinned (2026-08-15):** the instrumented suite is clean **iff it is fully
+green — zero expected failures**. The teardown race that the old pin's masking note predicted
+would be unmasked was fixed in the same PR (option **(a)** of the two recorded below; the same-PR
+choice was delegated in the stage-1.3 session brief). Any failure in any instrumented class is now
+a finding to triage, never waved through.
+
+Original entry, kept for the record:
 
 | Severity | Location | Description |
 |---|---|---|
-| 🟡 | [core/ui/kit/.../navbar/AppNavBar.kt](../core/ui/kit/src/main/kotlin/io/github/stslex/workeeper/core/ui/kit/components/navbar/AppNavBar.kt) ↔ [app/app/.../ApplicationBottomBarTest.kt](../app/app/src/androidTest/kotlin/io/github/stslex/workeeper/app/ApplicationBottomBarTest.kt) | **`AppNavBar` publishes no `Selected` semantics at all, so every selection assertion in `ApplicationBottomBarTest` fails.** **Mechanism:** each item is a `Box` carrying `Modifier.clickable(interactionSource, indication = null)` and a `testTag` — there is no `Modifier.selectable`, no `Role.Tab`, and no `NavigationBarItem`. `SemanticsProperties.Selected` is therefore never written, and `assertIsSelected()` / `assertIsNotSelected()` cannot pass on any item, selected or not. The selected item is expressed **visually only** (pill offset + icon tint), which is also an accessibility defect: TalkBack has no way to announce which destination is current. **Proof:** grep on the component returns zero hits for `selectable`, `Role.`, `NavigationBarItem` and `semantics`; the test class has exactly **4** `@Test` methods and all four reach `checkSelectedBottomAppBar` (three via `checkScreenOpen`, plus `navigateToExercisesTrainingsAndBack` directly), so the failure count is 4 by construction, with assertion text `Failed to assert the following: (Selected = 'true')`. **Pre-existing, not introduced by the nav3 branch:** `AppNavBar.kt` is blob `149108b8` at `HEAD`, at `bcf70b63` and at `origin/dev` — byte-identical across all three. **Unblock condition: restore the semantics in PRODUCTION** — `Modifier.selectable(selected = …, role = Role.Tab)` on the item box, or adopt `NavigationBarItem`. **Do NOT "fix" this by editing the test**: the assertions are correct and the a11y gap is real; weakening them converts a production defect into a silent one. **Pinned expectation — at stage 1.3 this is mechanical:** exactly these **4** failures, all in `ApplicationBottomBarTest`, all with the assertion string above, and **nothing else**, means the instrumented suite is clean. Any fifth failure, or a different assertion string, is new and must be triaged rather than waved through. **Deadline: before stage 1.3.** |
+| ✅ | [core/ui/kit/.../navbar/AppNavBar.kt](../core/ui/kit/src/main/kotlin/io/github/stslex/workeeper/core/ui/kit/components/navbar/AppNavBar.kt) ↔ [app/app/.../ApplicationBottomBarTest.kt](../app/app/src/androidTest/kotlin/io/github/stslex/workeeper/app/ApplicationBottomBarTest.kt) | **`AppNavBar` publishes no `Selected` semantics at all, so every selection assertion in `ApplicationBottomBarTest` fails.** **Mechanism:** each item is a `Box` carrying `Modifier.clickable(interactionSource, indication = null)` and a `testTag` — there is no `Modifier.selectable`, no `Role.Tab`, and no `NavigationBarItem`. `SemanticsProperties.Selected` is therefore never written, and `assertIsSelected()` / `assertIsNotSelected()` cannot pass on any item, selected or not. The selected item is expressed **visually only** (pill offset + icon tint), which is also an accessibility defect: TalkBack has no way to announce which destination is current. **Proof:** grep on the component returns zero hits for `selectable`, `Role.`, `NavigationBarItem` and `semantics`; the test class has exactly **4** `@Test` methods and all four reach `checkSelectedBottomAppBar` (three via `checkScreenOpen`, plus `navigateToExercisesTrainingsAndBack` directly), so the failure count is 4 by construction, with assertion text `Failed to assert the following: (Selected = 'true')`. **Pre-existing, not introduced by the nav3 branch:** `AppNavBar.kt` is blob `149108b8` at `HEAD`, at `bcf70b63` and at `origin/dev` — byte-identical across all three. **Unblock condition: restore the semantics in PRODUCTION** — `Modifier.selectable(selected = …, role = Role.Tab)` on the item box, or adopt `NavigationBarItem`. **Do NOT "fix" this by editing the test**: the assertions are correct and the a11y gap is real; weakening them converts a production defect into a silent one. |
 
-**Masking dependency — the a11y fix must not land without a decision (added 2026-08-14).**
-`navigateToExercisesAndBack` is BOTH one of the four deterministically red tests pinned above AND the
-carrier of the intermittent `checkAppClosed()` teardown race filed in its own entry below. Today the
-flake is **masked**: the test already fails deterministically on the selection assertion, so the race
-cannot produce a distinguishable extra failure and the pin holds trivially. The a11y fix — scheduled
-before stage 1.3 — turns this class green and **unmasks** the race. From that moment "exactly these
-failures and nothing else" starts breaking by chance, and 1.3 triage becomes ambiguous in exactly the
-way this pin exists to prevent. Two ways out; the a11y PR ships with one of them chosen (Ilya's call,
-recorded here so that PR cannot close this entry without it):
-**(a)** fix the teardown race in the same PR as the a11y fix, so the class is genuinely deterministic
-when 1.3 triages against it; or
-**(b)** re-pin with the flake as a named, expected intermittent that does not invalidate a run — with
-an explicit rerun rule (e.g. a single retry of exactly that test, anything else is a finding).
+The superseded masking-dependency note (added 2026-08-14) recorded two ways out once the a11y fix
+unmasked the `checkAppClosed()` race: **(a)** fix the race in the same PR, or **(b)** re-pin with a
+named expected intermittent plus a rerun rule. Option (a) shipped.
 
 ---
 
@@ -132,7 +136,38 @@ applies. **Deadline: before stage 1.3** — the suite grows there, and the failu
 
 ---
 
-## Two of stage 1.1's four oracle classes were never written (nav3 stage 1.1, 2026-08-14)
+## ✅ RESOLVED — Two of stage 1.1's four oracle classes were never written (nav3 stage 1.1, 2026-08-14; resolved 2026-08-15)
+
+**Resolution (oracle-completion PR, 2026-08-15).** Both classes shipped:
+`StoreRetentionTest` (retention / isolation / disposal, each proven red by a named mutation —
+`activity-scoped-store` reds isolation + disposal with retention green, exactly the spec's stated
+reason isolation is mandatory; `store-per-visit` reds retention) and
+`BackStackStateRestorationTest` (scroll / draft / selection / recreation-depth, one named mutation
+each). Two deltas against the sketch below, both measured:
+
+1. **The open question is settled, and the recorded hypothesis was wrong in its inference.** The
+   LiveWorkout Store **IS retained** across the PlanEditor round trip — measured: two inline-added
+   exercises keep BOTH cards expanded across a clean-editor back, and the session does not fork
+   (a recreated Store would have minted a second blank session). What re-runs `loadSession` is the
+   re-fired `Action.Common.Init` — `BaseStore.init` re-fires `initialActions` on EVERY composition
+   re-entry, retained or not (`StoreProcessor`'s `DisposableEffect`) — so the reload-mutation
+   non-discrimination never implicated retention. `withExpansionCarriedFrom(previous)` carries
+   live retained state; the reload after a save is redundant with the re-fired Init's re-read,
+   which is an efficiency observation, not a correctness one.
+2. **`BackStackStateRestorationTest`'s list case runs on AllExercises, not Archive.** Archive rows
+   push to no detail destination (`ArchivedItemRow` has no click — the row-open ruling never
+   shipped), so "scroll across a detail round trip" is unreachable there; `LazyColumn`'s internal
+   `rememberLazyListState()` takes the identical `rememberSaveable` path, which is what is under
+   test. The spec's named mutation shape still lands (`remember { LazyListState() }` on the list).
+
+The "consequence to hold in mind" below (nothing catches a broken `Screen.PlanEditor` result flow)
+**still stands** — settling retention makes it PERMANENT under the current design: the re-fired
+Init re-reads the session on every return, so the result's only distinguishable effect is a
+redundant second read. A test cannot separate them without a production change. Filed as accepted
+until the Init-refire design itself is revisited (see the draft-wipe entry below for the same
+mechanism's user-visible cost).
+
+Original entry:
 
 Stage 1.1's spec specified **four** classes: `RouteReachabilityTest`, `StoreRetentionTest`,
 `NavigationResultTest` and `BackStackStateRestorationTest`. #221 shipped only the first — the
@@ -163,11 +198,27 @@ preserves state that was already lost, and the reload itself may be redundant. S
 `AppCoroutineScopeImpl`, that failure is silent — the screen shows default state and every test
 stays green.
 
+---
+
+## `BaseStore.init` re-fires `initialActions` on every composition re-entry — repo-wide (found 2026-08-15)
+
+| Severity | Location | Description |
+|---|---|---|
+| 🟡 | [core/ui/mvi/.../BaseStore.kt:107](../core/ui/mvi/src/main/kotlin/io/github/stslex/workeeper/core/ui/mvi/BaseStore.kt) ↔ [core/ui/mvi/.../processor/StoreProcessor.kt](../core/ui/mvi/src/main/kotlin/io/github/stslex/workeeper/core/ui/mvi/processor/StoreProcessor.kt) | **Not a LiveWorkout quirk — a repo-wide mechanism.** `rememberStoreProcessor`'s `DisposableEffect` calls `store.dispose()` when the composable leaves composition and `store.init()` when it re-enters, and `init` re-fires `initialActions` unconditionally — on a RETAINED Store as much as a fresh one. Every navigate-away-and-return therefore re-runs every screen's initial actions. **Measured blast radius: 14 Stores** declare non-empty `initialActions`. Three cost classes: (1) **nine one-shot `Init` loaders** (exercise, exercise-chart, home, image-viewer, live-workout, past-session, plan-editor, single-training, settings) — one redundant DB read per return, and any in-State UI state not explicitly shielded is overwritten by the reload (`LiveWorkoutMapper.withExpansionCarriedFrom` is the hand-built shield; the exercise editor's draft-wipe entry below is the unshielded instance); (2) **three `Paging.Init` stores** (all-exercises, all-trainings, archive) — re-running paging setup, cheap if idempotent but unaudited; (3) **one `Observe` subscription** (app-dialogs) — re-fire is CORRECT there, because `dispose` cancelled the scope the subscription lived in. Consequences already banked on this mechanism: `Reload`-shaped actions can be redundant (LiveWorkout's plan-editor reload duplicates the re-fired Init's read — measured in the retention oracle work), and result flows whose only effect is a reload are unobservable next to it (the `NavigationResultTest` plan-editor half's documented limitation). **Fix shape, when ripe:** either make `init` fire `initialActions` once per STORE LIFETIME (a `hasInitialized` latch in `BaseStore` — the re-entry data refresh then becomes an explicit, per-screen decision instead of an accident), or per-screen `withXCarriedFrom` shields plus deleting the redundant reloads. The first is one mechanism instead of fourteen shields, but it changes every screen's re-entry freshness at once — decide deliberately, not in a drive-by. **Deadline: none pinned** — post-nav3; touching it mid-migration would have moved the oracle's substrate. |
+
+---
+
+## Exercise editor discards an unsaved draft on any return to its entry (found 2026-08-15)
+
+| Severity | Location | Description |
+|---|---|---|
+| 🟡 | [feature/exercise/.../ui/mvi/handler/CommonHandler.kt](../feature/exercise/src/main/kotlin/io/github/stslex/workeeper/feature/exercise/ui/mvi/handler/CommonHandler.kt) `applyLoaded` | **Type into the exercise editor, tap the description image, come back — the typed draft is gone.** **Mechanism:** `BaseStore.init` re-fires `initialActions` (`Action.Common.Init`) on every composition re-entry; `processInit` → `loadExercise` → `applyLoaded`, which unconditionally `copy(name = exercise.name, description = …, tags = …)` from the database. The Store itself is retained (measured — see the resolved oracle entry above); the wipe is in-Store state management, the same Init-refire family the LiveWorkout Store shields with `withExpansionCarriedFrom`. **Measured, 2026-08-15:** typed suffix verified present pre-hop, field back to the stored name post-hop, deterministic. **Pinned as-is** by `BackStackStateRestorationTest.editorDraftIsDiscardedByTheImageViewerRoundTrip`: stage 1.3 is a behaviour-preserving swap and must reproduce this too; the pin's KDoc says the test is updated WITH the fix. **Unblock condition:** carry the editable fields across a re-fired Init when a draft diverges from the loaded entity (an `isDirty` guard in `applyLoaded`, or `withDraftCarriedFrom` in the LiveWorkout idiom). **Deadline: after 1.3** — fixing it before would move the oracle mid-migration for no migration-related gain. |
+
 ## `AllTrainingsItemName_*` / `AllTrainingsItemMeta_*` are not row handles (nav3 stage 1.1, 2026-08-14)
 
 | Severity | Location | Description |
 |---|---|---|
-| 🟢 | [core/ui/kit/.../list/AppListRow.kt:115](../core/ui/kit/src/main/kotlin/io/github/stslex/workeeper/core/ui/kit/components/list/AppListRow.kt) ↔ [feature/all-trainings/.../TrainingRow.kt:79](../feature/all-trainings/src/main/kotlin/io/github/stslex/workeeper/feature/all_trainings/ui/components/TrainingRow.kt) | **These two tags look like per-row selectors and cannot be used as one.** **Mechanism:** `AppListRow` applies `nameTestTag` / `metaTestTag` to the name and meta **`Text`s** (`AppListRow.kt:115` and `:123`), which are descendants of the inner `Row`. The click arrives on that `Row` via the `rowModifier` seam — `TrainingRow.kt:77` passes `combinedClickable(onClick, onLongClick)` — and `Modifier.clickable` merges descendant semantics, so the child's tag is **absent from the merged tree** that `onNodeWithTag` queries by default, while the node that actually carries the click action **has no tag of its own**. Net effect: the tag is unreachable for a click, and `useUnmergedTree = true` would find the `Text` but clicking it would not dispatch the row's handler. **Proof — measured, not reasoned:** selecting by tag times out on a row that is demonstrably on screen; the same row, same timing, responds to a text selector. **Current workaround:** `NavPaths.openTraining` clicks by unique seeded name and carries this explanation at its call site. **Unblock condition:** add a row-level `testTag` on the `rowModifier` chain (alongside `combinedClickable`, i.e. on the node that owns the click) — `AllTrainingsItemRow_<uuid>`. Exactly **one** call site changes: `NavPaths.openTraining`. The existing name/meta tags are still legitimate for asserting *text content*; they are simply not handles. **Deadline: before stage 1.3** — `StoreRetentionTest` and `BackStackStateRestorationTest` both need to open list rows, and each one written against a text selector is another call site to unpick later. |
+| 🟢 | [core/ui/kit/.../list/AppListRow.kt:115](../core/ui/kit/src/main/kotlin/io/github/stslex/workeeper/core/ui/kit/components/list/AppListRow.kt) ↔ [feature/all-trainings/.../TrainingRow.kt:79](../feature/all-trainings/src/main/kotlin/io/github/stslex/workeeper/feature/all_trainings/ui/components/TrainingRow.kt) | **These two tags look like per-row selectors and cannot be used as one.** **Mechanism:** `AppListRow` applies `nameTestTag` / `metaTestTag` to the name and meta **`Text`s** (`AppListRow.kt:115` and `:123`), which are descendants of the inner `Row`. The click arrives on that `Row` via the `rowModifier` seam — `TrainingRow.kt:77` passes `combinedClickable(onClick, onLongClick)` — and `Modifier.clickable` merges descendant semantics, so the child's tag is **absent from the merged tree** that `onNodeWithTag` queries by default, while the node that actually carries the click action **has no tag of its own**. Net effect: the tag is unreachable for a click, and `useUnmergedTree = true` would find the `Text` but clicking it would not dispatch the row's handler. **Proof — measured, not reasoned:** selecting by tag times out on a row that is demonstrably on screen; the same row, same timing, responds to a text selector. **Current workaround:** `NavPaths.openTraining` clicks by unique seeded name and carries this explanation at its call site. **Unblock condition:** add a row-level `testTag` on the `rowModifier` chain (alongside `combinedClickable`, i.e. on the node that owns the click) — `AllTrainingsItemRow_<uuid>`. Exactly **one** call site changes: `NavPaths.openTraining`. The existing name/meta tags are still legitimate for asserting *text content*; they are simply not handles. **Deadline: none pinned (softened 2026-08-15)** — the original deadline said "before stage 1.3" because `StoreRetentionTest` and `BackStackStateRestorationTest` would need to open list rows; both shipped opening AllExercises rows (`AllExercisesItem_<uuid>` is a real row handle), so no new text-selector call site was added and `NavPaths.openTraining` remains the only one. Ripe for any hygiene PR. |
 
 ---
 
@@ -179,11 +230,39 @@ stays green.
 
 ---
 
-## Flaky UI test — ApplicationBottomBarTest.navigateToExercisesAndBack
+## ✅ RESOLVED — Flaky UI test — ApplicationBottomBarTest.navigateToExercisesAndBack (resolved 2026-08-15)
+
+**Resolution (navbar-a11y PR, 2026-08-15 — option (a) of the selection entry above).**
+`checkAppClosed()` now gates on `waitUntil { onAllNodesWithTag("AppRoot")
+.fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty() }` with
+`NavPaths.ARRIVAL_TIMEOUT_MS` as the budget — exactly the entry's own prescription (a `waitUntil`
+on AppRoot's absence, no retries, no `Thread.sleep`). `atLeastOneRootRequired = false` is
+load-bearing: the default `true` throws `No compose hierarchies found` once the window is gone,
+i.e. at exactly the moment the wait should succeed — measured, 3/4 red on the first hardening
+attempt. The hardening covers all **three** back-press sites (the shared helper), not just the one
+test this entry named. Both directions proven on `nav_regression_api34`: green 4/4 after
+hardening; red via the named `no-backpress` mutation (back-press removed →
+`ComposeTimeoutException: Condition still not satisfied after 5000 ms`), mutation reverted, never
+committed. The race itself did **not** reproduce in 7 consecutive unhardened runs on an unloaded
+arm64 host — consistent with the original 1/3-under-load observation; the fix is justified by
+construction, not by local reproduction.
+
+Two stale details in the original text, corrected for the record: the trigger was
+`onBackPressedDispatcher.onBackPressed()` inside `runOnUiThread`, not `Espresso.pressBack()`; and
+the same unguarded construction sat at all three back-press call sites, so post-a11y-fix the race
+would have affected three tests, not one.
 
 | Severity | Location | Description |
 |---|---|---|
-| 🟡 | [app/app/.../ApplicationBottomBarTest.kt](../app/app/src/androidTest/kotlin/io/github/stslex/workeeper/app/ApplicationBottomBarTest.kt) | **`navigateToExercisesAndBack` is intermittently flaky: 1/3 fail on the room3 branch, 0/2 on the Room-2 baseline; it failed once under heavy emulator load (full suites took 12–36 min) and passed 4 consecutive times since.** Sample too small to conclude pre-existing vs environmental — do NOT read this as "proven pre-existing". The mechanism is a race by construction: `checkAppClosed()` calls `assertDoesNotExist(AppRoot)` immediately after `Espresso.pressBack()`, with no wait for the activity-finish/recompose to settle. It loads a PagingSource from Room on the way to Exercises, so it is not Room-free, but the failure signature (AppRoot still present right after back) is a teardown-timing race, not a data error. **Do NOT add retries or arbitrary waits as a "fix"** — if hardened, gate on an idling resource / `waitUntil` for AppRoot's absence, not `Thread.sleep`. **Trigger to act:** it fails again on a non-loaded machine, or a UI-test-stability pass is scheduled. **Coupled to the bottom-bar selection entry above:** while that defect stands, this race is masked — the test already fails deterministically before teardown matters. The a11y fix unmasks it; see the masking-dependency note in that entry (option (a) there resolves this entry in the same PR). |
+| ✅ | [app/app/.../ApplicationBottomBarTest.kt](../app/app/src/androidTest/kotlin/io/github/stslex/workeeper/app/ApplicationBottomBarTest.kt) | Original: **`navigateToExercisesAndBack` is intermittently flaky: 1/3 fail on the room3 branch, 0/2 on the Room-2 baseline; it failed once under heavy emulator load (full suites took 12–36 min) and passed 4 consecutive times since.** Sample too small to conclude pre-existing vs environmental. The mechanism is a race by construction: `checkAppClosed()` asserts non-existence immediately after the back press, with no wait for the activity-finish/recompose to settle. The failure signature (AppRoot still present right after back) is a teardown-timing race, not a data error. |
+
+---
+
+## Pre-commit hook silently skips every check inside a git worktree (2026-08-15)
+
+| Severity | Location | Description |
+|---|---|---|
+| 🟡 | [.githooks/pre-commit:8](../.githooks/pre-commit) | **A commit made from a `git worktree` runs no detekt at all, and says so only in passing.** **Mechanism:** the hook guards with `[ ! -d .git ]`; in a linked worktree `.git` is a **file** (a `gitdir:` pointer), so the guard reads "not a git repository" and `exit 0`s before the detekt block. The output line `Not in a git repository. Skipping pre-commit checks.` scrolls past and the commit lands unchecked — the local half of the detekt gate (the reason `setup-hooks.sh` exists) is silently absent exactly where agent sessions and parallel checkouts do their work. **Measured, 2026-08-15:** commit `0e699ffb2` from the stage-1.3 worktree printed the skip line and committed without running detekt; CI still gates, so nothing merged unchecked, but the fast local feedback the hook promises is gone. **Unblock condition:** replace the `-d .git` test with `git rev-parse --is-inside-work-tree >/dev/null 2>&1 \|\| { echo "Not in a git repository."; exit 0; }` — one line, works in both layouts. Not fixed in the PR that found it (a hook edit is outside that PR's scope fence); ripe for any hygiene PR. |
 
 ---
 

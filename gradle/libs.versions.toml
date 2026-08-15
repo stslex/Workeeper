@@ -22,7 +22,7 @@ coroutines = "1.11.0"
 
 composeBom = "2026.07.00"
 composeGradle = "1.11.1"
-composeNavigation = "2.9.8"
+navigation3 = "1.1.6"
 composeJunit = "1.11.4"
 accompanist = "0.36.0"
 coil = "3.5.0"
@@ -119,7 +119,9 @@ androidx-compose-tooling-preview = { group = "androidx.compose.ui", name = "ui-t
 androidx-compose-foundation = { group = "androidx.compose.foundation", name = "foundation" }
 androidx-compose-runtime = { group = "androidx.compose.runtime", name = "runtime" }
 
-androidx-compose-navigation = { group = "androidx.navigation", name = "navigation-compose", version.ref = "composeNavigation" }
+androidx-navigation3-runtime = { group = "androidx.navigation3", name = "navigation3-runtime", version.ref = "navigation3" }
+androidx-navigation3-ui = { group = "androidx.navigation3", name = "navigation3-ui", version.ref = "navigation3" }
+androidx-lifecycle-viewmodel-navigation3 = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-navigation3", version.ref = "lifecycle" }
 
 androidx-compose-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
 androidx-compose-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest" }

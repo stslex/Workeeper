@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.core.ui.mvi
 
-import androidx.lifecycle.SavedStateHandle
 import io.github.stslex.workeeper.core.ui.navigation.NavResultKey
+import io.github.stslex.workeeper.core.ui.navigation.NavResultsSource
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.core.ui.navigation.ScreenWithResult
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
@@ -46,8 +48,31 @@ internal class NavigationResultContractTest {
      * Point it at a different transport and nothing else in this file moves.
      */
     private fun transport(): Pair<NavResults, TestProducer> {
-        val handle = SavedStateHandle()
-        return NavResults(handle) to TestProducer(handle)
+        val source = InMemoryNavResultsSource()
+        return NavResults(source) to TestProducer(source)
+    }
+
+    /**
+     * The post-swap transport, in miniature: the same keyed nullable-StateFlow shape
+     * `NavigatorEventBus` implements in `:app:app`. This class changing at the swap while every
+     * assertion below stayed as written is the whole reason this file exists — see the class KDoc.
+     */
+    private class InMemoryNavResultsSource : NavResultsSource {
+
+        private val flows = mutableMapOf<String, MutableStateFlow<Any?>>()
+
+        override fun result(key: String): StateFlow<Any?> = flowFor(key)
+
+        override fun setResult(key: String, result: Any) {
+            flowFor(key).value = result
+        }
+
+        override fun clearResult(key: String) {
+            flowFor(key).value = null
+        }
+
+        private fun flowFor(key: String): MutableStateFlow<Any?> =
+            flows.getOrPut(key) { MutableStateFlow(null) }
     }
 
     /**
@@ -59,13 +84,13 @@ internal class NavigationResultContractTest {
      * here for the same reason they agree in production. If that agreement broke, these
      * tests would fail rather than pass against a private convention.
      */
-    private class TestProducer(private val handle: SavedStateHandle) {
+    private class TestProducer(private val source: NavResultsSource) {
 
         fun <S, R : Any> produce(
             destination: KClass<S>,
             result: R,
         ) where S : ScreenWithResult<R> {
-            handle[NavResultKey.of(destination)] = result
+            source.setResult(NavResultKey.of(destination), result)
         }
     }
 

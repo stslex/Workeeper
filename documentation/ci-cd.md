@@ -11,7 +11,7 @@ All workflow files live under `.github/workflows/`.
 | File | Trigger | Purpose |
 |---|---|---|
 | `android_build_unified.yml` | push to `master`, every `pull_request`, `workflow_dispatch` | detekt, Android Lint, build, unit tests, test reporting. Gates PRs. |
-| `ui_tests.yml` | `workflow_dispatch`, `workflow_call` | Optional smoke / regression UI tests on an emulator. Does not gate PRs; called by `android_deploy_prod.yml` with `test_suite=smoke`. |
+| `ui_tests.yml` | weekly `schedule` (Mondays 05:00 UTC, against `dev`), `workflow_dispatch`, `workflow_call` | Smoke / regression UI tests on an emulator. Does not gate PRs; called by `android_deploy_prod.yml` with `test_suite=smoke`. |
 | `mockup_gate.yml` | every `pull_request` **except** into `master`, `workflow_dispatch`, `workflow_call` | Runs `documentation/mockups/shell_gate.py` against the v3 shell mockup, plus its permanent known negative. Seconds; no emulator, no JDK, no secrets. |
 | `pr_guard.yml` | `pull_request` into `master` only | Fails any PR into `master` whose head branch is not `release/release-v.X.Y.Z`. |
 | `cut_release.yml` | `workflow_dispatch` only (`mode`: release / hotfix) | Bumps the version (minor from `dev`, patch from `master`), pushes a `release/release-v.X.Y.Z` branch and opens the release PR. |
@@ -24,8 +24,8 @@ All workflow files live under `.github/workflows/`.
 
 The `pull_request` event has no branch filter on `android_build_unified.yml`, so the build
 runs for PRs targeting any branch. `mockup_gate.yml` runs on every PR *except* those targeting
-`master`, and `pr_guard.yml` runs *only* on those. UI tests run on manual dispatch or inside
-the production deploy — never on a PR.
+`master`, and `pr_guard.yml` runs *only* on those. UI tests run on the weekly schedule, on
+manual dispatch, or inside the production deploy — never on a PR.
 
 ## Build and unit-test workflow
 
@@ -154,23 +154,41 @@ property of the workflow.
 
 ## UI test workflow
 
-`ui_tests.yml` triggers on `workflow_dispatch` and `workflow_call`, exposing a `test_suite`
-choice (`smoke` / `regression` / `all`) plus, for callers, a `ref` to test.
+`ui_tests.yml` triggers three ways: a weekly `schedule` (cron `0 5 * * 1` — Mondays
+05:00 UTC), `workflow_dispatch` exposing a `test_suite` choice (`smoke` / `regression` /
+`all`), and `workflow_call` taking `test_suite` plus a `ref` to test.
 `android_deploy_prod.yml` calls it with `test_suite=smoke` as a deploy gate, skippable on
-retries via its `skip_ui_tests` input. Two parallel jobs (`smoke-tests` and `regression-tests`) gate
-their own execution with `if: inputs.test_suite == 'smoke' || inputs.test_suite == 'all'` (and
-similarly for regression). Both jobs:
+retries via its `skip_ui_tests` input.
+
+GitHub evaluates `schedule:` only from the workflow file on the DEFAULT branch
+(`master`), so the cron activates once the file reaches `master` with a release. A
+scheduled run checks out `dev` — where the work is — and runs both suites; because
+`github.sha` on a cron run is the default branch's tip rather than the tree under test,
+each job resolves the tested commit (`git rev-parse HEAD`) and the result publishers
+attach to that SHA. The weekly cadence bounds assertion-level rot at 7 days (rationale:
+[nav3-stage-1-3.md §5](feature-specs/nav3-stage-1-3.md)).
+
+Two parallel jobs (`smoke-tests` and `regression-tests`) gate their own execution with
+`if: github.event_name == 'schedule' || inputs.test_suite == 'smoke' || inputs.test_suite
+== 'all'` (and similarly for regression). Both jobs:
 
 1. Enable KVM permissions on the runner.
 2. Set up JDK 21 and the Android SDK via `android-actions/setup-android@v3`.
 3. Decrypt the keystore, write `keystore.properties`, decode both `google-services.json` files.
-4. Restore the Gradle build cache and the AVD snapshot cache (keyed on
+4. Restore the Gradle build cache (with `save-always: true`, so a run warms the cache it
+   depends on even when a test goes red) and the AVD snapshot cache (keyed on
    `api-level/target/arch`).
-5. Use `reactivecircus/android-emulator-runner@v2` to boot an emulator
+5. Assemble everything **before the emulator exists** (`./gradlew assembleDebug
+   assembleDebugAndroidTest`), then stop the Gradle daemons — compiling the androidTest
+   legs concurrently with a 4 GB emulator is what killed runners; with the APKs prebuilt,
+   the connected phase is installs + instrumentation with near-zero compile.
+6. Use `reactivecircus/android-emulator-runner@v2` to boot an emulator
    (API 34, `google_apis`, `x86_64`) with `-no-window -gpu swiftshader_indirect -noaudio`.
-6. Capture `adb logcat` to a file in the background.
-7. Run `./gradlew connectedDebugAndroidTest` filtered by the `Smoke` or `Regression` annotation
-   (see [testing.md](testing.md#running-tests) for the exact `-P` argument).
+7. Capture `adb logcat` to a file in the background.
+8. Run `./gradlew connectedDebugAndroidTest` filtered by the `Smoke` or `Regression`
+   annotation (see [testing.md](testing.md#running-tests) for the exact `-P` argument),
+   with a small heap for the connected phase
+   (`-Dorg.gradle.jvmargs=-Xmx3g --max-workers=2`) so the emulator keeps its headroom.
 
 ### Reporting
 
