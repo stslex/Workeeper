@@ -54,6 +54,11 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
  *   mirroring what [KotlinAndroid.configureKotlinAndroid] wires for Android modules.
  *   Anything beyond that baseline (mockk, robolectric, turbine…) is a module concern,
  *   declared with the raw configuration name: `"androidHostTestImplementation"(libs.mockk)`.
+ *   The tasks keep Gradle's `failOnNoDiscoveredTests` default (true): a regression in this
+ *   wiring fails loudly instead of passing over zero discovered tests — a deliberate
+ *   divergence from [KotlinAndroid.configureKotlinAndroid], which sets it false. A module
+ *   with legitimately no host tests yet opts out per-module:
+ *   `tasks.withType<Test>().configureEach { failOnNoDiscoveredTests.set(false) }`.
  *
  * - **detekt sources.** detekt's default source resolution is `src/main/…` + `src/test/…`,
  *   which in a KMP layout matches NOTHING — the task goes green over zero inputs. The
@@ -167,7 +172,6 @@ class KmpLibraryConventionPlugin : Plugin<Project> {
         tasks.withType<Test>().configureEach {
             useJUnitPlatform()
             systemProperty("junit.jupiter.extensions.autodetection.enabled", true)
-            failOnNoDiscoveredTests.set(false)
             testLogging {
                 events("passed", "skipped", "failed")
             }
