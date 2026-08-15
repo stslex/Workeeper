@@ -32,7 +32,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.compose.rememberNavController
+import androidx.navigation3.runtime.rememberNavBackStack
 import io.github.stslex.workeeper.bottom_app_bar.BottomBarItem
 import io.github.stslex.workeeper.core.ui.kit.components.navbar.AppNavBar
 import io.github.stslex.workeeper.core.ui.kit.components.navbar.AppNavBarItem
@@ -43,6 +43,8 @@ import io.github.stslex.workeeper.core.ui.kit.snackbar.toastTimeoutMillis
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.navigation.NavigatorHolder
+import io.github.stslex.workeeper.core.ui.navigation.Screen
+import io.github.stslex.workeeper.core.ui.navigation.screenSavedStateConfiguration
 import io.github.stslex.workeeper.di.AppGraphOwner
 import io.github.stslex.workeeper.feature.app_dialogs.impl.ui.AppDialogHost
 import io.github.stslex.workeeper.host.AppNavigationHost
@@ -66,8 +68,16 @@ fun App() {
     val themeMode by viewModel.themeMode.collectAsState()
 
     AppTheme(themeMode = themeMode) {
-        val navController = rememberNavController()
-        val holder = remember(navController) { NavigatorHolder(navController) }
+        // The app-owned back stack. The COMMON rememberNavBackStack overload, always: the
+        // explicit SavedStateConfiguration is what survives process death (see
+        // screenSavedStateConfiguration's KDoc), and the reflection overload does not exist
+        // off Android — using the config overload here is what keeps phase 7 a dependency
+        // swap instead of a rewrite.
+        val backStack = rememberNavBackStack(
+            screenSavedStateConfiguration,
+            Screen.BottomBar.Home,
+        )
+        val holder = remember(backStack) { NavigatorHolder(backStack) }
         val navigatorEventBus = viewModel.navigatorEventBus
 
         val bottomBarNavigationListener = rememberBottomBarNavigationListener(holder)
@@ -76,6 +86,7 @@ fun App() {
         NavigationEventBusSetup(
             navigatorHolder = holder,
             navigator = navigatorEventBus,
+            results = navigatorEventBus,
         )
 
         val snackbarHostState = remember { SnackbarHostState() }
@@ -180,6 +191,7 @@ fun App() {
             AppNavigationHost(
                 modifier = Modifier,
                 navigatorHolder = holder,
+                results = navigatorEventBus,
             )
 
             // NO host-owned affordance goes here. The host may not place a control in a band a

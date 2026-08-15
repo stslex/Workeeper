@@ -2,14 +2,20 @@
 package io.github.stslex.workeeper.core.ui.navigation
 
 import androidx.compose.runtime.Stable
-import kotlinx.serialization.ExperimentalSerializationApi
-import kotlinx.serialization.InternalSerializationApi
+import androidx.navigation3.runtime.NavKey
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.serializer
 
+/**
+ * `: NavKey` is the one library type on this hierarchy, and it is a pure marker interface from
+ * the KMP `navigation3-runtime` artifact — features never name it, and the androidTest gate bans
+ * importing it. It is what lets the app-owned back stack persist through
+ * `rememberNavBackStack(configuration, …)`; the serializers it persists with are registered in
+ * [screenSavedStateConfiguration], and `ScreenSerializationTest` round-trips every leaf so a
+ * destination added without registration is a red unit test, not a process-death crash.
+ */
 @Serializable
 @Stable
-sealed interface Screen {
+sealed interface Screen : NavKey {
 
     val isSingleTop: Boolean get() = false
 
@@ -151,13 +157,5 @@ sealed interface Screen {
             val exerciseUuid: String?,
             val trainingUuid: String?,
         ) : PlanEditor
-    }
-
-    companion object {
-
-        @OptIn(InternalSerializationApi::class, ExperimentalSerializationApi::class)
-        fun Screen.isCurrentScreen(
-            route: String,
-        ): Boolean = this::class.serializer().descriptor.serialName == route
     }
 }

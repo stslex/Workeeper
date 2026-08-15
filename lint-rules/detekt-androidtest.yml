@@ -21,13 +21,13 @@ style:
   ForbiddenImport:
     active: true
     imports:
+      # Both generations of the library, each named: glob dots are literal, so
+      # 'androidx.navigation.**' does NOT match androidx.navigation3.* (measured before the
+      # Nav3 swap relied on it). The oracle reaches the app through the semantics tree only —
+      # that is what let the same suite run unchanged across the swap, and what keeps it
+      # portable past it.
       - 'androidx.navigation.**'
-    excludes:
-      # Two pre-existing violators. Both mount their own NavHost inside setContent as
-      # scaffolding for a DI / persistence test — they are not part of the navigation
-      # oracle, and refactoring them onto MainActivity is outside the stage 1.1 scope
-      # fence. Named exclusions rather than a detekt baseline: a baseline rots silently,
-      # an exclusion is visible in the config it weakens.
-      # revisit at stage 1.3 — NavHost disappears.
-      - '**/androidTest/**/ExerciseCreatePersistenceTest.kt'
-      - '**/androidTest/**/AllTrainingsExtensionDbVisibilityTest.kt'
+      - 'androidx.navigation3.**'
+    # No exclusions. The two Nav2-era scaffolding violators (ExerciseCreatePersistenceTest,
+    # AllTrainingsExtensionDbVisibilityTest) now mount core:ui:test-utils' TestSingleScreenHost,
+    # which owns the NavDisplay import outside this source set.

@@ -6,8 +6,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.lifecycle.SavedStateHandle
 import io.github.stslex.workeeper.core.ui.navigation.NavResultKey
+import io.github.stslex.workeeper.core.ui.navigation.NavResultsSource
 import io.github.stslex.workeeper.core.ui.navigation.ScreenWithResult
 import kotlinx.coroutines.flow.StateFlow
 import kotlin.reflect.KClass
@@ -18,7 +18,9 @@ import kotlin.reflect.KClass
  *
  * Handed to a graph's content lambda by `navComponentScreenWithResults`. It exists so that
  * no feature names the transport: there is no string key to get wrong, no `Any?` to cast,
- * and no [SavedStateHandle] in a feature's imports. The type comes off the destination.
+ * and no transport type in a feature's imports. The type comes off the destination. Under Nav2
+ * the transport was the entry's `SavedStateHandle`; it is now the app-owned [NavResultsSource] —
+ * this class's surface did not move.
  *
  * **What a graph is allowed to do with a result: forward it.** Reading a result is state,
  * and state belongs in the Store — so the shape at every call site is
@@ -30,7 +32,7 @@ import kotlin.reflect.KClass
  */
 @Stable
 class NavResults @PublishedApi internal constructor(
-    private val handle: SavedStateHandle,
+    private val source: NavResultsSource,
 ) {
 
     /**
@@ -40,8 +42,10 @@ class NavResults @PublishedApi internal constructor(
      */
     fun <S, R : Any> result(
         destination: KClass<S>,
-    ): StateFlow<R?> where S : ScreenWithResult<R> =
-        handle.getStateFlow(NavResultKey.of(destination), null)
+    ): StateFlow<R?> where S : ScreenWithResult<R> {
+        @Suppress("UNCHECKED_CAST")
+        return source.result(NavResultKey.of(destination)) as StateFlow<R?>
+    }
 
     /**
      * Drop the result from [destination] so re-entry does not re-deliver it.
@@ -52,7 +56,7 @@ class NavResults @PublishedApi internal constructor(
     fun <S, R : Any> clear(
         destination: KClass<S>,
     ) where S : ScreenWithResult<R> {
-        handle[NavResultKey.of(destination)] = null
+        source.clearResult(NavResultKey.of(destination))
     }
 
     /**

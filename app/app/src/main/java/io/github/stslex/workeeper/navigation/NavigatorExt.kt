@@ -6,11 +6,11 @@ import android.content.Intent
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.platform.LocalContext
-import androidx.navigation.NavController
 import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.core.ui.mvi.performance.PerformanceMetricsRecorder
 import io.github.stslex.workeeper.core.ui.mvi.performance.RecordAction
 import io.github.stslex.workeeper.core.ui.navigation.NavCommand
+import io.github.stslex.workeeper.core.ui.navigation.NavResultsSource
 import io.github.stslex.workeeper.core.ui.navigation.NavigatorHolder
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.recovery.RecoveryActivity
@@ -25,14 +25,15 @@ object NavigatorExt {
     fun NavigationEventBusSetup(
         navigatorHolder: NavigatorHolder,
         navigator: NavigatorReceiver,
+        results: NavResultsSource,
     ) {
-        val navController = navigatorHolder.navController
         val context = LocalContext.current
-        LaunchedEffect(navController) {
+        LaunchedEffect(navigatorHolder) {
             navigator.commands.collect { command ->
                 processCommand(
-                    navController = navController,
+                    holder = navigatorHolder,
                     command = command,
+                    results = results,
                     context = context,
                 )
             }
@@ -40,89 +41,103 @@ object NavigatorExt {
     }
 
     private fun processCommand(
-        navController: NavController,
+        holder: NavigatorHolder,
         command: NavCommand,
+        results: NavResultsSource,
         context: Context,
     ) {
         logger.i { "Processing navigation command: $command" }
         when (command) {
-            is NavCommand.NavTo -> navTo(navController, command.screen)
-            is NavCommand.PopBack -> popBack(navController)
+            is NavCommand.NavTo -> navTo(holder, command.screen)
+            is NavCommand.PopBack -> popBack(holder)
             is NavCommand.PopBackWithResult -> popBackWithResult(
-                navController = navController,
+                holder = holder,
+                results = results,
                 key = command.key,
                 result = command.result,
             )
 
-            is NavCommand.ReplaceTo -> replaceTo(navController, command.screen)
+            is NavCommand.ReplaceTo -> replaceTo(holder, command.screen)
             NavCommand.OpenRecovery -> openRecovery(context)
         }
     }
 
+    /**
+     * Push, or — for a singleTop destination, i.e. a bottom-bar root — replace the top entry.
+     *
+     * Replace-last is behaviour-identical to Nav2's `popUpTo(current) { inclusive = true;
+     * saveState = true } + launchSingleTop`: the `saveState` half wrote state that NOTHING ever
+     * restored (no `restoreState` existed anywhere), so tab round trips arrived reset — pinned by
+     * `BackStackStateRestorationTest.selectionModeArrivesResetAfterABottomBarRoundTrip`, whose
+     * mutation proof shows the pin sees the difference. One deliberate delta, recorded in the
+     * swap PR: re-tapping the ACTIVE tab no longer mints a fresh entry, because the three roots
+     * are `data object`s and Nav3 keys entry state by the key's identity — the old
+     * fresh-entry-on-retap reset was an artefact of Nav2's per-entry UUIDs, observable only as a
+     * same-tab state reset, and no oracle pins it.
+     */
     private fun navTo(
-        navController: NavController,
+        holder: NavigatorHolder,
         screen: Screen,
     ) {
         logger.d("navTo $screen")
         try {
-            val currentRoute = navController.currentDestination?.route ?: return
             PerformanceMetricsRecorder.process(RecordAction.Navigation.NavTo(screen::class))
-            navController.navigate(screen) {
-                if (screen.isSingleTop) {
-                    popUpTo(currentRoute) {
-                        inclusive = true
-                        saveState = true
-                    }
-                    launchSingleTop = true
-                }
+            val stack = holder.backStack
+            if (screen.isSingleTop) {
+                stack[stack.lastIndex] = screen
+            } else {
+                stack.add(screen)
             }
         } catch (ignore: Exception) {
             logger.e(ignore, "screen: $screen")
         }
     }
 
-    private fun popBack(navController: NavController) {
+    /**
+     * Pops only when there is something underneath — the same observable as Nav2's
+     * `popBackStack()`, which returns `false` at the root. System back at the root is the
+     * platform's (the activity finishes); `NavDisplay` must never be handed an empty stack.
+     */
+    private fun popBack(holder: NavigatorHolder) {
         logger.d("popBack")
-        navController.popBackStack()
+        val stack = holder.backStack
+        if (stack.size > 1) {
+            stack.removeLastOrNull()
+        } else {
+            logger.w { "popBack ignored on the root entry" }
+        }
     }
 
     /**
-     * The Nav2 half of [io.github.stslex.workeeper.core.ui.navigation.ScreenWithResult]:
-     * write the result onto the entry underneath, then pop.
+     * The Nav3 half of [io.github.stslex.workeeper.core.ui.navigation.ScreenWithResult]:
+     * publish the result into the app-owned [NavResultsSource], then pop.
      *
-     * Order matters and is the same as [popBack]'s — the value has to be on the previous
-     * entry's handle *before* the pop, or the consumer recomposes on arrival with nothing
-     * there and the result is lost. This is the only place the untyped shape touches the
-     * navigation library; both sides of it are typed off the destination.
+     * Order matters and is unchanged from the Nav2 adapter — the value has to be readable
+     * *before* the pop reveals the consumer, or it recomposes on arrival with nothing there and
+     * the result is lost. This is the only place the untyped key/`Any` shape executes; both
+     * sides of it are typed off the destination.
      */
     private fun popBackWithResult(
-        navController: NavController,
+        holder: NavigatorHolder,
+        results: NavResultsSource,
         key: String,
         result: Any,
     ) {
         logger.d { "popBackWithResult($key=$result)" }
 
-        navController.previousBackStackEntry
-            ?.savedStateHandle
-            ?.set(key, result)
-        navController.popBackStack()
+        results.setResult(key, result)
+        popBack(holder)
     }
 
     private fun replaceTo(
-        navController: NavController,
+        holder: NavigatorHolder,
         screen: Screen,
     ) {
         logger.d("replaceTo $screen")
         try {
-            val currentRoute = navController.currentDestination?.route ?: return
             PerformanceMetricsRecorder.process(RecordAction.Navigation.ReplaceTo(screen::class))
-            navController.navigate(screen) {
-                popUpTo(currentRoute) {
-                    inclusive = true
-                    saveState = false
-                }
-                launchSingleTop = true
-            }
+            val stack = holder.backStack
+            stack[stack.lastIndex] = screen
         } catch (ignore: Exception) {
             logger.e(ignore, "screen: $screen")
         }

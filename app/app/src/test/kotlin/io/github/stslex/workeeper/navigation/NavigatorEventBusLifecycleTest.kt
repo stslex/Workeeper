@@ -23,20 +23,20 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
 /**
- * Lifecycle regression coverage for the navigation command-bus.
+ * Lifecycle coverage for the navigation command-bus.
  *
- * The bug class this guards against: before this branch, the navigator
- * implementation retained a `NavHostController` reference at singleton scope.
- * After an activity recreation (config change, low-memory kill / restore) the
- * retained controller was stale, but the singleton survived — the next
- * `navigator.navTo(...)` call from a still-live ViewModel hit the destroyed
- * `NavController` and either no-oped or crashed.
+ * Renamed from `NavigationLifecycleRegressionTest` at the Nav3 swap: the stage-1.3 plan marked
+ * both variants of that class for deletion, but only the INSTRUMENTED one guarded the
+ * Nav2-specific bug class (a singleton-scoped, controller-backed navigator going stale across
+ * `scenario.recreate()`). The five tests here reference no controller and no navigation library
+ * at all — they pin the `NavigatorEventBus` invariants the bridge KEEPS relying on under Nav3,
+ * where `NavigatorExt.NavigationEventBusSetup` collects the same hot flow inside a
+ * `LaunchedEffect(navigatorHolder)` and re-binds across recompositions exactly as it did across
+ * fresh controllers.
  *
- * The fixed architecture splits decisions and execution: the singleton
- * `NavigatorEventBus` stores only a `SharedFlow<NavCommand>` (no controller),
- * and `NavigatorExt.NavigationEventBusSetup` collects the flow inside a
- * `LaunchedEffect(navController)` that re-binds when the composition gets a fresh
- * controller.
+ * The architecture the invariants describe: decisions and execution split — the singleton
+ * `NavigatorEventBus` stores only a `SharedFlow<NavCommand>` (no back-stack reference), and the
+ * bridge collector is the only thing that touches the app-owned stack.
  *
  * The tests below cover the JVM-observable invariants of that design:
  *  - The bus instance stays usable across "bridge detach" / "bridge re-attach" — the
@@ -54,7 +54,7 @@ import org.junit.jupiter.api.Test
  *  - Command order is preserved within each subscriber's slice.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
-internal class NavigationLifecycleRegressionTest {
+internal class NavigatorEventBusLifecycleTest {
 
     // `NavigatorEventBus` constructs a `Log.tag(...)` logger that funnels through
     // `FirebaseCrashlyticsHolder` → `Firebase.crashlytics` on every emit. In a JVM

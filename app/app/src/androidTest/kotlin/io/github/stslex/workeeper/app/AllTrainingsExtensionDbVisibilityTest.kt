@@ -7,15 +7,13 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.rememberNavController
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.stslex.workeeper.core.data.database.training.TrainingEntity
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
-import io.github.stslex.workeeper.core.ui.navigation.NavGraphScope
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.core.ui.test.TestActivity
+import io.github.stslex.workeeper.core.ui.test.TestSingleScreenHost
 import io.github.stslex.workeeper.core.ui.test.annotations.Regression
 import io.github.stslex.workeeper.feature.all_trainings.ui.allTrainingsGraph
 import io.github.stslex.workeeper.harness.MetroTestRule
@@ -70,12 +68,8 @@ internal class AllTrainingsExtensionDbVisibilityTest {
         composeRule.setContent {
             AppTheme(themeMode = ThemeMode.LIGHT) {
                 SharedTransitionLayout {
-                    val navController = rememberNavController()
-                    NavHost(
-                        navController = navController,
-                        startDestination = Screen.BottomBar.AllTrainings,
-                    ) {
-                        NavGraphScope(this).allTrainingsGraph()
+                    TestSingleScreenHost(start = Screen.BottomBar.AllTrainings) {
+                        allTrainingsGraph()
                     }
                 }
             }
