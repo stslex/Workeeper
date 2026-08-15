@@ -2,7 +2,16 @@ name: Android UI Tests (Optional)
 
 # UI tests are NOT required for PRs or merges.
 # Run manually via workflow_dispatch when needed.
+#
+# The weekly schedule (nav3-stage-1-3.md §5) bounds assertion-level rot at 7 days — the
+# v1.49.0 incident grew out of a suite nobody had executed for a month. It landed only
+# AFTER run 31891421272 proved a green full-suite pass on the stabilised workflow:
+# scheduling a suite that reliably dies manufactures recurring red that people learn
+# to ignore, which is the exact mechanism that produced the rot. Cron fires on the
+# default branch; the checkout below pins schedule runs to `dev`, where the work is.
 on:
+  schedule:
+    - cron: '0 5 * * 1'
   workflow_dispatch:
     inputs:
       test_suite:
@@ -41,7 +50,7 @@ jobs:
     name: Smoke UI Tests
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    if: inputs.test_suite == 'smoke' || inputs.test_suite == 'all'
+    if: github.event_name == 'schedule' || inputs.test_suite == 'smoke' || inputs.test_suite == 'all'
 
     strategy:
       matrix:
@@ -54,7 +63,7 @@ jobs:
       - name: Checkout branch
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.ref || github.ref }}
+          ref: ${{ inputs.ref || (github.event_name == 'schedule' && 'dev') || github.ref }}
 
       - name: Enable KVM group perms
         run: |
@@ -233,7 +242,7 @@ jobs:
     name: Regression UI Tests
     runs-on: ubuntu-latest
     timeout-minutes: 120
-    if: inputs.test_suite == 'regression' || inputs.test_suite == 'all'
+    if: github.event_name == 'schedule' || inputs.test_suite == 'regression' || inputs.test_suite == 'all'
 
     strategy:
       matrix:
@@ -246,7 +255,7 @@ jobs:
       - name: Checkout branch
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.ref || github.ref }}
+          ref: ${{ inputs.ref || (github.event_name == 'schedule' && 'dev') || github.ref }}
 
       - name: Enable KVM group perms
         run: |
