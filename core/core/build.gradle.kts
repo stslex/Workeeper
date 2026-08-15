@@ -11,16 +11,6 @@ plugins {
 // lives in the sibling :core:core-android Android-library module, which is where the Metro
 // plugin is applied. Firebase runtime deps are androidMain-only; the iOS actuals are no-ops.
 kotlin {
-    android {
-        namespace = "io.github.stslex.workeeper.core.core"
-        compileSdk = libs.versions.compileSdk.get().toInt()
-        minSdk = libs.versions.minSdk.get().toInt()
-        // Host (JVM/Robolectric) unit-test source set: src/androidHostTest — the AGP KMP
-        // android target does not create it implicitly.
-        withHostTest {}
-    }
-    iosSimulatorArm64()
-
     sourceSets {
         commonMain.dependencies {
             implementation(libs.kermit)
@@ -45,16 +35,6 @@ kotlin {
             // Was pulled transitively via hilt.android; now the bare javax.inject artifact, Hilt gone.
             api(libs.javax.inject)
         }
-
-        // JVM unit tests for the pure-Kotlin commonMain surface (NumUiUtils, asyncAssociate
-        // coroutine helpers). JUnit5 comes from raw configuration names; the convention plugin
-        // does not wire test infra for KMP modules. Android-impl-coupled tests (ImageStorage)
-        // live in :core:core-android alongside their implementations.
-        getByName("androidHostTest").dependencies {
-            implementation(libs.junit.jupiter)
-            implementation(libs.coroutine.test)
-            runtimeOnly(libs.junit.launcher)
-        }
     }
 }
 
@@ -63,39 +43,4 @@ dependencies {
     // Declared via the raw configuration name because the KMP source-set DSL's platform()
     // is deprecated/removed in Kotlin 2.3.
     "androidMainImplementation"(platform(libs.google.firebase.bom))
-    // JUnit BOM aligns the jupiter/launcher versions on the host-test classpath.
-    "androidHostTestImplementation"(platform(libs.junit.bom))
-}
-
-// The KMP android host-test task does not enable the JUnit Platform (the Android
-// convention's useJUnitPlatform() is not applied to KMP modules), so JUnit5 tests are
-// otherwise not discovered. Robolectric's extension auto-registers via the ServiceLoader.
-tasks.withType<Test>().configureEach {
-    useJUnitPlatform()
-    systemProperty("junit.jupiter.extensions.autodetection.enabled", true)
-}
-
-// CI runs exactly ONE unit-test command — `./gradlew testDebugUnitTest`
-// (.github/workflows/android_build_unified.yml) — and Gradle silently skips projects that have
-// no task under that name. The AGP KMP android target has no build types: it names the host-test
-// task after the unit-test component identity ("androidHostTest"), i.e. `testAndroidHostTest`,
-// so `testDebugUnitTest` does not exist here and src/androidHostTest would never run in CI.
-// The alias depends on the LIVE `tasks.withType<Test>()` collection instead of a hardcoded task
-// name: the collection is resolved when the task graph is built (after AGP has registered its
-// tasks), so this keeps working if AGP ever renames or re-shapes the host-test task.
-tasks.register("testDebugUnitTest") {
-    group = "verification"
-    description = "Alias: runs this KMP module's host (JVM) tests under the repo-wide task name."
-    dependsOn(tasks.withType<Test>())
-}
-
-detekt {
-    source.setFrom(
-        "src/commonMain/kotlin",
-        "src/androidMain/kotlin",
-        "src/iosMain/kotlin",
-        // Non-KMP modules get src/test/kotlin from detekt's default source set; androidHostTest
-        // is this module's equivalent, so it must be gated too.
-        "src/androidHostTest/kotlin",
-    )
 }
