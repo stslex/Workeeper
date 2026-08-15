@@ -55,8 +55,10 @@ interface Navigator {
      * composable-mounted `NavigationEventBusSetup`. Callers running BEFORE
      * any UI composition (notably `MainActivity.onCreate`'s
      * Scenario 2 routing branch — fires before `setContent { App() }`)
-     * MUST use a direct `Intent` launch instead — the `MutableSharedFlow(
-     * replay = 0)` will silently drop an emission with no attached subscriber.
+     * MUST use a direct `Intent` launch instead — the bus's `MutableSharedFlow(
+     * extraBufferCapacity = 64)` has `replay = 0`, so an emission with no attached
+     * subscriber is dropped, and dropped SILENTLY in the strongest sense: the buffer
+     * makes `tryEmit` return `true`, so not even the failed-emit warning fires.
      * See `documentation/feature-specs/backup-recovery.md` → "OpenRecovery
      * contract".
      */
