@@ -180,11 +180,12 @@ class KmpLibraryConventionPlugin : Plugin<Project> {
                 "Alias: runs this KMP module's host (JVM) tests under the repo-wide task name."
             dependsOn(tasks.withType<Test>())
         }
-        // Without this alias NO CI gate compiles the iOS target — consumers only pull the
-        // androidMain compilation, so a broken iosMain actual sails through CI. `assemble`
-        // on a KMP module builds every target's klib WITHOUT linking binaries, so it stays
-        // green on Linux runners — Kotlin/Native cross-compiles Apple klibs on any host;
-        // only linking needs macOS.
+        // Without this alias the iOS target is absent from every CI task graph — consumers
+        // pull only the androidMain compilation — so a broken iosMain actual merges green.
+        // With it, `assemble` puts every target's klib into the graph WITHOUT linking
+        // binaries, so it stays green on Linux runners — Kotlin/Native cross-compiles
+        // Apple klibs on any host; only linking needs macOS. The build cache cannot mask
+        // a break: changed inputs miss the key and must compile.
         tasks.register("assembleDebug") {
             group = "build"
             description =
