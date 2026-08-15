@@ -109,10 +109,11 @@ dependencies {
 // reports 0 files under src/androidTest. A rule added to lint-rules/detekt.yml would
 // therefore be a no-op here and a repo-wide gate everywhere else.
 //
-// Scoped to the WHOLE source set, not to the four oracle classes: the point is that a
+// Scoped to the WHOLE source set, not to the oracle classes alone: the point is that a
 // future test cannot reintroduce the coupling. No baseline is set -- baselines rot
-// silently; the two pre-existing violators are named exclusions in the config.
-// See documentation/feature-specs/nav3-migration.md § 1.1.2 and documentation/tech-debt.md.
+// silently -- and the config carries no exclusions (scaffolding tests mount
+// core:ui:test-utils' TestSingleScreenHost instead of importing the library).
+// See documentation/feature-specs/nav3-migration.md § 1.1.2.
 val detektAndroidTestNavigation = tasks.register<io.gitlab.arturbosch.detekt.Detekt>(
     "detektAndroidTestNavigation",
 ) {

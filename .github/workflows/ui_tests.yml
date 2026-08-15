@@ -133,12 +133,11 @@ jobs:
           restore-keys: |
             gradle-build-cache-${{ runner.os }}-
 
-      # Stability: assemble EVERYTHING before the emulator exists, then stop the daemons.
-      # The runner deaths this fixes (QEMU hangs ~15-19 min in, measured across five runs on
-      # two branches, 2026-08-15) happened while an 8g Gradle daemon + 4g Kotlin daemon
-      # compiled the remaining androidTest legs CONCURRENTLY with a 4g emulator on a 16 GB
-      # runner. With the APKs prebuilt, the connected phase is installs + instrumentation —
-      # near-zero compile — so it runs with a small heap and the emulator keeps its headroom.
+      # Assemble EVERYTHING before the emulator exists, then stop the daemons: full-heap
+      # Gradle compiling androidTest legs concurrently with the emulator exhausts the runner
+      # (derivation: documentation/ci-cd.md). With the APKs prebuilt, the connected phase is
+      # installs + instrumentation — near-zero compile — so it runs with a small heap and the
+      # emulator keeps its headroom. Keep this step BEFORE the AVD steps.
       - name: Assemble test APKs before the emulator boots
         run: ./gradlew assembleDebug assembleDebugAndroidTest --full-stacktrace
 
@@ -331,12 +330,11 @@ jobs:
           restore-keys: |
             gradle-build-cache-${{ runner.os }}-
 
-      # Stability: assemble EVERYTHING before the emulator exists, then stop the daemons.
-      # The runner deaths this fixes (QEMU hangs ~15-19 min in, measured across five runs on
-      # two branches, 2026-08-15) happened while an 8g Gradle daemon + 4g Kotlin daemon
-      # compiled the remaining androidTest legs CONCURRENTLY with a 4g emulator on a 16 GB
-      # runner. With the APKs prebuilt, the connected phase is installs + instrumentation —
-      # near-zero compile — so it runs with a small heap and the emulator keeps its headroom.
+      # Assemble EVERYTHING before the emulator exists, then stop the daemons: full-heap
+      # Gradle compiling androidTest legs concurrently with the emulator exhausts the runner
+      # (derivation: documentation/ci-cd.md). With the APKs prebuilt, the connected phase is
+      # installs + instrumentation — near-zero compile — so it runs with a small heap and the
+      # emulator keeps its headroom. Keep this step BEFORE the AVD steps.
       - name: Assemble test APKs before the emulator boots
         run: ./gradlew assembleDebug assembleDebugAndroidTest --full-stacktrace
 

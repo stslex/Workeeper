@@ -142,10 +142,12 @@ internal class BackStackStateRestorationTest {
         paths.tap("ImageViewerBackButton")
         paths.awaitTag(EXERCISE_GRAPH)
 
-        // The re-fired Init has overwritten the draft with the stored name.
-        composeRule.waitUntil(NavPaths.ARRIVAL_TIMEOUT_MS) {
-            composeRule.onAllNodesWithTag("ExerciseEditNameField").fetchSemanticsNodes().isNotEmpty()
-        }
+        // The re-fired Init's reload is ASYNC: the field can recompose still holding the draft
+        // for a few frames before applyLoaded overwrites it, so waiting for mere existence and
+        // asserting immediately is a flaky-red race under load. Wait for the WIPE itself — the
+        // draft text leaving the field — with the timeout as the failure budget: if the wipe
+        // never lands (the pinned behaviour changed), this times out red.
+        paths.awaitTextChangedFrom("ExerciseEditNameField", "Draft Probe$DRAFT_SUFFIX")
         composeRule
             .onNodeWithTag("ExerciseEditNameField")
             .assertTextContains(value = "Draft Probe", substring = false)
