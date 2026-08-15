@@ -107,11 +107,28 @@ jobs:
       - name: Restore Gradle build cache
         uses: actions/cache@v4
         with:
+          # save-always: this workflow used to be restore-only, so a ui_tests run could
+          # never warm the cache it depends on and every run after a catalog change was
+          # cold. The connected task fails on any red test, which is exactly when the
+          # compiled state is still worth keeping.
+          save-always: true
           path: |
             ~/.gradle/caches/build-cache-*
           key: gradle-build-cache-${{ runner.os }}-${{ hashFiles('settings.gradle.kts', '**/build.gradle.kts', 'gradle/libs.versions.toml', 'gradle.properties') }}
           restore-keys: |
             gradle-build-cache-${{ runner.os }}-
+
+      # Stability: assemble EVERYTHING before the emulator exists, then stop the daemons.
+      # The runner deaths this fixes (QEMU hangs ~15-19 min in, measured across five runs on
+      # two branches, 2026-08-15) happened while an 8g Gradle daemon + 4g Kotlin daemon
+      # compiled the remaining androidTest legs CONCURRENTLY with a 4g emulator on a 16 GB
+      # runner. With the APKs prebuilt, the connected phase is installs + instrumentation —
+      # near-zero compile — so it runs with a small heap and the emulator keeps its headroom.
+      - name: Assemble test APKs before the emulator boots
+        run: ./gradlew assembleDebug assembleDebugAndroidTest --full-stacktrace
+
+      - name: Stop Gradle daemons to free memory for the emulator
+        run: ./gradlew --stop
 
       - name: AVD cache
         uses: actions/cache@v4
@@ -147,7 +164,7 @@ jobs:
           emulator-boot-timeout: 900
           script: |
             adb logcat > logcat-smoke.txt &
-            ./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.annotation=io.github.stslex.workeeper.core.ui.test.annotations.Smoke --full-stacktrace --continue
+            ./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.annotation=io.github.stslex.workeeper.core.ui.test.annotations.Smoke -Dorg.gradle.jvmargs=-Xmx3g --max-workers=2 --full-stacktrace --continue
             adb logcat -d > logcat-smoke-final.txt
 
       - name: Publish Smoke Test Results
@@ -282,11 +299,28 @@ jobs:
       - name: Restore Gradle build cache
         uses: actions/cache@v4
         with:
+          # save-always: this workflow used to be restore-only, so a ui_tests run could
+          # never warm the cache it depends on and every run after a catalog change was
+          # cold. The connected task fails on any red test, which is exactly when the
+          # compiled state is still worth keeping.
+          save-always: true
           path: |
             ~/.gradle/caches/build-cache-*
           key: gradle-build-cache-${{ runner.os }}-${{ hashFiles('settings.gradle.kts', '**/build.gradle.kts', 'gradle/libs.versions.toml', 'gradle.properties') }}
           restore-keys: |
             gradle-build-cache-${{ runner.os }}-
+
+      # Stability: assemble EVERYTHING before the emulator exists, then stop the daemons.
+      # The runner deaths this fixes (QEMU hangs ~15-19 min in, measured across five runs on
+      # two branches, 2026-08-15) happened while an 8g Gradle daemon + 4g Kotlin daemon
+      # compiled the remaining androidTest legs CONCURRENTLY with a 4g emulator on a 16 GB
+      # runner. With the APKs prebuilt, the connected phase is installs + instrumentation —
+      # near-zero compile — so it runs with a small heap and the emulator keeps its headroom.
+      - name: Assemble test APKs before the emulator boots
+        run: ./gradlew assembleDebug assembleDebugAndroidTest --full-stacktrace
+
+      - name: Stop Gradle daemons to free memory for the emulator
+        run: ./gradlew --stop
 
       - name: AVD cache
         uses: actions/cache@v4
@@ -322,7 +356,7 @@ jobs:
           emulator-boot-timeout: 900
           script: |
             adb logcat > logcat-regression.txt &
-            ./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.annotation=io.github.stslex.workeeper.core.ui.test.annotations.Regression --full-stacktrace --continue
+            ./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.annotation=io.github.stslex.workeeper.core.ui.test.annotations.Regression -Dorg.gradle.jvmargs=-Xmx3g --max-workers=2 --full-stacktrace --continue
             adb logcat -d > logcat-regression-final.txt
 
       - name: Publish Regression Test Results
