@@ -17,7 +17,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
 import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
 
 /**
- * Kotlin Multiplatform library convention (Phase C KMP foundation, hardened in Phase 2).
+ * Kotlin Multiplatform library convention.
  *
  * Applies AGP's KMP-native `com.android.kotlin.multiplatform.library` plugin — required
  * since AGP 9.0, which rejects the legacy `com.android.library` + `kotlin-multiplatform`
@@ -193,9 +193,9 @@ class KmpLibraryConventionPlugin : Plugin<Project> {
                 "Alias: builds every target of this KMP module (incl. iOS klibs) under the repo-wide task name."
             dependsOn("assemble")
         }
-        // Third silent vanish, same shape: CI runs `./gradlew lintDebug`, and the KMP
-        // module's lint reporting task (from the standalone lint plugin above) is named
-        // `lint`. Without the alias, androidMain lint analysis never gates a PR.
+        // Same silent-vanish shape as the two aliases above: CI runs `./gradlew lintDebug`,
+        // and the KMP module's lint reporting task (from the standalone lint plugin) is
+        // named `lint`. Without the alias, androidMain lint analysis never gates a PR.
         tasks.register("lintDebug") {
             group = "verification"
             description =

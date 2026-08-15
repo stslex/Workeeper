@@ -8,16 +8,16 @@ import org.gradle.kotlin.dsl.dependencies
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 
 /**
- * KMP + Compose Multiplatform library convention (Phase 2, Deliverable C).
+ * KMP + Compose Multiplatform library convention.
  *
  * Level 2 of the KMP convention cascade: [KmpLibraryConventionPlugin] (targets, CI aliases,
  * JUnit 5, detekt, lint) plus the CMP stack. Deliberately named `workeeper.kmp.composeLibrary`
- * so it cannot be mistaken for `workeeper.android.composeLibrary`, which 21 live Android
+ * so it cannot be mistaken for `workeeper.android.composeLibrary`, which the live Android
  * modules keep applying until Phase 7 completes; renaming/collapsing the two is Phase 7's
  * business, after core:ui:kit converts.
  *
- * Zero consumers until Phase 7 converts a UI module — its shape is fixed by the Phase 2
- * probe battery, not by a consumer. Every measurement cited below is recorded in
+ * Zero consumers until Phase 7 converts a UI module — its shape is fixed by the probe
+ * battery, not by a consumer. Every measurement cited below is recorded in
  * documentation/feature-specs/kmp-phase-2-probes.md.
  *
  * - **Plugins.** `org.jetbrains.compose` and the Kotlin compose-compiler plugin. commonMain

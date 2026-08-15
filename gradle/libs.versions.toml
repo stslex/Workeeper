@@ -219,12 +219,11 @@ detekt-test = { module = "io.gitlab.arturbosch.detekt:detekt-test", version.ref 
 
 [plugins]
 kotlin = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
-# KMP toolchain (Phase C). androidKmpLibrary is AGP's KMP-native library plugin (AGP 9.0+
-# rejects com.android.library + kotlin-multiplatform together). Consumed by
-# KmpLibraryConventionPlugin; first live consumer is :core:core (C.1). androidLint is the
-# STANDALONE lint plugin: AGP creates lint reporting tasks on a KMP module only when it is
-# co-applied (KmpTaskManager guards on LINT_PLUGIN_ID) — without it a KMP module has no lint
-# task at all and vanishes from the repo-wide lintDebug gate.
+# KMP toolchain. androidKmpLibrary is AGP's KMP-native library plugin (AGP 9.0+ rejects
+# com.android.library + kotlin-multiplatform together); KmpLibraryConventionPlugin applies
+# it. androidLint is the STANDALONE lint plugin: AGP creates lint reporting tasks on a KMP
+# module only when it is co-applied (KmpTaskManager guards on LINT_PLUGIN_ID) — without it
+# a KMP module has no lint task at all and vanishes from the repo-wide lintDebug gate.
 kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 androidKmpLibrary = { id = "com.android.kotlin.multiplatform.library", version.ref = "androidGradlePlugin" }
 androidLint = { id = "com.android.lint", version.ref = "androidGradlePlugin" }
@@ -251,8 +250,8 @@ convention-application-dev = { id = "workeeper.android.application.dev", version
 convention-androidLibrary = { id = "workeeper.android.androidLibrary", version = "1.0" }
 convention-kmpLibrary = { id = "workeeper.kmp.library", version = "1.0" }
 convention-composeLibrary = { id = "workeeper.android.composeLibrary", version = "1.0" }
-# KMP+Compose convention (Phase 2, Deliverable C). Named so it CANNOT be mistaken for the
-# Android-only composeLibrary above, which 21 live modules keep applying until Phase 7.
+# KMP+Compose convention. Named so it CANNOT be mistaken for the Android-only
+# composeLibrary above, which the live Android modules keep applying until Phase 7.
 convention-kmpComposeLibrary = { id = "workeeper.kmp.composeLibrary", version = "1.0" }
 convention-roomLibrary = { id = "workeeper.room.library", version = "1.0" }
 convention-lint = { id = "workeeper.lint.convention", version = "1.0" }
