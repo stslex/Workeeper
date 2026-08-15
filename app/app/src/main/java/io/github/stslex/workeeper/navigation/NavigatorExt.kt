@@ -65,15 +65,13 @@ object NavigatorExt {
     /**
      * Push, or — for a singleTop destination, i.e. a bottom-bar root — replace the top entry.
      *
-     * Replace-last is behaviour-identical to Nav2's `popUpTo(current) { inclusive = true;
-     * saveState = true } + launchSingleTop`: the `saveState` half wrote state that NOTHING ever
-     * restored (no `restoreState` existed anywhere), so tab round trips arrived reset — pinned by
-     * `BackStackStateRestorationTest.selectionModeArrivesResetAfterABottomBarRoundTrip`, whose
-     * mutation proof shows the pin sees the difference. One deliberate delta, recorded in the
-     * swap PR: re-tapping the ACTIVE tab no longer mints a fresh entry, because the three roots
-     * are `data object`s and Nav3 keys entry state by the key's identity — the old
-     * fresh-entry-on-retap reset was an artefact of Nav2's per-entry UUIDs, observable only as a
-     * same-tab state reset, and no oracle pins it.
+     * Replace-last IS the singleTop semantic here, not an approximation: tab round trips arrive
+     * reset, pinned by `BackStackStateRestorationTest.
+     * selectionModeArrivesResetAfterABottomBarRoundTrip`. Re-tapping the ACTIVE tab does not mint
+     * a fresh entry — the roots are `data object`s and entry state is keyed by the key's
+     * identity, so `stack[lastIndex] = screen` with an equal key is deliberately a no-op.
+     * Derivation and the equivalence argument: `documentation/feature-specs/nav3-stage-1-3.md`
+     * §3.5.
      */
     private fun navTo(
         holder: NavigatorHolder,
