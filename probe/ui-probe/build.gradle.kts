@@ -41,3 +41,5 @@ kotlin {
         androidResources { enable = true }
     }
 }
+
+apply(from = "$rootDir/gradle/golden-gate-kmp-fix.gradle.kts") // P3 fix-shape
