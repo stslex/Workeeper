@@ -396,6 +396,14 @@ admissible as its oracle: `AtomicRollbackDeviceTest`'s class KDoc records Robole
 `AppDatabaseMigrationTest` (real `MigrationTestHelper`, real device) run under both drivers, plus a
 5→6 migration applied to a real v5 database on device under the bundled driver.
 
+**Answer the schema question by measuring, not by reading.** The temptation is to reason about what
+Room folds into `identityHash` by reading `room3-compiler` — that was tried here and is a poor use of
+effort, because the question has a one-command empirical answer: point `room.schemaLocation` at a
+temp directory, build the KSP task, and `diff` the generated `6.json` against the committed one. A
+byte-identical file settles it; a diff shows exactly what moved. Prefer this shape of check for every
+"does X perturb generated output?" question in phase 7 — regenerate and diff beats inferring from
+processor source, and it cannot be wrong about the version actually pinned.
+
 **Schema-hash hazard to carry into PR D:** `6.json`'s `identityHash` must not move. Any incidental
 change to an entity, column or index declaration during the port silently invalidates
 `runMigrationsAndValidate` and would need a new migration for shipped users. The 9-name
