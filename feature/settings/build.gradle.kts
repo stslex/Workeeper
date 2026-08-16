@@ -20,9 +20,6 @@ metro {
 
 dependencies {
     implementation(project(":core:core"))
-    // BackupInteractorImpl injects TempFileProvider (java.io.File-typed), which is declared only in the
-    // Android-only core:core-android — the KMP core:core has no equivalent.
-    implementation(project(":core:core-android"))
 
     implementation(project(":core:data:dataStore"))
     implementation(project(":core:ui:kit"))

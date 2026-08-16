@@ -15,12 +15,11 @@ metro {
 }
 
 // Layer 1 of the KMP cascade: core:core compiles for android + iosSimulatorArm64.
-// commonMain holds the shared surface (Logger/Log, dispatcher-qualifier + Firebase-holder
-// expect/actual seams, AppCoroutineScope, ResourceWrapper/ImageStorage/platform interfaces,
+// commonMain holds the shared surface (Logger/Log, dispatcher-qualifier + Firebase-holder +
+// platform expect/actual seams, AppCoroutineScope, ResourceWrapper/ImageStorage interfaces,
 // result/model/time/utils helpers). androidMain holds what must touch android.* or bind into
-// AppScope — the framework implementations and the Metro binding containers (collapsing in
-// from the former sibling :core:core-android, phase 3 of the KMP migration).
-// Firebase runtime deps are androidMain-only; the iOS actuals are no-ops.
+// AppScope — the framework implementations, the platform actuals and the Metro binding
+// containers. Firebase runtime deps are androidMain-only; the iOS Firebase actuals are no-ops.
 kotlin {
     sourceSets {
         commonMain.dependencies {
@@ -41,8 +40,6 @@ kotlin {
             // every module (KotlinAndroid.kt); the KMP convention does not, so it is explicit.
             implementation(libs.androidx.core.ktx)
             // Provides javax.inject.Qualifier for the dispatcher-qualifier android actuals.
-            // These annotation classes are the ONLY DI-adjacent code in this KMP module — the
-            // @BindingContainer that binds the qualified dispatchers lives in :core:core-android.
             // App-Scope Collapse Step 6 (cut): the 4 dispatcher qualifier annotations carry
             // @javax.inject.Qualifier (read by Metro's includeJavax()). `api` (not implementation) so
             // downstream modules see the meta-annotation on the public qualifier types — else Metro

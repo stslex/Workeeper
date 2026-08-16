@@ -27,11 +27,6 @@ android {
 
 dependencies {
     implementation(project(":core:core"))
-    // Android-only half of the split core module. app/app is the ONLY module that still needs this edge:
-    // it reads `buildImageStorage` (BaseApplication), the `TempFileProvider` type and the
-    // `DispatchersBindingContainer` / `ResourceWrapperBindingContainer` `@ContributesTo(AppScope)`
-    // containers, which aggregate into AppGraph from this compile classpath.
-    implementation(project(":core:core-android"))
     androidTestImplementation(project(":core:ui:test-utils"))
     // App-Scope Collapse Step 3 (C2): MetroTestRule builds the per-test graph with real in-memory-Room
     // DAOs via InMemoryDatabaseProvider — no mockk on the app:app androidTest classpath.

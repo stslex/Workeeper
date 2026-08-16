@@ -24,11 +24,13 @@ The build is configured in `settings.gradle.kts`. Every module is included from 
 
 ### `core/`
 
-- `core/core` — base utilities: `AppCoroutineScope`, dispatcher qualifiers
-  (`MainDispatcher`, `MainImmediateDispatcher`, `DefaultDispatcher`, `IODispatcher`),
-  Firebase logging holders, `AppResult`, common extensions.
-- `core/core-android` — the Android-only half of `core/core`: `DispatchersBindingContainer`,
-  `ResourceWrapperBindingContainer`, `ImageStorageFactory`, platform providers.
+- `core/core` — KMP base module (android + iosSimulatorArm64). `commonMain`: `AppCoroutineScope`,
+  dispatcher qualifiers (`MainDispatcher`, `MainImmediateDispatcher`, `DefaultDispatcher`,
+  `IODispatcher`), Firebase logging holders, the platform expect/actual seams
+  (`PlatformInfoProvider`, `AppReinitializer`), `ResourceWrapper`/`ImageStorage` interfaces,
+  `AppResult`, common extensions. `androidMain`: the Android actuals and framework impls plus
+  the Metro binding containers (`DispatchersBindingContainer`, `ResourceWrapperBindingContainer`,
+  `ImageStorageFactory`, `TempFileProvider`).
 - `core/data/database` — Room database (`AppDatabase`), `AppDatabaseFactory`, entities, DAOs,
   type converters, `migration/` (incl. `MigrationsRegistry`), schemas under
   `core/data/database/schemas/`.
@@ -389,7 +391,7 @@ artifact in `gradle/libs.versions.toml`. The graph is built around two tiers.
 threads three `create()` bound-instance roots — `applicationContext`, `appDatabase`,
 `imageStorage`. The latter two come from plain top-level factories,
 `buildAppDatabase(...)` in `core/data/database/.../AppDatabaseFactory.kt` and
-`buildImageStorage(...)` in `core/core-android/.../images/ImageStorageFactory.kt`. Those are
+`buildImageStorage(...)` in `core/core/src/androidMain/.../images/ImageStorageFactory.kt`. Those are
 deliberately NOT Metro `@Provides`/`@ContributesBinding`: the values enter the graph as bound
 instances, so a binding would duplicate them and fail Metro's duplicate-binding check. The
 same three roots are the test-override seam: `MetroTestRule`
@@ -401,7 +403,7 @@ Everything else contributes INTO that graph rather than being listed on it:
 - `core/data/database/.../di/DbCascadeBindingContainer.kt` — a
   `@BindingContainer @ContributesTo(AppScope::class)` object deriving the 9 Room DAOs and
   `DbTransitionRunner` from the `AppDatabase` root.
-- `core/core-android/.../di/DispatchersBindingContainer.kt` — the four qualified
+- `core/core/src/androidMain/.../di/DispatchersBindingContainer.kt` — the four qualified
   `CoroutineDispatcher`s (`@MainDispatcher`, `@MainImmediateDispatcher`, `@DefaultDispatcher`,
   `@IODispatcher`; the qualifier annotations live in `core/core` `commonMain`).
 - `core/data/exercise/.../*RepositoryImpl.kt` and
@@ -1597,7 +1599,7 @@ calling `LocalHapticFeedback.current.performHapticFeedback(...)` — see
   emissions.
 - `StoreDispatchers` (`core/ui/mvi/.../di/StoreDispatchers.kt`) injects `@DefaultDispatcher`
   and `@MainImmediateDispatcher`, both contributed by
-  `core/core-android/.../di/DispatchersBindingContainer.kt`.
+  `core/core/src/androidMain/.../di/DispatchersBindingContainer.kt`.
 
 ### Localization
 
