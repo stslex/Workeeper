@@ -129,7 +129,7 @@ When adding to a feature module:
   `NavBackStackEntry`, `SavedStateHandle`, `Activity`, or `Context`.
 - Stores and `NavigationHandler`s depend on `Navigator` (the command-bus interface in
   `core/ui/navigation`). The Metro app graph provides the app-scoped implementation
-  `NavigatorEventBus` (`app/app/.../navigation/NavigatorEventBus.kt`), declared
+  `NavigatorEventBus` (`app/common/.../navigation/NavigatorEventBus.kt`), declared
   `@SingleIn(AppScope) @ContributesBinding(AppScope, binding<Navigator>()) @Inject`,
   which stores only a `SharedFlow<NavigationCommand>` and three emit methods. It holds
   no controller.

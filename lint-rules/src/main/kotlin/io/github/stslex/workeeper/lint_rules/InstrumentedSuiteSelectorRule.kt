@@ -30,10 +30,9 @@ import org.jetbrains.kotlin.psi.psiUtil.containingClassOrObject
  *   an unannotated test is excluded from `Smoke` and `Regression` alike. It runs in no suite at
  *   all, and again nothing is reported: a selector that matches nothing is green, vacuously.
  *
- * Both were live in this repo when the rule was written (2026-08-16). `core/ui/kit` and
- * `feature/app-dialogs/impl` had the first, `core/ui/mvi` the second — and the second had never
- * been noticed, because the only visible symptom of a test that never runs is a number nobody
- * had reason to distrust.
+ * Both signs are reachable in this repo and both have been observed; the measured cases and their
+ * arithmetic live in `documentation/feature-specs/kmp-phase-0-instrumented-filter.md` → "One hole,
+ * two opposite signs".
  *
  * **Why the import is load-bearing.** The rule runs without type resolution, so it matches
  * annotations by name. A locally declared `annotation class Smoke` would satisfy a naive
@@ -92,12 +91,31 @@ class InstrumentedSuiteSelectorRule(
      * Simple names bound to a canonical suite annotation in this file — the import's alias when
      * it has one, else the annotation's own name. A file with no such import binds nothing, so
      * a bare `@Smoke` in it refers to something else and credits no coverage.
+     *
+     * A star import over the annotations package binds every canonical name. That branch is
+     * load-bearing rather than defensive: `detekt.yml`'s `WildcardImport` rule excludes every
+     * androidTest path, and ktlint's `NoWildcardImports` never reaches that source set either
+     * (the plain `detekt` task cannot see it, and `detekt-androidtest-suite.yml` activates only
+     * this rule). Wildcard imports are therefore permitted in exactly the source set this rule
+     * polices, so failing to bind them would report correctly-annotated tests as unselectable —
+     * a false positive that reds the gate on good code. `isAllUnder` is checked before the
+     * exact-FQN comparison because a star import's `importedFqName` is the PACKAGE, not a class,
+     * and would otherwise silently fall through to "binds nothing".
      */
     private fun KtFile.suiteNamesInScope(): Set<String> = importDirectives
-        .mapNotNull { directive ->
-            val imported = directive.importedFqName?.asString() ?: return@mapNotNull null
-            if (imported !in CANONICAL_SUITE_ANNOTATIONS) return@mapNotNull null
-            directive.aliasName ?: imported.substringAfterLast('.')
+        .flatMap { directive ->
+            val imported = directive.importedFqName?.asString() ?: return@flatMap emptyList()
+            when {
+                // `import <annotations package>.*` — an alias is not expressible on a star
+                // import, so each annotation is bound under its own simple name.
+                directive.isAllUnder && imported == ANNOTATIONS_PACKAGE -> CANONICAL_SIMPLE_NAMES
+                // A star over any other package binds none of ours.
+                directive.isAllUnder -> emptyList()
+                imported in CANONICAL_SUITE_ANNOTATIONS ->
+                    listOf(directive.aliasName ?: imported.substringAfterLast('.'))
+
+                else -> emptyList()
+            }
         }
         .toSet()
 
@@ -117,5 +135,6 @@ class InstrumentedSuiteSelectorRule(
             "$ANNOTATIONS_PACKAGE.Smoke",
             "$ANNOTATIONS_PACKAGE.Regression",
         )
+        val CANONICAL_SIMPLE_NAMES = CANONICAL_SUITE_ANNOTATIONS.map { it.substringAfterLast('.') }
     }
 }

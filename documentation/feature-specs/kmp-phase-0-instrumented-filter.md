@@ -48,7 +48,8 @@ is exactly how the defect arrived.
 
 ### `detektAndroidTestSuite` — the coverage half
 
-A detekt task over `src/androidTest/{kotlin,java}` running one rule,
+A detekt task over both `src/androidTest` directories — `kotlin` and `java` — **Kotlin sources
+only**, because detekt cannot parse Java (see § 2.1). It runs one rule,
 `InstrumentedSuiteSelectorRule`, from `lint-rules/detekt-androidtest-suite.yml`
 (`buildUponDefaultConfig = false`, so nothing else is active). Every `@Test` must be reachable by
 some selector: it, or its declaring class, must carry `@Smoke` or `@Regression`.
@@ -86,6 +87,28 @@ module's androidTest dependency graph to learn nothing new.
 `core:ui:mvi` **passed** the classpath check and **failed** the detekt check. `core/ui/kit` and
 `feature/app-dialogs/impl` failed both. Neither half subsumes the other — that is measured, not
 argued.
+
+### 2.1 The classpath half also rejects Java, because the other half cannot read it
+
+Listing `src/androidTest/java` in the detekt task's source roots buys the **Kotlin** files that live
+in that directory — `ExampleInstrumentedTest.kt` is one — and nothing more. `InstrumentedSuiteSelectorRule`
+is a detekt rule whose visitor is Kotlin PSI (`visitNamedFunction(KtNamedFunction)`), and detekt's
+own source filter admits `.kt`/`.kts` regardless of the directories it is handed. A `.java`
+instrumented test is therefore invisible to the coverage half.
+
+Measured with a throwaway unannotated `TempJavaProbeTest.java` under `core/ui/mvi`:
+`detektAndroidTestSuite` reported **"2 kotlin files were analyzed", 0 findings**, while
+`verifyInstrumentedSuiteClasspath` counted **3 instrumented source files, 0 missing** — the two
+halves disagreed on the file count and *both passed*, leaving a test that would run in neither
+suite. The repo has zero `.java` instrumented tests today, so the hazard was latent; but
+`src/androidTest/java` is a real compiled source root under `convention.composeLibrary`, so such a
+file would build and install into the test APK.
+
+`verifyInstrumentedSuiteClasspath` now **fails** on any `.java` file under the instrumented source
+roots, naming the reason. The guard lives there rather than on the detekt half because that task's
+inputs are its *filtered* source: adding a `.java` file leaves it `UP-TO-DATE`, so a guard attached
+to it would never run. The classpath task's `instrumentedSources` is the unfiltered tree, so a new
+`.java` file invalidates it — which is exactly why the probe moved its count from 2 to 3.
 
 ---
 

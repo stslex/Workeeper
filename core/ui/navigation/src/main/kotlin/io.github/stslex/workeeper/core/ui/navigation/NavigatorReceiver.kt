@@ -8,9 +8,9 @@ import kotlinx.coroutines.flow.SharedFlow
  *
  * Lives here rather than beside its implementation because it is navigation tooling over
  * [NavCommand], which this module already owns, and the `core:ui` tier is where navigation tooling
- * belongs by the architecture rule. It was `:app:app`-internal until KMP phase 4 moved the
- * composition root into `app:common`, at which point the only interface standing between the two
- * modules was this one — three lines, over a type that was already here.
+ * belongs by the architecture rule. Keeping it here is what lets the composition root in
+ * `app:common` and the navigator implementation sit in different modules without either naming the
+ * other.
  */
 interface NavigatorReceiver {
 

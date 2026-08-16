@@ -21,7 +21,7 @@ import io.github.stslex.workeeper.core.ui.mvi.processor.StoreProcessor
  * breaks at runtime (the Store is re-instantiated on each navigation). Use [Feature]
  * inside `NavHost` destinations and `AppFeature` only at the App root (e.g. siblings of
  * `AppNavigationHost` inside the root `App()` composable — see
- * `app/app/.../App.kt`).
+ * `app/common/.../App.kt`).
  *
  * Navigation is never executed here: the Store/Handler layer dispatches navigation
  * decisions through `Navigator` (the command-bus contract), and the App/UI bridge

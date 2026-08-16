@@ -594,7 +594,7 @@ both are deleted. The destination model deliberately did **not** move
 into the kit with the treatment: the kit cannot reach
 `core:ui:navigation` or app/app's string resources, which is why the
 old kit-resident `AppBottomBarDestination` shipped hardcoded English
-labels in a Russian app. `BottomBarItem` stays in app/app and passes
+labels in a Russian app. `BottomBarItem` stays in the app tier (`app:common`) and passes
 resolved icons and strings down.
 
 ```
@@ -973,7 +973,7 @@ Goal: implement the 20 shared components.
    - Have `internal` visibility on private composables; `public` on the entry-point composable.
    - Follow existing project naming and detekt rules.
 3. AppDatePickerDialog — copy logic from the two current implementations (feature/single-training, feature/exercise), unify to one file, delete the originals from feature modules and update their imports.
-4. ~~AppBottomBar — encode the 3-destination structure (Home / Trainings / Exercises). Destinations and icons are hard-coded in the kit (not configurable). When a feature module needs the bottom bar, it just calls `AppBottomBar()`.~~ **Superseded, and this instruction is the origin of a shipped defect — kept struck through rather than deleted so the reason survives.** Hard-coding the destinations in the kit is exactly what forced English literal labels: the kit reaches neither `core:ui:navigation` (for `Screen.BottomBar`) nor app/app's `R.string.bottom_bar_label_*`. The rebuilt `AppNavBar` (§11) takes destinations as a parameter and `BottomBarItem` stays in app/app. No feature module calls it — the host does.
+4. ~~AppBottomBar — encode the 3-destination structure (Home / Trainings / Exercises). Destinations and icons are hard-coded in the kit (not configurable). When a feature module needs the bottom bar, it just calls `AppBottomBar()`.~~ **Superseded, and this instruction is the origin of a shipped defect — kept struck through rather than deleted so the reason survives.** Hard-coding the destinations in the kit is exactly what forced English literal labels: the kit reaches neither `core:ui:navigation` (for `Screen.BottomBar`) nor the app tier's `R.string.bottom_bar_label_*`. The rebuilt `AppNavBar` (§11) takes destinations as a parameter and `BottomBarItem` stays in the app tier (`app:common`). No feature module calls it — the host does.
 5. Verify all components compile and previews render: `./gradlew :core:ui:kit:assembleDebug`.
 6. Run `./gradlew detekt lintDebug` — pass.
 7. STOP and report.

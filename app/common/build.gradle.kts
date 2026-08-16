@@ -23,11 +23,13 @@ dependencies {
     // api, not implementation: AppRootDeps names CommonDataStore on its public surface, so
     // `:app:app`'s AppGraph must see the type to declare it as an override.
     api(project(":core:data:dataStore"))
-    // api, not implementation: `:app:app`'s BaseApplication implements AppRootDepsHolder and its
-    // AppGraph implements AppRootDeps, and the flavor Application subclasses in app/dev + app/store
-    // extend BaseApplication — the same holder-visibility reason app/app already uses api() for
-    // feature:recovery and core:data:backup:worker.
-    api(project(":core:ui:mvi"))
+    // implementation, not api: the only core:ui:mvi types this module touches are
+    // PerformanceMetricsRecorder / RecordAction, used inside the `internal` AppNavigationHost and
+    // NavigatorExt's private functions. Nothing from core:ui:mvi appears on this module's public
+    // surface — AppRootDeps names only CommonDataStore and NavigatorEventBus — and `:app:app`
+    // declares its own direct api() edge for BaseApplication's AppDepsHolder, so an api() here
+    // would buy the flavor modules nothing.
+    implementation(project(":core:ui:mvi"))
 
     // The Nav3 UI half (NavDisplay) and the ViewModel entry decorator are the HOST's dependencies
     // only — the runtime artifact reaches everything else as core:ui:navigation's api, and no

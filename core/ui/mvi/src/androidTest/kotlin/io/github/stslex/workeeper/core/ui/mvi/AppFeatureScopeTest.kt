@@ -33,12 +33,12 @@ import org.junit.runner.RunWith
  * instance (proof the cache key is the Activity, not a `NavBackStackEntry`).
  *
  * `@Smoke` by the taxonomy: `TestActivity` with directly-constructed deps — no `MetroTestRule`,
- * no `MainActivity`, no database. The annotation was ABSENT until 2026-08-16 while this module
- * did have the `:core:ui:test-utils` edge, so ui_tests.yml's filter loaded, applied, and
- * matched nothing here: the test ran in NEITHER the smoke nor the regression suite for its
- * entire life. Both runs stayed green, because a selector that selects nothing reports nothing.
- * The scope invariant above was therefore unverified in CI the whole time. Now gated by
- * `detektAndroidTestSuite`.
+ * no `MainActivity`, no database (`documentation/testing.md` → "Categorization with `@Smoke` and
+ * `@Regression`"). The class-level annotation is load-bearing, not decoration: a `@Test` carrying
+ * neither `@Smoke` nor `@Regression` in a module that DOES resolve the annotation class is
+ * selected by neither suite, and both runs stay green because a selector that matches nothing
+ * reports nothing. `detektAndroidTestSuite` gates it
+ * (`documentation/feature-specs/kmp-phase-0-instrumented-filter.md` → "The gate").
  */
 @Smoke
 @RunWith(AndroidJUnit4::class)

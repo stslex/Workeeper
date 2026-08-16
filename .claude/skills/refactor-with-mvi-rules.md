@@ -217,10 +217,10 @@ The rules:
   `navigator.restartApp()`.
 - **Navigation execution belongs to the App/UI bridge.** The actual
   `NavController.navigate(...)` / `popBackStack(...)` / process-restart calls live
-  ONLY in `app/app/.../navigation/NavigatorExt.kt::NavigationEventBusSetup`.
+  ONLY in `app/common/.../navigation/NavigatorExt.kt::NavigationEventBusSetup`.
   Nowhere else.
 - **`Navigator` is a command-bus abstraction.** The app-scoped implementation is
-  `NavigatorEventBus` (`app/app/.../navigation/NavigatorEventBus.kt`), bound as
+  `NavigatorEventBus` (`app/common/.../navigation/NavigatorEventBus.kt`), bound as
   `@SingleIn(AppScope) @ContributesBinding(AppScope, binding<Navigator>()) @Inject`.
   It stores a
   `SharedFlow<NavCommand>` and four emit methods. It does not store a

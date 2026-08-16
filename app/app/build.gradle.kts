@@ -43,11 +43,6 @@ dependencies {
 
     implementation(project(":core:ui:kit"))
     implementation(project(":core:ui:navigation"))
-    // The Nav3 UI half (NavDisplay) and the ViewModel entry decorator are the HOST's
-    // dependencies only — the runtime artifact reaches everything else as core:ui:navigation's
-    // api, and no feature module names either.
-    implementation(libs.androidx.navigation3.ui)
-    implementation(libs.androidx.lifecycle.viewmodel.navigation3)
     // api (not implementation): BaseApplication implements AppDepsHolder (core:ui:mvi), so the holder
     // supertype must be visible to the flavor Application subclasses (DevMobileApp/StoreMobileApp) that
     // extend BaseApplication. Before core:di's deletion this came transitively via

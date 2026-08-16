@@ -15,10 +15,18 @@ The build is configured in `settings.gradle.kts`. Every module is included from 
 
 ### `app/`
 
-- `app/app` — shared application code: `App.kt` composable root, `MainActivity`,
-  `bottom_app_bar/`, `host/AppNavigationHost.kt`, `navigation/NavigatorEventBus.kt`,
-  `navigation/NavigatorReceiver.kt`, `navigation/NavigatorExt.kt`, and the Metro app graph
-  (`di/AppGraph.kt`, `di/AppGraphBuilder.kt`, `di/AppGraphOwner.kt`).
+- `app/app` — the Android application shell and the Metro app graph: `BaseApplication`,
+  `MainActivity`, and `di/AppGraph.kt`, `di/AppGraphBuilder.kt`, `di/AppGraphOwner.kt`. It
+  depends on `app/common`, so the graph sits **above** the composition root and
+  `@DependencyGraph(AppScope::class)` stays internal here.
+- `app/common` — the CMP-shaped composition root, extracted in KMP phase 4: `App.kt`,
+  `AppRootViewModel.kt`, `bottom_app_bar/BottomBarItem.kt`, `host/AppNavigationHost.kt`
+  (plus `host/BottomBarNavigationListener.kt`, `host/ClearFocusOnDestinationChanged.kt`),
+  `navigation/NavigatorEventBus.kt`, `navigation/NavigatorExt.kt`, the `bottom_bar_label_*`
+  strings, and `app/common/di/AppRootDeps.kt` — the narrow contract this module declares and
+  `:app:app`'s `AppGraph` implements, because the graph is not nameable from below. See
+  [feature-specs/kmp-phase-4-app-common.md](feature-specs/kmp-phase-4-app-common.md).
+  (`navigation/NavigatorReceiver.kt` went to `core/ui/navigation` — it is navigation tooling.)
 - `app/dev` — debuggable development variant with its own application id and Firebase config.
 - `app/store` — release variant signed for Play Store distribution.
 
@@ -410,7 +418,7 @@ Everything else contributes INTO that graph rather than being listed on it:
   `core/data/dataStore/.../store/CommonDataStoreImpl.kt` — `@ContributesBinding(AppScope::class)`
   `@SingleIn(AppScope::class)` `@Inject` on the impl. A contributing class must be `public`:
   `@ContributesBinding` on an `internal` class does not aggregate across Gradle modules.
-- `app/app/.../navigation/NavigatorEventBus.kt` —
+- `app/common/.../navigation/NavigatorEventBus.kt` —
   `@SingleIn(AppScope) @ContributesBinding(AppScope, binding<Navigator>()) @Inject`, a
   controller-free command bus (see [Navigation](#navigation)).
 - `core/ui/mvi/.../di/StoreDispatchers.kt` — the app-scoped pair (`@DefaultDispatcher` +
@@ -817,7 +825,7 @@ imports `Context` or `Intent` to do this — it just calls
 
 ### `NavigatorEventBus` (singleton command bus implementation)
 
-`app/app/.../navigation/NavigatorEventBus.kt` is the singleton
+`app/common/.../navigation/NavigatorEventBus.kt` is the singleton
 implementation. It implements three interfaces:
 
 - `Navigator` — the producer side called by feature `NavigationHandler`s.
@@ -966,7 +974,7 @@ fun App() {
 }
 ```
 
-`NavigatorExt.NavigationEventBusSetup` (`app/app/.../navigation/NavigatorExt.kt`)
+`NavigatorExt.NavigationEventBusSetup` (`app/common/.../navigation/NavigatorExt.kt`)
 is the **only** place navigation commands are executed. It collects
 `navigator.commands` keyed on the holder and processes each command:
 
@@ -1202,7 +1210,7 @@ What this pattern replaces — and why:
 Reference implementation:
 `feature/settings/.../mvi/handler/BackupClickHandler.kt::scheduleAppRestart`
 (producer), `feature/settings/.../mvi/handler/SettingsNavigationHandler.kt`
-(router), `app/app/.../navigation/NavigatorEventBus.kt::restartApp`
+(router), `app/common/.../navigation/NavigatorEventBus.kt::restartApp`
 (seam dispatch), and
 `core/core/src/androidMain/.../platform/AppReinitializer.kt::reinitialize` (executor).
 
@@ -1506,7 +1514,7 @@ Two outcomes:
 
 ### Navigation host and shared element transitions
 
-`app/app/src/main/java/io/github/stslex/workeeper/host/AppNavigationHost.kt` receives the
+`app/common/src/main/kotlin/io/github/stslex/workeeper/host/AppNavigationHost.kt` receives the
 composition-scoped `NavigatorHolder` (which wraps the back stack created by
 `rememberNavBackStack` in `App.kt`) and wraps the `NavDisplay` in a
 `SharedTransitionLayout` (Jetpack Compose
@@ -1544,7 +1552,7 @@ AppCreate, and ActivityCreate traces. Skipping it leaves all three pipelines
 mis-attributed for that screen. See
 [performance.md → New-screen contributor checklist](performance.md#new-screen-contributor-checklist).
 
-`BottomBarNavigationListener` (`app/app/.../host/BottomBarNavigationListener.kt`) tracks
+`BottomBarNavigationListener` (`app/common/.../host/BottomBarNavigationListener.kt`) tracks
 which `BottomBar` screen is current so `App.kt` can show or hide the bottom bar with an
 animated visibility transition. It collects a `snapshotFlow { holder.currentScreen }`
 inside a `LaunchedEffect(holder)` — `NavBackStack` is a `SnapshotStateList`, so the flow
@@ -1557,13 +1565,13 @@ also latches `selectedIndex` separately from the nullable `bottomBarDestination`
 nav pill does not snap back to the first item while the bar's exit animation is still
 composing — see the class KDoc.
 
-`ClearFocusOnDestinationChanged` (`app/app/.../host/ClearFocusOnDestinationChanged.kt`)
+`ClearFocusOnDestinationChanged` (`app/common/.../host/ClearFocusOnDestinationChanged.kt`)
 follows the same `snapshotFlow`-over-the-stack pattern to clear keyboard focus on every
 navigation tick, including once at startup.
 
 ### Bottom navigation
 
-`app/app/.../bottom_app_bar/BottomBarItem.kt` declares three tab entries — `HOME`,
+`app/common/.../bottom_app_bar/BottomBarItem.kt` declares three tab entries — `HOME`,
 `TRAININGS`, `EXERCISES` — each pointing at a `Screen.BottomBar`. `BottomAppBar.kt` renders
 them with haptic feedback on selection.
 
@@ -1587,7 +1595,7 @@ Stores express snackbar intent through their `Event` channel — `feature/exerci
 Stores emit `Event.Haptic*` events (e.g. `feature/all-trainings` emits `Event.Haptic`,
 `feature/exercise` emits `Event.HapticClick`). The screen-level Compose layer responds by
 calling `LocalHapticFeedback.current.performHapticFeedback(...)` — see
-`app/app/.../bottom_app_bar/BottomAppBar.kt` for a non-event-driven example using
+`app/common/.../bottom_app_bar/BottomAppBar.kt` for a non-event-driven example using
 `HapticFeedbackType.SegmentTick`. The `Haptic` token is in `MviEventNamingRule.validPatterns`.
 
 ### Coroutine scope and dispatchers

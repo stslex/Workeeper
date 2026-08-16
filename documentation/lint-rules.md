@@ -284,7 +284,7 @@ The lifecycle-safe navigation architecture (see
 that the `MetroScopeRule` predicates must NOT flag:
 
 - `NavigatorEventBus`
-  (`app/app/.../navigation/NavigatorEventBus.kt`) — the app-scoped command-bus
+  (`app/common/.../navigation/NavigatorEventBus.kt`) — the app-scoped command-bus
   implementation of `Navigator` and `NavigatorReceiver`. **Intentionally allowed at
   app scope** because it is controller-free: the class stores only a
   `MutableSharedFlow<NavCommand>` and four emit methods. There is no
@@ -301,7 +301,7 @@ that the `MetroScopeRule` predicates must NOT flag:
     `ScopedClassNames.isScopeChecked("NavigatorEventBus")` returns `false` and
     the rule short-circuits. The `Bus` suffix was chosen with this rule in mind.
 - `NavigatorReceiver`
-  (`app/app/.../navigation/NavigatorReceiver.kt`) — interface only; the rule skips
+  (`core/ui/navigation/.../NavigatorReceiver.kt`) — interface only; the rule skips
   interfaces.
 - Feature `NavigationHandler` classes
   (`feature/<name>/.../mvi/handler/NavigationHandler.kt`) — `@SingleIn(<Feature>Scope::class)`

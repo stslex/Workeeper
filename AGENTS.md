@@ -232,7 +232,7 @@ Navigation is a **lifecycle-safe command bus**. Decisions live in Store/Handler 
 (depend on `Navigator`); execution lives in the App/UI bridge under composition.
 
 - `Navigator` is implemented by the `@SingleIn(AppScope)` `NavigatorEventBus`
-  (`app/app/.../navigation/NavigatorEventBus.kt`). It stores only a
+  (`app/common/.../navigation/NavigatorEventBus.kt`). It stores only a
   `SharedFlow<NavCommand>` plus the keyed result flows — no back stack.
 - `App.kt` owns the back stack:
   `rememberNavBackStack(screenSavedStateConfiguration, Screen.BottomBar.Home)`,

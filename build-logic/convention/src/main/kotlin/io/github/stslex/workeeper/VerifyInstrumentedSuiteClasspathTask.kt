@@ -25,9 +25,10 @@ import java.util.zip.ZipFile
  * everything. `ui_tests.yml` passes exactly such a filter to select the smoke and regression
  * suites, so a module missing the annotation on its classpath runs its ENTIRE androidTest suite
  * under both selectors — silently, with nothing in the run output to say the selector was
- * ignored. Measured 2026-08-16: a deliberately nonexistent annotation FQN still started all 10
- * tests in `feature/app-dialogs/impl`, proving drop-on-unloadable rather than annotation
- * matching.
+ * ignored. That the behaviour is drop-on-unloadable rather than annotation matching was
+ * established by experiment; the measurement lives in
+ * `documentation/feature-specs/kmp-phase-0-instrumented-filter.md` → "One hole, two opposite
+ * signs".
  *
  * The check is deliberately a *classpath* assertion rather than a dependency-declaration one.
  * "Does `:core:ui:test-utils` appear in the dependency block" is a proxy that a `compileOnly`
@@ -64,9 +65,16 @@ abstract class VerifyInstrumentedSuiteClasspathTask : DefaultTask() {
     @get:Input
     abstract val requiredClassEntries: ListProperty<String>
 
-    /** Name of the configuration [testRuntimeClasspath] came from, for the failure message. */
+    /**
+     * Name of the configuration [testRuntimeClasspath] came from, or empty when this module has
+     * none of the known ones — which, with instrumented sources present, is itself a failure.
+     */
     @get:Input
     abstract val classpathName: Property<String>
+
+    /** Every configuration name that was tried, for the "none matched" diagnostic. */
+    @get:Input
+    abstract val knownClasspathNames: ListProperty<String>
 
     /**
      * The owning module's Gradle path, captured at configuration time. Reading `project` from a
@@ -88,6 +96,67 @@ abstract class VerifyInstrumentedSuiteClasspathTask : DefaultTask() {
             out.writeText("instrumented source files: 0 — no test APK to filter, nothing to verify\n")
             logger.lifecycle("${modulePath.get()}: 0 instrumented source files; nothing to verify.")
             return
+        }
+
+        // The companion coverage check is a DETEKT rule, and detekt parses Kotlin only: its visitor
+        // is `InstrumentedSuiteSelectorRule.visitNamedFunction(KtNamedFunction)` and its source
+        // filter admits `.kt`/`.kts` whatever directories the task is handed. Listing
+        // `src/androidTest/java` there buys the Kotlin files sitting in that directory and nothing
+        // else, so a `.java` @Test carrying neither @Smoke nor @Regression is invisible to it and
+        // runs in NEITHER suite — the exact failure this gate exists to make impossible.
+        //
+        // The guard lives here rather than in a `doFirst` on the detekt half because that task's
+        // inputs are its FILTERED source: adding a `.java` file leaves it UP-TO-DATE, so the guard
+        // would not run. This task's `instrumentedSources` is the unfiltered tree, so a new `.java`
+        // file invalidates it. Rationale and the measured probe:
+        // `documentation/feature-specs/kmp-phase-0-instrumented-filter.md` → "The gate".
+        val javaSources = sources.filter { it.extension == JAVA_EXT }.sorted()
+        if (javaSources.isNotEmpty()) {
+            out.writeText(
+                buildString {
+                    appendLine("instrumented source files: ${sources.size}")
+                    appendLine("unsupported .java sources: ${javaSources.size}")
+                    javaSources.forEach { appendLine("  JAVA $it") }
+                },
+            )
+            throw GradleException(
+                """
+                |${modulePath.get()} has ${javaSources.size} instrumented test source file(s) in Java:
+                |${javaSources.joinToString("\n") { "  $it" }}
+                |
+                |The half of this gate that checks for @Smoke / @Regression is a detekt rule with a
+                |Kotlin-PSI visitor, so it CANNOT SEE a .java test. A Java @Test carrying neither
+                |annotation is reported by nothing and runs in NEITHER ui_tests.yml suite.
+                |
+                |Fix: write the test in Kotlin under src/androidTest/kotlin.
+                """.trimMargin(),
+            )
+        }
+
+        // Instrumented sources with no recognized runtime-classpath configuration behind them.
+        // This is a hard failure and not a skip: an empty file collection would scan zero entries,
+        // find zero of the required classes "missing" only because it looked nowhere, and pass.
+        // That is the vacuous green this whole gate exists to make impossible, and it is exactly
+        // the shape a module takes on the day it converts to AGP-KMP without the device-test
+        // configuration being wired.
+        if (classpathName.get().isEmpty()) {
+            out.writeText(
+                "instrumented source files: ${sources.size}\n" +
+                    "runtime classpath configuration: NONE MATCHED\n",
+            )
+            throw GradleException(
+                """
+                |${modulePath.get()} has ${sources.size} instrumented test source file(s), but none of
+                |the known runtime-classpath configurations exists on it, so this gate cannot see what
+                |its test APK would load.
+                |
+                |Tried: ${knownClasspathNames.get().joinToString(", ")}
+                |
+                |An AGP-KMP module exposes a device-test configuration instead of the Android-library
+                |one. Wire the correct name into ANDROID_TEST_RUNTIME_CLASSPATHS in
+                |ConfigureInstrumentedSuiteGate.kt — do not let the module through unchecked.
+                """.trimMargin(),
+            )
         }
 
         val classpath = testRuntimeClasspath.files
@@ -120,7 +189,7 @@ abstract class VerifyInstrumentedSuiteClasspathTask : DefaultTask() {
             |of ui_tests.yml, and the run would report nothing wrong.
             |
             |Fix: add `androidTestImplementation(project(":core:ui:test-utils"))` to
-            |${project.path}'s build script, and annotate its tests @Smoke / @Regression.
+            |${modulePath.get()}'s build script, and annotate its tests @Smoke / @Regression.
             """.trimMargin(),
         )
     }
@@ -151,7 +220,8 @@ abstract class VerifyInstrumentedSuiteClasspathTask : DefaultTask() {
         }
 
     private companion object {
-        val SOURCE_EXTS = setOf("kt", "java")
+        const val JAVA_EXT = "java"
+        val SOURCE_EXTS = setOf("kt", JAVA_EXT)
         val ARCHIVE_EXTS = setOf("jar", "aar", "zip")
         const val NESTED_CLASSES_JAR = "classes.jar"
     }

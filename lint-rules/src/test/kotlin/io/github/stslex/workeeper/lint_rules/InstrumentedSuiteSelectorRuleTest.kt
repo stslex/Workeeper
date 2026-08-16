@@ -241,6 +241,56 @@ internal class InstrumentedSuiteSelectorRuleTest {
     }
 
     @Test
+    fun `accepts a wildcard import of the annotations package`() {
+        // Load-bearing, not hypothetical: detekt.yml's WildcardImport rule EXCLUDES
+        // `**/androidTest/**`, and ktlint's NoWildcardImports never reaches that source set either
+        // (the plain `detekt` task cannot see it, and detekt-androidtest-suite.yml activates only
+        // this rule). Wildcard imports are therefore permitted precisely where this rule polices,
+        // so failing to bind them would red the gate on correct code.
+        val findings = rule.lint(
+            """
+            package io.github.stslex.workeeper.feature.example
+
+            import io.github.stslex.workeeper.core.ui.test.annotations.*
+            import org.junit.Test
+
+            @Smoke
+            class ExampleScreenTest {
+
+                @Test
+                fun rendersTitle() = Unit
+            }
+            """.trimIndent(),
+        )
+        assertEquals(0, findings.size, "A wildcard import binds the suite names, got: $findings")
+    }
+
+    @Test
+    fun `flags a wildcard import of some other package`() {
+        // The wildcard branch must not degrade into "any star import credits coverage".
+        val findings = rule.lint(
+            """
+            package io.github.stslex.workeeper.feature.example
+
+            import io.github.stslex.workeeper.core.ui.test.*
+            import org.junit.Test
+
+            @Smoke
+            class ExampleScreenTest {
+
+                @Test
+                fun rendersTitle() = Unit
+            }
+            """.trimIndent(),
+        )
+        assertEquals(
+            1,
+            findings.size,
+            "A wildcard over a DIFFERENT package binds nothing, got: $findings",
+        )
+    }
+
+    @Test
     fun `accepts a fully qualified annotation with no import`() {
         val findings = rule.lint(
             """

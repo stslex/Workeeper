@@ -55,14 +55,11 @@ import kotlinx.coroutines.withTimeoutOrNull
 @Composable
 fun App() {
     // AppRootViewModel is a plain ViewModel constructed via viewModel {} with deps read from the app
-    // graph.
-    //
-    // KMP phase 4: this used to cast to `AppGraphOwner` and read the graph directly, which worked
-    // while App() lived in `:app:app`. It cannot now — `@DependencyGraph(AppScope)` and its owner
-    // interface are internal to `:app:app`, and `:app:app` depends on THIS module, so the graph is
-    // below-the-line by construction. [AppRootDeps] is the contract this module owns and `AppGraph`
-    // implements; the cast is safe because `BaseApplication : AppRootDepsHolder` is compile-visible
-    // there. Same typed-point-acquisition shape as RecoveryDepsHolder / BackupWorkerDepsHolder.
+    // graph — through [AppRootDeps], never the graph itself. `@DependencyGraph(AppScope)` and
+    // `AppGraphOwner` are internal to `:app:app`, which depends on THIS module, so the graph is
+    // below-the-line here by construction and cannot be named. `AppGraph` implements the contract;
+    // the cast is safe because `BaseApplication : AppRootDepsHolder` is compile-visible there. Same
+    // typed-point-acquisition shape as RecoveryDepsHolder / BackupWorkerDepsHolder.
     val context = LocalContext.current
     val viewModel: AppRootViewModel = viewModel {
         val deps = (context.applicationContext as AppRootDepsHolder).appRootDeps()

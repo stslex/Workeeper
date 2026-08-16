@@ -10,8 +10,7 @@ import io.github.stslex.workeeper.navigation.NavigatorEventBus
  * **Why this exists.** `@DependencyGraph(AppScope::class)` is `internal` to `:app:app`, and
  * `:app:app` depends on `app:common`. That puts this module BELOW the graph, where `AppGraph` and
  * `AppGraphOwner` are not visible by construction. The composition root therefore cannot reach the
- * graph directly the way `App.kt` used to (`(context.applicationContext as AppGraphOwner).appGraph`)
- * — it names a contract it owns, and `:app:app` satisfies it.
+ * graph directly at all — it names a contract it owns, and `:app:app` satisfies it.
  *
  * **Why a narrow contract and not a graph extension.** A `@ContributesGraphExtension` models a scope
  * with its own lifetime, which is what the per-screen feature extensions are. The composition root is

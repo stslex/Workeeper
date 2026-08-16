@@ -27,9 +27,13 @@ import org.junit.runner.RunWith
  * button on each variant dispatches the correct `(dialog, action)` pair.
  *
  * `@Smoke` by the taxonomy: `createComposeRule` with state passed straight into the content, no
- * DI container, no database, no Activity. Until 2026-08-16 this class carried no suite
- * annotation and the module had no edge to `:core:ui:test-utils`, so androidx.test dropped
- * ui_tests.yml's filter and ran all ten tests in BOTH suites.
+ * DI container, no database, no Activity (`documentation/testing.md` → "Categorization with
+ * `@Smoke` and `@Regression`"). Two things must hold together for this annotation to select
+ * anything: it is declared here, and `:core:ui:test-utils` stays on this module's androidTest
+ * classpath — androidx.test silently DROPS ui_tests.yml's filter when it cannot load the
+ * annotation class it names, which runs every test here in both suites. `detektAndroidTestSuite`
+ * and `verifyInstrumentedSuiteClasspath` gate the two halves
+ * (`documentation/feature-specs/kmp-phase-0-instrumented-filter.md` → "The gate").
  */
 @Smoke
 @RunWith(AndroidJUnit4::class)

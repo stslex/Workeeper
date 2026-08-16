@@ -189,9 +189,9 @@ Notes:
 ### `NavigatorEventBus` test (singleton command bus)
 
 The `Navigator` interface is mocked in feature tests, but the singleton implementation
-itself — `app/app/.../navigation/NavigatorEventBus.kt` — has its own dedicated test that
+itself — `app/common/.../navigation/NavigatorEventBus.kt` — has its own dedicated test that
 verifies command emission shape and ordering on its `SharedFlow`. Reference:
-`app/app/src/test/kotlin/io/github/stslex/workeeper/navigation/NavigatorEventBusTest.kt`.
+`app/common/src/test/kotlin/io/github/stslex/workeeper/navigation/NavigatorEventBusTest.kt`.
 Key invariants covered there (do not duplicate in feature handler tests; assert via the
 mocked `Navigator` instead):
 
@@ -205,7 +205,7 @@ mocked `Navigator` instead):
   same hot stream.
 
 The lifecycle regression coverage
-(`app/app/.../navigation/NavigationLifecycleRegressionTest.kt`) extends this with
+(`app/common/.../navigation/NavigationLifecycleRegressionTest.kt`) extends this with
 "bridge detach / re-attach" scenarios that prove the singleton bus continues operating
 across a simulated activity recreation.
 

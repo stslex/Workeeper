@@ -13,23 +13,22 @@ import org.gradle.kotlin.dsl.register
  * | task | asks | catches |
  * |---|---|---|
  * | `detektAndroidTestSuite` | is every `@Test` annotated `@Smoke`/`@Regression`? | a test selected by NO suite — it silently never runs |
- * | `verifyInstrumentedSuiteClasspath` | can the test APK resolve those annotations? | a filter androidx.test drops — the module runs in BOTH suites |
+ * | `verifyInstrumentedSuiteClasspath` | can the test APK resolve those annotations, and is every source Kotlin? | a filter androidx.test drops — the module runs in BOTH suites; and a `.java` test the detekt half cannot parse |
  *
- * Both were live when this was written (2026-08-16): `core/ui/kit` and `feature/app-dialogs/impl`
- * had the second, `core/ui/mvi` the first. The first had gone unnoticed for its entire life,
- * because a selector that matches nothing produces a green run and no diagnostic.
+ * Both signs are reachable and both have been observed; the measured cases live in
+ * `documentation/feature-specs/kmp-phase-0-instrumented-filter.md` → "One hole, two opposite signs".
  *
  * **Registered here, for every module, rather than per-module by hand.** The bespoke
  * `detektAndroidTestNavigation` in `:app:app` is the precedent for the task shape, but not for
- * its scope: an opt-in gate is a convention, and forgetting to opt in is precisely how the
- * defect arrived. A module that acquires `src/androidTest` acquires the gate with it.
+ * its scope: an opt-in gate is a convention, and a module that forgets to opt in is exactly the
+ * module that needs it. A module that acquires instrumented sources acquires the gate with them.
  *
  * The two hook onto different lifecycles on purpose. The detekt half is source-only and rides
  * `detekt`, which is what the pre-commit hook and CI's lint step run. The classpath half needs a
- * resolved runtime classpath, so it rides `assembleDebugAndroidTest` — the task that resolves
- * that configuration anyway, runs in CI, and precedes every `connectedDebugAndroidTest`. Hanging
- * the classpath half off `detekt` instead would make every commit resolve every module's
- * androidTest dependency graph to learn nothing new.
+ * resolved runtime classpath, so it rides the `assemble*AndroidTest` task — which resolves that
+ * configuration anyway, runs in CI, and precedes every `connectedDebugAndroidTest`. Hanging the
+ * classpath half off `detekt` instead would make every commit resolve every module's androidTest
+ * dependency graph to learn nothing new.
  */
 internal fun Project.configureInstrumentedSuiteGate() {
     val sourceRoots = INSTRUMENTED_SOURCE_ROOTS.map(::file)
@@ -53,26 +52,44 @@ internal fun Project.configureInstrumentedSuiteGate() {
             txt.required.set(true)
             sarif.required.set(false)
             md.required.set(false)
+            // Own filenames. Detekt's defaults are `detekt.xml`/`detekt.txt`, which the plain
+            // `detekt` task in the same module also writes — and since `detekt` dependsOn this
+            // task, the plain run overwrites the gate's report every time. A gate whose report is
+            // clobbered by the task that triggers it has no durable evidence of its own.
+            xml.outputLocation.set(layout.buildDirectory.file("reports/detekt/$DETEKT_TASK.xml"))
+            txt.outputLocation.set(layout.buildDirectory.file("reports/detekt/$DETEKT_TASK.txt"))
         }
     }
 
     val verifyClasspath = tasks.register<VerifyInstrumentedSuiteClasspathTask>(CLASSPATH_TASK) {
         group = "verification"
         description =
-            "Fails if instrumented tests exist whose suite-selector annotation is absent " +
-            "from the test APK's runtime classpath."
+            "Fails if instrumented tests exist whose suite-selector annotation is absent from " +
+            "the test APK's runtime classpath, or if any instrumented test is written in Java, " +
+            "which the Kotlin-PSI selector rule cannot inspect."
         modulePath.set(this@configureInstrumentedSuiteGate.path)
-        classpathName.set(ANDROID_TEST_RUNTIME_CLASSPATH)
-        // fileTree, not the bare directories: a ConfigurableFileCollection built `from` a
-        // directory yields that directory, so the task's own `isFile` filter discarded every
-        // source and the gate reported "0 instrumented source files" for modules full of them
-        // — green because it inspected nothing. Caught only because the task prints its input
-        // count; that print is the reason this line is a fileTree and not a bug in production.
+        // The FIRST candidate that exists, or "" — and "" with instrumented sources present is a
+        // hard failure in the task, not a quiet pass. An Android library resolves
+        // `debugAndroidTestRuntimeClasspath`; an AGP-KMP module that calls `withDeviceTest`
+        // resolves the device-test one instead. Guessing wrong must not look like "nothing to
+        // check", because that is the same silent vanish this gate exists to close.
+        classpathName.set(
+            provider {
+                ANDROID_TEST_RUNTIME_CLASSPATHS.firstOrNull { configurations.findByName(it) != null }
+                    .orEmpty()
+            },
+        )
+        knownClasspathNames.set(ANDROID_TEST_RUNTIME_CLASSPATHS)
+        // fileTree, NOT the bare directories: a ConfigurableFileCollection built `from` a
+        // directory yields that directory itself, which the task's `isFile` filter then discards
+        // — leaving it with zero sources and a vacuous pass over a module full of tests.
         instrumentedSources.from(sourceRoots.map(::fileTree))
         requiredClassEntries.set(REQUIRED_CLASS_ENTRIES)
         report.set(layout.buildDirectory.file("reports/instrumented-suite-gate/classpath.txt"))
-        // Resolved lazily and only if the configuration exists: KMP modules and plain JVM
-        // modules have no such configuration, and neither produces a test APK to mis-filter.
+        // Resolved lazily, and only through whichever candidate configuration this module
+        // actually has. A plain JVM module has none and also has no instrumented sources, so it
+        // falls out harmlessly; a module that HAS instrumented sources but matches no candidate
+        // is failed by the task rather than skipped.
         //
         // Through an artifact VIEW, not the configuration directly. A raw Configuration added
         // to a file collection resolves without AGP's `artifactType` attribute, and a
@@ -84,7 +101,8 @@ internal fun Project.configureInstrumentedSuiteGate() {
         // this gate rather than passing it.
         testRuntimeClasspath.from(
             provider {
-                val classpath = configurations.findByName(ANDROID_TEST_RUNTIME_CLASSPATH)
+                val classpath = ANDROID_TEST_RUNTIME_CLASSPATHS
+                    .firstNotNullOfOrNull { configurations.findByName(it) }
                     ?: return@provider files()
                 classpath.incoming
                     .artifactView {
@@ -98,24 +116,58 @@ internal fun Project.configureInstrumentedSuiteGate() {
 
     tasks.named("detekt") { dependsOn(detektSuite) }
     tasks.named("check") { dependsOn(detektSuite, verifyClasspath) }
+    // Both spellings. An Android library assembles `assembleDebugAndroidTest` — the name CI's
+    // build step invokes — while an AGP-KMP module exposes `assembleAndroidTest` instead
+    // (measured on `:core:core`). Hooking only the first leaves the gate structurally inert on
+    // every module phases 6 and 7 convert, which is the wrong direction of travel for a gate
+    // whose entire subject is checks that quietly police nothing.
     tasks.configureEach {
-        if (name == ANDROID_TEST_ASSEMBLE_TASK) dependsOn(verifyClasspath)
+        if (name in ANDROID_TEST_ASSEMBLE_TASKS) dependsOn(verifyClasspath)
     }
 }
 
 private const val DETEKT_TASK = "detektAndroidTestSuite"
 private const val CLASSPATH_TASK = "verifyInstrumentedSuiteClasspath"
-private const val ANDROID_TEST_RUNTIME_CLASSPATH = "debugAndroidTestRuntimeClasspath"
-private const val ANDROID_TEST_ASSEMBLE_TASK = "assembleDebugAndroidTest"
 private const val ANDROID_CLASSES_JAR = "android-classes-jar"
 private val ARTIFACT_TYPE = Attribute.of("artifactType", String::class.java)
 
 /**
- * Both source roots, always. `ExampleInstrumentedTest` lives under `src/androidTest/java` while
- * everything else is under `src/androidTest/kotlin`, and a gate that reads one of the two is a
- * gate with a hole in it.
+ * Runtime-classpath configurations that can back an instrumented test APK, in priority order.
+ * `debugAndroidTestRuntimeClasspath` is the Android library/application spelling;
+ * `androidDeviceTestRuntimeClasspath` is the AGP-KMP one, which appears once a KMP module calls
+ * `withDeviceTest`. A module with instrumented sources matching NONE of these is failed by
+ * [VerifyInstrumentedSuiteClasspathTask], never skipped.
  */
-private val INSTRUMENTED_SOURCE_ROOTS = listOf("src/androidTest/kotlin", "src/androidTest/java")
+private val ANDROID_TEST_RUNTIME_CLASSPATHS = listOf(
+    "debugAndroidTestRuntimeClasspath",
+    "androidDeviceTestRuntimeClasspath",
+)
+
+/** Android-library and AGP-KMP spellings of "assemble the test APK". */
+private val ANDROID_TEST_ASSEMBLE_TASKS = setOf(
+    "assembleDebugAndroidTest",
+    "assembleAndroidTest",
+)
+
+/**
+ * Every instrumented source root, always. `ExampleInstrumentedTest` lives under
+ * `src/androidTest/java` while everything else is under `src/androidTest/kotlin`, and a gate that
+ * reads one of the two is a gate with a hole in it.
+ *
+ * Those two are DIRECTORIES holding Kotlin. Listing the `java` one does NOT extend the detekt rule
+ * to the Java *language* — detekt parses Kotlin only — which is why
+ * [VerifyInstrumentedSuiteClasspathTask] rejects `.java` instrumented sources outright rather than
+ * letting them past unexamined.
+ *
+ * `src/androidDeviceTest/kotlin` is the AGP-KMP instrumented source set, which is what phases 6 and
+ * 7 convert modules onto. Listed now so the gate starts policing the first such module the day it
+ * appears, rather than the day someone notices it was never policed.
+ */
+private val INSTRUMENTED_SOURCE_ROOTS = listOf(
+    "src/androidTest/kotlin",
+    "src/androidTest/java",
+    "src/androidDeviceTest/kotlin",
+)
 
 private val REQUIRED_CLASS_ENTRIES = listOf(
     "io/github/stslex/workeeper/core/ui/test/annotations/Smoke.class",

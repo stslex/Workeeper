@@ -434,7 +434,7 @@ Use `Modifier.testTag("...")` with these prefixes so finders are stable across P
 - List: `"<Feature>List"`. List item: `"<Feature>Item_${item.uuid}"`.
 - Dialog: `"<Feature>Dialog"`.
 
-`app/app/src/main/java/io/github/stslex/workeeper/host/AppNavigationHost.kt` uses graph-level
+`app/common/src/main/kotlin/io/github/stslex/workeeper/host/AppNavigationHost.kt` uses graph-level
 tags (`"HomeGraph"`, `"AllTrainingsGraph"`, etc.) for cross-feature tests.
 
 ### Existing UI tests

@@ -428,7 +428,7 @@ their own NavigationHandler, never through free Compose functions).
 ## AppDialogHost mounting
 
 ```kotlin
-// app/app/.../App.kt — mounting site
+// app/common/.../App.kt — mounting site
 @Composable
 fun App() {
     AppTheme(themeMode = themeMode) {
@@ -467,7 +467,7 @@ The host:
   the underlying scope/owner mechanism (`rememberMetroStoreProcessor<T>()` →
   `LocalViewModelStoreOwner`) is reused unchanged from the
   existing `AppRootViewModel` Activity-scoped VM (see
-  [`App.kt:63`](../../app/app/src/main/java/io/github/stslex/workeeper/App.kt)).
+  [`App.kt:63`](../../app/common/src/main/kotlin/io/github/stslex/workeeper/App.kt)).
 - Dispatches `Action.RepoAction.Observe` once on mount to subscribe to the
   repository flow and project it into State.
 - Reads `state.value.current: AppDialog?`. When `null`, composes nothing —
