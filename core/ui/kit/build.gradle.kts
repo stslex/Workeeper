@@ -36,9 +36,7 @@ dependencies {
     testImplementation(libs.androidx.compose.ui.test.junit4)
 
     // The golden harness, shared with the 12 other golden-holding modules so device config,
-    // tolerance and canvas width cannot drift per module. This module's own golden tests
-    // consumed it implicitly while it was this module's testFixtures; the extraction
-    // (core:ui:golden-harness) makes the edge explicit.
+    // tolerance and canvas width cannot drift per module.
     testImplementation(project(":core:ui:golden-harness"))
 }
 
