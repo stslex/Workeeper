@@ -5,23 +5,23 @@ import android.content.Context
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import android.os.Build
-import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.di.AppScope
 
 /**
- * Metro-owned via `@ContributesBinding(AppScope)` (auto-aggregated by the app-scope AppGraph).
- * `@SingleIn(AppScope)` = process-lifetime single-owner. `public` for cross-module aggregation
- * (the merged AppGraph in :app:app cannot extend an internal contribution; never hand-construct,
- * resolve via DI). Context is PLAIN: Metro resolves it from the graph's create(applicationContext).
+ * Android [PlatformInfoProvider]: reads `PackageManager` + `Build`.
+ *
+ * DI: consumers inject the class itself (no interface, no `@ContributesBinding`).
+ * `@SingleIn(AppScope)` = process-lifetime single-owner; `public` because the merged
+ * AppGraph in :app:app constructs it cross-module (never hand-construct, resolve via
+ * DI). Context is PLAIN: Metro resolves it from the graph's create(applicationContext).
  */
-@ContributesBinding(AppScope::class)
 @SingleIn(AppScope::class)
 @Inject
-class AndroidPlatformInfoProvider(
+actual class PlatformInfoProvider(
     private val context: Context,
-) : PlatformInfoProvider {
+) {
 
     private val packageInfo: PackageInfo by lazy {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -35,9 +35,9 @@ class AndroidPlatformInfoProvider(
         }
     }
 
-    override fun appVersionName(): String = packageInfo.versionName.orEmpty()
+    actual fun appVersionName(): String = packageInfo.versionName.orEmpty()
 
-    override fun appVersionCode(): Long = packageInfo.longVersionCode
+    actual fun appVersionCode(): Long = packageInfo.longVersionCode
 
-    override fun deviceModel(): String = Build.MODEL
+    actual fun deviceModel(): String = Build.MODEL
 }

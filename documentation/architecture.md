@@ -798,10 +798,10 @@ bridge is attached.
 
 `restartApp()` is the destructive variant, and unlike the queued commands
 above it does **not** travel over the command bus. `NavigatorEventBus`
-constructor-injects an `AppReinitializer` (a platform-neutral seam in
+constructor-injects an `AppReinitializer` (an expect/actual class in
 `core/core/.../platform/`) and `restartApp()` calls
 `appReinitializer.reinitialize()` directly. The Android actual
-(`AndroidAppReinitializer`) cold-starts the app from a fresh process: it
+cold-starts the app from a fresh process: it
 relaunches the launcher intent with
 `FLAG_ACTIVITY_NEW_TASK | FLAG_ACTIVITY_CLEAR_TASK` on the **application**
 `Context` and calls `Runtime.exit(0)`. It exists because some operations
@@ -1170,11 +1170,12 @@ invocation rather than a bus emission:
    rather than emitting a `NavCommand`. Restart is terminal and
    platform-owned, so it bypasses the `replay = 0` bus, which would silently
    drop the command when no bridge subscriber is attached.
-4. The Android actual `AndroidAppReinitializer.reinitialize()` relaunches the
+4. The Android `AppReinitializer` actual relaunches the
    package's launch intent (`FLAG_ACTIVITY_NEW_TASK | CLEAR_TASK`) on the
-   application `Context` and calls `Runtime.getRuntime().exit(0)`. (A future
-   iOS actual performs an in-place reinit instead — iOS has no self-restart
-   API.)
+   application `Context` and calls `Runtime.getRuntime().exit(0)`. (The iOS
+   actual throws until Phase 5 delivers the in-place reinit — iOS has no
+   self-restart API; see the expect KDoc for the DataStore-memoization
+   precondition.)
 
 What this pattern replaces — and why:
 
@@ -1201,7 +1202,7 @@ Reference implementation:
 (producer), `feature/settings/.../mvi/handler/SettingsNavigationHandler.kt`
 (router), `app/app/.../navigation/NavigatorEventBus.kt::restartApp`
 (seam dispatch), and
-`core/core/.../platform/AndroidAppReinitializer.kt::reinitialize` (executor).
+`core/core/src/androidMain/.../platform/AppReinitializer.kt::reinitialize` (executor).
 
 ### Navigation results
 
