@@ -1,9 +1,8 @@
 plugins {
     alias(libs.plugins.convention.androidLibrary)
-    // Metro plugin so the platform impls (Android{PlatformInfoProvider,TempFileProvider,AppReinitializer})
-    // contribute to the app-scope AppGraph via @ContributesBinding, and so the @BindingContainer
-    // @ContributesTo(AppScope) object ResourceWrapperBindingContainer aggregates
-    // (DispatchersBindingContainer moved to :core:core androidMain — phase 3 collapse in progress).
+    // Metro plugin so the two remaining platform impls (AndroidPlatformInfoProvider,
+    // AndroidAppReinitializer) contribute to the app-scope AppGraph via @ContributesBinding.
+    // Everything else has moved to :core:core androidMain — phase 3 collapse in progress.
     // AppScope itself is declared in :core:core commonMain; this module only consumes it.
     alias(libs.plugins.metro)
 }
@@ -14,17 +13,15 @@ metro {
     }
 }
 
-// Android side of the split core module (Phase C KMP cascade, L1). :core:core is a pure-Kotlin KMP
-// module that cannot reference android.*; this Android-library module hosts everything that must —
-// the framework implementations (AndroidResourceWrapper, ImageStorageImpl + buildImageStorage, the
-// three platform providers), the TempFileProvider interface, the Android-only formatRelativeTime
-// helper, and the two Metro binding containers. Packages are kept under
-// io.github.stslex.workeeper.core.core.* so no downstream import changes.
+// Dissolving Android sibling of :core:core (phase 3 collapse in progress). Still hosted here:
+// the two @ContributesBinding platform providers (AndroidPlatformInfoProvider,
+// AndroidAppReinitializer) and the Android-only formatRelativeTime helper. Everything else now
+// lives in :core:core androidMain. Packages are kept under io.github.stslex.workeeper.core.core.*
+// so no downstream import changes.
 //
-// :app:app depends on this so the @ContributesTo(AppScope) containers aggregate into AppGraph.
-// Only two other modules need the edge, and only because they name an Android-only type:
-// feature:home (formatRelativeTime) and feature:settings (TempFileProvider). Everything else
-// resolves AppScope, the dispatcher qualifiers and the platform interfaces from :core:core.
+// :app:app depends on this so the remaining @ContributesBinding impls aggregate into AppGraph.
+// feature:home still holds the edge for formatRelativeTime; feature:settings' TempFileProvider
+// now resolves from :core:core (transitively re-exported here via api).
 dependencies {
     api(project(":core:core"))
 

@@ -36,6 +36,10 @@ kotlin {
             implementation(libs.google.firebase.analytics)
             implementation(libs.google.firebase.crashlytics)
             implementation(libs.google.firebase.perf)
+            // FileProvider (ImageStorageImpl) + the @StringRes/@PluralsRes annotations
+            // (AndroidResourceWrapper) — the classic Android convention injects core-ktx into
+            // every module (KotlinAndroid.kt); the KMP convention does not, so it is explicit.
+            implementation(libs.androidx.core.ktx)
             // Provides javax.inject.Qualifier for the dispatcher-qualifier android actuals.
             // These annotation classes are the ONLY DI-adjacent code in this KMP module — the
             // @BindingContainer that binds the qualified dispatchers lives in :core:core-android.
@@ -54,4 +58,22 @@ dependencies {
     // Declared via the raw configuration name because the KMP source-set DSL's platform()
     // is deprecated/removed in Kotlin 2.3.
     "androidMainImplementation"(platform(libs.google.firebase.bom))
+
+    // Robolectric under JUnit 5 for androidHostTest (ImageStorageImplTest): the runtime half
+    // of the robolectric-junit5 bridge registers RobolectricExtension via ServiceLoader — the
+    // KMP convention already enables extension autodetection and android-resource inclusion.
+    // androidx-test supplies ApplicationProvider.
+    "androidHostTestImplementation"(libs.robolectric)
+    "androidHostTestImplementation"(libs.robolectric.junit5.extension)
+    "androidHostTestImplementation"(libs.androidx.test)
+}
+
+// The robolectric-junit5 bridge sandboxes each test class through a JUnit Platform
+// LauncherInterceptor, and interceptors are OFF by default — without this property the
+// extension runs but never installs Robolectric's classloader, and every test dies with
+// "No instrumentation registered". On classic Android modules the bridge's Gradle plugin
+// (applied by the Android convention) sets this; the KMP convention keeps Robolectric a
+// module concern, so the module sets it.
+tasks.withType<Test>().configureEach {
+    systemProperty("junit.platform.launcher.interceptors.enabled", true)
 }
