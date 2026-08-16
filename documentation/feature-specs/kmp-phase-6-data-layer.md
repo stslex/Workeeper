@@ -192,8 +192,9 @@ The four gaps below are **not** in the phase plan as handed over, and each is lo
 ### 3.1 `testFixtures` does not exist on KMP — 192 tests hang off it
 
 `core:data:database` is the repo's only `testFixtures` producer. Its 3 files (`RepositoryTestEnv`,
-`PrRuleFixture`, `PrRuleDbSeeder`) are consumed by `core:data:exercise` (185 `@Test`),
-`feature:exercise-chart` (4) and `feature:exercise` (4) — **19 files, 192 `@Test` total**. Phase 2
+`PrRuleFixture`, `PrRuleDbSeeder`) are consumed by `core:data:exercise` (17 files, 184 `@Test`),
+`feature:exercise-chart` (1 file, 4) and `feature:exercise` (1 file, 4) — **19 files, 192 `@Test`
+total**. Phase 2
 measured `testFixtures { }` as an unresolved reference on the AGP-KMP DSL.
 
 **Decided, and shipped as PR D's first commit:** re-home them into `core:data:database-test`, the
