@@ -122,7 +122,9 @@ internal fun Project.configureInstrumentedSuiteGate() {
     // phases 6 and 7 convert, which is the wrong direction of travel for a gate whose entire
     // subject is checks that quietly police nothing.
     tasks.configureEach {
-        if (name in ANDROID_TEST_ASSEMBLE_TASKS) dependsOn(verifyClasspath)
+        if (name in ANDROID_TEST_ASSEMBLE_TASKS || name in ANDROID_TEST_RUN_TASKS) {
+            dependsOn(verifyClasspath)
+        }
     }
 }
 
@@ -165,6 +167,20 @@ private val ANDROID_TEST_ASSEMBLE_TASKS = setOf(
     "assembleDebugAndroidTest",
     "assembleAndroidDeviceTest",
     "assembleAndroidTest",
+)
+
+/**
+ * The instrumented RUN tasks. `connectedDebugAndroidTest` does NOT depend on the
+ * `assembleDebugAndroidTest` lifecycle task — it consumes the APK artifacts from their producers —
+ * so hooking only the assemble names leaves a developer's direct
+ * `./gradlew connectedDebugAndroidTest` running with this gate absent from the task graph
+ * (verified with `--dry-run`). CI is covered only incidentally, by assembling in an earlier step.
+ * `connectedAndroidDeviceTest` is the AGP-KMP spelling
+ * (`documentation/feature-specs/kmp-phase-2-probes.md` → "P4c").
+ */
+private val ANDROID_TEST_RUN_TASKS = setOf(
+    "connectedDebugAndroidTest",
+    "connectedAndroidDeviceTest",
 )
 
 /**

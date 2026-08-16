@@ -8,7 +8,9 @@ import io.gitlab.arturbosch.detekt.api.Entity
 import io.gitlab.arturbosch.detekt.api.Issue
 import io.gitlab.arturbosch.detekt.api.Rule
 import io.gitlab.arturbosch.detekt.api.Severity
+import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.KtAnnotated
+import org.jetbrains.kotlin.psi.KtClassOrObject
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.psiUtil.containingClassOrObject
@@ -68,11 +70,37 @@ class InstrumentedSuiteSelectorRule(
 
         if (!function.hasTestAnnotation(function.containingKtFile.testNamesInScope())) return
 
+        val declaringClass = function.containingClassOrObject
+        val owner = declaringClass?.name ?: function.containingKtFile.name
+
+        // An INHERITABLE declaring class is rejected outright, whatever it is annotated with.
+        // JUnit 4 runs an inherited @Test under the CONCRETE subclass, and selectability is then
+        // decided by that subclass's annotations — which this rule cannot see without type
+        // resolution. Both directions of that are broken and neither is visible here: a class-level
+        // annotation on the base does not travel (`@Smoke`/`@Regression` are not `@Inherited`), and
+        // a concrete subclass that declares no `@Test` of its own is never visited by this
+        // function-level visitor at all. Refusing the shape is what makes the blind spot
+        // unreachable; the alternative is a rule that reports "fine" about a question it did not
+        // ask. Declare instrumented tests in the concrete class that runs them.
+        if (declaringClass != null && declaringClass.isInheritable()) {
+            report(
+                CodeSmell(
+                    issue,
+                    Entity.from(function),
+                    "`${function.name}` is an instrumented @Test declared in the inheritable " +
+                        "class `$owner`. JUnit runs an inherited test under its concrete " +
+                        "subclass, and `@Smoke`/`@Regression` are not `@Inherited`, so whether it " +
+                        "is selected depends on annotations this rule cannot see. Declare " +
+                        "instrumented tests in the concrete class that runs them.",
+                ),
+            )
+            return
+        }
+
         val bound = function.containingKtFile.suiteNamesInScope()
         if (function.hasSuiteAnnotation(bound)) return
-        if (function.containingClassOrObject?.hasSuiteAnnotation(bound) == true) return
+        if (declaringClass?.hasSuiteAnnotation(bound) == true) return
 
-        val owner = function.containingClassOrObject?.name ?: function.containingKtFile.name
         report(
             CodeSmell(
                 issue,
@@ -120,10 +148,16 @@ class InstrumentedSuiteSelectorRule(
         .toSet()
 
     private fun KtAnnotated.hasSuiteAnnotation(boundNames: Set<String>): Boolean =
-        annotationEntries.any { entry ->
-            val referenced = entry.typeReference?.text?.trim() ?: return@any false
-            referenced in CANONICAL_SUITE_ANNOTATIONS || referenced in boundNames
-        }
+        hasAnnotationIn(boundNames, CANONICAL_SUITE_ANNOTATIONS)
+
+    /**
+     * A class another class can extend. Kotlin classes are final by default, so only these three
+     * modifiers can put a `@Test` into a superclass position.
+     */
+    private fun KtClassOrObject.isInheritable(): Boolean =
+        hasModifier(KtTokens.ABSTRACT_KEYWORD) ||
+            hasModifier(KtTokens.SEALED_KEYWORD) ||
+            hasModifier(KtTokens.OPEN_KEYWORD)
 
     /**
      * Simple names that denote a JUnit `@Test` in this file.
@@ -151,10 +185,25 @@ class InstrumentedSuiteSelectorRule(
     }
 
     private fun KtAnnotated.hasTestAnnotation(boundNames: Set<String>): Boolean =
-        annotationEntries.any { entry ->
-            val referenced = entry.typeReference?.text?.trim() ?: return@any false
-            referenced in CANONICAL_TEST_ANNOTATIONS || referenced in boundNames
-        }
+        hasAnnotationIn(boundNames, CANONICAL_TEST_ANNOTATIONS)
+
+    /**
+     * True when some annotation on this element is one of [canonicalFqNames], either by its simple
+     * name resolving through [boundNames] or by being written fully qualified.
+     *
+     * BOTH spellings are read, and that is the point. `shortName` normalises the identifier — it
+     * strips the backticks off an escaped `` @`Test` `` — while the raw `typeReference.text` does
+     * not; conversely only the raw text carries a fully-qualified `@org.junit.Test`. Reading either
+     * one alone leaves a spelling the compiler accepts and this rule cannot see, which for a test
+     * annotation means an unselectable test passing unreported.
+     */
+    private fun KtAnnotated.hasAnnotationIn(
+        boundNames: Set<String>,
+        canonicalFqNames: Set<String>,
+    ): Boolean = annotationEntries.any { entry ->
+        entry.shortName?.asString() in boundNames ||
+            entry.typeReference?.text?.trim() in canonicalFqNames
+    }
 
     private companion object {
         const val TEST = "Test"

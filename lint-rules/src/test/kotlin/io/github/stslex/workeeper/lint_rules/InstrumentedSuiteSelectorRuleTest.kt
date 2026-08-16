@@ -201,6 +201,96 @@ internal class InstrumentedSuiteSelectorRuleTest {
     }
 
     @Test
+    fun `flags an unannotated test written with a backticked annotation name`() {
+        // `shortName` normalises the escaped identifier; the raw `typeReference.text` does not.
+        // Detecting @Test must not depend on which spelling the author used.
+        val findings = rule.lint(
+            """
+            package io.github.stslex.workeeper.feature.example
+
+            import org.junit.Test
+
+            class ExampleScreenTest {
+
+                @`Test`
+                fun rendersTitle() = Unit
+            }
+            """.trimIndent(),
+        )
+        assertEquals(1, findings.size, "A backticked @`Test` is still a test, got: $findings")
+    }
+
+    @Test
+    fun `accepts a backticked suite annotation`() {
+        val findings = rule.lint(
+            """
+            package io.github.stslex.workeeper.feature.example
+
+            $smokeImport
+            import org.junit.Test
+
+            @`Smoke`
+            class ExampleScreenTest {
+
+                @Test
+                fun rendersTitle() = Unit
+            }
+            """.trimIndent(),
+        )
+        assertEquals(0, findings.size, "A backticked @`Smoke` still selects, got: $findings")
+    }
+
+    @Test
+    fun `flags a test whose only suite annotation sits on an abstract base class`() {
+        // `@Smoke` is NOT `@Inherited`, so androidx.test's filter — which reads the annotations of
+        // the concrete class it runs — never sees it. Crediting it here would bless an arrangement
+        // in which every concrete subclass silently runs in neither suite.
+        val findings = rule.lint(
+            """
+            package io.github.stslex.workeeper.feature.example
+
+            $smokeImport
+            import org.junit.Test
+
+            @Smoke
+            abstract class BaseScreenTest {
+
+                @Test
+                fun sharedCase() = Unit
+            }
+            """.trimIndent(),
+        )
+        assertEquals(
+            1,
+            findings.size,
+            "A suite annotation on an abstract class does not select at runtime, got: $findings",
+        )
+    }
+
+    @Test
+    fun `flags a test declared in an open class even when the class is annotated`() {
+        // Codex round 5, from the other direction: a concrete subclass declaring no @Test of its
+        // own is never visited, so the shape itself is refused rather than reasoned about.
+        val findings = rule.lint(
+            """
+            package io.github.stslex.workeeper.feature.example
+
+            $smokeImport
+            import org.junit.Test
+
+            @Smoke
+            open class ReusableScreenTest {
+
+                @Test
+                fun sharedCase() = Unit
+            }
+            """.trimIndent(),
+        )
+        assertEquals(1, findings.size, "An inheritable test class is refused, got: $findings")
+        assertTrue(findings.single().message.contains("concrete"))
+    }
+
+    @Test
     fun `flags an unannotated test in a nested class`() {
         val findings = rule.lint(
             """
