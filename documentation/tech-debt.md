@@ -266,6 +266,14 @@ would have affected three tests, not one.
 
 ---
 
+## Instrumented annotation filter is silently dropped where the annotation class is missing (2026-08-16)
+
+| Severity | Location | Description |
+|---|---|---|
+| 🟡 | [core/ui/kit/build.gradle.kts](../core/ui/kit/build.gradle.kts) ↔ [feature/app-dialogs/impl/build.gradle.kts](../feature/app-dialogs/impl/build.gradle.kts) | **`ui_tests.yml`'s suite selector does not select in two modules: their whole androidTest suite runs in BOTH the smoke and the regression run.** **Mechanism:** androidx.test's `TestRequestBuilder` silently drops an `-e annotation <fqn>` filter when the annotation class cannot be loaded in the test APK's classloader. `AppConfirmationDialogTest` (5 tests) and `AppDialogHostContentTest` (10 tests) carry neither `@Smoke` nor `@Regression`, and their modules lack `androidTestImplementation(project(":core:ui:test-utils"))` — the module where the annotations live — so the filter never exists for those APKs. **Measured, 2026-08-16 (dev@a8bc127a5):** the `Regression`-filtered suite collected 79 = 64 annotated + these 15; re-running `:feature:app-dialogs:impl:connectedDebugAndroidTest` with a deliberately nonexistent annotation FQN still started all 10 tests, proving drop-on-unloadable, not annotation matching. Every correctly-filtered module has the test-utils edge. Cost today is over-inclusion (extra runtime in both suites, mislabeled coverage), not a vanish — but the same mechanism WOULD silently unfilter any future module that annotates tests without the classpath edge, and the run reports nothing. **Unblock condition:** add the test-utils edge to both modules and annotate both classes (`@Smoke` fits both by the taxonomy KDoc); re-verify that the Regression filter collects 0 there and the Smoke filter collects 5 + 10. |
+
+---
+
 ## Robolectric is not a valid oracle for transaction / async-child rollback semantics
 
 | Severity | Location | Description |
