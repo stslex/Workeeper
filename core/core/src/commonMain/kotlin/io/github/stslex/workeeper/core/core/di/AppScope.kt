@@ -21,23 +21,11 @@ package io.github.stslex.workeeper.core.core.di
  * `AppScope`. (`core:core-android` still re-exposes it via `api(core:core)`, so existing consumers keep
  * the identical import path with no change.)
  *
- * Placement rule for contribution SITES, corrected by measurement in KMP phase 6. The rule this
- * KDoc previously stated — that every `@ContributesBinding(AppScope::class)` /
- * `@ContributesTo(AppScope::class)` site must live in an Android-compiled source set, never
- * `commonMain` — is **not true**, and its stated reason (that `core:core` does not apply the Metro
- * compiler plugin) had already stopped being true when phase 3 added
- * `alias(libs.plugins.metro)` to `core/core/build.gradle.kts`.
- *
- * **Measured:** a `@ContributesBinding(AppScope::class)` declared in the `commonMain` of a KMP
- * module that applies the Metro plugin DOES aggregate into `:app:app`'s `@DependencyGraph`.
- * `CommonDataStoreImpl` (`core:data:dataStore` `commonMain`) is bound that way and
- * `:app:app:assembleDebug` resolves it; deleting the annotation reds the build with
- * `[Metro/MissingBinding] No binding found for CommonDataStore`, so the resolution is real and not a
- * green over an unrequested binding. The mechanism is simply that `commonMain` sources are part of
- * the Android compilation, which is where the Metro plugin runs.
- *
- * What IS still required: the module must apply the Metro plugin, and a contribution compiled into a
- * target with no graph (`iosSimulatorArm64` today) is inert rather than an error. A site in
- * `iosMain` remains pointless while the iOS composition root does not exist.
+ * Contribution SITES may live in `commonMain`. A `@ContributesBinding(AppScope::class)` /
+ * `@ContributesTo(AppScope::class)` there aggregates into `:app:app`'s `@DependencyGraph` provided
+ * the module applies the Metro compiler plugin — `commonMain` sources compile as part of the Android
+ * compilation, which is where that plugin runs. A site in `iosMain` is inert, not an error, while no
+ * iOS composition root exists. Derivation and the reddening mutation:
+ * `documentation/feature-specs/kmp-phase-6-data-layer.md` → §2.1 "What PR B settled".
  */
 abstract class AppScope private constructor()
