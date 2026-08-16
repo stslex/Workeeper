@@ -1,15 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.core.data.backup.scheduling
 
-import android.content.Context
 import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.datastore.preferences.preferencesDataStoreFile
 import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
@@ -18,6 +15,7 @@ import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupErrorCod
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupPreferences
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupPreferencesRepository
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupSchedule
+import io.github.stslex.workeeper.core.data.dataStore.core.DataStoreProviderFactory
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -33,22 +31,29 @@ import kotlinx.coroutines.flow.map
  * The widening is narrow: the override methods were already public via the interface; only the class and
  * constructor visibility change.
  *
- * Context is a PLAIN, unqualified `Context`: Metro CONSTRUCTS this impl and resolves `Context` from the
- * graph's `create(applicationContext)` bound instance, which is unqualified — so the constructor
- * parameter must carry no qualifier for the binding to match.
+ * The store is minted through [DataStoreProviderFactory], never with a per-instance
+ * `PreferenceDataStoreFactory.create` — a `DataStore` is a per-file singleton and `DataStoreProvider`'s
+ * memoization is static (process-lifetime), while this class is `@SingleIn(AppScope)` (graph-lifetime).
+ * A second `AppGraph` in one process must resolve the SAME store, or DataStore 1.1+ throws
+ * `IllegalStateException: There are multiple DataStores active` on the second read. Invariant pinned by
+ * `app/app` androidTest `AppScopeDataStoreSingletonTest`. `preferencesDataStoreFile(PREFS_NAME)` — the
+ * expression the provider applies — is the same one this class applied directly, so the resolved file is
+ * unchanged and no user data moves.
+ *
+ * The primary constructor is `internal` and takes the store itself: unit tests bind a temp-file
+ * `DataStore` through it, which keeps them off the provider's process-lifetime map (a memoized store
+ * would outlive the test that created it and leak state into the next one).
  */
 @ContributesBinding(AppScope::class)
 @SingleIn(AppScope::class)
-@Inject
-class BackupPreferencesRepositoryImpl(
-    private val context: Context,
+class BackupPreferencesRepositoryImpl internal constructor(
+    private val dataStore: DataStore<Preferences>,
 ) : BackupPreferencesRepository {
 
-    private val dataStore: DataStore<Preferences> by lazy {
-        PreferenceDataStoreFactory.create {
-            context.preferencesDataStoreFile(PREFS_NAME)
-        }
-    }
+    @Inject
+    constructor(storeFactory: DataStoreProviderFactory) : this(
+        storeFactory.create(PREFS_NAME).dataStore,
+    )
 
     override fun observe(): Flow<BackupPreferences> = dataStore.data.map(::fromPrefs)
 

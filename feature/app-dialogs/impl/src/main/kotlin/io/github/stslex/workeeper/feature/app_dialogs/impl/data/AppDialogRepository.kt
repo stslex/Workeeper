@@ -1,16 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.app_dialogs.impl.data
 
-import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.MutablePreferences
-import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.preferencesDataStoreFile
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.di.AppScope
+import io.github.stslex.workeeper.core.data.dataStore.core.DataStoreProviderFactory
 import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialog
 import io.github.stslex.workeeper.feature.app_dialogs.api.publisher.AppDialogPublisher
 import io.github.stslex.workeeper.feature.app_dialogs.impl.domain.AppDialogResolver
@@ -37,9 +35,17 @@ import kotlinx.coroutines.flow.map
  * in its accessor (Metro contributions/accessors can't reach an `internal`
  * cross-module type). It implements [AppDialogPublisher] but is NOT bound to it
  * (the producer binding is [AppDialogPublisherImpl]); so it is a self accessor,
- * never `@ContributesBinding`. The `Context` drops from Hilt's
- * `@ApplicationContext` to a plain param resolved from the graph's
- * `create(applicationContext)` bound instance.
+ * never `@ContributesBinding`.
+ *
+ * The store is minted through [DataStoreProviderFactory], never with a per-instance
+ * `PreferenceDataStoreFactory.create`: a `DataStore` is a per-file singleton whose
+ * memoization in `DataStoreProvider` is static (process-lifetime), while this class
+ * is `@SingleIn(AppScope)` (graph-lifetime). A second `AppGraph` in one process must
+ * resolve the SAME store, or DataStore 1.1+ throws `IllegalStateException: There are
+ * multiple DataStores active` on the second read — pinned by `app/app` androidTest
+ * `AppScopeDataStoreSingletonTest`. The provider applies
+ * `preferencesDataStoreFile(PREFS_NAME)`, the same expression this class applied
+ * directly, so the resolved file is unchanged and no user data moves.
  */
 @SingleIn(AppScope::class)
 class AppDialogRepository internal constructor(
@@ -47,10 +53,8 @@ class AppDialogRepository internal constructor(
 ) : AppDialogPublisher {
 
     @Inject
-    constructor(context: Context) : this(
-        PreferenceDataStoreFactory.create {
-            context.preferencesDataStoreFile(PREFS_NAME)
-        },
+    constructor(storeFactory: DataStoreProviderFactory) : this(
+        storeFactory.create(PREFS_NAME).dataStore,
     )
 
     /**

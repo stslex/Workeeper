@@ -1,22 +1,20 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.core.data.backup.scheduling
 
-import android.content.Context
 import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.datastore.preferences.preferencesDataStoreFile
 import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.di.AppScope
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreInProgressContext
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreStateRepository
+import io.github.stslex.workeeper.core.data.dataStore.core.DataStoreProviderFactory
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
@@ -41,19 +39,26 @@ import kotlinx.coroutines.flow.map
  */
 // App-Scope Collapse Step 3 (SB1): Hilt @Inject/@Singleton stripped, @Binds removed; Metro-owned via
 // @ContributesBinding(AppScope). Public for cross-module aggregation (D1; never hand-construct — resolve
-// via DI). Context is plain (from the graph's create(applicationContext); @ApplicationContext is not javax).
+// via DI).
+//
+// The store is minted through DataStoreProviderFactory, never with a per-instance
+// PreferenceDataStoreFactory.create: DataStoreProvider's memoization is static (process-lifetime) while
+// this class is @SingleIn(AppScope) (graph-lifetime), and a second AppGraph in one process must resolve
+// the SAME store or DataStore 1.1+ throws "There are multiple DataStores active" on the second read.
+// Pinned by app/app androidTest AppScopeDataStoreSingletonTest. The provider applies
+// preferencesDataStoreFile(PREFS_NAME) — the same expression this class applied directly — so the file
+// is unchanged and no user data moves. The internal primary ctor is the unit-test seam: tests bind a
+// temp-file DataStore so they never touch the process-lifetime map.
 @ContributesBinding(AppScope::class)
 @SingleIn(AppScope::class)
-@Inject
-class RestoreStateRepositoryImpl(
-    private val context: Context,
+class RestoreStateRepositoryImpl internal constructor(
+    private val dataStore: DataStore<Preferences>,
 ) : RestoreStateRepository {
 
-    private val dataStore: DataStore<Preferences> by lazy {
-        PreferenceDataStoreFactory.create {
-            context.preferencesDataStoreFile(PREFS_NAME)
-        }
-    }
+    @Inject
+    constructor(storeFactory: DataStoreProviderFactory) : this(
+        storeFactory.create(PREFS_NAME).dataStore,
+    )
 
     override suspend fun markRestoreInProgress(context: RestoreInProgressContext) {
         dataStore.edit { prefs ->

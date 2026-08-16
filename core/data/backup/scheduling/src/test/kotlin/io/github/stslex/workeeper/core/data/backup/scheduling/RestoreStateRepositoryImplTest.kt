@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.core.data.backup.scheduling
 
-import android.app.Application
-import android.content.Context
-import androidx.datastore.preferences.preferencesDataStoreFile
-import androidx.test.core.app.ApplicationProvider
+import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreInProgressContext
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
@@ -15,29 +16,34 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.extension.ExtendWith
-import org.robolectric.annotation.Config
-import tech.apter.junit.jupiter.robolectric.RobolectricExtension
+import java.io.File
 
-@ExtendWith(RobolectricExtension::class)
-@Config(application = RestoreStateRepositoryImplTest.TestApplication::class, sdk = [33])
+/**
+ * Binds the repository's `internal` store constructor to a fresh temp file per test, for the same
+ * reason as `BackupPreferencesRepositoryImplTest`: the production constructor goes through
+ * `DataStoreProviderFactory`, whose memoization is static and process-lifetime, so routing these
+ * tests through it would share one store across every test method. The provider routing itself is
+ * pinned on device by `app/app` androidTest `AppScopeDataStoreSingletonTest`.
+ */
 internal class RestoreStateRepositoryImplTest {
 
-    class TestApplication : Application()
-
-    private lateinit var context: Context
+    private lateinit var dataStoreScope: CoroutineScope
+    private lateinit var tempFile: File
     private lateinit var repo: RestoreStateRepositoryImpl
 
     @BeforeEach
     fun setUp() {
-        context = ApplicationProvider.getApplicationContext()
-        context.preferencesDataStoreFile(PREFS_FILE_NAME).delete()
-        repo = RestoreStateRepositoryImpl(context)
+        tempFile = File.createTempFile(PREFS_FILE_NAME, ".preferences_pb").also { it.delete() }
+        dataStoreScope = CoroutineScope(Dispatchers.IO + Job())
+        repo = RestoreStateRepositoryImpl(
+            PreferenceDataStoreFactory.create(scope = dataStoreScope) { tempFile },
+        )
     }
 
     @AfterEach
     fun tearDown() {
-        context.preferencesDataStoreFile(PREFS_FILE_NAME).delete()
+        dataStoreScope.cancel()
+        tempFile.delete()
     }
 
     @Test
