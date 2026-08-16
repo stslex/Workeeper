@@ -1,15 +1,26 @@
 plugins {
     alias(libs.plugins.convention.kmpLibrary)
+    // Metro on the KMP module itself (Phase 3 core collapse): androidMain hosts the
+    // @BindingContainer / @ContributesTo(AppScope) objects and the Android platform impls,
+    // and @ContributesTo aggregation from an AGP-KMP androidMain compilation reaches
+    // :app:app's @DependencyGraph auto-aggregation cross-module (measured: P5,
+    // documentation/feature-specs/kmp-phase-2-probes.md).
+    alias(libs.plugins.metro)
 }
 
-// Layer 1 of the KMP cascade: core:core compiles for android + iosSimulatorArm64 and is
-// PURE KOTLIN — no Android-framework impls, no DI graph wiring (it applies no Metro plugin).
+metro {
+    interop {
+        includeJavax()
+    }
+}
+
+// Layer 1 of the KMP cascade: core:core compiles for android + iosSimulatorArm64.
 // commonMain holds the shared surface (Logger/Log, dispatcher-qualifier + Firebase-holder
 // expect/actual seams, AppCoroutineScope, ResourceWrapper/ImageStorage/platform interfaces,
-// result/model/time/utils helpers). Everything that must touch android.* — the framework
-// implementations plus the two Metro @BindingContainer objects that bind them into AppScope —
-// lives in the sibling :core:core-android Android-library module, which is where the Metro
-// plugin is applied. Firebase runtime deps are androidMain-only; the iOS actuals are no-ops.
+// result/model/time/utils helpers). androidMain holds what must touch android.* or bind into
+// AppScope — the framework implementations and the Metro binding containers (collapsing in
+// from the former sibling :core:core-android, phase 3 of the KMP migration).
+// Firebase runtime deps are androidMain-only; the iOS actuals are no-ops.
 kotlin {
     sourceSets {
         commonMain.dependencies {

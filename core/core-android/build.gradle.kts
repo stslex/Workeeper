@@ -1,9 +1,10 @@
 plugins {
     alias(libs.plugins.convention.androidLibrary)
     // Metro plugin so the platform impls (Android{PlatformInfoProvider,TempFileProvider,AppReinitializer})
-    // contribute to the app-scope AppGraph via @ContributesBinding, and so the two @BindingContainer
-    // @ContributesTo(AppScope) objects (DispatchersBindingContainer / ResourceWrapperBindingContainer)
-    // aggregate. AppScope itself is declared in :core:core commonMain; this module only consumes it.
+    // contribute to the app-scope AppGraph via @ContributesBinding, and so the @BindingContainer
+    // @ContributesTo(AppScope) object ResourceWrapperBindingContainer aggregates
+    // (DispatchersBindingContainer moved to :core:core androidMain — phase 3 collapse in progress).
+    // AppScope itself is declared in :core:core commonMain; this module only consumes it.
     alias(libs.plugins.metro)
 }
 
