@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation3.runtime.rememberNavBackStack
+import io.github.stslex.workeeper.app.common.di.AppRootDepsHolder
 import io.github.stslex.workeeper.bottom_app_bar.BottomBarItem
 import io.github.stslex.workeeper.core.ui.kit.components.navbar.AppNavBar
 import io.github.stslex.workeeper.core.ui.kit.components.navbar.AppNavBarItem
@@ -45,7 +46,6 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.navigation.NavigatorHolder
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.core.ui.navigation.screenSavedStateConfiguration
-import io.github.stslex.workeeper.di.AppGraphOwner
 import io.github.stslex.workeeper.feature.app_dialogs.impl.ui.AppDialogHost
 import io.github.stslex.workeeper.host.AppNavigationHost
 import io.github.stslex.workeeper.host.BottomBarNavigationListener.Companion.rememberBottomBarNavigationListener
@@ -55,14 +55,20 @@ import kotlinx.coroutines.withTimeoutOrNull
 @Composable
 fun App() {
     // AppRootViewModel is a plain ViewModel constructed via viewModel {} with deps read from the app
-    // graph — commonDataStore off the public contract, navigatorEventBus off the internal AppGraph
-    // (concrete, app/app-owned).
+    // graph.
+    //
+    // KMP phase 4: this used to cast to `AppGraphOwner` and read the graph directly, which worked
+    // while App() lived in `:app:app`. It cannot now — `@DependencyGraph(AppScope)` and its owner
+    // interface are internal to `:app:app`, and `:app:app` depends on THIS module, so the graph is
+    // below-the-line by construction. [AppRootDeps] is the contract this module owns and `AppGraph`
+    // implements; the cast is safe because `BaseApplication : AppRootDepsHolder` is compile-visible
+    // there. Same typed-point-acquisition shape as RecoveryDepsHolder / BackupWorkerDepsHolder.
     val context = LocalContext.current
     val viewModel: AppRootViewModel = viewModel {
-        val graph = (context.applicationContext as AppGraphOwner).appGraph
+        val deps = (context.applicationContext as AppRootDepsHolder).appRootDeps()
         AppRootViewModel(
-            commonDataStore = graph.commonDataStore,
-            navigatorEventBus = graph.navigatorEventBus,
+            commonDataStore = deps.commonDataStore,
+            navigatorEventBus = deps.navigatorEventBus,
         )
     }
     val themeMode by viewModel.themeMode.collectAsState()

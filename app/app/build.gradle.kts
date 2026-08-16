@@ -26,6 +26,15 @@ android {
 }
 
 dependencies {
+    // The composition root. api, not implementation: BaseApplication implements AppRootDepsHolder
+    // and AppGraph implements AppRootDeps, and the flavor Application subclasses in app/dev +
+    // app/store extend BaseApplication — the same holder-visibility reason as api(feature:recovery)
+    // and api(core:data:backup:worker) below.
+    //
+    // This edge is what puts app:common BELOW the graph: `@DependencyGraph(AppScope)` is internal
+    // here, so App() cannot reach it and reads AppRootDeps instead. See
+    // documentation/feature-specs/kmp-phase-4-app-common.md § 2.
+    api(project(":app:common"))
     implementation(project(":core:core"))
     androidTestImplementation(project(":core:ui:test-utils"))
     // App-Scope Collapse Step 3 (C2): MetroTestRule builds the per-test graph with real in-memory-Room

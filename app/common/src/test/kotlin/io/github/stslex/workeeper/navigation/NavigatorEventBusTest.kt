@@ -5,6 +5,7 @@ import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.core.core.logger.Logger
 import io.github.stslex.workeeper.core.ui.navigation.NavCommand
 import io.github.stslex.workeeper.core.ui.navigation.NavResultKey
+import io.github.stslex.workeeper.core.ui.navigation.NavigatorReceiver
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.mockk.every
 import io.mockk.mockk

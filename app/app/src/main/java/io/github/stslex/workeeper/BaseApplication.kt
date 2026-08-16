@@ -3,6 +3,8 @@ package io.github.stslex.workeeper
 
 import android.app.Application
 import androidx.work.Configuration
+import io.github.stslex.workeeper.app.common.di.AppRootDeps
+import io.github.stslex.workeeper.app.common.di.AppRootDepsHolder
 import io.github.stslex.workeeper.core.core.images.buildImageStorage
 import io.github.stslex.workeeper.core.core.logger.FirebaseCrashlyticsHolder
 import io.github.stslex.workeeper.core.core.logger.Log
@@ -46,7 +48,8 @@ abstract class BaseApplication :
     AppGraphOwner,
     AppDepsHolder,
     RecoveryDepsHolder,
-    BackupWorkerDepsHolder {
+    BackupWorkerDepsHolder,
+    AppRootDepsHolder {
 
     abstract val isDebugLoggingAllow: Boolean
 
@@ -87,6 +90,13 @@ abstract class BaseApplication :
     // inversion), so it cannot use `context.appDeps<T>()`. `appGraph` implements BackupWorkerDeps, so
     // returning it typed as BackupWorkerDeps is a compile-checked upcast.
     override fun backupWorkerDeps(): BackupWorkerDeps = appGraph
+
+    // KMP phase 4 (typed point-acquisition, same shape as the two above): App() lives in app:common,
+    // which `:app:app` depends on — so it sits below the graph and cannot name `AppGraph` or
+    // `AppGraphOwner` at all. `appGraph` implements AppRootDeps, so returning it typed as AppRootDeps
+    // is a compile-checked upcast, and the `as AppRootDepsHolder` cast at the App() call site is safe
+    // by construction because this class implements the holder.
+    override fun appRootDeps(): AppRootDeps = appGraph
 
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()
