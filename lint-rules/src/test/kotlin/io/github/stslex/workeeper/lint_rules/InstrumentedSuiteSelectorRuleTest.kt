@@ -141,6 +141,66 @@ internal class InstrumentedSuiteSelectorRuleTest {
     }
 
     @Test
+    fun `flags an unannotated test whose JUnit import is aliased`() {
+        // The dangerous direction: an alias made the function invisible to the rule, so an
+        // unselectable test passed BOTH gate halves while the filter excluded it from both runs.
+        // Detecting @Test must be at least as permissive as JUnit's own resolution.
+        val findings = rule.lint(
+            """
+            package io.github.stslex.workeeper.feature.example
+
+            import org.junit.Test as InstrumentedTest
+
+            class ExampleScreenTest {
+
+                @InstrumentedTest
+                fun rendersTitle() = Unit
+            }
+            """.trimIndent(),
+        )
+        assertEquals(1, findings.size, "An aliased @Test is still a test, got: $findings")
+        assertTrue(findings.single().message.contains("rendersTitle"))
+    }
+
+    @Test
+    fun `flags an unannotated test whose JUnit import is a wildcard`() {
+        val findings = rule.lint(
+            """
+            package io.github.stslex.workeeper.feature.example
+
+            import org.junit.*
+
+            class ExampleScreenTest {
+
+                @Test
+                fun rendersTitle() = Unit
+            }
+            """.trimIndent(),
+        )
+        assertEquals(1, findings.size, "A star-imported @Test is still a test, got: $findings")
+    }
+
+    @Test
+    fun `accepts an aliased JUnit test that does carry a suite annotation`() {
+        val findings = rule.lint(
+            """
+            package io.github.stslex.workeeper.feature.example
+
+            $smokeImport
+            import org.junit.Test as InstrumentedTest
+
+            @Smoke
+            class ExampleScreenTest {
+
+                @InstrumentedTest
+                fun rendersTitle() = Unit
+            }
+            """.trimIndent(),
+        )
+        assertEquals(0, findings.size, "Alias detection must not create false positives, got: $findings")
+    }
+
+    @Test
     fun `flags an unannotated test in a nested class`() {
         val findings = rule.lint(
             """

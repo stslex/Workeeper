@@ -66,7 +66,7 @@ class InstrumentedSuiteSelectorRule(
     override fun visitNamedFunction(function: KtNamedFunction) {
         super.visitNamedFunction(function)
 
-        if (!function.hasAnnotation(TEST)) return
+        if (!function.hasTestAnnotation(function.containingKtFile.testNamesInScope())) return
 
         val bound = function.containingKtFile.suiteNamesInScope()
         if (function.hasSuiteAnnotation(bound)) return
@@ -125,11 +125,49 @@ class InstrumentedSuiteSelectorRule(
             referenced in CANONICAL_SUITE_ANNOTATIONS || referenced in boundNames
         }
 
-    private fun KtAnnotated.hasAnnotation(shortName: String): Boolean =
-        annotationEntries.any { it.shortName?.asString() == shortName }
+    /**
+     * Simple names that denote a JUnit `@Test` in this file.
+     *
+     * Detection here must be at least as permissive as JUnit's own resolution, because the two
+     * directions are not symmetric. Missing a test annotation makes an unselectable test INVISIBLE
+     * to this rule — it passes, runs in no suite, and nothing reports it, which is precisely the
+     * defect the rule exists to catch. Over-matching only ever asks for a suite annotation on
+     * something that may not need one, which is loud and trivially corrected.
+     *
+     * So the bare name is always included — it is the shape every test in this repo uses, and it
+     * holds whether or not the import is analysable — and aliases and star imports of the canonical
+     * JUnit annotations are added on top. `import org.junit.Test as InstrumentedTest` compiles to a
+     * JUnit test like any other.
+     */
+    private fun KtFile.testNamesInScope(): Set<String> = buildSet {
+        add(TEST)
+        importDirectives.forEach { directive ->
+            val imported = directive.importedFqName?.asString() ?: return@forEach
+            when {
+                directive.isAllUnder && imported in JUNIT_TEST_PACKAGES -> add(TEST)
+                imported in CANONICAL_TEST_ANNOTATIONS -> add(directive.aliasName ?: TEST)
+            }
+        }
+    }
+
+    private fun KtAnnotated.hasTestAnnotation(boundNames: Set<String>): Boolean =
+        annotationEntries.any { entry ->
+            val referenced = entry.typeReference?.text?.trim() ?: return@any false
+            referenced in CANONICAL_TEST_ANNOTATIONS || referenced in boundNames
+        }
 
     private companion object {
         const val TEST = "Test"
+
+        /** JUnit 4 and 5. Instrumented tests are JUnit 4; 5 is listed so the rule cannot be
+         * evaded by a runner change, and over-matching is the safe direction. */
+        val CANONICAL_TEST_ANNOTATIONS = setOf(
+            "org.junit.Test",
+            "org.junit.jupiter.api.Test",
+        )
+        val JUNIT_TEST_PACKAGES = CANONICAL_TEST_ANNOTATIONS
+            .mapTo(mutableSetOf()) { it.substringBeforeLast('.') }
+
         const val ANNOTATIONS_PACKAGE = "io.github.stslex.workeeper.core.ui.test.annotations"
         val CANONICAL_SUITE_ANNOTATIONS = setOf(
             "$ANNOTATIONS_PACKAGE.Smoke",
