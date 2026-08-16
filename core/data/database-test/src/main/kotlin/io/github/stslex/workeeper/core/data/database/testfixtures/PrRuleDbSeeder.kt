@@ -8,8 +8,8 @@ import io.github.stslex.workeeper.core.data.database.session.SessionEntity
 import io.github.stslex.workeeper.core.data.database.session.SessionStateEntity
 import io.github.stslex.workeeper.core.data.database.session.model.SetEntity
 import io.github.stslex.workeeper.core.data.database.session.model.SetTypeEntity
-import io.github.stslex.workeeper.core.data.database.training.TrainingEntity
 import io.github.stslex.workeeper.core.data.database.testfixtures.PrRuleFixture.PrScenario
+import io.github.stslex.workeeper.core.data.database.training.TrainingEntity
 import org.jetbrains.annotations.TestOnly
 import kotlin.uuid.Uuid
 

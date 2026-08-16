@@ -196,10 +196,28 @@ The four gaps below are **not** in the phase plan as handed over, and each is lo
 `feature:exercise-chart` (4) and `feature:exercise` (4) — **19 files, 192 `@Test` total**. Phase 2
 measured `testFixtures { }` as an unresolved reference on the AGP-KMP DSL.
 
-**Decided:** re-home them into a real module before the conversion, following the
-`core:ui:golden-harness` precedent (#229) and the sibling `core:data:database-test` that already
-exists for exactly this reason. The re-home is its own commit inside PR D, landing green before the
-plugin swap, so a bisect never lands on a commit where 192 tests do not compile.
+**Decided, and shipped as PR D's first commit:** re-home them into `core:data:database-test`, the
+sibling that already exists for exactly this purpose — no fourth module. It lands green *before* the
+plugin swap, so no bisect point has 192 uncompilable tests.
+
+The fixtures **keep their Kotlin package** (`…core.data.database.testfixtures`) even though the host
+module's Gradle namespace is `…database_test`. Kotlin package ≠ Gradle namespace — the move-mechanic
+phase 4 used to relocate the composition root — so all 19 consumer files keep their import lines
+verbatim and the commit is a build-graph edit rather than a source rewrite.
+
+Verified by running the affected suites, with the counts printed rather than assumed:
+`core:data:exercise` 19 classes / 212 tests, `feature:exercise` 9 / 113, `feature:exercise-chart`
+8 / 64, `core:data:database` 24 / 122 — **511 tests, 0 failures**. `core:data:database`'s own count
+is unchanged from the §0 baseline, so removing its `testFixtures` source set dropped none of its
+tests. No dependency cycle: its own tests never used the fixtures (grep).
+
+**A seventh zero-input gate, found by the move.** detekt flagged an `ImportOrdering` violation in
+`PrRuleDbSeeder.kt` *the moment it landed in `src/main`* — a violation that had always been there.
+detekt's source resolution is `src/main` + `src/test`, and **`src/testFixtures` is neither**, so
+those three files (354 lines) had never been detekt-checked in their entire existence. The gate was
+green over them because it never saw them. Nothing else in the repo produces `testFixtures`, so the
+hole closes completely with this move — but the shape is worth remembering: **a source set that no
+convention names is a source set no gate covers.**
 
 ### 3.2 The KMP convention has no device-test variant, and CI would not notice
 
