@@ -184,6 +184,11 @@ androidx-sqlite-bundled = { group = "androidx.sqlite", name = "sqlite-bundled", 
 
 androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore" }
 androidx-datastore-core = { group = "androidx.datastore", name = "datastore-core", version.ref = "datastore" }
+# The COMMON half of the preferences API: PreferenceDataStoreFactory.createWithPath(() -> okio.Path).
+# The `() -> File` overload lives in datastore-preferences's jvmAndroidMain, so a commonMain store
+# must build on this artifact; the Android source set still takes datastore-preferences for the
+# Context.preferencesDataStoreFile extension that pins the on-disk path.
+androidx-datastore-preferences-core = { group = "androidx.datastore", name = "datastore-preferences-core", version.ref = "datastore" }
 
 javax-inject = { group = "javax.inject", name = "javax.inject", version = "1" }
 
