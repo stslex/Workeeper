@@ -222,7 +222,7 @@ repository *interfaces* and their impls, i.e. the module's whole public surface.
 platform imports are `androidx.paging`, which is portable (§0). The 16th is the real one:
 
 ```kotlin
-} catch (_: SQLiteConstraintException) {   // ExerciseRepositoryImpl.kt:117
+} catch (_: SQLiteConstraintException) {   // ExerciseRepositoryImpl.saveItem
     return@transition SaveResult.DuplicateName
 }
 ```
@@ -252,13 +252,14 @@ driver Android uses. Two options existed:
 
 **Decided: port on (b), then flip to (a) as its own commit with its own gate.** The bundled driver is
 a *different SQLite build* from the framework one; that is the point and also the risk.
-`SessionDao.kt:76-80` already documents avoiding `ROW_NUMBER()` because minSdk 28 ships SQLite 3.22,
+`SessionDao`'s recent-sessions query already documents avoiding `ROW_NUMBER()` because minSdk 28
+ships SQLite 3.22,
 which is direct evidence that this codebase's SQL is written against the system SQLite version.
 Fusing the flip into the port makes a SQLite-behaviour regression and a source-set regression
 indistinguishable under bisect, and makes the safe half unrevertable without the risky half.
 
 **The migration suite is the gate for the flip**, per the phase brief, and Robolectric is not
-admissible as its oracle: `AtomicRollbackDeviceTest.kt:32-37` records Robolectric giving a false
+admissible as its oracle: `AtomicRollbackDeviceTest`'s class KDoc records Robolectric giving a false
 **negative** on transaction rollback *twice*. Evidence for the flip will be the instrumented
 `AppDatabaseMigrationTest` (real `MigrationTestHelper`, real device) run under both drivers, plus a
 5→6 migration applied to a real v5 database on device under the bundled driver.
@@ -266,7 +267,7 @@ admissible as its oracle: `AtomicRollbackDeviceTest.kt:32-37` records Robolectri
 **Schema-hash hazard to carry into PR D:** `6.json`'s `identityHash` must not move. Any incidental
 change to an entity, column or index declaration during the port silently invalidates
 `runMigrationsAndValidate` and would need a new migration for shipped users. The 9-name
-`EXPECTED_V6_TABLES` set in `AppDatabaseMigrationTest.kt:264-274` is a hand-maintained mirror of
+`EXPECTED_V6_TABLES` set in `AppDatabaseMigrationTest` is a hand-maintained mirror of
 `6.json` and will not self-correct.
 
 ---
@@ -288,7 +289,7 @@ change to an entity, column or index declaration during the port silently invali
 - **`java.time` → kotlinx-datetime.** The rider is real but almost entirely outside this phase: of
   **16** files (not 15 — one uses fully-qualified `java.time.LocalDate` with no import, so every
   import-based sweep, including this brief's, misses it), **14 are `feature:exercise-chart`** and
-  belong to Phase 7. `core/data` has 2, one of them production: `WorkoutExportMapper.kt:38`,
+  belong to Phase 7. `core/data` has 2, one of them production: `WorkoutExportMapper`'s
   `Instant.ofEpochMilli(epochMs).toString()`. That single line is taken in PR D; the rest is Phase 7's.
   Helpfully, there are **zero** `DateTimeFormatter` uses repo-wide — locale formatting already lives
   behind `ResourceWrapper` — so no formatter port is implied.
@@ -319,7 +320,7 @@ change to an entity, column or index declaration during the port silently invali
 - **`failOnNoDiscoveredTests` diverges**: Gradle's default `true` on KMP, explicitly `false` on the
   Android convention. Tests moved to a `commonTest` source set — which the convention neither creates
   nor wires — will red rather than vanish. That is the good direction, but the cause is not obvious.
-- **Two KDoc claims in this area are already wrong.** `KmpLibraryConventionPlugin.kt:26-27` names a
-  sibling module `core:core-android` that Phase 3 deleted, and `detekt.yml:231-232` attributes the
+- **Two KDoc claims in this area are already wrong.** `KmpLibraryConventionPlugin`'s class KDoc names
+  a sibling module `core:core-android` that Phase 3 deleted, and a `detekt.yml` comment attributes the
   KMP detekt `source.setFrom` to `core/core/build.gradle.kts`, which has no detekt block at all.
   Verify against code.

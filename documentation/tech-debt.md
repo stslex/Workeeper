@@ -168,28 +168,27 @@ stopped covering (name → real file) is exactly what the new device pins now as
 it lives in `core:core`, outside the data layer this phase converts, and it cannot be gated in both
 directions without a logging seam that does not exist (see "Why not now").
 
-**Mechanism.** `AppCoroutineScopeImpl`'s flow overload
-(`core/core/src/commonMain/.../coroutine/scope/AppCoroutineScopeImpl.kt:78-90`) is
-`.catch { onError(it) }`, and `onError` defaults to the literal empty lambda `{}` in all three
-declaring interfaces (`AppCoroutineScope.kt:29`, `StoreConsumer.kt:73`, `HandlerStore.kt:81`). An
-upstream flow failure is caught, handed to `{}`, and the collection completes normally: nothing
-reaches logcat, nothing reaches Crashlytics, no test observes anything. **The sibling action
-overload is not silent** — its `exceptionHandler` calls `Log.e(throwable)` (`:37`), and `Log.e`
-records to Crashlytics *before* the `isLogging` gate (`Log.kt:18-25`), so it reports in release.
-The asymmetry is the whole defect.
+**Mechanism.** `AppCoroutineScopeImpl.launch(flow, …)` — the `Flow` overload, not the action one —
+is `.catch { onError(it) }`, and `onError` defaults to the literal empty lambda `{}` on all three
+declaring interfaces: `AppCoroutineScope`, `StoreConsumer` and `HandlerStore`. An upstream flow
+failure is caught, handed to `{}`, and the collection completes normally: nothing reaches logcat,
+nothing reaches Crashlytics, no test observes anything. **The sibling `launch(action, …)` overload is
+not silent** — its `exceptionHandler` calls `Log.e(throwable)`, and `Log.e` records to Crashlytics
+*before* the `isLogging` gate. The asymmetry is the whole defect.
 
 **Blast radius, counted:** 22 production `Flow<T>.launch` call sites; **1** passes an explicit
 `onError`, **21** take the silent default. All three DataStore repositories above are consumed
-through it (`BackupClickHandler.kt:106`, `:167`, `AppDialogRepoHandler.kt:25`), and none of the
-three flows carries its own `.catch`. A DataStore `IOException` therefore renders as *absence*:
-Settings' auto-backup + AI-export block never draws (`BackupSection.kt:93`), the undo-restore row
-never draws (`:166`), and `AppDialogHost` composes nothing — every process-survival dialog silently
-never appears.
+through it — `BackupClickHandler` (the `observePreRestoreBackupAvailable` collector and the
+`BackupPreferences` `combine`) and `AppDialogRepoHandler.Observe` — and none of the three flows
+carries its own `.catch`. A DataStore `IOException` therefore renders as *absence*: in
+`BackupSection`, the auto-backup + AI-export block never draws (it is gated on a non-null
+`backupPreferences`) and the undo-restore row never draws (gated on `canRevertLastRestore`); and
+`AppDialogHost` composes nothing — every process-survival dialog silently never appears.
 
 **Why it is invisible to tests too:** the fakes have already diverged from production three ways —
-`FakeSettingsHandlerStore.kt:100` drops the `.catch` entirely, and live-workout's
-`ClickHandlerTest.kt:563` / `DialogClickHandlerTest.kt:916` return a bare `Job()` without collecting
-at all. No custom Detekt rule requires an `onError`; nothing mechanical stops call site 23.
+`FakeSettingsHandlerStore` drops the `.catch` entirely, and live-workout's `ClickHandlerTest` /
+`DialogClickHandlerTest` return a bare `Job()` without collecting at all. No custom Detekt rule
+requires an `onError`; nothing mechanical stops call site 23.
 
 **On iOS it is strictly worse:** `FirebaseCrashlyticsHolder` iosMain is `= Unit`, so even the one
 path that does report is a no-op there.
