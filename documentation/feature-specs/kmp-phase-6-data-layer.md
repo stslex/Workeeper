@@ -102,15 +102,78 @@ makes it the right place to meet the toolchain.
 **Decided increments, one PR each, each independently shippable and Android-releasable:**
 
 - **A. Stragglers** (shipped) — no KMP, clears the Phase 5 precondition.
-- **B. `core:data:dataStore` → KMP** — 5 files. The `expect/actual` is the store *path*, not the
-  store: `datastore-preferences-core` + a platform `producePath`, replacing the Android-only
-  `preferencesDataStoreFile`. Android's actual must return the byte-identical path §1 pinned, and the
-  `AppScopeDataStoreSingletonTest` file pins are what prove it.
+- **B. `core:data:dataStore` → KMP** (shipped, see §2.1) — the platform seam is the store *path*, not
+  the store.
 - **C. `core:data:backup:api` → KMP** — 22 of 24 files are already clean. See §4 for the two that are
   not.
 - **D. `core:data:database` → KMP** — the centrepiece. See §3.
 - **E. `core:data:exercise` → KMP** — mechanical once D lands, plus the one genuine behaviour change
   in §5.
+
+### §2.1 What PR B settled — including one invariant this repo had recorded backwards
+
+Nine files: `commonMain` holds the entire store surface (`CommonDataStore(Impl)`, `BaseDataStore`,
+the assisted `DataStoreProvider`/`Factory`), `androidMain` and `iosMain` hold one class each.
+
+**The seam is an interface, not `expect`/`actual`.** An `expect`/`actual` pair must agree on its
+constructor signature, and Android's resolver needs a `Context` while iOS's needs nothing — so
+`expect` would have forced Android to reach for a global `Context` holder to satisfy a shape iOS
+could also satisfy. `DataStorePathResolver` is an interface with `@ContributesBinding` on the Android
+side, the same interface-shaped seam `ResourceWrapper` and `ImageStorage` already use. **Worth
+carrying to phase 7: `expect`/`actual` is the wrong tool whenever the platforms differ in what they
+need *injected*, which for a UI stack will be most of the time.**
+
+**The Android resolver delegates to `Context.preferencesDataStoreFile` rather than rebuilding the
+path.** One definition of where user data lives, owned by the library. Pinned by
+`AndroidDataStorePathResolverTest` over all five shipped store names.
+
+**The memoization is a CAS loop, not `ConcurrentHashMap` + `synchronized`** — neither exists in
+Kotlin/Native. `kotlin.concurrent.atomics.AtomicReference` over an immutable map (stdlib 2.4.10;
+`kotlin.concurrent.Volatile` was already used in `core:core` commonMain as precedent). Losing the
+race costs a discarded `DataStore` and nothing else, because DataStore opens its file lazily in
+`FileStorage.createConnection()` — an instance that never wins the CAS is never opened and leaks no
+file handle. That property is what makes lock-free safe here; it is not a general licence.
+
+**Correction — `@ContributesBinding` DOES work from `commonMain`.** `core:core`'s `AppScope` KDoc
+recorded the opposite as an invariant ("every `@ContributesBinding(AppScope::class)` SITE must live
+in an Android-compiled source set — never `commonMain`/`iosMain`"), with the reason "those
+annotations require the Metro compiler plugin, which `core:core` does not apply" — and `core:core`
+**does** apply it, since phase 3. Measured: `CommonDataStoreImpl` is `@ContributesBinding` in
+`commonMain` and `:app:app:assembleDebug` resolves it; **mutation M-CM1** (delete the annotation)
+reds with `[Metro/MissingBinding] No binding found for CommonDataStore`, so the green is real rather
+than a pass over an unrequested binding. The mechanism is mundane — `commonMain` sources are part of
+the Android compilation, which is where the plugin runs. KDoc corrected in place.
+
+**This is the single most load-bearing finding here for phase 7.** Had the recorded invariant been
+believed, every feature's `Store`/handler/mapper binding would have been forced into `androidMain`
+during the CMP conversion, which would have made the shared UI layer un-shareable in exactly the way
+the migration exists to avoid.
+
+Two smaller traps, both of which cost a run here.
+
+**Robolectric's sandbox does not cover property initializers.** Under the tech.apter JUnit 5 bridge
+the Robolectric environment is installed around `@BeforeEach` and `@Test`, but **not** around
+construction of the test instance. So
+
+```kotlin
+private val context = ApplicationProvider.getApplicationContext<Application>()   // dies
+```
+
+fails with `IllegalStateException: No instrumentation registered! Must run under a registering
+instrumentation` — an error that reads like a broken subject rather than a misplaced call. Acquire
+the context in `@BeforeEach`. Every existing Robolectric test in this repo happens to do that
+already, so the rule was invisible until a new one did not. **Phase 7 converts many Robolectric
+tests; expect to meet this.**
+
+**And the meta-lesson attached to it:** that failure mode made a *mutation* look like it worked. The
+new path test was red for this reason before it was ever green, so its first "mutation reds it" run
+proved nothing — the mutation and the bug produced the same two failures. Establish the green
+baseline for a NEW test before mutating it, not just for the code under test. Fixed, then re-proven
+green → red → green.
+
+**iOS:** `NSFileManager.URLForDirectory(…)` takes an `NSError` out-parameter whose `CPointer` type
+drags `@ExperimentalForeignApi` into the file. The list-returning
+`URLsForDirectory(directory, inDomains)` is pure Foundation and needs no opt-in.
 
 ---
 
@@ -314,6 +377,12 @@ change to an entity, column or index declaration during the port silently invali
 
 ## §8 Notes for Phase 7, which reads this
 
+- **Metro contributions work from `commonMain`** (§2.1, measured with a reddening mutation). The
+  invariant this repo had written down said otherwise and was wrong; believing it would have pinned
+  every feature binding to `androidMain` and defeated the point of a shared UI layer.
+- **Prefer an injected interface over `expect`/`actual` whenever the platforms differ in their
+  dependencies**, not just their implementations (§2.1). `expect`/`actual` classes must agree on
+  constructor shape, which pushes Android toward global holders for things it should be injecting.
 - **Aliases are the KMP tax, and they are per-task.** `testDebugUnitTest`, `assembleDebug`,
   `lintDebug` already exist in the convention; `assembleDebugAndroidTest` arrives in PR D. Phase 7
   needs one more that nothing has needed yet: **CI runs `verifyPaparazziDebug` unconditionally and
@@ -326,7 +395,9 @@ change to an entity, column or index declaration during the port silently invali
   re-added two by hand. Phase 7 converts ~30 modules; budget for this per module.
 - **Robolectric on KMP needs three things the convention does not give you** (the two deps plus
   `junit.platform.launcher.interceptors.enabled`), and it is a per-module concern by design. 21 of
-  25 database unit tests and 16 of 20 exercise tests are Robolectric-gated.
+  25 database unit tests and 16 of 20 exercise tests are Robolectric-gated. Add a fourth thing:
+  **never call `ApplicationProvider` from a property initializer** — the sandbox does not cover
+  instance construction (§2.1).
 - **`failOnNoDiscoveredTests` diverges**: Gradle's default `true` on KMP, explicitly `false` on the
   Android convention. Tests moved to a `commonTest` source set — which the convention neither creates
   nor wires — will red rather than vanish. That is the good direction, but the cause is not obvious.
