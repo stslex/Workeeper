@@ -104,8 +104,7 @@ makes it the right place to meet the toolchain.
 - **A. Stragglers** (shipped) — no KMP, clears the Phase 5 precondition.
 - **B. `core:data:dataStore` → KMP** (shipped, see §2.1) — the platform seam is the store *path*, not
   the store.
-- **C. `core:data:backup:api` → KMP** — 22 of 24 files are already clean. See §4 for the two that are
-  not.
+- **C. `core:data:backup:api` → KMP** (shipped) — 22 files commonMain, 2 androidMain. See §4.
 - **D. `core:data:database` → KMP** — the centrepiece. See §3.
 - **E. `core:data:exercise` → KMP** — mechanical once D lands, plus the one genuine behaviour change
   in §5.
@@ -263,11 +262,26 @@ Android/JVM types sit in its public API**:
 Nine modules depend on `backup:api`, so changing these is a nine-module ripple, and there is no okio
 in the repo to change them *to*.
 
-**Decided:** convert with the pure surface (models, errors, results, `BackupPreferences`,
-`BackupSchedule`, the restore contracts — the part Phase 7's settings UI needs from commonMain) in
-`commonMain`, and keep `BackupStorage` + `RecoveryDiagnosticsExporter` in `androidMain` until a real
-iOS backup implementation justifies an abstraction. Inventing `expect` wrappers for a platform with
-no implementation would be speculative API churn across nine modules.
+**Decided, and shipped in PR C:** the pure surface (models, errors, results, `BackupPreferences`,
+`BackupSchedule`, the restore contracts — the part Phase 7's settings UI needs from commonMain) goes
+to `commonMain`; `BackupStorage` + `RecoveryDiagnosticsExporter` stay in `androidMain` until a real
+iOS backup implementation makes the right shape observable rather than guessed. Inventing `expect`
+wrappers for a platform with no implementation would be speculative API churn across nine modules.
+`okio.Path` is the obvious eventual candidate for `File` (okio is on the graph from PR B), but
+`android.net.Uri` has none: it is a SAF handle, and iOS shares documents by a different model.
+
+**Split measured: 22 files commonMain / 2 androidMain.** The whole module has exactly four external
+imports — `android.net.Uri`, `java.io.File`, `Flow`, `StateFlow` — and **zero** references to
+`core:core`, whose `implementation` dependency it had declared and never used. Dropped.
+
+**Correction to the convention's own guidance, found here.** `KmpLibraryConventionPlugin`'s KDoc says
+a module with no host tests opts out per-module with
+`failOnNoDiscoveredTests.set(false)`. Measured: **not needed when the source set is absent
+entirely** — `testAndroidHostTest` is then `NO-SOURCE` and never runs, so the flag never applies.
+`backup:api` builds green without the opt-out. The flag matters only when `androidHostTest` sources
+exist but discover no tests. Phase 7 converts modules with no host tests; do not paste in dead
+config on the strength of that KDoc. (This spec briefly carried the same wrong claim, written into a
+build script comment before it was probed.)
 
 ---
 
@@ -390,6 +404,8 @@ change to an entity, column or index declaration during the port silently invali
 - **`failOnNoDiscoveredTests` diverges**: Gradle's default `true` on KMP, explicitly `false` on the
   Android convention. Tests moved to a `commonTest` source set — which the convention neither creates
   nor wires — will red rather than vanish. That is the good direction, but the cause is not obvious.
+  A module with NO host-test sources at all needs no opt-out, contrary to the convention's KDoc
+  (§4): the task is `NO-SOURCE` and the flag never applies.
 - **Two KDoc claims in this area are already wrong.** `KmpLibraryConventionPlugin.kt:26-27` names a
   sibling module `core:core-android` that Phase 3 deleted, and `detekt.yml:231-232` attributes the
   KMP detekt `source.setFrom` to `core/core/build.gradle.kts`, which has no detekt block at all.
