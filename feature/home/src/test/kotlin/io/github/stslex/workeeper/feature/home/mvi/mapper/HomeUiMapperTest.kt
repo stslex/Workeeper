@@ -68,8 +68,11 @@ internal class HomeUiMapperTest {
             else -> error("Unexpected plural id: $id")
         }
 
+        // Argument-keyed sentinel: pins that the mapper passes (timestamp, now) in that
+        // order — the free-function predecessor took (now, event), so a mechanical swap
+        // that kept the old order would produce "rel:<now>@<timestamp>" and fail.
         override fun getAbbreviatedRelativeTime(timestamp: Long, now: Long): String =
-            error("Not used in HomeUiMapperTest")
+            "rel:$timestamp@$now"
 
         override fun formatMediumDate(timestamp: Long): String =
             error("Not used in HomeUiMapperTest")
@@ -95,12 +98,7 @@ internal class HomeUiMapperTest {
 
         assertEquals("Ad-hoc workout", item.trainingName)
         assertEquals(
-            DateUtils.getRelativeTimeSpanString(
-                5 * DateUtils.MINUTE_IN_MILLIS,
-                nowMillis,
-                DateUtils.MINUTE_IN_MILLIS,
-                DateUtils.FORMAT_ABBREV_RELATIVE,
-            ).toString(),
+            "rel:${5 * DateUtils.MINUTE_IN_MILLIS}@$nowMillis",
             item.finishedAtRelativeLabel,
         )
         assertEquals(formatElapsedDuration(5 * DateUtils.MINUTE_IN_MILLIS), item.durationLabel)
@@ -149,12 +147,7 @@ internal class HomeUiMapperTest {
         assertEquals("Push Day", items[0].name)
         assertEquals("4 exercises", items[0].exerciseCountLabel)
         assertEquals(
-            DateUtils.getRelativeTimeSpanString(
-                DateUtils.HOUR_IN_MILLIS,
-                nowMillis,
-                DateUtils.MINUTE_IN_MILLIS,
-                DateUtils.FORMAT_ABBREV_RELATIVE,
-            ).toString(),
+            "rel:${DateUtils.HOUR_IN_MILLIS}@$nowMillis",
             items[0].lastSessionRelativeLabel,
         )
 

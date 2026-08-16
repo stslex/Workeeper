@@ -4,7 +4,7 @@ plugins {
 
 dependencies {
     // FakeImageStorage implements core:core's ImageStorage/ImageRef/ImageSaveResult; the real
-    // ImageStorageImpl (core:core-android) is never referenced here.
+    // ImageStorageImpl (core:core androidMain) is never referenced here.
     implementation(projects.core.core)
     implementation(projects.core.ui.kit)
     implementation(projects.core.ui.mvi)
