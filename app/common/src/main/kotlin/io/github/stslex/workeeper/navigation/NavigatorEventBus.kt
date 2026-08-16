@@ -12,6 +12,7 @@ import io.github.stslex.workeeper.core.ui.navigation.NavCommand
 import io.github.stslex.workeeper.core.ui.navigation.NavResultKey
 import io.github.stslex.workeeper.core.ui.navigation.NavResultsSource
 import io.github.stslex.workeeper.core.ui.navigation.Navigator
+import io.github.stslex.workeeper.core.ui.navigation.NavigatorReceiver
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.core.ui.navigation.ScreenWithResult
 import kotlinx.coroutines.flow.MutableSharedFlow

@@ -12,6 +12,7 @@ import io.github.stslex.workeeper.core.ui.mvi.performance.RecordAction
 import io.github.stslex.workeeper.core.ui.navigation.NavCommand
 import io.github.stslex.workeeper.core.ui.navigation.NavResultsSource
 import io.github.stslex.workeeper.core.ui.navigation.NavigatorHolder
+import io.github.stslex.workeeper.core.ui.navigation.NavigatorReceiver
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.recovery.RecoveryActivity
 

@@ -4,7 +4,7 @@ package io.github.stslex.workeeper.bottom_app_bar
 import androidx.annotation.StringRes
 import androidx.compose.runtime.Stable
 import androidx.compose.ui.graphics.vector.ImageVector
-import io.github.stslex.workeeper.app.app.R
+import io.github.stslex.workeeper.app.common.R
 import io.github.stslex.workeeper.core.ui.kit.icons.AppIcons
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 

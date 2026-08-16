@@ -1,0 +1,5 @@
+<resources>
+    <string name="bottom_bar_label_home">Home</string>
+    <string name="bottom_bar_label_trainings">Trainings</string>
+    <string name="bottom_bar_label_exercises">Exercises</string>
+</resources>
