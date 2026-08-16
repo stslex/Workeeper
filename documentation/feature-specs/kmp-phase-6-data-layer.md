@@ -273,10 +273,18 @@ change to an entity, column or index declaration during the port silently invali
 
 ## §7 Deferred, with reasons
 
-- **`java.io.File` → okio.** okio does not exist in this repo (0 occurrences). The data-layer surface
-  is 9 main-source files, three with `File` in *public interface signatures* spanning `backup:api`,
-  `database`, `google-drive` and `feature:recovery`. That is a new third-party dependency plus a
-  multi-module API break — larger than it looks, exactly as the brief allowed for. Filed, not forced.
+- **`java.io.File` → okio.** The data-layer surface is 9 main-source files, three with `File` in
+  *public interface signatures* spanning `backup:api`, `database`, `google-drive` and
+  `feature:recovery` — a multi-module API break, larger than it looks, exactly as the brief allowed
+  for. Filed, not forced.
+
+  **But the dependency half of that cost disappears in PR B, and this is worth knowing before anyone
+  re-prices the rider.** okio has 0 occurrences in the repo today, yet the commonMain DataStore API
+  is `PreferenceDataStoreFactory.createWithPath(produceFile: () -> okio.Path)` — read from the
+  `datastore-preferences-core` 1.2.1 sources; the `() -> File` overload is `jvmAndroidMain`-only. So
+  converting `core:data:dataStore` brings okio into the graph as a *requirement of DataStore on KMP*,
+  not as a choice. After PR B the remaining cost of the `File` rider is purely the nine-module
+  signature change, with no new third-party dependency to justify.
 - **`java.time` → kotlinx-datetime.** The rider is real but almost entirely outside this phase: of
   **16** files (not 15 — one uses fully-qualified `java.time.LocalDate` with no import, so every
   import-based sweep, including this brief's, misses it), **14 are `feature:exercise-chart`** and
