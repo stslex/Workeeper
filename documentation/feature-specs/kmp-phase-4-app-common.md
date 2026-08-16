@@ -221,7 +221,7 @@ from tests, because parallel runs have produced false REDs here empirically.
 | gate | result |
 |---|---|
 | `assembleDebug` + `testDebugUnitTest` + `verifyPaparazziDebug` + `lintDebug` + `assembleDebugAndroidTest` | **BUILD SUCCESSFUL in 11m 1s, 3166 actionable tasks: 3166 executed** |
-| unit tests, repo-wide | **2318 tests / 249 classes, 0 failures, 0 errors** |
+| unit tests, repo-wide | **2022 tests / 228 suites, 0 failures** (CI's publisher, commit `54b82584`; ±0 against the §0 base `ba9051fb`) |
 | Paparazzi | **446 goldens verified, 0 re-recorded** (`git status` over `snapshots/` is empty) |
 | `detekt`, repo-wide | green |
 | instrumented `@Regression` oracle, `nav_regression_api34` (API 34, arm64) | **BUILD SUCCESSFUL in 7m 39s, 1963 actionable tasks: 1963 executed. 64 tests, 0 failures**, 13 reporting modules |
@@ -235,7 +235,17 @@ run in exactly one. `:app:app` reports 0 here, correctly — all 35 of its tests
 
 The unit-test split is the check that the module boundary landed where it was designed to: the 14
 `di/*ExtensionIdentityTest` stayed with the graph (**54 tests**) and the 2 `NavigatorEventBus` tests
-moved (**18 tests**), with `core:ui:navigation` at 1.
+moved (**18 tests**), with `core:ui:navigation` at 1. Those three are read per-module from the
+JUnit XML and are exact.
+
+**A number NOT quoted here, deliberately.** Summing every module's
+`build/test-results/testDebugUnitTest` locally gives 2318 tests / 249 suites, which does not
+reconcile with CI's 2022 / 228. Paparazzi writes its 446 golden verifications into those same
+directories (this project has no separate `verifyPaparazziDebug` results dir), but 2318 − 446 = 1872
+does not equal 2022 either, so the local aggregate is not explained by goldens alone. CI's figure is
+the one that gates and the one anyone can reproduce, so it is the one recorded; the local aggregate
+is dropped rather than defended. Earlier revisions of this spec and of PR #231 quoted 2318 — that was
+a number without a mechanism behind it, and this arc has been burned by those before.
 
 **The instrumented-suite gate covered the new module without being asked.** `:app:common` was created
 in this phase and never wired to anything; `verifyInstrumentedSuiteClasspath` reported
