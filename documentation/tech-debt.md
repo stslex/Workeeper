@@ -274,6 +274,14 @@ would have affected three tests, not one.
 
 ---
 
+## KMP incremental compile can transiently orphan androidMain `actual class`es (2026-08-16)
+
+| Severity | Location | Description |
+|---|---|---|
+| 🟡 | [core/core/src/androidMain/.../platform/](../core/core/src/androidMain/kotlin/io/github/stslex/workeeper/core/core/platform/) | **The first incremental `:core:core:compileAndroidMain` round after a forced full rebuild can spuriously fail with `'actual class …' has no corresponding expected declaration` for the phase-3 `actual class`es (`AppReinitializer`, `PlatformInfoProvider`) — and the red STICKS across re-runs of the same state.** **Measured, 2026-08-16 (Kotlin 2.4.10, AGP-KMP, Metro 1.3.2):** immediately after a `--rerun-tasks --no-build-cache` full build (green, 1526/1526 executed), appending a blank line to `DispatchersBindingContainer.kt` (androidMain) failed the incremental round 3/3 times flagging exactly the two actual classes — files that were not edited — and re-running without changes stayed red. After one green round on a different file the same edit compiled green 4/4; the artifact is **history-dependent**, not file-dependent: the poisoned state is the one a forced full rebuild leaves behind. `actual object`s / `actual annotation class`es (Firebase holders, dispatcher qualifiers) were never flagged. Clean and `--rerun-tasks` builds are always green, so **CI is unaffected**; the cost is local: a sticky, confusing red right after the kind of full-battery run the gate protocol prescribes (this session's M-A mutation had to be measured through a clean build for exactly this reason). **Workaround:** any clean / `--rerun-tasks` build, or one further incremental round after touching a different androidMain file. **Suspected** K2 KMP fragment-IC defect (dirty androidMain set recompiled without the commonMain fragment's expects); not root-caused to an upstream issue id. **Trigger to act:** a Kotlin/AGP upgrade (retest and drop this entry if healed), or the artifact starts biting in day-to-day flow — then consider filing upstream with the measured repro. |
+
+---
+
 ## Robolectric is not a valid oracle for transaction / async-child rollback semantics
 
 | Severity | Location | Description |
