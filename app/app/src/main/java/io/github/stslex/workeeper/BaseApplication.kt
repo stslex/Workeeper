@@ -91,8 +91,8 @@ abstract class BaseApplication :
     // returning it typed as BackupWorkerDeps is a compile-checked upcast.
     override fun backupWorkerDeps(): BackupWorkerDeps = appGraph
 
-    // KMP phase 4 (typed point-acquisition, same shape as the two above): App() lives in app:common,
-    // which `:app:app` depends on — so it sits below the graph and cannot name `AppGraph` or
+    // Typed point-acquisition, same shape as the two above: App() lives in app:common, which
+    // `:app:app` depends on — so it sits below the graph and cannot name `AppGraph` or
     // `AppGraphOwner` at all. `appGraph` implements AppRootDeps, so returning it typed as AppRootDeps
     // is a compile-checked upcast, and the `as AppRootDepsHolder` cast at the App() call site is safe
     // by construction because this class implements the holder.

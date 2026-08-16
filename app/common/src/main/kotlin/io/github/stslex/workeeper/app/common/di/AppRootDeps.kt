@@ -19,10 +19,10 @@ import io.github.stslex.workeeper.navigation.NavigatorEventBus
  * module depend on Metro's aggregation machinery — the opposite of what phase 7 needs, since an iOS
  * composition root wires its own way.
  *
- * **Precedent.** This is the shape [RecoveryDeps][io.github.stslex.workeeper.feature.recovery.di.RecoveryDeps]
- * and `BackupWorkerDeps` already use, and it is deliberate: the repo arrived at narrow per-consumer
- * dep interfaces by DELETING a god-object (`AppGraphContract` + its holder + its accessor + module
- * `core:di`). Reintroducing a wide contract here would undo that conclusion.
+ * **Keep it narrow.** This is the shape [RecoveryDeps][io.github.stslex.workeeper.feature.recovery.di.RecoveryDeps]
+ * and `BackupWorkerDeps` use: one interface per consumer, naming only what that consumer reads.
+ * Widening it into a general-purpose accessor for the app graph is the thing to not do — the
+ * reasoning is in `documentation/appgraphcontract-split/NEXT.md`.
  *
  * Both types are owned by modules `app:common` depends on directly — `CommonDataStore` →
  * `core:data:dataStore`; [NavigatorEventBus] lives in this module — so no new edge and no cycle.

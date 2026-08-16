@@ -116,9 +116,9 @@ internal interface AppGraph :
      * (which injects the concrete, then passes it as a `NavigatorReceiver`). One instance backs both.
      *
      * [navigatorEventBus] is declared by [AppRootDeps] and read by `App.kt` in `app:common` — which
-     * cannot see this graph, so it reads the contract instead. Its import here is unchanged by the
-     * phase-4 move: [NavigatorEventBus] kept its package and changed only its module, which is what
-     * leaves the `@Regression` oracle's own imports untouched. [navigator] has NO READER — features
+     * cannot see this graph, so it reads the contract instead. [NavigatorEventBus] itself lives in
+     * `app:common` under the `io.github.stslex.workeeper.navigation` package, which is why the
+     * import above names no module. [navigator] has NO READER — features
      * inject `Navigator` as a constructor dep inside their own extension — and is kept as the
      * compile-time assertion that the contributed supertype binding still resolves to that same
      * instance.
