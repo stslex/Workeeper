@@ -110,6 +110,30 @@ inputs are its *filtered* source: adding a `.java` file leaves it `UP-TO-DATE`, 
 to it would never run. The classpath task's `instrumentedSources` is the unfiltered tree, so a new
 `.java` file invalidates it — which is exactly why the probe moved its count from 2 to 3.
 
+### 2.2 The gate on a KMP module, and the one part of it phase 7 still owns
+
+Both halves keyed off Android-library names and were therefore **structurally inert on a KMP
+module**. Measured on `:core:core`: no `debugAndroidTestRuntimeClasspath`, and no
+`assembleDebugAndroidTest`. The gate now:
+
+- scans `src/androidDeviceTest/kotlin` alongside the two `src/androidTest` roots;
+- resolves `androidDeviceTestRuntimeClasspath` as well as `debugAndroidTestRuntimeClasspath`;
+- hooks `assembleAndroidDeviceTest` — the AGP-KMP device-test APK task, per
+  [kmp-phase-2-probes.md](kmp-phase-2-probes.md) → "P4c"; **not** `assembleAndroidTest`, which is
+  only the lifecycle aggregate;
+- and **hard-fails** when a module has instrumented sources but matches none of the known
+  runtime-classpath configurations, instead of scanning an empty collection and passing.
+
+**What this does NOT fix, and phase 7 must.** The same probe records that CI's
+`assembleDebugAndroidTest` will not build a KMP deviceTest APK at all, and that the first
+instrumented-test module to convert needs an `assembleDebugAndroidTest → assembleAndroidDeviceTest`
+alias in the KMP convention. Until that alias exists, a converted module's APK — and with it this
+gate — stays outside CI's task graph no matter which task names the gate hooks. The alias is not
+written here because no module has device tests yet, so it could not be exercised; it belongs with
+the conversion that needs it. The `lintDebug`-onto-`lint` alias already in
+`KmpLibraryConventionPlugin` is the precedent for its shape, and it exists for exactly this class of
+silent CI vanish.
+
 ---
 
 ## 3. Evidence

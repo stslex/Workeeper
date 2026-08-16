@@ -116,11 +116,11 @@ internal fun Project.configureInstrumentedSuiteGate() {
 
     tasks.named("detekt") { dependsOn(detektSuite) }
     tasks.named("check") { dependsOn(detektSuite, verifyClasspath) }
-    // Both spellings. An Android library assembles `assembleDebugAndroidTest` — the name CI's
-    // build step invokes — while an AGP-KMP module exposes `assembleAndroidTest` instead
-    // (measured on `:core:core`). Hooking only the first leaves the gate structurally inert on
-    // every module phases 6 and 7 convert, which is the wrong direction of travel for a gate
-    // whose entire subject is checks that quietly police nothing.
+    // Every spelling of "assemble the test APK" — see ANDROID_TEST_ASSEMBLE_TASKS for which name
+    // belongs to which plugin, and for the CI-reachability caveat that this hook cannot fix on its
+    // own. Hooking only the Android-library name leaves the gate structurally inert on every module
+    // phases 6 and 7 convert, which is the wrong direction of travel for a gate whose entire
+    // subject is checks that quietly police nothing.
     tasks.configureEach {
         if (name in ANDROID_TEST_ASSEMBLE_TASKS) dependsOn(verifyClasspath)
     }
@@ -143,9 +143,27 @@ private val ANDROID_TEST_RUNTIME_CLASSPATHS = listOf(
     "androidDeviceTestRuntimeClasspath",
 )
 
-/** Android-library and AGP-KMP spellings of "assemble the test APK". */
+/**
+ * Every task that assembles an instrumented test APK.
+ *
+ * `assembleDebugAndroidTest` is the Android library/application spelling and the one CI invokes.
+ * `assembleAndroidDeviceTest` is the AGP-KMP device-test APK task — the name is measured in
+ * `documentation/feature-specs/kmp-phase-2-probes.md` → "P4c", NOT `assembleAndroidTest`, which is
+ * only the generic lifecycle aggregate a KMP module exposes whether or not it has device tests.
+ *
+ * The aggregate is listed anyway: hooking it costs nothing and covers anyone who invokes it by
+ * hand. It is not a substitute for the real one.
+ *
+ * **This set alone does not make the gate reachable on a converted KMP module.** The same probe
+ * records that CI's `assembleDebugAndroidTest` will not build a deviceTest APK at all, and that the
+ * first instrumented-test module to convert needs an
+ * `assembleDebugAndroidTest → assembleAndroidDeviceTest` alias in the KMP convention. Until that
+ * alias exists, a converted module's APK — and therefore this gate — stays outside CI's task graph.
+ * That alias belongs with the conversion that needs it, where it can actually be exercised.
+ */
 private val ANDROID_TEST_ASSEMBLE_TASKS = setOf(
     "assembleDebugAndroidTest",
+    "assembleAndroidDeviceTest",
     "assembleAndroidTest",
 )
 
