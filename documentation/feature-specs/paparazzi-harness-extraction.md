@@ -30,9 +30,15 @@ That extraction is Android-only work, executable today.
 - The `testFixturesCompileOnly(paparazzi)` contortion in core:ui:kit exists only
   because AGP wires a module's own fixtures onto its androidTest runtime classpath,
   where layoutlib's protobuf-java collided with firebase-perf's protobuf-javalite.
-  An ordinary harness module with no androidTest source set escapes that wiring
-  entirely and can declare paparazzi as a normal dependency — restoring compile-time
-  failure for consumers that forget the plugin (the current design's documented cost).
+  An ordinary harness module with no androidTest source set escapes that wiring.
+  **Measured correction (2026-08-16, during implementation):** the follow-on claim this
+  spec originally made — that the extracted module could therefore declare paparazzi as
+  a normal `implementation` dependency — is **wrong**. Paparazzi's host-JVM
+  layoutlib/tools closure (FastInfoset, jaxb-runtime, ddmlib, …) on an Android
+  library's packaged classpath fails `lintDebug` with 27 `InvalidPackage` errors. The
+  `compileOnly` scopes survive the extraction for this second, independent reason;
+  runtime is supplied by the Paparazzi plugin every golden module applies, with
+  `assertGoldenLiveness` as the forgot-the-plugin tripwire.
 
 ## Design
 
