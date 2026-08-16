@@ -215,8 +215,40 @@ composition root has moved".
 
 ## 7. Gates
 
-Recorded in the PR body with counts. The exit criterion for this phase is the navigation oracle green
-and unedited, and the pinned instrumented failure list unchanged — see
-[tech-debt.md](../tech-debt.md) for the list's current pin and
-[kmp-phase-0-instrumented-filter.md](kmp-phase-0-instrumented-filter.md) for why the count it is
-pinned at changed in this cycle.
+All run with `--rerun-tasks --no-build-cache --no-configuration-cache`; detekt invoked separately
+from tests, because parallel runs have produced false REDs here empirically.
+
+| gate | result |
+|---|---|
+| `assembleDebug` + `testDebugUnitTest` + `verifyPaparazziDebug` + `lintDebug` + `assembleDebugAndroidTest` | **BUILD SUCCESSFUL in 11m 1s, 3166 actionable tasks: 3166 executed** |
+| unit tests, repo-wide | **2318 tests / 249 classes, 0 failures, 0 errors** |
+| Paparazzi | **446 goldens verified, 0 re-recorded** (`git status` over `snapshots/` is empty) |
+| `detekt`, repo-wide | green |
+| instrumented `@Regression` oracle, `nav_regression_api34` (API 34, arm64) | **BUILD SUCCESSFUL in 7m 39s, 1963 actionable tasks: 1963 executed. 64 tests, 0 failures**, 13 reporting modules |
+
+The unit-test split is the check that the module boundary landed where it was designed to: the 14
+`di/*ExtensionIdentityTest` stayed with the graph (**54 tests**) and the 2 `NavigatorEventBus` tests
+moved (**18 tests**), with `core:ui:navigation` at 1.
+
+**The instrumented-suite gate covered the new module without being asked.** `:app:common` was created
+in this phase and never wired to anything; `verifyInstrumentedSuiteClasspath` reported
+`:app:common: 0 instrumented source files; nothing to verify` on its first run, because
+`LintConventionPlugin` registers the gate for every module. That is the property the gate was built
+for, demonstrated on a real new module rather than argued.
+
+### Exit criterion
+
+The navigation oracle green **and unedited**. `git diff --stat` over `app/app/src/androidTest`
+against this phase's parent commit is **empty** — no instrumented test file was added, modified,
+moved, or deleted — and the pinned failure list is unchanged at zero expected failures.
+
+Met. The post-move run collects the same **64** across the same 13 modules as the pre-move run, with
+the same per-module split (`app:app` 35, `core:data:database` 28, `all-exercises` 1). Same tests,
+same behaviour, different module boundary — which is what "structural only" has to mean if it means
+anything. `:app:app`'s own 35 completed 35/35 with 0 skipped and 0 failed, compiling unedited against
+a composition root that now lives in another module.
+
+The count that list is quoted against moved from 79 to **64** in the §0 work that precedes this
+phase, because the suite selector was not running in three modules. See
+[kmp-phase-0-instrumented-filter.md](kmp-phase-0-instrumented-filter.md) and
+[tech-debt.md](../tech-debt.md).
