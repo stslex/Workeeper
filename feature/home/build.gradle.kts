@@ -5,7 +5,7 @@ plugins {
     // Goldens for the Home surface. This module had none, and the v3 extraction rewrites the
     // recent-session row and the whole empty region at once — a surface change with no
     // before-picture is a diff nobody can read (§24, "Golden coverage gaps"). The harness is NOT
-    // copied: it comes from core:ui:kit's testFixtures, so device config, tolerance and canvas
+    // copied: it comes from core:ui:golden-harness, so device config, tolerance and canvas
     // width cannot drift between this module and the three siblings it must stay in step with.
     alias(libs.plugins.paparazzi)
 }
@@ -33,7 +33,7 @@ dependencies {
 
     testImplementation(libs.androidx.paging.testing)
     testImplementation(kotlin("test"))
-    testImplementation(testFixtures(project(":core:ui:kit")))
+    testImplementation(project(":core:ui:golden-harness"))
     // Compose's semantics-tree surface on the JVM side, for HomeStartCardModeLabelTest: the
     // head's label is present-or-absent, which is a semantics claim a golden cannot make
     // (it would be a picture of an absence) and a handler test cannot reach. `src/androidTest`

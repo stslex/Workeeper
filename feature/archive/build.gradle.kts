@@ -6,7 +6,7 @@ plugins {
     // Goldens for the archive surface. This module had none, and the v3 delta rewrites the row's
     // container, its name, its meta line and the list's padding at once — a whole-surface change
     // with no before-picture is a diff nobody can read. The harness is NOT copied: it comes from
-    // core:ui:kit's testFixtures, so device config, tolerance and canvas width cannot drift between
+    // core:ui:golden-harness, so device config, tolerance and canvas width cannot drift between
     // this module and the two siblings it must stay in step with.
     alias(libs.plugins.paparazzi)
 }
@@ -31,7 +31,7 @@ dependencies {
 
     testImplementation(kotlin("test"))
     testImplementation(libs.androidx.paging.testing)
-    testImplementation(testFixtures(project(":core:ui:kit")))
+    testImplementation(project(":core:ui:golden-harness"))
 
     androidTestImplementation(libs.bundles.android.test)
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)

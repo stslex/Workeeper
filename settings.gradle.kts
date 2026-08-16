@@ -33,6 +33,7 @@ include(":app:store")
 
 include(":core:core")
 include(":core:ui:kit")
+include(":core:ui:golden-harness")
 include(":core:ui:navigation")
 include(":core:ui:mvi")
 include(":core:ui:test-utils")

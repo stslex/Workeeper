@@ -141,14 +141,15 @@ jobs:
       # gate reads the checked-out tree before any other step could have touched it,
       # whatever a future edit to that setting does.
       #
-      # `verifyPaparazziDebug` is finalized by `:core:ui:kit:assertGoldenLiveness`, which
+      # `verifyPaparazziDebug` is finalized by each golden module's `assertGoldenLiveness`
+      # (gradle/golden-gate.gradle.kts, applied by all 13 golden-holding modules), which
       # fails the build if the golden tests did not actually execute. A Paparazzi task that
       # discovers no tests still exits 0, so "green" alone does not mean the gate ran.
       #
       # This job restores the build cache and `gradle-ci.properties` sets `org.gradle.caching=true`,
       # so the gate's test task was eligible for FROM-CACHE — which restores the JUnit XML that
       # `assertGoldenLiveness` reads, making the liveness claim answer with a previous build's
-      # evidence. Closed in `core/ui/kit/build.gradle.kts`, where the task is marked
+      # evidence. Closed in `gradle/golden-gate.gradle.kts`, where the task is marked
       # non-cacheable and never up-to-date in Paparazzi mode, rather than with `--no-build-cache`
       # here: the flag would also strip cache hits from every upstream compile task in this graph,
       # and would leave local runs of the gate just as replayable as before.

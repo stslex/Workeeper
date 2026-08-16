@@ -16,15 +16,6 @@ metro {
     }
 }
 
-android {
-    // The golden harness (GoldenHarness.kt, GoldenTheme.kt) is published as a test fixture so
-    // feature modules can record goldens against the SAME device config, tolerance and canvas
-    // width. A copied harness would let those three drift per module, which is exactly the
-    // failure §8 warns about for the rail's threshold — and here it would silently weaken the
-    // gate rather than the layout.
-    testFixtures.enable = true
-}
-
 dependencies {
     // Supplies the AppScope DI token (commonMain `di` package) for @ContributesBinding(AppScope).
     implementation(project(":core:core"))
@@ -44,34 +35,9 @@ dependencies {
     // line adds the one missing piece, `runComposeUiTest`. See AccessibilitySemanticsTest.
     testImplementation(libs.androidx.compose.ui.test.junit4)
 
-    // Consumed by every module that records goldens.
-    //
-    // compileOnly, not implementation, and the reason is the androidTest classpath: AGP wires a
-    // module's OWN test fixtures onto its `androidTest` runtime classpath, so anything declared
-    // `testFixturesImplementation` here lands in the instrumented-test APK of a module that has an
-    // `androidTest` source set — which this one does (AppConfirmationDialogTest). Paparazzi drags
-    // in layoutlib + com.android.tools:sdk-common + protobuf-java, and `:core:core` brings
-    // protobuf-javalite via firebase-perf, so the two collide:
-    // `checkDebugAndroidTestDuplicateClasses` and `mergeDebugAndroidTestJavaResource` both failed
-    // (the latter on `google/protobuf/empty.proto`, then on JUnit 5's `META-INF/LICENSE.md`).
-    // Measured, not assumed: `:core:ui:kit:dependencyInsight --configuration
-    // debugAndroidTestRuntimeClasspath --dependency app.cash.paparazzi` listed it before this
-    // change and finds nothing after; the eight other modules that apply the Paparazzi *plugin*
-    // and have androidTest sources were clean throughout, so the plugin was never the leak.
-    //
-    // Nothing is lost at runtime. The harness is a JVM screenshot harness: it only ever executes
-    // on a `testDebugUnitTest` classpath, and every one of the twelve modules that consume
-    // `testFixtures(project(":core:ui:kit"))` applies the Paparazzi plugin itself and gets
-    // junit-jupiter from the convention plugin's `test` bundle — set containment checked, not
-    // assumed. The cost is that a future consumer which forgets the plugin fails at run time with
-    // NoClassDefFoundError rather than at compile time; `assertGoldenLiveness` (golden-gate.gradle.kts)
-    // turns that into a build failure rather than a silent pass.
-    testFixturesCompileOnly(libs.paparazzi.core)
-    testFixturesCompileOnly(platform(libs.junit.bom))
-    testFixturesCompileOnly(libs.junit.jupiter)
-    testFixturesImplementation(platform(libs.androidx.compose.bom))
-    testFixturesImplementation(libs.androidx.compose.ui)
-    testFixturesImplementation(libs.androidx.compose.foundation)
+    // The golden harness, shared with the 12 other golden-holding modules so device config,
+    // tolerance and canvas width cannot drift per module.
+    testImplementation(project(":core:ui:golden-harness"))
 }
 
 apply(from = "$rootDir/gradle/golden-gate.gradle.kts")

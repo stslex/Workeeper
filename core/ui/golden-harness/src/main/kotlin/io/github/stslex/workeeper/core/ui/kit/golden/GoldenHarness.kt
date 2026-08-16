@@ -46,8 +46,8 @@ import org.junit.jupiter.api.TestInfo
  * `verifyPaparazziDebug` exit 0 having executed zero screenshot tests. Dropping the Jupiter
  * engine instead fails loudly ("Cannot create Launcher without at least one TestEngine"),
  * because it is the only engine present. It does not close the hole in general — a task-level
- * test filter still produces a silent zero-test pass — which is why
- * `:core:ui:kit:assertGoldenLiveness` exists in the build script.
+ * test filter still produces a silent zero-test pass — which is why every golden-holding
+ * module's `assertGoldenLiveness` (gradle/golden-gate.gradle.kts) exists.
  *
  * ## Backgrounds
  *

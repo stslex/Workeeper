@@ -7,7 +7,7 @@ plugins {
     // The training editor's only visual gate. What it holds is one-frame-static and therefore
     // exactly what a golden covers (§27): the drawn `.addex` as the add action, ONE drag handle
     // rather than a pair of arrows, and the kit's stroke `✕` on the row. The harness is NOT
-    // copied — it comes from core:ui:kit's testFixtures, so device config, tolerance and canvas
+    // copied — it comes from core:ui:golden-harness, so device config, tolerance and canvas
     // width cannot drift between modules.
     alias(libs.plugins.paparazzi)
 }
@@ -31,7 +31,7 @@ dependencies {
     implementation(project(":core:data:exercise"))
 
     testImplementation(kotlin("test"))
-    testImplementation(testFixtures(project(":core:ui:kit")))
+    testImplementation(project(":core:ui:golden-harness"))
 
     androidTestImplementation(libs.bundles.android.test)
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
