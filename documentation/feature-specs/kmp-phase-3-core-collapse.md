@@ -20,6 +20,17 @@ work, both halves were verified at dev@a8bc127a5:
   [tech-debt.md → Instrumented annotation filter](../tech-debt.md). Zero failures
   matches the post-#223 pin (zero expected failures; the draft-wipe defect is pinned
   by a GREEN test — `editorDraftIsDiscardedByTheImageViewerRoundTrip` passed).
+
+  **Superseded 2026-08-16 — the bypass is closed and the headline number is now 64.**
+  The composition above was right, and naming the 15 bypass tests separately is what
+  made the re-measurement checkable. With the filter working, the `@Regression` suite
+  collects exactly the 64 this spec attributed to annotations (app:app 35 +
+  core:data:database 28 + feature:all-exercises 1), still 0 failures. Quote **64**, not
+  79, for any comparison against this baseline: the extra 15 were `@Smoke`-shaped tests
+  that androidx.test swept into the regression run because it could not load the
+  annotation class. The *conclusion* this bullet drew is unaffected — all 79 passed, so
+  all 64 did. See
+  [kmp-phase-0-instrumented-filter.md](kmp-phase-0-instrumented-filter.md).
 - **Source-level appcompat arrival paths** (source, not build intermediates):
   `Theme.Workeeper` parents are `android:Theme.Material.NoActionBar` /
   `android:Theme.Material.Light.NoActionBar` — platform themes, chain terminates in

@@ -11,6 +11,7 @@ import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.stslex.workeeper.core.ui.test.TestActivity
+import io.github.stslex.workeeper.core.ui.test.annotations.Smoke
 import org.junit.Assert.assertSame
 import org.junit.Rule
 import org.junit.Test
@@ -30,7 +31,16 @@ import org.junit.runner.RunWith
  * test: at App-root depth `LocalViewModelStoreOwner` must be the host Activity, so the Store lands in the
  * Activity's `ViewModelStore` and a subsequent `ViewModelProvider(activity)` read returns the SAME
  * instance (proof the cache key is the Activity, not a `NavBackStackEntry`).
+ *
+ * `@Smoke` by the taxonomy: `TestActivity` with directly-constructed deps — no `MetroTestRule`,
+ * no `MainActivity`, no database. The annotation was ABSENT until 2026-08-16 while this module
+ * did have the `:core:ui:test-utils` edge, so ui_tests.yml's filter loaded, applied, and
+ * matched nothing here: the test ran in NEITHER the smoke nor the regression suite for its
+ * entire life. Both runs stayed green, because a selector that selects nothing reports nothing.
+ * The scope invariant above was therefore unverified in CI the whole time. Now gated by
+ * `detektAndroidTestSuite`.
  */
+@Smoke
 @RunWith(AndroidJUnit4::class)
 internal class AppFeatureScopeTest {
 
