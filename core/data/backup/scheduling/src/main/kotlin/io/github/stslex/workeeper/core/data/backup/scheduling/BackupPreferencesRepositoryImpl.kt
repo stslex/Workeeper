@@ -31,18 +31,16 @@ import kotlinx.coroutines.flow.map
  * The widening is narrow: the override methods were already public via the interface; only the class and
  * constructor visibility change.
  *
- * The store is minted through [DataStoreProviderFactory], never with a per-instance
- * `PreferenceDataStoreFactory.create` — a `DataStore` is a per-file singleton and `DataStoreProvider`'s
- * memoization is static (process-lifetime), while this class is `@SingleIn(AppScope)` (graph-lifetime).
- * A second `AppGraph` in one process must resolve the SAME store, or DataStore 1.1+ throws
- * `IllegalStateException: There are multiple DataStores active` on the second read. Invariant pinned by
- * `app/app` androidTest `AppScopeDataStoreSingletonTest`. `preferencesDataStoreFile(PREFS_NAME)` — the
- * expression the provider applies — is the same one this class applied directly, so the resolved file is
- * unchanged and no user data moves.
+ * Mint the store through [DataStoreProviderFactory] only. A `DataStore` is a per-file singleton whose
+ * memoization is process-lifetime while this class is graph-lifetime, so a second `AppGraph` that built
+ * its own store would throw `IllegalStateException: There are multiple DataStores active` on the second
+ * read. Pinned by `app/app` androidTest `AppScopeDataStoreSingletonTest`.
  *
- * The primary constructor is `internal` and takes the store itself: unit tests bind a temp-file
- * `DataStore` through it, which keeps them off the provider's process-lifetime map (a memoized store
- * would outlive the test that created it and leak state into the next one).
+ * Bind the `internal` primary constructor in unit tests, not the provider: the provider's map outlives
+ * the test that populated it and leaks state into the next one.
+ *
+ * Mechanism, the file-path identity argument and the red-first evidence:
+ * `documentation/tech-debt.md` -> "DataStore singleton bypass".
  */
 @ContributesBinding(AppScope::class)
 @SingleIn(AppScope::class)
