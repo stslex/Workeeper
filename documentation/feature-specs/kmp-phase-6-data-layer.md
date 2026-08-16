@@ -452,6 +452,12 @@ change to an entity, column or index declaration during the port silently invali
   `implementation` deps, Robolectric/mockk/androidx-test on the unit-test classpath, and the
   `-Xjvm-default=all` / `-XXLanguage:+PropertyParamAnnotationDefaultTargetMode` flags. `core:core`
   re-added two by hand. Phase 7 converts ~30 modules; budget for this per module.
+- **The pre-commit hook did not see moved files, and phase 7 is mostly moves.** `.githooks/pre-commit`
+  selected Kotlin files with `--diff-filter=ACM`; git reports a MOVED file as `R`, so a commit that
+  only relocates sources printed "No Kotlin files changed" and skipped detekt entirely. Measured on
+  the fixture-re-home commit: three `.kt` files, `ACM` returned nothing. Fixed to `ACMR` and proven
+  both ways with a live staged rename. Phase 7 relocates ~738 files — without this, essentially none
+  of that work would have been detekt-checked before CI.
 - **Converting a module strips its accidental androidx closure, and the shared `lint.xml` notices.**
   A library-contributed lint issue id (one shipped in an androidx artifact's own lint registry rather
   than lint's built-ins) becomes `Unknown issue id … [UnknownIssueId]` — a hard `lint` failure —
