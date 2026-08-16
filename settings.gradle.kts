@@ -37,6 +37,7 @@ include(":core:core")
 // Android-only type (feature:home, feature:settings) depend on it.
 include(":core:core-android")
 include(":core:ui:kit")
+include(":core:ui:golden-harness")
 include(":core:ui:navigation")
 include(":core:ui:mvi")
 include(":core:ui:test-utils")

@@ -4,7 +4,7 @@ plugins {
     alias(libs.plugins.metro)
     // Goldens for the all-trainings surface. This module had none: the v3 rebuild is a whole-surface
     // change against a drawn contract, and a rebuild with no before-picture is a diff nobody can read.
-    // The harness is NOT copied — it comes from core:ui:kit's testFixtures, so device config,
+    // The harness is NOT copied — it comes from core:ui:golden-harness, so device config,
     // tolerance and canvas width cannot drift between modules.
     alias(libs.plugins.paparazzi)
 }
@@ -25,7 +25,7 @@ dependencies {
 
     testImplementation(libs.androidx.paging.testing)
     testImplementation(kotlin("test"))
-    testImplementation(testFixtures(project(":core:ui:kit")))
+    testImplementation(project(":core:ui:golden-harness"))
 
     androidTestImplementation(libs.bundles.android.test)
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)

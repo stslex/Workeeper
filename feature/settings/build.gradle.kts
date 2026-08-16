@@ -4,7 +4,7 @@ plugins {
     // dispatchers and the application Context.
     alias(libs.plugins.metro)
     // Goldens for the settings surface (extraction Part 5). The harness is NOT copied: it
-    // comes from core:ui:kit's testFixtures, so device config, tolerance and canvas width
+    // comes from core:ui:golden-harness, so device config, tolerance and canvas width
     // cannot drift between modules.
     alias(libs.plugins.paparazzi)
 }
@@ -37,7 +37,7 @@ dependencies {
 
     testImplementation(kotlin("test"))
     testImplementation(libs.androidx.paging.testing)
-    testImplementation(testFixtures(project(":core:ui:kit")))
+    testImplementation(project(":core:ui:golden-harness"))
     // Compose's semantics-tree surface on the JVM side, for SettingsStartCardModeSheetTest:
     // the mode sheet is a window, so Paparazzi cannot photograph it through SettingsScreen,
     // and `src/androidTest` is dispatch-only and therefore not a gate. Robolectric and the
