@@ -225,6 +225,13 @@ from tests, because parallel runs have produced false REDs here empirically.
 | Paparazzi | **446 goldens verified, 0 re-recorded** (`git status` over `snapshots/` is empty) |
 | `detekt`, repo-wide | green |
 | instrumented `@Regression` oracle, `nav_regression_api34` (API 34, arm64) | **BUILD SUCCESSFUL in 7m 39s, 1963 actionable tasks: 1963 executed. 64 tests, 0 failures**, 13 reporting modules |
+| instrumented `@Smoke` suite, same device | **BUILD SUCCESSFUL in 6m 16s, 1963 actionable tasks: 1963 executed. 42 tests, 0 failures**, 3 skipped (the `@Ignore`d `pendingFeatureRewrite` trio) |
+
+The Smoke run is also the positive half of the §0 fix, measured on this branch because the two phases
+stack. It collects **42** = 26 previously-annotated + 5 (`core:ui:kit`) + 10
+(`feature:app-dialogs:impl`) + **1** (`core:ui:mvi`). That last 1 is `AppFeatureScopeTest` executing
+in a suite for the first time; the 15 before it are tests that used to run in *both* suites and now
+run in exactly one. `:app:app` reports 0 here, correctly — all 35 of its tests are `@Regression`.
 
 The unit-test split is the check that the module boundary landed where it was designed to: the 14
 `di/*ExtensionIdentityTest` stayed with the graph (**54 tests**) and the 2 `NavigatorEventBus` tests
