@@ -123,7 +123,20 @@
     <issue id="ServiceCast" severity="error" />
     <issue id="Recycle" severity="error" />
     <issue id="CommitTransaction" severity="error" />
-    <issue id="FragmentTagUsage" severity="warning" />
+    <!--
+      FragmentTagUsage is deliberately absent. It is contributed by androidx.fragment's own lint
+      registry rather than built into lint, so it only resolves in modules that happen to have
+      androidx.fragment on the classpath transitively. A module without it — e.g. a KMP module whose
+      only dependency is coroutines-core — fails `lint` outright with
+      `Unknown issue id "FragmentTagUsage" [UnknownIssueId]`, which is what broke
+      :core:data:backup:api the moment it stopped depending on any androidx artifact.
+
+      Removing it rather than suppressing UnknownIssueId is the honest fix twice over: this repo has
+      ZERO Fragments (grep for androidx.fragment across all Kotlin and Gradle sources returns
+      nothing — it is Compose + Nav3), so the check could never fire; and disabling UnknownIssueId
+      would blind the whole repo to genuine typos in this file. ValidFragment and CommitTransaction
+      below/above are lint built-ins and resolve everywhere, so they stay.
+    -->
     <issue id="ValidFragment" severity="error" />
     <issue id="CutPasteId" severity="error" />
     <issue id="UnprotectedSMSBroadcastReceiver" severity="error" />

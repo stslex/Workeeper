@@ -274,6 +274,33 @@ wrappers for a platform with no implementation would be speculative API churn ac
 imports — `android.net.Uri`, `java.io.File`, `Flow`, `StateFlow` — and **zero** references to
 `core:core`, whose `implementation` dependency it had declared and never used. Dropped.
 
+**A KMP module with no androidx dependency cannot resolve library-contributed lint issue ids — and
+that is a hard error.** `backup:api` ended the conversion depending on `coroutines-core` alone, and
+`:core:data:backup:api:lintAndroidMain` then failed with
+
+```
+lint-rules/lint.xml:126: Error: Unknown issue id "FragmentTagUsage" [UnknownIssueId]
+```
+
+`FragmentTagUsage` ships in **androidx.fragment's own lint registry**, not in lint's built-ins, so it
+resolved only while the module transitively saw androidx — which, as a classic Android library, it
+always did via the convention's blanket `implementation` deps. Strip those and the shared `lint.xml`
+becomes unparseable *for that module*.
+
+Fixed at the root rather than suppressed: the entry is **deleted**, because this repo has **zero**
+Fragments (grep across all Kotlin and Gradle sources returns nothing — it is Compose + Nav3), so the
+check could never fire. Disabling `UnknownIssueId` instead would have blinded the whole repo to real
+typos in that file, and adding an androidx dependency to satisfy a lint id would be absurd.
+`ValidFragment` and `CommitTransaction` sit adjacent in the same file and are lint built-ins, so they
+resolve everywhere and stay. Verified after the fix on all three shapes: the stripped KMP module, the
+androidx-carrying KMP module, and `:app:app`.
+
+**Phase 7 will meet this repeatedly**, because converting a module is exactly what strips its
+accidental androidx closure. The failure names the lint id, not the missing dependency, so it reads
+as a config error rather than a conversion consequence. If another library-contributed id turns up in
+`lint.xml` later, delete it or move it behind the module that owns the dependency — do not reach for
+`UnknownIssueId`.
+
 **Correction to the convention's own guidance, found here.** `KmpLibraryConventionPlugin`'s KDoc says
 a module with no host tests opts out per-module with
 `failOnNoDiscoveredTests.set(false)`. Measured: **not needed when the source set is absent
@@ -396,6 +423,11 @@ change to an entity, column or index declaration during the port silently invali
   `implementation` deps, Robolectric/mockk/androidx-test on the unit-test classpath, and the
   `-Xjvm-default=all` / `-XXLanguage:+PropertyParamAnnotationDefaultTargetMode` flags. `core:core`
   re-added two by hand. Phase 7 converts ~30 modules; budget for this per module.
+- **Converting a module strips its accidental androidx closure, and the shared `lint.xml` notices.**
+  A library-contributed lint issue id (one shipped in an androidx artifact's own lint registry rather
+  than lint's built-ins) becomes `Unknown issue id … [UnknownIssueId]` — a hard `lint` failure —
+  the moment a module stops depending on the artifact that contributed it. Hit in §4 with
+  `FragmentTagUsage`. Delete the dead id; never reach for `UnknownIssueId`.
 - **Robolectric on KMP needs three things the convention does not give you** (the two deps plus
   `junit.platform.launcher.interceptors.enabled`), and it is a per-module concern by design. 21 of
   25 database unit tests and 16 of 20 exercise tests are Robolectric-gated. Add a fourth thing:
