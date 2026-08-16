@@ -28,6 +28,10 @@ dependencyResolutionManagement {
 rootProject.name = "Workeeper"
 
 include(":app:app")
+// The CMP-shaped composition root: App(), the NavDisplay and its entry providers, and the
+// navigator. `:app:app` depends on it, so it sits BELOW the app graph and reads what it needs
+// through its own AppRootDeps contract. See documentation/feature-specs/kmp-phase-4-app-common.md.
+include(":app:common")
 include(":app:dev")
 include(":app:store")
 

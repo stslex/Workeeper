@@ -30,6 +30,7 @@ class MviArchitectureRuleSet : RuleSetProvider {
             UiLayerNoDataRule(config),
             DiscardedScopeResultRule(config),
             NoActualForExpectSuppressionRule(config),
+            InstrumentedSuiteSelectorRule(config),
             NumericFontFamilyOnLocalizedTextRule(config),
             ActiveSurfaceSingleReaderRule(config),
             FadeToTransparentRule(config),

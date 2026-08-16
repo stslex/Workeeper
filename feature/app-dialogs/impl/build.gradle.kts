@@ -28,5 +28,10 @@ dependencies {
 
     androidTestImplementation(libs.bundles.android.test)
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    // Carries the @Smoke / @Regression suite annotations. Without this edge androidx.test
+    // cannot load the class named by ui_tests.yml's `-e annotation` filter and SILENTLY drops
+    // the filter, running this module's whole suite in both the smoke and the regression run.
+    // Enforced by `verifyInstrumentedSuiteClasspath`.
+    androidTestImplementation(project(":core:ui:test-utils"))
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 }

@@ -724,6 +724,13 @@ mvi-architecture:
     active: true
   NoActualForExpectSuppressionRule:
     active: true
+  InstrumentedSuiteSelectorRule:
+    # Inactive HERE by design, active in detekt-androidtest-suite.yml. The rule polices
+    # instrumented tests only: `src/test` unit tests are not selected by an instrumentation
+    # annotation filter and must not carry @Smoke/@Regression. This config's task also cannot
+    # see src/androidTest at all (its source is src/main + src/test), so activating it here
+    # would fire on every unit test while remaining a no-op where it is aimed.
+    active: false
   NumericFontFamilyOnLocalizedTextRule:
     active: true
   ActiveSurfaceSingleReaderRule:

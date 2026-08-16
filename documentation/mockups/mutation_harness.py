@@ -280,7 +280,7 @@ CASES: list[tuple[str, str, str, str, str]] = [
 # nothing exercises the `withTimeoutOrNull` in `App.kt` that consumes it. Telling the timeout that
 # the toast has no action changes what a user experiences and is caught by nothing — which is what
 # a real gate hole looks like, and why it is on the hand-check list instead of pretended otherwise.
-_APP_KT = "app/app/src/main/java/io/github/stslex/workeeper/App.kt"
+_APP_KT = "app/common/src/main/kotlin/io/github/stslex/workeeper/App.kt"
 
 _SELF_TEST = [
     (
@@ -296,7 +296,7 @@ _SELF_TEST = [
         _APP_KT,
         "hasAction = model.actionLabel != null,",
         "hasAction = false,",
-        ":app:app:testDebugUnitTest",
+        ":app:common:testDebugUnitTest",
         "GREEN",
     ),
 ]

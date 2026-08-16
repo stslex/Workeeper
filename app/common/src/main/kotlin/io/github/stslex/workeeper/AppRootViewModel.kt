@@ -11,9 +11,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 
-// App-Scope Collapse Step 6 (cut): plain ViewModel (was the last @HiltViewModel). Constructed in App.kt
-// via viewModel {} with deps read from the app graph — commonDataStore via context.appDeps<T>(),
-// navigatorEventBus from the internal AppGraph (concrete, app-internal accessor).
+// A plain ViewModel, constructed in App.kt via viewModel {}. BOTH deps arrive from
+// `AppRootDeps` — the contract this module declares and `:app:app`'s AppGraph implements — never
+// from the graph itself and never via `context.appDeps<T>()`: `AppGraph` is internal to `:app:app`,
+// which depends on this module, so it is not nameable here at all.
 internal class AppRootViewModel(
     commonDataStore: CommonDataStore,
     val navigatorEventBus: NavigatorEventBus,

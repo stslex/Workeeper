@@ -1,0 +1,23 @@
+# Narrow detekt config for ONE rule over ONE kind of source set: every instrumented @Test
+# under src/androidTest must be reachable by ui_tests.yml's suite selector.
+#
+# Why a separate config and a separate task, rather than an entry in detekt.yml: the plain
+# `detekt` task's source resolves to src/main/{java,kotlin} and src/test/{java,kotlin} only.
+# Probed on :app:app it reports 0 files under src/androidTest, so an entry in the shared
+# config would be a no-op exactly where it is aimed — while firing on every `src/test` unit
+# test in the repo, none of which take a suite annotation. Same shape as
+# detekt-androidtest.yml, which polices the navigation-import prohibition for :app:app.
+#
+# `buildUponDefaultConfig` is FALSE on the task that reads this file, so every rule not named
+# below is inactive. That is deliberate: this config is a single-purpose gate, not a second
+# opinion on style. It is registered for EVERY module by LintConventionPlugin rather than
+# per-module by hand — a gate a new module can forget to opt into is a convention, and the
+# defect this one exists to catch was introduced by exactly that kind of forgetting.
+
+build:
+  maxIssues: 0
+
+mvi-architecture:
+  active: true
+  InstrumentedSuiteSelectorRule:
+    active: true

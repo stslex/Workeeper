@@ -2,6 +2,7 @@ import AppExt.findPluginId
 import AppExt.libs
 import com.android.build.api.dsl.ApplicationExtension
 import com.android.build.api.dsl.CommonExtension
+import io.github.stslex.workeeper.configureInstrumentedSuiteGate
 import io.github.stslex.workeeper.configureLintOptions
 import io.gitlab.arturbosch.detekt.Detekt
 import io.gitlab.arturbosch.detekt.DetektCreateBaselineTask
@@ -77,6 +78,12 @@ class LintConventionPlugin : Plugin<Project> {
                 "detektPlugins"(libs.findLibrary("detekt.formatting").get())
                 "detektPlugins"(project(":lint-rules"))
             }
+
+            // Every module gets the instrumented-suite gate, whether or not it has instrumented
+            // tests today. This plugin is the one hook every convention applies, which is what
+            // makes the gate unforgettable — see configureInstrumentedSuiteGate's KDoc for why
+            // an opt-in version would not have caught the defect that motivated it.
+            configureInstrumentedSuiteGate()
         }
     }
 }

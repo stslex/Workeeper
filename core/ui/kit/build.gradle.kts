@@ -25,6 +25,13 @@ dependencies {
 
     androidTestImplementation(libs.bundles.android.test)
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    // Carries the @Smoke / @Regression suite annotations. Without this edge androidx.test
+    // cannot load the class named by ui_tests.yml's `-e annotation` filter and SILENTLY drops
+    // the filter, running this module's whole suite in both the smoke and the regression run.
+    // `:core:ui:test-utils` depends back on this module's main source set; that is not a cycle
+    // (androidTest is a separate compilation), and `:core:ui:mvi` carries the same shape.
+    // Enforced by `verifyInstrumentedSuiteClasspath`.
+    androidTestImplementation(project(":core:ui:test-utils"))
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 
     // Compose's semantics-tree test surface on the JVM side, so an accessibility assertion runs

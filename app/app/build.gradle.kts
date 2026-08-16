@@ -26,6 +26,15 @@ android {
 }
 
 dependencies {
+    // The composition root. api, not implementation: BaseApplication implements AppRootDepsHolder
+    // and AppGraph implements AppRootDeps, and the flavor Application subclasses in app/dev +
+    // app/store extend BaseApplication — the same holder-visibility reason as api(feature:recovery)
+    // and api(core:data:backup:worker) below.
+    //
+    // This edge is what puts app:common BELOW the graph: `@DependencyGraph(AppScope)` is internal
+    // here, so App() cannot reach it and reads AppRootDeps instead. See
+    // documentation/feature-specs/kmp-phase-4-app-common.md § 2.
+    api(project(":app:common"))
     implementation(project(":core:core"))
     androidTestImplementation(project(":core:ui:test-utils"))
     // App-Scope Collapse Step 3 (C2): MetroTestRule builds the per-test graph with real in-memory-Room
@@ -34,11 +43,6 @@ dependencies {
 
     implementation(project(":core:ui:kit"))
     implementation(project(":core:ui:navigation"))
-    // The Nav3 UI half (NavDisplay) and the ViewModel entry decorator are the HOST's
-    // dependencies only — the runtime artifact reaches everything else as core:ui:navigation's
-    // api, and no feature module names either.
-    implementation(libs.androidx.navigation3.ui)
-    implementation(libs.androidx.lifecycle.viewmodel.navigation3)
     // api (not implementation): BaseApplication implements AppDepsHolder (core:ui:mvi), so the holder
     // supertype must be visible to the flavor Application subclasses (DevMobileApp/StoreMobileApp) that
     // extend BaseApplication. Before core:di's deletion this came transitively via

@@ -4,12 +4,13 @@ package io.github.stslex.workeeper.bottom_app_bar
 import androidx.annotation.StringRes
 import androidx.compose.runtime.Stable
 import androidx.compose.ui.graphics.vector.ImageVector
-import io.github.stslex.workeeper.app.app.R
+import io.github.stslex.workeeper.app.common.R
 import io.github.stslex.workeeper.core.ui.kit.icons.AppIcons
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 
 /**
- * The bottom bar's destinations — **routing, and it stays in `app/app` for a reason the compiler
+ * The bottom bar's destinations — **routing, and it stays in the app tier (`app:common`, with the
+ * composition root it feeds) for a reason the compiler
  * enforces rather than a preference.**
  *
  * It carries [Screen.BottomBar] and [getByScreen] — routing, not chrome. The *treatment* is

@@ -7,10 +7,10 @@ console, and the obligations a feature author must meet to keep the metrics corr
 The implementation lives in `core/ui/mvi/.../performance/`. Bootstrap call sites live in
 [`BaseApplication`](../app/app/src/main/java/io/github/stslex/workeeper/BaseApplication.kt),
 [`MainActivity`](../app/app/src/main/java/io/github/stslex/workeeper/MainActivity.kt),
-[`NavigatorExt`](../app/app/src/main/java/io/github/stslex/workeeper/navigation/NavigatorExt.kt)
+[`NavigatorExt`](../app/common/src/main/kotlin/io/github/stslex/workeeper/navigation/NavigatorExt.kt)
 (the App/UI bridge that consumes commands from `NavigatorEventBus` and runs them on the
 current `NavController`),
-and [`AppNavigationHost`](../app/app/src/main/java/io/github/stslex/workeeper/host/AppNavigationHost.kt).
+and [`AppNavigationHost`](../app/common/src/main/kotlin/io/github/stslex/workeeper/host/AppNavigationHost.kt).
 The screen-rendering pipeline is wired automatically inside
 [`StoreProcessor.rememberStoreProcessor`](../core/ui/mvi/src/main/kotlin/io/github/stslex/workeeper/core/ui/mvi/processor/StoreProcessor.kt).
 
@@ -23,7 +23,7 @@ traces. Any one of them can be invalidated by the next event without affecting t
 
 - **Trace name pattern.** `TTID_<ScreenSimpleName>`.
 - **Starts at.** `Navigator.navTo(screen)` / `Navigator.replaceTo(screen)`. The App/UI
-  bridge in [`NavigatorExt`](../app/app/src/main/java/io/github/stslex/workeeper/navigation/NavigatorExt.kt)
+  bridge in [`NavigatorExt`](../app/common/src/main/kotlin/io/github/stslex/workeeper/navigation/NavigatorExt.kt)
   collects the corresponding `NavCommand` from the singleton
   `NavigatorEventBus` and dispatches `RecordAction.Navigation.NavTo` / `ReplaceTo`
   immediately before invoking `NavController.navigate(...)`.
@@ -194,7 +194,7 @@ enable this; metrics still ship to the console regardless.
 ## New-screen contributor checklist
 
 Every screen registered in
-[`AppNavigationHost`](../app/app/src/main/java/io/github/stslex/workeeper/host/AppNavigationHost.kt)
+[`AppNavigationHost`](../app/common/src/main/kotlin/io/github/stslex/workeeper/host/AppNavigationHost.kt)
 **must** apply `Modifier.reportScreenPlace<TheScreen>()` to its graph composable's
 `modifier`:
 

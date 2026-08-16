@@ -274,7 +274,7 @@ one extension.
 
    The injected `Navigator` is the app-scoped `NavigatorEventBus`
    (`@SingleIn(AppScope) @ContributesBinding(AppScope, binding<Navigator>()) @Inject` in
-   `app/app/.../navigation/NavigatorEventBus.kt`) — the extension inherits it, nothing is
+   `app/common/.../navigation/NavigatorEventBus.kt`) — the extension inherits it, nothing is
    passed in. It is a controller-free command bus: the handler **never** holds a
    `NavController`, `NavBackStackEntry`, `SavedStateHandle`, `Activity`, or `Context`.
    Calling `navigator.navTo` / `popBack` / `replaceTo` is pure command dispatch; the App/UI
@@ -478,7 +478,7 @@ one extension.
     scoped any more — `NavResults` holds it privately.
 
 15. Wire the navigation graph into the host. Edit
-    `app/app/src/main/java/io/github/stslex/workeeper/host/AppNavigationHost.kt` and
+    `app/common/src/main/kotlin/io/github/stslex/workeeper/host/AppNavigationHost.kt` and
     call your new `<feature>Graph(modifier = ...)` inside the `with(NavGraphScope(this))`
     block, alongside its siblings. **Do not add a `sharedTransitionScope` parameter** — no
     graph takes one, and nothing in the app performs a shared-element transition yet; the
@@ -491,7 +491,7 @@ one extension.
     checklist](../../documentation/performance.md#new-screen-contributor-checklist).
 
 16. If the feature is bottom-bar visible, add an entry in
-    `app/app/src/main/java/io/github/stslex/workeeper/bottom_app_bar/BottomBarItem.kt`.
+    `app/common/src/main/kotlin/io/github/stslex/workeeper/bottom_app_bar/BottomBarItem.kt`.
 
 17. Generate the screen. `<Name>Screen.kt` is a `@Composable` ending in `Screen` and
     must take both a `*State` parameter and an action/event handler parameter —
