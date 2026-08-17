@@ -20,6 +20,10 @@ dependencies {
     implementation(project(":core:ui:kit"))
     implementation(project(":core:ui:mvi"))
     implementation(project(":core:data:backup:api"))
+    // DataStoreProviderFactory: AppDialogRepository mints app_dialogs_prefs through the
+    // process-lifetime memoizing DataStoreProvider instead of PreferenceDataStoreFactory, so a
+    // second AppGraph in one process resolves the same store.
+    implementation(project(":core:data:dataStore"))
     implementation(project(":feature:app-dialogs:api"))
 
     implementation(libs.androidx.datastore.preferences)

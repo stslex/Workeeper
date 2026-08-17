@@ -17,6 +17,7 @@ import io.github.stslex.workeeper.core.data.backup.api.BackupStorage
 import io.github.stslex.workeeper.core.data.backup.api.RecoveryDiagnosticsExporter
 import io.github.stslex.workeeper.core.data.backup.api.SnapshotExportRunner
 import io.github.stslex.workeeper.core.data.backup.api.notification.BackupNotificationHelper
+import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreStateRepository
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.AutoBackupController
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupPreferencesRepository
 import io.github.stslex.workeeper.core.data.backup.worker.BackupWorkerDeps
@@ -235,6 +236,16 @@ internal interface AppGraph :
     val restoreRecoveryCoordinator: RestoreRecoveryCoordinator
     val startupMigrationCoordinator: StartupMigrationCoordinator
     val recoveryBootstrap: RecoveryBootstrap
+
+    /**
+     * Metro-owned [RestoreStateRepository] — CONTRIBUTED by `@ContributesBinding(AppScope)` on the
+     * (public) `RestoreStateRepositoryImpl` in `core:data:backup:scheduling`. Production consumers
+     * take it as a constructor dep inside the recovery cluster above, so this accessor exists for
+     * one reason: `AppScopeDataStoreSingletonTest` must READ `restore_state_prefs` through the real
+     * app-scope binding from two graphs, and a read routed through a coordinator would assert the
+     * coordinator's behaviour instead of the store's identity.
+     */
+    val restoreStateRepository: RestoreStateRepository
 
     /**
      * The `AppDatabase`-derived DB-snapshot binding, Metro-owned via `@ContributesBinding(AppScope)` on

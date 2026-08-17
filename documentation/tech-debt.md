@@ -93,7 +93,7 @@ named expected intermittent plus a rerun rule. Option (a) shipped.
 
 ---
 
-## DataStore singleton bypass — three remaining stragglers (nav3 stage 1.1, 2026-08-14)
+## ✅ RESOLVED — DataStore singleton bypass, three remaining stragglers (nav3 stage 1.1, 2026-08-14; resolved 2026-08-16, KMP phase 6)
 
 **Rule:** a `DataStore` is a per-file singleton. `DataStoreProvider` enforces this with a **static**
 `ConcurrentHashMap<String, DataStore<Preferences>>` in its companion — memoized per file name for the
@@ -130,9 +130,76 @@ hits the identical `IllegalStateException`** — including the stage 1.2/1.3 add
 suite (`StoreRetentionTest`, `BackStackStateRestorationTest`). Read such a failure as this entry, not
 as a navigation regression.
 
-**Unblock condition:** add the `:core:data:dataStore` edge to each module and route the store through
-`DataStoreProvider` (extend `BaseDataStore`, or inject the provider) so the static memoization
-applies. **Deadline: before stage 1.3** — the suite grows there, and the failure count grows with it.
+**Unblock condition (DONE 2026-08-16, KMP phase 6):** add the `:core:data:dataStore` edge to each
+module and route the store through `DataStoreProvider` so the static memoization applies. Both
+modules gained the edge; all three now take `DataStoreProviderFactory` on their `@Inject`
+constructor and read `.create(PREFS_NAME).dataStore`, the `AccountDataStoreImpl` shape.
+
+**File identity, proven from the androidx sources rather than asserted** (datastore-preferences
+1.2.1 / datastore 1.2.1 `-sources.jar`): `Context.preferencesDataStoreFile(name)` is
+`this.dataStoreFile("$name.preferences_pb")`, and `Context.dataStoreFile(fileName)` is
+`File(this.applicationContext.filesDir, "datastore/$fileName")`. **The extension resolves
+`applicationContext` itself**, so `DataStoreProvider`'s explicit `context.applicationContext` is
+redundant, not load-bearing: the direct route and the provider route resolve the identical `File`
+for all three names. Same file before and after — a fix, not a data migration.
+
+**Proven red first**, in that order, on `nav_regression_api34`: the new `app/app` androidTest
+`AppScopeDataStoreSingletonTest` ran against the unfixed tree and gave 6 tests / **3 failures** —
+each of the three two-graph tests threw the production
+`IllegalStateException: There are multiple DataStores active for the same file: …`, while the three
+file-path pins passed. After the fix, 8/8 green including the pre-existing
+`AccountDataStoreSingletonTest`. Every test **reads** from both graphs rather than merely
+constructing them: the collision surfaces in `FileStorage.createConnection()` — first read/write,
+not construction — and two of the three stores sat behind `by lazy`, so a constructing test would
+have been vacuously green.
+
+**Unit-test consequence, deliberate.** Each impl keeps an `internal` primary constructor taking the
+`DataStore` itself, and the two scheduling unit tests bind a temp file through it (the shape
+`AppDialogRepositoryTest` already used). Routing those tests through the provider would have shared
+ONE store across every test method in the class — the memoization is static and process-lifetime,
+while the tests rely on per-test isolation. They dropped Robolectric with the `Context`; what they
+stopped covering (name → real file) is exactly what the new device pins now assert.
+
+---
+
+## The default flow `onError` is silent — 21 of 22 production collections report nothing (measured 2026-08-16, KMP phase 6)
+
+**Not fixed here.** Measured while auditing the mechanism that hid the DataStore stragglers above;
+it lives in `core:core`, outside the data layer this phase converts, and it cannot be gated in both
+directions without a logging seam that does not exist (see "Why not now").
+
+**Mechanism.** `AppCoroutineScopeImpl.launch(flow, …)` — the `Flow` overload, not the action one —
+is `.catch { onError(it) }`, and `onError` defaults to the literal empty lambda `{}` on all three
+declaring interfaces: `AppCoroutineScope`, `StoreConsumer` and `HandlerStore`. An upstream flow
+failure is caught, handed to `{}`, and the collection completes normally: nothing reaches logcat,
+nothing reaches Crashlytics, no test observes anything. **The sibling `launch(action, …)` overload is
+not silent** — its `exceptionHandler` calls `Log.e(throwable)`, and `Log.e` records to Crashlytics
+*before* the `isLogging` gate. The asymmetry is the whole defect.
+
+**Blast radius, counted:** 22 production `Flow<T>.launch` call sites; **1** passes an explicit
+`onError`, **21** take the silent default. All three DataStore repositories above are consumed
+through it — `BackupClickHandler` (the `observePreRestoreBackupAvailable` collector and the
+`BackupPreferences` `combine`) and `AppDialogRepoHandler.Observe` — and none of the three flows
+carries its own `.catch`. A DataStore `IOException` therefore renders as *absence*: in
+`BackupSection`, the auto-backup + AI-export block never draws (it is gated on a non-null
+`backupPreferences`) and the undo-restore row never draws (gated on `canRevertLastRestore`); and
+`AppDialogHost` composes nothing — every process-survival dialog silently never appears.
+
+**Why it is invisible to tests too:** the fakes have already diverged from production three ways —
+`FakeSettingsHandlerStore` drops the `.catch` entirely, and live-workout's `ClickHandlerTest` /
+`DialogClickHandlerTest` return a bare `Job()` without collecting at all. No custom Detekt rule
+requires an `onError`; nothing mechanical stops call site 23.
+
+**On iOS it is strictly worse:** `FirebaseCrashlyticsHolder` iosMain is `= Unit`, so even the one
+path that does report is a no-op there.
+
+**Why not now.** The fix is one line — `.catch { Log.e(it); onError(it) }`, making the two overloads
+symmetric — and `Flow.catch` rethrows cancellation causes rather than catching them
+(`catchImpl`'s `e.isCancellationCause(coroutineContext)` branch), so it would not spam on normal
+teardown. But `Log` exposes no injectable writer: the kermit `Logger` is constructed inline per
+instance and the only control is a global `isLogging` flag, so "this logged" cannot be asserted, and
+the change alters release Crashlytics volume across 21 call sites. It wants its own PR, with a
+logging seam landed first.
 
 ---
 
