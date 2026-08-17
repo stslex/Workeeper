@@ -21,13 +21,11 @@ import org.junit.jupiter.api.Test
 import java.io.File
 
 /**
- * Binds the repository's `internal` store constructor to a fresh temp file per test — the shape
- * `AppDialogRepositoryTest` already uses. The production constructor mints its store through
- * `DataStoreProviderFactory`, whose memoization is STATIC and process-lifetime: going through it
- * here would hand every test after the first the same cached store and defeat the per-test
- * isolation this class relies on. What that constructor resolves — that `backup_scheduling_prefs`
- * maps to the same file as before the provider routing, from any number of graphs — is pinned on
- * device instead, by `app/app` androidTest `AppScopeDataStoreSingletonTest`.
+ * Bind the `internal` store constructor to a fresh temp file per test; do not route these through
+ * `DataStoreProviderFactory`. Its memoization is static and process-lifetime, so the provider would
+ * hand every test after the first the same cached store and defeat the per-test isolation this
+ * class relies on. What the production constructor resolves is pinned on device instead, by
+ * `app/app` androidTest `AppScopeDataStoreSingletonTest`.
  */
 internal class BackupPreferencesRepositoryImplTest {
 

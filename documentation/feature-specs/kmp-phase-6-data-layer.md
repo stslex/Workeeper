@@ -43,7 +43,7 @@ Two reasons, one of which pays off on Android alone.
 | `core:data:backup:api` src/main | 24 files; **2** platform imports | grep |
 | `kotlin.uuid.Uuid` in `core/data` | 83 files; `java.util.UUID` **0** | grep |
 | `java.time` in `core/data` | **2** files, 1 of them production | grep |
-| `okio` anywhere in the repo | **0** | grep |
+| `okio` anywhere in the repo *(at this baseline; PR B adds it — see §7)* | **0** | grep |
 | Modules on `convention.kmpLibrary` | **1** (`core:core`) | grep |
 
 **Room is already on Room 3** (`androidx.room3` 3.0.0 / `androidx.sqlite` 2.7.0) — no
@@ -197,8 +197,9 @@ Android/JVM types sit in its public API**:
 - `java.io.File` — `BackupStorage.uploadBackup(dbFile: File, …)` / `downloadBackup(…, target: File)`.
 - `android.net.Uri` — `RecoveryDiagnosticsExporter`, twice.
 
-Nine modules depend on `backup:api`, so changing these is a nine-module ripple, and there is no okio
-in the repo to change them *to*.
+Nine modules depend on `backup:api`, so changing these is a nine-module ripple. At the §0 baseline
+there was no okio in the repo to change them *to*; PR B puts `okio.Path` on the graph (§7), so the
+remaining cost is the signature change alone.
 
 **Decided:** convert with the pure surface (models, errors, results, `BackupPreferences`,
 `BackupSchedule`, the restore contracts — the part Phase 7's settings UI needs from commonMain) in
@@ -244,11 +245,20 @@ references. Sizing this module from its build script overstates its coupling.
 
 ## §6 The driver decision — decided
 
-`sqlite-framework` publishes an iOS variant, so converting to KMP does **not** require changing which
-driver Android uses. Two options existed:
+**The artifact is multiplatform; the driver classes are not** — and the distinction decides how the
+dependency is wired. `androidx.sqlite:sqlite-framework` 2.7.0 publishes `androidJvm`, `iosArm64` and
+`iosSimulatorArm64` variants (verified from its Gradle Module Metadata), but each target exposes a
+different driver: the `-android` variant carries `AndroidSQLiteDriver`, while the
+`iosSimulatorArm64` klib carries **`NativeSQLiteDriver`** and no `AndroidSQLiteDriver` at all
+(verified by reading the published klib). So `sqlite-framework` must be declared per source set, not
+in `commonMain`, and no arrangement gives Android's framework driver to iOS.
+
+Converting to KMP therefore does **not** require changing which driver *Android* uses. Two options
+existed:
 
 - **(a)** `BundledSQLiteDriver` everywhere — the uniform-SQLite payoff.
-- **(b)** `AndroidSQLiteDriver` on Android, bundled on iOS — zero Android behaviour change.
+- **(b)** `AndroidSQLiteDriver` in `androidMain`, and on iOS either `NativeSQLiteDriver` (same
+  artifact, system SQLite) or `BundledSQLiteDriver` — zero Android behaviour change either way.
 
 **Decided: port on (b), then flip to (a) as its own commit with its own gate.** The bundled driver is
 a *different SQLite build* from the framework one; that is the point and also the risk.
@@ -280,7 +290,7 @@ change to an entity, column or index declaration during the port silently invali
   for. Filed, not forced.
 
   **But the dependency half of that cost disappears in PR B, and this is worth knowing before anyone
-  re-prices the rider.** okio has 0 occurrences in the repo today, yet the commonMain DataStore API
+  re-prices the rider.** okio had 0 occurrences at the §0 baseline, yet the commonMain DataStore API
   is `PreferenceDataStoreFactory.createWithPath(produceFile: () -> okio.Path)` — read from the
   `datastore-preferences-core` 1.2.1 sources; the `() -> File` overload is `jvmAndroidMain`-only. So
   converting `core:data:dataStore` brings okio into the graph as a *requirement of DataStore on KMP*,

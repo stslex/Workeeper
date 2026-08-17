@@ -18,32 +18,24 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * The app-scope `DataStore` singleton invariant for the three holders that used to mint their own
- * store: `BackupPreferencesRepositoryImpl` (`backup_scheduling_prefs`),
- * `RestoreStateRepositoryImpl` (`restore_state_prefs`) and `AppDialogRepository`
- * (`app_dialogs_prefs`).
+ * The app-scope `DataStore` singleton invariant for `backup_scheduling_prefs`,
+ * `restore_state_prefs` and `app_dialogs_prefs`: two `AppGraph`s in one process must resolve ONE
+ * store per file, or DataStore 1.1+ throws `IllegalStateException: There are multiple DataStores
+ * active for the same file` on the second read. `MetroTestRule`'s per-test graph rebuild is what
+ * produces a second graph in production-shaped code.
  *
- * A `DataStore` is a per-file singleton. `DataStoreProvider` enforces that with a static,
- * process-lifetime map, while each holder here is `@SingleIn(AppScope)` — graph-lifetime. A holder
- * that calls `PreferenceDataStoreFactory.create` itself collides the moment a second `AppGraph`
- * exists in the process — which is exactly what `MetroTestRule`'s per-test graph rebuild produces —
- * and DataStore 1.1+ throws `IllegalStateException: There are multiple DataStores active for the
- * same file` on the second read.
- *
- * **Every test here READS from both graphs rather than merely constructing them.** The collision
- * manifests when the file opens, not when the holder is built: two of the three held their store
- * behind `by lazy`, so a test that stopped at graph construction — or at resolving the accessor —
- * would stay green with the per-instance store still present. Two of these three reads are the
- * first read of that file in the process, which is the read that must not throw.
+ * **Every test here must READ from both graphs, never merely construct them.** The collision
+ * surfaces when the file opens, not when the holder is built, so a test that stopped at graph
+ * construction — or at resolving the accessor — would pass while proving nothing. Do not
+ * "simplify" these to drop the reads.
  *
  * The `*FileIsTheRelativePathUnderFilesDir` tests pin the prefs-name to file mapping the provider
- * routing relies on: they are the executable form of the "same file before and after" argument that
- * makes this a fix rather than a data migration. The pin is the RELATIVE path under `filesDir` on
- * purpose — the absolute path contains the applicationId, which differs between `:app:dev` and
- * `:app:store`.
+ * routing relies on. The pin is the RELATIVE path under `filesDir` on purpose: the absolute path
+ * contains the applicationId, which differs between `:app:dev` and `:app:store`.
  *
  * Sibling of [AccountDataStoreSingletonTest], which pins the same invariant for the fourth member
- * of the family (`backup_account_prefs`, routed through the provider first).
+ * of the family (`backup_account_prefs`). Mechanism and evidence: `documentation/tech-debt.md`
+ * -> "DataStore singleton bypass".
  */
 @Regression
 @RunWith(AndroidJUnit4::class)
