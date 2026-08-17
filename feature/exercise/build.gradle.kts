@@ -38,7 +38,7 @@ dependencies {
     testImplementation(project(":core:ui:golden-harness"))
     // The deferred-delete witness (S7): a real in-memory Room DB — the row is the witness,
     // and only `RepositoryTestEnv` can show it surviving the window.
-    testImplementation(testFixtures(project(":core:data:database")))
+    testImplementation(project(":core:data:database-test"))
 
     androidTestImplementation(libs.bundles.android.test)
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)

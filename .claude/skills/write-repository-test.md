@@ -1,6 +1,6 @@
 ---
 name: write-repository-test
-description: Write a JUnit 5 / Robolectric unit test for a `*RepositoryImpl` using the project's real in-memory Room fixture (`RepositoryTestEnv` from the `core/data/database` testFixtures source set). Repository tests for DB-backed persistence MUST verify state by reading it back through the same DAO / repository surface — mockk-only DAO interaction tests are not sufficient on their own.
+description: Write a JUnit 5 / Robolectric unit test for a `*RepositoryImpl` using the project's real in-memory Room fixture (`RepositoryTestEnv` from the `core:data:database-test` module). Repository tests for DB-backed persistence MUST verify state by reading it back through the same DAO / repository surface — mockk-only DAO interaction tests are not sufficient on their own.
 ---
 
 # Write a repository unit test (real-DB)
@@ -36,14 +36,14 @@ tests must stay the minority and must not duplicate a real-DB test for the same 
   `core/data/database` (the `core/data/exercise` module already does — see its
   `build.gradle.kts`).
 - The consumer module declares
-  `testImplementation(testFixtures(project(":core:data:database")))` (already wired for
-  `core/data/exercise`). For new modules, add the line and enable AGP testFixtures on the
-  database module if you also need fresh test-only DAOs there.
+  `testImplementation(project(":core:data:database-test"))` (already wired for
+  `core/data/exercise`). For new modules, add that line. Do NOT reach for a `testFixtures`
+  source set on `core:data:database`: KMP has none, and that module is scheduled to convert.
 
 ## Test fixture
 
 `RepositoryTestEnv` lives in
-[`core/data/database/src/testFixtures/kotlin/io/github/stslex/workeeper/core/data/database/testfixtures/RepositoryTestEnv.kt`](../../core/data/database/src/testFixtures/kotlin/io/github/stslex/workeeper/core/data/database/testfixtures/RepositoryTestEnv.kt).
+[`core/data/database-test/src/main/kotlin/io/github/stslex/workeeper/core/data/database/testfixtures/RepositoryTestEnv.kt`](../../core/data/database-test/src/main/kotlin/io/github/stslex/workeeper/core/data/database/testfixtures/RepositoryTestEnv.kt).
 It builds an in-memory `AppDatabase` via `Room.inMemoryDatabaseBuilder`, exposes every real
 DAO (`sessionDao`, `exerciseDao`, etc.), and provides a real `DbTransitionRunner` backed by
 `withTransaction`. It also ships a `TestApplication` for the Robolectric `@Config`.
@@ -203,7 +203,7 @@ Before submitting a repository test PR, confirm each item:
 - [ ] No orphan mock-only test duplicates a real-DB test in the same file or a sibling
       file. If you wrote a real-DB version, delete the corresponding mock-only case and
       reference the replacement in the commit message.
-- [ ] The test class uses `RepositoryTestEnv` from the testFixtures source set, not a
+- [ ] The test class uses `RepositoryTestEnv` from `core:data:database-test`, not a
       hand-rolled in-memory builder copy.
 - [ ] The `*DbTest` filename suffix is in place so reviewers can tell at a glance these
       tests are real-DB, not mock-based.
@@ -229,9 +229,14 @@ For multi-module repository changes:
 - **Do not use `androidTest` for these tests.** This skill targets the `src/test/`
   Robolectric path. The repo deliberately keeps repository persistence assertions on the
   fast JVM path; instrumented tests are reserved for UI surface.
-- **Do not duplicate the in-memory builder.** Use `RepositoryTestEnv` from the
-  `testFixtures` source set; a hand-rolled copy in your test file leaks production
-  visibility constraints (the `AppDatabase` class is `internal` to the database module).
+- **Do not duplicate the in-memory builder.** Use `RepositoryTestEnv` from
+  `core:data:database-test`. Two details a hand-rolled copy gets wrong, neither of which
+  fails loudly: Room 3 needs `.setDriver(AndroidSQLiteDriver())` on the in-memory builder,
+  and `DbTransitionRunner` must nest `coroutineScope` *inside* `immediateTransaction` so
+  `async {}` children launched in the block reuse the transaction's connection instead of
+  contending with it on the single-connection SQLite Robolectric provides. Robolectric is
+  not a valid oracle for atomicity either way — `documentation/tech-debt.md` →
+  `RepositoryTestEnv` ↔ `AtomicRollbackDeviceTest`.
 - **Do not skip `env.close()`.** A leaked database holds Robolectric's SQLite handles and
   pollutes the next test in the same process.
 - **One responsibility per test.** Each `@Test` exercises one public method and one shape

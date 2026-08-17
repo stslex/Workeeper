@@ -192,14 +192,33 @@ The four gaps below are **not** in the phase plan as handed over, and each is lo
 ### 3.1 `testFixtures` does not exist on KMP — 192 tests hang off it
 
 `core:data:database` is the repo's only `testFixtures` producer. Its 3 files (`RepositoryTestEnv`,
-`PrRuleFixture`, `PrRuleDbSeeder`) are consumed by `core:data:exercise` (185 `@Test`),
-`feature:exercise-chart` (4) and `feature:exercise` (4) — **19 files, 192 `@Test` total**. Phase 2
+`PrRuleFixture`, `PrRuleDbSeeder`) are consumed by `core:data:exercise` (17 files, 184 `@Test`),
+`feature:exercise-chart` (1 file, 4) and `feature:exercise` (1 file, 4) — **19 files, 192 `@Test`
+total**. Phase 2
 measured `testFixtures { }` as an unresolved reference on the AGP-KMP DSL.
 
-**Decided:** re-home them into a real module before the conversion, following the
-`core:ui:golden-harness` precedent (#229) and the sibling `core:data:database-test` that already
-exists for exactly this reason. The re-home is its own commit inside PR D, landing green before the
-plugin swap, so a bisect never lands on a commit where 192 tests do not compile.
+**Decided, and shipped as PR D's first commit:** re-home them into `core:data:database-test`, the
+sibling that already exists for exactly this purpose — no fourth module. It lands green *before* the
+plugin swap, so no bisect point has 192 uncompilable tests.
+
+The fixtures **keep their Kotlin package** (`…core.data.database.testfixtures`) even though the host
+module's Gradle namespace is `…database_test`. Kotlin package ≠ Gradle namespace — the move-mechanic
+phase 4 used to relocate the composition root — so all 19 consumer files keep their import lines
+verbatim and the commit is a build-graph edit rather than a source rewrite.
+
+Verified by running the affected suites, with the counts printed rather than assumed:
+`core:data:exercise` 19 classes / 212 tests, `feature:exercise` 9 / 113, `feature:exercise-chart`
+8 / 64, `core:data:database` 24 / 122 — **511 tests, 0 failures**. `core:data:database`'s own count
+is unchanged from the §0 baseline, so removing its `testFixtures` source set dropped none of its
+tests. No dependency cycle: its own tests never used the fixtures (grep).
+
+**A seventh zero-input gate, found by the move.** detekt flagged an `ImportOrdering` violation in
+`PrRuleDbSeeder.kt` *the moment it landed in `src/main`* — a violation that had always been there.
+detekt's source resolution is `src/main` + `src/test`, and **`src/testFixtures` is neither**, so
+those three files (354 lines) had never been detekt-checked in their entire existence. The gate was
+green over them because it never saw them. Nothing else in the repo produces `testFixtures`, so the
+hole closes completely with this move — but the shape is worth remembering: **a source set that no
+convention names is a source set no gate covers.**
 
 ### 3.2 The KMP convention has no device-test variant, and CI would not notice
 
@@ -378,6 +397,14 @@ admissible as its oracle: `AtomicRollbackDeviceTest`'s class KDoc records Robole
 `AppDatabaseMigrationTest` (real `MigrationTestHelper`, real device) run under both drivers, plus a
 5→6 migration applied to a real v5 database on device under the bundled driver.
 
+**Answer the schema question by measuring, not by reading.** The temptation is to reason about what
+Room folds into `identityHash` by reading `room3-compiler` — that was tried here and is a poor use of
+effort, because the question has a one-command empirical answer: point `room.schemaLocation` at a
+temp directory, build the KSP task, and `diff` the generated `6.json` against the committed one. A
+byte-identical file settles it; a diff shows exactly what moved. Prefer this shape of check for every
+"does X perturb generated output?" question in phase 7 — regenerate and diff beats inferring from
+processor source, and it cannot be wrong about the version actually pinned.
+
 **Schema-hash hazard to carry into PR D:** `6.json`'s `identityHash` must not move. Any incidental
 change to an entity, column or index declaration during the port silently invalidates
 `runMigrationsAndValidate` and would need a new migration for shipped users. The 9-name
@@ -434,6 +461,12 @@ change to an entity, column or index declaration during the port silently invali
   `implementation` deps, Robolectric/mockk/androidx-test on the unit-test classpath, and the
   `-Xjvm-default=all` / `-XXLanguage:+PropertyParamAnnotationDefaultTargetMode` flags. `core:core`
   re-added two by hand. Phase 7 converts ~30 modules; budget for this per module.
+- **The pre-commit hook did not see moved files, and phase 7 is mostly moves.** `.githooks/pre-commit`
+  selected Kotlin files with `--diff-filter=ACM`; git reports a MOVED file as `R`, so a commit that
+  only relocates sources printed "No Kotlin files changed" and skipped detekt entirely. Measured on
+  the fixture-re-home commit: three `.kt` files, `ACM` returned nothing. Fixed to `ACMR` and proven
+  both ways with a live staged rename. Phase 7 relocates ~738 files — without this, essentially none
+  of that work would have been detekt-checked before CI.
 - **Converting a module strips its accidental androidx closure, and the shared `lint.xml` notices.**
   A library-contributed lint issue id (one shipped in an androidx artifact's own lint registry rather
   than lint's built-ins) becomes `Unknown issue id … [UnknownIssueId]` — a hard `lint` failure —

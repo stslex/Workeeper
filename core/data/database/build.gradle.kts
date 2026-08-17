@@ -14,23 +14,12 @@ metro {
     }
 }
 
-android {
-    testFixtures.enable = true
-}
-
 dependencies {
     implementation(project(":core:core"))
     implementation(project(":core:data:backup:api"))
 
     implementation(libs.kotlinx.serialization.json)
     testImplementation(libs.androidx.room.testing)
-
-    testFixturesImplementation(project(":core:core"))
-    testFixturesImplementation(libs.bundles.room)
-    // RepositoryTestEnv builds a Room 3 DB and must setDriver(AndroidSQLiteDriver()).
-    testFixturesImplementation(libs.androidx.sqlite.framework)
-    testFixturesImplementation(libs.androidx.test)
-    testFixturesImplementation(libs.coroutines)
 
     androidTestImplementation(libs.bundles.android.test)
     // runTest for the suspend Room 3 MigrationTestHelper API (createDatabase / runMigrationsAndValidate).
