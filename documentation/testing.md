@@ -59,17 +59,19 @@ same code path.
 
 #### Test fixture
 
-The shared in-memory Room fixture lives in the database module's `testFixtures` source set:
+The shared in-memory Room fixture lives in the `core:data:database-test` module's `src/main`:
 
-- `core/data/database/src/testFixtures/kotlin/io/github/stslex/workeeper/core/data/database/testfixtures/RepositoryTestEnv.kt`
+- `core/data/database-test/src/main/kotlin/io/github/stslex/workeeper/core/data/database/testfixtures/RepositoryTestEnv.kt`
 
 It builds an `AppDatabase` via `Room.inMemoryDatabaseBuilder`, exposes every real DAO
 (`sessionDao`, `exerciseDao`, etc.), provides a real `DbTransitionRunner` backed by Room 3's
 `useWriterConnection { it.immediateTransaction { … } }`, and ships a `TestApplication` for the
 Robolectric `@Config`.
 
-Consumers depend on it via `testImplementation(testFixtures(project(":core:data:database")))`
-in their `build.gradle.kts` (already wired for `core/data/exercise`).
+Consumers depend on it via `testImplementation(project(":core:data:database-test"))` in their
+`build.gradle.kts` (already wired for `core/data/exercise`). It is a normal module rather than a
+`testFixtures` source set because KMP has no such source set and `core:data:database` is scheduled
+to convert — see `documentation/feature-specs/kmp-phase-6-data-layer.md` -> §3.1.
 
 #### Boilerplate
 

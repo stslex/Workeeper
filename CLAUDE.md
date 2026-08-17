@@ -77,7 +77,7 @@ skill when the user asks for one of these tasks:
   pattern.
 - [`write-repository-test`](.claude/skills/write-repository-test.md) — write a real-DB JUnit
   5 unit test for a `*RepositoryImpl` using the shared `RepositoryTestEnv` in-memory Room
-  fixture from the `core/data/database` testFixtures source set.
+  fixture from the `core:data:database-test` module.
 - [`write-ui-test`](.claude/skills/write-ui-test.md) — write a `@Smoke` Compose UI test using
   `BaseComposeTest`, `ActionCapture`, `MockDataFactory`, and `PagingTestUtils`.
 - [`add-database-migration`](.claude/skills/add-database-migration.md) — bump
