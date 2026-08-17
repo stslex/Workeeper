@@ -104,8 +104,7 @@ makes it the right place to meet the toolchain.
 - **A. Stragglers** (shipped) — no KMP, clears the Phase 5 precondition.
 - **B. `core:data:dataStore` → KMP** (shipped, see §2.1) — the platform seam is the store *path*, not
   the store.
-- **C. `core:data:backup:api` → KMP** — 22 of 24 files are already clean. See §4 for the two that are
-  not.
+- **C. `core:data:backup:api` → KMP** (shipped) — 22 files commonMain, 2 androidMain. See §4.
 - **D. `core:data:database` → KMP** — the centrepiece. See §3.
 - **E. `core:data:exercise` → KMP** — mechanical once D lands, plus the one genuine behaviour change
   in §5.
@@ -264,11 +263,53 @@ Nine modules depend on `backup:api`, so changing these is a nine-module ripple. 
 there was no okio in the repo to change them *to*; PR B puts `okio.Path` on the graph (§7), so the
 remaining cost is the signature change alone.
 
-**Decided:** convert with the pure surface (models, errors, results, `BackupPreferences`,
-`BackupSchedule`, the restore contracts — the part Phase 7's settings UI needs from commonMain) in
-`commonMain`, and keep `BackupStorage` + `RecoveryDiagnosticsExporter` in `androidMain` until a real
-iOS backup implementation justifies an abstraction. Inventing `expect` wrappers for a platform with
-no implementation would be speculative API churn across nine modules.
+**Decided, and shipped in PR C:** the pure surface (models, errors, results, `BackupPreferences`,
+`BackupSchedule`, the restore contracts — the part Phase 7's settings UI needs from commonMain) goes
+to `commonMain`; `BackupStorage` + `RecoveryDiagnosticsExporter` stay in `androidMain` until a real
+iOS backup implementation makes the right shape observable rather than guessed. Inventing `expect`
+wrappers for a platform with no implementation would be speculative API churn across nine modules.
+`okio.Path` is the obvious eventual candidate for `File` (okio is on the graph from PR B), but
+`android.net.Uri` has none: it is a SAF handle, and iOS shares documents by a different model.
+
+**Split measured: 22 files commonMain / 2 androidMain.** The whole module has exactly four external
+imports — `android.net.Uri`, `java.io.File`, `Flow`, `StateFlow` — and **zero** references to
+`core:core`, whose `implementation` dependency it had declared and never used. Dropped.
+
+**A KMP module with no androidx dependency cannot resolve library-contributed lint issue ids — and
+that is a hard error.** `backup:api` ended the conversion depending on `coroutines-core` alone, and
+`:core:data:backup:api:lintAndroidMain` then failed with
+
+```
+lint-rules/lint.xml:126: Error: Unknown issue id "FragmentTagUsage" [UnknownIssueId]
+```
+
+`FragmentTagUsage` ships in **androidx.fragment's own lint registry**, not in lint's built-ins, so it
+resolved only while the module transitively saw androidx — which, as a classic Android library, it
+always did via the convention's blanket `implementation` deps. Strip those and the shared `lint.xml`
+becomes unparseable *for that module*.
+
+Fixed at the root rather than suppressed: the entry is **deleted**, because this repo has **zero**
+Fragments (grep across all Kotlin and Gradle sources returns nothing — it is Compose + Nav3), so the
+check could never fire. Disabling `UnknownIssueId` instead would have blinded the whole repo to real
+typos in that file, and adding an androidx dependency to satisfy a lint id would be absurd.
+`ValidFragment` and `CommitTransaction` sit adjacent in the same file and are lint built-ins, so they
+resolve everywhere and stay. Verified after the fix on all three shapes: the stripped KMP module, the
+androidx-carrying KMP module, and `:app:app`.
+
+**Phase 7 will meet this repeatedly**, because converting a module is exactly what strips its
+accidental androidx closure. The failure names the lint id, not the missing dependency, so it reads
+as a config error rather than a conversion consequence. If another library-contributed id turns up in
+`lint.xml` later, delete it or move it behind the module that owns the dependency — do not reach for
+`UnknownIssueId`.
+
+**Correction to the convention's own guidance, found here.** `KmpLibraryConventionPlugin`'s KDoc says
+a module with no host tests opts out per-module with
+`failOnNoDiscoveredTests.set(false)`. Measured: **not needed when the source set is absent
+entirely** — `testAndroidHostTest` is then `NO-SOURCE` and never runs, so the flag never applies.
+`backup:api` builds green without the opt-out. The flag matters only when `androidHostTest` sources
+exist but discover no tests. Phase 7 converts modules with no host tests; do not paste in dead
+config on the strength of that KDoc. (This spec briefly carried the same wrong claim, written into a
+build script comment before it was probed.)
 
 ---
 
@@ -393,6 +434,11 @@ change to an entity, column or index declaration during the port silently invali
   `implementation` deps, Robolectric/mockk/androidx-test on the unit-test classpath, and the
   `-Xjvm-default=all` / `-XXLanguage:+PropertyParamAnnotationDefaultTargetMode` flags. `core:core`
   re-added two by hand. Phase 7 converts ~30 modules; budget for this per module.
+- **Converting a module strips its accidental androidx closure, and the shared `lint.xml` notices.**
+  A library-contributed lint issue id (one shipped in an androidx artifact's own lint registry rather
+  than lint's built-ins) becomes `Unknown issue id … [UnknownIssueId]` — a hard `lint` failure —
+  the moment a module stops depending on the artifact that contributed it. Hit in §4 with
+  `FragmentTagUsage`. Delete the dead id; never reach for `UnknownIssueId`.
 - **Robolectric on KMP needs three things the convention does not give you** (the two deps plus
   `junit.platform.launcher.interceptors.enabled`), and it is a per-module concern by design. 21 of
   25 database unit tests and 16 of 20 exercise tests are Robolectric-gated. Add a fourth thing:
@@ -401,6 +447,8 @@ change to an entity, column or index declaration during the port silently invali
 - **`failOnNoDiscoveredTests` diverges**: Gradle's default `true` on KMP, explicitly `false` on the
   Android convention. Tests moved to a `commonTest` source set — which the convention neither creates
   nor wires — will red rather than vanish. That is the good direction, but the cause is not obvious.
+  A module with NO host-test sources at all needs no opt-out, contrary to the convention's KDoc
+  (§4): the task is `NO-SOURCE` and the flag never applies.
 - **Two KDoc claims in this area are already wrong.** `KmpLibraryConventionPlugin`'s class KDoc names
   a sibling module `core:core-android` that Phase 3 deleted, and a `detekt.yml` comment attributes the
   KMP detekt `source.setFrom` to `core/core/build.gradle.kts`, which has no detekt block at all.
