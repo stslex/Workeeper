@@ -37,15 +37,11 @@ import kotlinx.coroutines.flow.map
  * (the producer binding is [AppDialogPublisherImpl]); so it is a self accessor,
  * never `@ContributesBinding`.
  *
- * The store is minted through [DataStoreProviderFactory], never with a per-instance
- * `PreferenceDataStoreFactory.create`: a `DataStore` is a per-file singleton whose
- * memoization in `DataStoreProvider` is static (process-lifetime), while this class
- * is `@SingleIn(AppScope)` (graph-lifetime). A second `AppGraph` in one process must
- * resolve the SAME store, or DataStore 1.1+ throws `IllegalStateException: There are
- * multiple DataStores active` on the second read — pinned by `app/app` androidTest
- * `AppScopeDataStoreSingletonTest`. The provider applies
- * `preferencesDataStoreFile(PREFS_NAME)`, the same expression this class applied
- * directly, so the resolved file is unchanged and no user data moves.
+ * Mint the store through [DataStoreProviderFactory] only: a second `AppGraph` that
+ * built its own would throw `IllegalStateException: There are multiple DataStores
+ * active` on the second read. Pinned by `app/app` androidTest
+ * `AppScopeDataStoreSingletonTest`. Mechanism and evidence:
+ * `documentation/tech-debt.md` -> "DataStore singleton bypass".
  */
 @SingleIn(AppScope::class)
 class AppDialogRepository internal constructor(

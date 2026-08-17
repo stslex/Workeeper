@@ -43,7 +43,7 @@ Two reasons, one of which pays off on Android alone.
 | `core:data:backup:api` src/main | 24 files; **2** platform imports | grep |
 | `kotlin.uuid.Uuid` in `core/data` | 83 files; `java.util.UUID` **0** | grep |
 | `java.time` in `core/data` | **2** files, 1 of them production | grep |
-| `okio` anywhere in the repo | **0** | grep |
+| `okio` anywhere in the repo *(at this baseline; PR B adds it — see §7)* | **0** | grep |
 | Modules on `convention.kmpLibrary` | **1** (`core:core`) | grep |
 
 **Room is already on Room 3** (`androidx.room3` 3.0.0 / `androidx.sqlite` 2.7.0) — no
@@ -259,8 +259,9 @@ Android/JVM types sit in its public API**:
 - `java.io.File` — `BackupStorage.uploadBackup(dbFile: File, …)` / `downloadBackup(…, target: File)`.
 - `android.net.Uri` — `RecoveryDiagnosticsExporter`, twice.
 
-Nine modules depend on `backup:api`, so changing these is a nine-module ripple, and there is no okio
-in the repo to change them *to*.
+Nine modules depend on `backup:api`, so changing these is a nine-module ripple. At the §0 baseline
+there was no okio in the repo to change them *to*; PR B puts `okio.Path` on the graph (§7), so the
+remaining cost is the signature change alone.
 
 **Decided, and shipped in PR C:** the pure surface (models, errors, results, `BackupPreferences`,
 `BackupSchedule`, the restore contracts — the part Phase 7's settings UI needs from commonMain) goes
@@ -326,7 +327,7 @@ repository *interfaces* and their impls, i.e. the module's whole public surface.
 platform imports are `androidx.paging`, which is portable (§0). The 16th is the real one:
 
 ```kotlin
-} catch (_: SQLiteConstraintException) {   // ExerciseRepositoryImpl.kt:117
+} catch (_: SQLiteConstraintException) {   // ExerciseRepositoryImpl.saveItem
     return@transition SaveResult.DuplicateName
 }
 ```
@@ -348,21 +349,31 @@ references. Sizing this module from its build script overstates its coupling.
 
 ## §6 The driver decision — decided
 
-`sqlite-framework` publishes an iOS variant, so converting to KMP does **not** require changing which
-driver Android uses. Two options existed:
+**The artifact is multiplatform; the driver classes are not** — and the distinction decides how the
+dependency is wired. `androidx.sqlite:sqlite-framework` 2.7.0 publishes `androidJvm`, `iosArm64` and
+`iosSimulatorArm64` variants (verified from its Gradle Module Metadata), but each target exposes a
+different driver: the `-android` variant carries `AndroidSQLiteDriver`, while the
+`iosSimulatorArm64` klib carries **`NativeSQLiteDriver`** and no `AndroidSQLiteDriver` at all
+(verified by reading the published klib). So `sqlite-framework` must be declared per source set, not
+in `commonMain`, and no arrangement gives Android's framework driver to iOS.
+
+Converting to KMP therefore does **not** require changing which driver *Android* uses. Two options
+existed:
 
 - **(a)** `BundledSQLiteDriver` everywhere — the uniform-SQLite payoff.
-- **(b)** `AndroidSQLiteDriver` on Android, bundled on iOS — zero Android behaviour change.
+- **(b)** `AndroidSQLiteDriver` in `androidMain`, and on iOS either `NativeSQLiteDriver` (same
+  artifact, system SQLite) or `BundledSQLiteDriver` — zero Android behaviour change either way.
 
 **Decided: port on (b), then flip to (a) as its own commit with its own gate.** The bundled driver is
 a *different SQLite build* from the framework one; that is the point and also the risk.
-`SessionDao.kt:76-80` already documents avoiding `ROW_NUMBER()` because minSdk 28 ships SQLite 3.22,
+`SessionDao`'s recent-sessions query already documents avoiding `ROW_NUMBER()` because minSdk 28
+ships SQLite 3.22,
 which is direct evidence that this codebase's SQL is written against the system SQLite version.
 Fusing the flip into the port makes a SQLite-behaviour regression and a source-set regression
 indistinguishable under bisect, and makes the safe half unrevertable without the risky half.
 
 **The migration suite is the gate for the flip**, per the phase brief, and Robolectric is not
-admissible as its oracle: `AtomicRollbackDeviceTest.kt:32-37` records Robolectric giving a false
+admissible as its oracle: `AtomicRollbackDeviceTest`'s class KDoc records Robolectric giving a false
 **negative** on transaction rollback *twice*. Evidence for the flip will be the instrumented
 `AppDatabaseMigrationTest` (real `MigrationTestHelper`, real device) run under both drivers, plus a
 5→6 migration applied to a real v5 database on device under the bundled driver.
@@ -370,7 +381,7 @@ admissible as its oracle: `AtomicRollbackDeviceTest.kt:32-37` records Robolectri
 **Schema-hash hazard to carry into PR D:** `6.json`'s `identityHash` must not move. Any incidental
 change to an entity, column or index declaration during the port silently invalidates
 `runMigrationsAndValidate` and would need a new migration for shipped users. The 9-name
-`EXPECTED_V6_TABLES` set in `AppDatabaseMigrationTest.kt:264-274` is a hand-maintained mirror of
+`EXPECTED_V6_TABLES` set in `AppDatabaseMigrationTest` is a hand-maintained mirror of
 `6.json` and will not self-correct.
 
 ---
@@ -383,7 +394,7 @@ change to an entity, column or index declaration during the port silently invali
   for. Filed, not forced.
 
   **But the dependency half of that cost disappears in PR B, and this is worth knowing before anyone
-  re-prices the rider.** okio has 0 occurrences in the repo today, yet the commonMain DataStore API
+  re-prices the rider.** okio had 0 occurrences at the §0 baseline, yet the commonMain DataStore API
   is `PreferenceDataStoreFactory.createWithPath(produceFile: () -> okio.Path)` — read from the
   `datastore-preferences-core` 1.2.1 sources; the `() -> File` overload is `jvmAndroidMain`-only. So
   converting `core:data:dataStore` brings okio into the graph as a *requirement of DataStore on KMP*,
@@ -392,7 +403,7 @@ change to an entity, column or index declaration during the port silently invali
 - **`java.time` → kotlinx-datetime.** The rider is real but almost entirely outside this phase: of
   **16** files (not 15 — one uses fully-qualified `java.time.LocalDate` with no import, so every
   import-based sweep, including this brief's, misses it), **14 are `feature:exercise-chart`** and
-  belong to Phase 7. `core/data` has 2, one of them production: `WorkoutExportMapper.kt:38`,
+  belong to Phase 7. `core/data` has 2, one of them production: `WorkoutExportMapper`'s
   `Instant.ofEpochMilli(epochMs).toString()`. That single line is taken in PR D; the rest is Phase 7's.
   Helpfully, there are **zero** `DateTimeFormatter` uses repo-wide — locale formatting already lives
   behind `ResourceWrapper` — so no formatter port is implied.
@@ -438,7 +449,7 @@ change to an entity, column or index declaration during the port silently invali
   nor wires — will red rather than vanish. That is the good direction, but the cause is not obvious.
   A module with NO host-test sources at all needs no opt-out, contrary to the convention's KDoc
   (§4): the task is `NO-SOURCE` and the flag never applies.
-- **Two KDoc claims in this area are already wrong.** `KmpLibraryConventionPlugin.kt:26-27` names a
-  sibling module `core:core-android` that Phase 3 deleted, and `detekt.yml:231-232` attributes the
+- **Two KDoc claims in this area are already wrong.** `KmpLibraryConventionPlugin`'s class KDoc names
+  a sibling module `core:core-android` that Phase 3 deleted, and a `detekt.yml` comment attributes the
   KMP detekt `source.setFrom` to `core/core/build.gradle.kts`, which has no detekt block at all.
   Verify against code.
