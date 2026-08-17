@@ -229,9 +229,14 @@ For multi-module repository changes:
 - **Do not use `androidTest` for these tests.** This skill targets the `src/test/`
   Robolectric path. The repo deliberately keeps repository persistence assertions on the
   fast JVM path; instrumented tests are reserved for UI surface.
-- **Do not duplicate the in-memory builder.** Use `RepositoryTestEnv` from the
-  `testFixtures` source set; a hand-rolled copy in your test file leaks production
-  visibility constraints (the `AppDatabase` class is `internal` to the database module).
+- **Do not duplicate the in-memory builder.** Use `RepositoryTestEnv` from
+  `core:data:database-test`. Two details a hand-rolled copy gets wrong, neither of which
+  fails loudly: Room 3 needs `.setDriver(AndroidSQLiteDriver())` on the in-memory builder,
+  and `DbTransitionRunner` must nest `coroutineScope` *inside* `immediateTransaction` so
+  `async {}` children launched in the block reuse the transaction's connection instead of
+  contending with it on the single-connection SQLite Robolectric provides. Robolectric is
+  not a valid oracle for atomicity either way — `documentation/tech-debt.md` →
+  `RepositoryTestEnv` ↔ `AtomicRollbackDeviceTest`.
 - **Do not skip `env.close()`.** A leaked database holds Robolectric's SQLite handles and
   pollutes the next test in the same process.
 - **One responsibility per test.** Each `@Test` exercises one public method and one shape
