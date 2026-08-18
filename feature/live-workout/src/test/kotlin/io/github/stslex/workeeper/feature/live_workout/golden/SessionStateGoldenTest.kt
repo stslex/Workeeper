@@ -2,6 +2,7 @@
 package io.github.stslex.workeeper.feature.live_workout.golden
 
 import io.github.stslex.workeeper.core.ui.kit.golden.GoldenTheme
+import io.github.stslex.workeeper.core.ui.kit.golden.LOCALE_RU
 import io.github.stslex.workeeper.core.ui.kit.golden.goldenSubject
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
@@ -207,6 +208,28 @@ internal class SessionStateGoldenTest {
             Card(
                 exercise(ExerciseStatusUiModel.DONE, done = 3, isPlanAttached = false),
                 expanded = false,
+            )
+        }
+    }
+
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun exerciseBodyweightRu(theme: GoldenTheme, testInfo: TestInfo) {
+        // R7 fixture 2 (set-field-column-headers.md §8): the ПОВТОРЕНИЙ header over the
+        // single bodyweight column, in the shipped RU strings — the 71dp full-word label
+        // had zero golden coverage while it lived in the field as a suffix. Two-digit
+        // reps on purpose: the value class the corpus never carried. New snapshot.
+        val weighted = exercise(ExerciseStatusUiModel.CURRENT, done = 0)
+        goldenSubject(testInfo, theme, locale = LOCALE_RU) {
+            Card(
+                weighted.copy(
+                    exerciseType = ExerciseTypeUiModel.WEIGHTLESS,
+                    statusLabel = "12 · 12 · 12",
+                    visibleSets = weighted.visibleSets
+                        .map { it.copy(weight = null, reps = 12) }
+                        .toImmutableList(),
+                ),
+                expanded = true,
             )
         }
     }
