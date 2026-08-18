@@ -45,6 +45,7 @@ Full rule, with the stacking costs it comes with: [AGENTS.md](AGENTS.md) § "Mer
 - [documentation/feature-specs/backup.md](documentation/feature-specs/backup.md) — Drive backup + restore + auto-backup scheduling: architecture, auth flow, scheduling, Cloud Console setup, error taxonomy, troubleshooting.
 - [documentation/feature-specs/kmp-phase-2-probes.md](documentation/feature-specs/kmp-phase-2-probes.md) — Phase 2 probe report: the measured KMP/CMP toolchain facts (Paparazzi-on-KMP, testFixtures absence, golden-gate divergences, Metro-from-androidMain, CMP-on-simulator, Room/KSP2) and the Phase-7 checklist they buy.
 - [documentation/feature-specs/app-dialogs.md](documentation/feature-specs/app-dialogs.md) — Cross-feature process-survival dialog catalog (`AppDialog`, `AppDialogStore`, `AppDialogHost`, DataStore-backed `pending_*` flags). Planned alongside backup-recovery.
+- [documentation/feature-specs/set-field-column-headers.md](documentation/feature-specs/set-field-column-headers.md) — Set-row value clipping fix (E-d): measured width budget, column-header design, closed-loop overflow gate, golden blast-radius prediction, rulings R1–R8.
 - [CONTRIBUTING.md](CONTRIBUTING.md) — contributor workflow, commit format.
 
 ## Domain layer
