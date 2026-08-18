@@ -230,7 +230,44 @@ Probe findings the design rests on (measured 2026-08-18, throwaway test, deleted
    band green (bisect-green): the fontScale-1.0 band with commit 2 (suffix removal +
    header), the full R4 matrix with commit 5 (stepdown). No red state is committed.
 
-## 7. Target and known limits (R4) — measured ledger (commit 5)
+## 7a. Second-round rulings (Gate 2, 2026-08-18)
+
+- **R4 superseded / R11** — bands restated: 1.0–1.6 with domain-reachable values:
+  clipping forbidden, hard; 1.6–2.0: ledger entry permitted with measured numbers.
+  (The original R4 "ellipsis permitted" clause is void — `BasicTextField` scrolls,
+  it cannot ellipsise, per the Phase 0 probe.)
+- **R9** — the compact-inset lever: `AppNumberInput` drops its horizontal insets
+  `Space.md` → `Space.sm` when the measured field width is under 105dp — a boundary
+  between measured populations (must-fire: in-app reps fields 92.15/103.06dp;
+  must-not-fire: the ten-set card's golden-width reps 106.36dp, PlanSetCard's
+  narrowest 109.1dp). +22px of value budget, no typography or contrast change.
+- **R10** — cells a sane domain cap would eliminate enter the ledger tagged
+  "resolved by domain cap, follow-up PR"; the missing bound itself is blocker B-8.
+- **R12** — a sub-19sp rung gated on value state is REJECTED (state-dependent type
+  size is visual noise); the 19sp contrast floor stands.
+
+## 7. Target and known limits — measured ledger (post-R9, final)
+
+Measured with the compact-inset lever live: **57 of 64 cells pass**; the lever
+rescued live reps ×3 @2.0 (was +2px). Every remaining red is 5-glyph:
+
+| cell | text px | slot px | over | tag |
+|---|---|---|---|---|
+| live reps ×5 @1.3 | 215 | 209 | +6 | resolved by domain cap, follow-up PR |
+| live reps ×5 @1.6 | 250 | 209 | +41 | resolved by domain cap, follow-up PR |
+| live reps ×5 @2.0 | 310 | 206 | +104 | resolved by domain cap, follow-up PR |
+| past reps ×5 @1.6 | 250 | 239 | +11 | resolved by domain cap, follow-up PR |
+| past reps ×5 @2.0 | 310 | 236 | +74 | resolved by domain cap, follow-up PR |
+| live weight ×5 @2.0 | 276 | 234 | +42 | 19sp contrast floor — R4-sanctioned |
+| past weight ×5 @2.0 | 276 | 270 | +6 | 19sp contrast floor |
+
+Every hard-band red is a five-digit rep count — typeable garbage the pending domain
+cap (B-8) eliminates; no R11 "genuine conflict" cell remains. The gates assert the
+full matrix with this ledger inverted (a ledgered cell that starts fitting fails the
+gate — ledgers are not allowed to rot). Converter facts for the record: 26sp scales
+×1.40 at fontScale 2.0, 19sp ×~1.695, mono caption near-linearly.
+
+## 7b. Superseded first-round ledger (commit 5, pre-lever) — kept for the record
 
 Post-fix value boxes at fontScale 1.0: live reps 187 px / weight 238 px; past reps
 214 px / weight 270 px (captured, not computed). The measured stepdown strictly
@@ -315,6 +352,7 @@ New fixtures (new snapshots, first recording — not re-records):
 | B-5 | fixed in PR (R8) | stale `AppNumberInput.kt:98-103` KDoc figures |
 | B-6 | note | EN `unit_reps` == `unit_reps_full` ("reps", `tools:ignore=DuplicateStrings`); they diverge only in RU — header strings must not collapse the pair |
 | B-7 | note | new golden test classes must live in `*.golden.*` packages and be recorded, or the module liveness gate fails permanently; the R2 gate deliberately lives outside them |
+| B-8 | follow-up (R10) | reps and weight have NO upper input bound (`InputHandler.kt:30`, `PlanDraftReducer.kt:40` coerce only at zero): 99999 reps is enterable and storable — a data-domain defect; the cap is new product behaviour for its own PR, and five of the seven §7 ledger cells resolve with it |
 
 ## 11. Verification discipline
 

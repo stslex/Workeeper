@@ -28,6 +28,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
@@ -111,81 +113,108 @@ fun AppNumberInput(
         label = "field-bg",
     )
     val shape = RoundedCornerShape(AppDimension.Radius.small)
-    Row(
-        modifier = modifier
-            .clip(shape)
-            .background(background)
-            .let { base ->
-                if (isError) {
-                    base.border(
-                        width = AppDimension.borderHairline,
-                        color = AppUi.colors.status.error,
-                        shape = shape,
-                    )
-                } else {
-                    base
-                }
-            }
-            // heightIn, not height: 48dp is the floor the mockup draws, but at fontScale
-            // above ~1.5 the 26sp value's line height exceeds it and a hard height would
-            // clip vertically what this component exists to stop clipping horizontally.
-            .heightIn(min = AppDimension.heightMd)
-            .padding(horizontal = AppDimension.Space.md),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        // BoxWithConstraints rather than Box: the slot width is a *measured input* here —
-        // [valueSlotProbe] is the overflow gate's capture point (the `flashAlphaOverride`
-        // move: a test-only parameter production never passes), and the width feeds the
-        // adaptive rung choice. Same constraints in, same layout out.
-        BoxWithConstraints(modifier = Modifier.weight(1f)) {
-            val slotWidthPx = constraints.maxWidth
-            val valueStyle = resolveValueStyle(value = value, slotWidthPx = slotWidthPx)
-            valueSlotProbe?.invoke(slotWidthPx, valueStyle)
-            // Aliased before the semantics block: a bare `contentDescription` inside the
-            // receiver is a self-assign (the AppExerciseThumb note). A field built on
-            // BasicTextField owes its name explicitly — since E-d moved the visible unit
-            // to the column header, this is the only thing telling TalkBack WHICH field
-            // this is (set-field-column-headers.md §4 D6).
-            val fieldLabel = accessibilityLabel
-            BasicTextField(
-                modifier = Modifier.semantics {
-                    if (fieldLabel != null) contentDescription = fieldLabel
-                },
-                value = value,
-                onValueChange = onValueChange,
-                enabled = enabled,
-                singleLine = true,
-                textStyle = valueStyle.copy(color = valueColor),
-                keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
-                cursorBrush = SolidColor(AppUi.colors.accent),
-            )
+    BoxWithConstraints(modifier = modifier) {
+        // R9's lever (set-field-column-headers.md §7): a narrow field spends Space.sm per
+        // side instead of Space.md — 8dp of value budget for free, touching neither
+        // typography nor contrast. "Narrow" is measured from the incoming field width
+        // (flex-driven, so the inset is stable while typing) against a line between the
+        // measured populations: the set rows' in-app reps fields sit at 92.15/103.06dp and
+        // must fire; the ten-set card's golden-width reps field (106.36dp) and
+        // PlanSetCard's narrowest (109.1dp) must not. Unbounded incoming width resolves
+        // to the full inset.
+        val fieldInset = if (maxWidth < COMPACT_INSET_MAX_FIELD_WIDTH) {
+            AppDimension.Space.sm
+        } else {
+            AppDimension.Space.md
         }
-        suffix?.let {
-            val unitColor by animateColorAsState(
-                // The mockup's `.unit` is `--dim` in every state. Measured, that fails on the
-                // washes: over a LIFTED card (slab) in dark, `textDim` lands at 4.40 (record
-                // wash) / 4.45 (donefill) against the 4.5 an 11sp label owes — the same
-                // failure B7 exists to close, one backdrop later. On washed fields the unit
-                // promotes one step to `textSecondary`; a completed row brightening as a
-                // whole is §1's principle, not a contradiction of it.
-                targetValue = if (isRecord || isDone) {
-                    AppUi.colors.textSecondary
-                } else {
-                    AppUi.colors.textDim
-                },
-                animationSpec = tween(durationMillis = AppUi.motion.base, easing = AppUi.motion.out),
-                label = "field-unit",
-            )
-            Text(
-                modifier = Modifier.padding(start = AppDimension.Space.xs),
-                text = it,
-                // Mono at the 11 rung — the drawn `.unit` family (was a text-family meta).
-                style = AppUi.typography.mono.caption,
-                color = unitColor,
-            )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(shape)
+                .background(background)
+                .let { base ->
+                    if (isError) {
+                        base.border(
+                            width = AppDimension.borderHairline,
+                            color = AppUi.colors.status.error,
+                            shape = shape,
+                        )
+                    } else {
+                        base
+                    }
+                }
+                // heightIn, not height: 48dp is the floor the mockup draws, but at fontScale
+                // above ~1.5 the 26sp value's line height exceeds it and a hard height would
+                // clip vertically what this component exists to stop clipping horizontally.
+                .heightIn(min = AppDimension.heightMd)
+                .padding(horizontal = fieldInset),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            // BoxWithConstraints rather than Box: the slot width is a *measured input* here —
+            // [valueSlotProbe] is the overflow gate's capture point (the `flashAlphaOverride`
+            // move: a test-only parameter production never passes), and the width feeds the
+            // adaptive rung choice. Same constraints in, same layout out.
+            BoxWithConstraints(modifier = Modifier.weight(1f)) {
+                val slotWidthPx = constraints.maxWidth
+                val valueStyle = resolveValueStyle(value = value, slotWidthPx = slotWidthPx)
+                valueSlotProbe?.invoke(slotWidthPx, valueStyle)
+                // Aliased before the semantics block: a bare `contentDescription` inside the
+                // receiver is a self-assign (the AppExerciseThumb note). A field built on
+                // BasicTextField owes its name explicitly — since E-d moved the visible unit
+                // to the column header, this is the only thing telling TalkBack WHICH field
+                // this is (set-field-column-headers.md §4 D6).
+                val fieldLabel = accessibilityLabel
+                BasicTextField(
+                    modifier = Modifier.semantics {
+                        if (fieldLabel != null) contentDescription = fieldLabel
+                    },
+                    value = value,
+                    onValueChange = onValueChange,
+                    enabled = enabled,
+                    singleLine = true,
+                    textStyle = valueStyle.copy(color = valueColor),
+                    keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+                    cursorBrush = SolidColor(AppUi.colors.accent),
+                )
+            }
+            suffix?.let {
+                val unitColor by animateColorAsState(
+                    // The mockup's `.unit` is `--dim` in every state. Measured, that fails on the
+                    // washes: over a LIFTED card (slab) in dark, `textDim` lands at 4.40 (record
+                    // wash) / 4.45 (donefill) against the 4.5 an 11sp label owes — the same
+                    // failure B7 exists to close, one backdrop later. On washed fields the unit
+                    // promotes one step to `textSecondary`; a completed row brightening as a
+                    // whole is §1's principle, not a contradiction of it.
+                    targetValue = if (isRecord || isDone) {
+                        AppUi.colors.textSecondary
+                    } else {
+                        AppUi.colors.textDim
+                    },
+                    animationSpec = tween(durationMillis = AppUi.motion.base, easing = AppUi.motion.out),
+                    label = "field-unit",
+                )
+                Text(
+                    modifier = Modifier.padding(start = AppDimension.Space.xs),
+                    text = it,
+                    // Mono at the 11 rung — the drawn `.unit` family (was a text-family meta).
+                    style = AppUi.typography.mono.caption,
+                    color = unitColor,
+                )
+            }
         }
     }
 }
+
+/**
+ * The line below which a field trades its `Space.md` insets for `Space.sm` (R9,
+ * set-field-column-headers.md §7). Not a magic number but a boundary between measured
+ * populations: the widest field that MUST fire is the past row's in-app reps column at
+ * 103.06dp; the narrowest that MUST NOT is the live card's golden-width reps column at
+ * 106.36dp (a committed golden), with PlanSetCard's narrowest at 109.1dp behind it.
+ * Anything landing inside the 103–106dp gap is new geometry and owes this constant a
+ * re-derivation.
+ */
+private val COMPACT_INSET_MAX_FIELD_WIDTH: Dp = 105.dp
 
 /**
  * The rung the value renders at, decided by MEASUREMENT ahead of layout

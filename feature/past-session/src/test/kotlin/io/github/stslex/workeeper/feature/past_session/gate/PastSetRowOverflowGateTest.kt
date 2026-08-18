@@ -15,6 +15,7 @@ import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.past_session.mvi.model.PastSetUiModel
 import io.github.stslex.workeeper.feature.past_session.ui.components.PastSetEditRow
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertAll
 
@@ -85,7 +86,21 @@ internal class PastSetRowOverflowGateTest {
         check(cells.size == ASSERTED_FONT_SCALES.size * GLYPH_CLASSES.size * 2) {
             "gate ran over ${cells.size} cells — zero or partial input"
         }
-        assertAll(cells.map { cell -> { assertFalse(cell.overflows, cell.describe()) } })
+        assertAll(
+            cells.map { cell ->
+                {
+                    val limit = KNOWN_LIMITS["${cell.column}/${cell.glyphs}@${cell.fontScale}"]
+                    if (limit != null) {
+                        assertTrue(
+                            cell.overflows,
+                            "ledgered cell fits now ($limit) — update spec §7: ${cell.describe()}",
+                        )
+                    } else {
+                        assertFalse(cell.overflows, cell.describe())
+                    }
+                }
+            },
+        )
     }
 
     /**
@@ -117,11 +132,17 @@ internal class PastSetRowOverflowGateTest {
     }
 
     private companion object {
-        // The fontScale-1.0 band; the full-matrix extension is blocked on the R4 band
-        // ruling — see LiveSetRowOverflowGateTest's companion note and spec §7.
-        val ASSERTED_FONT_SCALES = listOf(1.0f)
+        // The full R11 matrix, asserted; see LiveSetRowOverflowGateTest's companion note.
+        val ASSERTED_FONT_SCALES = listOf(1.0f, 1.3f, 1.6f, 2.0f)
         val GLYPH_CLASSES = listOf(1, 2, 3, 5)
         val WEIGHT_INPUTS = mapOf(1 to "5", 2 to "55", 3 to "555", 5 to "102.5")
         val REPS_INPUTS = mapOf(1 to "5", 2 to "12", 3 to "555", 5 to "55555")
+
+        /** The spec §7 ledger (R10/R11) — the past row's slice. */
+        val KNOWN_LIMITS = mapOf(
+            "reps/5@1.6" to "resolved by domain cap, follow-up PR",
+            "reps/5@2.0" to "resolved by domain cap, follow-up PR",
+            "weight/5@2.0" to "19sp contrast floor at fontScale 2.0 — R4-sanctioned (+6px)",
+        )
     }
 }
