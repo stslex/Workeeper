@@ -49,9 +49,11 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
  * `Text` with `TextOverflow.Ellipsis` is what makes the unit truncate before the name;
  * splitting the two into separate `Text`s breaks that order (§4 D2).
  *
- * Casing is applied here, locale-aware, and kept out of strings.xml. Style is
- * `mono.caption`, never the numeric family — Archivo has zero Cyrillic, and
- * `NumericFontFamilyOnLocalizedTextRule` guards that boundary.
+ * Casing is applied here rather than in strings.xml, through the locale-INVARIANT
+ * `uppercase()`: the rendered label must not change with the device locale, or a golden
+ * and a user's screen can disagree. Style is `mono.caption`, never the numeric family —
+ * Archivo has zero Cyrillic, and `NumericFontFamilyOnLocalizedTextRule` guards that
+ * boundary.
  */
 @Composable
 fun SetColumnHeader(
@@ -147,9 +149,11 @@ internal fun SetColumnHeaderLabel(
 }
 
 /**
- * `ВЕС (КГ)` from `вес` + `кг`: locale-aware uppercase at the edge, parentheses added here
- * — formatting is the component's, not the translation's. The unit span is the string's
- * TAIL, which is what hands the truncation order to `TextOverflow` (§2).
+ * `ВЕС (КГ)` from `вес` + `кг`: `uppercase()` at the edge — the no-arg overload, whose
+ * mapping is Unicode-invariant rather than locale-sensitive, so the label reads the same
+ * on every device. Parentheses are added here: formatting is the component's, not the
+ * translation's. The unit span is the string's TAIL, which is what hands the truncation
+ * order to `TextOverflow` (§2).
  */
 internal fun buildSetColumnHeaderLabel(
     name: String,

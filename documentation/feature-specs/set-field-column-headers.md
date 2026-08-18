@@ -52,7 +52,9 @@ corrected figure is stated and the delta explained.
    card. The field keeps 48 dp height (as `heightIn(min)`) and the 26sp `dataValue`
    rung.
 2. Header text, Russian: `ВЕС (КГ)` and `ПОВТОРЫ`; bodyweight: `ПОВТОРЕНИЙ`. Casing
-   applied by the component via locale-aware `uppercase()`, matching `AppLabel`.
+   applied by the component via `uppercase()`, matching `AppLabel`. That no-arg overload
+   is locale-INVARIANT (`Locale.ROOT` mapping), which is the property wanted here: the
+   label must not change with the device locale, or a golden and a user's screen disagree.
 3. Two-tone header: NAME `textSecondary`, UNIT in parentheses `textDim`. No dimmer
    colour than `textDim` — a caption-rung label owes 4.5:1.
 4. Ellipsis order: `(КГ)` truncates before `ВЕС`.
@@ -98,7 +100,7 @@ corrected figure is stated and the delta explained.
   appended after the name truncates tail-first, so the unit is eaten before the name
   by construction; two Texts in a Row cannot guarantee shrink order without a custom
   layout. Base colour `textSecondary`, unit span `textDim`; each segment uppercased
-  with locale-aware `uppercase()` before the spans are built. Verified by test
+  with the locale-invariant `uppercase()` before the spans are built. Verified by test
   (commit 1): constrained-width layout capture asserting the visible line end drops
   the unit characters first.
 - **D3 — one resolved index width, computed at the container.** `SetRowGeometry` in
