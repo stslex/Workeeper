@@ -214,6 +214,18 @@ internal class SessionStateGoldenTest {
 
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
+    fun exerciseTenSets(theme: GoldenTheme, testInfo: TestInfo) {
+        // The D3 canary (set-field-column-headers.md §8 fixture 3): at ten sets the index
+        // label "10" measures past the 12dp minimum, and the resolved width is passed to
+        // the header AND every row from one place — this frame pins them aligned at the
+        // grown gutter. The past-session twin is `cardDoubleDigitIndex`. New snapshot.
+        goldenSubject(testInfo, theme) {
+            Card(exercise(ExerciseStatusUiModel.CURRENT, done = 4, sets = 10), expanded = true)
+        }
+    }
+
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
     fun exerciseBodyweightRu(theme: GoldenTheme, testInfo: TestInfo) {
         // R7 fixture 2 (set-field-column-headers.md §8): the ПОВТОРЕНИЙ header over the
         // single bodyweight column, in the shipped RU strings — the 71dp full-word label

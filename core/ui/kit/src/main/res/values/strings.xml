@@ -12,7 +12,6 @@
     <string name="core_ui_kit_plan_editor_subtitle">Sets pre-fill in Live workout. Tracked sets update this plan.</string>
     <string name="core_ui_kit_plan_editor_unit_kg">kg</string>
     <string name="core_ui_kit_plan_editor_unit_reps" tools:ignore="DuplicateStrings">reps</string>
-    <string name="core_ui_kit_plan_editor_unit_reps_full" tools:ignore="DuplicateStrings">reps</string>
     <!--
       Set-column headers (set-field-column-headers.md §4 D2). Stored lower-case; the component
       uppercases at the edge (the AppLabel move) and adds the unit parentheses itself. The
