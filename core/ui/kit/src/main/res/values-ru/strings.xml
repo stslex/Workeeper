@@ -12,7 +12,11 @@
     <string name="core_ui_kit_plan_editor_subtitle">Подходы подставятся в Live-тренировке. Записанные подходы обновят план.</string>
     <string name="core_ui_kit_plan_editor_unit_kg">кг</string>
     <string name="core_ui_kit_plan_editor_unit_reps">повт</string>
-    <string name="core_ui_kit_plan_editor_unit_reps_full">повторений</string>
+    <string name="core_ui_kit_set_header_weight">вес</string>
+    <string name="core_ui_kit_set_header_reps">повторы</string>
+    <string name="core_ui_kit_set_header_reps_full">повторений</string>
+    <string name="core_ui_kit_set_field_a11y_weight">вес, килограммы</string>
+    <string name="core_ui_kit_set_field_a11y_reps">повторения</string>
     <string name="core_ui_kit_plan_editor_set_type_warmup">Разминка</string>
     <string name="core_ui_kit_plan_editor_set_type_work">Рабочий</string>
     <string name="core_ui_kit_plan_editor_set_type_failure">Отказ</string>

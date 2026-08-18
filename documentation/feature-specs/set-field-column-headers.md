@@ -52,7 +52,9 @@ corrected figure is stated and the delta explained.
    card. The field keeps 48 dp height (as `heightIn(min)`) and the 26sp `dataValue`
    rung.
 2. Header text, Russian: `ВЕС (КГ)` and `ПОВТОРЫ`; bodyweight: `ПОВТОРЕНИЙ`. Casing
-   applied by the component via locale-aware `uppercase()`, matching `AppLabel`.
+   applied by the component via `uppercase()`, matching `AppLabel`. That no-arg overload
+   is locale-INVARIANT (`Locale.ROOT` mapping), which is the property wanted here: the
+   label must not change with the device locale, or a golden and a user's screen disagree.
 3. Two-tone header: NAME `textSecondary`, UNIT in parentheses `textDim`. No dimmer
    colour than `textDim` — a caption-rung label owes 4.5:1.
 4. Ellipsis order: `(КГ)` truncates before `ВЕС`.
@@ -98,7 +100,7 @@ corrected figure is stated and the delta explained.
   appended after the name truncates tail-first, so the unit is eaten before the name
   by construction; two Texts in a Row cannot guarantee shrink order without a custom
   layout. Base colour `textSecondary`, unit span `textDim`; each segment uppercased
-  with locale-aware `uppercase()` before the spans are built. Verified by test
+  with the locale-invariant `uppercase()` before the spans are built. Verified by test
   (commit 1): constrained-width layout capture asserting the visible line end drops
   the unit characters first.
 - **D3 — one resolved index width, computed at the container.** `SetRowGeometry` in
@@ -230,14 +232,109 @@ Probe findings the design rests on (measured 2026-08-18, throwaway test, deleted
    band green (bisect-green): the fontScale-1.0 band with commit 2 (suffix removal +
    header), the full R4 matrix with commit 5 (stepdown). No red state is committed.
 
-## 7. Target and known limits (R4)
+## 7a. Second-round rulings (Gate 2, 2026-08-18)
 
-Post-fix value boxes: reps 68.15 dp, weight 86.58 dp (live). Hard band 1.0–1.6: all
-matrix cells must pass via the D5 ladder. Band 1.6–2.0: ellipsis permitted, clip
-forbidden. **Known limit (registered, not worked around):** weight × 5 glyphs at
-fontScale 2.0 — "102.5" at the 19sp floor under the non-linear converter is
-estimated 89–95 dp vs the 86.58 dp box; the exact measured number is recorded here by
-the Phase 2 gate run. Row re-layout for fontScale 2.0 is Phase 7 work, out of scope.
+- **R4 superseded / R11** — bands restated: 1.0–1.6 with domain-reachable values:
+  clipping forbidden, hard; 1.6–2.0: ledger entry permitted with measured numbers.
+  (The original R4 "ellipsis permitted" clause is void — `BasicTextField` scrolls,
+  it cannot ellipsise, per the Phase 0 probe.)
+- **R9** — the compact-inset lever: `AppNumberInput` drops its horizontal insets
+  `Space.md` → `Space.sm` when the measured field width is under 105dp — a boundary
+  between measured populations (must-fire: in-app reps fields 92.15/103.06dp;
+  must-not-fire: the ten-set card's golden-width reps 106.36dp, PlanSetCard's
+  narrowest 109.1dp). +22px of value budget, no typography or contrast change.
+- **R10** — cells a sane domain cap would eliminate enter the ledger tagged
+  "resolved by domain cap, follow-up PR"; the missing bound itself is blocker B-8.
+- **R12** — a sub-19sp rung gated on value state is REJECTED (state-dependent type
+  size is visual noise); the 19sp contrast floor stands.
+- **R13** — the width threshold is replaced by an explicit `fieldInset` parameter on
+  `AppNumberInput`: the 105dp line was calibrated to a 3.3dp gap in today's geometry —
+  a coincidence, not a property, and a silent tripwire. Set rows pass
+  `SetRowGeometry.compactFieldInset` (`Space.sm`, uniform across their fields and the
+  header's label inset — the parameter change also closed a real 4dp label/value
+  drift the threshold had introduced); every other consumer keeps `Space.md`.
+- **R14 / R17** — header/column alignment gets direct assertions from the rendered
+  layoutlib tree at 1 set and at 10 sets: the header label's LEFT EDGE equals its
+  column's value left edge (R17 — the contract itself; width equality was falsified
+  inside this PR when the R9 threshold moved the field inset 4dp while the label's
+  stayed put, with every width equal through the drift), plus the index gutter equals
+  the row index column (R14 — necessary, not sufficient). Known-negatives, both
+  proven: a hardcoded 12dp gutter reds the gutter assert at 10 sets (33px vs 40px); a
+  divergent header inset reds all four edge asserts (11px) with gutters green. A
+  golden records what is; it is not cited as an alignment guarantee.
+- **R18** — the first alignment-test cut ran under Robolectric and passed vacuously.
+  That is an INSTRUMENT DEFECT, not a font fact: `mono.meta` arithmetic (12.5sp ×
+  0.6em) gives "10" = 15dp and "100" = 22.5dp against the 12dp floor, layoutlib
+  agrees (measured 14.5dp), and Robolectric laid the 3-digit index 10.5dp under the
+  arithmetic — it did not render Plex Mono at all. Recorded as the second confirmed
+  Robolectric false-negative in this PR. The drift scenario is REACHABLE in
+  production; it is exactly what the gate defends.
+- **R15** — the "domain cap" ledger entries are DEBT, not resolution: those cells are
+  red in production for anyone entering a five-digit rep count until B-8 ships, and
+  the entries are void the moment it does (the inverted gate assertion will fail and
+  demand their removal).
+- **R16** — the ledger inversion is kept (first live catch: past weight ×5 @2.0
+  leaving the ledger under R13 was flagged by the inverted assertion, not by a human).
+- **R20** — the never-re-record rule governs BASELINE goldens (the 446 that predate
+  this branch). Snapshots first recorded inside this PR are not baseline: amending
+  them to the branch's final state pre-merge hides no regression and is not a
+  re-record. The three E-d fixtures (`setTwoDigitReps`, `exerciseTenSets`,
+  `exerciseBodyweightRu`) were amended under R13 and are reviewed in the contact
+  sheet's appendix alongside the 36.
+
+## 7. Target and known limits — measured ledger (post-R13, final)
+
+Measured with the explicit compact inset on all set-row fields: **58 of 64 cells
+pass**. The uniform compact inset resolved past weight ×5 @2.0 (the +6px deficit met +22px
+of freed budget — caught by the inverted assertion, as designed) and improved live
+weight ×5 @2.0 from +42 to +20px. Every remaining red is 5-glyph:
+
+| cell | text px | slot px | over | tag |
+|---|---|---|---|---|
+| live reps ×5 @1.3 | 215 | 209 | +6 | DEFERRED to domain cap (B-8) |
+| live reps ×5 @1.6 | 250 | 209 | +41 | DEFERRED to domain cap (B-8) |
+| live reps ×5 @2.0 | 310 | 203 | +107 | DEFERRED to domain cap (B-8) |
+| past reps ×5 @1.6 | 250 | 239 | +11 | DEFERRED to domain cap (B-8) |
+| past reps ×5 @2.0 | 310 | 233 | +77 | DEFERRED to domain cap (B-8) |
+| live weight ×5 @2.0 | 276 | 252 | +24 | 19sp contrast floor — sanctioned limit |
+
+**The five deferred cells are DEBT, not resolution (R15): until B-8 ships, a user who
+enters a five-digit rep count sees a clipped (scrolled-out) value in these bands in
+production.** The entries are void the moment B-8 merges — the inverted gate
+assertion fails on a fitting ledger cell and forces the cleanup. Converter facts for
+the record: 26sp scales ×1.40 at fontScale 2.0, 19sp ×~1.695, mono caption
+near-linearly.
+
+## 7b. Superseded first-round ledger (commit 5, pre-lever) — kept for the record
+
+Post-fix value boxes at fontScale 1.0: live reps 187 px / weight 238 px; past reps
+214 px / weight 270 px (captured, not computed). The measured stepdown strictly
+improves every cell over the glyph heuristic, and the full 64-cell matrix was measured
+through the closed-loop gates with the stepdown live. **56 of 64 cells pass. Every
+failing cell is ladder-floor-limited**: the value exceeds even the contrast-pinned
+19sp section rung, which the non-linear `FontScaleConverter` scales ×~1.375 at
+fontScale 1.6 and ×~1.695 at 2.0 (26sp scales less: ×1.40 at 2.0).
+
+| cell | text px | slot px | over | band |
+|---|---|---|---|---|
+| live reps ×5 glyphs @1.3 | 215 | 187 | +28 | HARD |
+| live reps ×5 @1.6 | 250 | 187 | +63 | HARD |
+| past reps ×5 @1.6 | 250 | 217 | +33 | HARD |
+| live reps ×3 @2.0 | 186 | 184 | +2 | 2.0 |
+| live weight ×5 @2.0 | 276 | 234 | +42 | 2.0 — the R4-sanctioned known limit |
+| past weight ×5 @2.0 | 276 | 270 | +6 | 2.0 |
+| live reps ×5 @2.0 | 310 | 184 | +126 | 2.0 |
+| past reps ×5 @2.0 | 310 | 214 | +96 | 2.0 |
+
+**Conflict, reported rather than worked around (task-brief discipline):** the hard
+band's "clipping forbidden at 1.0–1.6" is unreachable for reps × 5 glyphs at the 19sp
+floor, and the 2.0 band's "clipping still forbidden" fails in four cells where R4
+sanctioned one. A 5-digit rep count is typeable (reps has no upper input cap) but not
+a physical value class. Options, in Ilya's hands: (a) cap reps input length, taking
+5-glyph out of the reps column's value space; (b) permit a below-19sp rung for
+non-record/non-pending value states (they pay 4.5:1 fine); (c) extend the known-limit
+ledger to all eight measured cells; (d) treat as Phase-7 row re-layout input. Until the
+ruling the gates assert the 1.0 band and the matrix above it is measured, not asserted.
 
 ## 8. Golden impact (R6) and new fixtures (R7, R3)
 
@@ -293,6 +390,7 @@ New fixtures (new snapshots, first recording — not re-records):
 | B-5 | fixed in PR (R8) | stale `AppNumberInput.kt:98-103` KDoc figures |
 | B-6 | note | EN `unit_reps` == `unit_reps_full` ("reps", `tools:ignore=DuplicateStrings`); they diverge only in RU — header strings must not collapse the pair |
 | B-7 | note | new golden test classes must live in `*.golden.*` packages and be recorded, or the module liveness gate fails permanently; the R2 gate deliberately lives outside them |
+| B-8 | follow-up (R10) | reps and weight have NO upper input bound (`InputHandler.kt:30`, `PlanDraftReducer.kt:40` coerce only at zero): 99999 reps is enterable and storable — a data-domain defect; the cap is new product behaviour for its own PR, and five of the seven §7 ledger cells resolve with it |
 
 ## 11. Verification discipline
 

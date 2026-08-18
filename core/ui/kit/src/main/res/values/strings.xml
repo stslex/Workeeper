@@ -12,7 +12,23 @@
     <string name="core_ui_kit_plan_editor_subtitle">Sets pre-fill in Live workout. Tracked sets update this plan.</string>
     <string name="core_ui_kit_plan_editor_unit_kg">kg</string>
     <string name="core_ui_kit_plan_editor_unit_reps" tools:ignore="DuplicateStrings">reps</string>
-    <string name="core_ui_kit_plan_editor_unit_reps_full" tools:ignore="DuplicateStrings">reps</string>
+    <!--
+      Set-column headers (set-field-column-headers.md §4 D2). Stored lower-case; the component
+      uppercases and adds the unit parentheses itself — do not bake either in here. The weight
+      header's unit reuses core_ui_kit_plan_editor_unit_kg — same word, both locales. reps and
+      reps_full are identical in EN and diverge in RU: do not collapse the pair.
+    -->
+    <string name="core_ui_kit_set_header_weight" tools:ignore="DuplicateStrings">weight</string>
+    <string name="core_ui_kit_set_header_reps" tools:ignore="DuplicateStrings">reps</string>
+    <string name="core_ui_kit_set_header_reps_full" tools:ignore="DuplicateStrings">reps</string>
+    <!--
+      What TalkBack calls the set fields. The visible unit lives in the column header, which
+      is not accessibility-associated with the fields, so the name is carried explicitly
+      through AppNumberInput's accessibilityLabel (set-field-column-headers.md §4 D6).
+      Spelled out, not abbreviated: screen readers speak these.
+    -->
+    <string name="core_ui_kit_set_field_a11y_weight">weight, kilograms</string>
+    <string name="core_ui_kit_set_field_a11y_reps">repetitions</string>
     <string name="core_ui_kit_plan_editor_set_type_warmup">Warmup</string>
     <string name="core_ui_kit_plan_editor_set_type_work">Work</string>
     <string name="core_ui_kit_plan_editor_set_type_failure">Failure</string>

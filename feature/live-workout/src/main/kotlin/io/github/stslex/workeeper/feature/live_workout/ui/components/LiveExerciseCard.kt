@@ -41,8 +41,11 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.stslex.workeeper.core.ui.kit.components.border.dashedBorder
+import io.github.stslex.workeeper.core.ui.kit.components.button.AppCheckmarkButtonTouchSize
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppMiniIconButton
 import io.github.stslex.workeeper.core.ui.kit.components.ordinal.AppOrdinalChip
+import io.github.stslex.workeeper.core.ui.kit.components.setrow.SetColumnHeader
+import io.github.stslex.workeeper.core.ui.kit.components.setrow.SetRowGeometry
 import io.github.stslex.workeeper.core.ui.kit.components.surface.AppActiveSurface
 import io.github.stslex.workeeper.core.ui.kit.icons.AppIcons
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
@@ -393,6 +396,11 @@ private fun ExerciseCardBody(
 /**
  * `.sets{padding:0 12px}` with `border-top: 1px --hair` on every row but the first —
  * the hairline is intra-card row trim (spec §3.1, decorative), drawn by the container.
+ *
+ * The index column width is resolved HERE, once, so the header and every row read the same
+ * number and grow together past nine sets (set-field-column-headers.md §4 D3). The trailing
+ * gutter mirrors the row's chip slot + gap + checkmark from the components' own widths. No
+ * divider between header and row 1 — the hairlines stay intra-row trim.
  */
 @Composable
 private fun SetsColumn(
@@ -406,6 +414,16 @@ private fun SetsColumn(
             .fillMaxWidth()
             .padding(horizontal = AppDimension.Space.md),
     ) {
+        val indexColumnWidth = SetRowGeometry.resolveIndexColumnWidth(exercise.visibleSets.size)
+        if (exercise.visibleSets.isNotEmpty()) {
+            SetColumnHeader(
+                isWeighted = isWeighted,
+                indexColumnWidth = indexColumnWidth,
+                trailingWidth = SetRowGeometry.resolveTrailingSlotWidth() +
+                    AppDimension.Space.sm +
+                    AppCheckmarkButtonTouchSize,
+            )
+        }
         exercise.visibleSets.forEachIndexed { index, row ->
             key(exercise.performedExerciseUuid, row.position) {
                 if (index > 0) {
@@ -417,6 +435,7 @@ private fun SetsColumn(
                 LiveSetRow(
                     set = row,
                     isWeighted = isWeighted,
+                    indexColumnWidth = indexColumnWidth,
                     testTagPrefix = "LiveSetRow_${exercise.performedExerciseUuid}_${row.position}",
                     onWeightChange = { value ->
                         consume(

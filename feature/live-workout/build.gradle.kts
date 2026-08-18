@@ -29,6 +29,10 @@ dependencies {
 
     testImplementation(kotlin("test"))
     testImplementation(project(":core:ui:golden-harness"))
+    // Compose's semantics-tree surface on the JVM side, for LiveSetRowSemanticsTest: the
+    // announced field name is a semantics property no golden can photograph and no handler
+    // test can reach. Same reasoning as core:ui:kit, feature:home and feature:settings.
+    testImplementation(libs.androidx.compose.ui.test.junit4)
 
     androidTestImplementation(libs.bundles.android.test)
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)

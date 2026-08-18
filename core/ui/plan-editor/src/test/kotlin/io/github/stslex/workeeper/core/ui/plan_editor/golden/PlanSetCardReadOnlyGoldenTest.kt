@@ -47,6 +47,25 @@ internal class PlanSetCardReadOnlyGoldenTest {
     }
 
     /**
+     * A 5-glyph weight, "102.5": the measured stepdown keeps the full 26sp wherever the slot
+     * fits the value, which `PlanSetCard`'s weight box does. This frame is what pins that
+     * (set-field-column-headers.md §8, fixture 4).
+     */
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun readOnlyFiveGlyphWeight(theme: GoldenTheme, testInfo: TestInfo) {
+        goldenSubject(testInfo, theme, locale = LOCALE_RU) {
+            PlanSetCard(
+                modifier = Modifier.padding(SUBJECT_INSET),
+                plan = persistentListOf(
+                    PlanSetUiModel(weight = 102.5, reps = 5, type = SetTypeUiModel.WORK),
+                ),
+                isWeighted = true,
+            )
+        }
+    }
+
+    /**
      * An exercise with no default plan. The read screen draws the section anyway — the head is
      * where the type is stated — so this branch is on screen, not a theoretical state.
      */
