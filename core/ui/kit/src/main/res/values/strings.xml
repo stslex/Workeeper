@@ -13,6 +13,15 @@
     <string name="core_ui_kit_plan_editor_unit_kg">kg</string>
     <string name="core_ui_kit_plan_editor_unit_reps" tools:ignore="DuplicateStrings">reps</string>
     <string name="core_ui_kit_plan_editor_unit_reps_full" tools:ignore="DuplicateStrings">reps</string>
+    <!--
+      Set-column headers (set-field-column-headers.md §4 D2). Stored lower-case; the component
+      uppercases at the edge (the AppLabel move) and adds the unit parentheses itself. The
+      weight header's unit reuses core_ui_kit_plan_editor_unit_kg — same word, both locales.
+      reps vs reps_full duplicate in EN and diverge only in RU, same as the unit pair above.
+    -->
+    <string name="core_ui_kit_set_header_weight" tools:ignore="DuplicateStrings">weight</string>
+    <string name="core_ui_kit_set_header_reps" tools:ignore="DuplicateStrings">reps</string>
+    <string name="core_ui_kit_set_header_reps_full" tools:ignore="DuplicateStrings">reps</string>
     <string name="core_ui_kit_plan_editor_set_type_warmup">Warmup</string>
     <string name="core_ui_kit_plan_editor_set_type_work">Work</string>
     <string name="core_ui_kit_plan_editor_set_type_failure">Failure</string>
