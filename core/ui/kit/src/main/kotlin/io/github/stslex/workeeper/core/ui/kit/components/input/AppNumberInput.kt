@@ -20,6 +20,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
@@ -92,6 +94,7 @@ fun AppNumberInput(
     fieldInset: Dp = AppDimension.Space.md,
     accessibilityLabel: String? = null,
     valueSlotProbe: ((slotWidthPx: Int, resolvedStyle: TextStyle) -> Unit)? = null,
+    valueLeftProbe: ((leftPx: Float) -> Unit)? = null,
 ) {
     val keyboardType = if (decimals > 0) KeyboardType.Decimal else KeyboardType.Number
     val valueColor by animateColorAsState(
@@ -144,7 +147,17 @@ fun AppNumberInput(
         // [valueSlotProbe] is the overflow gate's capture point (the `flashAlphaOverride`
         // move: a test-only parameter production never passes), and the width feeds the
         // adaptive rung choice. Same constraints in, same layout out.
-        BoxWithConstraints(modifier = Modifier.weight(1f)) {
+        // [valueLeftProbe] reports the value slot's rendered LEFT EDGE in root px — the
+        // R17 alignment gate's field-side capture. Width equality (the gutter) proved
+        // insufficient inside this PR: the R9 threshold moved the field inset while the
+        // header label's stayed put, and every width stayed equal through the drift.
+        BoxWithConstraints(
+            modifier = Modifier
+                .weight(1f)
+                .onGloballyPositioned { coords ->
+                    valueLeftProbe?.invoke(coords.positionInRoot().x)
+                },
+        ) {
             val slotWidthPx = constraints.maxWidth
             val valueStyle = resolveValueStyle(value = value, slotWidthPx = slotWidthPx)
             valueSlotProbe?.invoke(slotWidthPx, valueStyle)

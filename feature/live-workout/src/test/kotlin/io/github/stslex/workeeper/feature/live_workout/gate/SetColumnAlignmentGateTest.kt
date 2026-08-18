@@ -20,75 +20,89 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertAll
+import kotlin.math.abs
 
 /**
- * R14's alignment assertion (set-field-column-headers.md §7a), in the layoutlib stack.
+ * R14/R17's alignment assertion (set-field-column-headers.md §7a), in the layoutlib stack.
  *
- * The header label's left edge equals its column's value left edge iff the header's index
- * GUTTER equals the row's index COLUMN — the gap and the label inset on both sides are the
- * same tokens (`Space.sm`, `SetRowGeometry.compactFieldInset`), so the gutter is the one
- * free variable. This gate captures both sides' laid-out widths through test-only size
- * probes and asserts them equal at ONE set and at TEN sets — the case where a hardcoded
- * header gutter drifts from rows whose index text has outgrown the 12dp minimum.
+ * TWO claims, both necessary:
+ *  - EDGES (R17, the contract itself): each header label's rendered left edge equals its
+ *    column's value left edge. Width equality alone was falsified inside this PR — the R9
+ *    threshold moved the field inset to 8dp while the header label stayed at 12dp, and
+ *    every width stayed equal through the 4dp drift. Only the edges see that class.
+ *  - GUTTER (R14): the header's index gutter equals the row's index column — necessary
+ *    and not sufficient; kept because a gutter drift at 10+ sets moves every edge at once
+ *    and this assert names the culprit directly.
  *
- * Layoutlib, not Robolectric, deliberately: measured, Robolectric's font stack lays a
- * three-digit `mono.meta` index under the 12dp minimum, so the gutter never grows there
- * and a bounds-based assert passes vacuously (the first cut of this test did exactly
- * that). Layoutlib measures "10" at ~15dp and the drift scenario is real. The growth
- * precondition below turns any stack that cannot reproduce growth into a loud failure.
+ * Asserted at ONE set and at TEN sets — the count where the index text outgrows the 12dp
+ * minimum. The drift scenarios are REAL in this stack and in production: layoutlib lays
+ * "10" at ~15dp (0.6em × 12.5sp arithmetic agrees). The first cut of this test ran under
+ * Robolectric and passed vacuously — an instrument defect, not a font fact (it laid a
+ * 3-digit index 10.5dp under the same arithmetic, i.e. it did not render Plex Mono at
+ * all); the growth precondition below turns a defective instrument into a loud failure.
  *
- * `SetsColumn`'s wiring (resolving once and passing the same value to header and rows) is
- * pinned by the `exerciseTenSets` canary golden; this gate pins the components' geometry
- * contract itself.
+ * Both known-negatives are proven in the PR record: a hardcoded 12dp header gutter reds
+ * the gutter assert at 10 sets; a header label inset diverging from the rows' reds the
+ * edge assert with widths untouched.
  */
 internal class SetColumnAlignmentGateTest {
 
     @Test
-    fun headerGutterEqualsRowIndexColumn() {
+    fun headerLabelsSitOnTheirColumns() {
         val gate = OverflowGateSdk()
         gate.setup()
         val samples = mutableListOf<Sample>()
         try {
             for (setCount in SET_COUNTS) {
-                var gutterPx = -1
-                var indexPx = -1
-                gate.render {
-                    AlignedPair(
-                        setCount = setCount,
-                        onGutter = { gutterPx = it },
-                        onIndexColumn = { indexPx = it },
-                    )
-                }
-                check(gutterPx >= 0) { "header gutter probe never fired at $setCount sets" }
-                check(indexPx >= 0) { "row index probe never fired at $setCount sets" }
-                samples += Sample(setCount, gutterPx, indexPx)
+                val capture = Capture()
+                gate.render { AlignedPair(setCount = setCount, capture = capture) }
+                samples += capture.toSample(setCount)
             }
         } finally {
             gate.teardown()
         }
         samples.forEach {
-            println("alignment: ${it.setCount} sets -> gutter ${it.gutterPx}px, index ${it.indexPx}px")
+            println(
+                "alignment: ${it.setCount} sets -> gutter ${it.gutterPx}px / index ${it.indexPx}px, " +
+                    "weight label ${it.weightLabelLeft} vs field ${it.weightFieldLeft}, " +
+                    "reps label ${it.repsLabelLeft} vs field ${it.repsFieldLeft}",
+            )
         }
         check(samples.size == SET_COUNTS.size) { "gate ran over ${samples.size} counts" }
-        // Precondition: the ten-set row's index column must actually outgrow the one-set
-        // minimum in this stack, or the drift scenario is unreachable and a pass is vacuous.
+        // Precondition: the ten-set index column must outgrow the one-set minimum in this
+        // stack, or the gutter-drift scenario is unreachable here and a pass is vacuous.
         check(samples.last().indexPx > samples.first().indexPx) {
             "index column did not grow (${samples.first().indexPx} -> ${samples.last().indexPx}px)" +
-                " — this stack cannot reproduce the drift scenario"
+                " — defective instrument, not a passing gate"
         }
         assertAll(
-            samples.map { sample ->
-                {
-                    assertEquals(
-                        sample.indexPx,
-                        sample.gutterPx,
-                        "at ${sample.setCount} sets the header gutter (${sample.gutterPx}px) " +
-                            "drifted from the row index column (${sample.indexPx}px)",
-                    )
-                }
+            samples.flatMap { s ->
+                listOf(
+                    {
+                        assertEquals(
+                            s.indexPx,
+                            s.gutterPx,
+                            "at ${s.setCount} sets the header gutter (${s.gutterPx}px) " +
+                                "drifted from the row index column (${s.indexPx}px)",
+                        )
+                    },
+                    {
+                        assertTrue(
+                            abs(s.weightLabelLeft - s.weightFieldLeft) <= EDGE_TOLERANCE_PX,
+                            "at ${s.setCount} sets the WEIGHT label left (${s.weightLabelLeft}px) " +
+                                "drifted from its value left (${s.weightFieldLeft}px)",
+                        )
+                    },
+                    {
+                        assertTrue(
+                            abs(s.repsLabelLeft - s.repsFieldLeft) <= EDGE_TOLERANCE_PX,
+                            "at ${s.setCount} sets the REPS label left (${s.repsLabelLeft}px) " +
+                                "drifted from its value left (${s.repsFieldLeft}px)",
+                        )
+                    },
+                )
             },
         )
-        assertTrue(samples.isNotEmpty())
     }
 
     /**
@@ -96,11 +110,7 @@ internal class SetColumnAlignmentGateTest {
      * exactly as `SetsColumn` composes them: one resolution, both consumers.
      */
     @Composable
-    private fun AlignedPair(
-        setCount: Int,
-        onGutter: (Int) -> Unit,
-        onIndexColumn: (Int) -> Unit,
-    ) {
+    private fun AlignedPair(setCount: Int, capture: Capture) {
         val contentWidth = with(LocalDensity.current) {
             val consumedPx = 2 * (AppDimension.screenEdge + AppDimension.Space.md).roundToPx()
             (GOLDEN_DEVICE.screenWidth - consumedPx).toDp()
@@ -114,7 +124,10 @@ internal class SetColumnAlignmentGateTest {
                     trailingWidth = SetRowGeometry.setTypeSlotWidth +
                         AppDimension.Space.sm +
                         AppCheckmarkButtonTouchSize,
-                    indexGutterProbe = onGutter,
+                    indexGutterProbe = { capture.gutterPx = it },
+                    labelLeftProbe = { cell, x ->
+                        if (cell == 0) capture.weightLabelLeft = x else capture.repsLabelLeft = x
+                    },
                 )
                 LiveSetRow(
                     set = LiveSetUiModel(
@@ -132,15 +145,55 @@ internal class SetColumnAlignmentGateTest {
                     onUncheck = {},
                     editable = true,
                     indexColumnWidth = indexColumnWidth,
-                    indexColumnProbe = onIndexColumn,
+                    indexColumnProbe = { capture.indexPx = it },
+                    weightLeftProbe = { capture.weightFieldLeft = it },
+                    repsLeftProbe = { capture.repsFieldLeft = it },
                 )
             }
         }
     }
 
-    private data class Sample(val setCount: Int, val gutterPx: Int, val indexPx: Int)
+    private class Capture {
+        var gutterPx: Int = -1
+        var indexPx: Int = -1
+        var weightLabelLeft: Float = Float.NaN
+        var repsLabelLeft: Float = Float.NaN
+        var weightFieldLeft: Float = Float.NaN
+        var repsFieldLeft: Float = Float.NaN
+
+        fun toSample(setCount: Int): Sample {
+            check(gutterPx >= 0) { "header gutter probe never fired at $setCount sets" }
+            check(indexPx >= 0) { "row index probe never fired at $setCount sets" }
+            check(!weightLabelLeft.isNaN()) { "weight label probe never fired at $setCount sets" }
+            check(!repsLabelLeft.isNaN()) { "reps label probe never fired at $setCount sets" }
+            check(!weightFieldLeft.isNaN()) { "weight field probe never fired at $setCount sets" }
+            check(!repsFieldLeft.isNaN()) { "reps field probe never fired at $setCount sets" }
+            return Sample(
+                setCount = setCount,
+                gutterPx = gutterPx,
+                indexPx = indexPx,
+                weightLabelLeft = weightLabelLeft,
+                repsLabelLeft = repsLabelLeft,
+                weightFieldLeft = weightFieldLeft,
+                repsFieldLeft = repsFieldLeft,
+            )
+        }
+    }
+
+    private data class Sample(
+        val setCount: Int,
+        val gutterPx: Int,
+        val indexPx: Int,
+        val weightLabelLeft: Float,
+        val repsLabelLeft: Float,
+        val weightFieldLeft: Float,
+        val repsFieldLeft: Float,
+    )
 
     private companion object {
         val SET_COUNTS = listOf(1, 10)
+
+        /** Two independent Rows accumulate px rounding; beyond one step is a drift. */
+        const val EDGE_TOLERANCE_PX = 1.5f
     }
 }

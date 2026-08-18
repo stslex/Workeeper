@@ -251,14 +251,34 @@ Probe findings the design rests on (measured 2026-08-18, throwaway test, deleted
   `SetRowGeometry.compactFieldInset` (`Space.sm`, uniform across their fields and the
   header's label inset — the parameter change also closed a real 4dp label/value
   drift the threshold had introduced); every other consumer keeps `Space.md`.
-- **R14** — header/column alignment gets a direct assertion from the rendered tree
-  (label left edge == value left edge, at 1 set and at 10 sets), not just the canary
-  snapshot; known-negative proven by hardcoding the header's index spacer to 12dp.
+- **R14 / R17** — header/column alignment gets direct assertions from the rendered
+  layoutlib tree at 1 set and at 10 sets: the header label's LEFT EDGE equals its
+  column's value left edge (R17 — the contract itself; width equality was falsified
+  inside this PR when the R9 threshold moved the field inset 4dp while the label's
+  stayed put, with every width equal through the drift), plus the index gutter equals
+  the row index column (R14 — necessary, not sufficient). Known-negatives, both
+  proven: a hardcoded 12dp gutter reds the gutter assert at 10 sets (33px vs 40px); a
+  divergent header inset reds all four edge asserts (11px) with gutters green. A
+  golden records what is; it is not cited as an alignment guarantee.
+- **R18** — the first alignment-test cut ran under Robolectric and passed vacuously.
+  That is an INSTRUMENT DEFECT, not a font fact: `mono.meta` arithmetic (12.5sp ×
+  0.6em) gives "10" = 15dp and "100" = 22.5dp against the 12dp floor, layoutlib
+  agrees (measured 14.5dp), and Robolectric laid the 3-digit index 10.5dp under the
+  arithmetic — it did not render Plex Mono at all. Recorded as the second confirmed
+  Robolectric false-negative in this PR. The drift scenario is REACHABLE in
+  production; it is exactly what the gate defends.
 - **R15** — the "domain cap" ledger entries are DEBT, not resolution: those cells are
   red in production for anyone entering a five-digit rep count until B-8 ships, and
   the entries are void the moment it does (the inverted gate assertion will fail and
   demand their removal).
-- **R16** — the ledger inversion is kept.
+- **R16** — the ledger inversion is kept (first live catch: past weight ×5 @2.0
+  leaving the ledger under R13 was flagged by the inverted assertion, not by a human).
+- **R20** — the never-re-record rule governs BASELINE goldens (the 446 that predate
+  this branch). Snapshots first recorded inside this PR are not baseline: amending
+  them to the branch's final state pre-merge hides no regression and is not a
+  re-record. The three E-d fixtures (`setTwoDigitReps`, `exerciseTenSets`,
+  `exerciseBodyweightRu`) were amended under R13 and are reviewed in the contact
+  sheet's appendix alongside the 36.
 
 ## 7. Target and known limits — measured ledger (post-R13, final)
 
