@@ -33,6 +33,7 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.live_workout.R
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveSetUiModel
+import io.github.stslex.workeeper.core.ui.kit.R as KitR
 
 /**
  * `.set.flash` peaks: dark `rgba(241,245,249,.13)`, light `rgba(13,17,20,.09)` — the wash is
@@ -127,6 +128,9 @@ internal fun LiveSetRow(
                     enabled = editable && !set.isDone,
                     isRecord = set.isPersonalRecord,
                     isDone = set.isDone,
+                    accessibilityLabel = stringResource(
+                        KitR.string.core_ui_kit_set_field_a11y_weight,
+                    ),
                     valueSlotProbe = weightSlotProbe,
                 )
             }
@@ -138,6 +142,9 @@ internal fun LiveSetRow(
                     enabled = editable && !set.isDone,
                     isRecord = set.isPersonalRecord,
                     isDone = set.isDone,
+                    accessibilityLabel = stringResource(
+                        KitR.string.core_ui_kit_set_field_a11y_reps,
+                    ),
                     valueSlotProbe = repsSlotProbe,
                 )
             }
@@ -152,6 +159,9 @@ internal fun LiveSetRow(
                     enabled = editable && !set.isDone,
                     isRecord = set.isPersonalRecord,
                     isDone = set.isDone,
+                    accessibilityLabel = stringResource(
+                        KitR.string.core_ui_kit_set_field_a11y_reps,
+                    ),
                     valueSlotProbe = repsSlotProbe,
                 )
             }

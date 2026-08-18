@@ -22,6 +22,14 @@
     <string name="core_ui_kit_set_header_weight" tools:ignore="DuplicateStrings">weight</string>
     <string name="core_ui_kit_set_header_reps" tools:ignore="DuplicateStrings">reps</string>
     <string name="core_ui_kit_set_header_reps_full" tools:ignore="DuplicateStrings">reps</string>
+    <!--
+      What TalkBack calls the set fields now that the visible unit lives in the header —
+      the header is not accessibility-associated with the fields, so the name is restored
+      explicitly through AppNumberInput's accessibilityLabel (D6). Spelled out, not
+      abbreviated: screen readers speak these.
+    -->
+    <string name="core_ui_kit_set_field_a11y_weight">weight, kilograms</string>
+    <string name="core_ui_kit_set_field_a11y_reps">repetitions</string>
     <string name="core_ui_kit_plan_editor_set_type_warmup">Warmup</string>
     <string name="core_ui_kit_plan_editor_set_type_work">Work</string>
     <string name="core_ui_kit_plan_editor_set_type_failure">Failure</string>

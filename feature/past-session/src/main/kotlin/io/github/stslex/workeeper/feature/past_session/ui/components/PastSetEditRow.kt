@@ -108,6 +108,7 @@ internal fun PastSetEditRow(
                 isError = set.weightError,
                 isRecord = set.isPersonalRecord,
                 isLogged = true,
+                accessibilityLabel = stringResource(R.string.core_ui_kit_set_field_a11y_weight),
                 valueSlotProbe = weightSlotProbe,
             )
             AppNumberInput(
@@ -118,6 +119,7 @@ internal fun PastSetEditRow(
                 isError = set.repsError,
                 isRecord = set.isPersonalRecord,
                 isLogged = true,
+                accessibilityLabel = stringResource(R.string.core_ui_kit_set_field_a11y_reps),
                 valueSlotProbe = repsSlotProbe,
             )
         } else {
@@ -131,6 +133,7 @@ internal fun PastSetEditRow(
                 isError = set.repsError,
                 isRecord = set.isPersonalRecord,
                 isLogged = true,
+                accessibilityLabel = stringResource(R.string.core_ui_kit_set_field_a11y_reps),
                 valueSlotProbe = repsSlotProbe,
             )
         }

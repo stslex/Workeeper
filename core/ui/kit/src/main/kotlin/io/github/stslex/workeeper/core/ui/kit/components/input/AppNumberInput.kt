@@ -20,6 +20,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
@@ -83,6 +85,7 @@ fun AppNumberInput(
     isRecord: Boolean = false,
     isDone: Boolean = false,
     isLogged: Boolean = false,
+    accessibilityLabel: String? = null,
     valueSlotProbe: ((slotWidthPx: Int, resolvedStyle: TextStyle) -> Unit)? = null,
 ) {
     val keyboardType = if (decimals > 0) KeyboardType.Decimal else KeyboardType.Number
@@ -147,7 +150,16 @@ fun AppNumberInput(
         BoxWithConstraints(modifier = Modifier.weight(1f)) {
             val slotWidthPx = constraints.maxWidth
             valueSlotProbe?.invoke(slotWidthPx, valueStyle)
+            // Aliased before the semantics block: a bare `contentDescription` inside the
+            // receiver is a self-assign (the AppExerciseThumb note). A field built on
+            // BasicTextField owes its name explicitly — since E-d moved the visible unit
+            // to the column header, this is the only thing telling TalkBack WHICH field
+            // this is (set-field-column-headers.md §4 D6).
+            val fieldLabel = accessibilityLabel
             BasicTextField(
+                modifier = Modifier.semantics {
+                    if (fieldLabel != null) contentDescription = fieldLabel
+                },
                 value = value,
                 onValueChange = onValueChange,
                 enabled = enabled,
