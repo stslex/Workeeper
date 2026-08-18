@@ -75,13 +75,14 @@ internal class SetColumnAlignmentGateTest {
             val repsFieldLabel = gate.context
                 .getString(KitR.string.core_ui_kit_set_field_a11y_reps)
 
-            for (setCount in SET_COUNTS) {
+            for (case in CASES) {
+                gate.setFontScale(case.fontScale)
                 val capture = Capture()
                 val host = ComposeView(gate.context).apply {
                     layoutParams = LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT)
                     setContent {
                         AppTheme(themeMode = ThemeMode.LIGHT) {
-                            AlignedPair(setCount = setCount, capture = capture)
+                            AlignedPair(case = case, capture = capture)
                         }
                     }
                 }
@@ -101,23 +102,25 @@ internal class SetColumnAlignmentGateTest {
                     capture.weightFieldLeft = leftOfField(weightFieldLabel)
                     capture.repsFieldLeft = leftOfField(repsFieldLabel)
                 }
-                samples += capture.toSample(setCount)
+                samples += capture.toSample(case)
             }
         } finally {
             gate.teardown()
         }
         samples.forEach {
             println(
-                "alignment: ${it.setCount} sets -> gutter ${it.gutterPx}px / index ${it.indexPx}px, " +
+                "alignment: ${it.case.label} -> gutter ${it.gutterPx}px / index ${it.indexPx}px, " +
                     "weight label ${it.weightLabelLeft} vs field ${it.weightFieldLeft}, " +
                     "reps label ${it.repsLabelLeft} vs field ${it.repsFieldLeft}",
             )
         }
-        check(samples.size == SET_COUNTS.size) { "gate ran over ${samples.size} counts" }
+        check(samples.size == CASES.size) { "gate ran over ${samples.size} cases" }
         // Precondition: the ten-set index column must outgrow the one-set minimum in this
         // stack, or the gutter-drift scenario is unreachable here and a pass is vacuous.
-        check(samples.last().indexPx > samples.first().indexPx) {
-            "index column did not grow (${samples.first().indexPx} -> ${samples.last().indexPx}px)" +
+        val oneSet = samples.first { it.case.setCount == 1 && it.case.fontScale == 1f }
+        val tenSet = samples.first { it.case.setCount == TEN_SETS }
+        check(tenSet.indexPx > oneSet.indexPx) {
+            "index column did not grow (${oneSet.indexPx} -> ${tenSet.indexPx}px)" +
                 " — defective instrument, not a passing gate"
         }
         assertAll(
@@ -127,21 +130,21 @@ internal class SetColumnAlignmentGateTest {
                         assertEquals(
                             s.indexPx,
                             s.gutterPx,
-                            "at ${s.setCount} sets the header gutter (${s.gutterPx}px) " +
+                            "${s.case.label}: the header gutter (${s.gutterPx}px) " +
                                 "drifted from the row index column (${s.indexPx}px)",
                         )
                     },
                     {
                         assertTrue(
                             abs(s.weightLabelLeft - s.weightFieldLeft) <= EDGE_TOLERANCE_PX,
-                            "at ${s.setCount} sets the WEIGHT label left (${s.weightLabelLeft}px) " +
+                            "${s.case.label}: the WEIGHT label left (${s.weightLabelLeft}px) " +
                                 "drifted from its value left (${s.weightFieldLeft}px)",
                         )
                     },
                     {
                         assertTrue(
                             abs(s.repsLabelLeft - s.repsFieldLeft) <= EDGE_TOLERANCE_PX,
-                            "at ${s.setCount} sets the REPS label left (${s.repsLabelLeft}px) " +
+                            "${s.case.label}: the REPS label left (${s.repsLabelLeft}px) " +
                                 "drifted from its value left (${s.repsFieldLeft}px)",
                         )
                     },
@@ -155,29 +158,30 @@ internal class SetColumnAlignmentGateTest {
      * exactly as `SetsColumn` composes them: one resolution, both consumers.
      */
     @Composable
-    private fun AlignedPair(setCount: Int, capture: Capture) {
+    private fun AlignedPair(case: Case, capture: Capture) {
         val contentWidth = with(LocalDensity.current) {
             val consumedPx = 2 * (AppDimension.screenEdge + AppDimension.Space.md).roundToPx()
             (GOLDEN_DEVICE.screenWidth - consumedPx).toDp()
         }
         Box(modifier = Modifier.width(contentWidth)) {
             Column {
-                val indexColumnWidth = SetRowGeometry.resolveIndexColumnWidth(setCount)
+                val indexColumnWidth = SetRowGeometry.resolveIndexColumnWidth(case.setCount)
                 SetColumnHeader(
                     isWeighted = true,
                     indexColumnWidth = indexColumnWidth,
-                    trailingWidth = SetRowGeometry.setTypeSlotWidth +
+                    trailingWidth = SetRowGeometry.resolveTrailingSlotWidth() +
                         AppDimension.Space.sm +
                         AppCheckmarkButtonTouchSize,
                     indexGutterProbe = { capture.gutterPx = it },
                 )
                 LiveSetRow(
                     set = LiveSetUiModel(
-                        position = setCount - 1,
+                        position = case.setCount - 1,
                         weight = 100.0,
                         reps = 5,
                         type = SetTypeUiModel.WORK,
                         isDone = false,
+                        isPersonalRecord = case.isRecord,
                     ),
                     isWeighted = true,
                     onWeightChange = {},
@@ -201,15 +205,15 @@ internal class SetColumnAlignmentGateTest {
         var weightFieldLeft: Float = Float.NaN
         var repsFieldLeft: Float = Float.NaN
 
-        fun toSample(setCount: Int): Sample {
-            check(gutterPx >= 0) { "header gutter probe never fired at $setCount sets" }
-            check(indexPx >= 0) { "row index probe never fired at $setCount sets" }
-            check(!weightLabelLeft.isNaN()) { "weight label not found at $setCount sets" }
-            check(!repsLabelLeft.isNaN()) { "reps label not found at $setCount sets" }
-            check(!weightFieldLeft.isNaN()) { "weight field not found at $setCount sets" }
-            check(!repsFieldLeft.isNaN()) { "reps field not found at $setCount sets" }
+        fun toSample(case: Case): Sample {
+            check(gutterPx >= 0) { "header gutter probe never fired for ${case.label}" }
+            check(indexPx >= 0) { "row index probe never fired for ${case.label}" }
+            check(!weightLabelLeft.isNaN()) { "weight label not found for ${case.label}" }
+            check(!repsLabelLeft.isNaN()) { "reps label not found for ${case.label}" }
+            check(!weightFieldLeft.isNaN()) { "weight field not found for ${case.label}" }
+            check(!repsFieldLeft.isNaN()) { "reps field not found for ${case.label}" }
             return Sample(
-                setCount = setCount,
+                case = case,
                 gutterPx = gutterPx,
                 indexPx = indexPx,
                 weightLabelLeft = weightLabelLeft,
@@ -221,7 +225,7 @@ internal class SetColumnAlignmentGateTest {
     }
 
     private data class Sample(
-        val setCount: Int,
+        val case: Case,
         val gutterPx: Int,
         val indexPx: Int,
         val weightLabelLeft: Float,
@@ -230,8 +234,30 @@ internal class SetColumnAlignmentGateTest {
         val repsFieldLeft: Float,
     )
 
+    /** One rendered header+row pair under test. */
+    private data class Case(
+        val label: String,
+        val setCount: Int,
+        val fontScale: Float,
+        val isRecord: Boolean = false,
+    )
+
     private companion object {
-        val SET_COUNTS = listOf(1, 10)
+        const val TEN_SETS = 10
+
+        /**
+         * The axes that can move a column edge: the index gutter (set count), the text
+         * scale, and WHICH trailing component the row draws — a record row swaps the type
+         * chip for `PersonalRecordTag`, whose label outgrows the shared 34dp minimum at
+         * fontScale 2.0, so a trailing slot pinned to that minimum leaves the record row's
+         * fields narrower than the header's columns.
+         */
+        val CASES = listOf(
+            Case(label = "1 set @1.0", setCount = 1, fontScale = 1f),
+            Case(label = "$TEN_SETS sets @1.0", setCount = TEN_SETS, fontScale = 1f),
+            Case(label = "1 set @2.0", setCount = 1, fontScale = 2f),
+            Case(label = "1 record set @2.0", setCount = 1, fontScale = 2f, isRecord = true),
+        )
 
         /** Two independent Rows accumulate px rounding; beyond one step is a drift. */
         const val EDGE_TOLERANCE_PX = 1.5f

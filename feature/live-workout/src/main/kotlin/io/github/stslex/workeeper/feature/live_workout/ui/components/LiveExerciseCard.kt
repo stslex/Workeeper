@@ -419,7 +419,7 @@ private fun SetsColumn(
             SetColumnHeader(
                 isWeighted = isWeighted,
                 indexColumnWidth = indexColumnWidth,
-                trailingWidth = SetRowGeometry.setTypeSlotWidth +
+                trailingWidth = SetRowGeometry.resolveTrailingSlotWidth() +
                     AppDimension.Space.sm +
                     AppCheckmarkButtonTouchSize,
             )

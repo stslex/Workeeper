@@ -285,7 +285,7 @@ Probe findings the design rests on (measured 2026-08-18, throwaway test, deleted
 ## 7. Target and known limits — measured ledger (post-R13, final)
 
 Measured with the explicit compact inset on all set-row fields: **58 of 64 cells
-pass**. R13's uniform inset resolved past weight ×5 @2.0 (the +6px deficit met +22px
+pass**. The uniform compact inset resolved past weight ×5 @2.0 (the +6px deficit met +22px
 of freed budget — caught by the inverted assertion, as designed) and improved live
 weight ×5 @2.0 from +42 to +20px. Every remaining red is 5-glyph:
 
@@ -293,10 +293,10 @@ weight ×5 @2.0 from +42 to +20px. Every remaining red is 5-glyph:
 |---|---|---|---|---|
 | live reps ×5 @1.3 | 215 | 209 | +6 | DEFERRED to domain cap (B-8) |
 | live reps ×5 @1.6 | 250 | 209 | +41 | DEFERRED to domain cap (B-8) |
-| live reps ×5 @2.0 | 310 | 206 | +104 | DEFERRED to domain cap (B-8) |
+| live reps ×5 @2.0 | 310 | 203 | +107 | DEFERRED to domain cap (B-8) |
 | past reps ×5 @1.6 | 250 | 239 | +11 | DEFERRED to domain cap (B-8) |
-| past reps ×5 @2.0 | 310 | 236 | +74 | DEFERRED to domain cap (B-8) |
-| live weight ×5 @2.0 | 276 | 256 | +20 | 19sp contrast floor — R4-sanctioned |
+| past reps ×5 @2.0 | 310 | 233 | +77 | DEFERRED to domain cap (B-8) |
+| live weight ×5 @2.0 | 276 | 252 | +24 | 19sp contrast floor — sanctioned limit |
 
 **The five deferred cells are DEBT, not resolution (R15): until B-8 ships, a user who
 enters a five-digit rep count sees a clipped (scrolled-out) value in these bands in

@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -140,16 +141,25 @@ internal fun PastSetEditRow(
                 valueSlotProbe = repsSlotProbe,
             )
         }
+        // One slot width for the chip and the tag alike — see `LiveSetRow`: the tag's label
+        // outgrows their shared minimum at large text scales, and per-component intrinsic
+        // widths make a record row's columns disagree with the header's.
+        val trailingSlotWidth = SetRowGeometry.resolveTrailingSlotWidth()
         if (set.isPersonalRecord) {
             Box(
                 modifier = Modifier
+                    .width(trailingSlotWidth)
                     .clip(RoundedCornerShape(AppDimension.Radius.small))
                     .clickable(onClick = onPrTagClick),
+                contentAlignment = Alignment.Center,
             ) {
                 PersonalRecordTag()
             }
         } else {
-            AppSetTypeChip(type = set.type.toUiKitType())
+            AppSetTypeChip(
+                type = set.type.toUiKitType(),
+                modifier = Modifier.width(trailingSlotWidth),
+            )
         }
         Icon(
             modifier = dragHandleModifier.size(DragHandleSize),

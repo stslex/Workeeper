@@ -8,6 +8,7 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.max
+import io.github.stslex.workeeper.core.ui.kit.components.pr.personalRecordTagIntrinsicWidth
 import io.github.stslex.workeeper.core.ui.kit.components.setchip.CHIP_MIN_WIDTH
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
@@ -41,6 +42,20 @@ object SetRowGeometry {
      * features hand `SetColumnHeader` is built from the component's number, never a copy.
      */
     val setTypeSlotWidth: Dp = CHIP_MIN_WIDTH
+
+    /**
+     * The width of the trailing chip-or-tag slot, resolved by MEASUREMENT: the type chip and
+     * the record tag share a 34dp *minimum*, and the tag's label outgrows it above roughly
+     * fontScale 1.6. A slot pinned to the minimum makes a record row's fields narrower than
+     * its non-record siblings' and than the header's columns — the same drift class
+     * [resolveIndexColumnWidth] closes on the leading side, on the axis that is easy to miss
+     * because every fixture at fontScale 1.0 sees both components at exactly the minimum.
+     *
+     * Both rows and `SetColumnHeader` size this slot from here, so the columns cannot
+     * disagree about it.
+     */
+    @Composable
+    fun resolveTrailingSlotWidth(): Dp = max(setTypeSlotWidth, personalRecordTagIntrinsicWidth())
 
     /**
      * The horizontal inset a SET-ROW field passes to `AppNumberInput.fieldInset`

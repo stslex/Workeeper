@@ -252,7 +252,7 @@ private fun CardBody(
             SetColumnHeader(
                 isWeighted = exercise.isWeighted,
                 indexColumnWidth = indexColumnWidth,
-                trailingWidth = SetRowGeometry.setTypeSlotWidth +
+                trailingWidth = SetRowGeometry.resolveTrailingSlotWidth() +
                     AppDimension.Space.sm +
                     DragHandleSize,
             )

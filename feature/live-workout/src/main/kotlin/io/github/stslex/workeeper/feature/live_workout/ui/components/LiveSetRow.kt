@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
@@ -176,22 +177,29 @@ internal fun LiveSetRow(
                 )
             }
         }
+        // One slot width for the chip and the tag alike: the tag's label outgrows their
+        // shared minimum at large text scales, and a slot left to each component's own
+        // intrinsic width makes a record row's columns disagree with its siblings' and with
+        // the header's (set-field-column-headers.md §4 D3).
+        val trailingSlotWidth = SetRowGeometry.resolveTrailingSlotWidth()
         if (set.isPersonalRecord) {
             PersonalRecordTag(
-                modifier = if (testTagPrefix != null) {
-                    Modifier.testTag("${testTagPrefix}_PrTag")
-                } else {
-                    Modifier
-                },
+                modifier = Modifier
+                    .width(trailingSlotWidth)
+                    .let { base ->
+                        if (testTagPrefix != null) base.testTag("${testTagPrefix}_PrTag") else base
+                    },
             )
         } else {
             AppTooltip(text = stringResource(R.string.feature_live_workout_set_type_tooltip)) {
                 Box(
                     modifier = Modifier
+                        .width(trailingSlotWidth)
                         .let { base ->
                             if (testTagPrefix != null) base.testTag("${testTagPrefix}_TypeChip") else base
                         }
                         .clickable(enabled = editable) { onTypeChange(set.type) },
+                    contentAlignment = Alignment.Center,
                 ) {
                     AppSetTypeChip(type = set.type.toUiKitType())
                 }
