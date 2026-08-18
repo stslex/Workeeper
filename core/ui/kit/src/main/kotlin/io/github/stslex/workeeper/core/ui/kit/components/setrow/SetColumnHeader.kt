@@ -14,9 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
@@ -65,7 +63,6 @@ fun SetColumnHeader(
     trailingWidth: Dp,
     modifier: Modifier = Modifier,
     indexGutterProbe: ((widthPx: Int) -> Unit)? = null,
-    labelLeftProbe: ((cellIndex: Int, leftPx: Float) -> Unit)? = null,
 ) {
     Row(
         modifier = modifier
@@ -92,7 +89,6 @@ fun SetColumnHeader(
                     unitColor = AppUi.colors.textDim,
                 ),
                 modifier = Modifier.weight(SetRowGeometry.WEIGHT_COLUMN_FLEX),
-                labelLeftProbe = labelLeftProbe?.let { probe -> { x -> probe(0, x) } },
             )
             HeaderCell(
                 label = buildSetColumnHeaderLabel(
@@ -101,7 +97,6 @@ fun SetColumnHeader(
                     unitColor = AppUi.colors.textDim,
                 ),
                 modifier = Modifier.weight(1f),
-                labelLeftProbe = labelLeftProbe?.let { probe -> { x -> probe(1, x) } },
             )
         } else {
             HeaderCell(
@@ -111,7 +106,6 @@ fun SetColumnHeader(
                     unitColor = AppUi.colors.textDim,
                 ),
                 modifier = Modifier.weight(1f),
-                labelLeftProbe = labelLeftProbe?.let { probe -> { x -> probe(0, x) } },
             )
         }
         Spacer(modifier = Modifier.width(trailingWidth))
@@ -128,21 +122,16 @@ fun SetColumnHeader(
 private fun HeaderCell(
     label: AnnotatedString,
     modifier: Modifier = Modifier,
-    labelLeftProbe: ((leftPx: Float) -> Unit)? = null,
 ) {
     Box(modifier = modifier) {
         SetColumnHeaderLabel(
             label = label,
-            // [labelLeftProbe] reports the label's rendered LEFT EDGE in root px — the
-            // R17 alignment gate's header-side capture, paired with
-            // `AppNumberInput.valueLeftProbe`. The gutter probe alone proved
-            // insufficient: this PR's own R9→R13 inset drift kept every width equal
-            // while these edges diverged by 4dp.
-            modifier = Modifier
-                .padding(start = SetRowGeometry.compactFieldInset)
-                .onGloballyPositioned { coords ->
-                    labelLeftProbe?.invoke(coords.positionInRoot().x)
-                },
+            // The R17 alignment gate reads this label's rendered LEFT EDGE from the
+            // semantics tree (addressable by its text) — deliberately not from a position
+            // probe; see AppNumberInput's value slot for the cost rationale (R22/R23).
+            // The gutter probe alone proved insufficient: this PR's own R9→R13 inset
+            // drift kept every width equal while these edges diverged by 4dp.
+            modifier = Modifier.padding(start = SetRowGeometry.compactFieldInset),
         )
     }
 }

@@ -81,8 +81,6 @@ internal fun LiveSetRow(
     weightSlotProbe: ((slotWidthPx: Int, resolvedStyle: TextStyle) -> Unit)? = null,
     repsSlotProbe: ((slotWidthPx: Int, resolvedStyle: TextStyle) -> Unit)? = null,
     indexColumnProbe: ((widthPx: Int) -> Unit)? = null,
-    weightLeftProbe: ((leftPx: Float) -> Unit)? = null,
-    repsLeftProbe: ((leftPx: Float) -> Unit)? = null,
 ) {
     // §9's merged automaton, one instance for the whole row: the mark's morph, this row's
     // flash and the rail segment all resolve from the same closure, with `isRecord` selecting
@@ -142,7 +140,6 @@ internal fun LiveSetRow(
                         KitR.string.core_ui_kit_set_field_a11y_weight,
                     ),
                     valueSlotProbe = weightSlotProbe,
-                    valueLeftProbe = weightLeftProbe,
                 )
             }
             Box(modifier = Modifier.weight(1f)) {
@@ -158,7 +155,6 @@ internal fun LiveSetRow(
                         KitR.string.core_ui_kit_set_field_a11y_reps,
                     ),
                     valueSlotProbe = repsSlotProbe,
-                    valueLeftProbe = repsLeftProbe,
                 )
             }
         } else {

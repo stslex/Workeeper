@@ -1,18 +1,26 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.live_workout.gate
 
+import android.view.ViewGroup.LayoutParams
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.ViewRootForTest
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.getAllSemanticsNodes
+import androidx.compose.ui.semantics.getOrNull
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppCheckmarkButtonTouchSize
 import io.github.stslex.workeeper.core.ui.kit.components.setrow.SetColumnHeader
 import io.github.stslex.workeeper.core.ui.kit.components.setrow.SetRowGeometry
 import io.github.stslex.workeeper.core.ui.kit.golden.GOLDEN_DEVICE
 import io.github.stslex.workeeper.core.ui.kit.golden.OverflowGateSdk
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
+import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
+import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveSetUiModel
 import io.github.stslex.workeeper.feature.live_workout.ui.components.LiveSetRow
@@ -21,6 +29,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertAll
 import kotlin.math.abs
+import io.github.stslex.workeeper.core.ui.kit.R as KitR
 
 /**
  * R14/R17's alignment assertion (set-field-column-headers.md §7a), in the layoutlib stack.
@@ -34,16 +43,23 @@ import kotlin.math.abs
  *    and not sufficient; kept because a gutter drift at 10+ sets moves every edge at once
  *    and this assert names the culprit directly.
  *
+ * The edges are read from the SEMANTICS TREE of the rendered composition (R23): the label
+ * is addressable by its text, the field by its accessibility label, and
+ * `ViewRootForTest.semanticsOwner` is the same public access path Paparazzi's own
+ * accessibility extension uses under layoutlib — so the edge capture leaves ZERO trace in
+ * production composables. The gutter/index pair keeps its `onSizeChanged` probes: they
+ * fire only on size change, never per frame (R22's cost table).
+ *
  * Asserted at ONE set and at TEN sets — the count where the index text outgrows the 12dp
- * minimum. The drift scenarios are REAL in this stack and in production: layoutlib lays
- * "10" at ~15dp (0.6em × 12.5sp arithmetic agrees). The first cut of this test ran under
+ * minimum. The drift scenarios are REAL here and in production: layoutlib lays "10" at
+ * ~15dp (0.6em × 12.5sp arithmetic agrees). The first cut of this test ran under
  * Robolectric and passed vacuously — an instrument defect, not a font fact (it laid a
- * 3-digit index 10.5dp under the same arithmetic, i.e. it did not render Plex Mono at
- * all); the growth precondition below turns a defective instrument into a loud failure.
+ * 3-digit index 10.5dp under the same arithmetic); the growth precondition below turns a
+ * defective instrument into a loud failure.
  *
  * Both known-negatives are proven in the PR record: a hardcoded 12dp header gutter reds
  * the gutter assert at 10 sets; a header label inset diverging from the rows' reds the
- * edge assert with widths untouched.
+ * edge asserts with widths untouched.
  */
 internal class SetColumnAlignmentGateTest {
 
@@ -53,9 +69,44 @@ internal class SetColumnAlignmentGateTest {
         gate.setup()
         val samples = mutableListOf<Sample>()
         try {
+            val weightHeaderText = gate.context
+                .getString(KitR.string.core_ui_kit_set_header_weight).uppercase() +
+                " (" +
+                gate.context.getString(KitR.string.core_ui_kit_plan_editor_unit_kg).uppercase() +
+                ")"
+            val repsHeaderText = gate.context
+                .getString(KitR.string.core_ui_kit_set_header_reps).uppercase()
+            val weightFieldLabel = gate.context
+                .getString(KitR.string.core_ui_kit_set_field_a11y_weight)
+            val repsFieldLabel = gate.context
+                .getString(KitR.string.core_ui_kit_set_field_a11y_reps)
+
             for (setCount in SET_COUNTS) {
                 val capture = Capture()
-                gate.render { AlignedPair(setCount = setCount, capture = capture) }
+                val host = ComposeView(gate.context).apply {
+                    layoutParams = LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT)
+                    setContent {
+                        AppTheme(themeMode = ThemeMode.LIGHT) {
+                            AlignedPair(setCount = setCount, capture = capture)
+                        }
+                    }
+                }
+                gate.renderView(host) {
+                    val viewRoot = host.getChildAt(0) as ViewRootForTest
+                    val nodes = viewRoot.semanticsOwner.getAllSemanticsNodes(mergingEnabled = false)
+                    fun leftOfText(text: String): Float = nodes.single { node ->
+                        node.config.getOrNull(SemanticsProperties.Text)
+                            ?.any { it.text == text } == true
+                    }.boundsInRoot.left
+                    fun leftOfField(label: String): Float = nodes.single { node ->
+                        node.config.getOrNull(SemanticsProperties.ContentDescription)
+                            ?.contains(label) == true
+                    }.boundsInRoot.left
+                    capture.weightLabelLeft = leftOfText(weightHeaderText)
+                    capture.repsLabelLeft = leftOfText(repsHeaderText)
+                    capture.weightFieldLeft = leftOfField(weightFieldLabel)
+                    capture.repsFieldLeft = leftOfField(repsFieldLabel)
+                }
                 samples += capture.toSample(setCount)
             }
         } finally {
@@ -125,9 +176,6 @@ internal class SetColumnAlignmentGateTest {
                         AppDimension.Space.sm +
                         AppCheckmarkButtonTouchSize,
                     indexGutterProbe = { capture.gutterPx = it },
-                    labelLeftProbe = { cell, x ->
-                        if (cell == 0) capture.weightLabelLeft = x else capture.repsLabelLeft = x
-                    },
                 )
                 LiveSetRow(
                     set = LiveSetUiModel(
@@ -146,8 +194,6 @@ internal class SetColumnAlignmentGateTest {
                     editable = true,
                     indexColumnWidth = indexColumnWidth,
                     indexColumnProbe = { capture.indexPx = it },
-                    weightLeftProbe = { capture.weightFieldLeft = it },
-                    repsLeftProbe = { capture.repsFieldLeft = it },
                 )
             }
         }
@@ -164,10 +210,10 @@ internal class SetColumnAlignmentGateTest {
         fun toSample(setCount: Int): Sample {
             check(gutterPx >= 0) { "header gutter probe never fired at $setCount sets" }
             check(indexPx >= 0) { "row index probe never fired at $setCount sets" }
-            check(!weightLabelLeft.isNaN()) { "weight label probe never fired at $setCount sets" }
-            check(!repsLabelLeft.isNaN()) { "reps label probe never fired at $setCount sets" }
-            check(!weightFieldLeft.isNaN()) { "weight field probe never fired at $setCount sets" }
-            check(!repsFieldLeft.isNaN()) { "reps field probe never fired at $setCount sets" }
+            check(!weightLabelLeft.isNaN()) { "weight label not found at $setCount sets" }
+            check(!repsLabelLeft.isNaN()) { "reps label not found at $setCount sets" }
+            check(!weightFieldLeft.isNaN()) { "weight field not found at $setCount sets" }
+            check(!repsFieldLeft.isNaN()) { "reps field not found at $setCount sets" }
             return Sample(
                 setCount = setCount,
                 gutterPx = gutterPx,

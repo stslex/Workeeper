@@ -45,17 +45,25 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
  */
 class OverflowGateSdk(private val theme: GoldenTheme = GoldenTheme.LIGHT) {
 
+    private var frameHook: (() -> Unit)? = null
+
     private val sdk = PaparazziSdk(
         deviceConfig = GOLDEN_DEVICE,
         theme = theme.windowTheme,
         renderingMode = SessionParams.RenderingMode.SHRINK,
         useDeviceResolution = true,
         onNewFrame = {
-            // Discarded on purpose — see the class KDoc. A frame consumer that stored or
-            // compared images would re-introduce exactly the snapshot semantics this
-            // harness exists to avoid.
+            // The image is discarded on purpose — see the class KDoc: a frame consumer
+            // that stored or compared images would re-introduce exactly the snapshot
+            // semantics this harness exists to avoid. [frameHook] runs here because the
+            // frame is the one moment the caller's view is attached and composed — the
+            // window where a semantics-tree read is guaranteed live.
+            frameHook?.invoke()
         },
     )
+
+    /** The render session's Android context, for building caller-owned host views. */
+    val context: android.content.Context get() = sdk.context
 
     fun setup() {
         sdk.setup()
@@ -77,6 +85,22 @@ class OverflowGateSdk(private val theme: GoldenTheme = GoldenTheme.LIGHT) {
             AppTheme(themeMode = theme.themeMode) {
                 content()
             }
+        }
+    }
+
+    /**
+     * Renders a caller-owned [view], invoking [onFrame] while it is attached and its
+     * composition is live — the R23 semantics window: a gate that needs the rendered
+     * semantics tree (`ViewRootForTest.semanticsOwner`, the same public access path
+     * Paparazzi's own accessibility extension uses under layoutlib) reads it here, with
+     * zero production-side seams. The caller wraps its content in [AppTheme] itself.
+     */
+    fun renderView(view: android.view.View, onFrame: () -> Unit) {
+        frameHook = onFrame
+        try {
+            sdk.snapshot(view)
+        } finally {
+            frameHook = null
         }
     }
 
