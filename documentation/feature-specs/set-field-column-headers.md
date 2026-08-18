@@ -230,14 +230,36 @@ Probe findings the design rests on (measured 2026-08-18, throwaway test, deleted
    band green (bisect-green): the fontScale-1.0 band with commit 2 (suffix removal +
    header), the full R4 matrix with commit 5 (stepdown). No red state is committed.
 
-## 7. Target and known limits (R4)
+## 7. Target and known limits (R4) — measured ledger (commit 5)
 
-Post-fix value boxes: reps 68.15 dp, weight 86.58 dp (live). Hard band 1.0–1.6: all
-matrix cells must pass via the D5 ladder. Band 1.6–2.0: ellipsis permitted, clip
-forbidden. **Known limit (registered, not worked around):** weight × 5 glyphs at
-fontScale 2.0 — "102.5" at the 19sp floor under the non-linear converter is
-estimated 89–95 dp vs the 86.58 dp box; the exact measured number is recorded here by
-the Phase 2 gate run. Row re-layout for fontScale 2.0 is Phase 7 work, out of scope.
+Post-fix value boxes at fontScale 1.0: live reps 187 px / weight 238 px; past reps
+214 px / weight 270 px (captured, not computed). The measured stepdown strictly
+improves every cell over the glyph heuristic, and the full 64-cell matrix was measured
+through the closed-loop gates with the stepdown live. **56 of 64 cells pass. Every
+failing cell is ladder-floor-limited**: the value exceeds even the contrast-pinned
+19sp section rung, which the non-linear `FontScaleConverter` scales ×~1.375 at
+fontScale 1.6 and ×~1.695 at 2.0 (26sp scales less: ×1.40 at 2.0).
+
+| cell | text px | slot px | over | band |
+|---|---|---|---|---|
+| live reps ×5 glyphs @1.3 | 215 | 187 | +28 | HARD |
+| live reps ×5 @1.6 | 250 | 187 | +63 | HARD |
+| past reps ×5 @1.6 | 250 | 217 | +33 | HARD |
+| live reps ×3 @2.0 | 186 | 184 | +2 | 2.0 |
+| live weight ×5 @2.0 | 276 | 234 | +42 | 2.0 — the R4-sanctioned known limit |
+| past weight ×5 @2.0 | 276 | 270 | +6 | 2.0 |
+| live reps ×5 @2.0 | 310 | 184 | +126 | 2.0 |
+| past reps ×5 @2.0 | 310 | 214 | +96 | 2.0 |
+
+**Conflict, reported rather than worked around (task-brief discipline):** the hard
+band's "clipping forbidden at 1.0–1.6" is unreachable for reps × 5 glyphs at the 19sp
+floor, and the 2.0 band's "clipping still forbidden" fails in four cells where R4
+sanctioned one. A 5-digit rep count is typeable (reps has no upper input cap) but not
+a physical value class. Options, in Ilya's hands: (a) cap reps input length, taking
+5-glyph out of the reps column's value space; (b) permit a below-19sp rung for
+non-record/non-pending value states (they pay 4.5:1 fine); (c) extend the known-limit
+ledger to all eight measured cells; (d) treat as Phase-7 row re-layout input. Until the
+ruling the gates assert the 1.0 band and the matrix above it is measured, not asserted.
 
 ## 8. Golden impact (R6) and new fixtures (R7, R3)
 

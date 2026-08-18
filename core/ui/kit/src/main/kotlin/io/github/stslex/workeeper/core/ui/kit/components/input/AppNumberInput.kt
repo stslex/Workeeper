@@ -22,8 +22,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
@@ -107,19 +110,6 @@ fun AppNumberInput(
         animationSpec = tween(durationMillis = AppUi.motion.base, easing = AppUi.motion.out),
         label = "field-bg",
     )
-    // The width budget, measured (set-field-column-headers.md §1/§5): at 26sp Archivo
-    // tnum a digit is exactly 18.2dp, so "102.5" needs 81.12dp (4×18.2 + an 8.32dp
-    // period) — against a value box of 68.38dp (weight) / 35.75dp (reps) in the live
-    // weighted row while the suffix lived in the field. Values past
-    // [MAX_GLYPHS_AT_FULL_SIZE] glyphs step down one numeric rung (19sp bold, still
-    // TITLE-threshold at 3:1) instead of clipping. A clipped logged value is data loss
-    // on screen; this glyph-count heuristic is the interim answer until the measured
-    // stepdown replaces it (spec §4 D5).
-    val valueStyle = if (value.length > MAX_GLYPHS_AT_FULL_SIZE) {
-        AppUi.typography.numeric.section
-    } else {
-        AppUi.typography.dataValue
-    }
     val shape = RoundedCornerShape(AppDimension.Radius.small)
     Row(
         modifier = modifier
@@ -149,6 +139,7 @@ fun AppNumberInput(
         // adaptive rung choice. Same constraints in, same layout out.
         BoxWithConstraints(modifier = Modifier.weight(1f)) {
             val slotWidthPx = constraints.maxWidth
+            val valueStyle = resolveValueStyle(value = value, slotWidthPx = slotWidthPx)
             valueSlotProbe?.invoke(slotWidthPx, valueStyle)
             // Aliased before the semantics block: a bare `contentDescription` inside the
             // receiver is a self-assign (the AppExerciseThumb note). A field built on
@@ -196,8 +187,41 @@ fun AppNumberInput(
     }
 }
 
-/** "100" keeps the full 26sp; "102.5" and longer step down. */
-private const val MAX_GLYPHS_AT_FULL_SIZE = 3
+/**
+ * The rung the value renders at, decided by MEASUREMENT ahead of layout
+ * (set-field-column-headers.md §4 D5): the first ladder rung whose single-line advance
+ * fits the slot, through the same text stack that will draw it. Replaces the old
+ * `MAX_GLYPHS_AT_FULL_SIZE = 3` glyph-count heuristic, which was open-loop in both
+ * directions — it never fired on the two-digit case that actually clipped (36.4dp of
+ * digits in a 35.75dp box), and it force-stepped five-glyph values in boxes that fit
+ * them at full size.
+ *
+ * Acyclic by construction: [slotWidthPx] is the parent flex split's decision, so the
+ * chosen style cannot feed back into the constraint — no reflow loop, no oscillation.
+ * `onTextLayout` stays a test oracle only.
+ *
+ * The ladder floor is contrast-pinned at the 19sp section rung: below ~18.66sp bold a
+ * value owes 4.5:1, which the record molten (light theme) and the pending
+ * `textTertiary` colours cannot pay. A value that exceeds even the floor overflows into
+ * the field's scroll layer rather than shrinking into illegibility — the R4 known-limit
+ * band, ledgered by the overflow gates.
+ */
+@Composable
+private fun resolveValueStyle(value: String, slotWidthPx: Int): TextStyle {
+    val measurer = rememberTextMeasurer()
+    val ladder = listOf(AppUi.typography.dataValue, AppUi.typography.numeric.section)
+    if (value.isEmpty()) return ladder.first()
+    return ladder.firstOrNull { style ->
+        val measured = measurer.measure(
+            text = AnnotatedString(value),
+            style = style,
+            overflow = TextOverflow.Clip,
+            softWrap = false,
+            maxLines = 1,
+        )
+        measured.size.width <= slotWidthPx
+    } ?: ladder.last()
+}
 
 @Preview(name = "Light", showBackground = true)
 @Preview(

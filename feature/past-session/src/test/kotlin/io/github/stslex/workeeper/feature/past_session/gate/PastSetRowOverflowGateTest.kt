@@ -117,7 +117,8 @@ internal class PastSetRowOverflowGateTest {
     }
 
     private companion object {
-        // The fontScale-1.0 band (spec §6 item 7); commit 5 extends to the full R4 matrix.
+        // The fontScale-1.0 band; the full-matrix extension is blocked on the R4 band
+        // ruling — see LiveSetRowOverflowGateTest's companion note and spec §7.
         val ASSERTED_FONT_SCALES = listOf(1.0f)
         val GLYPH_CLASSES = listOf(1, 2, 3, 5)
         val WEIGHT_INPUTS = mapOf(1 to "5", 2 to "55", 3 to "555", 5 to "102.5")

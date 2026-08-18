@@ -121,9 +121,12 @@ internal class LiveSetRowOverflowGateTest {
     }
 
     private companion object {
-        // The fontScale-1.0 band (spec §6 item 7). Commit 5 (the measured stepdown)
-        // extends this to the full R4 matrix [1.0, 1.3, 1.6, 2.0] — the higher bands
-        // need the stepdown to be satisfiable.
+        // The fontScale-1.0 band. The full R4 matrix [1.0, 1.3, 1.6, 2.0] is MEASURED
+        // but not asserted: with the measured stepdown in place every residual red cell
+        // is ladder-floor-limited (the contrast-pinned 19sp rung at the non-linear
+        // converter — ×1.695 at fontScale 2.0), which conflicts with the R4 band wording
+        // for reps×5-glyph at 1.3/1.6 and several 2.0 cells. Extension is blocked on
+        // that ruling — spec §7 carries the measured ledger.
         val ASSERTED_FONT_SCALES = listOf(1.0f)
         val GLYPH_CLASSES = listOf(1, 2, 3, 5)
         val WEIGHT_VALUES = mapOf(1 to 5.0, 2 to 55.0, 3 to 555.0, 5 to 102.5)
