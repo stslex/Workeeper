@@ -397,11 +397,10 @@ private fun ExerciseCardBody(
  * `.sets{padding:0 12px}` with `border-top: 1px --hair` on every row but the first —
  * the hairline is intra-card row trim (spec §3.1, decorative), drawn by the container.
  *
- * The column header above the rows is E-d's addition (set-field-column-headers.md): the
- * unit left the fields for it, and the index column width is resolved HERE, once, so the
- * header and every row read the same number and grow together past nine sets (D3).
- * The trailing gutter mirrors the row's chip slot + gap + checkmark from the components'
- * own widths. No divider between header and row 1 — the hairlines stay intra-row trim.
+ * The index column width is resolved HERE, once, so the header and every row read the same
+ * number and grow together past nine sets (set-field-column-headers.md §4 D3). The trailing
+ * gutter mirrors the row's chip slot + gap + checkmark from the components' own widths. No
+ * divider between header and row 1 — the hairlines stay intra-row trim.
  */
 @Composable
 private fun SetsColumn(

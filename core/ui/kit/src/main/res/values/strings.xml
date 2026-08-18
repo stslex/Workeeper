@@ -14,18 +14,18 @@
     <string name="core_ui_kit_plan_editor_unit_reps" tools:ignore="DuplicateStrings">reps</string>
     <!--
       Set-column headers (set-field-column-headers.md §4 D2). Stored lower-case; the component
-      uppercases at the edge (the AppLabel move) and adds the unit parentheses itself. The
-      weight header's unit reuses core_ui_kit_plan_editor_unit_kg — same word, both locales.
-      reps vs reps_full duplicate in EN and diverge only in RU, same as the unit pair above.
+      uppercases and adds the unit parentheses itself — do not bake either in here. The weight
+      header's unit reuses core_ui_kit_plan_editor_unit_kg — same word, both locales. reps and
+      reps_full are identical in EN and diverge in RU: do not collapse the pair.
     -->
     <string name="core_ui_kit_set_header_weight" tools:ignore="DuplicateStrings">weight</string>
     <string name="core_ui_kit_set_header_reps" tools:ignore="DuplicateStrings">reps</string>
     <string name="core_ui_kit_set_header_reps_full" tools:ignore="DuplicateStrings">reps</string>
     <!--
-      What TalkBack calls the set fields now that the visible unit lives in the header —
-      the header is not accessibility-associated with the fields, so the name is restored
-      explicitly through AppNumberInput's accessibilityLabel (D6). Spelled out, not
-      abbreviated: screen readers speak these.
+      What TalkBack calls the set fields. The visible unit lives in the column header, which
+      is not accessibility-associated with the fields, so the name is carried explicitly
+      through AppNumberInput's accessibilityLabel (set-field-column-headers.md §4 D6).
+      Spelled out, not abbreviated: screen readers speak these.
     -->
     <string name="core_ui_kit_set_field_a11y_weight">weight, kilograms</string>
     <string name="core_ui_kit_set_field_a11y_reps">repetitions</string>

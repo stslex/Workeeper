@@ -47,15 +47,9 @@ internal class PlanSetCardReadOnlyGoldenTest {
     }
 
     /**
-     * An exercise with no default plan. The read screen draws the section anyway — the head is
-     * where the type is stated — so this branch is on screen, not a theoretical state.
-     */
-    /**
-     * R3's pin (set-field-column-headers.md §8 fixture 4): a 5-glyph weight, "102.5". The
-     * measured stepdown lets a value this long keep the full 26sp wherever its slot fits it
-     * — which PlanSetCard's 101.8dp weight box does — where the old glyph-count heuristic
-     * force-stepped it to 19sp. That behaviour change must not ship ungated; this is the
-     * gate. New snapshot, first recording.
+     * A 5-glyph weight, "102.5": the measured stepdown keeps the full 26sp wherever the slot
+     * fits the value, which `PlanSetCard`'s weight box does. This frame is what pins that
+     * (set-field-column-headers.md §8, fixture 4).
      */
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
@@ -71,6 +65,10 @@ internal class PlanSetCardReadOnlyGoldenTest {
         }
     }
 
+    /**
+     * An exercise with no default plan. The read screen draws the section anyway — the head is
+     * where the type is stated — so this branch is on screen, not a theoretical state.
+     */
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
     fun readOnlyEmpty(theme: GoldenTheme, testInfo: TestInfo) {

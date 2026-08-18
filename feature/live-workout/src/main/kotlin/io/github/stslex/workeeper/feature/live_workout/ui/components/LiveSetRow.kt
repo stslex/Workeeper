@@ -117,7 +117,7 @@ internal fun LiveSetRow(
             // grow together past nine sets; a bare row keeps the drawn 12dp default.
             modifier = Modifier
                 .widthIn(min = indexColumnWidth)
-                // The R14 alignment gate's row-side capture (test-only, never passed in
+                // The alignment gate's row-side capture (test-only, never passed in
                 // production): the index column's LAID-OUT width, minimum and intrinsic
                 // growth included — what the header's gutter must equal.
                 .onSizeChanged { size -> indexColumnProbe?.invoke(size.width) },
@@ -159,7 +159,7 @@ internal fun LiveSetRow(
             }
         } else {
             // Bodyweight: ONE field, full width; the unit lives in the column header
-            // (`ПОВТОРЕНИЙ` — set-field-column-headers.md, locked decision 2).
+            // (`ПОВТОРЕНИЙ` — set-field-column-headers.md §2 decision 2).
             Box(modifier = Modifier.weight(1f)) {
                 AppNumberInput(
                     value = set.reps.takeIf { it > 0 }?.toString().orEmpty(),

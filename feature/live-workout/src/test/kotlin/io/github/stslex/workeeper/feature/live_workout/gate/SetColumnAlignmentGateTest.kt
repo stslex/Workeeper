@@ -32,34 +32,28 @@ import kotlin.math.abs
 import io.github.stslex.workeeper.core.ui.kit.R as KitR
 
 /**
- * R14/R17's alignment assertion (set-field-column-headers.md §7a), in the layoutlib stack.
+ * The set-column header/row alignment assertion of
+ * documentation/feature-specs/set-field-column-headers.md §7a, in the layoutlib stack.
  *
  * TWO claims, both necessary:
- *  - EDGES (R17, the contract itself): each header label's rendered left edge equals its
- *    column's value left edge. Width equality alone was falsified inside this PR — the R9
- *    threshold moved the field inset to 8dp while the header label stayed at 12dp, and
- *    every width stayed equal through the 4dp drift. Only the edges see that class.
- *  - GUTTER (R14): the header's index gutter equals the row's index column — necessary
- *    and not sufficient; kept because a gutter drift at 10+ sets moves every edge at once
- *    and this assert names the culprit directly.
+ *  - EDGES, the contract itself: each header label's rendered left edge equals its column's
+ *    value left edge. Width equality alone cannot see an inset drift — a field inset can
+ *    move while the header label's stays put and every column width stays equal.
+ *  - GUTTER: the header's index gutter equals the row's index column — necessary and not
+ *    sufficient; it stays because a gutter drift at 10+ sets moves every edge at once and
+ *    this assert names the culprit directly.
  *
- * The edges are read from the SEMANTICS TREE of the rendered composition (R23): the label
- * is addressable by its text, the field by its accessibility label, and
+ * The edges are read from the SEMANTICS TREE of the rendered composition: the label is
+ * addressable by its text, the field by its accessibility label, and
  * `ViewRootForTest.semanticsOwner` is the same public access path Paparazzi's own
  * accessibility extension uses under layoutlib — so the edge capture leaves ZERO trace in
- * production composables. The gutter/index pair keeps its `onSizeChanged` probes: they
- * fire only on size change, never per frame (R22's cost table).
+ * production composables; do not add test tags to reach it. The gutter/index pair keeps its
+ * `onSizeChanged` probes: they fire only on size change, never per frame.
  *
  * Asserted at ONE set and at TEN sets — the count where the index text outgrows the 12dp
- * minimum. The drift scenarios are REAL here and in production: layoutlib lays "10" at
- * ~15dp (0.6em × 12.5sp arithmetic agrees). The first cut of this test ran under
- * Robolectric and passed vacuously — an instrument defect, not a font fact (it laid a
- * 3-digit index 10.5dp under the same arithmetic); the growth precondition below turns a
- * defective instrument into a loud failure.
- *
- * Both known-negatives are proven in the PR record: a hardcoded 12dp header gutter reds
- * the gutter assert at 10 sets; a header label inset diverging from the rows' reds the
- * edge asserts with widths untouched.
+ * minimum of the §5 width budget. layoutlib rather than Robolectric because the claim is
+ * about real text metrics: Robolectric does not widen the index column with digit count, so
+ * the drift scenario is unreachable there and the growth precondition below fails.
  */
 internal class SetColumnAlignmentGateTest {
 

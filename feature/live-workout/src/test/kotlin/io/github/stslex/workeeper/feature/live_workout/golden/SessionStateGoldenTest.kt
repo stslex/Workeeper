@@ -76,10 +76,8 @@ internal class SessionStateGoldenTest {
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
     fun setTwoDigitReps(theme: GoldenTheme, testInfo: TestInfo) {
-        // R7 fixture 1 (set-field-column-headers.md §8): the weighted two-digit-reps case
-        // the corpus never had — the exact cell the audit measured clipping by 2px while
-        // the suffix lived in the field. New snapshot, recorded post-header for the
-        // suffix-free field.
+        // Pins the weighted two-digit-reps cell — the tightest value the reps column
+        // carries (set-field-column-headers.md §8, fixture 1).
         goldenSubject(testInfo, theme) { SetRow(set(isDone = false, reps = 12)) }
     }
 
@@ -215,10 +213,10 @@ internal class SessionStateGoldenTest {
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
     fun exerciseTenSets(theme: GoldenTheme, testInfo: TestInfo) {
-        // The D3 canary (set-field-column-headers.md §8 fixture 3): at ten sets the index
-        // label "10" measures past the 12dp minimum, and the resolved width is passed to
-        // the header AND every row from one place — this frame pins them aligned at the
-        // grown gutter. The past-session twin is `cardDoubleDigitIndex`. New snapshot.
+        // The D3 canary (set-field-column-headers.md §8, fixture 3): at ten sets the index
+        // label "10" measures past the 12dp minimum, and the resolved width reaches the
+        // header AND every row from one place — this frame pins them aligned at the grown
+        // gutter. The past-session twin is `cardDoubleDigitIndex`.
         goldenSubject(testInfo, theme) {
             Card(exercise(ExerciseStatusUiModel.CURRENT, done = 4, sets = 10), expanded = true)
         }
@@ -227,10 +225,9 @@ internal class SessionStateGoldenTest {
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
     fun exerciseBodyweightRu(theme: GoldenTheme, testInfo: TestInfo) {
-        // R7 fixture 2 (set-field-column-headers.md §8): the ПОВТОРЕНИЙ header over the
-        // single bodyweight column, in the shipped RU strings — the 71dp full-word label
-        // had zero golden coverage while it lived in the field as a suffix. Two-digit
-        // reps on purpose: the value class the corpus never carried. New snapshot.
+        // Pins the ПОВТОРЕНИЙ header over the single bodyweight column in the shipped RU
+        // strings — the widest header label there is (set-field-column-headers.md §8,
+        // fixture 2). Two-digit reps on purpose: the tightest value under it.
         val weighted = exercise(ExerciseStatusUiModel.CURRENT, done = 0)
         goldenSubject(testInfo, theme, locale = LOCALE_RU) {
             Card(

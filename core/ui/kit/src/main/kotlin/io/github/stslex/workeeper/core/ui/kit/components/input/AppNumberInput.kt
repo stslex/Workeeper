@@ -70,12 +70,11 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
  *
  * No default border: the mockup's field is recessed by tier alone. The error outline remains.
  *
- * ## The suffix is no longer the set rows' unit
+ * ## [suffix] is not the set rows' unit
  *
- * E-d (set-field-column-headers.md) moved the unit out of the set-row fields into
- * `SetColumnHeader` — a suffix taking intrinsic width ahead of a `weight(1f)` value was a
- * priority inversion the measured budget could not pay (35.75dp reps box vs 36.4dp for two
- * digits). [suffix] survives for `PlanSetCard`, whose roomier rows are out of that scope.
+ * Set rows carry their unit in `SetColumnHeader`, never here: a suffix takes intrinsic width
+ * ahead of the `weight(1f)` value, a priority inversion their measured budget cannot pay
+ * (set-field-column-headers.md §5). [suffix] serves the roomier `PlanSetCard` rows (§4 D4).
  */
 @Composable
 fun AppNumberInput(
@@ -113,10 +112,9 @@ fun AppNumberInput(
         label = "field-bg",
     )
     val shape = RoundedCornerShape(AppDimension.Radius.small)
-    // [fieldInset] is R13's shape of the R9 lever: an EXPLICIT choice by the consumer, not
-    // a width threshold. The 105dp line the first cut used was calibrated to today's
-    // geometry with a 3.3dp gap between the must-fire and must-not-fire populations — a
-    // coincidence, not a property, and a silent tripwire under any future width change.
+    // [fieldInset] is an EXPLICIT choice by the consumer, never a measured-width threshold:
+    // a width trigger is calibrated to today's geometry and becomes a silent tripwire under
+    // any future width change (set-field-column-headers.md §7a).
     // Set rows pass `SetRowGeometry.compactFieldInset`; everything else keeps Space.md.
     Row(
         modifier = modifier
@@ -140,23 +138,22 @@ fun AppNumberInput(
             .padding(horizontal = fieldInset),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // BoxWithConstraints rather than Box: the slot width is a *measured input* here —
-        // [valueSlotProbe] is the overflow gate's capture point (the `flashAlphaOverride`
-        // move: a test-only parameter production never passes), and the width feeds the
-        // adaptive rung choice. Same constraints in, same layout out.
-        // The R17 alignment gate reads this field's rendered LEFT EDGE from the semantics
-        // tree (it is addressable by its accessibility label) — deliberately NOT from a
-        // position probe: an `onGloballyPositioned` node here would dispatch on every
-        // scroll frame of a live session for a test-only capture (R22/R23).
+        // BoxWithConstraints rather than Box: the slot width is a *measured input* — it feeds
+        // the rung choice below, and [valueSlotProbe] reports it with the resolved style to the
+        // overflow gate (test-only; production never passes it). Overflow cannot be read off the
+        // rendered field instead: BasicTextField measures singleLine at infinite width and clips
+        // inside its scroll layer (set-field-column-headers.md §6). Alignment gates read this
+        // field's left edge from the semantics tree — do not add an `onGloballyPositioned` node
+        // here for a test-only capture; it dispatches on every scroll frame of a live session.
         BoxWithConstraints(modifier = Modifier.weight(1f)) {
             val slotWidthPx = constraints.maxWidth
             val valueStyle = resolveValueStyle(value = value, slotWidthPx = slotWidthPx)
             valueSlotProbe?.invoke(slotWidthPx, valueStyle)
             // Aliased before the semantics block: a bare `contentDescription` inside the
             // receiver is a self-assign (the AppExerciseThumb note). A field built on
-            // BasicTextField owes its name explicitly — since E-d moved the visible unit
-            // to the column header, this is the only thing telling TalkBack WHICH field
-            // this is (set-field-column-headers.md §4 D6).
+            // BasicTextField owes its name explicitly — with the unit living in the column
+            // header, this label is the only thing telling TalkBack WHICH field this is
+            // (set-field-column-headers.md §4 D6).
             val fieldLabel = accessibilityLabel
             BasicTextField(
                 modifier = Modifier.semantics {
@@ -201,11 +198,8 @@ fun AppNumberInput(
 /**
  * The rung the value renders at, decided by MEASUREMENT ahead of layout
  * (set-field-column-headers.md §4 D5): the first ladder rung whose single-line advance
- * fits the slot, through the same text stack that will draw it. Replaces the old
- * `MAX_GLYPHS_AT_FULL_SIZE = 3` glyph-count heuristic, which was open-loop in both
- * directions — it never fired on the two-digit case that actually clipped (36.4dp of
- * digits in a 35.75dp box), and it force-stepped five-glyph values in boxes that fit
- * them at full size.
+ * fits the slot, through the same text stack that will draw it. A glyph-count heuristic
+ * does not belong here — it is open-loop in both directions.
  *
  * Acyclic by construction: [slotWidthPx] is the parent flex split's decision, so the
  * chosen style cannot feed back into the constraint — no reflow loop, no oscillation.
@@ -213,9 +207,9 @@ fun AppNumberInput(
  *
  * The ladder floor is contrast-pinned at the 19sp section rung: below ~18.66sp bold a
  * value owes 4.5:1, which the record molten (light theme) and the pending
- * `textTertiary` colours cannot pay. A value that exceeds even the floor overflows into
- * the field's scroll layer rather than shrinking into illegibility — the R4 known-limit
- * band, ledgered by the overflow gates.
+ * `textTertiary` colours cannot pay — no lower rung may be added. A value that exceeds
+ * even the floor overflows into the field's scroll layer rather than shrinking into
+ * illegibility; those cells are ledgered (§7).
  */
 @Composable
 private fun resolveValueStyle(value: String, slotWidthPx: Int): TextStyle {

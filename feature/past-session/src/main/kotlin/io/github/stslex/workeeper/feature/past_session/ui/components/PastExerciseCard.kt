@@ -214,11 +214,11 @@ private fun CardHeader(
 /**
  * `.cbody > .sets{padding:0 12px 8px}`, rows split by `--hair` rules drawn by the container.
  *
- * The column header above the rows is E-d's addition (set-field-column-headers.md), the
- * live `SetsColumn`'s twin: index width resolved once for header + rows (D3), trailing
- * gutter = chip slot + gap + the drag handle this row draws instead of the checkmark. The
- * header is a static child above the loop — it does not participate in the reorderable
- * machinery, whose modifiers are per-row.
+ * The column header is the live `SetsColumn`'s twin: index width resolved once for header
+ * and rows (set-field-column-headers.md §4 D3), trailing gutter = chip slot + gap + the
+ * drag handle this row draws instead of the checkmark. The header is a static child above
+ * the loop — it does not participate in the reorderable machinery, whose modifiers are
+ * per-row.
  */
 @Composable
 private fun CardBody(

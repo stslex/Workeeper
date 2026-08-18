@@ -30,31 +30,28 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 
 /**
- * The set-row column header — the unit's new home after it left the field
- * (set-field-column-headers.md, locked decisions 1-4).
+ * The set-row column header — the unit lives here, not in the field
+ * (documentation/feature-specs/set-field-column-headers.md §2).
  *
  * ## Geometry mirrors the row, from one source
  *
- * `[index gutter] [weight header ×1.2] [reps header ×1] [trailing gutter]`, with the row's
- * own 4dp horizontal padding and 8dp gaps. The index gutter takes [indexColumnWidth] — the
- * SAME resolved value the container passes to every row ([SetRowGeometry], D3) — and the
- * flex split reads [SetRowGeometry.WEIGHT_COLUMN_FLEX]. [trailingWidth] is the consumer's
- * trailing cluster (chip slot + gap + checkmark / drag handle), computed by the feature
- * from its own components' widths, because the two rows deliberately differ there.
- * Each label is inset by the field's 12dp inner padding so it sits over the VALUE, not
- * over the field's rounded edge.
+ * `[index gutter] [weight header] [reps header] [trailing gutter]`. The index gutter takes
+ * [indexColumnWidth] — the SAME resolved value the container passes to every row
+ * ([SetRowGeometry], §4 D3) — and the flex split reads [SetRowGeometry.WEIGHT_COLUMN_FLEX],
+ * so header and rows cannot drift apart. [trailingWidth] is the consumer's trailing cluster
+ * (chip slot + gap + checkmark / drag handle), computed by the feature from its own
+ * components' widths, because the two rows deliberately differ there.
  *
- * ## Two-tone, one Text (D2)
+ * ## Two-tone, one Text
  *
- * The NAME is `textSecondary`, the UNIT in parentheses a `SpanStyle` of `textDim` — no
- * dimmer: a caption-rung label owes 4.5:1 (locked decision 3; hierarchy comes from raising
- * the name, not sinking the unit). One `Text` with `TextOverflow.Ellipsis` is what makes
- * locked decision 4 structural: truncation eats the tail first, and the unit IS the tail —
- * `(КГ)` goes before `ВЕС` by construction, verified by `SetColumnHeaderTest`.
+ * The NAME is `textSecondary`, the UNIT in parentheses a `SpanStyle` of `textDim` — never
+ * dimmer than that: a caption-rung label owes 4.5:1 (§2). One `AnnotatedString` in one
+ * `Text` with `TextOverflow.Ellipsis` is what makes the unit truncate before the name;
+ * splitting the two into separate `Text`s breaks that order (§4 D2).
  *
- * Casing is the `AppLabel` move: stored lower-case, uppercased at the edge — a display
- * concern kept out of strings.xml. Style is `mono.caption`, never the numeric family
- * (Archivo has zero Cyrillic; `NumericFontFamilyOnLocalizedTextRule` guards the boundary).
+ * Casing is applied here, locale-aware, and kept out of strings.xml. Style is
+ * `mono.caption`, never the numeric family — Archivo has zero Cyrillic, and
+ * `NumericFontFamilyOnLocalizedTextRule` guards that boundary.
  */
 @Composable
 fun SetColumnHeader(
@@ -72,10 +69,7 @@ fun SetColumnHeader(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
     ) {
-        // [indexGutterProbe] is the R14 alignment gate's capture point (the
-        // `flashAlphaOverride` move — test-only, production never passes it): the gutter's
-        // laid-out width is the ONE free variable in the label/value alignment; the gap and
-        // the label inset are the same tokens the rows read.
+        // [indexGutterProbe] is test-only — production never passes it.
         Spacer(
             modifier = Modifier
                 .width(indexColumnWidth)
@@ -115,8 +109,7 @@ fun SetColumnHeader(
 /**
  * One column's label, inset to sit over the field's VALUE rather than its edge — by the
  * same [SetRowGeometry.compactFieldInset] the rows pass to their fields, so label and
- * value cannot drift apart (R13 closed exactly that drift: the first lever left the label
- * at `Space.md` over fields that had moved to `Space.sm`).
+ * value cannot drift apart (§7a).
  */
 @Composable
 private fun HeaderCell(
@@ -126,20 +119,15 @@ private fun HeaderCell(
     Box(modifier = modifier) {
         SetColumnHeaderLabel(
             label = label,
-            // The R17 alignment gate reads this label's rendered LEFT EDGE from the
-            // semantics tree (addressable by its text) — deliberately not from a position
-            // probe; see AppNumberInput's value slot for the cost rationale (R22/R23).
-            // The gutter probe alone proved insufficient: this PR's own R9→R13 inset
-            // drift kept every width equal while these edges diverged by 4dp.
             modifier = Modifier.padding(start = SetRowGeometry.compactFieldInset),
         )
     }
 }
 
 /**
- * The header's single `Text`. Internal, with a test-only [onTextLayout] oracle, so
- * `SetColumnHeaderTest` can prove the ellipsis order on the REAL text parameters rather
- * than on a lookalike (`onTextLayout` is a test oracle only — D5's rule).
+ * The header's single `Text`. Internal so the ellipsis order can be proven on the REAL
+ * text parameters rather than on a lookalike; [onTextLayout] is a test oracle only —
+ * never drive state from it (§4 D5).
  */
 @Composable
 internal fun SetColumnHeaderLabel(
@@ -159,9 +147,9 @@ internal fun SetColumnHeaderLabel(
 }
 
 /**
- *`ВЕС (КГ)` from `вес` + `кг`: locale-aware uppercase at the edge (the `AppLabel` move),
- * parentheses added here — formatting is the component's, not the translation's. The unit
- * span is the string's TAIL, which is what hands locked decision 4 to `TextOverflow`.
+ * `ВЕС (КГ)` from `вес` + `кг`: locale-aware uppercase at the edge, parentheses added here
+ * — formatting is the component's, not the translation's. The unit span is the string's
+ * TAIL, which is what hands the truncation order to `TextOverflow` (§2).
  */
 internal fun buildSetColumnHeaderLabel(
     name: String,

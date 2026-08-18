@@ -15,10 +15,9 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertAll
 
 /**
- * D2's proof by test, not by reasoning (set-field-column-headers.md §4): the header is one
- * `AnnotatedString` in one `Text`, so truncation must eat the unit — the string's tail —
- * before the name. Rendered through the Paparazzi measurement harness because Robolectric
- * is false-negative for text metrics (task brief, Phase 2).
+ * The header is one `AnnotatedString` in one `Text`, so truncation must eat the unit — the
+ * string's tail — before the name (set-field-column-headers.md §4 D2). Rendered through the
+ * Paparazzi measurement harness: Robolectric is false-negative for text metrics.
  */
 internal class SetColumnHeaderTest {
 
@@ -80,7 +79,7 @@ internal class SetColumnHeaderTest {
                     if (layout.isLineEllipsized(0)) {
                         // The cut must come from the tail: the full unit may never survive
                         // a truncation (losing anything else first would mean the name went
-                        // before the unit — the locked-decision-4 violation).
+                        // before the unit — set-field-column-headers.md §2 decision 4).
                         assertFalse(
                             visible.contains(unit),
                             "at ${widthPx}px the ellipsis kept the unit intact: \"$visible\"",

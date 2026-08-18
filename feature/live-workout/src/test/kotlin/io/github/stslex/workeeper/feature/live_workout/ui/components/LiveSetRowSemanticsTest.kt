@@ -21,12 +21,12 @@ import tech.apter.junit.jupiter.robolectric.RobolectricExtension
 import io.github.stslex.workeeper.core.ui.kit.R as KitR
 
 /**
- * D6's assertion (set-field-column-headers.md §4): with the visible unit gone to the
- * column header — which is not accessibility-associated with the fields — the field's
- * name must reach TalkBack through `AppNumberInput.accessibilityLabel`. One `@Test`, one
+ * The visible unit lives in the column header, which is not accessibility-associated with
+ * the fields, so the field's name must reach TalkBack through
+ * `AppNumberInput.accessibilityLabel` (set-field-column-headers.md §4 D6). One `@Test`, one
  * composition: a second `runComposeUiTest` in the same Robolectric sandbox hangs
- * (`AccessibilitySemanticsTest`'s measured constraint), so the weighted and bodyweight
- * branches share this composition and the claims share an `assertAll`.
+ * (`AccessibilitySemanticsTest`'s constraint), so the weighted and bodyweight branches
+ * share this composition and the claims share an `assertAll`.
  */
 @ExtendWith(RobolectricExtension::class)
 @Config(sdk = [33])

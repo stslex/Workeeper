@@ -25,22 +25,20 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
  * `Paparazzi.snapshot()` but is only "compose this and hand me the frames" — with a
  * discarding consumer it carries no comparison semantics at all.)
  *
- * ## Why the slot width is captured, not computed
+ * ## The slot width is captured, not computed
  *
- * The gate's question is "does the value's text fit the slot the real row actually gives
- * it". Recomputing that slot from the same paddings and flex constants the row uses would
- * make the gate an adjacent-answer instrument — it would agree with the row by
- * construction, including when both are wrong. Instead the consumer renders the production
- * row and captures the slot through `AppNumberInput.valueSlotProbe` (the
- * `flashAlphaOverride` move: a test-only parameter production never passes). Mutating any
- * width inside the row — a chip minimum, a gap, a flex weight — moves the captured number.
+ * The consumer renders the production row and captures the slot through
+ * `AppNumberInput.valueSlotProbe`; recomputing it from the same paddings and flex constants
+ * the row uses would make the gate agree with the row by construction, including when both
+ * are wrong. Mutating any width inside the row — a chip minimum, a gap, a flex weight —
+ * moves the captured number.
  *
- * ## Why the text extent comes from a proxy, not from the field
+ * ## The text extent comes from a proxy, not from the field
  *
  * `BasicTextField(singleLine = true)` measures its text at `maxWidth = Infinity` and hides
  * overflow in its horizontal-scroll layer, so its own `TextLayoutResult` reports
- * `hasVisualOverflow = false` while glyphs are visibly lost (measured; spec §6). The
- * faithful extent is a single-line, `softWrap = false` [BasicText] laid out unconstrained:
+ * `hasVisualOverflow = false` while glyphs are visibly lost (spec §6). The faithful extent
+ * is a single-line, `softWrap = false` [BasicText] laid out unconstrained:
  * `multiParagraph.width` is then the true advance of the string at the style under test.
  */
 class OverflowGateSdk(private val theme: GoldenTheme = GoldenTheme.LIGHT) {
@@ -53,11 +51,11 @@ class OverflowGateSdk(private val theme: GoldenTheme = GoldenTheme.LIGHT) {
         renderingMode = SessionParams.RenderingMode.SHRINK,
         useDeviceResolution = true,
         onNewFrame = {
-            // The image is discarded on purpose — see the class KDoc: a frame consumer
-            // that stored or compared images would re-introduce exactly the snapshot
-            // semantics this harness exists to avoid. [frameHook] runs here because the
-            // frame is the one moment the caller's view is attached and composed — the
-            // window where a semantics-tree read is guaranteed live.
+            // The image is discarded on purpose: a frame consumer that stored or compared
+            // images would re-introduce exactly the snapshot semantics this harness exists
+            // to avoid. [frameHook] runs here because the frame is the one moment the
+            // caller's view is attached and composed — the window where a semantics-tree
+            // read is guaranteed live.
             frameHook?.invoke()
         },
     )
@@ -90,10 +88,10 @@ class OverflowGateSdk(private val theme: GoldenTheme = GoldenTheme.LIGHT) {
 
     /**
      * Renders a caller-owned [view], invoking [onFrame] while it is attached and its
-     * composition is live — the R23 semantics window: a gate that needs the rendered
-     * semantics tree (`ViewRootForTest.semanticsOwner`, the same public access path
-     * Paparazzi's own accessibility extension uses under layoutlib) reads it here, with
-     * zero production-side seams. The caller wraps its content in [AppTheme] itself.
+     * composition is live — the only window in which a read of the rendered semantics tree
+     * (`ViewRootForTest.semanticsOwner`, the public access path Paparazzi's own
+     * accessibility extension uses under layoutlib) is guaranteed valid. The caller wraps
+     * its content in [AppTheme] itself.
      */
     fun renderView(view: android.view.View, onFrame: () -> Unit) {
         frameHook = onFrame
@@ -106,9 +104,8 @@ class OverflowGateSdk(private val theme: GoldenTheme = GoldenTheme.LIGHT) {
 
     /**
      * The true single-line advance of [text] at [style], in px, on the current session's
-     * device (so the current font scale applies). Fails loudly if layout never ran — a
-     * gate that silently measures nothing is the failure mode this repo has been bitten
-     * by repeatedly.
+     * device (so the current font scale applies). Fails loudly if layout never ran — a gate
+     * that silently measures nothing must never report a pass.
      */
     fun measureTextWidthPx(text: String, style: TextStyle): Float {
         var measured = Float.NaN

@@ -22,7 +22,7 @@ import org.junit.jupiter.api.assertAll
 /**
  * The set-field overflow gate for the past-session weighted edit row
  * (set-field-column-headers.md §6). Same design as `LiveSetRowOverflowGateTest`:
- * closed-loop slot capture (R1), measurement-only harness (R2).
+ * closed-loop slot capture, measurement-only harness.
  */
 internal class PastSetRowOverflowGateTest {
 
@@ -132,16 +132,16 @@ internal class PastSetRowOverflowGateTest {
     }
 
     private companion object {
-        // The full R11 matrix, asserted; see LiveSetRowOverflowGateTest's companion note.
+        // The full asserted matrix (spec §7); see LiveSetRowOverflowGateTest's companion note.
         val ASSERTED_FONT_SCALES = listOf(1.0f, 1.3f, 1.6f, 2.0f)
         val GLYPH_CLASSES = listOf(1, 2, 3, 5)
         val WEIGHT_INPUTS = mapOf(1 to "5", 2 to "55", 3 to "555", 5 to "102.5")
         val REPS_INPUTS = mapOf(1 to "5", 2 to "12", 3 to "555", 5 to "55555")
 
         /**
-         * The spec §7 ledger (R10/R11) — the past row's slice. weight/5@2.0 left the
-         * ledger when R13's compact inset paid its +6px deficit with 8dp to spare; the
-         * inverted assertion caught the resolution, as designed.
+         * The spec §7 ledger — the past row's slice. An entry means the cell overflows by
+         * design; the assertion is inverted, so a cell that starts fitting fails the gate
+         * until its entry and the spec §7 row are dropped together.
          */
         val KNOWN_LIMITS = mapOf(
             "reps/5@1.6" to "DEFERRED to domain cap (B-8), follow-up PR",

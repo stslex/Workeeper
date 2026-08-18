@@ -160,13 +160,6 @@ internal fun PastSetEditRow(
     }
 }
 
-/*
- * The index minimum and the weight flex moved to `SetRowGeometry`: the column header is
- * the third consumer the old `WEIGHT_COLUMN_FLEX` KDoc named as the lifting trigger, and
- * the index min-width rationale (min, never fixed — a fixed box broke set 10 at a grapheme
- * boundary) rides with it there.
- */
-
 /** The drag slot; `CardBody` reads it to build the header's trailing gutter. */
 internal val DragHandleSize: Dp = 24.dp
 
