@@ -8,6 +8,7 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.max
+import io.github.stslex.workeeper.core.ui.kit.components.setchip.CHIP_MIN_WIDTH
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 
@@ -37,6 +38,14 @@ object SetRowGeometry {
      * reported with the original row PRs.
      */
     const val WEIGHT_COLUMN_FLEX: Float = 1.2f
+
+    /**
+     * The chip-or-PR-tag slot both rows draw after the fields — a REFERENCE to the chip's
+     * own `CHIP_MIN_WIDTH` (which `PersonalRecordTag` shares), re-exposed so the features
+     * can hand `SetColumnHeader` a trailing gutter built from component numbers, never
+     * from copies.
+     */
+    val setTypeSlotWidth: Dp = CHIP_MIN_WIDTH
 
     /**
      * The index column width for a card with [setCount] visible rows, resolved by

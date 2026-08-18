@@ -4,11 +4,11 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -20,6 +20,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
@@ -62,6 +63,13 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
  * (`ContrastContract`, the `donefill` and `record.background` rows `over` tier1/tier2).
  *
  * No default border: the mockup's field is recessed by tier alone. The error outline remains.
+ *
+ * ## The suffix is no longer the set rows' unit
+ *
+ * E-d (set-field-column-headers.md) moved the unit out of the set-row fields into
+ * `SetColumnHeader` — a suffix taking intrinsic width ahead of a `weight(1f)` value was a
+ * priority inversion the measured budget could not pay (35.75dp reps box vs 36.4dp for two
+ * digits). [suffix] survives for `PlanSetCard`, whose roomier rows are out of that scope.
  */
 @Composable
 fun AppNumberInput(
@@ -75,6 +83,7 @@ fun AppNumberInput(
     isRecord: Boolean = false,
     isDone: Boolean = false,
     isLogged: Boolean = false,
+    valueSlotProbe: ((slotWidthPx: Int, resolvedStyle: TextStyle) -> Unit)? = null,
 ) {
     val keyboardType = if (decimals > 0) KeyboardType.Decimal else KeyboardType.Number
     val valueColor by animateColorAsState(
@@ -95,12 +104,14 @@ fun AppNumberInput(
         animationSpec = tween(durationMillis = AppUi.motion.base, easing = AppUi.motion.out),
         label = "field-bg",
     )
-    // B1's width budget, measured: at 26sp Archivo a 5-glyph value ("102.5") needs ~66dp
-    // and the weighted row's value box has ~52. The mockup never draws a decimal weight —
-    // its own geometry cannot fit one either — so values past [MAX_GLYPHS_AT_FULL_SIZE]
-    // glyphs step down one numeric rung (19sp bold, still TITLE-threshold at 3:1) instead
-    // of clipping. A clipped logged value is data loss on screen; the downstep is the
-    // interim answer and the width question is reported with the session-rebuild PR.
+    // The width budget, measured (set-field-column-headers.md §1/§5): at 26sp Archivo
+    // tnum a digit is exactly 18.2dp, so "102.5" needs 81.12dp (4×18.2 + an 8.32dp
+    // period) — against a value box of 68.38dp (weight) / 35.75dp (reps) in the live
+    // weighted row while the suffix lived in the field. Values past
+    // [MAX_GLYPHS_AT_FULL_SIZE] glyphs step down one numeric rung (19sp bold, still
+    // TITLE-threshold at 3:1) instead of clipping. A clipped logged value is data loss
+    // on screen; this glyph-count heuristic is the interim answer until the measured
+    // stepdown replaces it (spec §4 D5).
     val valueStyle = if (value.length > MAX_GLYPHS_AT_FULL_SIZE) {
         AppUi.typography.numeric.section
     } else {
@@ -122,11 +133,20 @@ fun AppNumberInput(
                     base
                 }
             }
-            .height(AppDimension.heightMd)
+            // heightIn, not height: 48dp is the floor the mockup draws, but at fontScale
+            // above ~1.5 the 26sp value's line height exceeds it and a hard height would
+            // clip vertically what this component exists to stop clipping horizontally.
+            .heightIn(min = AppDimension.heightMd)
             .padding(horizontal = AppDimension.Space.md),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(modifier = Modifier.weight(1f)) {
+        // BoxWithConstraints rather than Box: the slot width is a *measured input* here —
+        // [valueSlotProbe] is the overflow gate's capture point (the `flashAlphaOverride`
+        // move: a test-only parameter production never passes), and the width feeds the
+        // adaptive rung choice. Same constraints in, same layout out.
+        BoxWithConstraints(modifier = Modifier.weight(1f)) {
+            val slotWidthPx = constraints.maxWidth
+            valueSlotProbe?.invoke(slotWidthPx, valueStyle)
             BasicTextField(
                 value = value,
                 onValueChange = onValueChange,

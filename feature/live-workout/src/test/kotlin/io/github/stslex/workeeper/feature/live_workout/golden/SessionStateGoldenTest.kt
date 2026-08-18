@@ -74,6 +74,16 @@ internal class SessionStateGoldenTest {
 
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
+    fun setTwoDigitReps(theme: GoldenTheme, testInfo: TestInfo) {
+        // R7 fixture 1 (set-field-column-headers.md §8): the weighted two-digit-reps case
+        // the corpus never had — the exact cell the audit measured clipping by 2px while
+        // the suffix lived in the field. New snapshot, recorded post-header for the
+        // suffix-free field.
+        goldenSubject(testInfo, theme) { SetRow(set(isDone = false, reps = 12)) }
+    }
+
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
     fun setBodyweight(theme: GoldenTheme, testInfo: TestInfo) {
         // One full-width field, the unit spelled out (`повторений` in RU; extraction §1.6).
         goldenSubject(testInfo, theme) {

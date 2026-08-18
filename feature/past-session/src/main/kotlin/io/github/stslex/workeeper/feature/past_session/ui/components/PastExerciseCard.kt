@@ -35,6 +35,8 @@ import io.github.stslex.workeeper.core.ui.kit.components.reorderable.Reorderable
 import io.github.stslex.workeeper.core.ui.kit.components.reorderable.rememberReorderableColumnState
 import io.github.stslex.workeeper.core.ui.kit.components.reorderable.reorderableColumnDragHandle
 import io.github.stslex.workeeper.core.ui.kit.components.reorderable.reorderableColumnItem
+import io.github.stslex.workeeper.core.ui.kit.components.setrow.SetColumnHeader
+import io.github.stslex.workeeper.core.ui.kit.components.setrow.SetRowGeometry
 import io.github.stslex.workeeper.core.ui.kit.components.surface.liftedSurface
 import io.github.stslex.workeeper.core.ui.kit.icons.AppIcons
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
@@ -209,7 +211,15 @@ private fun CardHeader(
     }
 }
 
-/** `.cbody > .sets{padding:0 12px 8px}`, rows split by `--hair` rules drawn by the container. */
+/**
+ * `.cbody > .sets{padding:0 12px 8px}`, rows split by `--hair` rules drawn by the container.
+ *
+ * The column header above the rows is E-d's addition (set-field-column-headers.md), the
+ * live `SetsColumn`'s twin: index width resolved once for header + rows (D3), trailing
+ * gutter = chip slot + gap + the drag handle this row draws instead of the checkmark. The
+ * header is a static child above the loop — it does not participate in the reorderable
+ * machinery, whose modifiers are per-row.
+ */
 @Composable
 private fun CardBody(
     exercise: PastExerciseUiModel,
@@ -238,6 +248,14 @@ private fun CardBody(
                 color = AppUi.colors.textDim,
             )
         } else {
+            val indexColumnWidth = SetRowGeometry.resolveIndexColumnWidth(exercise.sets.size)
+            SetColumnHeader(
+                isWeighted = exercise.isWeighted,
+                indexColumnWidth = indexColumnWidth,
+                trailingWidth = SetRowGeometry.setTypeSlotWidth +
+                    AppDimension.Space.sm +
+                    DragHandleSize,
+            )
             exercise.sets.forEachIndexed { index, set ->
                 key(set.setUuid) {
                     if (index > 0) {
@@ -249,6 +267,7 @@ private fun CardBody(
                     PastSetEditRow(
                         set = set,
                         isWeighted = exercise.isWeighted,
+                        indexColumnWidth = indexColumnWidth,
                         onWeightChange = { raw -> onWeightChange(set.setUuid, raw) },
                         onRepsChange = { raw -> onRepsChange(set.setUuid, raw) },
                         onPrTagClick = onPrTagClick,

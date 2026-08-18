@@ -19,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -26,6 +27,7 @@ import io.github.stslex.workeeper.core.ui.kit.R
 import io.github.stslex.workeeper.core.ui.kit.components.input.AppNumberInput
 import io.github.stslex.workeeper.core.ui.kit.components.pr.PersonalRecordTag
 import io.github.stslex.workeeper.core.ui.kit.components.setchip.AppSetTypeChip
+import io.github.stslex.workeeper.core.ui.kit.components.setrow.SetRowGeometry
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
@@ -75,7 +77,10 @@ internal fun PastSetEditRow(
     onRepsChange: (String) -> Unit,
     onPrTagClick: () -> Unit,
     modifier: Modifier = Modifier,
+    indexColumnWidth: Dp = SetRowGeometry.indexMinWidth,
     dragHandleModifier: Modifier = Modifier,
+    weightSlotProbe: ((slotWidthPx: Int, resolvedStyle: TextStyle) -> Unit)? = null,
+    repsSlotProbe: ((slotWidthPx: Int, resolvedStyle: TextStyle) -> Unit)? = null,
 ) {
     Row(
         modifier = modifier
@@ -88,7 +93,7 @@ internal fun PastSetEditRow(
         horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
     ) {
         Text(
-            modifier = Modifier.widthIn(min = SetIndexWidth),
+            modifier = Modifier.widthIn(min = indexColumnWidth),
             text = (set.position + 1).toString(),
             style = AppUi.typography.mono.meta,
             color = AppUi.colors.textDim,
@@ -96,37 +101,37 @@ internal fun PastSetEditRow(
         )
         if (isWeighted) {
             AppNumberInput(
-                modifier = Modifier.weight(WEIGHT_COLUMN_FLEX),
+                modifier = Modifier.weight(SetRowGeometry.WEIGHT_COLUMN_FLEX),
                 value = set.weightInput,
                 onValueChange = onWeightChange,
                 decimals = 1,
-                suffix = stringResource(R.string.core_ui_kit_plan_editor_unit_kg),
                 isError = set.weightError,
                 isRecord = set.isPersonalRecord,
                 isLogged = true,
+                valueSlotProbe = weightSlotProbe,
             )
             AppNumberInput(
                 modifier = Modifier.weight(1f),
                 value = set.repsInput,
                 onValueChange = onRepsChange,
                 decimals = 0,
-                suffix = stringResource(R.string.core_ui_kit_plan_editor_unit_reps),
                 isError = set.repsError,
                 isRecord = set.isPersonalRecord,
                 isLogged = true,
+                valueSlotProbe = repsSlotProbe,
             )
         } else {
-            // Bodyweight: ONE full-width field, the unit spelled out (`повторений`) —
-            // §1.6's weightless form, inherited through §2.6's "identical geometry".
+            // Bodyweight: ONE full-width field; the unit lives in the column header
+            // (`ПОВТОРЕНИЙ`), inherited through §2.6's "identical geometry".
             AppNumberInput(
                 modifier = Modifier.weight(1f),
                 value = set.repsInput,
                 onValueChange = onRepsChange,
                 decimals = 0,
-                suffix = stringResource(R.string.core_ui_kit_plan_editor_unit_reps_full),
                 isError = set.repsError,
                 isRecord = set.isPersonalRecord,
                 isLogged = true,
+                valueSlotProbe = repsSlotProbe,
             )
         }
         if (set.isPersonalRecord) {
@@ -149,33 +154,15 @@ internal fun PastSetEditRow(
     }
 }
 
-/**
- * `.set-i { width: 13px }` → 12dp, as a **minimum** rather than a fixed width, with
- * `maxLines = 1`.
- *
- * It was fixed, and that silently broke set 10. `mono.meta` is IBM Plex Mono at 12.5sp with
- * a uniform 600/1000em advance, so a digit is ~7.5dp and "10" needs ~15dp; `Text` breaks an
- * over-wide token at a grapheme boundary rather than overflowing, so the index stacked 1
- * over 0 — invisibly, because the 48dp fields dominate the row height. A fixed width fails
- * the same way for a *single* digit above roughly fontScale 1.6.
- *
- * The min-width form is also the faithful port: CSS does not break inside a word, so the
- * mockup's own 13px box lets "10" spill into the 9px gap rather than wrapping. Rows 1-9
- * keep the drawn 12dp column exactly; a two-digit index grows its own gutter by ~3dp
- * instead of losing a glyph. Narrower than the card ordinal on purpose — `.set-i` and
- * `.ord` are two different widths in the mockup.
+/*
+ * The index minimum and the weight flex moved to `SetRowGeometry`: the column header is
+ * the third consumer the old `WEIGHT_COLUMN_FLEX` KDoc named as the lifting trigger, and
+ * the index min-width rationale (min, never fixed — a fixed box broke set 10 at a grapheme
+ * boundary) rides with it there.
  */
-private val SetIndexWidth: Dp = AppDimension.Space.md
 
-/**
- * Matches `LiveSetRow.WEIGHT_FIELD_FLEX` — weights carry decimals ("102.5"), reps never do,
- * and the extra fifth softens B1's width budget. Duplicated rather than shared only because
- * the two rows are deliberately separate components (see the KDoc); if a third consumer
- * appears, this is the constant to lift.
- */
-private const val WEIGHT_COLUMN_FLEX = 1.2f
-
-private val DragHandleSize: Dp = 24.dp
+/** The drag slot; `CardBody` reads it to build the header's trailing gutter. */
+internal val DragHandleSize: Dp = 24.dp
 
 @Preview(name = "Weighted Light")
 @Composable
