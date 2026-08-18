@@ -138,11 +138,14 @@ internal class PastSetRowOverflowGateTest {
         val WEIGHT_INPUTS = mapOf(1 to "5", 2 to "55", 3 to "555", 5 to "102.5")
         val REPS_INPUTS = mapOf(1 to "5", 2 to "12", 3 to "555", 5 to "55555")
 
-        /** The spec §7 ledger (R10/R11) — the past row's slice. */
+        /**
+         * The spec §7 ledger (R10/R11) — the past row's slice. weight/5@2.0 left the
+         * ledger when R13's compact inset paid its +6px deficit with 8dp to spare; the
+         * inverted assertion caught the resolution, as designed.
+         */
         val KNOWN_LIMITS = mapOf(
-            "reps/5@1.6" to "resolved by domain cap, follow-up PR",
-            "reps/5@2.0" to "resolved by domain cap, follow-up PR",
-            "weight/5@2.0" to "19sp contrast floor at fontScale 2.0 — R4-sanctioned (+6px)",
+            "reps/5@1.6" to "DEFERRED to domain cap (B-8), follow-up PR",
+            "reps/5@2.0" to "DEFERRED to domain cap (B-8), follow-up PR",
         )
     }
 }

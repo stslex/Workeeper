@@ -146,15 +146,17 @@ internal class LiveSetRowOverflowGateTest {
         val REPS_VALUES = mapOf(1 to 5, 2 to 12, 3 to 555, 5 to 55555)
 
         /**
-         * The spec §7 ledger (R10/R11). Every reps×5 entry is a five-digit rep count —
-         * typeable garbage a sane domain cap eliminates (blocker B-8, follow-up PR);
-         * weight×5 at 2.0 is the contrast-pinned 19sp floor against the non-linear
-         * converter, the R4-sanctioned limit.
+         * The spec §7 ledger (R10/R11, R15). Every reps×5 entry is a five-digit rep
+         * count — typeable garbage the domain cap eliminates. Per R15 these are DEBT,
+         * not resolution: red in production until B-8 ships, and their entries are void
+         * the moment it does (the inverted assertion below will fail and demand their
+         * removal). weight×5 at 2.0 is the contrast-pinned 19sp floor against the
+         * non-linear converter, the R4-sanctioned limit (+20px after R13's inset).
          */
         val KNOWN_LIMITS = mapOf(
-            "reps/5@1.3" to "resolved by domain cap, follow-up PR",
-            "reps/5@1.6" to "resolved by domain cap, follow-up PR",
-            "reps/5@2.0" to "resolved by domain cap, follow-up PR",
+            "reps/5@1.3" to "DEFERRED to domain cap (B-8), follow-up PR",
+            "reps/5@1.6" to "DEFERRED to domain cap (B-8), follow-up PR",
+            "reps/5@2.0" to "DEFERRED to domain cap (B-8), follow-up PR",
             "weight/5@2.0" to "19sp contrast floor at fontScale 2.0 — R4-sanctioned",
         )
     }

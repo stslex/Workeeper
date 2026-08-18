@@ -245,27 +245,43 @@ Probe findings the design rests on (measured 2026-08-18, throwaway test, deleted
   "resolved by domain cap, follow-up PR"; the missing bound itself is blocker B-8.
 - **R12** — a sub-19sp rung gated on value state is REJECTED (state-dependent type
   size is visual noise); the 19sp contrast floor stands.
+- **R13** — the width threshold is replaced by an explicit `fieldInset` parameter on
+  `AppNumberInput`: the 105dp line was calibrated to a 3.3dp gap in today's geometry —
+  a coincidence, not a property, and a silent tripwire. Set rows pass
+  `SetRowGeometry.compactFieldInset` (`Space.sm`, uniform across their fields and the
+  header's label inset — the parameter change also closed a real 4dp label/value
+  drift the threshold had introduced); every other consumer keeps `Space.md`.
+- **R14** — header/column alignment gets a direct assertion from the rendered tree
+  (label left edge == value left edge, at 1 set and at 10 sets), not just the canary
+  snapshot; known-negative proven by hardcoding the header's index spacer to 12dp.
+- **R15** — the "domain cap" ledger entries are DEBT, not resolution: those cells are
+  red in production for anyone entering a five-digit rep count until B-8 ships, and
+  the entries are void the moment it does (the inverted gate assertion will fail and
+  demand their removal).
+- **R16** — the ledger inversion is kept.
 
-## 7. Target and known limits — measured ledger (post-R9, final)
+## 7. Target and known limits — measured ledger (post-R13, final)
 
-Measured with the compact-inset lever live: **57 of 64 cells pass**; the lever
-rescued live reps ×3 @2.0 (was +2px). Every remaining red is 5-glyph:
+Measured with the explicit compact inset on all set-row fields: **58 of 64 cells
+pass**. R13's uniform inset resolved past weight ×5 @2.0 (the +6px deficit met +22px
+of freed budget — caught by the inverted assertion, as designed) and improved live
+weight ×5 @2.0 from +42 to +20px. Every remaining red is 5-glyph:
 
 | cell | text px | slot px | over | tag |
 |---|---|---|---|---|
-| live reps ×5 @1.3 | 215 | 209 | +6 | resolved by domain cap, follow-up PR |
-| live reps ×5 @1.6 | 250 | 209 | +41 | resolved by domain cap, follow-up PR |
-| live reps ×5 @2.0 | 310 | 206 | +104 | resolved by domain cap, follow-up PR |
-| past reps ×5 @1.6 | 250 | 239 | +11 | resolved by domain cap, follow-up PR |
-| past reps ×5 @2.0 | 310 | 236 | +74 | resolved by domain cap, follow-up PR |
-| live weight ×5 @2.0 | 276 | 234 | +42 | 19sp contrast floor — R4-sanctioned |
-| past weight ×5 @2.0 | 276 | 270 | +6 | 19sp contrast floor |
+| live reps ×5 @1.3 | 215 | 209 | +6 | DEFERRED to domain cap (B-8) |
+| live reps ×5 @1.6 | 250 | 209 | +41 | DEFERRED to domain cap (B-8) |
+| live reps ×5 @2.0 | 310 | 206 | +104 | DEFERRED to domain cap (B-8) |
+| past reps ×5 @1.6 | 250 | 239 | +11 | DEFERRED to domain cap (B-8) |
+| past reps ×5 @2.0 | 310 | 236 | +74 | DEFERRED to domain cap (B-8) |
+| live weight ×5 @2.0 | 276 | 256 | +20 | 19sp contrast floor — R4-sanctioned |
 
-Every hard-band red is a five-digit rep count — typeable garbage the pending domain
-cap (B-8) eliminates; no R11 "genuine conflict" cell remains. The gates assert the
-full matrix with this ledger inverted (a ledgered cell that starts fitting fails the
-gate — ledgers are not allowed to rot). Converter facts for the record: 26sp scales
-×1.40 at fontScale 2.0, 19sp ×~1.695, mono caption near-linearly.
+**The five deferred cells are DEBT, not resolution (R15): until B-8 ships, a user who
+enters a five-digit rep count sees a clipped (scrolled-out) value in these bands in
+production.** The entries are void the moment B-8 merges — the inverted gate
+assertion fails on a fitting ledger cell and forces the cleanup. Converter facts for
+the record: 26sp scales ×1.40 at fontScale 2.0, 19sp ×~1.695, mono caption
+near-linearly.
 
 ## 7b. Superseded first-round ledger (commit 5, pre-lever) — kept for the record
 

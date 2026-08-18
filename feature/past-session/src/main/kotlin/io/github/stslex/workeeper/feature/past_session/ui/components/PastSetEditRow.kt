@@ -108,6 +108,7 @@ internal fun PastSetEditRow(
                 isError = set.weightError,
                 isRecord = set.isPersonalRecord,
                 isLogged = true,
+                fieldInset = SetRowGeometry.compactFieldInset,
                 accessibilityLabel = stringResource(R.string.core_ui_kit_set_field_a11y_weight),
                 valueSlotProbe = weightSlotProbe,
             )
@@ -119,6 +120,7 @@ internal fun PastSetEditRow(
                 isError = set.repsError,
                 isRecord = set.isPersonalRecord,
                 isLogged = true,
+                fieldInset = SetRowGeometry.compactFieldInset,
                 accessibilityLabel = stringResource(R.string.core_ui_kit_set_field_a11y_reps),
                 valueSlotProbe = repsSlotProbe,
             )
@@ -133,6 +135,7 @@ internal fun PastSetEditRow(
                 isError = set.repsError,
                 isRecord = set.isPersonalRecord,
                 isLogged = true,
+                fieldInset = SetRowGeometry.compactFieldInset,
                 accessibilityLabel = stringResource(R.string.core_ui_kit_set_field_a11y_reps),
                 valueSlotProbe = repsSlotProbe,
             )

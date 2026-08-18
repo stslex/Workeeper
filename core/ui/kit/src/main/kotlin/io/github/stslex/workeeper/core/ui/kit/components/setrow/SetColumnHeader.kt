@@ -14,6 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
@@ -61,6 +62,7 @@ fun SetColumnHeader(
     indexColumnWidth: Dp,
     trailingWidth: Dp,
     modifier: Modifier = Modifier,
+    indexGutterProbe: ((widthPx: Int) -> Unit)? = null,
 ) {
     Row(
         modifier = modifier
@@ -70,7 +72,15 @@ fun SetColumnHeader(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
     ) {
-        Spacer(modifier = Modifier.width(indexColumnWidth))
+        // [indexGutterProbe] is the R14 alignment gate's capture point (the
+        // `flashAlphaOverride` move — test-only, production never passes it): the gutter's
+        // laid-out width is the ONE free variable in the label/value alignment; the gap and
+        // the label inset are the same tokens the rows read.
+        Spacer(
+            modifier = Modifier
+                .width(indexColumnWidth)
+                .onSizeChanged { size -> indexGutterProbe?.invoke(size.width) },
+        )
         if (isWeighted) {
             HeaderCell(
                 label = buildSetColumnHeaderLabel(
@@ -102,7 +112,12 @@ fun SetColumnHeader(
     }
 }
 
-/** One column's label, inset to sit over the field's value rather than its edge. */
+/**
+ * One column's label, inset to sit over the field's VALUE rather than its edge — by the
+ * same [SetRowGeometry.compactFieldInset] the rows pass to their fields, so label and
+ * value cannot drift apart (R13 closed exactly that drift: the first lever left the label
+ * at `Space.md` over fields that had moved to `Space.sm`).
+ */
 @Composable
 private fun HeaderCell(
     label: AnnotatedString,
@@ -111,7 +126,7 @@ private fun HeaderCell(
     Box(modifier = modifier) {
         SetColumnHeaderLabel(
             label = label,
-            modifier = Modifier.padding(start = AppDimension.Space.md),
+            modifier = Modifier.padding(start = SetRowGeometry.compactFieldInset),
         )
     }
 }

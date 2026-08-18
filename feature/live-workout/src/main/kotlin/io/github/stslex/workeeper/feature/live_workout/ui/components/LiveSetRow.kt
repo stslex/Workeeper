@@ -15,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
@@ -79,6 +80,7 @@ internal fun LiveSetRow(
     flashAlphaOverride: Float? = null,
     weightSlotProbe: ((slotWidthPx: Int, resolvedStyle: TextStyle) -> Unit)? = null,
     repsSlotProbe: ((slotWidthPx: Int, resolvedStyle: TextStyle) -> Unit)? = null,
+    indexColumnProbe: ((widthPx: Int) -> Unit)? = null,
 ) {
     // §9's merged automaton, one instance for the whole row: the mark's morph, this row's
     // flash and the rail segment all resolve from the same closure, with `isRecord` selecting
@@ -113,7 +115,12 @@ internal fun LiveSetRow(
             // set the row height. The minimum arrives from the container
             // (`SetRowGeometry.resolveIndexColumnWidth`) so the header above and every row
             // grow together past nine sets; a bare row keeps the drawn 12dp default.
-            modifier = Modifier.widthIn(min = indexColumnWidth),
+            modifier = Modifier
+                .widthIn(min = indexColumnWidth)
+                // The R14 alignment gate's row-side capture (test-only, never passed in
+                // production): the index column's LAID-OUT width, minimum and intrinsic
+                // growth included — what the header's gutter must equal.
+                .onSizeChanged { size -> indexColumnProbe?.invoke(size.width) },
             text = (set.position + 1).toString(),
             style = AppUi.typography.mono.meta,
             color = AppUi.colors.textDim,
@@ -128,6 +135,7 @@ internal fun LiveSetRow(
                     enabled = editable && !set.isDone,
                     isRecord = set.isPersonalRecord,
                     isDone = set.isDone,
+                    fieldInset = SetRowGeometry.compactFieldInset,
                     accessibilityLabel = stringResource(
                         KitR.string.core_ui_kit_set_field_a11y_weight,
                     ),
@@ -142,6 +150,7 @@ internal fun LiveSetRow(
                     enabled = editable && !set.isDone,
                     isRecord = set.isPersonalRecord,
                     isDone = set.isDone,
+                    fieldInset = SetRowGeometry.compactFieldInset,
                     accessibilityLabel = stringResource(
                         KitR.string.core_ui_kit_set_field_a11y_reps,
                     ),
@@ -159,6 +168,7 @@ internal fun LiveSetRow(
                     enabled = editable && !set.isDone,
                     isRecord = set.isPersonalRecord,
                     isDone = set.isDone,
+                    fieldInset = SetRowGeometry.compactFieldInset,
                     accessibilityLabel = stringResource(
                         KitR.string.core_ui_kit_set_field_a11y_reps,
                     ),

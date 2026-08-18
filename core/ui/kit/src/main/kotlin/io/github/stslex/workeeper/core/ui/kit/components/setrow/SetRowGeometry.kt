@@ -48,6 +48,16 @@ object SetRowGeometry {
     val setTypeSlotWidth: Dp = CHIP_MIN_WIDTH
 
     /**
+     * The horizontal inset a SET-ROW field passes to `AppNumberInput.fieldInset` (R13,
+     * set-field-column-headers.md §7a): the dense weighted split earns back 8dp of value
+     * budget per field over the drawn `Space.md`, by explicit consumer choice — the first
+     * cut's 105dp width threshold was a tripwire calibrated to a 3.3dp gap in today's
+     * geometry. One source for the rows AND the header's label inset, so the label sits
+     * exactly over the value it names; `PlanSetCard` never reads it and keeps the default.
+     */
+    val compactFieldInset: Dp = AppDimension.Space.sm
+
+    /**
      * The index column width for a card with [setCount] visible rows, resolved by
      * **measurement** rather than by a table: the widest index label is `setCount` itself
      * (`mono.meta` digits are tabular), measured through the same text stack `Text` uses,
