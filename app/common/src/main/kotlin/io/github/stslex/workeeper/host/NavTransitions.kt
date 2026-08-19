@@ -56,10 +56,12 @@ private const val ENTER_INITIAL_ALPHA = 0.3f
 private const val EXIT_TARGET_ALPHA = 0f
 
 /**
- * 9/10 — Material 3's own `SearchBarPredictiveBackMinScale` (material3 1.5.0-alpha24,
- * `SearchBar.kt:3842`), matched rather than invented. With the pivot on the edge opposite the finger
- * it also reproduces M3's horizontal shift for free: the centre moves `(1 - 0.9) / 2 = w/20`, which
- * is `SearchBarPredictiveBackMaxOffsetXRatio` exactly. One channel, not two.
+ * Material 3's own `SearchBarPredictiveBackMinScale`, matched rather than invented — and, with
+ * [predictivePivot]'s off-centre pivot, its horizontal shift comes with it on the same channel.
+ * The arithmetic is in `documentation/architecture.md` § "Navigation host and shared element
+ * transitions".
+ *
+ * GUARD: changing this without moving the pivot changes both the size AND the shift.
  */
 private const val PREVIEW_SCALE = 0.9f
 

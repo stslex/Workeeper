@@ -253,16 +253,13 @@ internal class NavTransitionsTest {
     // ---- the two defects this design was re-cut to fix, each with its own gate ---------------
 
     /**
-     * **The kink gate.** The first version held the card's alpha flat for `AppMotion.fast` and then
-     * ran it linearly. Same endpoints, same duration, same intent — and a CORNER at the delay
-     * boundary. The fraction is the finger, so that corner is a frame in which the card goes from
-     * perfectly solid to visibly dissolving, and it read as the screen being thrown away halfway
-     * through the gesture.
+     * **The kink gate.** A delayed curve is exactly a curve that does not move at the start, and
+     * under a seek the fraction is the finger — so a delay boundary is a frame in which the card
+     * goes from perfectly solid to visibly dissolving. The departure must therefore be already
+     * moving before a tenth of the drag, and still mostly solid at half.
      *
-     * A delayed curve is exactly a curve that does not move at the start. So: the departure must be
-     * already moving before a tenth of the drag, and still be mostly solid at half. The delayed
-     * predecessor fails the first half of that by construction, which is what makes this a gate and
-     * not a description.
+     * The control below rebuilds a delayed spec and runs it through the same detector, which is
+     * what makes this a gate rather than a description. §26's gesture-curve row carries the ruling.
      */
     @Test
     fun `the card never starts dissolving at an instant — it is moving from the first frame`() {
@@ -296,10 +293,11 @@ internal class NavTransitionsTest {
     }
 
     /**
-     * **The response gate.** The preview must be front-loaded — Material's own curve spends 0.68 of
-     * the travel in the first quarter of the drag, because a preview that lags the finger reads as
-     * unresponsive. `AppMotion.travel`, which this shipped on first, reaches only 0.58 there and was
-     * the other half of "the animation is crumpled".
+     * **The response gate.** The preview must be front-loaded: a curve that lags the finger early
+     * reads as unresponsive, and one that keeps moving after the gesture commits reads as
+     * unbounded. Material's own curve spends 0.68 of its travel in the first quarter of the drag,
+     * and the band below is that value with slack — `AppMotion.travel` at 0.58 sits outside it,
+     * which is why the assertion compares against a scale token rather than only against a number.
      */
     @Test
     fun `the preview answers the finger early, ahead of every curve on the motion scale`() {

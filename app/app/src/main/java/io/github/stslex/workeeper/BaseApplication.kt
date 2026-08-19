@@ -187,12 +187,6 @@ abstract class BaseApplication :
     }
 
     /**
-     * Eagerly construct the cross-feature dialog reactor so its `init { observer.observeUserActions()
-     * ...launchIn(scope) }` registers a subscriber on the SharedFlow BEFORE MainActivity.onCreate runs.
-     * Lazy construction would mean the first user dispatch fires on zero subscribers and is lost. The
-     * return value is intentionally discarded — the side-effect of construction is what we want.
-     */
-    /**
      * Refreshes SQLite's planner statistics, off the main thread and best-effort.
      *
      * Without them the planner drives the live-workout PR read from `session_table.state` — an index
@@ -227,6 +221,12 @@ abstract class BaseApplication :
         }
     }
 
+    /**
+     * Eagerly construct the cross-feature dialog reactor so its `init { observer.observeUserActions()
+     * ...launchIn(scope) }` registers a subscriber on the SharedFlow BEFORE MainActivity.onCreate runs.
+     * Lazy construction would mean the first user dispatch fires on zero subscribers and is lost. The
+     * return value is intentionally discarded — the side-effect of construction is what we want.
+     */
     private fun bootstrapAppDialogObserver() {
         appGraph.recoveryBootstrap
     }
