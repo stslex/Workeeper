@@ -67,17 +67,15 @@ internal class CommonHandler @Inject constructor(
     }
 
     /**
-     * The only honest exit when the session did not load: say so and leave.
+     * The only honest exit when the session did not load: clear the flag, say so, and leave. Two
+     * arms reach it — a throw, and a `loadSession` that resolves to nothing.
      *
-     * Two arms reach it — a throw, and a `loadSession` that resolves to nothing — and both used to
-     * clear `isLoading` and stop. That is worse than it sounds. The route composes on that flag, so
-     * clearing it presents the requested session as a **successfully empty** one: "No exercises
-     * yet", an Add CTA, and a Finish dock that is enabled by `!isLoading`. A transient read failure
-     * could therefore finish a workout whose exercises never loaded.
-     *
-     * GUARD: clearing the flag is still load-bearing and must stay — `launch` defaults `onError` to
-     * `{}` (B17, B21), and a latched flag behind the route gate is a permanently empty frame. It is
-     * cleared AND the screen is left, so neither failure mode is reachable.
+     * GUARD: **all three steps, and none of them is optional.** Leaving the flag set is a
+     * permanently empty frame behind the route gate (`launch` defaults `onError` to `{}` — B17,
+     * B21). Clearing it WITHOUT leaving is worse: the route composes on that flag, so the requested
+     * session then reads as a successfully empty one — "No exercises yet", an Add CTA, and a Finish
+     * dock enabled by `!isLoading` — and a transient read failure can finish a workout whose
+     * exercises never loaded. `CommonHandlerTest` asserts all three.
      */
     private suspend fun abandonUnloadedSession() {
         updateStateImmediate { it.copy(isLoading = false) }
