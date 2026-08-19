@@ -7,6 +7,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
+import io.github.stslex.workeeper.core.ui.kit.components.loading.AppLoadedContent
 import io.github.stslex.workeeper.core.ui.kit.snackbar.AppSnackbarModel
 import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
 import io.github.stslex.workeeper.core.ui.navigation.NavGraphScope
@@ -96,11 +97,11 @@ private fun PlanEditorContent(
     // FAILURE as well as on success. `HandlerStore.launch`/`launchDefault` default `onError`
     // to `{}` (B17, B21), so a throw that leaves the flag set is a permanently empty screen —
     // this gate is what gives that failure a cost. `CommonHandler.loadPlan` closes its own.
-    if (state.isLoading) return
-
-    PlanEditorScreen(
-        modifier = modifier,
-        state = state,
-        consume = processor::consume,
-    )
+    AppLoadedContent(isLoaded = state.isLoading.not()) {
+        PlanEditorScreen(
+            modifier = modifier,
+            state = state,
+            consume = processor::consume,
+        )
+    }
 }

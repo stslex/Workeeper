@@ -20,6 +20,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.core.net.toUri
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.ActiveSessionConflictDialog
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppBlockedArchiveDialog
+import io.github.stslex.workeeper.core.ui.kit.components.loading.AppLoadedContent
 import io.github.stslex.workeeper.core.ui.kit.components.pr.PrExplainerDialog
 import io.github.stslex.workeeper.core.ui.kit.components.sheet.AppBottomSheet
 import io.github.stslex.workeeper.core.ui.kit.components.sheet.AppConfirmSheet
@@ -202,21 +203,27 @@ fun NavGraphScope.exerciseGraph(
         // as on success, because `HandlerStore.launch` defaults `onError` to `{}` (B17, B21).
         // A throw that leaves the flag set is a permanently empty screen — this gate is what
         // gives that failure a cost. `CommonHandler.loadExercise` closes its own.
-        if (state.isLoading) return@navComponentScreenWithResults
+        // The gate stays; only the ARRIVAL changes. `AnimatedVisibility` does not animate a
+        // composable that enters composition already visible, so the wrapper has to be composed
+        // WHILE the route is still loading — which is why it sits above the early return rather
+        // than around everything below it. Everything below is withheld exactly as before.
+        AppLoadedContent(isLoaded = state.isLoading.not()) {
+            when (state.mode) {
+                Mode.Read -> ExerciseDetailScreen(
+                    modifier = modifier,
+                    state = state,
+                    consume = processor::consume,
+                )
 
-        when (state.mode) {
-            Mode.Read -> ExerciseDetailScreen(
-                modifier = modifier,
-                state = state,
-                consume = processor::consume,
-            )
-
-            is Mode.Edit -> ExerciseEditScreen(
-                modifier = modifier,
-                state = state,
-                consume = processor::consume,
-            )
+                is Mode.Edit -> ExerciseEditScreen(
+                    modifier = modifier,
+                    state = state,
+                    consume = processor::consume,
+                )
+            }
         }
+
+        if (state.isLoading) return@navComponentScreenWithResults
 
         when (state.bottomSheetState) {
             BottomSheetState.Hidden -> Unit

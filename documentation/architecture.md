@@ -1614,6 +1614,16 @@ both are read in the *placement* block, so they invalidate layout every frame, a
 graph here carries `Modifier.reportScreenPlace<...>()` whose `onPlaced` would then fire per
 frame per scene.
 
+A route does not compose until it has loaded (§26), and it arrives with a fade rather than a
+snap: `AppLoadedContent` (`core:ui:kit/.../loading/`) wraps the content of `exercise`,
+`single-training`, `plan-editor` and `live-workout`, composing it only once the store's
+`isLoading` clears and fading it in on `continuityAlphaSpec`. Nothing is drawn while it waits —
+no mockup draws a loading surface, and the host paints the background under every destination.
+**The precondition travels with the gate:** every load behind it must clear `isLoading` on
+FAILURE as well as on success, because `HandlerStore.launch` defaults `onError` to `{}` — a
+latched flag is a permanently empty screen. Each of the four closes its own arm, and a
+handler test pins it.
+
 Each graph is added via `navComponentScreen<Feature>` /
 `navComponentScreenWithResults<Feature>`, which expands to an `entry<Screen>`
 registration under the hood (see `core/ui/navigation/.../NavGraphScope.kt::navScreen`).

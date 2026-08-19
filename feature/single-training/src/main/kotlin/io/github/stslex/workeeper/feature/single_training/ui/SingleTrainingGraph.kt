@@ -8,6 +8,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.ActiveSessionConflictDialog
+import io.github.stslex.workeeper.core.ui.kit.components.loading.AppLoadedContent
 import io.github.stslex.workeeper.core.ui.kit.components.sheet.AppBottomSheet
 import io.github.stslex.workeeper.core.ui.kit.components.sheet.AppConfirmSheet
 import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagPickerSheetContent
@@ -106,21 +107,27 @@ fun NavGraphScope.singleTrainingsGraph(
         // as on success, because `HandlerStore.launch` defaults `onError` to `{}` (B17, B21).
         // A throw that leaves the flag set is a permanently empty screen — this gate is what
         // gives that failure a cost. `CommonHandler.loadTraining` closes its own.
-        if (state.isLoading) return@navComponentScreen
+        // The gate stays; only the ARRIVAL changes. `AnimatedVisibility` does not animate a
+        // composable that enters composition already visible, so the wrapper has to be composed
+        // WHILE the route is still loading — which is why it sits above the early return rather
+        // than around everything below it. Everything below is withheld exactly as before.
+        AppLoadedContent(isLoaded = state.isLoading.not()) {
+            when (state.mode) {
+                Mode.Read -> TrainingDetailScreen(
+                    modifier = modifier,
+                    state = state,
+                    consume = processor::consume,
+                )
 
-        when (state.mode) {
-            Mode.Read -> TrainingDetailScreen(
-                modifier = modifier,
-                state = state,
-                consume = processor::consume,
-            )
-
-            is Mode.Edit -> TrainingEditScreen(
-                modifier = modifier,
-                state = state,
-                consume = processor::consume,
-            )
+                is Mode.Edit -> TrainingEditScreen(
+                    modifier = modifier,
+                    state = state,
+                    consume = processor::consume,
+                )
+            }
         }
+
+        if (state.isLoading) return@navComponentScreen
 
         (state.pickerState as? PickerState.Open)?.let { picker ->
             ExercisePickerSheet(
