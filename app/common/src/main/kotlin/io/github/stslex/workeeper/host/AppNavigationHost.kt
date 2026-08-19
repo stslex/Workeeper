@@ -76,6 +76,18 @@ internal fun AppNavigationHost(
             .background(MaterialTheme.colorScheme.background)
             .systemBarsPadding()
 
+        // The one destination the clip is WRONG for, and the exception is about what is behind it
+        // rather than about the screen. A clip is invisible at rest only while the scene behind the
+        // corners is the colour the screen paints — true for every graph but the image viewer,
+        // which paints `Color.Black`. Where the display reports no radius and the fallback stands
+        // in (API < 31, square panels), rounding that screen cuts four theme-coloured wedges into
+        // an otherwise black frame, for as long as the viewer is open — a permanent cost for a
+        // gesture-only benefit. It gives up the rounded card instead.
+        val imageViewerModifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .systemBarsPadding()
+
         val motion = AppUi.motion
         val fadeTransform = remember(motion) { navFadeTransform(motion) }
 
@@ -154,7 +166,7 @@ internal fun AppNavigationHost(
                             .testTag("PastSessionGraph"),
                     )
                     imageViewerGraph(
-                        modifier = standardModifier
+                        modifier = imageViewerModifier
                             .reportScreenPlace<Screen.ExerciseImage>()
                             .testTag("ImageViewerGraph"),
                     )

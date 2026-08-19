@@ -1618,8 +1618,15 @@ the content area: with the padding first, the corners would begin at the inset b
 bar strips would fall outside the shrinking card. Unconditional, at rest as well as in motion, which is
 what the platform does too: the window always carries that shape and you only notice once it
 shrinks away from the display edge. Invisible at rest because `android:windowBackground`,
-`App.kt`'s root `Box` and every graph all paint the same colour, so whatever the corners cut
+`App.kt`'s root `Box` and every clipped graph paint the same colour, so whatever the corners cut
 away, what shows through is that colour.
+
+**`image-viewer` is exempt, and the exemption is about what is behind the clip rather than about
+the screen.** It paints `Color.Black`, so on hardware where the display reports no radius and the
+fallback stands in (API < 31, square panels), rounding it cuts four theme-coloured wedges into an
+otherwise black frame — permanently, for as long as the viewer is open, in exchange for a
+gesture-only benefit. It takes a square card instead. Any future destination that paints something
+other than `colorScheme.background` owes the same decision.
 
 Three mechanics constrain anything written there, and none of them is optional.
 **First**, `NavDisplay` places the incoming scene *below* the outgoing during predictive back
