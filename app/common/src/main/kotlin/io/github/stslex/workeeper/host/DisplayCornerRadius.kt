@@ -3,7 +3,10 @@ package io.github.stslex.workeeper.host
 
 import android.os.Build
 import android.view.RoundedCorner
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.systemBars
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
@@ -38,36 +41,40 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
  * most emulators) also takes the fallback, which is deliberate: the point of the clip is the
  * shrunken card, and a square card is the defect being fixed.
  *
- * Read on composition rather than cached: see the body for why a `remember` here holds the wrong
- * number across a rotation and can pin the fallback permanently.
+ * Keyed on the two things that can change the answer — the configuration and the window insets —
+ * rather than on the View alone: see the body.
  */
 @Composable
 internal fun displayCornerRadius(): Dp {
     val view = LocalView.current
     val density = LocalDensity.current
 
-    // Read, never cached. `LocalConfiguration` is here to SUBSCRIBE, not to compute: MainActivity
-    // declares `configChanges` for orientation and screenSize, so a rotation neither recreates the
-    // activity nor replaces the View — a `remember(view, density)` would hold the pre-rotation
-    // radius forever, and on hardware whose corners are not symmetric that is the wrong number.
-    // Reading the configuration makes this composable recompose when one arrives.
+    // Both reads are KEYS, not inputs, and each answers a different way of going stale.
     //
-    // Not remembering also makes the fallback self-healing. `rootWindowInsets` is null until the
-    // first inset dispatch, so a composition that beats it resolves to [AppDimension.Radius.big] —
-    // cached, that would be permanent; read, the next recomposition picks up the real value. The
-    // window it is wrong in is invisible: the radius only becomes visible once a gesture shrinks
-    // the screen off the display edge.
-    LocalConfiguration.current
+    // `LocalConfiguration` covers rotation: `MainActivity` declares `configChanges` for
+    // orientation and screenSize, so the activity is not recreated and the View is not replaced —
+    // keying on `view` alone would hold the pre-rotation radius forever, and on hardware whose
+    // corners are not symmetric the physical top-left after a rotation is a different corner.
+    //
+    // `WindowInsets.systemBars` covers the arrival race, and covers it by subscribing to the very
+    // dispatch that resolves it: `rootWindowInsets` is null until the first one, so a composition
+    // that beats it takes the fallback. Configuration does not change when insets land, so nothing
+    // would have recomposed this — the fallback would simply stay. The first dispatch moves this
+    // key off zero, which re-reads the radius.
+    val configuration = LocalConfiguration.current
+    val systemBarsTop = WindowInsets.systemBars.getTop(density)
 
-    val radiusPx = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-        view.rootWindowInsets
-            ?.getRoundedCorner(RoundedCorner.POSITION_TOP_LEFT)
-            ?.radius
-    } else {
-        null
+    return remember(view, density, configuration, systemBarsTop) {
+        val radiusPx = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            view.rootWindowInsets
+                ?.getRoundedCorner(RoundedCorner.POSITION_TOP_LEFT)
+                ?.radius
+        } else {
+            null
+        }
+        radiusPx
+            ?.takeIf { it > 0 }
+            ?.let { with(density) { it.toDp() } }
+            ?: AppDimension.Radius.big
     }
-    return radiusPx
-        ?.takeIf { it > 0 }
-        ?.let { with(density) { it.toDp() } }
-        ?: AppDimension.Radius.big
 }

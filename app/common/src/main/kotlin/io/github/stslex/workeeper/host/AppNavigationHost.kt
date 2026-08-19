@@ -57,18 +57,24 @@ internal fun AppNavigationHost(
         // rest: the root Box and the window background are the colour these screens paint.
         val screenShape = RoundedCornerShape(displayCornerRadius())
 
+        // ORDER IS LOAD-BEARING: clip and paint the WHOLE scene, then inset the content inside it.
+        // With `systemBarsPadding()` ahead of the clip, the rounded corners begin at the inset
+        // boundary instead of the display edge and the bar strips fall outside the card — so the
+        // thing that shrinks under a back gesture is the content area, not the window. The
+        // platform shrinks the window; so does this. `padding` still insets children exactly as
+        // before, so no screen's layout moves.
         val bottomBarModifier = Modifier
             .fillMaxSize()
-            .padding(bottom = AppDimension.BottomNavBar.height)
-            .systemBarsPadding()
             .clip(screenShape)
             .background(MaterialTheme.colorScheme.background)
+            .padding(bottom = AppDimension.BottomNavBar.height)
+            .systemBarsPadding()
 
         val standardModifier = Modifier
             .fillMaxSize()
-            .systemBarsPadding()
             .clip(screenShape)
             .background(MaterialTheme.colorScheme.background)
+            .systemBarsPadding()
 
         val motion = AppUi.motion
         val fadeTransform = remember(motion) { navFadeTransform(motion) }

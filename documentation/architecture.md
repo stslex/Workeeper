@@ -1607,8 +1607,12 @@ the same detector to show it discriminates.
 
 **The card's rounded edge is a clip, not a transition.** `ContentTransform` has no corner
 radius, so the host clips every graph's root modifier to `RoundedCornerShape` of the display's
-own corner radius (`rememberDisplayCornerRadius` — `RoundedCorner` on API 31+,
-`AppDimension.Radius.big` otherwise). Unconditional, at rest as well as in motion, which is
+own corner radius (`displayCornerRadius` — `RoundedCorner` on API 31+, `AppDimension.Radius.big`
+otherwise; keyed on the configuration and on the system-bar insets, because a rotation does not
+recreate this activity and the first inset dispatch is what resolves the radius at all). **The
+clip and the background come before the inset padding**, so the card is the whole window and not
+the content area: with the padding first, the corners would begin at the inset boundary and the
+bar strips would fall outside the shrinking card. Unconditional, at rest as well as in motion, which is
 what the platform does too: the window always carries that shape and you only notice once it
 shrinks away from the display edge. Invisible at rest because `android:windowBackground`,
 `App.kt`'s root `Box` and every graph all paint the same colour, so whatever the corners cut
