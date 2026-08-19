@@ -1609,10 +1609,16 @@ makes "each channel lands exactly at fraction 1.0" hold by inspection instead of
 the same detector to show it discriminates.
 
 **The card's rounded edge is a clip, not a transition.** `ContentTransform` has no corner
-radius, so the host clips every graph's root modifier to `RoundedCornerShape` of the display's
-own corner radius (`displayCornerShape` — `RoundedCorner` on API 31+, `AppDimension.Radius.big`
-otherwise; keyed on the configuration and on the system-bar insets, because a rotation does not
-recreate this activity and the first inset dispatch is what resolves the radius at all). **The
+radius, so the host clips its clipped destinations' root modifiers to the display's own corner
+shape (`displayCornerShape`, an `AbsoluteRoundedCornerShape` because `RoundedCorner` positions are
+physical and a start/end shape would mirror them under RTL). Each of the four corners is read
+separately — a display whose corners differ is exactly what the rotation key exists for.
+`RoundedCorner` is API 31+; below that the platform reports nothing and `AppDimension.Radius.big`
+stands in, and a device that reports a **zero or absent** radius (square panel, most emulators)
+takes the same fallback deliberately — the point of the clip is the shrunken card, and a square
+card is the defect being fixed. Keyed on the configuration and on the system-bar insets, because a
+rotation does not recreate this activity and the first inset dispatch is what resolves the radius
+at all. **The
 clip and the background come before the inset padding**, so the card is the whole window and not
 the content area: with the padding first, the corners would begin at the inset boundary and the
 bar strips would fall outside the shrinking card. Unconditional, at rest as well as in motion, which is

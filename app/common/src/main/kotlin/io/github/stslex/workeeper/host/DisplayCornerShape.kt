@@ -19,35 +19,20 @@ import androidx.compose.ui.unit.Dp
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 
 /**
- * The shape the display's own corners are cut with, for the clip every screen carries.
+ * The shape the display's own corners are cut with, for the clip the host puts on its **clipped**
+ * destinations — every graph except `image-viewer`, which paints `Color.Black` and is exempt (see
+ * `AppNavigationHost`, and `architecture.md` § "Navigation host and shared element transitions"
+ * for both the exemption and its reason).
  *
- * ## Why a screen is clipped at all, and why always rather than during the gesture
+ * The clip is unconditional rather than gesture-scoped because the platform's window is always this
+ * shape too; it only becomes visible once a predictive-back preview shrinks the window off the
+ * display's edge, and a `ContentTransform` has no corner-radius channel to do it with. On a
+ * clipped destination it is invisible at rest, because what the corners cut away is the colour that
+ * destination paints.
  *
- * The predictive-back preview shrinks the leaving screen into a card, and a card with square
- * corners is the one thing about it that reads as wrong — the platform's own preview is rounded.
- * There is no corner-radius channel in a `ContentTransform` (`TransitionData` is exhaustively fade
- * / slide / changeSize / scale / veil / hold), so the rounding cannot come from the transition.
- *
- * It does not need to. **The platform does not round the window for the gesture either — the window
- * is always that shape, and you only ever notice once it shrinks away from the display's edge.**
- * So the clip is unconditional, on every screen, at rest as well as in motion, and the gesture gets
- * its rounded card for free with no signal to plumb and no per-frame work.
- *
- * At rest the clip is invisible by construction: `android:windowBackground` is the literal value of
- * `AppColors.surfaceTier0` and `App.kt`'s root `Box` paints `colorScheme.background`, which is the
- * same colour every graph paints. Whatever the corners cut away, what shows through is that colour.
- * On hardware whose display is physically rounded — which is where this radius comes from — the
- * cut pixels are outside the panel anyway.
- *
- * ## Where the number comes from
- *
- * `RoundedCorner` is API 31+; below that the platform reports nothing and
- * [AppDimension.Radius.big] stands in. A device that reports a zero or absent radius (square panel,
- * most emulators) also takes the fallback, which is deliberate: the point of the clip is the
- * shrunken card, and a square card is the defect being fixed.
- *
- * Keyed on the two things that can change the answer — the configuration and the window insets —
- * rather than on the View alone, and read per corner rather than once: see the body.
+ * Falls back to [AppDimension.Radius.big] when the platform reports no radius — deliberately, since
+ * a square card is the defect being fixed; the API cutoff and the zero-radius case are derived in
+ * the same architecture section.
  */
 @Composable
 internal fun displayCornerShape(): Shape {
