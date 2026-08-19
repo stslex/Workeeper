@@ -132,6 +132,25 @@ class LiveWorkoutInteractorImpl internal constructor(
             setRepository.getByPerformedExercises(performedRows.map { it.uuid })
         }
 
+        // Parallel with the reads above rather than sequential after them, and the difference is
+        // not theoretical: profiled on a seeded device (201 exercises, 151 trainings, 3660 sets),
+        // this read is 17-22ms warm and 28ms cold — about HALF of loadSession's total 34-44ms —
+        // and sitting in the tail it added every millisecond of that to the critical path.
+        //
+        // It is also the one read here that scales with the user's whole HISTORY rather than with
+        // the session: the batch query returns every eligible historical set for these exercises
+        // (188 rows to answer 13 questions on the seeded device) and the consumer keeps the first
+        // of each group. Overlapping it does not make that cheaper — it makes it free of the
+        // critical path as long as another read is still outstanding. Narrowing the query itself
+        // is a change to PR ranking rules and owes its own commit and its own parity proof.
+        val preSessionPrsDeferred = async {
+            personalRecordRepository
+                .observePersonalRecordsBatch(performedRows.mapTo(mutableSetOf()) { it.exerciseUuid })
+                .firstOrNull()
+                .orEmpty()
+                .mapValues { (_, pr) -> pr.toDomain() }
+        }
+
         val exerciseTemplates = exerciseTemplatesDeferred.await()
         val planByExercise = planByExerciseDeferred.await()
         val performedSetsByPerformed = performedSetsByPerformedDeferred.await()
@@ -156,11 +175,9 @@ class LiveWorkoutInteractorImpl internal constructor(
         // a finished session on another screen).
         val exerciseUuids = exerciseSnapshots
             .mapTo(mutableSetOf()) { snap -> snap.performed.exerciseUuid }
-        val preSessionPrs = personalRecordRepository
-            .observePersonalRecordsBatch(exerciseUuids)
-            .firstOrNull()
-            .orEmpty()
-            .mapValues { (_, pr) -> pr.toDomain() }
+        // Narrowed to the snapshots that survived the template lookup, so the map's contents are
+        // byte-identical to the sequential version that asked for exactly these uuids.
+        val preSessionPrs = preSessionPrsDeferred.await().filterKeys { it in exerciseUuids }
         val training = trainingDeferred.await()
         SessionSnapshotDomain(
             session = session.toDomain(),

@@ -1616,8 +1616,14 @@ frame per scene.
 
 A route does not compose until it has loaded (§26), and it arrives with a fade rather than a
 snap: `AppLoadedContent` (`core:ui:kit/.../loading/`) wraps the content of `exercise`,
-`single-training`, `plan-editor` and `live-workout`, composing it only once the store's
-`isLoading` clears and fading it in on `continuityAlphaSpec`. Nothing is drawn while it waits —
+`single-training`, `plan-editor`, `live-workout`, `past-session` and `exercise-chart`,
+composing it only once the route knows what it is showing and fading it in on
+`continuityAlphaSpec`. The predicate differs by what each store models: `isLoading` for the
+first four, `phase !is Loading` for `past-session` (its Error phase must still compose), and
+`content !is Content.Loading` for `exercise-chart` (a verdict, not a flag, so a reload keeps
+its resolved plot on screen). **No screen draws a spinner while it waits** — one that resolves
+in ~150ms is a flicker rather than a progress report, and it costs two layout changes to say
+less than the blank does. Nothing is drawn while it waits —
 no mockup draws a loading surface, and the host paints the background under every destination.
 **The precondition travels with the gate:** every load behind it must clear `isLoading` on
 FAILURE as well as on success, because `HandlerStore.launch` defaults `onError` to `{}` — a

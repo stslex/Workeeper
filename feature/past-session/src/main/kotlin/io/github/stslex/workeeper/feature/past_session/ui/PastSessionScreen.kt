@@ -16,7 +16,6 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import io.github.stslex.workeeper.core.ui.kit.components.empty.AppEmptyState
-import io.github.stslex.workeeper.core.ui.kit.components.loading.AppLoadingIndicator
 import io.github.stslex.workeeper.core.ui.kit.components.pr.PrExplainerDialog
 import io.github.stslex.workeeper.core.ui.kit.components.section.AppSectionHeader
 import io.github.stslex.workeeper.core.ui.kit.components.sheet.AppBottomSheet
@@ -60,9 +59,11 @@ internal fun PastSessionScreen(
     ) {
         TopBar(state = state, consume = consume)
         when (val phase = state.phase) {
-            State.Phase.Loading -> LoadingContent(
-                modifier = Modifier.fillMaxSize(),
-            )
+            // Unreachable through `PastSessionGraph`, which withholds the whole screen while
+            // loading — kept as an arm rather than a crash because the phase is legal state, and
+            // drawing NOTHING is the decision: a spinner that resolves in ~150ms reads as a
+            // flicker, and the top bar above would meanwhile be showing its fallback title.
+            State.Phase.Loading -> Unit
 
             is State.Phase.Error -> ErrorContent(
                 modifier = Modifier.fillMaxSize(),
@@ -117,6 +118,9 @@ internal fun TopBar(
     consume: (Action) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // The fallback is the ERROR phase's title now, not a placeholder the user sees on the way
+    // in: the route does not compose while loading, so this no longer flashes and is then
+    // rewritten when the name lands.
     val title = (state.phase as? State.Phase.Loaded)?.detail?.trainingName
         ?: stringResource(R.string.feature_past_session_loading_title)
     AppTopBar(
@@ -143,13 +147,6 @@ internal fun TopBar(
             }
         },
     )
-}
-
-@Composable
-private fun LoadingContent(modifier: Modifier = Modifier) {
-    Box(modifier = modifier, contentAlignment = Alignment.Center) {
-        AppLoadingIndicator()
-    }
 }
 
 @Composable

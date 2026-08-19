@@ -11,12 +11,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
-import io.github.stslex.workeeper.core.ui.kit.components.loading.AppLoadingIndicator
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppIconButton
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopBar
 import io.github.stslex.workeeper.core.ui.kit.icons.AppIcons
@@ -126,12 +124,10 @@ private fun ChartContent(
     // through Content.Plot, which State refuses to produce for an unplottable dataset —
     // there is no arrangement of fields here that can put an empty chart on screen.
     when (val content = state.content) {
-        Content.Loading -> Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center,
-        ) {
-            AppLoadingIndicator()
-        }
+        // Unreachable through `ExerciseChartGraph`, which withholds the screen on this exact
+        // verdict — kept as an arm because the verdict is legal state, and drawing NOTHING is the
+        // decision: a spinner that resolves in ~150ms reads as a flicker, not as information.
+        Content.Loading -> Unit
 
         is Content.Empty -> EmptyContent(
             reason = content.reason,
