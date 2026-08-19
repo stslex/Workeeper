@@ -29,7 +29,8 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppMotion
  * host has always run. `predictivePopTransitionSpec` — the finger-driven gesture, and only that —
  * runs the preview.
  *
- * GUARD: `NavDisplay` has NO fallback between the three (`NavDisplay.kt:799-814`). A spec left
+ * GUARD: `NavDisplay` has NO fallback between the three — its `contentTransform` picks ONE of
+ * `predictivePopTransitionSpec` / `popTransitionSpec` / `transitionSpec` and never chains. A spec left
  * unpassed keeps the library default, and the predictive default is
  * `fadeIn(spring(1f, 1600f)) togetherWith scaleOut(targetScale = 0.7f)` — a shrink with no fade,
  * which given the z-order below ends every gesture in a visible cut.
@@ -50,7 +51,7 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppMotion
  * and do nothing but delegate; `NavTransitionsTest` is what that shape buys.
  */
 
-/** Grandfathered from the Nav2 host: the crossfade starts at 0.3, it does not start at 0. */
+/** The crossfade starts at 0.3, not at 0 — the incoming screen is faintly present from frame one. */
 private const val ENTER_INITIAL_ALPHA = 0.3f
 
 private const val EXIT_TARGET_ALPHA = 0f
@@ -82,14 +83,14 @@ private const val PIVOT_CENTRE = 0.5f
  * `PredictiveBackEasing` in `material3/internal/BackHandler.kt` (1.5.0-alpha24), which every M3
  * predictive-back surface applies to raw gesture progress before using it.
  *
- * It is deliberately front-loaded — 0.68 of the travel is spent in the first quarter of the drag —
- * because a preview that lags the finger reads as unresponsive, and one that keeps moving all the
- * way reads as unbounded. The platform's preview saturates; so does this.
+ * It is deliberately front-loaded, because a preview that lags the finger reads as unresponsive and
+ * one that keeps moving all the way reads as unbounded. The platform's preview saturates; so does
+ * this.
  *
- * It lives here rather than in [AppMotion] on purpose: it reproduces Android, it does not express
- * Workeeper, and the scale is the app's vocabulary. `AppMotion.out` was measured against it and is
- * the nearest token (0.83 vs 0.68 at a quarter drag) — near enough to be tempting, far enough that
- * the card would be all but settled a quarter of the way through the gesture.
+ * GUARD: it lives here rather than in [AppMotion] on purpose — it reproduces Android, it does not
+ * express Workeeper — and no curve on the scale may stand in for it. `AppMotion.out` is the nearest
+ * and was measured and rejected; the numbers are in `documentation/architecture.md` § "Navigation
+ * host and shared element transitions" and in §26's "The gesture's two curves are Android's".
  */
 private val PREVIEW_EASING: Easing = CubicBezierEasing(
     PREVIEW_X1,
@@ -137,9 +138,9 @@ private const val SCRIM_ALPHA = 0.32f
  * Forward navigation, bottom-tab switches, and every non-gesture pop.
  *
  * GUARD: `tween(motion.base)` resolves to `FastOutSlowInEasing`, not [AppMotion.linear], which
- * contradicts [AppMotion.linear]'s "the curve for alpha". That divergence is pre-existing and
- * deliberately untouched: repointing it changes every navigation in the app, is invisible to every
- * gate, and owes its own commit and its own §26 row. Do not fold it into a gesture change.
+ * contradicts [AppMotion.linear]'s "the curve for alpha". Repointing it changes every navigation in
+ * the app and is invisible to every gate, so it owes its own commit and its own §26 row — do not
+ * fold it into a gesture change.
  */
 internal fun navFadeTransform(motion: AppMotion): ContentTransform = fadeIn(
     animationSpec = tween(motion.base),
@@ -215,7 +216,7 @@ internal fun predictivePivot(swipeEdge: Int): TransformOrigin = TransformOrigin(
  * The leaving screen: opaque and shrinking for the drag, dissolving for the handoff.
  *
  * GUARD: the fade is not decoration — it is what CLEARS the scene. The incoming is placed BELOW
- * during predictive back (`NavDisplay.kt:673`, `targetZIndex = initialZIndex - 1f`), so at fraction
+ * during predictive back (`NavDisplay` gives the incoming scene `initialZIndex - 1f`), so at fraction
  * 1.0 the outgoing must contribute no pixels or it covers the screen it just revealed.
  *
  * No `slide` channel, and that is load-bearing twice over: `slide` and `changeSize` are read inside
@@ -258,7 +259,9 @@ internal fun predictivePopEnter(motion: AppMotion): EnterTransition = unveilIn(
 
 /**
  * GUARD: pure and allocation-light on purpose — `NavDisplay` invokes the spec TWICE per segment,
- * once for each half (`NavDisplay.kt:824-831`). Never read composition state in here; the lambda
+ * once for each half — `NavDisplay` builds its `AnimatedContent` `ContentTransform` by calling the
+ * spec separately for `targetContentEnter` and `initialContentExit`. Never read composition state
+ * in here; the lambda
  * that holds it is not `@Composable`.
  */
 internal fun predictivePopTransform(

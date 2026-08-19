@@ -1589,7 +1589,10 @@ already there, and only its depth changes.
 ride `PREVIEW_EASING` = `CubicBezierEasing(0.1f, 0.1f, 0f, 1f)`, which is Material's own
 `PredictiveBackEasing` — deliberately front-loaded (0.68 of the travel in the first quarter of
 the drag) because a preview that lags the finger reads as unresponsive and one that keeps
-moving reads as unbounded; the platform's preview saturates and so does this. The dissolve and
+moving reads as unbounded; the platform's preview saturates and so does this. No curve on the
+motion scale stands in for it: `AppMotion.out` is the nearest and reaches **0.83** at a quarter
+drag, which leaves the card all but settled a quarter of the way through the gesture, and
+`AppMotion.travel` reaches **0.58**, which leaves it trailing the thumb. The dissolve and
 the scrim's lift ride `DEPARTURE_EASING` = `CubicBezierEasing(0.8f, 0f, 1f, 1f)`, its ease-in
 mirror, so the card is still 90% opaque at a 40% drag and reaches zero smoothly. They live in
 `NavTransitions.kt` rather than in `AppMotion` on purpose: they reproduce Android, they do not
