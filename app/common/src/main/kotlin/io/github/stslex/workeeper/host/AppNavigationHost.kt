@@ -3,16 +3,13 @@ package io.github.stslex.workeeper.host
 
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.platform.testTag
@@ -62,7 +59,8 @@ internal fun AppNavigationHost(
             .systemBarsPadding()
             .background(MaterialTheme.colorScheme.background)
 
-        val motionDuration = AppUi.motion.base
+        val motion = AppUi.motion
+        val fadeTransform = remember(motion) { navFadeTransform(motion) }
 
         ClearFocusOnDestinationChanged(navigatorHolder)
 
@@ -85,23 +83,16 @@ internal fun AppNavigationHost(
                     navigatorHolder.backStack.removeLastOrNull()
                 }
             },
-            transitionSpec = {
-                fadeIn(
-                    animationSpec = tween(motionDuration),
-                    initialAlpha = 0.3f,
-                ) togetherWith fadeOut(
-                    animationSpec = tween(motionDuration),
-                    targetAlpha = 0f,
-                )
-            },
-            popTransitionSpec = {
-                fadeIn(
-                    animationSpec = tween(motionDuration),
-                    initialAlpha = 0.3f,
-                ) togetherWith fadeOut(
-                    animationSpec = tween(motionDuration),
-                    targetAlpha = 0f,
-                )
+            // All three, explicitly. NavDisplay has NO fallback between them: a spec left
+            // unpassed keeps the library default, and the predictive default is a spring shrink
+            // with no fade — which, given the incoming scene is placed BELOW during a gesture,
+            // ends every back swipe in a visible cut. See NavTransitions.kt.
+            transitionSpec = { fadeTransform },
+            popTransitionSpec = { fadeTransform },
+            // The gesture, and only the gesture: NavDisplay seeks this one with raw finger
+            // progress, while the two above run on a clock.
+            predictivePopTransitionSpec = { swipeEdge ->
+                predictivePopTransform(motion, swipeEdge)
             },
             entryProvider = entryProvider {
                 // The one place the navigation library's builder is wrapped. Every graph below
