@@ -55,7 +55,7 @@ internal fun AppNavigationHost(
         // (a ContentTransform has none) and without a signal to plumb. The platform rounds the
         // window at all times too; it only becomes visible once the window shrinks. Invisible at
         // rest: the root Box and the window background are the colour these screens paint.
-        val screenShape = RoundedCornerShape(rememberDisplayCornerRadius())
+        val screenShape = RoundedCornerShape(displayCornerRadius())
 
         val bottomBarModifier = Modifier
             .fillMaxSize()

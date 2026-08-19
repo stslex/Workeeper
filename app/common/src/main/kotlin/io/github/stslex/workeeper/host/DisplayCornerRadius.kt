@@ -4,7 +4,7 @@ package io.github.stslex.workeeper.host
 import android.os.Build
 import android.view.RoundedCorner
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.Dp
@@ -38,24 +38,36 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
  * most emulators) also takes the fallback, which is deliberate: the point of the clip is the
  * shrunken card, and a square card is the defect being fixed.
  *
- * Read once per view rather than per frame — the display's geometry does not change under us, and
- * `rootWindowInsets` is null only before the first attach, which the fallback covers.
+ * Read on composition rather than cached: see the body for why a `remember` here holds the wrong
+ * number across a rotation and can pin the fallback permanently.
  */
 @Composable
-internal fun rememberDisplayCornerRadius(): Dp {
+internal fun displayCornerRadius(): Dp {
     val view = LocalView.current
     val density = LocalDensity.current
-    return remember(view, density) {
-        val radiusPx = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            view.rootWindowInsets
-                ?.getRoundedCorner(RoundedCorner.POSITION_TOP_LEFT)
-                ?.radius
-        } else {
-            null
-        }
-        radiusPx
-            ?.takeIf { it > 0 }
-            ?.let { with(density) { it.toDp() } }
-            ?: AppDimension.Radius.big
+
+    // Read, never cached. `LocalConfiguration` is here to SUBSCRIBE, not to compute: MainActivity
+    // declares `configChanges` for orientation and screenSize, so a rotation neither recreates the
+    // activity nor replaces the View — a `remember(view, density)` would hold the pre-rotation
+    // radius forever, and on hardware whose corners are not symmetric that is the wrong number.
+    // Reading the configuration makes this composable recompose when one arrives.
+    //
+    // Not remembering also makes the fallback self-healing. `rootWindowInsets` is null until the
+    // first inset dispatch, so a composition that beats it resolves to [AppDimension.Radius.big] —
+    // cached, that would be permanent; read, the next recomposition picks up the real value. The
+    // window it is wrong in is invisible: the radius only becomes visible once a gesture shrinks
+    // the screen off the display edge.
+    LocalConfiguration.current
+
+    val radiusPx = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        view.rootWindowInsets
+            ?.getRoundedCorner(RoundedCorner.POSITION_TOP_LEFT)
+            ?.radius
+    } else {
+        null
     }
+    return radiusPx
+        ?.takeIf { it > 0 }
+        ?.let { with(density) { it.toDp() } }
+        ?: AppDimension.Radius.big
 }
