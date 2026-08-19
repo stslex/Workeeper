@@ -1555,14 +1555,41 @@ chevron, `navigator.popBack()`, three-button back) both run one shared `ContentT
 the 260ms crossfade from alpha 0.3 that the Nav2 host ran.
 
 `predictivePopTransitionSpec` — the finger-driven back gesture, and only that — runs a
-preview instead. The leaving screen stays **opaque** and scales 1 -> 0.9 about the edge
+preview instead. The leaving screen stays opaque and scales 1 -> 0.9 about the edge
 *opposite* the swiped one, which reproduces Material 3's own predictive-back geometry
 (`SearchBarPredictiveBackMinScale = 9/10`, and a centre shift of `w/20` =
 `SearchBarPredictiveBackMaxOffsetXRatio`) with one channel instead of two. The screen being
-uncovered sits full-size under a black scrim at 32%. For the first `AppMotion.fast` of the
-`AppMotion.base` window nothing else happens — that is the drag; for the remaining 120ms the
-leaving screen dissolves to 0 while the scrim lifts to 0 on the same window — that is the
-handoff, and in practice it plays after the finger has left.
+uncovered grows from 0.95 into place under a black scrim at 32%, and never fades — it is
+already there, and only its depth changes.
+
+**Two curves, both file-local and neither on the motion scale.** The shrink and the reveal
+ride `PREVIEW_EASING` = `CubicBezierEasing(0.1f, 0.1f, 0f, 1f)`, which is Material's own
+`PredictiveBackEasing` — deliberately front-loaded (0.68 of the travel in the first quarter of
+the drag) because a preview that lags the finger reads as unresponsive and one that keeps
+moving reads as unbounded; the platform's preview saturates and so does this. The dissolve and
+the scrim's lift ride `DEPARTURE_EASING` = `CubicBezierEasing(0.8f, 0f, 1f, 1f)`, its ease-in
+mirror, so the card is still 90% opaque at a 40% drag and reaches zero smoothly. They live in
+`NavTransitions.kt` rather than in `AppMotion` on purpose: they reproduce Android, they do not
+express Workeeper, and the scale is the app's own vocabulary.
+
+**No channel is delayed, and that is the point rather than a detail.** The first version of
+this preview held the card's alpha flat for `AppMotion.fast` and then ran it linearly — same
+endpoints, same duration, same intent, and a *corner* at the delay boundary. Under a seek the
+fraction is the finger, so that corner is a single frame in which the card goes from perfectly
+solid to visibly dissolving, and it reads as the screen being thrown away halfway through the
+gesture. Every channel is now one continuous `tween(AppMotion.base)` with delay 0, which also
+makes "each channel lands exactly at fraction 1.0" hold by inspection instead of by arithmetic.
+`NavTransitionsTest` gates the absence of the corner and runs the delayed predecessor through
+the same detector to show it discriminates.
+
+**The card's rounded edge is a clip, not a transition.** `ContentTransform` has no corner
+radius, so the host clips every graph's root modifier to `RoundedCornerShape` of the display's
+own corner radius (`rememberDisplayCornerRadius` — `RoundedCorner` on API 31+,
+`AppDimension.Radius.big` otherwise). Unconditional, at rest as well as in motion, which is
+what the platform does too: the window always carries that shape and you only notice once it
+shrinks away from the display edge. Invisible at rest because `android:windowBackground`,
+`App.kt`'s root `Box` and every graph all paint the same colour, so whatever the corners cut
+away, what shows through is that colour.
 
 Three mechanics constrain anything written there, and none of them is optional.
 **First**, `NavDisplay` places the incoming scene *below* the outgoing during predictive back
@@ -1578,9 +1605,11 @@ The first `sharedBounds` / `sharedElement` added to any screen registers a sprin
 transition and breaks it; re-derive the windows then.
 **Third**, a `ContentTransform` has exactly five channels — fade, slide, changeSize, scale,
 veil. There is no corner radius, no shadow, no elevation and no per-frame hook; the spec
-lambda receives one `Int` (the swipe edge) and is invoked twice per segment. The platform
-preview's rounded, shadowed card is therefore not reachable from this API, and the scrim is
-the only depth cue available. `slide` and `changeSize` are additionally avoided on purpose:
+lambda receives one `Int` (the swipe edge) and is invoked twice per segment. Anything the
+transition cannot express has to come from the content instead — the corner radius does, as a
+clip; a shadow and a touch-Y follow would need `LocalNavAnimatedContentScope.current.transition`
+driving a `graphicsLayer` inside a `NavEntryDecorator`, which is the seam AndroidX provides for
+exactly this and which nothing here uses yet. `slide` and `changeSize` are avoided on purpose:
 both are read in the *placement* block, so they invalidate layout every frame, and every
 graph here carries `Modifier.reportScreenPlace<...>()` whose `onPlaced` would then fire per
 frame per scene.

@@ -5,10 +5,13 @@ import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.ExperimentalAnimationApi
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.Easing
 import androidx.compose.animation.core.TweenSpec
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.unveilIn
@@ -60,9 +63,69 @@ private const val EXIT_TARGET_ALPHA = 0f
  */
 private const val PREVIEW_SCALE = 0.9f
 
+/**
+ * The screen being uncovered starts fractionally small and grows into place, so the two screens
+ * read as stacked in depth rather than swapped. The platform's own preview does the same; kept
+ * shallow because at 0.95 the band it opens around the incoming screen is the root `Box`'s
+ * background, which is the colour that screen paints anyway.
+ */
+private const val REVEAL_INITIAL_SCALE = 0.95f
+
 private const val PIVOT_NEAR = 0f
 private const val PIVOT_FAR = 1f
 private const val PIVOT_CENTRE = 0.5f
+
+/**
+ * Material's own predictive-back response curve, matched rather than invented:
+ * `PredictiveBackEasing` in `material3/internal/BackHandler.kt` (1.5.0-alpha24), which every M3
+ * predictive-back surface applies to raw gesture progress before using it.
+ *
+ * It is deliberately front-loaded — 0.68 of the travel is spent in the first quarter of the drag —
+ * because a preview that lags the finger reads as unresponsive, and one that keeps moving all the
+ * way reads as unbounded. The platform's preview saturates; so does this.
+ *
+ * It lives here rather than in [AppMotion] on purpose: it reproduces Android, it does not express
+ * Workeeper, and the scale is the app's vocabulary. `AppMotion.out` was measured against it and is
+ * the nearest token (0.83 vs 0.68 at a quarter drag) — near enough to be tempting, far enough that
+ * the card would be all but settled a quarter of the way through the gesture.
+ */
+private val PREVIEW_EASING: Easing = CubicBezierEasing(
+    PREVIEW_X1,
+    PREVIEW_Y1,
+    PREVIEW_X2,
+    PREVIEW_Y2,
+)
+
+private const val PREVIEW_X1 = 0.1f
+private const val PREVIEW_Y1 = 0.1f
+private const val PREVIEW_X2 = 0f
+private const val PREVIEW_Y2 = 1f
+
+/**
+ * The mirror image of [PREVIEW_EASING]: an ease-IN, so the dissolve is back-loaded.
+ *
+ * **This curve is the fix for a shipped defect and the reason it is not a delayed tween.** The
+ * first version held alpha flat for `AppMotion.fast` and then ran it linearly, which is the same
+ * intent — opaque under the finger, gone by the end — expressed with a **corner in it**. Under a
+ * seek that corner is not a subtlety: the fraction is the finger, so at exactly 54% of the drag the
+ * card goes from perfectly solid to visibly dissolving within one frame, and it reads as the screen
+ * being thrown away mid-gesture. A single continuous curve has no such instant. The card is still
+ * 90% opaque at a 40% drag and 76% at 60%, and it reaches zero smoothly.
+ *
+ * §26 is amended by this, and the row says so: alpha rides [AppMotion.linear] when it is a transit,
+ * and this one is character — the back-loading IS the behaviour being bought.
+ */
+private val DEPARTURE_EASING: Easing = CubicBezierEasing(
+    DEPARTURE_X1,
+    DEPARTURE_Y1,
+    DEPARTURE_X2,
+    DEPARTURE_Y2,
+)
+
+private const val DEPARTURE_X1 = 0.8f
+private const val DEPARTURE_Y1 = 0f
+private const val DEPARTURE_X2 = 1f
+private const val DEPARTURE_Y2 = 1f
 
 /**
  * How dark the screen being uncovered is held while the card is still up. Judged on a device,
@@ -87,36 +150,32 @@ internal fun navFadeTransform(motion: AppMotion): ContentTransform = fadeIn(
 )
 
 /**
- * The shrink. Spans the whole transition, so it is the channel the finger reads.
+ * The shrink, and the incoming screen's growth: the channel the finger reads.
  *
- * [AppMotion.travel], for a mechanical reason rather than an aesthetic one. `NavDisplay` finishes a
- * COMMITTED gesture with `SeekableTransitionState.animateTo(scene)` and a null spec
- * (`NavDisplay.kt:757-760`), which advances the fraction with a plain `lerp` — the
- * `animate(..., tween(remaining))` branch beside it is the CANCEL path. So this easing is the only
- * deceleration the arrival gets. [AppMotion.linear] would stop the card dead; [AppMotion.out] is
- * near-expo and lands 82.6% of the shrink inside the first quarter of the drag; [AppMotion.spring]
- * peaks at 1.098, which under a seek means the scale dips BELOW its target at f≈0.57 and climbs
- * back — a non-monotone answer to a monotone drag.
+ * Spans the whole window on [PREVIEW_EASING], so a small drag already produces most of the preview
+ * and further dragging refines it — the platform's bounded-preview behaviour, reproduced.
+ *
+ * The earlier version ran this on [AppMotion.travel], which reaches only 0.58 of the shrink at a
+ * quarter drag: the card visibly trailed the thumb early and then had most of its travel left when
+ * the gesture was already committed, which is half of what "the animation is crumpled" was
+ * describing. The other half was the dissolve's corner — see [DEPARTURE_EASING].
  */
 internal fun predictiveGeometrySpec(motion: AppMotion): TweenSpec<Float> = tween(
     durationMillis = motion.base,
-    easing = motion.travel,
+    easing = PREVIEW_EASING,
 )
 
 /**
- * The handoff: the card dissolves and the scrim lifts, on one window and therefore in lockstep.
+ * The departure: the card dissolves and the scrim lifts, on one window and one curve, so they stay
+ * in lockstep and neither has a moment where it starts.
  *
- * Held at its start value for [AppMotion.fast], then run for the remainder of [AppMotion.base] — so
- * for the first 54% of the gesture the preview is a fully opaque card, which is the whole difference
- * between this and a crossfade. Both numbers come off the scale and their sum is `base`, which is
- * what makes the leaving screen provably gone at fraction 1.0.
- *
- * §26 is unamended by this: alpha still rides [AppMotion.linear]. Only the window moved.
+ * No delay anywhere. Every channel in this file is `tween(base)` with delay 0, which makes the
+ * "each channel lands exactly at fraction 1.0" invariant hold by inspection rather than by
+ * arithmetic.
  */
-internal fun <T> predictiveHandoffSpec(motion: AppMotion): TweenSpec<T> = tween(
-    durationMillis = motion.base - motion.fast,
-    delayMillis = motion.fast,
-    easing = motion.linear,
+internal fun <T> predictiveDepartureSpec(motion: AppMotion): TweenSpec<T> = tween(
+    durationMillis = motion.base,
+    easing = DEPARTURE_EASING,
 )
 
 /**
@@ -172,22 +231,28 @@ internal fun predictivePopExit(
     targetScale = PREVIEW_SCALE,
     transformOrigin = predictivePivot(swipeEdge),
 ) + fadeOut(
-    animationSpec = predictiveHandoffSpec(motion),
+    animationSpec = predictiveDepartureSpec(motion),
     targetAlpha = EXIT_TARGET_ALPHA,
 )
 
 /**
- * The screen being uncovered: full size, full opacity, held under a scrim that lifts on the handoff
- * window. No alpha and no geometry — it is ALREADY THERE, which is the reading the gesture needs.
+ * The screen being uncovered: fully opaque throughout, growing from [REVEAL_INITIAL_SCALE] into
+ * place under a scrim that lifts as the card departs. It never fades — it is ALREADY THERE, which
+ * is the reading the gesture needs; only its depth changes.
  *
- * The scrim is the only depth cue a `ContentTransform` can express: `TransitionData` is exhaustively
- * fade / slide / changeSize / scale / veil / hold, so there is no elevation, no shadow and no corner
- * radius to draw the card's edge with.
+ * The scrim and the shallow scale are the only depth cues a `ContentTransform` can express:
+ * `TransitionData` is exhaustively fade / slide / changeSize / scale / veil / hold, so there is no
+ * elevation and no shadow. The card's rounded edge is NOT drawn here — it is a clip on each graph's
+ * root modifier in `AppNavigationHost`, which is how the platform does it too: the window carries
+ * the display's corner radius at all times and you only notice it once the window shrinks.
  */
 @OptIn(ExperimentalAnimationApi::class)
 internal fun predictivePopEnter(motion: AppMotion): EnterTransition = unveilIn(
-    animationSpec = predictiveHandoffSpec(motion),
+    animationSpec = predictiveDepartureSpec(motion),
     initialColor = predictiveScrimColor(),
+) + scaleIn(
+    animationSpec = predictiveGeometrySpec(motion),
+    initialScale = REVEAL_INITIAL_SCALE,
 )
 
 /**

@@ -8,6 +8,7 @@ import androidx.compose.animation.core.VectorConverter
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.unveilIn
 import androidx.compose.ui.graphics.Color
@@ -16,7 +17,6 @@ import androidx.navigationevent.NavigationEvent
 import io.github.stslex.workeeper.core.ui.kit.theme.provideAppMotion
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotEquals
-import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
@@ -79,11 +79,11 @@ internal class NavTransitionsTest {
     @Test
     fun `a left-edge swipe shrinks about the trailing edge and dissolves late`() {
         val expected = scaleOut(
-            animationSpec = tween(BASE_MS, easing = motion.travel),
+            animationSpec = predictiveGeometrySpec(motion),
             targetScale = PREVIEW_SCALE,
             transformOrigin = TransformOrigin(TRAILING, CENTRE),
         ) + fadeOut(
-            animationSpec = tween(HANDOFF_MS, delayMillis = HOLD_MS, easing = motion.linear),
+            animationSpec = predictiveDepartureSpec(motion),
             targetAlpha = 0f,
         )
         assertEquals(expected, predictivePopExit(motion, NavigationEvent.EDGE_LEFT))
@@ -92,11 +92,11 @@ internal class NavTransitionsTest {
     @Test
     fun `a right-edge swipe is the exact mirror`() {
         val expected = scaleOut(
-            animationSpec = tween(BASE_MS, easing = motion.travel),
+            animationSpec = predictiveGeometrySpec(motion),
             targetScale = PREVIEW_SCALE,
             transformOrigin = TransformOrigin(LEADING, CENTRE),
         ) + fadeOut(
-            animationSpec = tween(HANDOFF_MS, delayMillis = HOLD_MS, easing = motion.linear),
+            animationSpec = predictiveDepartureSpec(motion),
             targetAlpha = 0f,
         )
         assertEquals(expected, predictivePopExit(motion, NavigationEvent.EDGE_RIGHT))
@@ -114,11 +114,14 @@ internal class NavTransitionsTest {
     }
 
     @Test
-    fun `the screen being uncovered gets a scrim and nothing else`() {
+    fun `the screen being uncovered is scrimmed and grows into place, and never fades`() {
         assertEquals(
             unveilIn(
-                animationSpec = tween(HANDOFF_MS, delayMillis = HOLD_MS, easing = motion.linear),
+                animationSpec = predictiveDepartureSpec(motion),
                 initialColor = Color.Black.copy(alpha = SCRIM_ALPHA),
+            ) + scaleIn(
+                animationSpec = predictiveGeometrySpec(motion),
+                initialScale = REVEAL_INITIAL_SCALE,
             ),
             predictivePopEnter(motion),
         )
@@ -139,27 +142,28 @@ internal class NavTransitionsTest {
     @Test
     fun `every window is composed from the motion scale, not written out`() {
         assertEquals(motion.base, predictiveGeometrySpec(motion).durationMillis)
-        assertEquals(0, predictiveGeometrySpec(motion).delay)
-        assertEquals(motion.fast, predictiveHandoffSpec<Float>(motion).delay)
-        assertEquals(
-            motion.base - motion.fast,
-            predictiveHandoffSpec<Float>(motion).durationMillis,
-        )
+        assertEquals(motion.base, predictiveDepartureSpec<Float>(motion).durationMillis)
     }
 
     @Test
-    fun `and the numbers those come out as are 260, 140 and 120`() {
+    fun `and the number that comes out as is 260`() {
         // Pinned as its own claim: the site above proves the windows are composed from the scale,
         // this one proves the scale is where it was when the timings were judged.
         assertEquals(BASE_MS, predictiveGeometrySpec(motion).durationMillis)
-        assertEquals(HOLD_MS, predictiveHandoffSpec<Float>(motion).delay)
-        assertEquals(HANDOFF_MS, predictiveHandoffSpec<Float>(motion).durationMillis)
+        assertEquals(BASE_MS, predictiveDepartureSpec<Float>(motion).durationMillis)
     }
 
     @Test
-    fun `each curve is the token it claims, by identity`() {
-        assertSame(motion.travel, predictiveGeometrySpec(motion).easing)
-        assertSame(motion.linear, predictiveHandoffSpec<Float>(motion).easing)
+    fun `the two gesture curves are distinct, and neither is a motion-scale token`() {
+        val preview = predictiveGeometrySpec(motion).easing
+        val departure = predictiveDepartureSpec<Float>(motion).easing
+        assertTrue(preview !== departure, "preview and departure collapsed onto one curve")
+        // Deliberate: both reproduce Android's gesture response rather than expressing the app,
+        // so they are file-local and not on the scale. Guard against a tidy-up that "fixes" that.
+        listOf(motion.out, motion.travel, motion.linear, motion.spring).forEach { token ->
+            assertTrue(preview !== token, "the preview curve was repointed at a motion token")
+            assertTrue(departure !== token, "the departure curve was repointed at a motion token")
+        }
     }
 
     // ---- the two invariants the whole design rests on -------------------------------------------
@@ -171,21 +175,26 @@ internal class NavTransitionsTest {
     @Test
     fun `every channel finishes at base, which is what empties the leaving screen`() {
         val geometry = predictiveGeometrySpec(motion)
-        val handoff = predictiveHandoffSpec<Float>(motion)
+        val departure = predictiveDepartureSpec<Float>(motion)
         assertEquals(motion.base, geometry.delay + geometry.durationMillis)
-        assertEquals(motion.base, handoff.delay + handoff.durationMillis)
+        assertEquals(motion.base, departure.delay + departure.durationMillis)
+        // Zero delay is the point, not an accident: a delayed channel puts a CORNER in a curve the
+        // finger is seeking, and that corner is what shipped as "the animation is thrown away
+        // mid-gesture". See `the card never starts dissolving at an instant`.
+        assertEquals(0, geometry.delay)
+        assertEquals(0, departure.delay)
     }
 
     /** Evaluated with Compose's own evaluator, not a reimplementation of tween arithmetic. */
     @Test
-    fun `the card is still fully opaque when the hold ends, and exactly gone at the end`() {
+    fun `the card starts solid and is exactly gone at the end`() {
         val fade = TargetBasedAnimation(
-            animationSpec = predictiveHandoffSpec(motion),
+            animationSpec = predictiveDepartureSpec(motion),
             typeConverter = Float.VectorConverter,
             initialValue = 1f,
             targetValue = 0f,
         )
-        assertEquals(1f, fade.getValueFromNanos(motion.fast * MILLIS_TO_NANOS))
+        assertEquals(1f, fade.getValueFromNanos(0L))
         assertEquals(0f, fade.getValueFromNanos(motion.base * MILLIS_TO_NANOS))
     }
 
@@ -241,19 +250,69 @@ internal class NavTransitionsTest {
         )
     }
 
+    // ---- the two defects this design was re-cut to fix, each with its own gate ---------------
+
+    /**
+     * **The kink gate.** The first version held the card's alpha flat for `AppMotion.fast` and then
+     * ran it linearly. Same endpoints, same duration, same intent — and a CORNER at the delay
+     * boundary. The fraction is the finger, so that corner is a frame in which the card goes from
+     * perfectly solid to visibly dissolving, and it read as the screen being thrown away halfway
+     * through the gesture.
+     *
+     * A delayed curve is exactly a curve that does not move at the start. So: the departure must be
+     * already moving before a tenth of the drag, and still be mostly solid at half. The delayed
+     * predecessor fails the first half of that by construction, which is what makes this a gate and
+     * not a description.
+     */
     @Test
-    fun `out is too front-loaded to be a finger response — the curve choice discriminates`() {
-        // Not an overshoot failure: `out` is monotone and bounded, so the check above cannot see
-        // it. This is the second control, and it is why `travel` and not `out`.
-        val outAtQuarter = motion.out.transform(QUARTER)
-        val travelAtQuarter = motion.travel.transform(QUARTER)
+    fun `the card never starts dissolving at an instant — it is moving from the first frame`() {
+        val curve = predictiveDepartureSpec<Float>(motion).easing
         assertTrue(
-            outAtQuarter > FRONT_LOAD_DISCRIMINATION,
-            "out consumed only $outAtQuarter of the shrink in the first quarter of the drag",
+            curve.transform(TENTH) > 0f,
+            "the departure is flat at a tenth of the drag, so it has a corner somewhere later — " +
+                "that corner is the defect this curve replaced",
         )
         assertTrue(
-            travelAtQuarter < outAtQuarter,
-            "travel ($travelAtQuarter) is no gentler than out ($outAtQuarter) at a quarter drag",
+            curve.transform(HALF) < BACK_LOAD_CEILING,
+            "the card is only ${1 - curve.transform(HALF)} opaque at half a drag; the point of an " +
+                "ease-in departure is that the preview stays solid while the finger is on it",
+        )
+    }
+
+    @Test
+    fun `a delayed curve is what that gate is aimed at, and it does fail it`() {
+        // The predecessor, rebuilt: alpha flat for `fast`, then linear. Run through the same
+        // detector so the check above is shown to discriminate rather than merely to pass.
+        val delayed: TweenSpec<Float> =
+            tween(motion.base - motion.fast, delayMillis = motion.fast, easing = motion.linear)
+        val animation = TargetBasedAnimation(delayed, Float.VectorConverter, 1f, 0f)
+        val atTenth = animation.getValueFromNanos((TENTH * BASE_MS).toLong() * MILLIS_TO_NANOS)
+        assertEquals(
+            1f,
+            atTenth,
+            "the delayed predecessor was NOT flat at a tenth of the drag; the kink gate is then " +
+                "certifying nothing",
+        )
+    }
+
+    /**
+     * **The response gate.** The preview must be front-loaded — Material's own curve spends 0.68 of
+     * the travel in the first quarter of the drag, because a preview that lags the finger reads as
+     * unresponsive. `AppMotion.travel`, which this shipped on first, reaches only 0.58 there and was
+     * the other half of "the animation is crumpled".
+     */
+    @Test
+    fun `the preview answers the finger early, ahead of every curve on the motion scale`() {
+        val preview = predictiveGeometrySpec(motion).easing.transform(QUARTER)
+        assertTrue(
+            preview > motion.travel.transform(QUARTER),
+            "the preview ($preview at a quarter drag) is no more responsive than travel " +
+                "(${motion.travel.transform(QUARTER)}), which is the curve it was moved off",
+        )
+        assertTrue(
+            preview > FRONT_LOAD_FLOOR && preview < FRONT_LOAD_CEILING,
+            "the preview consumed $preview of the shrink in the first quarter; Material's own " +
+                "curve spends ~0.68 there, and leaving that band is a different interaction",
         )
     }
 
@@ -263,10 +322,9 @@ internal class NavTransitionsTest {
         const val MILLIS_TO_NANOS = 1_000_000L
 
         const val BASE_MS = 260
-        const val HOLD_MS = 140
-        const val HANDOFF_MS = 120
 
         const val PREVIEW_SCALE = 0.9f
+        const val REVEAL_INITIAL_SCALE = 0.95f
         const val SCRIM_ALPHA = 0.32f
 
         /** `Color` packs alpha into 8 bits; one step is the floor on any alpha claim. */
@@ -278,7 +336,15 @@ internal class NavTransitionsTest {
         const val CENTRE = 0.5f
         const val UNKNOWN_EDGE = 99
 
+        const val TENTH = 0.1f
         const val QUARTER = 0.25f
-        const val FRONT_LOAD_DISCRIMINATION = 0.8f
+        const val HALF = 0.5f
+
+        /** The card must still be more than three quarters opaque at half a drag. */
+        const val BACK_LOAD_CEILING = 0.25f
+
+        /** Material's predictive curve sits at ~0.68 here; the band is that value +/- 0.1. */
+        const val FRONT_LOAD_FLOOR = 0.58f
+        const val FRONT_LOAD_CEILING = 0.78f
     }
 }

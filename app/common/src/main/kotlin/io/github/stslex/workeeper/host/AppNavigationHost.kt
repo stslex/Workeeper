@@ -7,10 +7,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.platform.testTag
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
@@ -48,15 +50,24 @@ internal fun AppNavigationHost(
     SharedTransitionLayout(
         modifier = modifier,
     ) {
+        // The display's own corner radius, clipped onto every screen unconditionally — which is
+        // what gives the predictive-back preview a rounded card without a corner-radius channel
+        // (a ContentTransform has none) and without a signal to plumb. The platform rounds the
+        // window at all times too; it only becomes visible once the window shrinks. Invisible at
+        // rest: the root Box and the window background are the colour these screens paint.
+        val screenShape = RoundedCornerShape(rememberDisplayCornerRadius())
+
         val bottomBarModifier = Modifier
             .fillMaxSize()
             .padding(bottom = AppDimension.BottomNavBar.height)
             .systemBarsPadding()
+            .clip(screenShape)
             .background(MaterialTheme.colorScheme.background)
 
         val standardModifier = Modifier
             .fillMaxSize()
             .systemBarsPadding()
+            .clip(screenShape)
             .background(MaterialTheme.colorScheme.background)
 
         val motion = AppUi.motion
