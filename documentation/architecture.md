@@ -1521,6 +1521,21 @@ Two outcomes:
 - Three different click actions for three triggers (`OnBackGesture`, `OnTopBarBack`,
   `OnCancelClick`). Use one (`OnBackClick`) routed identically.
 
+### SQLite query-planner statistics
+
+`BaseApplication.warmQueryPlanner()` runs `ANALYZE` once per process, off the main thread and
+best-effort, via `refreshQueryPlannerStatistics` in `core:data:database`. Without `sqlite_stat1`
+SQLite plans on guesswork, and the guess it made in production was to drive the live-workout
+personal-record read from `session_table.state` — an index over two distinct values — walking every
+finished session the user had ever logged instead of the handful of exercises the query asked
+about. The statistics change no SQL and no result: only the access path.
+
+Two constraints hold it in place. It runs **after** the recovery pre-flight chain and **not at all**
+on the `RouteToRecovery` path, because `ANALYZE` writes and therefore opens the database, which is
+exactly what that start must avoid. And it is `ANALYZE` rather than the more usual
+`PRAGMA optimize`, which is a no-op when called before its own connection has read anything and
+whose override bit needs a newer SQLite than `minSdk 28` can assume.
+
 ### Navigation host and shared element transitions
 
 `app/common/src/main/kotlin/io/github/stslex/workeeper/host/AppNavigationHost.kt` receives the

@@ -12,7 +12,9 @@ import io.github.stslex.workeeper.core.core.utils.CommonExt
 import io.github.stslex.workeeper.core.data.backup.worker.BackupWorkerDeps
 import io.github.stslex.workeeper.core.data.backup.worker.BackupWorkerDepsHolder
 import io.github.stslex.workeeper.core.data.backup.worker.MetroWorkerFactory
+import io.github.stslex.workeeper.core.data.database.AppDatabase
 import io.github.stslex.workeeper.core.data.database.buildAppDatabase
+import io.github.stslex.workeeper.core.data.database.refreshQueryPlannerStatistics
 import io.github.stslex.workeeper.core.ui.mvi.di.AppDepsHolder
 import io.github.stslex.workeeper.core.ui.mvi.performance.PerformanceMetricsRecorder
 import io.github.stslex.workeeper.core.ui.mvi.performance.RecordAction
@@ -22,6 +24,7 @@ import io.github.stslex.workeeper.di.buildAppGraph
 import io.github.stslex.workeeper.feature.recovery.di.RecoveryDeps
 import io.github.stslex.workeeper.feature.recovery.di.RecoveryDepsHolder
 import io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinator
+import io.github.stslex.workeeper.feature.recovery.domain.StartupCheck
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -65,11 +68,19 @@ abstract class BaseApplication :
      * construction — reading its own dispatcher would cycle; `Dispatchers.IO` is the identical stateless
      * process-singleton the graph's accessor returns).
      */
+    /**
+     * Held rather than inlined into [appGraph] only so [warmQueryPlanner] can reach it: the graph
+     * takes it as a `create()` bound instance and exposes no accessor for it, and giving it one
+     * would widen the graph's surface for a startup chore. Still the same single cold
+     * `Room.databaseBuilder(...).build()` — constructing it opens no SQLite file.
+     */
+    private val appDatabase: AppDatabase by lazy { buildAppDatabase(applicationContext) }
+
     @Suppress("EXPOSED_PROPERTY_TYPE_IN_CONSTRUCTOR_ERROR", "EXPOSED_PROPERTY_TYPE")
     override val appGraph: AppGraph by lazy {
         buildAppGraph(
             applicationContext = applicationContext,
-            appDatabase = buildAppDatabase(applicationContext),
+            appDatabase = appDatabase,
             imageStorage = buildImageStorage(applicationContext, Dispatchers.IO),
         )
     }
@@ -123,6 +134,7 @@ abstract class BaseApplication :
     protected open fun onCreateGraphBootstrap() {
         handleRecoveryPreflightChain()
         cleanupOrphanedImageTempFiles()
+        warmQueryPlanner()
         bootstrapAppDialogObserver()
     }
 
@@ -179,6 +191,31 @@ abstract class BaseApplication :
      * Lazy construction would mean the first user dispatch fires on zero subscribers and is lost. The
      * return value is intentionally discarded — the side-effect of construction is what we want.
      */
+    /**
+     * Refreshes SQLite's planner statistics, off the main thread and best-effort.
+     *
+     * Without them the planner drives the live-workout PR read from `session_table.state` — an index
+     * over two distinct values — and walks every finished session the user has ever logged instead
+     * of the thirteen exercises actually asked about. Measured, and the fix changes no SQL: see
+     * `refreshQueryPlannerStatistics`.
+     *
+     * **After the pre-flight chain and never on the recovery path.** `ANALYZE` writes `sqlite_stat1`,
+     * which means opening the database — the one thing a `RouteToRecovery` start must not do, since
+     * that decision exists precisely because the schema is not in a state Room can open. The
+     * pre-flight has already cached its decision by the time this runs.
+     *
+     * Caught rather than propagated, unlike its sibling above: this one touches the database, and a
+     * corrupt file is exactly the condition under which the rest of startup still has work to do.
+     * A throw here would take the process down on the launch that most needs to reach recovery.
+     */
+    private fun warmQueryPlanner() {
+        if (appGraph.startupMigrationCoordinator.lastDecision is StartupCheck.RouteToRecovery) return
+        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+            runCatching { refreshQueryPlannerStatistics(appDatabase) }
+                .onFailure { error -> Log.e(error) }
+        }
+    }
+
     private fun bootstrapAppDialogObserver() {
         appGraph.recoveryBootstrap
     }
