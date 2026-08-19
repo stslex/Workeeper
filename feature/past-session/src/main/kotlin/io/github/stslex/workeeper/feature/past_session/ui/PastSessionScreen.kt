@@ -61,8 +61,8 @@ internal fun PastSessionScreen(
         when (val phase = state.phase) {
             // Unreachable through `PastSessionGraph`, which withholds the whole screen while
             // loading — kept as an arm rather than a crash because the phase is legal state, and
-            // drawing NOTHING is the decision: a spinner that resolves in ~150ms reads as a
-            // flicker, and the top bar above would meanwhile be showing its fallback title.
+            // drawing NOTHING is the decision (§26, second amendment), and the top bar above
+            // would meanwhile be showing its fallback title.
             State.Phase.Loading -> Unit
 
             is State.Phase.Error -> ErrorContent(
