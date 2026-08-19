@@ -7,7 +7,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBarsPadding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -55,7 +54,7 @@ internal fun AppNavigationHost(
         // (a ContentTransform has none) and without a signal to plumb. The platform rounds the
         // window at all times too; it only becomes visible once the window shrinks. Invisible at
         // rest: the root Box and the window background are the colour these screens paint.
-        val screenShape = RoundedCornerShape(displayCornerRadius())
+        val screenShape = displayCornerShape()
 
         // ORDER IS LOAD-BEARING: clip and paint the WHOLE scene, then inset the content inside it.
         // With `systemBarsPadding()` ahead of the clip, the rounded corners begin at the inset

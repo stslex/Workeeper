@@ -122,4 +122,5 @@
     <string name="feature_live_workout_error_create_inline_exercise_failed">Не удалось создать упражнение</string>
     <string name="feature_live_workout_error_discard_session_failed">Не удалось отменить тренировку</string>
     <string name="feature_live_workout_error_unknown">Что-то пошло не так</string>
+    <string name="feature_live_workout_error_session_load_failed">Не удалось открыть тренировку</string>
 </resources>

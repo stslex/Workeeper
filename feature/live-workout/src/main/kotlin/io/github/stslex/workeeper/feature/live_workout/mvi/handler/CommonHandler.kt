@@ -6,12 +6,14 @@ import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.core.time.formatElapsedDuration
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
+import io.github.stslex.workeeper.feature.live_workout.R
 import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutHandlerStore
 import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutScope
 import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMapper.toState
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMapper.withExpansionCarriedFrom
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Action
+import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Event
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -43,7 +45,7 @@ internal class CommonHandler @Inject constructor(
         launch(
             onSuccess = { createdState ->
                 if (createdState == null) {
-                    updateStateImmediate { it.copy(isLoading = false) }
+                    abandonUnloadedSession()
                     return@launch
                 }
                 updateStateImmediate { previous ->
@@ -51,12 +53,7 @@ internal class CommonHandler @Inject constructor(
                 }
                 startTimer()
             },
-            // Clearing `isLoading` here is load-bearing, not tidiness. The route does not compose
-            // until the load lands (§26; `LiveWorkoutGraph`), so a throw that left the flag
-            // latched would leave the user on a permanently empty frame with no way back into the
-            // screen. `launch` defaults `onError` to `{}` (B17, B21), so this arm must be written
-            // out — an empty one is the latched flag.
-            onError = { updateStateImmediate { it.copy(isLoading = false) } },
+            onError = { abandonUnloadedSession() },
         ) {
             val sessionUuid = current.sessionUuid ?: createSession(current.trainingUuid)
             val now = System.currentTimeMillis()
@@ -67,6 +64,31 @@ internal class CommonHandler @Inject constructor(
                     resourceWrapper = resourceWrapper,
                 )
         }
+    }
+
+    /**
+     * The only honest exit when the session did not load: say so and leave.
+     *
+     * Two arms reach it — a throw, and a `loadSession` that resolves to nothing — and both used to
+     * clear `isLoading` and stop. That is worse than it sounds. The route composes on that flag, so
+     * clearing it presents the requested session as a **successfully empty** one: "No exercises
+     * yet", an Add CTA, and a Finish dock that is enabled by `!isLoading`. A transient read failure
+     * could therefore finish a workout whose exercises never loaded.
+     *
+     * GUARD: clearing the flag is still load-bearing and must stay — `launch` defaults `onError` to
+     * `{}` (B17, B21), and a latched flag behind the route gate is a permanently empty frame. It is
+     * cleared AND the screen is left, so neither failure mode is reachable.
+     */
+    private suspend fun abandonUnloadedSession() {
+        updateStateImmediate { it.copy(isLoading = false) }
+        sendEvent(
+            Event.ShowError(
+                message = resourceWrapper.getString(
+                    R.string.feature_live_workout_error_session_load_failed,
+                ),
+            ),
+        )
+        consume(Action.Navigation.Back)
     }
 
     private suspend fun createSession(trainingUuid: String?): String? {

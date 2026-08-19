@@ -5,6 +5,7 @@ import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutHandlerStore
 import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Action
+import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Event
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.State
 import io.mockk.coEvery
 import io.mockk.every
@@ -31,7 +32,9 @@ internal class CommonHandlerTest {
      * in `feature/single-training`, deliberately — the two routes now carry the same route gate and
      * owe the same precondition.
      */
-    private fun setup(initialState: State): Pair<MutableStateFlow<State>, CommonHandler> {
+    private fun setup(
+        initialState: State,
+    ): Triple<MutableStateFlow<State>, CommonHandler, LiveWorkoutHandlerStore> {
         val stateFlow = MutableStateFlow(initialState)
         val store = mockk<LiveWorkoutHandlerStore>(relaxed = true).apply {
             every { state } returns stateFlow
@@ -55,18 +58,23 @@ internal class CommonHandlerTest {
                 mockk<Job>(relaxed = true)
             }
         }
-        return stateFlow to CommonHandler(interactor, resourceWrapper, store)
+        return Triple(stateFlow, CommonHandler(interactor, resourceWrapper, store), store)
     }
 
     /**
-     * The precondition `LiveWorkoutGraph`'s route gate creates. Before the gate this cost nothing
-     * visible — the screen composed regardless and merely showed the wrong thing. With the gate, a
-     * latched flag is a permanently empty frame with no way back into the screen.
+     * Both halves of the exit, on both arms that can reach it.
+     *
+     * Clearing `isLoading` alone is not enough and is the more dangerous half on its own: the route
+     * composes on that flag, so clearing it presents the requested session as a **successfully
+     * empty** one — "No exercises yet", an Add CTA, and a Finish dock enabled by `!isLoading`. A
+     * transient read failure could then finish a workout whose exercises never loaded. And leaving
+     * the flag set is the opposite failure, a permanently empty frame behind the gate. So the
+     * assertion is all three: flag cleared, error surfaced, screen left.
      */
     @Test
-    fun `a load that throws clears isLoading, or the route is composed on nothing forever`() {
+    fun `a load that throws clears the flag, says so, and leaves the screen`() {
         coEvery { interactor.loadSession(any()) } throws IllegalStateException("db down")
-        val (stateFlow, handler) = setup(
+        val (stateFlow, handler, store) = setup(
             State.create(sessionUuid = "session-1", trainingUuid = "training-1"),
         )
         // Precondition rather than assertion: a session route starts loading by construction.
@@ -75,18 +83,22 @@ internal class CommonHandlerTest {
         handler.invoke(Action.Common.Init)
 
         assertFalse(stateFlow.value.isLoading)
+        verify { store.sendEvent(any<Event.ShowError>()) }
+        verify { store.consume(Action.Navigation.Back) }
     }
 
     @Test
-    fun `a session that is not there clears isLoading too`() {
+    fun `a session that is not there is abandoned the same way, not shown as empty`() {
         coEvery { interactor.loadSession(any()) } returns null
-        val (stateFlow, handler) = setup(
+        val (stateFlow, handler, store) = setup(
             State.create(sessionUuid = "session-1", trainingUuid = "training-1"),
         )
 
         handler.invoke(Action.Common.Init)
 
         assertFalse(stateFlow.value.isLoading)
+        verify { store.sendEvent(any<Event.ShowError>()) }
+        verify { store.consume(Action.Navigation.Back) }
     }
 
     @Test
