@@ -129,8 +129,9 @@ private const val DEPARTURE_X2 = 1f
 private const val DEPARTURE_Y2 = 1f
 
 /**
- * How dark the screen being uncovered is held while the card is still up. Judged on a device,
- * bracket 0.24-0.40; it is the one number in this file with no derivation behind it.
+ * How dark the screen being uncovered is held while the card is still up, and the one knob if the
+ * depth cue reads wrong. The bracket it was judged against is in
+ * `documentation/feature-specs/v3-redesign-spec.md` §26, "The predictive scrim may not be themed".
  */
 private const val SCRIM_ALPHA = 0.32f
 
