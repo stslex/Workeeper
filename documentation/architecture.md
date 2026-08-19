@@ -1526,8 +1526,13 @@ Two outcomes:
 `BaseApplication.warmQueryPlanner()` runs `ANALYZE` once per process, off the main thread and
 best-effort, via `refreshQueryPlannerStatistics` in `core:data:database`. Measured on
 `:app:dev:installRelease` against a long-term database: 878ms on the first launch after install,
-45–107ms on every launch after that. That is affordable because Room opens the database in WAL
-mode, so holding the writer connection does not block the first screen's reads. Without `sqlite_stat1`
+45–107ms on every launch after that. Holding the writer connection that long is free only under
+WAL, where readers do not block on a writer. Room's default `AUTOMATIC` journal mode resolves to
+WAL everywhere except `isLowRamDevice` hardware, where it is `TRUNCATE` — so the warm-up is
+**skipped on low-RAM devices** rather than assumed safe there. The cost is that the planner keeps
+guessing on those devices; the alternative, pinning `WRITE_AHEAD_LOGGING` in `AppDatabaseFactory`,
+would override a platform-aware Room default for every query in the app to buy one startup chore,
+on the hardware least able to afford WAL's memory. Without `sqlite_stat1`
 SQLite plans on guesswork, and the guess it made in production was to drive the live-workout
 personal-record read from `session_table.state` — an index over two distinct values — walking every
 finished session the user had ever logged instead of the handful of exercises the query asked
@@ -1634,14 +1639,21 @@ frame per scene.
 
 A route does not compose until it has loaded (§26), and it arrives with a fade rather than a
 snap: `AppLoadedContent` (`core:ui:kit/.../loading/`) wraps the content of `exercise`,
-`single-training`, `plan-editor`, `live-workout`, `past-session` and `exercise-chart`,
-composing it only once the route knows what it is showing and fading it in on
-`continuityAlphaSpec`. The predicate differs by what each store models: `isLoading` for the
-first four, `phase !is Loading` for `past-session` (its Error phase must still compose), and
-`content !is Content.Loading` for `exercise-chart` (a verdict, not a flag, so a reload keeps
-its resolved plot on screen). **No screen draws a spinner while it waits** — one that resolves
-in ~150ms is a flicker rather than a progress report, and it costs two layout changes to say
-less than the blank does. Nothing is drawn while it waits —
+`single-training`, `plan-editor`, `live-workout` and `past-session`, composing it only once the
+route knows what it is showing and fading it in on `continuityAlphaSpec`. The predicate differs by
+what each store models: `isLoading` for the first four, and `phase !is Loading` for `past-session`
+(its Error phase must still compose).
+
+`exercise-chart` is the deliberate exception and must stay one: its top bar carries no title and
+its exercise header renders only inside `state.selectedExercise?.let`, so nothing on its shell can
+state something it has not loaded — the reason the other five are withheld does not apply. Wrapping
+it was tried and reverted: `Content.Loading` is reachable *with the shell already on screen* when
+the picker selects a new exercise out of an already-empty chart (`processPickerItemSelect` clears
+`emptyReason` while `points` still holds the previous exercise's data), and the wrapper then blanked
+the whole route mid-flow.
+
+**No screen draws a spinner while it waits.** One appears only long enough to be noticed and
+replaced, which costs two layout changes to say less than the blank does. Nothing is drawn while it waits —
 no mockup draws a loading surface, and the host paints the background under every destination.
 **The precondition travels with the gate:** every load behind it must clear `isLoading` on
 FAILURE as well as on success, because `HandlerStore.launch` defaults `onError` to `{}` — a

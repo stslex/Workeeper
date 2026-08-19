@@ -23,9 +23,11 @@ import androidx.room3.useWriterConnection
  * that connection has read anything, it is a no-op. The mask bit that lifts the restriction
  * (`0x10`) needs SQLite 3.46, far past what `minSdk 28` can assume.
  *
- * GUARD: it holds the WRITER connection for its duration, which is safe only because Room opens
- * the database in WAL mode — readers do not block on a writer, so the first screen's queries run
- * underneath this. Anything that changes the journal mode changes that.
+ * GUARD: it holds the WRITER connection for its duration, so overlapping it with a screen's reads
+ * is free only under WAL. Room's default journal mode is `AUTOMATIC`, which resolves to WAL except
+ * on `isLowRamDevice` hardware, where it is `TRUNCATE` — which is why `BaseApplication` skips the
+ * call there rather than this function assuming it. A caller that runs this alongside reads owes
+ * that check; anything that pins the journal mode changes the arithmetic for both.
  *
  * Takes the database as a PARAMETER rather than being an extension on it: `:app:app` holds the
  * `AppDatabase` (it threads it into the graph) but does not have `room3` on its compile classpath,

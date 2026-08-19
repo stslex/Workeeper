@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper
 
+import android.app.ActivityManager
 import android.app.Application
 import androidx.work.Configuration
 import io.github.stslex.workeeper.app.common.di.AppRootDeps
@@ -204,12 +205,22 @@ abstract class BaseApplication :
      * that decision exists precisely because the schema is not in a state Room can open. The
      * pre-flight has already cached its decision by the time this runs.
      *
+     * **And never on a low-RAM device.** Overlapping this write with the first screen's reads is
+     * free only under WAL, where readers do not block on a writer. Room's default journal mode is
+     * `AUTOMATIC`, and `AUTOMATIC` resolves to `TRUNCATE` exactly on `isLowRamDevice` hardware — so
+     * on those devices the overlap is not free and the safety argument does not hold. The cost of
+     * this line is that the planner keeps guessing there; the alternative, forcing
+     * `WRITE_AHEAD_LOGGING` in `AppDatabaseFactory`, would override a platform-aware Room default
+     * for every query in the app to buy one startup chore, on the devices least able to afford
+     * WAL's memory. Skipping is the smaller trade, and it is recorded as a trade.
+     *
      * Caught rather than propagated, unlike its sibling above: this one touches the database, and a
      * corrupt file is exactly the condition under which the rest of startup still has work to do.
      * A throw here would take the process down on the launch that most needs to reach recovery.
      */
     private fun warmQueryPlanner() {
         if (appGraph.startupMigrationCoordinator.lastDecision is StartupCheck.RouteToRecovery) return
+        if (getSystemService(ActivityManager::class.java)?.isLowRamDevice == true) return
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             runCatching { refreshQueryPlannerStatistics(appDatabase) }
                 .onFailure { error -> Log.e(error) }
