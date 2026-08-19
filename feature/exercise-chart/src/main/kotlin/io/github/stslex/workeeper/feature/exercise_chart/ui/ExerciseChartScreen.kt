@@ -124,9 +124,11 @@ private fun ChartContent(
     // through Content.Plot, which State refuses to produce for an unplottable dataset —
     // there is no arrangement of fields here that can put an empty chart on screen.
     when (val content = state.content) {
-        // Unreachable through `ExerciseChartGraph`, which withholds the screen on this exact
-        // verdict — kept as an arm because the verdict is legal state, and drawing NOTHING is the
-        // decision: a spinner that resolves in ~150ms reads as a flicker, not as information.
+        // Draws NOTHING, deliberately: a spinner that resolves in ~150ms reads as a flicker
+        // rather than as information, and the shell around this Box — top bar, exercise header —
+        // stays on screen, so the reader is never looking at a blank route. Reached on the cold
+        // open AND on a picker reload out of an empty chart, which is why the shell must not be
+        // withheld with it.
         Content.Loading -> Unit
 
         is Content.Empty -> EmptyContent(

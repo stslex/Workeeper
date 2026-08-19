@@ -102,18 +102,16 @@ private const val PREVIEW_X2 = 0f
 private const val PREVIEW_Y2 = 1f
 
 /**
- * The mirror image of [PREVIEW_EASING]: an ease-IN, so the dissolve is back-loaded.
+ * The mirror image of [PREVIEW_EASING]: an ease-IN, so the dissolve is back-loaded and the card
+ * stays solid under the finger — 90% opaque at a 40% drag — before reaching zero at the end.
  *
- * **This curve is the fix for a shipped defect and the reason it is not a delayed tween.** The
- * first version held alpha flat for `AppMotion.fast` and then ran it linearly, which is the same
- * intent — opaque under the finger, gone by the end — expressed with a **corner in it**. Under a
- * seek that corner is not a subtlety: the fraction is the finger, so at exactly 54% of the drag the
- * card goes from perfectly solid to visibly dissolving within one frame, and it reads as the screen
- * being thrown away mid-gesture. A single continuous curve has no such instant. The card is still
- * 90% opaque at a 40% drag and 76% at 60%, and it reaches zero smoothly.
+ * GUARD: **must stay continuous.** Expressing the same intent as a DELAYED tween puts a corner at
+ * the delay boundary, and under a seek the fraction is the finger, so a corner is one frame in
+ * which the card stops being solid. Any `delayMillis` on this spec reintroduces that.
  *
- * §26 is amended by this, and the row says so: alpha rides [AppMotion.linear] when it is a transit,
- * and this one is character — the back-loading IS the behaviour being bought.
+ * §26 is amended by this — alpha rides [AppMotion.linear] when it is a transit, and the
+ * back-loading here is character. See the ledger row in
+ * `documentation/feature-specs/v3-redesign-spec.md` §26.
  */
 private val DEPARTURE_EASING: Easing = CubicBezierEasing(
     DEPARTURE_X1,

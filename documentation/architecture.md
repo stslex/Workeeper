@@ -1524,7 +1524,10 @@ Two outcomes:
 ### SQLite query-planner statistics
 
 `BaseApplication.warmQueryPlanner()` runs `ANALYZE` once per process, off the main thread and
-best-effort, via `refreshQueryPlannerStatistics` in `core:data:database`. Without `sqlite_stat1`
+best-effort, via `refreshQueryPlannerStatistics` in `core:data:database`. Measured on
+`:app:dev:installRelease` against a long-term database: 878ms on the first launch after install,
+45–107ms on every launch after that. That is affordable because Room opens the database in WAL
+mode, so holding the writer connection does not block the first screen's reads. Without `sqlite_stat1`
 SQLite plans on guesswork, and the guess it made in production was to drive the live-workout
 personal-record read from `session_table.state` — an index over two distinct values — walking every
 finished session the user had ever logged instead of the handful of exercises the query asked
