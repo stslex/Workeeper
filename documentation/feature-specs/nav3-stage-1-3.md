@@ -75,6 +75,20 @@ transitionSpec/popTransitionSpec = fade tween(AppUi.motion.base), entryProvider 
 - The 7 feature-graph `BackHandler`s ride inside entry content exactly as they did inside
   `composable{}` content; the oracle's back-dismissal journeys pin each.
 
+**Reconciled after stage 1.3.** The host now passes a **third** spec,
+`predictivePopTransitionSpec`, which this section did not name and the swap therefore left on the
+library default. That default is `fadeIn(spring(1f, 1600f)) togetherWith scaleOut(targetScale =
+0.7f)` — a shrink with **no fade on the leaving screen** — and since `NavDisplay` places the
+incoming scene *below* the outgoing during predictive back, it leaves a 70%-scaled opaque screen on
+top at the instant of the snap. So the back GESTURE ran neither the app's fade nor a clean pop,
+while the back BUTTON ran the fade: two animations for one navigation. The gap was booked
+generically at `nav3-migration.md` §1.1.7 ("motion and visual continuity … accepted gap; manual
+review during 1.3") and never became a §4 exit criterion; nothing here identified that
+`NavDisplay` splits into three specs where `NavHost` had one. The override, its geometry and the
+duration invariant it depends on are documented in `architecture.md` §"Navigation host and shared
+element transitions". §3.7's bottom-bar note now also owes the observation that the bar is a
+sibling of `NavDisplay` and does not participate in the gesture at all.
+
 ### 3.4 DSL re-point, call sites frozen
 `NavGraphScope` wraps `EntryProviderScope<Screen>` (+ the results source, §3.6) instead of
 `NavGraphBuilder`; `navScreen`/`navScreenWithState` re-implement on `entry<S>`. The 12 graph

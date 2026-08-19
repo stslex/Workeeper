@@ -1447,7 +1447,10 @@ BackHandler(enabled = state.interceptBack) {
 ```
 
 When `interceptBack` is false: the gesture goes natively through `NavDisplay`'s
-back handling, predictive preview animation runs, no store involvement.
+back handling, the predictive preview animation runs, no store involvement. That preview is
+**drawn by the app**, not by the system: it is the host's `predictivePopTransitionSpec`,
+seeked with raw gesture progress — see
+[the navigation host](#navigation-host-and-shared-element-transitions).
 
 When `interceptBack` is true: gesture is intercepted, emits `OnBackClick` into the
 store, and the store decides what to do (typically: show a discard dialog).
@@ -1501,8 +1504,14 @@ Two outcomes:
 #### Anti-patterns to avoid
 
 - `BackHandler { processor.consume(Action.Click.OnBackClick) }` (always enabled).
-  This breaks predictive back preview even in Read mode where there's nothing to
-  intercept.
+  This breaks the predictive-back preview even in Read mode where there's nothing to
+  intercept — and it breaks it *completely*: an enabled `BackHandler` means the gesture
+  never reaches `NavDisplay`, so the screen plays neither the preview nor the pop
+  transition. Every screen now registers its handler as `BackHandler(enabled = ...)` or
+  registers none; `image-viewer` was the last unconditional one and no longer has a
+  handler at all. A screen that wants a side effect on *every* back — a haptic, an
+  analytics event — cannot have one on the gesture path, and that is the correct trade:
+  it is what buys the preview.
 - `BackHandler(enabled = state.mode is Mode.Edit) { ... }` (gated only by mode, not
   by dirty status). This intercepts every back in Edit mode even when there's
   nothing to lose, again breaking predictive back unnecessarily.
@@ -1537,6 +1546,44 @@ activity-scoped-store mutation pins. Its `onBack` pops only while the stack
 holds more than one entry: system back at the root belongs to the platform
 (the activity finishes — `ApplicationBottomBarTest` pins it), and
 `NavDisplay` must never see an empty stack.
+
+`NavDisplay` takes **three** transition specs and this host passes all three, from
+`app/common/.../host/NavTransitions.kt`. `transitionSpec` (forward navigation — and every
+bottom-tab switch, because `NavigatorExt` REPLACES the top entry for `isSingleTop`, which
+`NavDisplay.isPop` correctly reads as *not* a pop) and `popTransitionSpec` (the top-bar
+chevron, `navigator.popBack()`, three-button back) both run one shared `ContentTransform`:
+the 260ms crossfade from alpha 0.3 that the Nav2 host ran.
+
+`predictivePopTransitionSpec` — the finger-driven back gesture, and only that — runs a
+preview instead. The leaving screen stays **opaque** and scales 1 -> 0.9 about the edge
+*opposite* the swiped one, which reproduces Material 3's own predictive-back geometry
+(`SearchBarPredictiveBackMinScale = 9/10`, and a centre shift of `w/20` =
+`SearchBarPredictiveBackMaxOffsetXRatio`) with one channel instead of two. The screen being
+uncovered sits full-size under a black scrim at 32%. For the first `AppMotion.fast` of the
+`AppMotion.base` window nothing else happens — that is the drag; for the remaining 120ms the
+leaving screen dissolves to 0 while the scrim lifts to 0 on the same window — that is the
+handoff, and in practice it plays after the finger has left.
+
+Three mechanics constrain anything written there, and none of them is optional.
+**First**, `NavDisplay` places the incoming scene *below* the outgoing during predictive back
+(`targetZIndex = initialZIndex - 1f`), so the exit transition must render nothing at fraction
+1.0 or it covers the screen it just revealed. The fade is what clears it; the library's own
+default omits one, which is why the default preview ends in a visible cut — that default is
+what shipped between the Nav3 swap and this host passing a third spec.
+**Second**, the fraction is the finger: `SeekableTransitionState.seekTo` is fed raw gesture
+progress and maps it to playtime as `fraction x transition.totalDurationNanos`, the max over
+*every* animation on the scene transition. Every channel spans exactly `AppMotion.base`, and
+that equality is what makes "alpha reached 0" and "the gesture completed" the same instant.
+The first `sharedBounds` / `sharedElement` added to any screen registers a spring on this
+transition and breaks it; re-derive the windows then.
+**Third**, a `ContentTransform` has exactly five channels — fade, slide, changeSize, scale,
+veil. There is no corner radius, no shadow, no elevation and no per-frame hook; the spec
+lambda receives one `Int` (the swipe edge) and is invoked twice per segment. The platform
+preview's rounded, shadowed card is therefore not reachable from this API, and the scrim is
+the only depth cue available. `slide` and `changeSize` are additionally avoided on purpose:
+both are read in the *placement* block, so they invalidate layout every frame, and every
+graph here carries `Modifier.reportScreenPlace<...>()` whose `onPlaced` would then fire per
+frame per scene.
 
 Each graph is added via `navComponentScreen<Feature>` /
 `navComponentScreenWithResults<Feature>`, which expands to an `entry<Screen>`
