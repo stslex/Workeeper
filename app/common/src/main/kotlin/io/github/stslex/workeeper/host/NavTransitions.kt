@@ -153,10 +153,11 @@ internal fun navFadeTransform(motion: AppMotion): ContentTransform = fadeIn(
  * Spans the whole window on [PREVIEW_EASING], so a small drag already produces most of the preview
  * and further dragging refines it — the platform's bounded-preview behaviour, reproduced.
  *
- * The earlier version ran this on [AppMotion.travel], which reaches only 0.58 of the shrink at a
- * quarter drag: the card visibly trailed the thumb early and then had most of its travel left when
- * the gesture was already committed, which is half of what "the animation is crumpled" was
- * describing. The other half was the dissolve's corner — see [DEPARTURE_EASING].
+ * GUARD: **must stay front-loaded.** A curve that spends less than roughly two thirds of its
+ * travel in the first quarter of the drag leaves the card trailing the thumb early and still
+ * moving after the gesture has committed. `AppMotion`'s own curves were measured against this and
+ * none of them lands in the band — see the §26 row "The gesture's two curves are Android's" in
+ * `documentation/feature-specs/v3-redesign-spec.md`.
  */
 internal fun predictiveGeometrySpec(motion: AppMotion): TweenSpec<Float> = tween(
     durationMillis = motion.base,
