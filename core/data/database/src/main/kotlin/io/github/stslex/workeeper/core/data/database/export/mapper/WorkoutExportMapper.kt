@@ -23,7 +23,7 @@ import io.github.stslex.workeeper.core.data.database.sets.PlanSetDataModel
 import io.github.stslex.workeeper.core.data.database.sets.SetTypeDataModel
 import io.github.stslex.workeeper.core.data.database.training.TrainingEntity
 import io.github.stslex.workeeper.core.data.database.training.TrainingExerciseEntity
-import java.time.Instant
+import kotlin.time.Instant
 
 /**
  * Pure entity → export-DTO conversions for the AI snapshot (spec §4.1). Keeps mapping
@@ -35,7 +35,7 @@ import java.time.Instant
 internal object WorkoutExportMapper {
 
     /** DB epoch-millis → UTC ISO-8601 (e.g. `2026-06-26T10:42:23Z`). */
-    fun epochToIso(epochMs: Long): String = Instant.ofEpochMilli(epochMs).toString()
+    fun epochToIso(epochMs: Long): String = Instant.fromEpochMilliseconds(epochMs).toString()
 
     fun exercise(entity: ExerciseEntity, tags: List<String>): ExerciseExportDto = ExerciseExportDto(
         uuid = entity.uuid.toString(),
