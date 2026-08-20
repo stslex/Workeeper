@@ -1583,7 +1583,10 @@ preview instead. The leaving screen stays opaque and scales 1 -> 0.9 about the e
 (`SearchBarPredictiveBackMinScale = 9/10`, and a centre shift of `w/20` =
 `SearchBarPredictiveBackMaxOffsetXRatio`) with one channel instead of two. The screen being
 uncovered grows from 0.95 into place under a black scrim at 32%, and never fades — it is
-already there, and only its depth changes.
+already there, and only its depth changes. **0.95 rather than anything deeper** because the band
+a shallower scale would open around the incoming screen is filled by the root `Box`, which paints
+the colour that screen paints: a deeper reveal buys no more depth cue and only widens a band the
+reader cannot see.
 
 **Two curves, both file-local and neither on the motion scale.** The shrink and the reveal
 ride `PREVIEW_EASING` = `CubicBezierEasing(0.1f, 0.1f, 0f, 1f)`, which is Material's own

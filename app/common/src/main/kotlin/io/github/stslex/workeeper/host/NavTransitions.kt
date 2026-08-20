@@ -68,9 +68,9 @@ private const val PREVIEW_SCALE = 0.9f
 
 /**
  * The screen being uncovered starts fractionally small and grows into place, so the two screens
- * read as stacked in depth rather than swapped. The platform's own preview does the same; kept
- * shallow because at 0.95 the band it opens around the incoming screen is the root `Box`'s
- * background, which is the colour that screen paints anyway.
+ * read as stacked in depth rather than swapped — the platform's own preview does the same. Kept
+ * deliberately shallow; the reason is in `documentation/architecture.md` § "Navigation host and
+ * shared element transitions".
  */
 private const val REVEAL_INITIAL_SCALE = 0.95f
 
