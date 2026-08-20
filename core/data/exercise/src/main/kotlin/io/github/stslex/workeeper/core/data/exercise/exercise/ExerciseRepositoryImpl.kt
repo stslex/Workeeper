@@ -50,6 +50,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
+import kotlin.time.Clock
 import kotlin.uuid.Uuid
 
 @Suppress("TooManyFunctions", "LongParameterList")
@@ -178,7 +179,7 @@ class ExerciseRepositoryImpl @Inject internal constructor(
             description = null,
             imagePath = null,
             archived = false,
-            createdAt = System.currentTimeMillis(),
+            createdAt = Clock.System.now().toEpochMilliseconds(),
             archivedAt = null,
             lastAdhocSets = null,
             isAdhoc = true,
@@ -297,7 +298,7 @@ class ExerciseRepositoryImpl @Inject internal constructor(
 
     override suspend fun archive(uuid: String) {
         withContext(bgDispatcher) {
-            dao.archive(Uuid.parse(uuid), System.currentTimeMillis())
+            dao.archive(Uuid.parse(uuid), Clock.System.now().toEpochMilliseconds())
         }
     }
 
@@ -462,7 +463,7 @@ class ExerciseRepositoryImpl @Inject internal constructor(
             )
         }
         if (allowed.isNotEmpty()) {
-            val now = System.currentTimeMillis()
+            val now = Clock.System.now().toEpochMilliseconds()
             allowed.forEach { dao.archive(it, now) }
         }
         BulkArchiveOutcome(archivedCount = allowed.size, blocked = blockedExercises)

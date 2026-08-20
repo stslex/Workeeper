@@ -43,6 +43,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
+import kotlin.time.Clock
 import kotlin.uuid.Uuid
 
 @Suppress("TooManyFunctions", "LongParameterList")
@@ -231,7 +232,7 @@ class SessionRepositoryImpl @Inject internal constructor(
         val entity = SessionEntity(
             trainingUuid = Uuid.parse(trainingUuid),
             state = SessionStateEntity.IN_PROGRESS,
-            startedAt = System.currentTimeMillis(),
+            startedAt = Clock.System.now().toEpochMilliseconds(),
             finishedAt = null,
         )
         dao.insert(entity)
@@ -245,7 +246,7 @@ class SessionRepositoryImpl @Inject internal constructor(
         val session = SessionEntity(
             trainingUuid = Uuid.parse(trainingUuid),
             state = SessionStateEntity.IN_PROGRESS,
-            startedAt = System.currentTimeMillis(),
+            startedAt = Clock.System.now().toEpochMilliseconds(),
             finishedAt = null,
         )
         val performed = exerciseUuids.map { (exerciseUuid, position) ->
@@ -347,7 +348,7 @@ class SessionRepositoryImpl @Inject internal constructor(
         name: String,
         exerciseUuids: List<String>,
     ): SessionRepository.AdhocSessionResult = transition {
-        val now = System.currentTimeMillis()
+        val now = Clock.System.now().toEpochMilliseconds()
         val training = TrainingEntity(
             name = name,
             description = null,

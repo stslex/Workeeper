@@ -31,6 +31,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
+import kotlin.time.Clock
 import kotlin.uuid.Uuid
 
 @Suppress("TooManyFunctions", "LongParameterList")
@@ -159,7 +160,7 @@ class TrainingRepositoryImpl @Inject internal constructor(
 
     override suspend fun archive(uuid: String) {
         withContext(ioDispatcher) {
-            dao.archive(Uuid.parse(uuid), System.currentTimeMillis())
+            dao.archive(Uuid.parse(uuid), Clock.System.now().toEpochMilliseconds())
         }
     }
 
@@ -241,7 +242,7 @@ class TrainingRepositoryImpl @Inject internal constructor(
         val (allowed, blocked) = parsed.partition { it != activeTrainingUuid }
         val blockedNames = blocked.mapNotNull { dao.getById(it)?.name }
         if (allowed.isNotEmpty()) {
-            dao.archiveAll(allowed, System.currentTimeMillis())
+            dao.archiveAll(allowed, Clock.System.now().toEpochMilliseconds())
         }
         BulkArchiveOutcome(archivedCount = allowed.size, blockedNames = blockedNames)
     }
