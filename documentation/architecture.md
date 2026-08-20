@@ -1672,8 +1672,15 @@ A route does not compose until it has loaded (§26), and it arrives with a fade 
 snap: `AppLoadedContent` (`core:ui:kit/.../loading/`) wraps the content of `exercise`,
 `single-training`, `plan-editor`, `live-workout` and `past-session`, composing it only once the
 route knows what it is showing and fading it in on `continuityAlphaSpec`. The predicate differs by
-what each store models: `isLoading` for the first four, and `phase !is Loading` for `past-session`
-(its Error phase must still compose).
+what each store models: `isLoading` for `exercise`, `single-training` and `plan-editor`;
+`isLoading || loadFailed` for `live-workout`; and `phase !is Loading` for `past-session` (its Error
+phase must still compose).
+
+**`live-workout`'s second term is load-bearing and must not be simplified away.** A failed load
+clears `isLoading` deliberately — a latched flag behind the gate is a permanently empty frame — and
+records `loadFailed` in the same update. Without that term in the predicate the route would compose
+the failed session as a successfully empty workout, Finish dock and all, for as long as the
+asynchronous pop takes.
 
 `exercise-chart` is the deliberate exception and must stay one: its top bar carries no title and
 its exercise header renders only inside `state.selectedExercise?.let`, so nothing on its shell can

@@ -341,7 +341,11 @@ internal class NavTransitionsTest {
         /** The card must still be more than three quarters opaque at half a drag. */
         const val BACK_LOAD_CEILING = 0.25f
 
-        /** Material's predictive curve sits at ~0.68 here; the band is that value +/- 0.1. */
+        /**
+         * The band a front-loaded preview must land in. Its derivation — Material's quarter-drag
+         * value and the slack around it — is in `documentation/architecture.md` § "Navigation host
+         * and shared element transitions".
+         */
         const val FRONT_LOAD_FLOOR = 0.58f
         const val FRONT_LOAD_CEILING = 0.78f
     }
