@@ -180,12 +180,15 @@ drags `@ExperimentalForeignApi` into the file. The list-returning
 
 The Room half is well-understood and small: an `expect object AppDatabaseConstructor :
 RoomDatabaseConstructor<AppDatabase>` in commonMain, `@ConstructedBy` on `@Database`, and the
-replacement of **15** reflective `AppDatabase::class.java` builder sites (1 production, 6 src/test, 5
-src/androidTest, 1 testFixtures, 1 database-test, 1 app/app androidTest) with the generic
-`Room.databaseBuilder<AppDatabase>(…)` form. Room KMP also requires `setQueryCoroutineContext(…)`,
-which is currently set nowhere. Only 5 of 54 main files move to `androidMain`: `AppDatabaseFactory`
+replacement of **15** reflective `AppDatabase::class.java` builder sites *(PR D re-measured: 15
+reflective plus a 16th already in the Room-3 KClass form — the spec's per-set split undercounted
+src/test by one; the testFixtures site had become a database-test one with #235)* with the generic
+`Room.databaseBuilder<AppDatabase>(…)` form. ~~Room KMP also requires `setQueryCoroutineContext(…)`,
+which is currently set nowhere.~~ *(Dated by PR D: not for an Android-only builder — see §9.)*
+Only 5 of 54 main files move to `androidMain`: `AppDatabaseFactory`
 and the three-file `snapshot/` package (which uses `android.database.sqlite.SQLiteDatabase` directly,
-twice, deliberately outside Room), plus `WorkoutExportMapper`'s `java.time.Instant`.
+twice, deliberately outside Room), plus `WorkoutExportMapper`'s `java.time.Instant` *(PR D: taking
+the java.time rider first made the mapper commonMain-clean — androidMain ended at 4 files)*.
 
 The four gaps below are **not** in the phase plan as handed over, and each is load-bearing.
 
@@ -486,3 +489,57 @@ change to an entity, column or index declaration during the port silently invali
   a sibling module `core:core-android` that Phase 3 deleted, and a `detekt.yml` comment attributes the
   KMP detekt `source.setFrom` to `core/core/build.gradle.kts`, which has no detekt block at all.
   Verify against code.
+## §9 What PR D measured (lands with PR D)
+
+Everything below was found by the conversion itself; each is load-bearing for phase 7's ~30
+module conversions.
+
+- **The connected-run alias is the FIFTH silent vanish.** §3.2 pre-diagnosed
+  `assembleDebugAndroidTest → assembleAndroidDeviceTest`; converting the first instrumented module
+  surfaced its twin: `ui_tests.yml` invokes `connectedDebugAndroidTest` literally, so the assemble
+  alias alone builds a device-test APK the weekly suite never runs. Both aliases live in
+  `KmpLibraryConventionPlugin.registerCiAliases`, literal task names on purpose — an AGP rename must
+  fail graph construction loudly. `withDeviceTest` is unconditional (classic-AGP parity); an empty
+  KMP device-test APK runs green under the annotation filter, so source-less modules cost nothing.
+- **Room-KMP does not put schemas on the device-test APK.** All 7 MigrationTestHelper tests failed
+  on device (`FileNotFoundException … Missing file: …/5.json`): the classic integration's
+  androidTest-assets copy has no KMP counterpart. Fix in the Room convention's KMP branch via the
+  variant API (`deviceTests…sources.assets.addStaticSourceDirectory(schemas)`) — **which is null
+  until `androidResources.enable = true`**; AGP-KMP defaults the entire asset pipeline off.
+- **Room 3 schema export is write-on-diff.** The processor writes into the plugin's `schemaOutput`
+  only when the generated schema differs from `schemaInput` (= the committed `schemas/`), so a
+  production build can never silently rewrite `schemas/`. The §6 gate ran as prescribed:
+  schemaInput redirected to an empty dir (out-of-tree init script overriding the KSP task's
+  processorOptions), fresh 6.json exported, byte-identical, identityHash unchanged.
+- **KSP2 KMP configuration names**: `kspAndroid` / `kspIosSimulatorArm64` feed tasks
+  `kspAndroidMain` / `kspKotlinIosSimulatorArm64`; room3's KMP integration matches `KspAATask` by
+  name and attaches its argument provider — KSP2-aware out of the box.
+- **`NO_ACTUAL_FOR_EXPECT` suppression is neither needed nor allowed.** The metadata compilation
+  does not demand an actual for `expect object AppDatabaseConstructor`; the platform compilations
+  get Room's generated ones. `NoActualForExpectSuppressionRule` (already in lint-rules) fires on
+  the suppression — write the expect bare.
+- **First KMP device APK depending on an Android-convention AAR fails
+  `checkAndroidDeviceTestAarMetadata`** ("requires core library desugaring") — the KMP convention
+  now mirrors `configureKotlinAndroid`'s repo-wide desugaring (flag + `desugar_jdk_libs`).
+- **Lint does not classify KSP output as generated on KMP.** `checkGeneratedSources = false` is
+  honored on classic modules; on the converted module a consumer with `checkDependencies = true`
+  red 1087 RestrictedApi + 6 SyntheticAccessor, all under `build/generated`, none in handwritten
+  code. Encoded in `lint.xml` as per-issue `**/build/generated/**` ignores (M-LINT1: breaking the
+  path brings all 1093 back; reverted).
+- **`src/androidTest` was never full-detekt-checked on classic modules** (default detekt sources
+  are src/main + src/test). The KMP source-set model brings device tests under the full ruleset for
+  the first time — two pre-existing `Wrapping` violations surfaced in `AtomicRollbackDeviceTest`
+  and are fixed here. Phase 7's conversions will surface more of these; they are findings, not
+  regressions.
+- **Reified-builder inference**: `Room.databaseBuilder<T>(context, name)` compiles on Android
+  before `@ConstructedBy` exists (reflective fallback), so builder-site rewrites can precede the
+  conversion commit — but a bare `ApplicationProvider.getApplicationContext()` argument no longer
+  anchors inference once `Class<T>` is gone; pin as `getApplicationContext<Application>()`.
+- **`setQueryCoroutineContext` stays unset** (correction to §3's list): the Android builder runs
+  without it, adding it would change which context Room queries run on — not "the port only" — and
+  nothing constructs a database off-Android until phase 7's iOS composition root, which is where
+  it belongs, next to the driver choice for iOS.
+- `String.toByteArray(Charsets.UTF_8)` is JVM-only; commonMain uses `encodeToByteArray()` (one
+  site). `kotlin.time.Instant.toString()` measured byte-identical to `java.time` for every
+  epoch-milli input class — the §7 java.time rider's production line is taken with zero new
+  dependency, which also moves `WorkoutExportMapper` to commonMain: androidMain is 4 files, not 5.
