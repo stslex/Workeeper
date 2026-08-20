@@ -7,11 +7,12 @@ import android.view.View
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.shape.AbsoluteRoundedCornerShape
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.produceState
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.withFrameNanos
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.Density
@@ -38,34 +39,42 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 internal fun displayCornerShape(): Shape {
     val view = LocalView.current
     val density = LocalDensity.current
-    val configuration = LocalConfiguration.current
     val fallback: Shape = remember(density) { AbsoluteRoundedCornerShape(AppDimension.Radius.big) }
 
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return fallback
 
-    // The platform's answer, bridged into Compose state rather than inferred from a proxy.
+    var shape by remember(view, density) { mutableStateOf(view.displayCorners(density) ?: fallback) }
+
+    // The platform's own signal, bridged into Compose state — a LAYOUT of this View.
     //
-    // GUARD: do NOT key this on an inset VALUE. `rootWindowInsets` is null until the window is
-    // attached, and the dispatch that first makes it answerable need not move any edge Compose
-    // exposes — bars hidden, or an all-zero dispatch — so an inset value is a proxy with a hole in
-    // it, and so is any other key cheap enough to be worth using. This asks the platform directly
-    // and asks again next frame until it can answer, which is a question with no proxy in it. It
-    // stops on the first answer, so the cost is a null check per frame during attach and nothing
-    // afterwards.
+    // GUARD: neither an inset VALUE nor "the first non-null answer" is enough, and both were tried.
+    // An inset value is a proxy: `rootWindowInsets` is null until attach, and the dispatch that
+    // first makes it answerable need not move any edge Compose exposes. And a first-non-null answer
+    // is not necessarily a CURRENT one: `MainActivity` declares `configChanges`, so a rotation
+    // neither recreates the activity nor replaces this View, and at the moment the configuration
+    // changes `rootWindowInsets` still holds the previous orientation's corners — read then, a
+    // display with asymmetric corners keeps the old shape until something else disturbs it.
     //
-    // `configuration` is a key rather than a subscription here: `MainActivity` declares
-    // `configChanges`, so a rotation replaces neither the activity nor the View, and re-keying is
-    // what re-asks — the physical top-left after a rotation can be a different corner.
-    return produceState(fallback, view, density, configuration) {
-        while (true) {
-            val resolved = view.displayCorners(density)
-            if (resolved != null) {
-                value = resolved
-                break
-            }
-            withFrameNanos { }
+    // A layout has neither problem. `ViewRootImpl` dispatches insets during the same traversal,
+    // BEFORE layout, so by the time this fires `rootWindowInsets` is current; and a rotation
+    // relayouts this View by construction, since its bounds swap. Attach lays out too, which is
+    // what resolves the initial null. Assigning an equal shape is a no-op —
+    // `AbsoluteRoundedCornerShape` implements `equals` — so a layout that changes nothing costs no
+    // recomposition.
+    //
+    // NOT an `OnApplyWindowInsetsListener`, which would be the more direct read of "observe the
+    // dispatch": that hook is single-listener per View and `AndroidComposeView` owns it, so taking
+    // it would break Compose's own insets to fix a corner radius. `addOnLayoutChangeListener` is
+    // additive and displaces nothing.
+    DisposableEffect(view, density) {
+        val listener = View.OnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+            view.displayCorners(density)?.let { corners -> shape = corners }
         }
-    }.value
+        view.addOnLayoutChangeListener(listener)
+        onDispose { view.removeOnLayoutChangeListener(listener) }
+    }
+
+    return shape
 }
 
 /**
