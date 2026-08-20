@@ -201,11 +201,10 @@ abstract class BaseApplication :
      *
      * **Fire-and-forget, and deliberately NOT coordinated with the first read that benefits.** A
      * launch with no statistics yet can serve a query before this finishes, on the plan the
-     * statistics exist to replace. Measured on the long-term database rather than argued: that
-     * query costs 7-9ms warm without statistics against 4-8ms with them, while making the first
-     * read wait would cost it up to the full refresh — 878ms on a first launch. Coordination would
-     * trade single-digit milliseconds for most of a second, on exactly the launch it targets. The
-     * statistics are durable, so the exposure is that one launch.
+     * statistics exist to replace; making that read wait would cost far more than the plan does,
+     * and the statistics are durable, so the exposure is that one launch. Both sides of the trade
+     * are measured in `documentation/feature-specs/v3-redesign-spec.md` §27, "A BAD QUERY PLAN CAN
+     * BE A MISSING FACT".
      *
      * **And never on a low-RAM device.** Overlapping this write with the first screen's reads is
      * free only under WAL, where readers do not block on a writer. Room's default journal mode is
