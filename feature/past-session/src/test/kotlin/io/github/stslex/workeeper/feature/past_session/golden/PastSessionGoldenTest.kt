@@ -76,6 +76,7 @@ internal class PastSessionGoldenTest {
                 state = State(
                     sessionUuid = "s-1",
                     phase = State.Phase.Error(ErrorType.SessionNotFound),
+                    hasResolved = true,
                     expandedExerciseUuids = persistentSetOf(),
                     dialogState = DialogState.Hidden,
                     bottomSheetState = BottomSheetState.Hidden,
@@ -341,6 +342,7 @@ private fun InGutter(content: @Composable () -> Unit) {
 private fun loadedState(): State = State(
     sessionUuid = "s-1",
     phase = State.Phase.Loaded(detail = detail()),
+    hasResolved = true,
     // First-entry rule of the amended §7 model: the first card open, the rest closed.
     expandedExerciseUuids = persistentSetOf("pe-1"),
     dialogState = DialogState.Hidden,

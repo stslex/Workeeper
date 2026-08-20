@@ -1674,8 +1674,10 @@ snap: `AppLoadedContent` (`core:ui:kit/.../loading/`) wraps the content of `exer
 `single-training`, `plan-editor`, `live-workout` and `past-session`, composing it only once the
 route knows what it is showing and fading it in on `continuityAlphaSpec`. The predicate differs by
 what each store models: `isLoading` for `exercise`, `single-training` and `plan-editor`;
-`isLoading || loadFailed` for `live-workout`; and `phase !is Loading` for `past-session` (its Error
-phase must still compose).
+`isLoading || loadFailed` for `live-workout`; and, for `past-session`, `phase !is Loading || hasResolved`
+(its Error phase must still compose, and `hasResolved` is latched so the FIRST load is the only one
+withheld — Retry re-enters `Loading` with the screen already up, and withholding it there blanks the
+route mid-flow).
 
 **`live-workout`'s second term is load-bearing and must not be simplified away.** A failed load
 clears `isLoading` deliberately — a latched flag behind the gate is a permanently empty frame — and

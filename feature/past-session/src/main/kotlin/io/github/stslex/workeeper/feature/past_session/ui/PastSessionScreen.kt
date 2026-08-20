@@ -258,6 +258,7 @@ private fun PastSessionScreenLoadedLightPreview() {
             state = State(
                 sessionUuid = "stub",
                 phase = State.Phase.Loaded(detail = stubDetail()),
+                hasResolved = true,
                 expandedExerciseUuids = persistentSetOf("pe-1"),
                 dialogState = DialogState.Hidden,
                 bottomSheetState = BottomSheetState.Hidden,
@@ -275,6 +276,7 @@ private fun PastSessionScreenLoadedDarkPreview() {
             state = State(
                 sessionUuid = "stub",
                 phase = State.Phase.Loaded(detail = stubDetail()),
+                hasResolved = true,
                 expandedExerciseUuids = persistentSetOf("pe-1"),
                 dialogState = DialogState.Hidden,
                 bottomSheetState = BottomSheetState.Hidden,
@@ -292,6 +294,7 @@ private fun PastSessionScreenLoadingPreview() {
             state = State(
                 sessionUuid = "stub",
                 phase = State.Phase.Loading,
+                hasResolved = true,
                 expandedExerciseUuids = persistentSetOf(),
                 dialogState = DialogState.Hidden,
                 bottomSheetState = BottomSheetState.Hidden,
@@ -309,6 +312,7 @@ private fun PastSessionScreenErrorPreview() {
             state = State(
                 sessionUuid = "stub",
                 phase = State.Phase.Error(ErrorType.SessionNotFound),
+                hasResolved = true,
                 expandedExerciseUuids = persistentSetOf(),
                 dialogState = DialogState.Hidden,
                 bottomSheetState = BottomSheetState.Hidden,
