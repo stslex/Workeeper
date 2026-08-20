@@ -144,6 +144,9 @@ coil-ktor = { module = "io.coil-kt.coil3:coil-network-ktor3", version.ref = "coi
 
 androidx-compose-paging = { group = "androidx.paging", name = "paging-compose", version.ref = "paging" }
 androidx-paging-runtime = { group = "androidx.paging", name = "paging-runtime-ktx", version.ref = "paging" }
+# The KMP home of PagingSource/PagingData (publishes iosSimulatorArm64); what KMP data modules
+# declare instead of the Android-only paging-runtime-ktx.
+androidx-paging-common = { group = "androidx.paging", name = "paging-common", version.ref = "paging" }
 androidx-paging-testing = { group = "androidx.paging", name = "paging-testing", version.ref = "paging" }
 
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "serialization" }
