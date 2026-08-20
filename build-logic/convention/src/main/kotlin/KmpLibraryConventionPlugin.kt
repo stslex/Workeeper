@@ -147,6 +147,12 @@ class KmpLibraryConventionPlugin : Plugin<Project> {
             withDeviceTest {
                 instrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
             }
+            // Repo-wide parity with KotlinAndroid.configureKotlinAndroid's
+            // isCoreLibraryDesugaringEnabled = true. Not optional in practice: every Android
+            // convention module publishes AAR metadata demanding desugaring of its consumers,
+            // so the first KMP device-test APK that depends on one (core:data:database →
+            // core:ui:test-utils) fails checkAndroidDeviceTestAarMetadata without this.
+            enableCoreLibraryDesugaring = true
             configureLintOptions(lint)
         }
 
@@ -174,6 +180,10 @@ class KmpLibraryConventionPlugin : Plugin<Project> {
         // Raw configuration names, the pattern the KMP source-set DSL forces for platform()
         // anyway; the configurations exist because configureTargets ran withHostTest first.
         dependencies {
+            // The desugared-runtime half of enableCoreLibraryDesugaring (configureTargets);
+            // same artifact the Android convention wires.
+            add("coreLibraryDesugaring", libs.findLibrary("android-desugarJdkLibs").get())
+
             add("androidHostTestImplementation", platform(libs.findLibrary("junit-bom").get()))
             add("androidHostTestImplementation", libs.findLibrary("junit-jupiter").get())
             add("androidHostTestImplementation", libs.findLibrary("coroutine-test").get())

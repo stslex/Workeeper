@@ -146,7 +146,9 @@ internal class AtomicRollbackDeviceTest {
                 val a = asyncScope { tagDao.insert(TagEntity(name = "A-1")) }
                 val b = asyncScope { tagDao.insert(TagEntity(name = "A-2")) }
                 val c = asyncScope { tagDao.insert(TagEntity(name = "A-3")) }
-                a.await(); b.await(); c.await()
+                a.await()
+                b.await()
+                c.await()
                 seenInside = readNames("A-")
                 throw RollbackTrigger("roll back shape A")
             }
@@ -174,7 +176,8 @@ internal class AtomicRollbackDeviceTest {
                 coroutineScope {
                     val a = async { tagDao.insert(TagEntity(name = "B-1")) }
                     val b = async { tagDao.insert(TagEntity(name = "B-2")) }
-                    a.await(); b.await()
+                    a.await()
+                    b.await()
                 }
                 listOf("B-3", "B-4").asyncForEach { tagDao.insert(TagEntity(name = it)) }
                 seenInside = readNames("B-")

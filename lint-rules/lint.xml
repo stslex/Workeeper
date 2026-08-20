@@ -184,4 +184,21 @@
          `disable` set) trips UnknownIssueId in library modules that don't
          depend on androidx.work. See documentation/feature-specs/backup.md →
          WorkManager setup. -->
+
+    <!-- ================================ -->
+    <!-- KSP-GENERATED CODE ON KMP MODULES -->
+    <!-- ================================ -->
+    <!-- The convention already sets checkGeneratedSources = false, and on classic Android
+         modules lint honors it. On an AGP-KMP module the KSP output directory is registered
+         through the Kotlin source-set model and lint does NOT classify it as generated — so a
+         consumer running with checkDependencies = true analyzes the dependency's generated
+         Room code as if it were handwritten (measured on core:data:database's conversion:
+         1087 RestrictedApi + 6 SyntheticAccessor, all under build/generated, none elsewhere).
+         Path-scoped per issue, not disabled: the same ids still fire on handwritten code. -->
+    <issue id="RestrictedApi" severity="error">
+        <ignore path="**/build/generated/**" />
+    </issue>
+    <issue id="SyntheticAccessor" severity="error">
+        <ignore path="**/build/generated/**" />
+    </issue>
 </lint>

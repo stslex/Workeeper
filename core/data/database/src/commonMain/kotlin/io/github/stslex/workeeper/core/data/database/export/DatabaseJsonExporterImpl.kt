@@ -96,7 +96,7 @@ public class DatabaseJsonExporterImpl @Inject constructor(
             }
         }
         // Encode outside the transaction — pure CPU, no DB access; keeps the transaction short.
-        json.encodeToString(snapshot).toByteArray(Charsets.UTF_8)
+        json.encodeToString(snapshot).encodeToByteArray()
     }
 
     private suspend fun CoroutineScope.buildIndex(exercises: Deferred<List<ExerciseEntity>>): ExportIndex {

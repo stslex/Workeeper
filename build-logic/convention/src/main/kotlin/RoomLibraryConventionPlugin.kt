@@ -5,6 +5,8 @@ import AppExt.implementationBundle
 import AppExt.ksp
 import AppExt.libs
 import androidx.room3.gradle.RoomExtension
+import com.android.build.api.variant.HasDeviceTests
+import com.android.build.api.variant.KotlinMultiplatformAndroidComponentsExtension
 import com.google.devtools.ksp.gradle.KspExtension
 import org.gradle.api.Plugin
 import org.gradle.api.Project
@@ -78,6 +80,31 @@ class RoomLibraryConventionPlugin : Plugin<Project> {
             add("kspIosSimulatorArm64", libs.findLibrary("androidx-room-compiler").get())
 
             add("androidDeviceTestImplementation", libs.findLibrary("androidx-room-testing").get())
+        }
+
+        // What the classic Android integration does per androidTest variant and room3's KMP
+        // integration does not: put the exported schemas on the device-test APK's assets so
+        // MigrationTestHelper can read them. Without this every migration test fails on device
+        // with "Cannot find the schema file in the assets folder … Missing file: …/5.json" —
+        // measured on the first converted module. Static directory, not a copy task: the
+        // committed schemas/ dir IS the canonical artifact and the test only reads it.
+        //
+        // androidResources must be enabled first: AGP-KMP defaults it off, and with it off the
+        // device-test component's `sources.assets` is null (measured) — the asset pipeline
+        // simply does not exist, so there is nowhere to add the directory.
+        val kmpExtension = extensions.getByType(
+            org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension::class.java,
+        )
+        val androidDsl = (kmpExtension as org.gradle.api.plugins.ExtensionAware).extensions
+            .getByName("android") as com.android.build.api.dsl.KotlinMultiplatformAndroidLibraryExtension
+        androidDsl.androidResources.enable = true
+
+        extensions.configure<KotlinMultiplatformAndroidComponentsExtension> {
+            onVariants { variant ->
+                (variant as? HasDeviceTests)?.deviceTests?.values?.forEach { deviceTest ->
+                    deviceTest.sources.assets?.addStaticSourceDirectory("$projectDir/schemas")
+                }
+            }
         }
     }
 }

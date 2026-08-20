@@ -1,6 +1,7 @@
 package io.github.stslex.workeeper.core.data.database
 
 import androidx.room3.ColumnTypeConverters
+import androidx.room3.ConstructedBy
 import androidx.room3.DaoReturnTypeConverters
 import androidx.room3.Database
 import androidx.room3.RoomDatabase
@@ -44,6 +45,7 @@ import io.github.stslex.workeeper.core.data.database.training.TrainingExerciseEn
 )
 @ColumnTypeConverters(UuidConverter::class, PlanSetsConverter::class)
 @DaoReturnTypeConverters(PagingSourceDaoReturnTypeConverter::class)
+@ConstructedBy(AppDatabaseConstructor::class)
 abstract class AppDatabase : RoomDatabase() {
 
     abstract val trainingDao: TrainingDao
