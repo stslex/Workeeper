@@ -118,9 +118,9 @@ internal fun TopBar(
     consume: (Action) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // The fallback is the ERROR phase's title now, not a placeholder the user sees on the way
-    // in: the route does not compose while loading, so this no longer flashes and is then
-    // rewritten when the name lands.
+    // GUARD: the fallback is the ERROR phase's title, not a placeholder for the way in — the route
+    // does not compose while loading (`PastSessionGraph`). Composing this before the load lands is
+    // what would put a heading on screen for the name to rewrite.
     val title = (state.phase as? State.Phase.Loaded)?.detail?.trainingName
         ?: stringResource(R.string.feature_past_session_loading_title)
     AppTopBar(

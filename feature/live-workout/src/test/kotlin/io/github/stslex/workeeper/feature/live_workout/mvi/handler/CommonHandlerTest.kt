@@ -28,8 +28,8 @@ internal class CommonHandlerTest {
      * The store mock runs `launch` synchronously and routes a throw to `onError`, because that
      * routing is the thing under test: production's default for `onError` is `{}` (B17, B21), so a
      * mock that swallowed the throw would report the defect as fixed. Mirrors the sibling fixture
-     * in `feature/single-training`, deliberately — the two routes now carry the same route gate and
-     * owe the same precondition.
+     * in `feature/single-training`, deliberately — both routes carry the same route gate and owe
+     * the same precondition.
      */
     private fun setup(
         initialState: State,
