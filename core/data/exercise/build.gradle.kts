@@ -23,4 +23,11 @@ dependencies {
     implementation(libs.androidx.room.runtime)
     testImplementation(libs.androidx.paging.testing)
     testImplementation(project(":core:data:database-test"))
+
+    androidTestImplementation(libs.bundles.android.test)
+    // InMemoryDatabaseProvider — the on-device AppDatabase under the production (bundled) driver.
+    androidTestImplementation(project(":core:data:database-test"))
+    // Supplies io.github.stslex.workeeper.core.ui.test.annotations.Regression — the ui_tests.yml
+    // runner filter; an un-annotated device test can never be selected by any CI job.
+    androidTestImplementation(project(":core:ui:test-utils"))
 }

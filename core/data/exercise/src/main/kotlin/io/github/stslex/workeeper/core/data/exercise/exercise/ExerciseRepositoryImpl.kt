@@ -1,10 +1,10 @@
 package io.github.stslex.workeeper.core.data.exercise.exercise
 
-import android.database.sqlite.SQLiteConstraintException
 import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import androidx.paging.map
+import androidx.sqlite.SQLiteException
 import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
@@ -114,7 +114,14 @@ class ExerciseRepositoryImpl @Inject internal constructor(
                     dao.update(entity)
                 }
             }
-        } catch (_: SQLiteConstraintException) {
+        } catch (e: SQLiteException) {
+            // Both drivers speak through this one type: on Android, androidx.sqlite's
+            // SQLiteException is a typealias to android.database.SQLException, so the
+            // framework driver's SQLiteConstraintException (a subtype) and the bundled
+            // driver's own throw ("Error code: 2067, message: UNIQUE constraint failed: …",
+            // measured on device) both land here. Anything that is not the duplicate-name
+            // violation keeps escaping, exactly as before.
+            if (!e.isUniqueConstraintViolation()) throw e
             return@transition SaveResult.DuplicateName
         }
         syncLabels(entity.uuid, item.labels)
@@ -512,3 +519,14 @@ class ExerciseRepositoryImpl @Inject internal constructor(
         )
     }
 }
+
+/**
+ * The one string both SQLite engines emit for a UNIQUE violation. The framework driver's
+ * `SQLiteConstraintException` carries SQLite's own error text; the bundled driver renders
+ * `Error code: 2067, message: UNIQUE constraint failed: <table>.<column>` (measured on device,
+ * SQLITE_CONSTRAINT_UNIQUE = 2067). A type check cannot serve here: the common
+ * `androidx.sqlite.SQLiteException` has no code field, and the framework subtype is not
+ * nameable from common code.
+ */
+private fun SQLiteException.isUniqueConstraintViolation(): Boolean =
+    message.orEmpty().contains("UNIQUE constraint failed")
