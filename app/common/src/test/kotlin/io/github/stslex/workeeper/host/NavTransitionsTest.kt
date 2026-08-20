@@ -148,7 +148,9 @@ internal class NavTransitionsTest {
     @Test
     fun `and the number that comes out as is 260`() {
         // Pinned as its own claim: the site above proves the windows are composed from the scale,
-        // this one proves the scale is where it was when the timings were judged.
+        // this one proves the rung the scale resolves to. A retune of `AppMotion.base` passes the
+        // first and fails this one, which is the point — the gesture's duration is judged on a
+        // device and does not follow the scale silently.
         assertEquals(BASE_MS, predictiveGeometrySpec(motion).durationMillis)
         assertEquals(BASE_MS, predictiveDepartureSpec<Float>(motion).durationMillis)
     }
