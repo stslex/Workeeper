@@ -4,13 +4,13 @@
 
 echo "Setting up git hooks..."
 
-# Create hooks directory if it doesn't exist
-mkdir -p .git/hooks
+# Point git at the TRACKED hooks directory instead of copying a snapshot into .git/hooks.
+# A copy goes stale the moment the tracked hook changes: the #235 rename-blindness fix
+# (--diff-filter ACM -> ACMR) reached only clones that happened to re-run this script.
+# With core.hooksPath, hook fixes deploy with `git pull` — which is also what CLAUDE.md
+# has described this script as doing all along. Any pre-existing copy in .git/hooks is
+# shadowed by this setting and may be deleted.
+git config core.hooksPath .githooks
 
-# Copy pre-commit hook
-cp .githooks/pre-commit .git/hooks/pre-commit
-chmod +x .git/hooks/pre-commit
-
-echo "✅ Git hooks have been set up successfully!"
-echo "To enable pre-commit linting, the pre-commit hook has been installed."
+echo "✅ Git hooks configured: core.hooksPath -> .githooks"
 echo "To bypass pre-commit hooks (not recommended), use: git commit --no-verify"
