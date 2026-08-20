@@ -11,6 +11,7 @@ import io.github.stslex.workeeper.feature.exercise_chart.domain.model.RecentExer
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartMetricUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ExercisePickerItemUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.Action
+import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.Content
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.EmptyReason
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.State
 import io.mockk.coEvery
@@ -20,6 +21,7 @@ import io.mockk.mockk
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.supervisorScope
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
@@ -274,6 +276,41 @@ internal class CommonHandlerTest {
      * applies `updateState` / `updateStateImmediate` directly to the captured `MutableStateFlow`.
      * This lets tests assert the post-launch state without spinning up a real coroutine.
      */
+    @Test
+    fun `a throwing recents read resolves to LOAD_FAILED instead of loading forever`() {
+        val flow = MutableStateFlow(State.create(initialUuid = null))
+        val store = newStore(flow)
+        val handler = CommonHandler(interactor = interactor, resourceWrapper = resources, store = store)
+        coEvery { interactor.getRecentlyTrainedExercises() } throws IllegalStateException("db down")
+        coEvery { interactor.getLastTrainedExerciseUuid() } returns null
+
+        handler.invoke(Action.Common.Init)
+
+        assertEquals(EmptyReason.LOAD_FAILED, flow.value.emptyReason)
+        assertEquals(false, flow.value.isLoading)
+        // The point of the reason: `content` is what the screen renders from, and an unresolved
+        // failure leaves it Loading — which draws nothing, with no retry.
+        assertEquals(Content.Empty(EmptyReason.LOAD_FAILED), flow.value.content)
+    }
+
+    @Test
+    fun `a throwing chart read resolves to LOAD_FAILED`() {
+        val flow = MutableStateFlow(State.create(initialUuid = null))
+        val store = newStore(flow)
+        val handler = CommonHandler(interactor = interactor, resourceWrapper = resources, store = store)
+        coEvery { interactor.getRecentlyTrainedExercises() } returns listOf(
+            RecentExerciseDomain("uuid-1", "Bench", ExerciseTypeDomain.WEIGHTED, 1_000L),
+        )
+        coEvery { interactor.getLastTrainedExerciseUuid() } returns "uuid-1"
+        coEvery { interactor.loadChartData(any(), any(), any(), any(), any()) } throws
+            IllegalStateException("db down")
+
+        handler.invoke(Action.Common.Init)
+
+        assertEquals(EmptyReason.LOAD_FAILED, flow.value.emptyReason)
+        assertEquals(false, flow.value.isLoading)
+    }
+
     private fun newStore(flow: MutableStateFlow<State>): ExerciseChartHandlerStore =
         mockk<ExerciseChartHandlerStore>(relaxed = true).also { store ->
             every { store.state } returns flow
@@ -299,7 +336,15 @@ internal class CommonHandlerTest {
                 val action = arg<suspend CoroutineScope.() -> Any?>(4)
                 runBlocking {
                     try {
-                        val result = action()
+                        // `supervisorScope`, not a bare `action()`: `processInit` fans out through
+                        // two `async` children, and in a plain scope the first failure cancels the
+                        // parent before this catch can run the handler. Production survives that
+                        // through `AppCoroutineScopeImpl`'s `CoroutineExceptionHandler` backstop —
+                        // its scope root is a `SupervisorJob`, so the handler is invoked and
+                        // re-launches `onError` on a live scope. The supervisor reproduces the same
+                        // observable — the action throws, `onError` runs — without modelling the
+                        // backstop's plumbing.
+                        val result = supervisorScope { action() }
                         onSuccess(result)
                     } catch (t: Throwable) {
                         onError(t)
@@ -319,7 +364,8 @@ internal class CommonHandlerTest {
                 val action = arg<suspend CoroutineScope.() -> Any?>(2)
                 runBlocking {
                     try {
-                        val result = action()
+                        // Same backstop reproduction as the `launch` mock above.
+                        val result = supervisorScope { action() }
                         onSuccess(result)
                     } catch (t: Throwable) {
                         onError(t)

@@ -20,7 +20,7 @@ import kotlinx.collections.immutable.persistentListOf
 interface ExerciseChartStore : Store<State, Action, Event> {
 
     /**
-     * Why the chart canvas is not currently rendered. Three distinct cases drive three
+     * Why the chart canvas is not currently rendered. Four distinct cases drive four
      * distinct empty-state UIs and CTAs — never collapse them into a single "isEmpty"
      * flag, the recovery action differs.
      */
@@ -43,6 +43,14 @@ interface ExerciseChartStore : Store<State, Action, Event> {
          * accessible; preset chips stay accessible — a wider window may show data.
          */
         NO_DATA_FOR_EXERCISE,
+
+        /**
+         * A read threw, so there is no answer — as opposed to an answer of "nothing". This is
+         * the only reason whose recovery is to ask again, and it is the reason [Content] can
+         * resolve at all after a failure: without it the load leaves `emptyReason` null and no
+         * points, which is [Content.Loading] forever, and the route draws nothing.
+         */
+        LOAD_FAILED,
     }
 
     /**
@@ -164,6 +172,7 @@ interface ExerciseChartStore : Store<State, Action, Event> {
              */
             data class OnScrub(val index: Int) : Click
             data object OnEmptyCtaClick : Click
+            data object OnRetryLoad : Click
             data object OnBack : Click
         }
 

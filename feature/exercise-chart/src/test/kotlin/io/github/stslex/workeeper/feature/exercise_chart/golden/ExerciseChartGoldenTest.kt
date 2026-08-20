@@ -178,6 +178,20 @@ internal class ExerciseChartGoldenTest {
         }
     }
 
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun screenLoadFailed(theme: GoldenTheme, testInfo: TestInfo) {
+        golden(testInfo, theme) {
+            ExerciseChartScreen(
+                state = State.create(initialUuid = null).copy(
+                    isLoading = false,
+                    emptyReason = EmptyReason.LOAD_FAILED,
+                ),
+                consume = {},
+            )
+        }
+    }
+
     // --- Canvas ----------------------------------------------------------------------------
 
     /**

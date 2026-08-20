@@ -185,6 +185,17 @@ private fun EmptyContent(
                 testTag = "ExerciseChartNoDataForExercise",
             )
         }
+
+        EmptyReason.LOAD_FAILED -> ChartEmptyState(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = AppDimension.Space.xl),
+            title = stringResource(R.string.feature_exercise_chart_error_load_title),
+            subtitle = stringResource(R.string.feature_exercise_chart_error_load_subtitle),
+            ctaLabel = stringResource(R.string.feature_exercise_chart_error_load_cta),
+            onCta = { consume(Action.Click.OnRetryLoad) },
+            testTag = "ExerciseChartLoadFailed",
+        )
     }
 }
 
