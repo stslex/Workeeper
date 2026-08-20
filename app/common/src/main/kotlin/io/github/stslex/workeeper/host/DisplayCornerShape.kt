@@ -43,12 +43,11 @@ internal fun displayCornerShape(): Shape {
     // View is replaced) or when the window insets are dispatched (`rootWindowInsets` is null until
     // the first dispatch, so an earlier composition resolves to the fallback).
     //
-    // GUARD: do NOT reintroduce a `remember` here. Two staleness defects came out of caching this,
-    // and the second survived a fix for the first: keyed on the View it missed rotation, and keyed
-    // additionally on ONE inset edge it missed a first dispatch that left that edge at zero — bars
-    // hidden, or a landscape layout whose bars are on the sides. Any key narrow enough to be cheap
-    // is narrow enough to have such a hole. Read fresh, the value is correct on every composition
-    // that happens for any reason, and the two reads above are what make one happen.
+    // GUARD: do NOT cache this behind a `remember`. Every key available here is a proxy for
+    // "the corners may have changed", and each proxy has a hole: the View survives a rotation,
+    // a single inset edge can be zero on the dispatch that first resolves `rootWindowInsets`, and
+    // an all-zero dispatch moves no edge at all. Read fresh, the value is correct on every
+    // composition that happens for any reason, and the two reads above are what make one happen.
     LocalConfiguration.current
     WindowInsets.systemBars.getTop(density)
 

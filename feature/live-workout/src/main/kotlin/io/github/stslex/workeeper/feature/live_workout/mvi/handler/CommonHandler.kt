@@ -6,14 +6,12 @@ import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.core.time.formatElapsedDuration
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
-import io.github.stslex.workeeper.feature.live_workout.R
 import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutHandlerStore
 import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutScope
 import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMapper.toState
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMapper.withExpansionCarriedFrom
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Action
-import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Event
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -67,29 +65,22 @@ internal class CommonHandler @Inject constructor(
     }
 
     /**
-     * The only honest exit when the session did not load: clear the flag, say so, and leave. Two
-     * arms reach it — a throw, and a `loadSession` that resolves to nothing.
+     * The only honest exit when the session did not load: record it, and let the route act on it.
+     * Two arms reach here — a throw, and a `loadSession` that resolves to nothing.
      *
-     * GUARD: **both steps, and neither is optional.** Leaving the flag set is a permanently empty
-     * frame behind the route gate (`launch` defaults `onError` to `{}` — B17, B21). Clearing it
-     * without leaving is worse: the route composes on that flag, so the requested session then
-     * reads as a successfully empty one — "No exercises yet", an Add CTA, and a Finish dock enabled
-     * by `!isLoading` — and a transient read failure can finish a workout whose exercises never
-     * loaded. The leaving is asked for as [Event.LeaveWithError] rather than as a separate
-     * `Navigation.Back`, for the ordering reason that event documents.
+     * GUARD: **both flags, and neither is optional.** Leaving `isLoading` set is a permanently
+     * empty frame behind the route gate (`launch` defaults `onError` to `{}` — B17, B21). Clearing
+     * it without recording the failure is worse: the route composes on that flag, so the requested
+     * session then reads as a successfully empty one — "No exercises yet", an Add CTA, and a Finish
+     * dock enabled by `!isLoading` — and a transient read failure can finish a workout whose
+     * exercises never loaded.
      *
-     * `CommonHandlerTest` pins the flag and the event. That the graph turns that event into a
-     * snackbar and a pop, in that order, is one line of wiring and is not assertable here.
+     * GUARD: recorded in STATE rather than sent as an event, for the reason
+     * [LiveWorkoutStore.State.loadFailed] documents — an event dispatched before the screen's
+     * collector subscribes is dropped, and the dropped case is exactly the dangerous one.
      */
     private suspend fun abandonUnloadedSession() {
-        updateStateImmediate { it.copy(isLoading = false) }
-        sendEvent(
-            Event.LeaveWithError(
-                message = resourceWrapper.getString(
-                    R.string.feature_live_workout_error_session_load_failed,
-                ),
-            ),
-        )
+        updateStateImmediate { it.copy(isLoading = false, loadFailed = true) }
     }
 
     private suspend fun createSession(trainingUuid: String?): String? {

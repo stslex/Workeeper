@@ -386,6 +386,7 @@ internal class LiveWorkoutMapperTest {
             isAddExerciseInFlight = false,
             isFinishInFlight = false,
             isLoading = false,
+            loadFailed = false,
             dialogState = DialogState.Hidden,
             bottomSheetState = BottomSheetState.Hidden,
         )
@@ -542,6 +543,7 @@ internal class LiveWorkoutMapperTest {
         isAddExerciseInFlight = false,
         isFinishInFlight = false,
         isLoading = false,
+        loadFailed = false,
         dialogState = DialogState.Hidden,
         bottomSheetState = BottomSheetState.Hidden,
     )

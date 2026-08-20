@@ -89,6 +89,18 @@ interface LiveWorkoutStore :
         val isAddExerciseInFlight: Boolean,
         val isFinishInFlight: Boolean,
         val isLoading: Boolean,
+        /**
+         * The session could not be loaded, and the route must leave rather than render.
+         *
+         * GUARD: this is STATE and not an event, and that is the whole point. An event is
+         * replay-free and its only collector is the screen's `Handle`, which subscribes from a
+         * `LaunchedEffect` — later than the `DisposableEffect` that dispatches `Init`. A load that
+         * resolves inside that window emits into no subscriber and is dropped, leaving `isLoading`
+         * clear, the route composed on an empty seed, and a Finish dock enabled over a session
+         * whose exercises never arrived. State cannot be dropped: whenever the screen composes it
+         * reads this, and both the withholding and the leaving hang off it.
+         */
+        val loadFailed: Boolean,
         val dialogState: DialogState,
         val bottomSheetState: BottomSheetState,
     ) : Store.State {
@@ -176,6 +188,7 @@ interface LiveWorkoutStore :
                 isAddExerciseInFlight = false,
                 isFinishInFlight = false,
                 isLoading = true,
+                loadFailed = false,
                 dialogState = DialogState.Hidden,
                 bottomSheetState = BottomSheetState.Hidden,
             )
@@ -330,18 +343,6 @@ interface LiveWorkoutStore :
         data class HapticImpact(val type: HapticFeedbackType) : Event
         data class ShowSessionSavedSnackbar(val message: String) : Event
         data class ShowError(val message: String) : Event
-
-        /**
-         * Leave the route, and say why on the way out — ONE event rather than a `ShowError`
-         * followed by a `Navigation.Back`.
-         *
-         * GUARD: the two must not be separate. The event flow is replay-free and its only
-         * collector is this screen's `Handle`, which the pop disposes; two independent dispatches
-         * have no ordering guarantee, so the pop can win and the user is bounced with no
-         * explanation. Handled in one callback, the snackbar reaches the app-scoped
-         * `SnackbarManager` — which outlives the destination — before the pop is asked for.
-         */
-        data class LeaveWithError(val message: String) : Event
     }
 
     @Stable

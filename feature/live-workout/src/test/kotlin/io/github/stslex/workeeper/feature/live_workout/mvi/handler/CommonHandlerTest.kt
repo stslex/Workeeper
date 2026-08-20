@@ -5,7 +5,6 @@ import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutHandlerStore
 import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Action
-import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Event
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.State
 import io.mockk.coEvery
 import io.mockk.every
@@ -71,12 +70,12 @@ internal class CommonHandlerTest {
      * the flag set is the opposite failure, a permanently empty frame behind the gate. So both are
      * asserted: the flag is cleared, and the leave-with-message is asked for.
      *
-     * What is NOT assertable here, stated rather than implied: that the graph turns
-     * [Event.LeaveWithError] into a snackbar and then a pop, in that order. That is one line of
-     * composable wiring, and the ordering it guarantees is the reason the two are one event.
+     * Both are STATE, so both are assertable here — which is the point of recording the failure
+     * rather than announcing it. An event dispatched before the screen's collector subscribes is
+     * dropped, and the dropped case is the dangerous one.
      */
     @Test
-    fun `a load that throws clears the flag and asks to leave with a message`() {
+    fun `a load that throws clears isLoading and records the failure`() {
         coEvery { interactor.loadSession(any()) } throws IllegalStateException("db down")
         val (stateFlow, handler, store) = setup(
             State.create(sessionUuid = "session-1", trainingUuid = "training-1"),
@@ -87,7 +86,7 @@ internal class CommonHandlerTest {
         handler.invoke(Action.Common.Init)
 
         assertFalse(stateFlow.value.isLoading)
-        verify { store.sendEvent(any<Event.LeaveWithError>()) }
+        assertTrue(stateFlow.value.loadFailed)
     }
 
     @Test
@@ -100,7 +99,7 @@ internal class CommonHandlerTest {
         handler.invoke(Action.Common.Init)
 
         assertFalse(stateFlow.value.isLoading)
-        verify { store.sendEvent(any<Event.LeaveWithError>()) }
+        assertTrue(stateFlow.value.loadFailed)
     }
 
     @Test
