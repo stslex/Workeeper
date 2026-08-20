@@ -199,6 +199,14 @@ abstract class BaseApplication :
      * that decision exists precisely because the schema is not in a state Room can open. The
      * pre-flight has already cached its decision by the time this runs.
      *
+     * **Fire-and-forget, and deliberately NOT coordinated with the first read that benefits.** A
+     * launch with no statistics yet can serve a query before this finishes, on the plan the
+     * statistics exist to replace. Measured on the long-term database rather than argued: that
+     * query costs 7-9ms warm without statistics against 4-8ms with them, while making the first
+     * read wait would cost it up to the full refresh — 878ms on a first launch. Coordination would
+     * trade single-digit milliseconds for most of a second, on exactly the launch it targets. The
+     * statistics are durable, so the exposure is that one launch.
+     *
      * **And never on a low-RAM device.** Overlapping this write with the first screen's reads is
      * free only under WAL, where readers do not block on a writer. Room's default journal mode is
      * `AUTOMATIC`, and `AUTOMATIC` resolves to `TRUNCATE` exactly on `isLowRamDevice` hardware — so

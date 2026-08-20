@@ -203,10 +203,10 @@ fun NavGraphScope.exerciseGraph(
         // as on success, because `HandlerStore.launch` defaults `onError` to `{}` (B17, B21).
         // A throw that leaves the flag set is a permanently empty screen — this gate is what
         // gives that failure a cost. `CommonHandler.loadExercise` closes its own.
-        // The gate stays; only the ARRIVAL changes. `AnimatedVisibility` does not animate a
-        // composable that enters composition already visible, so the wrapper has to be composed
-        // WHILE the route is still loading — which is why it sits above the early return rather
-        // than around everything below it. Everything below is withheld exactly as before.
+        // GUARD: this wrapper must sit ABOVE the early return. `AnimatedVisibility` does not
+        // animate a composable that enters composition already visible, so it has to be composed
+        // while the route is still loading or the fade silently disappears. The modal content
+        // below stays behind the return, withheld until the load lands.
         AppLoadedContent(isLoaded = state.isLoading.not()) {
             when (state.mode) {
                 Mode.Read -> ExerciseDetailScreen(

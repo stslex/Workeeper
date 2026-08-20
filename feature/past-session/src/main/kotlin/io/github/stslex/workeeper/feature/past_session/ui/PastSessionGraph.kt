@@ -41,14 +41,13 @@ fun NavGraphScope.pastSessionGraph(
             }
         }
 
-        // The route gate (§26), and this screen wanted it most of the four. Composed while
-        // loading it drew TWO things it did not know yet: a centred spinner, and a top bar
-        // carrying the fallback title — so a fast load flashed a circle and then rewrote the
-        // heading under the user's eye. The loading phase now draws nothing and the content
-        // arrives with a fade; §26's second amendment carries the ruling on why no spinner.
+        // The route gate (§26). GUARD: this screen's top bar falls back to a placeholder title
+        // when the phase is not `Loaded`, so composing it before the load lands puts a heading on
+        // screen that the load then rewrites.
         //
-        // Gated on Loading alone: the Error phase MUST still compose, or a failed load is the
-        // permanently empty frame this gate is otherwise careful to avoid.
+        // GUARD: gated on `Loading` ALONE. The Error phase MUST still compose, or a failed load
+        // becomes the permanently empty frame this gate exists to avoid — and the fallback title
+        // is that phase's title.
         AppLoadedContent(
             isLoaded = processor.state.value.phase !is PastSessionStore.State.Phase.Loading,
         ) {

@@ -20,12 +20,11 @@ fun NavGraphScope.exerciseChartGraph(
             }
         }
 
-        // NO route gate here, unlike the other five, and the difference is this screen's shell:
-        // its top bar carries no title and its exercise header renders only once an exercise is
-        // known, so nothing on it can state something it has not loaded. Withholding the whole
-        // screen would therefore buy nothing and cost a blank frame on picker reloads, where
-        // `Content.Loading` is reachable with the shell already on screen. The spinner alone was
-        // the flicker; `ChartContent` drops it and keeps the shell.
+        // GUARD: NO route gate here, unlike the other five. The gate exists to stop a shell
+        // asserting what it has not loaded, and this shell asserts nothing — its top bar carries no
+        // title and its exercise header renders only inside `state.selectedExercise?.let`. Adding
+        // one would cost a blank frame on a normal flow: `Content.Loading` is reachable with the
+        // shell already on screen when the picker selects a new exercise out of an empty chart.
         ExerciseChartScreen(
             modifier = modifier,
             state = processor.state.value,

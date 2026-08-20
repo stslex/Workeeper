@@ -45,27 +45,18 @@ internal fun displayCornerShape(): Shape {
 
     var shape by remember(view, density) { mutableStateOf(view.displayCorners(density) ?: fallback) }
 
-    // The platform's own signal, bridged into Compose state — a LAYOUT of this View.
+    // GUARD: refresh on LAYOUT, and on nothing narrower. `rootWindowInsets` is null until attach
+    // and still describes the previous orientation at the instant a configuration change arrives
+    // (`MainActivity` declares `configChanges`, so neither the activity nor this View is
+    // replaced) — so neither an inset value nor a first non-null answer is a signal that the
+    // corners are current. A layout is: `ViewRootImpl` dispatches insets during the same traversal
+    // BEFORE layout, a rotation relayouts this View because its bounds swap, and attach lays out
+    // too. Assigning an equal shape is a no-op (`AbsoluteRoundedCornerShape` implements `equals`),
+    // so a layout that changes nothing costs no recomposition.
     //
-    // GUARD: neither an inset VALUE nor "the first non-null answer" is enough, and both were tried.
-    // An inset value is a proxy: `rootWindowInsets` is null until attach, and the dispatch that
-    // first makes it answerable need not move any edge Compose exposes. And a first-non-null answer
-    // is not necessarily a CURRENT one: `MainActivity` declares `configChanges`, so a rotation
-    // neither recreates the activity nor replaces this View, and at the moment the configuration
-    // changes `rootWindowInsets` still holds the previous orientation's corners — read then, a
-    // display with asymmetric corners keeps the old shape until something else disturbs it.
-    //
-    // A layout has neither problem. `ViewRootImpl` dispatches insets during the same traversal,
-    // BEFORE layout, so by the time this fires `rootWindowInsets` is current; and a rotation
-    // relayouts this View by construction, since its bounds swap. Attach lays out too, which is
-    // what resolves the initial null. Assigning an equal shape is a no-op —
-    // `AbsoluteRoundedCornerShape` implements `equals` — so a layout that changes nothing costs no
-    // recomposition.
-    //
-    // NOT an `OnApplyWindowInsetsListener`, which would be the more direct read of "observe the
-    // dispatch": that hook is single-listener per View and `AndroidComposeView` owns it, so taking
-    // it would break Compose's own insets to fix a corner radius. `addOnLayoutChangeListener` is
-    // additive and displaces nothing.
+    // GUARD: do NOT reach for `OnApplyWindowInsetsListener` instead. It is single-listener per
+    // View and `AndroidComposeView` owns it, so taking it breaks Compose's own insets.
+    // `addOnLayoutChangeListener` is additive and displaces nothing.
     DisposableEffect(view, density) {
         val listener = View.OnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
             view.displayCorners(density)?.let { corners -> shape = corners }

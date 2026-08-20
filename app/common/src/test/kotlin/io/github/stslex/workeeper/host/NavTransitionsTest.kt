@@ -179,8 +179,7 @@ internal class NavTransitionsTest {
         assertEquals(motion.base, geometry.delay + geometry.durationMillis)
         assertEquals(motion.base, departure.delay + departure.durationMillis)
         // Zero delay is the point, not an accident: a delayed channel puts a CORNER in a curve the
-        // finger is seeking, and that corner is what shipped as "the animation is thrown away
-        // mid-gesture". See `the card never starts dissolving at an instant`.
+        // finger is seeking. See `the card never starts dissolving at an instant`.
         assertEquals(0, geometry.delay)
         assertEquals(0, departure.delay)
     }
@@ -295,9 +294,10 @@ internal class NavTransitionsTest {
     /**
      * **The response gate.** The preview must be front-loaded: a curve that lags the finger early
      * reads as unresponsive, and one that keeps moving after the gesture commits reads as
-     * unbounded. Material's own curve spends 0.68 of its travel in the first quarter of the drag,
-     * and the band below is that value with slack — `AppMotion.travel` at 0.58 sits outside it,
-     * which is why the assertion compares against a scale token rather than only against a number.
+     * unbounded. The band below is Material's own quarter-drag value with slack, and no curve on
+     * the motion scale falls inside it — which is why the assertion compares against a scale token
+     * rather than only against a number. The values are in `architecture.md` § "Navigation host and
+     * shared element transitions".
      */
     @Test
     fun `the preview answers the finger early, ahead of every curve on the motion scale`() {
