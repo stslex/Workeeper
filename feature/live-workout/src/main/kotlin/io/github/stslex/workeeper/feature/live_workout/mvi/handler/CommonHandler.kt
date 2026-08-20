@@ -70,23 +70,26 @@ internal class CommonHandler @Inject constructor(
      * The only honest exit when the session did not load: clear the flag, say so, and leave. Two
      * arms reach it — a throw, and a `loadSession` that resolves to nothing.
      *
-     * GUARD: **all three steps, and none of them is optional.** Leaving the flag set is a
-     * permanently empty frame behind the route gate (`launch` defaults `onError` to `{}` — B17,
-     * B21). Clearing it WITHOUT leaving is worse: the route composes on that flag, so the requested
-     * session then reads as a successfully empty one — "No exercises yet", an Add CTA, and a Finish
-     * dock enabled by `!isLoading` — and a transient read failure can finish a workout whose
-     * exercises never loaded. `CommonHandlerTest` asserts all three.
+     * GUARD: **both steps, and neither is optional.** Leaving the flag set is a permanently empty
+     * frame behind the route gate (`launch` defaults `onError` to `{}` — B17, B21). Clearing it
+     * without leaving is worse: the route composes on that flag, so the requested session then
+     * reads as a successfully empty one — "No exercises yet", an Add CTA, and a Finish dock enabled
+     * by `!isLoading` — and a transient read failure can finish a workout whose exercises never
+     * loaded. The leaving is asked for as [Event.LeaveWithError] rather than as a separate
+     * `Navigation.Back`, for the ordering reason that event documents.
+     *
+     * `CommonHandlerTest` pins the flag and the event. That the graph turns that event into a
+     * snackbar and a pop, in that order, is one line of wiring and is not assertable here.
      */
     private suspend fun abandonUnloadedSession() {
         updateStateImmediate { it.copy(isLoading = false) }
         sendEvent(
-            Event.ShowError(
+            Event.LeaveWithError(
                 message = resourceWrapper.getString(
                     R.string.feature_live_workout_error_session_load_failed,
                 ),
             ),
         )
-        consume(Action.Navigation.Back)
     }
 
     private suspend fun createSession(trainingUuid: String?): String? {

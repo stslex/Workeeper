@@ -330,6 +330,18 @@ interface LiveWorkoutStore :
         data class HapticImpact(val type: HapticFeedbackType) : Event
         data class ShowSessionSavedSnackbar(val message: String) : Event
         data class ShowError(val message: String) : Event
+
+        /**
+         * Leave the route, and say why on the way out — ONE event rather than a `ShowError`
+         * followed by a `Navigation.Back`.
+         *
+         * GUARD: the two must not be separate. The event flow is replay-free and its only
+         * collector is this screen's `Handle`, which the pop disposes; two independent dispatches
+         * have no ordering guarantee, so the pop can win and the user is bounced with no
+         * explanation. Handled in one callback, the snackbar reaches the app-scoped
+         * `SnackbarManager` — which outlives the destination — before the pop is asked for.
+         */
+        data class LeaveWithError(val message: String) : Event
     }
 
     @Stable

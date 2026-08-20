@@ -62,17 +62,21 @@ internal class CommonHandlerTest {
     }
 
     /**
-     * Both halves of the exit, on both arms that can reach it.
+     * The exit, on both arms that can reach it.
      *
      * Clearing `isLoading` alone is not enough and is the more dangerous half on its own: the route
      * composes on that flag, so clearing it presents the requested session as a **successfully
      * empty** one — "No exercises yet", an Add CTA, and a Finish dock enabled by `!isLoading`. A
      * transient read failure could then finish a workout whose exercises never loaded. And leaving
-     * the flag set is the opposite failure, a permanently empty frame behind the gate. So the
-     * assertion is all three: flag cleared, error surfaced, screen left.
+     * the flag set is the opposite failure, a permanently empty frame behind the gate. So both are
+     * asserted: the flag is cleared, and the leave-with-message is asked for.
+     *
+     * What is NOT assertable here, stated rather than implied: that the graph turns
+     * [Event.LeaveWithError] into a snackbar and then a pop, in that order. That is one line of
+     * composable wiring, and the ordering it guarantees is the reason the two are one event.
      */
     @Test
-    fun `a load that throws clears the flag, says so, and leaves the screen`() {
+    fun `a load that throws clears the flag and asks to leave with a message`() {
         coEvery { interactor.loadSession(any()) } throws IllegalStateException("db down")
         val (stateFlow, handler, store) = setup(
             State.create(sessionUuid = "session-1", trainingUuid = "training-1"),
@@ -83,8 +87,7 @@ internal class CommonHandlerTest {
         handler.invoke(Action.Common.Init)
 
         assertFalse(stateFlow.value.isLoading)
-        verify { store.sendEvent(any<Event.ShowError>()) }
-        verify { store.consume(Action.Navigation.Back) }
+        verify { store.sendEvent(any<Event.LeaveWithError>()) }
     }
 
     @Test
@@ -97,8 +100,7 @@ internal class CommonHandlerTest {
         handler.invoke(Action.Common.Init)
 
         assertFalse(stateFlow.value.isLoading)
-        verify { store.sendEvent(any<Event.ShowError>()) }
-        verify { store.consume(Action.Navigation.Back) }
+        verify { store.sendEvent(any<Event.LeaveWithError>()) }
     }
 
     @Test

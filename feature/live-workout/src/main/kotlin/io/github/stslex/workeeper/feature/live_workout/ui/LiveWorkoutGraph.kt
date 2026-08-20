@@ -33,6 +33,13 @@ fun NavGraphScope.liveWorkoutGraph(
                 is Event.HapticImpact -> haptic.performHapticFeedback(event.type)
                 is Event.ShowSessionSavedSnackbar -> SnackbarManager.showSnackbar(message = event.message)
                 is Event.ShowError -> SnackbarManager.showSnackbar(message = event.message)
+                // Both steps here, in this order, and that is the point: the snackbar reaches the
+                // app-scoped SnackbarManager — which outlives this destination — before the pop
+                // that disposes this collector is asked for.
+                is Event.LeaveWithError -> {
+                    SnackbarManager.showSnackbar(message = event.message)
+                    processor.consume(Action.Navigation.Back)
+                }
             }
         }
 
@@ -40,11 +47,10 @@ fun NavGraphScope.liveWorkoutGraph(
             processor.consume(Action.Click.OnBackClick)
         }
 
-        // §26's route gate, arriving here late and for a measured reason. Composed eagerly, this
-        // screen asserted "No exercises yet" — headline, supporting line and an Add CTA — over a
-        // session that had thirteen exercises and sixty sets, because the emptiness predicate read
-        // `exercises.isEmpty()` while `isLoading` sat in the same State unread. A blank frame is a
-        // screen that has not spoken; that was a screen that spoke and was wrong.
+        // §26's route gate. GUARD: this screen's emptiness predicate reads `exercises.isEmpty()`
+        // and nothing else, so composing it before `isLoading` clears makes it assert "No exercises
+        // yet" — headline, CTA and all — over a session that may be full. A blank frame is a screen
+        // that has not spoken; an ungated one speaks and can be wrong.
         AppLoadedContent(isLoaded = processor.state.value.isLoading.not()) {
             LiveWorkoutScreen(
                 modifier = modifier,
