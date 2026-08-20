@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper
 
+import android.app.ActivityManager
 import android.app.Application
 import androidx.work.Configuration
 import io.github.stslex.workeeper.app.common.di.AppRootDeps
@@ -12,7 +13,9 @@ import io.github.stslex.workeeper.core.core.utils.CommonExt
 import io.github.stslex.workeeper.core.data.backup.worker.BackupWorkerDeps
 import io.github.stslex.workeeper.core.data.backup.worker.BackupWorkerDepsHolder
 import io.github.stslex.workeeper.core.data.backup.worker.MetroWorkerFactory
+import io.github.stslex.workeeper.core.data.database.AppDatabase
 import io.github.stslex.workeeper.core.data.database.buildAppDatabase
+import io.github.stslex.workeeper.core.data.database.refreshQueryPlannerStatistics
 import io.github.stslex.workeeper.core.ui.mvi.di.AppDepsHolder
 import io.github.stslex.workeeper.core.ui.mvi.performance.PerformanceMetricsRecorder
 import io.github.stslex.workeeper.core.ui.mvi.performance.RecordAction
@@ -22,6 +25,7 @@ import io.github.stslex.workeeper.di.buildAppGraph
 import io.github.stslex.workeeper.feature.recovery.di.RecoveryDeps
 import io.github.stslex.workeeper.feature.recovery.di.RecoveryDepsHolder
 import io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinator
+import io.github.stslex.workeeper.feature.recovery.domain.StartupCheck
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -54,11 +58,19 @@ abstract class BaseApplication :
     abstract val isDebugLoggingAllow: Boolean
 
     /**
+     * Held rather than inlined into [appGraph] only so [warmQueryPlanner] can reach it: the graph
+     * takes it as a `create()` bound instance and exposes no accessor for it, and giving it one
+     * would widen the graph's surface for a startup chore. Still the same single cold
+     * `Room.databaseBuilder(...).build()` — constructing it opens no SQLite file.
+     */
+    private val appDatabase: AppDatabase by lazy { buildAppDatabase(applicationContext) }
+
+    /**
      * The Metro app-scope graph, held for the whole process. `by lazy` so it is created on first access.
      * In production that first access is DURING `onCreate` — [onCreateGraphBootstrap] →
      * [handleRecoveryPreflightChain] reads `appGraph` to run the recovery/startup-migration pre-flight;
      * only the test override defers/skips that, so under test the graph is created on a later access.
-     * Constructs the two `create()` roots directly, Hilt-free: [buildAppDatabase] (a cold
+     * Constructs the two `create()` roots directly, Hilt-free: [appDatabase] (a cold
      * `Room.databaseBuilder(...).build()` — no SQLite open, so `RecoveryActivity`'s Room-free bootstrap
      * safety holds) and [ImageStorageImpl] via [buildImageStorage]; `@IODispatcher` is `Dispatchers.IO`
      * directly (the graph is under
@@ -69,7 +81,7 @@ abstract class BaseApplication :
     override val appGraph: AppGraph by lazy {
         buildAppGraph(
             applicationContext = applicationContext,
-            appDatabase = buildAppDatabase(applicationContext),
+            appDatabase = appDatabase,
             imageStorage = buildImageStorage(applicationContext, Dispatchers.IO),
         )
     }
@@ -123,6 +135,7 @@ abstract class BaseApplication :
     protected open fun onCreateGraphBootstrap() {
         handleRecoveryPreflightChain()
         cleanupOrphanedImageTempFiles()
+        warmQueryPlanner()
         bootstrapAppDialogObserver()
     }
 
@@ -170,6 +183,48 @@ abstract class BaseApplication :
         // camera-capture flows is best-effort.
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             imageStorage.cleanupTempFiles()
+        }
+    }
+
+    /**
+     * Refreshes SQLite's planner statistics, off the main thread and best-effort.
+     *
+     * Without them the planner drives the live-workout PR read from `session_table.state` — an index
+     * over two distinct values — and walks every finished session the user has ever logged instead
+     * of the thirteen exercises actually asked about. Measured, and the fix changes no SQL: see
+     * `refreshQueryPlannerStatistics`.
+     *
+     * **After the pre-flight chain and never on the recovery path.** `ANALYZE` writes `sqlite_stat1`,
+     * which means opening the database — the one thing a `RouteToRecovery` start must not do, since
+     * that decision exists precisely because the schema is not in a state Room can open. The
+     * pre-flight has already cached its decision by the time this runs.
+     *
+     * **Fire-and-forget, and deliberately NOT coordinated with the first read that benefits.** A
+     * launch with no statistics yet can serve a query before this finishes, on the plan the
+     * statistics exist to replace; making that read wait would cost far more than the plan does,
+     * and the statistics are durable, so the exposure is that one launch. Both sides of the trade
+     * are measured in `documentation/feature-specs/v3-redesign-spec.md` §27, "A BAD QUERY PLAN CAN
+     * BE A MISSING FACT".
+     *
+     * **And never on a low-RAM device.** Overlapping this write with the first screen's reads is
+     * free only under WAL, where readers do not block on a writer. Room's default journal mode is
+     * `AUTOMATIC`, and `AUTOMATIC` resolves to `TRUNCATE` exactly on `isLowRamDevice` hardware — so
+     * on those devices the overlap is not free and the safety argument does not hold. The cost of
+     * this line is that the planner keeps guessing there; the alternative, forcing
+     * `WRITE_AHEAD_LOGGING` in `AppDatabaseFactory`, would override a platform-aware Room default
+     * for every query in the app to buy one startup chore, on the devices least able to afford
+     * WAL's memory. Skipping is the smaller trade, and it is recorded as a trade.
+     *
+     * Caught rather than propagated, unlike its sibling above: this one touches the database, and a
+     * corrupt file is exactly the condition under which the rest of startup still has work to do.
+     * A throw here would take the process down on the launch that most needs to reach recovery.
+     */
+    private fun warmQueryPlanner() {
+        if (appGraph.startupMigrationCoordinator.lastDecision is StartupCheck.RouteToRecovery) return
+        if (getSystemService(ActivityManager::class.java)?.isLowRamDevice == true) return
+        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+            runCatching { refreshQueryPlannerStatistics(appDatabase) }
+                .onFailure { error -> Log.e(error) }
         }
     }
 

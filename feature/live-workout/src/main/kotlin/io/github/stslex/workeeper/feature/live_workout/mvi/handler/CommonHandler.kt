@@ -43,7 +43,7 @@ internal class CommonHandler @Inject constructor(
         launch(
             onSuccess = { createdState ->
                 if (createdState == null) {
-                    updateStateImmediate { it.copy(isLoading = false) }
+                    abandonUnloadedSession()
                     return@launch
                 }
                 updateStateImmediate { previous ->
@@ -51,6 +51,7 @@ internal class CommonHandler @Inject constructor(
                 }
                 startTimer()
             },
+            onError = { abandonUnloadedSession() },
         ) {
             val sessionUuid = current.sessionUuid ?: createSession(current.trainingUuid)
             val now = System.currentTimeMillis()
@@ -61,6 +62,25 @@ internal class CommonHandler @Inject constructor(
                     resourceWrapper = resourceWrapper,
                 )
         }
+    }
+
+    /**
+     * The only honest exit when the session did not load: record it, and let the route act on it.
+     * Two arms reach here — a throw, and a `loadSession` that resolves to nothing.
+     *
+     * GUARD: **both flags, and neither is optional.** Leaving `isLoading` set is a permanently
+     * empty frame behind the route gate (`launch` defaults `onError` to `{}` — B17, B21). Clearing
+     * it without recording the failure is worse: the route composes on that flag, so the requested
+     * session then reads as a successfully empty one — "No exercises yet", an Add CTA, and a Finish
+     * dock enabled by `!isLoading` — and a transient read failure can finish a workout whose
+     * exercises never loaded.
+     *
+     * GUARD: recorded in STATE rather than sent as an event, for the reason
+     * [LiveWorkoutStore.State.loadFailed] documents — an event dispatched before the screen's
+     * collector subscribes is dropped, and the dropped case is exactly the dangerous one.
+     */
+    private suspend fun abandonUnloadedSession() {
+        updateStateImmediate { it.copy(isLoading = false, loadFailed = true) }
     }
 
     private suspend fun createSession(trainingUuid: String?): String? {

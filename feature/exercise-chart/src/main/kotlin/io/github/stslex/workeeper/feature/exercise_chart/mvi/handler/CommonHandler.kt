@@ -58,6 +58,11 @@ internal class CommonHandler @Inject constructor(
                     loadChart(selected)
                 }
             },
+            // GUARD: `HandlerStore.launch` defaults `onError` to `{}` (B17, B21), and the route
+            // composes nothing until the state resolves. A swallowed throw here leaves
+            // `emptyReason` null with no points, which is `Content.Loading` — a blank screen with
+            // no way out. Resolving to LOAD_FAILED is what gives the failure a rendered form.
+            onError = { resolveToLoadFailure() },
         ) {
             val recentsDeferred = async {
                 interactor.getRecentlyTrainedExercises().map { it.toUi() }
@@ -161,6 +166,13 @@ internal class CommonHandler @Inject constructor(
                     )
                 }
             },
+            // Same guard as processInit. The staleness check is repeated because `runCatching`
+            // in AppCoroutineScopeImpl catches CancellationException too: `loadJob.cancel()` on
+            // the next preset/metric tap must not paint a failure over the load that replaced it.
+            onError = {
+                if (state.value.requestOf() != request) return@launchDefault
+                resolveToLoadFailure()
+            },
         ) {
             interactor.loadChartData(
                 exerciseUuid = exercise.uuid,
@@ -168,6 +180,22 @@ internal class CommonHandler @Inject constructor(
                 metric = metric,
                 type = type,
                 now = System.currentTimeMillis(),
+            )
+        }
+    }
+
+    /**
+     * Resolves the screen to the one empty reason whose recovery is "ask again".
+     *
+     * Deliberately does not reuse NO_DATA_FOR_EXERCISE or NO_FINISHED_SESSIONS: those state that
+     * the database answered and the answer was nothing. A read that threw has no answer, and the
+     * CTA it needs is a retry, not the picker or home.
+     */
+    private suspend fun resolveToLoadFailure() {
+        updateStateImmediate { current ->
+            current.copy(
+                emptyReason = EmptyReason.LOAD_FAILED,
+                isLoading = false,
             )
         }
     }

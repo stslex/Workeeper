@@ -676,6 +676,7 @@ private fun stubState(): State = State(
     isAddExerciseInFlight = false,
     isFinishInFlight = false,
     isLoading = false,
+    loadFailed = false,
     dialogState = DialogState.Hidden,
     bottomSheetState = BottomSheetState.Hidden,
 )

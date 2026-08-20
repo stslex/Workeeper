@@ -132,6 +132,18 @@ class LiveWorkoutInteractorImpl internal constructor(
             setRepository.getByPerformedExercises(performedRows.map { it.uuid })
         }
 
+        // GUARD: keep this in the parallel block. It is the one read here that scales with the
+        // user's whole HISTORY rather than with the session, so serialising it puts all of its
+        // latency on the critical path. The profile that measured it is in
+        // `documentation/feature-specs/v3-redesign-spec.md` §27, "PROFILE BEFORE OPTIMISING".
+        val preSessionPrsDeferred = async {
+            personalRecordRepository
+                .observePersonalRecordsBatch(performedRows.mapTo(mutableSetOf()) { it.exerciseUuid })
+                .firstOrNull()
+                .orEmpty()
+                .mapValues { (_, pr) -> pr.toDomain() }
+        }
+
         val exerciseTemplates = exerciseTemplatesDeferred.await()
         val planByExercise = planByExerciseDeferred.await()
         val performedSetsByPerformed = performedSetsByPerformedDeferred.await()
@@ -156,11 +168,11 @@ class LiveWorkoutInteractorImpl internal constructor(
         // a finished session on another screen).
         val exerciseUuids = exerciseSnapshots
             .mapTo(mutableSetOf()) { snap -> snap.performed.exerciseUuid }
-        val preSessionPrs = personalRecordRepository
-            .observePersonalRecordsBatch(exerciseUuids)
-            .firstOrNull()
-            .orEmpty()
-            .mapValues { (_, pr) -> pr.toDomain() }
+        // GUARD: the deferred above asks for every performed row's exercise; the template lookup
+        // then drops rows, so the snapshot set is narrower. This filter brings the map back to
+        // exactly the exercises the session shows — without it the snapshot carries PRs for
+        // exercises that are not in `exercises`.
+        val preSessionPrs = preSessionPrsDeferred.await().filterKeys { it in exerciseUuids }
         val training = trainingDeferred.await()
         SessionSnapshotDomain(
             session = session.toDomain(),

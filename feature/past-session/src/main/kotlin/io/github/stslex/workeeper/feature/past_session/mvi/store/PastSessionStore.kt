@@ -18,6 +18,17 @@ interface PastSessionStore :
         val sessionUuid: String,
         val phase: Phase,
         /**
+         * The route has resolved at least once — LATCHED, never cleared.
+         *
+         * GUARD: `Phase.Loading` is reachable AFTER a resolution, because Retry on the error
+         * screen re-dispatches `Init` and `Init` sets `Loading` unconditionally. Gating the route
+         * on the phase alone therefore hides the whole screen, top bar included, in one frame on a
+         * normal retry. Only the FIRST load is withheld: from the first resolution onwards the
+         * shell states nothing it has not loaded, because the fallback title is the Error phase's
+         * own title.
+         */
+        val hasResolved: Boolean,
+        /**
          * The open cards — the whole disclosure model, by decision (spec §7 as amended by
          * the session rebuild): expanded means open, nothing more. The first Loaded emission
          * opens the FIRST card; a header tap flips exactly this set's membership for that
@@ -53,6 +64,7 @@ interface PastSessionStore :
             fun create(sessionUuid: String): State = State(
                 sessionUuid = sessionUuid,
                 phase = Phase.Loading,
+                hasResolved = false,
                 expandedExerciseUuids = persistentSetOf(),
                 dialogState = DialogState.Hidden,
                 bottomSheetState = BottomSheetState.Hidden,

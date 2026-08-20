@@ -1447,7 +1447,10 @@ BackHandler(enabled = state.interceptBack) {
 ```
 
 When `interceptBack` is false: the gesture goes natively through `NavDisplay`'s
-back handling, predictive preview animation runs, no store involvement.
+back handling, the predictive preview animation runs, no store involvement. That preview is
+**drawn by the app**, not by the system: it is the host's `predictivePopTransitionSpec`,
+seeked with raw gesture progress — see
+[the navigation host](#navigation-host-and-shared-element-transitions).
 
 When `interceptBack` is true: gesture is intercepted, emits `OnBackClick` into the
 store, and the store decides what to do (typically: show a discard dialog).
@@ -1501,8 +1504,14 @@ Two outcomes:
 #### Anti-patterns to avoid
 
 - `BackHandler { processor.consume(Action.Click.OnBackClick) }` (always enabled).
-  This breaks predictive back preview even in Read mode where there's nothing to
-  intercept.
+  This breaks the predictive-back preview even in Read mode where there's nothing to
+  intercept — and it breaks it *completely*: an enabled `BackHandler` means the gesture
+  never reaches `NavDisplay`, so the screen plays neither the preview nor the pop
+  transition. Every screen now registers its handler as `BackHandler(enabled = ...)` or
+  registers none; `image-viewer` was the last unconditional one and no longer has a
+  handler at all. A screen that wants a side effect on *every* back — a haptic, an
+  analytics event — cannot have one on the gesture path, and that is the correct trade:
+  it is what buys the preview.
 - `BackHandler(enabled = state.mode is Mode.Edit) { ... }` (gated only by mode, not
   by dirty status). This intercepts every back in Edit mode even when there's
   nothing to lose, again breaking predictive back unnecessarily.
@@ -1511,6 +1520,29 @@ Two outcomes:
   dialog, but top-bar arrow skips it.
 - Three different click actions for three triggers (`OnBackGesture`, `OnTopBarBack`,
   `OnCancelClick`). Use one (`OnBackClick`) routed identically.
+
+### SQLite query-planner statistics
+
+`BaseApplication.warmQueryPlanner()` runs `ANALYZE` once per process, off the main thread and
+best-effort, via `refreshQueryPlannerStatistics` in `core:data:database`. Measured on
+`:app:dev:installRelease` against a long-term database: 878ms on the first launch after install,
+45–107ms on every launch after that. Holding the writer connection that long is free only under
+WAL, where readers do not block on a writer. Room's default `AUTOMATIC` journal mode resolves to
+WAL everywhere except `isLowRamDevice` hardware, where it is `TRUNCATE` — so the warm-up is
+**skipped on low-RAM devices** rather than assumed safe there. The cost is that the planner keeps
+guessing on those devices; the alternative, pinning `WRITE_AHEAD_LOGGING` in `AppDatabaseFactory`,
+would override a platform-aware Room default for every query in the app to buy one startup chore,
+on the hardware least able to afford WAL's memory. Without `sqlite_stat1`
+SQLite plans on guesswork, and the guess it made in production was to drive the live-workout
+personal-record read from `session_table.state` — an index over two distinct values — walking every
+finished session the user had ever logged instead of the handful of exercises the query asked
+about. The statistics change no SQL and no result: only the access path.
+
+Two constraints hold it in place. It runs **after** the recovery pre-flight chain and **not at all**
+on the `RouteToRecovery` path, because `ANALYZE` writes and therefore opens the database, which is
+exactly what that start must avoid. And it is `ANALYZE` rather than the more usual
+`PRAGMA optimize`, which is a no-op when called before its own connection has read anything and
+whose override bit needs a newer SQLite than `minSdk 28` can assume.
 
 ### Navigation host and shared element transitions
 
@@ -1537,6 +1569,137 @@ activity-scoped-store mutation pins. Its `onBack` pops only while the stack
 holds more than one entry: system back at the root belongs to the platform
 (the activity finishes — `ApplicationBottomBarTest` pins it), and
 `NavDisplay` must never see an empty stack.
+
+`NavDisplay` takes **three** transition specs and this host passes all three, from
+`app/common/.../host/NavTransitions.kt`. `transitionSpec` (forward navigation — and every
+bottom-tab switch, because `NavigatorExt` REPLACES the top entry for `isSingleTop`, which
+`NavDisplay.isPop` correctly reads as *not* a pop) and `popTransitionSpec` (the top-bar
+chevron, `navigator.popBack()`, three-button back) both run one shared `ContentTransform`:
+the 260ms crossfade from alpha 0.3 that the Nav2 host ran.
+
+`predictivePopTransitionSpec` — the finger-driven back gesture, and only that — runs a
+preview instead. The leaving screen stays opaque and scales 1 -> 0.9 about the edge
+*opposite* the swiped one, which reproduces Material 3's own predictive-back geometry
+(`SearchBarPredictiveBackMinScale = 9/10`, and a centre shift of `w/20` =
+`SearchBarPredictiveBackMaxOffsetXRatio`) with one channel instead of two. The screen being
+uncovered grows from 0.95 into place under a black scrim at 32%, and never fades — it is
+already there, and only its depth changes. **0.95 rather than anything deeper** because the band
+a shallower scale would open around the incoming screen is filled by the root `Box`, which paints
+the colour that screen paints: a deeper reveal buys no more depth cue and only widens a band the
+reader cannot see.
+
+**Two curves, both file-local and neither on the motion scale.** The shrink and the reveal
+ride `PREVIEW_EASING` = `CubicBezierEasing(0.1f, 0.1f, 0f, 1f)`, which is Material's own
+`PredictiveBackEasing` — deliberately front-loaded (0.68 of the travel in the first quarter of
+the drag) because a preview that lags the finger reads as unresponsive and one that keeps
+moving reads as unbounded; the platform's preview saturates and so does this. No curve on the
+motion scale stands in for it: `AppMotion.out` is the nearest and reaches **0.83** at a quarter
+drag, which leaves the card all but settled a quarter of the way through the gesture, and
+`AppMotion.travel` reaches **0.58**, which leaves it trailing the thumb. The dissolve and
+the scrim's lift ride `DEPARTURE_EASING` = `CubicBezierEasing(0.8f, 0f, 1f, 1f)`, its ease-in
+mirror, so the card is still 90% opaque at a 40% drag and reaches zero smoothly. They live in
+`NavTransitions.kt` rather than in `AppMotion` on purpose: they reproduce Android, they do not
+express Workeeper, and the scale is the app's own vocabulary.
+
+**No channel is delayed, and that is the point rather than a detail.** The first version of
+this preview held the card's alpha flat for `AppMotion.fast` and then ran it linearly — same
+endpoints, same duration, same intent, and a *corner* at the delay boundary. Under a seek the
+fraction is the finger, so that corner is a single frame in which the card goes from perfectly
+solid to visibly dissolving, and it reads as the screen being thrown away halfway through the
+gesture. Every channel is now one continuous `tween(AppMotion.base)` with delay 0, which also
+makes "each channel lands exactly at fraction 1.0" hold by inspection instead of by arithmetic.
+`NavTransitionsTest` gates the absence of the corner and runs the delayed predecessor through
+the same detector to show it discriminates.
+
+**The card's rounded edge is a clip, not a transition.** `ContentTransform` has no corner
+radius, so the host clips its clipped destinations' root modifiers to the display's own corner
+shape (`displayCornerShape`, an `AbsoluteRoundedCornerShape` because `RoundedCorner` positions are
+physical and a start/end shape would mirror them under RTL). Each of the four corners is read
+separately, because a display whose corners differ is the case the whole per-corner read exists for.
+`RoundedCorner` is API 31+; below that the platform reports nothing and `AppDimension.Radius.big`
+stands in, and a device that reports a **zero or absent** radius (square panel, most emulators)
+takes the same fallback deliberately — the point of the clip is the shrunken card, and a square
+card is the defect being fixed. Asked of the platform and re-asked on every **layout pass of the view tree**, rather than inferred
+from a proxy. Narrower triggers all have holes: an inset VALUE is a proxy, since `rootWindowInsets`
+is null until attach and the dispatch that first makes it answerable need not move any edge Compose
+exposes; the configuration is too early, because `MainActivity` declares `configChanges` and at the
+instant it changes the insets still describe the previous orientation; and the host View's own
+layout can stay silent when its bounds do not move, which is exactly a 180-degree rotation. A
+global layout has none of them — `ViewRootImpl` dispatches insets during the same traversal before
+layout, and a configuration change lays the tree out whether or not any bounds move. The signal is
+cheap in a Compose app, where tree-level passes are attach, configuration and window changes rather
+than content ones. A `ViewTreeObserver` listener is additive; `OnApplyWindowInsetsListener` would
+have been the more direct hook and is single-listener per View, owned by `AndroidComposeView`. **The
+clip and the background come before the inset padding**, so the card is the whole window and not
+the content area: with the padding first, the corners would begin at the inset boundary and the
+bar strips would fall outside the shrinking card. Unconditional, at rest as well as in motion, which is
+what the platform does too: the window always carries that shape and you only notice once it
+shrinks away from the display edge. Invisible at rest because `android:windowBackground`,
+`App.kt`'s root `Box` and every clipped graph paint the same colour, so whatever the corners cut
+away, what shows through is that colour.
+
+**`image-viewer` is exempt, and the exemption is about what is behind the clip rather than about
+the screen.** It paints `Color.Black`, so on hardware where the display reports no radius and the
+fallback stands in (API < 31, square panels), rounding it cuts four theme-coloured wedges into an
+otherwise black frame — permanently, for as long as the viewer is open, in exchange for a
+gesture-only benefit. It takes a square card instead. Any future destination that paints something
+other than `colorScheme.background` owes the same decision.
+
+Three mechanics constrain anything written there, and none of them is optional.
+**First**, `NavDisplay` places the incoming scene *below* the outgoing during predictive back
+(`targetZIndex = initialZIndex - 1f`), so the exit transition must render nothing at fraction
+1.0 or it covers the screen it just revealed. The fade is what clears it; the library's own
+default omits one, which is why the default preview ends in a visible cut — that default is
+what shipped between the Nav3 swap and this host passing a third spec.
+**Second**, the fraction is the finger: `SeekableTransitionState.seekTo` is fed raw gesture
+progress and maps it to playtime as `fraction x transition.totalDurationNanos`, the max over
+*every* animation on the scene transition. Every channel spans exactly `AppMotion.base`, and
+that equality is what makes "alpha reached 0" and "the gesture completed" the same instant.
+The first `sharedBounds` / `sharedElement` added to any screen registers a spring on this
+transition and breaks it; re-derive the windows then.
+**Third**, a `ContentTransform` has exactly six channels — `TransitionData` is exhaustively fade,
+slide, changeSize, scale, veil and hold, and its `effectsMap` is `internal` end to end, so nothing
+outside the library can add a seventh. There is no corner radius, no shadow, no elevation and no per-frame hook; the spec
+lambda receives one `Int` (the swipe edge) and is invoked twice per segment. Anything the
+transition cannot express has to come from the content instead — the corner radius does, as a
+clip; a shadow and a touch-Y follow would need `LocalNavAnimatedContentScope.current.transition`
+driving a `graphicsLayer` inside a `NavEntryDecorator`, which is the seam AndroidX provides for
+exactly this and which nothing here uses yet. `slide` and `changeSize` are avoided on purpose:
+both are read in the *placement* block, so they invalidate layout every frame, and every
+graph here carries `Modifier.reportScreenPlace<...>()` whose `onPlaced` would then fire per
+frame per scene.
+
+A route does not compose until it has loaded (§26), and it arrives with a fade rather than a
+snap: `AppLoadedContent` (`core:ui:kit/.../loading/`) wraps the content of `exercise`,
+`single-training`, `plan-editor`, `live-workout` and `past-session`, composing it only once the
+route knows what it is showing and fading it in on `continuityAlphaSpec`. The predicate differs by
+what each store models: `isLoading` for `exercise`, `single-training` and `plan-editor`;
+`isLoading || loadFailed` for `live-workout`; and, for `past-session`, `phase !is Loading || hasResolved`
+(its Error phase must still compose, and `hasResolved` is latched so the FIRST load is the only one
+withheld — Retry re-enters `Loading` with the screen already up, and withholding it there blanks the
+route mid-flow).
+
+**`live-workout`'s second term is load-bearing and must not be simplified away.** A failed load
+clears `isLoading` deliberately — a latched flag behind the gate is a permanently empty frame — and
+records `loadFailed` in the same update. Without that term in the predicate the route would compose
+the failed session as a successfully empty workout, Finish dock and all, for as long as the
+asynchronous pop takes.
+
+`exercise-chart` is the deliberate exception and must stay one: its top bar carries no title and
+its exercise header renders only inside `state.selectedExercise?.let`, so nothing on its shell can
+state something it has not loaded — the reason the other five are withheld does not apply. Wrapping
+it was tried and reverted: `Content.Loading` is reachable *with the shell already on screen* when
+the picker selects a new exercise out of an already-empty chart (`processPickerItemSelect` clears
+`emptyReason` while `points` still holds the previous exercise's data), and the wrapper then blanked
+the whole route mid-flow.
+
+**No screen draws a spinner while it waits.** One appears only long enough to be noticed and
+replaced, which costs two layout changes to say less than the blank does. Nothing is drawn while it waits —
+no mockup draws a loading surface, and the host paints the background under every destination.
+**The precondition travels with the gate:** every load behind it must clear `isLoading` on
+FAILURE as well as on success, because `HandlerStore.launch` defaults `onError` to `{}` — a
+latched flag is a permanently empty screen. Each of the four closes its own arm, and a
+handler test pins it.
 
 Each graph is added via `navComponentScreen<Feature>` /
 `navComponentScreenWithResults<Feature>`, which expands to an `entry<Screen>`

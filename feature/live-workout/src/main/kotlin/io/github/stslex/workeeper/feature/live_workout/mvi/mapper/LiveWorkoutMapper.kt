@@ -79,6 +79,8 @@ internal object LiveWorkoutMapper {
             isAddExerciseInFlight = false,
             isFinishInFlight = false,
             isLoading = false,
+            // A mapped snapshot IS the load landing, so the failure flag can only be false here.
+            loadFailed = false,
             dialogState = DialogState.Hidden,
             bottomSheetState = BottomSheetState.Hidden,
         ).withPresentation(resourceWrapper)

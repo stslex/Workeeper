@@ -137,4 +137,5 @@
     <string name="feature_live_workout_error_create_inline_exercise_failed">Could not create exercise</string>
     <string name="feature_live_workout_error_discard_session_failed">Could not discard workout</string>
     <string name="feature_live_workout_error_unknown">Something went wrong</string>
+    <string name="feature_live_workout_error_session_load_failed">Could not open the workout</string>
 </resources>

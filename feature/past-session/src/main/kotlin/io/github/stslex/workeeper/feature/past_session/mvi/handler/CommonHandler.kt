@@ -40,7 +40,7 @@ internal class CommonHandler @Inject constructor(
         interactor.observeDetailWithPrs(sessionUuid).launch(
             onError = { _ ->
                 updateStateImmediate {
-                    it.copy(phase = State.Phase.Error(ErrorType.LoadFailed))
+                    it.copy(phase = State.Phase.Error(ErrorType.LoadFailed), hasResolved = true)
                 }
             },
         ) { result ->
@@ -50,7 +50,7 @@ internal class CommonHandler @Inject constructor(
             // Disclosure survives the replacement: first Loaded seeds the first card open;
             // later emissions (PR-flow re-fetches) carry the user's open set, pruned.
             updateStateImmediate { current ->
-                current.copy(phase = phase).withExpansionCarriedFrom(current)
+                current.copy(phase = phase, hasResolved = true).withExpansionCarriedFrom(current)
             }
         }
     }

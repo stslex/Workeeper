@@ -4,12 +4,14 @@ package io.github.stslex.workeeper.feature.past_session.ui
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
+import io.github.stslex.workeeper.core.ui.kit.components.loading.AppLoadedContent
 import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
 import io.github.stslex.workeeper.core.ui.mvi.navComponentScreen
 import io.github.stslex.workeeper.core.ui.navigation.NavGraphScope
 import io.github.stslex.workeeper.feature.past_session.R
 import io.github.stslex.workeeper.feature.past_session.di.PastSessionFeature
 import io.github.stslex.workeeper.feature.past_session.mvi.model.ErrorType
+import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStore
 import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStore.Event
 
 fun NavGraphScope.pastSessionGraph(
@@ -39,10 +41,24 @@ fun NavGraphScope.pastSessionGraph(
             }
         }
 
-        PastSessionScreen(
-            modifier = modifier,
-            state = processor.state.value,
-            consume = processor::consume,
-        )
+        // The route gate (§26). GUARD: this screen's top bar falls back to a placeholder title
+        // when the phase is not `Loaded`, so composing it before the load lands puts a heading on
+        // screen that the load then rewrites.
+        //
+        // GUARD: gated on the FIRST load only. The Error phase must still compose, or a failed
+        // load becomes the permanently empty frame this gate exists to avoid — and `hasResolved`
+        // keeps the shell once it has resolved, because Retry re-enters `Loading` with the screen
+        // already up, and withholding it there blanks the route mid-flow.
+        AppLoadedContent(
+            isLoaded = with(processor.state.value) {
+                phase !is PastSessionStore.State.Phase.Loading || hasResolved
+            },
+        ) {
+            PastSessionScreen(
+                modifier = modifier,
+                state = processor.state.value,
+                consume = processor::consume,
+            )
+        }
     }
 }

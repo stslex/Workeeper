@@ -89,6 +89,18 @@ interface LiveWorkoutStore :
         val isAddExerciseInFlight: Boolean,
         val isFinishInFlight: Boolean,
         val isLoading: Boolean,
+        /**
+         * The session could not be loaded, and the route must leave rather than render.
+         *
+         * GUARD: this is STATE and not an event, and that is the whole point. An event is
+         * replay-free and its only collector is the screen's `Handle`, which subscribes from a
+         * `LaunchedEffect` — later than the `DisposableEffect` that dispatches `Init`. A load that
+         * resolves inside that window emits into no subscriber and is dropped, leaving `isLoading`
+         * clear, the route composed on an empty seed, and a Finish dock enabled over a session
+         * whose exercises never arrived. State cannot be dropped: whenever the screen composes it
+         * reads this, and both the withholding and the leaving hang off it.
+         */
+        val loadFailed: Boolean,
         val dialogState: DialogState,
         val bottomSheetState: BottomSheetState,
     ) : Store.State {
@@ -176,6 +188,7 @@ interface LiveWorkoutStore :
                 isAddExerciseInFlight = false,
                 isFinishInFlight = false,
                 isLoading = true,
+                loadFailed = false,
                 dialogState = DialogState.Hidden,
                 bottomSheetState = BottomSheetState.Hidden,
             )
