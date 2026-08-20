@@ -543,3 +543,36 @@ module conversions.
   site). `kotlin.time.Instant.toString()` measured byte-identical to `java.time` for every
   epoch-milli input class — the §7 java.time rider's production line is taken with zero new
   dependency, which also moves `WorkoutExportMapper` to commonMain: androidMain is 4 files, not 5.
+## §10 What PR E measured (lands with PR E)
+
+- **`androidx.sqlite.SQLiteException` is `actual typealias … = android.database.SQLException` on
+  Android** (read from the 2.7.0 sources jar). One common catch therefore covers the framework
+  driver's `SQLiteConstraintException` (a subtype), the bundled driver's own throw, and iOS's
+  native actual — §5's planned seam dissolved into a plain import. The bundled driver's UNIQUE
+  violation renders as `Error code: 2067, message: UNIQUE constraint failed: <table>.<column>`
+  (measured on device via the red-first run); the constraint check gates on the one string both
+  engines emit, because the common type carries no code field.
+- **`core:data:exercise` is the repo's first zero-androidMain KMP module** — all 42 production
+  files commonMain. The §5 prediction held: the paging surface ports untouched on `paging-common`,
+  and after the catch fix nothing platform-typed remained. Two JVM-isms surfaced only at the KMP
+  compile: `System.currentTimeMillis()` (8 sites → `kotlin.time.Clock`) and the exception import.
+  A new `androidx-sqlite` (base) catalog alias supplies the driver-agnostic API to modules that
+  talk about SQLite without choosing an engine.
+- **The second conversion rode the first's rails**: device-test component, both CI aliases,
+  desugaring, detekt device globs, suite gate — nothing new was needed. The per-module cost §8
+  budgets for phase 7 held at: build-script rewrite + Robolectric trio + interceptor property.
+- **`setup-hooks.sh` copied instead of configuring.** It cp'd `.githooks/pre-commit` into
+  `.git/hooks/` — so a clone that never ran it had NO hook (found when a red detekt and a passing
+  commit coexisted in one session), and a clone that ran it before #235 still carries the
+  rename-blind ACM filter. The script now sets `core.hooksPath = .githooks`, which is what
+  CLAUDE.md had claimed all along; hook fixes henceforth deploy with `git pull`.
+- **§7 riders closed out**: java.time discharged for phase 6 (production core/data clean; 1 test
+  file kept deliberately as a cross-library oracle; the 14 exercise-chart files are Phase 7's).
+  File→okio re-priced: dependency cost now zero (okio transitive since #233), remaining cost a
+  7-module signature ripple — and urgency DOWN, since every File-typed surface now sits in an
+  androidMain no common code is blocked by. Still deferred until a real iOS backup implementation
+  makes the right shape observable; `android.net.Uri` still has no common analogue.
+- **The §7 visual-gate side-track was deliberately not taken**: no KMP module applies paparazzi
+  until phase 7 converts the first golden module, so the `verifyPaparazzi*` alias cannot be proven
+  in either direction yet — and the convention's own KDoc already pins that alias to that
+  conversion. An alias that cannot red is a comment; it stays with the conversion that needs it.
