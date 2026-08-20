@@ -40,7 +40,7 @@ internal class DatabaseSnapshotProviderImplTest {
         // Wipe any leftover db from previous test runs in this Robolectric sandbox.
         context.deleteDatabase(AppDatabase.NAME)
         database = Room
-            .databaseBuilder(context, AppDatabase::class.java, AppDatabase.NAME)
+            .databaseBuilder<AppDatabase>(context, AppDatabase.NAME)
             .allowMainThreadQueries()
             .build()
         provider = DatabaseSnapshotProviderImpl(
@@ -107,7 +107,7 @@ internal class DatabaseSnapshotProviderImplTest {
 
             database.close()
             val snapshotDb = Room
-                .databaseBuilder(context, AppDatabase::class.java, target.name)
+                .databaseBuilder<AppDatabase>(context, target.name)
                 .allowMainThreadQueries()
                 .build()
             val tagsFromSnapshot = snapshotDb.tagDao.observeAll().first()
@@ -140,7 +140,7 @@ internal class DatabaseSnapshotProviderImplTest {
             database.close()
 
             val firstSnapshot = Room
-                .databaseBuilder(context, AppDatabase::class.java, firstTarget.name)
+                .databaseBuilder<AppDatabase>(context, firstTarget.name)
                 .allowMainThreadQueries()
                 .build()
             assertEquals(
@@ -150,7 +150,7 @@ internal class DatabaseSnapshotProviderImplTest {
             firstSnapshot.close()
 
             val secondSnapshot = Room
-                .databaseBuilder(context, AppDatabase::class.java, secondTarget.name)
+                .databaseBuilder<AppDatabase>(context, secondTarget.name)
                 .allowMainThreadQueries()
                 .build()
             assertEquals(
@@ -232,7 +232,7 @@ internal class DatabaseSnapshotProviderImplTest {
 
         // Rebuild Room — the previous handle is stale after restoreFromSnapshot.
         val restored = Room
-            .databaseBuilder(context, AppDatabase::class.java, AppDatabase.NAME)
+            .databaseBuilder<AppDatabase>(context, AppDatabase.NAME)
             .setDriver(AndroidSQLiteDriver())
             .allowMainThreadQueries()
             .build()
@@ -301,7 +301,7 @@ internal class DatabaseSnapshotProviderImplTest {
 
             // Live db reverts to pre-restore state.
             val restored = Room
-                .databaseBuilder(context, AppDatabase::class.java, AppDatabase.NAME)
+                .databaseBuilder<AppDatabase>(context, AppDatabase.NAME)
                 .allowMainThreadQueries()
                 .build()
             try {

@@ -52,7 +52,7 @@ internal class InvalidationDeviceTest {
     fun setUp() {
         context = ApplicationProvider.getApplicationContext()
         context.deleteDatabase(PROBE_DB)
-        database = Room.databaseBuilder(context, AppDatabase::class.java, PROBE_DB)
+        database = Room.databaseBuilder<AppDatabase>(context, PROBE_DB)
             .setDriver(AndroidSQLiteDriver())
             .build()
     }

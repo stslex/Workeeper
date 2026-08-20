@@ -34,10 +34,9 @@ import io.github.stslex.workeeper.core.data.database.migration.MIGRATIONS
  * `AppGraph` calls this factory eagerly.
  */
 fun buildAppDatabase(context: Context): AppDatabase = Room
-    .databaseBuilder(
-        context,
-        AppDatabase::class.java,
-        AppDatabase.NAME,
+    .databaseBuilder<AppDatabase>(
+        context = context,
+        name = AppDatabase.NAME,
     )
     // Room 3 requires an explicit driver; AndroidSQLiteDriver is the framework SQLite
     // implementation Room 2.8.4 used implicitly, so the on-disk format is unchanged.

@@ -30,9 +30,8 @@ import org.jetbrains.annotations.TestOnly
 class RepositoryTestEnv {
 
     private val database: AppDatabase = Room
-        .inMemoryDatabaseBuilder(
-            ApplicationProvider.getApplicationContext(),
-            AppDatabase::class.java,
+        .inMemoryDatabaseBuilder<AppDatabase>(
+            ApplicationProvider.getApplicationContext<Application>(),
         )
         .setDriver(AndroidSQLiteDriver())
         .allowMainThreadQueries()

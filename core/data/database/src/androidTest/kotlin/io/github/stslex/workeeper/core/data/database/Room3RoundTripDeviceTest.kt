@@ -57,7 +57,7 @@ internal class Room3RoundTripDeviceTest {
     private lateinit var database: AppDatabase
 
     private fun openDb(): AppDatabase =
-        Room.databaseBuilder(context, AppDatabase::class.java, ROUNDTRIP_DB)
+        Room.databaseBuilder<AppDatabase>(context, ROUNDTRIP_DB)
             .setDriver(AndroidSQLiteDriver())
             .build()
 

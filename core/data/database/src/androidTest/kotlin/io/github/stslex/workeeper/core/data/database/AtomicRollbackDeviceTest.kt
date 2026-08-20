@@ -78,7 +78,7 @@ internal class AtomicRollbackDeviceTest {
         context.deleteDatabase(PROBE_DB)
         // Real file-backed DB on the device — NOT in-memory, so transaction/connection
         // semantics match production, not Robolectric's shadow SQLite.
-        database = Room.databaseBuilder(context, AppDatabase::class.java, PROBE_DB)
+        database = Room.databaseBuilder<AppDatabase>(context, PROBE_DB)
             .setDriver(AndroidSQLiteDriver())
             .build()
     }

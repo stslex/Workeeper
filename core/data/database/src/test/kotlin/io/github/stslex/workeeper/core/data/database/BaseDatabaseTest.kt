@@ -12,7 +12,7 @@ internal abstract class BaseDatabaseTest {
 
     open fun initDb() {
         val context: Context = ApplicationProvider.getApplicationContext()
-        database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
+        database = Room.inMemoryDatabaseBuilder<AppDatabase>(context)
             .setDriver(AndroidSQLiteDriver())
             .allowMainThreadQueries()
             .build()
