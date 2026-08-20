@@ -250,7 +250,7 @@ internal class NavTransitionsTest {
         )
     }
 
-    // ---- the two defects this design was re-cut to fix, each with its own gate ---------------
+    // ---- the two shapes this design must not have, each with its own gate ---------------
 
     /**
      * **The kink gate.** A delayed curve is exactly a curve that does not move at the start, and
@@ -266,8 +266,7 @@ internal class NavTransitionsTest {
         val curve = predictiveDepartureSpec<Float>(motion).easing
         assertTrue(
             curve.transform(TENTH) > 0f,
-            "the departure is flat at a tenth of the drag, so it has a corner somewhere later — " +
-                "that corner is the defect this curve replaced",
+            "the departure is flat at a tenth of the drag, so it has a corner somewhere later",
         )
         assertTrue(
             curve.transform(HALF) < BACK_LOAD_CEILING,
@@ -278,8 +277,9 @@ internal class NavTransitionsTest {
 
     @Test
     fun `a delayed curve is what that gate is aimed at, and it does fail it`() {
-        // The predecessor, rebuilt: alpha flat for `fast`, then linear. Run through the same
-        // detector so the check above is shown to discriminate rather than merely to pass.
+        // A delayed spec is the shape the kink gate exists to reject — flat for `fast`, then
+        // linear. Run through the same detector, so the check above is shown to discriminate
+        // rather than merely to pass.
         val delayed: TweenSpec<Float> =
             tween(motion.base - motion.fast, delayMillis = motion.fast, easing = motion.linear)
         val animation = TargetBasedAnimation(delayed, Float.VectorConverter, 1f, 0f)
@@ -287,7 +287,7 @@ internal class NavTransitionsTest {
         assertEquals(
             1f,
             atTenth,
-            "the delayed predecessor was NOT flat at a tenth of the drag; the kink gate is then " +
+            "the delayed control was NOT flat at a tenth of the drag; the kink gate is then " +
                 "certifying nothing",
         )
     }
@@ -305,7 +305,7 @@ internal class NavTransitionsTest {
         assertTrue(
             preview > motion.travel.transform(QUARTER),
             "the preview ($preview at a quarter drag) is no more responsive than travel " +
-                "(${motion.travel.transform(QUARTER)}), which is the curve it was moved off",
+                "(${motion.travel.transform(QUARTER)})",
         )
         assertTrue(
             preview > FRONT_LOAD_FLOOR && preview < FRONT_LOAD_CEILING,

@@ -58,18 +58,6 @@ abstract class BaseApplication :
     abstract val isDebugLoggingAllow: Boolean
 
     /**
-     * The Metro app-scope graph, held for the whole process. `by lazy` so it is created on first access.
-     * In production that first access is DURING `onCreate` — [onCreateGraphBootstrap] →
-     * [handleRecoveryPreflightChain] reads `appGraph` to run the recovery/startup-migration pre-flight;
-     * only the test override defers/skips that, so under test the graph is created on a later access.
-     * Constructs the two `create()` roots directly, Hilt-free: [buildAppDatabase] (a cold
-     * `Room.databaseBuilder(...).build()` — no SQLite open, so `RecoveryActivity`'s Room-free bootstrap
-     * safety holds) and [ImageStorageImpl] via [buildImageStorage]; `@IODispatcher` is `Dispatchers.IO`
-     * directly (the graph is under
-     * construction — reading its own dispatcher would cycle; `Dispatchers.IO` is the identical stateless
-     * process-singleton the graph's accessor returns).
-     */
-    /**
      * Held rather than inlined into [appGraph] only so [warmQueryPlanner] can reach it: the graph
      * takes it as a `create()` bound instance and exposes no accessor for it, and giving it one
      * would widen the graph's surface for a startup chore. Still the same single cold
@@ -77,6 +65,18 @@ abstract class BaseApplication :
      */
     private val appDatabase: AppDatabase by lazy { buildAppDatabase(applicationContext) }
 
+    /**
+     * The Metro app-scope graph, held for the whole process. `by lazy` so it is created on first access.
+     * In production that first access is DURING `onCreate` — [onCreateGraphBootstrap] →
+     * [handleRecoveryPreflightChain] reads `appGraph` to run the recovery/startup-migration pre-flight;
+     * only the test override defers/skips that, so under test the graph is created on a later access.
+     * Constructs the two `create()` roots directly, Hilt-free: [appDatabase] (a cold
+     * `Room.databaseBuilder(...).build()` — no SQLite open, so `RecoveryActivity`'s Room-free bootstrap
+     * safety holds) and [ImageStorageImpl] via [buildImageStorage]; `@IODispatcher` is `Dispatchers.IO`
+     * directly (the graph is under
+     * construction — reading its own dispatcher would cycle; `Dispatchers.IO` is the identical stateless
+     * process-singleton the graph's accessor returns).
+     */
     @Suppress("EXPOSED_PROPERTY_TYPE_IN_CONSTRUCTOR_ERROR", "EXPOSED_PROPERTY_TYPE")
     override val appGraph: AppGraph by lazy {
         buildAppGraph(

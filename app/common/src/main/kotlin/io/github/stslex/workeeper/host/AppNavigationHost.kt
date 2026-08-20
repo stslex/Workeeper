@@ -60,8 +60,7 @@ internal fun AppNavigationHost(
         // With `systemBarsPadding()` ahead of the clip, the rounded corners begin at the inset
         // boundary instead of the display edge and the bar strips fall outside the card — so the
         // thing that shrinks under a back gesture is the content area, not the window. The
-        // platform shrinks the window; so does this. `padding` still insets children exactly as
-        // before, so no screen's layout moves.
+        // platform shrinks the window; so does this.
         val bottomBarModifier = Modifier
             .fillMaxSize()
             .clip(screenShape)

@@ -168,8 +168,10 @@ class LiveWorkoutInteractorImpl internal constructor(
         // a finished session on another screen).
         val exerciseUuids = exerciseSnapshots
             .mapTo(mutableSetOf()) { snap -> snap.performed.exerciseUuid }
-        // Narrowed to the snapshots that survived the template lookup, so the map's contents are
-        // byte-identical to the sequential version that asked for exactly these uuids.
+        // GUARD: the deferred above asks for every performed row's exercise; the template lookup
+        // then drops rows, so the snapshot set is narrower. This filter brings the map back to
+        // exactly the exercises the session shows — without it the snapshot carries PRs for
+        // exercises that are not in `exercises`.
         val preSessionPrs = preSessionPrsDeferred.await().filterKeys { it in exerciseUuids }
         val training = trainingDeferred.await()
         SessionSnapshotDomain(
