@@ -61,12 +61,12 @@ internal class NavTransitionsTest {
     // ---- the fade the gesture did NOT touch ----------------------------------------------------
 
     @Test
-    fun `forward and tapped-back still run the fade this host has always run`() {
+    fun `forward and tapped-back run the crossfade, not the preview`() {
         val transform = navFadeTransform(motion)
         assertEquals(
             fadeIn(animationSpec = tween(BASE_MS), initialAlpha = ENTER_ALPHA),
             transform.targetContentEnter,
-            "the push/pop crossfade moved; that is an app-wide change and is not this commit's",
+            "the push/pop crossfade moved; that is an app-wide change and owes its own commit",
         )
         assertEquals(
             fadeOut(animationSpec = tween(BASE_MS), targetAlpha = 0f),

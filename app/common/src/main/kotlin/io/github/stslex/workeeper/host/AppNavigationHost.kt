@@ -49,11 +49,12 @@ internal fun AppNavigationHost(
     SharedTransitionLayout(
         modifier = modifier,
     ) {
-        // The display's own corner radius, clipped onto every screen unconditionally — which is
-        // what gives the predictive-back preview a rounded card without a corner-radius channel
-        // (a ContentTransform has none) and without a signal to plumb. The platform rounds the
-        // window at all times too; it only becomes visible once the window shrinks. Invisible at
-        // rest: the root Box and the window background are the colour these screens paint.
+        // The display's own corner shape, clipped onto every destination that paints the theme
+        // background — which is what gives the predictive-back preview a rounded card without a
+        // corner-radius channel (a ContentTransform has none) and without a signal to plumb. The
+        // platform rounds the window at all times too; it only becomes visible once the window
+        // shrinks. Invisible at rest, because what the corners cut away is the colour that
+        // destination paints — which is exactly why `image-viewer` is exempt below.
         val screenShape = displayCornerShape()
 
         // ORDER IS LOAD-BEARING: clip and paint the WHOLE scene, then inset the content inside it.

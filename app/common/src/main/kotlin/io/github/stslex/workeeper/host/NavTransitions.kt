@@ -25,8 +25,8 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppMotion
  *
  * `transitionSpec` (forward navigation, and every bottom-tab switch — `NavigatorExt` REPLACES the
  * top entry for `isSingleTop`, which `NavDisplay.isPop` correctly reads as not-a-pop) and
- * `popTransitionSpec` (top-bar chevron, `navigator.popBack()`, three-button back) run the fade this
- * host has always run. `predictivePopTransitionSpec` — the finger-driven gesture, and only that —
+ * `popTransitionSpec` (top-bar chevron, `navigator.popBack()`, three-button back) both run
+ * [navFadeTransform]. `predictivePopTransitionSpec` — the finger-driven gesture, and only that —
  * runs the preview.
  *
  * GUARD: `NavDisplay` has NO fallback between the three — its `contentTransform` picks ONE of

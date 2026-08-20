@@ -1612,7 +1612,7 @@ the same detector to show it discriminates.
 radius, so the host clips its clipped destinations' root modifiers to the display's own corner
 shape (`displayCornerShape`, an `AbsoluteRoundedCornerShape` because `RoundedCorner` positions are
 physical and a start/end shape would mirror them under RTL). Each of the four corners is read
-separately — a display whose corners differ is exactly what the rotation key exists for.
+separately, because a display whose corners differ is the case the whole per-corner read exists for.
 `RoundedCorner` is API 31+; below that the platform reports nothing and `AppDimension.Radius.big`
 stands in, and a device that reports a **zero or absent** radius (square panel, most emulators)
 takes the same fallback deliberately — the point of the clip is the shrunken card, and a square
