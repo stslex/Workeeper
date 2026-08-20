@@ -4,6 +4,7 @@ package io.github.stslex.workeeper.host
 import android.os.Build
 import android.view.RoundedCorner
 import android.view.View
+import android.view.ViewTreeObserver
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.shape.AbsoluteRoundedCornerShape
 import androidx.compose.runtime.Composable
@@ -45,24 +46,39 @@ internal fun displayCornerShape(): Shape {
 
     var shape by remember(view, density) { mutableStateOf(view.displayCorners(density) ?: fallback) }
 
-    // GUARD: refresh on LAYOUT, and on nothing narrower. `rootWindowInsets` is null until attach
-    // and still describes the previous orientation at the instant a configuration change arrives
-    // (`MainActivity` declares `configChanges`, so neither the activity nor this View is
-    // replaced) — so neither an inset value nor a first non-null answer is a signal that the
-    // corners are current. A layout is: `ViewRootImpl` dispatches insets during the same traversal
-    // BEFORE layout, a rotation relayouts this View because its bounds swap, and attach lays out
-    // too. Assigning an equal shape is a no-op (`AbsoluteRoundedCornerShape` implements `equals`),
-    // so a layout that changes nothing costs no recomposition.
+    // GUARD: refresh on the TREE's layout pass, and on nothing narrower.
+    //
+    // Not an inset value: `rootWindowInsets` is null until attach, and the dispatch that first
+    // makes it answerable need not move any edge Compose exposes. Not the configuration either:
+    // `MainActivity` declares `configChanges`, so neither the activity nor this View is replaced,
+    // and at the instant the configuration changes the insets still describe the previous
+    // orientation. And not this View's OWN layout: `OnLayoutChangeListener` can stay silent when
+    // the bounds are unchanged, which is exactly a 180-degree rotation — same width and height,
+    // different physical corners.
+    //
+    // A global layout has none of those holes. `ViewRootImpl` dispatches insets during the same
+    // traversal BEFORE layout, so the answer is current when this fires; a configuration change
+    // lays the tree out whether or not any bounds move; and attach lays out too, which resolves
+    // the initial null. In a Compose app the signal is also rare — Compose lays out inside one
+    // View, so tree-level passes are attach, configuration and window changes rather than content
+    // ones. Assigning an equal shape is a no-op (`AbsoluteRoundedCornerShape` implements `equals`),
+    // so a pass that changes nothing costs no recomposition.
     //
     // GUARD: do NOT reach for `OnApplyWindowInsetsListener` instead. It is single-listener per
-    // View and `AndroidComposeView` owns it, so taking it breaks Compose's own insets.
-    // `addOnLayoutChangeListener` is additive and displaces nothing.
+    // View and `AndroidComposeView` owns it, so taking it breaks Compose's own insets. A
+    // `ViewTreeObserver` listener is additive and displaces nothing.
     DisposableEffect(view, density) {
-        val listener = View.OnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+        val observer = view.viewTreeObserver
+        val listener = ViewTreeObserver.OnGlobalLayoutListener {
             view.displayCorners(density)?.let { corners -> shape = corners }
         }
-        view.addOnLayoutChangeListener(listener)
-        onDispose { view.removeOnLayoutChangeListener(listener) }
+        observer.addOnGlobalLayoutListener(listener)
+        onDispose {
+            // The observer captured at registration can be dead by now (it is replaced when the
+            // View is re-attached); the live one is the View's current observer.
+            val current = if (observer.isAlive) observer else view.viewTreeObserver
+            current.removeOnGlobalLayoutListener(listener)
+        }
     }
 
     return shape

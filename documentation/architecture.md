@@ -1619,16 +1619,17 @@ separately, because a display whose corners differ is the case the whole per-cor
 `RoundedCorner` is API 31+; below that the platform reports nothing and `AppDimension.Radius.big`
 stands in, and a device that reports a **zero or absent** radius (square panel, most emulators)
 takes the same fallback deliberately — the point of the clip is the shrunken card, and a square
-card is the defect being fixed. Asked of the platform and re-asked on every **layout** of the host View, rather than inferred
-from a proxy. Two weaker triggers were tried and both have holes: an inset VALUE is a proxy, since
-`rootWindowInsets` is null until attach and the dispatch that first makes it answerable need not
-move any edge Compose exposes; and the first non-null answer is not necessarily a current one,
-because `MainActivity` declares `configChanges`, so at the moment a rotation changes the
-configuration the insets still describe the previous orientation. A layout has neither problem —
-`ViewRootImpl` dispatches insets during the same traversal, before layout, and a rotation relayouts
-this View by construction. `addOnLayoutChangeListener` is additive and displaces nothing;
-`OnApplyWindowInsetsListener` would have been the more direct hook and is single-listener per View,
-owned by `AndroidComposeView`. **The
+card is the defect being fixed. Asked of the platform and re-asked on every **layout pass of the view tree**, rather than inferred
+from a proxy. Narrower triggers all have holes: an inset VALUE is a proxy, since `rootWindowInsets`
+is null until attach and the dispatch that first makes it answerable need not move any edge Compose
+exposes; the configuration is too early, because `MainActivity` declares `configChanges` and at the
+instant it changes the insets still describe the previous orientation; and the host View's own
+layout can stay silent when its bounds do not move, which is exactly a 180-degree rotation. A
+global layout has none of them — `ViewRootImpl` dispatches insets during the same traversal before
+layout, and a configuration change lays the tree out whether or not any bounds move. The signal is
+cheap in a Compose app, where tree-level passes are attach, configuration and window changes rather
+than content ones. A `ViewTreeObserver` listener is additive; `OnApplyWindowInsetsListener` would
+have been the more direct hook and is single-listener per View, owned by `AndroidComposeView`. **The
 clip and the background come before the inset padding**, so the card is the whole window and not
 the content area: with the padding first, the corners would begin at the inset boundary and the
 bar strips would fall outside the shrinking card. Unconditional, at rest as well as in motion, which is
