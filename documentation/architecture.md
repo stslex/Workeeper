@@ -1616,12 +1616,12 @@ separately — a display whose corners differ is exactly what the rotation key e
 `RoundedCorner` is API 31+; below that the platform reports nothing and `AppDimension.Radius.big`
 stands in, and a device that reports a **zero or absent** radius (square panel, most emulators)
 takes the same fallback deliberately — the point of the clip is the shrunken card, and a square
-card is the defect being fixed. Read fresh on every composition and deliberately **not cached**: it subscribes to the
-configuration and to the system-bar insets so that a rotation or an inset dispatch recomposes it,
-and reads the corners afresh so no key can be too narrow to catch a change. Every key available there is a proxy
-for "the corners may have changed" and each proxy has a hole — the View survives a rotation, a
-single inset edge can be zero on the dispatch that first resolves `rootWindowInsets`, and an
-all-zero dispatch moves no edge at all. **The
+card is the defect being fixed. Asked of the platform and re-asked until it can answer, rather than inferred from a proxy: a
+`produceState` reads `rootWindowInsets` and waits a frame when it is null, stopping on the first
+answer. No inset VALUE is used as a trigger, because every such value is a proxy with a hole —
+`rootWindowInsets` is null until attach, and the dispatch that first makes it answerable need not
+move any edge Compose exposes. The configuration is a key on that state, since a rotation replaces
+neither this activity nor its View but can change which physical corner is top-left. **The
 clip and the background come before the inset padding**, so the card is the whole window and not
 the content area: with the padding first, the corners would begin at the inset boundary and the
 bar strips would fall outside the shrinking card. Unconditional, at rest as well as in motion, which is
