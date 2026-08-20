@@ -1653,8 +1653,9 @@ progress and maps it to playtime as `fraction x transition.totalDurationNanos`, 
 that equality is what makes "alpha reached 0" and "the gesture completed" the same instant.
 The first `sharedBounds` / `sharedElement` added to any screen registers a spring on this
 transition and breaks it; re-derive the windows then.
-**Third**, a `ContentTransform` has exactly five channels — fade, slide, changeSize, scale,
-veil. There is no corner radius, no shadow, no elevation and no per-frame hook; the spec
+**Third**, a `ContentTransform` has exactly six channels — `TransitionData` is exhaustively fade,
+slide, changeSize, scale, veil and hold, and its `effectsMap` is `internal` end to end, so nothing
+outside the library can add a seventh. There is no corner radius, no shadow, no elevation and no per-frame hook; the spec
 lambda receives one `Int` (the swipe edge) and is invoked twice per segment. Anything the
 transition cannot express has to come from the content instead — the corner radius does, as a
 clip; a shadow and a touch-Y follow would need `LocalNavAnimatedContentScope.current.transition`
