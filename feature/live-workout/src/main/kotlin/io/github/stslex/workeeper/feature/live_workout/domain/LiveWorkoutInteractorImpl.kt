@@ -133,8 +133,8 @@ class LiveWorkoutInteractorImpl internal constructor(
         }
 
         // GUARD: keep this in the parallel block. It is the one read here that scales with the
-        // user's whole HISTORY rather than with the session, and in the tail it added all of its
-        // own latency to the critical path. The profile that measured it is in
+        // user's whole HISTORY rather than with the session, so serialising it puts all of its
+        // latency on the critical path. The profile that measured it is in
         // `documentation/feature-specs/v3-redesign-spec.md` §27, "PROFILE BEFORE OPTIMISING".
         val preSessionPrsDeferred = async {
             personalRecordRepository

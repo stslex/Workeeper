@@ -32,9 +32,9 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
  * clipped destination it is invisible at rest, because what the corners cut away is the colour that
  * destination paints.
  *
- * Falls back to [AppDimension.Radius.big] when the platform reports no radius — deliberately, since
- * a square card is the defect being fixed; the API cutoff and the zero-radius case are derived in
- * the same architecture section.
+ * Falls back to [AppDimension.Radius.big] when the platform reports no radius, so a preview card
+ * is rounded on every device rather than only on those that report one; the API cutoff and the
+ * zero-radius case are derived in the same architecture section.
  */
 @Composable
 internal fun displayCornerShape(): Shape {
