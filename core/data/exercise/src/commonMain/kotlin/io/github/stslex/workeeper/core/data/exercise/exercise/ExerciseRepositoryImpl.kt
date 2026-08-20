@@ -512,6 +512,18 @@ class ExerciseRepositoryImpl @Inject internal constructor(
         exerciseTagDao.insert(tagUuids.await())
     }
 
+    /**
+     * The one string both SQLite engines emit for a UNIQUE violation. The framework driver's
+     * `SQLiteConstraintException` carries SQLite's own error text; the bundled driver renders
+     * `Error code: 2067, message: UNIQUE constraint failed: <table>.<column>` (measured on
+     * device, SQLITE_CONSTRAINT_UNIQUE = 2067). A type check cannot serve here: the common
+     * `androidx.sqlite.SQLiteException` has no code field, and the framework subtype is not
+     * nameable from common code. A member, not a top-level private fun: file-private helpers
+     * called from inside the class need a synthetic accessor, and lint rightly objects.
+     */
+    private fun SQLiteException.isUniqueConstraintViolation(): Boolean =
+        message.orEmpty().contains("UNIQUE constraint failed")
+
     companion object {
 
         private val pagingConfig = PagingConfig(
@@ -520,14 +532,3 @@ class ExerciseRepositoryImpl @Inject internal constructor(
         )
     }
 }
-
-/**
- * The one string both SQLite engines emit for a UNIQUE violation. The framework driver's
- * `SQLiteConstraintException` carries SQLite's own error text; the bundled driver renders
- * `Error code: 2067, message: UNIQUE constraint failed: <table>.<column>` (measured on device,
- * SQLITE_CONSTRAINT_UNIQUE = 2067). A type check cannot serve here: the common
- * `androidx.sqlite.SQLiteException` has no code field, and the framework subtype is not
- * nameable from common code.
- */
-private fun SQLiteException.isUniqueConstraintViolation(): Boolean =
-    message.orEmpty().contains("UNIQUE constraint failed")

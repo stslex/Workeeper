@@ -1,5 +1,5 @@
 plugins {
-    alias(libs.plugins.convention.androidLibrary)
+    alias(libs.plugins.convention.kmpLibrary)
     // The exercise repositories are Metro-owned via @ContributesBinding(AppScope); their Room-DAO deps
     // resolve from the app graph's DbCascadeBindingContainer (core:data:database).
     alias(libs.plugins.metro)
@@ -11,23 +11,49 @@ metro {
     }
 }
 
+// Every production file is commonMain — the module has NO androidMain: the one platform type it
+// carried (the framework SQLiteConstraintException in ExerciseRepositoryImpl's duplicate-name
+// catch) was replaced by the common androidx.sqlite.SQLiteException before the conversion, and the
+// paging surface (Pager/PagingData/PagingSource) lives in paging-common. The compose-bom/runtime
+// and room3-runtime declarations the Android build script carried had ZERO usages (phase-6 spec §5)
+// and do not return.
+kotlin {
+    sourceSets {
+        commonMain.dependencies {
+            implementation(project(":core:core"))
+            implementation(project(":core:data:database"))
+            implementation(libs.androidx.paging.common)
+            // The duplicate-name catch names androidx.sqlite.SQLiteException; the database
+            // module's room/sqlite deps are `implementation` and do not leak here.
+            implementation(libs.androidx.sqlite)
+        }
+    }
+}
+
 dependencies {
-    implementation(project(":core:core"))
-    implementation(project(":core:data:database"))
+    // Robolectric under JUnit 5 for androidHostTest — the KMP convention keeps Robolectric a
+    // module concern (the core:core / core:data:dataStore / core:data:database shape). 16 of the
+    // 19 host-test classes run the real schema through RepositoryTestEnv.
+    "androidHostTestImplementation"(libs.robolectric)
+    "androidHostTestImplementation"(libs.robolectric.junit5.extension)
+    "androidHostTestImplementation"(libs.androidx.test)
+    "androidHostTestImplementation"(libs.mockk.android)
+    "androidHostTestImplementation"(libs.mockk.agent)
+    "androidHostTestImplementation"(libs.androidx.paging.testing)
+    "androidHostTestImplementation"(project(":core:data:database-test"))
 
-    implementation(platform(libs.androidx.compose.bom))
-    implementation(libs.androidx.compose.runtime)
-
-    implementation(libs.androidx.paging.runtime)
-    // room3 folded the old room-ktx (coroutine/Flow support) into room3-runtime.
-    implementation(libs.androidx.room.runtime)
-    testImplementation(libs.androidx.paging.testing)
-    testImplementation(project(":core:data:database-test"))
-
-    androidTestImplementation(libs.bundles.android.test)
+    "androidDeviceTestImplementation"(libs.bundles.android.test)
     // InMemoryDatabaseProvider — the on-device AppDatabase under the production (bundled) driver.
-    androidTestImplementation(project(":core:data:database-test"))
+    "androidDeviceTestImplementation"(project(":core:data:database-test"))
     // Supplies io.github.stslex.workeeper.core.ui.test.annotations.Regression — the ui_tests.yml
     // runner filter; an un-annotated device test can never be selected by any CI job.
-    androidTestImplementation(project(":core:ui:test-utils"))
+    "androidDeviceTestImplementation"(project(":core:ui:test-utils"))
+}
+
+// The robolectric-junit5 bridge sandboxes each test class through a JUnit Platform
+// LauncherInterceptor, and interceptors are OFF by default — without this property the extension
+// runs but never installs Robolectric's classloader, and every test dies with "No instrumentation
+// registered". The KMP convention keeps Robolectric a module concern, so the module sets it.
+tasks.withType<Test>().configureEach {
+    systemProperty("junit.platform.launcher.interceptors.enabled", true)
 }
