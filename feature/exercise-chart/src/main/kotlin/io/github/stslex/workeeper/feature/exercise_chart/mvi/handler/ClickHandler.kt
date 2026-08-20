@@ -41,8 +41,7 @@ internal class ClickHandler @Inject constructor(
             is Action.Click.OnScrub -> processScrub(action)
             Action.Click.OnEmptyCtaClick -> consume(Action.Navigation.OpenHome)
             // The failure state stays on screen while the retry runs: Init resolves it either
-            // way, and clearing it first would blank the screen for the length of the read —
-            // the flash this PR exists to remove.
+            // way, and clearing it first blanks the route for the length of the read.
             Action.Click.OnRetryLoad -> consume(Action.Common.Init)
             Action.Click.OnBack -> consume(Action.Navigation.PopBack)
         }
