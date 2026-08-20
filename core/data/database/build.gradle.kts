@@ -41,6 +41,11 @@ dependencies {
     "androidHostTestImplementation"(libs.robolectric)
     "androidHostTestImplementation"(libs.robolectric.junit5.extension)
     "androidHostTestImplementation"(libs.androidx.test)
+    // Host tests stay on AndroidSQLiteDriver: the bundled driver's android variant carries
+    // Android-ABI natives only and dies with UnsatisfiedLinkError under Robolectric on a
+    // desktop JVM (measured). Robolectric is not an admissible driver oracle anyway — the
+    // device suite is where the production driver is exercised.
+    "androidHostTestImplementation"(libs.androidx.sqlite.framework)
     // MigrationsRegistryTest introspects the registry against room-testing's Migration surface.
     "androidHostTestImplementation"(libs.androidx.room.testing)
 

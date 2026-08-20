@@ -3,7 +3,7 @@ package io.github.stslex.workeeper.core.data.database
 
 import android.content.Context
 import androidx.room3.Room
-import androidx.sqlite.driver.AndroidSQLiteDriver
+import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import io.github.stslex.workeeper.core.data.database.migration.MIGRATIONS
 
 /**
@@ -38,8 +38,12 @@ fun buildAppDatabase(context: Context): AppDatabase = Room
         context = context,
         name = AppDatabase.NAME,
     )
-    // Room 3 requires an explicit driver; AndroidSQLiteDriver is the framework SQLite
-    // implementation Room 2.8.4 used implicitly, so the on-disk format is unchanged.
-    .setDriver(AndroidSQLiteDriver())
+    // Room 3 requires an explicit driver. BundledSQLiteDriver ships one SQLite build (3.50.x)
+    // to every device instead of the per-OEM, per-API-level system one — the main-db and WAL
+    // file formats are frozen, so existing installations open unchanged. The snapshot/ package
+    // still opens the same file through framework SQLite (android.database.sqlite) for its
+    // pre-migration peek and checkpoint; that cross-library interop is deliberate and its
+    // paths are exercised by the recovery flow, not by this builder.
+    .setDriver(BundledSQLiteDriver())
     .apply { MIGRATIONS.forEach { addMigrations(it) } }
     .build()

@@ -71,11 +71,14 @@ class RoomLibraryConventionPlugin : Plugin<Project> {
             // where androidx.paging.PagingSource actually lives (phase-6 spec §0).
             add("commonMainImplementation", libs.findBundle("room").get())
             add("commonMainImplementation", libs.findLibrary("androidx-paging-common").get())
-            // The driver artifact is per-target by construction: its android variant carries
-            // AndroidSQLiteDriver, its Apple variants NativeSQLiteDriver, and no arrangement
-            // shares one across targets (phase-6 spec §6). iosMain gets a driver dependency
-            // the day an iOS composition root builds a database, not before.
-            add("androidMainImplementation", libs.findLibrary("androidx-sqlite-framework").get())
+            // BundledSQLiteDriver: one SQLite build (3.50.x) on every device instead of the
+            // per-OEM system one (phase-6 spec §6; the flip commit's own gate). Per-target by
+            // construction — iosMain gets a driver dependency the day an iOS composition root
+            // builds a database, not before. Robolectric HOST tests cannot use bundled (the
+            // android variant ships Android-ABI natives only; measured UnsatisfiedLinkError),
+            // so a module whose host tests build databases pins sqlite-framework on
+            // androidHostTestImplementation itself.
+            add("androidMainImplementation", libs.findLibrary("androidx-sqlite-bundled").get())
 
             // Room's KSP codegen runs once per compilation target; the compiler artifact
             // itself is JVM-only, which is fine — KSP always executes on the JVM.

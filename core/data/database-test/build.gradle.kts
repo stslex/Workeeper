@@ -16,8 +16,13 @@ dependencies {
     api(project(":core:data:database"))
 
     api(libs.bundles.room)
-    // InMemoryDatabaseProvider builds a Room 3 DB and must setDriver(AndroidSQLiteDriver()).
+    // The two fixtures deliberately run DIFFERENT drivers. RepositoryTestEnv (Robolectric
+    // repository unit tests) pins AndroidSQLiteDriver: the bundled driver's android variant
+    // ships Android-ABI natives only and dies with UnsatisfiedLinkError on a desktop JVM
+    // (measured). InMemoryDatabaseProvider (on-device androidTest via MetroTestRule) runs
+    // BundledSQLiteDriver — the production driver since the flip.
     api(libs.androidx.sqlite.framework)
+    api(libs.androidx.sqlite.bundled)
     api(libs.androidx.test)
     // RepositoryTestEnv runs suspending seeds and exposes a CoroutineScope to its callers.
     api(libs.coroutines)

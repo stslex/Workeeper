@@ -2,7 +2,7 @@
 package io.github.stslex.workeeper.core.data.database
 
 import androidx.room3.testing.MigrationTestHelper
-import androidx.sqlite.driver.AndroidSQLiteDriver
+import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import androidx.sqlite.execSQL
 import androidx.test.platform.app.InstrumentationRegistry
 import io.github.stslex.workeeper.core.data.database.migration.Migration6
@@ -37,7 +37,7 @@ internal class AppDatabaseMigrationTest {
     val helper = MigrationTestHelper(
         InstrumentationRegistry.getInstrumentation(),
         InstrumentationRegistry.getInstrumentation().targetContext.getDatabasePath(TEST_DB),
-        AndroidSQLiteDriver(),
+        BundledSQLiteDriver(),
         AppDatabase::class,
     )
 
