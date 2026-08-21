@@ -4,12 +4,17 @@ package io.github.stslex.workeeper.feature.exercise.ui.mvi.handler
 import android.net.Uri
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.navigation.Screen
+import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
 import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor
+import io.github.stslex.workeeper.feature.exercise.domain.model.ExerciseDomain
+import io.github.stslex.workeeper.feature.exercise.domain.model.ExerciseTypeDomain
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ImageDisplay
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PendingImage
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State.Mode
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
@@ -117,6 +122,47 @@ internal class CommonHandlerTest {
         handler.invoke(Action.Common.Init)
 
         assertFalse(stateFlow.value.isLoading)
+    }
+
+    @Test
+    fun `a re-fired Init preserves a dirty draft and its staged image removal`() {
+        coEvery { interactor.getExercise("uuid-1") } returns ExerciseDomain(
+            uuid = "uuid-1",
+            name = "Bench persisted",
+            type = ExerciseTypeDomain.WEIGHTED,
+            description = "Refreshed notes",
+            imagePath = "/files/bench.jpg",
+            archived = false,
+            archivedAt = null,
+            timestamp = 0L,
+            lastAdhocSets = null,
+        )
+        val (stateFlow, handler) = setup(
+            State.create(uuid = "uuid-1").copy(
+                mode = Mode.Edit(isCreate = false),
+                name = "Bench draft",
+                description = "Unsaved notes",
+                imagePath = "/files/bench.jpg",
+                pendingImage = PendingImage.RemoveExisting,
+                originalSnapshot = State.Snapshot(
+                    name = "Bench",
+                    type = ExerciseTypeUiModel.WEIGHTED,
+                    description = "Persisted notes",
+                    tagUuids = emptyList(),
+                    adhocPlan = null,
+                ),
+            ),
+        )
+
+        handler.invoke(Action.Common.Init)
+
+        assertEquals("Bench draft", stateFlow.value.name)
+        assertEquals("Unsaved notes", stateFlow.value.description)
+        assertEquals(PendingImage.RemoveExisting, stateFlow.value.pendingImage)
+        assertEquals(ImageDisplay.None, stateFlow.value.effectiveImageDisplay)
+        assertEquals("Bench persisted", stateFlow.value.originalSnapshot?.name)
+        assertEquals("Refreshed notes", stateFlow.value.originalSnapshot?.description)
+        assertTrue(stateFlow.value.hasChanges)
     }
 
     @Test
