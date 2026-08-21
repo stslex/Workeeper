@@ -11,12 +11,9 @@ metro {
     }
 }
 
-// Every production file is commonMain — the module has NO androidMain: the one platform type it
-// carried (the framework SQLiteConstraintException in ExerciseRepositoryImpl's duplicate-name
-// catch) was replaced by the common androidx.sqlite.SQLiteException before the conversion, and the
-// paging surface (Pager/PagingData/PagingSource) lives in paging-common. The compose-bom/runtime
-// and room3-runtime declarations the Android build script carried had ZERO usages (phase-6 spec §5)
-// and do not return.
+// Every production file is commonMain; this module intentionally has no androidMain source set.
+// Platform-driver selection stays in core:data:database. See kmp-phase-6-data-layer.md → §10
+// "core:data:exercise is the repo's first zero-androidMain KMP module."
 kotlin {
     sourceSets {
         commonMain.dependencies {
