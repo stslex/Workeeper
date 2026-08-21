@@ -32,8 +32,8 @@ sealed interface BottomSheetState {
     data class ExerciseMenu(val performedExerciseUuid: String) : BottomSheetState
 
     /**
-     * `sh-del`: the plan-removal confirmation — reached only from [ExerciseMenu]'s delete
-     * item, adhoc/planned body chosen by whether the exercise was added mid-session.
+     * `sh-del`: the exercise-removal confirmation reached from [ExerciseMenu]'s delete item.
+     * Copy uses the durable session context; template sessions retain their added/planned body.
      */
     @Stable
     data class DeleteExerciseConfirm(val performedExerciseUuid: String) : BottomSheetState

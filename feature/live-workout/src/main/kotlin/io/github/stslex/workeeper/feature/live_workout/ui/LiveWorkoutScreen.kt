@@ -54,6 +54,7 @@ import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.live_workout.R
+import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.DeleteExerciseCopyMapper
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.RailMapper.toRailGroups
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExerciseStatusUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveExerciseUiModel
@@ -145,7 +146,11 @@ internal fun LiveWorkoutScreen(
                 ) {
                     DeleteExerciseSheetContent(
                         exercise = exercise,
-                        isMidSessionAdded = exercise.performedExerciseUuid in state.midSessionAddedUuids,
+                        copy = DeleteExerciseCopyMapper.map(
+                            isAdhocSession = state.isAdhoc,
+                            isMidSessionAdded = exercise.performedExerciseUuid in
+                                state.midSessionAddedUuids,
+                        ),
                         consume = consume,
                     )
                 }

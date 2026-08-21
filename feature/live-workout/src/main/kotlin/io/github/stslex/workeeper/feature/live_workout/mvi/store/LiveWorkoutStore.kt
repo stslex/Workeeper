@@ -60,8 +60,9 @@ interface LiveWorkoutStore :
         /**
          * Exercises added DURING this session (picker adds, both library and inline). Gates
          * the `sh-ex` one-off switch (§6.1: "the toggle appears only on mid-session
-         * additions") and picks `sh-del`'s adhoc body. Ephemeral by design — a process
-         * restore loses it, and a loaded one-off keeps its toggle via `!isPlanAttached`.
+         * additions") and selects the shorter loss body inside a template-backed session.
+         * Ephemeral by design — ad-hoc removal copy instead uses durable [isAdhoc], while a
+         * loaded one-off keeps its toggle via `!isPlanAttached`.
          */
         val midSessionAddedUuids: ImmutableSet<String> = persistentSetOf(),
         /**

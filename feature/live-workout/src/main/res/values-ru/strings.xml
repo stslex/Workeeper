@@ -23,8 +23,11 @@
     <string name="feature_live_workout_one_off_row_title">Только на сегодня</string>
     <string name="feature_live_workout_one_off_row_sub">останется в этой сессии, но не попадёт в план тренировки</string>
 
+    <string name="feature_live_workout_delete_workout_title">Удалить из этой тренировки?</string>
+    <string name="feature_live_workout_delete_workout_body">«%1$s» будет удалено из текущей тренировки. Записанные подходы пропадут.</string>
+    <string name="feature_live_workout_delete_workout_confirm">Удалить из тренировки</string>
     <string name="feature_live_workout_delete_plan_title">Удалить из плана тренировки?</string>
-    <string name="feature_live_workout_delete_plan_body_adhoc">«%1$s» было добавлено в этой сессии. Записанные подходы пропадут.</string>
+    <string name="feature_live_workout_delete_plan_body_added">«%1$s» было добавлено в этой сессии. Записанные подходы пропадут.</string>
     <string name="feature_live_workout_delete_plan_body_planned">«%1$s» исчезнет из плана тренировки и не появится в следующих сессиях. Если не хочешь делать его только сегодня — лучше пропустить.</string>
     <string name="feature_live_workout_delete_plan_keep">Оставить</string>
     <string name="feature_live_workout_delete_plan_confirm">Удалить из плана</string>
@@ -35,6 +38,7 @@
     <string name="feature_live_workout_toast_set_removed">Подход удалён</string>
     <string name="feature_live_workout_toast_exercise_added">«%1$s» добавлено</string>
     <string name="feature_live_workout_toast_exercise_removed">«%1$s» удалено из плана</string>
+    <string name="feature_live_workout_toast_exercise_removed_from_workout">«%1$s» удалено из тренировки</string>
     <string name="feature_live_workout_toast_undo" tools:ignore="DuplicateStrings">Отменить</string>
 
     <string name="feature_live_workout_setbar_add">+ подход</string>

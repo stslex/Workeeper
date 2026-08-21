@@ -10,6 +10,7 @@ import io.github.stslex.workeeper.core.ui.kit.golden.goldenSubject
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
+import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.DeleteExerciseCopyMapper
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExerciseStatusUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveExerciseUiModel
 import io.github.stslex.workeeper.feature.live_workout.ui.components.DeleteExerciseSheetContent
@@ -87,7 +88,10 @@ internal class SessionSheetsGoldenTest {
             SheetFrame {
                 DeleteExerciseSheetContent(
                     exercise = sheetExercise(),
-                    isMidSessionAdded = false,
+                    copy = DeleteExerciseCopyMapper.map(
+                        isAdhocSession = false,
+                        isMidSessionAdded = false,
+                    ),
                     consume = {},
                 )
             }
@@ -97,12 +101,15 @@ internal class SessionSheetsGoldenTest {
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
     fun deleteExerciseSheetAdhoc(theme: GoldenTheme, testInfo: TestInfo) {
-        // The adhoc/planned bodies are the pair (§10.2) — same frame, different copy.
+        // An ad-hoc workout has no user-visible template, including after process restoration.
         goldenSubject(testInfo, theme, surface = { AppUi.colors.surfaceTier3 }) {
             SheetFrame {
                 DeleteExerciseSheetContent(
                     exercise = sheetExercise(),
-                    isMidSessionAdded = true,
+                    copy = DeleteExerciseCopyMapper.map(
+                        isAdhocSession = true,
+                        isMidSessionAdded = false,
+                    ),
                     consume = {},
                 )
             }

@@ -11,6 +11,7 @@ import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutScope
 import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor
 import io.github.stslex.workeeper.feature.live_workout.mvi.handler.PendingUndoOps.flushPendingUndo
 import io.github.stslex.workeeper.feature.live_workout.mvi.handler.PendingUndoOps.pushUndo
+import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.DeleteExerciseCopyMapper
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveSetMutator
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ErrorType
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.BottomSheetState
@@ -60,6 +61,10 @@ internal class DialogClickHandler @Inject constructor(
         sendEvent(Event.HapticImpact(HapticFeedbackType.LongPress))
         val prior = state.value
         val exercise = setMutator.findExercise(prior, action.performedExerciseUuid) ?: return
+        val copy = DeleteExerciseCopyMapper.map(
+            isAdhocSession = prior.isAdhoc,
+            isMidSessionAdded = action.performedExerciseUuid in prior.midSessionAddedUuids,
+        )
         // Plan-attachment is the only question here — an ad-hoc session is NOT exempt. Its
         // training carries real `training_exercise_table` rows (both `createAdhocSession`
         // and every mid-session add write one), so skipping the pair delete left a row
@@ -87,7 +92,7 @@ internal class DialogClickHandler @Inject constructor(
             PendingUndo(
                 id = PendingUndoOps.nextUndoId(),
                 message = resourceWrapper.getString(
-                    R.string.feature_live_workout_toast_exercise_removed,
+                    copy.toastRes,
                     exercise.exerciseName.truncateForToast(),
                 ),
                 restoreExercises = prior.exercises,

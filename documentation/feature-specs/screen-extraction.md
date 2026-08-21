@@ -536,8 +536,8 @@ Scrim `--scrim` = `rgba(4,5,6,.66)` dark / `rgba(13,17,20,.34)` light.
 
 | id | Title | Content |
 |---|---|---|
-| `sh-ex` | the exercise name | `.mrow` one-off switch **(only when `adhoc`)** + `.msep`, then `.mitem` skip, then `.mitem.rust` delete |
-| `sh-del` | `Удалить из плана тренировки?` | body `<p>`, then `.stack` of `.btn.ghost` **`Оставить`** and `.btn.danger` **`Удалить из плана`** |
+| `sh-ex` | the exercise name | `.mrow` one-off switch **(only for template-backed mid-session additions)** + `.msep`, then `.mitem` skip, then `.mitem.rust` delete |
+| `sh-del` | context-dependent exercise-removal title | body `<p>`, then `.stack` of `.btn.ghost` keep and `.btn.danger` remove |
 | `sh-desc` | the exercise name | `.desc` free text, then `.btn.ghost` **`Закрыть`** |
 | `sh-session` | *(none)* | `.mitem` **`Добавить упражнение`**, `.mitem` **`Изменить порядок`**, `.mitem.rust` **`Отменить сессию`** |
 
@@ -553,14 +553,20 @@ leading SVG 19×19 `stroke-width:1.8`. `.mitem.rust` → `color:--rust`.
 - one-off row: **`Только на сегодня`** / sub **`останется в этой сессии, но не попадёт в план тренировки`**
 - skip item: **`Пропустить упражнение`** ⇄ **`Вернуть в сессию`** when already skipped
 - delete item: **`Удалить упражнение`**
-- `sh-del` body, **adhoc**: `«{name}» было добавлено в этой сессии. Записанные подходы пропадут.`
-- `sh-del` body, **planned**: `«{name}» исчезнет из плана тренировки и не появится в следующих
-  сессиях. Если не хочешь делать его только сегодня — лучше пропустить.`
+- `sh-del`, **ad-hoc workout**: `Remove from this workout?` / `“{name}” will be removed from this
+  workout. Its logged sets will be lost.` / `Remove from workout`. This selection uses the durable
+  session context and therefore survives loss of the ephemeral mid-session-added marker.
+- `sh-del`, **template-backed mid-session addition**: keep the plan title and confirm action, with
+  the concise body `“{name}” was added in this session. Its logged sets will be lost.`
+- `sh-del`, **template-planned exercise**: keep `Remove from the training plan?` /
+  `“{name}” will disappear from the training plan and future sessions. If you just don’t want it
+  today — skipping is the better move.` / `Remove from plan`.
 
 `.toast` — `bottom:118px`, `background:--slab`, **1px `--hair-s` border**, radius 16px,
 `padding:14px 16px`, `box-shadow:0 14px 40px rgba(0,0,0,.4)`, auto-dismiss **5000ms**.
 Text 14.5px `--max`; action mono 12px `.08em` uppercase **`--molten`**, label **`Отменить`**.
-Toast strings: `Подход добавлен` · `Подход удалён` · `«{name}» добавлено` · `«{name}» удалено из плана`.
+The removal toast follows the same context: `“{name}” removed from workout` for an ad-hoc workout,
+or `“{name}” removed from plan` for a template-backed session.
 Names truncated to **24 chars + `…`**.
 
 ## 1.10 Disclosure automaton (JS, verbatim in behaviour)
@@ -594,9 +600,9 @@ Matches spec §7. Auto-collapse on completion is deferred **420ms**
 | Bodyweight row | **one** field, `flex:2`, unit `повторений` | two fields | **differs** |
 | `.pstrip` | per-exercise 4px micro-rail in the card head | — | **missing** |
 | `.sub` | always the plan, single line, ellipsis | status text varies by state | **differs** |
-| `sh-ex` | one-off switch (adhoc only) · skip · **delete** | Изменить план · Сбросить сеты · Пропустить | **differs** |
+| `sh-ex` | one-off switch (template-backed additions only) · skip · **delete** | Изменить план · Сбросить сеты · Пропустить | **differs** |
 | `sh-desc` | exercise description sheet | — | **missing** |
-| `sh-del` | two-button plan-removal sheet, adhoc/planned copy | — | **missing** |
+| `sh-del` | two-button exercise-removal sheet, ad-hoc/template copy | — | **missing** |
 | Skip | menu item, reversible in place, **no confirmation** | confirmation **dialog** | **differs** |
 | **Set noun** | **`подход`** | **`сет`** | **differs** |
 | Rail thresholds | **9px** sets / **11px** groups | 9dp only | **differs** |

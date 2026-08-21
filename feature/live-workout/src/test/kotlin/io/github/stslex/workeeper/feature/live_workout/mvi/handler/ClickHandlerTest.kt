@@ -5,6 +5,7 @@ import io.github.stslex.workeeper.core.core.logger.Logger
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
+import io.github.stslex.workeeper.feature.live_workout.R
 import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutHandlerStore
 import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveSetMutator
@@ -280,6 +281,12 @@ internal class ClickHandlerTest {
 
     @Test
     fun `undo of a deleted exercise restores it without any DB delete`() = runTest {
+        every {
+            resourceWrapper.getString(
+                R.string.feature_live_workout_toast_exercise_removed,
+                "Bench Press",
+            )
+        } returns "Removed from plan"
         val store = FakeLiveWorkoutHandlerStore(baseState(loggedExercise()))
         val dialogHandler = DialogClickHandler(
             interactor = interactor,
@@ -300,6 +307,7 @@ internal class ClickHandlerTest {
         // Soft removal: gone from State, pending undo armed, DB untouched (deferred).
         assertTrue(store.state.value.exercises.isEmpty())
         assertTrue(store.state.value.pendingUndo != null)
+        assertEquals("Removed from plan", store.state.value.pendingUndo?.message)
         coVerify(exactly = 0) {
             interactor.deleteExerciseFromSession(any(), any(), any(), any())
         }
@@ -317,6 +325,12 @@ internal class ClickHandlerTest {
     fun `an adhoc session still removes the plan row on delete`() = runTest {
         // Ad-hoc trainings carry real plan rows, and leaving one behind made the orphan
         // cleanup trip the FK's RESTRICT and roll the whole removal back.
+        every {
+            resourceWrapper.getString(
+                R.string.feature_live_workout_toast_exercise_removed_from_workout,
+                "Bench Press",
+            )
+        } returns "Removed from workout"
         val store = FakeLiveWorkoutHandlerStore(
             baseState(loggedExercise()).copy(isAdhoc = true),
         )
@@ -336,6 +350,7 @@ internal class ClickHandlerTest {
         )
 
         dialogHandler.invoke(Action.DialogClick.OnDeleteExerciseConfirm("pe-1"))
+        assertEquals("Removed from workout", store.state.value.pendingUndo?.message)
         val undoId = store.state.value.pendingUndo?.id
         clickHandler.invoke(Action.Click.OnUndoTimeout(undoId ?: return@runTest))
         store.runLatestLaunch(this)
