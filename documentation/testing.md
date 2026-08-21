@@ -72,7 +72,7 @@ It builds an `AppDatabase` via `Room.inMemoryDatabaseBuilder`, exposes every rea
 Robolectric `@Config`.
 
 Consumers depend on it from their host-test configuration: `testImplementation` for classic
-Android modules or `androidHostTestImplementation` for KMP modules. The classic configuration is
+Android modules or `androidHostTestImplementation` for KMP modules. The KMP configuration is
 already wired for `core/data/exercise`. It is a normal module rather than a `testFixtures` source
 set because KMP has no such source set — see
 `documentation/feature-specs/kmp-phase-6-data-layer.md` -> §3.1.
@@ -110,15 +110,15 @@ return-value assertion or a mockk verification.
 #### Canonical examples
 
 - Multi-table transactional repository:
-  `core/data/exercise/src/test/kotlin/io/github/stslex/workeeper/core/data/exercise/session/SessionRepositoryImplFinishAtomicDbTest.kt`
+  `core/data/exercise/src/androidHostTest/kotlin/io/github/stslex/workeeper/core/data/exercise/session/SessionRepositoryImplFinishAtomicDbTest.kt`
   covers happy paths and a hybrid failure path that injects a throwing DAO via mockk while
   the rest of the in-memory DB rolls back the transaction. State is read back with the real
   DAOs.
 - Read-side repository:
-  `core/data/exercise/src/test/kotlin/io/github/stslex/workeeper/core/data/exercise/session/SessionRepositoryImplReadDbTest.kt`
+  `core/data/exercise/src/androidHostTest/kotlin/io/github/stslex/workeeper/core/data/exercise/session/SessionRepositoryImplReadDbTest.kt`
   seeds rows via DAO helpers, then asserts the repository's mapped output.
 - Single-table writer:
-  `core/data/exercise/src/test/kotlin/io/github/stslex/workeeper/core/data/exercise/tags/TagRepositoryImplDbTest.kt`
+  `core/data/exercise/src/androidHostTest/kotlin/io/github/stslex/workeeper/core/data/exercise/tags/TagRepositoryImplDbTest.kt`
   exercises every public method with a single round-trip per method.
 
 The DAO-test pattern (`core/data/database/src/androidHostTest/.../BaseDatabaseTest.kt`) remains the

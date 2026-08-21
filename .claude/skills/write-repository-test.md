@@ -38,7 +38,7 @@ tests must stay the minority and must not duplicate a real-DB test for the same 
 - The consumer module declares the fixture on its host-test configuration:
   `testImplementation(project(":core:data:database-test"))` for a classic Android module or
   `"androidHostTestImplementation"(project(":core:data:database-test"))` for a KMP module.
-  The classic configuration is already wired for `core/data/exercise`. Do NOT reach for a
+  The KMP configuration is already wired for `core/data/exercise`. Do NOT reach for a
   `testFixtures` source set on `core:data:database`: KMP has none.
 
 ## Test fixture
@@ -55,7 +55,7 @@ Lifecycle: build a fresh `RepositoryTestEnv()` in `@BeforeEach`, call `env.close
 ## Step-by-step
 
 1. Place the new test under
-   `core/data/exercise/src/test/kotlin/io/github/stslex/workeeper/core/data/exercise/<sub>/<RepoName>ImplDbTest.kt`
+   `core/data/exercise/src/androidHostTest/kotlin/io/github/stslex/workeeper/core/data/exercise/<sub>/<RepoName>ImplDbTest.kt`
    (or the equivalent path for a future Room-backed repository module). Mirror the
    production package; use `internal class` visibility; suffix the class with `DbTest` so
    it is visually distinct from MVI handler tests.
@@ -110,7 +110,7 @@ Lifecycle: build a fresh `RepositoryTestEnv()` in `@BeforeEach`, call `env.close
 
    - Seeds the rows it needs through the env's DAOs (or via the SUT for repos that own
      their own writers — fine either way). Reuse helpers from
-     [`SessionRepositoryDbSeed.kt`](../../core/data/exercise/src/test/kotlin/io/github/stslex/workeeper/core/data/exercise/session/SessionRepositoryDbSeed.kt)
+     [`SessionRepositoryDbSeed.kt`](../../core/data/exercise/src/androidHostTest/kotlin/io/github/stslex/workeeper/core/data/exercise/session/SessionRepositoryDbSeed.kt)
      when the seed shape matches; copy the pattern when it does not.
    - Calls the repository.
    - Asserts state by reading back through the env's DAOs **or** through another
@@ -144,7 +144,7 @@ Lifecycle: build a fresh `RepositoryTestEnv()` in `@BeforeEach`, call `env.close
    ```
 
    See
-   [`SessionRepositoryImplFinishAtomicDbTest.kt`](../../core/data/exercise/src/test/kotlin/io/github/stslex/workeeper/core/data/exercise/session/SessionRepositoryImplFinishAtomicDbTest.kt)
+   [`SessionRepositoryImplFinishAtomicDbTest.kt`](../../core/data/exercise/src/androidHostTest/kotlin/io/github/stslex/workeeper/core/data/exercise/session/SessionRepositoryImplFinishAtomicDbTest.kt)
    for the full pattern.
 
 6. For paged methods, use `androidx.paging.testing.asSnapshot`:
@@ -178,7 +178,7 @@ is enough. Do not pad with redundant cases.
 ## Worked example
 
 Smallest end-to-end test from the codebase
-([`TagRepositoryImplDbTest.kt`](../../core/data/exercise/src/test/kotlin/io/github/stslex/workeeper/core/data/exercise/tags/TagRepositoryImplDbTest.kt)):
+([`TagRepositoryImplDbTest.kt`](../../core/data/exercise/src/androidHostTest/kotlin/io/github/stslex/workeeper/core/data/exercise/tags/TagRepositoryImplDbTest.kt)):
 
 ```kotlin
 @Test
@@ -227,9 +227,9 @@ For multi-module repository changes:
 - **Do not assert only via mockk verifications in a persistence test.** A passing
   `coVerify { dao.insert(any()) }` does not prove the row landed correctly — the entity
   shape, the FK, the JSON-encoded plan, the cascade. Read it back.
-- **Do not use `androidTest` for these tests.** This skill targets the `src/test/`
-  Robolectric path. The repo deliberately keeps repository persistence assertions on the
-  fast JVM path; instrumented tests are reserved for UI surface.
+- **Do not use `androidDeviceTest` for routine repository tests.** This skill targets the
+  `src/androidHostTest/` Robolectric path. Keep persistence coverage on the fast JVM tier;
+  reserve device tests for driver-specific behavior that Robolectric cannot establish.
 - **Do not duplicate the in-memory builder.** Use `RepositoryTestEnv` from
   `core:data:database-test`. Two details a hand-rolled copy gets wrong, neither of which
   fails loudly: Room 3 needs `.setDriver(AndroidSQLiteDriver())` on the in-memory builder,

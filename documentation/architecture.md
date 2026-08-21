@@ -45,8 +45,9 @@ The build is configured in `settings.gradle.kts`. Every module is included from 
   `core/data/database/schemas/`.
 - `core/data/database-test` — `RepositoryTestEnv` and `InMemoryDatabaseProvider`, shared
   Android/JVM in-memory `AppDatabase` fixtures for repository and integration tests.
-- `core/data/exercise` — repository contracts and implementations
-  (`ExerciseRepository`, `TrainingRepository`, `SessionRepository`, …) plus their data models.
+- `core/data/exercise` — KMP repository contracts and implementations in `commonMain`
+  (`ExerciseRepository`, `TrainingRepository`, `SessionRepository`, …) plus their data models;
+  Android host and device tests remain platform source sets.
 - `core/data/dataStore` — Preferences DataStore wiring (`CommonDataStore`, `BaseDataStore`,
   `DataStoreProviderFactory`).
 - `core/ui/kit` — reusable Compose UI: theme (`AppTheme`, `AppDimension`, `AppUi`), components
@@ -622,7 +623,7 @@ so `MigrationTestHelper` is available to migration tests. The step-by-step recip
 
 ### Repositories
 
-`core/data/exercise/src/main/kotlin/io/github/stslex/workeeper/core/data/exercise/` exposes the
+`core/data/exercise/src/commonMain/kotlin/io/github/stslex/workeeper/core/data/exercise/` exposes the
 repository interfaces, each with an `Impl` that wraps one or more DAOs and maps between
 entities and `*DataModel` types. Every `Impl` is
 `@ContributesBinding(AppScope::class) @SingleIn(AppScope::class) @Inject`:
