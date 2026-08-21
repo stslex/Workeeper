@@ -543,6 +543,7 @@ module conversions.
   site). `kotlin.time.Instant.toString()` measured byte-identical to `java.time` for every
   epoch-milli input class — the §7 java.time rider's production line is taken with zero new
   dependency, which also moves `WorkoutExportMapper` to commonMain: androidMain is 4 files, not 5.
+
 ## §10 What PR E measured (lands with PR E)
 
 - **`androidx.sqlite.SQLiteException` is `actual typealias … = android.database.SQLException` on
