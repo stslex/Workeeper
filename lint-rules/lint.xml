@@ -184,4 +184,18 @@
          `disable` set) trips UnknownIssueId in library modules that don't
          depend on androidx.work. See documentation/feature-specs/backup.md →
          WorkManager setup. -->
+
+    <!-- ================================ -->
+    <!-- KSP-GENERATED CODE ON KMP MODULES -->
+    <!-- ================================ -->
+    <!-- On AGP-KMP, lint does not classify KSP output registered through Kotlin source sets as
+         generated. These IDs therefore ignore generated paths only; handwritten findings still
+         fire. See documentation/feature-specs/kmp-phase-6-data-layer.md → §9
+         "Lint does not classify KSP output as generated on KMP." -->
+    <issue id="RestrictedApi" severity="error">
+        <ignore path="**/build/generated/**" />
+    </issue>
+    <issue id="SyntheticAccessor" severity="error">
+        <ignore path="**/build/generated/**" />
+    </issue>
 </lint>

@@ -1,8 +1,7 @@
 // Test-scaffolding module: the in-memory AppDatabase provider and the repository fixtures.
 //
 // The fixtures live in src/main, not a testFixtures source set, and must stay that way: KMP has no
-// testFixtures source set, and core:data:database is scheduled to convert. Moving them back would
-// break 192 @Test across three modules the day that conversion lands. See
+// testFixtures source set, and both host- and device-test consumers need this normal module. See
 // documentation/feature-specs/kmp-phase-6-data-layer.md -> §3.1.
 //
 // Dependencies are `api`, not `implementation`: consumers construct RepositoryTestEnv and touch the

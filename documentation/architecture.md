@@ -39,11 +39,12 @@ The build is configured in `settings.gradle.kts`. Every module is included from 
   `AppResult`, common extensions. `androidMain`: the Android actuals and framework impls plus
   the Metro binding containers (`DispatchersBindingContainer`, `ResourceWrapperBindingContainer`,
   `ImageStorageFactory`, `TempFileProvider`).
-- `core/data/database` — Room database (`AppDatabase`), `AppDatabaseFactory`, entities, DAOs,
-  type converters, `migration/` (incl. `MigrationsRegistry`), schemas under
+- `core/data/database` — KMP Room module. `commonMain` owns `AppDatabase`, entities, DAOs,
+  type converters, and `migration/` (including `MigrationsRegistry`); `androidMain` owns
+  `AppDatabaseFactory` and Android snapshot I/O. Exported schemas live under
   `core/data/database/schemas/`.
-- `core/data/database-test` — `InMemoryDatabaseProvider`, the androidTest-side in-memory
-  `AppDatabase` builder.
+- `core/data/database-test` — `RepositoryTestEnv` and `InMemoryDatabaseProvider`, shared
+  Android/JVM in-memory `AppDatabase` fixtures for repository and integration tests.
 - `core/data/exercise` — repository contracts and implementations
   (`ExerciseRepository`, `TrainingRepository`, `SessionRepository`, …) plus their data models.
 - `core/data/dataStore` — Preferences DataStore wiring (`CommonDataStore`, `BaseDataStore`,
@@ -600,7 +601,8 @@ migrations. Every schema bump requires:
    call exists. `MigrationsRegistryTest` fails any commit that bumps the version without a
    matching entry, and `hasMigrationPath(from, to)` exposes the same registry to the
    pre-restore backup compatibility check.
-3. A migration test in `core/data/database/src/androidTest/.../AppDatabaseMigrationTest.kt`
+3. A migration test in
+   `core/data/database/src/androidDeviceTest/.../AppDatabaseMigrationTest.kt`
    using Room's `MigrationTestHelper`. The test runs the migration against a seeded
    v(N) DB and asserts the resulting v(N+1) DB has the expected shape and data.
 4. The new schema JSON committed under `core/data/database/schemas/<full-class>/` —
@@ -614,7 +616,7 @@ fails closed and routes to the Scenario 2 startup-migration recovery flow, rathe
 silently dropping and recreating the user's database.
 
 `androidx.room:room-testing` is wired by the `roomLibrary` convention plugin
-(`build-logic/.../RoomLibraryConventionPlugin.kt`) as `androidTestImplementation`
+(`build-logic/.../RoomLibraryConventionPlugin.kt`) as `androidDeviceTestImplementation`
 so `MigrationTestHelper` is available to migration tests. The step-by-step recipe lives in
 [`.claude/skills/add-database-migration.md`](../.claude/skills/add-database-migration.md).
 

@@ -19,9 +19,8 @@ import io.github.stslex.workeeper.core.data.database.AppDatabase
 object InMemoryDatabaseProvider {
 
     fun create(context: Context): AppDatabase = Room
-        .inMemoryDatabaseBuilder(
+        .inMemoryDatabaseBuilder<AppDatabase>(
             context,
-            AppDatabase::class.java,
         )
         .setDriver(AndroidSQLiteDriver())
         .allowMainThreadQueries()

@@ -23,17 +23,18 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
  * since AGP 9.0, which rejects the legacy `com.android.library` + `kotlin-multiplatform`
  * combination. Deliberately bypasses [KotlinAndroid.configureKotlinAndroid]: that helper is
  * typed against AGP's `ApplicationExtension` / `LibraryExtension`, neither of which the KMP
- * android target exposes. Where a module also needs android.* implementations or the Metro
- * plugin, those live in a sibling Android-library module (`core:core` → `core:core-android`).
+ * android target exposes. android.* implementations live in the module's own `androidMain`,
+ * and the Metro plugin applies to a KMP module directly (`core:data:dataStore` is the
+ * precedent for both).
  *
  * A consuming module's build script is plugin application plus dependencies — nothing else.
  * The convention owns:
  *
  * - **Targets.** `android` (namespace derived from the module path by the same rule as
  *   [KotlinAndroid.configureKotlinAndroid], compileSdk/minSdk from the catalog, a host-test
- *   source set via `withHostTest {}` — the AGP KMP android target does not create one
- *   implicitly) and `iosSimulatorArm64`. A module needing more targets declares them in its
- *   own `kotlin {}` block; the DSL is additive.
+ *   source set via `withHostTest {}` and a device-test source set via `withDeviceTest {}` —
+ *   the AGP KMP android target creates neither implicitly) and `iosSimulatorArm64`. A module
+ *   needing more targets declares them in its own `kotlin {}` block; the DSL is additive.
  *
  * - **The `testDebugUnitTest` alias — the canonical false green in this repo.** CI runs
  *   exactly ONE unit-test command, `./gradlew testDebugUnitTest`
@@ -57,8 +58,9 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
  *   The tasks keep Gradle's `failOnNoDiscoveredTests` default (true): a regression in this
  *   wiring fails loudly instead of passing over zero discovered tests — a deliberate
  *   divergence from [KotlinAndroid.configureKotlinAndroid], which sets it false. A module
- *   with legitimately no host tests yet opts out per-module:
- *   `tasks.withType<Test>().configureEach { failOnNoDiscoveredTests.set(false) }`.
+ *   with no `androidHostTest` sources needs no opt-out: its task is `NO-SOURCE`. Only a
+ *   module that has host-test sources but intentionally discovers no tests should override
+ *   `failOnNoDiscoveredTests` per-module.
  *
  * - **detekt sources.** detekt's default source resolution is `src/main/…` + `src/test/…`,
  *   which in a KMP layout matches NOTHING — the task goes green over zero inputs. The
@@ -136,6 +138,22 @@ class KmpLibraryConventionPlugin : Plugin<Project> {
             withHostTest {
                 isIncludeAndroidResources = true
             }
+            // Device (instrumented) test source set: src/androidDeviceTest/kotlin. Like
+            // withHostTest, SINGLE-CALL and convention-owned. Created unconditionally —
+            // mirroring classic AGP, where every library has an androidTest component whether
+            // or not sources exist — because a component created only for modules that already
+            // have device tests cannot catch the module whose FIRST instrumented test lands
+            // outside the compiled set: sources without a component neither compile nor run
+            // nor fail, the exact vanish ConfigureInstrumentedSuiteGate polices.
+            withDeviceTest {
+                instrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+            }
+            // Repo-wide parity with KotlinAndroid.configureKotlinAndroid's
+            // isCoreLibraryDesugaringEnabled = true. Not optional in practice: every Android
+            // convention module publishes AAR metadata demanding desugaring of its consumers,
+            // so the first KMP device-test APK that depends on one (core:data:database →
+            // core:ui:test-utils) fails checkAndroidDeviceTestAarMetadata without this.
+            enableCoreLibraryDesugaring = true
             configureLintOptions(lint)
         }
 
@@ -163,6 +181,10 @@ class KmpLibraryConventionPlugin : Plugin<Project> {
         // Raw configuration names, the pattern the KMP source-set DSL forces for platform()
         // anyway; the configurations exist because configureTargets ran withHostTest first.
         dependencies {
+            // The desugared-runtime half of enableCoreLibraryDesugaring (configureTargets);
+            // same artifact the Android convention wires.
+            add("coreLibraryDesugaring", libs.findLibrary("android-desugarJdkLibs").get())
+
             add("androidHostTestImplementation", platform(libs.findLibrary("junit-bom").get()))
             add("androidHostTestImplementation", libs.findLibrary("junit-jupiter").get())
             add("androidHostTestImplementation", libs.findLibrary("coroutine-test").get())
@@ -205,6 +227,26 @@ class KmpLibraryConventionPlugin : Plugin<Project> {
             description =
                 "Alias: runs this KMP module's lint reporting under the repo-wide task name."
             dependsOn("lint")
+        }
+        // The instrumented pair. CI assembles test APKs with `assembleDebugAndroidTest`
+        // (android_build_unified.yml, every PR) and ui_tests.yml runs them with
+        // `connectedDebugAndroidTest` — both Android-library spellings, invoked repo-wide.
+        // The AGP-KMP tasks are `assembleAndroidDeviceTest` / `connectedAndroidDeviceTest`
+        // (kmp-phase-2-probes.md, P4c; kmp-phase-6-data-layer.md → §9
+        // "The connected-run alias is the FIFTH silent vanish."). Literal task names on
+        // purpose: if AGP renames its device-test tasks, graph construction must fail loudly,
+        // not fall back to depending on nothing.
+        tasks.register("assembleDebugAndroidTest") {
+            group = "build"
+            description =
+                "Alias: assembles this KMP module's device-test APK under the repo-wide task name."
+            dependsOn("assembleAndroidDeviceTest")
+        }
+        tasks.register("connectedDebugAndroidTest") {
+            group = "verification"
+            description =
+                "Alias: runs this KMP module's device tests under the repo-wide task name."
+            dependsOn("connectedAndroidDeviceTest")
         }
     }
 
