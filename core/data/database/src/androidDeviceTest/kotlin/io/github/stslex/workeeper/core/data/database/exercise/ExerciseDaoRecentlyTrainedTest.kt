@@ -3,7 +3,7 @@ package io.github.stslex.workeeper.core.data.database.exercise
 
 import android.app.Application
 import androidx.room3.Room
-import androidx.sqlite.driver.AndroidSQLiteDriver
+import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.stslex.workeeper.core.data.database.AppDatabase
@@ -47,7 +47,7 @@ internal class ExerciseDaoRecentlyTrainedTest {
         database = Room.inMemoryDatabaseBuilder<AppDatabase>(
             ApplicationProvider.getApplicationContext<Application>(),
         )
-            .setDriver(AndroidSQLiteDriver())
+            .setDriver(BundledSQLiteDriver())
             .allowMainThreadQueries()
             .build()
     }

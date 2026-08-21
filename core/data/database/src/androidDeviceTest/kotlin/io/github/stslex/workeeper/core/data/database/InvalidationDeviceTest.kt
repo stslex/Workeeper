@@ -5,7 +5,7 @@ import android.content.Context
 import androidx.room3.Room
 import androidx.room3.immediateTransaction
 import androidx.room3.useWriterConnection
-import androidx.sqlite.driver.AndroidSQLiteDriver
+import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.stslex.workeeper.core.data.database.tag.TagEntity
@@ -53,7 +53,7 @@ internal class InvalidationDeviceTest {
         context = ApplicationProvider.getApplicationContext()
         context.deleteDatabase(PROBE_DB)
         database = Room.databaseBuilder<AppDatabase>(context, PROBE_DB)
-            .setDriver(AndroidSQLiteDriver())
+            .setDriver(BundledSQLiteDriver())
             .build()
     }
 

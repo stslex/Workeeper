@@ -3,7 +3,7 @@ package io.github.stslex.workeeper.core.data.database_test
 
 import android.content.Context
 import androidx.room3.Room
-import androidx.sqlite.driver.AndroidSQLiteDriver
+import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import io.github.stslex.workeeper.core.data.database.AppDatabase
 
 /**
@@ -22,7 +22,7 @@ object InMemoryDatabaseProvider {
         .inMemoryDatabaseBuilder<AppDatabase>(
             context,
         )
-        .setDriver(AndroidSQLiteDriver())
+        .setDriver(BundledSQLiteDriver())
         .allowMainThreadQueries()
         .build()
 }

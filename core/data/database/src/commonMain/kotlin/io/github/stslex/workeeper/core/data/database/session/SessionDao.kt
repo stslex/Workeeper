@@ -74,9 +74,11 @@ private const val PR_SINGLE_SQL = """
 
 /**
  * Batch PR: *every* eligible candidate for every requested exercise, grouped by exercise and
- * ordered so the consumer takes `.first()` per group. No `LIMIT`/window function — `minSdk 28`
- * ships SQLite 3.22 and `ROW_NUMBER()` needs 3.25 (the bundled-SQLite dependency is declared
- * but inert; `AndroidSQLiteDriver` uses framework SQLite).
+ * ordered so the consumer takes `.first()` per group. A
+ * `ROW_NUMBER() OVER (PARTITION BY …)` rewrite is available under the production bundled
+ * driver, but any rewrite must retain device coverage because Robolectric host tests use a
+ * different SQLite engine. See kmp-phase-6-data-layer.md → §6
+ * "The driver decision — decided."
  */
 private const val PR_BATCH_SQL = """
         $PR_ROW_SELECT

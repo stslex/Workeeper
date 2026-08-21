@@ -6,7 +6,7 @@ import androidx.paging.PagingSource
 import androidx.room3.Room
 import androidx.room3.immediateTransaction
 import androidx.room3.useWriterConnection
-import androidx.sqlite.driver.AndroidSQLiteDriver
+import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.stslex.workeeper.core.data.database.exercise.ExerciseEntity
@@ -58,7 +58,7 @@ internal class Room3RoundTripDeviceTest {
 
     private fun openDb(): AppDatabase =
         Room.databaseBuilder<AppDatabase>(context, ROUNDTRIP_DB)
-            .setDriver(AndroidSQLiteDriver())
+            .setDriver(BundledSQLiteDriver())
             .build()
 
     @Before

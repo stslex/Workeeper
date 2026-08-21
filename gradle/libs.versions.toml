@@ -48,10 +48,9 @@ fbCrashlytics = "3.0.7"
 
 # room = "2.8.4" was the androidx.room 2.x line; superseded by the room3 (androidx.room3)
 # coordinates below, which are the applied ones. The 2.x version key is gone with its coords.
-# androidx.sqlite 2.7.0 (transitive of room3-runtime): sqlite-framework carries the
-# AndroidSQLiteDriver, now REQUIRED via setDriver() on every RoomDatabase.Builder in
-# Room 3. sqlite-bundled (K/N BundledSQLiteDriver) stays declared but INERT — Android
-# uses the framework driver; bundled lands when C.1 converts the DB module to K/N.
+# androidx.sqlite 2.7.0 (transitive of room3-runtime): every Room 3 builder selects a driver
+# explicitly. sqlite-bundled supplies the production Android driver for KMP Room modules;
+# sqlite-framework remains for classic Android modules and Robolectric host-test fixtures.
 room3 = "3.0.0"
 sqlite = "2.7.0"
 serialization = "1.11.0"
@@ -180,9 +179,9 @@ androidx-room-paging = { group = "androidx.room3", name = "room3-paging", versio
 androidx-room-compiler = { group = "androidx.room3", name = "room3-compiler", version.ref = "room3" }
 androidx-room-testing = { group = "androidx.room3", name = "room3-testing", version.ref = "room3" }
 
-# AndroidSQLiteDriver (framework SQLite) — the Room 3 setDriver() driver on Android.
+# AndroidSQLiteDriver (framework SQLite) — classic Android modules and JVM host-test fixtures.
 androidx-sqlite-framework = { group = "androidx.sqlite", name = "sqlite-framework", version.ref = "sqlite" }
-# K/N BundledSQLiteDriver — declared but inert (Android does not need it; lands with C.1).
+# BundledSQLiteDriver — the production Android driver for KMP Room modules.
 androidx-sqlite-bundled = { group = "androidx.sqlite", name = "sqlite-bundled", version.ref = "sqlite" }
 
 androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore" }

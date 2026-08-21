@@ -25,6 +25,11 @@ import org.jetbrains.annotations.TestOnly
  * required (the in-memory builder needs an Android `Context`); add the
  * `RobolectricExtension` to your test class along with
  * `@Config(application = RepositoryTestEnv.TestApplication::class, sdk = [33])`.
+ *
+ * Stays on [AndroidSQLiteDriver] after the production flip to `BundledSQLiteDriver`: the
+ * bundled android variant carries Android-ABI natives only, and loading it under Robolectric
+ * on a desktop JVM fails with `UnsatisfiedLinkError` (measured). Driver behaviour is a
+ * device-suite concern; this fixture's oracle value is repository logic over a real schema.
  */
 @TestOnly
 class RepositoryTestEnv {
