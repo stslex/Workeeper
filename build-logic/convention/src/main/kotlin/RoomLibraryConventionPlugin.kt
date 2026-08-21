@@ -54,8 +54,8 @@ class RoomLibraryConventionPlugin : Plugin<Project> {
     private fun Project.configureAndroid() {
         dependencies {
             implementationBundle("room")
-            // Room 3 requires a SQLiteDriver via setDriver(); AndroidSQLiteDriver
-            // (framework SQLite) is referenced in AppDatabaseFactory and the test builders.
+            // Room 3 requires a SQLiteDriver via setDriver(); classic Android Room modules use
+            // the framework artifact, while KMP modules select their driver in configureKmp().
             implementation("androidx-sqlite-framework")
 
             ksp("androidx-room-compiler")

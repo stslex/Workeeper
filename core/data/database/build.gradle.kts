@@ -17,7 +17,7 @@ metro {
 }
 
 // The Room surface (entities, DAOs, converters, migrations, export) is commonMain; only what is
-// platform-typed stays in androidMain — buildAppDatabase (Context + AndroidSQLiteDriver) and the
+// platform-typed stays in androidMain — buildAppDatabase (Context + BundledSQLiteDriver) and the
 // snapshot/ package (raw android.database.sqlite + java.io.File, deliberately outside Room).
 kotlin {
     sourceSets {
