@@ -179,6 +179,9 @@ androidx-room-paging = { group = "androidx.room3", name = "room3-paging", versio
 androidx-room-compiler = { group = "androidx.room3", name = "room3-compiler", version.ref = "room3" }
 androidx-room-testing = { group = "androidx.room3", name = "room3-testing", version.ref = "room3" }
 
+# The driver-agnostic base API (SQLiteConnection/SQLiteStatement/SQLiteException) — what code
+# that only TALKS ABOUT SQLite depends on, without choosing an engine. KMP-published.
+androidx-sqlite = { group = "androidx.sqlite", name = "sqlite", version.ref = "sqlite" }
 # AndroidSQLiteDriver (framework SQLite) — classic Android modules and JVM host-test fixtures.
 androidx-sqlite-framework = { group = "androidx.sqlite", name = "sqlite-framework", version.ref = "sqlite" }
 # BundledSQLiteDriver — the production Android driver for KMP Room modules.

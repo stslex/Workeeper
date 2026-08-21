@@ -1,10 +1,10 @@
 package io.github.stslex.workeeper.core.data.exercise.exercise
 
-import android.database.sqlite.SQLiteConstraintException
 import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import androidx.paging.map
+import androidx.sqlite.SQLiteException
 import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
@@ -50,6 +50,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
+import kotlin.time.Clock
 import kotlin.uuid.Uuid
 
 @Suppress("TooManyFunctions", "LongParameterList")
@@ -114,7 +115,8 @@ class ExerciseRepositoryImpl @Inject internal constructor(
                     dao.update(entity)
                 }
             }
-        } catch (_: SQLiteConstraintException) {
+        } catch (e: SQLiteException) {
+            if (!e.isUniqueConstraintViolation()) throw e
             return@transition SaveResult.DuplicateName
         }
         syncLabels(entity.uuid, item.labels)
@@ -171,7 +173,7 @@ class ExerciseRepositoryImpl @Inject internal constructor(
             description = null,
             imagePath = null,
             archived = false,
-            createdAt = System.currentTimeMillis(),
+            createdAt = Clock.System.now().toEpochMilliseconds(),
             archivedAt = null,
             lastAdhocSets = null,
             isAdhoc = true,
@@ -290,7 +292,7 @@ class ExerciseRepositoryImpl @Inject internal constructor(
 
     override suspend fun archive(uuid: String) {
         withContext(bgDispatcher) {
-            dao.archive(Uuid.parse(uuid), System.currentTimeMillis())
+            dao.archive(Uuid.parse(uuid), Clock.System.now().toEpochMilliseconds())
         }
     }
 
@@ -455,7 +457,7 @@ class ExerciseRepositoryImpl @Inject internal constructor(
             )
         }
         if (allowed.isNotEmpty()) {
-            val now = System.currentTimeMillis()
+            val now = Clock.System.now().toEpochMilliseconds()
             allowed.forEach { dao.archive(it, now) }
         }
         BulkArchiveOutcome(archivedCount = allowed.size, blocked = blockedExercises)
@@ -503,6 +505,15 @@ class ExerciseRepositoryImpl @Inject internal constructor(
         deleteExerciseDeferred.await()
         exerciseTagDao.insert(tagUuids.await())
     }
+
+    /**
+     * Match the portable UNIQUE-violation text shared by the framework host-test driver and the
+     * bundled production driver. Keep this a member: a file-private helper called from the class
+     * needs a synthetic accessor, and lint rightly objects. See kmp-phase-6-data-layer.md → §10
+     * "androidx.sqlite.SQLiteException is actual typealias … on Android."
+     */
+    private fun SQLiteException.isUniqueConstraintViolation(): Boolean =
+        message.orEmpty().contains("UNIQUE constraint failed")
 
     companion object {
 
