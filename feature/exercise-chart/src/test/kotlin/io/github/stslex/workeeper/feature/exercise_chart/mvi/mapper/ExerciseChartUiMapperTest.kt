@@ -34,6 +34,21 @@ internal class ExerciseChartUiMapperTest {
     }
 
     @Test
+    fun `domain point keeps session identity in the UI model`() {
+        val point = ChartPointDomain(
+            day = LocalDate.of(2026, 4, 28),
+            dayMillis = 0L,
+            value = 100.0,
+            sessionUuid = "evening",
+            weight = 100.0,
+            reps = 3,
+            setCount = 1,
+        )
+
+        assertEquals("evening", point.toUi().sessionUuid)
+    }
+
+    @Test
     fun `readout for the record point carries the flag and the grouped whole-number value`() {
         val points = listOf(
             chartPoint(value = 2940.0, setCount = 4),
@@ -153,6 +168,7 @@ internal class ExerciseChartUiMapperTest {
     ): ChartPointUiModel = ChartPointUiModel(
         day = LocalDate.of(2026, 4, 28),
         dayMillis = 0L,
+        sessionUuid = "session-${value.toInt()}",
         value = value,
         setCount = setCount,
     )

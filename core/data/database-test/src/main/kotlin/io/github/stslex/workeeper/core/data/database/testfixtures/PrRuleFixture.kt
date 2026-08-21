@@ -6,11 +6,9 @@ import org.jetbrains.annotations.TestOnly
 /**
  * The one description of "which set holds the record", as data.
  *
- * Five places decide this — `SessionDao.getPersonalRecord`, `SessionDao.observePersonalRecord`,
- * `SessionDao.observePersonalRecordsBatch` (via `PersonalRecordRepositoryImpl`),
- * `PrComparator`, and `ChartFolder`'s day-winner. They are in three different modules and
- * cannot share an implementation. They can share a fixture, and that is what this is: every
- * site is fed [SCENARIOS] and must name [PrScenario.expectedHolder].
+ * The DAO queries and `PrComparator` decide the global record. `ChartFolder` uses the same
+ * eligibility and ordering when choosing each session's representative set. They cannot share
+ * an implementation across modules, so they share this fixture.
  *
  * Deliberately plain data — no Room, no Android — so a module that has no database on its
  * test classpath can still be held to the same answers.

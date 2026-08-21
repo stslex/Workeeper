@@ -298,10 +298,10 @@ private fun ExerciseChartScreenPopulatedPreview() {
                     ExercisePickerItemUiModel("uuid-2", "Squat", ExerciseTypeUiModel.WEIGHTED),
                 ),
                 points = listOf(
-                    ChartPointUiModel(LocalDate.of(2026, 4, 5), 0L, 80.0, 1),
-                    ChartPointUiModel(LocalDate.of(2026, 4, 12), 0L, 90.0, 1),
-                    ChartPointUiModel(LocalDate.of(2026, 4, 19), 0L, 95.0, 1),
-                    ChartPointUiModel(LocalDate.of(2026, 4, 26), 0L, 105.0, 2),
+                    ChartPointUiModel(LocalDate.of(2026, 4, 5), 0L, "preview-1", 80.0, 1),
+                    ChartPointUiModel(LocalDate.of(2026, 4, 12), 0L, "preview-2", 90.0, 1),
+                    ChartPointUiModel(LocalDate.of(2026, 4, 19), 0L, "preview-3", 95.0, 1),
+                    ChartPointUiModel(LocalDate.of(2026, 4, 26), 0L, "preview-4", 105.0, 2),
                 ).toImmutableList(),
                 footerStats = ChartFooterStatsUiModel(
                     minTitle = "Minimum",

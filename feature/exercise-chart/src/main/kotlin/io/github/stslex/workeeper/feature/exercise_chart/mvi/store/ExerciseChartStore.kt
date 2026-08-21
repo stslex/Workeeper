@@ -90,7 +90,7 @@ interface ExerciseChartStore : Store<State, Action, Event> {
         val footerStats: ChartFooterStatsUiModel?,
         // The scrubbed point (§4.5/§4.6): drives the readout and the canvas's scrub line +
         // enlarged point. Defaults to the last (most recent) point on load; a metric switch
-        // preserves it (same day buckets), a preset/exercise switch resets it.
+        // preserves the same session, while a preset/exercise switch resets it.
         val activeIndex: Int?,
         val readout: ChartReadoutUiModel?,
         val isPickerOpen: Boolean,

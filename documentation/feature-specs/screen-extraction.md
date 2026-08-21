@@ -1096,7 +1096,8 @@ Geometry from `draw()`: `H = 212`, `PADT = 16`, `PADB = 24`, `W = clientWidth - 
   `rgba(13,17,20,.09)`), 1px. There are **no vertical gridlines and no axis lines**.
 - **Series: exactly one.** A polyline through every point, `--max`, **stroke-width 2.2** → 2dp,
   round caps and joins, no fill. `xs(i) = (i/(n-1))*(W-10)+5`, i.e. **index-spaced, not
-  date-spaced**. `ys(v)` normalises to `[min,max]` of the visible metric.
+  date-spaced**. `ys(v)` normalises to `[min,max]` of the visible metric. The dataset contains
+  one point per completed session: two sessions on one date occupy separate adjacent indices.
 - **Ordinary point**: `r = 4`, **fill `--base`**, stroke `--max` 2px → a **donut**.
 - **Record point** (`.pt.pr`): **fill `--molten-solid`**, **stroke `--base`**, stroke-width **2.5** —
   the fill/stroke roles invert, so it reads as a solid molten disc ringed by the page colour.
@@ -1108,7 +1109,8 @@ Geometry from `draw()`: `H = 212`, `PADT = 16`, `PADB = 24`, `W = clientWidth - 
 
 **Interaction:** `pointerdown` captures the pointer and scrubs; `pointermove` scrubs while pressed.
 `scrub()` maps x to the **nearest index** (`Math.round`), and on a change fires
-`navigator.vibrate(4)` — a 4ms haptic tick per point crossed.
+`navigator.vibrate(4)` — a 4ms haptic tick per point crossed. Point identity is `sessionUuid`,
+so duplicate-day sessions remain independently reachable through scrub and metric retargets.
 
 **Metric switching is animated:** `setMetric()` tweens **every point's value** from the old series to
 the new over **D = 420ms** with `e = 1-(1-k)³` (ease-out cubic), redrawing each frame. The line
@@ -1154,8 +1156,9 @@ Strings: **`Минимум`** · **`Максимум`** · **`Последний
 - **No buttons** for the chart variant (§19 agrees).
 - Padding `48px 34px` → 48dp / 32dp.
 
-**The copy states the threshold: the chart appears after TWO recorded sessions.** So `< 2` points is
-an empty state, not a degenerate chart.
+**The copy states the threshold: the chart appears after TWO recorded sessions.** A point is a
+completed session, not a distinct calendar date, so two sessions on one date meet the threshold.
+`< 2` points is an empty state, not a degenerate chart.
 
 ## 4.9 Surfaces reachable
 

@@ -5,16 +5,16 @@ import androidx.compose.runtime.Stable
 import java.time.LocalDate
 
 /**
- * One point on the chart — one calendar day. [value] is the Y value after the active metric
- * fold; [setCount] feeds the readout caption's «N подходов». The tooltip-era fields
- * (`sessionUuid`, `weight`, `reps`) left with their only reader — the winner identity and
- * the aggregate-point null/0 contract live on `ChartPointDomain`, where the parity tests
- * pin them.
+ * One completed-session point on the chart. [value] is the Y value after the active metric
+ * fold; [setCount] feeds the readout caption's «N подходов». [sessionUuid] is the stable
+ * identity that keeps two points on the same calendar date independently drawable and
+ * scrubbable.
  */
 @Stable
 data class ChartPointUiModel(
     val day: LocalDate,
     val dayMillis: Long,
+    val sessionUuid: String,
     val value: Double,
     val setCount: Int,
 )

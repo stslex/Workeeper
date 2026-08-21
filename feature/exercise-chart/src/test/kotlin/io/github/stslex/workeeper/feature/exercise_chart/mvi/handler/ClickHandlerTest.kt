@@ -53,8 +53,8 @@ internal class ClickHandlerTest {
 
     private fun stateWithPoints(activeIndex: Int): State = stateWithSelected().copy(
         points = persistentListOf(
-            ChartPointUiModel(LocalDate.of(2026, 4, 21), 0L, 90.0, 1),
-            ChartPointUiModel(LocalDate.of(2026, 4, 28), 0L, 100.0, 1),
+            ChartPointUiModel(LocalDate.of(2026, 4, 21), 0L, "session-1", 90.0, 1),
+            ChartPointUiModel(LocalDate.of(2026, 4, 28), 0L, "session-2", 100.0, 1),
         ),
         activeIndex = activeIndex,
     )
@@ -206,6 +206,27 @@ internal class ClickHandlerTest {
         val captured = slot<Event>()
         verify { store.sendEvent(capture(captured)) }
         assertEquals(HapticFeedbackType.SegmentTick, (captured.captured as Event.HapticClick).type)
+    }
+
+    @Test
+    fun `OnScrub can read both sessions completed on the same day`() {
+        val day = LocalDate.of(2026, 4, 28)
+        val flow = MutableStateFlow(
+            stateWithSelected().copy(
+                points = persistentListOf(
+                    ChartPointUiModel(day, 0L, "morning", 80.0, 2),
+                    ChartPointUiModel(day, 0L, "evening", 100.0, 1),
+                ),
+                activeIndex = 1,
+            ),
+        )
+        val handler = ClickHandler(commonHandler, resources, newStore(flow))
+
+        handler.invoke(Action.Click.OnScrub(0))
+        assertEquals("80", flow.value.readout?.value)
+
+        handler.invoke(Action.Click.OnScrub(1))
+        assertEquals("100", flow.value.readout?.value)
     }
 
     @Test

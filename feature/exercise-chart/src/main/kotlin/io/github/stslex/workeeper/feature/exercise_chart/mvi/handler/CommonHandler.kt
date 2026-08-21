@@ -130,17 +130,15 @@ internal class CommonHandler @Inject constructor(
                 // canvas is index-spaced), so sub-threshold is an empty state, not a
                 // degenerate chart, and the readout/scrub state stays clear.
                 val subThreshold = newPoints.size < State.MIN_CHART_POINTS
-                // The scrub position survives a reload only when the day buckets are the
-                // same — a metric switch replots identical days (the mockup keeps
-                // `active` across setMetric). A preset or exercise change produces new
-                // buckets and the readout resets to the most recent point.
-                val sameDays = prior.points.map(ChartPointUiModel::day) ==
-                    newPoints.map(ChartPointUiModel::day)
+                // A metric switch replots the same sessions. Session identity, rather than
+                // day, keeps duplicate-day points from transferring the scrub to a sibling.
+                val sameSessions = prior.points.map(ChartPointUiModel::sessionUuid) ==
+                    newPoints.map(ChartPointUiModel::sessionUuid)
                 val activeIndex = if (subThreshold) {
                     null
                 } else {
                     prior.activeIndex
-                        ?.takeIf { index -> sameDays && index in newPoints.indices }
+                        ?.takeIf { index -> sameSessions && index in newPoints.indices }
                         ?: (newPoints.size - 1)
                 }
                 val footerStats = result.footer?.toUi(type, resourceWrapper)

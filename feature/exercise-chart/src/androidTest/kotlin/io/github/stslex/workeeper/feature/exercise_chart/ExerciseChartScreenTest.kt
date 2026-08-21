@@ -36,10 +36,10 @@ class ExerciseChartScreenTest : BaseComposeTest() {
     val composeTestRule = createComposeRule()
 
     private val basePoints = persistentListOf(
-        ChartPointUiModel(LocalDate.of(2026, 4, 5), 0L, 80.0, 1),
-        ChartPointUiModel(LocalDate.of(2026, 4, 12), 0L, 90.0, 1),
-        ChartPointUiModel(LocalDate.of(2026, 4, 19), 0L, 95.0, 1),
-        ChartPointUiModel(LocalDate.of(2026, 4, 26), 0L, 105.0, 2),
+        ChartPointUiModel(LocalDate.of(2026, 4, 5), 0L, "session-1", 80.0, 1),
+        ChartPointUiModel(LocalDate.of(2026, 4, 12), 0L, "session-2", 90.0, 1),
+        ChartPointUiModel(LocalDate.of(2026, 4, 19), 0L, "session-3", 95.0, 1),
+        ChartPointUiModel(LocalDate.of(2026, 4, 26), 0L, "session-4", 105.0, 2),
     )
 
     private val baseFooter = ChartFooterStatsUiModel(
@@ -144,6 +144,36 @@ class ExerciseChartScreenTest : BaseComposeTest() {
     }
 
     @Test
+    fun chart_sameDaySessions_dispatchesBothScrubIndices() {
+        val day = LocalDate.of(2026, 4, 28)
+        val capture = createActionCapture<Action>()
+        val state = baseState().copy(
+            points = persistentListOf(
+                ChartPointUiModel(day, 0L, "morning", 80.0, 2),
+                ChartPointUiModel(day, 0L, "evening", 100.0, 1),
+            ),
+            activeIndex = 1,
+        )
+        composeTestRule.setContent {
+            AppTheme(themeMode = ThemeMode.LIGHT) {
+                ExerciseChartScreen(state = state, consume = capture)
+            }
+        }
+
+        composeTestRule.onNodeWithTag("ChartCanvas").performTouchInput {
+            down(Offset(1f, height / 2f))
+            up()
+            down(Offset(width - 1f, height / 2f))
+            up()
+        }
+
+        assertEquals(
+            listOf(0, 1),
+            capture.captured<Action.Click.OnScrub>().map { it.index },
+        )
+    }
+
+    @Test
     fun chart_tappingExerciseHeader_dispatchesOnPickerOpen() {
         val capture = createActionCapture<Action>()
         composeTestRule.setContent {
@@ -171,7 +201,7 @@ class ExerciseChartScreenTest : BaseComposeTest() {
         // relax the branch to `points.isNotEmpty()` and this test goes red.
         val singlePointState = baseState().copy(
             points = persistentListOf(
-                ChartPointUiModel(LocalDate.of(2026, 4, 20), 0L, 100.0, 1),
+                ChartPointUiModel(LocalDate.of(2026, 4, 20), 0L, "session-1", 100.0, 1),
             ),
             activeIndex = 0,
         )

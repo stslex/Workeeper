@@ -14,14 +14,9 @@ import org.junit.jupiter.api.Test
 import java.time.ZoneId
 
 /**
- * The fifth PR site. `ChartFolder` picks one set to represent a day, and that choice is the
- * same question the four data-layer sites answer — so it is held to the same scenarios, from
- * the same [PrRuleFixture], as `PrRuleParityTest` in `core/data/exercise`. This module has no
- * database on its test classpath, hence a separate test rather than a fifth arm over there;
- * the fixture is shared, which is the part that matters.
- *
- * Every fixture timestamp falls on the same day, so each scenario folds to exactly one point
- * and "the day's set" is "the record-holding set" — which is the parity claim.
+ * `ChartFolder` applies the PR eligibility and ordering when it chooses the set that represents
+ * each session. The shared [PrRuleFixture] keeps that selection aligned with the data-layer
+ * sites. Multiple fixture sessions can share one day and remain separate chart points.
  *
  * The parity claim is asserted under [ChartMetricDomain.HEAVIEST_WEIGHT], because that is the
  * metric under which the chart's primary sort key *is* the PR rule's primary key. Under
@@ -37,7 +32,7 @@ internal class ChartFolderPrRuleParityTest {
     private val zone: ZoneId = ZoneId.of("UTC")
 
     @Test
-    fun `the day's set is the record-holding set`() {
+    fun `the record-holding set remains represented by its session point`() {
         PrRuleFixture.SCENARIOS.forEach { scenario ->
             val where = "[${scenario.name}] ${scenario.why}"
             val fold = bucketAndFold(
@@ -63,8 +58,9 @@ internal class ChartFolderPrRuleParityTest {
             }
 
             val holder = scenario.candidates.first { it.label == expected }
-            assertEquals(1, fold.points.size, "$where — one day, one point")
-            val point = fold.points.single()
+            val point = fold.points.single {
+                it.sessionUuid == sessionUuidFor(holder.finishedAt)
+            }
             assertEquals(sessionUuidFor(holder.finishedAt), point.sessionUuid, "$where — session")
             assertEquals(holder.weight, point.weight, "$where — weight")
             assertEquals(holder.reps, point.reps, "$where — reps")
@@ -72,7 +68,7 @@ internal class ChartFolderPrRuleParityTest {
     }
 
     @Test
-    fun `an ineligible set never becomes the day's point`() {
+    fun `an ineligible set never becomes the session point`() {
         // Before the fix, a weight-null set on a WEIGHTED exercise was coerced to 0.0 rather
         // than excluded, so an exercise whose sets all lack a weight plotted a flat run of
         // zeroes instead of plotting nothing.

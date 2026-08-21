@@ -33,6 +33,7 @@ Conventions:
 - Database migrations are no longer destructive past schema version 5. Future schema bumps must ship explicit Migration objects and migration tests; Room will refuse to boot otherwise. Pre-release schemas (v2, v3, v4) retain their destructive paths.
 
 ### Fixed
+- Exercise charts retain and scrub every completed session when multiple sessions share a date.
 - Past session edits no longer get reverted by background PR re-emissions.
 - PR detection no longer fans out N parallel queries per session; single batch query.
 - Exercise detail PR card no longer shows a stale PR after the user toggles WEIGHTED ↔ WEIGHTLESS in edit mode.
