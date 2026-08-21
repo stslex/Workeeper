@@ -1101,6 +1101,9 @@ Geometry from `draw()`: `H = 212`, `PADT = 16`, `PADB = 24`, `W = clientWidth - 
 - **Ordinary point**: `r = 4`, **fill `--base`**, stroke `--max` 2px → a **donut**.
 - **Record point** (`.pt.pr`): **fill `--molten-solid`**, **stroke `--base`**, stroke-width **2.5** —
   the fill/stroke roles invert, so it reads as a solid molten disc ringed by the page colour.
+  Selection follows the chart spec's [Record selection](v2.2-exercise-charts.md#record-selection):
+  Weight breaks equal plotted weights by reps, then earliest session; Set and Session keep the
+  earliest session on an equal plotted value.
 - **Active/scrubbed point**: `r = 5.5` instead of 4, and `.pt.act` fills `--max` (a solid dot).
   A record that is also active stays molten-filled.
 - **Scrub line**: a vertical line at the active x, from `y = PADT-8` to `y = H-PADB+6`, `--dim`,

@@ -17,13 +17,22 @@ import kotlin.math.roundToLong
 internal object ChartReadoutMapper {
 
     /**
-     * The record among the visible points — the index the mockup marks `.pt.pr` and suffixes
-     * `· рекорд` in the readout. It is the argmax by plotted value; on a tie the first (=
-     * earliest, points are day-sorted) wins, consistent with the fold's own `finishedAt ASC`
-     * tiebreak and with what the footer already reports as `max`.
+     * The record among the visible points. Weight ties use the representative set's reps;
+     * every remaining tie stays on the earliest session. See the chart spec's "Record
+     * selection" anchor.
      */
-    fun recordIndex(points: List<ChartPointUiModel>): Int? {
-        val record = points.maxByOrNull(ChartPointUiModel::value) ?: return null
+    fun recordIndex(
+        points: List<ChartPointUiModel>,
+        metric: ChartMetricUiModel,
+    ): Int? {
+        val byMetric = compareBy<ChartPointUiModel>(ChartPointUiModel::value)
+        val comparator = when (metric) {
+            ChartMetricUiModel.HEAVIEST_WEIGHT -> byMetric.thenBy(ChartPointUiModel::reps)
+            ChartMetricUiModel.VOLUME_PER_SESSION,
+            ChartMetricUiModel.VOLUME_PER_SET,
+            -> byMetric
+        }
+        val record = points.maxWithOrNull(comparator) ?: return null
         return points.indexOf(record)
     }
 
@@ -41,7 +50,7 @@ internal object ChartReadoutMapper {
         resourceWrapper: ResourceWrapper,
     ): ChartReadoutUiModel? {
         val point = activeIndex?.let(points::getOrNull) ?: return null
-        val isRecord = activeIndex == recordIndex(points)
+        val isRecord = activeIndex == recordIndex(points, metric)
         val caption = buildList {
             add("${resourceWrapper.formatDayMonth(point.dayMillis)} ${point.day.year}")
             add(

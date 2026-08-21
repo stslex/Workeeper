@@ -46,6 +46,7 @@ internal class ExerciseChartUiMapperTest {
         )
 
         assertEquals("evening", point.toUi().sessionUuid)
+        assertEquals(3, point.toUi().reps)
     }
 
     @Test
@@ -98,13 +99,60 @@ internal class ExerciseChartUiMapperTest {
     }
 
     @Test
-    fun `record index is the earliest point on a value tie`() {
+    fun `volume record indices keep the earliest point on a value tie`() {
         val points = listOf(
-            chartPoint(value = 77.0),
-            chartPoint(value = 77.0).copy(day = LocalDate.of(2026, 7, 23)),
+            chartPoint(value = 77.0, reps = 5),
+            chartPoint(value = 77.0, reps = 6).copy(day = LocalDate.of(2026, 7, 23)),
         )
 
-        assertEquals(0, ChartReadoutMapper.recordIndex(points))
+        listOf(
+            ChartMetricUiModel.VOLUME_PER_SET,
+            ChartMetricUiModel.VOLUME_PER_SESSION,
+        ).forEach { metric ->
+            assertEquals(0, ChartReadoutMapper.recordIndex(points, metric), metric.name)
+        }
+    }
+
+    @Test
+    fun `weight record index follows the PR reps tiebreak across sessions`() {
+        val points = listOf(
+            ChartPointDomain(
+                day = LocalDate.of(2026, 4, 28),
+                dayMillis = 0L,
+                value = 100.0,
+                sessionUuid = "morning",
+                weight = 100.0,
+                reps = 5,
+                setCount = 1,
+            ).toUi(),
+            ChartPointDomain(
+                day = LocalDate.of(2026, 4, 28),
+                dayMillis = 0L,
+                value = 100.0,
+                sessionUuid = "evening",
+                weight = 100.0,
+                reps = 6,
+                setCount = 1,
+            ).toUi(),
+        )
+
+        assertEquals(
+            1,
+            ChartReadoutMapper.recordIndex(points, ChartMetricUiModel.HEAVIEST_WEIGHT),
+        )
+    }
+
+    @Test
+    fun `weight record index keeps the earliest session when weight and reps tie`() {
+        val points = listOf(
+            chartPoint(value = 100.0, reps = 6),
+            chartPoint(value = 100.0, reps = 6).copy(day = LocalDate.of(2026, 7, 23)),
+        )
+
+        assertEquals(
+            0,
+            ChartReadoutMapper.recordIndex(points, ChartMetricUiModel.HEAVIEST_WEIGHT),
+        )
     }
 
     @Test
@@ -165,11 +213,13 @@ internal class ExerciseChartUiMapperTest {
     private fun chartPoint(
         value: Double = 80.0,
         setCount: Int = 1,
+        reps: Int = 0,
     ): ChartPointUiModel = ChartPointUiModel(
         day = LocalDate.of(2026, 4, 28),
         dayMillis = 0L,
         sessionUuid = "session-${value.toInt()}",
         value = value,
         setCount = setCount,
+        reps = reps,
     )
 }

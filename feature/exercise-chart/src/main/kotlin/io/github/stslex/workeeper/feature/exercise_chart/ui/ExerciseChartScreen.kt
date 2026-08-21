@@ -204,9 +204,11 @@ private fun ChartPopulated(
     state: State,
     consume: (Action) -> Unit,
 ) {
-    // The record marking is derived, not stored: one source (the mapper's argmax) feeds the
+    // The record marking is derived, not stored: one mapper selector feeds the
     // readout's flag and the canvas's molten point alike.
-    val recordIndex = remember(state.points) { ChartReadoutMapper.recordIndex(state.points) }
+    val recordIndex = remember(state.points, state.metric) {
+        ChartReadoutMapper.recordIndex(state.points, state.metric)
+    }
 
     // The mockup's vertical rhythm, spelled per element rather than one spacedBy: ranges
     // margin-bottom 14px + readout padding-top 18px = 32px → xxl (sum-of-parts, §0.2),
