@@ -74,12 +74,11 @@ private const val PR_SINGLE_SQL = """
 
 /**
  * Batch PR: *every* eligible candidate for every requested exercise, grouped by exercise and
- * ordered so the consumer takes `.first()` per group. No `LIMIT`/window function in the SQL —
- * written when production ran the system SQLite (3.22 at minSdk 28, no `ROW_NUMBER()` before
- * 3.25). `BundledSQLiteDriver` now ships 3.50 everywhere, so a
- * `ROW_NUMBER() OVER (PARTITION BY …)` rewrite is *available*; it is not taken in the driver
- * flip, which is behaviour-neutral by design. The Robolectric host tests still run whatever
- * SQLite Robolectric bundles, so any rewrite must keep its device coverage.
+ * ordered so the consumer takes `.first()` per group. A
+ * `ROW_NUMBER() OVER (PARTITION BY …)` rewrite is available under the production bundled
+ * driver, but any rewrite must retain device coverage because Robolectric host tests use a
+ * different SQLite engine. See kmp-phase-6-data-layer.md → §6
+ * "The driver decision — decided."
  */
 private const val PR_BATCH_SQL = """
         $PR_ROW_SELECT
