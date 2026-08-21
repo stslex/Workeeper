@@ -4,6 +4,7 @@ import androidx.paging.PagingData
 import io.github.stslex.workeeper.core.data.database.sets.PlanSetDataModel
 import io.github.stslex.workeeper.core.data.exercise.exercise.model.HistoryEntry
 import io.github.stslex.workeeper.core.data.exercise.session.model.ActiveSessionInfo
+import io.github.stslex.workeeper.core.data.exercise.session.model.ActiveSessionProgressInfo
 import io.github.stslex.workeeper.core.data.exercise.session.model.RecentSessionDataModel
 import io.github.stslex.workeeper.core.data.exercise.session.model.SessionDataModel
 import io.github.stslex.workeeper.core.data.exercise.session.model.SessionDetailDataModel
@@ -30,6 +31,13 @@ interface SessionRepository {
     fun observeActiveSessionWithStats(): Flow<ActiveSessionWithStats?>
 
     suspend fun getAnyActiveSession(): ActiveSessionInfo?
+
+    /**
+     * One atomic snapshot of the active session and its persisted exercise completion.
+     * An exercise is done only when every planned or performed set position is present,
+     * matching the Live Workout load path after process restoration.
+     */
+    suspend fun getActiveSessionProgress(): ActiveSessionProgressInfo?
 
     suspend fun getActive(): SessionDataModel?
 

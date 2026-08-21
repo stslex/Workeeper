@@ -10,7 +10,7 @@ import io.github.stslex.workeeper.core.data.exercise.exercise.model.HistoryEntry
 import io.github.stslex.workeeper.core.data.exercise.exercise.model.SetSummary
 import io.github.stslex.workeeper.core.data.exercise.exercise.model.SetsDataType
 import io.github.stslex.workeeper.core.data.exercise.personal_record.PersonalRecordDataModel
-import io.github.stslex.workeeper.core.data.exercise.session.model.ActiveSessionInfo
+import io.github.stslex.workeeper.core.data.exercise.session.model.ActiveSessionProgressInfo
 import io.github.stslex.workeeper.core.data.exercise.tags.model.TagDataModel
 import io.github.stslex.workeeper.feature.exercise.domain.model.ActiveSessionDomain
 import io.github.stslex.workeeper.feature.exercise.domain.model.ExerciseChangeDomain
@@ -121,7 +121,7 @@ internal object ExerciseDomainMapper {
         SetTypeDomain.DROP -> SetTypeDataModel.DROP
     }
 
-    fun ActiveSessionInfo.toDomain(): ActiveSessionDomain = ActiveSessionDomain(
+    fun ActiveSessionProgressInfo.toDomain(): ActiveSessionDomain = ActiveSessionDomain(
         sessionUuid = sessionUuid,
         trainingUuid = trainingUuid,
         startedAt = startedAt,

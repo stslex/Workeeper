@@ -7,6 +7,7 @@ import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseData
 import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseTypeDataModel
 import io.github.stslex.workeeper.core.data.exercise.session.SessionConflictResolver
 import io.github.stslex.workeeper.core.data.exercise.session.model.ActiveSessionInfo
+import io.github.stslex.workeeper.core.data.exercise.session.model.ActiveSessionProgressInfo
 import io.github.stslex.workeeper.core.data.exercise.session.model.SessionDataModel
 import io.github.stslex.workeeper.core.data.exercise.session.model.SessionStateDataModel
 import io.github.stslex.workeeper.core.data.exercise.tags.model.TagDataModel
@@ -83,6 +84,12 @@ internal object SingleTrainingDomainMapper {
         startedAt = startedAt,
     )
 
+    fun ActiveSessionProgressInfo.toDomain(): ActiveSessionDomain = ActiveSessionDomain(
+        sessionUuid = sessionUuid,
+        trainingUuid = trainingUuid,
+        startedAt = startedAt,
+    )
+
     fun SetTypeDataModel.toDomain(): SetTypeDomain = when (this) {
         SetTypeDataModel.WARMUP -> SetTypeDomain.WARMUP
         SetTypeDataModel.WORK -> SetTypeDomain.WORK
@@ -112,6 +119,10 @@ internal object SingleTrainingDomainMapper {
     fun SessionConflictResolver.Resolution.toDomain(): StartSessionConflict = when (this) {
         SessionConflictResolver.Resolution.ProceedFresh -> StartSessionConflict.ProceedFresh
         is SessionConflictResolver.Resolution.SilentResume -> StartSessionConflict.SilentResume(sessionUuid)
-        is SessionConflictResolver.Resolution.NeedsUserChoice -> StartSessionConflict.NeedsUserChoice(active.toDomain())
+        is SessionConflictResolver.Resolution.NeedsUserChoice -> StartSessionConflict.NeedsUserChoice(
+            active = active.toDomain(),
+            doneCount = active.doneCount,
+            totalCount = active.totalCount,
+        )
     }
 }
