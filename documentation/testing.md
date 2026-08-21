@@ -16,10 +16,10 @@ Workeeper uses two test tiers. Their source-set names depend on the module shape
 - `src/androidTest/...` in classic Android modules and `src/androidDeviceTest/...` in KMP
   modules — instrumented device tests. Run via the repo-level
   `./gradlew connectedDebugAndroidTest` alias.
-  Use the AndroidX Compose UI test runner (`androidx-compose-ui-test-junit4`),
-  `androidx.test:runner`, and Espresso. Bundles are declared under
-  `[bundles] android-test`. There are no Hilt testing artifacts — DI is Metro, and the
-  instrumented DI harness lives in `:app:app` (see [Integration tests](#integration-tests)).
+  Use `androidx.test:runner`; UI suites additionally use Espresso and the AndroidX Compose UI
+  test runner (`androidx-compose-ui-test-junit4`). Bundles are declared under `[bundles]
+  android-test`. There are no Hilt testing artifacts — DI is Metro, and the instrumented DI
+  harness lives in `:app:app` (see [Integration tests](#integration-tests)).
 
 Source sets exist only where a module has tests of that tier. When a feature module needs the
 shared test utilities, it adds `androidTestImplementation(project(":core:ui:test-utils"))` to
