@@ -14,7 +14,7 @@ description: Write a JUnit 5 / Robolectric unit test for a `*RepositoryImpl` usi
 
 If the SUT is an MVI handler or `*StoreImpl`, use [write-handler-test](write-handler-test.md)
 instead. If the SUT is a DAO method, use the existing `BaseDatabaseTest` pattern in
-`core/data/database/src/test/...` (see `ExerciseDaoTest.kt` /
+`core/data/database/src/androidHostTest/...` (see `ExerciseDaoTest.kt` /
 `SessionDaoTest.kt` for canonical examples).
 
 ## Hard rule
@@ -35,10 +35,11 @@ tests must stay the minority and must not duplicate a real-DB test for the same 
 - The repository under test exists in a module that depends on
   `core/data/database` (the `core/data/exercise` module already does — see its
   `build.gradle.kts`).
-- The consumer module declares
-  `testImplementation(project(":core:data:database-test"))` (already wired for
-  `core/data/exercise`). For new modules, add that line. Do NOT reach for a `testFixtures`
-  source set on `core:data:database`: KMP has none, and that module is scheduled to convert.
+- The consumer module declares the fixture on its host-test configuration:
+  `testImplementation(project(":core:data:database-test"))` for a classic Android module or
+  `"androidHostTestImplementation"(project(":core:data:database-test"))` for a KMP module.
+  The classic configuration is already wired for `core/data/exercise`. Do NOT reach for a
+  `testFixtures` source set on `core:data:database`: KMP has none.
 
 ## Test fixture
 

@@ -46,7 +46,7 @@ import kotlin.uuid.Uuid
  *   integrity/migration/driver exceptions). It is NOT in the automated suite — to repeat
  *   it, see documentation/tech-debt.md → "Room 2→3 cross-version upgrade proof".
  *
- * ⚠️ androidTest + file-backed on purpose (own DB name, not "app.db", so it never collides
+ * ⚠️ androidDeviceTest + file-backed on purpose (own DB name, not "app.db", so it never collides
  * with production/other tests). Do NOT move onto Robolectric or in-memory.
  */
 @Regression

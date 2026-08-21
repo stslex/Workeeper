@@ -6,21 +6,24 @@ they run in CI. For the architectural patterns the tests target, see
 
 ## Test types
 
-Workeeper has two test source sets in every module that has tests:
+Workeeper uses two test tiers. Their source-set names depend on the module shape:
 
-- `src/test/...` — JVM unit tests. Run via `./gradlew testDebugUnitTest`. Use JUnit 5 (Jupiter)
+- `src/test/...` in classic Android modules and `src/androidHostTest/...` in KMP modules —
+  JVM host tests. Run via the repo-level `./gradlew testDebugUnitTest` alias. Use JUnit 5 (Jupiter)
   via the `junit-bom`, MockK for mocking, Robolectric for Android-class fakes, and the
   Kotlin coroutines test library. Bundles are declared in `gradle/libs.versions.toml` under
   `[bundles] test`.
-- `src/androidTest/...` — instrumented UI tests. Run via `./gradlew connectedDebugAndroidTest`.
+- `src/androidTest/...` in classic Android modules and `src/androidDeviceTest/...` in KMP
+  modules — instrumented device tests. Run via the repo-level
+  `./gradlew connectedDebugAndroidTest` alias.
   Use the AndroidX Compose UI test runner (`androidx-compose-ui-test-junit4`),
   `androidx.test:runner`, and Espresso. Bundles are declared under
   `[bundles] android-test`. There are no Hilt testing artifacts — DI is Metro, and the
   instrumented DI harness lives in `:app:app` (see [Integration tests](#integration-tests)).
 
-Both source sets exist on a per-module basis. When a feature module needs the shared test
-utilities, it adds `androidTestImplementation(project(":core:ui:test-utils"))` to its
-`build.gradle.kts`.
+Source sets exist only where a module has tests of that tier. When a feature module needs the
+shared test utilities, it adds `androidTestImplementation(project(":core:ui:test-utils"))` to
+its `build.gradle.kts`.
 
 ## Unit tests
 
@@ -68,10 +71,11 @@ It builds an `AppDatabase` via `Room.inMemoryDatabaseBuilder`, exposes every rea
 `useWriterConnection { it.immediateTransaction { … } }`, and ships a `TestApplication` for the
 Robolectric `@Config`.
 
-Consumers depend on it via `testImplementation(project(":core:data:database-test"))` in their
-`build.gradle.kts` (already wired for `core/data/exercise`). It is a normal module rather than a
-`testFixtures` source set because KMP has no such source set and `core:data:database` is scheduled
-to convert — see `documentation/feature-specs/kmp-phase-6-data-layer.md` -> §3.1.
+Consumers depend on it from their host-test configuration: `testImplementation` for classic
+Android modules or `androidHostTestImplementation` for KMP modules. The classic configuration is
+already wired for `core/data/exercise`. It is a normal module rather than a `testFixtures` source
+set because KMP has no such source set — see
+`documentation/feature-specs/kmp-phase-6-data-layer.md` -> §3.1.
 
 #### Boilerplate
 
@@ -117,7 +121,7 @@ return-value assertion or a mockk verification.
   `core/data/exercise/src/test/kotlin/io/github/stslex/workeeper/core/data/exercise/tags/TagRepositoryImplDbTest.kt`
   exercises every public method with a single round-trip per method.
 
-The DAO-test pattern (`core/data/database/src/test/.../BaseDatabaseTest.kt`) remains the
+The DAO-test pattern (`core/data/database/src/androidHostTest/.../BaseDatabaseTest.kt`) remains the
 right tool for DAO-only assertions that do not exercise repository code.
 
 ## UI tests

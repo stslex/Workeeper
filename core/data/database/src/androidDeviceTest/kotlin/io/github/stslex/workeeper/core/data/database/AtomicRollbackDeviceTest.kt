@@ -29,8 +29,8 @@ import org.junit.runner.RunWith
  * `DbTransitionRunner` transaction primitive roll back writes on a throw, for the two
  * shapes production actually uses inside `transition { }`?
  *
- * ⚠️ THIS TEST MUST STAY androidTest + FILE-BACKED. Do NOT "simplify" it onto Robolectric
- * or an in-memory DB. Robolectric's shadow SQLite gave a **false NEGATIVE on this exact
+ * ⚠️ THIS TEST MUST STAY androidDeviceTest + FILE-BACKED. Do NOT "simplify" it onto
+ * Robolectric or an in-memory DB. Robolectric's shadow SQLite gave a **false NEGATIVE on this exact
  * measurement twice** — a Robolectric variant of this probe reported shape B (concurrent
  * `async` children) as NOT rolling back, when the real device proves it does. Robolectric
  * is not a valid oracle for transaction/async-child rollback semantics here; the device is.

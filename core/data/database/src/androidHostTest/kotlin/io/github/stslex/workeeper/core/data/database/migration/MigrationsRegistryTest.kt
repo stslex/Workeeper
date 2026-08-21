@@ -6,7 +6,7 @@ import org.junit.jupiter.api.Test
 
 /**
  * Registry-level integrity check for [MIGRATIONS]. Pairs with the per-migration
- * fixture in `core/data/database/src/androidTest/.../AppDatabaseMigrationTest.kt`,
+ * fixture in `core/data/database/src/androidDeviceTest/.../AppDatabaseMigrationTest.kt`,
  * which exercises each `Migration` end-to-end against `Y.json` / `Y+1.json` schema
  * snapshots via Room's `MigrationTestHelper`.
  *

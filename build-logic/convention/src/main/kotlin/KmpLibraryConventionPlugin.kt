@@ -58,8 +58,9 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
  *   The tasks keep Gradle's `failOnNoDiscoveredTests` default (true): a regression in this
  *   wiring fails loudly instead of passing over zero discovered tests — a deliberate
  *   divergence from [KotlinAndroid.configureKotlinAndroid], which sets it false. A module
- *   with legitimately no host tests yet opts out per-module:
- *   `tasks.withType<Test>().configureEach { failOnNoDiscoveredTests.set(false) }`.
+ *   with no `androidHostTest` sources needs no opt-out: its task is `NO-SOURCE`. Only a
+ *   module that has host-test sources but intentionally discovers no tests should override
+ *   `failOnNoDiscoveredTests` per-module.
  *
  * - **detekt sources.** detekt's default source resolution is `src/main/…` + `src/test/…`,
  *   which in a KMP layout matches NOTHING — the task goes green over zero inputs. The

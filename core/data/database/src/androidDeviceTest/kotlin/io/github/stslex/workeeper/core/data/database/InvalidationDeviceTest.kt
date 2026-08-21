@@ -32,7 +32,7 @@ import org.junit.runner.RunWith
  * `getInvalidationTracker().refreshAsync()`), so no manual refresh was added — this test proves
  * the built-in refresh actually reaches a collected Flow end-to-end.
  *
- * ⚠️ androidTest + file-backed on purpose — Robolectric is not a valid oracle for
+ * ⚠️ androidDeviceTest + file-backed on purpose — Robolectric is not a valid oracle for
  * invalidation/Flow re-emission any more than for transaction rollback.
  */
 @Regression
