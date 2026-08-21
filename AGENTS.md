@@ -16,12 +16,12 @@ Project context for OpenAI Codex / Cursor agents (and any other tool that follow
 ./gradlew connectedDebugAndroidTest
 
 # Static analysis
-./gradlew detekt
-./gradlew detekt --auto-correct
+./gradlew detekt                                      # reports only; autoCorrect is off
+./gradlew detekt --auto-correct --no-configuration-cache  # explicit rewrite run
 ./gradlew lintDebug
 
-# Pre-commit hook — installs .githooks. Runs detekt on EVERY commit; its early
-# exit skips lintDebug only. See lint-rules.md.
+# Pre-commit hook — installs .githooks. Runs detekt when the staged diff contains
+# added/copied/modified/renamed Kotlin; lintDebug is disabled. See lint-rules.md.
 ./setup-hooks.sh
 ```
 
@@ -152,15 +152,16 @@ like it failed to work rather than like it never ran. Same family as the `FROM-C
 §27's: a Gradle cache making a task's *evidence* answer for a task that did not execute. Note also
 that `MaxLineLength` is not auto-correctable — those are yours to wrap by hand.
 
-**"Green locally" is not "green". The pre-commit hook runs detekt and skips `lintDebug`; CI gates
-both.** So a branch can pass every commit, pass the gate command as it was written above, and fail
-the moment its PR opens — on errors that were never once shown to the person who wrote them. It is
-not hypothetical: `feature/v3-all-trainings` carried a `DuplicateStrings` pair and three
-`UnusedResources` orphaned by its own rebuild, and they surfaced only when a *stacked* branch ran
-lint for an unrelated reason. Until the hook runs lint — which is Ilya's call, it is his tooling and
-it costs about a minute a commit — **`lintDebug` belongs in the per-commit gate above**, and it is
-now in it. Note especially that `UnusedResources` is a *deletion* check: it fires on rebuilds that
-drop a call site, which is exactly what every screen in this arc does.
+**"Green locally" is not "green". The pre-commit hook runs detekt only when the staged diff
+contains Kotlin and always skips `lintDebug`; CI gates both.** So a branch can pass every commit,
+pass the gate command as it was written above, and fail the moment its PR opens — on errors that
+were never once shown to the person who wrote them. It is not hypothetical:
+`feature/v3-all-trainings` carried a `DuplicateStrings` pair and three `UnusedResources` orphaned
+by its own rebuild, and they surfaced only when a *stacked* branch ran lint for an unrelated
+reason. Until the hook runs lint — which is Ilya's call, it is his tooling and it costs about a
+minute a commit — **`lintDebug` belongs in the per-commit gate above**, and it is now in it. Note
+especially that `UnusedResources` is a *deletion* check: it fires on rebuilds that drop a call
+site, which is exactly what every screen in this arc does.
 
 The line this replaces said `lintDebug` was excluded because of a pre-existing `[Registered]` error
 on `Dev/StoreMobileApp`, tracked separately, and not to "fix" it here. That error is gone —
@@ -224,6 +225,15 @@ in the lower PR, and that moves the base of everything above it.**
 - [documentation/ci-cd.md](documentation/ci-cd.md) — workflows, release pipeline.
 - [documentation/lint-rules.md](documentation/lint-rules.md) — Detekt MVI rules + Android Lint.
 - [documentation/performance.md](documentation/performance.md) — Firebase Performance pipelines (TTID, Screen rendering, AppCreate / ActivityCreate).
+- [documentation/feature-specs/kmp-phase-2-probes.md](documentation/feature-specs/kmp-phase-2-probes.md)
+  — measured KMP/CMP toolchain constraints and Phase-7 checklist.
+- [documentation/feature-specs/kmp-phase-6-data-layer.md](documentation/feature-specs/kmp-phase-6-data-layer.md)
+  — current data-layer KMP migration plan, source-set conventions, task aliases, and
+  Room/SQLite decisions.
+- [documentation/feature-specs/backup.md](documentation/feature-specs/backup.md) — Drive backup,
+  restore, authentication, and auto-backup scheduling.
+- [documentation/feature-specs/app-dialogs.md](documentation/feature-specs/app-dialogs.md) —
+  process-surviving cross-feature dialog catalog and persistence contract.
 - [CONTRIBUTING.md](CONTRIBUTING.md) — contributor workflow, commit format.
 
 ### Navigation lifecycle (post PR #143)
@@ -321,12 +331,14 @@ the same tasks:
   `BaseComposeTest`.
 - [`add-database-migration`](.claude/skills/add-database-migration.md) — Room schema migration
   + test.
+- [`compose-state-discipline`](.claude/skills/compose-state-discipline.md) — keep work outside
+  State-update lambdas, keep modifier graphs stable, batch fan-out reads, and model modals as State.
 - [`refactor-with-mvi-rules`](.claude/skills/refactor-with-mvi-rules.md) — resolve a custom
-  Detekt rule violation (see also
-  [`compose-state-discipline`](.claude/skills/compose-state-discipline.md), which covers
-  Rule 4: dialogs and bottom sheets live in `State`, not `Event`).
+  Detekt rule violation.
 - [`mvi-dialog-state`](.claude/skills/mvi-dialog-state.md) — model two-or-more modals on one
   screen as a single sealed `dialogState: DialogState` on State (drill-down of Rule 4).
+- [`app-dialogs-pattern`](.claude/skills/app-dialogs-pattern.md) — extend the process-surviving,
+  destination-independent `AppDialog` catalog; feature-local modals use `mvi-dialog-state`.
 
 ## Required skill usage
 
@@ -341,9 +353,15 @@ Use this mapping:
   `.claude/skills/write-repository-test.md`
 - Compose UI smoke tests: `.claude/skills/write-ui-test.md`
 - Room schema migrations and migration tests: `.claude/skills/add-database-migration.md`
+- State-update lambdas, conditional modifier chains, batched reads, or modal State/Event placement:
+  `.claude/skills/compose-state-discipline.md`
 - Refactors driven by custom MVI/Detekt rules: `.claude/skills/refactor-with-mvi-rules.md`
 - Adding a second dialog/bottom sheet to a screen, or any screen with two-or-more
   modals: `.claude/skills/mvi-dialog-state.md`
+- KMP/CMP module conversions, source-set moves, task aliases, Room KMP, or SQLite driver work:
+  read [documentation/feature-specs/kmp-phase-2-probes.md](documentation/feature-specs/kmp-phase-2-probes.md)
+  first, then the phase-specific spec (currently
+  [documentation/feature-specs/kmp-phase-6-data-layer.md](documentation/feature-specs/kmp-phase-6-data-layer.md)).
 - Firebase Performance / TTID / cold-start / screen-rendering trace work, and any change
   that touches `core/ui/mvi/.../performance/` or the `Modifier.reportScreenPlace<>` wiring
   in `AppNavigationHost`: read [documentation/performance.md](documentation/performance.md)
@@ -387,11 +405,13 @@ If no listed skill applies, continue with the normal repository instructions.
   you in a stack, which is what CI uses and is not the same baseline.
   A `:root` token change must be declared with an `Allow-root-change: <names>` commit trailer —
   the workflow reads the declaration out of the commits in the range, never from a flag.
-- The pre-commit hook in `.githooks/pre-commit` **runs `./gradlew detekt` on every commit**; its
-  early `exit 0` sits *after* the detekt block, so it skips `lintDebug` only. Android Lint is
-  CI-gated, detekt is gated both locally and in CI. (This line said the hook "returns early" with
-  no qualification, which read as "nothing runs locally" — the opposite of what happens.)
+- The pre-commit hook in `.githooks/pre-commit` runs `./gradlew detekt` only when the staged diff
+  contains an added, copied, modified, or renamed `.kt` file. A no-Kotlin commit exits before
+  Detekt; a Kotlin commit exits after Detekt and before `lintDebug`. CI gates both tools.
+- Detekt runs with `autoCorrect = false`: gate runs report findings and never rewrite the tree.
+  Formatting is an explicit `--auto-correct --no-configuration-cache` run.
 - Privacy policy at `docs/index.md` and `docs/_config.yml` are locked by Play Console; do not
   modify them.
-- The custom Detekt rules in `lint-rules/` enforce naming and structural rules around the MVI
-  contract — read them before introducing new naming patterns.
+- The custom Detekt rules in `lint-rules/` enforce MVI, Metro scope, KMP expect/actual,
+  instrumented-suite, paging, and UI/data-boundary contracts — read the relevant rule source
+  before introducing a new structural pattern or suppression.
