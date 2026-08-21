@@ -27,15 +27,10 @@ import org.junit.runner.RunWith
 import kotlin.uuid.Uuid
 
 /**
- * DUPLICATE-NAME ORACLE UNDER THE PRODUCTION DRIVER. The Robolectric twin
- * (`ExerciseRepositoryImplDbTest`) exercises this path on the framework driver, where a UNIQUE
- * violation arrives as `android.database.sqlite.SQLiteConstraintException`. Under
- * `BundledSQLiteDriver` — production since the flip — the same violation arrives as the common
- * `androidx.sqlite.SQLiteException` thrown by the driver itself, a different type the old
- * framework-only `catch` never matched (phase-6 spec §5: control flow, not a type name). This
- * test is the bundled leg: same arrangement, same asserted outcome, real device, production
- * driver. Written red first against the pre-conversion repository — the red run's escaped
- * exception is what the common catch's constraint check was derived from.
+ * Duplicate-name oracle under the production `BundledSQLiteDriver`. The Robolectric twin
+ * (`ExerciseRepositoryImplDbTest`) covers the framework driver; this test keeps the same
+ * arrangement and asserted outcome on a real device. See kmp-phase-6-data-layer.md → §10
+ * "androidx.sqlite.SQLiteException is actual typealias … on Android."
  */
 @Regression
 @RunWith(AndroidJUnit4::class)

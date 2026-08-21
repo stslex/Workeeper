@@ -116,12 +116,6 @@ class ExerciseRepositoryImpl @Inject internal constructor(
                 }
             }
         } catch (e: SQLiteException) {
-            // Both drivers speak through this one type: on Android, androidx.sqlite's
-            // SQLiteException is a typealias to android.database.SQLException, so the
-            // framework driver's SQLiteConstraintException (a subtype) and the bundled
-            // driver's own throw ("Error code: 2067, message: UNIQUE constraint failed: …",
-            // measured on device) both land here. Anything that is not the duplicate-name
-            // violation keeps escaping, exactly as before.
             if (!e.isUniqueConstraintViolation()) throw e
             return@transition SaveResult.DuplicateName
         }
@@ -513,13 +507,10 @@ class ExerciseRepositoryImpl @Inject internal constructor(
     }
 
     /**
-     * The one string both SQLite engines emit for a UNIQUE violation. The framework driver's
-     * `SQLiteConstraintException` carries SQLite's own error text; the bundled driver renders
-     * `Error code: 2067, message: UNIQUE constraint failed: <table>.<column>` (measured on
-     * device, SQLITE_CONSTRAINT_UNIQUE = 2067). A type check cannot serve here: the common
-     * `androidx.sqlite.SQLiteException` has no code field, and the framework subtype is not
-     * nameable from common code. A member, not a top-level private fun: file-private helpers
-     * called from inside the class need a synthetic accessor, and lint rightly objects.
+     * Match the portable UNIQUE-violation text shared by the framework host-test driver and the
+     * bundled production driver. Keep this a member: a file-private helper called from the class
+     * needs a synthetic accessor, and lint rightly objects. See kmp-phase-6-data-layer.md → §10
+     * "androidx.sqlite.SQLiteException is actual typealias … on Android."
      */
     private fun SQLiteException.isUniqueConstraintViolation(): Boolean =
         message.orEmpty().contains("UNIQUE constraint failed")

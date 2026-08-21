@@ -29,8 +29,7 @@ kotlin {
 
 dependencies {
     // Robolectric under JUnit 5 for androidHostTest — the KMP convention keeps Robolectric a
-    // module concern (the core:core / core:data:dataStore / core:data:database shape). 16 of the
-    // 19 host-test classes run the real schema through RepositoryTestEnv.
+    // module concern (the core:core / core:data:dataStore / core:data:database shape).
     "androidHostTestImplementation"(libs.robolectric)
     "androidHostTestImplementation"(libs.robolectric.junit5.extension)
     "androidHostTestImplementation"(libs.androidx.test)
