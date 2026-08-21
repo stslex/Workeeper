@@ -5,13 +5,16 @@ import AppExt.implementationBundle
 import AppExt.ksp
 import AppExt.libs
 import androidx.room3.gradle.RoomExtension
+import com.android.build.api.dsl.KotlinMultiplatformAndroidLibraryExtension
 import com.android.build.api.variant.HasDeviceTests
 import com.android.build.api.variant.KotlinMultiplatformAndroidComponentsExtension
 import com.google.devtools.ksp.gradle.KspExtension
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.api.plugins.ExtensionAware
 import org.gradle.kotlin.dsl.configure
 import org.gradle.kotlin.dsl.dependencies
+import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 
 /**
  * One plugin id for "this module uses Room", on either module shape. The branch is decided by
@@ -85,18 +88,17 @@ class RoomLibraryConventionPlugin : Plugin<Project> {
         // What the classic Android integration does per androidTest variant and room3's KMP
         // integration does not: put the exported schemas on the device-test APK's assets so
         // MigrationTestHelper can read them. Without this every migration test fails on device
-        // with "Cannot find the schema file in the assets folder … Missing file: …/5.json" —
-        // measured on the first converted module. Static directory, not a copy task: the
-        // committed schemas/ dir IS the canonical artifact and the test only reads it.
+        // with "Cannot find the schema file in the assets folder … Missing file: …/5.json".
+        // Static directory, not a copy task: the committed schemas/ dir IS the canonical
+        // artifact and the test only reads it. See kmp-phase-6-data-layer.md → §9
+        // "Room-KMP does not put schemas on the device-test APK."
         //
         // androidResources must be enabled first: AGP-KMP defaults it off, and with it off the
         // device-test component's `sources.assets` is null (measured) — the asset pipeline
         // simply does not exist, so there is nowhere to add the directory.
-        val kmpExtension = extensions.getByType(
-            org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension::class.java,
-        )
-        val androidDsl = (kmpExtension as org.gradle.api.plugins.ExtensionAware).extensions
-            .getByName("android") as com.android.build.api.dsl.KotlinMultiplatformAndroidLibraryExtension
+        val kmpExtension = extensions.getByType(KotlinMultiplatformExtension::class.java)
+        val androidDsl = (kmpExtension as ExtensionAware).extensions
+            .getByName("android") as KotlinMultiplatformAndroidLibraryExtension
         androidDsl.androidResources.enable = true
 
         extensions.configure<KotlinMultiplatformAndroidComponentsExtension> {

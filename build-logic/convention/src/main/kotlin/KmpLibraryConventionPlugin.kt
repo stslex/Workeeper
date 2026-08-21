@@ -232,11 +232,10 @@ class KmpLibraryConventionPlugin : Plugin<Project> {
         // (android_build_unified.yml, every PR) and ui_tests.yml runs them with
         // `connectedDebugAndroidTest` — both Android-library spellings, invoked repo-wide.
         // The AGP-KMP tasks are `assembleAndroidDeviceTest` / `connectedAndroidDeviceTest`
-        // (kmp-phase-2-probes.md, P4c). The assemble half of this vanish was pre-diagnosed at
-        // ConfigureInstrumentedSuiteGate.ANDROID_TEST_ASSEMBLE_TASKS; the connected half is
-        // the same hole one workflow later, found when the first instrumented module
-        // converted. Literal task names on purpose: if AGP renames its device-test tasks,
-        // graph construction must fail loudly, not fall back to depending on nothing.
+        // (kmp-phase-2-probes.md, P4c; kmp-phase-6-data-layer.md → §9
+        // "The connected-run alias is the FIFTH silent vanish."). Literal task names on
+        // purpose: if AGP renames its device-test tasks, graph construction must fail loudly,
+        // not fall back to depending on nothing.
         tasks.register("assembleDebugAndroidTest") {
             group = "build"
             description =

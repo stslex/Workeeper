@@ -188,13 +188,10 @@
     <!-- ================================ -->
     <!-- KSP-GENERATED CODE ON KMP MODULES -->
     <!-- ================================ -->
-    <!-- The convention already sets checkGeneratedSources = false, and on classic Android
-         modules lint honors it. On an AGP-KMP module the KSP output directory is registered
-         through the Kotlin source-set model and lint does NOT classify it as generated — so a
-         consumer running with checkDependencies = true analyzes the dependency's generated
-         Room code as if it were handwritten (measured on core:data:database's conversion:
-         1087 RestrictedApi + 6 SyntheticAccessor, all under build/generated, none elsewhere).
-         Path-scoped per issue, not disabled: the same ids still fire on handwritten code. -->
+    <!-- On AGP-KMP, lint does not classify KSP output registered through Kotlin source sets as
+         generated. These IDs therefore ignore generated paths only; handwritten findings still
+         fire. See documentation/feature-specs/kmp-phase-6-data-layer.md → §9
+         "Lint does not classify KSP output as generated on KMP." -->
     <issue id="RestrictedApi" severity="error">
         <ignore path="**/build/generated/**" />
     </issue>
