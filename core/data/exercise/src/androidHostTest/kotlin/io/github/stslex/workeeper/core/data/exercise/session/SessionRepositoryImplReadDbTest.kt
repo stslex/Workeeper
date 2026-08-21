@@ -214,6 +214,26 @@ internal class SessionRepositoryImplReadDbTest {
         }
 
     @Test
+    fun `getActiveSessionProgress uses the persisted fallback plan for an adhoc training`() =
+        runTest {
+            val training = env.seedTraining(isAdhoc = true)
+            val exercise = env.seedExercise(lastAdhocSets = planJson(count = 2))
+            env.seedTrainingExercise(
+                trainingUuid = training.uuid,
+                exerciseUuid = exercise.uuid,
+                planSets = planJson(count = 1),
+            )
+            val session = env.seedSession(trainingUuid = training.uuid)
+            val performed = env.seedPerformed(session.uuid, exercise.uuid)
+            env.seedSet(performedExerciseUuid = performed.uuid, position = 0)
+
+            val result = repository.getActiveSessionProgress()
+
+            assertEquals(0, result?.doneCount)
+            assertEquals(1, result?.totalCount)
+        }
+
+    @Test
     fun `getActive returns full session model when present and null when absent`() = runTest {
         assertNull(repository.getActive())
 

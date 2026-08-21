@@ -124,11 +124,6 @@ class SessionRepositoryImpl @Inject internal constructor(
         val setsByPerformed = setDao
             .getByPerformedExercises(performed.map { it.uuid })
             .groupBy { it.performedExerciseUuid }
-        val fallbackPlans = exerciseDao
-            .getAdhocPlansBatch(exerciseUuids)
-            .associate { row ->
-                row.uuid to PlanSetsConverter.fromJson(row.lastAdhocSets)
-            }
         val isAdhoc = trainingDao.getById(session.trainingUuid)?.isAdhoc == true
         val trainingPlans = if (isAdhoc) {
             emptyMap()
@@ -137,6 +132,20 @@ class SessionRepositoryImpl @Inject internal constructor(
                 .getPlanSetsBatch(session.trainingUuid, exerciseUuids)
                 .associate { row ->
                     row.exerciseUuid to PlanSetsConverter.fromJson(row.planSets)
+                }
+        }
+        val fallbackExerciseUuids = if (isAdhoc) {
+            exerciseUuids
+        } else {
+            exerciseUuids.filter { trainingPlans[it] == null }
+        }
+        val fallbackPlans = if (fallbackExerciseUuids.isEmpty()) {
+            emptyMap()
+        } else {
+            exerciseDao
+                .getAdhocPlansBatch(fallbackExerciseUuids)
+                .associate { row ->
+                    row.uuid to PlanSetsConverter.fromJson(row.lastAdhocSets)
                 }
         }
         val doneCount = performed.count { row ->
