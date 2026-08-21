@@ -212,7 +212,8 @@ Before submitting a repository test PR, confirm each item:
 ## Verification
 
 ```bash
-./gradlew :core:data:exercise:testDebugUnitTest --tests "*.<RepoName>ImplDbTest"
+# The KMP compatibility alias cannot accept Test-task options such as --tests.
+./gradlew :core:data:exercise:testAndroidHostTest --tests "*.<RepoName>ImplDbTest"
 ./gradlew :core:data:exercise:testDebugUnitTest
 ```
 
