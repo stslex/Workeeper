@@ -32,6 +32,7 @@ internal class AppGraphIdentityTest {
             appDatabase = mockk(relaxed = true),
             imageStorage = mockk(relaxed = true),
             appScopeLifetime = lifetime,
+            databaseReplacement = mockk(relaxed = true),
         )
 
     @Test

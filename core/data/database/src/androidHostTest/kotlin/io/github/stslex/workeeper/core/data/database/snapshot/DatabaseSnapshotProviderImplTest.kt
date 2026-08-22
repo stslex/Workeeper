@@ -9,6 +9,7 @@ import io.github.stslex.workeeper.core.data.backup.api.error.BackupError
 import io.github.stslex.workeeper.core.data.backup.api.result.BackupResult
 import io.github.stslex.workeeper.core.data.database.AppDatabase
 import io.github.stslex.workeeper.core.data.database.BaseDatabaseTest
+import io.github.stslex.workeeper.core.data.database.closeAppDatabase
 import io.github.stslex.workeeper.core.data.database.tag.TagEntity
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -176,12 +177,12 @@ internal class DatabaseSnapshotProviderImplTest {
     }
 
     @Test
-    fun `restoreFromSnapshot with non-SQLite source returns CorruptedBackup`() = runTest {
+    fun `validateSnapshotForRestore with non-SQLite source returns CorruptedBackup`() = runTest {
         val dbDir = requireNotNull(context.getDatabasePath(AppDatabase.NAME).parentFile)
         val bogus = File(dbDir, "bogus.db")
         bogus.writeText("this is definitely not a sqlite file")
 
-        val result = provider.restoreFromSnapshot(bogus)
+        val result = provider.validateSnapshotForRestore(bogus)
         assertTrue(result is BackupResult.Failure)
         assertTrue(
             (result as BackupResult.Failure).error is BackupError.CorruptedBackup,
@@ -190,7 +191,7 @@ internal class DatabaseSnapshotProviderImplTest {
     }
 
     @Test
-    fun `restoreFromSnapshot returns BackupTooNew when source schema is newer`() = runTest {
+    fun `validateSnapshotForRestore returns BackupTooNew when source schema is newer`() = runTest {
         val dbDir = requireNotNull(context.getDatabasePath(AppDatabase.NAME).parentFile)
         // Capture a valid snapshot first.
         database.tagDao.insert(TagEntity(uuid = Uuid.random(), name = "anything"))
@@ -203,7 +204,7 @@ internal class DatabaseSnapshotProviderImplTest {
             .openDatabase(source.absolutePath, null, android.database.sqlite.SQLiteDatabase.OPEN_READWRITE)
             .use { it.version = futureVersion }
 
-        val result = provider.restoreFromSnapshot(source)
+        val result = provider.validateSnapshotForRestore(source)
         assertTrue(result is BackupResult.Failure)
         val error = (result as BackupResult.Failure).error
         assertTrue(
@@ -214,7 +215,7 @@ internal class DatabaseSnapshotProviderImplTest {
     }
 
     @Test
-    fun `restoreFromSnapshot replaces live db with snapshot contents`() = runTest {
+    fun `restore transaction sequence replaces live db with snapshot contents`() = runTest {
         val dbDir = requireNotNull(context.getDatabasePath(AppDatabase.NAME).parentFile)
         database.tagDao.insert(TagEntity(uuid = Uuid.random(), name = "Original"))
         val source = File(dbDir, "snapshot_restore.db")
@@ -227,10 +228,14 @@ internal class DatabaseSnapshotProviderImplTest {
             database.tagDao.observeAll().first().map { it.name }.toSet(),
         )
 
-        val result = provider.restoreFromSnapshot(source)
+        // The runtime-owned transaction sequence (Phase 5 R2, spec §8.5): validate through the
+        // still-open db, close (terminal), then the pure file mechanics.
+        assertEquals(BackupResult.Success(Unit), provider.validateSnapshotForRestore(source))
+        closeAppDatabase(database)
+        val result = provider.replaceLiveDatabaseFile(source)
         assertEquals(BackupResult.Success(Unit), result)
 
-        // Rebuild Room — the previous handle is stale after restoreFromSnapshot.
+        // Rebuild Room — the previous handle is terminal after the close.
         val restored = Room
             .databaseBuilder<AppDatabase>(context, AppDatabase.NAME)
             .setDriver(AndroidSQLiteDriver())
@@ -245,7 +250,7 @@ internal class DatabaseSnapshotProviderImplTest {
     }
 
     @Test
-    fun `preserveCurrentDb writes a file in cacheDir that hasPreRestoreBackup detects`() =
+    fun `preserveCurrentDb writes a file in cacheDir that getPreRestoreBackupFile detects`() =
         runTest {
             database.tagDao.insert(TagEntity(uuid = Uuid.random(), name = "PreserveMe"))
 
@@ -255,7 +260,7 @@ internal class DatabaseSnapshotProviderImplTest {
 
             assertTrue(preservedFile.exists(), "preserved file should exist on disk")
             assertEquals(context.cacheDir, preservedFile.parentFile)
-            assertTrue(provider.hasPreRestoreBackup())
+            assertTrue(provider.getPreRestoreBackupFile() != null)
         }
 
     @Test
@@ -274,15 +279,15 @@ internal class DatabaseSnapshotProviderImplTest {
         }
 
     @Test
-    fun `rollbackToPreRestoreBackup with no preserved file returns CorruptedBackup`() = runTest {
-        assertFalse(provider.hasPreRestoreBackup())
-        val result = provider.rollbackToPreRestoreBackup()
-        assertTrue(result is BackupResult.Failure)
-        assertTrue((result as BackupResult.Failure).error is BackupError.CorruptedBackup)
+    fun `getPreRestoreBackupFile returns null when no file was preserved`() = runTest {
+        // The CorruptedBackup mapping for this case moved to the runtime transaction, which
+        // resolves the source through this accessor before touching anything.
+        assertFalse(provider.getPreRestoreBackupFile() != null)
+        assertEquals(null, provider.getPreRestoreBackupFile())
     }
 
     @Test
-    fun `rollbackToPreRestoreBackup swaps live db with preserved contents and consumes file`() =
+    fun `rollback transaction sequence swaps live db with preserved contents and consumes file`() =
         runTest {
             database.tagDao.insert(TagEntity(uuid = Uuid.random(), name = "BeforeRestore"))
             assertTrue(provider.preserveCurrentDb() is BackupResult.Success)
@@ -294,10 +299,15 @@ internal class DatabaseSnapshotProviderImplTest {
                 database.tagDao.observeAll().first().map { it.name }.toSet(),
             )
 
-            assertEquals(BackupResult.Success(Unit), provider.rollbackToPreRestoreBackup())
+            // The runtime-owned rollback sequence: resolve source, close (terminal), replace,
+            // consume — same net effect as the pre-split copy+rename+delete.
+            val rollbackSource = requireNotNull(provider.getPreRestoreBackupFile())
+            closeAppDatabase(database)
+            assertEquals(BackupResult.Success(Unit), provider.replaceLiveDatabaseFile(rollbackSource))
+            provider.deletePreRestoreBackup()
 
             // Preserved file consumed.
-            assertFalse(provider.hasPreRestoreBackup())
+            assertFalse(provider.getPreRestoreBackupFile() != null)
 
             // Live db reverts to pre-restore state.
             val restored = Room
@@ -317,18 +327,18 @@ internal class DatabaseSnapshotProviderImplTest {
     @Test
     fun `deletePreRestoreBackup removes the file when present`() = runTest {
         assertTrue(provider.preserveCurrentDb() is BackupResult.Success)
-        assertTrue(provider.hasPreRestoreBackup())
+        assertTrue(provider.getPreRestoreBackupFile() != null)
 
         provider.deletePreRestoreBackup()
-        assertFalse(provider.hasPreRestoreBackup())
+        assertFalse(provider.getPreRestoreBackupFile() != null)
     }
 
     @Test
     fun `deletePreRestoreBackup is a no-op when no file exists`() = runTest {
-        assertFalse(provider.hasPreRestoreBackup())
+        assertFalse(provider.getPreRestoreBackupFile() != null)
         // Just verify no exception.
         provider.deletePreRestoreBackup()
-        assertFalse(provider.hasPreRestoreBackup())
+        assertFalse(provider.getPreRestoreBackupFile() != null)
     }
 
     @Test
@@ -433,19 +443,19 @@ internal class DatabaseSnapshotProviderImplTest {
         database.close()
         assertNotNull(provider.preserveDbBeforeMigration())
 
-        assertTrue(provider.hasPreRestoreBackup())
+        assertTrue(provider.getPreRestoreBackupFile() != null)
         assertTrue(provider.hasPreMigrationBackup())
 
         // Deleting pre-migration does not affect pre-restore.
         provider.deletePreMigrationBackup()
         assertFalse(provider.hasPreMigrationBackup())
-        assertTrue(provider.hasPreRestoreBackup())
+        assertTrue(provider.getPreRestoreBackupFile() != null)
 
         // Inverse direction: re-create pre-migration, delete pre-restore, both
         // remain independent.
         assertNotNull(provider.preserveDbBeforeMigration())
         provider.deletePreRestoreBackup()
-        assertFalse(provider.hasPreRestoreBackup())
+        assertFalse(provider.getPreRestoreBackupFile() != null)
         assertTrue(provider.hasPreMigrationBackup())
     }
 }

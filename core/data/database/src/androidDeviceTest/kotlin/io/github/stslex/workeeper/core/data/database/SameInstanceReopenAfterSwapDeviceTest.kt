@@ -116,7 +116,11 @@ internal class SameInstanceReopenAfterSwapDeviceTest {
         )
         val inodeBeforeSwap = liveDbInode()
 
-        assertSuccess("restoreFromSnapshot", provider.restoreFromSnapshot(snapshotFile()))
+        // The production RestartProcess transaction sequence (spec §8.5): validate through the
+        // still-open db → close (terminal; runtime-owned) → pure file mechanics.
+        assertSuccess("validateSnapshotForRestore", provider.validateSnapshotForRestore(snapshotFile()))
+        closeAppDatabase(database)
+        assertSuccess("replaceLiveDatabaseFile", provider.replaceLiveDatabaseFile(snapshotFile()))
 
         assertSwapRealOnDisk(inodeBeforeSwap)
         assertGateOutcome()
@@ -136,7 +140,13 @@ internal class SameInstanceReopenAfterSwapDeviceTest {
         )
         val inodeBeforeSwap = liveDbInode()
 
-        assertSuccess("rollbackToPreRestoreBackup", provider.rollbackToPreRestoreBackup())
+        // The production rollback sequence: resolve source → close (terminal) → replace → consume.
+        val rollbackSource = requireNotNull(provider.getPreRestoreBackupFile()) {
+            "preserveCurrentDb must have staged the pre-restore slot"
+        }
+        closeAppDatabase(database)
+        assertSuccess("replaceLiveDatabaseFile", provider.replaceLiveDatabaseFile(rollbackSource))
+        provider.deletePreRestoreBackup()
 
         assertSwapRealOnDisk(inodeBeforeSwap)
         assertGateOutcome()

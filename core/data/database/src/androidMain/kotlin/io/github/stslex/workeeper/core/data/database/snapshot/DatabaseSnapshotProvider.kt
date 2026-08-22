@@ -7,14 +7,19 @@ import java.io.File
 /**
  * File-level access to the Room-backed SQLite database for backup/restore.
  *
- * The provider exposes the four operations the backup feature needs without leaking
- * Room internals to callers:
+ * **The provider never closes or swaps the published database** (Phase 5 R2,
+ * `kmp-phase-5-startup-processor.md` §8.5): Room 3's `close()` is terminal for the object
+ * (§7.1, measured), so close-and-replace is a runtime-generation transition owned by the
+ * application runtime host, reached by callers through the
+ * [io.github.stslex.workeeper.core.data.backup.api.DatabaseReplacement] seam. What lives here
+ * is everything AROUND that transaction:
  *
- *  - [captureSnapshot] produces a portable `.db` copy.
- *  - [restoreFromSnapshot] replaces the live db file with a previously captured copy.
- *  - [currentSchemaVersion] reports the schema version of the live database.
- *  - [peekSnapshotSchemaVersion] inspects a `.db` file's schema version without
- *    opening it through Room.
+ *  - [captureSnapshot] / [preserveCurrentDb] produce portable copies (checkpoint + copy);
+ *  - [validateSnapshotForRestore] runs the pre-swap gates (magic header, schema-version
+ *    comparison) through the STILL-OPEN live database;
+ *  - [replaceLiveDatabaseFile] is the pure file mechanics (sidecar delete + copy + atomic
+ *    rename) the runtime invokes AFTER it closed the generation's database;
+ *  - version peeks, migration-path queries, and the preserved-file lifecycle.
  */
 interface DatabaseSnapshotProvider {
 
@@ -32,21 +37,24 @@ interface DatabaseSnapshotProvider {
     suspend fun captureSnapshot(target: File): BackupResult<Unit>
 
     /**
-     * Destructively replaces the live database file with the contents of [source].
-     *
-     * The call (1) validates the SQLite magic header on [source], (2) compares its
-     * schema version against the running app's via [peekSnapshotSchemaVersion] —
+     * The pre-swap restore gates, in the exact order the pre-split `restoreFromSnapshot` ran
+     * them: (1) SQLite magic header on [source]; (2) [source]'s schema version via
+     * [peekSnapshotSchemaVersion], compared against the LIVE database's `user_version` —
      * returning [io.github.stslex.workeeper.core.data.backup.api.error.BackupError.BackupTooNew]
-     * if [source] is newer — (3) closes the live `AppDatabase`, (4) deletes the
-     * `-wal` and `-shm` sidecars, and (5) atomically replaces the main `.db` via a
-     * same-directory temp file + rename.
-     *
-     * The caller MUST tear down every consumer of the in-process Room reference
-     * (DAOs, repositories, observers) before invoking — the reference is stale after
-     * success. The app must restart to rebuild the Room graph; this provider does
-     * not perform that restart.
+     * when [source] is newer. Reads the live database, so the runtime MUST call this while the
+     * generation's database is still open — before Quiescing and close.
      */
-    suspend fun restoreFromSnapshot(source: File): BackupResult<Unit>
+    suspend fun validateSnapshotForRestore(source: File): BackupResult<Unit>
+
+    /**
+     * The pure file mechanics of a live-database replacement: delete the `-wal` and `-shm`
+     * sidecars, copy [source] to a same-directory temp file, atomically rename it into the live
+     * slot. [source] is NOT consumed and NOT validated — validation is [validateSnapshotForRestore]
+     * and consumption is the caller's — and, critically, the database is NOT closed here: the
+     * runtime closes the generation's `AppDatabase` (terminal, §7.1) before invoking this, as one
+     * step of the replacement transaction it owns. Never call this outside that transaction.
+     */
+    suspend fun replaceLiveDatabaseFile(source: File): BackupResult<Unit>
 
     /**
      * Schema version of the live database, read from the SQLite `PRAGMA user_version`
@@ -96,29 +104,13 @@ interface DatabaseSnapshotProvider {
     suspend fun preserveCurrentDb(): BackupResult<File>
 
     /**
-     * Atomically replaces the live database with the contents of the most
-     * recently preserved `pre_restore_backup.db`. Cleans up `-wal` / `-shm`
-     * sidecars, closes the in-process Room handle, and renames the preserved
-     * file into the live database slot. Used by both the Scenario 1 automatic
-     * rollback (migration failure after restore) and the Scenario 3
-     * user-initiated undo.
-     *
-     * After success, the preserved file no longer exists (it was renamed
-     * into the live slot). The caller MUST restart the app — the Room graph
-     * is stale.
-     *
-     * Returns [BackupResult.Failure] with
-     * [io.github.stslex.workeeper.core.data.backup.api.error.BackupError.CorruptedBackup]
-     * if no preserved file exists, or `.Io` if the swap fails.
+     * The preserved `cache/pre_restore_backup.db` when it exists, else `null`. The runtime's
+     * rollback branch replays it through [replaceLiveDatabaseFile] and then consumes it via
+     * [deletePreRestoreBackup] — the same net effect (and the same crash-window shape) as the
+     * pre-split copy+rename+delete sequence. Also the Settings "Revert last restore" row's
+     * existence check (`!= null` — the separate boolean accessor was merged into this one).
      */
-    suspend fun rollbackToPreRestoreBackup(): BackupResult<Unit>
-
-    /**
-     * Whether a `cache/pre_restore_backup.db` exists. Cheap file-existence
-     * check used by Settings to decide whether to render the
-     * "Revert last restore" row.
-     */
-    fun hasPreRestoreBackup(): Boolean
+    fun getPreRestoreBackupFile(): File?
 
     /**
      * Formatted "from→to" pairs of every registered migration, joined with

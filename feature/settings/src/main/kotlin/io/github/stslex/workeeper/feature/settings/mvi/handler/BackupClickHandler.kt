@@ -104,7 +104,7 @@ internal class BackupClickHandler @Inject constructor(
     private fun observeRestoreState() {
         restoreStateRepository.observePreRestoreBackupAvailable()
             .launch { flagged ->
-                val fileExists = snapshotProvider.hasPreRestoreBackup()
+                val fileExists = snapshotProvider.getPreRestoreBackupFile() != null
                 if (flagged && !fileExists) {
                     restoreStateRepository.clearPreRestoreBackupAvailable()
                 }

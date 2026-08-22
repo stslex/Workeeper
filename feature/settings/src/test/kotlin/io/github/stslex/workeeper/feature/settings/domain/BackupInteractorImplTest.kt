@@ -7,6 +7,7 @@ import io.github.stslex.workeeper.core.core.platform.PlatformInfoProvider
 import io.github.stslex.workeeper.core.core.platform.TempFileProvider
 import io.github.stslex.workeeper.core.data.backup.api.BackupAuth
 import io.github.stslex.workeeper.core.data.backup.api.BackupStorage
+import io.github.stslex.workeeper.core.data.backup.api.DatabaseReplacement
 import io.github.stslex.workeeper.core.data.backup.api.SnapshotExportRunner
 import io.github.stslex.workeeper.core.data.backup.api.error.BackupError
 import io.github.stslex.workeeper.core.data.backup.api.model.Account
@@ -23,6 +24,7 @@ import io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotPr
 import io.github.stslex.workeeper.feature.settings.domain.model.AccountDomain
 import io.github.stslex.workeeper.feature.settings.domain.model.BackupSummaryDomain
 import io.github.stslex.workeeper.feature.settings.domain.model.SignInOutcomeDomain
+import io.github.stslex.workeeper.feature.settings.domain.usecase.RestoreLatestBackupUseCase
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.coVerifyOrder
@@ -54,6 +56,7 @@ internal class BackupInteractorImplTest {
     private val backupAuth = mockk<BackupAuth>(relaxed = true)
     private val backupStorage = mockk<BackupStorage>(relaxed = true)
     private val snapshotProvider = mockk<DatabaseSnapshotProvider>(relaxed = true)
+    private val databaseReplacement = mockk<DatabaseReplacement>(relaxed = true)
     private val restoreStateRepository = mockk<RestoreStateRepository>(relaxed = true)
     private val snapshotExportRunner = mockk<SnapshotExportRunner>(relaxed = true)
     private val tempFileProvider = mockk<TempFileProvider>(relaxed = true)
@@ -80,7 +83,14 @@ internal class BackupInteractorImplTest {
             backupAuth = backupAuth,
             backupStorage = backupStorage,
             snapshotProvider = snapshotProvider,
-            restoreStateRepository = restoreStateRepository,
+            restoreLatestBackup = RestoreLatestBackupUseCase(
+                backupStorage = backupStorage,
+                snapshotProvider = snapshotProvider,
+                databaseReplacement = databaseReplacement,
+                restoreStateRepository = restoreStateRepository,
+                tempFileProvider = tempFileProvider,
+                dispatcher = testDispatcher,
+            ),
             snapshotExportRunner = snapshotExportRunner,
             platformInfo = platformInfo,
             tempFileProvider = tempFileProvider,
@@ -296,7 +306,7 @@ internal class BackupInteractorImplTest {
             val error = (result as BackupResult.Failure).error
             assertTrue(error is BackupError.CorruptedBackup)
             coVerify(exactly = 0) { backupStorage.downloadBackup(any(), any()) }
-            coVerify(exactly = 0) { snapshotProvider.restoreFromSnapshot(any()) }
+            coVerify(exactly = 0) { databaseReplacement.restoreFromSnapshot(any()) }
         }
 
     @Test
@@ -314,7 +324,7 @@ internal class BackupInteractorImplTest {
             assertEquals(9, (error as BackupError.BackupTooNew).backupSchemaVersion)
             assertEquals(5, error.appSchemaVersion)
             coVerify(exactly = 0) { backupStorage.downloadBackup(any(), any()) }
-            coVerify(exactly = 0) { snapshotProvider.restoreFromSnapshot(any()) }
+            coVerify(exactly = 0) { databaseReplacement.restoreFromSnapshot(any()) }
         }
 
     @Test
@@ -335,7 +345,7 @@ internal class BackupInteractorImplTest {
                 downloadCaptured.captured.writeText("payload")
                 BackupResult.Success(ref.manifest)
             }
-            coEvery { snapshotProvider.restoreFromSnapshot(any()) } returns BackupResult.Success(
+            coEvery { databaseReplacement.restoreFromSnapshot(any()) } returns BackupResult.Success(
                 Unit,
             )
             val contextSlot = slot<RestoreInProgressContext>()
@@ -351,7 +361,7 @@ internal class BackupInteractorImplTest {
                 snapshotProvider.preserveCurrentDb()
                 restoreStateRepository.markRestoreInProgress(any())
                 backupStorage.downloadBackup(ref, any())
-                snapshotProvider.restoreFromSnapshot(any())
+                databaseReplacement.restoreFromSnapshot(any())
             }
             // On success the preserved file is kept for Application pre-flight + undo.
             coVerify(exactly = 0) { snapshotProvider.deletePreRestoreBackup() }
@@ -380,7 +390,7 @@ internal class BackupInteractorImplTest {
             assertTrue(result is BackupResult.Failure)
             assertSame(ioError, (result as BackupResult.Failure).error)
             coVerify(exactly = 0) { backupStorage.downloadBackup(any(), any()) }
-            coVerify(exactly = 0) { snapshotProvider.restoreFromSnapshot(any()) }
+            coVerify(exactly = 0) { databaseReplacement.restoreFromSnapshot(any()) }
             coVerify(exactly = 0) { restoreStateRepository.markRestoreInProgress(any()) }
         }
 
@@ -395,7 +405,7 @@ internal class BackupInteractorImplTest {
                 ref.manifest,
             )
             val corrupted = BackupError.CorruptedBackup("magic mismatch")
-            coEvery { snapshotProvider.restoreFromSnapshot(any()) } returns BackupResult.Failure(
+            coEvery { databaseReplacement.restoreFromSnapshot(any()) } returns BackupResult.Failure(
                 corrupted,
             )
 
@@ -423,7 +433,7 @@ internal class BackupInteractorImplTest {
             assertEquals(4, (error as BackupError.MissingMigrationPath).backupSchemaVersion)
             assertEquals(5, error.appSchemaVersion)
             coVerify(exactly = 0) { backupStorage.downloadBackup(any(), any()) }
-            coVerify(exactly = 0) { snapshotProvider.restoreFromSnapshot(any()) }
+            coVerify(exactly = 0) { databaseReplacement.restoreFromSnapshot(any()) }
         }
 
     @Test
@@ -441,7 +451,7 @@ internal class BackupInteractorImplTest {
                 downloadCaptured.captured.writeText("payload")
                 BackupResult.Success(ref.manifest)
             }
-            coEvery { snapshotProvider.restoreFromSnapshot(any()) } returns BackupResult.Success(
+            coEvery { databaseReplacement.restoreFromSnapshot(any()) } returns BackupResult.Success(
                 Unit,
             )
 
@@ -468,7 +478,7 @@ internal class BackupInteractorImplTest {
 
             assertTrue(result is BackupResult.Failure)
             assertSame(ioError, (result as BackupResult.Failure).error)
-            coVerify(exactly = 0) { snapshotProvider.restoreFromSnapshot(any()) }
+            coVerify(exactly = 0) { databaseReplacement.restoreFromSnapshot(any()) }
             // Pre-swap failure: live db never changed, so just clean the preserved
             // snapshot + DataStore flag.
             coVerify(exactly = 1) { snapshotProvider.deletePreRestoreBackup() }

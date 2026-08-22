@@ -5,7 +5,10 @@ import android.content.Context
 import dev.zacsweers.metro.createGraphFactory
 import io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetime
 import io.github.stslex.workeeper.core.core.images.ImageStorage
+import io.github.stslex.workeeper.core.data.backup.api.DatabaseReplacement
+import io.github.stslex.workeeper.core.data.backup.api.result.BackupResult
 import io.github.stslex.workeeper.core.data.database.AppDatabase
+import java.io.File
 
 /**
  * The SINGLE construction site for the app-scope [AppGraph]. Both real callers —
@@ -27,12 +30,27 @@ internal fun buildAppGraph(
     imageStorage: ImageStorage,
     // Defaulted for the JVM identity tests, which build throwaway graphs whose scopes die with the
     // test process — a fresh uncancelled lifetime is exactly the pre-Phase-5 anonymous-scope
-    // behavior. The two REAL callers both pass one explicitly: BaseApplication threads the
+    // behavior. The two REAL callers both pass one explicitly: the AppRuntime threads the
     // generation lifetime; MetroTestRule passes a per-test lifetime it cancels in after().
     appScopeLifetime: AppScopeLifetime = AppScopeLifetime(),
+    // Defaulted to the fail-fast stub for graphs built OUTSIDE a runtime host (identity tests,
+    // the androidTest harness): the replacement transaction is runtime-owned, so a graph with no
+    // runtime must fail LOUDLY on a swap attempt, never no-op past it.
+    databaseReplacement: DatabaseReplacement = NoRuntimeDatabaseReplacement,
 ): AppGraph = createGraphFactory<AppGraph.Factory>().create(
     applicationContext = applicationContext,
     appDatabase = appDatabase,
     imageStorage = imageStorage,
     appScopeLifetime = appScopeLifetime,
+    databaseReplacement = databaseReplacement,
 )
+
+/** The loud default for runtime-less graphs — see [buildAppGraph]'s parameter KDoc. */
+private object NoRuntimeDatabaseReplacement : DatabaseReplacement {
+
+    override suspend fun restoreFromSnapshot(source: File): BackupResult<Unit> =
+        error("DatabaseReplacement requires a runtime host; this graph was built without one")
+
+    override suspend fun rollbackToPreRestoreBackup(): BackupResult<Unit> =
+        error("DatabaseReplacement requires a runtime host; this graph was built without one")
+}

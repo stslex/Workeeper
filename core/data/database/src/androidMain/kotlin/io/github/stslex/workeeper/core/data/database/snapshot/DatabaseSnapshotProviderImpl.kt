@@ -92,35 +92,8 @@ public class DatabaseSnapshotProviderImpl @Inject constructor(
         }
     }
 
-    override suspend fun rollbackToPreRestoreBackup(): BackupResult<Unit> =
-        withContext(dispatcher) {
-            val source = preRestoreBackupFile()
-            if (!source.exists()) {
-                return@withContext BackupResult.Failure(
-                    BackupError.CorruptedBackup(reason = "no pre-restore backup to roll back to"),
-                )
-            }
-            try {
-                appDatabase.close()
-                val target = context.getDatabasePath(AppDatabase.NAME)
-                val parent = target.parentFile
-                    ?: throw IOException("database parent dir missing")
-                File(parent, "${AppDatabase.NAME}-wal").delete()
-                File(parent, "${AppDatabase.NAME}-shm").delete()
-                val tmp = File(parent, "${AppDatabase.NAME}.tmp")
-                source.copyTo(tmp, overwrite = true)
-                if (!tmp.renameTo(target)) {
-                    tmp.delete()
-                    throw IOException("atomic rename failed")
-                }
-                source.delete()
-                BackupResult.Success(Unit)
-            } catch (e: IOException) {
-                BackupResult.Failure(BackupError.Io(e))
-            }
-        }
-
-    override fun hasPreRestoreBackup(): Boolean = preRestoreBackupFile().exists()
+    override fun getPreRestoreBackupFile(): File? =
+        preRestoreBackupFile().takeIf { it.exists() }
 
     override fun availableMigrationsLabel(): String =
         MIGRATIONS.joinToString(",") { "${it.startVersion}→${it.endVersion}" }
@@ -173,7 +146,7 @@ public class DatabaseSnapshotProviderImpl @Inject constructor(
 
     private fun preRestoreBackupFile(): File = File(context.cacheDir, PRE_RESTORE_BACKUP_NAME)
 
-    override suspend fun restoreFromSnapshot(source: File): BackupResult<Unit> =
+    override suspend fun validateSnapshotForRestore(source: File): BackupResult<Unit> =
         withContext(dispatcher) {
             val magicResult = verifySqliteMagic(source)
             if (magicResult is BackupResult.Failure) return@withContext magicResult
@@ -182,6 +155,7 @@ public class DatabaseSnapshotProviderImpl @Inject constructor(
                 is BackupResult.Success -> r.data
                 is BackupResult.Failure -> return@withContext r
             }
+            // Reads the LIVE database — the runtime calls this before Quiescing/close.
             val currentVersion = readUserVersion()
             if (sourceVersion > currentVersion) {
                 return@withContext BackupResult.Failure(
@@ -191,9 +165,14 @@ public class DatabaseSnapshotProviderImpl @Inject constructor(
                     ),
                 )
             }
+            BackupResult.Success(Unit)
+        }
 
+    override suspend fun replaceLiveDatabaseFile(source: File): BackupResult<Unit> =
+        withContext(dispatcher) {
+            // Pure file mechanics — the runtime already closed the generation's database (Phase 5
+            // R2, spec §8.5); nothing here touches a Room connection.
             try {
-                appDatabase.close()
                 val target = context.getDatabasePath(AppDatabase.NAME)
                 val parent = target.parentFile
                     ?: throw IOException("database parent dir missing")

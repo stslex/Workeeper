@@ -3,6 +3,7 @@ package io.github.stslex.workeeper.feature.recovery.domain
 
 import io.github.stslex.workeeper.core.core.platform.AppReinitializer
 import io.github.stslex.workeeper.core.core.platform.PlatformInfoProvider
+import io.github.stslex.workeeper.core.data.backup.api.DatabaseReplacement
 import io.github.stslex.workeeper.core.data.backup.api.error.BackupError
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreInProgressContext
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreStateRepository
@@ -27,6 +28,7 @@ internal class RestoreRecoveryCoordinatorTest {
 
     private val appReinitializer = mockk<AppReinitializer>(relaxed = true)
     private val snapshotProvider = mockk<DatabaseSnapshotProvider>(relaxed = true)
+    private val databaseReplacement = mockk<DatabaseReplacement>(relaxed = true)
     private val restoreStateRepository = mockk<RestoreStateRepository>(relaxed = true)
     private val appDialogPublisher = mockk<AppDialogPublisher>(relaxed = true)
     private val reporter = mockk<RestoreRecoveryReporter>(relaxed = true)
@@ -40,6 +42,7 @@ internal class RestoreRecoveryCoordinatorTest {
             appReinitializer = appReinitializer,
             platformInfo = platformInfo,
             snapshotProvider = snapshotProvider,
+            databaseReplacement = databaseReplacement,
             restoreStateRepository = restoreStateRepository,
             appDialogPublisher = appDialogPublisher,
             reporter = reporter,
@@ -85,7 +88,7 @@ internal class RestoreRecoveryCoordinatorTest {
             val cause = IllegalStateException("migration crashed")
             coEvery { snapshotProvider.currentSchemaVersion() } throws cause
             coEvery {
-                snapshotProvider.rollbackToPreRestoreBackup()
+                databaseReplacement.rollbackToPreRestoreBackup()
             } returns BackupResult.Success(Unit)
 
             val outcome = coordinator.handlePostRestoreLaunch()
@@ -98,7 +101,7 @@ internal class RestoreRecoveryCoordinatorTest {
                     appVersionName = any(),
                 )
             }
-            coVerify(exactly = 1) { snapshotProvider.rollbackToPreRestoreBackup() }
+            coVerify(exactly = 1) { databaseReplacement.rollbackToPreRestoreBackup() }
             coVerify(exactly = 1) { restoreStateRepository.clearRestoreInProgress() }
             coVerify(exactly = 1) { restoreStateRepository.clearPreRestoreBackupAvailable() }
             val publishedSlot = slot<AppDialog>()
@@ -115,7 +118,7 @@ internal class RestoreRecoveryCoordinatorTest {
                 snapshotProvider.currentSchemaVersion()
             } throws IllegalStateException("migration crashed")
             coEvery {
-                snapshotProvider.rollbackToPreRestoreBackup()
+                databaseReplacement.rollbackToPreRestoreBackup()
             } returns BackupResult.Failure(BackupError.Io(java.io.IOException("disk full")))
 
             val outcome = coordinator.handlePostRestoreLaunch()
@@ -130,21 +133,21 @@ internal class RestoreRecoveryCoordinatorTest {
 
     @Test
     fun `performUndoRestore returns FileMissing when no preserved backup exists`() = runTest {
-        every { snapshotProvider.hasPreRestoreBackup() } returns false
+        every { snapshotProvider.getPreRestoreBackupFile() } returns null
 
         val result = coordinator.performUndoRestore()
 
         assertEquals(UndoRestoreOutcome.FileMissing, result)
-        coVerify(exactly = 0) { snapshotProvider.rollbackToPreRestoreBackup() }
+        coVerify(exactly = 0) { databaseReplacement.rollbackToPreRestoreBackup() }
         coVerify(exactly = 1) { restoreStateRepository.clearPreRestoreBackupAvailable() }
         coVerify(exactly = 0) { appDialogPublisher.publish(any()) }
     }
 
     @Test
     fun `performUndoRestore returns IoFailure when rollback file swap fails`() = runTest {
-        every { snapshotProvider.hasPreRestoreBackup() } returns true
+        every { snapshotProvider.getPreRestoreBackupFile() } returns java.io.File("pre_restore_backup.db")
         coEvery {
-            snapshotProvider.rollbackToPreRestoreBackup()
+            databaseReplacement.rollbackToPreRestoreBackup()
         } returns BackupResult.Failure(BackupError.Io(java.io.IOException("disk full")))
 
         val result = coordinator.performUndoRestore()
@@ -159,9 +162,9 @@ internal class RestoreRecoveryCoordinatorTest {
     @Test
     fun `performUndoRestore happy path swaps clears marker and publishes UndoRestoreSuccess`() =
         runTest {
-            every { snapshotProvider.hasPreRestoreBackup() } returns true
+            every { snapshotProvider.getPreRestoreBackupFile() } returns java.io.File("pre_restore_backup.db")
             coEvery {
-                snapshotProvider.rollbackToPreRestoreBackup()
+                databaseReplacement.rollbackToPreRestoreBackup()
             } returns BackupResult.Success(Unit)
 
             val result = coordinator.performUndoRestore()

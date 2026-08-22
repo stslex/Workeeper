@@ -64,6 +64,7 @@ internal class SettingsExtensionIdentityTest {
             appDatabase = mockk(relaxed = true),
             imageStorage = mockk(relaxed = true),
             appScopeLifetime = AppScopeLifetime(),
+            databaseReplacement = mockk(relaxed = true),
         )
 
     private fun AppGraph.settingsExtension(): SettingsGraph = asContribution<SettingsGraph.Factory>()

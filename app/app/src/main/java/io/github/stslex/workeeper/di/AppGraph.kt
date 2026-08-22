@@ -15,6 +15,7 @@ import io.github.stslex.workeeper.core.core.di.MainImmediateDispatcher
 import io.github.stslex.workeeper.core.core.images.ImageStorage
 import io.github.stslex.workeeper.core.data.backup.api.BackupAuth
 import io.github.stslex.workeeper.core.data.backup.api.BackupStorage
+import io.github.stslex.workeeper.core.data.backup.api.DatabaseReplacement
 import io.github.stslex.workeeper.core.data.backup.api.RecoveryDiagnosticsExporter
 import io.github.stslex.workeeper.core.data.backup.api.SnapshotExportRunner
 import io.github.stslex.workeeper.core.data.backup.api.notification.BackupNotificationHelper
@@ -287,11 +288,15 @@ internal interface AppGraph :
         //    also decides this graph's lifetime, so it CANNOT be a graph-internal binding. The three
         //    scope-owning singletons (RestoreDialogChoiceObserver, DriveBackupAuth,
         //    SnapshotExportRunnerImpl) derive their scopes from it.
+        //  - databaseReplacement: the runtime-owned replacement transaction (Phase 5 R2, spec §8.5) —
+        //    implemented by the runtime host that owns the generation being replaced, so it CANNOT be
+        //    graph-internal either. Consumed by the settings restore flow and the recovery coordinator.
         fun create(
             @Provides applicationContext: Context,
             @Provides appDatabase: AppDatabase,
             @Provides imageStorage: ImageStorage,
             @Provides appScopeLifetime: AppScopeLifetime,
+            @Provides databaseReplacement: DatabaseReplacement,
         ): AppGraph
     }
 }

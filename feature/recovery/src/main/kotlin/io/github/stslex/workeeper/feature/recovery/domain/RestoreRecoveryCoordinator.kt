@@ -7,6 +7,7 @@ import io.github.stslex.workeeper.core.core.di.AppScope
 import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.core.core.platform.AppReinitializer
 import io.github.stslex.workeeper.core.core.platform.PlatformInfoProvider
+import io.github.stslex.workeeper.core.data.backup.api.DatabaseReplacement
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreInProgressContext
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreStateRepository
 import io.github.stslex.workeeper.core.data.backup.api.result.BackupResult
@@ -54,6 +55,7 @@ class RestoreRecoveryCoordinator @Inject internal constructor(
     private val appReinitializer: AppReinitializer,
     private val platformInfo: PlatformInfoProvider,
     private val snapshotProvider: DatabaseSnapshotProvider,
+    private val databaseReplacement: DatabaseReplacement,
     private val restoreStateRepository: RestoreStateRepository,
     private val appDialogPublisher: AppDialogPublisher,
     private val reporter: RestoreRecoveryReporter,
@@ -100,13 +102,13 @@ class RestoreRecoveryCoordinator @Inject internal constructor(
      * so the user sees the reaction did not complete and can re-tap.
      */
     internal suspend fun performUndoRestore(): UndoRestoreOutcome {
-        if (!snapshotProvider.hasPreRestoreBackup()) {
+        if (snapshotProvider.getPreRestoreBackupFile() == null) {
             // Defensive: the UI gates this behind observePreRestoreBackupAvailable,
             // but the file could be gone (cache eviction).
             restoreStateRepository.clearPreRestoreBackupAvailable()
             return UndoRestoreOutcome.FileMissing
         }
-        when (val rollback = snapshotProvider.rollbackToPreRestoreBackup()) {
+        when (val rollback = databaseReplacement.rollbackToPreRestoreBackup()) {
             is BackupResult.Success -> Unit
             is BackupResult.Failure -> {
                 logger.w { "Undo restore rollback failed: ${rollback.error}" }
@@ -140,7 +142,7 @@ class RestoreRecoveryCoordinator @Inject internal constructor(
                 appVersionName = platformInfo.appVersionName(),
             )
         }
-        val rollback = snapshotProvider.rollbackToPreRestoreBackup()
+        val rollback = databaseReplacement.rollbackToPreRestoreBackup()
         if (rollback is BackupResult.Failure) {
             logger.w { "Scenario 1 rollback failed: ${rollback.error}" }
             // Still clear flag + delete preserved so the next launch is normal.

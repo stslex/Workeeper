@@ -49,7 +49,7 @@ internal class AppRuntimeTest {
                 database
             },
             imageStorageFactory = { mockk<ImageStorage>(relaxed = true) },
-            graphFactory = { _, _, _, lifetime ->
+            graphFactory = { _, _, _, lifetime, _ ->
                 builtLifetimes += lifetime
                 mockk<AppGraph>(relaxed = true)
             },

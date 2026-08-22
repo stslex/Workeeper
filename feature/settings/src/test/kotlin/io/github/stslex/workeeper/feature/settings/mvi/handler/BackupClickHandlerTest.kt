@@ -101,7 +101,7 @@ internal class BackupClickHandlerTest {
     }
     private val restoreStateRepository = mockk<RestoreStateRepository>(relaxed = true)
     private val snapshotProvider = mockk<DatabaseSnapshotProvider>(relaxed = true).apply {
-        every { hasPreRestoreBackup() } returns true
+        every { getPreRestoreBackupFile() } returns java.io.File("pre_restore_backup.db")
     }
     private val appDialogPublisher = mockk<AppDialogPublisher>(relaxed = true)
     private lateinit var store: FakeSettingsHandlerStore
@@ -932,7 +932,7 @@ internal class BackupClickHandlerTest {
             every {
                 restoreStateRepository.observePreRestoreBackupAvailable()
             } returns availabilityFlow
-            every { snapshotProvider.hasPreRestoreBackup() } returns true
+            every { snapshotProvider.getPreRestoreBackupFile() } returns java.io.File("pre_restore_backup.db")
 
             handler.invoke(Action.Backup.ObserveRestoreState)
             runCurrent()
@@ -955,7 +955,7 @@ internal class BackupClickHandlerTest {
                 restoreStateRepository.observePreRestoreBackupAvailable()
             } returns availabilityFlow
             // DataStore flag says available, but the file is gone (cache eviction).
-            every { snapshotProvider.hasPreRestoreBackup() } returns false
+            every { snapshotProvider.getPreRestoreBackupFile() } returns null
 
             handler.invoke(Action.Backup.ObserveRestoreState)
             runCurrent()

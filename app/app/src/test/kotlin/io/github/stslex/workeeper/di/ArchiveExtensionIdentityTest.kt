@@ -54,6 +54,7 @@ internal class ArchiveExtensionIdentityTest {
             appDatabase = mockk(relaxed = true),
             imageStorage = mockk(relaxed = true),
             appScopeLifetime = AppScopeLifetime(),
+            databaseReplacement = mockk(relaxed = true),
         )
 
     private fun AppGraph.archive(): ArchiveGraph = asContribution<ArchiveGraph.Factory>()

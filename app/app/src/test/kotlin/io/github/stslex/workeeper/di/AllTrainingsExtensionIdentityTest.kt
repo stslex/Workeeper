@@ -47,6 +47,7 @@ internal class AllTrainingsExtensionIdentityTest {
             appDatabase = mockk(relaxed = true),
             imageStorage = mockk(relaxed = true),
             appScopeLifetime = AppScopeLifetime(),
+            databaseReplacement = mockk(relaxed = true),
         )
 
     @Test

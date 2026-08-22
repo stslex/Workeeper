@@ -54,6 +54,7 @@ internal class ExerciseChartExtensionIdentityTest {
             appDatabase = mockk(relaxed = true),
             imageStorage = mockk(relaxed = true),
             appScopeLifetime = AppScopeLifetime(),
+            databaseReplacement = mockk(relaxed = true),
         )
 
     private fun AppGraph.exerciseChart(exerciseUuid: String?): ExerciseChartGraph =
