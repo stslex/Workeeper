@@ -1,35 +1,64 @@
-# KMP Phase 5 — startup processor, graph generations, restart-free reinitialization foundation
+# KMP Phase 5 — startup processor, runtime generations, restart-free reinitialization
 
 | | |
 |---|---|
-| Status | SPEC + **GATE RESULT: RED** (2026-08-22, §7.1) — implementation STOPPED at the §7 entry gate per the maintainer protocol; graph-generation design stands as the recommended post-decision path |
+| Status | SPEC v2 (R2) — maintainer decision **R2** recorded 2026-08-22; §7.1 gate evidence stands; implementation proceeds on this branch under §17's review |
 | Baseline | `dev` @ `c935227df22020f394f1ea0748fdeba7b7a67fd5` (2026-08-22, "Fix ad-hoc exercise removal copy (#250)") |
-| Branch | `feature/kmp-phase-5-startup-processor` |
+| Branch | `feature/kmp-phase-5-startup-processor`, draft PR #252 |
 | Upstream phases | 0–4 complete; Phase 6 data layer complete (#239/#240/#241 merged); Phase 7 (CMP UI, `iosApp`, iOS composition root) strictly downstream |
-| Supersedes | the Phase-4 startup inventory (predates `warmQueryPlanner()`); `kmp-migration-assessment.md` §"restart-free actual" reinit order (Nav2-era, Room 2.8.4-era — see §7.1) |
+| Supersedes | the Phase-4 startup inventory (predates `warmQueryPlanner()`); `kmp-migration-assessment.md` §"restart-free actual" reinit order (Nav2-era, Room 2.8.4-era — §7.1 measured it false); **spec v1's same-database architecture and its §16 review (see §16)** |
 
 Every code claim below was measured on the baseline SHA (file:line cites). Where a document
 contradicts the code, the code is authoritative and the contradiction is listed in §15.
 
+## 0. Decision record
+
+Stable decision IDs (the PR history previously used "Option A/B" ambiguously — those labels are
+retired):
+
+- **R1 — descope file-swap reinitialization.** In-process reinit covers only the no-DB-swap class;
+  restore/rollback/undo keep process restart everywhere; iOS restore deferred as an open Phase 7
+  decision. *Not chosen.*
+- **R2 — DB generation for file-swap operations.** The same-`AppDatabase` invariant is relaxed
+  **only** for restore/rollback/undo operations that replace the live database file. Graph-only
+  lifecycle work continues reusing the current database instance. Android production retains its
+  existing process-restart behavior. Restart-free iOS restore is a **required migration
+  capability**: Phase 5 implements and proves the lifecycle mechanism on Android; Phase 7 remains
+  responsible for the actual iOS database factory, filesystem behavior, composition root, and
+  runtime wiring. **Maintainer decision, 2026-08-22. This spec implements R2.**
+- **H1 — application-owned runtime host outside the Metro graph** (spec v1 "Option A"). The host
+  owns process roots and publishes generations; the swap authority sits outside the thing being
+  swapped. *Chosen ownership model; carried into R2.*
+- **H2 — graph-owned self-replacement** (spec v1 "Option B"): a `@SingleIn(AppScope)` manager
+  inside the graph builds its successor. *Rejected* — self-referential lifetime, in-graph readers
+  capture their own generation, test-swapping needs the graph told about itself.
+
+**The replacement invariant (R2, verbatim):**
+
+> No database-bound object may outlive its `RuntimeGeneration`, and the database, Metro graph,
+> lifetime, ViewModel/navigation ownership, and generation ID must be handed over as one coherent
+> unit.
+
 ## 1. Objective
 
-Deliver an explicitly owned startup and graph-generation lifecycle that:
+Deliver an explicitly owned startup and runtime-generation lifecycle that:
 
 - preserves current Android production restart behavior (process relaunch stays the shipping
   mechanism for every restore/rollback/undo path);
 - makes safe restart-free reinitialization possible within one process, proven on Android
-  instrumentation;
-- proves graph replacement **without replacing `AppDatabase`**;
-- resets Nav3 and UI/store ownership on a graph-generation boundary;
+  instrumentation — **including the file-swap class under R2's DB-generation model**;
+- proves graph replacement reusing the same `AppDatabase` for graph-only work, and coherent
+  DB+graph+UI generation replacement for file-swap work;
+- resets Nav3 and UI/store ownership on a generation boundary;
 - removes the anonymous, unowned `CoroutineScope(SupervisorJob() + dispatcher)` instances and
   gives every app-scoped job/collector a deterministic owner;
 - establishes an honest platform contract for the future iOS host **without** claiming a runnable
   iOS restore flow exists before Phase 7's iOS database/application composition root.
 
 Non-goals: Phase 7 UI/CMP work, `iosApp`, KMP conversion of `app:common`, Room schema/dependency/
-toolchain changes, `File`→okio, Metro/Nav3/Room replacement, unrelated bug fixes (including the
-inert `SupervisorJob()` in `AppCoroutineScopeImpl.kt:29` — recorded in §15, not fixed here),
-golden re-recording, new suppressions/baselines.
+toolchain changes, `File`→okio, Metro/Nav3/Room replacement, DAO/repository proxies or graph-wide
+swappable indirection, unrelated bug fixes (including the inert `SupervisorJob()` in
+`AppCoroutineScopeImpl.kt:29` — §15), golden re-recording, new suppressions/baselines.
 
 ## 2. Measured startup-stage matrix
 
@@ -56,177 +85,146 @@ inside `runCatching` (`BaseApplication.kt:166-171` + `:223`).
 WorkManager: default initializer removed in manifest (`AndroidManifest.xml:72-81`); on-demand init
 via `Configuration.Provider` building `MetroWorkerFactory(this)` per read (`BaseApplication.kt:113-116`);
 the factory `by lazy`-captures `BackupWorkerDeps` (= the graph) for its own lifetime
-(`MetroWorkerFactory.kt:28-30`) — the one production graph **capture** outside UI (§4).
+(`MetroWorkerFactory.kt:28-30`) — a production graph **capture** (§4).
 
 ## 3. Lifetime matrix
 
-| Object | Classification | Evidence / consequence for reinit |
+| Object | Classification (R2) | Evidence / consequence |
 |---|---|---|
-| `AppDatabase` | **process** — preserve | single cold build (`BaseApplication.kt:66`); enters the graph as a `create()` bound-instance root (`AppGraph.kt:277-281`); the only `close()` sites are the restore/rollback file swaps (`DatabaseSnapshotProviderImpl.kt:104,196`), after which production always process-restarts. Generation swaps MUST reuse the same object and MUST NOT close it. |
+| `AppDatabase` | **DB-generation** — same object across graph-only handovers; a NEW object after every file-swap replacement | the only `close()` sites are the restore/rollback swaps (`DatabaseSnapshotProviderImpl.kt:104,196`); §7.1 measured close() terminal. Under R2 the runtime owns close+swap and mints the next DB generation via the full production factory (`buildAppDatabase`). |
 | `ImageStorage` | **process** — preserve | stateless dir wrapper, `create()` root (`BaseApplication.kt:85`); reused across generations. |
-| DataStore instances (5 files: `common_prefs`, `backup_scheduling_prefs`, `restore_state_prefs`, `app_dialogs_prefs`, `backup_account_prefs`) | **process** — preserve | `DataStoreProvider`'s companion CAS memo is explicitly process-lifetime, "deliberately outliving any AppGraph" (`DataStoreProvider.kt:32-66`); pinned by `AppScopeDataStoreSingletonTest` building two graphs. |
-| Dialog state (`pending_*` flags) | **process (persisted)** — preserve | `AppDialogRepository` derives state from DataStore on every read, no in-memory queue (`AppDialogRepository.kt:26-31,61-63`). Survives reinit for free; instance identity NOT required (measured: nothing holds cross-call state in the repository object). |
-| `AppReinitializer`, Firebase/Crashlytics holders, `PerformanceMetricsRecorder` | **process** | stateless / static singletons. |
-| `AppGraph` + every `@SingleIn(AppScope)` binding (61 sites: 43 class-level, 18 provides — scope-sweep) | **graph-generation** — rebuild & dispose | includes `NavigatorEventBus` (the app-wide nav bus), `AppDialogObserverImpl` (choice SharedFlow), the 9 repositories, DAO providers (derive from the process DB root), gd auth chain, coordinators. |
-| `RestoreDialogChoiceObserver` (+ its collector) | **graph-generation** | today process-lifetime, never cancelled (`RestoreDialogChoiceObserver.kt:91-97`). A second generation would arm a second reactor while the first still collects → must be cancelled with its generation. Note: each reactor collects **its own graph's** `AppDialogObserverImpl` flow, so cross-generation double-reaction cannot occur by bus identity — the leak is still removed. |
-| `DriveBackupAuth.authScope` + `observeAccount()` collector | **graph-generation** | app-lifetime infinite collector #2 (`DriveBackupAuth.kt:70-80`), never cancelled today. |
-| `SnapshotExportRunnerImpl.scope` | **graph-generation** | fire-and-forget export launches (`SnapshotExportRunnerImpl.kt:59,67-69`); in-flight export may be cancelled with its generation (best-effort by contract, `:54-58`). |
-| Orphan-image cleanup job, planner warm-up job | **graph-generation** (one-shot chores re-run per generation; both idempotent, `ANALYZE` durable) | today on anonymous scopes (`BaseApplication.kt:184,225`). |
-| `MetroWorkerFactory`'s captured deps | **graph-generation (currently process — defect)** | `by lazy` capture (`MetroWorkerFactory.kt:28-30`) would pin generation 1 forever; §8.6 de-captures. |
-| Nav3 back stack, `NavigatorHolder`, per-entry ViewModelStores/Stores, `AppRootViewModel`, `AppDialogStoreImpl`, `NavigationEventBusSetup` collector | **UI/navigation-generation** — recreate/reset | back stack is `rememberNavBackStack(screenSavedStateConfiguration, Home)` (`App.kt:79-83`); `AppRootViewModel` ctor-captures `commonDataStore` + `navigatorEventBus` (`App.kt:64-70`); `AppDialogStoreImpl` is Activity-store-scoped via `AppFeature` (`AppDialogFeature.kt:35-46`); nav command collection is composition-side `LaunchedEffect(navigatorHolder)` (`NavigatorExt.kt:32-41`). |
-| `ActivityHolderImpl` content (the `WeakReference<Activity>`) | **UI-generation adjacent** | holder object is graph-owned; MainActivity `produce(this)`/`produce(null)` re-registers on the current generation's holder via non-capturing `get()` (`MainActivity.kt:23-25,60,69`). |
+| DataStore instances (5 files: `common_prefs`, `backup_scheduling_prefs`, `restore_state_prefs`, `app_dialogs_prefs`, `backup_account_prefs`) | **process** — preserve | `DataStoreProvider`'s companion CAS memo is explicitly process-lifetime (`DataStoreProvider.kt:32-66`); pinned by `AppScopeDataStoreSingletonTest`. |
+| Dialog state (`pending_*` flags) | **process (persisted)** — preserve | `AppDialogRepository` derives state from DataStore on every read (`AppDialogRepository.kt:26-31,61-63`). Survives replacement; exactly-once consumption via dismiss-after acknowledge. |
+| `AppReinitializer`, Firebase holders, `PerformanceMetricsRecorder` | **process** | stateless / static singletons. |
+| `AppGraph` + every `@SingleIn(AppScope)` binding (61 sites — scope-sweep) | **runtime-generation** — rebuild & dispose as one unit with the DB it binds | includes `NavigatorEventBus`, `AppDialogObserverImpl`, the 9 repositories, DAO providers (derive from the generation's DB root), gd auth chain, coordinators, `DatabaseSnapshotProviderImpl` (holds the generation's `AppDatabase`). |
+| `RestoreDialogChoiceObserver` (+ collector), `DriveBackupAuth.authScope` (+ collector), `SnapshotExportRunnerImpl.scope`, both startup chores | **runtime-generation, lifetime-owned** | today process-lifetime, never cancelled (`RestoreDialogChoiceObserver.kt:91-97`, `DriveBackupAuth.kt:70-80`, `SnapshotExportRunnerImpl.kt:59`, `BaseApplication.kt:184,225`); §8.2 makes them children of the generation's `AppScopeLifetime`, cancelled-and-joined during Quiescing. |
+| `MetroWorkerFactory` captured deps | **runtime-generation (currently process — defect)** | `by lazy` capture (`MetroWorkerFactory.kt:28-30`); §8.6 de-captures (one holder read per `createWorker` invocation). |
+| **In-flight `BackupWorker`** | **runtime-generation live capture** | a worker already inside `doWork()` holds the six deps read at construction (`MetroWorkerFactory.kt:41-50`) — including the DB-bound `DatabaseSnapshotProvider` — for the whole run; §8.4's Quiescing drains RUNNING workers before close. |
+| Nav3 back stack, `NavigatorHolder`, per-entry Stores, `AppRootViewModel`, `AppDialogStoreImpl`, `NavigationEventBusSetup` collector | **UI/navigation-generation** — recreate/reset with the runtime generation | back stack `rememberNavBackStack(screenSavedStateConfiguration, Home)` (`App.kt:79-83`); `AppRootViewModel` ctor-captures `commonDataStore`+`navigatorEventBus` (`App.kt:64-70`); `AppDialogStoreImpl` Activity-store-scoped today (`AppDialogFeature.kt:35-46`); command collection is composition-side (`NavigatorExt.kt:32-41`). |
+| `ActivityHolderImpl` content | **UI-generation adjacent** | re-registered only on Activity lifecycle events (`MainActivity.kt:60,69`); after a mid-Activity replacement the new generation's holder is empty until the next event — zero production readers today (measured); recorded property. |
 | `iosApp` host, iOS DB factory, iOS composition root | **platform-host — Phase 7** | do not exist; nothing here may pretend they do. |
 
-## 4. Graph-reader / dependency-capture inventory
+## 4. Graph-reader / capture inventory — including live captures
 
-Five publication seams, all on `BaseApplication` (`:49-56`), all returning the one `appGraph`:
-`AppGraphOwner` (internal, MainActivity `:23`), `AppDepsHolder.appDeps()` (13 feature
-`context.appDeps<XxxGraph.Factory>()` readers — all acquire-and-drop inside
-`rememberMetroStoreProcessor` factories, **no caching**), `RecoveryDepsHolder` (RecoveryActivity,
-activity-scoped use), `BackupWorkerDepsHolder` (**captures** via `by lazy`,
-`MetroWorkerFactory.kt:28-30`), `AppRootDepsHolder` (`App.kt:65` — **captures** `commonDataStore` +
-`navigatorEventBus` into `AppRootViewModel`). JVM identity tests (14 files in
-`app/app/src/test/.../di/`) and the androidTest harness call `buildAppGraph` directly.
+Five publication seams, all on `BaseApplication` (`:49-56`): `AppGraphOwner` (MainActivity `:23`,
+non-capturing `get()`), `AppDepsHolder.appDeps()` (13 feature readers — acquire-and-drop inside
+`rememberMetroStoreProcessor` factories), `RecoveryDepsHolder` (RecoveryActivity, activity-scoped),
+`BackupWorkerDepsHolder` (**captures** via `by lazy`, `MetroWorkerFactory.kt:28-30`),
+`AppRootDepsHolder` (**captures** into `AppRootViewModel`, `App.kt:64-70`).
 
-Conclusion: the graph-swap blast radius outside DI wiring is exactly **two captures**
-(worker factory, root ViewModel) plus the UI tree's per-generation objects — everything else
-re-reads per access.
+**Live-capture audit** (objects holding old-generation dependencies while work is in flight —
+graph-access-site analysis alone is insufficient):
 
-## 5. Restore / rollback / undo call paths (measured)
+| Live capture | Held for | Quiesce treatment (§8.4) |
+|---|---|---|
+| `BackupWorker` in `doWork()` — six ctor deps incl. DB-bound provider (`BackupWorker.kt:42-53`) | the whole run (awaits export inside `doWork`, `BackupWorker.kt:64-70`) | drain: await RUNNING unique works (`auto_backup`, `one_time_backup`) reaching a non-RUNNING state, bounded; timeout → abort pre-close |
+| `SnapshotExportRunnerImpl` in-flight `runExport()` (DB JSON export, `SnapshotExportRunnerImpl.kt:67-69`) | export duration | lifetime child → `cancelAndJoin` |
+| `RestoreDialogChoiceObserver` collector; `DriveBackupAuth` collector | infinite | lifetime children → `cancelAndJoin` (last quiesce step, §8.4) |
+| Per-entry Stores / `AppRootViewModel` / `AppDialogStoreImpl` (repos, bus captured at ctor) | entry / generation-VM-store lifetime | UI region disposal + generation `ViewModelStore.clear()` |
+| Startup chores (cleanup, `ANALYZE`) | one-shot | lifetime children → `cancelAndJoin` |
+| `MetroWorkerFactory` lazy deps | process (defect) | §8.6 de-capture; per-invocation single read |
+| JVM identity tests + androidTest singleton tests build graphs directly (`buildAppGraph` — 14 JVM files + `AccountDataStoreSingletonTest.kt:49,54`, `AppScopeDataStoreSingletonTest.kt:89,94`) | test | thread new `create()` roots |
 
-- **Restore** (Settings, old process): `BackupInteractorImpl.restoreLatest` → version gates →
-  `preserveCurrentDb()` (WAL checkpoint via Room writer connection + copy to
-  `cache/pre_restore_backup.db`) → `markRestoreInProgress` (DataStore) → download to cache temp →
-  `restoreFromSnapshot(temp)` = magic check → source-version peek → **`appDatabase.close()`** →
-  delete `-wal`/`-shm` → copy → `app.db.tmp` → `renameTo(app.db)` (`DatabaseSnapshotProviderImpl.kt:176-212`)
-  → `NavigatorEventBus.restartApp()` → `AppReinitializer.reinitialize()` (process exit). Verification
-  happens in the **new** process's Scenario 1 (`RestoreRecoveryCoordinator.kt:69-81`: the
-  `currentSchemaVersion()` read through the same-process fresh `AppDatabase` *is* the verification).
-- **Rollback** (Scenario-1 failure path and undo): `rollbackToPreRestoreBackup()` — same swap core
-  from `cache/pre_restore_backup.db`, plus `source.delete()` (consumes the undo slot)
-  (`DatabaseSnapshotProviderImpl.kt:95-121`). Scenario-1 auto-rollback (`RestoreRecoveryCoordinator.kt:143`)
-  and Scenario-3 undo (`:109`) share this method; restore has its own structurally-identical copy.
-  **Both gate branches (§7) must therefore be exercised.**
-- **Undo**: `performUndoRestore` three-way outcome (`UndoRestoreOutcome`), dialog dismiss-after
-  discipline, restart only on `Succeeded` (`RestoreDialogChoiceObserver.kt:152-175`).
-- Every replacement path ends in `Runtime.getRuntime().exit(0)` today — **no code path reuses a
-  closed `AppDatabase`** (grep-verified: the only `close()` callers are the two swap methods).
+## 5. Restore / rollback / undo call paths (measured, pre-R2)
 
-## 6. The Room 3 feasibility fact (source-measured; the gate decides)
+- **Restore** (Settings): `BackupInteractorImpl.restoreLatest` → version gates → `preserveCurrentDb()`
+  → `markRestoreInProgress` → download → `restoreFromSnapshot(temp)` = magic check → source-version
+  peek → **`appDatabase.close()`** → delete `-wal`/`-shm` → copy → `app.db.tmp` → `renameTo`
+  (`DatabaseSnapshotProviderImpl.kt:176-212`) → `NavigatorEventBus.restartApp()` → process exit.
+  Verification happens in the **new** process's Scenario 1 (`RestoreRecoveryCoordinator.kt:69-81`).
+- **Rollback** (Scenario-1 failure and undo): `rollbackToPreRestoreBackup()` — same swap core from
+  `cache/pre_restore_backup.db` + `source.delete()` (`:95-121`). Restore has its own structurally
+  identical copy of the swap core.
+- **Undo**: `performUndoRestore` three-way outcome, dismiss-after discipline, restart on `Succeeded`
+  (`RestoreDialogChoiceObserver.kt:152-175`).
+- Every replacement ends in process exit today; **no code path reuses a closed `AppDatabase`**.
+- **R2 changes the mechanics ownership (§8.5): the provider stops closing/swapping independently;
+  callers route through the runtime-owned replacement transaction.** Android production keeps the
+  restart ending.
 
-`kmp-migration-assessment.md:546` ("captured DAOs follow the reopen for free") and `:552-553` (the
-reinit order + reopen spike) were written against **Room 2.8.4**, whose framework open-helper
-lazily reopens after `close()`. Phase 6 (#240) moved production to **Room 3.0.0 driver mode**
-(`BundledSQLiteDriver`). Reading the shipped `room3-runtime-android-3.0.0-sources.jar`:
+## 6. The Room 3 feasibility fact (source-measured; the gate measured it)
 
-- `RoomDatabase.close()` → `closeBarrier.close()` → `onClosed()`: cancels the database's own
-  `coroutineScope`, stops the `InvalidationTracker`, closes the connection manager
-  (`RoomDatabase.android.kt:398-406`);
-- `CloseBarrier.closeInitiated` is a one-way CAS (`CloseBarrier.kt:82-88`); `connectionManager` is a
-  `lateinit var` assigned once (`RoomDatabase.android.kt:96,202`);
-- `ConnectionPoolImpl.useConnection` on a closed pool throws
-  `SQLiteException(SQLITE_MISUSE, "Connection pool is closed")` (`ConnectionPoolImpl.kt:117-119`);
-  `close()` is one-way (`:207-210`).
+`kmp-migration-assessment.md:546` ("captured DAOs follow the reopen for free") and `:552-553` were
+written against **Room 2.8.4**. Phase 6 (#240) moved production to **Room 3.0.0 driver mode**.
+From `room3-runtime-android-3.0.0-sources.jar`: `RoomDatabase.close()` → `closeBarrier.close()` →
+`onClosed()` (cancels the DB scope, stops the `InvalidationTracker`, closes the connection manager,
+`RoomDatabase.android.kt:398-406`); `CloseBarrier.closeInitiated` is a one-way CAS
+(`CloseBarrier.kt:82-88`); `connectionManager` is assigned once (`:96,202`);
+`ConnectionPoolImpl.useConnection` on a closed pool throws
+`SQLiteException(SQLITE_MISUSE, "Connection pool is closed")` (`ConnectionPoolImpl.kt:117-119`).
+**Room 3 `close()` is terminal for the object.** §7.1 confirmed this on device. R2 is designed on
+this fact: a closed generation is terminal (§8.5) and the next DB generation is a fresh object
+from the full production factory.
 
-**Source-level conclusion: Room 3 `close()` is terminal for the object — there is no reopen path.**
-This predicts the §7 gate goes red at its step 7. The prediction is not evidence; the gate is.
-The architecture in §8 is therefore structured so that the graph-generation mechanism **never
-closes the database** — its correctness does not depend on reopen-after-close. What the gate
-decides is whether the **in-process restore/rollback flows** (the DB-file-swap class) can ever be
-served restart-free with the same `AppDatabase`; a red gate STOPs that claim per the maintainer
-protocol and leaves the graph-generation foundation as the deliverable pending maintainer decision.
+## 7. Room entry gate (device, production driver) — protocol and result
 
-## 7. Mandatory Room entry gate (device, production driver)
+Protocol (run 2026-08-22): production-shaped file-backed DB (`BundledSQLiteDriver`, live file at
+`getDatabasePath(AppDatabase.NAME)`), retained `AppDatabase` + DAO, two-sentinel discipline
+(snapshot sentinel vs live-only sentinel), BOTH production replacement paths, disk-truth via fresh
+framework handle + inode capture, known-negative swap-bypass mutation.
 
-Test: `core/data/database/src/androidDeviceTest/.../SameInstanceReopenAfterSwapDeviceTest.kt`,
-`@Regression`, modeled on `AtomicRollbackDeviceTest`'s anti-vacuity discipline. Protocol:
-
-1. Build the production-path DB (`buildAppDatabase`-equivalent builder: production name irrelevant —
-   file-backed probe name, `BundledSQLiteDriver`, production `MIGRATIONS`), retain **both** the
-   `AppDatabase` and a DAO instance.
-2. Write sentinel **NEW**; `captureSnapshot(file)` (production checkpoint+copy) → snapshot holds NEW.
-3. Delete NEW, write sentinel **OLD** → live file holds OLD only. Also copy the snapshot to the
-   `pre_restore_backup.db` slot for the rollback branch.
-4. Branch A (restore): `DatabaseSnapshotProviderImpl.restoreFromSnapshot(snapshot)` — the actual
-   production close + sidecar-delete + copy + atomic rename. Branch B (rollback/undo):
-   `rollbackToPreRestoreBackup()` — the second production replacement implementation.
-5. **Disk truth** (isolates swap-success from reopen-success): a fresh framework-SQLite read of the
-   swapped file must show NEW present, OLD absent.
-6. **The gate assertion**: read through the *retained* DAO / *retained* `AppDatabase`: NEW visible,
-   OLD absent. OLD-absent is the stale-inode killer (`kmp-migration-assessment.md:553`'s FALSE-PASS
-   trap): a stale handle serving the old inode would show OLD.
-7. Known-negative mutation: bypass the swap (skip step 4) — the gate assertion must go **red**
-   (proves non-vacuity). Mutation reverted before commit; the disk-truth + gate assertions stay as
-   the committed regression test, pinning whatever the measured truth is.
-
-Red criteria (any → STOP, report device/command/logs/file-identity evidence, keep the branch):
-step 6 throws (`SQLITE_MISUSE` expected per §6), reads OLD, or cannot run on the device.
-Green criteria: both branches pass steps 5–6 and the known-negative goes red.
-Runtime: `emulator-5554`, API 34, arm64-v8a (CI reference config is API 34 x86_64 —
-`ui_tests.yml:55-59`; the gate also runs under the Regression job's annotation filter).
-
-### 7.1 GATE RESULT — RED (measured 2026-08-22)
+### 7.1 GATE RESULT — RED for same-object reuse (measured 2026-08-22)
 
 Device: `sdk_gphone64_arm64` emulator (Pixel 6 AVD), API 34, arm64-v8a; Room 3.0.0 +
 `BundledSQLiteDriver`. Command:
 `ANDROID_SERIAL=emulator-5554 ./gradlew :core:data:database:connectedDebugAndroidTest
 -Pandroid.testInstrumentationRunnerArguments.class=…SameInstanceReopenAfterSwapDeviceTest`.
 
-- **Both** production replacement paths (`restoreFromSnapshot`, `rollbackToPreRestoreBackup`)
-  succeed on disk: fresh-handle read shows snapshot-sentinel-present / live-sentinel-absent, and
-  the live file's inode changes across the atomic rename (`Os.stat` evidence).
-- The subsequent read through the **retained** DAO on the **retained** `AppDatabase` throws
-  `android.database.SQLException: Error code: 21, message: Connection pool is closed`
-  (`ConnectionPoolImpl.useConnection` → `RoomConnectionManager.useConnection` →
-  `RoomDatabase.useConnection` → `performSuspending`) — deterministically, on both paths,
-  matching §6's source reading exactly. It does **not** read OLD data: the stale-inode
+- **Both** production replacement paths succeed on disk: fresh-handle read shows
+  snapshot-sentinel-present / live-sentinel-absent, and the live file's inode changes across the
+  atomic rename (`Os.stat` evidence).
+- The read through the **retained** DAO on the **retained** `AppDatabase` throws
+  `android.database.SQLException: Error code: 21, message: Connection pool is closed` —
+  deterministically, on both paths. It does **not** read OLD data: the stale-inode
   silent-corruption outcome does not occur; the failure is loud.
-- Known-negative: bypassing the swap turns both tests red at the file-identity assertion
-  (inode unchanged) — the measurement is not vacuous. Mutation reverted.
-- The committed `SameInstanceReopenAfterSwapDeviceTest` pins the measured truth three ways:
-  swap-is-real, failure-is-loud-never-stale, and a green-flip tripwire (if a future Room lets the
-  retained object serve the swapped file, the test fails with a "gate flipped GREEN — revisit"
-  message so the descope decision is consciously reopened).
+- Known-negative: bypassing the swap turns both tests red at the file-identity assertion (inode
+  unchanged). Mutation reverted.
+- The committed `SameInstanceReopenAfterSwapDeviceTest` is a **permanent characterization /
+  negative-constraint test** (kept under R2): it pins that (a) the production swap is real,
+  (b) Room 3's old DB and retained DAO fail **loudly** after replacement — never silently serving
+  stale data — which is exactly the property R2's Quiescing and terminal-generation rules stand
+  on, and (c) any future Room that changes this behavior surfaces as a loud test failure that
+  re-opens the R2 design assumptions. Note: this test drives the production driver and the
+  production swap paths but constructs Room directly (`Room.databaseBuilder` + driver, no
+  migrations chain); the §11.2 GREEN gate uses the complete production factory.
 
-**Consequence (per the locked protocol): implementation of restart-free reinitialization is
-STOPPED pending a maintainer decision.** The database-identity invariant ("reuse the exact same
-`AppDatabase` object") and in-process DB-file-swap restore cannot coexist on Room 3 — `close()` is
-terminal for the object, and every swap path must close before renaming. The §8 architecture
-remains internally consistent for the no-swap graph-generation class (it never closes the DB), but
-the phase's reinitialization foundation cannot honestly claim to serve the restore/rollback flows
-in-process, which is what the `AppReinitializer` common KDoc promises iOS. Options for the
-maintainer are recorded in the phase STOP report (PR description).
+### 7.2 Decision consequence
 
-## 8. Architecture
+R2 (see §0): the same-object invariant is relaxed **for file-swap operations only**; the runtime
+owns the replacement transaction and mints a fresh DB generation from the full production factory.
+Graph-only reinitialization continues reusing the live `AppDatabase` object.
 
-### Options considered
+## 8. Architecture (R2, ownership model H1)
 
-- **A (chosen): application-owned runtime host outside the Metro graph.** A single `AppRuntime`
-  owns the process-lifetime roots (DB, ImageStorage) and a serialized sequence of
-  `GraphGeneration(id, graph, lifetime, viewModelStore)` values published atomically. The swap
-  authority sits outside the thing being swapped; Metro stays the only DI framework; the graph
-  interface is unchanged except one added `create()` root.
-- **B (rejected): graph-owned self-replacement** — a `@SingleIn(AppScope)` generation manager
-  inside the graph builds its successor. Rejected: the manager would have to outlive its own graph
-  (self-referential lifetime), every in-graph reader could capture its own generation, and test
-  swapping would need the graph to be told about itself. Strictly worse ownership.
-- **C (rejected as the whole answer): process-restart forever + iOS `exit(0)`** — no in-process
-  mechanism at all. Rejected: contradicts the Phase 5 mandate and the measured need (the leaked
-  scopes/collectors exist regardless); retained only as the §7-red fallback **for the DB-swap
-  restore class**, where it is today's shipped Android behavior anyway.
+### 8.1 `AppRuntime` and `RuntimeGeneration` (new, `app/app` `runtime/`, internal)
 
-### 8.1 `AppRuntime` (new, `app/app` `runtime/`, internal)
+```kotlin
+internal class RuntimeGeneration(
+    val id: Int,                       // runtime + UI/navigation generation id
+    val dbGeneration: Int,             // increments ONLY on file-swap replacement
+    val database: AppDatabase,
+    val graph: AppGraph,
+    val lifetime: AppScopeLifetime,
+    val viewModelStore: ViewModelStore,
+)
+```
 
-Owns: `applicationContext`; lazy process `AppDatabase` (production factory, cold); lazy process
-`ImageStorage`; the generation counter; the current `GraphGeneration`; a `Mutex` for single-flight
-reinitialization; `generations: StateFlow<GraphGeneration>`. Construction is factory-parameterized
-(`dbFactory`, `imageStorageFactory`, `graphFactory`) so the androidTest harness can install a
-runtime over in-memory roots without touching production factories.
+One **immutable** value; published atomically; readers observe generation N or N+1, never a
+mixture. `AppRuntime` owns: `applicationContext`; the factories (`dbFactory` — production
+`::buildAppDatabase`; `imageStorageFactory`; `graphFactory` — `buildAppGraph`); the process
+`ImageStorage`; the generation counters; a `Mutex` single-flighting every lifecycle transition
+(graph-only reinit AND replacement); and the published phase:
 
-`GraphGeneration` = `(id: Int, graph: AppGraph, lifetime: AppScopeLifetime, viewModelStore: ViewModelStore)`.
+```kotlin
+internal sealed interface RuntimePhase {
+    data class Serving(val generation: RuntimeGeneration) : RuntimePhase
+    data object Transitioning : RuntimePhase       // no generation is published to NEW UI work
+}
+```
 
-Implements `AppReinitializationHost` (§8.7) — the compile-checked proof that the common intent
-contract fits the real mechanism.
+Construction is factory-parameterized so the androidTest harness installs a runtime over test
+roots; the §11.2 gate installs one over the **production** DB factory. `AppRuntime` implements
+`AppReinitializationHost` (§8.8).
 
 ### 8.2 `AppScopeLifetime` (new, `core:core` commonMain)
 
@@ -235,278 +233,362 @@ class AppScopeLifetime(parent: Job? = null) {
     val job: CompletableJob = SupervisorJob(parent)
     fun childScope(dispatcher: CoroutineDispatcher): CoroutineScope =
         CoroutineScope(SupervisorJob(job) + dispatcher)
-    fun cancel()
+    suspend fun cancelAndJoin()
 }
 ```
 
-Enters the graph as the **4th `create()` bound-instance root** (`AppGraph.Factory.create` gains
-`appScopeLifetime: AppScopeLifetime`; threaded through `buildAppGraph`; `MetroTestRule` passes a
-per-test lifetime it cancels in `after()`; the 14 identity tests pass one explicitly). Consumers
-replace their self-created scopes:
-
-- `RestoreDialogChoiceObserver.kt:91` → `lifetime.childScope(defaultDispatcher)`;
-- `DriveBackupAuth.kt:70` → `lifetime.childScope(ioDispatcher)`;
-- `SnapshotExportRunnerImpl.kt:59` → `lifetime.childScope(ioDispatcher)`;
-- the two `BaseApplication` chores run on the generation lifetime via the startup processor.
-
-Per-consumer `SupervisorJob(parent)` children preserve today's isolation semantics exactly while
-making `lifetime.cancel()` deterministically stop every generation-owned job and collector.
-No anonymous scope remains in production (`git grep "CoroutineScope("` exit criterion, §13).
+4th `create()` bound-instance root (`AppGraph.Factory.create` gains `appScopeLifetime`; threaded
+through `buildAppGraph`; `MetroTestRule` passes a per-test lifetime cancelled in `after()`; the 14
+JVM identity tests + the two androidTest singleton tests pass one explicitly). Consumers replace
+their self-created scopes: `RestoreDialogChoiceObserver.kt:91` → `lifetime.childScope(default)`;
+`DriveBackupAuth.kt:70` and `SnapshotExportRunnerImpl.kt:59` → `lifetime.childScope(io)`; the two
+`BaseApplication` chores run on the generation lifetime via the startup processor. Per-consumer
+`SupervisorJob(parent)` children preserve today's isolation exactly while making
+`cancelAndJoin()` deterministically END every generation-owned job and collector. No anonymous
+scope remains in production (`git grep "CoroutineScope("` exit criterion).
 
 ### 8.3 `StartupProcessor` (new, `app/app` `runtime/`, internal)
 
-The extracted, typed form of `onCreateGraphBootstrap` — one implementation, two entry modes:
+The extracted, typed form of `onCreateGraphBootstrap`:
 
 ```kotlin
 sealed interface StartupOutcome {
     data object Proceed : StartupOutcome
-    data object RouteToRecovery : StartupOutcome          // decision cached on the coordinator, as today
-    data object RestartRequired : StartupOutcome          // Scenario-1 RestoreRolledBack
+    data object RouteToRecovery : StartupOutcome     // decision cached on the coordinator, as today
+    data object RestartRequired : StartupOutcome     // Scenario-1 RestoreRolledBack (cold start)
 }
 ```
 
-Stages (identical order and semantics to today): Scenario 1 → (short-circuit on `RestoreSucceeded`
-/ `RestoreRolledBack`) → Scenario 2 → chores (image cleanup; planner warm-up guarded by
-`RouteToRecovery` + injected `isLowRamDevice: () -> Boolean`) → dialog-observer arming (eager
-`recoveryBootstrap` read). Chores launch on the **generation lifetime**, still fire-and-forget,
-still no reader waits on them.
+Stages, order-preserving: Scenario 1 → (short-circuits) → Scenario 2 → chores (image cleanup;
+planner warm-up guarded by `RouteToRecovery` + injected `isLowRamDevice`) → dialog-observer arming
+(eager `recoveryBootstrap` read). Chores launch on the **generation lifetime**, fire-and-forget,
+no reader waits.
 
-- **Cold start** (`BaseApplication.onCreate`): generation 1 is published on build (as today — the
-  graph exists before preflight because preflight *uses* it; UI cannot observe it before
-  `onCreate` returns), preflight runs under the two existing `runBlocking` boundaries,
-  `RestartRequired` maps to `restartApp()` (process exit) — byte-equivalent behavior.
-- **Reinitialize** (suspend, off-main): candidate generation is built **unpublished**, the same
-  processor runs against the candidate (no `runBlocking` — the caller is already suspending),
-  and only a `Proceed`/`RouteToRecovery`-free pass publishes. `RestartRequired` in reinit mode
-  triggers **exactly one** bounded retry (rebuild candidate against the rolled-back file, re-run);
-  a second non-`Proceed` fails the reinitialization, the old generation stays published and
-  serving. No recursion, no unbounded retry.
+- **Cold start**: generation 1 published on build (the graph exists before preflight because
+  preflight *uses* it; no UI can observe it before `onCreate` returns — manifest has no
+  graph-reading providers), preflight under the two existing `runBlocking` boundaries,
+  `RestartRequired` → `restartApp()` (process exit). Byte-equivalent behavior. Scenario-1's
+  cold-start rollback now routes its swap through the runtime (§8.5, `RestartProcess` policy) —
+  same file mechanics, same restart ending.
+- **Replacement preflight** (§8.5 `Preflight` state): the machine drives the *same* Scenario-1
+  verification semantics against the candidate generation via its own coordinator instance.
 
-### 8.4 Reinitialization order (the state machine's happy path)
+### 8.4 The replacement state machine (runtime-owned)
 
-1. `mutex.lock` — single-flight. A caller passing a stale expected-generation returns the already-
-   published newer generation (coalescing; no queued double-reinit).
-2. Build candidate `GraphGeneration(id+1)` over the **same** `AppDatabase`/`ImageStorage` roots,
-   fresh `AppScopeLifetime`, fresh `ViewModelStore`. Not published.
-3. Run `StartupProcessor` against the candidate (preflight → chores → observer arming). Failure →
-   cancel candidate lifetime, clear candidate VM store, bounded retry per §8.3, else abort with the
-   old generation intact.
-4. Publish atomically: single reference/`StateFlow` write of the whole immutable generation value —
-   readers see old or new, never a mix.
-5. UI re-keys (§8.5): old composition region leaves composition (Store `dispose()` runs via the
-   existing `DisposableEffect`s).
-6. Dispose old generation: `viewModelStore.clear()` (deterministic `onCleared` for
-   `AppRootViewModel` + `AppDialogStoreImpl`), then `lifetime.cancel()` (reactor, auth mirror,
-   export scope, any still-running chores). Overlap between old-observer-alive and
-   new-observer-armed is harmless by bus identity (§3, reactor row); ordering arms the new observer
-   before the old dies so no window has zero armed reactors.
-7. `mutex.unlock`.
-
-Production Android never calls this (locked invariant): the only callers are androidTest and the
-future Phase 7 iOS host. Settings/recovery restart paths keep `AppReinitializer` untouched.
-
-### 8.5 UI generation boundary (`app:common`, narrowest seam)
-
-New holder in `app:common` following the existing typed-holder idiom (`AppRootDepsHolder`):
-
-```kotlin
-class AppUiGeneration(val id: Int, val viewModelStoreOwner: ViewModelStoreOwner)
-interface AppUiGenerationsHolder { val appUiGenerations: StateFlow<AppUiGeneration> }
+```
+Running → Quiescing → ReplacingFile → BuildingGeneration → Preflight → Publishing → Running
 ```
 
-`BaseApplication` implements it from the runtime (mapping `GraphGeneration` → `AppUiGeneration`);
-`App()` collects it and wraps its existing body in:
+All transitions run under the runtime `Mutex` (single-flight; concurrent requests coalesce onto
+the in-flight transaction's result). Two policies select the ending:
 
-```kotlin
-key(generation.id) {
-    CompositionLocalProvider(LocalViewModelStoreOwner provides generation.viewModelStoreOwner) { …existing body… }
-}
-```
+- **`RestartProcess` (Android production)** — preserves shipped behavior exactly: no Quiescing
+  (process death is the quiescence, as today), the runtime executes close + file replacement and
+  marks the published generation terminal; the caller's existing restart flow
+  (`AppReinitializer`) follows. Observable production behavior is unchanged, including the brief
+  closed-DB window before exit that exists today.
+- **`RebuildInProcess` (Android instrumentation now; iOS Phase 7)** — the full machine:
 
-Consequences, each pinned by a test (§12):
+**Quiescing** (every step precedes `close()`; fallible steps precede irreversible ones):
+1. Publish `Transitioning` — new UI work sees no generation; the old `key(id)` region leaves
+   composition; per-entry Stores and root VMs run their `dispose()` paths. Await the old region's
+   departure via its `DisposableEffect(generation)` completion signal (bounded). *Reversible.*
+2. Drain in-flight workers: for the unique works (`auto_backup`, `one_time_backup`), await any
+   RUNNING instance reaching a non-RUNNING state (bounded; the periodic schedule is NOT cancelled
+   — WorkManager's own persistence carries it, as across today's restarts). Timeout → **abort**:
+   republish `Serving(genN)`; the old generation resumes serving (state restored via the
+   `SaveableStateHolder`, §8.7). *Reversible.*
+3. Clear the generation `ViewModelStore` (deterministic `onCleared`). *Rebuildable from the live
+   graph if aborted after this point.*
+4. `lifetime.cancelAndJoin()` — reactors, collectors, export/chore jobs END. Join is bounded; a
+   straggler ignoring cancellation is recorded and the machine proceeds — post-close DB touches
+   from cancelled stragglers fail loud (§7.1's measured pin), and the atomic rename cannot be
+   corrupted by a reader. This is the LAST step before the point of no return; nothing between it
+   and `close()` can fail.
 
-- fresh `rememberNavBackStack` → the new generation starts at `Screen.BottomBar.Home`; the old
-  stack object is gone; Back cannot reach it;
-- old saved navigation entries are not restored: gen-N state saves under the `key(N)` slot path,
-  which gen-N+1 never composes;
-- `AppRootViewModel` and `AppDialogStoreImpl` resolve from the **generation's** ViewModelStore →
-  new instances constructed from the new graph's deps (the `viewModel {}` factory re-reads
-  `appRootDeps()`, `AppDialogFeature` re-reads `appDeps<…>()`), old ones deterministically cleared
-  in §8.4 step 6 — no idle-VM residue in the Activity store;
-- per-entry Stores are unaffected mechanically (NavDisplay's decorators override the local
-  underneath) and die with their entries;
-- ordinary Activity recreation mid-generation: runtime survives, same generation id, same VM store
-  → identical retention behavior to today (the store moved from Activity to runtime; both survive
-  recreation; both die with the process);
-- process death: generation counter restarts at 1, `key(1)` matches the path gen-1 saved under →
-  the existing restoration oracle (`BackStackStateRestorationTest`) is unchanged. Saved state from
-  a >1 generation (only reachable in instrumented runs / future iOS) is intentionally not restored
-  after process death — recorded property, not production-reachable on Android.
+New DB work during Quiescing is excluded structurally: after steps 1–4 no old-generation producer
+remains (UI disposed, workers drained, lifetime joined); the transaction itself is the only actor.
+No DAO/repository proxying, no graph-wide gate.
 
-No new CompositionLocal is introduced — `LocalViewModelStoreOwner` is the standard androidx local,
-provided with a runtime-owned owner (the same pattern NavDisplay itself uses per entry). The
-`AppUiGenerationsHolder` interface carries no graph and no navigator.
+**ReplacingFile**: runtime calls `generation.database.close()` — **generation N is now terminal:
+it is never republished and never treated as a fallback** — then invokes the provider's pure file
+mechanics (§8.5): delete sidecars → copy source → `.tmp` → atomic rename (+ consume source for
+rollback ops). Validation (magic/version/live-version reads) ran in Running, before Quiescing,
+through the still-open DB.
+
+**BuildingGeneration**: `dbFactory()` — the **complete production factory** (`buildAppDatabase`:
+driver + full `MIGRATIONS` chain, cold) — then a fresh `AppScopeLifetime`, fresh `ViewModelStore`,
+new graph via `graphFactory(context, newDb, imageStorage, newLifetime)`. Nothing published yet.
+
+**Preflight**: the candidate's own coordinator verifies (for restore/rollback contexts the
+Scenario-1 semantics: `currentSchemaVersion()` through the candidate — the open IS the
+verification, migrations run here) and applies the success side-effects (clear
+`restore_in_progress`, `markPreRestoreBackupAvailable`, publish `RestoreSuccess` — DataStore
+writes, process-lifetime, exactly-once by flag semantics).
+
+**Publishing**: single atomic `Serving(genN+1)` write; UI re-keys onto the new generation; old
+saved-state slot dropped (`SaveableStateHolder.removeState(oldId)`); startup chores + observer
+arming run on the new lifetime.
+
+**Failure semantics** (locked):
+- Before `close()`: abort → generation N keeps serving (steps 1–3 unwind; step 4 cannot fail).
+- After `close()`: generation N is terminal. A failure in ReplacingFile/BuildingGeneration/
+  Preflight must (a) construct a fresh generation from the swapped file, or (b) perform the
+  rollback file mechanics (from `pre_restore_backup.db`) and construct another fresh DB+graph
+  generation — with the coordinator's failure side-effects (clear flags, publish `RestoreFailure`)
+  applied through the surviving generation's process-lifetime repositories. Exactly one bounded
+  recovery attempt per failure point; if both construction and rollback recovery fail, the machine
+  emits the explicit terminal outcome `ReplacementOutcome.Fatal` — the runtime publishes no
+  generation for new UI work and surfaces the recovery route (RecoveryActivity-equivalent path);
+  it never continues serving a closed generation.
+
+**Re-entrancy**: a rollback request arriving from inside the transaction's own Preflight (the
+coordinator's failure path) is executed as the current transaction's rollback branch — the runtime
+detects the held transaction under its mutex and inlines the file mechanics; it does not start a
+nested transaction.
+
+### 8.5 Replacement-mechanics ownership — provider split and the caller seam
+
+`DatabaseSnapshotProviderImpl` **stops closing or swapping the published database independently**:
+
+- Its swap methods (`restoreFromSnapshot`, `rollbackToPreRestoreBackup`) are decomposed:
+  validation stays (`verifySqliteMagic`, version peeks, existence checks — read-only), and the
+  pure file mechanics move to a method that performs sidecar-delete + copy + rename **without any
+  `close()`** — invoked only by the runtime inside ReplacingFile.
+- Non-swap surface unchanged: `captureSnapshot`, `preserveCurrentDb`, `preserveDbBeforeMigration`,
+  peeks, `hasPreRestoreBackup`, `delete*` — these never close the DB.
+- Callers reroute to a narrow seam, `DatabaseReplacement` (interface in `core:data:backup:api`,
+  where `BackupResult` and the callers' existing dependencies live):
+  `suspend fun restoreFromSnapshot(source: File): BackupResult<Unit>` and
+  `suspend fun rollbackToPreRestoreBackup(): BackupResult<Unit>`. The runtime implements it and
+  enters the graph as a `create()` bound instance (5th root). Rerouted callers:
+  `BackupInteractorImpl.restoreLatest` (`feature/settings/.../BackupInteractorImpl.kt:157`),
+  `RestoreRecoveryCoordinator.handleRestoreFailure` (`:143`) and `performUndoRestore` (`:109`).
+  Recovery layering is preserved: coordinators keep owning *semantics* (outcomes, flags, dialogs,
+  restart calls); the runtime owns *mechanics* (quiesce, close, file swap, generation build).
+  On Android production the seam runs the `RestartProcess` policy — caller-visible behavior
+  (results, then restart) is unchanged.
 
 ### 8.6 `MetroWorkerFactory` de-capture
 
-Drop the `by lazy` deps field; read `(appContext as BackupWorkerDepsHolder).backupWorkerDeps()`
-inside `createWorker` per invocation. Behavior-identical in production (same single graph);
-generation-correct after a swap. `MetroWorkerFactoryTest` extended to pin per-call re-read.
+Drop the `by lazy` field; `createWorker` reads
+`(appContext as BackupWorkerDepsHolder).backupWorkerDeps()` **once per invocation** and takes all
+six deps from that single returned graph (no torn cross-generation worker).
+`MetroWorkerFactoryTest` extended to swap holder deps between calls. In-flight workers are the
+Quiescing drain's concern (§8.4), not the factory's.
 
-### 8.7 `AppReinitializer` boundary — honest resolution
+### 8.7 UI generation boundary (`app:common`, narrowest seam)
 
-- commonMain gains `interface AppReinitializationHost { fun requestReinitialize() }` — the
-  root-bound intent contract (`core:core`, no dependency on anything above it).
-- androidMain actual: **unchanged process restart** (locked invariant).
-- iosMain actual becomes `actual class AppReinitializer(private val host: AppReinitializationHost)`
-  delegating to the host — the unconditional `TODO()` is eliminated **without** a silent no-op:
-  constructing the iOS reinitializer without a real host is impossible by signature, and no Phase 5
-  code constructs one. (Precedent: the androidMain actual already has a ctor the expect does not
-  declare, so this compiles under the existing expect.)
-- `AppRuntime : AppReinitializationHost` on Android proves the contract against the real in-process
-  mechanism; production Android keeps binding the process-restart `AppReinitializer` — no consumer
-  changes, no `core:core → app` edge (app implements a core interface, the legal direction).
-- **Phase 7 handoff (explicit non-claim):** no runnable iOS restore flow exists after Phase 5. The
-  iOS host must (a) construct the iOS DB + composition root, (b) bind `AppRuntime`-equivalent as
-  the `AppReinitializationHost`, and (c) resolve the DB-swap question per the §7 gate outcome —
-  green: same-object reopen is proven and the restore flow may go in-process; red: choose between
-  a DB-generation ownership extension (relaxing the same-object invariant for the restore class
-  only, maintainer decision) or `exit(0)`-style relaunch UX.
+```kotlin
+sealed interface AppUiPhase {
+    data class Generation(val id: Int, val viewModelStoreOwner: ViewModelStoreOwner) : AppUiPhase
+    data object Transitioning : AppUiPhase
+}
+interface AppUiGenerationsHolder { val appUiPhases: StateFlow<AppUiPhase> }
+```
+
+`BaseApplication` implements the holder from the runtime; `TestApplication` inherits a
+harness-controlled source (`MetroTestRule` installs a static `Generation(1, testOwner)` for
+existing tests; runtime-driven tests install a test runtime) — **no instrumented test composes
+`App()` without a published phase**. `App()`:
+
+```kotlin
+val phase by holder.appUiPhases.collectAsState()
+val saveableStateHolder = rememberSaveableStateHolder()
+when (phase) {
+    is Generation -> saveableStateHolder.SaveableStateProvider(phase.id) {
+        key(phase.id) {
+            CompositionLocalProvider(LocalViewModelStoreOwner provides phase.viewModelStoreOwner) {
+                …existing body…
+                DisposableEffect(phase.id) { onDispose { runtime.onUiRegionDisposed(phase.id) } }
+            }
+        }
+    }
+    Transitioning -> Box(Modifier.fillMaxSize().background(colorScheme.background))
+}
+```
+
+Pinned consequences: fresh `rememberNavBackStack` per generation → new generation starts at Home;
+Back cannot reach the old stack; gen-N saved entries live only under gen-N's
+`SaveableStateProvider` slot (dropped via `removeState(oldId)` on publish — no resurrection);
+an *aborted* replacement republishes `Serving(genN)` and the same slot restores the old back
+stack; `AppRootViewModel`/`AppDialogStoreImpl` resolve from the generation's `ViewModelStore`
+(new instances from the new graph's deps; old ones cleared deterministically); per-entry Stores
+unaffected mechanically (NavDisplay's decorators re-provide the per-entry owner underneath);
+ordinary Activity recreation mid-generation: runtime survives, same id, same VM store — retention
+identical to today; process death: counters restart at 1, `key(1)`+slot(1) matches what gen-1
+saved → the existing restoration oracle (`BackStackStateRestorationTest`) is unchanged. Saved
+state from a >1 generation is intentionally not restored after process death
+(production-unreachable on Android; recorded for the Phase 7 host). No new CompositionLocal is
+introduced — `LocalViewModelStoreOwner` is the standard androidx local (same pattern NavDisplay
+uses per entry); `AppUiGenerationsHolder` carries no graph and no navigator.
+
+### 8.8 `AppReinitializer` boundary — honest resolution (unchanged from v1)
+
+commonMain gains `interface AppReinitializationHost { fun requestReinitialize() }`; androidMain
+actual **unchanged process restart**; iosMain actual becomes
+`actual class AppReinitializer(private val host: AppReinitializationHost)` delegating — the
+unconditional `TODO()` is eliminated without a silent no-op (ctor-required host; nothing
+constructs the iOS actual in Phase 5; the androidMain actual already carries an
+expect-undeclared ctor, so this compiles). `AppRuntime : AppReinitializationHost` proves the
+contract on Android. **Phase 7 handoff**: restart-free iOS restore is a required capability whose
+lifecycle mechanism Phase 5 proves on Android; Phase 7 owns the iOS database factory, filesystem
+behavior, composition root, and binding the iOS runtime host.
 
 ## 9. Concurrency and failure semantics
 
-- Publication: one volatile/`StateFlow` write of an immutable value — readers never observe a mix.
-- Single-flight: one `Mutex`; concurrent `reinitialize()` calls serialize; stale-expected callers
-  coalesce onto the already-published result.
-- Candidate failure: candidate lifetime cancelled + VM store cleared; old generation untouched;
-  at most one retry (only on `RestartRequired`).
-- Old-generation disposal is unconditional and idempotent (`cancel()` on a cancelled lifetime and
-  `clear()` on a cleared store are no-ops).
-- The cold-start `runBlocking` boundaries are untouched (locked).
-- Chore failure policy unchanged: cleanup unguarded-best-effort, planner `runCatching`+log.
+- Publication: one atomic write of an immutable `RuntimePhase` — no mixed-generation reads.
+- Single-flight: one `Mutex` over all transitions; concurrent requests coalesce; re-entrant
+  rollback inlines into the running transaction (§8.4).
+- Quiescing failure ordering: fallible steps (UI await, worker drain) precede irreversible ones
+  (lifetime join, close); aborts republish `Serving(genN)` with saved state intact.
+- Terminal generations: closed ⇒ never republished; failure after close ⇒ fresh-generation or
+  rollback+fresh-generation, else explicit `Fatal` — never continue on a closed generation.
+- A seam read racing the transition window (e.g. a newly constructed worker between close and
+  publish) receives the terminal generation's deps and fails loud on first DB touch (§7.1's
+  measured pin) — bounded, recorded; WorkManager retry recovers it on the new generation.
+- Cold-start `runBlocking` boundaries untouched. Chore failure policy unchanged.
 
-## 10. Locked invariants — preservation map
+## 10. Locked invariants — preservation map (R2)
 
 | Invariant | How preserved |
 |---|---|
-| Android prod `AppReinitializer` = process restart; no silent switch | androidMain actual untouched; `AppRuntime.reinitialize` has zero production callers (grep-pinned in review) |
-| Same `AppDatabase` object; no replacement; no DAO/repo swappability | DB is a process root owned by the runtime, passed to every generation's `create()`; generation swap never closes it; §7 gate covers the captured-DAO question for the swap class |
-| DataStore state (3 files) + dialog survival + exactly-once consumption | process-lifetime memoization untouched; `pending_*` flags persisted; dismiss-after discipline untouched; pinned by existing + new tests |
-| Recovery ordering (S1→S2, short-circuits, blocking boundaries, no Room on `RouteToRecovery`, observer-before-Activity, TestApplication bypass) | `StartupProcessor` is an order-preserving extraction; cold-start mode keeps both `runBlocking`s; planner guard logic moved verbatim; `TestApplication.onCreateGraphBootstrap` no-op seam retained |
-| Startup jobs owned; no anonymous scopes; planner semantics (after preflight, never on recovery, off-main, best-effort, low-RAM skip, no mandatory wait) | §8.2/§8.3 |
-| Graph generations serialized; no mixed reads; candidate-not-published-before-preflight; deterministic disposal; no duplicate observers; coalesced concurrency | §8.4/§9 |
-| Nav3 canonical; no Nav2/`ResetToRoot` assumptions; root reset + no-Back + no-resurrection + Store release + new-graph deps + unchanged ordinary restoration; no graph/navigator CompositionLocals | §8.5 (measured: `NavCommand` has 5 variants, no `ResetToRoot` — `NavCommand.kt:4-24`) |
-| Metro-only DI; module boundaries; `core:core` ↛ app | §8.2 root + §8.7 direction |
+| Android prod `AppReinitializer` = process restart; no silent switch | androidMain actual untouched; production replacement policy is `RestartProcess`; `RebuildInProcess` has zero production callers (grep-pinned) |
+| **R2 replacement invariant** (§0) | `RuntimeGeneration` is the single published unit; DB-bound objects are graph-owned and die with their generation (Quiescing) or are drained (workers); DB generation increments only on file swaps |
+| Graph-only work reuses the live `AppDatabase` | graph-only reinit hands the same `database` object into the next generation |
+| No DAO/repository proxies, no graph-wide swappable indirection | replacement rebuilds the graph; nothing is proxied — the only new indirection is the narrow `DatabaseReplacement` caller seam |
+| DataStore state (3 files) + dialog exactly-once | process-lifetime memoization untouched; flags persisted; dismiss-after discipline untouched; verified across replacement |
+| Recovery ordering (S1→S2, short-circuits, blocking boundaries, no Room on `RouteToRecovery`, observer-before-Activity, TestApplication bypass) | `StartupProcessor` is an order-preserving extraction; coordinators keep semantics; `TestApplication.onCreateGraphBootstrap` no-op seam retained; harness publishes phases explicitly |
+| Startup jobs owned; planner semantics | §8.2/§8.3 |
+| Nav3 canonical; root reset; no resurrection; restoration oracle unchanged; no graph/navigator CompositionLocals | §8.7 (measured: `NavCommand` has 5 variants, no `ResetToRoot`) |
+| Metro-only DI; module boundaries; `core:core` ↛ app | §8.2 root + §8.5 seam placement + §8.8 direction |
+| Schema, migrations, driver unchanged | new DB generations use `buildAppDatabase` verbatim; no builder changes |
 
-## 11. Red/green gates
+## 11. Gates
 
-**Entry (before implementation relies on restart-free reinit):** §7 device gate. Red → STOP
-protocol. **Exit:** all of — `assembleDebug`, `testDebugUnitTest`, `verifyPaparazziDebug`
-(zero movers), `lintDebug`, `assembleDebugAndroidTest` under
-`--rerun-tasks --no-build-cache --no-configuration-cache`; detekt in a separate forced run;
-`:lint-rules:test`; connected **Regression** + **Smoke** suites via the `ui_tests.yml` invocation
-(`connectedDebugAndroidTest -P…annotation=…Smoke|Regression`); affected `iosSimulatorArm64`
-compile+KSP tasks (`compileKotlinIosSimulatorArm64` on `core:core` at minimum — the only KMP module
-this phase touches); iOS link/runtime **UNVERIFIED** (no host exists — reported as such, never as
-passed); CI green on the single draft PR. Task-execution counts reported; UP-TO-DATE/FROM-CACHE
-runs are not evidence.
+### 11.1 Characterization gate (committed, permanent)
 
-## 12. Test plan (required list → concrete tests)
+`SameInstanceReopenAfterSwapDeviceTest` — §7.1. Pins swap-is-real + old-generation-fails-loud;
+red if Room's close semantics ever change (re-opens R2's design assumptions).
 
-| Requirement | Test (level) |
+### 11.2 Per-generation GREEN device gate (new)
+
+`RuntimeGenerationSwapDeviceTest` (`:app:app` androidTest, `@Regression`, Metro harness with a
+runtime over the **complete production factory** `buildAppDatabase` + production `buildAppGraph`
++ real files in the instrumented sandbox). For **both** restore and rollback it must prove:
+1. a real inode-changing production swap;
+2. the old DB/DAO are unusable after close (loud pool-closed);
+3. a newly built `AppDatabase` + newly resolved DAO see NEW and not OLD;
+4. graph dependencies resolve from the new DB generation (a Room-backed repository read through
+   the new generation's graph serves the swapped data; the new graph's
+   `databaseSnapshotProvider` operates on the new DB);
+5. repeated replacement cycles work (≥2 consecutive swaps);
+6. a known-negative mutation (swap bypass) makes it red (run + reverted, per protocol).
+
+### 11.3 Failure-injection matrix (required coverage)
+
+Injection seam: internal transaction hooks on `AppRuntime` (test-only interceptors per state —
+not DAO proxies). Each point: inject → assert the locked outcome.
+
+| Injection point | Locked outcome |
 |---|---|
-| same-object/same-DAO bundled-driver reopen (+ restore vs rollback branches, disk truth, known-negative) | `SameInstanceReopenAfterSwapDeviceTest` (device, §7) |
-| two generations, exact same `AppDatabase`; distinct graph/navigator identities | `AppRuntimeGenerationsTest` (JVM, buildAppGraph-based like the identity tests) |
-| DataStore memoization across two graphs | existing `AppScopeDataStoreSingletonTest` (androidTest) + runtime-driven variant |
-| old lifetime cancelled, new active; exactly one active dialog/recovery observer; one choice → one reaction | `AppScopeLifetimeTest` + `RestoreDialogChoiceObserver` generation tests (JVM) |
-| pending restore-success/undo dialog state surviving reinit | androidTest reinit suite (DataStore flag set → reinit → dialog resolves once) |
-| S1→S2 ordering; S1 short-circuits S2; rollback → bounded single retry; `RouteToRecovery` avoids Room open/warm-up; low-memory skip | `StartupProcessorTest` (JVM, injected coordinators/failure controls) |
-| UI generation not published before preflight | `AppRuntimeReinitializeTest` (JVM, gated fake preflight) |
-| TestApplication does not construct the production graph | existing harness design + explicit pin |
-| concurrent reinitialization | `AppRuntimeConcurrencyTest` (JVM) |
-| Nav3 root reset, old-stack removal, Store disposal, no resurrection after Activity recreation; restoration oracle unchanged | androidTest reinit suite + existing `BackStackStateRestorationTest` untouched |
-| mutation/injected-failure controls | §7 swap-bypass; ordering inversion via fake coordinator; lifetime-cancellation negative (assert leak when cancel skipped, in-test only); generation-reset negative (no `key()` → old VM observed — encoded as identity assertions); dialog double-consumption negative |
+| Quiesce (UI await / worker drain timeout) | abort pre-close; gen N serving; saved state restored |
+| DB `close()` (throw) | close() does not meaningfully throw; hook asserts terminality bookkeeping regardless |
+| File replacement (rename fails) | post-close: rollback mechanics + fresh generation; flags/dialog via coordinator failure path |
+| New DB construction/open | rollback + another fresh DB+graph generation |
+| Migration/preflight failure | same as above (Scenario-1 failure semantics); exactly one bounded recovery |
+| Rollback mechanics failure | `ReplacementOutcome.Fatal`; no closed generation serving; recovery route surfaced |
+| Post-rollback generation construction failure | `Fatal`, same |
 
-## 13. Commit decomposition (single draft PR to `dev`)
+### 11.4 Exit gates
 
-1. `docs(kmp): specify phase 5 startup lifecycle` — this file.
-2. `test(database): prove same-instance reopen after snapshot swap` — §7 gate + measured evidence;
-   content pins the measured truth whichever way the gate lands.
-3. `refactor(runtime): introduce graph generations and owned lifetimes` — `AppScopeLifetime` root,
-   `AppRuntime`, scope migrations (observer/auth/export), worker-factory de-capture, JVM tests.
-4. `refactor(startup): extract the startup processor` — `StartupProcessor` + `StartupOutcome`,
-   `BaseApplication.onCreate` delegation, ordering tests.
-5. `feat(runtime): make application state generation-aware` — `AppUiGenerationsHolder`, `App()`
-   keying, `AppReinitializer` iOS contract, androidTest reinit suite.
-6. `docs(kmp): record phase 5 evidence and phase 7 handoff` — §15 corrections + gate evidence.
+`assembleDebug`, `testDebugUnitTest`, `verifyPaparazziDebug` (zero movers), `lintDebug`,
+`assembleDebugAndroidTest` under `--rerun-tasks --no-build-cache --no-configuration-cache`; detekt
+separate forced run; `:lint-rules:test`; connected **Regression** + **Smoke** via the
+`ui_tests.yml` invocation; affected `iosSimulatorArm64` compile+KSP (`core:core` at minimum); iOS
+link/runtime **UNVERIFIED** (no host); CI green on PR #252; raw instrumentation XML attached to
+the PR evidence (committed under `documentation/feature-specs/kmp-phase-5-evidence/`).
+Task-execution counts reported; UP-TO-DATE/FROM-CACHE runs are not evidence.
 
+## 12. Test plan (delta over §11)
+
+JVM (`app/app` test): runtime generation identity (two generations, same-DB handover for
+graph-only; distinct DB for replacement via fake factories), distinct graph/navigator identities,
+lifetime cancelled/joined, concurrent transitions serialized+coalesced, candidate-not-published-
+before-preflight, state-machine ordering + §11.3 injections, worker-factory per-invocation read.
+JVM (`feature/recovery`): observer on lifetime scope; cancellation ends reactions; one choice →
+one reaction across generations. Instrumented (`app/app`): §11.2 gate; dialog `pending_*` flags
+set → replacement → dialog shown and consumed exactly once; DataStore memoization across
+generations (existing singleton tests + runtime variant); Nav3 root reset + old-stack removal +
+Store disposal + no resurrection after Activity recreation; abort-path saved-state restoration;
+existing `BackStackStateRestorationTest` untouched as the restoration oracle. Instrumented
+(`core:data:database`): §11.1 characterization (already committed).
+
+## 13. Commit decomposition (single draft PR #252, continuing)
+
+Landed: 1. spec v1 · 2. characterization gate (RED evidence) · 3. review v1 record.
+Next: 4. `docs(kmp): revise phase 5 spec for the R2 db-generation decision` (this file) ·
+5. `refactor(runtime): introduce app-scope lifetimes as a graph root` ·
+6. `refactor(startup): extract the startup processor` ·
+7. `refactor(runtime): introduce the runtime host and generation-aware ui` ·
+8. `feat(runtime): runtime-owned database replacement transaction` (seam, provider split, state
+machine, policies, caller rerouting, failure injection + JVM coverage) ·
+9. `test(app): per-generation green device gate and replacement instrumented suite` ·
+10. `docs(kmp): record phase 5 evidence and phase 7 handoff` (stale-claim register §15 + raw XML
+evidence + assessment supersession).
 Each commit bisect-green; behavior-specific tests ride with their behavior commit.
 
 ## 14. Rollback / reversibility
 
-Every commit is independently revertible: 3–5 layer strictly on top of existing seams (the five
-holder interfaces, the `create()` factory, the `protected open` bootstrap seam) without deleting
-any; reverting 5 restores today's unkeyed `App()`; reverting 3+4 restores the anonymous scopes and
-inline bootstrap verbatim (the extraction is order-preserving). The spec and gate test carry no
-runtime coupling. No migration, no persisted-format change, no golden change anywhere in the plan.
+Commits 5–9 layer on existing seams (five holders, `create()` factory, `protected open` bootstrap
+seam) without deleting any; reverting 9..5 in order restores today's behavior verbatim (the
+extraction is order-preserving; the provider split is re-inlinable). No migration, no
+persisted-format change, no golden change anywhere in the plan.
 
-## 15. Stale-claim register (docs closeout, commit 6)
+## 15. Stale-claim register (docs closeout, commit 10)
 
 1. `kmp-migration-assessment.md:546-553` — Room 2.8.4 reopen claims + Nav2 `ResetToRoot`/
-   `NavController` reinit order + never-run spike → dated supersession note pointing here + gate result.
-2. `core/core` iosMain `AppReinitializer` KDoc "three DataStore-memoization bypasses" — fixed in
-   Phase 6; reword with the §8.7 contract.
+   `NavController` reinit order → dated supersession note pointing at §7.1 + this spec.
+2. `core/core` iosMain `AppReinitializer` KDoc "three DataStore-memoization bypasses" (fixed in
+   Phase 6) → reword with the §8.8 contract; commonMain KDoc's "reopen Room" wording → R2 model.
 3. Phase 4 spec startup inventory — dated supersession note (predates `warmQueryPlanner`).
 4. `app/app/src/main/AndroidManifest.xml:54-62` — Hilt/`HiltWorkerFactory`/`@AssistedInject`
    comment vs Metro reality.
-5. `DatabaseSnapshotProvider.kt:44-47` ("caller MUST tear down every consumer" — no caller does),
-   `:52-54` ("via Room's open helper" — Room 3 has none), `:106-109` + `UndoRestoreOutcome.kt:20`
-   ("atomic rename" — actually copy+rename+delete), `:150-151` (pre-migration WAL-checkpoint claim).
+5. `DatabaseSnapshotProvider.kt:44-47` ("caller MUST tear down every consumer"), `:52-54` ("via
+   Room's open helper"), `:106-109` + `UndoRestoreOutcome.kt:20` ("atomic rename" — actually
+   copy+rename+delete), `:150-151` (pre-migration WAL-checkpoint claim) — all superseded by the
+   §8.5 split anyway.
 6. `documentation/ci-cd.md:342-345` + `lint-rules.md:724-731` — pre-commit hook described as
    disabled/copied; measured: `core.hooksPath`, detekt runs on staged `.kt`.
-7. `AppFeature.kt:13,18-23`, `Feature.kt:20`, `FeatureAssisted.kt:21`, `MetroStoreProcessor.kt:17`
-   — Nav2-era `NavHost`/`NavController`/`NavBackStackEntry` wording; `NavigatorEventBus.kt:29`
-   ("injects" — hand-constructed); `AppDialogHost.kt:28` ("@Singleton"); coordinator/repository
-   KDoc caller claims (`RestoreRecoveryCoordinator.kt:32-33`, `AppDialogRepository.kt:72-74`).
-8. `documentation/performance.md` `AppCreated` boundary — verify against the measured stage list
-   (§2 stage 6: `AppCreated` fires **after** the graph bootstrap, so the trace includes preflight).
-9. `android_build_unified.yml:146` "13 golden-holding modules" — 14 apply Paparazzi (not a doc file;
-   recorded here, not edited — CI text change out of scope).
+7. Nav2-era wording: `AppFeature.kt:13,18-23`, `Feature.kt:20`, `FeatureAssisted.kt:21`,
+   `MetroStoreProcessor.kt:17`; `NavigatorEventBus.kt:29` ("injects"); `AppDialogHost.kt:28`
+   ("@Singleton"); coordinator/repository KDoc caller claims (`RestoreRecoveryCoordinator.kt:32-33`,
+   `AppDialogRepository.kt:72-74`); post-§8.7: `AppFeature.kt:16-19` + `AppDialogFeature.kt:23-25`
+   ("LocalViewModelStoreOwner is the host ComponentActivity").
+8. `documentation/performance.md` `AppCreated` boundary — verify against §2 stage 6.
+9. `android_build_unified.yml:146` "13 golden-holding modules" — 14 apply Paparazzi (recorded, not
+   edited — CI text change out of scope).
 10. Unverified-claims register at implementation end: iOS link/runtime behavior of the reworked
-    iosMain actual (compile-verified only — no host); `key()`-wrapper interaction with saved-state
-    on OEM builds beyond the tested emulator (covered only by API-34 devices this phase).
+    iosMain actual (compile-verified only); `key()`/SaveableStateHolder interaction with
+    saved-state beyond the tested API-34 emulator.
 
-## 16. Independent architecture review (2026-08-22): CONFIRM, with implementation conditions
+## 16. Independent architecture review v1 — SUPERSEDED
 
-A fresh-context adversarial review of this spec against the locked invariants returned
-**CONFIRM — no invariant relaxed**, after probing (and failing to break) the `key()`/saved-state
-reasoning, the observer-overlap-by-bus-identity argument, the cold-start publication argument
-(manifest has no graph-reading providers), the two-captures inventory, the expect/actual ctor
-precedent, and the no-locked-file/no-detekt-trigger checks. Binding conditions for the
-implementation commits (now gated on the §7.1 maintainer decision):
+The 2026-08-22 review (CONFIRM + three conditions) evaluated **spec v1's same-database design**
+(graph generations that never close the DB, restore descoped). The R2 decision replaces that
+architecture's replacement story, so review v1 is **no longer authoritative** for this spec.
+What carries forward from it as still-applicable findings: the disposal-ordering condition (now
+§8.4 Quiescing step 1 + §8.7's `DisposableEffect` signal), the harness seam condition (now §8.7's
+`AppUiGenerationsHolder` harness contract), the `create()`-root fan-out correction (now §4's test
+inventory), the worker single-read-per-invocation pin (§8.6), the `ActivityHolder` empty-after-
+replacement property (§3), and the stale-doc additions (§15.7).
 
-1. **§8.4 steps 5→6 need an explicit ordering mechanism.** Old-generation disposal must be gated
-   on the old UI region actually leaving composition (e.g. a `DisposableEffect(generation)` inside
-   the `key(generation.id)` region signalling the runtime, or awaiting the new generation's first
-   applied frame). Clearing the VM store while the old region can still recompose would re-run
-   `viewModel()` factories against the cleared store and resolve the NEW graph inside the OLD
-   region — a transient mixed-generation read.
-2. **Reinit-mode `RestartRequired` is test-scoped while the §7 gate is red.** A real
-   `restore_in_progress` encountered by in-process reinit must **abort without invoking the
-   rollback swap** (the swap would close the process `AppDatabase` and strand both candidate and
-   old generation on a terminally-closed object). The bounded-retry semantics are exercised via
-   injected preflight failures only.
-3. **The androidTest harness seam must be specified for `AppUiGenerationsHolder`.** `TestApplication`
-   bypasses the runtime; without a published generation every instrumented UI test fails to
-   compose. Either `MetroTestRule` installs a test runtime, or `BaseApplication`'s holder derives
-   the generation lazily from whatever `appGraph` override is current.
+## 17. Independent architecture review v2 (R2) — gating
 
-Notes folded into the plan: the 4th-`create()`-root fan-out also includes
-`AccountDataStoreSingletonTest` and `AppScopeDataStoreSingletonTest` (androidTest `buildAppGraph`
-callers) beyond the 14 JVM tests; `MetroWorkerFactory.createWorker` must read the holder **once**
-per invocation (all six deps from one returned graph — no torn cross-generation worker) and the
-test extension must swap holder deps between calls; after a mid-Activity reinit the new
-generation's `ActivityHolderImpl` is empty until the next Activity lifecycle event (currently
-zero production readers — record or re-register on publish); §15 gains `AppFeature.kt:16-19` and
-`AppDialogFeature.kt:23-25` ("LocalViewModelStoreOwner is the host ComponentActivity") as stale
-after §8.5.
+A fresh-context adversarial review of THIS spec version must run before implementation commits
+5–10, focused on: Quiescing completeness vs live captures (§4), terminal-generation discipline and
+the post-close failure ladder, mixed-generation windows (seam reads during Transitioning), the
+abort/SaveableStateHolder restoration story, recovery-layering of the §8.5 split, dialog
+exactly-once across replacement, Android-production behavior preservation under the
+`RestartProcess` policy, and the §0 STOP conditions. Result to be recorded here with its verdict
+and binding conditions.
