@@ -16,18 +16,21 @@ import androidx.work.WorkerParameters
  *
  * Class-name match: we compare `workerClassName` against [BackupWorker]'s fully-qualified name. Any
  * other worker → `null`, so WorkManager's inherited `createWorkerWithDefaultFallback` constructs it via
- * the default reflection factory (verified against work-runtime 2.10.0 `WorkerFactory.kt`). No
+ * the default reflection factory (verified against work-runtime 2.11.2 `WorkerFactory.kt`). No
  * `DelegatingWorkerFactory` needed — `BackupWorker` is the only worker in the app.
+ *
+ * **Per-invocation single read (Phase 5 R2, spec §8.6).** WorkManager caches THIS factory for the
+ * process, so a construction-time capture of the deps would pin generation 1's graph forever —
+ * every worker after a runtime-generation replacement would run against a terminal generation's
+ * dependencies. Instead the holder is read ONCE per [createWorker] invocation and all six deps
+ * come from that single returned graph: the worker is coherently bound to exactly one generation
+ * (never torn across two), and workers created after a replacement get the CURRENT generation. A
+ * worker already inside `doWork()` keeps its construction-time generation for the whole run —
+ * that live capture is the replacement transaction's worker-drain concern, not this factory's.
  */
 class MetroWorkerFactory(
     private val appContext: Context,
 ) : WorkerFactory() {
-
-    // Read once, off the application context — the same singletons the app graph holds. The cast is safe by
-    // construction: the process Application (BaseApplication) implements BackupWorkerDepsHolder.
-    private val deps: BackupWorkerDeps by lazy {
-        (appContext.applicationContext as BackupWorkerDepsHolder).backupWorkerDeps()
-    }
 
     override fun createWorker(
         appContext: Context,
@@ -38,6 +41,10 @@ class MetroWorkerFactory(
             // Not our worker — return null so WorkManager falls through to the default factory.
             return null
         }
+        // One holder read per invocation; the cast is safe by construction — the process
+        // Application (BaseApplication) implements BackupWorkerDepsHolder.
+        val deps: BackupWorkerDeps =
+            (this.appContext.applicationContext as BackupWorkerDepsHolder).backupWorkerDeps()
         return BackupWorker(
             appContext = appContext,
             workerParams = workerParameters,

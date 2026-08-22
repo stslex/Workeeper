@@ -37,14 +37,8 @@ import tech.apter.junit.jupiter.robolectric.RobolectricExtension
 internal class MetroWorkerFactoryTest {
 
     class TestApplication : Application(), BackupWorkerDepsHolder {
-        private val deps: BackupWorkerDeps = mockk(relaxed = true) {
-            every { backupStorage } returns mockk<BackupStorage>(relaxed = true)
-            every { databaseSnapshotProvider } returns mockk<DatabaseSnapshotProvider>(relaxed = true)
-            every { backupPreferencesRepository } returns mockk<BackupPreferencesRepository>(relaxed = true)
-            every { autoBackupController } returns mockk<AutoBackupController>(relaxed = true)
-            every { backupNotificationHelper } returns mockk<BackupNotificationHelper>(relaxed = true)
-            every { snapshotExportRunner } returns mockk<SnapshotExportRunner>(relaxed = true)
-        }
+        /** Swappable — the per-invocation-read test replaces it mid-test (a generation swap). */
+        var deps: BackupWorkerDeps = newWorkerDeps()
 
         override fun backupWorkerDeps(): BackupWorkerDeps = deps
     }
@@ -90,8 +84,49 @@ internal class MetroWorkerFactoryTest {
         // null → WorkManager's inherited createWorkerWithDefaultFallback constructs unknown workers via
         // the default reflection factory. No DelegatingWorkerFactory needed.
         assertNull(worker)
-        // The deps must NOT be touched on the negative path (the != short-circuit precedes the lazy read).
+        // The deps must NOT be touched on the negative path (the != short-circuit precedes the read).
         val deps = (appContext.applicationContext as BackupWorkerDepsHolder).backupWorkerDeps()
         verify(exactly = 0) { deps.backupStorage }
     }
+
+    @Test
+    fun `per-invocation read - a worker created after a generation swap gets the NEW graph's deps`() {
+        val application = appContext.applicationContext as TestApplication
+        val generationOne = application.deps
+
+        factory.createWorker(
+            appContext = appContext,
+            workerClassName = BackupWorker::class.java.name,
+            workerParameters = workerParameters,
+        )
+        verify(exactly = 1) { generationOne.backupStorage }
+
+        // The generation swap: the holder now answers with a NEW graph's deps. A factory that
+        // captured at construction (the pre-Phase-5 `by lazy`) would keep serving generationOne —
+        // pinning every future worker to a terminal generation (spec §8.6).
+        val generationTwo = newWorkerDeps()
+        application.deps = generationTwo
+
+        factory.createWorker(
+            appContext = appContext,
+            workerClassName = BackupWorker::class.java.name,
+            workerParameters = workerParameters,
+        )
+
+        // All six deps of the SECOND worker came from the second graph — one holder read,
+        // no torn cross-generation worker, nothing more from the first.
+        verify(exactly = 1) { generationTwo.backupStorage }
+        verify(exactly = 1) { generationTwo.databaseSnapshotProvider }
+        verify(exactly = 1) { generationTwo.snapshotExportRunner }
+        verify(exactly = 1) { generationOne.backupStorage }
+    }
+}
+
+private fun newWorkerDeps(): BackupWorkerDeps = mockk(relaxed = true) {
+    every { backupStorage } returns mockk<BackupStorage>(relaxed = true)
+    every { databaseSnapshotProvider } returns mockk<DatabaseSnapshotProvider>(relaxed = true)
+    every { backupPreferencesRepository } returns mockk<BackupPreferencesRepository>(relaxed = true)
+    every { autoBackupController } returns mockk<AutoBackupController>(relaxed = true)
+    every { backupNotificationHelper } returns mockk<BackupNotificationHelper>(relaxed = true)
+    every { snapshotExportRunner } returns mockk<SnapshotExportRunner>(relaxed = true)
 }
