@@ -119,6 +119,19 @@ internal class ExerciseRepositoryImplDbTest {
     }
 
     @Test
+    fun `saveItem persists image removal for a fresh read`() = runTest {
+        val uuid = Uuid.random()
+        repository.saveItem(
+            exerciseChange(uuid = uuid, name = "Bench", imagePath = "/files/bench.jpg"),
+        )
+        assertEquals("/files/bench.jpg", repository.getExercise(uuid.toString())?.imagePath)
+
+        repository.saveItem(exerciseChange(uuid = uuid, name = "Bench", imagePath = null))
+
+        assertNull(repository.getExercise(uuid.toString())?.imagePath)
+    }
+
+    @Test
     fun `saveItem returns DuplicateName when another row already owns the name`() = runTest {
         val firstUuid = Uuid.random()
         repository.saveItem(exerciseChange(uuid = firstUuid, name = "Bench"))
@@ -1405,6 +1418,7 @@ internal class ExerciseRepositoryImplDbTest {
         uuid: Uuid,
         name: String,
         description: String? = null,
+        imagePath: String? = null,
         labels: List<String> = emptyList(),
         archived: Boolean = false,
         lastAdhoc: List<PlanSetDataModel>? = null,
@@ -1413,7 +1427,7 @@ internal class ExerciseRepositoryImplDbTest {
         name = name,
         type = ExerciseTypeDataModel.WEIGHTED,
         description = description,
-        imagePath = null,
+        imagePath = imagePath,
         archived = archived,
         timestamp = 0L,
         labels = labels,

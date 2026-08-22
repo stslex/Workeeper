@@ -38,8 +38,8 @@ import org.junit.runner.RunWith
  *
  *  - the plan editor: an inline-created exercise has no plan, so its card reads "no plan". After a
  *    plan is saved the card must read the plan instead.
- *  - the image viewer: asking to replace a picture is what opens the source sheet on the screen
- *    that owns the image. If the request never lands, no sheet appears.
+ *  - the image viewer: Replace opens the source sheet, while Remove turns the thumbnail into the
+ *    add-photo entry point. If either request is lost, its visible effect never appears.
  *
  * ## Load-bearing limitation: only one half discriminates
  *
@@ -169,6 +169,33 @@ internal class NavigationResultTest {
         composeRule.onNodeWithTag(EXERCISE_IMAGE_SOURCE_SHEET).assertIsDisplayed()
     }
 
+    @Test
+    fun imageRemoveRequestTurnsTheThumbnailIntoThePhotoPickerEntryPoint() {
+        val exerciseUuid = seed.exercise(
+            name = SEEDED_EXERCISE_NAME,
+            imagePath = SEEDED_IMAGE_PATH,
+        )
+
+        paths.toAllExercises()
+        paths.awaitTag(ALL_EXERCISES_GRAPH)
+        paths.openExercise(exerciseUuid.toString())
+        paths.awaitTag(EXERCISE_GRAPH)
+        paths.tap(EXERCISE_EDIT_BUTTON)
+        paths.awaitTag(EXERCISE_EDIT_ACTION_BAR)
+        paths.tap(EXERCISE_DESCRIPTION_IMAGE)
+        paths.awaitTag(IMAGE_VIEWER_GRAPH)
+
+        paths.tap(IMAGE_VIEWER_MENU_BUTTON)
+        paths.tap(IMAGE_VIEWER_REMOVE_ITEM)
+
+        paths.awaitTag(EXERCISE_GRAPH)
+        composeRule.waitForIdle()
+        paths.tap(EXERCISE_DESCRIPTION_IMAGE)
+
+        paths.awaitTag(EXERCISE_IMAGE_SOURCE_SHEET)
+        composeRule.onNodeWithTag(EXERCISE_IMAGE_SOURCE_SHEET).assertIsDisplayed()
+    }
+
     private companion object {
 
         const val HOME_GRAPH = "HomeGraph"
@@ -194,6 +221,7 @@ internal class NavigationResultTest {
         const val EXERCISE_DESCRIPTION_IMAGE = "ExerciseDescriptionImage"
         const val IMAGE_VIEWER_MENU_BUTTON = "ImageViewerMenuButton"
         const val IMAGE_VIEWER_REPLACE_ITEM = "ImageViewerReplaceItem"
+        const val IMAGE_VIEWER_REMOVE_ITEM = "ImageViewerRemoveItem"
         const val EXERCISE_IMAGE_SOURCE_SHEET = "ExerciseImageSourceSheet"
 
         /**

@@ -30,8 +30,7 @@ import org.junit.runner.RunWith
  *
  * Four representative cases, not full coverage — the mechanism is shared:
  * 1. scroll position across a detail round trip (composition-local `rememberSaveable` state);
- * 2. an unsaved editor draft across a viewer round trip — which under the CURRENT behaviour is
- *    DISCARDED (a filed defect; see the test's KDoc), so the discard is what this oracle pins;
+ * 2. an unsaved editor draft across a viewer round trip;
  * 3. selection mode across a bottom-bar tab round trip — which under the CURRENT navigator
  *    semantics arrives RESET (tab taps pop the current root inclusively and never restore), so
  *    reset is what this oracle pins;
@@ -102,20 +101,13 @@ internal class BackStackStateRestorationTest {
     }
 
     /**
-     * DRAFT — pins the CURRENT semantics, which is a WIPE, not survival, and the pin is
-     * deliberate. The Exercise Store re-fires `Action.Common.Init` on every composition re-entry
-     * (`BaseStore.init` re-fires `initialActions`), and `applyLoaded` unconditionally overwrites
-     * `name`/`description`/`tags` with database values — so an unsaved draft is DISCARDED by an
-     * image-viewer round trip. Measured here, mechanism confirmed at `CommonHandler.applyLoaded`.
-     *
-     * This is a user-visible defect (same Init-refire family the LiveWorkout Store shields with
-     * `withExpansionCarriedFrom`), filed in tech-debt.md. The oracle pins it anyway: stage 1.3 is
-     * a behaviour-preserving swap, and a draft that suddenly SURVIVES the round trip under Nav3 is
-     * as much an unexplained delta as one that vanishes elsewhere. When the defect is fixed, this
-     * test is the one that goes red, and it gets updated WITH that fix — that is the pin working.
+     * DRAFT — a retained Exercise Store receives `Init` again after the viewer round trip. The
+     * reload may refresh its persisted baseline, but it must carry the dirty editor fields forward.
+     * `CommonHandlerTest` synchronously proves the load landed before asserting that carry-forward;
+     * this test covers the navigation and Store-retention boundary around it.
      */
     @Test
-    fun editorDraftIsDiscardedByTheImageViewerRoundTrip() {
+    fun editorDraftSurvivesTheImageViewerRoundTrip() {
         val exerciseUuid = seed.exercise(
             name = "Draft Probe",
             imagePath = "/restoration-probe/image.jpg",
@@ -142,15 +134,10 @@ internal class BackStackStateRestorationTest {
         paths.tap("ImageViewerBackButton")
         paths.awaitTag(EXERCISE_GRAPH)
 
-        // The re-fired Init's reload is ASYNC: the field can recompose still holding the draft
-        // for a few frames before applyLoaded overwrites it, so waiting for mere existence and
-        // asserting immediately is a flaky-red race under load. Wait for the WIPE itself — the
-        // draft text leaving the field — with the timeout as the failure budget: if the wipe
-        // never lands (the pinned behaviour changed), this times out red.
-        paths.awaitTextChangedFrom("ExerciseEditNameField", "Draft Probe$DRAFT_SUFFIX")
+        composeRule.waitForIdle()
         composeRule
             .onNodeWithTag("ExerciseEditNameField")
-            .assertTextContains(value = "Draft Probe", substring = false)
+            .assertTextContains(value = DRAFT_SUFFIX, substring = true)
     }
 
     /**

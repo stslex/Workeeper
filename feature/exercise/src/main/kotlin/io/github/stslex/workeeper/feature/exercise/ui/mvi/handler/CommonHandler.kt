@@ -163,7 +163,7 @@ internal class CommonHandler @Inject constructor(
         // Capture the file's mtime so Coil can key by `?v=<mtime>` and avoid serving a
         // stale cache entry when the user replaces the image at the same path.
         val imageLastModified = imagePath?.let { File(it).lastModified() } ?: 0L
-        return copy(
+        val loaded = copy(
             name = exercise.name,
             type = exercise.type.toUi(),
             description = exercise.description.orEmpty(),
@@ -183,6 +183,24 @@ internal class CommonHandler @Inject constructor(
                 tagUuids = tags.map { it.uuid },
                 adhocPlan = adhocPlan,
             ),
+        )
+        return loaded.withDraftCarriedFrom(this)
+    }
+
+    /**
+     * A retained Store receives `Init` again after the image viewer leaves composition. Keep the
+     * editable values when that Store already owns a dirty draft; the freshly loaded snapshot and
+     * committed image path still become the baseline for Save or Cancel.
+     */
+    private fun State.withDraftCarriedFrom(previous: State): State {
+        if (previous.mode !is State.Mode.Edit || !previous.hasChanges) return this
+        return copy(
+            name = previous.name,
+            type = previous.type,
+            description = previous.description,
+            tags = previous.tags,
+            adhocPlan = previous.adhocPlan,
+            pendingImage = previous.pendingImage,
         )
     }
 
