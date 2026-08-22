@@ -123,7 +123,8 @@ graph-access-site analysis alone is insufficient):
 | Per-entry Stores / `AppRootViewModel` / `AppDialogStoreImpl` (repos, bus captured at ctor) | entry / generation-VM-store lifetime | UI region disposal + generation `ViewModelStore.clear()` |
 | Startup chores (cleanup, `ANALYZE`) | one-shot | lifetime children → `cancelAndJoin` |
 | `MetroWorkerFactory` lazy deps | process (defect) | §8.6 de-capture; per-invocation single read |
-| JVM identity tests + androidTest singleton tests build graphs directly (`buildAppGraph` — 14 JVM files + `AccountDataStoreSingletonTest.kt:49,54`, `AppScopeDataStoreSingletonTest.kt:89,94`) | test | thread new `create()` roots |
+| **Snackbar deferred-commit path** — `AppSnackbarModel`'s `onDismissed` runs under `withContext(NonCancellable)`; the ED11 deferred permanent-delete commits DB work there via a closure capturing gen-N repositories; `SnackbarManager` is a process-level object with an unlimited queue whose requeue path can carry gen-N closures into the gen-N+1 collector (review v2 finding 1) | until the resolve completes / queue drained | Quiescing sub-step: await the in-flight resolve, drain-or-record the queue before close; queued-model cross-generation property recorded |
+| JVM identity tests + androidTest singleton tests build graphs (`buildAppGraph` — 14 JVM files + `AccountDataStoreSingletonTest.kt:49,54`, `AppScopeDataStoreSingletonTest.kt:89,94`) | test | reach the 4th root via `buildAppGraph`'s defaulted parameter (the default = pre-Phase-5 anonymous-scope behavior) |
 
 ## 5. Restore / rollback / undo call paths (measured, pre-R2)
 
@@ -269,7 +270,10 @@ no reader waits.
   graph-reading providers), preflight under the two existing `runBlocking` boundaries,
   `RestartRequired` → `restartApp()` (process exit). Byte-equivalent behavior. Scenario-1's
   cold-start rollback now routes its swap through the runtime (§8.5, `RestartProcess` policy) —
-  same file mechanics, same restart ending.
+  same file mechanics, same restart ending. **Mutex rule (review v2 condition 6): generation 1's
+  build+publish completes and RELEASES the transition mutex before the preflight runs, and the
+  cold-start rollback takes the plain `RestartProcess` path, never the full machine — the
+  alternative deadlocks the main thread on the runtime's own mutex.**
 - **Replacement preflight** (§8.5 `Preflight` state): the machine drives the *same* Scenario-1
   verification semantics against the candidate generation via its own coordinator instance.
 
@@ -279,14 +283,22 @@ no reader waits.
 Running → Quiescing → ReplacingFile → BuildingGeneration → Preflight → Publishing → Running
 ```
 
-All transitions run under the runtime `Mutex` (single-flight; concurrent requests coalesce onto
-the in-flight transaction's result). Two policies select the ending:
+All transitions run under the runtime `Mutex` (single-flight). **Coalescing is
+operation-identity-scoped (review v2 condition 3): only a concurrent request for the SAME
+operation joins the in-flight transaction's result; a different operation queues behind it or
+returns an explicit busy outcome — never the other operation's result.** Two policies select the
+ending:
 
 - **`RestartProcess` (Android production)** — preserves shipped behavior exactly: no Quiescing
   (process death is the quiescence, as today), the runtime executes close + file replacement and
   marks the published generation terminal; the caller's existing restart flow
   (`AppReinitializer`) follows. Observable production behavior is unchanged, including the brief
-  closed-DB window before exit that exists today.
+  closed-DB window before exit that exists today. **Two scoping rules (review v2 condition 5):
+  the §"Failure semantics" recovery ladder applies to `RebuildInProcess` ONLY — a production
+  post-close failure keeps today's behavior verbatim (return `Io`, no restart, the closed DB
+  fails loud until the user acts); and a `RestartProcess` transaction is startable from an
+  already-terminal generation (the undo `IoFailure` re-tap re-runs the idempotent close + rename
+  today, and must keep doing so).**
 - **`RebuildInProcess` (Android instrumentation now; iOS Phase 7)** — the full machine:
 
 **Quiescing** (every step precedes `close()`; fallible steps precede irreversible ones):
@@ -298,17 +310,21 @@ the in-flight transaction's result). Two policies select the ending:
    — WorkManager's own persistence carries it, as across today's restarts). Timeout → **abort**:
    republish `Serving(genN)`; the old generation resumes serving (state restored via the
    `SaveableStateHolder`, §8.7). *Reversible.*
-3. Clear the generation `ViewModelStore` (deterministic `onCleared`). *Rebuildable from the live
+3. Drain the snackbar deferred-commit path (review v2 condition 1): await any in-flight
+   `resolveSnackbarOutcome` — its `NonCancellable` commit survives step 1's collector cancellation
+   by design — and record (not silently drop) any queued models; a model queued across the
+   replacement carries old-generation closures and must not execute against gen N+1. *Reversible.*
+4. Clear the generation `ViewModelStore` (deterministic `onCleared`). *Rebuildable from the live
    graph if aborted after this point.*
-4. `lifetime.cancelAndJoin()` — reactors, collectors, export/chore jobs END. Join is bounded; a
+5. `lifetime.cancelAndJoin()` — reactors, collectors, export/chore jobs END. Join is bounded; a
    straggler ignoring cancellation is recorded and the machine proceeds — post-close DB touches
    from cancelled stragglers fail loud (§7.1's measured pin), and the atomic rename cannot be
    corrupted by a reader. This is the LAST step before the point of no return; nothing between it
    and `close()` can fail.
 
-New DB work during Quiescing is excluded structurally: after steps 1–4 no old-generation producer
-remains (UI disposed, workers drained, lifetime joined); the transaction itself is the only actor.
-No DAO/repository proxying, no graph-wide gate.
+New DB work during Quiescing is excluded structurally: after steps 1–5 no old-generation producer
+remains (UI disposed, workers + snackbar resolves drained, lifetime joined); the transaction
+itself is the only actor. No DAO/repository proxying, no graph-wide gate.
 
 **ReplacingFile**: runtime calls `generation.database.close()` — **generation N is now terminal:
 it is never republished and never treated as a fallback** — then invokes the provider's pure file
@@ -342,10 +358,13 @@ arming run on the new lifetime.
   generation for new UI work and surfaces the recovery route (RecoveryActivity-equivalent path);
   it never continues serving a closed generation.
 
-**Re-entrancy**: a rollback request arriving from inside the transaction's own Preflight (the
-coordinator's failure path) is executed as the current transaction's rollback branch — the runtime
-detects the held transaction under its mutex and inlines the file mechanics; it does not start a
-nested transaction.
+**Re-entrancy** (review v2 condition 4): a rollback request arriving from inside the
+transaction's own Preflight (the coordinator's failure path) is executed as the current
+transaction's rollback branch via a **CoroutineContext transaction marker** — the machine installs
+a per-transaction context element around the Preflight invocation, and the `DatabaseReplacement`
+implementation inlines the file mechanics only when `coroutineContext[marker]` matches the current
+transaction (kotlinx `Mutex` is non-reentrant and holder-anonymous, so mutex introspection cannot
+implement this). It never starts a nested transaction.
 
 ### 8.5 Replacement-mechanics ownership — provider split and the caller seam
 
@@ -357,8 +376,9 @@ nested transaction.
   `close()`** — invoked only by the runtime inside ReplacingFile.
 - Non-swap surface unchanged: `captureSnapshot`, `preserveCurrentDb`, `preserveDbBeforeMigration`,
   peeks, `hasPreRestoreBackup`, `delete*` — these never close the DB.
-- Callers reroute to a narrow seam, `DatabaseReplacement` (interface in `core:data:backup:api`,
-  where `BackupResult` and the callers' existing dependencies live):
+- Callers reroute to a narrow seam, `DatabaseReplacement` (interface in `core:data:backup:api`
+  **androidMain** — the module is KMP and the signature uses `java.io.File`; precedent:
+  `BackupStorage` sits there for the same reason):
   `suspend fun restoreFromSnapshot(source: File): BackupResult<Unit>` and
   `suspend fun rollbackToPreRestoreBackup(): BackupResult<Unit>`. The runtime implements it and
   enters the graph as a `create()` bound instance (5th root). Rerouted callers:
@@ -399,12 +419,16 @@ when (phase) {
     is Generation -> saveableStateHolder.SaveableStateProvider(phase.id) {
         key(phase.id) {
             CompositionLocalProvider(LocalViewModelStoreOwner provides phase.viewModelStoreOwner) {
-                …existing body…
+                …the ENTIRE existing body, INCLUDING the AppRootViewModel resolution at its top —
+                a wrapper enclosing only the visual tree would land the VM in the Activity store
+                and let its ctor-captured gen-N navigatorEventBus cross generations…
                 DisposableEffect(phase.id) { onDispose { runtime.onUiRegionDisposed(phase.id) } }
             }
         }
     }
-    Transitioning -> Box(Modifier.fillMaxSize().background(colorScheme.background))
+    // Theme-independent background: the theme flows from the generation's AppRootViewModel,
+    // which does not exist in this branch.
+    Transitioning -> Box(Modifier.fillMaxSize().background(themeNeutralBackground))
 }
 ```
 
@@ -444,9 +468,13 @@ behavior, composition root, and binding the iOS runtime host.
   (lifetime join, close); aborts republish `Serving(genN)` with saved state intact.
 - Terminal generations: closed ⇒ never republished; failure after close ⇒ fresh-generation or
   rollback+fresh-generation, else explicit `Fatal` — never continue on a closed generation.
-- A seam read racing the transition window (e.g. a newly constructed worker between close and
-  publish) receives the terminal generation's deps and fails loud on first DB touch (§7.1's
-  measured pin) — bounded, recorded; WorkManager retry recovers it on the new generation.
+- A seam read racing the transition window (e.g. a worker constructed after the step-2 drain,
+  before close — WorkManager dispatch is not pausable) receives the terminal generation's deps and
+  fails loud on first DB touch (§7.1's measured pin) — bounded, recorded, user-visible (review v2
+  condition 2): the pool-closed `SQLiteException` propagates uncaught out of `BackupWorker.doWork`
+  → the run is marked FAILED, not retried (`Result.retry()` exists only on caught `BackupResult`
+  branches). The periodic chain survives via WorkManager's own persistence; a one-time backup
+  requires a user re-trigger. Worker catch-blocks are deliberately NOT widened (out of scope).
 - Cold-start `runBlocking` boundaries untouched. Chore failure policy unchanged.
 
 ## 10. Locked invariants — preservation map (R2)
@@ -457,7 +485,7 @@ behavior, composition root, and binding the iOS runtime host.
 | **R2 replacement invariant** (§0) | `RuntimeGeneration` is the single published unit; DB-bound objects are graph-owned and die with their generation (Quiescing) or are drained (workers); DB generation increments only on file swaps |
 | Graph-only work reuses the live `AppDatabase` | graph-only reinit hands the same `database` object into the next generation |
 | No DAO/repository proxies, no graph-wide swappable indirection | replacement rebuilds the graph; nothing is proxied — the only new indirection is the narrow `DatabaseReplacement` caller seam |
-| DataStore state (3 files) + dialog exactly-once | process-lifetime memoization untouched; flags persisted; dismiss-after discipline untouched; verified across replacement |
+| DataStore state (5 files) + dialog exactly-once | process-lifetime memoization untouched; flags persisted; dismiss-after discipline untouched; verified across replacement |
 | Recovery ordering (S1→S2, short-circuits, blocking boundaries, no Room on `RouteToRecovery`, observer-before-Activity, TestApplication bypass) | `StartupProcessor` is an order-preserving extraction; coordinators keep semantics; `TestApplication.onCreateGraphBootstrap` no-op seam retained; harness publishes phases explicitly |
 | Startup jobs owned; planner semantics | §8.2/§8.3 |
 | Nav3 canonical; root reset; no resurrection; restoration oracle unchanged; no graph/navigator CompositionLocals | §8.7 (measured: `NavCommand` has 5 variants, no `ResetToRoot`) |
@@ -493,6 +521,9 @@ not DAO proxies). Each point: inject → assert the locked outcome.
 | Injection point | Locked outcome |
 |---|---|
 | Quiesce (UI await / worker drain timeout) | abort pre-close; gen N serving; saved state restored |
+| Concurrent request for a DIFFERENT operation mid-transaction | queues or returns busy — never receives the in-flight operation's result (review v2 condition 3) |
+| Worker constructed after drain, before close | bounded loud FAILED run; periodic chain intact; never blocks or corrupts the swap |
+| Snackbar deferred-commit in flight at quiesce | awaited before close; queued models recorded, never executed against gen N+1 |
 | DB `close()` (throw) | close() does not meaningfully throw; hook asserts terminality bookkeeping regardless |
 | File replacement (rename fails) | post-close: rollback mechanics + fresh generation; flags/dialog via coordinator failure path |
 | New DB construction/open | rollback + another fresh DB+graph generation |
@@ -568,6 +599,7 @@ persisted-format change, no golden change anywhere in the plan.
 8. `documentation/performance.md` `AppCreated` boundary — verify against §2 stage 6.
 9. `android_build_unified.yml:146` "13 golden-holding modules" — 14 apply Paparazzi (recorded, not
    edited — CI text change out of scope).
+9b. `MetroWorkerFactory.kt:19` KDoc cites work-runtime 2.10.0; the catalog ships 2.11.2.
 10. Unverified-claims register at implementation end: iOS link/runtime behavior of the reworked
     iosMain actual (compile-verified only); `key()`/SaveableStateHolder interaction with
     saved-state beyond the tested API-34 emulator.
@@ -583,12 +615,54 @@ What carries forward from it as still-applicable findings: the disposal-ordering
 inventory), the worker single-read-per-invocation pin (§8.6), the `ActivityHolder` empty-after-
 replacement property (§3), and the stale-doc additions (§15.7).
 
-## 17. Independent architecture review v2 (R2) — gating
+## 17. Independent architecture review v2 (R2) — CONFIRM, with binding conditions
 
-A fresh-context adversarial review of THIS spec version must run before implementation commits
-5–10, focused on: Quiescing completeness vs live captures (§4), terminal-generation discipline and
-the post-close failure ladder, mixed-generation windows (seam reads during Transitioning), the
-abort/SaveableStateHolder restoration story, recovery-layering of the §8.5 split, dialog
-exactly-once across replacement, Android-production behavior preservation under the
-`RestartProcess` policy, and the §0 STOP conditions. Result to be recorded here with its verdict
-and binding conditions.
+Fresh-context adversarial review, 2026-08-22, of this spec version: **CONFIRM — no binding
+condition violated, no STOP condition fires.** STOP-sweep results: quiescence needs no DAO
+proxying; the swap moves under runtime ownership without breaking recovery layering (module
+directions verified; the swap callers are exactly the three named sites); no path re-serves a
+closed generation (the seam-read race is a bounded loud failure — `RuntimePhase` stays
+`Transitioning`, nothing republishes); no schema/migration/driver/dependency/Phase-7 work is
+forced (WorkManager 2.11.2 already ships the awaitable unique-work API); dialog exactly-once
+holds end-to-end (dedup at publish, transition window structurally choice-free, `BaseStore`
+re-arms `initialActions` on re-init); `BackStackStateRestorationTest` remains a valid oracle
+under the §8.7 wrapper. Binding conditions, all folded into §4/§8/§9/§11 above:
+
+1. **Snackbar deferred-commit live capture (biggest find).** `AppSnackbarModel`'s `onDismissed`
+   runs under `withContext(NonCancellable)` and the ED11 deferred permanent-delete hands a
+   DB commit there through a closure capturing gen-N repositories; `SnackbarManager` is a
+   process-level object with an unlimited queue whose requeue path can carry gen-N closures into
+   the gen-N+1 collector. Quiescing gains a sub-step (await the in-flight resolve; drain-or-record
+   the queue before close), the §4 audit gains the row, and the queued-model cross-generation
+   property is recorded.
+2. **Worker failure wording corrected in §9**: a pool-closed `SQLiteException` propagates uncaught
+   out of `BackupWorker.doWork` → FAILED, not retried (`Result.retry()` exists only on caught
+   `BackupResult` branches). Periodic work survives via its chain; one-time requires a re-trigger.
+   The drain-to-close construction race (a worker built after the drain, before close) is in the
+   §11.3 matrix with the same bounded-loud-failure classification.
+3. **Coalescing is operation-identity-scoped** (§8.4): a concurrent request for a DIFFERENT
+   operation never receives the in-flight transaction's result — it queues behind it or returns an
+   explicit busy outcome. (An undo coalescing onto a restore's Success would clear the undo slot
+   and publish `UndoRestoreSuccess` for a rollback that never ran.)
+4. **Re-entrancy mechanism is a CoroutineContext transaction marker** (§8.4): kotlinx `Mutex` is
+   non-reentrant and holder-anonymous; the machine installs a per-transaction context element
+   around Preflight, and the `DatabaseReplacement` impl inlines the rollback branch only when the
+   marker matches the current transaction.
+5. **`RestartProcess` scoping** (§8.4): the post-close recovery ladder applies to
+   `RebuildInProcess` only — production's post-close failure behavior (return `Io`, no restart,
+   loud-failing closed DB until the user acts) is preserved verbatim; and a `RestartProcess`
+   transaction MUST be startable from an already-terminal generation (the undo `IoFailure` re-tap
+   re-runs close+rename today; close is idempotent).
+6. **Cold-start mutex rule** (§8.3): generation 1's build+publish completes and releases the
+   transition mutex BEFORE the startup preflight runs; a cold-start Scenario-1 rollback takes the
+   plain `RestartProcess` path, never the full machine — otherwise the first cold-start rollback
+   deadlocks the main thread on the runtime's own mutex.
+
+Notes folded: the §8.7 wrapper must enclose App()'s `AppRootViewModel` resolution (top of the
+body), and the Transitioning interstitial uses a theme-independent background (the theme flows
+from that VM); §10's DataStore count corrected to 5 files; the identity tests reach the 4th root
+through `buildAppGraph`'s defaulted parameter (reconciled — the default IS the pre-Phase-5
+anonymous-scope behavior); `DatabaseReplacement` lives in `core:data:backup:api` **androidMain**
+(the module is KMP; `java.io.File` precedent: `BackupStorage`); `MetroWorkerFactory.kt:19`'s
+work-runtime 2.10.0 KDoc cite is stale (catalog: 2.11.2) → §15; `LargeClass` (600) is the one
+detekt ceiling to watch for the state machine.
