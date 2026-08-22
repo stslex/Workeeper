@@ -98,6 +98,7 @@ internal class ExerciseChartGoldenTest {
                 ChartPointUiModel(
                     day = day,
                     dayMillis = day.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli(),
+                    sessionUuid = "weightless-$index",
                     value = reps[index].toDouble(),
                     setCount = 3,
                 )
@@ -331,6 +332,7 @@ private fun points(): List<ChartPointUiModel> = DAYS.mapIndexed { index, day ->
     ChartPointUiModel(
         day = day,
         dayMillis = day.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli(),
+        sessionUuid = "weighted-$index",
         value = WEIGHTS[index],
         setCount = 4,
     )

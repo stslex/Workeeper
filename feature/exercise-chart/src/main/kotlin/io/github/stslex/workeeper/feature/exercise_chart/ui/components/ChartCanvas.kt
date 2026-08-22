@@ -92,11 +92,10 @@ internal fun ChartCanvas(
     val animator = remember { ChartPointsAnimator(scope, dataSpec, targets) }
     LaunchedEffect(points) { animator.retarget(targets, animate = true) }
 
-    // Identity, not position: the record and the scrubbed point are resolved by day key, so
-    // they survive a retarget that moves every index (a preset change) without the flags
-    // sliding onto the wrong disc mid-animation.
-    val activeKey = activeIndex?.let { points.getOrNull(it)?.dayMillis }
-    val recordKey = recordIndex?.let { points.getOrNull(it)?.dayMillis }
+    // Identity, not position: duplicate-day sessions need independent keys, and the flags
+    // must survive a retarget without sliding onto a sibling point.
+    val activeKey = activeIndex?.let { points.getOrNull(it)?.sessionUuid }
+    val recordKey = recordIndex?.let { points.getOrNull(it)?.sessionUuid }
 
     // The scrub bar encodes no value — it marks which point is being read — so it may glide
     // on its own clock (`fast`, and `spring` would be legal here too). It first glides to a
@@ -313,8 +312,8 @@ private fun ChartCanvasLightPreview() {
 
 @Suppress("MagicNumber")
 private fun previewPoints(): ImmutableList<ChartPointUiModel> = listOf(
-    ChartPointUiModel(LocalDate.of(2026, 4, 5), 0L, 80.0, 1),
-    ChartPointUiModel(LocalDate.of(2026, 4, 12), 0L, 90.0, 1),
-    ChartPointUiModel(LocalDate.of(2026, 4, 19), 0L, 95.0, 1),
-    ChartPointUiModel(LocalDate.of(2026, 4, 26), 0L, 105.0, 2),
+    ChartPointUiModel(LocalDate.of(2026, 4, 5), 0L, "preview-1", 80.0, 1),
+    ChartPointUiModel(LocalDate.of(2026, 4, 12), 0L, "preview-2", 90.0, 1),
+    ChartPointUiModel(LocalDate.of(2026, 4, 19), 0L, "preview-3", 95.0, 1),
+    ChartPointUiModel(LocalDate.of(2026, 4, 26), 0L, "preview-4", 105.0, 2),
 ).toImmutableList()

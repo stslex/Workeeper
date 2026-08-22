@@ -134,7 +134,10 @@ internal class CommonHandlerTest {
         // The tap lands while this load is in flight.
         coEvery { interactor.loadChartData(any(), any(), any(), any(), any()) } answers {
             flow.value = flow.value.copy(metric = ChartMetricUiModel.VOLUME_PER_SESSION)
-            ChartFoldDomain(points = listOf(pointDomain(), pointDomain()), footer = null)
+            ChartFoldDomain(
+                points = listOf(pointDomain("session-1"), pointDomain("session-2")),
+                footer = null,
+            )
         }
 
         handler.loadChart(benchItem)
@@ -155,18 +158,21 @@ internal class CommonHandlerTest {
         val store = newStore(flow)
         val handler = CommonHandler(interactor = interactor, resourceWrapper = resources, store = store)
         coEvery { interactor.loadChartData(any(), any(), any(), any(), any()) } returns
-            ChartFoldDomain(points = listOf(pointDomain(), pointDomain()), footer = null)
+            ChartFoldDomain(
+                points = listOf(pointDomain("session-1"), pointDomain("session-2")),
+                footer = null,
+            )
 
         handler.loadChart(benchItem)
 
         assertEquals(2, flow.value.points.size)
     }
 
-    private fun pointDomain(): ChartPointDomain = ChartPointDomain(
+    private fun pointDomain(sessionUuid: String): ChartPointDomain = ChartPointDomain(
         day = java.time.LocalDate.of(2026, 4, 1),
         dayMillis = 0L,
         value = 100.0,
-        sessionUuid = "s",
+        sessionUuid = sessionUuid,
         weight = 100.0,
         reps = 5,
         setCount = 1,
@@ -224,7 +230,7 @@ internal class CommonHandlerTest {
     }
 
     @Test
-    fun `loadChart with two points clears emptyReason and scrubs the last point`() {
+    fun `loadChart with two same-day sessions plots and scrubs the later session`() {
         val flow = MutableStateFlow(
             State.create(initialUuid = "uuid-1").copy(
                 emptyReason = EmptyReason.NO_DATA_FOR_EXERCISE,
@@ -239,8 +245,14 @@ internal class CommonHandlerTest {
         coEvery { interactor.loadChartData(any(), any(), any(), any(), any()) } returns
             ChartFoldDomain(
                 points = listOf(
-                    chartPointDomain(day = java.time.LocalDate.of(2026, 4, 21)),
-                    chartPointDomain(day = java.time.LocalDate.of(2026, 4, 28)),
+                    chartPointDomain(
+                        day = java.time.LocalDate.of(2026, 4, 28),
+                        sessionUuid = "morning",
+                    ),
+                    chartPointDomain(
+                        day = java.time.LocalDate.of(2026, 4, 28),
+                        sessionUuid = "evening",
+                    ),
                 ),
                 footer = null,
             )
@@ -249,15 +261,19 @@ internal class CommonHandlerTest {
 
         assertNull(flow.value.emptyReason)
         assertEquals(2, flow.value.points.size)
+        assertEquals(listOf("morning", "evening"), flow.value.points.map { it.sessionUuid })
         assertEquals(1, flow.value.activeIndex)
         assertNotNull(flow.value.readout)
     }
 
-    private fun chartPointDomain(day: java.time.LocalDate): ChartPointDomain = ChartPointDomain(
+    private fun chartPointDomain(
+        day: java.time.LocalDate,
+        sessionUuid: String = "session",
+    ): ChartPointDomain = ChartPointDomain(
         day = day,
         dayMillis = 0L,
         value = 100.0,
-        sessionUuid = "s",
+        sessionUuid = sessionUuid,
         weight = 100.0,
         reps = 5,
         setCount = 1,
