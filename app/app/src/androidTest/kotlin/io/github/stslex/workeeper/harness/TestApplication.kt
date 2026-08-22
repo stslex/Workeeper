@@ -29,20 +29,23 @@ internal class TestApplication : BaseApplication() {
     override val isDebugLoggingAllow: Boolean = true
 
     override val appGraph: AppGraph
-        get() = MetroTestGraphHolder.graph
+        get() = MetroTestGraphHolder.runtimeDelegate?.currentGeneration?.graph
+            ?: MetroTestGraphHolder.graph
 
     /**
-     * Harness-controlled generation stream (Phase 5, spec §8.7): the rule publishes
-     * `Generation(1, per-test store)` on install, so `App()` composes against the per-test graph
-     * and never touches the production runtime. The attach/dispose callbacks keep their default
-     * no-op bodies — there is no runtime Quiescing to signal in the static-generation harness.
+     * Harness-controlled generation stream (Phase 5, spec §8.7): static mode serves the rule's
+     * `Generation(1, per-test store)`; runtime mode (`MetroTestGraphHolder.runtimeDelegate`)
+     * serves a REAL `AppRuntime`'s stream — the production UI-disposal handshake, used by the
+     * handshake device tests.
      */
     override val appUiPhases: StateFlow<AppUiPhase>
-        get() = MetroTestGraphHolder.uiPhases
+        get() = MetroTestGraphHolder.effectiveUiPhases()
 
-    override fun onUiGenerationAttached(id: Int) = Unit
+    // REAL accounting in both harness modes (the interface forbids silent no-ops): static mode
+    // counts into the holder's assertable map; runtime mode drives the production gate.
+    override fun onUiGenerationAttached(id: Int) = MetroTestGraphHolder.onUiGenerationAttached(id)
 
-    override fun onUiGenerationDisposed(id: Int) = Unit
+    override fun onUiGenerationDisposed(id: Int) = MetroTestGraphHolder.onUiGenerationDisposed(id)
 
     override fun onCreateGraphBootstrap() {
         // Intentionally empty — see class doc. The graph is installed per test by MetroTestRule.

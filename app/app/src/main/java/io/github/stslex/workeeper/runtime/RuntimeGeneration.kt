@@ -47,4 +47,13 @@ internal sealed interface RuntimePhase {
     data class Serving(val generation: RuntimeGeneration) : RuntimePhase
 
     data object Transitioning : RuntimePhase
+
+    /**
+     * The explicit terminal state: after the point of no return, both generation construction
+     * and rollback recovery failed. No generation is serving; `AppRuntime.currentGeneration`
+     * and lease acquisition THROW (a closed generation is never exposed through the holders),
+     * and nothing converts Fatal back to Serving. Surfacing recovery UI for this state is the
+     * calling host's wiring (Phase 7 / instrumentation).
+     */
+    data object Fatal : RuntimePhase
 }

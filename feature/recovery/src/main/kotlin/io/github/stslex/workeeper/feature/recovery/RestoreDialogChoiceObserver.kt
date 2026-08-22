@@ -159,14 +159,17 @@ class RestoreDialogChoiceObserver @Inject constructor(
     ) {
         when (action) {
             AppDialogUserAction.ConfirmUndo -> {
-                // Dismiss-AFTER (uniform). Side-effect first; acknowledge only
-                // when the outcome is one we can dismiss the dialog on. IoFailure
-                // keeps the dialog visible so the user sees the reaction did NOT
-                // complete and can re-tap — anything else (success OR the file
-                // already being gone) means no further user-driven action could
-                // accomplish anything new, so the dialog is safe to dismiss.
-                val outcome = coordinator.performUndoRestore()
-                if (outcome != UndoRestoreOutcome.IoFailure) {
+                // Dismiss-AFTER (uniform), Phase 5 R2 shape: the SUCCESS acknowledge rides the
+                // transaction's onCommitted hook — this observer's scope is a child of the
+                // outgoing generation's lifetime, which an in-process rollback kills mid-await,
+                // so post-commit effects must run under transaction ownership. Order inside the
+                // hook preserves side-effect-first: undo state + UndoRestoreSuccess publish,
+                // THEN this acknowledge. IoFailure still keeps the dialog visible for a re-tap;
+                // FileMissing (pre-transaction, initiator alive) acknowledges directly.
+                val outcome = coordinator.performUndoRestore(onCommitted = {
+                    observer.acknowledgeReaction(dialog)
+                })
+                if (outcome == UndoRestoreOutcome.FileMissing) {
                     observer.acknowledgeReaction(dialog)
                 }
                 if (outcome == UndoRestoreOutcome.Succeeded) coordinator.restartApp()

@@ -4,7 +4,6 @@ package io.github.stslex.workeeper
 import android.app.ActivityManager
 import android.app.Application
 import androidx.work.Configuration
-import androidx.work.WorkManager
 import io.github.stslex.workeeper.app.common.di.AppRootDeps
 import io.github.stslex.workeeper.app.common.di.AppRootDepsHolder
 import io.github.stslex.workeeper.app.common.di.AppUiGenerationsHolder
@@ -13,10 +12,10 @@ import io.github.stslex.workeeper.core.core.images.buildImageStorage
 import io.github.stslex.workeeper.core.core.logger.FirebaseCrashlyticsHolder
 import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.core.core.utils.CommonExt
+import io.github.stslex.workeeper.core.data.backup.worker.BackupWorkLease
 import io.github.stslex.workeeper.core.data.backup.worker.BackupWorkerDeps
 import io.github.stslex.workeeper.core.data.backup.worker.BackupWorkerDepsHolder
 import io.github.stslex.workeeper.core.data.backup.worker.MetroWorkerFactory
-import io.github.stslex.workeeper.core.data.backup.worker.scheduler.awaitBackupWorkersIdle
 import io.github.stslex.workeeper.core.data.database.buildAppDatabase
 import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
 import io.github.stslex.workeeper.core.ui.mvi.di.AppDepsHolder
@@ -84,7 +83,6 @@ abstract class BaseApplication :
                 )
             },
             policy = RuntimeTransitionPolicy(
-                drainWorkers = { awaitBackupWorkersIdle(WorkManager.getInstance(this)) },
                 drainSnackbarResolves = { SnackbarManager.awaitInFlightResolves() },
                 pendingSnackbarCount = { SnackbarManager.pendingModelCount },
             ),
@@ -123,6 +121,10 @@ abstract class BaseApplication :
     // inversion), so it cannot use `context.appDeps<T>()`. `appGraph` implements BackupWorkerDeps, so
     // returning it typed as BackupWorkerDeps is a compile-checked upcast.
     override fun backupWorkerDeps(): BackupWorkerDeps = appGraph
+
+    // Atomic worker admission (Phase 5 R2): deps + quiesce-awaited lease in one step, from the
+    // runtime that owns generation transitions. See BackupWorkerDepsHolder's KDoc.
+    override fun acquireBackupWorkLease(): BackupWorkLease = appRuntime.acquireBackupWorkLease()
 
     // Typed point-acquisition, same shape as the two above: App() lives in app:common, which
     // `:app:app` depends on — so it sits below the graph and cannot name `AppGraph` or

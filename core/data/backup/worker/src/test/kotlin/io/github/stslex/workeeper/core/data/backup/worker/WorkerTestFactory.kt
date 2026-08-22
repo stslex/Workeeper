@@ -11,20 +11,32 @@ import io.github.stslex.workeeper.core.data.backup.api.notification.BackupNotifi
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.AutoBackupController
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupPreferencesRepository
 import io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProvider
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
- * Constructs a real [BackupWorker] with the supplied mocked dependencies so
- * tests can call `doWork()` directly without instantiating the full Hilt graph.
- * Mirrors the binding that the @HiltWorker code generator produces at runtime.
+ * Constructs a real [BackupWorker] with the supplied mocked dependencies so tests can call
+ * `doWork()` directly without a runtime host. Mirrors [MetroWorkerFactory]'s lease admission with
+ * a [RecordingBackupWorkLease] — tests read [lease] to assert the release-in-finally contract.
  */
 internal class WorkerTestFactory(
-    private val backupStorage: BackupStorage,
-    private val snapshotProvider: DatabaseSnapshotProvider,
-    private val preferences: BackupPreferencesRepository,
-    private val autoBackupController: AutoBackupController,
-    private val notificationHelper: BackupNotificationHelper,
-    private val snapshotExportRunner: SnapshotExportRunner,
+    backupStorage: BackupStorage,
+    snapshotProvider: DatabaseSnapshotProvider,
+    preferences: BackupPreferencesRepository,
+    autoBackupController: AutoBackupController,
+    notificationHelper: BackupNotificationHelper,
+    snapshotExportRunner: SnapshotExportRunner,
 ) : WorkerFactory() {
+
+    val lease = RecordingBackupWorkLease(
+        object : BackupWorkerDeps {
+            override val backupStorage: BackupStorage = backupStorage
+            override val databaseSnapshotProvider: DatabaseSnapshotProvider = snapshotProvider
+            override val backupPreferencesRepository: BackupPreferencesRepository = preferences
+            override val autoBackupController: AutoBackupController = autoBackupController
+            override val backupNotificationHelper: BackupNotificationHelper = notificationHelper
+            override val snapshotExportRunner: SnapshotExportRunner = snapshotExportRunner
+        },
+    )
 
     override fun createWorker(
         appContext: Context,
@@ -33,11 +45,18 @@ internal class WorkerTestFactory(
     ): ListenableWorker = BackupWorker(
         appContext = appContext,
         workerParams = workerParameters,
-        backupStorage = backupStorage,
-        snapshotProvider = snapshotProvider,
-        preferences = preferences,
-        autoBackupController = autoBackupController,
-        notificationHelper = notificationHelper,
-        snapshotExportRunner = snapshotExportRunner,
+        workLease = lease,
     )
+}
+
+/** Test double for [BackupWorkLease] counting [release] calls. */
+internal class RecordingBackupWorkLease(
+    override val deps: BackupWorkerDeps,
+) : BackupWorkLease {
+
+    val releaseCount = AtomicInteger(0)
+
+    override fun release() {
+        releaseCount.incrementAndGet()
+    }
 }

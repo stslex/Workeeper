@@ -6,6 +6,7 @@ import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.core.platform.TempFileProvider
 import io.github.stslex.workeeper.core.data.backup.api.BackupStorage
 import io.github.stslex.workeeper.core.data.backup.api.DatabaseReplacement
+import io.github.stslex.workeeper.core.data.backup.api.DatabaseReplacementResult
 import io.github.stslex.workeeper.core.data.backup.api.error.BackupError
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreInProgressContext
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreStateRepository
@@ -13,6 +14,7 @@ import io.github.stslex.workeeper.core.data.backup.api.result.BackupResult
 import io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProvider
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
+import java.io.IOException
 
 /**
  * The restore-latest orchestration, extracted from `BackupInteractorImpl` per the domain-layer
@@ -68,20 +70,11 @@ class RestoreLatestBackupUseCase(
 
         // Preserve the live database so the post-restart pre-flight (Scenario 1)
         // and any later user-initiated undo (Scenario 3) have something to roll
-        // back to. Mark restore_in_progress with the manifest payload so the
-        // pre-flight can attach Crashlytics keys / diagnostics if rollback fires.
+        // back to.
         when (val preserved = snapshotProvider.preserveCurrentDb()) {
             is BackupResult.Success -> Unit
             is BackupResult.Failure -> return@withContext preserved
         }
-        restoreStateRepository.markRestoreInProgress(
-            RestoreInProgressContext(
-                backupSchemaVersion = backupSchemaVersion,
-                backupCreatedAtEpochMs = ref.manifest.createdAtEpochMs,
-                backupAppVersion = ref.manifest.appVersion,
-                startedAtEpochMs = System.currentTimeMillis(),
-            ),
-        )
 
         val tempFile = tempFileProvider.createTempFile(TEMP_RESTORE_PREFIX, TEMP_RESTORE_SUFFIX)
         try {
@@ -90,11 +83,40 @@ class RestoreLatestBackupUseCase(
                 rollbackPreSwapFailure()
                 return@withContext download
             }
-            val snapshotResult = databaseReplacement.restoreFromSnapshot(tempFile)
-            if (snapshotResult is BackupResult.Failure) {
-                rollbackPreSwapFailure()
+            // `restore_in_progress` is written INSIDE the transaction (beforeMutation), under
+            // the transition mutex — no other transition's preflight can interleave between the
+            // marker write and the swap, and validation rejections never leave a stale marker.
+            val snapshotResult = databaseReplacement.restoreFromSnapshot(
+                source = tempFile,
+                beforeMutation = {
+                    restoreStateRepository.markRestoreInProgress(
+                        RestoreInProgressContext(
+                            backupSchemaVersion = backupSchemaVersion,
+                            backupCreatedAtEpochMs = ref.manifest.createdAtEpochMs,
+                            backupAppVersion = ref.manifest.appVersion,
+                            startedAtEpochMs = System.currentTimeMillis(),
+                        ),
+                    )
+                },
+            )
+            // Phase-aware (R2 finding 4): pre-swap cleanup is legal ONLY when nothing was
+            // mutated. After the point of no return the preserved file and the marker are the
+            // recovery path — deleting them here would destroy it.
+            when (snapshotResult) {
+                DatabaseReplacementResult.Committed -> BackupResult.Success(Unit)
+
+                is DatabaseReplacementResult.RejectedBeforeMutation -> {
+                    rollbackPreSwapFailure()
+                    BackupResult.Failure(snapshotResult.error)
+                }
+
+                is DatabaseReplacementResult.FailedAfterMutation ->
+                    BackupResult.Failure(snapshotResult.error)
+
+                DatabaseReplacementResult.FatalNoGeneration -> BackupResult.Failure(
+                    BackupError.Io(IOException("replacement fatal: no generation serving")),
+                )
             }
-            snapshotResult
         } finally {
             tempFile.delete()
         }

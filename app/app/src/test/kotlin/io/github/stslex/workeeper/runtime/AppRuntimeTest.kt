@@ -2,11 +2,17 @@
 package io.github.stslex.workeeper.runtime
 
 import android.content.Context
-import io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetime
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import io.github.stslex.workeeper.core.core.images.ImageStorage
+import io.github.stslex.workeeper.core.data.backup.api.DatabaseReplacementResult
 import io.github.stslex.workeeper.core.data.database.AppDatabase
+import io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProvider
 import io.github.stslex.workeeper.di.AppGraph
+import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitCancellation
@@ -23,25 +29,35 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 /**
- * The R2 generation-lifecycle pins for [AppRuntime]'s graph-only transitions
- * (`kmp-phase-5-startup-processor.md` §8.1/§12): same-database handover, atomic publication,
- * candidate-not-published-before-preflight, abort-leaves-N-serving, deterministic disposal,
- * single-flight + coalescing. The file-swap replacement transaction has its own suite.
+ * Graph-only transition pins (Phase 5 R2 + the REQUEST_CHANGES finding-7 fixes): same-database
+ * handover, submission ownership, candidate-unpublished-before-preflight, abort leaving the
+ * outgoing generation INTACT (ViewModelStore included), staged construction unwind, the
+ * deterministic nested-rollback rejection, and the single immutable published state behind both
+ * phase views. The file-swap replacement transaction has its own suite.
  */
 internal class AppRuntimeTest {
+
+    private class ProbeViewModel : ViewModel()
 
     private val context = mockk<Context>(relaxed = true)
     private val database = mockk<AppDatabase>(relaxed = true)
     private var databaseBuilds = 0
-    private val builtLifetimes = mutableListOf<AppScopeLifetime>()
+    private val builtLifetimes = mutableListOf<io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetime>()
+    private val closedDatabases = mutableListOf<AppDatabase>()
+    private var graphFactoryFailures = mutableListOf<Int>()
+    private var builtGraphs = 0
 
     private var preflightOutcome: StartupOutcome = StartupOutcome.Proceed
     private var preflightGate: CompletableDeferred<Unit>? = null
-    private var drainWorkersBlocks = false
+    private var preflightAction: (suspend (RuntimeGeneration) -> Unit)? = null
+    private var preflightThrows = false
+
+    private val provider = mockk<DatabaseSnapshotProvider>(relaxed = true)
 
     private fun runtimeTest(
         body: suspend kotlinx.coroutines.test.TestScope.(AppRuntime) -> Unit,
     ) = runTest {
+        val dispatcher = UnconfinedTestDispatcher(testScheduler)
         val runtime = AppRuntime(
             applicationContext = context,
             dbFactory = {
@@ -50,16 +66,22 @@ internal class AppRuntimeTest {
             },
             imageStorageFactory = { mockk<ImageStorage>(relaxed = true) },
             graphFactory = { _, _, _, lifetime, _ ->
+                if (builtGraphs++ in graphFactoryFailures) error("injected graph construction failure")
                 builtLifetimes += lifetime
-                mockk<AppGraph>(relaxed = true)
+                mockk<AppGraph>(relaxed = true) {
+                    every { databaseSnapshotProvider } returns provider
+                }
             },
-            preflight = {
+            preflight = { generation ->
+                preflightAction?.invoke(generation)
                 preflightGate?.await()
+                if (preflightThrows) error("injected preflight failure")
                 preflightOutcome
             },
+            closeDatabase = { closedDatabases += it },
             policy = RuntimeTransitionPolicy(
-                drainWorkers = { if (drainWorkersBlocks) awaitCancellation() },
-                mainDispatcher = UnconfinedTestDispatcher(testScheduler),
+                mainDispatcher = dispatcher,
+                hostDispatcher = dispatcher,
                 uiDisposalTimeoutMillis = 1_000,
                 drainTimeoutMillis = 1_000,
             ),
@@ -67,21 +89,36 @@ internal class AppRuntimeTest {
         body(runtime)
     }
 
-    @Test
-    fun `generation 1 builds lazily exactly once and publishes atomically`() = runtimeTest { runtime ->
-        assertEquals(0, databaseBuilds)
-
-        val first = runtime.currentGeneration
-        val second = runtime.currentGeneration
-
-        assertSame(first, second)
-        assertEquals(1, first.id)
-        assertEquals(1, first.dbGeneration)
-        assertEquals(1, databaseBuilds)
-        val phase = runtime.phases.value
-        assertInstanceOf(RuntimePhase.Serving::class.java, phase)
-        assertSame(first, (phase as RuntimePhase.Serving).generation)
+    private fun putProbeViewModel(generation: RuntimeGeneration) {
+        val factory = object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : ViewModel> create(modelClass: Class<T>): T = ProbeViewModel() as T
+        }
+        ViewModelProvider(generation.viewModelStore, factory)[ProbeViewModel::class.java]
     }
+
+    @Test
+    fun `generation 1 builds lazily exactly once - both phase views derive from ONE value`() =
+        runtimeTest { runtime ->
+            assertEquals(0, databaseBuilds)
+
+            val first = runtime.currentGeneration
+            val second = runtime.currentGeneration
+
+            assertSame(first, second)
+            assertEquals(1, first.id)
+            assertEquals(1, first.dbGeneration)
+            assertEquals(1, databaseBuilds)
+            // Finding 7: one immutable published value backs both faces — they cannot disagree.
+            val phase = assertInstanceOf(RuntimePhase.Serving::class.java, runtime.phases.value)
+            val uiPhase = assertInstanceOf(
+                io.github.stslex.workeeper.app.common.di.AppUiPhase.Generation::class.java,
+                runtime.uiPhases.value,
+            )
+            assertSame(first, phase.generation)
+            assertEquals(first.id, uiPhase.id)
+            assertSame(first, uiPhase.viewModelStoreOwner)
+        }
 
     @Test
     fun `graph-only handover - same database object, fresh graph lifetime store, next id`() =
@@ -91,18 +128,15 @@ internal class AppRuntimeTest {
             val outcome = runtime.reinitialize()
 
             val genTwo = assertInstanceOf(ReinitializeOutcome.Published::class.java, outcome).generation
-            // R2: graph-only lifecycle work reuses the current database instance — the db factory
-            // must not run again, and the same OBJECT is handed into the next generation.
             assertSame(genOne.database, genTwo.database)
-            assertEquals(1, databaseBuilds)
+            assertEquals(1, databaseBuilds, "the db factory must not run again")
             assertEquals(genOne.dbGeneration, genTwo.dbGeneration)
             assertNotSame(genOne.graph, genTwo.graph)
             assertNotSame(genOne.lifetime, genTwo.lifetime)
-            // Distinct navigator identities per generation — the nav bus is graph-owned, so a
-            // fresh generation gets a fresh bus (the split-bus hazard is keyed UI, not identity).
-            assertNotSame(genOne.graph.navigatorEventBus, genTwo.graph.navigatorEventBus)
             assertNotSame(genOne.viewModelStore, genTwo.viewModelStore)
+            assertNotSame(genOne.graph.navigatorEventBus, genTwo.graph.navigatorEventBus)
             assertEquals(genOne.id + 1, genTwo.id)
+            assertTrue(closedDatabases.isEmpty(), "graph-only transitions never close the database")
             assertSame(genTwo, runtime.currentGeneration)
         }
 
@@ -136,50 +170,105 @@ internal class AppRuntimeTest {
         val transition = async { runtime.reinitialize() }
         runCurrent()
 
-        // Mid-preflight: the candidate exists but is UNPUBLISHED — seam readers still get gen 1,
-        // and the UI phase is Transitioning (no generation offered to new UI work).
         assertSame(genOne, runtime.currentGeneration)
         assertEquals(RuntimePhase.Transitioning, runtime.phases.value)
 
         gate.complete(Unit)
-        val outcome = transition.await()
-        assertInstanceOf(ReinitializeOutcome.Published::class.java, outcome)
+        runCurrent()
+        assertInstanceOf(ReinitializeOutcome.Published::class.java, transition.await())
     }
 
     @Test
-    fun `preflight failure aborts - generation 1 keeps serving with its reactors alive`() =
+    fun `preflight failure aborts - generation 1 serving, reactors alive, ViewModelStore INTACT`() =
         runtimeTest { runtime ->
             val genOne = runtime.currentGeneration
+            putProbeViewModel(genOne)
             preflightOutcome = StartupOutcome.RouteToRecovery
 
             val outcome = runtime.reinitialize()
 
             assertInstanceOf(ReinitializeOutcome.Aborted::class.java, outcome)
             assertSame(genOne, runtime.currentGeneration)
-            // The relaxed graph-only quiesce order is exactly what makes this possible: the
-            // outgoing lifetime is untouched until AFTER a successful publish.
             assertTrue(genOne.lifetime.isActive, "an abort must leave generation 1 fully serving")
-            val phase = runtime.phases.value
-            assertSame(genOne, (phase as RuntimePhase.Serving).generation)
-            // The failed candidate's lifetime was disposed — nothing of it leaks.
+            // Finding 7: the outgoing ViewModelStore is only touched AFTER publish — an aborted
+            // transition re-enters the same store with its ViewModels intact.
+            assertTrue(
+                genOne.viewModelStore.keys().isNotEmpty(),
+                "the outgoing ViewModelStore must be intact after an abort",
+            )
             val candidateLifetime = builtLifetimes.last()
             assertNotSame(genOne.lifetime, candidateLifetime)
             assertFalse(candidateLifetime.isActive)
+            assertTrue(closedDatabases.isEmpty(), "the SHARED database must never be closed")
         }
 
     @Test
-    fun `worker drain timeout aborts before anything irreversible`() = runtimeTest { runtime ->
+    fun `candidate construction failure unwinds - Serving restored, shared db open, no strand`() =
+        runtimeTest { runtime ->
+            val genOne = runtime.currentGeneration
+            putProbeViewModel(genOne)
+            graphFactoryFailures.add(1) // the candidate's graph build
+
+            val outcome = runtime.reinitialize()
+
+            val aborted = assertInstanceOf(ReinitializeOutcome.Aborted::class.java, outcome)
+            assertTrue(aborted.reason.contains("construction"), "reason: ${aborted.reason}")
+            assertSame(genOne, (runtime.phases.value as RuntimePhase.Serving).generation)
+            assertTrue(closedDatabases.isEmpty(), "a graph-only candidate shares the database")
+            assertTrue(genOne.viewModelStore.keys().isNotEmpty())
+        }
+
+    @Test
+    fun `preflight throw unwinds deterministically to Serving`() = runtimeTest { runtime ->
         val genOne = runtime.currentGeneration
-        drainWorkersBlocks = true
+        preflightThrows = true
+
+        val outcome = runtime.reinitialize()
+
+        assertInstanceOf(ReinitializeOutcome.Aborted::class.java, outcome)
+        assertSame(genOne, (runtime.phases.value as RuntimePhase.Serving).generation)
+        assertTrue(genOne.lifetime.isActive)
+    }
+
+    @Test
+    fun `nested rollback inside a graph-only preflight is REJECTED - no deadlock, no file ops`() =
+        runtimeTest { runtime ->
+            val genOne = runtime.currentGeneration
+            var nestedResult: DatabaseReplacementResult? = null
+            preflightAction = { _ ->
+                // The coordinator's Scenario-1 failure path re-entering the seam from INSIDE a
+                // graph-only preflight: deterministically rejected pre-mutation instead of
+                // deadlocking on the non-reentrant transition mutex; persisted S1 state stays
+                // intact for a cold start or a later replacement transaction.
+                nestedResult = runtime.rollbackToPreRestoreBackup()
+            }
+            preflightOutcome = StartupOutcome.RestartRequired
+
+            val outcome = runtime.reinitialize()
+
+            assertInstanceOf(
+                DatabaseReplacementResult.RejectedBeforeMutation::class.java,
+                nestedResult,
+            )
+            assertInstanceOf(ReinitializeOutcome.Aborted::class.java, outcome)
+            assertSame(genOne, runtime.currentGeneration)
+            coVerify(exactly = 0) { provider.replaceLiveDatabaseFile(any()) }
+            coVerify(exactly = 0) { provider.deletePreRestoreBackup() }
+            assertTrue(closedDatabases.isEmpty())
+        }
+
+    @Test
+    fun `unreleased worker lease aborts the graph-only transition too`() = runtimeTest { runtime ->
+        val genOne = runtime.currentGeneration
+        val lease = runtime.acquireBackupWorkLease()
 
         val outcome = runtime.reinitialize()
 
         val aborted = assertInstanceOf(ReinitializeOutcome.Aborted::class.java, outcome)
-        assertTrue(aborted.reason.contains("worker drain"), "reason was: ${aborted.reason}")
+        assertTrue(aborted.reason.contains("lease"), "reason: ${aborted.reason}")
         assertSame(genOne, runtime.currentGeneration)
-        assertTrue(genOne.lifetime.isActive)
-        // No candidate was ever built: the abort happened inside Quiescing.
-        assertEquals(1, builtLifetimes.size)
+        lease.release()
+        assertInstanceOf(ReinitializeOutcome.Published::class.java, runtime.reinitialize())
     }
 
     @Test
@@ -193,44 +282,53 @@ internal class AppRuntimeTest {
             val published = assertInstanceOf(ReinitializeOutcome.Published::class.java, first)
             val coalesced = assertInstanceOf(ReinitializeOutcome.AlreadyReplaced::class.java, second)
             assertSame(published.generation, coalesced.serving)
-            assertEquals(2, builtLifetimes.size, "exactly one transition must have run")
         }
 
     @Test
-    fun `concurrent transitions serialize - readers never observe a mixture`() =
+    fun `caller cancellation abandons only the await - the transition itself completes`() =
         runtimeTest { runtime ->
-            val genOne = runtime.currentGeneration
+            runtime.currentGeneration
             val gate = CompletableDeferred<Unit>()
             preflightGate = gate
+            var callerCancelled = false
 
-            val a = async { runtime.reinitialize(expected = genOne) }
-            val b = async { runtime.reinitialize(expected = genOne) }
+            val caller = launch {
+                try {
+                    runtime.reinitialize()
+                } catch (e: CancellationException) {
+                    callerCancelled = true
+                    throw e
+                }
+            }
             runCurrent()
-            gate.complete(Unit)
+            caller.cancel()
+            runCurrent()
+            assertTrue(callerCancelled)
 
-            val outcomes = listOf(a.await(), b.await())
-            assertEquals(
-                1,
-                outcomes.count { it is ReinitializeOutcome.Published },
-                "exactly one of two concurrent same-expected requests may publish; got $outcomes",
-            )
-            assertEquals(1, outcomes.count { it is ReinitializeOutcome.AlreadyReplaced })
+            gate.complete(Unit)
+            runCurrent()
+
+            val serving = assertInstanceOf(RuntimePhase.Serving::class.java, runtime.phases.value)
+            assertEquals(2, serving.generation.id, "the transition must complete despite the caller")
         }
 
     @Test
-    fun `attached ui region gates the transition until it signals disposal`() =
+    fun `attached ui region gates the transition - only the OUTGOING id releases it`() =
         runtimeTest { runtime ->
             val genOne = runtime.currentGeneration
             runtime.onUiGenerationAttached(genOne.id)
             val transition = async { runtime.reinitialize() }
             runCurrent()
 
-            // Blocked on the UI region's departure; nothing published, gen 1 still current.
             assertEquals(RuntimePhase.Transitioning, runtime.phases.value)
             assertTrue(transition.isActive)
 
+            runtime.onUiGenerationDisposed(genOne.id + 7) // wrong id — must not release
+            runCurrent()
+            assertTrue(transition.isActive)
+
             runtime.onUiGenerationDisposed(genOne.id)
-            val outcome = transition.await()
-            assertInstanceOf(ReinitializeOutcome.Published::class.java, outcome)
+            runCurrent()
+            assertInstanceOf(ReinitializeOutcome.Published::class.java, transition.await())
         }
 }

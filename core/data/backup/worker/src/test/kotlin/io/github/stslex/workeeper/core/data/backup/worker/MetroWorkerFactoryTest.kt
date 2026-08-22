@@ -13,9 +13,11 @@ import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupPreferen
 import io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProvider
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.verify
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertSame
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
@@ -23,75 +25,79 @@ import org.robolectric.annotation.Config
 import tech.apter.junit.jupiter.robolectric.RobolectricExtension
 
 /**
- * Verification for [MetroWorkerFactory] (App-Scope Collapse Step 6 — Hilt-free): the factory dispatch
+ * Verification for [MetroWorkerFactory] (Phase 5 R2, closed-admission leases): the factory dispatch
  * logic is proven on BOTH a known-positive (BackupWorker's class name → a constructed worker) and a
- * known-negative (any other class name → null fallthrough).
+ * known-negative (any other class name → null fallthrough), and — the finding-2 shape — every
+ * construction ACQUIRES one admission lease through the typed [BackupWorkerDepsHolder], binding the
+ * worker's deps to exactly one runtime generation at admission time.
  *
- * The factory reads its six deps through the typed [BackupWorkerDepsHolder] point-acquisition (data layer,
- * NOT `appDeps<T>()`), so the test Application implements [BackupWorkerDepsHolder] and returns a mocked
- * [BackupWorkerDeps] — the graph boundary. This isolates the factory's dispatch + construction wiring from
- * real graph assembly.
+ * The test Application implements [BackupWorkerDepsHolder] and RECORDS the leases it mints, so the
+ * tests assert against the atomically-captured lease deps rather than lazy holder reads.
  */
 @ExtendWith(RobolectricExtension::class)
 @Config(application = MetroWorkerFactoryTest.TestApplication::class, sdk = [33])
 internal class MetroWorkerFactoryTest {
 
     class TestApplication : Application(), BackupWorkerDepsHolder {
-        /** Swappable — the per-invocation-read test replaces it mid-test (a generation swap). */
+        /** Swappable — the generation-swap test replaces it mid-test between admissions. */
         var deps: BackupWorkerDeps = newWorkerDeps()
 
+        /** Every lease this holder minted, in acquisition order. */
+        val acquiredLeases = mutableListOf<RecordingBackupWorkLease>()
+
         override fun backupWorkerDeps(): BackupWorkerDeps = deps
+
+        override fun acquireBackupWorkLease(): BackupWorkLease =
+            RecordingBackupWorkLease(deps).also { acquiredLeases += it }
     }
 
     private val workerParameters = mockk<WorkerParameters>(relaxed = true)
 
     private lateinit var appContext: Context
+    private lateinit var application: TestApplication
     private lateinit var factory: MetroWorkerFactory
 
     @BeforeEach
     fun setUp() {
         appContext = ApplicationProvider.getApplicationContext()
+        application = appContext.applicationContext as TestApplication
+        application.acquiredLeases.clear()
         factory = MetroWorkerFactory(appContext)
     }
 
     @Test
-    fun `known-positive - BackupWorker class name constructs a BackupWorker via the graph`() {
+    fun `known-positive - BackupWorker class name acquires ONE lease and constructs the worker`() {
         val worker = factory.createWorker(
             appContext = appContext,
             workerClassName = BackupWorker::class.java.name,
             workerParameters = workerParameters,
         )
 
-        // The factory read the six deps from the typed holder and constructed the real worker.
+        // The factory admitted the worker through the holder: one lease, atomically carrying the
+        // current generation's deps, before the worker object exists.
         assertInstanceOf(BackupWorker::class.java, worker)
-        val deps = (appContext.applicationContext as BackupWorkerDepsHolder).backupWorkerDeps()
-        verify { deps.backupStorage }
-        verify { deps.databaseSnapshotProvider }
-        verify { deps.backupPreferencesRepository }
-        verify { deps.autoBackupController }
-        verify { deps.backupNotificationHelper }
-        verify { deps.snapshotExportRunner }
+        assertEquals(1, application.acquiredLeases.size)
+        assertSame(application.deps, application.acquiredLeases.single().deps)
     }
 
     @Test
-    fun `known-negative - an unknown worker class returns null for default-factory fallthrough`() {
+    fun `known-negative - an unknown worker class returns null and touches NO admission`() {
         val worker = factory.createWorker(
             appContext = appContext,
             workerClassName = "com.example.SomeOtherWorker",
             workerParameters = workerParameters,
         )
 
-        // null → WorkManager's inherited createWorkerWithDefaultFallback constructs unknown workers via
-        // the default reflection factory. No DelegatingWorkerFactory needed.
+        // null → WorkManager's inherited createWorkerWithDefaultFallback constructs unknown workers
+        // via the default reflection factory. The admission gate must NOT be entered on the
+        // negative path (the != short-circuit precedes the acquire) — a foreign worker must never
+        // hold up a replacement transition's lease drain.
         assertNull(worker)
-        // The deps must NOT be touched on the negative path (the != short-circuit precedes the read).
-        val deps = (appContext.applicationContext as BackupWorkerDepsHolder).backupWorkerDeps()
-        verify(exactly = 0) { deps.backupStorage }
+        assertTrue(application.acquiredLeases.isEmpty())
     }
 
     @Test
-    fun `per-invocation read - a worker created after a generation swap gets the NEW graph's deps`() {
-        val application = appContext.applicationContext as TestApplication
+    fun `per-admission binding - a worker created after a generation swap leases the NEW deps`() {
         val generationOne = application.deps
 
         factory.createWorker(
@@ -99,9 +105,8 @@ internal class MetroWorkerFactoryTest {
             workerClassName = BackupWorker::class.java.name,
             workerParameters = workerParameters,
         )
-        verify(exactly = 1) { generationOne.backupStorage }
 
-        // The generation swap: the holder now answers with a NEW graph's deps. A factory that
+        // The generation swap: the holder now admits against a NEW graph's deps. A factory that
         // captured at construction (the pre-Phase-5 `by lazy`) would keep serving generationOne —
         // pinning every future worker to a terminal generation (spec §8.6).
         val generationTwo = newWorkerDeps()
@@ -113,12 +118,11 @@ internal class MetroWorkerFactoryTest {
             workerParameters = workerParameters,
         )
 
-        // All six deps of the SECOND worker came from the second graph — one holder read,
-        // no torn cross-generation worker, nothing more from the first.
-        verify(exactly = 1) { generationTwo.backupStorage }
-        verify(exactly = 1) { generationTwo.databaseSnapshotProvider }
-        verify(exactly = 1) { generationTwo.snapshotExportRunner }
-        verify(exactly = 1) { generationOne.backupStorage }
+        // Each lease bound its deps AT ADMISSION: the first worker is coherently generation-1,
+        // the second coherently generation-2 — no torn cross-generation worker.
+        assertEquals(2, application.acquiredLeases.size)
+        assertSame(generationOne, application.acquiredLeases[0].deps)
+        assertSame(generationTwo, application.acquiredLeases[1].deps)
     }
 }
 

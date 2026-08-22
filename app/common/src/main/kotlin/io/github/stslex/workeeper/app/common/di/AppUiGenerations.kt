@@ -42,9 +42,13 @@ interface AppUiGenerationsHolder {
 
     val appUiPhases: StateFlow<AppUiPhase>
 
-    /** The generation region entered composition. */
-    fun onUiGenerationAttached(id: Int) {}
+    /**
+     * The generation region entered composition. LOAD-BEARING (no default): the runtime's
+     * transition gate counts attachments per generation id, and a host that silently dropped
+     * these signals would let a replacement close the database under a live UI.
+     */
+    fun onUiGenerationAttached(id: Int)
 
-    /** The generation region left composition (all its stores/effects disposed). */
-    fun onUiGenerationDisposed(id: Int) {}
+    /** The generation region left composition (all its stores/effects disposed). Load-bearing. */
+    fun onUiGenerationDisposed(id: Int)
 }

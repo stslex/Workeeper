@@ -44,5 +44,16 @@ interface BackupWorkerDeps {
  * (compile-visible).
  */
 interface BackupWorkerDepsHolder {
+
     fun backupWorkerDeps(): BackupWorkerDeps
+
+    /**
+     * Atomic worker admission (Phase 5 R2, closed-admission quiesce): waits while a runtime
+     * transition holds admission closed (bounded by the transition window), then returns the
+     * CURRENT generation's deps together with the lease the quiesce drain awaits. May block —
+     * called from WorkManager's synchronous `createWorker` on its serial task-executor thread,
+     * where parking for the bounded window binds the worker to exactly one generation instead
+     * of tearing it across two. Throws when the runtime is Fatal (no generation may admit work).
+     */
+    fun acquireBackupWorkLease(): BackupWorkLease
 }

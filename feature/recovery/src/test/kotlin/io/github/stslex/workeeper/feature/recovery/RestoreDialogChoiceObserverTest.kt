@@ -108,15 +108,22 @@ internal class RestoreDialogChoiceObserverTest {
     }
 
     @Test
-    fun `ConfirmUndo Succeeded performs undo acknowledges and restarts`() = runTest {
+    fun `ConfirmUndo Succeeded acknowledges through the onCommitted hook and restarts`() = runTest {
         val dialog = AppDialog.UndoRestoreConfirmation(originalDataDateEpochMs = 123L)
         stubChoice(dialog, AppDialogUserAction.ConfirmUndo)
-        coEvery { coordinator.performUndoRestore() } returns UndoRestoreOutcome.Succeeded
+        // Real transaction shape: the coordinator runs the observer's onCommitted hook on the
+        // transaction's coroutine before completing. Invoking it here proves the observer's
+        // SUCCESS acknowledge is passed AS that hook — not left as post-await code the
+        // transition's lifetime kill could strand.
+        coEvery { coordinator.performUndoRestore(any()) } coAnswers {
+            firstArg<suspend () -> Unit>().invoke()
+            UndoRestoreOutcome.Succeeded
+        }
 
         createObserver()
         advanceUntilIdle()
 
-        coVerify(exactly = 1) { coordinator.performUndoRestore() }
+        coVerify(exactly = 1) { coordinator.performUndoRestore(any()) }
         coVerify(exactly = 1) { observer.acknowledgeReaction(dialog) }
         verify(exactly = 1) { coordinator.restartApp() }
     }
@@ -125,21 +132,22 @@ internal class RestoreDialogChoiceObserverTest {
     fun `ConfirmUndo IoFailure keeps dialog visible and does not restart`() = runTest {
         val dialog = AppDialog.UndoRestoreConfirmation(originalDataDateEpochMs = 123L)
         stubChoice(dialog, AppDialogUserAction.ConfirmUndo)
-        coEvery { coordinator.performUndoRestore() } returns UndoRestoreOutcome.IoFailure
+        // Non-commit: the seam never runs the hook, so the observer must not acknowledge.
+        coEvery { coordinator.performUndoRestore(any()) } returns UndoRestoreOutcome.IoFailure
 
         createObserver()
         advanceUntilIdle()
 
-        coVerify(exactly = 1) { coordinator.performUndoRestore() }
+        coVerify(exactly = 1) { coordinator.performUndoRestore(any()) }
         coVerify(exactly = 0) { observer.acknowledgeReaction(any()) }
         verify(exactly = 0) { coordinator.restartApp() }
     }
 
     @Test
-    fun `ConfirmUndo FileMissing acknowledges but does not restart`() = runTest {
+    fun `ConfirmUndo FileMissing acknowledges directly but does not restart`() = runTest {
         val dialog = AppDialog.UndoRestoreConfirmation(originalDataDateEpochMs = 123L)
         stubChoice(dialog, AppDialogUserAction.ConfirmUndo)
-        coEvery { coordinator.performUndoRestore() } returns UndoRestoreOutcome.FileMissing
+        coEvery { coordinator.performUndoRestore(any()) } returns UndoRestoreOutcome.FileMissing
 
         createObserver()
         advanceUntilIdle()
@@ -157,7 +165,7 @@ internal class RestoreDialogChoiceObserverTest {
         advanceUntilIdle()
 
         coVerify(exactly = 1) { observer.acknowledgeReaction(dialog) }
-        coVerify(exactly = 0) { coordinator.performUndoRestore() }
+        coVerify(exactly = 0) { coordinator.performUndoRestore(any()) }
     }
 
     @Test

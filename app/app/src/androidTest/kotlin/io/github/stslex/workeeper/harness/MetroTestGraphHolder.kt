@@ -5,6 +5,9 @@ import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.ViewModelStoreOwner
 import io.github.stslex.workeeper.app.common.di.AppUiPhase
 import io.github.stslex.workeeper.di.AppGraph
+import io.github.stslex.workeeper.runtime.AppRuntime
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -38,8 +41,33 @@ internal object MetroTestGraphHolder {
 
     private val uiPhaseFlow = MutableStateFlow<AppUiPhase>(AppUiPhase.Transitioning)
 
-    /** What [TestApplication] serves as `appUiPhases`. */
+    /**
+     * RUNTIME MODE (Phase 5 handshake tests): when set, [TestApplication] delegates the UI
+     * phase stream AND the attach/dispose gate to this real [AppRuntime] — the production
+     * handshake, not a harness stand-in. Static mode (the default) serves [uiPhaseFlow] and
+     * counts attachments in [staticAttachments] so the callbacks are REAL accounting either way
+     * (the interface has no silent no-op defaults by design).
+     */
+    @Volatile
+    var runtimeDelegate: AppRuntime? = null
+
+    /** Static-mode per-id attachment counts — assertable by tests, mirroring the runtime's gate. */
+    val staticAttachments = ConcurrentHashMap<Int, AtomicInteger>()
+
+    /** What [TestApplication] serves as `appUiPhases` in static mode. */
     val uiPhases: StateFlow<AppUiPhase> = uiPhaseFlow.asStateFlow()
+
+    fun effectiveUiPhases(): StateFlow<AppUiPhase> = runtimeDelegate?.uiPhases ?: uiPhases
+
+    fun onUiGenerationAttached(id: Int) {
+        runtimeDelegate?.onUiGenerationAttached(id)
+            ?: staticAttachments.computeIfAbsent(id) { AtomicInteger() }.incrementAndGet()
+    }
+
+    fun onUiGenerationDisposed(id: Int) {
+        runtimeDelegate?.onUiGenerationDisposed(id)
+            ?: staticAttachments.computeIfAbsent(id) { AtomicInteger() }.decrementAndGet()
+    }
 
     /** The graph installed for the currently-running test. Throws if read before [MetroTestRule] sets it. */
     val graph: AppGraph
@@ -71,6 +99,8 @@ internal object MetroTestGraphHolder {
     }
 
     fun reset() {
+        runtimeDelegate = null
+        staticAttachments.clear()
         uiPhaseFlow.value = AppUiPhase.Transitioning
         currentStore?.clear()
         currentStore = null

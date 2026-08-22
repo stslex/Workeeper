@@ -23,6 +23,7 @@ import io.mockk.mockk
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
@@ -46,9 +47,8 @@ internal class BackupWorkerTest {
     }
     private val snapshotExportRunner = mockk<SnapshotExportRunner>(relaxed = true)
 
-    private fun makeWorker(): BackupWorker = TestListenableWorkerBuilder<BackupWorker>(
-        ApplicationProvider.getApplicationContext(),
-    ).setWorkerFactory(
+    /** Held so tests can assert the admission-lease release contract via [WorkerTestFactory.lease]. */
+    private val workerFactory by lazy {
         WorkerTestFactory(
             backupStorage = backupStorage,
             snapshotProvider = snapshotProvider,
@@ -56,8 +56,12 @@ internal class BackupWorkerTest {
             autoBackupController = autoBackupController,
             notificationHelper = notificationHelper,
             snapshotExportRunner = snapshotExportRunner,
-        ),
-    ).build()
+        )
+    }
+
+    private fun makeWorker(): BackupWorker = TestListenableWorkerBuilder<BackupWorker>(
+        ApplicationProvider.getApplicationContext(),
+    ).setWorkerFactory(workerFactory).build()
 
     @BeforeEach
     fun setUp() {
@@ -199,5 +203,27 @@ internal class BackupWorkerTest {
         assertEquals(ListenableWorker.Result.retry(), result)
         coVerify(exactly = 0) { backupStorage.uploadBackup(any(), any()) }
         coVerify { preferences.setLastError(BackupErrorCode.Io) }
+    }
+
+    @Test
+    fun `admission lease is released exactly once when the run completes`() = runBlocking {
+        coEvery { backupStorage.uploadBackup(any(), any()) } returns
+            BackupResult.Failure(BackupError.NetworkUnavailable)
+
+        makeWorker().doWork()
+
+        // A replacement transition's quiesce drain awaits this release — a worker that finished
+        // without releasing would block every future transition until its bounded abort.
+        assertEquals(1, workerFactory.lease.releaseCount.get())
+    }
+
+    @Test
+    fun `admission lease is released even when the work body throws`() = runBlocking {
+        coEvery { snapshotProvider.captureSnapshot(any()) } throws RuntimeException("body blew up")
+
+        val thrown = runCatching { makeWorker().doWork() }.exceptionOrNull()
+
+        assertNotNull(thrown, "the body's failure must propagate (no swallow)")
+        assertEquals(1, workerFactory.lease.releaseCount.get())
     }
 }

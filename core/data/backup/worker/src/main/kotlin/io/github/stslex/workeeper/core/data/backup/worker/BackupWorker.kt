@@ -39,22 +39,33 @@ import java.io.File
  * [DatabaseSnapshotProvider.captureSnapshot] which produces a WAL-checkpointed
  * copy in [Context.getCacheDir].
  */
-// Plain CoroutineWorker constructed directly by MetroWorkerFactory, which reads the 6 app-scope
-// deps from the graph and passes them here.
+// Plain CoroutineWorker constructed directly by MetroWorkerFactory. The 6 app-scope deps arrive
+// EXCLUSIVELY through the admission lease (Phase 5 R2, closed-admission quiesce): the lease and
+// the deps were acquired atomically, so this worker is coherently bound to exactly one runtime
+// generation, and the generation's quiesce drain awaits [BackupWorkLease.release] in [doWork]'s
+// finally — a worker constructed-but-not-yet-RUNNING is already visible to the drain.
 internal class BackupWorker(
     appContext: Context,
     workerParams: WorkerParameters,
-    private val backupStorage: BackupStorage,
-    private val snapshotProvider: DatabaseSnapshotProvider,
-    private val preferences: BackupPreferencesRepository,
-    private val autoBackupController: AutoBackupController,
-    private val notificationHelper: BackupNotificationHelper,
-    private val snapshotExportRunner: SnapshotExportRunner,
+    private val workLease: BackupWorkLease,
 ) : CoroutineWorker(appContext, workerParams) {
+
+    private val backupStorage: BackupStorage get() = workLease.deps.backupStorage
+    private val snapshotProvider: DatabaseSnapshotProvider get() = workLease.deps.databaseSnapshotProvider
+    private val preferences: BackupPreferencesRepository get() = workLease.deps.backupPreferencesRepository
+    private val autoBackupController: AutoBackupController get() = workLease.deps.autoBackupController
+    private val notificationHelper: BackupNotificationHelper get() = workLease.deps.backupNotificationHelper
+    private val snapshotExportRunner: SnapshotExportRunner get() = workLease.deps.snapshotExportRunner
 
     private val logger = Log.tag(TAG)
 
-    override suspend fun doWork(): Result {
+    override suspend fun doWork(): Result = try {
+        runAdmittedWork()
+    } finally {
+        workLease.release()
+    }
+
+    private suspend fun runAdmittedWork(): Result {
         val now = System.currentTimeMillis()
         preferences.setLastAttempt(now)
 

@@ -6,7 +6,7 @@ import dev.zacsweers.metro.createGraphFactory
 import io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetime
 import io.github.stslex.workeeper.core.core.images.ImageStorage
 import io.github.stslex.workeeper.core.data.backup.api.DatabaseReplacement
-import io.github.stslex.workeeper.core.data.backup.api.result.BackupResult
+import io.github.stslex.workeeper.core.data.backup.api.DatabaseReplacementResult
 import io.github.stslex.workeeper.core.data.database.AppDatabase
 import java.io.File
 
@@ -48,9 +48,14 @@ internal fun buildAppGraph(
 /** The loud default for runtime-less graphs — see [buildAppGraph]'s parameter KDoc. */
 private object NoRuntimeDatabaseReplacement : DatabaseReplacement {
 
-    override suspend fun restoreFromSnapshot(source: File): BackupResult<Unit> =
+    override suspend fun restoreFromSnapshot(
+        source: File,
+        beforeMutation: suspend () -> Unit,
+    ): DatabaseReplacementResult =
         error("DatabaseReplacement requires a runtime host; this graph was built without one")
 
-    override suspend fun rollbackToPreRestoreBackup(): BackupResult<Unit> =
+    override suspend fun rollbackToPreRestoreBackup(
+        onCommitted: suspend () -> Unit,
+    ): DatabaseReplacementResult =
         error("DatabaseReplacement requires a runtime host; this graph was built without one")
 }
