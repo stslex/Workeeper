@@ -21,12 +21,14 @@ internal class ResolveTrackNowConflictUseCase(
 ) {
 
     suspend operator fun invoke(): TrackNowConflict = withContext(defaultDispatcher) {
-        val active = sessionRepository.getAnyActiveSession()
+        val active = sessionRepository.getActiveSessionProgress()
             ?: return@withContext TrackNowConflict.ProceedFresh
         val training = trainingRepository.getTraining(active.trainingUuid)
         TrackNowConflict.NeedsUserChoice(
             active = active.toDomain(),
             trainingName = training?.name?.takeIf { it.isNotBlank() },
+            doneCount = active.doneCount,
+            totalCount = active.totalCount,
         )
     }
 }

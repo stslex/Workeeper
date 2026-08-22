@@ -13,9 +13,11 @@ import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
 import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor
+import io.github.stslex.workeeper.feature.exercise.domain.model.ActiveSessionDomain
 import io.github.stslex.workeeper.feature.exercise.domain.model.ExerciseChangeDomain
 import io.github.stslex.workeeper.feature.exercise.domain.model.SaveResult
 import io.github.stslex.workeeper.feature.exercise.domain.model.TagDomain
+import io.github.stslex.workeeper.feature.exercise.domain.model.TrackNowConflict
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ImageDisplay
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PendingImage
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.BottomSheetState
@@ -817,6 +819,45 @@ internal class ClickHandlerTest {
         val events = mutableListOf<Event>()
         verify { store.sendEvent(capture(events)) }
         assertTrue(events.any { it is Event.Haptic && it.type == HapticFeedbackType.ContextClick })
+    }
+
+    @Test
+    fun `OnTrackNowClick reports the persisted active session progress`() {
+        val (stateFlow, store, handler) = setup(State.create(uuid = "exercise-1"))
+        coEvery { store.updateStateImmediate(any<suspend (State) -> State>()) } coAnswers {
+            val update = firstArg<suspend (State) -> State>()
+            stateFlow.value = update(stateFlow.value)
+        }
+        every {
+            store.launch(any(), any(), any(), any(), any<suspend CoroutineScope.() -> Any?>())
+        } answers {
+            val action = arg<suspend CoroutineScope.() -> Any?>(4)
+            runBlocking { action() }
+            mockk(relaxed = true)
+        }
+        coEvery { interactor.resolveTrackNowConflict() } returns TrackNowConflict.NeedsUserChoice(
+            active = ActiveSessionDomain(
+                sessionUuid = "active-1",
+                trainingUuid = "training-1",
+                startedAt = 1L,
+            ),
+            trainingName = "Push Day",
+            doneCount = 1,
+            totalCount = 2,
+        )
+        every {
+            resourceWrapper.getString(
+                io.github.stslex.workeeper.feature.exercise.R.string
+                    .feature_exercise_track_now_conflict_progress_format,
+                1,
+                2,
+            )
+        } returns "1 of 2 exercises done"
+
+        handler.invoke(Action.Click.OnTrackNowClick)
+
+        val dialog = stateFlow.value.dialogState as DialogState.ActiveSessionConflict
+        assertEquals("1 of 2 exercises done", dialog.progressLabel)
     }
 
     @Test

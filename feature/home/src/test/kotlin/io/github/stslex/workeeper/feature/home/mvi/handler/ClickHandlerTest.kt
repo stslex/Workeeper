@@ -6,6 +6,7 @@ import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.start_mode.model.StartCardModeUi
 import io.github.stslex.workeeper.feature.home.di.HomeHandlerStore
 import io.github.stslex.workeeper.feature.home.domain.HomeInteractor
+import io.github.stslex.workeeper.feature.home.domain.model.ActiveSessionDomain
 import io.github.stslex.workeeper.feature.home.domain.model.StartCardModeDomain
 import io.github.stslex.workeeper.feature.home.domain.model.StartSessionConflict
 import io.github.stslex.workeeper.feature.home.mvi.model.StartCardBodyUi
@@ -183,6 +184,40 @@ internal class ClickHandlerTest {
         handler.invoke(Action.Click.OnPickerTrainingSelected(trainingUuid = "tpl-1"))
 
         assertEquals(BottomSheetState.Hidden, flow.value.bottomSheet)
+    }
+
+    @Test
+    fun `OnPickerTrainingSelected reports the persisted active session progress`() {
+        val flow = MutableStateFlow(baseState)
+        val store = newStoreWithFlow(flow, executeLaunch = true)
+        coEvery { store.updateStateImmediate(any<suspend (State) -> State>()) } coAnswers {
+            val update = firstArg<suspend (State) -> State>()
+            flow.value = update(flow.value)
+        }
+        coEvery { interactor.resolveStartConflict("tpl-1") } returns
+            StartSessionConflict.NeedsUserChoice(
+                active = ActiveSessionDomain(
+                    sessionUuid = "active-1",
+                    trainingUuid = "active-training",
+                    startedAt = 1L,
+                ),
+                doneCount = 1,
+                totalCount = 2,
+            )
+        coEvery { interactor.getTrainingName("active-training") } returns "Push Day"
+        every {
+            resources.getString(
+                io.github.stslex.workeeper.feature.home.R.string
+                    .feature_home_conflict_progress_format,
+                1,
+                2,
+            )
+        } returns "1 of 2 exercises done"
+        val handler = ClickHandler(interactor = interactor, resourceWrapper = resources, store = store)
+
+        handler.invoke(Action.Click.OnPickerTrainingSelected(trainingUuid = "tpl-1"))
+
+        assertEquals("1 of 2 exercises done", flow.value.pendingConflict?.progressLabel)
     }
 
     /**

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.core.data.exercise.session
 
-import io.github.stslex.workeeper.core.data.exercise.session.model.ActiveSessionInfo
+import io.github.stslex.workeeper.core.data.exercise.session.model.ActiveSessionProgressInfo
 import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
@@ -15,7 +15,7 @@ internal class SessionConflictResolverTest {
 
     @Test
     fun `resolve returns ProceedFresh when no active session exists`() = runTest {
-        coEvery { sessionRepository.getAnyActiveSession() } returns null
+        coEvery { sessionRepository.getActiveSessionProgress() } returns null
 
         val result = resolver.resolve(requestedTrainingUuid = "training-1")
 
@@ -24,12 +24,14 @@ internal class SessionConflictResolverTest {
 
     @Test
     fun `resolve returns SilentResume when active session is for the requested training`() = runTest {
-        val active = ActiveSessionInfo(
+        val active = ActiveSessionProgressInfo(
             sessionUuid = "session-1",
             trainingUuid = "training-1",
             startedAt = 0L,
+            doneCount = 1,
+            totalCount = 3,
         )
-        coEvery { sessionRepository.getAnyActiveSession() } returns active
+        coEvery { sessionRepository.getActiveSessionProgress() } returns active
 
         val result = resolver.resolve(requestedTrainingUuid = "training-1")
 
@@ -38,12 +40,14 @@ internal class SessionConflictResolverTest {
 
     @Test
     fun `resolve returns NeedsUserChoice when active session is for a different training`() = runTest {
-        val active = ActiveSessionInfo(
+        val active = ActiveSessionProgressInfo(
             sessionUuid = "session-2",
             trainingUuid = "training-other",
             startedAt = 0L,
+            doneCount = 2,
+            totalCount = 4,
         )
-        coEvery { sessionRepository.getAnyActiveSession() } returns active
+        coEvery { sessionRepository.getActiveSessionProgress() } returns active
 
         val result = resolver.resolve(requestedTrainingUuid = "training-1")
 

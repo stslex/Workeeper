@@ -183,8 +183,8 @@ internal class ClickHandler @Inject constructor(
                         activeSessionName = activeName,
                         progressLabel = resourceWrapper.getString(
                             R.string.feature_home_conflict_progress_format,
-                            0,
-                            0,
+                            resolution.doneCount,
+                            resolution.totalCount,
                         ),
                     )
                     updateStateImmediate { it.copy(pendingConflict = info) }

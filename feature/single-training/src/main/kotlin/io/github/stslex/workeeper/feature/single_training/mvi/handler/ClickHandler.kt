@@ -246,8 +246,8 @@ internal class ClickHandler @Inject constructor(
                         )
                     val progressLabel = resourceWrapper.getString(
                         R.string.feature_training_detail_conflict_progress_format,
-                        0,
-                        0,
+                        resolution.doneCount,
+                        resolution.totalCount,
                     )
                     val sessionUuid = resolution.active.sessionUuid
                     updateStateImmediate {

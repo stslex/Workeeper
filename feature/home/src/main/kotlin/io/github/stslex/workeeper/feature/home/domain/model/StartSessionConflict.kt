@@ -7,5 +7,9 @@ sealed interface StartSessionConflict {
 
     data class SilentResume(val sessionUuid: String) : StartSessionConflict
 
-    data class NeedsUserChoice(val active: ActiveSessionDomain) : StartSessionConflict
+    data class NeedsUserChoice(
+        val active: ActiveSessionDomain,
+        val doneCount: Int,
+        val totalCount: Int,
+    ) : StartSessionConflict
 }

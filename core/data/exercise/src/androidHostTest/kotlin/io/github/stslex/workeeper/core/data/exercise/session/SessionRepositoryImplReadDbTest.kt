@@ -3,9 +3,12 @@ package io.github.stslex.workeeper.core.data.exercise.session
 
 import androidx.paging.PagingSource
 import androidx.paging.testing.asSnapshot
+import io.github.stslex.workeeper.core.data.database.converters.PlanSetsConverter
 import io.github.stslex.workeeper.core.data.database.exercise.ExerciseTypeEntity
 import io.github.stslex.workeeper.core.data.database.session.SessionStateEntity
 import io.github.stslex.workeeper.core.data.database.session.model.SetTypeEntity
+import io.github.stslex.workeeper.core.data.database.sets.PlanSetDataModel
+import io.github.stslex.workeeper.core.data.database.sets.SetTypeDataModel
 import io.github.stslex.workeeper.core.data.database.testfixtures.RepositoryTestEnv
 import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseTypeDataModel
 import io.github.stslex.workeeper.core.data.exercise.exercise.model.SetsDataType
@@ -35,17 +38,19 @@ internal class SessionRepositoryImplReadDbTest {
     @BeforeEach
     fun setup() {
         env = RepositoryTestEnv()
-        repository = SessionRepositoryImpl(
-            dao = env.sessionDao,
-            performedExerciseDao = env.performedExerciseDao,
-            setDao = env.setDao,
-            trainingDao = env.trainingDao,
-            exerciseDao = env.exerciseDao,
-            trainingExerciseDao = env.trainingExerciseDao,
-            transition = env.transition,
-            ioDispatcher = UnconfinedTestDispatcher(),
-        )
+        repository = createRepository()
     }
+
+    private fun createRepository(): SessionRepositoryImpl = SessionRepositoryImpl(
+        dao = env.sessionDao,
+        performedExerciseDao = env.performedExerciseDao,
+        setDao = env.setDao,
+        trainingDao = env.trainingDao,
+        exerciseDao = env.exerciseDao,
+        trainingExerciseDao = env.trainingExerciseDao,
+        transition = env.transition,
+        ioDispatcher = UnconfinedTestDispatcher(),
+    )
 
     @AfterEach
     fun teardown() {
@@ -142,6 +147,93 @@ internal class SessionRepositoryImplReadDbTest {
     }
 
     @Test
+    fun `getActiveSessionProgress restores completed persisted work in a new repository`() = runTest {
+        val training = env.seedTraining()
+        val exercise = env.seedExercise()
+        env.seedTrainingExercise(
+            trainingUuid = training.uuid,
+            exerciseUuid = exercise.uuid,
+            planSets = planJson(count = 1),
+        )
+        val session = env.seedSession(trainingUuid = training.uuid, startedAt = 99L)
+        val performed = env.seedPerformed(session.uuid, exercise.uuid)
+        env.seedSet(performedExerciseUuid = performed.uuid)
+
+        repository = createRepository()
+        val result = repository.getActiveSessionProgress()
+
+        assertNotNull(result)
+        assertEquals(session.uuid.toString(), result?.sessionUuid)
+        assertEquals(training.uuid.toString(), result?.trainingUuid)
+        assertEquals(99L, result?.startedAt)
+        assertEquals(1, result?.doneCount)
+        assertEquals(1, result?.totalCount)
+    }
+
+    @Test
+    fun `getActiveSessionProgress reports partial progress across multiple exercises`() = runTest {
+        val training = env.seedTraining()
+        val completedExercise = env.seedExercise()
+        val pendingExercise = env.seedExercise()
+        env.seedTrainingExercise(training.uuid, completedExercise.uuid, planSets = planJson(1))
+        env.seedTrainingExercise(
+            training.uuid,
+            pendingExercise.uuid,
+            position = 1,
+            planSets = planJson(1),
+        )
+        val session = env.seedSession(trainingUuid = training.uuid)
+        val completed = env.seedPerformed(session.uuid, completedExercise.uuid)
+        env.seedPerformed(session.uuid, pendingExercise.uuid, position = 1)
+        env.seedSet(performedExerciseUuid = completed.uuid)
+
+        val result = repository.getActiveSessionProgress()
+
+        assertEquals(1, result?.doneCount)
+        assertEquals(2, result?.totalCount)
+    }
+
+    @Test
+    fun `getActiveSessionProgress does not finish a partially completed multi-set exercise`() =
+        runTest {
+            val training = env.seedTraining()
+            val exercise = env.seedExercise()
+            env.seedTrainingExercise(
+                trainingUuid = training.uuid,
+                exerciseUuid = exercise.uuid,
+                planSets = planJson(count = 2),
+            )
+            val session = env.seedSession(trainingUuid = training.uuid)
+            val performed = env.seedPerformed(session.uuid, exercise.uuid)
+            env.seedSet(performedExerciseUuid = performed.uuid, position = 0)
+
+            val result = repository.getActiveSessionProgress()
+
+            assertEquals(0, result?.doneCount)
+            assertEquals(1, result?.totalCount)
+        }
+
+    @Test
+    fun `getActiveSessionProgress uses the persisted fallback plan for an adhoc training`() =
+        runTest {
+            val training = env.seedTraining(isAdhoc = true)
+            val exercise = env.seedExercise(lastAdhocSets = planJson(count = 2))
+            env.seedTrainingExercise(
+                trainingUuid = training.uuid,
+                exerciseUuid = exercise.uuid,
+                planSets = planJson(count = 1),
+            )
+            val session = env.seedSession(trainingUuid = training.uuid)
+            val performed = env.seedPerformed(session.uuid, exercise.uuid)
+            env.seedSet(performedExerciseUuid = performed.uuid, position = 0)
+
+            val result = repository.getActiveSessionProgress()
+
+            assertEquals(0, result?.doneCount)
+            assertEquals(1, result?.totalCount)
+        }
+
+    @Test
     fun `getActive returns full session model when present and null when absent`() = runTest {
         assertNull(repository.getActive())
 
@@ -154,6 +246,16 @@ internal class SessionRepositoryImplReadDbTest {
         assertEquals(SessionStateDataModel.IN_PROGRESS, result?.state)
         assertEquals(11L, result?.startedAt)
     }
+
+    private fun planJson(count: Int): String? = PlanSetsConverter.toJson(
+        List(count) {
+            PlanSetDataModel(
+                weight = 100.0,
+                reps = 5,
+                type = SetTypeDataModel.WORK,
+            )
+        },
+    )
 
     @Test
     fun `pagedRecentWithStats maps every finished session with its counts, newest first`() = runTest {
