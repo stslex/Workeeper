@@ -4,6 +4,7 @@ package io.github.stslex.workeeper.feature.home.domain.mapper
 import io.github.stslex.workeeper.core.data.exercise.session.SessionConflictResolver
 import io.github.stslex.workeeper.core.data.exercise.session.SessionRepository
 import io.github.stslex.workeeper.core.data.exercise.session.model.ActiveSessionInfo
+import io.github.stslex.workeeper.core.data.exercise.session.model.ActiveSessionProgressInfo
 import io.github.stslex.workeeper.core.data.exercise.session.model.RecentSessionDataModel
 import io.github.stslex.workeeper.core.data.exercise.training.TrainingListItem
 import io.github.stslex.workeeper.feature.home.domain.model.ActiveSessionDomain
@@ -49,9 +50,19 @@ internal object HomeDomainMapper {
         startedAt = startedAt,
     )
 
+    fun ActiveSessionProgressInfo.toDomain(): ActiveSessionDomain = ActiveSessionDomain(
+        sessionUuid = sessionUuid,
+        trainingUuid = trainingUuid,
+        startedAt = startedAt,
+    )
+
     fun SessionConflictResolver.Resolution.toDomain(): StartSessionConflict = when (this) {
         SessionConflictResolver.Resolution.ProceedFresh -> StartSessionConflict.ProceedFresh
         is SessionConflictResolver.Resolution.SilentResume -> StartSessionConflict.SilentResume(sessionUuid)
-        is SessionConflictResolver.Resolution.NeedsUserChoice -> StartSessionConflict.NeedsUserChoice(active.toDomain())
+        is SessionConflictResolver.Resolution.NeedsUserChoice -> StartSessionConflict.NeedsUserChoice(
+            active = active.toDomain(),
+            doneCount = active.doneCount,
+            totalCount = active.totalCount,
+        )
     }
 }

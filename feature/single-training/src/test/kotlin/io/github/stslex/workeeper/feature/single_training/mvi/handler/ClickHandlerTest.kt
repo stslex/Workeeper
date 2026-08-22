@@ -10,9 +10,11 @@ import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.single_training.di.SingleTrainingHandlerStore
 import io.github.stslex.workeeper.feature.single_training.domain.SingleTrainingInteractor
+import io.github.stslex.workeeper.feature.single_training.domain.model.ActiveSessionDomain
 import io.github.stslex.workeeper.feature.single_training.domain.model.ExerciseDomain
 import io.github.stslex.workeeper.feature.single_training.domain.model.ExerciseTypeDomain
 import io.github.stslex.workeeper.feature.single_training.domain.model.PickerExercise
+import io.github.stslex.workeeper.feature.single_training.domain.model.StartSessionConflict
 import io.github.stslex.workeeper.feature.single_training.domain.model.TagDomain
 import io.github.stslex.workeeper.feature.single_training.mvi.model.TrainingExerciseItem
 import io.github.stslex.workeeper.feature.single_training.mvi.store.DialogState
@@ -364,6 +366,41 @@ internal class ClickHandlerTest {
         )
         handler.invoke(Action.Click.OnConflictDismiss)
         assertEquals(DialogState.Hidden, stateFlow.value.dialogState)
+    }
+
+    @Test
+    fun `OnStartSessionClick reports the persisted active session progress`() {
+        every {
+            store.launch(any(), any(), any(), any(), any<suspend CoroutineScope.() -> Any?>())
+        } answers {
+            val action = arg<suspend CoroutineScope.() -> Any?>(4)
+            runBlocking { action() }
+            mockk(relaxed = true)
+        }
+        stateFlow.value = stateFlow.value.copy(uuid = "training-1", name = "Push Day")
+        coEvery { interactor.resolveStartSessionConflict("training-1") } returns
+            StartSessionConflict.NeedsUserChoice(
+                active = ActiveSessionDomain(
+                    sessionUuid = "active-1",
+                    trainingUuid = "active-training",
+                    startedAt = 1L,
+                ),
+                doneCount = 1,
+                totalCount = 2,
+            )
+        every {
+            resourceWrapper.getString(
+                io.github.stslex.workeeper.feature.single_training.R.string
+                    .feature_training_detail_conflict_progress_format,
+                1,
+                2,
+            )
+        } returns "1 of 2 exercises done"
+
+        handler.invoke(Action.Click.OnStartSessionClick)
+
+        val dialog = stateFlow.value.dialogState as DialogState.ActiveSessionConflict
+        assertEquals("1 of 2 exercises done", dialog.progressLabel)
     }
 
     @Test

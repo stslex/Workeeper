@@ -4,7 +4,7 @@ package io.github.stslex.workeeper.core.data.exercise.session
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.di.AppScope
-import io.github.stslex.workeeper.core.data.exercise.session.model.ActiveSessionInfo
+import io.github.stslex.workeeper.core.data.exercise.session.model.ActiveSessionProgressInfo
 
 /**
  * Central decision helper for "what should happen when the user asks to start a session"
@@ -29,7 +29,7 @@ class SessionConflictResolver(
 ) {
 
     suspend fun resolve(requestedTrainingUuid: String): Resolution {
-        val active = sessionRepository.getAnyActiveSession()
+        val active = sessionRepository.getActiveSessionProgress()
             ?: return Resolution.ProceedFresh
         return if (active.trainingUuid == requestedTrainingUuid) {
             Resolution.SilentResume(active.sessionUuid)
@@ -44,6 +44,6 @@ class SessionConflictResolver(
 
         data class SilentResume(val sessionUuid: String) : Resolution
 
-        data class NeedsUserChoice(val active: ActiveSessionInfo) : Resolution
+        data class NeedsUserChoice(val active: ActiveSessionProgressInfo) : Resolution
     }
 }

@@ -8,5 +8,7 @@ sealed interface TrackNowConflict {
     data class NeedsUserChoice(
         val active: ActiveSessionDomain,
         val trainingName: String?,
+        val doneCount: Int,
+        val totalCount: Int,
     ) : TrackNowConflict
 }

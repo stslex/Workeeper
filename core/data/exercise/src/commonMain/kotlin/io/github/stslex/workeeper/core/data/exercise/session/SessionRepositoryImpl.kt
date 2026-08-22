@@ -32,6 +32,7 @@ import io.github.stslex.workeeper.core.data.exercise.exercise.model.SetSummary
 import io.github.stslex.workeeper.core.data.exercise.exercise.model.SetsDataType.Companion.toData
 import io.github.stslex.workeeper.core.data.exercise.exercise.model.toData
 import io.github.stslex.workeeper.core.data.exercise.session.model.ActiveSessionInfo
+import io.github.stslex.workeeper.core.data.exercise.session.model.ActiveSessionProgressInfo
 import io.github.stslex.workeeper.core.data.exercise.session.model.PerformedExerciseDetailDataModel
 import io.github.stslex.workeeper.core.data.exercise.session.model.RecentSessionDataModel
 import io.github.stslex.workeeper.core.data.exercise.session.model.SessionDataModel
@@ -104,6 +105,72 @@ class SessionRepositoryImpl @Inject internal constructor(
                 startedAt = entity.startedAt,
             )
         }
+    }
+
+    override suspend fun getActiveSessionProgress(): ActiveSessionProgressInfo? = transition {
+        val session = dao.getActive() ?: return@transition null
+        val performed = performedExerciseDao.getBySession(session.uuid)
+        if (performed.isEmpty()) {
+            return@transition ActiveSessionProgressInfo(
+                sessionUuid = session.uuid.toString(),
+                trainingUuid = session.trainingUuid.toString(),
+                startedAt = session.startedAt,
+                doneCount = 0,
+                totalCount = 0,
+            )
+        }
+
+        val exerciseUuids = performed.map { it.exerciseUuid }.distinct()
+        val setsByPerformed = setDao
+            .getByPerformedExercises(performed.map { it.uuid })
+            .groupBy { it.performedExerciseUuid }
+        val isAdhoc = trainingDao.getById(session.trainingUuid)?.isAdhoc == true
+        val trainingPlans = if (isAdhoc) {
+            emptyMap()
+        } else {
+            trainingExerciseDao
+                .getPlanSetsBatch(session.trainingUuid, exerciseUuids)
+                .associate { row ->
+                    row.exerciseUuid to PlanSetsConverter.fromJson(row.planSets)
+                }
+        }
+        val fallbackExerciseUuids = if (isAdhoc) {
+            exerciseUuids
+        } else {
+            exerciseUuids.filter { trainingPlans[it] == null }
+        }
+        val fallbackPlans = if (fallbackExerciseUuids.isEmpty()) {
+            emptyMap()
+        } else {
+            exerciseDao
+                .getAdhocPlansBatch(fallbackExerciseUuids)
+                .associate { row ->
+                    row.uuid to PlanSetsConverter.fromJson(row.lastAdhocSets)
+                }
+        }
+        val doneCount = performed.count { row ->
+            if (row.skipped) return@count false
+            val planSize = if (isAdhoc) {
+                fallbackPlans[row.exerciseUuid]?.size ?: 0
+            } else {
+                (trainingPlans[row.exerciseUuid] ?: fallbackPlans[row.exerciseUuid])?.size ?: 0
+            }
+            val completedPositions = setsByPerformed[row.uuid]
+                .orEmpty()
+                .mapTo(mutableSetOf()) { it.position }
+            val expectedPositions = buildSet {
+                addAll(0 until planSize)
+                addAll(completedPositions)
+            }
+            expectedPositions.isNotEmpty() && expectedPositions.all(completedPositions::contains)
+        }
+        ActiveSessionProgressInfo(
+            sessionUuid = session.uuid.toString(),
+            trainingUuid = session.trainingUuid.toString(),
+            startedAt = session.startedAt,
+            doneCount = doneCount,
+            totalCount = performed.size,
+        )
     }
 
     override suspend fun getActive(): SessionDataModel? = withContext(ioDispatcher) {
