@@ -210,13 +210,7 @@ public class RecoveryDiagnosticsExporterImpl @Inject constructor(
         context.packageManager.getPackageInfo(context.packageName, 0)
     }
 
-    private fun readVersionCode(info: android.content.pm.PackageInfo): Long =
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            info.longVersionCode
-        } else {
-            @Suppress("DEPRECATION")
-            info.versionCode.toLong()
-        }
+    private fun readVersionCode(info: android.content.pm.PackageInfo): Long = info.longVersionCode
 
     private fun detectInstallSource(): String = runCatching {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
