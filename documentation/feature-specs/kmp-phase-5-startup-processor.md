@@ -475,3 +475,38 @@ runtime coupling. No migration, no persisted-format change, no golden change any
 10. Unverified-claims register at implementation end: iOS link/runtime behavior of the reworked
     iosMain actual (compile-verified only — no host); `key()`-wrapper interaction with saved-state
     on OEM builds beyond the tested emulator (covered only by API-34 devices this phase).
+
+## 16. Independent architecture review (2026-08-22): CONFIRM, with implementation conditions
+
+A fresh-context adversarial review of this spec against the locked invariants returned
+**CONFIRM — no invariant relaxed**, after probing (and failing to break) the `key()`/saved-state
+reasoning, the observer-overlap-by-bus-identity argument, the cold-start publication argument
+(manifest has no graph-reading providers), the two-captures inventory, the expect/actual ctor
+precedent, and the no-locked-file/no-detekt-trigger checks. Binding conditions for the
+implementation commits (now gated on the §7.1 maintainer decision):
+
+1. **§8.4 steps 5→6 need an explicit ordering mechanism.** Old-generation disposal must be gated
+   on the old UI region actually leaving composition (e.g. a `DisposableEffect(generation)` inside
+   the `key(generation.id)` region signalling the runtime, or awaiting the new generation's first
+   applied frame). Clearing the VM store while the old region can still recompose would re-run
+   `viewModel()` factories against the cleared store and resolve the NEW graph inside the OLD
+   region — a transient mixed-generation read.
+2. **Reinit-mode `RestartRequired` is test-scoped while the §7 gate is red.** A real
+   `restore_in_progress` encountered by in-process reinit must **abort without invoking the
+   rollback swap** (the swap would close the process `AppDatabase` and strand both candidate and
+   old generation on a terminally-closed object). The bounded-retry semantics are exercised via
+   injected preflight failures only.
+3. **The androidTest harness seam must be specified for `AppUiGenerationsHolder`.** `TestApplication`
+   bypasses the runtime; without a published generation every instrumented UI test fails to
+   compose. Either `MetroTestRule` installs a test runtime, or `BaseApplication`'s holder derives
+   the generation lazily from whatever `appGraph` override is current.
+
+Notes folded into the plan: the 4th-`create()`-root fan-out also includes
+`AccountDataStoreSingletonTest` and `AppScopeDataStoreSingletonTest` (androidTest `buildAppGraph`
+callers) beyond the 14 JVM tests; `MetroWorkerFactory.createWorker` must read the holder **once**
+per invocation (all six deps from one returned graph — no torn cross-generation worker) and the
+test extension must swap holder deps between calls; after a mid-Activity reinit the new
+generation's `ActivityHolderImpl` is empty until the next Activity lifecycle event (currently
+zero production readers — record or re-register on publish); §15 gains `AppFeature.kt:16-19` and
+`AppDialogFeature.kt:23-25` ("LocalViewModelStoreOwner is the host ComponentActivity") as stale
+after §8.5.
