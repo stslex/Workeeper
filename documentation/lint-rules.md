@@ -721,14 +721,11 @@ on every PR (see [ci-cd.md](ci-cd.md#verification-steps)).
 
 ## Pre-commit hook
 
-A pre-commit hook lives at `.githooks/pre-commit`, and `setup-hooks.sh` copies it to
-`.git/hooks/pre-commit`. **The hook is currently disabled at the script level** — the first
-non-comment line is `exit 0`, so even after `setup-hooks.sh` runs the hook returns immediately
-without invoking detekt or lint. The remainder of the script (kept below the early return) is
-the previous implementation that ran detekt and `lintDebug` against the staged Kotlin files.
-
-To re-enable the hook, remove the `exit 0` line near the top of `.githooks/pre-commit` and run
-`./setup-hooks.sh` again. Until then, CI is the enforcement point.
+A pre-commit hook lives at `.githooks/pre-commit`; `setup-hooks.sh` wires it by setting
+`core.hooksPath = .githooks` (it does not copy files). **The detekt half is active**: on every
+commit with staged Kotlin files the hook runs `./gradlew detekt --no-configuration-cache` and
+blocks the commit on failure. The `exit 0` sits AFTER the detekt block and skips only the
+Android Lint half, which stays CI-enforced (`lintDebug` in the unified workflow).
 
 ## Adding a new Detekt rule
 

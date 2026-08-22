@@ -16,16 +16,17 @@ import io.github.stslex.workeeper.feature.app_dialogs.impl.mvi.store.AppDialogSt
  *
  * The Store is obtained via the screen-less [AppDialogFeature] composition
  * entry. Because `App.kt` mounts this host as a sibling of `NavHost`,
- * `LocalViewModelStoreOwner` at this depth resolves to the host
- * `ComponentActivity`, scoping the Store to the Activity (not a
- * `NavBackStackEntry`, not a `@Singleton`). Composing the host inside a
- * `NavHost` destination would silently rescope the Store; the mount-site
+ * `LocalViewModelStoreOwner` at this depth resolves to
+ * the runtime generation's ViewModelStore (Phase 5, spec §8.7 — not a
+ * per-entry store, not an app-scope singleton), so the Store dies with its
+ * generation and survives Activity recreation. Composing the host inside a
+ * `NavDisplay` destination would silently rescope the Store; the mount-site
  * invariant on [io.github.stslex.workeeper.core.ui.mvi.AppFeature] covers
  * the rationale.
  *
  * Choice dispatch: button taps fire `Action.Choose(dialog, action)`. The
  * Store's `ChooseHandler` emits the choice into `AppDialogObserver`; a
- * `@Singleton` consumer (currently `feature/recovery/.../RestoreDialogChoiceObserver`)
+ * `@SingleIn(AppScope)` consumer (currently `feature/recovery/.../RestoreDialogChoiceObserver`)
  * runs the side-effect and acknowledges the reaction, which dismisses the
  * dialog. The host never clears flags itself.
  */

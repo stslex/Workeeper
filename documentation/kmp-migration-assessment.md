@@ -541,6 +541,19 @@ The restart primitive is now a platform-neutral seam: `AppReinitializer { fun re
 
 Routing restart through `NavigatorEventBus` rather than a Hilt `@EntryPoint` was a deliberate choice for the future Hilt→Metro swap. `@EntryPoint` sites are the most framework-variable piece of that swap (the assessment counts 6, each needing a bespoke replacement); constructor injection is portable as-is. So restart is **removed** from the `replay=0` nav-command bus (which also eliminates the same drop-with-no-mounted-subscriber hazard the `OpenRecovery` contract documents — a latent robustness win) and the now-dead `NavCommand.RestartApp` variant is deleted. Net: **no new `@EntryPoint` is introduced — the DI-swap `@EntryPoint` interface footprint is unchanged (3 interfaces, grep-verified identical at the `ace61acb` baseline and HEAD).** `NavigatorExt` remains entirely Hilt-free.
 
+> **SUPERSEDED (2026-08-22, KMP Phase 5 — R2).** The two A.3a findings below and decision 2's
+> reinit order were written against **Room 2.8.4** and **Navigation 2**, and Phase 5 measured them
+> false on the current toolchain: the never-run "Room-reopen spike" below effectively ran as
+> Phase 5's device entry gate (`SameInstanceReopenAfterSwapDeviceTest`) and came back **RED** —
+> Room 3's `close()` is terminal for the object (one-way `CloseBarrier`; a closed pool throws
+> `SQLITE_MISUSE` forever), so "captured DAOs follow the reopen for free" does NOT hold, and there
+> is no `NavCommand.ResetToRoot` or `NavController` under Nav3. The measured failure is LOUD,
+> never silently-stale (the inode trap below does not occur). The replacement model is the R2
+> runtime generation: database + Metro graph + lifetime + ViewModel/navigation ownership handed
+> over as one coherent unit; `AppDialogRepository`'s persisted `pending_*` state survives by
+> DataStore, exactly as decision 2 required. See
+> `documentation/feature-specs/kmp-phase-5-startup-processor.md` (§0, §7.1, §8).
+
 Findings from the A.3a audit that shaped this (root cause is **not** what the code comments claim):
 
 - **The captured `@Singleton` DB/DAO/repository graph does NOT go stale after the DB-file swap.** The swap reuses the *same* `AppDatabase` object (`DatabaseSnapshotProviderImpl` does `appDatabase.close()` + atomic rename); Room 2.8.4 DAOs hold only a `RoomDatabase` reference and take a fresh pooled connection per query/`createFlow`, so the ~22–24 captured references follow the reopen for free. The process restart is a **sledgehammer for a clean in-memory/UI/nav slate**, not a fix for stale captured handles.

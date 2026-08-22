@@ -42,11 +42,14 @@ class AppScopeLifetime(parent: Job? = null) {
      * A consumer-owned scope tied to this lifetime. Its own `SupervisorJob(job)` keeps the
      * consumer's launches isolated from siblings (same semantics as the anonymous scope it
      * replaces) while remaining reachable from [job] for cancellation and join. [context] is
-     * typically just the consumer's dispatcher; any Job element in it is overridden by the
-     * child supervisor.
+     * typically just the consumer's dispatcher. The supervisor is the RIGHT operand of the
+     * `plus` deliberately: `CoroutineContext.plus` lets the right side win per key, so a Job
+     * smuggled in via [context] can never displace the lifetime-parented supervisor and detach
+     * the scope from its generation — the exact plus-order trap `tech-debt.md` records for
+     * `AppCoroutineScopeImpl`.
      */
     fun childScope(context: CoroutineContext): CoroutineScope =
-        CoroutineScope(SupervisorJob(job) + context)
+        CoroutineScope(context + SupervisorJob(job))
 
     /** Signals cancellation without awaiting completion. Idempotent. */
     fun cancel() {

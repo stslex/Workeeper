@@ -355,8 +355,9 @@ arming run on the new lifetime.
   applied through the surviving generation's process-lifetime repositories. Exactly one bounded
   recovery attempt per failure point; if both construction and rollback recovery fail, the machine
   emits the explicit terminal outcome `ReplacementOutcome.Fatal` — the runtime publishes no
-  generation for new UI work and surfaces the recovery route (RecoveryActivity-equivalent path);
-  it never continues serving a closed generation.
+  generation for new UI work and never continues serving a closed generation. (Routing a
+  `RebuildInProcess` Fatal to a recovery surface is the calling HOST's wiring — the Phase 7 iOS
+  root's, or an instrumented test's; the runtime's contract ends at the typed outcome.)
 
 **Re-entrancy** (review v2 condition 4): a rollback request arriving from inside the
 transaction's own Preflight (the coordinator's failure path) is executed as the current
@@ -666,3 +667,72 @@ anonymous-scope behavior); `DatabaseReplacement` lives in `core:data:backup:api`
 (the module is KMP; `java.io.File` precedent: `BackupStorage`); `MetroWorkerFactory.kt:19`'s
 work-runtime 2.10.0 KDoc cite is stale (catalog: 2.11.2) → §15; `LargeClass` (600) is the one
 detekt ceiling to watch for the state machine.
+
+## 18. Final verification record (2026-08-22)
+
+Raw artifacts + exact commands: `kmp-phase-5-evidence/README.md` (+ the final Regression run's
+instrumentation XMLs beside it). Summary — every gate GREEN:
+
+- **Forced host battery** (`assembleDebug testDebugUnitTest verifyPaparazziDebug lintDebug
+  assembleDebugAndroidTest --rerun-tasks --no-build-cache --no-configuration-cache`): exit 0 in
+  7m48s, 4030 executed task lines, **2461 unit/host tests, 0 failures**; `verifyPaparazziDebug`
+  ran in all **13** golden-holding modules with **zero movers** (correction to §15.9's "14":
+  `core:ui:golden-harness` references golden-gate in a comment only and hosts no goldens — the
+  workflow comment's 13 is right).
+- **detekt** and **`:lint-rules:test`**: separate forced runs, exit 0.
+- **iOS**: `compileKotlinIosSimulatorArm64` for all five KMP modules + `:core:data:database:
+  kspKotlinIosSimulatorArm64`, forced, exit 0. Link/runtime: **UNVERIFIED** (no host before
+  Phase 7 — reported as such, never as passed).
+- **Connected suites** (the `ui_tests.yml` invocations, emulator API 34 arm64): Smoke **43/43**,
+  Regression **77/77** (45 `app:app` + 30 `core:data:database` + 2 others), both exit 0.
+- **Device gates**: §7.1 characterization pin 2/2 (RED gate-form measured first, known-negative
+  red then reverted); §11.2 per-generation GREEN gate 1/1 over the complete production factory +
+  real graph + real preflight, known-negative (swap bypass) red at the inode assertion then
+  reverted.
+- **Commit map (landed)**: spec v1 `51e9b2af` · characterization gate `dcb8dbd9` · review v1
+  record `787a49b9` · spec v2 (R2) `1845d7c9` · review v2 record `8157005e` · lifetimes +
+  startup processor `441f56f8` · runtime host + generation-aware UI `68f3ac18` · replacement
+  transaction `fdbf010e` · device green gate + instrumented suite `e10280b1` · worker de-capture
+  `fa8bc358` · docs closeout + this record (final commit).
+- **Implementation-note delta vs §8**: graph-only transitions use the documented RELAXED quiesce
+  order (candidate built+preflighted before the outgoing lifetime ends; abort at any point
+  republishes a fully-serving generation N) — the STRICT order (lifetime join before close)
+  applies to the replacement transaction, where the closed database is the hazard. Both are in
+  `AppRuntime`'s KDoc and pinned by their suites. The §11.3 injections are driven through the
+  runtime's factory/policy/provider seams — no hook mechanism was needed (nothing weaker: every
+  matrix row has a test in `AppRuntimeTest`/`AppRuntimeReplacementTest`).
+
+- **Recorded residual properties** (final-review findings, classified, none production-reachable
+  on Android): (a) a process death in the ONE frame between a `RebuildInProcess` publish and the
+  old saveable slot's removal can leave the old slot in saved state; ids restart at 1 next
+  process, so a Phase 7 host that persists generation counters must drop stale slots at cold
+  start (the recreation half of the window is closed — `previousGenerationId` is saveable).
+  (b) The same-op coalescing check runs outside the mutex; a missed coalesce degrades to a
+  serialized second transaction with an honest per-op result — the different-op isolation
+  invariant holds regardless. (c) A cancellation/unexpected throw inside a `RebuildInProcess`
+  transaction can strand the phase at `Transitioning` — Android production is unaffected
+  (`RestartProcess` writes no phase; `requestReinitialize` runs on the uncancellable host
+  scope); the Phase 7 host must call the seam from a non-cancellable context or via
+  `requestReinitialize`. (d) On the cold-start S1 rollback path the terminal `close()` now runs
+  on the (already-blocked) main thread instead of the provider's IO hop — functionally
+  identical under `runBlocking`, recorded as the one byte-equivalence residue.
+
+## 19. Final independent review (2026-08-22): CONFIRM
+
+Fresh-context adversarial review of the finished implementation (working tree = final state):
+**CONFIRM — no shipped-behavior break, no replacement-invariant violation, no vacuous
+load-bearing test.** Attack summary: cold-start mutex deadlock disproven by trace (gen-1 build
+holds only its monitor; nothing holds the transition mutex at cold start); no mixed-pair reader
+(production acts on single atomic reads); scope sweep clean (the host scope is the one
+documented process scope); restore layering byte-equivalent (use-case body diffed against the
+pre-split interactor); DB-identity discipline verified at every `publishPhase(Serving(...))`
+argument; zero production `reinitialize`/`replace` callers; layering directions verified; the
+Fatal JVM test genuinely post-close; the device gate cannot pass on a bypassed swap; every
+docs-closeout edit verified line-by-line against the code, and no doc implies a runnable iOS
+restore. Both MUST-FIX findings are applied on the branch: `AppScopeLifetime.childScope` puts
+the lifetime-parented supervisor on the winning side of the context `plus` (a caller-supplied
+Job can no longer detach a scope from its generation), and `previousGenerationId` is
+`rememberSaveable` (slot removal survives Activity recreation). Note-level findings are folded
+into §18's residual register, the softened §8.4 Fatal wording, the suspend-path
+`StartupProcessorTest` pins (9 tests), and the hardened `UiGenerationSwapTest` absence
+assertions (re-run green on device after hardening).

@@ -18,7 +18,7 @@ import io.github.stslex.workeeper.core.ui.navigation.Screen
  *
  * Navigation is never executed here: the Store/Handler layer dispatches navigation
  * decisions through `Navigator` (the command-bus contract), and the App/UI bridge
- * (`NavigatorExt.NavigationEventBusSetup`) executes them on the current `NavController`.
+ * (`NavigatorExt.NavigationEventBusSetup`) executes them against the Nav3 back stack.
  *
  * @see [StoreProcessor]
  * */

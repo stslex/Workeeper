@@ -70,9 +70,9 @@ class AppDialogRepository internal constructor(
     }
 
     /**
-     * Clear every flag belonging to [dialog]. Internal API used by
-     * `AppDialogHost` on user dismiss / confirm — never exposed via
-     * [AppDialogPublisher].
+     * Clear every flag belonging to [dialog]. Internal API reached through
+     * `AppDialogObserver.acknowledgeReaction` (the consumer-side reactor's
+     * dismiss-after step) — never exposed via [AppDialogPublisher].
      */
     suspend fun dismiss(dialog: AppDialog) {
         dataStore.edit { prefs -> prefs.clearFlags(dialog) }

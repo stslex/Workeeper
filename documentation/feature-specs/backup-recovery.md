@@ -145,8 +145,14 @@ Flow:
       context (`backupSchemaVersion`, `backupCreatedAtEpochMs`,
       `backupAppVersion`, `startedAtEpochMs`) via
       [`RestoreStateRepository.markRestoreInProgress`](../../core/data/backup/api/src/main/kotlin/io/github/stslex/workeeper/core/data/backup/api/restore/RestoreStateRepository.kt).
-   3. Existing `restoreFromSnapshot` (delete WAL/SHM sidecars, atomic
-      rename — see
+   3. The database replacement transaction (KMP Phase 5 R2: the swap is
+      runtime-owned — callers go through the `DatabaseReplacement` seam;
+      the provider's split `validateSnapshotForRestore` +
+      `replaceLiveDatabaseFile` carry the same gates and the same delete
+      WAL/SHM sidecars + atomic rename mechanics; on Android production
+      the `RestartProcess` policy is byte-equivalent to the pre-split
+      `restoreFromSnapshot` — see
+      `kmp-phase-5-startup-processor.md` §8.5 and
       [backup.md → Restore flow](backup.md#restore-flow)).
 2. **App restart** via the existing
    `navigator.restartApp()` command (see

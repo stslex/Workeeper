@@ -30,8 +30,8 @@ import io.github.stslex.workeeper.feature.recovery.diagnostics.RestoreRecoveryRe
  *   (consumed), publishes [AppDialog.RestoreFailure], records a Crashlytics
  *   non-fatal, and asks the caller to restart the app.
  *
- * - **User-initiated undo (Scenario 3).** Called from `AppDialogHost` when
- *   the user confirms the undo confirmation dialog. Rolls back to the
+ * - **User-initiated undo (Scenario 3).** Called from `RestoreDialogChoiceObserver`
+ *   when the user confirms the undo confirmation dialog. Rolls back to the
  *   preserved snapshot, clears the marker, publishes
  *   [AppDialog.UndoRestoreSuccess] (the dialog survives the restart that
  *   immediately follows), and asks the caller to restart the app.

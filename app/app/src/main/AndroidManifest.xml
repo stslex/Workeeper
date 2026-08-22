@@ -53,12 +53,12 @@
         <!--
           androidx.work.WorkManagerInitializer is intentionally removed.
           WorkManager uses on-demand initialization via BaseApplication's
-          Configuration.Provider + HiltWorkerFactory (see BaseApplication.kt
+          Configuration.Provider + MetroWorkerFactory (see BaseApplication.kt
           and documentation/feature-specs/backup.md → WorkManager setup).
           Restoring the default initializer would create a WorkManager without
-          Hilt's worker factory, breaking @AssistedInject construction of
-          BackupWorker. This is the Google-documented Hilt + WorkManager
-          integration pattern.
+          the app's worker factory, so BackupWorker would be built by the
+          default reflection factory without its six graph deps. Same
+          on-demand integration pattern as before the Hilt→Metro cut.
 
           Declared once in this shared main manifest rather than duplicated
           across each flavor manifest because both flavors are intentionally

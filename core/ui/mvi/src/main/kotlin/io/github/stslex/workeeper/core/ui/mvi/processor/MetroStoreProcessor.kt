@@ -14,7 +14,8 @@ import io.github.stslex.workeeper.core.ui.mvi.BaseStore
  * and constructs the [BaseStore] subclass. Because [BaseStore] already IS an
  * `androidx.lifecycle.ViewModel`, the Metro-created Store is retained **directly** in the
  * Compose `ViewModelStore` via [viewModel] — scoped to the current
- * `LocalViewModelStoreOwner` (the `NavBackStackEntry` inside a `NavHost`): survives
+ * `LocalViewModelStoreOwner` (the per-entry store `rememberViewModelStoreNavEntryDecorator`
+ * installs inside `NavDisplay`): survives
  * configuration change and recomposition, cleared on back-stack pop. No separate ViewModel
  * shim is needed.
  *

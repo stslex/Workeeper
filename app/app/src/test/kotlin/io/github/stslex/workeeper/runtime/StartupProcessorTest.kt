@@ -132,6 +132,47 @@ internal class StartupProcessorTest {
     }
 
     @Test
+    fun `suspend preflight - scenario 1 rollback short-circuits, no scenario 2, no chores`() =
+        kotlinx.coroutines.test.runTest {
+            coEvery { restoreCoordinator.handlePostRestoreLaunch() } returns PreflightOutcome.RestoreRolledBack
+
+            val outcome = processor().preflightAndArm(graph, appDatabase, lifetime)
+
+            assertEquals(StartupOutcome.RestartRequired, outcome)
+            coVerify(exactly = 0) { migrationCoordinator.checkAndRouteOrProceed() }
+            coVerify(exactly = 0) { imageStorage.cleanupTempFiles() }
+            coVerify(exactly = 0) { graph.recoveryBootstrap }
+        }
+
+    @Test
+    fun `suspend preflight - no-op runs scenario 2 strictly after scenario 1, then arms`() =
+        kotlinx.coroutines.test.runTest {
+            coEvery { restoreCoordinator.handlePostRestoreLaunch() } returns PreflightOutcome.NoOp
+
+            val outcome = processor().preflightAndArm(graph, appDatabase, lifetime)
+
+            assertEquals(StartupOutcome.Proceed, outcome)
+            coVerifyOrder {
+                restoreCoordinator.handlePostRestoreLaunch()
+                migrationCoordinator.checkAndRouteOrProceed()
+            }
+            coVerify(exactly = 1) { imageStorage.cleanupTempFiles() }
+            coVerify(exactly = 1) { graph.recoveryBootstrap }
+        }
+
+    @Test
+    fun `suspend preflight - restore success skips scenario 2 but still arms`() =
+        kotlinx.coroutines.test.runTest {
+            coEvery { restoreCoordinator.handlePostRestoreLaunch() } returns PreflightOutcome.RestoreSucceeded
+
+            val outcome = processor().preflightAndArm(graph, appDatabase, lifetime)
+
+            assertEquals(StartupOutcome.Proceed, outcome)
+            coVerify(exactly = 0) { migrationCoordinator.checkAndRouteOrProceed() }
+            coVerify(exactly = 1) { graph.recoveryBootstrap }
+        }
+
+    @Test
     fun `planner failure is caught - startup completes with Proceed`() {
         coEvery { restoreCoordinator.handlePostRestoreLaunch() } returns PreflightOutcome.NoOp
         plannerError = IllegalStateException("corrupt file")

@@ -73,6 +73,7 @@ internal class UiGenerationSwapTest {
 
         // The new generation starts at the intended root; the old top is gone with its stack.
         composeRule.onNodeWithTag("HomeGraph").assertIsDisplayed()
+        composeRule.onNodeWithTag("AllTrainingsGraph").assertDoesNotExist()
 
         // Ordinary Activity recreation AFTER the swap: the new generation's saveable slot
         // restores (Home), and generation 1's saved entries must NOT resurrect — their slot
@@ -81,6 +82,7 @@ internal class UiGenerationSwapTest {
         composeRule.waitForIdle()
         composeRule.onNodeWithTag("AppRoot").assertIsDisplayed()
         composeRule.onNodeWithTag("HomeGraph").assertIsDisplayed()
+        composeRule.onNodeWithTag("AllTrainingsGraph").assertDoesNotExist()
     }
 
     private fun swapToSecondGeneration() {

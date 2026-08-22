@@ -339,7 +339,7 @@ When adding new reporting jobs (e.g. for additional API levels or test types), p
   runs for any PR target.
 - Release tags follow `beta-v<version>` and `release-v<version>` and are produced by the deploy
   workflows. Pushing a `release-*` tag triggers `github_release_apk.yml` automatically.
-- The pre-commit hook (`.githooks/pre-commit`, installed via `setup-hooks.sh`) is currently
-  disabled at the script level — the hook returns early without running checks. CI is the
-  enforcement point for detekt and lint until the hook is re-enabled. See
-  [lint-rules.md](lint-rules.md#pre-commit-hook) for details.
+- The pre-commit hook (`.githooks/pre-commit`, wired via `setup-hooks.sh` setting
+  `core.hooksPath`) runs `./gradlew detekt` on every commit with staged Kotlin files; its early
+  `exit 0` sits AFTER the detekt block and only skips the Android Lint half, which stays
+  CI-enforced. See [lint-rules.md](lint-rules.md#pre-commit-hook) for details.

@@ -779,3 +779,16 @@ These were tracked as debt in earlier versions of this doc. Verified resolved by
 ## Component death candidates (v3 stage 4, 2026-07-29)
 
 - `AppSection` — ruled lists won on three consecutive screens (exercise detail, settings, history); `SettingsSection` is already deleted (#191). When the derived screens stop consuming it, delete rather than restyle.
+
+## AppCoroutineScopeImpl's SupervisorJob is inert (measured, KMP Phase 5 discovery)
+
+`core/core/src/commonMain/.../coroutine/scope/AppCoroutineScopeImpl.kt:29` assembles the Store
+scope as `SupervisorJob() + CoroutineName("FeatureScope") + lifecycleOwner.lifecycleScope
+.coroutineContext`. `CoroutineContext.plus` lets the right operand win per key, and
+`lifecycleScope.coroutineContext` carries its own `Job` and `Main.immediate` — so the written
+`SupervisorJob()` is silently discarded: the Store scope's Job IS the LifecycleOwner's
+`lifecycleScope` Job, and `BaseStore.dispose()`'s `scope.cancel()` cancels that composition
+LifecycleOwner's own `lifecycleScope`. Behavior has been like this throughout Nav3 operation and
+every suite is green against it, so Phase 5 deliberately did NOT change it (out of scope:
+unrelated product behavior). Recorded so the next Store-scope change starts from the measured
+fact, not the written intent.

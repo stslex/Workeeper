@@ -182,6 +182,14 @@ out of the module does not move it across that boundary.
 
 ## 6. Notes for phase 5 (the startup processor)
 
+> **SUPERSEDED (2026-08-22): Phase 5 landed.** This section's stage inventory predates
+> `warmQueryPlanner()` and is no longer the source of truth — the measured Phase 5 inventory
+> (including the planner stage) and the shipped design live in
+> `kmp-phase-5-startup-processor.md` (§2 startup-stage matrix, §8 architecture). The latent
+> unowned-scope defect flagged below is fixed: every startup chore and app-scoped collector now
+> derives from the generation's `AppScopeLifetime`. The `onCreateGraphBootstrap` skip-the-whole
+> -half capability this section demanded is preserved verbatim.
+
 Written for the reader whose question is "what is the startup stage inventory, now that the
 composition root has moved".
 

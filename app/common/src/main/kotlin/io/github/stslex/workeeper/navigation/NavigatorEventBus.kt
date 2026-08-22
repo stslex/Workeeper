@@ -25,8 +25,9 @@ import kotlin.reflect.KClass
 
 /**
  * `@ContributesBinding(AppScope)` binds it to the [Navigator] interface for the feature readers; the app
- * `AppGraph` ALSO exposes the concrete type via a self accessor for `AppRootViewModel` (which injects
- * `NavigatorEventBus` directly, then passes it as a [NavigatorReceiver] to `NavigatorExt`). One
+ * `AppGraph` ALSO exposes the concrete type via the `AppRootDeps` contract for `AppRootViewModel`
+ * (hand-constructed in `App.kt` with the concrete bus, which then serves as the
+ * [NavigatorReceiver] for `NavigatorExt`). One
  * `@SingleIn(AppScope)` instance backs both — the same dual concrete/interface shape as
  * `AppDialogObserverImpl`.
  *

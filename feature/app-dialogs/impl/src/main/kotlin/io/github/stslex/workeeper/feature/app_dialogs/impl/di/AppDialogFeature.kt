@@ -21,8 +21,8 @@ internal typealias AppDialogStoreProcessor = StoreProcessor<State, Action, Event
  * Store to a `NavBackStackEntry`).
  *
  * `rememberMetroStoreProcessor` retains the Metro-created Store in whatever
- * `LocalViewModelStoreOwner` is current — here the host `ComponentActivity`'s `ViewModelStore` (root
- * mount via `AppDialogHost`).
+ * `LocalViewModelStoreOwner` is current — here the RUNTIME GENERATION's `ViewModelStore` (root
+ * mount via `AppDialogHost` inside `App()`'s generation region; Phase 5, spec §8.7).
  *
  * All 5 formerly hand-threaded deps are inherited from the parent graph, so BOTH former acquisition
  * paths are gone: the `appDeps` dep-interface lookup for the store-infra trio, AND the

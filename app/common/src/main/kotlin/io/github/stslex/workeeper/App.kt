@@ -25,6 +25,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -98,7 +99,10 @@ fun App() {
     }
     val phase by generationsHolder.appUiPhases.collectAsState()
     val saveableStateHolder = rememberSaveableStateHolder()
-    var previousGenerationId by remember { mutableStateOf<Int?>(null) }
+    // Saveable: an Activity recreation between publish and the removal effect must not forget
+    // which slot still needs dropping (final-review finding; the residual one-frame process-death
+    // window is recorded in the spec's §18 register).
+    var previousGenerationId by rememberSaveable { mutableStateOf<Int?>(null) }
 
     when (val currentPhase = phase) {
         is AppUiPhase.Generation -> saveableStateHolder.SaveableStateProvider(currentPhase.id) {

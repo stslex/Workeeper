@@ -530,11 +530,17 @@ construction in the tree.
 ### Application bootstrap
 
 - `app/app/src/main/java/io/github/stslex/workeeper/BaseApplication.kt` is `abstract`. It
-  initializes `FirebaseCrashlyticsHolder` and the `Log.isLogging` flag, holds the Metro
-  `AppGraph` (`by lazy`, built from the three `create()` roots), and implements the
-  `AppGraphOwner` / `AppDepsHolder` / `RecoveryDepsHolder` / `BackupWorkerDepsHolder` seams.
-  Its graph-touching startup work sits behind the overridable `onCreateGraphBootstrap()`
-  seam so the androidTest `TestApplication` can no-op it.
+  initializes `FirebaseCrashlyticsHolder` and the `Log.isLogging` flag, holds the `AppRuntime`
+  host (KMP Phase 5, `feature-specs/kmp-phase-5-startup-processor.md`), and implements the
+  `AppGraphOwner` / `AppDepsHolder` / `RecoveryDepsHolder` / `BackupWorkerDepsHolder` /
+  `AppRootDepsHolder` / `AppUiGenerationsHolder` seams — every seam answers from the runtime's
+  published `RuntimeGeneration` (database + Metro `AppGraph` built from the five `create()`
+  roots + `AppScopeLifetime` + generation ViewModelStore, handed over as one atomic unit).
+  The startup sequence itself is the extracted `StartupProcessor` (typed outcomes; ordering,
+  blocking boundaries, and chore guards unchanged), invoked behind the overridable
+  `onCreateGraphBootstrap()` seam so the androidTest `TestApplication` can no-op it.
+  Production Android replacement policy is process restart; the in-process rebuild
+  (`RebuildInProcess`) is Android-instrumented and is what the Phase 7 iOS host binds.
 - `app/dev/src/main/kotlin/.../DevMobileApp.kt` and
   `app/store/src/main/kotlin/.../StoreMobileApp.kt` (one per variant) subclass it and override
   `isDebugLoggingAllow`. No DI annotation is involved — plain subclasses.
@@ -1526,7 +1532,9 @@ Two outcomes:
 
 ### SQLite query-planner statistics
 
-`BaseApplication.warmQueryPlanner()` runs `ANALYZE` once per process, off the main thread and
+`StartupProcessor`'s planner warm-up (extracted from `BaseApplication` in KMP Phase 5; same
+guards, now launched on the generation's `AppScopeLifetime`) runs `ANALYZE` once per generation,
+off the main thread and
 best-effort, via `refreshQueryPlannerStatistics` in `core:data:database`. Measured on
 `:app:dev:installRelease` against a long-term database: 878ms on the first launch after install,
 45–107ms on every launch after that. Holding the writer connection that long is free only under
