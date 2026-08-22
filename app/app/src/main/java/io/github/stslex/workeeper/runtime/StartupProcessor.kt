@@ -81,6 +81,38 @@ internal class StartupProcessor(
     }
 
     /**
+     * The same stages as [coldStart] in the same order, in suspend form for CANDIDATE
+     * generations during an in-process transition (spec §8.3 "replacement preflight" / §8.4
+     * Preflight state). No `runBlocking`: the transition machine is already off the main thread,
+     * and the cold-start blocking rationale (content must not flash before routing) does not
+     * apply — the UI is showing the Transitioning interstitial. The small duplication of
+     * [coldStart]'s ordering logic is deliberate: sharing one body would either force the
+     * suspend path through `runBlocking` or dissolve the two load-bearing cold-start blocking
+     * boundaries into an abstraction; fifteen duplicated lines are cheaper than either, and
+     * `StartupProcessorTest` pins both orderings.
+     */
+    suspend fun preflightAndArm(
+        graph: AppGraph,
+        appDatabase: AppDatabase,
+        lifetime: AppScopeLifetime,
+    ): StartupOutcome {
+        val restoreOutcome = graph.restoreRecoveryCoordinator.handlePostRestoreLaunch()
+        if (restoreOutcome == PreflightOutcome.RestoreRolledBack) {
+            return StartupOutcome.RestartRequired
+        }
+        if (restoreOutcome == PreflightOutcome.NoOp) {
+            graph.startupMigrationCoordinator.checkAndRouteOrProceed()
+        }
+        armPostPreflight(graph, appDatabase, lifetime)
+        return when {
+            graph.startupMigrationCoordinator.lastDecision is StartupCheck.RouteToRecovery ->
+                StartupOutcome.RouteToRecovery
+
+            else -> StartupOutcome.Proceed
+        }
+    }
+
+    /**
      * Stages 3–4: the two chores and the observer arming, in the pre-extraction order
      * (cleanup → planner → observer). Runs for every non-restart outcome — including
      * `RouteToRecovery`, where only the planner's own guard changes anything.

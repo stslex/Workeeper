@@ -90,6 +90,10 @@ suspend fun resolveSnackbarOutcomeOrRequeue(
     show: suspend () -> SnackbarResult?,
 ) {
     var routed = false
+    // In-flight accounting brackets the WHOLE routing, including the NonCancellable commit inside
+    // resolveSnackbarOutcome — the Phase 5 Quiescing stage awaits this count reaching zero before
+    // a database replacement may close the generation's database (spec §8.4 step 3).
+    SnackbarManager.resolveStarted()
     try {
         resolveSnackbarOutcome(show(), model)
         routed = true
@@ -97,5 +101,6 @@ suspend fun resolveSnackbarOutcomeOrRequeue(
         if (!routed) {
             SnackbarManager.showSnackbar(model)
         }
+        SnackbarManager.resolveFinished()
     }
 }

@@ -4,9 +4,11 @@ package io.github.stslex.workeeper
 import android.app.ActivityManager
 import android.app.Application
 import androidx.work.Configuration
+import androidx.work.WorkManager
 import io.github.stslex.workeeper.app.common.di.AppRootDeps
 import io.github.stslex.workeeper.app.common.di.AppRootDepsHolder
-import io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetime
+import io.github.stslex.workeeper.app.common.di.AppUiGenerationsHolder
+import io.github.stslex.workeeper.app.common.di.AppUiPhase
 import io.github.stslex.workeeper.core.core.images.buildImageStorage
 import io.github.stslex.workeeper.core.core.logger.FirebaseCrashlyticsHolder
 import io.github.stslex.workeeper.core.core.logger.Log
@@ -14,8 +16,9 @@ import io.github.stslex.workeeper.core.core.utils.CommonExt
 import io.github.stslex.workeeper.core.data.backup.worker.BackupWorkerDeps
 import io.github.stslex.workeeper.core.data.backup.worker.BackupWorkerDepsHolder
 import io.github.stslex.workeeper.core.data.backup.worker.MetroWorkerFactory
-import io.github.stslex.workeeper.core.data.database.AppDatabase
+import io.github.stslex.workeeper.core.data.backup.worker.scheduler.awaitBackupWorkersIdle
 import io.github.stslex.workeeper.core.data.database.buildAppDatabase
+import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
 import io.github.stslex.workeeper.core.ui.mvi.di.AppDepsHolder
 import io.github.stslex.workeeper.core.ui.mvi.performance.PerformanceMetricsRecorder
 import io.github.stslex.workeeper.core.ui.mvi.performance.RecordAction
@@ -24,9 +27,12 @@ import io.github.stslex.workeeper.di.AppGraphOwner
 import io.github.stslex.workeeper.di.buildAppGraph
 import io.github.stslex.workeeper.feature.recovery.di.RecoveryDeps
 import io.github.stslex.workeeper.feature.recovery.di.RecoveryDepsHolder
+import io.github.stslex.workeeper.runtime.AppRuntime
+import io.github.stslex.workeeper.runtime.RuntimeTransitionPolicy
 import io.github.stslex.workeeper.runtime.StartupOutcome
 import io.github.stslex.workeeper.runtime.StartupProcessor
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.StateFlow
 
 /**
  * The process [Application] base, Hilt-free (App-Scope Collapse Step 6 — the cut). Holds the Metro
@@ -49,49 +55,57 @@ abstract class BaseApplication :
     AppDepsHolder,
     RecoveryDepsHolder,
     BackupWorkerDepsHolder,
-    AppRootDepsHolder {
+    AppRootDepsHolder,
+    AppUiGenerationsHolder {
 
     abstract val isDebugLoggingAllow: Boolean
 
     /**
-     * Held rather than inlined into [appGraph] only so [StartupProcessor]'s planner warm-up can
-     * reach it: the graph takes it as a `create()` bound instance and exposes no accessor for it,
-     * and giving it one would widen the graph's surface for a startup chore. Still the same single
-     * cold `Room.databaseBuilder(...).build()` — constructing it opens no SQLite file.
+     * The application-owned runtime host (Phase 5 R2, spec §8.1) — owns the DB factory, the
+     * process [io.github.stslex.workeeper.core.core.images.ImageStorage], and the sequence of
+     * runtime generations. Every seam below answers from its published generation. `by lazy` so
+     * nothing is built before [onCreateGraphBootstrap]'s first read — preserving the cold-build
+     * ordering ([buildAppDatabase] opens no SQLite file; `RecoveryActivity`'s Room-free bootstrap
+     * safety holds). `Dispatchers.IO` is passed to [buildImageStorage] directly: the graph is
+     * under construction at that point — reading its own dispatcher accessor would cycle, and
+     * `Dispatchers.IO` is the identical stateless process-singleton the accessor returns.
      */
-    private val appDatabase: AppDatabase by lazy { buildAppDatabase(applicationContext) }
-
-    /**
-     * The generation lifetime (Phase 5, spec §8.2): every app-scoped job and collector — the two
-     * startup chores below and the three scope-owning graph singletons — derives its scope from
-     * this one root, so the owner of the generation can end them all deterministically. In the
-     * process-restart production model this is process-lifetime and never cancelled, which is
-     * byte-equivalent to the anonymous scopes it replaces; the runtime host cancels-and-joins it
-     * during in-process replacement (Quiescing).
-     */
-    private val appScopeLifetime = AppScopeLifetime()
-
-    /**
-     * The Metro app-scope graph, held for the whole process. `by lazy` so it is created on first access.
-     * In production that first access is DURING `onCreate` — [onCreateGraphBootstrap] hands it to
-     * [StartupProcessor.coldStart], whose recovery/startup-migration pre-flight reads it; only the
-     * test override defers/skips that, so under test the graph is created on a later access.
-     * Constructs the two `create()` roots directly, Hilt-free: [appDatabase] (a cold
-     * `Room.databaseBuilder(...).build()` — no SQLite open, so `RecoveryActivity`'s Room-free bootstrap
-     * safety holds) and [ImageStorageImpl] via [buildImageStorage]; `@IODispatcher` is `Dispatchers.IO`
-     * directly (the graph is under
-     * construction — reading its own dispatcher would cycle; `Dispatchers.IO` is the identical stateless
-     * process-singleton the graph's accessor returns).
-     */
-    @Suppress("EXPOSED_PROPERTY_TYPE_IN_CONSTRUCTOR_ERROR", "EXPOSED_PROPERTY_TYPE")
-    override val appGraph: AppGraph by lazy {
-        buildAppGraph(
+    private val appRuntime: AppRuntime by lazy {
+        AppRuntime(
             applicationContext = applicationContext,
-            appDatabase = appDatabase,
-            imageStorage = buildImageStorage(applicationContext, Dispatchers.IO),
-            appScopeLifetime = appScopeLifetime,
+            dbFactory = ::buildAppDatabase,
+            imageStorageFactory = { context -> buildImageStorage(context, Dispatchers.IO) },
+            graphFactory = ::buildAppGraph,
+            preflight = { generation ->
+                startupProcessor.preflightAndArm(
+                    graph = generation.graph,
+                    appDatabase = generation.database,
+                    lifetime = generation.lifetime,
+                )
+            },
+            policy = RuntimeTransitionPolicy(
+                drainWorkers = { awaitBackupWorkersIdle(WorkManager.getInstance(this)) },
+                drainSnackbarResolves = { SnackbarManager.awaitInFlightResolves() },
+                pendingSnackbarCount = { SnackbarManager.pendingModelCount },
+            ),
         )
     }
+
+    /**
+     * The published generation's Metro graph. A `get()` accessor, never a capture: readers that
+     * re-read per access (MainActivity, the five holder seams) always observe the CURRENT
+     * generation — the atomic-handover half of the R2 replacement invariant.
+     */
+    @Suppress("EXPOSED_PROPERTY_TYPE_IN_CONSTRUCTOR_ERROR", "EXPOSED_PROPERTY_TYPE")
+    override val appGraph: AppGraph
+        get() = appRuntime.currentGeneration.graph
+
+    override val appUiPhases: StateFlow<AppUiPhase>
+        get() = appRuntime.uiPhases
+
+    override fun onUiGenerationAttached(id: Int) = appRuntime.onUiGenerationAttached(id)
+
+    override fun onUiGenerationDisposed(id: Int) = appRuntime.onUiGenerationDisposed(id)
 
     // Feature-side readers acquire their own contributed `XxxGraph.Factory` via `context.appDeps<T>()`.
     // Every `@ContributesTo(AppScope::class)` extension factory is merged into `appGraph`, so the
@@ -140,10 +154,12 @@ abstract class BaseApplication :
      * `protected open` keeps the seam `:app:app`-internal — no cross-module visibility change.
      */
     protected open fun onCreateGraphBootstrap() {
+        // First generation read — builds and publishes generation 1 (mutex-free, cold-start rule).
+        val generation = appRuntime.currentGeneration
         val outcome = startupProcessor.coldStart(
-            graph = appGraph,
-            appDatabase = appDatabase,
-            lifetime = appScopeLifetime,
+            graph = generation.graph,
+            appDatabase = generation.database,
+            lifetime = generation.lifetime,
         )
         if (outcome == StartupOutcome.RestartRequired) {
             // Scenario 1 rolled the live db back — restart so the next process rebuilds against

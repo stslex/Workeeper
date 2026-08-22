@@ -2,7 +2,9 @@
 package io.github.stslex.workeeper.harness
 
 import io.github.stslex.workeeper.BaseApplication
+import io.github.stslex.workeeper.app.common.di.AppUiPhase
 import io.github.stslex.workeeper.di.AppGraph
+import kotlinx.coroutines.flow.StateFlow
 
 /**
  * The instrumentation [android.app.Application] for the consolidated `:app:app` androidTest suite
@@ -28,6 +30,19 @@ internal class TestApplication : BaseApplication() {
 
     override val appGraph: AppGraph
         get() = MetroTestGraphHolder.graph
+
+    /**
+     * Harness-controlled generation stream (Phase 5, spec §8.7): the rule publishes
+     * `Generation(1, per-test store)` on install, so `App()` composes against the per-test graph
+     * and never touches the production runtime. The attach/dispose callbacks keep their default
+     * no-op bodies — there is no runtime Quiescing to signal in the static-generation harness.
+     */
+    override val appUiPhases: StateFlow<AppUiPhase>
+        get() = MetroTestGraphHolder.uiPhases
+
+    override fun onUiGenerationAttached(id: Int) = Unit
+
+    override fun onUiGenerationDisposed(id: Int) = Unit
 
     override fun onCreateGraphBootstrap() {
         // Intentionally empty — see class doc. The graph is installed per test by MetroTestRule.

@@ -21,8 +21,8 @@ import java.io.File
 
 /**
  * Single source of truth for backup execution. Used by BOTH the periodic
- * auto-backup work (`UNIQUE_PERIODIC_NAME` in [BackupScheduler]) and the
- * one-time manual-backup work (`UNIQUE_ONE_TIME_NAME`); the two work names
+ * auto-backup work (`UNIQUE_PERIODIC_WORK_NAME`) and the
+ * one-time manual-backup work (`UNIQUE_ONE_TIME_WORK_NAME`); the two work names
  * route to the same worker class.
  *
  * Failure handling:

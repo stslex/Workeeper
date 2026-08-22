@@ -17,10 +17,16 @@ import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -31,9 +37,12 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.zIndex
+import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation3.runtime.rememberNavBackStack
 import io.github.stslex.workeeper.app.common.di.AppRootDepsHolder
+import io.github.stslex.workeeper.app.common.di.AppUiGenerationsHolder
+import io.github.stslex.workeeper.app.common.di.AppUiPhase
 import io.github.stslex.workeeper.bottom_app_bar.BottomBarItem
 import io.github.stslex.workeeper.core.ui.kit.components.navbar.AppNavBar
 import io.github.stslex.workeeper.core.ui.kit.components.navbar.AppNavBarItem
@@ -52,14 +61,87 @@ import io.github.stslex.workeeper.host.BottomBarNavigationListener.Companion.rem
 import io.github.stslex.workeeper.navigation.NavigatorExt.NavigationEventBusSetup
 import kotlinx.coroutines.withTimeoutOrNull
 
+/**
+ * The generation shell (Phase 5, `kmp-phase-5-startup-processor.md` §8.7). The WHOLE app body —
+ * including the [AppRootViewModel] resolution, which ctor-captures the generation's
+ * `navigatorEventBus` — composes inside a region that is:
+ *
+ *  - **keyed on the generation id**: a new generation drops every positional state slot, so the
+ *    Nav3 back stack restarts at Home and nothing remembered under generation N can leak into
+ *    N+1 (Back cannot reach the old stack — the list object itself is gone);
+ *  - **saveable-scoped per generation** ([rememberSaveableStateHolder]): generation N's saved
+ *    state lives only under slot N — an ABORTED transition re-enters slot N and restores the old
+ *    back stack intact, while a completed one removes the old slot so old entries can never
+ *    resurrect. Cold start always composes slot 1, so ordinary Activity-recreation and
+ *    process-death restoration are byte-identical to the pre-Phase-5 tree (pinned by
+ *    `BackStackStateRestorationTest`);
+ *  - **ViewModel-scoped to the generation**: the runtime-owned [AppUiPhase.Generation
+ *    .viewModelStoreOwner] is provided as the root `LocalViewModelStoreOwner`, so
+ *    [AppRootViewModel] and the app-dialog Store survive Activity recreation (the runtime
+ *    outlives the Activity) yet die deterministically when the runtime clears the generation's
+ *    store. NavDisplay's per-entry decorator re-provides the entry owner underneath, so
+ *    per-screen Stores are untouched by this.
+ *
+ * The [DisposableEffect] is the runtime's Quiescing signal: it is the FIRST thing remembered in
+ * the region, so Compose forgets it LAST — its `onDispose` fires only after every inner Store's
+ * own dispose ran, which is exactly the "the UI let go of generation N" moment the runtime
+ * awaits before touching the generation's ViewModelStore.
+ *
+ * [AppUiPhase.Transitioning] composes a bare neutral box (deliberately theme-independent: the
+ * theme flows from the generation's own [AppRootViewModel], which does not exist in this window).
+ */
 @Composable
 fun App() {
-    // AppRootViewModel is a plain ViewModel constructed via viewModel {} with deps read from the app
-    // graph — through [AppRootDeps], never the graph itself. `@DependencyGraph(AppScope)` and
+    val context = LocalContext.current
+    val generationsHolder = remember(context) {
+        context.applicationContext as AppUiGenerationsHolder
+    }
+    val phase by generationsHolder.appUiPhases.collectAsState()
+    val saveableStateHolder = rememberSaveableStateHolder()
+    var previousGenerationId by remember { mutableStateOf<Int?>(null) }
+
+    when (val currentPhase = phase) {
+        is AppUiPhase.Generation -> saveableStateHolder.SaveableStateProvider(currentPhase.id) {
+            key(currentPhase.id) {
+                CompositionLocalProvider(
+                    LocalViewModelStoreOwner provides currentPhase.viewModelStoreOwner,
+                ) {
+                    DisposableEffect(currentPhase.id) {
+                        generationsHolder.onUiGenerationAttached(currentPhase.id)
+                        onDispose { generationsHolder.onUiGenerationDisposed(currentPhase.id) }
+                    }
+                    LaunchedEffect(currentPhase.id) {
+                        // A COMPLETED transition (new id) drops the old generation's saved slot —
+                        // no resurrection; an aborted one (same id) keeps it and restores.
+                        previousGenerationId
+                            ?.takeIf { it != currentPhase.id }
+                            ?.let(saveableStateHolder::removeState)
+                        previousGenerationId = currentPhase.id
+                    }
+                    AppGenerationContent()
+                }
+            }
+        }
+
+        AppUiPhase.Transitioning -> Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .testTag("AppTransitioning"),
+        )
+    }
+}
+
+@Composable
+@Suppress("LongMethod")
+private fun AppGenerationContent() {
+    // AppRootViewModel is a plain ViewModel constructed via viewModel {} with deps read from the
+    // app graph — through [AppRootDeps], never the graph itself. `@DependencyGraph(AppScope)` and
     // `AppGraphOwner` are internal to `:app:app`, which depends on THIS module, so the graph is
     // below-the-line here by construction and cannot be named. `AppGraph` implements the contract;
     // the cast is safe because `BaseApplication : AppRootDepsHolder` is compile-visible there. Same
-    // typed-point-acquisition shape as RecoveryDepsHolder / BackupWorkerDepsHolder.
+    // typed-point-acquisition shape as RecoveryDepsHolder / BackupWorkerDepsHolder. The resolution
+    // happens INSIDE the generation region (see [App]'s KDoc), so the holder read returns the
+    // CURRENT generation's deps and the ViewModel lands in the generation's store.
     val context = LocalContext.current
     val viewModel: AppRootViewModel = viewModel {
         val deps = (context.applicationContext as AppRootDepsHolder).appRootDeps()
