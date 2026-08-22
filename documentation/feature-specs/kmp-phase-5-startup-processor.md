@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | SPEC — implementation gated on the §7 device entry gate |
+| Status | SPEC + **GATE RESULT: RED** (2026-08-22, §7.1) — implementation STOPPED at the §7 entry gate per the maintainer protocol; graph-generation design stands as the recommended post-decision path |
 | Baseline | `dev` @ `c935227df22020f394f1ea0748fdeba7b7a67fd5` (2026-08-22, "Fix ad-hoc exercise removal copy (#250)") |
 | Branch | `feature/kmp-phase-5-startup-processor` |
 | Upstream phases | 0–4 complete; Phase 6 data layer complete (#239/#240/#241 merged); Phase 7 (CMP UI, `iosApp`, iOS composition root) strictly downstream |
@@ -164,6 +164,38 @@ step 6 throws (`SQLITE_MISUSE` expected per §6), reads OLD, or cannot run on th
 Green criteria: both branches pass steps 5–6 and the known-negative goes red.
 Runtime: `emulator-5554`, API 34, arm64-v8a (CI reference config is API 34 x86_64 —
 `ui_tests.yml:55-59`; the gate also runs under the Regression job's annotation filter).
+
+### 7.1 GATE RESULT — RED (measured 2026-08-22)
+
+Device: `sdk_gphone64_arm64` emulator (Pixel 6 AVD), API 34, arm64-v8a; Room 3.0.0 +
+`BundledSQLiteDriver`. Command:
+`ANDROID_SERIAL=emulator-5554 ./gradlew :core:data:database:connectedDebugAndroidTest
+-Pandroid.testInstrumentationRunnerArguments.class=…SameInstanceReopenAfterSwapDeviceTest`.
+
+- **Both** production replacement paths (`restoreFromSnapshot`, `rollbackToPreRestoreBackup`)
+  succeed on disk: fresh-handle read shows snapshot-sentinel-present / live-sentinel-absent, and
+  the live file's inode changes across the atomic rename (`Os.stat` evidence).
+- The subsequent read through the **retained** DAO on the **retained** `AppDatabase` throws
+  `android.database.SQLException: Error code: 21, message: Connection pool is closed`
+  (`ConnectionPoolImpl.useConnection` → `RoomConnectionManager.useConnection` →
+  `RoomDatabase.useConnection` → `performSuspending`) — deterministically, on both paths,
+  matching §6's source reading exactly. It does **not** read OLD data: the stale-inode
+  silent-corruption outcome does not occur; the failure is loud.
+- Known-negative: bypassing the swap turns both tests red at the file-identity assertion
+  (inode unchanged) — the measurement is not vacuous. Mutation reverted.
+- The committed `SameInstanceReopenAfterSwapDeviceTest` pins the measured truth three ways:
+  swap-is-real, failure-is-loud-never-stale, and a green-flip tripwire (if a future Room lets the
+  retained object serve the swapped file, the test fails with a "gate flipped GREEN — revisit"
+  message so the descope decision is consciously reopened).
+
+**Consequence (per the locked protocol): implementation of restart-free reinitialization is
+STOPPED pending a maintainer decision.** The database-identity invariant ("reuse the exact same
+`AppDatabase` object") and in-process DB-file-swap restore cannot coexist on Room 3 — `close()` is
+terminal for the object, and every swap path must close before renaming. The §8 architecture
+remains internally consistent for the no-swap graph-generation class (it never closes the DB), but
+the phase's reinitialization foundation cannot honestly claim to serve the restore/rollback flows
+in-process, which is what the `AppReinitializer` common KDoc promises iOS. Options for the
+maintainer are recorded in the phase STOP report (PR description).
 
 ## 8. Architecture
 
