@@ -4,6 +4,7 @@ package io.github.stslex.workeeper.di
 import android.content.Context
 import dev.zacsweers.metro.asContribution
 import dev.zacsweers.metro.createGraphFactory
+import io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetime
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.plan_editor.di.PlanEditorGraph
 import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorStore.State
@@ -54,6 +55,7 @@ internal class PlanEditorExtensionIdentityTest {
             applicationContext = mockk<Context>(relaxed = true),
             appDatabase = mockk(relaxed = true),
             imageStorage = mockk(relaxed = true),
+            appScopeLifetime = AppScopeLifetime(),
         )
 
     private fun AppGraph.planEditor(screen: Screen.PlanEditor) =

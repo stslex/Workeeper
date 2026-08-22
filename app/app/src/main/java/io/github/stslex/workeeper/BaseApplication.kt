@@ -6,6 +6,7 @@ import android.app.Application
 import androidx.work.Configuration
 import io.github.stslex.workeeper.app.common.di.AppRootDeps
 import io.github.stslex.workeeper.app.common.di.AppRootDepsHolder
+import io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetime
 import io.github.stslex.workeeper.core.core.images.buildImageStorage
 import io.github.stslex.workeeper.core.core.logger.FirebaseCrashlyticsHolder
 import io.github.stslex.workeeper.core.core.logger.Log
@@ -15,7 +16,6 @@ import io.github.stslex.workeeper.core.data.backup.worker.BackupWorkerDepsHolder
 import io.github.stslex.workeeper.core.data.backup.worker.MetroWorkerFactory
 import io.github.stslex.workeeper.core.data.database.AppDatabase
 import io.github.stslex.workeeper.core.data.database.buildAppDatabase
-import io.github.stslex.workeeper.core.data.database.refreshQueryPlannerStatistics
 import io.github.stslex.workeeper.core.ui.mvi.di.AppDepsHolder
 import io.github.stslex.workeeper.core.ui.mvi.performance.PerformanceMetricsRecorder
 import io.github.stslex.workeeper.core.ui.mvi.performance.RecordAction
@@ -24,13 +24,9 @@ import io.github.stslex.workeeper.di.AppGraphOwner
 import io.github.stslex.workeeper.di.buildAppGraph
 import io.github.stslex.workeeper.feature.recovery.di.RecoveryDeps
 import io.github.stslex.workeeper.feature.recovery.di.RecoveryDepsHolder
-import io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinator
-import io.github.stslex.workeeper.feature.recovery.domain.StartupCheck
-import kotlinx.coroutines.CoroutineScope
+import io.github.stslex.workeeper.runtime.StartupOutcome
+import io.github.stslex.workeeper.runtime.StartupProcessor
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 
 /**
  * The process [Application] base, Hilt-free (App-Scope Collapse Step 6 — the cut). Holds the Metro
@@ -58,18 +54,28 @@ abstract class BaseApplication :
     abstract val isDebugLoggingAllow: Boolean
 
     /**
-     * Held rather than inlined into [appGraph] only so [warmQueryPlanner] can reach it: the graph
-     * takes it as a `create()` bound instance and exposes no accessor for it, and giving it one
-     * would widen the graph's surface for a startup chore. Still the same single cold
-     * `Room.databaseBuilder(...).build()` — constructing it opens no SQLite file.
+     * Held rather than inlined into [appGraph] only so [StartupProcessor]'s planner warm-up can
+     * reach it: the graph takes it as a `create()` bound instance and exposes no accessor for it,
+     * and giving it one would widen the graph's surface for a startup chore. Still the same single
+     * cold `Room.databaseBuilder(...).build()` — constructing it opens no SQLite file.
      */
     private val appDatabase: AppDatabase by lazy { buildAppDatabase(applicationContext) }
 
     /**
+     * The generation lifetime (Phase 5, spec §8.2): every app-scoped job and collector — the two
+     * startup chores below and the three scope-owning graph singletons — derives its scope from
+     * this one root, so the owner of the generation can end them all deterministically. In the
+     * process-restart production model this is process-lifetime and never cancelled, which is
+     * byte-equivalent to the anonymous scopes it replaces; the runtime host cancels-and-joins it
+     * during in-process replacement (Quiescing).
+     */
+    private val appScopeLifetime = AppScopeLifetime()
+
+    /**
      * The Metro app-scope graph, held for the whole process. `by lazy` so it is created on first access.
-     * In production that first access is DURING `onCreate` — [onCreateGraphBootstrap] →
-     * [handleRecoveryPreflightChain] reads `appGraph` to run the recovery/startup-migration pre-flight;
-     * only the test override defers/skips that, so under test the graph is created on a later access.
+     * In production that first access is DURING `onCreate` — [onCreateGraphBootstrap] hands it to
+     * [StartupProcessor.coldStart], whose recovery/startup-migration pre-flight reads it; only the
+     * test override defers/skips that, so under test the graph is created on a later access.
      * Constructs the two `create()` roots directly, Hilt-free: [appDatabase] (a cold
      * `Room.databaseBuilder(...).build()` — no SQLite open, so `RecoveryActivity`'s Room-free bootstrap
      * safety holds) and [ImageStorageImpl] via [buildImageStorage]; `@IODispatcher` is `Dispatchers.IO`
@@ -83,6 +89,7 @@ abstract class BaseApplication :
             applicationContext = applicationContext,
             appDatabase = appDatabase,
             imageStorage = buildImageStorage(applicationContext, Dispatchers.IO),
+            appScopeLifetime = appScopeLifetime,
         )
     }
 
@@ -133,108 +140,29 @@ abstract class BaseApplication :
      * `protected open` keeps the seam `:app:app`-internal — no cross-module visibility change.
      */
     protected open fun onCreateGraphBootstrap() {
-        handleRecoveryPreflightChain()
-        cleanupOrphanedImageTempFiles()
-        warmQueryPlanner()
-        bootstrapAppDialogObserver()
-    }
-
-    /**
-     * Runs the two recovery pre-flights in the order required by
-     * `documentation/feature-specs/backup-recovery.md`:
-     *
-     * 1. **Scenario 1** (post-restart restore migration). If the `restore_in_progress` flag is set, the
-     *    coordinator either publishes a `RestoreSuccess` dialog and returns `RestoreSucceeded` (continue
-     *    to MainActivity), or rolls back the live db and returns `RestoreRolledBack` (caller restarts —
-     *    this method never returns). `NoOp` means there was no restore in progress; fall through.
-     * 2. **Scenario 2** (startup migration failure / developer error). Only runs after Scenario 1 was a
-     *    no-op. Reads the live db's schema via a Room-free SQLite peek and decides whether to `Proceed`
-     *    (MainActivity opens normally) or `RouteToRecovery` (MainActivity reads `coordinator.lastDecision`
-     *    and finishes itself, launching `RecoveryActivity`).
-     *
-     * Both checks run under `runBlocking` because the alternative — dispatching on a background coroutine
-     * after `setContent` — would briefly show MainActivity content before recovery routing decides.
-     */
-    private fun handleRecoveryPreflightChain() {
-        val restoreOutcome = runBlocking {
-            appGraph.restoreRecoveryCoordinator.handlePostRestoreLaunch()
-        }
-        if (restoreOutcome == RestoreRecoveryCoordinator.PreflightOutcome.RestoreRolledBack) {
+        val outcome = startupProcessor.coldStart(
+            graph = appGraph,
+            appDatabase = appDatabase,
+            lifetime = appScopeLifetime,
+        )
+        if (outcome == StartupOutcome.RestartRequired) {
+            // Scenario 1 rolled the live db back — restart so the next process rebuilds against
+            // the rolled-back file. Never returns (Runtime.exit inside).
             appGraph.restoreRecoveryCoordinator.restartApp()
-            return
         }
-        if (restoreOutcome == RestoreRecoveryCoordinator.PreflightOutcome.RestoreSucceeded) {
-            // The Scenario 1 success path leaves `pre_restore_backup.db` on disk for the user's undo slot,
-            // and Room will open the freshly-restored db on first DAO access. Scenario 2 has nothing to
-            // add — skip.
-            return
-        }
-        // Scenario 1 was a no-op (no restore in progress). Run Scenario 2.
-        runBlocking {
-            appGraph.startupMigrationCoordinator.checkAndRouteOrProceed()
-        }
-        // The result is cached on `StartupMigrationCoordinator.lastDecision`; MainActivity reads it on its
-        // own onCreate to decide whether to finish + launch RecoveryActivity.
-    }
-
-    private fun cleanupOrphanedImageTempFiles() {
-        val imageStorage = appGraph.imageStorage
-        // Fire-and-forget on a one-shot IO coroutine — clearing temp files left behind by killed
-        // camera-capture flows is best-effort.
-        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
-            imageStorage.cleanupTempFiles()
-        }
+        // Proceed / RouteToRecovery: the decision is cached on the coordinator; MainActivity
+        // reads it in its own onCreate — unchanged from the pre-extraction flow.
     }
 
     /**
-     * Refreshes SQLite's planner statistics, off the main thread and best-effort.
-     *
-     * Without them the planner drives the live-workout PR read from `session_table.state` — an index
-     * over two distinct values — and walks every finished session the user has ever logged instead
-     * of the thirteen exercises actually asked about. Measured, and the fix changes no SQL: see
-     * `refreshQueryPlannerStatistics`.
-     *
-     * **After the pre-flight chain and never on the recovery path.** `ANALYZE` writes `sqlite_stat1`,
-     * which means opening the database — the one thing a `RouteToRecovery` start must not do, since
-     * that decision exists precisely because the schema is not in a state Room can open. The
-     * pre-flight has already cached its decision by the time this runs.
-     *
-     * **Fire-and-forget, and deliberately NOT coordinated with the first read that benefits.** A
-     * launch with no statistics yet can serve a query before this finishes, on the plan the
-     * statistics exist to replace; making that read wait would cost far more than the plan does,
-     * and the statistics are durable, so the exposure is that one launch. Both sides of the trade
-     * are measured in `documentation/feature-specs/v3-redesign-spec.md` §27, "A BAD QUERY PLAN CAN
-     * BE A MISSING FACT".
-     *
-     * **And never on a low-RAM device.** Overlapping this write with the first screen's reads is
-     * free only under WAL, where readers do not block on a writer. Room's default journal mode is
-     * `AUTOMATIC`, and `AUTOMATIC` resolves to `TRUNCATE` exactly on `isLowRamDevice` hardware — so
-     * on those devices the overlap is not free and the safety argument does not hold. The cost of
-     * this line is that the planner keeps guessing there; the alternative, forcing
-     * `WRITE_AHEAD_LOGGING` in `AppDatabaseFactory`, would override a platform-aware Room default
-     * for every query in the app to buy one startup chore, on the devices least able to afford
-     * WAL's memory. Skipping is the smaller trade, and it is recorded as a trade.
-     *
-     * Caught rather than propagated, unlike its sibling above: this one touches the database, and a
-     * corrupt file is exactly the condition under which the rest of startup still has work to do.
-     * A throw here would take the process down on the launch that most needs to reach recovery.
+     * The extracted startup sequence (Phase 5, spec §8.3) — an order-preserving refactor of the
+     * four inline stages this class used to hold; every stage's ordering, blocking, guard, and
+     * failure-policy guarantee is documented on [StartupProcessor]. The one production seam wired
+     * here is the low-RAM check, which needs this [android.content.Context].
      */
-    private fun warmQueryPlanner() {
-        if (appGraph.startupMigrationCoordinator.lastDecision is StartupCheck.RouteToRecovery) return
-        if (getSystemService(ActivityManager::class.java)?.isLowRamDevice == true) return
-        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
-            runCatching { refreshQueryPlannerStatistics(appDatabase) }
-                .onFailure { error -> Log.e(error) }
-        }
-    }
-
-    /**
-     * Eagerly construct the cross-feature dialog reactor so its `init { observer.observeUserActions()
-     * ...launchIn(scope) }` registers a subscriber on the SharedFlow BEFORE MainActivity.onCreate runs.
-     * Lazy construction would mean the first user dispatch fires on zero subscribers and is lost. The
-     * return value is intentionally discarded — the side-effect of construction is what we want.
-     */
-    private fun bootstrapAppDialogObserver() {
-        appGraph.recoveryBootstrap
-    }
+    private val startupProcessor = StartupProcessor(
+        isLowRamDevice = {
+            getSystemService(ActivityManager::class.java)?.isLowRamDevice == true
+        },
+    )
 }

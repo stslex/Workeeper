@@ -4,6 +4,7 @@ package io.github.stslex.workeeper.di
 import android.content.Context
 import dev.zacsweers.metro.asContribution
 import dev.zacsweers.metro.createGraphFactory
+import io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetime
 import io.github.stslex.workeeper.feature.app_dialogs.impl.di.AppDialogGraph
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
@@ -54,6 +55,7 @@ internal class AppDialogExtensionIdentityTest {
             applicationContext = mockk<Context>(relaxed = true),
             appDatabase = mockk(relaxed = true),
             imageStorage = mockk(relaxed = true),
+            appScopeLifetime = AppScopeLifetime(),
         )
 
     private fun AppGraph.appDialogs(): AppDialogGraph =

@@ -4,6 +4,7 @@ package io.github.stslex.workeeper.di
 import android.content.Context
 import dev.zacsweers.metro.asContribution
 import dev.zacsweers.metro.createGraphFactory
+import io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetime
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseGraph
 import io.mockk.mockk
@@ -54,6 +55,7 @@ internal class ExerciseExtensionIdentityTest {
             applicationContext = appContextMock,
             appDatabase = mockk(relaxed = true),
             imageStorage = mockk(relaxed = true),
+            appScopeLifetime = AppScopeLifetime(),
         )
 
     private fun AppGraph.exercise(uuid: String?): ExerciseGraph =

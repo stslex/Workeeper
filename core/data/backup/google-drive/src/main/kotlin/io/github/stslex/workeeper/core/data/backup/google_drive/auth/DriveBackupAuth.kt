@@ -11,6 +11,7 @@ import com.google.android.gms.common.api.Scope
 import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
+import io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetime
 import io.github.stslex.workeeper.core.core.di.AppScope
 import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.core.logger.Log
@@ -25,8 +26,6 @@ import io.github.stslex.workeeper.core.data.backup.api.result.BackupResult
 import io.github.stslex.workeeper.core.data.backup.google_drive.auth.DriveBackupAuth.Companion.PLACEHOLDER_EMAIL
 import io.github.stslex.workeeper.core.data.backup.google_drive.error.DriveErrorMapper
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -63,11 +62,15 @@ class DriveBackupAuth @Inject internal constructor(
     private val authorizationClient: AuthorizationClient,
     private val accountStore: AccountDataStore,
     private val userInfoFetcher: UserInfoFetcher,
+    lifetime: AppScopeLifetime,
     @IODispatcher private val dispatcher: CoroutineDispatcher,
 ) : BackupAuth {
 
     private val logger = Log.tag(TAG)
-    private val authScope = CoroutineScope(SupervisorJob() + dispatcher)
+
+    // Generation-owned (Phase 5, spec §8.2): the account-mirror collector below dies with its
+    // generation instead of leaking as a process-lifetime orphan when the graph is replaced.
+    private val authScope = lifetime.childScope(dispatcher)
     private val mutableState = MutableStateFlow<AuthState>(AuthState.SignedOut)
 
     override val state: StateFlow<AuthState> = mutableState.asStateFlow()

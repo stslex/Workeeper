@@ -3,11 +3,13 @@ package io.github.stslex.workeeper.harness
 
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
+import io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetime
 import io.github.stslex.workeeper.core.core.images.ImageStorage
 import io.github.stslex.workeeper.core.data.database.AppDatabase
 import io.github.stslex.workeeper.core.data.database_test.InMemoryDatabaseProvider
 import io.github.stslex.workeeper.core.ui.test.fakes.FakeImageStorage
 import io.github.stslex.workeeper.di.buildAppGraph
+import kotlinx.coroutines.runBlocking
 import org.junit.rules.ExternalResource
 
 /**
@@ -41,6 +43,7 @@ internal class MetroTestRule(
         get() = ApplicationProvider.getApplicationContext()
 
     private var installedDatabase: AppDatabase? = null
+    private var installedLifetime: AppScopeLifetime? = null
 
     /**
      * The [AppDatabase] instance the current test's graph was built from — the SAME `create()` root the
@@ -54,11 +57,17 @@ internal class MetroTestRule(
         val ctx = context
         val database = appDatabaseFactory(ctx)
         installedDatabase = database
+        // Per-test generation lifetime (Phase 5, spec §8.2): cancelled in after() so graph-owned
+        // collectors (dialog reactor, auth mirror, export scope) cannot leak across tests in the
+        // shared instrumentation process.
+        val lifetime = AppScopeLifetime()
+        installedLifetime = lifetime
         MetroTestGraphHolder.install(
             buildAppGraph(
                 applicationContext = ctx,
                 appDatabase = database,
                 imageStorage = imageStorage(),
+                appScopeLifetime = lifetime,
             ),
         )
     }
@@ -79,6 +88,11 @@ internal class MetroTestRule(
      */
     override fun after() {
         MetroTestGraphHolder.reset()
+        // End the generation's jobs BEFORE closing its database: a still-running collector must be
+        // cancelled-and-joined, not left to race the close. runBlocking is safe here — rules run on
+        // the instrumentation thread, never the main thread.
+        installedLifetime?.let { runBlocking { it.cancelAndJoin() } }
+        installedLifetime = null
         installedDatabase?.close()
         installedDatabase = null
     }

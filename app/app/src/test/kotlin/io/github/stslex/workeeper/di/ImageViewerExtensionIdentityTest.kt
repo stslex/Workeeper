@@ -4,6 +4,7 @@ package io.github.stslex.workeeper.di
 import android.content.Context
 import dev.zacsweers.metro.asContribution
 import dev.zacsweers.metro.createGraphFactory
+import io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetime
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.image_viewer.di.ImageViewerGraph
 import io.mockk.mockk
@@ -46,6 +47,7 @@ internal class ImageViewerExtensionIdentityTest {
             applicationContext = mockk<Context>(relaxed = true),
             appDatabase = mockk(relaxed = true),
             imageStorage = mockk(relaxed = true),
+            appScopeLifetime = AppScopeLifetime(),
         )
 
     private fun screen(path: String) = Screen.ExerciseImage(model = path)

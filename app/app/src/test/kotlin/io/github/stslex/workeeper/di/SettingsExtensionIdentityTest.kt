@@ -4,6 +4,7 @@ package io.github.stslex.workeeper.di
 import android.content.Context
 import dev.zacsweers.metro.asContribution
 import dev.zacsweers.metro.createGraphFactory
+import io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetime
 import io.github.stslex.workeeper.feature.settings.di.SettingsGraph
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
@@ -62,6 +63,7 @@ internal class SettingsExtensionIdentityTest {
             applicationContext = appContextMock,
             appDatabase = mockk(relaxed = true),
             imageStorage = mockk(relaxed = true),
+            appScopeLifetime = AppScopeLifetime(),
         )
 
     private fun AppGraph.settingsExtension(): SettingsGraph = asContribution<SettingsGraph.Factory>()

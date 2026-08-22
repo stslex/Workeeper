@@ -3,6 +3,7 @@ package io.github.stslex.workeeper.di
 
 import android.content.Context
 import dev.zacsweers.metro.createGraphFactory
+import io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetime
 import io.mockk.mockk
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNotSame
@@ -19,15 +20,35 @@ import org.junit.jupiter.api.Test
  */
 internal class AppGraphIdentityTest {
 
-    // App-Scope Collapse Step 5 (5a): create() collapsed to 3 roots (applicationContext, appDatabase,
-    // imageStorage); the DAOs + DbTransitionRunner derive graph-internally. These identity tests only
-    // exercise the leaf accessor, so all roots are relaxed mocks.
-    private fun buildGraph(): AppGraph = createGraphFactory<AppGraph.Factory>()
+    // App-Scope Collapse Step 5 (5a) + Phase 5: create() has 4 roots (applicationContext, appDatabase,
+    // imageStorage, appScopeLifetime); the DAOs + DbTransitionRunner derive graph-internally. These
+    // identity tests only exercise leaf accessors, so the Android roots are relaxed mocks; the
+    // lifetime is a real instance because the graph exposes it back verbatim (asserted below).
+    private fun buildGraph(
+        lifetime: AppScopeLifetime = AppScopeLifetime(),
+    ): AppGraph = createGraphFactory<AppGraph.Factory>()
         .create(
             applicationContext = mockk<Context>(relaxed = true),
             appDatabase = mockk(relaxed = true),
             imageStorage = mockk(relaxed = true),
+            appScopeLifetime = lifetime,
         )
+
+    @Test
+    fun `graph exposes the exact lifetime root it was created with`() {
+        val lifetime = AppScopeLifetime()
+
+        val graph = buildGraph(lifetime)
+
+        // The generation lifetime is a create() bound instance, never graph-constructed: the owner
+        // that decides the graph's lifetime hands it in, and every scope-owning singleton derives
+        // from THIS object. A graph-minted double would make Quiescing cancel the wrong jobs.
+        assertSame(
+            lifetime,
+            graph.appScopeLifetime,
+            "AppGraph must expose the exact AppScopeLifetime passed at create()",
+        )
+    }
 
     @Test
     fun `app graph constructs the leaf singleton`() {

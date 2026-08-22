@@ -7,6 +7,7 @@ import android.os.Build
 import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
+import io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetime
 import io.github.stslex.workeeper.core.core.di.AppScope
 import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.core.logger.Log
@@ -19,8 +20,6 @@ import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupPreferen
 import io.github.stslex.workeeper.core.data.backup.google_drive.manifest.ManifestPropertiesMapper
 import io.github.stslex.workeeper.core.data.database.export.DatabaseJsonExporter
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -46,6 +45,7 @@ public class SnapshotExportRunnerImpl @Inject constructor(
     private val exporter: DatabaseJsonExporter,
     private val snapshotStorage: SnapshotStorage,
     private val context: Context,
+    lifetime: AppScopeLifetime,
     @IODispatcher private val dispatcher: CoroutineDispatcher,
 ) : SnapshotExportRunner {
 
@@ -56,7 +56,9 @@ public class SnapshotExportRunnerImpl @Inject constructor(
     // instead awaits via runIfEligibleAwaiting() to keep its wakelock window. Best-effort — if the
     // process is reclaimed before it finishes, the next backup re-exports (losing a snapshot loses
     // nothing recoverable).
-    private val scope = CoroutineScope(SupervisorJob() + dispatcher)
+    // Generation-owned (Phase 5, spec §8.2): an in-flight fire-and-forget export is cancelled and
+    // awaited with its generation during Quiescing instead of racing a database replacement.
+    private val scope = lifetime.childScope(dispatcher)
 
     // Serializes the export's Drive mutation across the manual + worker triggers (both funnel
     // through this singleton). Without it, two overlapping runs could create duplicate Workeeper/

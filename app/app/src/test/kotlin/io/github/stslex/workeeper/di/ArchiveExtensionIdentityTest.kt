@@ -4,6 +4,7 @@ package io.github.stslex.workeeper.di
 import android.content.Context
 import dev.zacsweers.metro.asContribution
 import dev.zacsweers.metro.createGraphFactory
+import io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetime
 import io.github.stslex.workeeper.feature.archive.di.ArchiveGraph
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
@@ -52,6 +53,7 @@ internal class ArchiveExtensionIdentityTest {
             applicationContext = mockk<Context>(relaxed = true),
             appDatabase = mockk(relaxed = true),
             imageStorage = mockk(relaxed = true),
+            appScopeLifetime = AppScopeLifetime(),
         )
 
     private fun AppGraph.archive(): ArchiveGraph = asContribution<ArchiveGraph.Factory>()

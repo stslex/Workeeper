@@ -2,6 +2,7 @@
 package io.github.stslex.workeeper.feature.recovery
 
 import android.content.Context
+import io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetime
 import io.github.stslex.workeeper.core.data.backup.api.RecoveryDiagnosticsExporter
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreStateRepository
 import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialog
@@ -56,6 +57,7 @@ internal class RestoreDialogChoiceObserverTest {
         restoreStateRepository = restoreStateRepository,
         appDialogPublisher = appDialogPublisher,
         diagnosticsExporter = diagnosticsExporter,
+        lifetime = AppScopeLifetime(),
         dispatcher = UnconfinedTestDispatcher(testScheduler),
     )
 

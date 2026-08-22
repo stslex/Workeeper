@@ -6,6 +6,7 @@ import dev.zacsweers.metro.DependencyGraph
 import dev.zacsweers.metro.Provides
 import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.app.common.di.AppRootDeps
+import io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetime
 import io.github.stslex.workeeper.core.core.di.AppScope
 import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
 import io.github.stslex.workeeper.core.core.di.DispatchersBindingContainer
@@ -227,6 +228,14 @@ internal interface AppGraph :
     val imageStorage: ImageStorage
 
     /**
+     * The generation lifetime this graph was built with — the `create()` bound-instance root every
+     * scope-owning app-scope singleton derives its `childScope` from (Phase 5, spec §8.2). Read by
+     * the runtime/identity tests to assert the root is threaded, and by `BaseApplication`'s startup
+     * chores until the runtime host owns them.
+     */
+    val appScopeLifetime: AppScopeLifetime
+
+    /**
      * The recovery cluster — feature/recovery `@SingleIn(AppScope)` graph nodes read by
      * `BaseApplication`/`MainActivity` (both in app/app, so read the INTERNAL graph directly via
      * `AppGraphOwner`, not through a dep interface). [recoveryBootstrap] is the
@@ -266,18 +275,23 @@ internal interface AppGraph :
 
     @DependencyGraph.Factory
     fun interface Factory {
-        // create() has 3 ROOTS. Each is a test-override boundary the seam swaps directly; everything
+        // create() has 4 ROOTS. Each is a test-override boundary the seam swaps directly; everything
         // else derives.
         //  - applicationContext: the app Context (plain).
-        //  - appDatabase: the single Room instance (caller-constructed root, threaded in). The 9 DAOs +
-        //    DbTransitionRunner DERIVE from it graph-internally (DbCascadeBindingContainer), and the 3
-        //    AppDatabase-derived interface bindings are @ContributesBinding on their impls. The seam swaps
-        //    an in-memory AppDatabase here; prod passes the file-backed one.
+        //  - appDatabase: the generation's Room instance (caller-constructed root, threaded in). The 9
+        //    DAOs + DbTransitionRunner DERIVE from it graph-internally (DbCascadeBindingContainer), and
+        //    the 3 AppDatabase-derived interface bindings are @ContributesBinding on their impls. The
+        //    seam swaps an in-memory AppDatabase here; prod passes the file-backed one.
         //  - imageStorage: permanent create() root; tests pass a FakeImageStorage here.
+        //  - appScopeLifetime: the generation lifetime (Phase 5, spec §8.2) — decided by the owner that
+        //    also decides this graph's lifetime, so it CANNOT be a graph-internal binding. The three
+        //    scope-owning singletons (RestoreDialogChoiceObserver, DriveBackupAuth,
+        //    SnapshotExportRunnerImpl) derive their scopes from it.
         fun create(
             @Provides applicationContext: Context,
             @Provides appDatabase: AppDatabase,
             @Provides imageStorage: ImageStorage,
+            @Provides appScopeLifetime: AppScopeLifetime,
         ): AppGraph
     }
 }

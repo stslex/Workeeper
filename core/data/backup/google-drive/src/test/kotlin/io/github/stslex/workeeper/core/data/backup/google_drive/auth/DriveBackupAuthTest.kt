@@ -13,6 +13,7 @@ import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.common.api.Scope
 import com.google.android.gms.common.api.Status
 import com.google.android.gms.tasks.Tasks
+import io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetime
 import io.github.stslex.workeeper.core.data.backup.api.error.BackupError
 import io.github.stslex.workeeper.core.data.backup.api.model.Account
 import io.github.stslex.workeeper.core.data.backup.api.model.AuthResolutionOutcome
@@ -64,6 +65,7 @@ internal class DriveBackupAuthTest {
         authorizationClient = authorizationClient,
         accountStore = accountStore,
         userInfoFetcher = userInfoFetcher,
+        lifetime = AppScopeLifetime(),
         dispatcher = UnconfinedTestDispatcher(),
     )
 

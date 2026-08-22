@@ -3,6 +3,7 @@ package io.github.stslex.workeeper.di
 
 import android.content.Context
 import dev.zacsweers.metro.createGraphFactory
+import io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetime
 import io.github.stslex.workeeper.core.core.images.ImageStorage
 import io.github.stslex.workeeper.core.data.database.AppDatabase
 
@@ -24,8 +25,14 @@ internal fun buildAppGraph(
     applicationContext: Context,
     appDatabase: AppDatabase,
     imageStorage: ImageStorage,
+    // Defaulted for the JVM identity tests, which build throwaway graphs whose scopes die with the
+    // test process — a fresh uncancelled lifetime is exactly the pre-Phase-5 anonymous-scope
+    // behavior. The two REAL callers both pass one explicitly: BaseApplication threads the
+    // generation lifetime; MetroTestRule passes a per-test lifetime it cancels in after().
+    appScopeLifetime: AppScopeLifetime = AppScopeLifetime(),
 ): AppGraph = createGraphFactory<AppGraph.Factory>().create(
     applicationContext = applicationContext,
     appDatabase = appDatabase,
     imageStorage = imageStorage,
+    appScopeLifetime = appScopeLifetime,
 )

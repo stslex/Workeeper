@@ -11,6 +11,7 @@ import androidx.core.net.toUri
 import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
+import io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetime
 import io.github.stslex.workeeper.core.core.di.AppScope
 import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
 import io.github.stslex.workeeper.core.core.logger.Log
@@ -25,8 +26,6 @@ import io.github.stslex.workeeper.feature.recovery.boot.RecoveryBootstrap
 import io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinator
 import io.github.stslex.workeeper.feature.recovery.domain.UndoRestoreOutcome
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import io.github.stslex.workeeper.feature.recovery.R as RecoveryR
@@ -84,11 +83,16 @@ class RestoreDialogChoiceObserver @Inject constructor(
     private val restoreStateRepository: RestoreStateRepository,
     private val appDialogPublisher: AppDialogPublisher,
     private val diagnosticsExporter: RecoveryDiagnosticsExporter,
+    lifetime: AppScopeLifetime,
     @DefaultDispatcher private val dispatcher: CoroutineDispatcher,
 ) : RecoveryBootstrap {
 
     private val logger = Log.tag(TAG)
-    private val scope = CoroutineScope(SupervisorJob() + dispatcher)
+
+    // Generation-owned (Phase 5, spec §8.2): derived from the graph's AppScopeLifetime root instead
+    // of a self-created unreachable scope, so replacing the generation deterministically ENDS this
+    // reactor — the duplicate-observer hazard a second graph generation would otherwise create.
+    private val scope = lifetime.childScope(dispatcher)
 
     init {
         observer.observeUserActions()
