@@ -33,6 +33,8 @@ Conventions:
 - Database migrations are no longer destructive past schema version 5. Future schema bumps must ship explicit Migration objects and migration tests; Room will refuse to boot otherwise. Pre-release schemas (v2, v3, v4) retain their destructive paths.
 
 ### Fixed
+- Ad-hoc exercise removal now describes the current workout instead of claiming a saved training
+  plan and future sessions will change.
 - Recovery diagnostics no longer carry an unreachable pre-Android 9 version-code branch.
 - Exercise charts retain and scrub every completed session when multiple sessions share a date.
 - Past session edits no longer get reverted by background PR re-emissions.

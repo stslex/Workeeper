@@ -27,9 +27,12 @@
     <string name="feature_live_workout_one_off_row_title">Only for today</string>
     <string name="feature_live_workout_one_off_row_sub">stays in this session, but won’t be added to the training plan</string>
 
-    <!-- sh-del, the plan-removal sheet -->
+    <!-- sh-del, the exercise-removal sheet -->
+    <string name="feature_live_workout_delete_workout_title">Remove from this workout?</string>
+    <string name="feature_live_workout_delete_workout_body">“%1$s” will be removed from this workout. Its logged sets will be lost.</string>
+    <string name="feature_live_workout_delete_workout_confirm">Remove from workout</string>
     <string name="feature_live_workout_delete_plan_title">Remove from the training plan?</string>
-    <string name="feature_live_workout_delete_plan_body_adhoc">“%1$s” was added in this session. Its logged sets will be lost.</string>
+    <string name="feature_live_workout_delete_plan_body_added">“%1$s” was added in this session. Its logged sets will be lost.</string>
     <string name="feature_live_workout_delete_plan_body_planned">“%1$s” will disappear from the training plan and future sessions. If you just don’t want it today — skipping is the better move.</string>
     <string name="feature_live_workout_delete_plan_keep">Keep</string>
     <string name="feature_live_workout_delete_plan_confirm">Remove from plan</string>
@@ -42,6 +45,7 @@
     <string name="feature_live_workout_toast_set_removed">Set removed</string>
     <string name="feature_live_workout_toast_exercise_added">“%1$s” added</string>
     <string name="feature_live_workout_toast_exercise_removed">“%1$s” removed from plan</string>
+    <string name="feature_live_workout_toast_exercise_removed_from_workout">“%1$s” removed from workout</string>
     <string name="feature_live_workout_toast_undo" tools:ignore="DuplicateStrings">Undo</string>
 
     <!-- Setbar (extraction §1.7); "−" is U+2212 MINUS SIGN, as drawn -->
