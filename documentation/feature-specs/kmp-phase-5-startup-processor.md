@@ -469,13 +469,16 @@ behavior, composition root, and binding the iOS runtime host.
   (lifetime join, close); aborts republish `Serving(genN)` with saved state intact.
 - Terminal generations: closed ⇒ never republished; failure after close ⇒ fresh-generation or
   rollback+fresh-generation, else explicit `Fatal` — never continue on a closed generation.
-- A seam read racing the transition window (e.g. a worker constructed after the step-2 drain,
-  before close — WorkManager dispatch is not pausable) receives the terminal generation's deps and
-  fails loud on first DB touch (§7.1's measured pin) — bounded, recorded, user-visible (review v2
-  condition 2): the pool-closed `SQLiteException` propagates uncaught out of `BackupWorker.doWork`
-  → the run is marked FAILED, not retried (`Result.retry()` exists only on caught `BackupResult`
-  branches). The periodic chain survives via WorkManager's own persistence; a one-time backup
-  requires a user re-trigger. Worker catch-blocks are deliberately NOT widened (out of scope).
+- ~~A seam read racing the transition window receives the terminal generation's deps and fails
+  loud on first DB touch~~ **SUPERSEDED by closed admission (§20, finding 2)**: a worker
+  constructed during a transition can no longer capture the outgoing generation's deps at all.
+  `MetroWorkerFactory` acquires a `BackupWorkLease` atomically with the deps under the runtime's
+  admission lock; once Quiescing closes admission the acquisition PARKS on WorkManager's serial
+  task-executor thread for the bounded transition window and then binds to the freshly published
+  generation. The quiesce awaits every outstanding lease (workers constructed but not yet RUNNING
+  included — the gap a WorkInfo snapshot cannot observe); an unreleased lease aborts the
+  transition pre-close (loud, never corrupting). The §7.1 pool-closed loud-failure pin remains as
+  defence-in-depth, no longer as the design's race answer.
 - Cold-start `runBlocking` boundaries untouched. Chore failure policy unchanged.
 
 ## 10. Locked invariants — preservation map (R2)
@@ -568,6 +571,10 @@ machine, policies, caller rerouting, failure injection + JVM coverage) ·
 9. `test(app): per-generation green device gate and replacement instrumented suite` ·
 10. `docs(kmp): record phase 5 evidence and phase 7 handoff` (stale-claim register §15 + raw XML
 evidence + assessment supersession).
+REQUEST_CHANGES rework (§20): 11. `fix(runtime): submission-owned transactions, closed
+admission, staged ladder` (all six findings — the fixes interlock through `AppRuntime`, so one
+coherent cut) · 12. `test(app): composed real-handshake device proof and narrowed direct-test
+claims` · 13. docs closeout (§20 + evidence refresh).
 Each commit bisect-green; behavior-specific tests ride with their behavior commit.
 
 ## 14. Rollback / reversibility
@@ -702,24 +709,31 @@ instrumentation XMLs beside it). Summary — every gate GREEN:
   runtime's factory/policy/provider seams — no hook mechanism was needed (nothing weaker: every
   matrix row has a test in `AppRuntimeTest`/`AppRuntimeReplacementTest`).
 
-- **Recorded residual properties** (final-review findings, classified, none production-reachable
-  on Android): (a) a process death in the ONE frame between a `RebuildInProcess` publish and the
+- **Recorded residual properties** (final-review findings, classified; (b) and (c) since FIXED —
+  see §20): (a) a process death in the ONE frame between a `RebuildInProcess` publish and the
   old saveable slot's removal can leave the old slot in saved state; ids restart at 1 next
   process, so a Phase 7 host that persists generation counters must drop stale slots at cold
   start (the recreation half of the window is closed — `previousGenerationId` is saveable).
-  (b) The same-op coalescing check runs outside the mutex; a missed coalesce degrades to a
-  serialized second transaction with an honest per-op result — the different-op isolation
-  invariant holds regardless. (c) A cancellation/unexpected throw inside a `RebuildInProcess`
-  transaction can strand the phase at `Transitioning` — Android production is unaffected
-  (`RestartProcess` writes no phase; `requestReinitialize` runs on the uncancellable host
-  scope); the Phase 7 host must call the seam from a non-cancellable context or via
-  `requestReinitialize`. (d) On the cold-start S1 rollback path the terminal `close()` now runs
-  on the (already-blocked) main thread instead of the provider's IO hop — functionally
-  identical under `runBlocking`, recorded as the one byte-equivalence residue.
+  This remains the one deliberately deferred window (deferred, not closed — closing it needs a
+  removal protocol that survives process death, owned by the Phase 7 host design).
+  (b) ~~coalescing check outside the mutex~~ FIXED: same-operation registration is atomic under
+  the submission lock (§20 finding 6). (c) ~~a throw inside `RebuildInProcess` can strand
+  `Transitioning`~~ FIXED: every transaction escape resolves deterministically — pre-PONR to
+  `Serving(outgoing)` + `RejectedBeforeMutation`, post-PONR to the explicit `Fatal` (§20
+  finding 1). (d) On the cold-start S1 rollback path the terminal `close()` now runs on the
+  (already-blocked) main thread instead of the provider's IO hop — functionally identical under
+  `runBlocking`, recorded as the one byte-equivalence residue.
 
-## 19. Final independent review (2026-08-22): CONFIRM
+## 19. Independent review artifact (2026-08-22): CONFIRM — superseded in part by §20
 
-Fresh-context adversarial review of the finished implementation (working tree = final state):
+Status honesty: this and the §16/§17 records are **in-repo review artifacts** (fresh-context
+adversarial passes run as part of this work), NOT GitHub PR approvals. The maintainer's actual
+GitHub review of PR #252 (2026-08-22) returned **REQUEST_CHANGES** with six findings this
+artifact's pass did not catch; §20 records them and their fixes. Where this section conflicts
+with §20, §20 wins.
+
+Fresh-context adversarial review of the implementation as of `58bde10f` (working tree = final
+state at that time):
 **CONFIRM — no shipped-behavior break, no replacement-invariant violation, no vacuous
 load-bearing test.** Attack summary: cold-start mutex deadlock disproven by trace (gen-1 build
 holds only its monitor; nothing holds the transition mutex at cold start); no mixed-pair reader
@@ -736,3 +750,118 @@ Job can no longer detach a scope from its generation), and `previousGenerationId
 into §18's residual register, the softened §8.4 Fatal wording, the suspend-path
 `StartupProcessorTest` pins (9 tests), and the hardened `UiGenerationSwapTest` absence
 assertions (re-run green on device after hardening).
+
+## 20. REQUEST_CHANGES rework record (2026-08-23)
+
+The maintainer's GitHub review of PR #252 (2026-08-22) returned REQUEST_CHANGES with six
+findings against the transaction/quiescence guarantees. All are fixed on the branch; this
+section is the findings→fixes→proofs map and supersedes anything above that conflicts with it.
+
+### 20.1 Findings → fixes (commits `95458856` + `366997da`)
+
+1. **Self-cancelling transaction** → submission ownership. Every transition (replacement AND
+   graph-only) runs on `AppRuntime.hostScope` (never-cancelled; injectable `hostDispatcher`);
+   callers submit and await a `CompletableDeferred`. Caller death abandons only the await.
+   Post-commit state/dialog effects moved into caller-supplied hooks
+   (`ReplacementHooks.beforeMutation` / `onCommitted`) executed ON the transaction's coroutine:
+   the restore marker write now happens inside the mutex (spurious-Scenario-1 interleave closed
+   by ordering), and the undo/S1 flag-clears + dialog publishes survive the initiator's death.
+   Every transaction escape resolves deterministically via a per-transaction `PonrTracker`:
+   pre-PONR → republish `Serving(outgoing)` + `RejectedBeforeMutation`; post-PONR → the explicit
+   `Fatal`. A stranded `Transitioning` is no longer reachable (fixes §18 residual (c)).
+2. **Quiesce was not a closed barrier** → leased admission. `BackupWorkLease` +
+   `BackupWorkerDepsHolder.acquireBackupWorkLease()`: deps and lease acquired atomically under
+   `admissionLock`; quiesce closes admission then awaits `activeWorkerLeases == 0` (real join —
+   constructed-but-not-RUNNING workers included); timeout aborts BEFORE close; abort/publish/
+   Fatal reopen admission so parked acquirers resume against the published state (Fatal makes
+   them throw loudly). The snapshot-style `BackupWorkDrain` helper is deleted. §9's racing-worker
+   bullet is superseded accordingly.
+3. **UI gate accepted foreign disposes** → generation-id-bound counted gate. Per-id attachment
+   counts; a transition awaits ITS outgoing id reaching zero; a wrong/stale id only ever moves
+   its own key; overlapping attachments (recreation) must all detach. The
+   `AppUiGenerationsHolder` callbacks are now abstract — no silent no-op defaults.
+4. **Failure seam conflated pre/post-PONR** → phase-aware `DatabaseReplacementResult`
+   (`Committed` / `RejectedBeforeMutation` / `FailedAfterMutation` / `FatalNoGeneration`).
+   Callers delete the rollback file / clear markers ONLY on `RejectedBeforeMutation`; on
+   `FailedAfterMutation` and `FatalNoGeneration` the recovery assets belong to the runtime's
+   ladder (the S1 coordinator keeps its shipped defensive cleanup only for a genuinely-failed
+   post-mutation rollback attempt).
+5. **Ladder leaks** → staged construction + close discipline. `buildGeneration` closes an
+   OWNED database when the graph factory throws (a graph-only candidate shares the outgoing DB
+   and never closes it) and cancels the fresh lifetime; a failed/unknown `close()` →
+   `RejectedBeforeMutation` with NO rename ever attempted; `rolledBack` is set BEFORE consuming
+   the source in both the primary rollback operation and recover-via-rollback (a rolled-back
+   file admits a follow-up attempt); `Fatal` is a published terminal state — `currentGeneration`
+   and lease acquisition throw, and no path converts Fatal back to Serving.
+6. **State-machine defects** → same-operation single-flight registration is atomic under
+   `submissionLock` (fixes §18 residual (b)); graph-only transitions keep the outgoing
+   ViewModelStore INTACT until publish (clear + lifetime join run AFTER `publishServing`),
+   unwind construction/preflight throws to `Serving`, and a nested rollback inside a graph-only
+   preflight is REJECTED pre-mutation via the `GraphOnlyTransition` context marker (deadlock-
+   free; persisted S1 state stays intact for a cold start); one immutable `Published` value
+   backs both `phases` and `uiPhases` — the two faces cannot disagree.
+
+### 20.2 What each suite proves now (exact claims)
+
+- `AppRuntimeReplacementTest` (JVM, 20 tests): submission survival for BOTH real initiator
+  shapes (Settings-Store cancel mid-await; undo initiator inside the outgoing lifetime — hook
+  runs, no deadlock); atomic same-op coalescing under concurrency; different-op isolation
+  (never each other's results); lease-drain abort pre-close + admission reopen + a REAL parked
+  thread binding to the successor generation; wrong-id / stale-id / multi-attachment UI-gate
+  negatives; the RestartProcess transaction shapes; close-throw → `RejectedBeforeMutation`
+  with zero renames; the full post-close ladder including graphFactory-failure closing the
+  orphan candidate DB and the rolled-back-file retry; inline rollback inside a running
+  transaction; Fatal throwing from every holder; hook-failure containment.
+- `AppRuntimeTest` (JVM, 12 tests): gen-1 lazy single-build with the unified published value;
+  graph-only same-DB handover (db factory runs once); outgoing lifetime joined only after
+  publish; candidate never published before preflight; aborts leave the outgoing
+  ViewModelStore's ViewModels INTACT (asserted via a probe ViewModel surviving); construction/
+  preflight throws unwind to Serving with the SHARED db never closed; nested rollback in a
+  graph-only preflight observed as `RejectedBeforeMutation` inside the preflight with zero file
+  operations; unreleased lease aborts graph-only too; stale-expected coalescing; caller
+  cancellation abandons only the await.
+- Caller suites: `RestoreRecoveryCoordinatorTest` pins the phase-aware branches (post-mutation
+  failure keeps shipped defensive cleanup; PRE-mutation rejection and Fatal preserve every
+  asset/marker and publish nothing; undo state+dialog writes precede the caller hook);
+  `RestoreDialogChoiceObserverTest` pins that the success acknowledge is passed AS the
+  onCommitted hook; `BackupInteractorImplTest` pins marker-write-inside-beforeMutation ordering
+  and that only `RejectedBeforeMutation` triggers pre-swap cleanup; `BackupWorkerTest` pins
+  lease release exactly-once (success AND body-throw); `MetroWorkerFactoryTest` pins one-lease-
+  per-admission with deps bound at admission time and zero admissions on the negative path.
+- `AppRuntimeUiHandshakeDeviceTest` (device, composed): a REAL `AppRuntime` behind the whole
+  app shell (`MetroTestGraphHolder.runtimeDelegate`); one graph-only `reinitialize()` against
+  live composition proves the quiesce awaits the UI region's ACTUAL disposal (production
+  callbacks, production stream), the successor re-keys `App()` at the root, the same database
+  object crosses the handover, and post-swap recreation restores only the new generation.
+  Known-negative (executed+reverted): severing `TestApplication`'s dispose callback turns this
+  exact test red with the bounded `Aborted("ui region did not dispose in time")` and the
+  outgoing generation kept serving — raw XML committed
+  (`known-negative-ui-handshake-severed-dispose.xml`).
+- `RuntimeGenerationSwapDeviceTest`: claims NARROWED (its KDoc now states the boundary): it
+  proves the inode swap, terminal close, and fresh-Room coherence over EMPTY quiesce
+  populations — it does not claim the UI handshake or live lease drain.
+
+### 20.3 Re-verification (2026-08-23, all forced)
+
+- Host battery (`assembleDebug testDebugUnitTest verifyPaparazziDebug lintDebug
+  assembleDebugAndroidTest --rerun-tasks --no-build-cache --no-configuration-cache`): exit 0,
+  9m06s, 3265/3265 tasks executed, **2609 host tests / 0 failures** (up from §18's 2461 — the
+  rework's new and rewritten suites).
+- detekt: forced, exit 0 (zero suppressions added — the two TooGenericExceptionCaught hits were
+  refactored to `runCatching`, blank-line/import findings fixed). `:lint-rules:test`: exit 0.
+- Affected-KMP iOS compile: `:core:data:backup:api:compileKotlinIosSimulatorArm64` forced,
+  exit 0 (the seam change is androidMain; iOS link/runtime remains UNVERIFIED — no host).
+- Connected (API-34 arm64 emulator): full `app:app` 46/0; `core:data:database` 30/0;
+  ui_tests.yml-form Regression **78/0** (46+30+2), Smoke **43/0**. Raw XMLs refreshed beside
+  the evidence README.
+- The saveable-slot one-frame death window (§18 residual (a)) remains DEFERRED, unchanged —
+  closing it requires a Phase-7-owned removal protocol; no safe closure existed inside this
+  rework's scope.
+
+### 20.4 Phase 7 obligations (delta)
+
+Unchanged from §18 plus: the iOS host must (i) call `reinitialize`/`replace` through the
+submission API only (never wrap them in its own cancellable scope — the submission API already
+guarantees completion), (ii) implement the platform analogue of the UI attach/dispose gate for
+its composition root, (iii) route any DB-bound background work through an admission lease
+equivalent, and (iv) drop stale saveable slots at cold start if it persists generation counters.
