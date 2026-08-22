@@ -98,6 +98,9 @@ internal class AppRuntimeTest {
             assertEquals(genOne.dbGeneration, genTwo.dbGeneration)
             assertNotSame(genOne.graph, genTwo.graph)
             assertNotSame(genOne.lifetime, genTwo.lifetime)
+            // Distinct navigator identities per generation — the nav bus is graph-owned, so a
+            // fresh generation gets a fresh bus (the split-bus hazard is keyed UI, not identity).
+            assertNotSame(genOne.graph.navigatorEventBus, genTwo.graph.navigatorEventBus)
             assertNotSame(genOne.viewModelStore, genTwo.viewModelStore)
             assertEquals(genOne.id + 1, genTwo.id)
             assertSame(genTwo, runtime.currentGeneration)

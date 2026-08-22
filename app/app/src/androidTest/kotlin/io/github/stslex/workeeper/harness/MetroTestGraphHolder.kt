@@ -34,6 +34,8 @@ internal object MetroTestGraphHolder {
     @Volatile
     private var currentStore: ViewModelStore? = null
 
+    private val nextGenerationId = java.util.concurrent.atomic.AtomicInteger(1)
+
     private val uiPhaseFlow = MutableStateFlow<AppUiPhase>(AppUiPhase.Transitioning)
 
     /** What [TestApplication] serves as `appUiPhases`. */
@@ -46,12 +48,22 @@ internal object MetroTestGraphHolder {
                 "(the rule builds and installs the graph in @Before).",
         )
 
+    /**
+     * Installs a graph as the CURRENT test generation. Re-installing within one test is the
+     * harness's generation swap (the UI-swap suite uses it): the previous generation's
+     * ViewModelStore is cleared deterministically (mirroring the runtime's disposal) and a fresh
+     * id is published, which is what re-keys `App()`'s generation region. Ids increment per
+     * install — stable WITHIN a test (Activity recreation restores against the same id), fresh
+     * ACROSS installs (a swap must never reuse the old saveable slot).
+     */
     fun install(graph: AppGraph) {
+        uiPhaseFlow.value = AppUiPhase.Transitioning
+        currentStore?.clear()
         current = graph
         val store = ViewModelStore()
         currentStore = store
         uiPhaseFlow.value = AppUiPhase.Generation(
-            id = TEST_GENERATION_ID,
+            id = nextGenerationId.getAndIncrement(),
             viewModelStoreOwner = object : ViewModelStoreOwner {
                 override val viewModelStore: ViewModelStore = store
             },
@@ -65,5 +77,4 @@ internal object MetroTestGraphHolder {
         current = null
     }
 
-    private const val TEST_GENERATION_ID = 1
 }
