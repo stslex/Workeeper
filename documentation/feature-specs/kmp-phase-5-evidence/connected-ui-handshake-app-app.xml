@@ -1,0 +1,11 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<testsuites tests="1" failures="0" errors="0" skipped="0" time="3.477" timestamp="2026-08-22T22:06:01" hostname="localhost">
+  <testsuite name="io.github.stslex.workeeper.app.AppRuntimeUiHandshakeDeviceTest" tests="1" failures="0" errors="0" skipped="0" time="2.658" timestamp="2026-08-22T22:06:01" hostname="localhost">
+    <properties>
+      <property name="device" value="Pixel_6_API_34(AVD) - 14" />
+      <property name="flavor" value="" />
+      <property name="project" value=":app:app" />
+    </properties>
+    <testcase name="realHandshake_graphOnlySwap_awaitsLiveUiDisposal_thenPublishesFreshRoot" classname="io.github.stslex.workeeper.app.AppRuntimeUiHandshakeDeviceTest" time="2.658" />
+  </testsuite>
+</testsuites>

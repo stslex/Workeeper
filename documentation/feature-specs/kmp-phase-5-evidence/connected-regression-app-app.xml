@@ -1,14 +1,14 @@
 <?xml version='1.0' encoding='UTF-8' ?>
-<testsuites tests="45" failures="0" errors="0" skipped="0" time="75.969" timestamp="2026-08-22T20:19:10" hostname="localhost">
-  <testsuite name="io.github.stslex.workeeper.ExampleInstrumentedTest" tests="1" failures="0" errors="0" skipped="0" time="0.014" timestamp="2026-08-22T20:19:10" hostname="localhost">
+<testsuites tests="46" failures="0" errors="0" skipped="0" time="82.059" timestamp="2026-08-22T22:07:45" hostname="localhost">
+  <testsuite name="io.github.stslex.workeeper.ExampleInstrumentedTest" tests="1" failures="0" errors="0" skipped="0" time="0.02" timestamp="2026-08-22T22:07:45" hostname="localhost">
     <properties>
       <property name="device" value="Pixel_6_API_34(AVD) - 14" />
       <property name="flavor" value="" />
       <property name="project" value=":app:app" />
     </properties>
-    <testcase name="useAppContext" classname="io.github.stslex.workeeper.ExampleInstrumentedTest" time="0.014" />
+    <testcase name="useAppContext" classname="io.github.stslex.workeeper.ExampleInstrumentedTest" time="0.02" />
   </testsuite>
-  <testsuite name="io.github.stslex.workeeper.app.AccountDataStoreSingletonTest" tests="2" failures="0" errors="0" skipped="0" time="0.23" timestamp="2026-08-22T20:19:10" hostname="localhost">
+  <testsuite name="io.github.stslex.workeeper.app.AccountDataStoreSingletonTest" tests="2" failures="0" errors="0" skipped="0" time="0.23" timestamp="2026-08-22T22:07:45" hostname="localhost">
     <properties>
       <property name="device" value="Pixel_6_API_34(AVD) - 14" />
       <property name="flavor" value="" />
@@ -17,137 +17,145 @@
     <testcase name="accountPrefsFileIsTheRelativePathUnderFilesDir" classname="io.github.stslex.workeeper.app.AccountDataStoreSingletonTest" time="0.001" />
     <testcase name="twoAppGraphsInOneProcessShareTheAccountDataStore" classname="io.github.stslex.workeeper.app.AccountDataStoreSingletonTest" time="0.229" />
   </testsuite>
-  <testsuite name="io.github.stslex.workeeper.app.AllTrainingsExtensionDbVisibilityTest" tests="1" failures="0" errors="0" skipped="0" time="1.269" timestamp="2026-08-22T20:19:10" hostname="localhost">
+  <testsuite name="io.github.stslex.workeeper.app.AllTrainingsExtensionDbVisibilityTest" tests="1" failures="0" errors="0" skipped="0" time="1.905" timestamp="2026-08-22T22:07:45" hostname="localhost">
     <properties>
       <property name="device" value="Pixel_6_API_34(AVD) - 14" />
       <property name="flavor" value="" />
       <property name="project" value=":app:app" />
     </properties>
-    <testcase name="extension_reads_the_parent_in_memory_database" classname="io.github.stslex.workeeper.app.AllTrainingsExtensionDbVisibilityTest" time="1.269" />
+    <testcase name="extension_reads_the_parent_in_memory_database" classname="io.github.stslex.workeeper.app.AllTrainingsExtensionDbVisibilityTest" time="1.905" />
   </testsuite>
-  <testsuite name="io.github.stslex.workeeper.app.AppScopeDataStoreSingletonTest" tests="6" failures="0" errors="0" skipped="0" time="0.012" timestamp="2026-08-22T20:19:10" hostname="localhost">
+  <testsuite name="io.github.stslex.workeeper.app.AppRuntimeUiHandshakeDeviceTest" tests="1" failures="0" errors="0" skipped="0" time="1.968" timestamp="2026-08-22T22:07:45" hostname="localhost">
     <properties>
       <property name="device" value="Pixel_6_API_34(AVD) - 14" />
       <property name="flavor" value="" />
       <property name="project" value=":app:app" />
     </properties>
-    <testcase name="twoAppGraphsInOneProcessShareTheAppDialogDataStore" classname="io.github.stslex.workeeper.app.AppScopeDataStoreSingletonTest" time="0.003" />
-    <testcase name="twoAppGraphsInOneProcessShareTheBackupPreferencesDataStore" classname="io.github.stslex.workeeper.app.AppScopeDataStoreSingletonTest" time="0.003" />
-    <testcase name="appDialogsPrefsFileIsTheRelativePathUnderFilesDir" classname="io.github.stslex.workeeper.app.AppScopeDataStoreSingletonTest" time="0.002" />
+    <testcase name="realHandshake_graphOnlySwap_awaitsLiveUiDisposal_thenPublishesFreshRoot" classname="io.github.stslex.workeeper.app.AppRuntimeUiHandshakeDeviceTest" time="1.968" />
+  </testsuite>
+  <testsuite name="io.github.stslex.workeeper.app.AppScopeDataStoreSingletonTest" tests="6" failures="0" errors="0" skipped="0" time="0.083" timestamp="2026-08-22T22:07:45" hostname="localhost">
+    <properties>
+      <property name="device" value="Pixel_6_API_34(AVD) - 14" />
+      <property name="flavor" value="" />
+      <property name="project" value=":app:app" />
+    </properties>
+    <testcase name="twoAppGraphsInOneProcessShareTheAppDialogDataStore" classname="io.github.stslex.workeeper.app.AppScopeDataStoreSingletonTest" time="0.004" />
+    <testcase name="twoAppGraphsInOneProcessShareTheBackupPreferencesDataStore" classname="io.github.stslex.workeeper.app.AppScopeDataStoreSingletonTest" time="0.039" />
+    <testcase name="appDialogsPrefsFileIsTheRelativePathUnderFilesDir" classname="io.github.stslex.workeeper.app.AppScopeDataStoreSingletonTest" time="0.032" />
     <testcase name="backupSchedulingPrefsFileIsTheRelativePathUnderFilesDir" classname="io.github.stslex.workeeper.app.AppScopeDataStoreSingletonTest" time="0.002" />
-    <testcase name="restoreStatePrefsFileIsTheRelativePathUnderFilesDir" classname="io.github.stslex.workeeper.app.AppScopeDataStoreSingletonTest" time="0.001" />
-    <testcase name="twoAppGraphsInOneProcessShareTheRestoreStateDataStore" classname="io.github.stslex.workeeper.app.AppScopeDataStoreSingletonTest" time="0.001" />
+    <testcase name="restoreStatePrefsFileIsTheRelativePathUnderFilesDir" classname="io.github.stslex.workeeper.app.AppScopeDataStoreSingletonTest" time="0.006" />
+    <testcase name="twoAppGraphsInOneProcessShareTheRestoreStateDataStore" classname="io.github.stslex.workeeper.app.AppScopeDataStoreSingletonTest" time="0.0" />
   </testsuite>
-  <testsuite name="io.github.stslex.workeeper.app.ApplicationBottomBarTest" tests="4" failures="0" errors="0" skipped="0" time="11.394" timestamp="2026-08-22T20:19:10" hostname="localhost">
+  <testsuite name="io.github.stslex.workeeper.app.ApplicationBottomBarTest" tests="4" failures="0" errors="0" skipped="0" time="11.308" timestamp="2026-08-22T22:07:45" hostname="localhost">
     <properties>
       <property name="device" value="Pixel_6_API_34(AVD) - 14" />
       <property name="flavor" value="" />
       <property name="project" value=":app:app" />
     </properties>
-    <testcase name="appStartInitial" classname="io.github.stslex.workeeper.app.ApplicationBottomBarTest" time="1.128" />
-    <testcase name="navigateToTrainingsAndBack" classname="io.github.stslex.workeeper.app.ApplicationBottomBarTest" time="3.422" />
-    <testcase name="navigateToExercisesAndBack" classname="io.github.stslex.workeeper.app.ApplicationBottomBarTest" time="3.294" />
-    <testcase name="navigateToExercisesTrainingsAndBack" classname="io.github.stslex.workeeper.app.ApplicationBottomBarTest" time="3.55" />
+    <testcase name="appStartInitial" classname="io.github.stslex.workeeper.app.ApplicationBottomBarTest" time="1.365" />
+    <testcase name="navigateToTrainingsAndBack" classname="io.github.stslex.workeeper.app.ApplicationBottomBarTest" time="3.212" />
+    <testcase name="navigateToExercisesAndBack" classname="io.github.stslex.workeeper.app.ApplicationBottomBarTest" time="3.228" />
+    <testcase name="navigateToExercisesTrainingsAndBack" classname="io.github.stslex.workeeper.app.ApplicationBottomBarTest" time="3.503" />
   </testsuite>
-  <testsuite name="io.github.stslex.workeeper.app.BackStackStateRestorationTest" tests="4" failures="0" errors="0" skipped="0" time="9.331" timestamp="2026-08-22T20:19:10" hostname="localhost">
+  <testsuite name="io.github.stslex.workeeper.app.BackStackStateRestorationTest" tests="4" failures="0" errors="0" skipped="0" time="9.958" timestamp="2026-08-22T22:07:45" hostname="localhost">
     <properties>
       <property name="device" value="Pixel_6_API_34(AVD) - 14" />
       <property name="flavor" value="" />
       <property name="project" value=":app:app" />
     </properties>
-    <testcase name="editorDraftSurvivesTheImageViewerRoundTrip" classname="io.github.stslex.workeeper.app.BackStackStateRestorationTest" time="2.886" />
-    <testcase name="selectionModeArrivesResetAfterABottomBarRoundTrip" classname="io.github.stslex.workeeper.app.BackStackStateRestorationTest" time="1.935" />
-    <testcase name="backStackDepthSurvivesActivityRecreation" classname="io.github.stslex.workeeper.app.BackStackStateRestorationTest" time="2.095" />
-    <testcase name="listScrollPositionSurvivesTheDetailRoundTrip" classname="io.github.stslex.workeeper.app.BackStackStateRestorationTest" time="2.415" />
+    <testcase name="editorDraftSurvivesTheImageViewerRoundTrip" classname="io.github.stslex.workeeper.app.BackStackStateRestorationTest" time="2.999" />
+    <testcase name="selectionModeArrivesResetAfterABottomBarRoundTrip" classname="io.github.stslex.workeeper.app.BackStackStateRestorationTest" time="2.534" />
+    <testcase name="backStackDepthSurvivesActivityRecreation" classname="io.github.stslex.workeeper.app.BackStackStateRestorationTest" time="2.177" />
+    <testcase name="listScrollPositionSurvivesTheDetailRoundTrip" classname="io.github.stslex.workeeper.app.BackStackStateRestorationTest" time="2.248" />
   </testsuite>
-  <testsuite name="io.github.stslex.workeeper.app.DialogStateAcrossGenerationsTest" tests="1" failures="0" errors="0" skipped="0" time="0.038" timestamp="2026-08-22T20:19:10" hostname="localhost">
+  <testsuite name="io.github.stslex.workeeper.app.DialogStateAcrossGenerationsTest" tests="1" failures="0" errors="0" skipped="0" time="0.066" timestamp="2026-08-22T22:07:45" hostname="localhost">
     <properties>
       <property name="device" value="Pixel_6_API_34(AVD) - 14" />
       <property name="flavor" value="" />
       <property name="project" value=":app:app" />
     </properties>
-    <testcase name="pendingDialogSurvivesReplacement_andIsConsumedExactlyOnce" classname="io.github.stslex.workeeper.app.DialogStateAcrossGenerationsTest" time="0.038" />
+    <testcase name="pendingDialogSurvivesReplacement_andIsConsumedExactlyOnce" classname="io.github.stslex.workeeper.app.DialogStateAcrossGenerationsTest" time="0.066" />
   </testsuite>
-  <testsuite name="io.github.stslex.workeeper.app.ExerciseCreatePersistenceTest" tests="1" failures="0" errors="0" skipped="0" time="1.493" timestamp="2026-08-22T20:19:10" hostname="localhost">
+  <testsuite name="io.github.stslex.workeeper.app.ExerciseCreatePersistenceTest" tests="1" failures="0" errors="0" skipped="0" time="1.196" timestamp="2026-08-22T22:07:45" hostname="localhost">
     <properties>
       <property name="device" value="Pixel_6_API_34(AVD) - 14" />
       <property name="flavor" value="" />
       <property name="project" value=":app:app" />
     </properties>
-    <testcase name="f02_create_with_name_only_persists" classname="io.github.stslex.workeeper.app.ExerciseCreatePersistenceTest" time="1.493" />
+    <testcase name="f02_create_with_name_only_persists" classname="io.github.stslex.workeeper.app.ExerciseCreatePersistenceTest" time="1.196" />
   </testsuite>
-  <testsuite name="io.github.stslex.workeeper.app.NavBarContentGapProbe" tests="1" failures="0" errors="0" skipped="0" time="0.885" timestamp="2026-08-22T20:19:10" hostname="localhost">
+  <testsuite name="io.github.stslex.workeeper.app.NavBarContentGapProbe" tests="1" failures="0" errors="0" skipped="0" time="0.808" timestamp="2026-08-22T22:07:45" hostname="localhost">
     <properties>
       <property name="device" value="Pixel_6_API_34(AVD) - 14" />
       <property name="flavor" value="" />
       <property name="project" value=":app:app" />
     </properties>
-    <testcase name="contentBottomAgainstBarTop" classname="io.github.stslex.workeeper.app.NavBarContentGapProbe" time="0.885" />
+    <testcase name="contentBottomAgainstBarTop" classname="io.github.stslex.workeeper.app.NavBarContentGapProbe" time="0.808" />
   </testsuite>
-  <testsuite name="io.github.stslex.workeeper.app.NavigationResultTest" tests="3" failures="0" errors="0" skipped="0" time="9.567" timestamp="2026-08-22T20:19:10" hostname="localhost">
+  <testsuite name="io.github.stslex.workeeper.app.NavigationResultTest" tests="3" failures="0" errors="0" skipped="0" time="10.227" timestamp="2026-08-22T22:07:45" hostname="localhost">
     <properties>
       <property name="device" value="Pixel_6_API_34(AVD) - 14" />
       <property name="flavor" value="" />
       <property name="project" value=":app:app" />
     </properties>
-    <testcase name="imageRemoveRequestTurnsTheThumbnailIntoThePhotoPickerEntryPoint" classname="io.github.stslex.workeeper.app.NavigationResultTest" time="2.95" />
-    <testcase name="imageReplaceRequestReachesTheExerciseThatOpenedTheViewer" classname="io.github.stslex.workeeper.app.NavigationResultTest" time="2.72" />
-    <testcase name="planEditorSaveReachesTheLiveSessionThatOpenedIt" classname="io.github.stslex.workeeper.app.NavigationResultTest" time="3.897" />
+    <testcase name="imageRemoveRequestTurnsTheThumbnailIntoThePhotoPickerEntryPoint" classname="io.github.stslex.workeeper.app.NavigationResultTest" time="3.139" />
+    <testcase name="imageReplaceRequestReachesTheExerciseThatOpenedTheViewer" classname="io.github.stslex.workeeper.app.NavigationResultTest" time="2.786" />
+    <testcase name="planEditorSaveReachesTheLiveSessionThatOpenedIt" classname="io.github.stslex.workeeper.app.NavigationResultTest" time="4.302" />
   </testsuite>
-  <testsuite name="io.github.stslex.workeeper.app.RecoveryActivityDbFreeTest" tests="1" failures="0" errors="0" skipped="0" time="0.581" timestamp="2026-08-22T20:19:10" hostname="localhost">
+  <testsuite name="io.github.stslex.workeeper.app.RecoveryActivityDbFreeTest" tests="1" failures="0" errors="0" skipped="0" time="0.655" timestamp="2026-08-22T22:07:45" hostname="localhost">
     <properties>
       <property name="device" value="Pixel_6_API_34(AVD) - 14" />
       <property name="flavor" value="" />
       <property name="project" value=":app:app" />
     </properties>
-    <testcase name="recoveryActivityLaunchesWithoutOpeningTheDatabase" classname="io.github.stslex.workeeper.app.RecoveryActivityDbFreeTest" time="0.581" />
+    <testcase name="recoveryActivityLaunchesWithoutOpeningTheDatabase" classname="io.github.stslex.workeeper.app.RecoveryActivityDbFreeTest" time="0.655" />
   </testsuite>
-  <testsuite name="io.github.stslex.workeeper.app.RouteReachabilityTest" tests="15" failures="0" errors="0" skipped="0" time="23.902" timestamp="2026-08-22T20:19:10" hostname="localhost">
+  <testsuite name="io.github.stslex.workeeper.app.RouteReachabilityTest" tests="15" failures="0" errors="0" skipped="0" time="23.293" timestamp="2026-08-22T22:07:45" hostname="localhost">
     <properties>
       <property name="device" value="Pixel_6_API_34(AVD) - 14" />
       <property name="flavor" value="" />
       <property name="project" value=":app:app" />
     </properties>
-    <testcase name="settingsOpensFromHomeAndHomeReturns" classname="io.github.stslex.workeeper.app.RouteReachabilityTest" time="1.384" />
-    <testcase name="planEditorOpensFromALiveSessionExerciseAndTheSessionReturns" classname="io.github.stslex.workeeper.app.RouteReachabilityTest" time="3.898" />
-    <testcase name="homeIsTheColdStartDestination" classname="io.github.stslex.workeeper.app.RouteReachabilityTest" time="0.97" />
-    <testcase name="liveWorkoutIsReEnteredThroughTheActiveSessionBanner" classname="io.github.stslex.workeeper.app.RouteReachabilityTest" time="2.116" />
-    <testcase name="exerciseChartOpensFromHomeAndHomeReturns" classname="io.github.stslex.workeeper.app.RouteReachabilityTest" time="1.128" />
-    <testcase name="exerciseOpensFromASeededRowAndTheListReturns" classname="io.github.stslex.workeeper.app.RouteReachabilityTest" time="1.529" />
-    <testcase name="imageViewerOpensFromASeededExerciseImageAndTheExerciseReturns" classname="io.github.stslex.workeeper.app.RouteReachabilityTest" time="1.738" />
-    <testcase name="allTrainingsOpensFromTheBottomBarAndHomeReturns" classname="io.github.stslex.workeeper.app.RouteReachabilityTest" time="1.158" />
-    <testcase name="liveWorkoutOpensBlankFromHomeAndHomeReturns" classname="io.github.stslex.workeeper.app.RouteReachabilityTest" time="1.931" />
-    <testcase name="allExercisesOpensFromTheBottomBarAndHomeReturns" classname="io.github.stslex.workeeper.app.RouteReachabilityTest" time="1.114" />
-    <testcase name="pastSessionOpensFromASeededFinishedSessionAndHomeReturns" classname="io.github.stslex.workeeper.app.RouteReachabilityTest" time="1.301" />
-    <testcase name="singleTrainingOpensFromASeededRowAndTheListReturns" classname="io.github.stslex.workeeper.app.RouteReachabilityTest" time="1.541" />
-    <testcase name="archiveOpensFromSettingsAndSettingsReturns" classname="io.github.stslex.workeeper.app.RouteReachabilityTest" time="1.487" />
-    <testcase name="singleTrainingOpensForCreateFromAllTrainingsAndTheListReturns" classname="io.github.stslex.workeeper.app.RouteReachabilityTest" time="1.328" />
-    <testcase name="exerciseOpensForCreateFromAllExercisesAndTheListReturns" classname="io.github.stslex.workeeper.app.RouteReachabilityTest" time="1.279" />
+    <testcase name="settingsOpensFromHomeAndHomeReturns" classname="io.github.stslex.workeeper.app.RouteReachabilityTest" time="1.193" />
+    <testcase name="planEditorOpensFromALiveSessionExerciseAndTheSessionReturns" classname="io.github.stslex.workeeper.app.RouteReachabilityTest" time="3.678" />
+    <testcase name="homeIsTheColdStartDestination" classname="io.github.stslex.workeeper.app.RouteReachabilityTest" time="0.77" />
+    <testcase name="liveWorkoutIsReEnteredThroughTheActiveSessionBanner" classname="io.github.stslex.workeeper.app.RouteReachabilityTest" time="2.054" />
+    <testcase name="exerciseChartOpensFromHomeAndHomeReturns" classname="io.github.stslex.workeeper.app.RouteReachabilityTest" time="1.144" />
+    <testcase name="exerciseOpensFromASeededRowAndTheListReturns" classname="io.github.stslex.workeeper.app.RouteReachabilityTest" time="1.576" />
+    <testcase name="imageViewerOpensFromASeededExerciseImageAndTheExerciseReturns" classname="io.github.stslex.workeeper.app.RouteReachabilityTest" time="1.821" />
+    <testcase name="allTrainingsOpensFromTheBottomBarAndHomeReturns" classname="io.github.stslex.workeeper.app.RouteReachabilityTest" time="1.214" />
+    <testcase name="liveWorkoutOpensBlankFromHomeAndHomeReturns" classname="io.github.stslex.workeeper.app.RouteReachabilityTest" time="2.053" />
+    <testcase name="allExercisesOpensFromTheBottomBarAndHomeReturns" classname="io.github.stslex.workeeper.app.RouteReachabilityTest" time="1.051" />
+    <testcase name="pastSessionOpensFromASeededFinishedSessionAndHomeReturns" classname="io.github.stslex.workeeper.app.RouteReachabilityTest" time="1.188" />
+    <testcase name="singleTrainingOpensFromASeededRowAndTheListReturns" classname="io.github.stslex.workeeper.app.RouteReachabilityTest" time="1.553" />
+    <testcase name="archiveOpensFromSettingsAndSettingsReturns" classname="io.github.stslex.workeeper.app.RouteReachabilityTest" time="1.362" />
+    <testcase name="singleTrainingOpensForCreateFromAllTrainingsAndTheListReturns" classname="io.github.stslex.workeeper.app.RouteReachabilityTest" time="1.314" />
+    <testcase name="exerciseOpensForCreateFromAllExercisesAndTheListReturns" classname="io.github.stslex.workeeper.app.RouteReachabilityTest" time="1.322" />
   </testsuite>
-  <testsuite name="io.github.stslex.workeeper.app.RuntimeGenerationSwapDeviceTest" tests="1" failures="0" errors="0" skipped="0" time="0.154" timestamp="2026-08-22T20:19:10" hostname="localhost">
+  <testsuite name="io.github.stslex.workeeper.app.RuntimeGenerationSwapDeviceTest" tests="1" failures="0" errors="0" skipped="0" time="0.126" timestamp="2026-08-22T22:07:45" hostname="localhost">
     <properties>
       <property name="device" value="Pixel_6_API_34(AVD) - 14" />
       <property name="flavor" value="" />
       <property name="project" value=":app:app" />
     </properties>
-    <testcase name="greenGate_restoreThenRollback_coherentGenerationHandover" classname="io.github.stslex.workeeper.app.RuntimeGenerationSwapDeviceTest" time="0.154" />
+    <testcase name="greenGate_restoreThenRollback_coherentGenerationHandover" classname="io.github.stslex.workeeper.app.RuntimeGenerationSwapDeviceTest" time="0.126" />
   </testsuite>
-  <testsuite name="io.github.stslex.workeeper.app.StoreRetentionTest" tests="3" failures="0" errors="0" skipped="0" time="9.84" timestamp="2026-08-22T20:19:10" hostname="localhost">
+  <testsuite name="io.github.stslex.workeeper.app.StoreRetentionTest" tests="3" failures="0" errors="0" skipped="0" time="9.72" timestamp="2026-08-22T22:07:45" hostname="localhost">
     <properties>
       <property name="device" value="Pixel_6_API_34(AVD) - 14" />
       <property name="flavor" value="" />
       <property name="project" value=":app:app" />
     </properties>
-    <testcase name="liveWorkoutStoreSurvivesThePlanEditorRoundTrip" classname="io.github.stslex.workeeper.app.StoreRetentionTest" time="5.152" />
-    <testcase name="exerciseChartStoreIsDestroyedWhenItsEntryLeavesTheStack" classname="io.github.stslex.workeeper.app.StoreRetentionTest" time="1.596" />
-    <testcase name="exerciseChartStateDoesNotLeakBetweenEntities" classname="io.github.stslex.workeeper.app.StoreRetentionTest" time="3.092" />
+    <testcase name="liveWorkoutStoreSurvivesThePlanEditorRoundTrip" classname="io.github.stslex.workeeper.app.StoreRetentionTest" time="5.162" />
+    <testcase name="exerciseChartStoreIsDestroyedWhenItsEntryLeavesTheStack" classname="io.github.stslex.workeeper.app.StoreRetentionTest" time="1.655" />
+    <testcase name="exerciseChartStateDoesNotLeakBetweenEntities" classname="io.github.stslex.workeeper.app.StoreRetentionTest" time="2.903" />
   </testsuite>
-  <testsuite name="io.github.stslex.workeeper.app.UiGenerationSwapTest" tests="1" failures="0" errors="0" skipped="0" time="1.296" timestamp="2026-08-22T20:19:10" hostname="localhost">
+  <testsuite name="io.github.stslex.workeeper.app.UiGenerationSwapTest" tests="1" failures="0" errors="0" skipped="0" time="1.328" timestamp="2026-08-22T22:07:45" hostname="localhost">
     <properties>
       <property name="device" value="Pixel_6_API_34(AVD) - 14" />
       <property name="flavor" value="" />
       <property name="project" value=":app:app" />
     </properties>
-    <testcase name="generationSwap_resetsNavToRoot_andRecreationDoesNotResurrectTheOldStack" classname="io.github.stslex.workeeper.app.UiGenerationSwapTest" time="1.296" />
+    <testcase name="generationSwap_resetsNavToRoot_andRecreationDoesNotResurrectTheOldStack" classname="io.github.stslex.workeeper.app.UiGenerationSwapTest" time="1.328" />
   </testsuite>
 </testsuites>

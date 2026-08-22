@@ -38,7 +38,7 @@ import org.junit.runner.RunWith
  * [buildAppGraph], and the real [StartupProcessor] preflight — no fakes on the database path.
  *
  * One flow exercises BOTH replacement operations as two consecutive cycles
- * (restore → rollback), proving every §11.2 point:
+ * (restore → rollback), proving:
  *  1. a real inode-changing production swap (Os.stat before/after each cycle);
  *  2. the old generation's DB/DAO are unusable after close — LOUD (pool-closed), never stale;
  *  3. a newly built `AppDatabase` + newly resolved DAO see NEW and not OLD;
@@ -49,9 +49,13 @@ import org.junit.runner.RunWith
  *  6. the known-negative (§7 protocol): bypassing the swap with a graph-only transition turns
  *     the sentinel assertions red — executed and reverted, not committed.
  *
- * The runtime host is built directly (no [io.github.stslex.workeeper.harness.MetroTestRule]):
- * this test IS the runtime's device proof, so it owns production-shaped roots in the
- * instrumentation sandbox and wipes them around each run.
+ * BOUNDARY OF THE CLAIM (deliberately narrow): the runtime host is built directly — no Activity,
+ * no composition, no WorkManager, no [io.github.stslex.workeeper.harness.MetroTestRule]. The
+ * transaction's quiesce stages therefore run over EMPTY populations (zero UI attachments, zero
+ * admitted worker leases): this test proves the inode swap, the terminal close, and the fresh
+ * Room generation's coherence — it does NOT prove the UI-disposal handshake or the lease drain
+ * against live members. Those are pinned by [AppRuntimeUiHandshakeDeviceTest] (composed, real
+ * `AppRuntime` behind the app shell) and the JVM suites' gate/lease tests respectively.
  */
 @Regression
 @RunWith(AndroidJUnit4::class)
