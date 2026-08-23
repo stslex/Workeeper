@@ -154,6 +154,8 @@ internal class AppRuntimeReplacementTest {
         // Standard (non-eager) host scheduling — for pins that must observe what the NON-
         // suspending submission frame did before the host coroutine ever ran.
         standardHostDispatcher: Boolean = false,
+        // The liveness pin substitutes a dispatcher that ACCEPTS but never RUNS the clear.
+        mainDispatcherOverride: kotlinx.coroutines.CoroutineDispatcher? = null,
         body: suspend TestScope.(AppRuntime) -> Unit,
     ) = runTest {
         coEvery { provider.validateSnapshotForRestore(any()) } returns BackupResult.Success(Unit)
@@ -224,7 +226,7 @@ internal class AppRuntimeReplacementTest {
             replacementPolicy = replacementPolicy,
             policy = RuntimeTransitionPolicy(
                 advanceSnackbarGeneration = { epochAdvances++ },
-                mainDispatcher = dispatcher,
+                mainDispatcher = mainDispatcherOverride ?: dispatcher,
                 hostDispatcher = if (standardHostDispatcher) {
                     kotlinx.coroutines.test.StandardTestDispatcher(testScheduler)
                 } else {
@@ -1694,6 +1696,335 @@ internal class AppRuntimeReplacementTest {
             assertInstanceOf(ReplacementOutcome.Fatal::class.java, outcome)
             assertEquals(RuntimePhase.Fatal, runtime.phases.value)
             assertThrows<IllegalStateException> { runtime.currentGeneration }
+        }
+
+    // ------------------------------------------------------------------------------------------
+    // R4.1 — the three remaining rollback protocol gaps + the bounded-clear liveness pin.
+    // ------------------------------------------------------------------------------------------
+
+    /** A minimal durable-journal double with the real ownership rules, for composed pins. */
+    private class FakeJournal {
+        var id: String? = null
+        var kind: String? = null
+        var phase: String? = null
+        var path: String? = null
+
+        fun begin(attemptId: String, attemptKind: String, sourcePath: String?): Boolean {
+            if (id != null && id != attemptId) return false
+            id = attemptId
+            kind = attemptKind
+            phase = "Prepared"
+            path = sourcePath
+            return true
+        }
+
+        fun commit(attemptId: String): Boolean {
+            if (id != attemptId) return false
+            phase = "Committed"
+            return true
+        }
+
+        fun resolve(attemptId: String): Boolean {
+            if (id != attemptId) return false
+            id = null
+            kind = null
+            phase = null
+            path = null
+            return true
+        }
+    }
+
+    /** Effects wired to [FakeJournal] the way the real undo/recovery effects are. */
+    private inner class JournalEffects(
+        override val attemptId: String,
+        private val journal: FakeJournal,
+        private val kind: String,
+        private val log: MutableList<String>,
+    ) : DatabaseReplacementEffects {
+        override suspend fun onBeforeMutation(rollbackSnapshotPath: String) {
+            check(journal.begin(attemptId, kind, rollbackSnapshotPath.takeIf { it.isNotEmpty() })) {
+                "journal slot owned by ${journal.id}"
+            }
+            log += "journal-prepared"
+        }
+
+        override suspend fun onMutationCommitted() {
+            check(journal.commit(attemptId)) { "journal not owned by $attemptId" }
+            log += "journal-committed"
+        }
+
+        override suspend fun onCommitted() {
+            journal.resolve(attemptId)
+            log += "terminal-committed"
+        }
+
+        override suspend fun onRecoveredByRollback(error: BackupError) {
+            journal.resolve(attemptId)
+            log += "terminal-recovered"
+        }
+    }
+
+    @Test
+    fun `a requested rollback's successful retry COMMITS as the requested operation - never as compensation`() =
+        runtimeTest { runtime ->
+            // R4.1 blocker 2, composed with a journal-aware production-shaped preflight.
+            // Pre-R4.1 the retry committed anonymously: the canonical was consumed while the
+            // REAL journal stayed Prepared/Rollback, and the preflight — finding an
+            // unresolvable Prepared attempt with no source left — went Fatal.
+            runtime.currentGeneration
+            preservedFile(content = "UNDO")
+            val journal = FakeJournal()
+            var swaps = 0
+            coEvery { provider.replaceLiveDatabaseFile(any()) } coAnswers {
+                protocolLog += "swap"
+                if (swaps++ == 0) {
+                    BackupResult.Failure(BackupError.Io(IOException("transient rename failure")))
+                } else {
+                    BackupResult.Success(Unit)
+                }
+            }
+            coEvery { provider.deletePreRestoreBackup() } coAnswers {
+                protocolLog += "deletePreRestoreBackup"
+                File(tempDir, "pre_restore_backup.db").delete()
+            }
+            val observedPhases = mutableListOf<String>()
+            preflightAction = { _ ->
+                observedPhases += "${journal.phase}/${journal.kind}"
+                if (journal.phase == "Prepared") {
+                    // The production-shaped recovery: an unresolved Prepared attempt would be
+                    // re-driven inline — which MUST NOT happen after an honest retry commit.
+                    runtime.rollbackToPreRestoreBackup(
+                        sourcePath = journal.path,
+                        effects = JournalEffects("re-drive", journal, "Rollback", protocolLog),
+                    )
+                }
+            }
+            val effects = JournalEffects("undo-1", journal, "Rollback", protocolLog)
+
+            val outcome = runtime.replace(
+                ReplacementOperation.RollbackToPreRestoreBackup(),
+                effects,
+            )
+
+            val completed = assertInstanceOf(ReplacementOutcome.Completed::class.java, outcome)
+            assertNull(
+                completed.effectsError,
+                "a clean requested-rollback retry is a clean Completed — never Fatal, never " +
+                    "RecoveredByRollback: $completed",
+            )
+            assertEquals(2, protocolLog.count { it == "swap" }, "two swaps, no third: $protocolLog")
+            assertEquals(
+                listOf("Committed/Rollback"),
+                observedPhases,
+                "the candidate preflight must observe the RETRY's durable commit",
+            )
+            val recorded = protocolLog.indexOf("journal-committed")
+            val consumed = protocolLog.indexOf("deletePreRestoreBackup")
+            assertTrue(
+                recorded in 0 until consumed,
+                "onMutationCommitted must precede the source consumption: $protocolLog",
+            )
+            assertEquals(
+                1,
+                protocolLog.count { it == "terminal-committed" },
+                "the original committed terminal effects run exactly once: $protocolLog",
+            )
+            assertNull(journal.id, "the journal resolved through the ORIGINAL effects")
+            assertNotNull(completed.generation, "a Serving successor published")
+        }
+
+    @Test
+    fun `a requested-rollback retry whose commit record FAILS keeps the asset and reports no clean Completed`() =
+        runtimeTest { runtime ->
+            runtime.currentGeneration
+            preservedFile(content = "UNDO")
+            val journal = FakeJournal()
+            var swaps = 0
+            coEvery { provider.replaceLiveDatabaseFile(any()) } coAnswers {
+                protocolLog += "swap"
+                if (swaps++ == 0) {
+                    BackupResult.Failure(BackupError.Io(IOException("transient rename failure")))
+                } else {
+                    BackupResult.Success(Unit)
+                }
+            }
+            val effects = object : DatabaseReplacementEffects {
+                override val attemptId: String = "undo-1"
+                override suspend fun onBeforeMutation(rollbackSnapshotPath: String) {
+                    journal.begin(attemptId, "Rollback", null)
+                }
+
+                override suspend fun onMutationCommitted() {
+                    error("durable commit record failed")
+                }
+            }
+
+            val outcome = runtime.replace(
+                ReplacementOperation.RollbackToPreRestoreBackup(),
+                effects,
+            )
+
+            val completed = assertInstanceOf(ReplacementOutcome.Completed::class.java, outcome)
+            assertNotNull(
+                completed.effectsError,
+                "an unrecorded retry commit is never reported clean",
+            )
+            coVerify(exactly = 0) { provider.deletePreRestoreBackup() }
+            assertEquals(
+                "UNDO",
+                File(tempDir, "pre_restore_backup.db").readText(),
+                "the recovery asset is retained while the journal stays unresolved",
+            )
+            assertEquals("Prepared", journal.phase, "the journal keeps the unresolved attempt")
+        }
+
+    @Test
+    fun `the INLINE rollback disposes the candidate through the ONE teardown protocol before the swap`() =
+        runtimeTest { runtime ->
+            // R4.1 blocker 3: pre-fix the inline branch closed the candidate database DIRECTLY
+            // — before its ViewModelStore was cleared or its lifetime joined, so a candidate
+            // job's DB-touching `finally` could run against the closed handle.
+            runtime.currentGeneration
+            val sourceA = File(tempDir, "rollback_reservation_inline.db")
+                .apply { writeText("A-INLINE-SOURCE") }
+            val applied = mutableListOf<String>()
+            coEvery { provider.replaceLiveDatabaseFile(any()) } coAnswers {
+                protocolLog += "swap"
+                applied += firstArg<File>().readText()
+                BackupResult.Success(Unit)
+            }
+            var vmCleared = false
+            preflightAction = { generation ->
+                if (preflightCalls == 1) {
+                    ViewModelProvider(
+                        generation.viewModelStore,
+                        object : ViewModelProvider.Factory {
+                            @Suppress("UNCHECKED_CAST")
+                            override fun <T : ViewModel> create(modelClass: Class<T>): T =
+                                ProbeViewModel(onClear = {
+                                    vmCleared = true
+                                    protocolLog += "candidate-vm-cleared"
+                                }) as T
+                        },
+                    )[ProbeViewModel::class.java]
+                    generation.lifetime.childScope(UnconfinedTestDispatcher(testScheduler)).launch {
+                        try {
+                            awaitCancellation()
+                        } finally {
+                            touchedDatabases += generation.database.toString()
+                            protocolLog += "candidate-job-ended"
+                        }
+                    }
+                    kotlinx.coroutines.yield()
+                    runtime.rollbackToPreRestoreBackup(
+                        sourcePath = sourceA.absolutePath,
+                        effects = RecordingEffects(attemptId = "inline-1", calls = protocolLog),
+                    )
+                }
+            }
+            preflightOutcomes += StartupOutcome.RestartRequired
+
+            val outcome = runtime.replace(ReplacementOperation.RestoreFromSnapshot(sourceFile()))
+
+            assertInstanceOf(ReplacementOutcome.RecoveredByRollback::class.java, outcome)
+            assertTrue(vmCleared, "the candidate ViewModelStore must be CLEARED")
+            // closes: [0]=outgoing, [1]=the candidate via the disposal. Order: VM clear and the
+            // job's finally BEFORE the candidate close, and the close BEFORE the inline swap.
+            val candidateClose = closeIndices()[1]
+            val inlineSwap = protocolLog.lastIndexOf("swap")
+            assertTrue(
+                protocolLog.indexOf("candidate-vm-cleared") in 0 until candidateClose,
+                "VM clear before the candidate close: $protocolLog",
+            )
+            assertTrue(
+                protocolLog.indexOf("candidate-job-ended") in 0 until candidateClose,
+                "the candidate job's finally must JOIN before its database closes: $protocolLog",
+            )
+            assertTrue(candidateClose < inlineSwap, "close before the swap: $protocolLog")
+            assertEquals("A-INLINE-SOURCE", applied.last(), "the exact submitted source applied")
+            assertFalse(sourceA.exists(), "and consumed")
+        }
+
+    @Test
+    fun `an UNJOINABLE candidate stops the inline rollback FATAL - zero renames after admission`() =
+        runtimeTest { runtime ->
+            runtime.currentGeneration
+            val sourceA = File(tempDir, "rollback_reservation_inline.db")
+                .apply { writeText("A-INLINE-SOURCE") }
+            val never = CompletableDeferred<Unit>()
+            var inlineResult: DatabaseReplacementResult? = null
+            preflightAction = { generation ->
+                if (preflightCalls == 1) {
+                    generation.lifetime.childScope(UnconfinedTestDispatcher(testScheduler)).launch {
+                        withContext(NonCancellable) { never.await() }
+                    }
+                    kotlinx.coroutines.yield()
+                    inlineResult = runtime.rollbackToPreRestoreBackup(
+                        sourcePath = sourceA.absolutePath,
+                        effects = RecordingEffects(attemptId = "inline-1", calls = protocolLog),
+                    )
+                }
+            }
+
+            val transaction = async {
+                runtime.replace(ReplacementOperation.RestoreFromSnapshot(sourceFile()))
+            }
+            advanceTimeBy(10_000)
+            runCurrent()
+
+            assertInstanceOf(ReplacementOutcome.Fatal::class.java, transaction.await())
+            assertInstanceOf(
+                DatabaseReplacementResult.FailedAfterMutation::class.java,
+                inlineResult,
+            )
+            assertEquals(
+                1,
+                protocolLog.count { it == "swap" },
+                "the restore's own swap only — ZERO renames after the failed teardown: $protocolLog",
+            )
+            assertTrue(sourceA.exists(), "the journal-named source is preserved")
+            assertEquals(RuntimePhase.Fatal, runtime.phases.value, "no generation published")
+            assertEquals(0, epochAdvances, "the epoch must not advance")
+            assertNull(
+                runtime.admitUiGeneration(1),
+                "UI admission stays retired for the outgoing id",
+            )
+            never.complete(Unit)
+            runCurrent()
+        }
+
+    @Test
+    fun `a clear that is ACCEPTED but never RUN cannot hang the machine - Fatal within the drain budget`() =
+        runtimeTest(
+            mainDispatcherOverride = object : kotlinx.coroutines.CoroutineDispatcher() {
+                // Accepts and QUEUES every runnable, never executes one — the wedged-main shape.
+                override fun dispatch(
+                    context: kotlin.coroutines.CoroutineContext,
+                    block: Runnable,
+                ) = Unit
+            },
+        ) { runtime ->
+            // R4.1 liveness pin: the old unbounded `withContext(mainDispatcher)` suspended the
+            // whole transition — mutex held, phase stranded, the submitted deferred never
+            // completing — for as long as the wedged dispatcher cared to. The bounded clear
+            // must reach the terminal verdict within the drain budget.
+            runtime.currentGeneration
+
+            val transaction = async {
+                runtime.replace(ReplacementOperation.RestoreFromSnapshot(sourceFile()))
+            }
+            advanceTimeBy(10_000)
+            runCurrent()
+
+            assertTrue(transaction.isCompleted, "the submitted deferred must complete")
+            assertInstanceOf(ReplacementOutcome.Fatal::class.java, transaction.await())
+            assertEquals(RuntimePhase.Fatal, runtime.phases.value, "no successor published")
+            assertEquals(0, epochAdvances, "the epoch must not advance")
+            assertNull(runtime.admitUiGeneration(1), "UI admission stays retired")
+            val lease = async { runCatching { runtime.awaitBackupWorkLease() } }
+            runCurrent()
+            assertTrue(lease.isCompleted, "the worker acquirer wakes instead of parking")
+            assertInstanceOf(IllegalStateException::class.java, lease.await().exceptionOrNull())
         }
 
     private companion object {

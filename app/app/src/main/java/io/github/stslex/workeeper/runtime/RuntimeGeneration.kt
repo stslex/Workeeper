@@ -6,6 +6,8 @@ import androidx.lifecycle.ViewModelStoreOwner
 import io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetime
 import io.github.stslex.workeeper.core.data.database.AppDatabase
 import io.github.stslex.workeeper.di.AppGraph
+import kotlinx.coroutines.flow.FlowCollector
+import kotlinx.coroutines.flow.StateFlow
 
 /**
  * ONE runtime generation — the R2 replacement invariant's coherent handover unit
@@ -56,4 +58,22 @@ internal sealed interface RuntimePhase {
      * calling host's wiring (Phase 7 / instrumentation).
      */
     data object Fatal : RuntimePhase
+}
+
+/**
+ * A read-only [StateFlow] view derived field-access-cheaply from one source of truth — the
+ * helper behind [AppRuntime]'s two published phase faces.
+ */
+internal class DerivedStateFlow<T, R>(
+    private val source: StateFlow<T>,
+    private val transform: (T) -> R,
+) : StateFlow<R> {
+
+    override val value: R get() = transform(source.value)
+
+    override val replayCache: List<R> get() = listOf(value)
+
+    override suspend fun collect(collector: FlowCollector<R>): Nothing {
+        source.collect { collector.emit(transform(it)) }
+    }
 }

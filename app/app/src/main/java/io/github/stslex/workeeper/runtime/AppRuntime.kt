@@ -25,19 +25,15 @@ import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
 import java.io.IOException
 import java.util.concurrent.atomic.AtomicInteger
-import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.coroutineContext
 
 /**
@@ -450,7 +446,14 @@ internal class AppRuntime(
         // nested transaction (the mutex is non-reentrant and the transaction coroutine holds
         // it). This coroutine IS the transaction, so the terminal effect runs right here.
         coroutineContext[ReplacementTransaction]?.let { transaction ->
-            val outcome = runInlineRollback(closeDatabase, transaction, effects, sourcePath)
+            val outcome = runInlineRollback(
+                transaction = transaction,
+                effects = effects,
+                sourcePath = sourcePath,
+                disposeCandidate = { candidate ->
+                    quiescer.tearDownCandidate(candidate, closeCandidateDatabase = true)
+                },
+            )
             // The inline branch runs inside the outer transaction (mutex held, PONR crossed).
             return runTerminalEffects(effects, outcome, ponrCrossed = true, logger = logger)
                 .toSeamResult()
@@ -807,10 +810,16 @@ internal class AppRuntime(
      * submission frame discards it (a crash in between leaves the journal still pointing at a
      * file that exists).
      *
-     * The caller's effects are deliberately NOT used for the commit bookkeeping: what committed
-     * here is the ROLLBACK, not the requested operation, so recording the caller's attempt as
-     * `Committed` would let the very next preflight read it as a successful restore and publish
-     * `RestoreSuccess` for data that was rolled back. The caller learns the truth from the
+     * The caller's effects are used for the commit bookkeeping ONLY when the rollback IS the
+     * requested operation ([requestedRollback], R4.1): a successful retry of a failed
+     * `RollbackToPreRestoreBackup` swap is the requested rollback itself, so it records
+     * `Committed` through the ORIGINAL effects BEFORE consuming the exact source — pre-R4.1 the
+     * retry committed as anonymous compensation, leaving the real journal `Prepared`/Rollback
+     * while the canonical was consumed, and the very next preflight then found an unresolvable
+     * `Prepared` attempt with no source and went Fatal. A COMPENSATING rollback of a failed
+     * RESTORE keeps the anonymous commit: recording the caller's RESTORE attempt as `Committed`
+     * would let the next preflight read it as a successful restore and publish `RestoreSuccess`
+     * for data that was rolled back — that caller learns the truth from the
      * `RecoveredByRollback` outcome and compensates in `onRecoveredByRollback`.
      *
      * When the attempt HAD already committed cleanly ([afterCleanCommit]), the journal reads
@@ -861,20 +870,25 @@ internal class AppRuntime(
         transaction.rolledBack = true
         transaction.rollbackCause = cause
             ?: BackupError.Io(IOException("restore could not complete; rolled back"))
-        // Consume ONLY the exact file that was applied (R4 invariant 3).
-        commitMutation(
+        // Consume ONLY the exact file that was applied (R4 invariant 3). A REQUESTED rollback's
+        // retry commits through the ORIGINAL effects (`Committed` recorded before the consume;
+        // a failed record keeps the source and the unresolved journal, surfaced on the outcome
+        // — never a clean Completed); a compensating rollback commits anonymously (see KDoc).
+        val commitEffects = if (requestedRollback) mutation.effects else DatabaseReplacementEffects.None
+        val committed = commitMutation(
             mutation = MutationPlan(
                 provider = provider,
                 source = rollbackSource,
                 consume = rollbackConsume,
-                effects = DatabaseReplacementEffects.None,
+                effects = commitEffects,
                 reservation = null,
             ),
             generation = null,
         )
+        val retryEffectsError = (committed as? ReplacementOutcome.Completed)?.effectsError
         return when (val attempt = attemptGeneration(transaction)) {
             is AttemptResult.Published ->
-                completedOrRecovered(transaction, attempt.generation, requestedRollback)
+                completedOrRecovered(transaction, attempt.generation, requestedRollback, retryEffectsError)
 
             AttemptResult.LadderFatal ->
                 publishFatal("candidate resources could not be released after rollback")
@@ -888,8 +902,12 @@ internal class AppRuntime(
                 // fail into the terminal branches below.
                 if (transaction.candidateInvalidated) {
                     when (val retry = attemptGeneration(transaction)) {
-                        is AttemptResult.Published ->
-                            completedOrRecovered(transaction, retry.generation, requestedRollback)
+                        is AttemptResult.Published -> completedOrRecovered(
+                            transaction,
+                            retry.generation,
+                            requestedRollback,
+                            retryEffectsError,
+                        )
 
                         else -> publishFatal(
                             "post-rollback generation attempt failed (original cause: $cause)",
@@ -920,20 +938,21 @@ internal class AppRuntime(
         }
         transaction.candidate = candidate
         transaction.candidateInvalidated = false
+        transaction.candidateDisposed = false
         val outcome = runCatching { withContext(transaction) { preflight(candidate) } }
         if (transaction.closeFailed) {
-            // The inline rollback's candidate close failed: unknown handle state — stop the
+            // The inline rollback's candidate teardown failed: unknown handle state — stop the
             // ladder without touching the candidate again, never rename again.
             return AttemptResult.LadderFatal
         }
         val proceed = outcome.getOrNull() == StartupOutcome.Proceed && !transaction.candidateInvalidated
         if (!proceed) {
             logger.w { "candidate preflight did not proceed: $outcome" }
-            return if (quiescer.tearDownCandidate(candidate, closeCandidateDatabase = true)) {
-                AttemptResult.Retryable
-            } else {
-                AttemptResult.LadderFatal
-            }
+            // A candidate the inline rollback already FULLY disposed (R4.1) must not be torn
+            // down twice — its store is cleared, its lifetime joined, its database closed.
+            val released = transaction.candidateDisposed ||
+                quiescer.tearDownCandidate(candidate, closeCandidateDatabase = true)
+            return if (released) AttemptResult.Retryable else AttemptResult.LadderFatal
         }
         policy.advanceSnackbarGeneration()
         publishServing(candidate)
@@ -950,31 +969,6 @@ internal class AppRuntime(
         quiescer.reopen(outgoing.id)
         publishServing(outgoing)
         return ReplacementOutcome.RejectedBeforeMutation(BackupError.Io(IOException(reason)))
-    }
-
-    private class InFlightReplacement(
-        val operation: ReplacementOperation,
-        val outcome: CompletableDeferred<ReplacementOutcome>,
-    ) {
-        /** The runtime-owned staged restore source; deleted on every terminal outcome. */
-        @Volatile
-        var stagedSource: File? = null
-
-        /** A staging failure recorded in the submission frame; resolved to a rejection. */
-        @Volatile
-        var stagingFailure: Throwable? = null
-
-        /** The rollback snapshot this attempt reserved inside the transaction (spec §8.5a). */
-        @Volatile
-        var reservation: File? = null
-    }
-
-    /** Marks a graph-only transition's preflight — a rollback inside it is rejected, not run. */
-    private object GraphOnlyTransition : CoroutineContext.Element {
-
-        override val key: CoroutineContext.Key<*> get() = Key
-
-        object Key : CoroutineContext.Key<GraphOnlyTransition>
     }
 
     /**
@@ -1000,7 +994,14 @@ internal class AppRuntime(
             // bounded budget the candidate paths use; a failure to join or close escalates to
             // [OrphanCloseException], which stops the ladder instead of renaming over a file an
             // unknown-state handle may still hold.
-            throw releasePartialGeneration(lifetime, database, ownsDatabase, error)
+            throw releasePartialGeneration(
+                lifetime = lifetime,
+                database = database,
+                ownsDatabase = ownsDatabase,
+                cause = error,
+                closeDatabase = closeDatabase,
+                drainTimeoutMillis = policy.drainTimeoutMillis,
+            )
         }
         return RuntimeGeneration(
             id = id,
@@ -1010,52 +1011,6 @@ internal class AppRuntime(
             lifetime = lifetime,
             viewModelStore = ViewModelStore(),
         )
-    }
-
-    /**
-     * Releases a generation whose graph construction failed, and returns the exception to throw:
-     * the orphan database is closed only AFTER its lifetime is cancelled and JOINED, because a
-     * partially constructed graph may already have handed that lifetime to consumers that
-     * started jobs. A failed join or close escalates to [OrphanCloseException], which stops the
-     * ladder rather than renaming over a file an unknown-state handle may still hold.
-     */
-    private fun releasePartialGeneration(
-        lifetime: AppScopeLifetime,
-        database: AppDatabase,
-        ownsDatabase: Boolean,
-        cause: Throwable,
-    ): Throwable {
-        val joined: Unit? = runCatching {
-            runBlocking {
-                withTimeoutOrNull(policy.drainTimeoutMillis) { lifetime.cancelAndJoin() }
-            }
-        }.getOrNull()
-        if (!ownsDatabase) {
-            // A SHARED-database candidate closes nothing, but its join verdict is still
-            // load-bearing (R4 blocker D): an unjoinable child launched by the partial graph
-            // holds the LIVE database, and no later mechanism ever joins an abandoned candidate
-            // lifetime — the distinct signal makes the graph-only caller go terminal instead of
-            // republishing Serving N beside the orphan.
-            return if (joined == null) PartialCandidateUnwindException(cause) else cause
-        }
-        if (joined == null) return OrphanCloseException(cause)
-        return runCatching { closeDatabase(database) }
-            .fold(onSuccess = { cause }, onFailure = { OrphanCloseException(it) })
-    }
-
-    /** A read-only [StateFlow] view derived field-access-cheaply from one source of truth. */
-    private class DerivedStateFlow<T, R>(
-        private val source: StateFlow<T>,
-        private val transform: (T) -> R,
-    ) : StateFlow<R> {
-
-        override val value: R get() = transform(source.value)
-
-        override val replayCache: List<R> get() = listOf(value)
-
-        override suspend fun collect(collector: FlowCollector<R>): Nothing {
-            source.collect { collector.emit(transform(it)) }
-        }
     }
 
     private companion object {

@@ -139,22 +139,142 @@ internal class RestoreRecoveryCoordinatorTest {
     @Test
     fun `a committed RESERVATION-sourced rollback keeps the previous restore's still-valid undo`() =
         runTest {
-            // The committed rollback applied its own reservation, so the canonical slot — the
-            // PREVIOUS restore's undo — was never consumed and remains valid. Clearing the flag
-            // here (the pre-R4 unconditional clear) revoked an undo the user still owns.
+            // R4.1 mandated test 3. The journal's non-null source path is the DURABLE
+            // discriminator: the committed rollback applied exactly named source A, so the
+            // canonical slot B — the PREVIOUS restore's undo — was never consumed. A is deleted
+            // idempotently; B and its availability survive.
+            val sourceA = File.createTempFile("rollback_reservation_A", ".db")
+                .apply { writeText("A-EXPLICIT-SOURCE") }
+            try {
+                val attempt = makeAttempt(
+                    kind = RestoreAttempt.Kind.Rollback,
+                    phase = RestoreAttempt.Phase.Committed,
+                    context = null,
+                    rollbackSnapshotPath = sourceA.absolutePath,
+                )
+                coEvery { restoreStateRepository.getAttempt() } returns attempt
+                every { snapshotProvider.getPreRestoreBackupFile() } returns
+                    File("pre_restore_backup.db")
+
+                val outcome = coordinator.handlePostRestoreLaunch()
+
+                assertEquals(
+                    RestoreRecoveryCoordinator.PreflightOutcome.RecoveryCompleted,
+                    outcome,
+                )
+                assertFalse(sourceA.exists(), "the exact named source A is consumed")
+                coVerify(exactly = 0) { snapshotProvider.deletePreRestoreBackup() }
+                coVerify(exactly = 0) { restoreStateRepository.clearPreRestoreBackupAvailable() }
+                coVerify(exactly = 1) { restoreStateRepository.resolveAttempt(attempt.id) }
+            } finally {
+                sourceA.delete()
+            }
+        }
+
+    @Test
+    fun `a committed EXPLICIT-source rollback with no canonical clears availability`() = runTest {
+        // R4.1 mandated test 4: A is deleted; with no canonical behind it, availability clears.
+        val sourceA = File.createTempFile("rollback_reservation_A", ".db")
+            .apply { writeText("A-EXPLICIT-SOURCE") }
+        try {
             val attempt = makeAttempt(
                 kind = RestoreAttempt.Kind.Rollback,
                 phase = RestoreAttempt.Phase.Committed,
                 context = null,
+                rollbackSnapshotPath = sourceA.absolutePath,
             )
             coEvery { restoreStateRepository.getAttempt() } returns attempt
-            every { snapshotProvider.getPreRestoreBackupFile() } returns
-                File("pre_restore_backup.db")
+            every { snapshotProvider.getPreRestoreBackupFile() } returns null
 
             val outcome = coordinator.handlePostRestoreLaunch()
 
             assertEquals(RestoreRecoveryCoordinator.PreflightOutcome.RecoveryCompleted, outcome)
-            coVerify(exactly = 0) { restoreStateRepository.clearPreRestoreBackupAvailable() }
+            assertFalse(sourceA.exists())
+            coVerify(exactly = 1) { restoreStateRepository.clearPreRestoreBackupAvailable() }
+            coVerify(exactly = 1) { restoreStateRepository.resolveAttempt(attempt.id) }
+        } finally {
+            sourceA.delete()
+        }
+    }
+
+    @Test
+    fun `a committed CANONICAL-sourced rollback consumes the canonical - the same undo is never offered again`() =
+        runTest {
+            // R4.1 mandated test 1 (blocker 1). The journal says sourcePath == null: the
+            // committed rollback applied the CANONICAL slot. A death between the commit record
+            // and the consume left the file on disk and the flag set — pre-R4.1 the replay read
+            // the surviving file as "a valid previous undo" and left the SAME rollback offered
+            // again; replaying it after later writes would erase them. The finalization must
+            // finish the canonical's consumption from the journal's own discriminator, never
+            // from file existence.
+            val attempt = makeAttempt(
+                kind = RestoreAttempt.Kind.Rollback,
+                phase = RestoreAttempt.Phase.Committed,
+                context = null,
+                rollbackSnapshotPath = null,
+            )
+            coEvery { restoreStateRepository.getAttempt() } returns attempt
+            // The canonical STILL EXISTS and availability is still true — the crash shape.
+            every { snapshotProvider.getPreRestoreBackupFile() } returns
+                File("pre_restore_backup.db")
+            val order = mutableListOf<String>()
+            coEvery { snapshotProvider.deletePreRestoreBackup() } coAnswers { order += "consume" }
+            coEvery { restoreStateRepository.clearPreRestoreBackupAvailable() } coAnswers {
+                order += "clear"
+            }
+            coEvery { restoreStateRepository.resolveAttempt(any()) } coAnswers {
+                order += "resolve"
+                true
+            }
+
+            val outcome = coordinator.handlePostRestoreLaunch()
+
+            assertEquals(RestoreRecoveryCoordinator.PreflightOutcome.RecoveryCompleted, outcome)
+            assertEquals(
+                listOf("consume", "clear", "resolve"),
+                order,
+                "consume the canonical, clear availability, resolve LAST",
+            )
+
+            // A second launch over the resolved journal is a plain NoOp — the undo is gone.
+            coEvery { restoreStateRepository.getAttempt() } returns null
+            assertEquals(
+                RestoreRecoveryCoordinator.PreflightOutcome.NoOp,
+                coordinator.handlePostRestoreLaunch(),
+            )
+        }
+
+    @Test
+    fun `a committed-rollback finalization failure keeps the journal - the replay is idempotent`() =
+        runTest {
+            // R4.1 mandated test 2: the cleanup runs but the availability clear THROWS before
+            // the resolve — the journal must stay Committed so the next launch replays the
+            // whole branch idempotently to the same terminal state.
+            val attempt = makeAttempt(
+                kind = RestoreAttempt.Kind.Rollback,
+                phase = RestoreAttempt.Phase.Committed,
+                context = null,
+                rollbackSnapshotPath = null,
+            )
+            coEvery { restoreStateRepository.getAttempt() } returns attempt
+            every { snapshotProvider.getPreRestoreBackupFile() } returns
+                File("pre_restore_backup.db")
+            coEvery { restoreStateRepository.clearPreRestoreBackupAvailable() } throws
+                IOException("datastore write failed")
+
+            val first = coordinator.handlePostRestoreLaunch()
+
+            assertEquals(RestoreRecoveryCoordinator.PreflightOutcome.RecoveryCompleted, first)
+            coVerify(exactly = 0) {
+                restoreStateRepository.resolveAttempt(any())
+            }
+
+            // The replay (same journal, the write now succeeds) reaches the terminal state.
+            coEvery { restoreStateRepository.clearPreRestoreBackupAvailable() } coAnswers { }
+            val second = coordinator.handlePostRestoreLaunch()
+
+            assertEquals(RestoreRecoveryCoordinator.PreflightOutcome.RecoveryCompleted, second)
+            coVerify(exactly = 2) { snapshotProvider.deletePreRestoreBackup() }
             coVerify(exactly = 1) { restoreStateRepository.resolveAttempt(attempt.id) }
         }
 

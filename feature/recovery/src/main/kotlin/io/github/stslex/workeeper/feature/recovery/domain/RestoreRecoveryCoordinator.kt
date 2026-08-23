@@ -121,24 +121,39 @@ class RestoreRecoveryCoordinator @Inject internal constructor(
         // unresolved FOREVER — refusing every future restore and undo (whose `beginAttempt`
         // would then see a foreign owner). Finish its bookkeeping instead and continue.
         //
-        // Replay-safe, data-bearing-first (R4): the undo-availability verdict comes from GROUND
-        // TRUTH — the canonical file's existence — because the journal cannot say which file
-        // the rollback applied: a reservation-sourced recovery consumed only its reservation,
-        // leaving the PREVIOUS restore's canonical undo valid; a canonical-sourced one consumed
-        // the slot. The applied-and-consumed source named by the journal is cleaned up
-        // idempotently, and the attempt resolves LAST, so a death anywhere in between replays
-        // this whole branch. The user-facing dialog of the interrupted rollback is deliberately
-        // NOT replayed: `Kind.Rollback` does not record whether it was a scenario-1 recovery
-        // (RestoreFailure) or a user undo (UndoRestoreSuccess), and inventing either would be
-        // worse than at-most-once feedback — the accepted, documented residual (spec §8.5b).
+        // SOURCE-AWARE and replay-safe (R4.1): `rollbackSnapshotPath` is the DURABLE
+        // discriminator of which file the committed rollback applied — null means the canonical
+        // slot, non-null the exact named source — so the finalization never infers ownership
+        // from file existence alone. A canonical-sourced rollback finishes the canonical's
+        // consumption idempotently and clears availability: a death between the commit record
+        // and the consume must NOT leave the same undo offered again, because replaying it
+        // after later writes would erase them. An explicit-source rollback consumes exactly its
+        // named file; the canonical — the PREVIOUS restore's undo — survives with its
+        // availability, and the flag clears only when the canonical is actually absent. The
+        // attempt resolves LAST and the whole branch replays idempotently: a failure mid-way
+        // keeps the `Committed` journal so the next launch reaches the same terminal state.
+        // The user-facing dialog of the interrupted rollback is deliberately NOT replayed:
+        // `Kind.Rollback` does not record recovery-vs-undo INTENT (only the applied source),
+        // and inventing a dialog would be worse than at-most-once feedback — the accepted,
+        // documented residual (spec §8.5b).
         if (attempt.phase == RestoreAttempt.Phase.Committed &&
             attempt.kind == RestoreAttempt.Kind.Rollback
         ) {
-            if (snapshotProvider.getPreRestoreBackupFile() == null) {
-                restoreStateRepository.clearPreRestoreBackupAvailable()
+            runCatching {
+                val explicitPath = attempt.rollbackSnapshotPath
+                if (explicitPath == null) {
+                    snapshotProvider.deletePreRestoreBackup()
+                    restoreStateRepository.clearPreRestoreBackupAvailable()
+                } else {
+                    runCatching { File(explicitPath).delete() }
+                    if (snapshotProvider.getPreRestoreBackupFile() == null) {
+                        restoreStateRepository.clearPreRestoreBackupAvailable()
+                    }
+                }
+                restoreStateRepository.resolveAttempt(attempt.id)
+            }.onFailure { error ->
+                logger.e(error, "committed-rollback finalization failed — it will replay")
             }
-            attempt.rollbackSnapshotPath?.let { path -> runCatching { File(path).delete() } }
-            restoreStateRepository.resolveAttempt(attempt.id)
             logger.w { "an interrupted rollback was already committed — bookkeeping finished" }
             return PreflightOutcome.RecoveryCompleted
         }

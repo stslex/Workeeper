@@ -2,6 +2,7 @@
 package io.github.stslex.workeeper.runtime
 
 import io.github.stslex.workeeper.app.common.di.AppUiAdmissionToken
+import io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetime
 import io.github.stslex.workeeper.core.core.logger.Logger
 import io.github.stslex.workeeper.core.data.backup.api.DatabaseReplacementEffects
 import io.github.stslex.workeeper.core.data.backup.api.DatabaseReplacementResult
@@ -11,10 +12,12 @@ import io.github.stslex.workeeper.core.data.backup.worker.BackupWorkLease
 import io.github.stslex.workeeper.core.data.backup.worker.BackupWorkerDeps
 import io.github.stslex.workeeper.core.data.database.AppDatabase
 import io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProvider
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.updateAndGet
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
 import java.io.IOException
@@ -74,7 +77,41 @@ internal class ReplacementTransaction(
     @Volatile
     var candidateInvalidated = false
 
+    /**
+     * The CURRENT candidate was already FULLY torn down (VM store cleared, lifetime joined,
+     * database closed) by the inline rollback's disposal (R4.1) — `attemptGeneration` must not
+     * run a second teardown over it.
+     */
+    @Volatile
+    var candidateDisposed = false
+
     companion object Key : CoroutineContext.Key<ReplacementTransaction>
+}
+
+/** One in-flight replacement submission's bookkeeping (single-flight per operation). */
+internal class InFlightReplacement(
+    val operation: ReplacementOperation,
+    val outcome: CompletableDeferred<ReplacementOutcome>,
+) {
+    /** The runtime-owned staged restore source; deleted on every terminal outcome. */
+    @Volatile
+    var stagedSource: File? = null
+
+    /** A staging failure recorded in the submission frame; resolved to a rejection. */
+    @Volatile
+    var stagingFailure: Throwable? = null
+
+    /** The rollback snapshot this attempt reserved inside the transaction (spec §8.5a). */
+    @Volatile
+    var reservation: File? = null
+}
+
+/** Marks a graph-only transition's preflight — a rollback inside it is rejected, not run. */
+internal object GraphOnlyTransition : CoroutineContext.Element {
+
+    override val key: CoroutineContext.Key<*> get() = Key
+
+    object Key : CoroutineContext.Key<GraphOnlyTransition>
 }
 
 /** One BuildingGeneration→Preflight→Publishing attempt's result (the ladder's step verdict). */
@@ -441,10 +478,18 @@ internal suspend fun commitMutation(
  *  - the applied file is consumed EXACTLY (invariant 3), via the plan's typed consumption.
  */
 internal suspend fun runInlineRollback(
-    closeDatabase: (AppDatabase) -> Unit,
     transaction: ReplacementTransaction,
     effects: DatabaseReplacementEffects,
     sourcePath: String?,
+    /**
+     * THE candidate teardown protocol (R4.1): clear the candidate's ViewModelStore, cancel and
+     * bounded-join its lifetime, then close its database — `AppRuntime` backs this with
+     * `GenerationQuiescer.tearDownCandidate(candidate, closeCandidateDatabase = true)`.
+     * Pre-R4.1 the inline branch closed the candidate database DIRECTLY, before the store was
+     * cleared or the lifetime joined — a candidate job's DB-touching `finally` could then run
+     * against the closed handle.
+     */
+    disposeCandidate: suspend (RuntimeGeneration) -> Boolean,
 ): ReplacementOutcome {
     val candidate = transaction.candidate
         ?: return ReplacementOutcome.RejectedBeforeMutation(
@@ -457,8 +502,8 @@ internal suspend fun runInlineRollback(
 
         is OperationSourcePlan.Proceed -> selected
     }
-    // Pre-mutation persistence, BEFORE the candidate close: a throw (foreign journal owner, or
-    // a failed write) rejects the inline rollback while the candidate and the live file are
+    // Pre-mutation persistence, BEFORE the candidate teardown: a throw (foreign journal owner,
+    // or a failed write) rejects the inline rollback while the candidate and the live file are
     // both untouched.
     val prepared = runCatching { effects.onBeforeMutation("") }
     if (prepared.isFailure) {
@@ -468,18 +513,19 @@ internal suspend fun runInlineRollback(
             ),
         )
     }
-    // The candidate's open-verification handle is the only open handle; close it (terminal)
-    // before the file mechanics. Closing invalidates the candidate for publication either way;
-    // a failed candidate close leaves an unknown-state handle over the live file — the LADDER
-    // MUST STOP (Fatal), and no further rename may run (spec §8.4).
+    // Invalidate, then run the ONE candidate teardown protocol before the file mechanics: the
+    // candidate's jobs may hold its database, so their `finally` blocks must finish BEFORE the
+    // close, and the close before the swap. A failed clear/join/close leaves an unknown state
+    // over the live file — the LADDER MUST STOP (Fatal), and no rename may run (spec §8.4).
     transaction.candidateInvalidated = true
-    val closed = runCatching { closeDatabase(candidate.database) }
-    if (closed.isFailure) {
+    val disposed = runCatching { disposeCandidate(candidate) }.getOrDefault(false)
+    if (!disposed) {
         transaction.closeFailed = true
         return ReplacementOutcome.FailedAfterMutation(
-            BackupError.Io(IOException("candidate close failed: ${closed.exceptionOrNull()}")),
+            BackupError.Io(IOException("candidate teardown failed before the inline rollback")),
         )
     }
+    transaction.candidateDisposed = true
     val replaced = provider.replaceLiveDatabaseFile(plan.source)
     if (replaced is BackupResult.Failure) {
         return ReplacementOutcome.FailedAfterMutation(replaced.error)
@@ -678,4 +724,37 @@ internal fun ReplacementOutcome.toSeamResult(): DatabaseReplacementResult = when
         DatabaseReplacementResult.FailedAfterMutation(error, effectsError)
 
     is ReplacementOutcome.Fatal -> DatabaseReplacementResult.FatalNoGeneration(effectsError)
+}
+
+/**
+ * Releases a generation whose graph construction failed, and returns the exception to throw:
+ * the orphan database is closed only AFTER its lifetime is cancelled and JOINED, because a
+ * partially constructed graph may already have handed that lifetime to consumers that started
+ * jobs. For an OWNED database, a failed join or close escalates to [OrphanCloseException]; for
+ * a SHARED-database candidate the join verdict is equally load-bearing (R4 blocker D) — an
+ * unjoinable child holds the LIVE database and no later mechanism joins an abandoned candidate
+ * lifetime, so it escalates to [PartialCandidateUnwindException]. Both signals stop the caller
+ * terminally instead of resolving to an ordinary retryable abort. Non-suspend by necessity —
+ * generation 1 is built from the `currentGeneration` getter — so the join runs on the caller's
+ * thread with the same bounded budget the candidate paths use.
+ */
+internal fun releasePartialGeneration(
+    lifetime: AppScopeLifetime,
+    database: AppDatabase,
+    ownsDatabase: Boolean,
+    cause: Throwable,
+    closeDatabase: (AppDatabase) -> Unit,
+    drainTimeoutMillis: Long,
+): Throwable {
+    val joined: Unit? = runCatching {
+        runBlocking {
+            withTimeoutOrNull(drainTimeoutMillis) { lifetime.cancelAndJoin() }
+        }
+    }.getOrNull()
+    if (!ownsDatabase) {
+        return if (joined == null) PartialCandidateUnwindException(cause) else cause
+    }
+    if (joined == null) return OrphanCloseException(cause)
+    return runCatching { closeDatabase(database) }
+        .fold(onSuccess = { cause }, onFailure = { OrphanCloseException(it) })
 }
