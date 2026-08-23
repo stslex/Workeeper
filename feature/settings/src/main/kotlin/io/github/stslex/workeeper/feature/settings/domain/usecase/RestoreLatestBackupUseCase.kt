@@ -10,6 +10,7 @@ import io.github.stslex.workeeper.core.data.backup.api.DatabaseReplacement
 import io.github.stslex.workeeper.core.data.backup.api.DatabaseReplacementEffects
 import io.github.stslex.workeeper.core.data.backup.api.DatabaseReplacementResult
 import io.github.stslex.workeeper.core.data.backup.api.error.BackupError
+import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreAttempt
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreInProgressContext
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreStateRepository
 import io.github.stslex.workeeper.core.data.backup.api.result.BackupResult
@@ -17,6 +18,7 @@ import io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotPr
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import java.io.IOException
+import java.util.UUID
 
 /**
  * The restore-latest orchestration, extracted from `BackupInteractorImpl` per the domain-layer
@@ -72,21 +74,17 @@ class RestoreLatestBackupUseCase(
             )
         }
 
-        // Preserve the live database so the post-restart pre-flight (Scenario 1)
-        // and any later user-initiated undo (Scenario 3) have something to roll
-        // back to.
-        when (val preserved = snapshotProvider.preserveCurrentDb()) {
-            is BackupResult.Success -> Unit
-            is BackupResult.Failure -> return@withContext preserved
-        }
+        // The rollback snapshot is NOT taken here: reserving it belongs to the serialized
+        // transaction (spec §8.5a), which takes it after validation and before anything
+        // irreversible, so two concurrent restores can never overwrite each other's slot and a
+        // rejected attempt discards only its own reservation.
 
         val tempFile = tempFileProvider.createTempFile(TEMP_RESTORE_PREFIX, TEMP_RESTORE_SUFFIX)
         try {
             val download = backupStorage.downloadBackup(ref, tempFile)
             if (download is BackupResult.Failure) {
-                // Pre-submission failure: no transaction exists yet, so this cleanup is
-                // caller-owned — the only compensation that stays outside the effects object.
-                rollbackPreSwapFailure()
+                // Pre-submission failure: no transaction, no journal entry and no reservation
+                // exist yet, so there is nothing to compensate.
                 return@withContext download
             }
             // Ownership of tempFile transfers to the runtime AT SUBMISSION (staged copy); the
@@ -96,6 +94,7 @@ class RestoreLatestBackupUseCase(
             val snapshotResult = databaseReplacement.restoreFromSnapshot(
                 source = tempFile,
                 effects = RestoreTransactionEffects(
+                    attemptId = UUID.randomUUID().toString(),
                     context = RestoreInProgressContext(
                         backupSchemaVersion = backupSchemaVersion,
                         backupCreatedAtEpochMs = ref.manifest.createdAtEpochMs,
@@ -106,30 +105,34 @@ class RestoreLatestBackupUseCase(
             )
             when (snapshotResult) {
                 is DatabaseReplacementResult.Committed -> {
-                    snapshotResult.effectsError?.let { effectsError ->
-                        // The restore itself committed; only post-commit bookkeeping failed —
-                        // surfaced (never a silently clean commit), success semantics kept.
-                        logger.w { "restore committed with failed effects: $effectsError" }
+                    val effectsError = snapshotResult.effectsError
+                    if (effectsError == null) {
+                        BackupResult.Success(Unit)
+                    } else {
+                        // The file swap committed but its DURABLE record did not (spec §8.5a):
+                        // the journal still reads `Prepared`, so the next launch will roll this
+                        // restore back. Reporting success here would be the false-success the
+                        // journal exists to prevent.
+                        logger.w { "restore committed without a durable record: $effectsError" }
+                        BackupResult.Failure(effectsError)
                     }
-                    BackupResult.Success(Unit)
                 }
 
                 // Compensation already ran INSIDE the transaction (onRejectedBeforeMutation).
                 is DatabaseReplacementResult.RejectedBeforeMutation ->
                     BackupResult.Failure(snapshotResult.error)
 
-                // The data is the PRE-restore data (mandate 3): restore-FAILURE semantics —
-                // never a success dialog, never an undo offer. Marker compensation ran inside
-                // the transaction (onRecoveredByRollback).
+                // The data is the PRE-restore data: restore-FAILURE semantics — never a success
+                // dialog, never an undo offer.
                 is DatabaseReplacementResult.RecoveredByRollback ->
                     BackupResult.Failure(snapshotResult.error)
 
-                // Post-PONR without recovery: every asset preserved; the journal flag written
-                // by onFailedAfterMutation routes the next launch to the failure path.
+                // Post-PONR without recovery: every asset preserved and the journal left at
+                // `Prepared`, which routes the next launch to recovery.
                 is DatabaseReplacementResult.FailedAfterMutation ->
                     BackupResult.Failure(snapshotResult.error)
 
-                DatabaseReplacementResult.FatalNoGeneration -> BackupResult.Failure(
+                is DatabaseReplacementResult.FatalNoGeneration -> BackupResult.Failure(
                     BackupError.Io(IOException("replacement fatal: no generation serving")),
                 )
             }
@@ -143,54 +146,62 @@ class RestoreLatestBackupUseCase(
      * TRANSACTION's coroutine, so a dead initiator never strands it. Idempotent; DataStore-only.
      */
     private inner class RestoreTransactionEffects(
+        override val attemptId: String,
         private val context: RestoreInProgressContext,
     ) : DatabaseReplacementEffects {
 
-        /** Crash-safety marker, written inside the mutex before anything irreversible. */
-        override suspend fun onBeforeMutation() {
-            restoreStateRepository.markRestoreInProgress(context)
+        /**
+         * Claims the durable attempt slot as
+         * [io.github.stslex.workeeper.core.data.backup.api.restore.RestoreAttempt.Phase.Prepared]
+         * — identity, manifest context and the runtime's reserved rollback path in ONE atomic
+         * write, before anything irreversible. Throwing is how the transaction is REJECTED when
+         * another unresolved attempt still owns the slot: a second restore must never inherit
+         * or overwrite the first's bookkeeping.
+         */
+        override suspend fun onBeforeMutation(rollbackSnapshotPath: String) {
+            val claimed = restoreStateRepository.beginAttempt(
+                RestoreAttempt(
+                    id = attemptId,
+                    kind = RestoreAttempt.Kind.Restore,
+                    phase = RestoreAttempt.Phase.Prepared,
+                    context = context,
+                    rollbackSnapshotPath = rollbackSnapshotPath.takeIf { it.isNotEmpty() },
+                ),
+            )
+            check(claimed) {
+                "another unresolved restore attempt owns the journal slot; refusing to start"
+            }
+        }
+
+        /** The swap committed: record it durably — the only source of a later success verdict. */
+        override suspend fun onMutationCommitted() {
+            val recorded = restoreStateRepository.recordAttemptCommitted(attemptId)
+            check(recorded) { "the journal slot is no longer owned by attempt $attemptId" }
+        }
+
+        /** Nothing irreversible happened → release the slot; the reservation is the runtime's. */
+        override suspend fun onRejectedBeforeMutation(error: BackupError) {
+            restoreStateRepository.resolveAttempt(attemptId)
         }
 
         /**
-         * Nothing irreversible happened → pre-swap cleanup is legal (and only here). Same body
-         * as [rollbackPreSwapFailure], inlined: a private-method call from this inner class
-         * would force a synthetic accessor (Android Lint `SyntheticAccessor`).
+         * In-process recovery already rolled back: the attempt is finished and the preserved
+         * slot was consumed by the recovery, so no undo is offered.
          */
-        override suspend fun onRejectedBeforeMutation(error: BackupError) {
-            snapshotProvider.deletePreRestoreBackup()
-            restoreStateRepository.clearRestoreInProgress()
-        }
-
-        /** Recovery already rolled back in-process: the marker is stale, the slot consumed. */
         override suspend fun onRecoveredByRollback(error: BackupError) {
-            restoreStateRepository.clearRestoreInProgress()
+            restoreStateRepository.resolveAttempt(attemptId)
             restoreStateRepository.clearPreRestoreBackupAvailable()
         }
 
         /**
-         * Post-PONR, no recovery ran: journal the interrupted mutation so the next launch's
-         * pre-flight takes the FAILURE path even when a schema peek would succeed against the
-         * untouched old file (a false "restore succeeded" is the lie this flag prevents).
+         * Post-PONR with no recovery: leave the attempt UNRESOLVED (`Prepared`). That durable
+         * state is what routes the next launch to the recovery path instead of letting a schema
+         * peek claim a success this attempt cannot prove.
          */
-        override suspend fun onFailedAfterMutation(error: BackupError) {
-            restoreStateRepository.markRestoreMutationInterrupted()
-        }
+        override suspend fun onFailedAfterMutation(error: BackupError) = Unit
 
-        /** Terminal runtime — same journal entry; the next process recovers. */
-        override suspend fun onFatal() {
-            restoreStateRepository.markRestoreMutationInterrupted()
-        }
-    }
-
-    /**
-     * Clean up the preserved snapshot + DataStore flag when the restore fails with NOTHING
-     * irreversible done (download failure before submission; pre-mutation rejection via the
-     * effects object). The live database was never mutated, so file-level rollback is
-     * unnecessary — just delete the now-stale preserved snapshot and clear the in-progress flag.
-     */
-    private suspend fun rollbackPreSwapFailure() {
-        snapshotProvider.deletePreRestoreBackup()
-        restoreStateRepository.clearRestoreInProgress()
+        /** Terminal runtime — same reasoning as [onFailedAfterMutation]: leave it unresolved. */
+        override suspend fun onFatal() = Unit
     }
 
     private companion object {

@@ -4,6 +4,7 @@ package io.github.stslex.workeeper.runtime
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetime
 import io.github.stslex.workeeper.core.core.images.ImageStorage
 import io.github.stslex.workeeper.core.data.backup.api.DatabaseReplacementEffects
 import io.github.stslex.workeeper.core.data.backup.api.DatabaseReplacementResult
@@ -18,6 +19,7 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitCancellation
@@ -42,11 +44,14 @@ import java.io.File
 import java.io.IOException
 
 /**
- * Replacement-transaction pins for the round-2 protocol: submission-owned bodies with staged
- * source ownership, typed effects executed exactly once on the transaction coroutine, PONR at
- * the START of the first irreversible action (teardown / close invocation / rename),
- * close-throw → Fatal, truthful RecoveredByRollback vs Committed, closed admission (leases +
- * atomic UI retire), and Fatal that is terminal under concurrency.
+ * Replacement-transaction pins for the round-2 protocol EXTENDED with the round-3 durable
+ * attempt journal (spec §8.5a): submission-owned bodies with staged source ownership, typed
+ * effects executed exactly once on the transaction coroutine, the per-attempt rollback
+ * RESERVATION taken inside the transaction (after validation, before anything irreversible),
+ * the promote → durable-commit-record → consume ordering, terminal compensation failures folded
+ * onto the outcome, PONR at the START of the first irreversible action (teardown / close
+ * invocation / rename), close-throw → Fatal, truthful RecoveredByRollback vs Committed, closed
+ * admission (leases + atomic UI retire), and Fatal that is terminal under concurrency.
  */
 internal class AppRuntimeReplacementTest {
 
@@ -54,20 +59,38 @@ internal class AppRuntimeReplacementTest {
         override fun onCleared() = onClear()
     }
 
-    /** Recording effects double — one label per protocol phase, order-preserving. */
+    /**
+     * Recording effects double — one label per protocol phase, order-preserving. [calls] is
+     * injectable so a test can fold the effect labels into the SHARED protocol log and assert
+     * their interleaving against the provider's own calls.
+     */
     private class RecordingEffects(
+        override val attemptId: String = "attempt-1",
+        val calls: MutableList<String> = mutableListOf(),
         private val onBefore: suspend () -> Unit = {},
+        private val onMutationCommittedBody: suspend () -> Unit = {},
         private val onCommittedBody: suspend () -> Unit = {},
+        private val onRejectedBody: suspend () -> Unit = {},
     ) : DatabaseReplacementEffects {
-        val calls = mutableListOf<String>()
 
-        override suspend fun onBeforeMutation() {
+        /** The reservation path the runtime handed to [onBeforeMutation]; null when never run. */
+        var reservationPath: String? = null
+            private set
+
+        override suspend fun onBeforeMutation(rollbackSnapshotPath: String) {
+            reservationPath = rollbackSnapshotPath
             calls += "beforeMutation"
             onBefore()
         }
 
+        override suspend fun onMutationCommitted() {
+            calls += "mutationCommitted"
+            onMutationCommittedBody()
+        }
+
         override suspend fun onRejectedBeforeMutation(error: BackupError) {
             calls += "rejected"
+            onRejectedBody()
         }
 
         override suspend fun onCommitted() {
@@ -99,10 +122,19 @@ internal class AppRuntimeReplacementTest {
     private val graphFactoryFailures = mutableSetOf<Int>()
     private var builtGraphs = 0
 
-    /** Interleaving recorder: closes, job-ends and swaps push labels here. */
+    /** Runs inside the graph factory BEFORE its injected failure — the partial-build seam. */
+    private var graphFactoryAction: ((Int, AppDatabase, AppScopeLifetime) -> Unit)? = null
+
+    /** Interleaving recorder: closes, db touches, job-ends, swaps and asset deletes land here. */
     private val protocolLog = mutableListOf<String>()
 
+    /** Every value a database touch returned — keeps the touch a genuine use, not a no-op. */
+    private val touchedDatabases = mutableListOf<String>()
+
     private val provider = mockk<DatabaseSnapshotProvider>(relaxed = true)
+
+    /** Every rollback snapshot the provider reserved, in reservation order. */
+    private val reservations = mutableListOf<File>()
 
     private var preflightCalls = 0
     private val preflightOutcomes = ArrayDeque<StartupOutcome>()
@@ -114,8 +146,8 @@ internal class AppRuntimeReplacementTest {
     private fun sourceFile(name: String = "restore_source.db"): File =
         File(tempDir, name).apply { writeText("snapshot-bytes") }
 
-    private fun preservedFile(): File =
-        File(tempDir, "pre_restore_backup.db").apply { writeText("preserved-bytes") }
+    private fun preservedFile(content: String = "preserved-bytes"): File =
+        File(tempDir, "pre_restore_backup.db").apply { writeText(content) }
 
     private fun runtimeTest(
         replacementPolicy: ReplacementPolicy = ReplacementPolicy.RebuildInProcess,
@@ -133,20 +165,45 @@ internal class AppRuntimeReplacementTest {
             File(tempDir, "pre_restore_backup.db").takeIf { it.exists() }
         }
         coEvery { provider.deletePreRestoreBackup() } coAnswers {
+            protocolLog += "deletePreRestoreBackup"
             File(tempDir, "pre_restore_backup.db").delete()
+        }
+        // R3 rollback-slot reservation (spec §8.5a): a UNIQUE per-attempt file, promoted onto the
+        // canonical undo slot only after the attempt's live-file mutation committed.
+        coEvery { provider.reserveRollbackSnapshot(any()) } coAnswers {
+            val reservation = File(tempDir, "reservation_${firstArg<String>()}.db")
+                .apply { writeText(RESERVATION_CONTENT) }
+            reservations += reservation
+            BackupResult.Success(reservation)
+        }
+        coEvery { provider.promoteRollbackReservation(any()) } coAnswers {
+            val reservation = firstArg<File>()
+            reservation.copyTo(File(tempDir, "pre_restore_backup.db"), overwrite = true)
+            reservation.delete()
             BackupResult.Success(Unit)
         }
         val dispatcher = UnconfinedTestDispatcher(testScheduler)
         val runtime = AppRuntime(
             applicationContext = context,
             dbFactory = {
+                val index = databases.size
                 val db = mockk<AppDatabase>(relaxed = true)
+                // A call ON the database object, recorded by the mock itself, so the ordering
+                // pins below prove a job reached the handle before it was closed. It is
+                // `toString()` rather than a DAO read because app/app's unit-test classpath has
+                // no room3 — `AppDatabase`'s own members cannot be resolved here at all.
+                every { db.toString() } answers {
+                    protocolLog += "db-touch-$index"
+                    "AppDatabase#$index"
+                }
                 databases += db
                 db
             },
             imageStorageFactory = { mockk<ImageStorage>(relaxed = true) },
-            graphFactory = { _, _, _, _, _ ->
-                check(builtGraphs++ !in graphFactoryFailures) { "injected graph construction failure" }
+            graphFactory = { _, database, _, lifetime, _ ->
+                val index = builtGraphs++
+                graphFactoryAction?.invoke(index, database, lifetime)
+                check(index !in graphFactoryFailures) { "injected graph construction failure" }
                 mockk<AppGraph>(relaxed = true) {
                     every { databaseSnapshotProvider } returns provider
                 }
@@ -180,6 +237,12 @@ internal class AppRuntimeReplacementTest {
 
     private fun stagedFiles(): List<File> =
         tempDir.listFiles().orEmpty().filter { it.name.startsWith("staged_restore_") }
+
+    private fun reservationFiles(): List<File> =
+        tempDir.listFiles().orEmpty().filter { it.name.startsWith("reservation_") }
+
+    private fun closeIndices(): List<Int> =
+        protocolLog.withIndex().filter { it.value == "close" }.map { it.index }
 
     // ------------------------------------------------------------------------------------------
     // Mandate 1 — staged source ownership at submission.
@@ -241,6 +304,7 @@ internal class AppRuntimeReplacementTest {
 
             assertInstanceOf(ReplacementOutcome.RejectedBeforeMutation::class.java, outcome)
             coVerify(exactly = 0) { provider.validateSnapshotForRestore(any()) }
+            coVerify(exactly = 0) { provider.reserveRollbackSnapshot(any()) }
             assertEquals(listOf("rejected"), effects.calls)
         }
 
@@ -328,6 +392,166 @@ internal class AppRuntimeReplacementTest {
         }
 
     // ------------------------------------------------------------------------------------------
+    // Spec §8.5a — the per-attempt rollback reservation and the durable commit record.
+    // ------------------------------------------------------------------------------------------
+
+    @Test
+    fun `the rollback snapshot is reserved INSIDE the transaction, after validation`() =
+        runtimeTest { runtime ->
+            runtime.currentGeneration
+            coEvery { provider.validateSnapshotForRestore(any()) } returns BackupResult.Failure(
+                BackupError.CorruptedBackup(reason = "magic mismatch"),
+            )
+            val rejectedEffects = RecordingEffects(attemptId = "attempt-rejected")
+
+            val rejected = runtime.replace(
+                ReplacementOperation.RestoreFromSnapshot(sourceFile("first.db")),
+                rejectedEffects,
+            )
+
+            assertInstanceOf(ReplacementOutcome.RejectedBeforeMutation::class.java, rejected)
+            // Reservation is INSIDE the transaction and AFTER validation: a snapshot taken for a
+            // request the gates reject would churn the undo slot for nothing.
+            coVerify(exactly = 0) { provider.reserveRollbackSnapshot(any()) }
+            assertNull(rejectedEffects.reservationPath, "no reservation, no pre-mutation path")
+            assertTrue(reservationFiles().isEmpty())
+
+            coEvery { provider.validateSnapshotForRestore(any()) } returns BackupResult.Success(Unit)
+            val committedEffects = RecordingEffects(attemptId = "attempt-committed")
+
+            val committed = runtime.replace(
+                ReplacementOperation.RestoreFromSnapshot(sourceFile("second.db")),
+                committedEffects,
+            )
+
+            assertInstanceOf(ReplacementOutcome.Completed::class.java, committed)
+            coVerify(exactly = 1) { provider.reserveRollbackSnapshot("attempt-committed") }
+            assertEquals(
+                reservations.single().absolutePath,
+                committedEffects.reservationPath,
+                "onBeforeMutation persists THIS attempt's reservation path",
+            )
+        }
+
+    @Test
+    fun `a rejected restore discards only its own reservation and leaves the previous undo slot intact`() =
+        runtimeTest { runtime ->
+            runtime.currentGeneration
+            preservedFile(content = "OLD")
+            // Rejected AFTER the reservation: the journal claim is what refuses the attempt.
+            val effects = RecordingEffects(onBefore = { error("journal slot already owned") })
+
+            val outcome = runtime.replace(
+                ReplacementOperation.RestoreFromSnapshot(sourceFile()),
+                effects,
+            )
+
+            assertInstanceOf(ReplacementOutcome.RejectedBeforeMutation::class.java, outcome)
+            coVerify(exactly = 1) { provider.reserveRollbackSnapshot(any()) }
+            assertEquals(listOf("beforeMutation", "rejected"), effects.calls)
+            assertEquals(
+                "OLD",
+                File(tempDir, "pre_restore_backup.db").readText(),
+                "the PREVIOUS undo slot survives a rejected attempt byte-for-byte",
+            )
+            assertTrue(
+                reservationFiles().isEmpty(),
+                "the attempt discarded its OWN reservation: ${reservationFiles()}",
+            )
+        }
+
+    @Test
+    fun `a committed restore promotes its reservation onto the undo slot`() =
+        runtimeTest { runtime ->
+            runtime.currentGeneration
+            preservedFile(content = "OLD")
+
+            val outcome = runtime.replace(ReplacementOperation.RestoreFromSnapshot(sourceFile()))
+
+            assertInstanceOf(ReplacementOutcome.Completed::class.java, outcome)
+            val reservation = reservations.single()
+            assertEquals(
+                RESERVATION_CONTENT,
+                File(tempDir, "pre_restore_backup.db").readText(),
+                "the undo slot holds the db that IMMEDIATELY preceded this restore",
+            )
+            assertFalse(reservation.exists(), "the reservation was promoted (moved), not copied")
+            assertTrue(reservationFiles().isEmpty())
+        }
+
+    @Test
+    fun `durable commit is recorded BEFORE the rollback asset is consumed`() =
+        runtimeTest { runtime ->
+            runtime.currentGeneration
+            preservedFile()
+            // ONE shared list: the effects' labels interleave with the provider's own calls.
+            val effects = RecordingEffects(calls = protocolLog)
+
+            val outcome = runtime.replace(
+                ReplacementOperation.RollbackToPreRestoreBackup(),
+                effects,
+            )
+
+            assertInstanceOf(ReplacementOutcome.Completed::class.java, outcome)
+            val recorded = protocolLog.indexOf("mutationCommitted")
+            val consumed = protocolLog.indexOf("deletePreRestoreBackup")
+            assertTrue(recorded >= 0, "the durable commit record must run: $protocolLog")
+            assertTrue(consumed >= 0, "the rollback asset must be consumed: $protocolLog")
+            assertTrue(
+                recorded < consumed,
+                "a crash between the two must leave a PROVABLE commit, not a lost asset: $protocolLog",
+            )
+        }
+
+    @Test
+    fun `a failed durable commit record keeps every asset and surfaces on the outcome`() =
+        runtimeTest { runtime ->
+            runtime.currentGeneration
+            preservedFile(content = "UNDO")
+            val effects = RecordingEffects(
+                onMutationCommittedBody = { error("durable journal write failed") },
+            )
+
+            val outcome = runtime.replace(
+                ReplacementOperation.RollbackToPreRestoreBackup(),
+                effects,
+            )
+
+            val completed = assertInstanceOf(ReplacementOutcome.Completed::class.java, outcome)
+            assertNotNull(
+                completed.effectsError,
+                "an unprovable commit is surfaced, never reported as a clean one",
+            )
+            coVerify(exactly = 0) { provider.deletePreRestoreBackup() }
+            assertEquals(
+                "UNDO",
+                File(tempDir, "pre_restore_backup.db").readText(),
+                "nothing was consumed — the next launch can still roll back",
+            )
+            assertEquals(listOf("beforeMutation", "mutationCommitted", "committed"), effects.calls)
+        }
+
+    @Test
+    fun `terminal compensation failure is surfaced on the outcome`() = runtimeTest { runtime ->
+        runtime.currentGeneration
+        coEvery { provider.validateSnapshotForRestore(any()) } returns BackupResult.Failure(
+            BackupError.BackupTooNew(backupSchemaVersion = 9, appSchemaVersion = 5),
+        )
+        val effects = RecordingEffects(onRejectedBody = { error("compensation write failed") })
+
+        val outcome = runtime.replace(ReplacementOperation.RestoreFromSnapshot(sourceFile()), effects)
+
+        val rejected =
+            assertInstanceOf(ReplacementOutcome.RejectedBeforeMutation::class.java, outcome)
+        assertInstanceOf(BackupError.BackupTooNew::class.java, rejected.error)
+        assertNotNull(
+            rejected.effectsError,
+            "a throwing compensation leaves durable state disagreeing with the outcome",
+        )
+        assertEquals(listOf("rejected"), effects.calls)
+    }
+
+    // ------------------------------------------------------------------------------------------
     // Mandates 3 + 4 — result truth and asset preservation.
     // ------------------------------------------------------------------------------------------
 
@@ -354,9 +578,9 @@ internal class AppRuntimeReplacementTest {
             assertSame(swapError, recovered.error)
             assertEquals(2, recovered.generation.id, "a successor serves the PRE-operation data")
             assertEquals(
-                listOf("beforeMutation", "recovered"),
+                listOf("beforeMutation", "mutationCommitted", "recovered"),
                 effects.calls,
-                "recovered-by-rollback effects — never onCommitted",
+                "the rollback's own commit is recorded; the terminal is recovered, never committed",
             )
         }
 
@@ -389,10 +613,13 @@ internal class AppRuntimeReplacementTest {
             preservedFile()
             val effects = RecordingEffects()
 
-            val outcome = runtime.replace(ReplacementOperation.RollbackToPreRestoreBackup, effects)
+            val outcome = runtime.replace(
+                ReplacementOperation.RollbackToPreRestoreBackup(),
+                effects,
+            )
 
             assertInstanceOf(ReplacementOutcome.Completed::class.java, outcome)
-            assertEquals(listOf("beforeMutation", "committed"), effects.calls)
+            assertEquals(listOf("beforeMutation", "mutationCommitted", "committed"), effects.calls)
         }
 
     @Test
@@ -413,6 +640,11 @@ internal class AppRuntimeReplacementTest {
             assertInstanceOf(ReplacementOutcome.FailedAfterMutation::class.java, outcome)
             assertEquals(listOf("beforeMutation", "failedAfterMutation"), effects.calls)
             assertTrue(File(tempDir, "pre_restore_backup.db").exists(), "assets preserved")
+            assertEquals(
+                1,
+                reservationFiles().size,
+                "the journal names this reservation — the runtime keeps it for the next launch",
+            )
         }
 
     @Test
@@ -451,7 +683,7 @@ internal class AppRuntimeReplacementTest {
                 effects,
             )
 
-            assertEquals(ReplacementOutcome.Fatal, outcome)
+            assertInstanceOf(ReplacementOutcome.Fatal::class.java, outcome)
             assertEquals(RuntimePhase.Fatal, runtime.phases.value)
             assertFalse(protocolLog.contains("swap"), "a failed close must NEVER be renamed over")
             assertEquals(listOf("beforeMutation", "fatal"), effects.calls)
@@ -501,7 +733,7 @@ internal class AppRuntimeReplacementTest {
             advanceTimeBy(5_000)
             runCurrent()
 
-            assertEquals(ReplacementOutcome.Fatal, transaction.await())
+            assertInstanceOf(ReplacementOutcome.Fatal::class.java, transaction.await())
             assertFalse(protocolLog.contains("close"), "never close under an unjoined job")
             assertFalse(protocolLog.contains("swap"))
             never.complete(Unit)
@@ -518,7 +750,7 @@ internal class AppRuntimeReplacementTest {
 
             val outcome = runtime.replace(ReplacementOperation.RestoreFromSnapshot(sourceFile()))
 
-            assertEquals(ReplacementOutcome.Fatal, outcome)
+            assertInstanceOf(ReplacementOutcome.Fatal::class.java, outcome)
             assertEquals(
                 1,
                 protocolLog.count { it == "swap" },
@@ -536,7 +768,7 @@ internal class AppRuntimeReplacementTest {
 
             val outcome = runtime.replace(ReplacementOperation.RestoreFromSnapshot(sourceFile()))
 
-            assertEquals(ReplacementOutcome.Fatal, outcome)
+            assertInstanceOf(ReplacementOutcome.Fatal::class.java, outcome)
             assertEquals(1, protocolLog.count { it == "swap" }, "no rollback rename after")
         }
 
@@ -550,6 +782,93 @@ internal class AppRuntimeReplacementTest {
             val outcome = runtime.replace(ReplacementOperation.RestoreFromSnapshot(sourceFile()))
 
             assertInstanceOf(ReplacementOutcome.RecoveredByRollback::class.java, outcome)
+        }
+
+    @Test
+    fun `candidate jobs are joined before the candidate database closes`() =
+        runtimeTest { runtime ->
+            runtime.currentGeneration
+            preservedFile()
+            preflightAction = { generation ->
+                if (preflightCalls == 1) {
+                    generation.lifetime.childScope(UnconfinedTestDispatcher(testScheduler)).launch {
+                        try {
+                            awaitCancellation()
+                        } finally {
+                            // The unwinding job TOUCHES the candidate database: the mock records
+                            // "db-touch-1", so an out-of-order teardown would close the handle
+                            // this access still needs.
+                            touchedDatabases += generation.database.toString()
+                            protocolLog += "candidate-job-ended"
+                        }
+                    }
+                    // A nested unconfined launch queues on the thread-local event loop; yield so
+                    // the job genuinely STARTS (enters its try) before this preflight returns.
+                    kotlinx.coroutines.yield()
+                }
+            }
+            preflightOutcomes += StartupOutcome.RouteToRecovery // candidate #1 fails preflight
+
+            val outcome = runtime.replace(ReplacementOperation.RestoreFromSnapshot(sourceFile()))
+
+            assertInstanceOf(ReplacementOutcome.RecoveredByRollback::class.java, outcome)
+            // closes: [0]=outgoing, [1]=candidate #1's dispose-close.
+            val candidateClose = closeIndices()[1]
+            assertTrue(
+                protocolLog.indexOf("candidate-job-ended") in 0 until candidateClose,
+                "the candidate's DB-bound job must JOIN before its database closes: $protocolLog",
+            )
+            assertTrue(
+                protocolLog.indexOf("db-touch-1") in 0 until candidateClose,
+                "the job's finally used the candidate db BEFORE the close: $protocolLog",
+            )
+            assertEquals(
+                listOf("AppDatabase#1"),
+                touchedDatabases,
+                "the job touched the CANDIDATE's database, not the outgoing one",
+            )
+        }
+
+    @Test
+    fun `a partially constructed generation joins its jobs before closing the orphan database`() =
+        runtimeTest { runtime ->
+            runtime.currentGeneration
+            preservedFile()
+            graphFactoryFailures += 1 // candidate #1's graph build throws AFTER the action below
+            graphFactoryAction = { index, database, lifetime ->
+                if (index == 1) {
+                    // A partially constructed graph already handed the lifetime to a consumer
+                    // that started a DB-bound job. Real dispatcher: this job's unwinding runs
+                    // inside buildGeneration's own runBlocking join, not on the test scheduler.
+                    lifetime.childScope(Dispatchers.Unconfined).launch {
+                        try {
+                            awaitCancellation()
+                        } finally {
+                            touchedDatabases += database.toString()
+                            protocolLog += "orphan-job-ended"
+                        }
+                    }
+                }
+            }
+
+            val outcome = runtime.replace(ReplacementOperation.RestoreFromSnapshot(sourceFile()))
+
+            assertInstanceOf(ReplacementOutcome.RecoveredByRollback::class.java, outcome)
+            // closes: [0]=outgoing, [1]=the ORPHANED candidate database.
+            val orphanClose = closeIndices()[1]
+            assertTrue(
+                protocolLog.indexOf("orphan-job-ended") in 0 until orphanClose,
+                "the partial generation JOINED its jobs before closing the orphan: $protocolLog",
+            )
+            assertTrue(
+                protocolLog.indexOf("db-touch-1") in 0 until orphanClose,
+                "the job's finally used the orphan db BEFORE the close: $protocolLog",
+            )
+            assertEquals(
+                listOf("AppDatabase#1"),
+                touchedDatabases,
+                "the job touched the ORPHANED database, not the outgoing one",
+            )
         }
 
     // ------------------------------------------------------------------------------------------
@@ -716,12 +1035,14 @@ internal class AppRuntimeReplacementTest {
     fun `different operation gets its OWN serialized result - never the other operation's`() =
         runtimeTest { runtime ->
             runtime.currentGeneration
-            // No preserved file exists → the rollback op must reject on ITS OWN terms.
+            // No preserved file exists → the rollback op must reject on ITS OWN terms. It is
+            // submitted FIRST because a committed restore legitimately CREATES the undo slot
+            // (its reservation is promoted there), which would hide the rejection under it.
+            val rollback = async {
+                runtime.replace(ReplacementOperation.RollbackToPreRestoreBackup())
+            }
             val restore = async {
                 runtime.replace(ReplacementOperation.RestoreFromSnapshot(sourceFile()))
-            }
-            val rollback = async {
-                runtime.replace(ReplacementOperation.RollbackToPreRestoreBackup)
             }
             runCurrent()
 
@@ -744,13 +1065,13 @@ internal class AppRuntimeReplacementTest {
 
             val a = async { runtime.replace(ReplacementOperation.RestoreFromSnapshot(sourceFile())) }
             runCurrent()
-            val b = async { runtime.replace(ReplacementOperation.RollbackToPreRestoreBackup) }
+            val b = async { runtime.replace(ReplacementOperation.RollbackToPreRestoreBackup()) }
             runCurrent()
             runtime.onUiGenerationDisposed(genOne.id)
             runCurrent()
 
-            assertEquals(ReplacementOutcome.Fatal, a.await())
-            assertEquals(ReplacementOutcome.Fatal, b.await(), "B did nothing and reported Fatal")
+            assertInstanceOf(ReplacementOutcome.Fatal::class.java, a.await())
+            assertInstanceOf(ReplacementOutcome.Fatal::class.java, b.await())
             coVerify(exactly = 0) { provider.getPreRestoreBackupFile() }
             assertEquals(0, protocolLog.count { it == "swap" }, "no swap ran at all")
             assertEquals(RuntimePhase.Fatal, runtime.phases.value, "nothing overwrote Fatal")
@@ -771,7 +1092,7 @@ internal class AppRuntimeReplacementTest {
                 effects,
             )
 
-            assertEquals(ReplacementOutcome.Fatal, after)
+            assertInstanceOf(ReplacementOutcome.Fatal::class.java, after)
             // Phase-aware Fatal dispatch: this transaction performed NOTHING (it landed on an
             // already-Fatal runtime), so NO compensation runs — `onFatal` would let the caller
             // journal a mutation that never happened; the rejection-compensation would delete
@@ -855,18 +1176,20 @@ internal class AppRuntimeReplacementTest {
                 BackupError.CorruptedBackup(reason = "magic mismatch"),
             )
             val t1Effects = object : DatabaseReplacementEffects {
+                override val attemptId: String = "t1"
+
                 override suspend fun onRejectedBeforeMutation(error: BackupError) {
                     terminalGate.await()
                 }
             }
-            val t2Effects = RecordingEffects()
+            val t2Effects = RecordingEffects(attemptId = "t2")
 
             val t1 = async {
                 runtime.replace(ReplacementOperation.RestoreFromSnapshot(sourceFile()), t1Effects)
             }
             runCurrent() // T1 is parked INSIDE its terminal effect, still holding the mutex
             val t2 = async {
-                runtime.replace(ReplacementOperation.RollbackToPreRestoreBackup, t2Effects)
+                runtime.replace(ReplacementOperation.RollbackToPreRestoreBackup(), t2Effects)
             }
             runCurrent()
 
@@ -884,41 +1207,6 @@ internal class AppRuntimeReplacementTest {
         }
 
     @Test
-    fun `candidate jobs are cancelled and JOINED before the candidate database closes`() =
-        runtimeTest { runtime ->
-            runtime.currentGeneration
-            preservedFile()
-            preflightAction = { generation ->
-                if (preflightCalls == 1) {
-                    generation.lifetime.childScope(UnconfinedTestDispatcher(testScheduler)).launch {
-                        try {
-                            awaitCancellation()
-                        } finally {
-                            protocolLog += "candidate-job-ended"
-                        }
-                    }
-                    // A nested unconfined launch queues on the thread-local event loop; yield so
-                    // the job genuinely STARTS (enters its try) before this preflight returns.
-                    kotlinx.coroutines.yield()
-                }
-            }
-            preflightOutcomes += StartupOutcome.RouteToRecovery // candidate #1 fails preflight
-
-            val outcome = runtime.replace(ReplacementOperation.RestoreFromSnapshot(sourceFile()))
-
-            assertInstanceOf(ReplacementOutcome.RecoveredByRollback::class.java, outcome)
-            val jobEnd = protocolLog.indexOf("candidate-job-ended")
-            // closes: [0]=outgoing, [1]=candidate #1's dispose-close.
-            val candidateClose = protocolLog.withIndex()
-                .filter { it.value == "close" }
-                .map { it.index }[1]
-            assertTrue(
-                jobEnd in 0 until candidateClose,
-                "the candidate's DB-bound job must JOIN before its database closes: $protocolLog",
-            )
-        }
-
-    @Test
     fun `rollback mechanics failure - Fatal with fatal effects`() = runtimeTest { runtime ->
         runtime.currentGeneration
         preservedFile()
@@ -931,8 +1219,13 @@ internal class AppRuntimeReplacementTest {
         val outcome =
             runtime.replace(ReplacementOperation.RestoreFromSnapshot(sourceFile()), effects)
 
-        assertEquals(ReplacementOutcome.Fatal, outcome)
+        assertInstanceOf(ReplacementOutcome.Fatal::class.java, outcome)
         assertEquals(listOf("beforeMutation", "fatal"), effects.calls)
         assertEquals(RuntimePhase.Fatal, runtime.phases.value)
+    }
+
+    private companion object {
+        /** The bytes a reserved rollback snapshot carries — the pre-attempt database stand-in. */
+        const val RESERVATION_CONTENT = "res"
     }
 }

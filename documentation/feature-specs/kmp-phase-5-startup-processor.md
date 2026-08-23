@@ -448,17 +448,73 @@ caller's own result is `Committed` (it requested the rollback); the outer restor
   generation build, terminal cleanup). On Android production the seam runs the `RestartProcess`
   policy — caller-visible success behavior (result, then restart) is unchanged.
 
-### 8.5a The restore journal (durable, idempotent)
+### 8.5a The attempt journal — one serialized attempt, crash-durable (R3)
 
-`RestoreStateRepository` carries one journal entry beside the `restore_in_progress` marker:
-`restore_mutation_interrupted` (DataStore, same file, cleared with `clearRestoreInProgress`).
-The restore transaction's effects write it on `onFailedAfterMutation` and `onFatal` — the two
-outcomes where the swap failed or ended UNKNOWN after PONR with every asset preserved. The
-Scenario-1 pre-flight checks the journal FIRST: when set, it routes straight to the failure
-path (rollback via the preserved snapshot, truthful `RestoreFailure`) WITHOUT the schema peek —
-because a peek against the untouched OLD file would succeed and produce a false
-"restore succeeded" dialog plus a fake undo offer. This is what makes the recovery path usable
-across a process restart instead of lying about it.
+The two independent booleans (`restore_in_progress` + `restore_mutation_interrupted`) had a gap
+that produced a FALSE success: the interrupted flag was written only by the TERMINAL effects, so
+a process death after the close began but before those effects left the OLD, still-valid
+database on disk with `restore_in_progress` set and no interruption recorded — and the cold-start
+schema peek, run against that healthy old file, published `RestoreSuccess` for a restore that
+never happened.
+
+R3 replaces them with an attempt-scoped persisted state machine. At most ONE unresolved attempt
+exists at a time, and everything belonging to it — identity, kind, manifest context, and the path
+of the rollback snapshot reserved for it — is one atomic DataStore edit.
+
+| Phase | Written when | What a cold start may conclude |
+|---|---|---|
+| *(no attempt)* | slot free | normal launch (`NoOp`) |
+| `Prepared` | atomically BEFORE anything irreversible (validation passed, rollback snapshot reserved) | **outcome UNKNOWN** — the live file may be old, new, or partially replaced. Recovery path, never a peek-driven success |
+| `Committed` | after the live-file rename returned success AND the reservation was promoted | the mutation is durably known to have happened; the schema peek is now a genuine verification of the NEW file, so success is legal |
+| *(resolved)* | one atomic clear by the OWNING attempt | nothing outstanding |
+
+Ownership rules, all enforced by the repository rather than by convention:
+
+- `beginAttempt` REFUSES when a different unresolved attempt owns the slot (same-id re-claim is
+  idempotent) — a new restore can never inherit or overwrite another attempt's bookkeeping, and
+  the refusal is what rejects the second of two rapid restores before anything irreversible.
+- `recordAttemptCommitted` and `resolveAttempt` are no-ops for a non-owner, so a late terminal
+  effect from a superseded attempt cannot erase the live one's state.
+- An unparsable/legacy state reads as `Prepared`. A pre-R3 install's `restore_in_progress` marker
+  carries no phase, so its outcome is unknown by construction: the conservative reading routes
+  that one launch through recovery rather than letting a peek claim a success the old flags
+  cannot prove.
+
+**Rollback-slot reservation.** The rollback snapshot is no longer taken by the caller before
+submission (where two concurrent restores would race over one canonical path). The runtime takes
+it INSIDE the serialized transaction, after validation and before the point of no return, into a
+per-attempt reservation file whose path goes into the journal entry. Consequences:
+
+- a rejected attempt discards only its OWN reservation — the previous undo slot survives intact;
+- a committed attempt PROMOTES its reservation onto the canonical `pre_restore_backup.db`, so the
+  undo slot holds exactly the database that immediately preceded that restore;
+- recovery prefers the journal's reservation path over the canonical slot: between the live-file
+  mutation and the promotion, the reservation is the only file holding the true pre-attempt
+  database.
+
+**Durable commit ordering** (the one order that keeps every crash window truthful):
+`rename` → `promote reservation` → `record Committed` → *only then* consume any rollback asset.
+A crash before the promotion recovers via the journal's reservation; a crash after it recovers
+via the canonical slot the promotion just wrote; a failure to record `Committed` leaves the
+mutation standing but unprovable, so the next launch conservatively rolls back — which the
+invariant explicitly permits, while claiming success does not. That failure is reported on the
+outcome (`effectsError`), never swallowed: **every** terminal compensation failure is folded onto
+the result, because durable state then disagrees with what a clean-looking outcome would imply.
+
+### 8.5b Safe retry vs terminal recovery (R3)
+
+`PreflightOutcome` distinguishes what the launch may still do:
+
+| Outcome | Condition | What the launch does |
+|---|---|---|
+| `RestoreSucceeded` | `Committed` attempt + successful peek | continue normally |
+| `RestoreRolledBack` | failure-path rollback COMMITTED (durably) | restart (the in-process Room handle is stale) |
+| `RetrySafe` | rollback PROVEN rejected pre-PONR — nothing closed, mutated or torn down | continue on the normal path; assets and journal preserved for the next attempt. No restart (it would loop) and no recovery surface (the intact open database does not warrant one) |
+| `RecoveryRequired` | post-PONR, closed handle, fatal runtime, or a commit whose durable record failed | **arm ZERO DB-bound work** — no query-planner warm-up, no repositories, no dialog observer, no main UI — and hand off to the DB-free recovery surface with every asset preserved |
+
+`RecoveryRequired` is cached on the coordinator (`recoverySurfaceRequired`) exactly as the
+migration decision is, and `MainActivity` routes on either. There is no automatic restart loop
+anywhere on these paths.
 
 ### 8.6 `MetroWorkerFactory` — no generation capture; first-operation admission
 

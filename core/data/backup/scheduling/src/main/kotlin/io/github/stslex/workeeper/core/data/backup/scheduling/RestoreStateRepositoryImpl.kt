@@ -12,6 +12,7 @@ import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.di.AppScope
+import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreAttempt
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreInProgressContext
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreStateRepository
 import io.github.stslex.workeeper.core.data.dataStore.core.DataStoreProviderFactory
@@ -56,45 +57,111 @@ class RestoreStateRepositoryImpl internal constructor(
         storeFactory.create(PREFS_NAME).dataStore,
     )
 
-    override suspend fun markRestoreInProgress(context: RestoreInProgressContext) {
-        dataStore.edit { prefs ->
-            prefs[KEY_RESTORE_IN_PROGRESS] = true
-            prefs[KEY_BACKUP_SCHEMA_VERSION] = context.backupSchemaVersion
-            prefs[KEY_BACKUP_CREATED_AT] = context.backupCreatedAtEpochMs
-            prefs[KEY_BACKUP_APP_VERSION] = context.backupAppVersion
-            prefs[KEY_RESTORE_STARTED_AT] = context.startedAtEpochMs
+    override suspend fun beginAttempt(attempt: RestoreAttempt): Boolean {
+        require(attempt.phase == RestoreAttempt.Phase.Prepared) {
+            "an attempt enters the slot as Prepared, not ${attempt.phase}"
         }
-    }
-
-    override suspend fun getRestoreInProgressContext(): RestoreInProgressContext? {
-        val prefs = dataStore.data.first()
-        if (prefs[KEY_RESTORE_IN_PROGRESS] != true) return null
-        return RestoreInProgressContext(
-            backupSchemaVersion = prefs[KEY_BACKUP_SCHEMA_VERSION] ?: return null,
-            backupCreatedAtEpochMs = prefs[KEY_BACKUP_CREATED_AT] ?: return null,
-            backupAppVersion = prefs[KEY_BACKUP_APP_VERSION] ?: return null,
-            startedAtEpochMs = prefs[KEY_RESTORE_STARTED_AT] ?: return null,
-        )
-    }
-
-    override suspend fun clearRestoreInProgress() {
+        var claimed = false
         dataStore.edit { prefs ->
-            prefs.remove(KEY_RESTORE_IN_PROGRESS)
+            val ownerId = prefs[KEY_ATTEMPT_ID]
+            // A DIFFERENT unresolved attempt owns the slot (including a legacy in-progress
+            // marker with no id): refuse rather than inherit its bookkeeping. Re-claiming with
+            // the same id is idempotent — a retried submission of one attempt is not a second.
+            val slotFree = ownerId == null && prefs[KEY_LEGACY_RESTORE_IN_PROGRESS] != true
+            if (!slotFree && ownerId != attempt.id) {
+                claimed = false
+                return@edit
+            }
+            prefs[KEY_ATTEMPT_ID] = attempt.id
+            prefs[KEY_ATTEMPT_KIND] = attempt.kind.name
+            prefs[KEY_ATTEMPT_PHASE] = RestoreAttempt.Phase.Prepared.name
+            attempt.rollbackSnapshotPath
+                ?.let { prefs[KEY_ATTEMPT_ROLLBACK_PATH] = it }
+                ?: prefs.remove(KEY_ATTEMPT_ROLLBACK_PATH)
+            attempt.context?.let { context ->
+                prefs[KEY_BACKUP_SCHEMA_VERSION] = context.backupSchemaVersion
+                prefs[KEY_BACKUP_CREATED_AT] = context.backupCreatedAtEpochMs
+                prefs[KEY_BACKUP_APP_VERSION] = context.backupAppVersion
+                prefs[KEY_RESTORE_STARTED_AT] = context.startedAtEpochMs
+            }
+            claimed = true
+        }
+        return claimed
+    }
+
+    override suspend fun recordAttemptCommitted(attemptId: String): Boolean {
+        var advanced = false
+        dataStore.edit { prefs ->
+            if (prefs[KEY_ATTEMPT_ID] != attemptId) return@edit
+            prefs[KEY_ATTEMPT_PHASE] = RestoreAttempt.Phase.Committed.name
+            advanced = true
+        }
+        return advanced
+    }
+
+    override suspend fun resolveAttempt(attemptId: String): Boolean {
+        var resolved = false
+        dataStore.edit { prefs ->
+            val ownerId = prefs[KEY_ATTEMPT_ID]
+            // A legacy in-progress marker has no id: the first attempt that resolves clears it,
+            // otherwise the migration state would outlive every attempt.
+            val ownsLegacy = ownerId == null && prefs[KEY_LEGACY_RESTORE_IN_PROGRESS] == true
+            if (ownerId != attemptId && !ownsLegacy) return@edit
+            prefs.remove(KEY_ATTEMPT_ID)
+            prefs.remove(KEY_ATTEMPT_KIND)
+            prefs.remove(KEY_ATTEMPT_PHASE)
+            prefs.remove(KEY_ATTEMPT_ROLLBACK_PATH)
             prefs.remove(KEY_BACKUP_SCHEMA_VERSION)
             prefs.remove(KEY_BACKUP_CREATED_AT)
             prefs.remove(KEY_BACKUP_APP_VERSION)
             prefs.remove(KEY_RESTORE_STARTED_AT)
-            // The journal entry is scoped to the same restore attempt (api KDoc).
-            prefs.remove(KEY_RESTORE_MUTATION_INTERRUPTED)
+            prefs.remove(KEY_LEGACY_RESTORE_IN_PROGRESS)
+            prefs.remove(KEY_LEGACY_MUTATION_INTERRUPTED)
+            resolved = true
         }
+        return resolved
     }
 
-    override suspend fun markRestoreMutationInterrupted() {
-        dataStore.edit { prefs -> prefs[KEY_RESTORE_MUTATION_INTERRUPTED] = true }
+    override suspend fun getAttempt(): RestoreAttempt? {
+        val prefs = dataStore.data.first()
+        val context = readContext(prefs)
+        val id = prefs[KEY_ATTEMPT_ID]
+        if (id == null) {
+            // Legacy migration (pre-R3 installs): a `restore_in_progress` marker written by an
+            // older build carries no phase, so its outcome is UNKNOWN — the conservative
+            // reading is Prepared, which routes the next launch through recovery instead of
+            // letting a schema peek claim a success the old flags cannot prove.
+            if (prefs[KEY_LEGACY_RESTORE_IN_PROGRESS] != true) return null
+            return RestoreAttempt(
+                id = LEGACY_ATTEMPT_ID,
+                kind = RestoreAttempt.Kind.Restore,
+                phase = RestoreAttempt.Phase.Prepared,
+                context = context,
+                rollbackSnapshotPath = null,
+            )
+        }
+        // An unparsable phase is unknown state → Prepared (recovery), never a success verdict.
+        val phase = prefs[KEY_ATTEMPT_PHASE]
+            ?.let { name -> RestoreAttempt.Phase.entries.firstOrNull { it.name == name } }
+            ?: RestoreAttempt.Phase.Prepared
+        val kind = prefs[KEY_ATTEMPT_KIND]
+            ?.let { name -> RestoreAttempt.Kind.entries.firstOrNull { it.name == name } }
+            ?: RestoreAttempt.Kind.Restore
+        return RestoreAttempt(
+            id = id,
+            kind = kind,
+            phase = phase,
+            context = context,
+            rollbackSnapshotPath = prefs[KEY_ATTEMPT_ROLLBACK_PATH],
+        )
     }
 
-    override suspend fun isRestoreMutationInterrupted(): Boolean =
-        dataStore.data.first()[KEY_RESTORE_MUTATION_INTERRUPTED] == true
+    private fun readContext(prefs: Preferences): RestoreInProgressContext? = RestoreInProgressContext(
+        backupSchemaVersion = prefs[KEY_BACKUP_SCHEMA_VERSION] ?: return null,
+        backupCreatedAtEpochMs = prefs[KEY_BACKUP_CREATED_AT] ?: return null,
+        backupAppVersion = prefs[KEY_BACKUP_APP_VERSION] ?: return null,
+        startedAtEpochMs = prefs[KEY_RESTORE_STARTED_AT] ?: return null,
+    )
 
     override suspend fun markPreRestoreBackupAvailable(originalDataDateEpochMs: Long) {
         dataStore.edit { prefs ->
@@ -121,7 +188,13 @@ class RestoreStateRepositoryImpl internal constructor(
     private companion object {
         const val PREFS_NAME = "restore_state_prefs"
 
-        val KEY_RESTORE_IN_PROGRESS = booleanPreferencesKey("restore_in_progress")
+        // Attempt-journal keys (R3). Wire format — never rename without a deprecation path.
+        val KEY_ATTEMPT_ID = stringPreferencesKey("restore_attempt_id")
+        val KEY_ATTEMPT_KIND = stringPreferencesKey("restore_attempt_kind")
+        val KEY_ATTEMPT_PHASE = stringPreferencesKey("restore_attempt_phase")
+        val KEY_ATTEMPT_ROLLBACK_PATH =
+            stringPreferencesKey("restore_attempt_rollback_snapshot_path")
+
         val KEY_BACKUP_SCHEMA_VERSION =
             intPreferencesKey("restore_in_progress_backup_schema_version")
         val KEY_BACKUP_CREATED_AT =
@@ -131,8 +204,12 @@ class RestoreStateRepositoryImpl internal constructor(
         val KEY_RESTORE_STARTED_AT =
             longPreferencesKey("restore_in_progress_started_at_epoch_ms")
 
-        val KEY_RESTORE_MUTATION_INTERRUPTED =
+        // Read-only legacy flags from pre-R3 installs; cleared when an attempt resolves.
+        val KEY_LEGACY_RESTORE_IN_PROGRESS = booleanPreferencesKey("restore_in_progress")
+        val KEY_LEGACY_MUTATION_INTERRUPTED =
             booleanPreferencesKey("restore_mutation_interrupted")
+
+        const val LEGACY_ATTEMPT_ID = "legacy-restore-in-progress"
 
         val KEY_PRE_RESTORE_AVAILABLE = booleanPreferencesKey("pre_restore_backup_available")
         val KEY_PRE_RESTORE_ORIGINAL_DATE =

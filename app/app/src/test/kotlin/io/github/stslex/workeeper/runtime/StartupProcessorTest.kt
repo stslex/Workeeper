@@ -173,20 +173,54 @@ internal class StartupProcessorTest {
         }
 
     @Test
-    fun `recovery-retry-pending CONTINUES the launch - no restart, no scenario 2, still armed`() {
-        // Round-2 caller-semantics fix: an uncommitted failure-path rollback preserves its
-        // assets for the next launch's retry — a RestartRequired here would boot-loop silently
-        // forever (restart → retry → fail → restart). The launch proceeds; the failure dialog
-        // published by the coordinator is the user's feedback.
-        coEvery { restoreCoordinator.handlePostRestoreLaunch() } returns
-            PreflightOutcome.RecoveryRetryPending
+    fun `RetrySafe continues the launch and arms normally`() {
+        // Round-3 caller semantics: a PROVEN pre-PONR rejection touched nothing — the live
+        // database is intact and open, the assets and the journal entry stay for the next
+        // attempt. A RestartRequired here would boot-loop silently forever (restart → retry →
+        // fail → restart) and a recovery surface is not warranted by an intact database, so the
+        // launch continues on the SAFE path with every chore and the observer armed.
+        coEvery { restoreCoordinator.handlePostRestoreLaunch() } returns PreflightOutcome.RetrySafe
 
         val outcome = coldStart()
 
         assertEquals(StartupOutcome.Proceed, outcome)
         coVerify(exactly = 0) { migrationCoordinator.checkAndRouteOrProceed() }
+        coVerify(exactly = 1) { imageStorage.cleanupTempFiles() }
+        assertEquals(1, plannerRuns, "the intact database is safe to warm")
         coVerify(exactly = 1) { graph.recoveryBootstrap }
     }
+
+    @Test
+    fun `RecoveryRequired routes to recovery and arms ZERO db-bound work`() {
+        // TERMINAL recovery (spec §8.4): the mutation's outcome is unknown or the runtime is
+        // fatal. This process must not open, warm or observe a database of unknown provenance —
+        // it arms nothing at all and hands the launch to the recovery surface.
+        coEvery { restoreCoordinator.handlePostRestoreLaunch() } returns
+            PreflightOutcome.RecoveryRequired
+
+        val outcome = coldStart()
+
+        assertEquals(StartupOutcome.RouteToRecovery, outcome)
+        coVerify(exactly = 0) { migrationCoordinator.checkAndRouteOrProceed() }
+        coVerify(exactly = 0) { graph.recoveryBootstrap }
+        coVerify(exactly = 0) { imageStorage.cleanupTempFiles() }
+        assertEquals(0, plannerRuns, "ANALYZE would open the unknown database")
+    }
+
+    @Test
+    fun `suspend preflight - RecoveryRequired routes to recovery and arms ZERO db-bound work`() =
+        kotlinx.coroutines.test.runTest {
+            coEvery { restoreCoordinator.handlePostRestoreLaunch() } returns
+                PreflightOutcome.RecoveryRequired
+
+            val outcome = processor().preflightAndArm(graph, appDatabase, lifetime)
+
+            assertEquals(StartupOutcome.RouteToRecovery, outcome)
+            coVerify(exactly = 0) { migrationCoordinator.checkAndRouteOrProceed() }
+            coVerify(exactly = 0) { graph.recoveryBootstrap }
+            coVerify(exactly = 0) { imageStorage.cleanupTempFiles() }
+            assertEquals(0, plannerRuns)
+        }
 
     @Test
     fun `planner failure is caught - startup completes with Proceed`() {

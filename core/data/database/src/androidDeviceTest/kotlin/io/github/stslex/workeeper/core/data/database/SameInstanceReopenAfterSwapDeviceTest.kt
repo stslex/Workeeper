@@ -131,7 +131,10 @@ internal class SameInstanceReopenAfterSwapDeviceTest {
         retainedDao.insert(TagEntity(name = SNAPSHOT_SENTINEL))
         // Stage the production undo slot (cache/pre_restore_backup.db) through the production
         // preserve path — the same file rollbackToPreRestoreBackup consumes.
-        assertSuccess("preserveCurrentDb", provider.preserveCurrentDb())
+        // R3: the canonical undo slot is staged by reserve+promote (the runtime's own sequence,
+        // spec §8.5a) — identical bytes at the identical path as the removed preserveCurrentDb().
+        val reserved = assertSuccess("reserveRollbackSnapshot", provider.reserveRollbackSnapshot("gate"))
+        assertSuccess("promoteRollbackReservation", provider.promoteRollbackReservation(reserved))
         retainedDao.insert(TagEntity(name = LIVE_ONLY_SENTINEL))
         assertEquals(
             "pre-swap: the retained DAO must see both sentinels (handle-works precondition)",
@@ -142,7 +145,7 @@ internal class SameInstanceReopenAfterSwapDeviceTest {
 
         // The production rollback sequence: resolve source → close (terminal) → replace → consume.
         val rollbackSource = requireNotNull(provider.getPreRestoreBackupFile()) {
-            "preserveCurrentDb must have staged the pre-restore slot"
+            "reserve+promote must have staged the pre-restore slot"
         }
         closeAppDatabase(database)
         assertSuccess("replaceLiveDatabaseFile", provider.replaceLiveDatabaseFile(rollbackSource))

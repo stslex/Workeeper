@@ -18,6 +18,7 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -250,11 +251,11 @@ internal class DatabaseSnapshotProviderImplTest {
     }
 
     @Test
-    fun `preserveCurrentDb writes a file in cacheDir that getPreRestoreBackupFile detects`() =
+    fun `a reserved snapshot promoted onto the undo slot is detected by getPreRestoreBackupFile`() =
         runTest {
             database.tagDao.insert(TagEntity(uuid = Uuid.random(), name = "PreserveMe"))
 
-            val result = provider.preserveCurrentDb()
+            val result = stageCanonicalSnapshot(provider)
             assertTrue(result is BackupResult.Success, "expected Success, got $result")
             val preservedFile = (result as BackupResult.Success).data
 
@@ -264,10 +265,10 @@ internal class DatabaseSnapshotProviderImplTest {
         }
 
     @Test
-    fun `preserveCurrentDb produces a self-contained SQLite snapshot at the live schema`() =
+    fun `a reserved snapshot is a self-contained SQLite copy at the live schema`() =
         runTest {
             database.tagDao.insert(TagEntity(uuid = Uuid.random(), name = "PreservedRow"))
-            val result = provider.preserveCurrentDb()
+            val result = stageCanonicalSnapshot(provider)
             assertTrue(result is BackupResult.Success)
             val preserved = (result as BackupResult.Success).data
 
@@ -290,7 +291,7 @@ internal class DatabaseSnapshotProviderImplTest {
     fun `rollback transaction sequence swaps live db with preserved contents and consumes file`() =
         runTest {
             database.tagDao.insert(TagEntity(uuid = Uuid.random(), name = "BeforeRestore"))
-            assertTrue(provider.preserveCurrentDb() is BackupResult.Success)
+            assertTrue(stageCanonicalSnapshot(provider) is BackupResult.Success)
 
             // Simulate a restore: mutate the live db so it differs from the preserved snapshot.
             database.tagDao.insert(TagEntity(uuid = Uuid.random(), name = "AfterRestore"))
@@ -326,7 +327,7 @@ internal class DatabaseSnapshotProviderImplTest {
 
     @Test
     fun `deletePreRestoreBackup removes the file when present`() = runTest {
-        assertTrue(provider.preserveCurrentDb() is BackupResult.Success)
+        assertTrue(stageCanonicalSnapshot(provider) is BackupResult.Success)
         assertTrue(provider.getPreRestoreBackupFile() != null)
 
         provider.deletePreRestoreBackup()
@@ -354,7 +355,7 @@ internal class DatabaseSnapshotProviderImplTest {
             assertNotNull(preserved)
             assertTrue(preserved!!.exists())
             assertEquals(context.cacheDir, preserved.parentFile)
-            assertTrue(provider.hasPreMigrationBackup())
+            assertNotNull(provider.getPreMigrationBackupFile())
             // The preserved file is a valid SQLite database (peek opens it
             // standalone without Room).
             val peek = provider.peekSnapshotSchemaVersion(preserved)
@@ -366,7 +367,7 @@ internal class DatabaseSnapshotProviderImplTest {
         database.close()
         context.deleteDatabase(AppDatabase.NAME)
         assertEquals(null, provider.preserveDbBeforeMigration())
-        assertFalse(provider.hasPreMigrationBackup())
+        assertNull(provider.getPreMigrationBackupFile())
     }
 
     @Test
@@ -423,14 +424,14 @@ internal class DatabaseSnapshotProviderImplTest {
         database.tagDao.insert(TagEntity(uuid = Uuid.random(), name = "ToDelete"))
         database.close()
         assertNotNull(provider.preserveDbBeforeMigration())
-        assertTrue(provider.hasPreMigrationBackup())
+        assertNotNull(provider.getPreMigrationBackupFile())
 
         provider.deletePreMigrationBackup()
-        assertFalse(provider.hasPreMigrationBackup())
+        assertNull(provider.getPreMigrationBackupFile())
 
         // Idempotent — second call no-ops without exception.
         provider.deletePreMigrationBackup()
-        assertFalse(provider.hasPreMigrationBackup())
+        assertNull(provider.getPreMigrationBackupFile())
     }
 
     @Test
@@ -438,17 +439,17 @@ internal class DatabaseSnapshotProviderImplTest {
         database.tagDao.insert(TagEntity(uuid = Uuid.random(), name = "Independence"))
         // Scenario 1: preserve pre-restore (must run while Room is open — uses
         // the live appDatabase to WAL-checkpoint).
-        assertTrue(provider.preserveCurrentDb() is BackupResult.Success)
+        assertTrue(stageCanonicalSnapshot(provider) is BackupResult.Success)
         // Scenario 2: preserve pre-migration via direct copy (close Room first).
         database.close()
         assertNotNull(provider.preserveDbBeforeMigration())
 
         assertTrue(provider.getPreRestoreBackupFile() != null)
-        assertTrue(provider.hasPreMigrationBackup())
+        assertNotNull(provider.getPreMigrationBackupFile())
 
         // Deleting pre-migration does not affect pre-restore.
         provider.deletePreMigrationBackup()
-        assertFalse(provider.hasPreMigrationBackup())
+        assertNull(provider.getPreMigrationBackupFile())
         assertTrue(provider.getPreRestoreBackupFile() != null)
 
         // Inverse direction: re-create pre-migration, delete pre-restore, both
@@ -456,6 +457,26 @@ internal class DatabaseSnapshotProviderImplTest {
         assertNotNull(provider.preserveDbBeforeMigration())
         provider.deletePreRestoreBackup()
         assertFalse(provider.getPreRestoreBackupFile() != null)
-        assertTrue(provider.hasPreMigrationBackup())
+        assertNotNull(provider.getPreMigrationBackupFile())
+    }
+
+    /**
+     * Stages the canonical undo slot the way the runtime does since R3: reserve a per-attempt
+     * snapshot, then promote it (spec §8.5a). Replaces the removed `preserveCurrentDb()`, whose
+     * single-canonical-path copy is exactly what let two concurrent restores collide.
+     */
+    private suspend fun stageCanonicalSnapshot(
+        provider: DatabaseSnapshotProvider,
+    ): BackupResult<File> {
+        val reserved = provider.reserveRollbackSnapshot("test-attempt")
+        if (reserved is BackupResult.Failure) return reserved
+        val file = (reserved as BackupResult.Success).data
+        return when (val promoted = provider.promoteRollbackReservation(file)) {
+            is BackupResult.Success -> BackupResult.Success(
+                requireNotNull(provider.getPreRestoreBackupFile()),
+            )
+
+            is BackupResult.Failure -> promoted
+        }
     }
 }

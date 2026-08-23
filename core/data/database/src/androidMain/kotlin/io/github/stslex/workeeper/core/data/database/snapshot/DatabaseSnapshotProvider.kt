@@ -14,7 +14,7 @@ import java.io.File
  * [io.github.stslex.workeeper.core.data.backup.api.DatabaseReplacement] seam. What lives here
  * is everything AROUND that transaction:
  *
- *  - [captureSnapshot] / [preserveCurrentDb] produce portable copies (checkpoint + copy);
+ *  - [captureSnapshot] / [reserveRollbackSnapshot] produce portable copies (checkpoint + copy);
  *  - [validateSnapshotForRestore] runs the pre-swap gates (magic header, schema-version
  *    comparison) through the STILL-OPEN live database;
  *  - [replaceLiveDatabaseFile] is the pure file mechanics (sidecar delete + copy + atomic
@@ -82,26 +82,21 @@ interface DatabaseSnapshotProvider {
      */
     suspend fun peekSnapshotSchemaVersion(source: File): BackupResult<Int>
 
+    // `preserveCurrentDb()` (a copy straight onto the canonical undo slot) is GONE: an attempt
+    // reserves its own snapshot and promotes it on commit (spec §8.5a), which is what keeps two
+    // concurrent restores from overwriting each other's rollback file.
+
+    suspend fun reserveRollbackSnapshot(attemptId: String): BackupResult<File>
+
     /**
-     * Copies the live database to `cache/pre_restore_backup.db` before a Restore
-     * replaces it. Used both as the automatic rollback target if the post-restart
-     * Room migration fails (Scenario 1) and as the source for user-initiated
-     * undo (Scenario 3). Overwrites any previously preserved snapshot — only
-     * one slot is kept at a time.
-     *
-     * Issues `PRAGMA wal_checkpoint(TRUNCATE)` first so the preserved file is
-     * self-contained; the WAL/SHM sidecars on the live database are unaffected.
-     *
-     * Returns the preserved [File] on success, or [BackupResult.Failure] with
-     * [io.github.stslex.workeeper.core.data.backup.api.error.BackupError.Io]
-     * when the checkpoint or file copy fails. The caller treats failure as
-     * "do not proceed with the restore" — there is no point swapping in a new
-     * database we cannot roll back from.
-     *
-     * Spec: `documentation/feature-specs/backup-recovery.md` →
-     * "Storage lifecycle of preserved DB files".
+     * Atomically moves a reservation from [reserveRollbackSnapshot] onto the canonical
+     * `cache/pre_restore_backup.db` undo slot, replacing whatever the previous restore left
+     * there. Called only after the attempt's live-file mutation committed.
      */
-    suspend fun preserveCurrentDb(): BackupResult<File>
+    suspend fun promoteRollbackReservation(reservation: File): BackupResult<Unit>
+
+    // An unused reservation is deleted by the runtime that owns it — the same file-ownership
+    // rule the staged restore source follows; no provider method is needed for a plain delete.
 
     /**
      * The preserved `cache/pre_restore_backup.db` when it exists, else `null`. The runtime's
@@ -138,7 +133,7 @@ interface DatabaseSnapshotProvider {
      * live `.db` is still pristine because Room was never opened — the
      * direct copy captures that state for the user to export.
      *
-     * Distinct from [preserveCurrentDb] (Scenario 1):
+     * Distinct from [reserveRollbackSnapshot] (Scenario 1):
      * - Runs **before** Room init, so it cannot WAL-checkpoint (would force
      *   Room to open the database and migrate). Any unflushed WAL pages
      *   from the previous app run are not in the snapshot; this is
@@ -157,7 +152,6 @@ interface DatabaseSnapshotProvider {
     suspend fun preserveDbBeforeMigration(): File?
 
     /** Whether `cache/pre_migration_backup.db` exists on disk. */
-    fun hasPreMigrationBackup(): Boolean
 
     /**
      * Returns the preserved `cache/pre_migration_backup.db` File for

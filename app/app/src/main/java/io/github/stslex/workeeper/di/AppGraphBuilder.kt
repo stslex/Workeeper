@@ -56,6 +56,7 @@ private object NoRuntimeDatabaseReplacement : DatabaseReplacement {
         error("DatabaseReplacement requires a runtime host; this graph was built without one")
 
     override suspend fun rollbackToPreRestoreBackup(
+        sourcePath: String?,
         effects: DatabaseReplacementEffects,
     ): DatabaseReplacementResult =
         error("DatabaseReplacement requires a runtime host; this graph was built without one")

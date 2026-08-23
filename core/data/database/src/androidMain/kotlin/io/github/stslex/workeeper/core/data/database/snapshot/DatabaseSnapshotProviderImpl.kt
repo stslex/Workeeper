@@ -78,19 +78,37 @@ public class DatabaseSnapshotProviderImpl @Inject constructor(
             }
         }
 
-    override suspend fun preserveCurrentDb(): BackupResult<File> = withContext(dispatcher) {
-        val target = preRestoreBackupFile()
-        try {
-            checkpointWal()
-            val source = context.getDatabasePath(AppDatabase.NAME)
-            target.parentFile?.mkdirs()
-            source.copyTo(target, overwrite = true)
-            BackupResult.Success(target)
-        } catch (e: IOException) {
-            target.delete()
-            BackupResult.Failure(BackupError.Io(e))
+    override suspend fun reserveRollbackSnapshot(attemptId: String): BackupResult<File> =
+        withContext(dispatcher) {
+            val target = File(context.cacheDir, "$ROLLBACK_RESERVATION_PREFIX$attemptId.db")
+            try {
+                checkpointWal()
+                val source = context.getDatabasePath(AppDatabase.NAME)
+                target.parentFile?.mkdirs()
+                source.copyTo(target, overwrite = true)
+                BackupResult.Success(target)
+            } catch (e: IOException) {
+                target.delete()
+                BackupResult.Failure(BackupError.Io(e))
+            }
         }
-    }
+
+    override suspend fun promoteRollbackReservation(reservation: File): BackupResult<Unit> =
+        withContext(dispatcher) {
+            val target = preRestoreBackupFile()
+            try {
+                target.delete()
+                if (!reservation.renameTo(target)) {
+                    // Same-directory rename cannot normally fail; fall back to copy+delete so a
+                    // promotion never silently leaves the undo slot holding older data.
+                    reservation.copyTo(target, overwrite = true)
+                    reservation.delete()
+                }
+                BackupResult.Success(Unit)
+            } catch (e: IOException) {
+                BackupResult.Failure(BackupError.Io(e))
+            }
+        }
 
     override fun getPreRestoreBackupFile(): File? =
         preRestoreBackupFile().takeIf { it.exists() }
@@ -127,8 +145,6 @@ public class DatabaseSnapshotProviderImpl @Inject constructor(
             null
         }
     }
-
-    override fun hasPreMigrationBackup(): Boolean = preMigrationBackupFile().exists()
 
     override fun getPreMigrationBackupFile(): File? =
         preMigrationBackupFile().takeIf { it.exists() }
@@ -229,6 +245,7 @@ public class DatabaseSnapshotProviderImpl @Inject constructor(
         const val TAG = "DatabaseSnapshotProvider"
         const val SQLITE_HEADER_SIZE = 16
         const val PRE_RESTORE_BACKUP_NAME = "pre_restore_backup.db"
+        const val ROLLBACK_RESERVATION_PREFIX = "rollback_reservation_"
         const val PRE_MIGRATION_BACKUP_NAME = "pre_migration_backup.db"
         val SQLITE_MAGIC: ByteArray =
             "SQLite format 3".toByteArray(Charsets.US_ASCII) + 0x00.toByte()

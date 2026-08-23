@@ -3,6 +3,7 @@ package io.github.stslex.workeeper.feature.settings.domain
 
 import android.content.Intent
 import android.content.IntentSender
+import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.core.core.platform.PlatformInfoProvider
 import io.github.stslex.workeeper.core.core.platform.TempFileProvider
 import io.github.stslex.workeeper.core.data.backup.api.BackupAuth
@@ -19,7 +20,7 @@ import io.github.stslex.workeeper.core.data.backup.api.model.AuthState
 import io.github.stslex.workeeper.core.data.backup.api.model.BackupManifest
 import io.github.stslex.workeeper.core.data.backup.api.model.BackupRef
 import io.github.stslex.workeeper.core.data.backup.api.model.SignInResult
-import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreInProgressContext
+import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreAttempt
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreStateRepository
 import io.github.stslex.workeeper.core.data.backup.api.result.BackupResult
 import io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProvider
@@ -51,6 +52,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.io.File
+import java.io.IOException
 
 internal class BackupInteractorImplTest {
 
@@ -69,8 +71,19 @@ internal class BackupInteractorImplTest {
 
     private lateinit var interactor: BackupInteractorImpl
 
+    /**
+     * `RestoreLatestBackupUseCase` logs the committed-without-a-durable-record branch through
+     * `logger.w {}`, which funnels into kermit's Logcat writer and throws `UnsatisfiedLinkError`
+     * on the JVM. [Log.isLogging] is the call-time gate in front of that sink (and
+     * `FirebaseCrashlyticsHolder` self-guards into a no-op without an initialized Firebase
+     * context), so flipping the gate is the whole fix — same idiom as `SnackbarManagerTest`.
+     */
+    private var wasLogging = true
+
     @BeforeEach
     fun setUp() {
+        wasLogging = Log.isLogging
+        Log.isLogging = false
         Dispatchers.setMain(testDispatcher)
         every { tempFileProvider.createTempFile(any(), any()) } answers {
             File.createTempFile("test", ".db", cacheDir)
@@ -78,9 +91,6 @@ internal class BackupInteractorImplTest {
         every { platformInfo.appVersionName() } returns "1.2.3"
         every { platformInfo.deviceModel() } returns "Pixel"
         every { backupAuth.state } returns MutableStateFlow(AuthState.SignedOut)
-        coEvery { snapshotProvider.preserveCurrentDb() } returns BackupResult.Success(
-            File(cacheDir, "pre_restore_backup.db"),
-        )
         interactor = BackupInteractorImpl(
             backupAuth = backupAuth,
             backupStorage = backupStorage,
@@ -101,7 +111,10 @@ internal class BackupInteractorImplTest {
     }
 
     @AfterEach
-    fun tearDown() = Dispatchers.resetMain()
+    fun tearDown() {
+        Dispatchers.resetMain()
+        Log.isLogging = wasLogging
+    }
 
     @Test
     fun `createBackup returns the binary result even when the snapshot runner throws`() =
@@ -201,7 +214,7 @@ internal class BackupInteractorImplTest {
             BackupResult.Success(Unit)
         }
         coEvery { snapshotProvider.currentSchemaVersion() } returns 5
-        val ioError = BackupError.Io(java.io.IOException("upload failed"))
+        val ioError = BackupError.Io(IOException("upload failed"))
         coEvery { backupStorage.uploadBackup(any(), any()) } returns BackupResult.Failure(ioError)
 
         val result = interactor.createBackup()
@@ -215,7 +228,7 @@ internal class BackupInteractorImplTest {
     fun `createBackup captureSnapshot failure short-circuits and cleans temp file`() =
         runTest(testDispatcher) {
             val captured = slot<File>()
-            val ioError = BackupError.Io(java.io.IOException("capture failed"))
+            val ioError = BackupError.Io(IOException("capture failed"))
             coEvery {
                 snapshotProvider.captureSnapshot(capture(captured))
             } returns BackupResult.Failure(ioError)
@@ -330,16 +343,14 @@ internal class BackupInteractorImplTest {
         }
 
     @Test
-    fun `restoreLatest happy path preserves then downloads then restores then cleans temp file`() =
+    fun `restoreLatest happy path claims the attempt then records the commit and cleans temp file`() =
         runTest(testDispatcher) {
             val ref = makeRef(
                 schema = 4,
                 createdAt = 1_700_000_000_000L,
                 appVersion = "1.0.0",
             )
-            coEvery { backupStorage.listBackups() } returns BackupResult.Success(listOf(ref))
-            coEvery { snapshotProvider.currentSchemaVersion() } returns 5
-            every { snapshotProvider.hasMigrationPath(from = 4, to = 5) } returns true
+            stubRestorableBackup(ref)
             val downloadCaptured = slot<File>()
             coEvery {
                 backupStorage.downloadBackup(any(), capture(downloadCaptured))
@@ -347,74 +358,141 @@ internal class BackupInteractorImplTest {
                 downloadCaptured.captured.writeText("payload")
                 BackupResult.Success(ref.manifest)
             }
-            // Real transaction shape: the seam runs the typed effects' onBeforeMutation (where
-            // the in-progress marker is written, inside the transition mutex) and commits.
+            val attemptSlot = slot<RestoreAttempt>()
+            coEvery { restoreStateRepository.beginAttempt(capture(attemptSlot)) } returns true
+            coEvery { restoreStateRepository.recordAttemptCommitted(any()) } returns true
+            // Real transaction shape: the runtime reserves the rollback snapshot itself, hands
+            // its path to onBeforeMutation (inside the transition mutex, before anything
+            // irreversible), then reports the durable commit through onMutationCommitted.
             coEvery { databaseReplacement.restoreFromSnapshot(any(), any()) } coAnswers {
-                secondArg<DatabaseReplacementEffects>().onBeforeMutation()
+                val effects = secondArg<DatabaseReplacementEffects>()
+                effects.onBeforeMutation("/tmp/res.db")
+                effects.onMutationCommitted()
                 DatabaseReplacementResult.Committed()
             }
-            val contextSlot = slot<RestoreInProgressContext>()
-            coEvery {
-                restoreStateRepository.markRestoreInProgress(capture(contextSlot))
-            } returns Unit
 
             val result = interactor.restoreLatest()
 
             assertTrue(result is BackupResult.Success)
-            // Preserve before download; the marker write rides beforeMutation INSIDE the
-            // transaction (after download, under the transition mutex) — validation rejections
-            // can never leave a stale marker behind.
             coVerifyOrder {
-                snapshotProvider.preserveCurrentDb()
                 backupStorage.downloadBackup(ref, any())
                 databaseReplacement.restoreFromSnapshot(any(), any())
-                restoreStateRepository.markRestoreInProgress(any())
             }
-            // On success the preserved file is kept for Application pre-flight + undo.
+            val attempt = attemptSlot.captured
+            assertEquals(RestoreAttempt.Kind.Restore, attempt.kind)
+            assertEquals(RestoreAttempt.Phase.Prepared, attempt.phase)
+            assertEquals("/tmp/res.db", attempt.rollbackSnapshotPath)
+            val context = requireNotNull(attempt.context) { "a Restore attempt carries context" }
+            assertEquals(4, context.backupSchemaVersion)
+            assertEquals(1_700_000_000_000L, context.backupCreatedAtEpochMs)
+            assertEquals("1.0.0", context.backupAppVersion)
+            assertTrue(context.startedAtEpochMs > 0)
+            // The same attempt id that claimed the slot is the one that advances it.
+            coVerify(exactly = 1) { restoreStateRepository.recordAttemptCommitted(attempt.id) }
+            // On success nothing is resolved or deleted here: the post-restart pre-flight owns
+            // the Committed attempt, and the preserved file is kept for undo.
+            coVerify(exactly = 0) { restoreStateRepository.resolveAttempt(any()) }
             coVerify(exactly = 0) { snapshotProvider.deletePreRestoreBackup() }
-            coVerify(exactly = 0) { restoreStateRepository.clearRestoreInProgress() }
-            assertEquals(4, contextSlot.captured.backupSchemaVersion)
-            assertEquals(1_700_000_000_000L, contextSlot.captured.backupCreatedAtEpochMs)
-            assertEquals("1.0.0", contextSlot.captured.backupAppVersion)
-            assertTrue(contextSlot.captured.startedAtEpochMs > 0)
             assertFalse(downloadCaptured.captured.exists(), "temp file should be deleted")
         }
 
     @Test
-    fun `restoreLatest preserveCurrentDb failure short-circuits before download`() =
+    fun `restoreLatest never reserves the rollback snapshot itself`() = runTest(testDispatcher) {
+        // The reservation moved INTO the serialized transaction (spec §8.5a) and is pinned in
+        // app:app — the use case must not take a second, racing snapshot of its own.
+        val ref = makeRef(schema = 4)
+        stubRestorableBackup(ref)
+        coEvery { backupStorage.downloadBackup(any(), any()) } returns BackupResult.Success(
+            ref.manifest,
+        )
+        coEvery { restoreStateRepository.beginAttempt(any()) } returns true
+        coEvery { restoreStateRepository.recordAttemptCommitted(any()) } returns true
+        coEvery { databaseReplacement.restoreFromSnapshot(any(), any()) } coAnswers {
+            val effects = secondArg<DatabaseReplacementEffects>()
+            effects.onBeforeMutation("/tmp/res.db")
+            effects.onMutationCommitted()
+            DatabaseReplacementResult.Committed()
+        }
+
+        val result = interactor.restoreLatest()
+
+        assertTrue(result is BackupResult.Success)
+        coVerify(exactly = 0) { snapshotProvider.reserveRollbackSnapshot(any()) }
+    }
+
+    @Test
+    fun `a second restore is refused while an attempt is unresolved`() = runTest(testDispatcher) {
+        // beginAttempt returning false means a DIFFERENT unresolved attempt owns the journal
+        // slot. The caller contract under test: that false is FATAL to this attempt — the
+        // effect throws, the runtime turns the throw into RejectedBeforeMutation, and no
+        // durable commit is ever recorded against the other attempt's bookkeeping.
+        val ref = makeRef(schema = 4)
+        stubRestorableBackup(ref)
+        coEvery { backupStorage.downloadBackup(any(), any()) } returns BackupResult.Success(
+            ref.manifest,
+        )
+        coEvery { restoreStateRepository.beginAttempt(any()) } returns false
+        val rejection = BackupError.Io(IOException("pre-mutation persistence failed"))
+        var preparation: Result<Unit>? = null
+        coEvery { databaseReplacement.restoreFromSnapshot(any(), any()) } coAnswers {
+            preparation = runCatching {
+                secondArg<DatabaseReplacementEffects>().onBeforeMutation("")
+            }
+            DatabaseReplacementResult.RejectedBeforeMutation(rejection)
+        }
+
+        val result = interactor.restoreLatest()
+
+        assertTrue(
+            preparation?.isFailure == true,
+            "a refused claim must THROW out of onBeforeMutation, got $preparation",
+        )
+        assertTrue(result is BackupResult.Failure)
+        assertSame(rejection, (result as BackupResult.Failure).error)
+        coVerify(exactly = 1) { restoreStateRepository.beginAttempt(any()) }
+        coVerify(exactly = 0) { restoreStateRepository.recordAttemptCommitted(any()) }
+    }
+
+    @Test
+    fun `committed without a durable record is reported as FAILURE, never success`() =
         runTest(testDispatcher) {
+            // The swap committed but the journal still reads Prepared, so the next launch will
+            // roll this restore back. Reporting Success here is the exact false-success the
+            // journal exists to prevent.
             val ref = makeRef(schema = 4)
-            coEvery { backupStorage.listBackups() } returns BackupResult.Success(listOf(ref))
-            coEvery { snapshotProvider.currentSchemaVersion() } returns 5
-            every { snapshotProvider.hasMigrationPath(from = 4, to = 5) } returns true
-            val ioError = BackupError.Io(java.io.IOException("disk full"))
-            coEvery {
-                snapshotProvider.preserveCurrentDb()
-            } returns BackupResult.Failure(ioError)
+            stubRestorableBackup(ref)
+            coEvery { backupStorage.downloadBackup(any(), any()) } returns BackupResult.Success(
+                ref.manifest,
+            )
+            coEvery { restoreStateRepository.beginAttempt(any()) } returns true
+            val bookkeepingError = BackupError.Io(IOException("journal advance failed"))
+            coEvery { databaseReplacement.restoreFromSnapshot(any(), any()) } coAnswers {
+                secondArg<DatabaseReplacementEffects>().onBeforeMutation("/tmp/res.db")
+                DatabaseReplacementResult.Committed(effectsError = bookkeepingError)
+            }
 
             val result = interactor.restoreLatest()
 
-            assertTrue(result is BackupResult.Failure)
-            assertSame(ioError, (result as BackupResult.Failure).error)
-            coVerify(exactly = 0) { backupStorage.downloadBackup(any(), any()) }
-            coVerify(exactly = 0) { databaseReplacement.restoreFromSnapshot(any(), any()) }
-            coVerify(exactly = 0) { restoreStateRepository.markRestoreInProgress(any()) }
+            assertTrue(result is BackupResult.Failure, "a Committed with effectsError is a failure")
+            assertSame(bookkeepingError, (result as BackupResult.Failure).error)
+            coVerify(exactly = 0) { restoreStateRepository.resolveAttempt(any()) }
         }
 
     @Test
-    fun `restoreFromSnapshot RejectedBeforeMutation cleans up preserved file and flag`() =
+    fun `restoreFromSnapshot RejectedBeforeMutation resolves the attempt`() =
         runTest(testDispatcher) {
             val ref = makeRef(schema = 4)
-            coEvery { backupStorage.listBackups() } returns BackupResult.Success(listOf(ref))
-            coEvery { snapshotProvider.currentSchemaVersion() } returns 5
-            every { snapshotProvider.hasMigrationPath(from = 4, to = 5) } returns true
+            stubRestorableBackup(ref)
             coEvery { backupStorage.downloadBackup(any(), any()) } returns BackupResult.Success(
                 ref.manifest,
             )
             val corrupted = BackupError.CorruptedBackup("magic mismatch")
             // The rejection's compensation rides the typed effects ON the transaction: the seam
             // runs onRejectedBeforeMutation, then reports the rejection.
-            coEvery { databaseReplacement.restoreFromSnapshot(any(), any()) } coAnswers {
+            val effectsSlot = slot<DatabaseReplacementEffects>()
+            coEvery {
+                databaseReplacement.restoreFromSnapshot(any(), capture(effectsSlot))
+            } coAnswers {
                 secondArg<DatabaseReplacementEffects>().onRejectedBeforeMutation(corrupted)
                 DatabaseReplacementResult.RejectedBeforeMutation(corrupted)
             }
@@ -423,27 +501,25 @@ internal class BackupInteractorImplTest {
 
             assertTrue(result is BackupResult.Failure)
             assertSame(corrupted, (result as BackupResult.Failure).error)
-            // Pre-mutation rejection: the live db never changed, so pre-swap cleanup is legal.
-            coVerify(exactly = 1) { snapshotProvider.deletePreRestoreBackup() }
-            coVerify(exactly = 1) { restoreStateRepository.clearRestoreInProgress() }
+            // Nothing irreversible happened → the slot is released by ITS OWN attempt id.
+            coVerify(exactly = 1) {
+                restoreStateRepository.resolveAttempt(effectsSlot.captured.attemptId)
+            }
         }
 
     @Test
-    fun `restoreFromSnapshot FailedAfterMutation preserves the recovery assets`() =
+    fun `restoreFromSnapshot FailedAfterMutation leaves the attempt unresolved`() =
         runTest(testDispatcher) {
-            // Finding 4: after the point of no return the preserved file and the in-progress
-            // marker ARE the recovery path — deleting them under a false "pre-swap failure"
-            // label would destroy it. The use case must only surface the failure.
+            // After the point of no return the unresolved `Prepared` attempt IS the recovery
+            // path: it is what routes the next launch to recovery instead of a schema peek that
+            // would claim a success this attempt cannot prove. Resolving or deleting anything
+            // here would destroy it.
             val ref = makeRef(schema = 4)
-            coEvery { backupStorage.listBackups() } returns BackupResult.Success(listOf(ref))
-            coEvery { snapshotProvider.currentSchemaVersion() } returns 5
-            every { snapshotProvider.hasMigrationPath(from = 4, to = 5) } returns true
+            stubRestorableBackup(ref)
             coEvery { backupStorage.downloadBackup(any(), any()) } returns BackupResult.Success(
                 ref.manifest,
             )
-            val postCloseError = BackupError.Io(java.io.IOException("rename failed after close"))
-            // Post-PONR without recovery: the seam runs onFailedAfterMutation (the durable
-            // journal write) and nothing else.
+            val postCloseError = BackupError.Io(IOException("rename failed after close"))
             coEvery { databaseReplacement.restoreFromSnapshot(any(), any()) } coAnswers {
                 secondArg<DatabaseReplacementEffects>().onFailedAfterMutation(postCloseError)
                 DatabaseReplacementResult.FailedAfterMutation(postCloseError)
@@ -453,27 +529,27 @@ internal class BackupInteractorImplTest {
 
             assertTrue(result is BackupResult.Failure)
             assertSame(postCloseError, (result as BackupResult.Failure).error)
+            coVerify(exactly = 0) { restoreStateRepository.resolveAttempt(any()) }
+            coVerify(exactly = 0) { restoreStateRepository.clearPreRestoreBackupAvailable() }
             coVerify(exactly = 0) { snapshotProvider.deletePreRestoreBackup() }
-            coVerify(exactly = 0) { restoreStateRepository.clearRestoreInProgress() }
-            coVerify(exactly = 1) { restoreStateRepository.markRestoreMutationInterrupted() }
         }
 
     @Test
-    fun `restoreFromSnapshot RecoveredByRollback surfaces restore-failure semantics and compensates the marker`() =
+    fun `restoreFromSnapshot RecoveredByRollback resolves the attempt and clears the undo slot`() =
         runTest(testDispatcher) {
-            // Mandate 3: the runtime's automatic rollback restored a serving generation on the
-            // PRE-restore data — restore-FAILURE semantics for the caller. The in-progress
-            // marker is stale (recovery already happened) and the preserved rollback file was
-            // consumed by the RUNTIME, not the caller: compensation clears the markers only.
+            // The runtime's automatic rollback restored a serving generation on the PRE-restore
+            // data — restore-FAILURE semantics for the caller. The attempt is finished and the
+            // preserved rollback file was consumed by the RUNTIME, so no undo is offered.
             val ref = makeRef(schema = 4)
-            coEvery { backupStorage.listBackups() } returns BackupResult.Success(listOf(ref))
-            coEvery { snapshotProvider.currentSchemaVersion() } returns 5
-            every { snapshotProvider.hasMigrationPath(from = 4, to = 5) } returns true
+            stubRestorableBackup(ref)
             coEvery { backupStorage.downloadBackup(any(), any()) } returns BackupResult.Success(
                 ref.manifest,
             )
-            val recoveredError = BackupError.Io(java.io.IOException("swap failed, rolled back"))
-            coEvery { databaseReplacement.restoreFromSnapshot(any(), any()) } coAnswers {
+            val recoveredError = BackupError.Io(IOException("swap failed, rolled back"))
+            val effectsSlot = slot<DatabaseReplacementEffects>()
+            coEvery {
+                databaseReplacement.restoreFromSnapshot(any(), capture(effectsSlot))
+            } coAnswers {
                 secondArg<DatabaseReplacementEffects>().onRecoveredByRollback(recoveredError)
                 DatabaseReplacementResult.RecoveredByRollback(recoveredError)
             }
@@ -482,7 +558,9 @@ internal class BackupInteractorImplTest {
 
             assertTrue(result is BackupResult.Failure)
             assertSame(recoveredError, (result as BackupResult.Failure).error)
-            coVerify(exactly = 1) { restoreStateRepository.clearRestoreInProgress() }
+            coVerify(exactly = 1) {
+                restoreStateRepository.resolveAttempt(effectsSlot.captured.attemptId)
+            }
             coVerify(exactly = 1) { restoreStateRepository.clearPreRestoreBackupAvailable() }
             coVerify(exactly = 0) { snapshotProvider.deletePreRestoreBackup() }
         }
@@ -491,27 +569,24 @@ internal class BackupInteractorImplTest {
     fun `restoreFromSnapshot FatalNoGeneration surfaces an Io failure and deletes nothing`() =
         runTest(testDispatcher) {
             val ref = makeRef(schema = 4)
-            coEvery { backupStorage.listBackups() } returns BackupResult.Success(listOf(ref))
-            coEvery { snapshotProvider.currentSchemaVersion() } returns 5
-            every { snapshotProvider.hasMigrationPath(from = 4, to = 5) } returns true
+            stubRestorableBackup(ref)
             coEvery { backupStorage.downloadBackup(any(), any()) } returns BackupResult.Success(
                 ref.manifest,
             )
-            // Terminal runtime: the seam runs onFatal (the durable journal write) and nothing
-            // else — assets preserved for the next process.
+            // Terminal runtime: the seam runs onFatal and nothing else — every asset preserved
+            // and the attempt left unresolved for the next process.
             coEvery { databaseReplacement.restoreFromSnapshot(any(), any()) } coAnswers {
                 secondArg<DatabaseReplacementEffects>().onFatal()
-                DatabaseReplacementResult.FatalNoGeneration
+                DatabaseReplacementResult.FatalNoGeneration()
             }
 
             val result = interactor.restoreLatest()
 
             assertTrue(result is BackupResult.Failure)
             assertTrue((result as BackupResult.Failure).error is BackupError.Io)
-            coVerify(exactly = 1) { restoreStateRepository.markRestoreMutationInterrupted() }
-            coVerify(exactly = 0) { snapshotProvider.deletePreRestoreBackup() }
-            coVerify(exactly = 0) { restoreStateRepository.clearRestoreInProgress() }
+            coVerify(exactly = 0) { restoreStateRepository.resolveAttempt(any()) }
             coVerify(exactly = 0) { restoreStateRepository.clearPreRestoreBackupAvailable() }
+            coVerify(exactly = 0) { snapshotProvider.deletePreRestoreBackup() }
         }
 
     @Test
@@ -558,14 +633,12 @@ internal class BackupInteractorImplTest {
         }
 
     @Test
-    fun `restoreLatest download failure cleans preserved snapshot and flag and temp file`() =
+    fun `restoreLatest download failure returns early with no compensation and cleans temp file`() =
         runTest(testDispatcher) {
             val ref = makeRef(schema = 4)
-            coEvery { backupStorage.listBackups() } returns BackupResult.Success(listOf(ref))
-            coEvery { snapshotProvider.currentSchemaVersion() } returns 5
-            every { snapshotProvider.hasMigrationPath(from = 4, to = 5) } returns true
+            stubRestorableBackup(ref)
             val downloadCaptured = slot<File>()
-            val ioError = BackupError.Io(java.io.IOException("download failed"))
+            val ioError = BackupError.Io(IOException("download failed"))
             coEvery {
                 backupStorage.downloadBackup(any(), capture(downloadCaptured))
             } returns BackupResult.Failure(ioError)
@@ -575,10 +648,12 @@ internal class BackupInteractorImplTest {
             assertTrue(result is BackupResult.Failure)
             assertSame(ioError, (result as BackupResult.Failure).error)
             coVerify(exactly = 0) { databaseReplacement.restoreFromSnapshot(any(), any()) }
-            // Pre-swap failure: live db never changed, so just clean the preserved
-            // snapshot + DataStore flag.
-            coVerify(exactly = 1) { snapshotProvider.deletePreRestoreBackup() }
-            coVerify(exactly = 1) { restoreStateRepository.clearRestoreInProgress() }
+            // Pre-submission failure: no transaction, no journal entry and no reservation exist
+            // yet, so there is nothing to compensate.
+            coVerify(exactly = 0) { restoreStateRepository.beginAttempt(any()) }
+            coVerify(exactly = 0) { restoreStateRepository.resolveAttempt(any()) }
+            coVerify(exactly = 0) { snapshotProvider.deletePreRestoreBackup() }
+            coVerify(exactly = 0) { restoreStateRepository.clearPreRestoreBackupAvailable() }
             assertFalse(downloadCaptured.captured.exists(), "temp file should be deleted")
         }
 
@@ -617,6 +692,15 @@ internal class BackupInteractorImplTest {
         interactor.deleteAiExportSnapshots()
 
         coVerify(exactly = 1) { snapshotExportRunner.clearSnapshots() }
+    }
+
+    /** The schema gates passed: [ref] is the newest backup and restorable onto schema 5. */
+    private fun stubRestorableBackup(ref: BackupRef) {
+        coEvery { backupStorage.listBackups() } returns BackupResult.Success(listOf(ref))
+        coEvery { snapshotProvider.currentSchemaVersion() } returns 5
+        every {
+            snapshotProvider.hasMigrationPath(from = ref.manifest.dbSchemaVersion, to = 5)
+        } returns true
     }
 
     private fun makeRef(

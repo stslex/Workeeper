@@ -206,7 +206,7 @@ class RestoreDialogChoiceObserver @Inject constructor(
         val info = readPackageInfo()
         return diagnosticsExporter.exportRestoreFailure(
             exception = null,
-            context = restoreStateRepository.getRestoreInProgressContext(),
+            context = restoreStateRepository.getAttempt()?.context,
             appVersionName = info.versionName.orEmpty(),
             appVersionCode = info.longVersionCode,
         )

@@ -45,7 +45,7 @@ import java.io.File
  * (`getPreMigrationBackupFile`, `availableMigrationsLabel`,
  * `exportStartupMigrationFailure`). Calling
  * `currentSchemaVersion`/`captureSnapshot`/`restoreFromSnapshot`/
- * `preserveCurrentDb` would open a `SQLiteConnection` to the live `AppDatabase`
+ * `reserveRollbackSnapshot` would open a `SQLiteConnection` to the live `AppDatabase`
  * — which triggers the migration we are trying to avoid. Tests verify
  * the four buttons stay on Room-free paths.
  *

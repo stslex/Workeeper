@@ -8,7 +8,7 @@ import io.github.stslex.workeeper.core.data.backup.api.BackupStorage
 import io.github.stslex.workeeper.core.data.backup.api.error.BackupError
 import io.github.stslex.workeeper.core.data.backup.api.model.BackupManifest
 import io.github.stslex.workeeper.core.data.backup.api.model.BackupRef
-import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreInProgressContext
+import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreAttempt
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreStateRepository
 import io.github.stslex.workeeper.core.data.backup.api.result.BackupResult
 import io.github.stslex.workeeper.core.data.database.AppDatabase
@@ -41,31 +41,46 @@ import java.io.File
 import java.io.IOException
 
 /**
- * THE COMPOSED SEAM GATE (round-2 required test): the REAL [RestoreLatestBackupUseCase] driving
- * the REAL [AppRuntime] transaction over ACTUAL temp files — no mocked seam in between. Proves
- * end-to-end: source-ownership transfer at submission (the caller's `finally { tempFile
- * .delete() }` — which genuinely runs on cancellation — can never destroy the staged copy),
- * the marker riding `onBeforeMutation` inside the transaction, transaction-owned compensation
- * when the initiator is dead, and the truthful RecoveredByRollback → restore-FAILURE mapping.
+ * THE COMPOSED SEAM GATE (round-2 required test, round-3 journal edition): the REAL
+ * [RestoreLatestBackupUseCase] driving the REAL [AppRuntime] transaction over ACTUAL temp files
+ * — no mocked seam in between. Proves end-to-end: source-ownership transfer at submission (the
+ * caller's `finally { tempFile.delete() }` — which genuinely runs on cancellation — can never
+ * destroy the staged copy), the durable attempt journal claimed on `onBeforeMutation` and
+ * advanced to `Committed` only once the mutation committed, transaction-owned compensation when
+ * the initiator is dead, and the truthful RecoveredByRollback → restore-FAILURE mapping.
  */
 internal class RestoreTransactionIntegrationTest {
 
-    /** Stateful in-memory repository — observes what the transaction's effects actually did. */
+    /**
+     * Stateful in-memory journal — the same ownership rules as the DataStore implementation: at
+     * most ONE unresolved attempt, and only its owner may advance or clear it.
+     */
     private class FakeRestoreStateRepository : RestoreStateRepository {
-        var context: RestoreInProgressContext? = null
+        var attempt: RestoreAttempt? = null
         var preRestoreAvailable: Long? = null
-        var mutationInterrupted = false
 
-        override suspend fun markRestoreInProgress(context: RestoreInProgressContext) {
-            this.context = context
+        override suspend fun beginAttempt(attempt: RestoreAttempt): Boolean {
+            val owner = this.attempt
+            if (owner != null && owner.id != attempt.id) return false
+            this.attempt = attempt
+            return true
         }
 
-        override suspend fun getRestoreInProgressContext(): RestoreInProgressContext? = context
-
-        override suspend fun clearRestoreInProgress() {
-            context = null
-            mutationInterrupted = false
+        override suspend fun recordAttemptCommitted(attemptId: String): Boolean {
+            val owner = attempt ?: return false
+            if (owner.id != attemptId) return false
+            attempt = owner.copy(phase = RestoreAttempt.Phase.Committed)
+            return true
         }
+
+        override suspend fun resolveAttempt(attemptId: String): Boolean {
+            val owner = attempt ?: return false
+            if (owner.id != attemptId) return false
+            attempt = null
+            return true
+        }
+
+        override suspend fun getAttempt(): RestoreAttempt? = attempt
 
         override suspend fun markPreRestoreBackupAvailable(originalDataDateEpochMs: Long) {
             preRestoreAvailable = originalDataDateEpochMs
@@ -79,12 +94,6 @@ internal class RestoreTransactionIntegrationTest {
             MutableStateFlow(preRestoreAvailable != null)
 
         override suspend fun getPreRestoreOriginalDate(): Long? = preRestoreAvailable
-
-        override suspend fun markRestoreMutationInterrupted() {
-            mutationInterrupted = true
-        }
-
-        override suspend fun isRestoreMutationInterrupted(): Boolean = mutationInterrupted
     }
 
     @TempDir
@@ -94,6 +103,9 @@ internal class RestoreTransactionIntegrationTest {
     private val provider = mockk<DatabaseSnapshotProvider>(relaxed = true)
     private val backupStorage = mockk<BackupStorage>(relaxed = true)
     private val restoreState = FakeRestoreStateRepository()
+
+    /** Every rollback snapshot the provider reserved for an attempt, in reservation order. */
+    private val reservations = mutableListOf<File>()
 
     private var preflightGate: CompletableDeferred<Unit>? = null
 
@@ -137,16 +149,24 @@ internal class RestoreTransactionIntegrationTest {
         )
         // Shared provider stubs — the SAME provider serves the use case and the runtime graph.
         coEvery { provider.currentSchemaVersion() } returns 5
-        coEvery { provider.preserveCurrentDb() } coAnswers {
-            BackupResult.Success(
-                File(tempDir, "pre_restore_backup.db").apply { writeText("preserved") },
-            )
-        }
         coEvery { provider.getPreRestoreBackupFile() } answers {
             File(tempDir, "pre_restore_backup.db").takeIf { it.exists() }
         }
         coEvery { provider.deletePreRestoreBackup() } coAnswers {
             File(tempDir, "pre_restore_backup.db").delete()
+        }
+        // R3 (spec §8.5a): the rollback snapshot is a per-attempt RESERVATION taken inside the
+        // transaction, promoted onto the canonical undo slot only once the mutation committed.
+        coEvery { provider.reserveRollbackSnapshot(any()) } coAnswers {
+            val reservation = File(tempDir, "reservation_${firstArg<String>()}.db")
+                .apply { writeText(PRE_ATTEMPT_DB) }
+            reservations += reservation
+            BackupResult.Success(reservation)
+        }
+        coEvery { provider.promoteRollbackReservation(any()) } coAnswers {
+            val reservation = firstArg<File>()
+            reservation.copyTo(File(tempDir, "pre_restore_backup.db"), overwrite = true)
+            reservation.delete()
             BackupResult.Success(Unit)
         }
         coEvery { provider.validateSnapshotForRestore(any()) } returns BackupResult.Success(Unit)
@@ -176,20 +196,40 @@ internal class RestoreTransactionIntegrationTest {
     private fun stagedFiles(): List<File> =
         tempDir.listFiles().orEmpty().filter { it.name.startsWith("staged_restore_") }
 
+    private fun reservationFiles(): List<File> =
+        tempDir.listFiles().orEmpty().filter { it.name.startsWith("reservation_") }
+
     private fun callerTempFiles(): List<File> =
         tempDir.listFiles().orEmpty().filter { it.name.startsWith("restore_") && it.name.endsWith(".db") }
 
     @Test
-    fun `real use case restore commits - marker inside the txn, staged copy consumed and cleaned`() =
+    fun `real use case restore commits - journal Committed, staged copy consumed and cleaned`() =
         integrationTest { useCase, runtime ->
             runtime.currentGeneration
 
             val result = useCase()
 
             assertInstanceOf(BackupResult.Success::class.java, result)
-            assertNotNull(restoreState.context, "the marker rode onBeforeMutation into DataStore")
-            assertEquals(5, restoreState.context?.backupSchemaVersion)
-            assertFalse(restoreState.mutationInterrupted)
+            val attempt = requireNotNull(restoreState.attempt) {
+                "the attempt rode onBeforeMutation into the durable journal"
+            }
+            assertEquals(RestoreAttempt.Kind.Restore, attempt.kind)
+            assertEquals(
+                RestoreAttempt.Phase.Committed,
+                attempt.phase,
+                "only a durably recorded commit may later be read as a success",
+            )
+            assertEquals(5, attempt.context?.backupSchemaVersion)
+            assertEquals(
+                reservations.single().absolutePath,
+                attempt.rollbackSnapshotPath,
+                "the journal names the reservation a crashing launch would need",
+            )
+            assertEquals(
+                PRE_ATTEMPT_DB,
+                File(tempDir, "pre_restore_backup.db").readText(),
+                "the reservation was promoted onto the undo slot",
+            )
             assertTrue(stagedFiles().isEmpty(), "the runtime cleaned its staged copy")
             assertTrue(callerTempFiles().isEmpty(), "the caller's temp path was consumed/cleaned")
             val swapped = slot<File>()
@@ -221,7 +261,14 @@ internal class RestoreTransactionIntegrationTest {
             runCurrent()
 
             assertEquals(2, (runtime.phases.value as RuntimePhase.Serving).generation.id)
-            assertNotNull(restoreState.context, "the marker survived — the restore committed")
+            val attempt = requireNotNull(restoreState.attempt) {
+                "the journal survived the caller"
+            }
+            assertEquals(
+                RestoreAttempt.Phase.Committed,
+                attempt.phase,
+                "the durable commit record was written on the transaction, not the caller",
+            )
             assertTrue(stagedFiles().isEmpty(), "terminal cleanup ran after the commit")
         }
 
@@ -233,24 +280,32 @@ internal class RestoreTransactionIntegrationTest {
 
             val caller = launch { useCase() }
             runCurrent()
-            assertNotNull(restoreState.context, "beforeMutation wrote the marker pre-quiesce")
+            assertNotNull(restoreState.attempt, "beforeMutation claimed the slot pre-quiesce")
             caller.cancel() // initiator dead before the transaction resolves
             advanceTimeBy(3_000)
             runCurrent()
 
-            // The REAL RestoreTransactionEffects ran on the transaction: pre-mutation rejection
-            // compensated the marker and the preserved snapshot; the staged copy was deleted.
-            assertNull(restoreState.context, "onRejectedBeforeMutation cleared the marker")
-            assertFalse(File(tempDir, "pre_restore_backup.db").exists(), "preserved slot cleaned")
+            // The REAL RestoreTransactionEffects ran on the transaction: the pre-mutation
+            // rejection released the journal slot, and the runtime discarded ONLY its own
+            // reservation — the canonical undo slot was never touched.
+            assertNull(restoreState.attempt, "onRejectedBeforeMutation resolved the attempt")
+            assertTrue(reservationFiles().isEmpty(), "the attempt's reservation was discarded")
+            assertFalse(
+                File(tempDir, "pre_restore_backup.db").exists(),
+                "a rejected attempt never promotes anything onto the undo slot",
+            )
             assertTrue(stagedFiles().isEmpty(), "staged copy cleaned on the abort path")
             assertEquals(1, (runtime.phases.value as RuntimePhase.Serving).generation.id)
             lease.release()
         }
 
     @Test
-    fun `swap failure with successful rollback - Failure result, marker compensated, no success lie`() =
+    fun `swap failure with successful rollback - Failure result, journal resolved, no success lie`() =
         integrationTest { useCase, runtime ->
             runtime.currentGeneration
+            // The undo slot left behind by an EARLIER restore — what the in-process recovery
+            // rolls back onto when this attempt's own swap fails before any promotion.
+            File(tempDir, "pre_restore_backup.db").writeText("previous-undo-slot")
             val swapError = BackupError.Io(IOException("rename failed"))
             var swaps = 0
             coEvery { provider.replaceLiveDatabaseFile(any()) } coAnswers {
@@ -261,9 +316,9 @@ internal class RestoreTransactionIntegrationTest {
 
             val failure = assertInstanceOf(BackupResult.Failure::class.java, result)
             assertEquals(swapError, failure.error, "restore-FAILURE semantics, never success")
-            assertNull(restoreState.context, "onRecoveredByRollback compensated the marker")
+            assertNull(restoreState.attempt, "onRecoveredByRollback resolved the attempt")
             assertNull(restoreState.preRestoreAvailable, "no fake undo availability")
-            assertFalse(restoreState.mutationInterrupted, "recovery completed — no journal flag")
+            assertTrue(reservationFiles().isEmpty(), "the failed attempt's reservation is gone")
             assertEquals(
                 2,
                 (runtime.phases.value as RuntimePhase.Serving).generation.id,
@@ -272,25 +327,39 @@ internal class RestoreTransactionIntegrationTest {
         }
 
     @Test
-    fun `post-PONR failure without recovery journals the interrupted mutation for the next launch`() =
+    fun `post-PONR failure without recovery leaves the attempt unresolved with its reservation`() =
         integrationTest { useCase, runtime ->
             runtime.currentGeneration
-            // Swap fails AND the preserved file is gone → the ladder cannot roll back → Fatal;
-            // the use case's onFatal effects journal the interrupted mutation durably.
+            // Swap fails AND no undo slot exists → the ladder cannot roll back → Fatal. Nothing
+            // resolves the journal, so the next launch reads an unresolved `Prepared` attempt
+            // and recovers instead of letting a schema peek claim a success.
             coEvery { provider.replaceLiveDatabaseFile(any()) } returns BackupResult.Failure(
                 BackupError.Io(IOException("rename failed")),
-            )
-            coEvery { provider.preserveCurrentDb() } returns BackupResult.Success(
-                File(tempDir, "pre_restore_backup.db"), // reported, but never materialized
             )
 
             val result = useCase()
 
             assertInstanceOf(BackupResult.Failure::class.java, result)
-            assertTrue(
-                restoreState.mutationInterrupted,
-                "the journal entry routes the next launch to the failure path",
+            val attempt = requireNotNull(restoreState.attempt) {
+                "the attempt is PRESERVED — it is what routes the next launch to recovery"
+            }
+            assertEquals(
+                RestoreAttempt.Phase.Prepared,
+                attempt.phase,
+                "an unprovable mutation must never read as Committed",
             )
-            assertNotNull(restoreState.context, "the marker is PRESERVED for the next launch")
+            assertNotNull(attempt.context, "the manifest context survives for the recovery UI")
+            val reservationPath = requireNotNull(attempt.rollbackSnapshotPath) {
+                "the journal names the reservation the recovering launch must roll back onto"
+            }
+            assertTrue(
+                File(reservationPath).exists(),
+                "the runtime KEEPS the reservation the journal names: $reservationPath",
+            )
         }
+
+    private companion object {
+        /** The bytes a reserved rollback snapshot carries — the pre-attempt database stand-in. */
+        const val PRE_ATTEMPT_DB = "pre-attempt-db"
+    }
 }

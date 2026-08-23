@@ -29,6 +29,7 @@ import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -189,7 +190,7 @@ internal class AppRuntime(
         // Wake any parked lease acquirer so it hits the fatal check and fails LOUD instead of
         // suspending a worker forever.
         workerGate.reopen()
-        return ReplacementOutcome.Fatal
+        return ReplacementOutcome.Fatal()
     }
 
     // Atomic because generation 1 mints under [buildLock] while transitions mint under the mutex.
@@ -436,9 +437,35 @@ internal class AppRuntime(
     private suspend fun disposeFailedCandidate(
         candidate: RuntimeGeneration,
         closeCandidateDatabase: Boolean = true,
+    ): Boolean = tearDownCandidate(candidate, closeCandidateDatabase)
+
+    /**
+     * THE ONE candidate teardown path (spec §8.4), used by every candidate that must not be
+     * published — preflight failures, inline-rollback invalidation, and generations whose
+     * construction failed partway. The order is the invariant:
+     *
+     *  1. publication is already prevented (the caller never published this candidate);
+     *  2. clear its ViewModel ownership;
+     *  3. cancel AND bounded-JOIN its lifetime — a candidate's own jobs can hold the candidate
+     *     database, so their `finally` blocks must finish first;
+     *  4. only then close the database;
+     *  5. any failure returns false → the caller stops the ladder (Fatal) and performs no later
+     *     rename, because an unjoined job or an unknown-state handle may still hold the file.
+     */
+    private suspend fun tearDownCandidate(
+        candidate: RuntimeGeneration,
+        closeCandidateDatabase: Boolean,
     ): Boolean {
-        runCatching { withContext(policy.mainDispatcher) { candidate.viewModelStore.clear() } }
-            .onFailure { logger.e(it, "candidate ViewModelStore clear failed") }
+        val cleared = runCatching {
+            withContext(policy.mainDispatcher) { candidate.viewModelStore.clear() }
+        }
+        if (cleared.isFailure) {
+            logger.e(
+                cleared.exceptionOrNull() ?: IllegalStateException("candidate VM clear failed"),
+                "candidate ViewModelStore clear failed — the ladder must stop",
+            )
+            return false
+        }
         val joined = withTimeoutOrNull(policy.drainTimeoutMillis) {
             candidate.lifetime.cancelAndJoin()
         }
@@ -447,7 +474,7 @@ internal class AppRuntime(
                 IllegalStateException("candidate lifetime did not join"),
                 "candidate jobs unjoinable — the candidate database cannot be closed safely",
             )
-            return !closeCandidateDatabase
+            return false
         }
         if (!closeCandidateDatabase) return true
         // close() is idempotent — safe even when the inline rollback already closed it.
@@ -469,6 +496,7 @@ internal class AppRuntime(
         replace(ReplacementOperation.RestoreFromSnapshot(source), effects).toSeamResult()
 
     override suspend fun rollbackToPreRestoreBackup(
+        sourcePath: String?,
         effects: DatabaseReplacementEffects,
     ): DatabaseReplacementResult {
         // Re-entrancy (spec §8.4): a rollback issued from INSIDE this runtime's own candidate
@@ -476,7 +504,7 @@ internal class AppRuntime(
         // nested transaction (the mutex is non-reentrant and the transaction coroutine holds
         // it). This coroutine IS the transaction, so the terminal effect runs right here.
         coroutineContext[ReplacementTransaction]?.let { transaction ->
-            val outcome = runInlineRollback(closeDatabase, transaction)
+            val outcome = runInlineRollback(closeDatabase, transaction, effects)
             // The inline branch runs inside the outer transaction (mutex held, PONR crossed).
             return runTerminalEffects(effects, outcome, ponrCrossed = true, logger = logger)
                 .toSeamResult()
@@ -492,7 +520,10 @@ internal class AppRuntime(
             return runTerminalEffects(effects, rejected, ponrCrossed = false, logger = logger)
                 .toSeamResult()
         }
-        return replace(ReplacementOperation.RollbackToPreRestoreBackup, effects).toSeamResult()
+        return replace(
+            ReplacementOperation.RollbackToPreRestoreBackup(sourcePath),
+            effects,
+        ).toSeamResult()
     }
 
     /**
@@ -552,7 +583,13 @@ internal class AppRuntime(
                 currentGeneration
                 transitionMutex.withLock {
                     val outcome = runCatching {
-                        executeReplacement(operation, effects, tracker, inFlight.stagedSource)
+                        executeReplacement(
+                            operation = operation,
+                            effects = effects,
+                            tracker = tracker,
+                            stagedSource = inFlight.stagedSource,
+                            reservationSlot = { inFlight.reservation = it },
+                        )
                     }.getOrElse { error ->
                         if (error is CancellationException) {
                             // hostScope is never cancelled; an internal CancellationException
@@ -572,6 +609,15 @@ internal class AppRuntime(
                 }
             }
             inFlight.stagedSource?.let { staged -> runCatching { staged.delete() } }
+            // The reservation is this attempt's asset, but after PONR without recovery it may be
+            // the ONLY copy of the pre-attempt database and the durable journal names it — those
+            // outcomes keep it for the next launch. Every other outcome resolved the journal
+            // (or promoted the file away), so discarding is safe.
+            val keepReservation = finalOutcome is ReplacementOutcome.FailedAfterMutation ||
+                finalOutcome is ReplacementOutcome.Fatal
+            if (!keepReservation) {
+                inFlight.reservation?.let { reserved -> runCatching { reserved.delete() } }
+            }
             synchronized(submissionLock) { inFlightReplacements.remove(operation) }
             inFlight.outcome.complete(finalOutcome)
         }
@@ -587,7 +633,7 @@ internal class AppRuntime(
      */
     private fun resolveTransactionEscape(error: Throwable, tracker: PonrTracker): ReplacementOutcome {
         logger.e(error, "replacement transaction threw unexpectedly")
-        if (isFatal) return ReplacementOutcome.Fatal
+        if (isFatal) return ReplacementOutcome.Fatal()
         return if (tracker.crossed) {
             publishFatal("transaction escaped after the point of no return: $error")
         } else {
@@ -607,10 +653,11 @@ internal class AppRuntime(
         effects: DatabaseReplacementEffects,
         tracker: PonrTracker,
         stagedSource: File?,
+        reservationSlot: (File) -> Unit,
     ): ReplacementOutcome {
-        // Fatal recheck INSIDE the mutex (mandate 8): a transaction queued behind one that went
+        // Fatal recheck INSIDE the mutex (spec §8.4): a transaction queued behind one that went
         // Fatal performs no validation, no close, no swap, no publication.
-        if (isFatal) return ReplacementOutcome.Fatal
+        if (isFatal) return ReplacementOutcome.Fatal()
         val outgoing = requireNotNull(currentOrNull) { "generation must exist before replacement" }
         val provider = outgoing.graph.databaseSnapshotProvider
         // Running-state validation — reads the LIVE database, so it precedes any quiescing.
@@ -627,26 +674,54 @@ internal class AppRuntime(
                 staged
             }
 
-            ReplacementOperation.RollbackToPreRestoreBackup ->
-                provider.getPreRestoreBackupFile() ?: return ReplacementOutcome.RejectedBeforeMutation(
-                    BackupError.CorruptedBackup(reason = "no pre-restore backup to roll back to"),
+            is ReplacementOperation.RollbackToPreRestoreBackup ->
+                operation.sourcePath?.let(::File)?.takeIf { it.exists() }
+                    ?: provider.getPreRestoreBackupFile()
+                    ?: return ReplacementOutcome.RejectedBeforeMutation(
+                        BackupError.CorruptedBackup(reason = "no pre-restore backup to roll back to"),
+                    )
+        }
+        // ROLLBACK-SLOT RESERVATION (spec §8.5a) — inside the transaction, after validation and
+        // before anything irreversible, so the snapshot belongs to THIS serialized attempt: a
+        // concurrent restore can neither observe a half-written slot nor overwrite this one, and
+        // a rejection discards only this reservation while the previous undo slot survives.
+        var reservation: File? = null
+        if (operation is ReplacementOperation.RestoreFromSnapshot) {
+            when (val reserved = provider.reserveRollbackSnapshot(effects.attemptId)) {
+                is BackupResult.Success -> {
+                    reservation = reserved.data
+                    reservationSlot(reserved.data)
+                }
+
+                is BackupResult.Failure -> return ReplacementOutcome.RejectedBeforeMutation(
+                    reserved.error,
                 )
+            }
         }
-        // Pre-mutation persistence (e.g. restore's `restore_in_progress` marker) runs INSIDE the
-        // transaction, under the mutex — no other transition's preflight can interleave between
-        // the marker write and the swap (the spurious-Scenario-1 window is closed by ordering).
-        runCatching { effects.onBeforeMutation() }.onFailure { error ->
-            return ReplacementOutcome.RejectedBeforeMutation(
-                BackupError.Io(IOException("pre-mutation persistence failed: $error")),
-            )
-        }
+        // Pre-mutation persistence: the attempt claims the durable journal slot (identity +
+        // context + the reserved path) in ONE atomic write, under the mutex. A throw here — a
+        // DIFFERENT unresolved attempt still owns the slot, or the write failed — rejects the
+        // transaction before anything irreversible.
+        runCatching { effects.onBeforeMutation(reservation?.absolutePath.orEmpty()) }
+            .onFailure { error ->
+                return ReplacementOutcome.RejectedBeforeMutation(
+                    BackupError.Io(IOException("pre-mutation persistence failed: $error")),
+                )
+            }
         val consumeSource = operation is ReplacementOperation.RollbackToPreRestoreBackup
         return when (replacementPolicy) {
-            ReplacementPolicy.RestartProcess ->
-                runRestartProcessSwap(closeDatabase, outgoing, provider, source, consumeSource, tracker)
+            ReplacementPolicy.RestartProcess -> runRestartProcessSwap(
+                closeDatabase = closeDatabase,
+                outgoing = outgoing,
+                mutation = MutationPlan(provider, source, consumeSource, effects, reservation),
+                tracker = tracker,
+            )
 
-            ReplacementPolicy.RebuildInProcess ->
-                executeRebuildTransaction(outgoing, provider, source, consumeSource, tracker)
+            ReplacementPolicy.RebuildInProcess -> executeRebuildTransaction(
+                outgoing = outgoing,
+                mutation = MutationPlan(provider, source, consumeSource, effects, reservation),
+                tracker = tracker,
+            )
         }
     }
 
@@ -658,11 +733,12 @@ internal class AppRuntime(
      */
     private suspend fun executeRebuildTransaction(
         outgoing: RuntimeGeneration,
-        provider: DatabaseSnapshotProvider,
-        source: File,
-        consumeSource: Boolean,
+        mutation: MutationPlan,
         tracker: PonrTracker,
     ): ReplacementOutcome {
+        val provider = mutation.provider
+        val consumeSource = mutation.consumeSource
+        val effects = mutation.effects
         runAbortableQuiesce(outgoing)?.let { reason -> return unwindQuiesce(outgoing, reason) }
 
         // ---- PONR: the outgoing teardown BEGINS (spec §8.4). Never abortable from here. ----
@@ -679,22 +755,26 @@ internal class AppRuntime(
 
         // ---- ReplacingFile ----
         val transaction = ReplacementTransaction(nextDbGeneration = outgoing.dbGeneration + 1)
-        val replaced = provider.replaceLiveDatabaseFile(source)
+        val replaced = provider.replaceLiveDatabaseFile(mutation.source)
         if (replaced is BackupResult.Failure) {
-            return recoverViaRollback(provider, transaction, replaced.error, consumeSource)
+            return recoverViaRollback(provider, transaction, replaced.error, consumeSource, effects)
         }
+        // The mutation committed: promote the reservation and record the durable commit BEFORE
+        // consuming any rollback asset (spec §8.5a). A bookkeeping failure keeps every asset and
+        // is carried onto the final outcome.
+        val committed = commitMutation(mutation = mutation, generation = null)
+        val commitEffectsError = (committed as? ReplacementOutcome.Completed)?.effectsError
         if (consumeSource) {
-            // The primary swap of the ROLLBACK operation IS the requested rollback: mark BEFORE
-            // consuming the source so a first-candidate failure takes the allowed follow-up
-            // attempt over the already-rolled-back file instead of Fatal.
+            // The primary swap of the ROLLBACK operation IS the requested rollback: mark it so a
+            // first-candidate failure takes the allowed follow-up attempt over the already
+            // rolled-back file instead of Fatal.
             transaction.rolledBack = true
-            provider.deletePreRestoreBackup()
         }
 
         // ---- BuildingGeneration → Preflight → Publishing, with the bounded ladder ----
         return when (val attempt = attemptGeneration(transaction)) {
             is AttemptResult.Published ->
-                completedOrRecovered(transaction, attempt.generation, consumeSource)
+                completedOrRecovered(transaction, attempt.generation, consumeSource, commitEffectsError)
 
             AttemptResult.LadderFatal ->
                 publishFatal("candidate resources could not be released — ladder stopped")
@@ -702,13 +782,17 @@ internal class AppRuntime(
             AttemptResult.Retryable ->
                 if (transaction.rolledBack) {
                     when (val retry = attemptGeneration(transaction)) {
-                        is AttemptResult.Published ->
-                            completedOrRecovered(transaction, retry.generation, consumeSource)
+                        is AttemptResult.Published -> completedOrRecovered(
+                            transaction,
+                            retry.generation,
+                            consumeSource,
+                            commitEffectsError,
+                        )
 
                         else -> publishFatal("post-rollback generation attempt failed")
                     }
                 } else {
-                    recoverViaRollback(provider, transaction, cause = null, consumeSource)
+                    recoverViaRollback(provider, transaction, cause = null, consumeSource, effects)
                 }
         }
     }
@@ -723,14 +807,16 @@ internal class AppRuntime(
         transaction: ReplacementTransaction,
         generation: RuntimeGeneration,
         requestedRollback: Boolean,
+        commitEffectsError: BackupError? = null,
     ): ReplacementOutcome = if (!requestedRollback && transaction.rolledBack) {
         ReplacementOutcome.RecoveredByRollback(
             error = transaction.rollbackCause
                 ?: BackupError.Io(IOException("restore rolled back")),
             generation = generation,
+            effectsError = commitEffectsError,
         )
     } else {
-        ReplacementOutcome.Completed(generation)
+        ReplacementOutcome.Completed(generation, effectsError = commitEffectsError)
     }
 
     /** Ladder branch: rollback file mechanics, then exactly one fresh-generation attempt. */
@@ -739,6 +825,7 @@ internal class AppRuntime(
         transaction: ReplacementTransaction,
         cause: BackupError?,
         requestedRollback: Boolean,
+        effects: DatabaseReplacementEffects,
     ): ReplacementOutcome {
         val rollbackSource = provider.getPreRestoreBackupFile()
             ?: return publishFatal("replacement failed ($cause) and no pre-restore backup exists")
@@ -750,7 +837,17 @@ internal class AppRuntime(
         transaction.rolledBack = true
         transaction.rollbackCause = cause
             ?: BackupError.Io(IOException("restore could not complete; rolled back"))
-        provider.deletePreRestoreBackup()
+        // Durable record BEFORE the rollback asset is consumed (spec §8.5a).
+        commitMutation(
+            mutation = MutationPlan(
+                provider = provider,
+                source = rollbackSource,
+                consumeSource = true,
+                effects = effects,
+                reservation = null,
+            ),
+            generation = null,
+        )
         return when (val attempt = attemptGeneration(transaction)) {
             is AttemptResult.Published ->
                 completedOrRecovered(transaction, attempt.generation, requestedRollback)
@@ -822,6 +919,10 @@ internal class AppRuntime(
         /** A staging failure recorded in the submission frame; resolved to a rejection. */
         @Volatile
         var stagingFailure: Throwable? = null
+
+        /** The rollback snapshot this attempt reserved inside the transaction (spec §8.5a). */
+        @Volatile
+        var reservation: File? = null
     }
 
     /** Marks a graph-only transition's preflight — a rollback inside it is rejected, not run. */
@@ -848,12 +949,14 @@ internal class AppRuntime(
         val graph = runCatching {
             graphFactory(applicationContext, database, imageStorage, lifetime, this)
         }.getOrElse { error ->
-            lifetime.cancel()
-            if (ownsDatabase) {
-                runCatching { closeDatabase(database) }
-                    .getOrElse { closeError -> throw OrphanCloseException(closeError) }
-            }
-            throw error
+            // A partially constructed graph may already have handed the lifetime to consumers
+            // that started jobs, so the orphan database is closed only after those jobs are
+            // JOINED (spec §8.4). Non-suspend by necessity here — generation 1 is built from the
+            // `currentGeneration` getter — so the join runs on the caller's thread with the same
+            // bounded budget the candidate paths use; a failure to join or close escalates to
+            // [OrphanCloseException], which stops the ladder instead of renaming over a file an
+            // unknown-state handle may still hold.
+            throw releasePartialGeneration(lifetime, database, ownsDatabase, error)
         }
         return RuntimeGeneration(
             id = id,
@@ -863,6 +966,30 @@ internal class AppRuntime(
             lifetime = lifetime,
             viewModelStore = ViewModelStore(),
         )
+    }
+
+    /**
+     * Releases a generation whose graph construction failed, and returns the exception to throw:
+     * the orphan database is closed only AFTER its lifetime is cancelled and JOINED, because a
+     * partially constructed graph may already have handed that lifetime to consumers that
+     * started jobs. A failed join or close escalates to [OrphanCloseException], which stops the
+     * ladder rather than renaming over a file an unknown-state handle may still hold.
+     */
+    private fun releasePartialGeneration(
+        lifetime: AppScopeLifetime,
+        database: AppDatabase,
+        ownsDatabase: Boolean,
+        cause: Throwable,
+    ): Throwable {
+        val joined: Unit? = runCatching {
+            runBlocking {
+                withTimeoutOrNull(policy.drainTimeoutMillis) { lifetime.cancelAndJoin() }
+            }
+        }.getOrNull()
+        if (!ownsDatabase) return cause
+        if (joined == null) return OrphanCloseException(cause)
+        return runCatching { closeDatabase(database) }
+            .fold(onSuccess = { cause }, onFailure = { OrphanCloseException(it) })
     }
 
     /** A read-only [StateFlow] view derived field-access-cheaply from one source of truth. */
@@ -942,7 +1069,15 @@ internal sealed interface ReplacementOperation {
         constructor(source: File) : this(source.absolutePath)
     }
 
-    data object RollbackToPreRestoreBackup : ReplacementOperation
+    /**
+     * [sourcePath] names the rollback snapshot explicitly — the durable journal's reservation
+     * when a recovering launch knows which file holds the true pre-attempt database. `null`
+     * uses the canonical undo slot. Part of the operation IDENTITY, so a recovery rollback and
+     * a user undo of different files are different operations.
+     */
+    data class RollbackToPreRestoreBackup(
+        val sourcePath: String? = null,
+    ) : ReplacementOperation
 }
 
 /** Typed, phase-aware result of a replacement transaction (mandates 3 + 4). */
@@ -961,7 +1096,10 @@ internal sealed interface ReplacementOutcome {
     ) : ReplacementOutcome
 
     /** Nothing irreversible happened — the outgoing generation keeps serving, fully intact. */
-    data class RejectedBeforeMutation(val error: BackupError) : ReplacementOutcome
+    data class RejectedBeforeMutation(
+        val error: BackupError,
+        val effectsError: BackupError? = null,
+    ) : ReplacementOutcome
 
     /**
      * The requested RESTORE failed after PONR and the bounded recovery rolled back: a successor
@@ -970,6 +1108,7 @@ internal sealed interface ReplacementOutcome {
     data class RecoveredByRollback(
         val error: BackupError,
         val generation: RuntimeGeneration,
+        val effectsError: BackupError? = null,
     ) : ReplacementOutcome
 
     /**
@@ -977,10 +1116,13 @@ internal sealed interface ReplacementOutcome {
      * recovery ran (the RestartProcess ending). Recovery assets and markers are PRESERVED and
      * belong to the runtime/journal protocol — callers must never clean them on this outcome.
      */
-    data class FailedAfterMutation(val error: BackupError) : ReplacementOutcome
+    data class FailedAfterMutation(
+        val error: BackupError,
+        val effectsError: BackupError? = null,
+    ) : ReplacementOutcome
 
     /** The runtime is terminal — no generation serving, nothing further performed. */
-    data object Fatal : ReplacementOutcome
+    data class Fatal(val effectsError: BackupError? = null) : ReplacementOutcome
 }
 
 /**

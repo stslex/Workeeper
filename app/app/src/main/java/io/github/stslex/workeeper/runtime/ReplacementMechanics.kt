@@ -139,37 +139,51 @@ internal suspend fun runTerminalEffects(
     }
     outcome
 } else when (outcome) {
-    is ReplacementOutcome.Completed ->
-        runCatching { effects.onCommitted() }.fold(
-            onSuccess = { outcome },
-            onFailure = { error ->
-                logger.e(error, "onCommitted effects failed — surfacing, not swallowing")
-                outcome.copy(
-                    effectsError = BackupError.Io(IOException("committed effects failed: $error")),
-                )
-            },
-        )
-
-    is ReplacementOutcome.RejectedBeforeMutation -> outcome.also {
-        runCatching { effects.onRejectedBeforeMutation(outcome.error) }
-            .onFailure { logger.e(it, "onRejectedBeforeMutation effects failed") }
+    is ReplacementOutcome.Completed -> outcome.withEffects(logger, "onCommitted") {
+        effects.onCommitted()
     }
 
-    is ReplacementOutcome.RecoveredByRollback -> outcome.also {
-        runCatching { effects.onRecoveredByRollback(outcome.error) }
-            .onFailure { logger.e(it, "onRecoveredByRollback effects failed") }
-    }
+    is ReplacementOutcome.RejectedBeforeMutation ->
+        outcome.withEffects(logger, "onRejectedBeforeMutation") {
+            effects.onRejectedBeforeMutation(outcome.error)
+        }
 
-    is ReplacementOutcome.FailedAfterMutation -> outcome.also {
-        runCatching { effects.onFailedAfterMutation(outcome.error) }
-            .onFailure { logger.e(it, "onFailedAfterMutation effects failed") }
-    }
+    is ReplacementOutcome.RecoveredByRollback ->
+        outcome.withEffects(logger, "onRecoveredByRollback") {
+            effects.onRecoveredByRollback(outcome.error)
+        }
 
-    ReplacementOutcome.Fatal -> outcome.also {
-        runCatching { effects.onFatal() }
-            .onFailure { logger.e(it, "onFatal effects failed") }
-    }
+    is ReplacementOutcome.FailedAfterMutation ->
+        outcome.withEffects(logger, "onFailedAfterMutation") {
+            effects.onFailedAfterMutation(outcome.error)
+        }
+
+    is ReplacementOutcome.Fatal -> outcome.withEffects(logger, "onFatal") { effects.onFatal() }
 }
+
+/**
+ * Runs one terminal compensation and folds its failure ONTO the outcome (spec §8.5a): a
+ * terminal effect that throws leaves durable state disagreeing with what the outcome implies,
+ * so it can never be merely logged behind a clean-looking result.
+ */
+private suspend fun ReplacementOutcome.withEffects(
+    logger: Logger,
+    label: String,
+    block: suspend () -> Unit,
+): ReplacementOutcome = runCatching { block() }.fold(
+    onSuccess = { this },
+    onFailure = { error ->
+        logger.e(error, "$label effects failed — surfacing on the outcome, not swallowing")
+        val effectsError = BackupError.Io(IOException("$label effects failed: $error"))
+        when (this) {
+            is ReplacementOutcome.Completed -> copy(effectsError = effectsError)
+            is ReplacementOutcome.RejectedBeforeMutation -> copy(effectsError = effectsError)
+            is ReplacementOutcome.RecoveredByRollback -> copy(effectsError = effectsError)
+            is ReplacementOutcome.FailedAfterMutation -> copy(effectsError = effectsError)
+            is ReplacementOutcome.Fatal -> copy(effectsError = effectsError)
+        }
+    },
+)
 
 /**
  * The Android-production ending, byte-equivalent to the pre-split provider methods: close
@@ -186,11 +200,10 @@ internal suspend fun runTerminalEffects(
 internal suspend fun runRestartProcessSwap(
     closeDatabase: (AppDatabase) -> Unit,
     outgoing: RuntimeGeneration,
-    provider: DatabaseSnapshotProvider,
-    source: File,
-    consumeSource: Boolean,
+    mutation: MutationPlan,
     tracker: PonrTracker,
 ): ReplacementOutcome {
+    val provider = mutation.provider
     tracker.crossed = true
     val closed = runCatching { closeDatabase(outgoing.database) }
     if (closed.isFailure) {
@@ -198,21 +211,77 @@ internal suspend fun runRestartProcessSwap(
             BackupError.Io(IOException("database close failed: ${closed.exceptionOrNull()}")),
         )
     }
-    val replaced = provider.replaceLiveDatabaseFile(source)
+    val replaced = provider.replaceLiveDatabaseFile(mutation.source)
     if (replaced is BackupResult.Failure) {
         // Today's shipped post-close failure behavior: surface the error, no restart, no
-        // rebuild — the closed database fails loud until the user acts. Assets preserved;
-        // the caller's onFailedAfterMutation effects journal the interrupted mutation.
+        // rebuild — the closed database fails loud until the user acts. Every recovery asset
+        // stays in place and the journal stays `Prepared`, so the next launch recovers.
         return ReplacementOutcome.FailedAfterMutation(replaced.error)
     }
-    if (consumeSource) provider.deletePreRestoreBackup()
-    return ReplacementOutcome.Completed(generation = null)
+    return commitMutation(mutation, generation = null)
+}
+
+/**
+ * Everything one attempt's mutation needs, grouped so both endings take the same shape: where
+ * the file mechanics live, what is being swapped in, whether the source is consumed on success,
+ * the caller's attempt-scoped effects, and the rollback snapshot this attempt reserved.
+ */
+internal class MutationPlan(
+    val provider: DatabaseSnapshotProvider,
+    val source: File,
+    val consumeSource: Boolean,
+    val effects: DatabaseReplacementEffects,
+    val reservation: File?,
+)
+
+/**
+ * The durable commit sequence shared by both endings (spec §8.5a), in the ONE order that keeps
+ * every crash window truthful:
+ *
+ *  1. the live-file mutation already committed (the caller's rename returned success);
+ *  2. promote the attempt's reserved rollback snapshot onto the canonical undo slot — a crash
+ *     before this leaves the reservation, which the journal names, as the true pre-attempt
+ *     database; a crash after it leaves the canonical slot holding exactly that database;
+ *  3. record the durable `Committed` transition — the ONLY point after which a cold start may
+ *     conclude success;
+ *  4. and only then consume the rollback asset a rollback operation just applied.
+ *
+ * A step-3 failure keeps every asset and leaves the journal at `Prepared`: the mutation stands
+ * but is not durably provable, so the next launch conservatively rolls back. It is reported on
+ * the outcome, never swallowed.
+ */
+internal suspend fun commitMutation(
+    mutation: MutationPlan,
+    generation: RuntimeGeneration?,
+): ReplacementOutcome {
+    val provider = mutation.provider
+    val promoted = mutation.reservation?.let { provider.promoteRollbackReservation(it) }
+    if (promoted is BackupResult.Failure) {
+        return ReplacementOutcome.Completed(
+            generation = generation,
+            effectsError = BackupError.Io(
+                IOException("rollback snapshot promotion failed: ${promoted.error}"),
+            ),
+        )
+    }
+    val recorded = runCatching { mutation.effects.onMutationCommitted() }
+    if (recorded.isFailure) {
+        return ReplacementOutcome.Completed(
+            generation = generation,
+            effectsError = BackupError.Io(
+                IOException("durable commit bookkeeping failed: ${recorded.exceptionOrNull()}"),
+            ),
+        )
+    }
+    if (mutation.consumeSource) provider.deletePreRestoreBackup()
+    return ReplacementOutcome.Completed(generation = generation)
 }
 
 /** The inline Scenario-1 rollback branch of the CURRENT transaction (see the seam method). */
 internal suspend fun runInlineRollback(
     closeDatabase: (AppDatabase) -> Unit,
     transaction: ReplacementTransaction,
+    effects: DatabaseReplacementEffects,
 ): ReplacementOutcome {
     val candidate = transaction.candidate
         ?: return ReplacementOutcome.RejectedBeforeMutation(
@@ -244,8 +313,18 @@ internal suspend fun runInlineRollback(
     transaction.rollbackCause = BackupError.Io(
         IOException("restore rolled back by the scenario-1 preflight"),
     )
-    provider.deletePreRestoreBackup()
-    return ReplacementOutcome.Completed(generation = null)
+    // The rollback asset is consumed only after the durable commit record — same ordering rule
+    // as every other mutation (spec §8.5a).
+    return commitMutation(
+        mutation = MutationPlan(
+            provider = provider,
+            source = rollbackSource,
+            consumeSource = true,
+            effects = effects,
+            reservation = null,
+        ),
+        generation = null,
+    )
 }
 
 /**
@@ -374,13 +453,13 @@ internal fun ReplacementOutcome.toSeamResult(): DatabaseReplacementResult = when
     is ReplacementOutcome.Completed -> DatabaseReplacementResult.Committed(effectsError)
 
     is ReplacementOutcome.RejectedBeforeMutation ->
-        DatabaseReplacementResult.RejectedBeforeMutation(error)
+        DatabaseReplacementResult.RejectedBeforeMutation(error, effectsError)
 
     is ReplacementOutcome.RecoveredByRollback ->
-        DatabaseReplacementResult.RecoveredByRollback(error)
+        DatabaseReplacementResult.RecoveredByRollback(error, effectsError)
 
     is ReplacementOutcome.FailedAfterMutation ->
-        DatabaseReplacementResult.FailedAfterMutation(error)
+        DatabaseReplacementResult.FailedAfterMutation(error, effectsError)
 
-    ReplacementOutcome.Fatal -> DatabaseReplacementResult.FatalNoGeneration
+    is ReplacementOutcome.Fatal -> DatabaseReplacementResult.FatalNoGeneration(effectsError)
 }

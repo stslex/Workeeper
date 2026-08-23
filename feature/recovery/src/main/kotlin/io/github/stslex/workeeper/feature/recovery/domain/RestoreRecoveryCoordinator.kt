@@ -10,6 +10,8 @@ import io.github.stslex.workeeper.core.core.platform.PlatformInfoProvider
 import io.github.stslex.workeeper.core.data.backup.api.DatabaseReplacement
 import io.github.stslex.workeeper.core.data.backup.api.DatabaseReplacementEffects
 import io.github.stslex.workeeper.core.data.backup.api.DatabaseReplacementResult
+import io.github.stslex.workeeper.core.data.backup.api.error.BackupError
+import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreAttempt
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreInProgressContext
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreStateRepository
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupErrorCode
@@ -17,6 +19,7 @@ import io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotPr
 import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialog
 import io.github.stslex.workeeper.feature.app_dialogs.api.publisher.AppDialogPublisher
 import io.github.stslex.workeeper.feature.recovery.diagnostics.RestoreRecoveryReporter
+import java.util.UUID
 
 /**
  * Orchestrates the two cross-cutting recovery flows that live above
@@ -76,27 +79,101 @@ class RestoreRecoveryCoordinator @Inject internal constructor(
      * routes straight to the failure path: roll back via the preserved snapshot and surface
      * truthful restore-FAILURE semantics, never RestoreSuccess, never a fake undo offer.
      */
-    suspend fun handlePostRestoreLaunch(): PreflightOutcome {
-        val inProgressContext = restoreStateRepository.getRestoreInProgressContext()
-            ?: return PreflightOutcome.NoOp
+    /**
+     * The last pre-flight verdict, cached for the Activity layer exactly as
+     * `StartupMigrationCoordinator.lastDecision` is (spec §8.4): `Application.onCreate` runs the
+     * pre-flight, and `MainActivity` reads this to decide whether to hand off to the DB-free
+     * recovery surface instead of composing the main UI over a database of unknown provenance.
+     */
+    @Volatile
+    var lastPreflightOutcome: PreflightOutcome? = null
+        private set
 
-        if (restoreStateRepository.isRestoreMutationInterrupted()) {
-            return if (handleRestoreFailure(inProgressContext, cause = null)) {
-                PreflightOutcome.RestoreRolledBack
-            } else {
-                PreflightOutcome.RecoveryRetryPending
+    /** True when this launch must route to the recovery surface instead of the main UI. */
+    val recoverySurfaceRequired: Boolean
+        get() = lastPreflightOutcome == PreflightOutcome.RecoveryRequired
+
+    suspend fun handlePostRestoreLaunch(): PreflightOutcome =
+        runPostRestoreLaunch().also { lastPreflightOutcome = it }
+
+    private suspend fun runPostRestoreLaunch(): PreflightOutcome {
+        val attempt = restoreStateRepository.getAttempt() ?: return PreflightOutcome.NoOp
+        val context = attempt.context
+
+        // A COMMITTED attempt is the ONLY state that may end in success: the swap is durably
+        // known to have happened, so the schema peek is a genuine verification of the new file.
+        if (attempt.phase == RestoreAttempt.Phase.Committed &&
+            attempt.kind == RestoreAttempt.Kind.Restore &&
+            context != null
+        ) {
+            val peekResult = runCatching { snapshotProvider.currentSchemaVersion() }
+            if (peekResult.isSuccess) {
+                handleRestoreSuccess(attempt, context)
+                return PreflightOutcome.RestoreSucceeded
             }
+            return recoverFrom(attempt, context, peekResult.exceptionOrNull())
         }
 
-        val peekResult = runCatching { snapshotProvider.currentSchemaVersion() }
-        return if (peekResult.isSuccess) {
-            handleRestoreSuccess(inProgressContext)
-            PreflightOutcome.RestoreSucceeded
-        } else {
-            if (handleRestoreFailure(inProgressContext, peekResult.exceptionOrNull())) {
-                PreflightOutcome.RestoreRolledBack
-            } else {
-                PreflightOutcome.RecoveryRetryPending
+        // PREPARED (or any unknown/legacy state): the outcome of the mutation is NOT durably
+        // known. The live file may be the old one, the new one, or a partially replaced one, and
+        // a schema peek would happily succeed on the untouched OLD database — the exact false
+        // "restore succeeded" this journal exists to prevent. Recover conservatively.
+        return recoverFrom(attempt, context, cause = null)
+    }
+
+    /**
+     * The failure path: roll back onto the attempt's own rollback snapshot (the journal names it
+     * when the runtime reserved one — between the live-file mutation and the snapshot's
+     * promotion it is the only file holding the true pre-attempt database) and classify the
+     * result for the caller (spec §8.4 "safe retry vs terminal recovery").
+     */
+    private suspend fun recoverFrom(
+        attempt: RestoreAttempt,
+        context: RestoreInProgressContext?,
+        cause: Throwable?,
+    ): PreflightOutcome {
+        if (cause != null && context != null) {
+            reporter.recordRestoreTimeFailure(
+                exception = cause,
+                context = context,
+                appVersionName = platformInfo.appVersionName(),
+            )
+        }
+        val rollback = databaseReplacement.rollbackToPreRestoreBackup(
+            sourcePath = attempt.rollbackSnapshotPath,
+            effects = ScenarioOneRollbackEffects(attempt.id),
+        )
+        return when (rollback) {
+            is DatabaseReplacementResult.Committed -> {
+                val effectsError = rollback.effectsError
+                if (effectsError == null) {
+                    PreflightOutcome.RestoreRolledBack
+                } else {
+                    // The rollback swap committed but its durable bookkeeping did not: the
+                    // journal still names an unresolved attempt, so the live file's provenance
+                    // is not provable. Terminal recovery, not a restart-and-hope loop.
+                    logger.w { "scenario-1 rollback committed without a durable record: $effectsError" }
+                    PreflightOutcome.RecoveryRequired
+                }
+            }
+
+            // PROVEN pre-PONR rejection: nothing was closed, mutated or torn down, so the live
+            // database is intact and open and the launch may continue on the SAFE path — the
+            // assets and the journal entry stay for the next attempt.
+            is DatabaseReplacementResult.RejectedBeforeMutation -> {
+                logger.w { "scenario-1 rollback rejected pre-mutation: ${rollback.error}" }
+                PreflightOutcome.RetrySafe
+            }
+
+            // Post-PONR, a closed handle, or a terminal runtime: this process must NOT arm
+            // DB-bound work or show the main UI over an unknown database. Assets preserved;
+            // the user reaches an explicit recovery surface.
+            is DatabaseReplacementResult.RecoveredByRollback,
+            is DatabaseReplacementResult.FailedAfterMutation,
+            is DatabaseReplacementResult.FatalNoGeneration,
+            -> {
+                logger.w { "scenario-1 rollback ended post-mutation ($rollback) — recovery required" }
+                PreflightOutcome.RecoveryRequired
             }
         }
     }
@@ -134,8 +211,9 @@ class RestoreRecoveryCoordinator @Inject internal constructor(
         // outgoing generation's lifetime, which the transition kills mid-await — the effects
         // survive it. The side-effect-first / dismiss-after discipline is preserved INSIDE
         // onCommitted: the undo state and dialog writes precede the caller's acknowledge.
+        val attemptId = UUID.randomUUID().toString()
         val result = databaseReplacement.rollbackToPreRestoreBackup(
-            effects = UndoRollbackEffects(onCommitted),
+            effects = UndoRollbackEffects(attemptId, onCommitted),
         )
         return when (result) {
             is DatabaseReplacementResult.Committed -> {
@@ -154,7 +232,7 @@ class RestoreRecoveryCoordinator @Inject internal constructor(
             is DatabaseReplacementResult.RejectedBeforeMutation,
             is DatabaseReplacementResult.RecoveredByRollback,
             is DatabaseReplacementResult.FailedAfterMutation,
-            DatabaseReplacementResult.FatalNoGeneration,
+            is DatabaseReplacementResult.FatalNoGeneration,
             -> {
                 logger.w { "Undo restore rollback did not commit: $result" }
                 UndoRestoreOutcome.IoFailure
@@ -164,18 +242,51 @@ class RestoreRecoveryCoordinator @Inject internal constructor(
 
     /** The undo transaction's typed compensation — runs on the transaction's coroutine. */
     private inner class UndoRollbackEffects(
+        override val attemptId: String,
         private val acknowledge: suspend () -> Unit,
     ) : DatabaseReplacementEffects {
 
+        override suspend fun onBeforeMutation(rollbackSnapshotPath: String) {
+            val claimed = restoreStateRepository.beginAttempt(
+                RestoreAttempt(
+                    id = attemptId,
+                    kind = RestoreAttempt.Kind.Rollback,
+                    phase = RestoreAttempt.Phase.Prepared,
+                    context = null,
+                    rollbackSnapshotPath = null,
+                ),
+            )
+            check(claimed) { "another unresolved attempt owns the journal slot; refusing to undo" }
+        }
+
+        override suspend fun onMutationCommitted() {
+            check(restoreStateRepository.recordAttemptCommitted(attemptId)) {
+                "the journal slot is no longer owned by attempt $attemptId"
+            }
+        }
+
         override suspend fun onCommitted() {
+            restoreStateRepository.resolveAttempt(attemptId)
             restoreStateRepository.clearPreRestoreBackupAvailable()
             appDialogPublisher.publish(AppDialog.UndoRestoreSuccess)
             acknowledge()
         }
+
+        override suspend fun onRejectedBeforeMutation(error: BackupError) {
+            restoreStateRepository.resolveAttempt(attemptId)
+        }
+
+        /** Post-PONR: leave the attempt unresolved so the next launch completes the recovery. */
+        override suspend fun onFailedAfterMutation(error: BackupError) = Unit
+
+        override suspend fun onFatal() = Unit
     }
 
-    private suspend fun handleRestoreSuccess(context: RestoreInProgressContext) {
-        restoreStateRepository.clearRestoreInProgress()
+    private suspend fun handleRestoreSuccess(
+        attempt: RestoreAttempt,
+        context: RestoreInProgressContext,
+    ) {
+        restoreStateRepository.resolveAttempt(attempt.id)
         restoreStateRepository.markPreRestoreBackupAvailable(context.startedAtEpochMs)
         appDialogPublisher.publish(
             AppDialog.RestoreSuccess(
@@ -185,58 +296,52 @@ class RestoreRecoveryCoordinator @Inject internal constructor(
         )
     }
 
-    /** Runs the failure-path rollback; returns true when the rollback COMMITTED. */
-    private suspend fun handleRestoreFailure(
-        context: RestoreInProgressContext,
-        cause: Throwable?,
-    ): Boolean {
-        if (cause != null) {
-            reporter.recordRestoreTimeFailure(
-                exception = cause,
-                context = context,
-                appVersionName = platformInfo.appVersionName(),
+    /** The scenario-1 rollback's typed compensation — runs on the transaction's coroutine. */
+    private inner class ScenarioOneRollbackEffects(
+        /** Reuses the RECOVERED attempt's id: this rollback finishes that attempt, not a new one. */
+        override val attemptId: String,
+    ) : DatabaseReplacementEffects {
+
+        /** The recovered attempt already owns the slot; re-claiming with its id is idempotent. */
+        override suspend fun onBeforeMutation(rollbackSnapshotPath: String) {
+            restoreStateRepository.beginAttempt(
+                RestoreAttempt(
+                    id = attemptId,
+                    kind = RestoreAttempt.Kind.Rollback,
+                    phase = RestoreAttempt.Phase.Prepared,
+                    context = null,
+                    rollbackSnapshotPath = null,
+                ),
             )
         }
-        val rollback = databaseReplacement.rollbackToPreRestoreBackup(
-            effects = ScenarioOneRollbackEffects(),
-        )
-        return when (rollback) {
-            is DatabaseReplacementResult.Committed -> {
-                rollback.effectsError?.let { effectsError ->
-                    logger.w { "scenario-1 rollback committed with failed effects: $effectsError" }
-                }
-                true
-            }
 
-            // EVERY non-commit preserves EVERY viable recovery file and marker (round-2
-            // mandate 4 — the old defensive delete-on-FailedAfterMutation branch is REMOVED):
-            // `restore_in_progress` stays set and `pre_restore_backup.db` stays on disk, so the
-            // NEXT launch re-enters this pre-flight and retries the rollback — the recovery
-            // path survives a process restart instead of being destroyed by its first failure.
-            // The user still gets FEEDBACK (publishing a dialog touches no recovery asset), and
-            // the caller must NOT restart: with the rollback uncommitted a restart would loop
-            // silently forever — the launch continues and the next one retries.
-            is DatabaseReplacementResult.RejectedBeforeMutation,
-            is DatabaseReplacementResult.RecoveredByRollback,
-            is DatabaseReplacementResult.FailedAfterMutation,
-            DatabaseReplacementResult.FatalNoGeneration,
-            -> {
-                logger.w { "Scenario 1 rollback did not commit ($rollback) — assets preserved for retry" }
-                appDialogPublisher.publish(
-                    AppDialog.RestoreFailure(reason = BackupErrorCodeForFailure),
-                )
-                false
+        override suspend fun onMutationCommitted() {
+            check(restoreStateRepository.recordAttemptCommitted(attemptId)) {
+                "the journal slot is no longer owned by attempt $attemptId"
             }
         }
-    }
-
-    /** The Scenario-1 rollback's typed compensation — runs on the transaction's coroutine. */
-    private inner class ScenarioOneRollbackEffects : DatabaseReplacementEffects {
 
         override suspend fun onCommitted() {
-            restoreStateRepository.clearRestoreInProgress()
+            restoreStateRepository.resolveAttempt(attemptId)
             // No undo slot after a failure rollback — the preserved file was consumed.
             restoreStateRepository.clearPreRestoreBackupAvailable()
+            appDialogPublisher.publish(
+                AppDialog.RestoreFailure(reason = BackupErrorCodeForFailure),
+            )
+        }
+
+        /**
+         * Every non-commit outcome leaves the attempt UNRESOLVED and every asset in place: the
+         * next launch re-enters this pre-flight and retries. The user still gets truthful
+         * feedback — publishing a dialog touches no recovery asset.
+         */
+        override suspend fun onRejectedBeforeMutation(error: BackupError) = publishFailureDialog()
+
+        override suspend fun onFailedAfterMutation(error: BackupError) = publishFailureDialog()
+
+        override suspend fun onFatal() = publishFailureDialog()
+
+        private suspend fun publishFailureDialog() {
             appDialogPublisher.publish(
                 AppDialog.RestoreFailure(reason = BackupErrorCodeForFailure),
             )
@@ -256,29 +361,36 @@ class RestoreRecoveryCoordinator @Inject internal constructor(
 
     /** Discriminator for the post-restart pre-flight result. */
     enum class PreflightOutcome {
-        /** No `restore_in_progress` flag — this was a normal launch. */
+        /** No unresolved attempt — this was a normal launch. */
         NoOp,
 
-        /** Migration succeeded; success dialog published. Continue startup normally. */
+        /**
+         * The attempt was durably COMMITTED and verified; success dialog published. Continue
+         * startup normally.
+         */
         RestoreSucceeded,
 
         /**
-         * Migration failed; the rollback to the preserved snapshot COMMITTED. Caller MUST
-         * restart the app because the in-process Room handle is stale (it
-         * already opened the failed db).
+         * The failure-path rollback COMMITTED. Caller MUST restart the app because the
+         * in-process Room handle is stale (it already opened the failed db).
          */
         RestoreRolledBack,
 
         /**
-         * The failure-path rollback did NOT commit (round-2 mandate 4: every asset and marker
-         * preserved for the next launch's retry). The caller must NOT restart — the rollback is
-         * still pending, so a restart would loop silently forever ("restart → retry → fail →
-         * restart"). A [AppDialog.RestoreFailure] was published as feedback; the launch
-         * continues (journal-routed case: the live file is the untouched pre-restore data;
-         * peek-throw case: DB reads fail loud exactly as any unmigratable-database launch
-         * would) and the NEXT launch re-enters the pre-flight and retries.
+         * PROVEN pre-PONR rejection: nothing was closed, mutated or torn down, so the live
+         * database is intact and open. The launch continues on the SAFE path (spec §8.4) with
+         * every asset and the journal entry preserved for the next attempt — no restart, which
+         * would loop, and no recovery surface, which the intact database does not warrant.
          */
-        RecoveryRetryPending,
+        RetrySafe,
+
+        /**
+         * TERMINAL recovery: the mutation's outcome is unknown or the runtime is fatal, so this
+         * process must arm NO DB-bound work (query planner, repositories, dialog observer) and
+         * must not show the main UI over a database of unknown provenance. Every recovery asset
+         * is preserved and the user is routed to the explicit recovery surface.
+         */
+        RecoveryRequired,
     }
 
     private companion object {

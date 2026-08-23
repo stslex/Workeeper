@@ -9,62 +9,51 @@ import kotlinx.coroutines.flow.Flow
  *
  * Two distinct pieces of state, both surviving process restart:
  *
- * 1. **`restore_in_progress`** — a transient flag set by
- *    `BackupInteractor.restoreLatest` just before the file replace, and
- *    cleared by the post-restart pre-flight in `Application.onCreate` (either
- *    after a successful Room open or after rollback). The presence of this
- *    flag tells the pre-flight that the user just tapped Restore; the
- *    [RestoreInProgressContext] payload feeds Crashlytics keys + the
- *    diagnostic export on failure.
+ * 1. **The attempt journal** ([RestoreAttempt], Phase 5 R3 — spec §8.5a) — at most ONE
+ *    unresolved database-replacement attempt at a time. Claimed atomically before the point of
+ *    no return, advanced to [RestoreAttempt.Phase.Committed] only once the requested file
+ *    mutation is durably committed, and cleared only by the attempt that owns it. The
+ *    cold-start pre-flight reads it to decide success vs recovery: a
+ *    [RestoreAttempt.Phase.Prepared] (or otherwise unknown) attempt NEVER yields a success
+ *    verdict, however healthy the live database looks.
  *
  * 2. **`pre_restore_backup_available`** — a longer-lived flag set after the
  *    post-restart pre-flight verifies the restore succeeded. While `true`,
  *    Settings renders the "Revert last restore" row and the corresponding
  *    `cache/pre_restore_backup.db` snapshot is preserved. Cleared on undo or
- *    when the next Restore overwrites the preserved file.
+ *    when the next Restore's snapshot is promoted over it.
  */
 interface RestoreStateRepository {
 
     /**
-     * Mark that a Restore is in progress and persist the manifest context for
-     * the post-restart pre-flight. Replaces any previously persisted context.
-     */
-    suspend fun markRestoreInProgress(context: RestoreInProgressContext)
-
-    /**
-     * Returns the persisted [RestoreInProgressContext] when a restore is in
-     * progress, or `null` otherwise.
+     * Atomically claims the attempt slot for [attempt] (which must be
+     * [RestoreAttempt.Phase.Prepared]) and persists its identity, kind, manifest context and
+     * reserved rollback-snapshot path in ONE edit.
      *
-     * **Read-only.** Callers MUST explicitly invoke [clearRestoreInProgress]
-     * after handling the context — typically at the end of the post-restart
-     * pre-flight branch that consumed it (success or rollback). Leaving the
-     * context set across a normal app session causes the pre-flight to re-run
-     * its in-progress logic on every cold start.
+     * Returns `false` when a DIFFERENT unresolved attempt already owns the slot — a new
+     * replacement must never inherit or overwrite another attempt's bookkeeping. Re-claiming
+     * with the SAME id is idempotent and returns `true`.
      */
-    suspend fun getRestoreInProgressContext(): RestoreInProgressContext?
+    suspend fun beginAttempt(attempt: RestoreAttempt): Boolean
 
     /**
-     * Clears the `restore_in_progress` flag and its context payload — and the
-     * [markRestoreMutationInterrupted] journal entry, which is scoped to the
-     * same restore attempt. Called after the pre-flight resolves the
-     * in-progress restore (either success or rollback).
+     * Advances the slot to [RestoreAttempt.Phase.Committed] — the durable record that this
+     * attempt's requested file mutation COMMITTED. The runtime calls it after the live-file
+     * rename returned success and the reserved snapshot was promoted, and before consuming any
+     * rollback asset. Returns `false` (and writes nothing) when [attemptId] does not own the
+     * slot.
      */
-    suspend fun clearRestoreInProgress()
+    suspend fun recordAttemptCommitted(attemptId: String): Boolean
 
     /**
-     * Durable restore-journal entry (Phase 5 R2, spec §8.4): the restore's file
-     * mutation FAILED or ended in an unknown state after the point of no
-     * return. While set (together with `restore_in_progress`), the post-restart
-     * pre-flight must take the FAILURE path directly — a schema peek could
-     * succeed against the untouched OLD file and produce a false
-     * "restore succeeded" — and roll back via the preserved snapshot. Written
-     * by the restore transaction's effects on the transaction's own coroutine;
-     * idempotent; cleared by [clearRestoreInProgress].
+     * Clears the attempt slot — and the legacy flags — iff [attemptId] owns it. Returns `false`
+     * without writing when another attempt owns the slot, so a late terminal effect from a
+     * superseded attempt can never erase the live one's bookkeeping.
      */
-    suspend fun markRestoreMutationInterrupted()
+    suspend fun resolveAttempt(attemptId: String): Boolean
 
-    /** Reads the [markRestoreMutationInterrupted] journal entry. */
-    suspend fun isRestoreMutationInterrupted(): Boolean
+    /** The unresolved attempt, or `null` when the slot is free. */
+    suspend fun getAttempt(): RestoreAttempt?
 
     /** Record that `cache/pre_restore_backup.db` is preserved and available for undo. */
     suspend fun markPreRestoreBackupAvailable(originalDataDateEpochMs: Long)

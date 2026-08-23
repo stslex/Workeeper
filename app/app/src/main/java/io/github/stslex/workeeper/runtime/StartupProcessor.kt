@@ -64,6 +64,13 @@ internal class StartupProcessor(
             // restartApp() prevented them from ever running.
             return StartupOutcome.RestartRequired
         }
+        if (restoreOutcome == PreflightOutcome.RecoveryRequired) {
+            // TERMINAL recovery (spec §8.4): the mutation's outcome is unknown or the runtime is
+            // fatal. This process arms NOTHING DB-bound — no planner, no repositories, no dialog
+            // observer — and does not show the main UI over a database of unknown provenance.
+            // Every recovery asset stays on disk; the caller routes to the recovery surface.
+            return StartupOutcome.RouteToRecovery
+        }
         if (restoreOutcome == PreflightOutcome.NoOp) {
             // Scenario 1 found no restore in progress — run Scenario 2. (RestoreSucceeded skips
             // it: the freshly-restored db was already verified by the Scenario-1 open.)
@@ -100,6 +107,13 @@ internal class StartupProcessor(
         if (restoreOutcome == PreflightOutcome.RestoreRolledBack) {
             return StartupOutcome.RestartRequired
         }
+        if (restoreOutcome == PreflightOutcome.RecoveryRequired) {
+            // TERMINAL recovery (spec §8.4): the mutation's outcome is unknown or the runtime is
+            // fatal. This process arms NOTHING DB-bound — no planner, no repositories, no dialog
+            // observer — and does not show the main UI over a database of unknown provenance.
+            // Every recovery asset stays on disk; the caller routes to the recovery surface.
+            return StartupOutcome.RouteToRecovery
+        }
         if (restoreOutcome == PreflightOutcome.NoOp) {
             graph.startupMigrationCoordinator.checkAndRouteOrProceed()
         }
@@ -114,8 +128,11 @@ internal class StartupProcessor(
 
     /**
      * Stages 3–4: the two chores and the observer arming, in the pre-extraction order
-     * (cleanup → planner → observer). Runs for every non-restart outcome — including
-     * `RouteToRecovery`, where only the planner's own guard changes anything.
+     * (cleanup → planner → observer). Runs for every outcome that keeps this process on the
+     * normal path. It is deliberately NOT reached for [PreflightOutcome.RestoreRolledBack]
+     * (restart follows) nor for [PreflightOutcome.RecoveryRequired] (spec §8.4: terminal
+     * recovery arms zero DB-bound work). A migration-driven `RouteToRecovery` still arms, where
+     * only the planner's own guard changes anything — unchanged behavior.
      */
     private fun armPostPreflight(
         graph: AppGraph,

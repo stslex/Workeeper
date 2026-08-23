@@ -47,7 +47,12 @@ class MainActivity : ComponentActivity() {
         // routing through `Navigator.openRecovery()` here would deterministically
         // lose the signal. Same Option Y split as the bootstrap restart path —
         // see `backup-recovery.md` → "Restart contract / OpenRecovery contract".
-        if (startupMigrationCoordinator.lastDecision is StartupCheck.RouteToRecovery) {
+        // Two independent reasons to hand off to the DB-free recovery surface: the Scenario-2
+        // migration decision, and a Scenario-1 attempt whose outcome is not durably provable
+        // (spec §8.4 terminal recovery — that launch armed no DB-bound work either).
+        if (startupMigrationCoordinator.lastDecision is StartupCheck.RouteToRecovery ||
+            appGraph.restoreRecoveryCoordinator.recoverySurfaceRequired
+        ) {
             startActivity(
                 Intent(this, RecoveryActivity::class.java)
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),

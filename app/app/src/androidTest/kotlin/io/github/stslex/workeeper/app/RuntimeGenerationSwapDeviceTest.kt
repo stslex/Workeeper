@@ -130,14 +130,18 @@ internal class RuntimeGenerationSwapDeviceTest {
 
         // ---------- Cycle 2: ROLLBACK ----------
         val daoTwo = genTwo.database.tagDao
+        val reserved = assertSuccess(
+            "reserveRollbackSnapshot",
+            genTwo.graph.databaseSnapshotProvider.reserveRollbackSnapshot("gate"),
+        )
         assertSuccess(
-            "preserveCurrentDb",
-            genTwo.graph.databaseSnapshotProvider.preserveCurrentDb(),
+            "promoteRollbackReservation",
+            genTwo.graph.databaseSnapshotProvider.promoteRollbackReservation(reserved),
         )
         daoTwo.insert(TagEntity(name = POST_PRESERVE_SENTINEL))
         val inodeBeforeRollback = liveDbInode()
 
-        val rollback = runtime.replace(ReplacementOperation.RollbackToPreRestoreBackup)
+        val rollback = runtime.replace(ReplacementOperation.RollbackToPreRestoreBackup())
         val genThree = (rollback as? ReplacementOutcome.Completed)?.generation
             ?: fail_("rollback transaction must complete; got $rollback")
 
