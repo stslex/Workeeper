@@ -141,18 +141,22 @@ Flow:
    [`BackupInteractorImpl.restoreLatest`](../../feature/settings/src/main/kotlin/io/github/stslex/workeeper/feature/settings/domain/BackupInteractorImpl.kt):
    1. Save current `<db>` → `cache/pre_restore_backup.db` via
       [`DatabaseSnapshotProvider.preserveCurrentDb`](../../core/data/database/src/main/kotlin/io/github/stslex/workeeper/core/data/database/snapshot/DatabaseSnapshotProvider.kt).
-   2. Write DataStore flag `restore_in_progress = true` plus the manifest
-      context (`backupSchemaVersion`, `backupCreatedAtEpochMs`,
-      `backupAppVersion`, `startedAtEpochMs`) via
-      [`RestoreStateRepository.markRestoreInProgress`](../../core/data/backup/api/src/main/kotlin/io/github/stslex/workeeper/core/data/backup/api/restore/RestoreStateRepository.kt).
-   3. The database replacement transaction (KMP Phase 5 R2: the swap is
-      runtime-owned — callers go through the `DatabaseReplacement` seam;
-      the provider's split `validateSnapshotForRestore` +
+   2. The database replacement transaction (KMP Phase 5 R2 round-2: the
+      swap is runtime-owned — callers go through the `DatabaseReplacement`
+      seam with a typed `DatabaseReplacementEffects` object; the
+      `restore_in_progress` flag + manifest context
+      (`backupSchemaVersion`, `backupCreatedAtEpochMs`,
+      `backupAppVersion`, `startedAtEpochMs`) are written INSIDE the
+      transaction via the effects' `onBeforeMutation`
+      ([`RestoreStateRepository.markRestoreInProgress`](../../core/data/backup/api/src/commonMain/kotlin/io/github/stslex/workeeper/core/data/backup/api/restore/RestoreStateRepository.kt));
+      the source file is staged runtime-owned at submission; the
+      provider's split `validateSnapshotForRestore` +
       `replaceLiveDatabaseFile` carry the same gates and the same delete
       WAL/SHM sidecars + atomic rename mechanics; on Android production
-      the `RestartProcess` policy is byte-equivalent to the pre-split
-      `restoreFromSnapshot` — see
-      `kmp-phase-5-startup-processor.md` §8.5 and
+      the `RestartProcess` policy keeps the shipped success behavior
+      (result, then restart), with post-mutation failures preserving
+      every recovery asset and journaling `restore_mutation_interrupted`
+      — see `kmp-phase-5-startup-processor.md` §8.4/§8.5/§8.5a and
       [backup.md → Restore flow](backup.md#restore-flow)).
 2. **App restart** via the existing
    `navigator.restartApp()` command (see

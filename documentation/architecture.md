@@ -1164,10 +1164,11 @@ Reference implementation: `feature/all-trainings/ui/AllTrainingsGraph.kt`
 
 Some operations invalidate the in-process Singleton graph (Room DAOs, cached
 repository state, observed Flows). The canonical case is a Drive backup
-restore that swaps the live database file via
-`DatabaseSnapshotProvider.restoreFromSnapshot` — after the swap, every
-already-resolved DAO points at a stale file handle, so only a cold start
-recovers correctness.
+restore that swaps the live database file via the runtime-owned
+`DatabaseReplacement` transaction (Phase 5 —
+`feature-specs/kmp-phase-5-startup-processor.md` §8.4/§8.5) — after the swap,
+every already-resolved DAO points at a terminal handle, so on Android
+production only a cold start recovers correctness (`RestartProcess` policy).
 
 The pattern still expresses restart as a `Navigator` call (not a feature-local
 helper), but — unlike the back-stack commands — it resolves to a direct seam
