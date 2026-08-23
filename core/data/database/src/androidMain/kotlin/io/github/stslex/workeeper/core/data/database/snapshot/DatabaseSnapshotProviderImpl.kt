@@ -96,16 +96,27 @@ public class DatabaseSnapshotProviderImpl @Inject constructor(
     override suspend fun promoteRollbackReservation(reservation: File): BackupResult<Unit> =
         withContext(dispatcher) {
             val target = preRestoreBackupFile()
+            val staging = File(target.parentFile, "$PRE_RESTORE_BACKUP_NAME.promoting")
             try {
-                target.delete()
-                if (!reservation.renameTo(target)) {
-                    // Same-directory rename cannot normally fail; fall back to copy+delete so a
-                    // promotion never silently leaves the undo slot holding older data.
-                    reservation.copyTo(target, overwrite = true)
-                    reservation.delete()
+                // The canonical slot is NEVER deleted before the replacement content is safely
+                // in place: a failure between a pre-emptive delete and a failed move would
+                // destroy the undo slot while the journal still named the reservation, leaving
+                // no rollback source at all. Stage first, then swap, then drop the reservation.
+                staging.delete()
+                if (!reservation.renameTo(staging)) {
+                    reservation.copyTo(staging, overwrite = true)
                 }
+                if (!staging.renameTo(target)) {
+                    target.delete()
+                    if (!staging.renameTo(target)) {
+                        staging.copyTo(target, overwrite = true)
+                        staging.delete()
+                    }
+                }
+                reservation.delete()
                 BackupResult.Success(Unit)
             } catch (e: IOException) {
+                staging.delete()
                 BackupResult.Failure(BackupError.Io(e))
             }
         }

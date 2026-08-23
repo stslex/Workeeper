@@ -112,7 +112,11 @@ fun App() {
                 // effect: effects run at APPLY time, after this region's children have already
                 // composed and resolved their Stores and ViewModels. A retired generation must
                 // resolve nothing at all, so the grant has to gate the content itself.
-                val admission = remember(currentPhase.id) {
+                // Keyed on the PHASE INSTANCE, not just its id: an aborted transition
+                // deliberately re-opens the same id and re-publishes a fresh Generation value,
+                // and a refusal cached against the id alone would survive that re-publish —
+                // leaving the app blank until the next Activity recreation.
+                val admission = remember(currentPhase) {
                     GenerationAdmission(generationsHolder, currentPhase.id)
                 }
                 if (admission.granted) {

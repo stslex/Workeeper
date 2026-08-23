@@ -238,6 +238,9 @@ internal class AppRuntimeReplacementTest {
     private fun stagedFiles(): List<File> =
         tempDir.listFiles().orEmpty().filter { it.name.startsWith("staged_restore_") }
 
+    private fun stagedReservations(): List<File> =
+        tempDir.listFiles().orEmpty().filter { it.name.startsWith("reservation_") }
+
     private fun reservationFiles(): List<File> =
         tempDir.listFiles().orEmpty().filter { it.name.startsWith("reservation_") }
 
@@ -578,9 +581,13 @@ internal class AppRuntimeReplacementTest {
             assertSame(swapError, recovered.error)
             assertEquals(2, recovered.generation.id, "a successor serves the PRE-operation data")
             assertEquals(
-                listOf("beforeMutation", "mutationCommitted", "recovered"),
+                listOf("beforeMutation", "recovered"),
                 effects.calls,
-                "the rollback's own commit is recorded; the terminal is recovered, never committed",
+                """
+                the ladder's rollback must NOT record the CALLER's attempt as committed: what
+                committed is the rollback, and a `Committed` restore attempt would let the very
+                next preflight peek the rolled-back file and publish a false RestoreSuccess
+                """.trimIndent(),
             )
         }
 
@@ -1205,6 +1212,68 @@ internal class AppRuntimeReplacementTest {
             assertInstanceOf(ReplacementOutcome.RejectedBeforeMutation::class.java, t1.await())
             assertInstanceOf(ReplacementOutcome.Completed::class.java, t2.await())
             assertTrue(t2Effects.calls.first() == "beforeMutation")
+        }
+
+    @Test
+    fun `the ladder rolls back onto THIS attempt's reservation, not the older canonical slot`() =
+        runtimeTest { runtime ->
+            runtime.currentGeneration
+            // The canonical slot holds a PREVIOUS restore's (older) snapshot; the reservation
+            // holds the true pre-attempt database. A failed swap leaves the live file untouched,
+            // so applying the canonical slot would revert data the failure never touched.
+            File(tempDir, "pre_restore_backup.db").writeText("PREVIOUS-RESTORE-SNAPSHOT")
+            val applied = mutableListOf<String>()
+            var swaps = 0
+            coEvery { provider.replaceLiveDatabaseFile(any()) } coAnswers {
+                protocolLog += "swap"
+                applied += firstArg<File>().readText()
+                if (swaps++ == 0) {
+                    BackupResult.Failure(BackupError.Io(IOException("rename failed")))
+                } else {
+                    BackupResult.Success(Unit)
+                }
+            }
+
+            val outcome = runtime.replace(ReplacementOperation.RestoreFromSnapshot(sourceFile()))
+
+            assertInstanceOf(ReplacementOutcome.RecoveredByRollback::class.java, outcome)
+            assertEquals(2, applied.size)
+            assertEquals(
+                "res",
+                applied[1],
+                "the recovery must apply the attempt's OWN reservation: $applied",
+            )
+            assertTrue(
+                File(tempDir, "pre_restore_backup.db").exists(),
+                "the previous restore's undo slot was not the source and must survive",
+            )
+        }
+
+    @Test
+    fun `a failed promotion keeps the reservation - the journal still names it`() =
+        runtimeTest { runtime ->
+            runtime.currentGeneration
+            coEvery { provider.promoteRollbackReservation(any()) } returns BackupResult.Failure(
+                BackupError.Io(IOException("promotion failed")),
+            )
+            val effects = RecordingEffects()
+
+            val outcome = runtime.replace(
+                ReplacementOperation.RestoreFromSnapshot(sourceFile()),
+                effects,
+            )
+
+            val completed = assertInstanceOf(ReplacementOutcome.Completed::class.java, outcome)
+            assertNotNull(completed.effectsError, "a failed promotion must surface")
+            assertFalse(
+                effects.calls.contains("mutationCommitted"),
+                "the durable commit must NOT be recorded when the promotion failed",
+            )
+            assertEquals(
+                1,
+                stagedReservations().size,
+                "the reservation is the recovery path the still-Prepared journal names",
+            )
         }
 
     @Test

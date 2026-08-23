@@ -98,22 +98,49 @@ internal class RestoreRecoveryCoordinatorTest {
     }
 
     @Test
-    fun `a ROLLBACK-kind attempt never peeks the schema either`() = runTest {
-        // A Rollback attempt is a recovery already in flight: even at Committed there is no
-        // restored database to verify, so the peek path is not applicable.
-        coEvery { restoreStateRepository.getAttempt() } returns makeAttempt(
+    fun `an interrupted but COMMITTED rollback is finished, never re-driven`() = runTest {
+        // A COMMITTED rollback already applied its snapshot durably and CONSUMED it. Re-driving
+        // it would look for a preserved file that no longer exists, fail, and leave the attempt
+        // unresolved forever — which then refuses every future restore and undo, because their
+        // `beginAttempt` sees a foreign owner. The pre-flight finishes the bookkeeping instead.
+        val attempt = makeAttempt(
             kind = RestoreAttempt.Kind.Rollback,
             phase = RestoreAttempt.Phase.Committed,
             context = null,
         )
-        stubRollbackCommitted()
+        coEvery { restoreStateRepository.getAttempt() } returns attempt
 
         val outcome = coordinator.handlePostRestoreLaunch()
 
-        assertEquals(RestoreRecoveryCoordinator.PreflightOutcome.RestoreRolledBack, outcome)
+        assertEquals(RestoreRecoveryCoordinator.PreflightOutcome.RecoveryCompleted, outcome)
         coVerify(exactly = 0) { snapshotProvider.currentSchemaVersion() }
+        coVerify(exactly = 0) { databaseReplacement.rollbackToPreRestoreBackup(any(), any()) }
+        coVerify(exactly = 1) { restoreStateRepository.resolveAttempt(attempt.id) }
+        coVerify(exactly = 1) { restoreStateRepository.clearPreRestoreBackupAvailable() }
         coVerify(exactly = 0) { restoreStateRepository.markPreRestoreBackupAvailable(any()) }
     }
+
+    @Test
+    fun `the recovery rollback CARRIES the journal's reservation path through its re-claim`() =
+        runTest {
+            // Erasing the path on the re-claim would leave a second interruption with only the
+            // canonical slot — an OLDER snapshot — silently reverting data the failed attempt
+            // never touched.
+            val attempt = makeAttempt(rollbackSnapshotPath = "/data/cache/rollback_reservation_A.db")
+            coEvery { restoreStateRepository.getAttempt() } returns attempt
+            coEvery { snapshotProvider.currentSchemaVersion() } throws IllegalStateException("boom")
+            val claimed = slot<RestoreAttempt>()
+            coEvery { restoreStateRepository.beginAttempt(capture(claimed)) } returns true
+            coEvery { databaseReplacement.rollbackToPreRestoreBackup(any(), any()) } coAnswers {
+                secondArg<DatabaseReplacementEffects>().onBeforeMutation("")
+                DatabaseReplacementResult.Committed()
+            }
+
+            coordinator.handlePostRestoreLaunch()
+
+            assertEquals(attempt.rollbackSnapshotPath, claimed.captured.rollbackSnapshotPath)
+            assertEquals(attempt.id, claimed.captured.id)
+        }
 
     @Test
     fun `a COMMITTED attempt with no context cannot be verified and recovers`() = runTest {

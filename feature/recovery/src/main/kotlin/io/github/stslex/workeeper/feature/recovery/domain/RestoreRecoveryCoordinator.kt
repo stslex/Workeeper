@@ -114,6 +114,21 @@ class RestoreRecoveryCoordinator @Inject internal constructor(
             return recoverFrom(attempt, context, peekResult.exceptionOrNull())
         }
 
+        // A COMMITTED **rollback** already applied its snapshot durably: the live database IS
+        // the rolled-back data and nothing further may be swapped. Re-driving it would look for
+        // a preserved file the rollback itself consumed, fail, and leave this attempt
+        // unresolved FOREVER — refusing every future restore and undo (whose `beginAttempt`
+        // would then see a foreign owner). Finish its bookkeeping instead and continue.
+        if (attempt.phase == RestoreAttempt.Phase.Committed &&
+            attempt.kind == RestoreAttempt.Kind.Rollback
+        ) {
+            restoreStateRepository.resolveAttempt(attempt.id)
+            // The rollback consumed the undo slot; no undo is offered for data already reverted.
+            restoreStateRepository.clearPreRestoreBackupAvailable()
+            logger.w { "an interrupted rollback was already committed — bookkeeping finished" }
+            return PreflightOutcome.RecoveryCompleted
+        }
+
         // PREPARED (or any unknown/legacy state): the outcome of the mutation is NOT durably
         // known. The live file may be the old one, the new one, or a partially replaced one, and
         // a schema peek would happily succeed on the untouched OLD database — the exact false
@@ -141,7 +156,7 @@ class RestoreRecoveryCoordinator @Inject internal constructor(
         }
         val rollback = databaseReplacement.rollbackToPreRestoreBackup(
             sourcePath = attempt.rollbackSnapshotPath,
-            effects = ScenarioOneRollbackEffects(attempt.id),
+            effects = ScenarioOneRollbackEffects(attempt.id, attempt.rollbackSnapshotPath),
         )
         return when (rollback) {
             is DatabaseReplacementResult.Committed -> {
@@ -300,6 +315,13 @@ class RestoreRecoveryCoordinator @Inject internal constructor(
     private inner class ScenarioOneRollbackEffects(
         /** Reuses the RECOVERED attempt's id: this rollback finishes that attempt, not a new one. */
         override val attemptId: String,
+        /**
+         * The recovered attempt's reservation path, CARRIED THROUGH the re-claim. Re-claiming
+         * with null would erase the journal's only pointer to the file that holds the true
+         * pre-attempt database, so a second interruption would fall back to the canonical slot —
+         * an OLDER snapshot — and silently revert data the failed attempt never touched.
+         */
+        private val reservationPath: String?,
     ) : DatabaseReplacementEffects {
 
         /** The recovered attempt already owns the slot; re-claiming with its id is idempotent. */
@@ -310,7 +332,7 @@ class RestoreRecoveryCoordinator @Inject internal constructor(
                     kind = RestoreAttempt.Kind.Rollback,
                     phase = RestoreAttempt.Phase.Prepared,
                     context = null,
-                    rollbackSnapshotPath = null,
+                    rollbackSnapshotPath = reservationPath,
                 ),
             )
         }
@@ -391,6 +413,14 @@ class RestoreRecoveryCoordinator @Inject internal constructor(
          * is preserved and the user is routed to the explicit recovery surface.
          */
         RecoveryRequired,
+
+        /**
+         * An interrupted rollback was found already durably COMMITTED: the live database is the
+         * rolled-back data, its bookkeeping has now been finished, and nothing further is owed.
+         * The launch continues normally — re-driving it would consume a file the rollback
+         * already applied and strand the attempt forever.
+         */
+        RecoveryCompleted,
     }
 
     private companion object {

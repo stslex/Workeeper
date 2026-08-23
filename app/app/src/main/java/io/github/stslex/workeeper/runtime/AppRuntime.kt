@@ -17,7 +17,6 @@ import io.github.stslex.workeeper.core.data.backup.api.result.BackupResult
 import io.github.stslex.workeeper.core.data.backup.worker.BackupWorkLease
 import io.github.stslex.workeeper.core.data.database.AppDatabase
 import io.github.stslex.workeeper.core.data.database.closeAppDatabase
-import io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProvider
 import io.github.stslex.workeeper.di.AppGraph
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
@@ -140,6 +139,15 @@ internal class AppRuntime(
     private val uiGate = UiAdmissionGate(logger)
 
     private val workerGate = WorkerAdmissionGate()
+
+    /** The quiescence/teardown half of every transition (spec §8.4) — see [GenerationQuiescer]. */
+    private val quiescer = GenerationQuiescer(
+        uiGate = uiGate,
+        workerGate = workerGate,
+        policy = policy,
+        closeDatabase = closeDatabase,
+        logger = logger,
+    )
 
     val imageStorage: ImageStorage by lazy { imageStorageFactory(applicationContext) }
 
@@ -317,7 +325,9 @@ internal class AppRuntime(
         outgoing: RuntimeGeneration,
         tracker: PonrTracker,
     ): ReinitializeOutcome {
-        runAbortableQuiesce(outgoing)?.let { reason -> return abortToServing(outgoing, reason) }
+        // New UI work sees no generation for the whole window (spec §8.4 step 1).
+        publishTransitioning()
+        quiescer.quiesce(outgoing)?.let { reason -> return abortToServing(outgoing, reason) }
 
         // ---- BuildingGeneration + Preflight while N is FULLY INTACT (still abortable): SAME
         // database object, fresh graph/lifetime/VM store; nothing of N has been torn down.
@@ -341,7 +351,7 @@ internal class AppRuntime(
             withContext(GraphOnlyTransition) { preflight(candidate) }
         }
         if (preflightOutcome.getOrNull() != StartupOutcome.Proceed) {
-            disposeFailedCandidate(candidate, closeCandidateDatabase = false)
+            quiescer.tearDownCandidate(candidate, closeCandidateDatabase = false)
             return abortToServing(
                 outgoing,
                 reason = "candidate preflight failed: " +
@@ -358,7 +368,7 @@ internal class AppRuntime(
         // teardown is logged loudly and the healthy candidate still publishes (the SHARED
         // database was never closed).
         tracker.crossed = true
-        tearDownOutgoing(outgoing)?.let { degraded ->
+        quiescer.tearDown(outgoing)?.let { degraded ->
             logger.e(
                 IllegalStateException(degraded),
                 "graph-only teardown degraded post-PONR; publishing the candidate anyway",
@@ -374,130 +384,14 @@ internal class AppRuntime(
         return ReinitializeOutcome.Published(candidate)
     }
 
-    /**
-     * The shared abortable quiesce (spec §8.4 Quiescing, steps 1–3): every step here is
-     * REVERSIBLE — nothing of the outgoing generation is torn down. Returns the abort reason,
-     * or null when the generation is fully quiesced.
-     */
-    private suspend fun runAbortableQuiesce(outgoing: RuntimeGeneration): String? {
-        publishTransitioning()
-        // Step 1: UI detach — the retire CAS closes attachment admission for the outgoing id
-        // atomically with the zero observation (no late attach can pass it).
-        if (!uiGate.awaitRetired(outgoing.id, policy.uiDisposalTimeoutMillis)) {
-            return "ui region did not dispose in time"
-        }
-        // Step 2: worker leases — close admission, await previously admitted runs.
-        workerGate.close()
-        if (!workerGate.awaitDrained(policy.drainTimeoutMillis)) {
-            return "worker lease drain timed out"
-        }
-        // Step 3: in-flight snackbar resolves (deferred-delete commits) — awaited AND fenced in
-        // one atomic step, so no new routing can start behind the zero observation.
-        val resolvesFenced = withTimeoutOrNull(policy.drainTimeoutMillis) {
-            policy.fenceSnackbarResolves()
-        }
-        if (resolvesFenced == null) {
-            policy.unfenceSnackbarResolves()
-            return "snackbar resolve drain timed out"
-        }
-        policy.pendingSnackbarCount().takeIf { it > 0 }?.let { queued ->
-            // Generation-tagged (spec §8.4): discarded at delivery after a COMMITTED handover
-            // (the epoch advances), preserved and executed normally after an abort.
-            logger.w {
-                "$queued queued snackbar model(s) held at the generation boundary — " +
-                    "discarded on commit, preserved on abort"
-            }
-        }
-        return null
-    }
-
-    /**
-     * Tears down the OUTGOING generation — the transition's first irreversible action (the
-     * caller crosses PONR before invoking this). Total: never throws; returns a degradation
-     * reason or null. Order: the runtime-owned ViewModelStore clears first (UI ownership), then
-     * the lifetime's DB-bound jobs are cancelled and JOINED (bounded) — every graph-owned job
-     * must be joinable; an unjoinable job is a protocol violation surfaced to the caller.
-     */
-    private suspend fun tearDownOutgoing(outgoing: RuntimeGeneration): String? {
-        val cleared = runCatching {
-            withContext(policy.mainDispatcher) { outgoing.viewModelStore.clear() }
-        }
-        if (cleared.isFailure) {
-            return "outgoing ViewModelStore clear failed: ${cleared.exceptionOrNull()}"
-        }
-        val joined = withTimeoutOrNull(policy.drainTimeoutMillis) {
-            outgoing.lifetime.cancelAndJoin()
-        }
-        if (joined == null) {
-            return "outgoing lifetime did not join in time (unjoinable DB-bound job)"
-        }
-        return null
-    }
-
     private fun abortToServing(
         outgoing: RuntimeGeneration,
         reason: String,
     ): ReinitializeOutcome {
         logger.w { "reinitialize aborted: $reason — generation ${outgoing.id} keeps serving" }
-        workerGate.reopen()
-        uiGate.reopen(outgoing.id)
-        policy.unfenceSnackbarResolves()
+        quiescer.reopen(outgoing.id)
         publishServing(outgoing)
         return ReinitializeOutcome.Aborted(reason = reason, serving = outgoing)
-    }
-
-    /**
-     * Disposes a candidate that failed preflight/validation. Jobs are cancelled and JOINED
-     * BEFORE the candidate database closes (they may hold it); returns false when a resource
-     * could not be released — the caller's ladder must stop (Fatal), never rename again.
-     */
-    private suspend fun disposeFailedCandidate(
-        candidate: RuntimeGeneration,
-        closeCandidateDatabase: Boolean = true,
-    ): Boolean = tearDownCandidate(candidate, closeCandidateDatabase)
-
-    /**
-     * THE ONE candidate teardown path (spec §8.4), used by every candidate that must not be
-     * published — preflight failures, inline-rollback invalidation, and generations whose
-     * construction failed partway. The order is the invariant:
-     *
-     *  1. publication is already prevented (the caller never published this candidate);
-     *  2. clear its ViewModel ownership;
-     *  3. cancel AND bounded-JOIN its lifetime — a candidate's own jobs can hold the candidate
-     *     database, so their `finally` blocks must finish first;
-     *  4. only then close the database;
-     *  5. any failure returns false → the caller stops the ladder (Fatal) and performs no later
-     *     rename, because an unjoined job or an unknown-state handle may still hold the file.
-     */
-    private suspend fun tearDownCandidate(
-        candidate: RuntimeGeneration,
-        closeCandidateDatabase: Boolean,
-    ): Boolean {
-        val cleared = runCatching {
-            withContext(policy.mainDispatcher) { candidate.viewModelStore.clear() }
-        }
-        if (cleared.isFailure) {
-            logger.e(
-                cleared.exceptionOrNull() ?: IllegalStateException("candidate VM clear failed"),
-                "candidate ViewModelStore clear failed — the ladder must stop",
-            )
-            return false
-        }
-        val joined = withTimeoutOrNull(policy.drainTimeoutMillis) {
-            candidate.lifetime.cancelAndJoin()
-        }
-        if (joined == null) {
-            logger.e(
-                IllegalStateException("candidate lifetime did not join"),
-                "candidate jobs unjoinable — the candidate database cannot be closed safely",
-            )
-            return false
-        }
-        if (!closeCandidateDatabase) return true
-        // close() is idempotent — safe even when the inline rollback already closed it.
-        return runCatching { closeDatabase(candidate.database) }
-            .onFailure { logger.e(it, "candidate database close failed — ladder must stop") }
-            .isSuccess
     }
 
     // ------------------------------------------------------------------------------------------
@@ -631,7 +525,11 @@ internal class AppRuntime(
             // outcomes keep it for the next launch. Every other outcome resolved the journal
             // (or promoted the file away), so discarding is safe.
             val keepReservation = finalOutcome is ReplacementOutcome.FailedAfterMutation ||
-                finalOutcome is ReplacementOutcome.Fatal
+                finalOutcome is ReplacementOutcome.Fatal ||
+                // A commit whose durable bookkeeping or promotion FAILED leaves the journal at
+                // `Prepared` still naming this reservation: it is the recovery path, not litter.
+                (finalOutcome as? ReplacementOutcome.Completed)?.effectsError != null ||
+                (finalOutcome as? ReplacementOutcome.RecoveredByRollback)?.effectsError != null
             if (!keepReservation) {
                 inFlight.reservation?.let { reserved -> runCatching { reserved.delete() } }
             }
@@ -654,10 +552,8 @@ internal class AppRuntime(
         return if (tracker.crossed) {
             publishFatal("transaction escaped after the point of no return: $error")
         } else {
-            workerGate.reopen()
-            policy.unfenceSnackbarResolves()
             currentOrNull?.let { outgoing ->
-                uiGate.reopen(outgoing.id)
+                quiescer.reopen(outgoing.id)
                 publishServing(outgoing)
             }
             ReplacementOutcome.RejectedBeforeMutation(
@@ -757,11 +653,12 @@ internal class AppRuntime(
         val provider = mutation.provider
         val consumeSource = mutation.consumeSource
         val effects = mutation.effects
-        runAbortableQuiesce(outgoing)?.let { reason -> return unwindQuiesce(outgoing, reason) }
+        publishTransitioning()
+        quiescer.quiesce(outgoing)?.let { reason -> return unwindQuiesce(outgoing, reason) }
 
         // ---- PONR: the outgoing teardown BEGINS (spec §8.4). Never abortable from here. ----
         tracker.crossed = true
-        tearDownOutgoing(outgoing)?.let { failure ->
+        quiescer.tearDown(outgoing)?.let { failure ->
             return publishFatal("outgoing teardown failed after PONR: $failure")
         }
         // Close INVOCATION is post-PONR by definition: a throw leaves the handle in an unknown
@@ -775,7 +672,7 @@ internal class AppRuntime(
         val transaction = ReplacementTransaction(nextDbGeneration = outgoing.dbGeneration + 1)
         val replaced = provider.replaceLiveDatabaseFile(mutation.source)
         if (replaced is BackupResult.Failure) {
-            return recoverViaRollback(provider, transaction, replaced.error, consumeSource, effects)
+            return recoverViaRollback(mutation, transaction, replaced.error, consumeSource)
         }
         // The mutation committed: promote the reservation and record the durable commit BEFORE
         // consuming any rollback asset (spec §8.5a). A bookkeeping failure keeps every asset and
@@ -810,7 +707,7 @@ internal class AppRuntime(
                         else -> publishFatal("post-rollback generation attempt failed")
                     }
                 } else {
-                    recoverViaRollback(provider, transaction, cause = null, consumeSource, effects)
+                    recoverViaRollback(mutation, transaction, cause = null, consumeSource)
                 }
         }
     }
@@ -837,15 +734,31 @@ internal class AppRuntime(
         ReplacementOutcome.Completed(generation, effectsError = commitEffectsError)
     }
 
-    /** Ladder branch: rollback file mechanics, then exactly one fresh-generation attempt. */
+    /**
+     * Ladder branch: rollback file mechanics, then exactly one fresh-generation attempt.
+     *
+     * The rollback source is THIS attempt's own reservation when it has one — after a failed
+     * live-file swap the reservation, not the canonical slot, holds the true pre-attempt
+     * database; the canonical slot still holds the PREVIOUS restore's older snapshot, and
+     * applying that would revert data the failed swap never touched. Only the file actually
+     * applied is consumed.
+     *
+     * The caller's effects are deliberately NOT used for the commit bookkeeping: what committed
+     * here is the ROLLBACK, not the requested operation, so recording the caller's attempt as
+     * `Committed` would let the very next preflight read it as a successful restore and publish
+     * `RestoreSuccess` for data that was rolled back. The caller learns the truth from the
+     * `RecoveredByRollback` outcome and compensates in `onRecoveredByRollback`.
+     */
     private suspend fun recoverViaRollback(
-        provider: DatabaseSnapshotProvider,
+        mutation: MutationPlan,
         transaction: ReplacementTransaction,
         cause: BackupError?,
         requestedRollback: Boolean,
-        effects: DatabaseReplacementEffects,
     ): ReplacementOutcome {
-        val rollbackSource = provider.getPreRestoreBackupFile()
+        val provider = mutation.provider
+        val reservation = mutation.reservation?.takeIf { it.exists() }
+        val rollbackSource = reservation
+            ?: provider.getPreRestoreBackupFile()
             ?: return publishFatal("replacement failed ($cause) and no pre-restore backup exists")
         val rolledBack = provider.replaceLiveDatabaseFile(rollbackSource)
         if (rolledBack is BackupResult.Failure) {
@@ -855,13 +768,14 @@ internal class AppRuntime(
         transaction.rolledBack = true
         transaction.rollbackCause = cause
             ?: BackupError.Io(IOException("restore could not complete; rolled back"))
-        // Durable record BEFORE the rollback asset is consumed (spec §8.5a).
+        // Consume ONLY what was applied. A reservation is the runtime's own file (the submission
+        // frame deletes it); the canonical slot is consumed through the provider.
         commitMutation(
             mutation = MutationPlan(
                 provider = provider,
                 source = rollbackSource,
-                consumeSource = true,
-                effects = effects,
+                consumeSource = reservation == null,
+                effects = DatabaseReplacementEffects.None,
                 reservation = null,
             ),
             generation = null,
@@ -906,7 +820,11 @@ internal class AppRuntime(
         val proceed = outcome.getOrNull() == StartupOutcome.Proceed && !transaction.candidateInvalidated
         if (!proceed) {
             logger.w { "candidate preflight did not proceed: $outcome" }
-            return if (disposeFailedCandidate(candidate)) AttemptResult.Retryable else AttemptResult.LadderFatal
+            return if (quiescer.tearDownCandidate(candidate, closeCandidateDatabase = true)) {
+                AttemptResult.Retryable
+            } else {
+                AttemptResult.LadderFatal
+            }
         }
         policy.advanceSnackbarGeneration()
         publishServing(candidate)
@@ -920,9 +838,7 @@ internal class AppRuntime(
         reason: String,
     ): ReplacementOutcome {
         logger.w { "replacement aborted during quiesce: $reason — generation ${outgoing.id} keeps serving" }
-        workerGate.reopen()
-        uiGate.reopen(outgoing.id)
-        policy.unfenceSnackbarResolves()
+        quiescer.reopen(outgoing.id)
         publishServing(outgoing)
         return ReplacementOutcome.RejectedBeforeMutation(BackupError.Io(IOException(reason)))
     }

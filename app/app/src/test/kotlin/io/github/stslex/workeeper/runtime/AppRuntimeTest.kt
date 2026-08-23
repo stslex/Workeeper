@@ -57,6 +57,7 @@ internal class AppRuntimeTest {
     private val graphFactoryFailures = mutableSetOf<Int>()
     private var builtGraphs = 0
     private var epochAdvances = 0
+    private val phaseAtEpochAdvance = mutableListOf<AppUiPhase>()
 
     private var preflightOutcome: StartupOutcome = StartupOutcome.Proceed
     private var preflightGate: CompletableDeferred<Unit>? = null
@@ -64,11 +65,13 @@ internal class AppRuntimeTest {
     private var preflightError: Throwable? = null
 
     private val provider = mockk<DatabaseSnapshotProvider>(relaxed = true)
+    private var runtimeRef: AppRuntime? = null
 
     private fun runtimeTest(
         body: suspend kotlinx.coroutines.test.TestScope.(AppRuntime) -> Unit,
     ) = runTest {
         val dispatcher = UnconfinedTestDispatcher(testScheduler)
+        lateinit var runtimeHandle: AppRuntime
         val runtime = AppRuntime(
             applicationContext = context,
             dbFactory = {
@@ -91,7 +94,10 @@ internal class AppRuntimeTest {
             },
             closeDatabase = { closedDatabases += it },
             policy = RuntimeTransitionPolicy(
-                advanceSnackbarGeneration = { epochAdvances++ },
+                advanceSnackbarGeneration = {
+                    epochAdvances++
+                    phaseAtEpochAdvance += runtimeRef?.uiPhases?.value ?: AppUiPhase.Transitioning
+                },
                 mainDispatcher = dispatcher,
                 hostDispatcher = dispatcher,
                 stagingDirectory = { tempDir },
@@ -99,6 +105,8 @@ internal class AppRuntimeTest {
                 drainTimeoutMillis = 1_000,
             ),
         )
+        runtimeHandle = runtime
+        runtimeRef = runtimeHandle
         body(runtime)
     }
 
@@ -362,6 +370,24 @@ internal class AppRuntimeTest {
             runtime.releaseUiGeneration(token)
             runCurrent()
             assertInstanceOf(ReinitializeOutcome.Published::class.java, transition.await())
+        }
+
+    @Test
+    fun `the snackbar epoch advances BEFORE the successor is published`() =
+        runtimeTest { runtime ->
+            runtime.currentGeneration
+
+            assertInstanceOf(ReinitializeOutcome.Published::class.java, runtime.reinitialize())
+
+            // Round-3 blocker 5: publishing first would leave a window in which the successor's
+            // collector is live while generation N's queued models still pass the delivery
+            // filter — their callbacks would then run against N+1.
+            assertEquals(1, phaseAtEpochAdvance.size)
+            assertInstanceOf(
+                AppUiPhase.Transitioning::class.java,
+                phaseAtEpochAdvance.single(),
+                "the epoch must advance while the transition window is still published",
+            )
         }
 
     @Test

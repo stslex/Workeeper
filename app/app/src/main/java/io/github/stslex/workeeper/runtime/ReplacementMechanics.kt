@@ -364,15 +364,18 @@ internal class UiAdmissionGate(private val logger: Logger) {
      */
     fun admit(generationId: Int): Token? {
         val serial = nextSerial.incrementAndGet()
-        var granted = false
-        state.update { s ->
+        // The verdict is READ OFF the committed state, never carried out of the update lambda:
+        // `update` retries on a losing CAS and the lambda is re-run, so a captured flag would
+        // keep the value a LOSING iteration wrote — issuing a token for a generation the winning
+        // iteration had already retired.
+        val after = state.updateAndGet { s ->
             if (generationId in s.retired) {
                 s
             } else {
-                granted = true
                 s.copy(live = s.live + (generationId to (s.live[generationId].orEmpty() + serial)))
             }
         }
+        val granted = serial in after.live[generationId].orEmpty()
         if (!granted) {
             logger.w {
                 "ui admission REFUSED for retired generation $generationId — the region renders nothing"
