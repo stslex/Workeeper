@@ -338,6 +338,14 @@ internal class AppRuntime(
                 ownsDatabase = false,
             )
         }.getOrElse { error ->
+            // The failed-unwind signal is TERMINAL, never an ordinary construction abort
+            // (R4 blocker D): a partial candidate whose job could not be joined still holds
+            // the SHARED live database, republishing N would leave it running beside the
+            // serving generation, and a later replacement would close that database under it.
+            if (error is PartialCandidateUnwindException) {
+                publishFatal("graph-only candidate could not be unwound: ${error.cause}")
+                return ReinitializeOutcome.Fatal
+            }
             return abortToServing(outgoing, reason = "candidate construction failed: $error")
         }
 
@@ -351,7 +359,17 @@ internal class AppRuntime(
             withContext(GraphOnlyTransition) { preflight(candidate) }
         }
         if (preflightOutcome.getOrNull() != StartupOutcome.Proceed) {
-            quiescer.tearDownCandidate(candidate, closeCandidateDatabase = false)
+            // The candidate teardown verdict is CHECKED (R4 blocker D): its jobs share the live
+            // database, so N may be republished only once every one of them is cancelled AND
+            // joined — a false verdict is the same leaked-orphan state as the failed unwind
+            // above, and the transition ends terminally instead of aborting back to N.
+            if (!quiescer.tearDownCandidate(candidate, closeCandidateDatabase = false)) {
+                publishFatal(
+                    "candidate teardown failed after a rejected preflight — " +
+                        "its jobs may still hold the shared database",
+                )
+                return ReinitializeOutcome.Fatal
+            }
             return abortToServing(
                 outgoing,
                 reason = "candidate preflight failed: " +
@@ -364,15 +382,24 @@ internal class AppRuntime(
 
         // ---- The committed safe boundary (PONR): N's teardown completes BEFORE N+1 is exposed
         // (spec §8.4). From here the transition never aborts back to N — a partially-disposed
-        // generation is never resurrected. Teardown steps are total (non-throwing); a degraded
-        // teardown is logged loudly and the healthy candidate still publishes (the SHARED
-        // database was never closed).
+        // generation is never resurrected — and it never publishes EITHER unless N's teardown
+        // actually completed (R4 blocker D): "publish the candidate anyway" over a failed
+        // teardown let N's unjoined DB-bound work survive the publication of N+1 and discarded
+        // N's queued snackbar models while their producers were still live. The failure path
+        // best-efforts the candidate's own release, aggregates, and ends TERMINALLY: no epoch
+        // advance, no publication, the UI gate stays retired; publishFatal's worker-gate reopen
+        // exists solely to wake parked acquirers into the Fatal check — no lease is granted.
         tracker.crossed = true
-        quiescer.tearDown(outgoing)?.let { degraded ->
-            logger.e(
-                IllegalStateException(degraded),
-                "graph-only teardown degraded post-PONR; publishing the candidate anyway",
-            )
+        quiescer.tearDown(outgoing)?.let { failure ->
+            val candidateReleased =
+                quiescer.tearDownCandidate(candidate, closeCandidateDatabase = false)
+            val aggregated = if (candidateReleased) {
+                failure
+            } else {
+                "$failure; the candidate's own teardown also failed"
+            }
+            publishFatal("graph-only outgoing teardown failed after PONR: $aggregated")
+            return ReinitializeOutcome.Fatal
         }
         // The epoch advances BEFORE the successor is published (spec §8.4 step 3): otherwise
         // N+1's collector is live for a window in which generation N's queued models still pass
@@ -591,31 +618,17 @@ internal class AppRuntime(
             }
 
             is ReplacementOperation.RollbackToPreRestoreBackup -> {
-                val explicitPath = operation.sourcePath
-                if (explicitPath != null) {
-                    // A journal-named source is AUTHORITATIVE (R4 invariant 2): when it is
-                    // missing, the canonical slot — which belongs to ANOTHER attempt — is never
-                    // substituted for it. The typed rejection routes the recovering launch to
-                    // terminal recovery instead of silently reverting onto older data.
-                    val explicit = File(explicitPath)
-                    if (!explicit.exists()) {
-                        return ReplacementOutcome.RejectedBeforeMutation(
-                            BackupError.CorruptedBackup(
-                                reason = "journal-named rollback source is missing: $explicitPath",
-                            ),
-                        )
+                // Source-owner identity (R4 invariant 2) — the policy lives in
+                // [selectRollbackOperationSource]: a missing journal-named source is a TYPED
+                // rejection, never a silent canonical substitution.
+                when (val plan = selectRollbackOperationSource(operation.sourcePath, provider)) {
+                    is OperationSourcePlan.Reject ->
+                        return ReplacementOutcome.RejectedBeforeMutation(plan.error)
+
+                    is OperationSourcePlan.Proceed -> {
+                        source = plan.source
+                        consume = plan.consume
                     }
-                    source = explicit
-                    consume = SourceConsumption.ExactFile(explicit)
-                } else {
-                    // No explicit source: the canonical undo slot IS the requested source.
-                    source = provider.getPreRestoreBackupFile()
-                        ?: return ReplacementOutcome.RejectedBeforeMutation(
-                            BackupError.CorruptedBackup(
-                                reason = "no pre-restore backup to roll back to",
-                            ),
-                        )
-                    consume = SourceConsumption.CanonicalSlot
                 }
             }
         }
@@ -793,53 +806,17 @@ internal class AppRuntime(
         afterCleanCommit: Boolean = false,
     ): ReplacementOutcome {
         val provider = mutation.provider
-        // Source-owner identity (R4 invariant 2): the recovery source is the attempt's OWN
-        // asset, never a substitute belonging to another attempt.
-        //  - A restore attempt recovering BEFORE its commit sequence completed rolls back onto
-        //    its reservation; if that vanished mid-transaction, the canonical slot — another
-        //    attempt's OLDER snapshot — is never applied in its place: the ladder stops instead
-        //    of silently reverting data this attempt never touched. The reservation is NOT
-        //    consumed here: it stays the journal-named recovery source until the caller's
-        //    terminal effects resolve the attempt (the submission frame then discards it; a
-        //    crash first leaves the journal still pointing at it).
-        //  - AFTER a clean commit ([afterCleanCommit]: promote → durable record → reservation
-        //    consumed, in that order), the canonical slot provably holds THIS attempt's
-        //    promoted pre-image — the same ordering proof the Committed cold-start rule rests
-        //    on — so it is the attempt's own recovery source, not a substitute.
-        //  - A canonical-slot rollback retries its own source once (the file is intact after a
-        //    failed copy/rename; the failure may be transient).
-        //  - An EXPLICIT-source rollback whose swap failed gets no substitute at all — applying
-        //    the canonical here would be exactly the cross-owner substitution invariant 2 bans.
+        // Source-owner identity (R4 invariant 2) — the policy lives in [selectRecoverySource]:
+        // the recovery source is the attempt's OWN asset, never a substitute belonging to
+        // another attempt, and an applied reservation is deliberately NOT consumed (it stays
+        // the journal-named recovery source until the caller's terminal effects resolve).
         val rollbackSource: File
         val rollbackConsume: SourceConsumption
-        if (mutation.reservation != null && !afterCleanCommit) {
-            if (!mutation.reservation.exists()) {
-                return publishFatal(
-                    "replacement failed ($cause) and this attempt's reservation vanished",
-                )
-            }
-            rollbackSource = mutation.reservation
-            rollbackConsume = SourceConsumption.None
-        } else if (mutation.reservation != null) {
-            rollbackSource = provider.getPreRestoreBackupFile()
-                ?: return publishFatal(
-                    "post-commit recovery found no promoted undo slot ($cause)",
-                )
-            rollbackConsume = SourceConsumption.CanonicalSlot
-        } else {
-            when (mutation.consume) {
-                is SourceConsumption.ExactFile -> return publishFatal(
-                    "the journal-named rollback source could not be applied ($cause) — " +
-                        "the canonical slot belongs to another attempt and is never substituted",
-                )
-
-                SourceConsumption.CanonicalSlot, SourceConsumption.None -> {
-                    rollbackSource = provider.getPreRestoreBackupFile()
-                        ?: return publishFatal(
-                            "replacement failed ($cause) and no pre-restore backup exists",
-                        )
-                    rollbackConsume = SourceConsumption.CanonicalSlot
-                }
+        when (val plan = selectRecoverySource(mutation, cause, afterCleanCommit)) {
+            is RecoverySourcePlan.Stop -> return publishFatal(plan.reason)
+            is RecoverySourcePlan.Apply -> {
+                rollbackSource = plan.source
+                rollbackConsume = plan.consume
             }
         }
         val rolledBack = provider.replaceLiveDatabaseFile(rollbackSource)
@@ -1002,7 +979,14 @@ internal class AppRuntime(
                 withTimeoutOrNull(policy.drainTimeoutMillis) { lifetime.cancelAndJoin() }
             }
         }.getOrNull()
-        if (!ownsDatabase) return cause
+        if (!ownsDatabase) {
+            // A SHARED-database candidate closes nothing, but its join verdict is still
+            // load-bearing (R4 blocker D): an unjoinable child launched by the partial graph
+            // holds the LIVE database, and no later mechanism ever joins an abandoned candidate
+            // lifetime — the distinct signal makes the graph-only caller go terminal instead of
+            // republishing Serving N beside the orphan.
+            return if (joined == null) PartialCandidateUnwindException(cause) else cause
+        }
         if (joined == null) return OrphanCloseException(cause)
         return runCatching { closeDatabase(database) }
             .fold(onSuccess = { cause }, onFailure = { OrphanCloseException(it) })

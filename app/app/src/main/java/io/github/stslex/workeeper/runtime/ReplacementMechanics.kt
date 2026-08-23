@@ -93,6 +93,17 @@ internal class OrphanCloseException(cause: Throwable) :
     IllegalStateException("orphaned candidate database failed to close", cause)
 
 /**
+ * Thrown by generation construction when a SHARED-database candidate's partial unwind failed
+ * (R4 blocker D): the graph constructor threw after handing the fresh lifetime to a consumer
+ * whose job could not be cancelled-and-joined. The caller must treat this as TERMINAL — an
+ * ordinary "construction failed" abort would republish Serving N beside a live orphan job that
+ * still holds the shared database, and a later replacement's teardown (which joins only the
+ * OUTGOING generation's lifetime) would close that database under it.
+ */
+internal class PartialCandidateUnwindException(cause: Throwable) :
+    IllegalStateException("partially built candidate could not be unwound", cause)
+
+/**
  * Stages a restore source into a runtime-owned file (spec §8.5 source-ownership transfer).
  * Runs inside the NON-SUSPENDING submission call, so a caller cancellation can never strand a
  * half-transferred file: after this returns, the runtime owns the staged copy and deletes it
@@ -255,6 +266,104 @@ internal class MutationPlan(
     val effects: DatabaseReplacementEffects,
     val reservation: File?,
 )
+
+/** A rollback OPERATION's resolved source (R4 invariant 2) — see [selectRollbackOperationSource]. */
+internal sealed interface OperationSourcePlan {
+    class Proceed(val source: File, val consume: SourceConsumption) : OperationSourcePlan
+    class Reject(val error: BackupError) : OperationSourcePlan
+}
+
+/**
+ * Resolves a `RollbackToPreRestoreBackup` operation's source. A journal-named [explicitPath] is
+ * AUTHORITATIVE: when the file is missing, the canonical slot — which belongs to ANOTHER
+ * attempt — is never substituted for it; the typed rejection routes the recovering launch to
+ * terminal recovery instead of silently reverting onto older data. The canonical undo slot is
+ * the requested source only when no explicit path was submitted.
+ */
+internal fun selectRollbackOperationSource(
+    explicitPath: String?,
+    provider: DatabaseSnapshotProvider,
+): OperationSourcePlan {
+    if (explicitPath != null) {
+        val explicit = File(explicitPath)
+        if (!explicit.exists()) {
+            return OperationSourcePlan.Reject(
+                BackupError.CorruptedBackup(
+                    reason = "journal-named rollback source is missing: $explicitPath",
+                ),
+            )
+        }
+        return OperationSourcePlan.Proceed(explicit, SourceConsumption.ExactFile(explicit))
+    }
+    val canonical = provider.getPreRestoreBackupFile()
+        ?: return OperationSourcePlan.Reject(
+            BackupError.CorruptedBackup(reason = "no pre-restore backup to roll back to"),
+        )
+    return OperationSourcePlan.Proceed(canonical, SourceConsumption.CanonicalSlot)
+}
+
+/** The ladder's recovery-source verdict (R4 invariant 2) — see [selectRecoverySource]. */
+internal sealed interface RecoverySourcePlan {
+    class Apply(val source: File, val consume: SourceConsumption) : RecoverySourcePlan
+    class Stop(val reason: String) : RecoverySourcePlan
+}
+
+/**
+ * Source-owner identity for the in-process recovery ladder: the recovery source is the
+ * attempt's OWN asset, never a substitute belonging to another attempt.
+ *
+ *  - A restore attempt recovering BEFORE its commit sequence completed rolls back onto its
+ *    reservation; if that vanished mid-transaction, the canonical slot — another attempt's
+ *    OLDER snapshot — is never applied in its place: the ladder stops instead of silently
+ *    reverting data this attempt never touched. The reservation is NOT consumed on this path:
+ *    it stays the journal-named recovery source until the caller's terminal effects resolve
+ *    the attempt (the submission frame then discards it; a crash first leaves the journal
+ *    still pointing at it).
+ *  - AFTER a clean commit ([afterCleanCommit]: promote → durable record → reservation
+ *    consumed, in that order), the canonical slot provably holds THIS attempt's promoted
+ *    pre-image — the same ordering proof the Committed cold-start rule rests on — so it is the
+ *    attempt's own recovery source, not a substitute.
+ *  - A canonical-slot rollback retries its own source once (the file is intact after a failed
+ *    copy/rename; the failure may be transient).
+ *  - An EXPLICIT-source rollback whose swap failed gets no substitute at all — applying the
+ *    canonical here would be exactly the cross-owner substitution invariant 2 bans.
+ */
+internal fun selectRecoverySource(
+    mutation: MutationPlan,
+    cause: BackupError?,
+    afterCleanCommit: Boolean,
+): RecoverySourcePlan {
+    val reservation = mutation.reservation
+    if (reservation != null && !afterCleanCommit) {
+        if (!reservation.exists()) {
+            return RecoverySourcePlan.Stop(
+                "replacement failed ($cause) and this attempt's reservation vanished",
+            )
+        }
+        return RecoverySourcePlan.Apply(reservation, SourceConsumption.None)
+    }
+    if (reservation != null) {
+        val canonical = mutation.provider.getPreRestoreBackupFile()
+            ?: return RecoverySourcePlan.Stop(
+                "post-commit recovery found no promoted undo slot ($cause)",
+            )
+        return RecoverySourcePlan.Apply(canonical, SourceConsumption.CanonicalSlot)
+    }
+    return when (mutation.consume) {
+        is SourceConsumption.ExactFile -> RecoverySourcePlan.Stop(
+            "the journal-named rollback source could not be applied ($cause) — " +
+                "the canonical slot belongs to another attempt and is never substituted",
+        )
+
+        SourceConsumption.CanonicalSlot, SourceConsumption.None -> {
+            val canonical = mutation.provider.getPreRestoreBackupFile()
+                ?: return RecoverySourcePlan.Stop(
+                    "replacement failed ($cause) and no pre-restore backup exists",
+                )
+            RecoverySourcePlan.Apply(canonical, SourceConsumption.CanonicalSlot)
+        }
+    }
+}
 
 /**
  * The durable commit sequence shared by both endings (spec §8.5a), in the ONE order that keeps

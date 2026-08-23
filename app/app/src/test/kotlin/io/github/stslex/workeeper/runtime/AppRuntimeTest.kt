@@ -15,19 +15,25 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withContext
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertNotSame
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.io.TempDir
 import java.io.File
 
@@ -59,6 +65,11 @@ internal class AppRuntimeTest {
     private var epochAdvances = 0
     private val phaseAtEpochAdvance = mutableListOf<AppUiPhase>()
 
+    /** Runs inside the graph factory BEFORE its injected failure — the partial-build seam. */
+    private var graphFactoryAction:
+        ((Int, io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetime) -> Unit)? =
+        null
+
     private var preflightOutcome: StartupOutcome = StartupOutcome.Proceed
     private var preflightGate: CompletableDeferred<Unit>? = null
     private var preflightAction: (suspend (RuntimeGeneration) -> Unit)? = null
@@ -80,7 +91,9 @@ internal class AppRuntimeTest {
             },
             imageStorageFactory = { mockk<ImageStorage>(relaxed = true) },
             graphFactory = { _, _, _, lifetime, _ ->
-                check(builtGraphs++ !in graphFactoryFailures) { "injected graph construction failure" }
+                val index = builtGraphs++
+                graphFactoryAction?.invoke(index, lifetime)
+                check(index !in graphFactoryFailures) { "injected graph construction failure" }
                 builtLifetimes += lifetime
                 mockk<AppGraph>(relaxed = true) {
                     every { databaseSnapshotProvider } returns provider
@@ -388,6 +401,129 @@ internal class AppRuntimeTest {
                 phaseAtEpochAdvance.single(),
                 "the epoch must advance while the transition window is still published",
             )
+        }
+
+    // ------------------------------------------------------------------------------------------
+    // R4 blocker D — a failed graph-only teardown is TERMINAL, never publish-anyway.
+    // ------------------------------------------------------------------------------------------
+
+    @Test
+    fun `outgoing ViewModelStore clear failure after PONR is FATAL - no successor is published`() =
+        runtimeTest { runtime ->
+            // Mandated R4 test 7. A throwing clear leaves generation N's ViewModel-owned work
+            // in an unknown state; pre-R4 the machine logged "publishing the candidate anyway"
+            // and exposed N+1 while N's work survived.
+            val genOne = runtime.currentGeneration
+            putProbeViewModel(genOne, onClear = { error("injected onCleared failure") })
+
+            val outcome = runtime.reinitialize()
+
+            assertEquals(ReinitializeOutcome.Fatal, outcome)
+            assertEquals(RuntimePhase.Fatal, runtime.phases.value, "no N+1 was ever published")
+            assertEquals(0, epochAdvances, "a failed handover must not discard N's queued models")
+            assertNull(
+                runtime.admitUiGeneration(genOne.id),
+                "the retired outgoing id must stay closed — nothing reopened the UI gate",
+            )
+            assertThrows<IllegalStateException> { runtime.currentGeneration }
+        }
+
+    @Test
+    fun `unjoinable outgoing lifetime after PONR is FATAL - epoch unchanged, admission refused`() =
+        runtimeTest { runtime ->
+            // Mandated R4 test 8. A DB-bound job of generation N that cannot be joined means N's
+            // work survives any publication — the machine must end terminally with the epoch
+            // untouched and both admission gates effectively closed.
+            val genOne = runtime.currentGeneration
+            val never = CompletableDeferred<Unit>()
+            genOne.lifetime.childScope(UnconfinedTestDispatcher(testScheduler)).launch {
+                withContext(NonCancellable) { never.await() }
+            }
+
+            val transition = async { runtime.reinitialize() }
+            advanceTimeBy(5_000)
+            runCurrent()
+
+            assertEquals(ReinitializeOutcome.Fatal, transition.await())
+            assertEquals(RuntimePhase.Fatal, runtime.phases.value)
+            assertEquals(0, epochAdvances, "N's producers are still live — their models survive")
+            assertNull(
+                runtime.admitUiGeneration(genOne.id),
+                "UI admission stays closed for the retired id",
+            )
+            val lease = async { runCatching { runtime.awaitBackupWorkLease() } }
+            runCurrent()
+            assertTrue(lease.isCompleted, "the acquirer fails loud instead of parking")
+            assertInstanceOf(IllegalStateException::class.java, lease.await().exceptionOrNull())
+            never.complete(Unit)
+            runCurrent()
+        }
+
+    @Test
+    fun `candidate preflight failure with an unjoinable candidate is FATAL - N is never republished`() =
+        runtimeTest { runtime ->
+            // Mandated R4 test 9. The candidate's jobs share the LIVE database; republishing N
+            // beside an unjoined candidate job (pre-R4: the tearDownCandidate verdict was
+            // discarded) leaves an orphan no later teardown ever joins — a later replacement
+            // would close the shared database under it.
+            runtime.currentGeneration
+            val never = CompletableDeferred<Unit>()
+            preflightAction = { generation ->
+                generation.lifetime.childScope(UnconfinedTestDispatcher(testScheduler)).launch {
+                    withContext(NonCancellable) {
+                        never.await()
+                    }
+                }
+                // A nested unconfined launch queues on the thread-local event loop; yield so the
+                // job genuinely STARTS (enters NonCancellable) before this preflight returns.
+                kotlinx.coroutines.yield()
+            }
+            preflightOutcome = StartupOutcome.RouteToRecovery
+
+            val transition = async { runtime.reinitialize() }
+            advanceTimeBy(5_000)
+            runCurrent()
+
+            assertEquals(ReinitializeOutcome.Fatal, transition.await())
+            assertEquals(
+                RuntimePhase.Fatal,
+                runtime.phases.value,
+                "Serving N must NOT come back while a candidate job may still hold the database",
+            )
+            assertEquals(0, epochAdvances)
+            never.complete(Unit)
+            runCurrent()
+        }
+
+    @Test
+    fun `partial construction with an unjoinable child is TERMINAL - not an ordinary abort`() =
+        runtimeTest { runtime ->
+            // Mandated R4 test 10. The graph constructor hands the fresh lifetime to a consumer
+            // that starts an unjoinable job, then throws. Pre-R4 releasePartialGeneration
+            // computed the join verdict and DISCARDED it for shared-database candidates, so the
+            // graph-only caller treated this as "candidate construction failed" and republished
+            // N beside the live orphan.
+            runtime.currentGeneration
+            val never = CompletableDeferred<Unit>()
+            graphFactoryFailures.add(1)
+            graphFactoryAction = { index, lifetime ->
+                if (index == 1) {
+                    // Real dispatcher: the unwind join runs inside buildGeneration's own
+                    // runBlocking, not on the test scheduler.
+                    lifetime.childScope(Dispatchers.Unconfined).launch {
+                        withContext(NonCancellable) {
+                            never.await()
+                        }
+                    }
+                }
+            }
+
+            val outcome = runtime.reinitialize()
+
+            assertEquals(ReinitializeOutcome.Fatal, outcome)
+            assertEquals(RuntimePhase.Fatal, runtime.phases.value, "N was not republished")
+            assertEquals(0, epochAdvances)
+            never.complete(Unit)
         }
 
     @Test
