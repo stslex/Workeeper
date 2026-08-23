@@ -420,6 +420,18 @@ Post-PONR failures never resurrect the partially disposed N: an escape after tea
 goes Fatal. Publication order at the boundary is fixed (R3): advance the snackbar epoch →
 publish the successor → reopen worker admission → lift the snackbar fence.
 
+An incomplete teardown is TERMINAL, never publish-anyway (R4): a post-PONR teardown failure
+(VM-clear throw, or an unjoinable N job) best-efforts the candidate's own release, aggregates,
+and goes Fatal — no epoch advance (N's producers may still be live), no publication, the UI gate
+stays retired; `publishFatal`'s worker-gate reopen exists solely to wake parked acquirers into
+the Fatal check, and no lease is ever granted. The same terminality holds pre-PONR wherever an
+abort would leave candidate work live beside a republished N: a rejected preflight whose
+candidate teardown FAILS (its unjoinable jobs share the LIVE database, and a later replacement's
+teardown joins only the OUTGOING lifetime — the orphan would see the shared handle closed under
+it) goes Fatal instead of aborting, and a partial construction whose unwind could not join its
+child surfaces the distinct `PartialCandidateUnwindException`, which the graph-only caller maps
+to Fatal rather than treating as an ordinary construction abort.
+
 **Candidate teardown** is ONE path for every candidate that must not be published (preflight
 failure, inline-rollback invalidation, partial construction): prevent publication → clear
 ViewModel ownership → cancel AND bounded-JOIN the lifetime → close the database only after the
@@ -504,32 +516,94 @@ submission (where two concurrent restores would race over one canonical path). T
 it INSIDE the serialized transaction, after validation and before the point of no return, into a
 per-attempt reservation file whose path goes into the journal entry. Consequences:
 
-- a rejected attempt discards only its OWN reservation — the previous undo slot survives intact;
-- a committed attempt PROMOTES its reservation onto the canonical `pre_restore_backup.db`, so the
-  undo slot holds exactly the database that immediately preceded that restore;
-- recovery prefers the journal's reservation path over the canonical slot: between the live-file
-  mutation and the promotion, the reservation is the only file holding the true pre-attempt
-  database.
+- a rejected attempt discards only its OWN reservation — the previous undo slot survives intact —
+  UNLESS its terminal compensation failed: any outcome whose `effectsError` is non-null may have
+  left the journal unresolved and still naming the reservation, so the file is KEPT (R4
+  invariant 8), exactly as on `FailedAfterMutation`/Fatal;
+- a committed attempt promotes its reservation onto the canonical `pre_restore_backup.db`, so the
+  undo slot holds exactly the database that immediately preceded that restore. The promotion
+  COPIES (R4): the reservation — the file the still-`Prepared` journal names — survives every
+  crash point of the promotion, and the pre-R4 move-based promotion is the recorded defect: a
+  death between the move and the durable `Committed` record left the journal pointing at a
+  missing file, and recovery silently fell back to the canonical slot's OLDER snapshot (or, with
+  no canonical, wedged the launch on a file of unknown provenance). Stale `.promoting` staging
+  debris is deleted deterministically at the next promotion and is never read by recovery (the
+  canonical lookup is an exact-name match);
+- **the journal-named source is AUTHORITATIVE for a `Prepared` attempt** (R4 invariant 2): when
+  that file is missing, the canonical slot — which belongs to ANOTHER attempt — is never
+  substituted for it; the seam rejects with a typed error and the launch classifies as terminal
+  recovery. For a `Committed` attempt the ordering proof runs the other way: `Committed` can
+  only exist after the promotion completed, so the canonical slot provably holds THIS attempt's
+  pre-image and IS the recovery source (the retained reservation may already be cleaned up);
+- **a rollback consumes EXACTLY the file it applied** (R4 invariant 3, the typed
+  `SourceConsumption` in `MutationPlan`): a reservation-sourced recovery consumes only its
+  reservation and leaves the previous restore's canonical undo — and its availability flag —
+  valid; a canonical-sourced rollback consumes the slot. Any canonical invalidation beyond the
+  exact applied file is a separate owner-side decision, never an implicit side effect.
 
 **Durable commit ordering** (the one order that keeps every crash window truthful):
-`rename` → `promote reservation` → `record Committed` → *only then* consume any rollback asset.
-A crash before the promotion recovers via the journal's reservation; a crash after it recovers
-via the canonical slot the promotion just wrote; a failure to record `Committed` leaves the
-mutation standing but unprovable, so the next launch conservatively rolls back — which the
-invariant explicitly permits, while claiming success does not. That failure is reported on the
-outcome (`effectsError`), never swallowed: **every** terminal compensation failure is folded onto
-the result, because durable state then disagrees with what a clean-looking outcome would imply.
+`rename` → `promote (copy) reservation` → `record Committed` → *only then* delete the retained
+reservation → consume the exact rollback source a rollback op applied. A crash before the
+`Committed` record recovers via the journal's reservation, which the copy-based promotion
+guarantees still exists; a crash after the record but before the reservation delete is cleaned
+up idempotently by the committed cold-start finalization (§8.5b); a failure to promote or to
+record `Committed` leaves the mutation standing but unprovable, so the next launch
+conservatively rolls back — which the invariant explicitly permits, while claiming success does
+not. That failure is reported on the outcome (`effectsError`), never swallowed: **every**
+terminal compensation failure is folded onto the result, because durable state then disagrees
+with what a clean-looking outcome would imply. The in-process ladder obeys the same owner rule:
+a pre-commit recovery applies the attempt's reservation WITHOUT consuming it (the journal still
+names it until the terminal effects resolve; the submission frame discards it after), a
+post-clean-commit recovery legally applies the canonical (the ordering proof above), a vanished
+reservation or a failed explicit-source rollback stops the ladder Fatal — never a cross-owner
+substitution.
 
-### 8.5b Safe retry vs terminal recovery (R3)
+### 8.5b Terminal recovery classification (R3, corrected R4)
 
 `PreflightOutcome` distinguishes what the launch may still do:
 
 | Outcome | Condition | What the launch does |
 |---|---|---|
-| `RestoreSucceeded` | `Committed` attempt + successful peek | continue normally |
-| `RestoreRolledBack` | failure-path rollback COMMITTED (durably) | restart (the in-process Room handle is stale) |
-| `RetrySafe` | rollback PROVEN rejected pre-PONR — nothing closed, mutated or torn down | continue on the normal path; assets and journal preserved for the next attempt. No restart (it would loop) and no recovery surface (the intact open database does not warrant one) |
-| `RecoveryRequired` | post-PONR, closed handle, fatal runtime, or a commit whose durable record failed | **arm ZERO DB-bound work** — no query-planner warm-up, no repositories, no dialog observer, no main UI — and hand off to the DB-free recovery surface with every asset preserved |
+| `RestoreSucceeded` | `Committed` attempt + successful peek | continue normally; the finalization is replay-safe (below) |
+| `RestoreRolledBack` | recovery rollback COMMITTED durably with clean bookkeeping | restart (the in-process Room handle is stale) |
+| `RecoveryCompleted` | an interrupted rollback found already durably `Committed` | finish its bookkeeping idempotently (ground-truth availability, resolve LAST) and continue |
+| `RecoveryRequired` | **every other rollback outcome** — rejected pre-PONR, post-PONR, fatal runtime, or a commit whose durable record failed | **arm ZERO DB-bound work** — no query-planner warm-up, no repositories, no dialog observer, no main UI — and hand off to the DB-free recovery surface with every asset preserved |
+
+The R3 `RetrySafe` outcome is REMOVED (R4 blocker B). Its premise — "a rejection proves the
+live database is intact" — confused the two transactions: a pre-PONR rejection of the RECOVERY
+rollback proves only that the rollback did not mutate, never what the ORIGINAL `Prepared`
+attempt did to the live file before dying, so nothing short of a clean durable rollback commit
+can license Main UI or DB-bound arming over that file. The one in-process consequence is
+deliberate and pinned: a graph-only reinitialize whose candidate preflight finds an unresolved
+`Prepared` attempt now aborts (the outgoing generation keeps serving on its already-open handle,
+journal and assets intact for a cold start or replacement transaction to complete) instead of
+publishing a fresh generation — arming its chores — over unproven data, which is what locked
+invariant 4 requires.
+
+**Replay-safe finalization** (R4 invariant 7). Every finalization writes data-bearing state
+BEFORE resolving the attempt, so a death anywhere in the sequence leaves the replay token:
+
+- committed restore: mark undo availability → publish the success dialog → delete the retained
+  reservation copy (idempotent) → resolve LAST. A death replays the whole method next launch; a
+  same-process finalization failure is logged and the launch still proceeds as a success — the
+  restore IS durably committed and verified, and the unresolved journal makes the NEXT launch
+  retry (a new restore/undo in the meantime is honestly refused by `beginAttempt`).
+- committed rollback (undo and scenario-1): data-bearing writes (availability per the flag
+  policy, the persisted dialog) → resolve LAST → the caller's acknowledge after everything.
+- the `RecoveryCompleted` replay branch takes its availability verdict from GROUND TRUTH — the
+  canonical file's existence — because `Kind.Rollback` cannot say which file the rollback
+  applied: a reservation-sourced recovery left the previous restore's canonical undo valid
+  (keep), a canonical-sourced one consumed it (clear).
+
+**Accepted residual (documented, deliberate):** the replay branch does not re-publish the
+interrupted rollback's user-facing dialog. `Kind.Rollback` does not record whether the rollback
+was a scenario-1 recovery (`RestoreFailure`) or a user undo (`UndoRestoreSuccess`), and
+inventing either would be worse than at-most-once feedback. The exact boundary: the dialog (and
+the undo flow's dialog-choice acknowledge) is lost only when the process dies between the
+rollback's durable commit record and its terminal `onCommitted` effects; data correctness is
+unaffected (the replay finishes availability + resolve from ground truth), and the
+un-acknowledged dialog choice self-heals on the next launch through the observer's re-dispatch
+(`performUndoRestore` → `FileMissing` → defensive clear + acknowledge).
 
 `RecoveryRequired` is cached on the coordinator (`recoverySurfaceRequired`) exactly as the
 migration decision is, and `MainActivity` routes on either. There is no automatic restart loop
@@ -1352,3 +1426,97 @@ green on the scope test beside it — which is why the gap survived the review's
   Store equivalents to the generation lifetime so teardown can join them; advancing its snackbar
   equivalent's epoch before publication; and honoring the attempt journal's phases in its
   cold-start pre-flight rather than peeking.
+
+## 23. Round-4 maintainer-correction record (2026-08-23)
+
+Three fix commits on top of `936ab699` — `1dacb403` (backup ownership: blockers A, B, C, E),
+`3e9aee6e` (graph-only teardown terminality: blocker D), and `e9459025` (the defects the
+mandated fresh-context adversarial review confirmed, §23.5) — closing the remaining Android
+production correctness gaps. §8.4 (the graph-only terminality paragraph), §8.5a and §8.5b were
+rewritten IN PLACE; this section is the record. No Phase 7 work, no swappable DAO/repository
+indirection; Android production remains `RestartProcess` and the Room same-instance reopen gate
+is untouched.
+
+### 23.1 Corrections → mechanisms → the discriminating test
+
+Every test listed ran RED on `936ab699` (the raw XMLs are committed as
+`kmp-phase-5-evidence/r4-red-on-base-*.xml`, produced by copying the new test files onto a
+worktree at that commit) and is green at the current head.
+
+| # | Correction | Mechanism | Red-on-base pin |
+|---|---|---|---|
+| A1 | promotion is crash-safe | `promoteRollbackReservation` COPIES; the reservation survives every crash point; the runtime deletes it only after the durable `Committed` record; committed cold-start finalization cleans a retained copy idempotently; stale `.promoting` deterministically discarded | `promotion COPIES — the journal-named reservation survives with its exact bytes` (REAL files, sentinels A/B, `DatabaseSnapshotProviderImplTest`) |
+| A2 | journal-named source authoritative | `selectRollbackOperationSource`: missing explicit path → typed rejection, never the canonical; `selectRecoverySource`: vanished reservation → Fatal; failed explicit-source rollback → Fatal; post-clean-commit canonical legal by the ordering proof | `a MISSING journal-named rollback source is a typed rejection…`; `ladder recovery whose reservation VANISHED goes Fatal…` |
+| A3 | exact-file consumption | typed `SourceConsumption` (None/CanonicalSlot/ExactFile) in `MutationPlan`; a rollback consumes exactly what it applied | `an explicit rollback applies and consumes EXACTLY its named source — the canonical survives` |
+| A4 | reservation kept on unresolved-journal outcomes | `keepReservation` covers every outcome with `effectsError != null` | `a rejection whose terminal compensation fails KEEPS the reservation…` |
+| B | terminal classification | `RetrySafe` removed; every non-commit rollback outcome → `RecoveryRequired` (zero DB-bound arming, no Main UI) | `every non-commit rollback outcome requires terminal recovery` (`RejectedBeforeMutation` case) + `StartupProcessorTest`'s zero-arming pins |
+| C | legacy owner isolation | atomic legacy→owner-scoped conversion under the synthetic id only; `resolveAttempt` requires that id; `ScenarioOneRollbackEffects` CHECKS its re-claim | repository: `only the synthetic legacy owner claims…` + the flipped arbitrary-resolver pin; coordinator: `the recovery re-claim CHECKS ownership…` + the legacy end-to-end |
+| E1 | replay-safe success finalization | mark → publish → reservation cleanup → resolve LAST, `runCatching`-wrapped | `success finalization is data-bearing-first…`; `a finalization failure never leaves the journal resolved with the undo hidden` (mandated test 11); `…cleans up the RETAINED reservation copy idempotently` |
+| E2 | committed-rollback replay ground truth | availability from canonical-file existence; resolve last; at-most-once dialog documented (§8.5b) | `an interrupted but COMMITTED rollback…` (order + clear) and `a committed RESERVATION-sourced rollback keeps the previous restore's still-valid undo` |
+| E3 | Committed recovers from canonical | `recoverFrom` passes `sourcePath` only for `Prepared` | `a COMMITTED attempt recovers from the CANONICAL slot…` |
+| D1 | post-PONR teardown failure terminal | best-effort candidate release → aggregate → `publishFatal`; no epoch advance, no publication, UI gate stays retired | `outgoing ViewModelStore clear failure after PONR is FATAL…` (test 7); `unjoinable outgoing lifetime after PONR is FATAL…` (test 8) |
+| D2 | candidate teardown verdict checked | preflight-fail path: `tearDownCandidate == false` → Fatal, never a republished N | `candidate preflight failure with an unjoinable candidate is FATAL…` (test 9) |
+| D3 | partial-unwind signal distinct | `releasePartialGeneration` honors the join verdict for `ownsDatabase=false` → `PartialCandidateUnwindException` → Fatal | `partial construction with an unjoinable child is TERMINAL…` (test 10) |
+
+### 23.2 Crash-state matrix — one restore attempt, RestartProcess, current protocol
+
+| Death point | Journal | Files (R = reservation, C = canonical, L = live) | Next launch |
+|---|---|---|---|
+| before `onBeforeMutation` | none | R exists (discarded by frame if reached), C old, L old | `NoOp`; normal launch |
+| after Prepared, before close | `Prepared`+R | R = pre-image, C old, L old | recovery rollback from R (idempotent re-apply) → `RestoreRolledBack` → restart |
+| after close, before rename | `Prepared`+R | R = pre-image, C old, L old | same — R applied, correct |
+| after rename, before promote | `Prepared`+R | R = pre-image (COPY survives), C old, L NEW | rollback from R → pre-image restored ✓ (pre-R4: R could be GONE mid-promote → silent revert onto old C, or wedge) |
+| mid-promote (any step) | `Prepared`+R | R intact; C old/absent/new; `.promoting` debris possible | rollback from R ✓; debris never read |
+| after promote, before record | `Prepared`+R | R intact, C = pre-image, L new | rollback from R (same bytes as C) ✓ |
+| after record, before reservation delete | `Committed`+R | R intact, C = pre-image, L new | peek → success → finalization deletes R idempotently ✓ |
+| after reservation delete, before terminal effects / restart preempts frame | `Committed` | C = pre-image, L new | peek → success; peek-fail → rollback from CANONICAL (provably ours by ordering) ✓ |
+| mid-finalization (any point before resolve) | `Committed` | C = pre-image, L new | full replay: mark, publish, cleanup, resolve — idempotent ✓ (pre-R4: resolve-first death hid the undo forever) |
+| after resolve | none | C = pre-image, L new, flag set | `NoOp` ✓ |
+
+### 23.3 Known-negatives (executed, red, reverted; XMLs committed)
+
+| Mutation | Red pins | Raw XML |
+|---|---|---|
+| R4-A — explicit-path→canonical fallback re-enabled | `a MISSING journal-named rollback source is a typed rejection…` | `known-negative-r4a-canonical-substitution.xml` |
+| R4-B — "publish the candidate anyway" restored after a failed graph-only teardown | tests 7 + 8 (both PONR terminality pins) | `known-negative-r4b-publish-anyway.xml` |
+| R4-C — the invalid safe-retry classification restored (rejection → continue-and-arm) | `every non-commit rollback outcome requires terminal recovery` (rejection case) | `known-negative-r4c-safe-retry.xml` |
+
+### 23.4 Residuals (deliberate, with exact boundaries)
+
+- **At-most-once rollback dialog/ack** — §8.5b carries the full statement and boundary.
+- **A leaked reservation copy** when the process dies between the terminal effects' resolve and
+  the same-process submission-frame delete on the in-process (RebuildInProcess) recovered-by-
+  rollback path: the journal is already resolved, so no launch cleans the orphan
+  `rollback_reservation_*.db`; it is bounded cacheDir litter under system eviction, never a
+  correctness input (nothing reads an un-journaled reservation).
+- **`DatabaseReplacementEffects.None.attemptId == "no-effects"`** is shared by construction; no
+  production mutating caller passes `None` (both coordinator effects and the settings restore
+  effects are explicit), and `None` writes no journal — latent only, noted for Phase 7.
+- A `Prepared` **Restore** attempt with a null reservation path (torn write) falls back to the
+  canonical slot: for the only real producers of that state (legacy markers, interrupted
+  rollbacks whose source WAS canonical) the canonical is the owner-correct source.
+
+### 23.5 Fresh-context adversarial review (4 hunts) — findings → fixes
+
+The mandated review ran over crash ordering, source-owner identity, teardown return values, and
+outcome truth / test vacuity, against the tree at `3e9aee6e`. Production `RestartProcess`
+checked clean on every prong; every confirmed finding was `RebuildInProcess`-scoped
+(instrumentation + the Phase-7 host) and is fixed in the third round-4 commit. Each fix's pin
+ran RED against the pre-fix production (`r4-review-red-prefix-*.xml` beside the evidence
+README) and green after.
+
+| Finding | Fix | Pin |
+|---|---|---|
+| CRITICAL — the INLINE scenario-1 rollback dropped `sourcePath` and hard-coded the canonical slot: a journal-named reservation was ignored, ANOTHER attempt's older snapshot was applied AND consumed (invariants 2+3), and the flag policy then mis-decided | `runInlineRollback` resolves through the same `selectRollbackOperationSource` policy as the top level — explicit path honored, missing path a typed rejection, exact-file consumption | `the INLINE rollback honors the journal-named source…`; `…with a MISSING journal-named source rejects…` |
+| HIGH — the inline rollback never ran `onBeforeMutation`, so the journal stayed `Committed`/`Kind.Restore`; a death inside the inline mutation replayed as a FALSE `RestoreSuccess` with a phantom undo | the inline branch runs the caller's `onBeforeMutation` BEFORE anything irreversible — the scenario-1 re-claim converts the slot to `Prepared`/`Rollback`, so every death replays truthful bookkeeping | the re-claim-before-mutation ordering assert inside the inline pin |
+| HIGH — the post-clean-commit ladder recovery rolled back while the journal still read `Committed`: the NEXT preflight (no crash needed) or the next launch peeked the rolled-back file and published `RestoreSuccess` | `recoverViaRollback(afterCleanCommit)` durably UN-commits first (the caller's `onBeforeMutation` re-claim → `Prepared`), applies the canonical WITHOUT consuming it, and grants ONE fresh attempt after a preflight that re-drove the recovery inline (bounded: the fresh attempt runs over an empty journal) | `post-clean-commit recovery durably UN-commits…`; `a preflight that re-drives the recovery inline gets ONE fresh attempt…` |
+| MEDIUM — `RestoreTransactionEffects.onRecoveredByRollback` unconditionally cleared undo availability even when the recovery applied the reservation and the previous restore's canonical undo remained valid | ground-truth verdict (canonical file existence), same policy as the coordinator's replay branch; the stale seam KDoc ("the preserved file was consumed") corrected | `a reservation-sourced recovery keeps the previous restore's undo availability` |
+| LOW — a generation-1 build whose orphan close threw resolved to a RETRYABLE rejection: the retry opened a new handle beside the unknown-state one and later renamed over it | `OrphanCloseException` / `PartialCandidateUnwindException` are terminal in both escape resolvers, pre-PONR included | `a generation-1 orphan close-throw is FATAL…` |
+| LOW — the post-PONR teardown paths could hang unboundedly inside the mutex (the ViewModelStore clear had no timeout) | `GenerationQuiescer.clearStoreBounded`: the clear dispatches detached to the main dispatcher and is awaited within the drain budget; a timeout reads as a FAILED clear and the machine reaches its terminal verdict | covered by every existing clear-path pin (completion) + the Fatal verdicts (failure); a wedged-main unit test would block the test thread itself and is documented instead |
+| vacuity — the stale-`.promoting` test's comment overclaimed (the pre-delete is defensive, not separately observable) | comment states the exact claim boundary | — |
+
+Hunt verdicts otherwise: every RestartProcess kill point resolves truthfully; PCUE is raised on
+exactly the right condition and cannot be swallowed; epoch/gate state after every Fatal is
+exact; `RestoreSucceeded`-with-unresolved-journal after a finalization failure is safe
+(`beginAttempt` refuses foreign claims until the replay); the graph-only unresolved-`Prepared`
+abort arms nothing on the candidate.

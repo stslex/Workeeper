@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.stslex.workeeper.runtime.AppRuntimeTest" tests="19" skipped="0" failures="2" errors="0" timestamp="2026-08-23T14:42:41.568Z" hostname="stslexs-MacBook-Pro.local" time="2.562">
+  <properties/>
+  <testcase name="an admitted ui region gates the transition - only ITS OWN token releases it()" classname="io.github.stslex.workeeper.runtime.AppRuntimeTest" time="0.319"/>
+  <testcase name="caller cancellation abandons only the await - the transition itself completes()" classname="io.github.stslex.workeeper.runtime.AppRuntimeTest" time="0.011"/>
+  <testcase name="unjoinable outgoing lifetime after PONR is FATAL - epoch unchanged, admission refused()" classname="io.github.stslex.workeeper.runtime.AppRuntimeTest" time="0.026">
+    <failure message="org.opentest4j.AssertionFailedError: expected: &lt;Fatal&gt; but was: &lt;Published(generation=io.github.stslex.workeeper.runtime.RuntimeGeneration@27746c5e)&gt;" type="org.opentest4j.AssertionFailedError">org.opentest4j.AssertionFailedError: expected: &lt;Fatal&gt; but was: &lt;Published(generation=io.github.stslex.workeeper.runtime.RuntimeGeneration@27746c5e)&gt;
+	at org.junit.jupiter.api.Assertions.assertEquals(Assertions.java:1199)
+	at io.github.stslex.workeeper.runtime.AppRuntimeTest$unjoinable outgoing lifetime after PONR is FATAL - epoch unchanged, admission refused$1.invokeSuspend(AppRuntimeTest.kt:447)
+	at io.github.stslex.workeeper.runtime.AppRuntimeTest$unjoinable outgoing lifetime after PONR is FATAL - epoch unchanged, admission refused$1.invoke(AppRuntimeTest.kt)
+	at io.github.stslex.workeeper.runtime.AppRuntimeTest$unjoinable outgoing lifetime after PONR is FATAL - epoch unchanged, admission refused$1.invoke(AppRuntimeTest.kt)
+	at io.github.stslex.workeeper.runtime.AppRuntimeTest$runtimeTest$1.invokeSuspend(AppRuntimeTest.kt:123)
+	at io.github.stslex.workeeper.runtime.AppRuntimeTest$runtimeTest$1.invoke(AppRuntimeTest.kt)
+	at io.github.stslex.workeeper.runtime.AppRuntimeTest$runtimeTest$1.invoke(AppRuntimeTest.kt)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt$runTest$2$1$1.invokeSuspend(TestBuilders.kt:317)
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)
+	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:100)
+	at kotlinx.coroutines.test.TestDispatcher.processEvent$kotlinx_coroutines_test(TestDispatcher.kt:24)
+	at kotlinx.coroutines.test.TestCoroutineScheduler.tryRunNextTaskUnless$kotlinx_coroutines_test(TestCoroutineScheduler.kt:98)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt$runTest$2$1$workRunner$1.invokeSuspend(TestBuilders.kt:326)
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)
+	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:100)
+	at kotlinx.coroutines.EventLoopImplBase.processNextEvent(EventLoop.common.kt:256)
+	at kotlinx.coroutines.BlockingCoroutine.joinBlocking(Builders.kt:54)
+	at kotlinx.coroutines.BuildersKt__BuildersKt.runBlockingImpl(Builders.kt:30)
+	at kotlinx.coroutines.BuildersKt.runBlockingImpl(Unknown Source)
+	at kotlinx.coroutines.BuildersKt__Builders_concurrentKt.runBlockingK(Builders.concurrent.kt:172)
+	at kotlinx.coroutines.BuildersKt.runBlockingK(Unknown Source)
+	at kotlinx.coroutines.BuildersKt__Builders_concurrentKt.runBlockingK$default(Builders.concurrent.kt:157)
+	at kotlinx.coroutines.BuildersKt.runBlockingK$default(Unknown Source)
+	at kotlinx.coroutines.test.TestBuildersJvmKt.createTestResult(TestBuildersJvm.kt:10)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:309)
+	at kotlinx.coroutines.test.TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:1)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:167)
+	at kotlinx.coroutines.test.TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:1)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt.runTest-8Mi8wO0$default(TestBuilders.kt:159)
+	at kotlinx.coroutines.test.TestBuildersKt.runTest-8Mi8wO0$default(TestBuilders.kt:1)
+	at io.github.stslex.workeeper.runtime.AppRuntimeTest.runtimeTest(AppRuntimeTest.kt:83)
+	at io.github.stslex.workeeper.runtime.AppRuntimeTest.unjoinable outgoing lifetime after PONR is FATAL - epoch unchanged, admission refused(AppRuntimeTest.kt:433)
+</failure>
+  </testcase>
+  <testcase name="nested rollback inside a graph-only preflight is REJECTED - no deadlock, no file ops()" classname="io.github.stslex.workeeper.runtime.AppRuntimeTest" time="0.058"/>
+  <testcase name="the snackbar epoch advances BEFORE the successor is published()" classname="io.github.stslex.workeeper.runtime.AppRuntimeTest" time="0.007"/>
+  <testcase name="generation 1 builds lazily exactly once - both phase views derive from ONE value()" classname="io.github.stslex.workeeper.runtime.AppRuntimeTest" time="0.004"/>
+  <testcase name="preflight throw unwinds deterministically to Serving()" classname="io.github.stslex.workeeper.runtime.AppRuntimeTest" time="0.008"/>
+  <testcase name="partial construction with an unjoinable child is TERMINAL - not an ordinary abort()" classname="io.github.stslex.workeeper.runtime.AppRuntimeTest" time="1.023"/>
+  <testcase name="stale expected generation coalesces instead of running a second transition()" classname="io.github.stslex.workeeper.runtime.AppRuntimeTest" time="0.007"/>
+  <testcase name="candidate preflight failure with an unjoinable candidate is FATAL - N is never republished()" classname="io.github.stslex.workeeper.runtime.AppRuntimeTest" time="0.016"/>
+  <testcase name="candidate is not published before preflight completes()" classname="io.github.stslex.workeeper.runtime.AppRuntimeTest" time="0.007"/>
+  <testcase name="committed graph-only handover advances the snackbar epoch - aborts never do()" classname="io.github.stslex.workeeper.runtime.AppRuntimeTest" time="0.008"/>
+  <testcase name="unreleased worker lease aborts the graph-only transition too()" classname="io.github.stslex.workeeper.runtime.AppRuntimeTest" time="0.007"/>
+  <testcase name="preflight CancellationException - the deferred STILL resolves, with an abort()" classname="io.github.stslex.workeeper.runtime.AppRuntimeTest" time="0.006"/>
+  <testcase name="candidate construction failure unwinds - Serving restored, shared db open, no strand()" classname="io.github.stslex.workeeper.runtime.AppRuntimeTest" time="0.008"/>
+  <testcase name="graph-only handover - same database object, fresh graph lifetime store, next id()" classname="io.github.stslex.workeeper.runtime.AppRuntimeTest" time="0.007"/>
+  <testcase name="outgoing ViewModelStore clear failure after PONR is FATAL - no successor is published()" classname="io.github.stslex.workeeper.runtime.AppRuntimeTest" time="0.008">
+    <failure message="org.opentest4j.AssertionFailedError: expected: &lt;Fatal&gt; but was: &lt;Published(generation=io.github.stslex.workeeper.runtime.RuntimeGeneration@337e573b)&gt;" type="org.opentest4j.AssertionFailedError">org.opentest4j.AssertionFailedError: expected: &lt;Fatal&gt; but was: &lt;Published(generation=io.github.stslex.workeeper.runtime.RuntimeGeneration@337e573b)&gt;
+	at org.junit.jupiter.api.Assertions.assertEquals(Assertions.java:1199)
+	at io.github.stslex.workeeper.runtime.AppRuntimeTest$outgoing ViewModelStore clear failure after PONR is FATAL - no successor is published$1.invokeSuspend(AppRuntimeTest.kt:421)
+	at io.github.stslex.workeeper.runtime.AppRuntimeTest$outgoing ViewModelStore clear failure after PONR is FATAL - no successor is published$1.invoke(AppRuntimeTest.kt)
+	at io.github.stslex.workeeper.runtime.AppRuntimeTest$outgoing ViewModelStore clear failure after PONR is FATAL - no successor is published$1.invoke(AppRuntimeTest.kt)
+	at io.github.stslex.workeeper.runtime.AppRuntimeTest$runtimeTest$1.invokeSuspend(AppRuntimeTest.kt:123)
+	at io.github.stslex.workeeper.runtime.AppRuntimeTest$runtimeTest$1.invoke(AppRuntimeTest.kt)
+	at io.github.stslex.workeeper.runtime.AppRuntimeTest$runtimeTest$1.invoke(AppRuntimeTest.kt)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt$runTest$2$1$1.invokeSuspend(TestBuilders.kt:317)
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)
+	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:100)
+	at kotlinx.coroutines.test.TestDispatcher.processEvent$kotlinx_coroutines_test(TestDispatcher.kt:24)
+	at kotlinx.coroutines.test.TestCoroutineScheduler.tryRunNextTaskUnless$kotlinx_coroutines_test(TestCoroutineScheduler.kt:98)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt$runTest$2$1$workRunner$1.invokeSuspend(TestBuilders.kt:326)
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)
+	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:100)
+	at kotlinx.coroutines.EventLoopImplBase.processNextEvent(EventLoop.common.kt:256)
+	at kotlinx.coroutines.BlockingCoroutine.joinBlocking(Builders.kt:54)
+	at kotlinx.coroutines.BuildersKt__BuildersKt.runBlockingImpl(Builders.kt:30)
+	at kotlinx.coroutines.BuildersKt.runBlockingImpl(Unknown Source)
+	at kotlinx.coroutines.BuildersKt__Builders_concurrentKt.runBlockingK(Builders.concurrent.kt:172)
+	at kotlinx.coroutines.BuildersKt.runBlockingK(Unknown Source)
+	at kotlinx.coroutines.BuildersKt__Builders_concurrentKt.runBlockingK$default(Builders.concurrent.kt:157)
+	at kotlinx.coroutines.BuildersKt.runBlockingK$default(Unknown Source)
+	at kotlinx.coroutines.test.TestBuildersJvmKt.createTestResult(TestBuildersJvm.kt:10)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:309)
+	at kotlinx.coroutines.test.TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:1)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:167)
+	at kotlinx.coroutines.test.TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:1)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt.runTest-8Mi8wO0$default(TestBuilders.kt:159)
+	at kotlinx.coroutines.test.TestBuildersKt.runTest-8Mi8wO0$default(TestBuilders.kt:1)
+	at io.github.stslex.workeeper.runtime.AppRuntimeTest.runtimeTest(AppRuntimeTest.kt:83)
+	at io.github.stslex.workeeper.runtime.AppRuntimeTest.outgoing ViewModelStore clear failure after PONR is FATAL - no successor is published(AppRuntimeTest.kt:412)
+</failure>
+  </testcase>
+  <testcase name="committed safe boundary - N teardown COMPLETES before N+1 is exposed()" classname="io.github.stslex.workeeper.runtime.AppRuntimeTest" time="0.008"/>
+  <testcase name="preflight failure aborts - generation 1 serving, reactors alive, ViewModelStore INTACT()" classname="io.github.stslex.workeeper.runtime.AppRuntimeTest" time="0.005"/>
+  <system-out><![CDATA[stripped]]></system-out>
+  <system-err/>
+</testsuite>

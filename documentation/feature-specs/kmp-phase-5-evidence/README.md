@@ -1,9 +1,22 @@
 # KMP Phase 5 (R2) — verification evidence
 
-First measured 2026-08-22; re-measured after each REQUEST_CHANGES rework — round 2 (spec §20/§21)
-and round 3 (spec §22, the attempt journal + admission/snackbar linearization). The tables below
-carry the CURRENT (round-3) numbers, with earlier figures noted where they differ.
+First measured 2026-08-22; re-measured after each rework — round 2 (spec §20/§21), round 3
+(spec §22, the attempt journal + admission/snackbar linearization), and round 4 (spec §23, the
+maintainer correction: crash-safe promotion/consumption, terminal classification, legacy owner
+isolation, graph-only teardown terminality, replay-safe finalization). The tables below carry
+the CURRENT (round-4) numbers, with earlier figures noted where they differ.
 Branch `feature/kmp-phase-5-startup-processor` (PR #252).
+
+**Round-4 red-on-base evidence.** Every mandated round-4 test was proven to FAIL at the
+pre-correction head `936ab699`: the new test files were copied onto a worktree at that commit
+and the four suites run — 21 named tests + the parameterized rejection case red, all green at
+the current head. Raw JUnit XMLs: `r4-red-on-base-*.xml` beside this file (`<system-out>`
+stripped; testcases and failures verbatim).
+
+**Round-4 adversarial-review fix evidence.** The six pins added with `e9459025` (spec §23.5)
+were each proven RED against the pre-fix production by stashing the production changes and
+re-running the suites over the new tests — 6 tests red (`r4-review-red-prefix-runtime.xml` +
+`r4-review-red-prefix-settings.xml`), green after the stash pop.
 Device for every connected run: `sdk_gphone64_arm64` emulator (Pixel 6 AVD), API 34, arm64-v8a,
 `ANDROID_SERIAL=emulator-5554`. Host: macOS (Darwin 25.6), JDK 21, Room 3.0.0,
 `BundledSQLiteDriver`. The `.xml` files beside this README are the raw AGP instrumentation
@@ -23,9 +36,9 @@ results of the final Regression run, copied verbatim from
 
 | Command | Exit | Executed | Tests |
 |---|---|---|---|
-| `./gradlew assembleDebug testDebugUnitTest verifyPaparazziDebug lintDebug assembleDebugAndroidTest --rerun-tasks --no-build-cache --no-configuration-cache` | 0 (`BUILD SUCCESSFUL in 8m 29s`, round-3 final; round-2 9m10s/2648; round-1 9m06s/2609; pre-rework 7m48s/2461) | 3265/3265 tasks executed; `verifyPaparazziDebug` in the graph with zero movers (goldens untouched by all three rounds; 13 golden-holding modules) | **2688 unit/host tests, 0 failures, 0 errors** (2174 `testDebugUnitTest` + 387 `testAndroidHostTest` + 127 `test`, counted from the raw JUnit XMLs across all three host scopes) |
-| `./gradlew detekt :lint-rules:test --rerun-tasks --no-build-cache --no-configuration-cache` | 0 (`BUILD SUCCESSFUL in 30s`, 59/59 executed) | round-3 forced re-run; **zero new suppressions** — `git diff 6a752285..HEAD` adds no `@Suppress`, and no detekt config or baseline file is touched | 127 custom-rule tests, 0 failures |
-| `./gradlew :core:data:backup:api:compileKotlinIosSimulatorArm64 :core:core:compileKotlinIosSimulatorArm64 --rerun-tasks …` | 0 (10/10 executed) | the two KMP modules round 3 touched (`RestoreAttempt` in commonMain + the `DatabaseReplacement` androidMain seam; `AppCoroutineScopeImpl`'s generation-job parent). The full five-module + Room-KSP sweep stands from round 2 | — |
+| `./gradlew assembleDebug testDebugUnitTest verifyPaparazziDebug lintDebug assembleDebugAndroidTest --rerun-tasks --no-build-cache --no-configuration-cache` | 0 (`BUILD SUCCESSFUL in 15m 31s`, round-4 final; round-3 8m29s/2688; round-2 9m10s/2648; round-1 9m06s/2609; pre-rework 7m48s/2461) | 3265/3265 tasks executed; `verifyPaparazziDebug` in the graph with zero movers (goldens untouched by all four rounds; 13 golden-holding modules) | **2712 unit/host tests, 0 failures, 0 errors** (2196 `testDebugUnitTest` + 389 `testAndroidHostTest` + 127 `test`, counted from the raw JUnit XMLs across all three host scopes) |
+| `./gradlew detekt :lint-rules:test --rerun-tasks --no-build-cache --no-configuration-cache` | 0 (`BUILD SUCCESSFUL in 35s`, 59/59 executed, round-4 forced re-run) | **zero new suppressions** — the round-4 diff (`git diff 936ab699..HEAD`) adds no `@Suppress`, and no detekt config or baseline file is touched (verified by grep, not just the exit code) | 127 custom-rule tests, 0 failures |
+| `./gradlew :core:data:backup:api:compileKotlinIosSimulatorArm64 :core:core:compileKotlinIosSimulatorArm64 --rerun-tasks …` | 0 (10/10 executed, round-4 re-forced) | the KMP modules the reworks touched. The full five-module + Room-KSP sweep stands from round 2 | — |
 
 iOS **link/runtime**: UNVERIFIED — no iOS host exists before Phase 7; compile+KSP evidence only.
 
@@ -33,8 +46,9 @@ iOS **link/runtime**: UNVERIFIED — no iOS host exists before Phase 7; compile+
 
 | Command | Exit | Tests |
 |---|---|---|
-| `ANDROID_SERIAL=emulator-5554 ./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.annotation=io.github.stslex.workeeper.core.ui.test.annotations.Smoke --max-workers=2 --continue` | 0 (`BUILD SUCCESSFUL in 2m 39s`, round-3 final; round-2 2m41s/43) | **44** started, 0 failures (+1: the generation-deps seam pin). Its FIRST round-3 run was RED and load-bearing — see §22.3b: `:core:ui:mvi`'s probe builds a Store with no app graph, and the processor now requires one app-scope binding, so the probe's plain `Application` failed the `appDeps` cast. Fixed by supplying the binding as production does, never by softening the seam |
-| same with `…annotations.Regression` | 0 (`BUILD SUCCESSFUL in 3m 21s`, round-3 final; round-2 3m19s/78) | **81** started, 0 failures (49 `app:app` — the composed handshake test plus round-3's three new device pins — + 30 `core:data:database` + 2 others; raw XMLs beside this file) |
+| `ANDROID_SERIAL=emulator-5554 ./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.annotation=io.github.stslex.workeeper.core.ui.test.annotations.Smoke --max-workers=2 --continue` | 0 (`BUILD SUCCESSFUL in 3m 2s`, round-4 final; round-3 2m39s/44; round-2 2m41s/43) | **44** started, 0 failures (+1 over round 2: the generation-deps seam pin). Its FIRST round-3 run was RED and load-bearing — see §22.3b: `:core:ui:mvi`'s probe builds a Store with no app graph, and the processor now requires one app-scope binding, so the probe's plain `Application` failed the `appDeps` cast. Fixed by supplying the binding as production does, never by softening the seam |
+| same with `…annotations.Regression` | 0 (`BUILD SUCCESSFUL in 4m 6s`, round-4 final; round-3 3m21s/81; round-2 3m19s/78) | **81** started, 0 failures (49 `app:app` — the composed handshake test plus round-3's three device pins — + 30 `core:data:database` + 2 others; raw XMLs beside this file) |
+| `:core:data:database:connectedDebugAndroidTest -P…class=…SameInstanceReopenAfterSwapDeviceTest` | 0 (round-4 re-run) | **2/2** — the Room same-instance characterization is UNCHANGED in what it proves |
 
 Standalone runs (same emulator): full unfiltered `:app:app:connectedDebugAndroidTest` 49/0 and
 `:core:data:database:connectedDebugAndroidTest` 30/0 (round 3);
@@ -71,6 +85,14 @@ Six further mutations were run by the test authors and each was killed by its ow
 plus-order reversal in `AppCoroutineScopeImpl` (Store `finally` still pending when
 `cancelAndJoin` returned), non-idempotent `dispose()`, a re-stamping `requeue`, an always-admit
 `beginResolve`, a non-awaiting `fenceResolves`, and a collapsed resolve counter.
+
+## Round-4 known-negatives (executed and reverted per the §7 protocol)
+
+| Mutation | Red pins | Raw XML |
+|---|---|---|
+| R4-A — the explicit-path→canonical fallback re-enabled in `selectRollbackOperationSource` (a missing journal-named source silently substitutes another attempt's canonical slot) | `a MISSING journal-named rollback source is a typed rejection - the canonical slot is never substituted` | `known-negative-r4a-canonical-substitution.xml` |
+| R4-B — "publish the candidate anyway" restored after a failed graph-only post-PONR teardown | `outgoing ViewModelStore clear failure after PONR is FATAL - no successor is published` AND `unjoinable outgoing lifetime after PONR is FATAL - epoch unchanged, admission refused` | `known-negative-r4b-publish-anyway.xml` |
+| R4-C — the invalid safe-retry classification restored (a rejected recovery rollback continues the launch and arms) | `every non-commit rollback outcome requires terminal recovery` (`RejectedBeforeMutation` case) | `known-negative-r4c-safe-retry.xml` |
 
 R3-C is the one that had to be earned twice. The hammer as first written could not observe its
 own gap — its racer released whatever token it won before the assertion read the count, so the

@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.stslex.workeeper.core.data.backup.scheduling.RestoreStateRepositoryImplTest" tests="19" skipped="0" failures="2" errors="0" timestamp="2026-08-23T14:39:21.119Z" hostname="stslexs-MacBook-Pro.local" time="0.215">
+  <properties/>
+  <testcase name="an attempt whose context is partially written reads back with a null context()" classname="io.github.stslex.workeeper.core.data.backup.scheduling.RestoreStateRepositoryImplTest" time="0.01"/>
+  <testcase name="recordAttemptCommitted advances only the owning attempt()" classname="io.github.stslex.workeeper.core.data.backup.scheduling.RestoreStateRepositoryImplTest" time="0.03"/>
+  <testcase name="legacy restore_in_progress migrates to a Prepared attempt()" classname="io.github.stslex.workeeper.core.data.backup.scheduling.RestoreStateRepositoryImplTest" time="0.02">
+    <failure message="org.opentest4j.AssertionFailedError: expected: &lt;false&gt; but was: &lt;true&gt;" type="org.opentest4j.AssertionFailedError">org.opentest4j.AssertionFailedError: expected: &lt;false&gt; but was: &lt;true&gt;
+	at org.junit.jupiter.api.Assertions.assertFalse(Assertions.java:257)
+	at io.github.stslex.workeeper.core.data.backup.scheduling.RestoreStateRepositoryImplTest$legacy restore_in_progress migrates to a Prepared attempt$1.invokeSuspend(RestoreStateRepositoryImplTest.kt:210)
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)
+	at kotlinx.coroutines.UndispatchedCoroutine.afterResume(CoroutineContext.kt:278)
+	at kotlinx.coroutines.AbstractCoroutine.resumeWith(AbstractCoroutine.kt:101)
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:47)
+	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:100)
+	at kotlinx.coroutines.test.TestDispatcher.processEvent$kotlinx_coroutines_test(TestDispatcher.kt:24)
+	at kotlinx.coroutines.test.TestCoroutineScheduler.tryRunNextTaskUnless$kotlinx_coroutines_test(TestCoroutineScheduler.kt:98)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt$runTest$2$1$workRunner$1.invokeSuspend(TestBuilders.kt:326)
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)
+	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:100)
+	at kotlinx.coroutines.EventLoopImplBase.processNextEvent(EventLoop.common.kt:256)
+	at kotlinx.coroutines.BlockingCoroutine.joinBlocking(Builders.kt:54)
+	at kotlinx.coroutines.BuildersKt__BuildersKt.runBlockingImpl(Builders.kt:30)
+	at kotlinx.coroutines.BuildersKt.runBlockingImpl(Unknown Source)
+	at kotlinx.coroutines.BuildersKt__Builders_concurrentKt.runBlockingK(Builders.concurrent.kt:172)
+	at kotlinx.coroutines.BuildersKt.runBlockingK(Unknown Source)
+	at kotlinx.coroutines.BuildersKt__Builders_concurrentKt.runBlockingK$default(Builders.concurrent.kt:157)
+	at kotlinx.coroutines.BuildersKt.runBlockingK$default(Unknown Source)
+	at kotlinx.coroutines.test.TestBuildersJvmKt.createTestResult(TestBuildersJvm.kt:10)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:309)
+	at kotlinx.coroutines.test.TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:1)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:167)
+	at kotlinx.coroutines.test.TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:1)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt.runTest-8Mi8wO0$default(TestBuilders.kt:159)
+	at kotlinx.coroutines.test.TestBuildersKt.runTest-8Mi8wO0$default(TestBuilders.kt:1)
+	at io.github.stslex.workeeper.core.data.backup.scheduling.RestoreStateRepositoryImplTest.legacy restore_in_progress migrates to a Prepared attempt(RestoreStateRepositoryImplTest.kt:180)
+</failure>
+  </testcase>
+  <testcase name="an unparsable phase reads as Prepared()" classname="io.github.stslex.workeeper.core.data.backup.scheduling.RestoreStateRepositoryImplTest" time="0.005"/>
+  <testcase name="a DIFFERENT unresolved attempt cannot claim the slot()" classname="io.github.stslex.workeeper.core.data.backup.scheduling.RestoreStateRepositoryImplTest" time="0.009"/>
+  <testcase name="markPreRestoreBackupAvailable enables the flag and persists the original date()" classname="io.github.stslex.workeeper.core.data.backup.scheduling.RestoreStateRepositoryImplTest" time="0.012"/>
+  <testcase name="recordAttemptCommitted on a free slot returns false()" classname="io.github.stslex.workeeper.core.data.backup.scheduling.RestoreStateRepositoryImplTest" time="0.003"/>
+  <testcase name="beginAttempt rejects an attempt that is not Prepared()" classname="io.github.stslex.workeeper.core.data.backup.scheduling.RestoreStateRepositoryImplTest" time="0.005"/>
+  <testcase name="an unparsable kind reads as Restore()" classname="io.github.stslex.workeeper.core.data.backup.scheduling.RestoreStateRepositoryImplTest" time="0.007"/>
+  <testcase name="beginAttempt persists identity, kind, context and rollback path atomically()" classname="io.github.stslex.workeeper.core.data.backup.scheduling.RestoreStateRepositoryImplTest" time="0.009"/>
+  <testcase name="a Rollback attempt round-trips with a null context()" classname="io.github.stslex.workeeper.core.data.backup.scheduling.RestoreStateRepositoryImplTest" time="0.011"/>
+  <testcase name="resolveAttempt clears only for the owner()" classname="io.github.stslex.workeeper.core.data.backup.scheduling.RestoreStateRepositoryImplTest" time="0.016"/>
+  <testcase name="pre-restore availability and the attempt journal are independent()" classname="io.github.stslex.workeeper.core.data.backup.scheduling.RestoreStateRepositoryImplTest" time="0.016"/>
+  <testcase name="initial state has no attempt and no preserved backup()" classname="io.github.stslex.workeeper.core.data.backup.scheduling.RestoreStateRepositoryImplTest" time="0.004"/>
+  <testcase name="re-claiming with the same id and no rollback path clears the stale path()" classname="io.github.stslex.workeeper.core.data.backup.scheduling.RestoreStateRepositoryImplTest" time="0.008"/>
+  <testcase name="re-claiming with the same id is idempotent()" classname="io.github.stslex.workeeper.core.data.backup.scheduling.RestoreStateRepositoryImplTest" time="0.005"/>
+  <testcase name="clearPreRestoreBackupAvailable disables the flag and clears the date()" classname="io.github.stslex.workeeper.core.data.backup.scheduling.RestoreStateRepositoryImplTest" time="0.008"/>
+  <testcase name="only the synthetic legacy owner claims the legacy slot - the claim converts it atomically()" classname="io.github.stslex.workeeper.core.data.backup.scheduling.RestoreStateRepositoryImplTest" time="0.018">
+    <failure message="org.opentest4j.AssertionFailedError: expected: &lt;true&gt; but was: &lt;false&gt;" type="org.opentest4j.AssertionFailedError">org.opentest4j.AssertionFailedError: expected: &lt;true&gt; but was: &lt;false&gt;
+	at org.junit.jupiter.api.Assertions.assertTrue(Assertions.java:190)
+	at io.github.stslex.workeeper.core.data.backup.scheduling.RestoreStateRepositoryImplTest$only the synthetic legacy owner claims the legacy slot - the claim converts it atomically$1.invokeSuspend(RestoreStateRepositoryImplTest.kt:239)
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)
+	at kotlinx.coroutines.UndispatchedCoroutine.afterResume(CoroutineContext.kt:278)
+	at kotlinx.coroutines.AbstractCoroutine.resumeWith(AbstractCoroutine.kt:101)
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:47)
+	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:100)
+	at kotlinx.coroutines.test.TestDispatcher.processEvent$kotlinx_coroutines_test(TestDispatcher.kt:24)
+	at kotlinx.coroutines.test.TestCoroutineScheduler.tryRunNextTaskUnless$kotlinx_coroutines_test(TestCoroutineScheduler.kt:98)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt$runTest$2$1$workRunner$1.invokeSuspend(TestBuilders.kt:326)
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)
+	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:100)
+	at kotlinx.coroutines.EventLoopImplBase.processNextEvent(EventLoop.common.kt:256)
+	at kotlinx.coroutines.BlockingCoroutine.joinBlocking(Builders.kt:54)
+	at kotlinx.coroutines.BuildersKt__BuildersKt.runBlockingImpl(Builders.kt:30)
+	at kotlinx.coroutines.BuildersKt.runBlockingImpl(Unknown Source)
+	at kotlinx.coroutines.BuildersKt__Builders_concurrentKt.runBlockingK(Builders.concurrent.kt:172)
+	at kotlinx.coroutines.BuildersKt.runBlockingK(Unknown Source)
+	at kotlinx.coroutines.BuildersKt__Builders_concurrentKt.runBlockingK$default(Builders.concurrent.kt:157)
+	at kotlinx.coroutines.BuildersKt.runBlockingK$default(Unknown Source)
+	at kotlinx.coroutines.test.TestBuildersJvmKt.createTestResult(TestBuildersJvm.kt:10)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:309)
+	at kotlinx.coroutines.test.TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:1)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:167)
+	at kotlinx.coroutines.test.TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:1)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt.runTest-8Mi8wO0$default(TestBuilders.kt:159)
+	at kotlinx.coroutines.test.TestBuildersKt.runTest-8Mi8wO0$default(TestBuilders.kt:1)
+	at io.github.stslex.workeeper.core.data.backup.scheduling.RestoreStateRepositoryImplTest.only the synthetic legacy owner claims the legacy slot - the claim converts it atomically(RestoreStateRepositoryImplTest.kt:216)
+</failure>
+  </testcase>
+  <testcase name="resolveAttempt clears the legacy mutation-interrupted flag()" classname="io.github.stslex.workeeper.core.data.backup.scheduling.RestoreStateRepositoryImplTest" time="0.011"/>
+  <system-out><![CDATA[stripped - suite stdout only; testcase failures verbatim]]></system-out>
+  <system-err/>
+</testsuite>
