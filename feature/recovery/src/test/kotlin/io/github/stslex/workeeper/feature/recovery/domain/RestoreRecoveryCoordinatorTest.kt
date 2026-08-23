@@ -4,6 +4,7 @@ package io.github.stslex.workeeper.feature.recovery.domain
 import io.github.stslex.workeeper.core.core.platform.AppReinitializer
 import io.github.stslex.workeeper.core.core.platform.PlatformInfoProvider
 import io.github.stslex.workeeper.core.data.backup.api.DatabaseReplacement
+import io.github.stslex.workeeper.core.data.backup.api.DatabaseReplacementEffects
 import io.github.stslex.workeeper.core.data.backup.api.DatabaseReplacementResult
 import io.github.stslex.workeeper.core.data.backup.api.error.BackupError
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreInProgressContext
@@ -19,8 +20,12 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -39,6 +44,8 @@ internal class RestoreRecoveryCoordinatorTest {
 
     @BeforeEach
     fun setUp() {
+        // Relaxed would return false anyway — explicit because the journal gate is load-bearing.
+        coEvery { restoreStateRepository.isRestoreMutationInterrupted() } returns false
         coordinator = RestoreRecoveryCoordinator(
             appReinitializer = appReinitializer,
             platformInfo = platformInfo,
@@ -50,11 +57,11 @@ internal class RestoreRecoveryCoordinatorTest {
         )
     }
 
-    /** Real transaction shape: the seam runs the caller's onCommitted hook, then commits. */
+    /** Real transaction shape: the seam runs the typed effects' onCommitted, then commits. */
     private fun stubRollbackCommitted() {
         coEvery { databaseReplacement.rollbackToPreRestoreBackup(any()) } coAnswers {
-            firstArg<suspend () -> Unit>().invoke()
-            DatabaseReplacementResult.Committed
+            firstArg<DatabaseReplacementEffects>().onCommitted()
+            DatabaseReplacementResult.Committed()
         }
     }
 
@@ -109,9 +116,9 @@ internal class RestoreRecoveryCoordinatorTest {
                 )
             }
             coVerify(exactly = 1) { databaseReplacement.rollbackToPreRestoreBackup(any()) }
-            // The flag clears + dialog publish ride the transaction's onCommitted hook — they ran
-            // because the stub invoked the hook, proving the coordinator PASSES them as the hook
-            // (not as post-await code an initiator's death could strand).
+            // The flag clears + dialog publish ride the transaction's onCommitted effect — they
+            // ran because the stub invoked the effects object, proving the coordinator PASSES
+            // them as effects (not as post-await code an initiator's death could strand).
             coVerify(exactly = 1) { restoreStateRepository.clearRestoreInProgress() }
             coVerify(exactly = 1) { restoreStateRepository.clearPreRestoreBackupAvailable() }
             val publishedSlot = slot<AppDialog>()
@@ -120,8 +127,12 @@ internal class RestoreRecoveryCoordinatorTest {
         }
 
     @Test
-    fun `scenario 1 rollback FailedAfterMutation keeps shipped defensive cleanup`() =
+    fun `scenario 1 rollback FailedAfterMutation preserves EVERY asset and marker`() =
         runTest {
+            // Round-2 mandate 4: the old defensive delete-on-FailedAfterMutation branch is
+            // REMOVED. A rollback that failed after mutation leaves `restore_in_progress` set
+            // and `pre_restore_backup.db` on disk, so the NEXT launch re-enters the pre-flight
+            // and retries — this caller deletes/clears/publishes NOTHING.
             val context = makeContext()
             coEvery { restoreStateRepository.getRestoreInProgressContext() } returns context
             coEvery {
@@ -135,15 +146,10 @@ internal class RestoreRecoveryCoordinatorTest {
             val outcome = coordinator.handlePostRestoreLaunch()
 
             assertEquals(RestoreRecoveryCoordinator.PreflightOutcome.RestoreRolledBack, outcome)
-            // Shipped defence in depth, preserved: the rollback ATTEMPT genuinely failed after
-            // mutation — clear the flag set and delete the preserved file so the next launch
-            // starts clean, and publish the failure dialog.
-            coVerify(exactly = 1) { snapshotProvider.deletePreRestoreBackup() }
-            coVerify(exactly = 1) { restoreStateRepository.clearRestoreInProgress() }
-            coVerify(exactly = 1) { restoreStateRepository.clearPreRestoreBackupAvailable() }
-            val publishedSlot = slot<AppDialog>()
-            coVerify { appDialogPublisher.publish(capture(publishedSlot)) }
-            assertTrue(publishedSlot.captured is AppDialog.RestoreFailure)
+            coVerify(exactly = 0) { snapshotProvider.deletePreRestoreBackup() }
+            coVerify(exactly = 0) { restoreStateRepository.clearRestoreInProgress() }
+            coVerify(exactly = 0) { restoreStateRepository.clearPreRestoreBackupAvailable() }
+            coVerify(exactly = 0) { appDialogPublisher.publish(any()) }
         }
 
     @Test
@@ -188,6 +194,67 @@ internal class RestoreRecoveryCoordinatorTest {
         coVerify(exactly = 0) { snapshotProvider.deletePreRestoreBackup() }
         coVerify(exactly = 0) { restoreStateRepository.clearRestoreInProgress() }
         coVerify(exactly = 0) { restoreStateRepository.clearPreRestoreBackupAvailable() }
+    }
+
+    @Test
+    fun `journal-interrupted mutation routes straight to the failure path - no schema peek, never RestoreSuccess`() =
+        runTest {
+            // Spec §8.4: an interrupted-mutation journal entry means the swap failed after the
+            // point of no return — a schema peek could SUCCEED against the untouched OLD file
+            // and produce a false "restore succeeded". The journal must route straight to the
+            // rollback path without ever consulting the schema.
+            val context = makeContext()
+            coEvery { restoreStateRepository.getRestoreInProgressContext() } returns context
+            coEvery { restoreStateRepository.isRestoreMutationInterrupted() } returns true
+            stubRollbackCommitted()
+
+            val outcome = coordinator.handlePostRestoreLaunch()
+
+            assertEquals(RestoreRecoveryCoordinator.PreflightOutcome.RestoreRolledBack, outcome)
+            coVerify(exactly = 0) { snapshotProvider.currentSchemaVersion() }
+            coVerify(exactly = 1) { databaseReplacement.rollbackToPreRestoreBackup(any()) }
+            // The committed-effects stub publishes exactly one dialog — the FAILURE one; a
+            // RestoreSuccess here would be the exact lie the journal exists to prevent.
+            val publishedSlot = slot<AppDialog>()
+            coVerify(exactly = 1) { appDialogPublisher.publish(capture(publishedSlot)) }
+            assertTrue(publishedSlot.captured is AppDialog.RestoreFailure)
+        }
+
+    @Test
+    fun `recovery path survives a process restart after FailedAfterMutation`() = runTest {
+        // PROCESS-RESTART gate: launch 1's rollback fails after mutation → every durable asset
+        // survives in the (stateful, shared) repository; launch 2 re-enters the pre-flight over
+        // the SAME state and completes the rollback.
+        val fakeRepository = FakeRestoreStateRepository(initialContext = makeContext())
+        coEvery {
+            snapshotProvider.currentSchemaVersion()
+        } throws IllegalStateException("migration crashed")
+        coEvery { databaseReplacement.rollbackToPreRestoreBackup(any()) } returns
+            DatabaseReplacementResult.FailedAfterMutation(
+                BackupError.Io(java.io.IOException("disk full")),
+            )
+
+        val firstLaunch = makeCoordinator(fakeRepository)
+        firstLaunch.handlePostRestoreLaunch()
+
+        // Nothing consumed: the in-progress context is still there for the next launch.
+        assertNotNull(fakeRepository.getRestoreInProgressContext())
+        coVerify(exactly = 0) { appDialogPublisher.publish(any()) }
+
+        // Simulated restart: a NEW coordinator over the SAME durable state; this time the
+        // rollback transaction commits and runs the typed effects.
+        coEvery { databaseReplacement.rollbackToPreRestoreBackup(any()) } coAnswers {
+            firstArg<DatabaseReplacementEffects>().onCommitted()
+            DatabaseReplacementResult.Committed()
+        }
+        val secondLaunch = makeCoordinator(fakeRepository)
+        val outcome = secondLaunch.handlePostRestoreLaunch()
+
+        assertEquals(RestoreRecoveryCoordinator.PreflightOutcome.RestoreRolledBack, outcome)
+        assertNull(fakeRepository.getRestoreInProgressContext())
+        val publishedSlot = slot<AppDialog>()
+        coVerify(exactly = 1) { appDialogPublisher.publish(capture(publishedSlot)) }
+        assertTrue(publishedSlot.captured is AppDialog.RestoreFailure)
     }
 
     @Test
@@ -249,9 +316,10 @@ internal class RestoreRecoveryCoordinatorTest {
             val result = coordinator.performUndoRestore(onCommitted = { callerHookRan = true })
 
             assertEquals(UndoRestoreOutcome.Succeeded, result)
-            assertTrue(callerHookRan, "the caller's onCommitted must ride the transaction hook")
-            // Side-effect-first INSIDE the hook: undo state + success dialog precede the caller's
-            // acknowledge (the callerHookRan flag), preserving the dismiss-after discipline.
+            assertTrue(callerHookRan, "the caller's onCommitted must ride the transaction effects")
+            // Side-effect-first INSIDE onCommitted: undo state + success dialog precede the
+            // caller's acknowledge (the callerHookRan flag), preserving the dismiss-after
+            // discipline: clear -> publish -> caller acknowledge.
             coVerifyOrder {
                 restoreStateRepository.clearPreRestoreBackupAvailable()
                 appDialogPublisher.publish(AppDialog.UndoRestoreSuccess)
@@ -265,6 +333,18 @@ internal class RestoreRecoveryCoordinatorTest {
         verify(exactly = 1) { appReinitializer.reinitialize() }
     }
 
+    private fun makeCoordinator(
+        stateRepository: RestoreStateRepository,
+    ): RestoreRecoveryCoordinator = RestoreRecoveryCoordinator(
+        appReinitializer = appReinitializer,
+        platformInfo = platformInfo,
+        snapshotProvider = snapshotProvider,
+        databaseReplacement = databaseReplacement,
+        restoreStateRepository = stateRepository,
+        appDialogPublisher = appDialogPublisher,
+        reporter = reporter,
+    )
+
     private fun makeContext(
         backupSchemaVersion: Int = 5,
         backupCreatedAt: Long = 1_690_000_000_000L,
@@ -276,4 +356,46 @@ internal class RestoreRecoveryCoordinatorTest {
         backupAppVersion = backupAppVersion,
         startedAtEpochMs = startedAt,
     )
+
+    /**
+     * Stateful in-memory [RestoreStateRepository] for the process-restart gate: two coordinator
+     * instances (two "launches") share this object the way two processes share DataStore.
+     */
+    private class FakeRestoreStateRepository(
+        initialContext: RestoreInProgressContext?,
+    ) : RestoreStateRepository {
+
+        private var context: RestoreInProgressContext? = initialContext
+        private var backupAvailable: Boolean = true
+        private var mutationInterrupted: Boolean = false
+
+        override suspend fun markRestoreInProgress(context: RestoreInProgressContext) {
+            this.context = context
+        }
+
+        override suspend fun getRestoreInProgressContext(): RestoreInProgressContext? = context
+
+        override suspend fun clearRestoreInProgress() {
+            context = null
+            mutationInterrupted = false
+        }
+
+        override suspend fun markRestoreMutationInterrupted() {
+            mutationInterrupted = true
+        }
+
+        override suspend fun isRestoreMutationInterrupted(): Boolean = mutationInterrupted
+
+        override suspend fun markPreRestoreBackupAvailable(originalDataDateEpochMs: Long) {
+            backupAvailable = true
+        }
+
+        override suspend fun clearPreRestoreBackupAvailable() {
+            backupAvailable = false
+        }
+
+        override fun observePreRestoreBackupAvailable(): Flow<Boolean> = flowOf(backupAvailable)
+
+        override suspend fun getPreRestoreOriginalDate(): Long? = null
+    }
 }

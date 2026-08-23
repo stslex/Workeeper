@@ -2,8 +2,10 @@
 package io.github.stslex.workeeper.core.data.backup.worker
 
 import android.app.Application
+import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import androidx.work.ListenableWorker
+import androidx.work.WorkerParameters
 import androidx.work.testing.TestListenableWorkerBuilder
 import io.github.stslex.workeeper.core.data.backup.api.BackupStorage
 import io.github.stslex.workeeper.core.data.backup.api.SnapshotExportRunner
@@ -24,6 +26,7 @@ import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
@@ -31,11 +34,28 @@ import org.robolectric.annotation.Config
 import tech.apter.junit.jupiter.robolectric.RobolectricExtension
 import java.io.File
 
+/**
+ * [BackupWorker] behavior under first-operation lease admission (Phase 5 R2, spec §8.4): the
+ * worker is constructed dep-free by the DEFAULT reflection factory (its ctor is the standard
+ * `(Context, WorkerParameters)` pair — no [MetroWorkerFactory] wiring needed), and its deps
+ * arrive exclusively through the [BackupWorkLease] minted by the process Application's
+ * [BackupWorkerDepsHolder.awaitBackupWorkLease] as `doWork`'s first operation.
+ */
 @ExtendWith(RobolectricExtension::class)
 @Config(application = BackupWorkerTest.TestApplication::class, sdk = [33])
 internal class BackupWorkerTest {
 
-    class TestApplication : Application()
+    class TestApplication : Application(), BackupWorkerDepsHolder {
+
+        /** Installed by each test's `setUp` — the generation deps the holder admits against. */
+        lateinit var deps: BackupWorkerDeps
+
+        /** Every lease this holder minted, in acquisition order. */
+        val acquiredLeases = mutableListOf<RecordingBackupWorkLease>()
+
+        override suspend fun awaitBackupWorkLease(): BackupWorkLease =
+            RecordingBackupWorkLease(deps).also { acquiredLeases += it }
+    }
 
     private val backupStorage = mockk<BackupStorage>(relaxed = true)
     private val snapshotProvider = mockk<DatabaseSnapshotProvider>(relaxed = true)
@@ -47,24 +67,27 @@ internal class BackupWorkerTest {
     }
     private val snapshotExportRunner = mockk<SnapshotExportRunner>(relaxed = true)
 
-    /** Held so tests can assert the admission-lease release contract via [WorkerTestFactory.lease]. */
-    private val workerFactory by lazy {
-        WorkerTestFactory(
-            backupStorage = backupStorage,
-            snapshotProvider = snapshotProvider,
-            preferences = preferences,
-            autoBackupController = autoBackupController,
-            notificationHelper = notificationHelper,
-            snapshotExportRunner = snapshotExportRunner,
-        )
-    }
+    private val application: TestApplication
+        get() = ApplicationProvider.getApplicationContext<Context>().applicationContext
+            as TestApplication
 
     private fun makeWorker(): BackupWorker = TestListenableWorkerBuilder<BackupWorker>(
         ApplicationProvider.getApplicationContext(),
-    ).setWorkerFactory(workerFactory).build()
+    ).build()
 
     @BeforeEach
     fun setUp() {
+        application.deps = object : BackupWorkerDeps {
+            override val backupStorage: BackupStorage = this@BackupWorkerTest.backupStorage
+            override val databaseSnapshotProvider: DatabaseSnapshotProvider = snapshotProvider
+            override val backupPreferencesRepository: BackupPreferencesRepository = preferences
+            override val autoBackupController: AutoBackupController =
+                this@BackupWorkerTest.autoBackupController
+            override val backupNotificationHelper: BackupNotificationHelper = notificationHelper
+            override val snapshotExportRunner: SnapshotExportRunner =
+                this@BackupWorkerTest.snapshotExportRunner
+        }
+        application.acquiredLeases.clear()
         coEvery { snapshotProvider.captureSnapshot(any()) } answers {
             firstArg<File>().writeText("snapshot")
             BackupResult.Success(Unit)
@@ -206,24 +229,44 @@ internal class BackupWorkerTest {
     }
 
     @Test
-    fun `admission lease is released exactly once when the run completes`() = runBlocking {
-        coEvery { backupStorage.uploadBackup(any(), any()) } returns
-            BackupResult.Failure(BackupError.NetworkUnavailable)
+    fun `admission lease is acquired as the FIRST operation and released exactly once`() =
+        runBlocking {
+            coEvery { backupStorage.uploadBackup(any(), any()) } returns
+                BackupResult.Failure(BackupError.NetworkUnavailable)
 
-        makeWorker().doWork()
+            makeWorker().doWork()
 
-        // A replacement transition's quiesce drain awaits this release — a worker that finished
-        // without releasing would block every future transition until its bounded abort.
-        assertEquals(1, workerFactory.lease.releaseCount.get())
-    }
+            // A replacement transition's quiesce drain awaits this release — a worker that
+            // finished without releasing would block every future transition until its bounded
+            // abort. Exactly ONE lease for the run, released exactly once; together with the
+            // never-started gate below, this pins admission to doWork's first operation.
+            assertEquals(1, application.acquiredLeases.size)
+            assertEquals(1, application.acquiredLeases.single().releaseCount.get())
+        }
 
     @Test
-    fun `admission lease is released even when the work body throws`() = runBlocking {
+    fun `admission lease released even when the work body throws`() = runBlocking {
         coEvery { snapshotProvider.captureSnapshot(any()) } throws RuntimeException("body blew up")
 
         val thrown = runCatching { makeWorker().doWork() }.exceptionOrNull()
 
         assertNotNull(thrown, "the body's failure must propagate (no swallow)")
-        assertEquals(1, workerFactory.lease.releaseCount.get())
+        assertEquals(1, application.acquiredLeases.single().releaseCount.get())
+    }
+
+    @Test
+    fun `a worker constructed but never started acquires NO lease`() {
+        // Both construction paths WorkManager can take: the default reflection factory (what the
+        // test builder uses for the plain 2-arg ctor) and the production MetroWorkerFactory.
+        makeWorker()
+        MetroWorkerFactory().createWorker(
+            appContext = ApplicationProvider.getApplicationContext(),
+            workerClassName = BackupWorker::class.java.name,
+            workerParameters = mockk<WorkerParameters>(relaxed = true),
+        )
+
+        // Constructed-but-never-started workers (cancelled before dispatch, constraint races)
+        // must hold NOTHING a runtime transition would have to wait for.
+        assertTrue(application.acquiredLeases.isEmpty())
     }
 }

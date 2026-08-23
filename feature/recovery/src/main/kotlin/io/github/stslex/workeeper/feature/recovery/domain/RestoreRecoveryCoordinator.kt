@@ -8,6 +8,7 @@ import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.core.core.platform.AppReinitializer
 import io.github.stslex.workeeper.core.core.platform.PlatformInfoProvider
 import io.github.stslex.workeeper.core.data.backup.api.DatabaseReplacement
+import io.github.stslex.workeeper.core.data.backup.api.DatabaseReplacementEffects
 import io.github.stslex.workeeper.core.data.backup.api.DatabaseReplacementResult
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreInProgressContext
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreStateRepository
@@ -67,10 +68,22 @@ class RestoreRecoveryCoordinator @Inject internal constructor(
      * Runs the Scenario 1 pre-flight. Idempotent — safe to call on every
      * launch; short-circuits to [PreflightOutcome.NoOp] when no restore is
      * in progress.
+     *
+     * **Journal first (Phase 5 R2, spec §8.4):** when the restore transaction recorded an
+     * interrupted mutation ([RestoreStateRepository.isRestoreMutationInterrupted]), the swap
+     * failed or ended unknown after the point of no return — a schema peek could SUCCEED
+     * against the untouched OLD file and produce a false "restore succeeded". The journal
+     * routes straight to the failure path: roll back via the preserved snapshot and surface
+     * truthful restore-FAILURE semantics, never RestoreSuccess, never a fake undo offer.
      */
     suspend fun handlePostRestoreLaunch(): PreflightOutcome {
         val inProgressContext = restoreStateRepository.getRestoreInProgressContext()
             ?: return PreflightOutcome.NoOp
+
+        if (restoreStateRepository.isRestoreMutationInterrupted()) {
+            handleRestoreFailure(inProgressContext, cause = null)
+            return PreflightOutcome.RestoreRolledBack
+        }
 
         val peekResult = runCatching { snapshotProvider.currentSchemaVersion() }
         return if (peekResult.isSuccess) {
@@ -110,30 +123,48 @@ class RestoreRecoveryCoordinator @Inject internal constructor(
             restoreStateRepository.clearPreRestoreBackupAvailable()
             return UndoRestoreOutcome.FileMissing
         }
-        // Post-commit effects run ON THE TRANSACTION's coroutine (Phase 5 R2 submission
-        // ownership): an in-process undo initiator lives inside the outgoing generation's
-        // lifetime, which the transition kills mid-await — the hook is what survives it. The
-        // side-effect-first / dismiss-after discipline is preserved INSIDE the hook: the undo
-        // state and dialog writes precede the caller's acknowledge ([onCommitted]).
-        val result = databaseReplacement.rollbackToPreRestoreBackup(onCommitted = {
-            restoreStateRepository.clearPreRestoreBackupAvailable()
-            appDialogPublisher.publish(AppDialog.UndoRestoreSuccess)
-            onCommitted()
-        })
+        // All compensation rides the typed effects object ON the transaction's coroutine
+        // (Phase 5 R2 submission ownership): an in-process undo initiator lives inside the
+        // outgoing generation's lifetime, which the transition kills mid-await — the effects
+        // survive it. The side-effect-first / dismiss-after discipline is preserved INSIDE
+        // onCommitted: the undo state and dialog writes precede the caller's acknowledge.
+        val result = databaseReplacement.rollbackToPreRestoreBackup(
+            effects = UndoRollbackEffects(onCommitted),
+        )
         return when (result) {
-            DatabaseReplacementResult.Committed -> UndoRestoreOutcome.Succeeded
+            is DatabaseReplacementResult.Committed -> {
+                result.effectsError?.let { effectsError ->
+                    // The rollback committed; only the post-commit bookkeeping failed —
+                    // surfaced here (the seam never reports a silently clean commit).
+                    logger.w { "undo rollback committed with failed effects: $effectsError" }
+                }
+                UndoRestoreOutcome.Succeeded
+            }
 
-            // Phase-aware (R2 finding 4): whichever way it did NOT commit, this caller deletes
-            // nothing — pre-mutation rejections left every asset intact, and post-mutation
-            // failures hand the recovery assets to the runtime's ladder. IoFailure keeps the
-            // dialog visible for a re-tap, exactly as before.
+            // Whichever way it did NOT commit, this caller deletes nothing — pre-mutation
+            // rejections left every asset intact, and post-mutation failures hand the recovery
+            // assets to the runtime/journal protocol. IoFailure keeps the dialog visible for a
+            // re-tap, exactly as before.
             is DatabaseReplacementResult.RejectedBeforeMutation,
+            is DatabaseReplacementResult.RecoveredByRollback,
             is DatabaseReplacementResult.FailedAfterMutation,
             DatabaseReplacementResult.FatalNoGeneration,
             -> {
                 logger.w { "Undo restore rollback did not commit: $result" }
                 UndoRestoreOutcome.IoFailure
             }
+        }
+    }
+
+    /** The undo transaction's typed compensation — runs on the transaction's coroutine. */
+    private inner class UndoRollbackEffects(
+        private val acknowledge: suspend () -> Unit,
+    ) : DatabaseReplacementEffects {
+
+        override suspend fun onCommitted() {
+            restoreStateRepository.clearPreRestoreBackupAvailable()
+            appDialogPublisher.publish(AppDialog.UndoRestoreSuccess)
+            acknowledge()
         }
     }
 
@@ -159,41 +190,41 @@ class RestoreRecoveryCoordinator @Inject internal constructor(
                 appVersionName = platformInfo.appVersionName(),
             )
         }
-        val rollback = databaseReplacement.rollbackToPreRestoreBackup(onCommitted = {
-            // Runs on the transaction's coroutine — survives an in-process initiator's death.
+        val rollback = databaseReplacement.rollbackToPreRestoreBackup(
+            effects = ScenarioOneRollbackEffects(),
+        )
+        when (rollback) {
+            is DatabaseReplacementResult.Committed -> {
+                rollback.effectsError?.let { effectsError ->
+                    logger.w { "scenario-1 rollback committed with failed effects: $effectsError" }
+                }
+            }
+
+            // EVERY non-commit preserves EVERY viable recovery file and marker (round-2
+            // mandate 4 — the old defensive delete-on-FailedAfterMutation branch is REMOVED):
+            // `restore_in_progress` stays set and `pre_restore_backup.db` stays on disk, so the
+            // NEXT launch re-enters this pre-flight and retries the rollback — the recovery
+            // path survives a process restart instead of being destroyed by its first failure.
+            is DatabaseReplacementResult.RejectedBeforeMutation,
+            is DatabaseReplacementResult.RecoveredByRollback,
+            is DatabaseReplacementResult.FailedAfterMutation,
+            DatabaseReplacementResult.FatalNoGeneration,
+            -> {
+                logger.w { "Scenario 1 rollback did not commit ($rollback) — assets preserved for retry" }
+            }
+        }
+    }
+
+    /** The Scenario-1 rollback's typed compensation — runs on the transaction's coroutine. */
+    private inner class ScenarioOneRollbackEffects : DatabaseReplacementEffects {
+
+        override suspend fun onCommitted() {
             restoreStateRepository.clearRestoreInProgress()
             // No undo slot after a failure rollback — the preserved file was consumed.
             restoreStateRepository.clearPreRestoreBackupAvailable()
             appDialogPublisher.publish(
                 AppDialog.RestoreFailure(reason = BackupErrorCodeForFailure),
             )
-        })
-        when (rollback) {
-            DatabaseReplacementResult.Committed -> Unit // effects ran in the hook
-
-            is DatabaseReplacementResult.FailedAfterMutation -> {
-                logger.w { "Scenario 1 rollback failed after mutation: ${rollback.error}" }
-                // Shipped defensive behavior, preserved: the rollback ATTEMPT genuinely failed —
-                // clear flag + delete preserved so the next launch is normal.
-                snapshotProvider.deletePreRestoreBackup()
-                restoreStateRepository.clearRestoreInProgress()
-                restoreStateRepository.clearPreRestoreBackupAvailable()
-                appDialogPublisher.publish(
-                    AppDialog.RestoreFailure(reason = BackupErrorCodeForFailure),
-                )
-            }
-
-            is DatabaseReplacementResult.RejectedBeforeMutation -> {
-                // NOTHING was mutated (e.g. the close failed, or a graph-only transition holds
-                // the machine): every persisted asset and marker stays INTACT — a cold start or
-                // a later replacement transaction completes this rollback (finding 4).
-                logger.w { "Scenario 1 rollback rejected pre-mutation: ${rollback.error}" }
-            }
-
-            DatabaseReplacementResult.FatalNoGeneration -> {
-                // Terminal runtime; the runtime preserved whatever assets survived its ladder.
-                logger.w { "Scenario 1 rollback: runtime fatal" }
-            }
         }
     }
 

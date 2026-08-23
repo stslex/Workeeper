@@ -9,11 +9,11 @@ import io.github.stslex.workeeper.core.core.images.ImageStorage
 import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.core.core.platform.AppReinitializationHost
 import io.github.stslex.workeeper.core.data.backup.api.DatabaseReplacement
+import io.github.stslex.workeeper.core.data.backup.api.DatabaseReplacementEffects
 import io.github.stslex.workeeper.core.data.backup.api.DatabaseReplacementResult
 import io.github.stslex.workeeper.core.data.backup.api.error.BackupError
 import io.github.stslex.workeeper.core.data.backup.api.result.BackupResult
 import io.github.stslex.workeeper.core.data.backup.worker.BackupWorkLease
-import io.github.stslex.workeeper.core.data.backup.worker.BackupWorkerDeps
 import io.github.stslex.workeeper.core.data.database.AppDatabase
 import io.github.stslex.workeeper.core.data.database.closeAppDatabase
 import io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProvider
@@ -28,17 +28,13 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
 import java.io.IOException
-import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.coroutineContext
@@ -47,58 +43,53 @@ import kotlin.coroutines.coroutineContext
  * The application-owned runtime host (Phase 5 R2, ownership model H1 —
  * `kmp-phase-5-startup-processor.md` §8.1). Owns everything the Metro graph cannot own about
  * itself: the process roots ([ImageStorage]; the database FACTORY — each DB generation is built
- * from it), the sequence of [RuntimeGeneration]s, worker admission, and the single-flight
+ * from it), the sequence of [RuntimeGeneration]s, both admission gates, and the single-flight
  * transition machinery. `BaseApplication` holds one instance for the process and answers every
  * graph seam from [currentGeneration]; the androidTest harness builds its own over test factories.
  *
- * ## Transaction ownership (REQUEST_CHANGES finding 1)
+ * ## ONE transaction protocol (round-2 REQUEST_CHANGES)
  *
- * Every transition — replacement AND graph-only — is **submission-owned**: the caller's
- * coroutine only SUBMITS the operation and awaits a [CompletableDeferred]; the transaction body
- * runs on [hostScope], the process host's own never-cancelled scope. Caller cancellation
- * abandons the await and NOTHING else — critical because both real replacement initiators die
- * mid-transaction by design: the Settings restore Store's scope is disposed when the transaction
- * publishes `Transitioning`, and the undo initiator (`RestoreDialogChoiceObserver`) is a child
- * of the outgoing [AppScopeLifetime] that Quiescing cancels-and-joins (the cancel is what breaks
- * the await↔join cycle; the join then completes). Post-commit state/dialog effects therefore run
- * as caller-supplied [onCommitted] hooks ON THE TRANSACTION's coroutine — after the commit,
- * before the awaiters complete — never in a caller scope the transition itself kills. Hooks must
- * touch only process-lifetime state (DataStore); their failures are contained and logged, the
- * same containment contract as the dialog reactor's.
+ * Every transition is a submission-owned transaction with runtime-owned compensation:
  *
- * Cancellation semantics, precisely: before the point of no return an internal failure/throw
- * unwinds to `Serving(outgoing)` and reports [ReplacementOutcome.RejectedBeforeMutation]; after
- * it, the failure ladder runs and ends in a published successor or the explicit terminal
- * [RuntimePhase.Fatal] — a transaction never strands `Transitioning` and is never cancelled
- * from outside.
+ *  - **Submission + source ownership.** Callers submit and await a [CompletableDeferred]; the
+ *    body runs on [hostScope] (never cancelled). A restore's source file is STAGED into a
+ *    runtime-owned copy inside the non-suspending submission frame — a cancelled caller's
+ *    temp-file cleanup can never mutate a file the transaction still needs, and the runtime
+ *    deletes the staged copy on every terminal outcome.
+ *  - **Typed effects, exactly once.** All caller compensation is a [DatabaseReplacementEffects]
+ *    object: `onBeforeMutation` runs inside the mutex before anything irreversible; exactly ONE
+ *    terminal method runs per transaction (rejection / commit / recovered-by-rollback /
+ *    failed-after-mutation / fatal), on the transaction's coroutine, for every outcome
+ *    INCLUDING internal escapes. A failing commit-effect surfaces on
+ *    [ReplacementOutcome.Completed.effectsError] — never a silently clean commit.
+ *  - **PONR = the START of the first irreversible action** (outgoing teardown, close
+ *    INVOCATION, file mutation). Before it, every failure unwinds to `Serving(outgoing)` with
+ *    the generation fully intact. After it, the outgoing generation is NEVER republished: a
+ *    throwing close is an unknown state and goes Fatal; the ladder ends in the requested
+ *    commit, [ReplacementOutcome.RecoveredByRollback] (serving on PRE-operation data —
+ *    restore-FAILURE semantics for callers), or the explicit terminal [RuntimePhase.Fatal].
+ *  - **Result truth.** `Completed` means the REQUESTED operation committed. A restore that was
+ *    rolled back (by the ladder or by the scenario-1 preflight's inline rollback) NEVER reports
+ *    Completed, even when a generation was successfully published on the rolled-back data.
  *
- * ## Closed admission (finding 2)
+ * ## Admission (closed barriers)
  *
- * DB-bound WorkManager work enters ONLY through [acquireBackupWorkLease]: deps and lease are
- * acquired atomically under [admissionLock], so no worker can capture outgoing-generation
- * dependencies after a transition closed admission. Quiescing closes admission, then awaits the
- * lease count reaching zero (a real join over previously admitted work — including workers
- * constructed but not yet RUNNING, the gap a WorkInfo snapshot cannot see); a timeout aborts
- * BEFORE close and reopens admission. Blocked acquirers resume against whatever generation is
- * published when admission reopens. UI Stores and per-entry jobs are covered by the awaited
- * UI-region disposal; graph-owned collectors/jobs by the bounded lifetime join — and per the
- * never-close-after-failed-join rule, a join timeout also ABORTS (degraded: reactors are already
- * cancelled; recorded in the outcome reason) instead of closing the database.
+ * DB-bound WorkManager work binds through [awaitBackupWorkLease] as the FIRST operation inside
+ * `doWork` — the factory captures nothing, so a constructed-but-never-started worker holds no
+ * lease. UI regions bind through the [UiAdmissionGate]: a transition RETIRES its outgoing id in
+ * the same atomic step that observes the attachment count at zero, so a late attach can never
+ * land after the zero observation — it is refused (aborts un-retire the id; commits leave it
+ * retired forever). Queued snackbar models are generation-tagged at enqueue; a COMMITTED
+ * handover advances the epoch (old callbacks are discarded at delivery, never executed inside
+ * the successor), an aborted one preserves them.
  *
- * ## UI gate (finding 3)
+ * ## Fatal is terminal under concurrency
  *
- * UI acknowledgement is generation-id-bound and multi-attachment-safe: [onUiGenerationAttached]/
- * [onUiGenerationDisposed] keep a per-id attachment COUNT, and a transition awaits ITS outgoing
- * id's count reaching zero. A wrong or stale id only ever decrements its own key — it can never
- * release another generation's gate — and overlapping compositions (Activity recreation) must
- * all detach before the gate opens.
- *
- * ## Published state (finding 7)
- *
- * One immutable [Published] value backs BOTH faces ([phases] and [uiPhases]) — they can never
- * disagree. [RuntimePhase.Fatal] is a real state: [currentGeneration] and lease acquisition
- * throw (no closed generation is ever exposed through the holders), and no code path converts
- * Fatal back to Serving.
+ * Liveness is rechecked INSIDE [transitionMutex]: a transaction queued behind one that went
+ * Fatal performs no validation, no close, no swap, and no publication — it completes with
+ * Fatal. Every submitted deferred completes exactly once (internal [CancellationException]
+ * included); nothing overwrites the Fatal publication; [currentGeneration] and lease
+ * acquisition throw.
  *
  * Production Android never runs an in-process transition — restore/rollback/undo keep the
  * process-restart `AppReinitializer` and the [ReplacementPolicy.RestartProcess] ending (locked
@@ -141,16 +132,17 @@ internal class AppRuntime(
 
     private val buildLock = Any()
 
-    /** Guards submission registration (finding 6b) — atomic check-and-register. */
+    /** Guards submission registration — atomic check-and-register (single-flight per op). */
     private val submissionLock = Any()
 
-    /** Guards lease admission (finding 2) — deps + lease count move atomically. */
-    private val admissionLock = Any()
+    private val uiGate = UiAdmissionGate(logger)
+
+    private val workerGate = WorkerAdmissionGate()
 
     val imageStorage: ImageStorage by lazy { imageStorageFactory(applicationContext) }
 
     // ------------------------------------------------------------------------------------------
-    // Published state — ONE immutable value behind both faces (finding 7).
+    // Published state — ONE immutable value behind both faces.
     // ------------------------------------------------------------------------------------------
 
     private class Published(val phase: RuntimePhase, val ui: AppUiPhase)
@@ -181,6 +173,10 @@ internal class AppRuntime(
     }
 
     private fun publishTransitioning() {
+        // Fatal is terminal: no transition window may ever overwrite it. Unreachable by
+        // construction (liveness is rechecked under the mutex before any quiesce) — a throw
+        // here resolves through the transaction's escape hatch to a Fatal outcome.
+        check(!isFatal) { "a Fatal runtime must never publish Transitioning" }
         publishedFlow.value = Published(RuntimePhase.Transitioning, AppUiPhase.Transitioning)
     }
 
@@ -191,8 +187,8 @@ internal class AppRuntime(
         // in-process outcome is the calling HOST's wiring (Phase 7 / instrumentation).
         publishedFlow.value = Published(RuntimePhase.Fatal, AppUiPhase.Transitioning)
         // Wake any parked lease acquirer so it hits the fatal check and fails LOUD instead of
-        // parking a WorkManager thread forever.
-        reopenAdmission()
+        // suspending a worker forever.
+        workerGate.reopen()
         return ReplacementOutcome.Fatal
     }
 
@@ -203,7 +199,7 @@ internal class AppRuntime(
      * The one published generation; builds and publishes generation 1 on first read. Reads
      * during a transition answer with the outgoing generation (alive and open for graph-only
      * transitions; terminal reads after a replacement's close fail loud — §7.1's measured pin).
-     * After [RuntimePhase.Fatal] this THROWS: no closed generation is ever exposed (finding 5).
+     * After [RuntimePhase.Fatal] this THROWS: no closed generation is ever exposed.
      */
     val currentGeneration: RuntimeGeneration
         get() {
@@ -220,82 +216,28 @@ internal class AppRuntime(
         }
 
     // ------------------------------------------------------------------------------------------
-    // UI attachment gate — id-bound, multi-attachment safe (finding 3).
+    // Admission gate delegates (the gates themselves live in ReplacementMechanics.kt).
     // ------------------------------------------------------------------------------------------
 
-    private val uiAttachments = MutableStateFlow<Map<Int, Int>>(emptyMap())
+    fun onUiGenerationAttached(id: Int) = uiGate.attach(id)
 
-    fun onUiGenerationAttached(id: Int) {
-        uiAttachments.update { counts -> counts + (id to (counts[id] ?: 0) + 1) }
-    }
+    fun onUiGenerationDisposed(id: Int) = uiGate.dispose(id)
 
-    fun onUiGenerationDisposed(id: Int) {
-        uiAttachments.update { counts ->
-            when (val remaining = (counts[id] ?: 0) - 1) {
-                in Int.MIN_VALUE..0 -> counts - id
-                else -> counts + (id to remaining)
-            }
-        }
-    }
-
-    /** Suspends until NO composition holds the given generation's region. */
-    private suspend fun awaitUiDetached(generationId: Int) {
-        uiAttachments.first { counts -> (counts[generationId] ?: 0) == 0 }
-    }
-
-    // ------------------------------------------------------------------------------------------
-    // Worker admission — closed barrier with leases (finding 2).
-    // ------------------------------------------------------------------------------------------
-
-    private val admissionClosed = MutableStateFlow(false)
-    private val activeWorkerLeases = MutableStateFlow(0)
+    /** Test-facing view of the UI admission gate (JVM + instrumentation assertions). */
+    fun uiAttachmentCount(id: Int): Int = uiGate.attachmentCount(id)
 
     /**
-     * Atomically admits one DB-bound worker: waits while admission is closed (bounded only by
-     * the in-flight transition), then — under [admissionLock], so a concurrent close cannot
-     * interleave — increments the lease count and captures the CURRENT generation's deps. The
-     * lease must be [BackupWorkLease.release]d when the worker's run ends; Quiescing awaits the
-     * count reaching zero. Throws when the runtime is Fatal: a worker must never receive a
-     * closed generation's dependencies.
-     *
-     * Blocking by design: WorkManager's `createWorker` is synchronous and runs on its serial
-     * task-executor thread; parking it for the bounded transition window binds the worker
-     * coherently to exactly one generation instead of tearing it across two.
+     * First-operation worker admission (spec §8.4): suspends while a transition holds admission
+     * closed, then atomically binds the lease to the CURRENT generation's deps. Throws when the
+     * runtime is Fatal — no work may ever bind to a closed generation.
      */
-    fun acquireBackupWorkLease(): BackupWorkLease {
-        while (true) {
-            synchronized(admissionLock) {
-                check(!isFatal) { "runtime is Fatal — no generation may admit new work" }
-                if (!admissionClosed.value) {
-                    val generation = currentGeneration
-                    activeWorkerLeases.update { it + 1 }
-                    return LeaseImpl(generation.graph)
-                }
-            }
-            runBlocking { admissionClosed.first { closed -> !closed } }
-        }
+    suspend fun awaitBackupWorkLease(): BackupWorkLease = workerGate.awaitLease {
+        check(!isFatal) { "runtime is Fatal — no generation may admit new work" }
+        currentGeneration.graph
     }
-
-    private inner class LeaseImpl(override val deps: BackupWorkerDeps) : BackupWorkLease {
-        private val released = AtomicBoolean(false)
-        override fun release() {
-            if (released.compareAndSet(false, true)) {
-                activeWorkerLeases.update { count -> (count - 1).coerceAtLeast(0) }
-            }
-        }
-    }
-
-    private fun closeAdmission() = synchronized(admissionLock) { admissionClosed.value = true }
-
-    private fun reopenAdmission() = synchronized(admissionLock) { admissionClosed.value = false }
-
-    private suspend fun awaitLeasesReleased(): Boolean =
-        withTimeoutOrNull(policy.drainTimeoutMillis) {
-            activeWorkerLeases.first { count -> count == 0 }
-        } != null
 
     // ------------------------------------------------------------------------------------------
-    // Graph-only transitions (submission-owned; finding 7 fixes).
+    // Graph-only transitions.
     // ------------------------------------------------------------------------------------------
 
     override fun requestReinitialize() {
@@ -305,26 +247,36 @@ internal class AppRuntime(
 
     /**
      * Graph-only generation replacement, submission-owned: the body runs on [hostScope]; a
-     * cancelled caller abandons only its await. [expected] coalesces stale requests.
+     * cancelled caller abandons only its await; the deferred completes exactly once for EVERY
+     * ending — published, aborted, coalesced, fatal, and internal escapes (a
+     * [CancellationException] thrown by the candidate preflight included).
      */
     suspend fun reinitialize(expected: RuntimeGeneration? = null): ReinitializeOutcome {
         val result = CompletableDeferred<ReinitializeOutcome>()
         hostScope.launch {
-            // Ensure generation 1 exists before taking the transition mutex (cold-start rule).
-            currentGeneration
-            val outcome = transitionMutex.withLock {
-                val outgoing = requireNotNull(currentOrNull) { "generation 1 must exist here" }
-                if (expected != null && outgoing.id != expected.id) {
-                    ReinitializeOutcome.AlreadyReplaced(outgoing)
-                } else {
-                    runCatching { runGraphOnlyTransition(outgoing) }.getOrElse { error ->
-                        if (error is CancellationException) throw error
-                        // Deterministic unwind (finding 7): a construction/preflight escape must
-                        // never strand Transitioning; the outgoing generation is untouched
-                        // (its VM store and lifetime are only touched after publish).
-                        logger.e(error, "graph-only transition threw; unwinding to Serving")
-                        abortToServing(outgoing, reason = "transition threw: $error")
+            val tracker = PonrTracker()
+            val outcome = runCatching {
+                // Ensure generation 1 exists before taking the transition mutex (cold-start rule).
+                currentGeneration
+                transitionMutex.withLock {
+                    val outgoing = currentOrNull
+                    when {
+                        // Fatal is terminal: a queued reinitialize performs NOTHING.
+                        isFatal || outgoing == null -> ReinitializeOutcome.Fatal
+
+                        expected != null && outgoing.id != expected.id ->
+                            ReinitializeOutcome.AlreadyReplaced(outgoing)
+
+                        else -> runCatching { runGraphOnlyTransition(outgoing, tracker) }
+                            .getOrElse { error -> resolveGraphOnlyEscape(error, outgoing, tracker) }
                     }
+                }
+            }.getOrElse { error ->
+                logger.e(error, "reinitialize failed outside the transition body")
+                if (isFatal) {
+                    ReinitializeOutcome.Fatal
+                } else {
+                    ReinitializeOutcome.Aborted("reinitialize failed: $error", currentOrNull)
                 }
             }
             result.complete(outcome)
@@ -332,34 +284,31 @@ internal class AppRuntime(
         return result.await()
     }
 
-    private suspend fun runGraphOnlyTransition(outgoing: RuntimeGeneration): ReinitializeOutcome {
-        // ---- Quiescing (relaxed graph-only order; every step abortable back to `outgoing`,
-        // which stays INTACT: its ViewModelStore and lifetime are untouched until after publish.
-        publishTransitioning()
-        val uiDetached = withTimeoutOrNull(policy.uiDisposalTimeoutMillis) {
-            awaitUiDetached(outgoing.id)
+    /** Escape resolution for the graph-only machine — mirrors [resolveTransactionEscape]. */
+    private fun resolveGraphOnlyEscape(
+        error: Throwable,
+        outgoing: RuntimeGeneration,
+        tracker: PonrTracker,
+    ): ReinitializeOutcome {
+        logger.e(error, "graph-only transition threw")
+        if (isFatal) return ReinitializeOutcome.Fatal
+        return if (tracker.crossed) {
+            // Teardown of N began — a partially-disposed generation is NEVER resurrected.
+            publishFatal("graph-only transition escaped after teardown began: $error")
+            ReinitializeOutcome.Fatal
+        } else {
+            abortToServing(outgoing, reason = "transition threw: $error")
         }
-        if (uiDetached == null) {
-            return abortToServing(outgoing, reason = "ui region did not dispose in time")
-        }
-        closeAdmission()
-        if (!awaitLeasesReleased()) {
-            return abortToServing(outgoing, reason = "worker lease drain timed out")
-        }
-        val resolvesIdle = withTimeoutOrNull(policy.drainTimeoutMillis) {
-            policy.drainSnackbarResolves()
-        }
-        if (resolvesIdle == null) {
-            return abortToServing(outgoing, reason = "snackbar resolve drain timed out")
-        }
-        policy.pendingSnackbarCount().takeIf { it > 0 }?.let { queued ->
-            // Recorded, never silently dropped: queued models carry the outgoing generation's
-            // closures; executing one later follows ED11's interruption semantics (spec §8.4).
-            logger.w { "$queued queued snackbar model(s) will cross the generation boundary" }
-        }
+    }
 
-        // ---- BuildingGeneration: SAME database object, fresh graph/lifetime/VM store. Staged:
-        // a graphFactory failure cancels the fresh lifetime and leaves the SHARED database open.
+    private suspend fun runGraphOnlyTransition(
+        outgoing: RuntimeGeneration,
+        tracker: PonrTracker,
+    ): ReinitializeOutcome {
+        runAbortableQuiesce(outgoing)?.let { reason -> return abortToServing(outgoing, reason) }
+
+        // ---- BuildingGeneration + Preflight while N is FULLY INTACT (still abortable): SAME
+        // database object, fresh graph/lifetime/VM store; nothing of N has been torn down.
         val candidate = runCatching {
             buildGeneration(
                 database = outgoing.database,
@@ -370,32 +319,102 @@ internal class AppRuntime(
             return abortToServing(outgoing, reason = "candidate construction failed: $error")
         }
 
-        // ---- Preflight, under the graph-only marker: a Scenario-1 rollback request from inside
-        // this preflight is REJECTED deterministically (pre-mutation) instead of deadlocking on
-        // the non-reentrant transition mutex — the coordinator keeps its persisted state intact
-        // and the transition aborts; a subsequent REPLACEMENT transaction completes the rollback.
+        // A Scenario-1 rollback request from inside this preflight is REJECTED deterministically
+        // (pre-mutation) instead of deadlocking on the non-reentrant transition mutex — the
+        // coordinator keeps its persisted state intact and a later replacement transaction (or a
+        // cold start) completes the rollback. A CancellationException from the preflight is an
+        // internal escape like any other: the candidate is disposed and the transition aborts —
+        // the caller's deferred ALWAYS resolves.
         val preflightOutcome = runCatching {
             withContext(GraphOnlyTransition) { preflight(candidate) }
         }
-        val proceed = preflightOutcome.getOrNull() == StartupOutcome.Proceed
-        if (!proceed) {
+        if (preflightOutcome.getOrNull() != StartupOutcome.Proceed) {
             disposeFailedCandidate(candidate, closeCandidateDatabase = false)
             return abortToServing(
                 outgoing,
                 reason = "candidate preflight failed: " +
-                    (preflightOutcome.exceptionOrNull()?.toString() ?: "${preflightOutcome.getOrNull()}"),
+                    (
+                        preflightOutcome.exceptionOrNull()?.toString()
+                            ?: "${preflightOutcome.getOrNull()}"
+                        ),
             )
         }
 
-        // ---- Publishing: atomic handover, THEN deterministic disposal of the outgoing
-        // generation's UI ownership and lifetime (VM store clear lives HERE, not in quiesce —
-        // an aborted transition re-enters the same store with its ViewModels intact).
+        // ---- The committed safe boundary (PONR): N's teardown completes BEFORE N+1 is exposed
+        // (spec §8.4). From here the transition never aborts back to N — a partially-disposed
+        // generation is never resurrected. Teardown steps are total (non-throwing); a degraded
+        // teardown is logged loudly and the healthy candidate still publishes (the SHARED
+        // database was never closed).
+        tracker.crossed = true
+        tearDownOutgoing(outgoing)?.let { degraded ->
+            logger.e(
+                IllegalStateException(degraded),
+                "graph-only teardown degraded post-PONR; publishing the candidate anyway",
+            )
+        }
         publishServing(candidate)
-        reopenAdmission()
-        withContext(policy.mainDispatcher) { outgoing.viewModelStore.clear() }
-        withTimeoutOrNull(policy.drainTimeoutMillis) { outgoing.lifetime.cancelAndJoin() }
-            ?: logger.w { "outgoing generation ${outgoing.id} lifetime join timed out (cancel signalled)" }
+        workerGate.reopen()
+        runCatching { policy.advanceSnackbarGeneration() }
+            .onFailure { logger.e(it, "snackbar epoch advance failed (post-publish, contained)") }
         return ReinitializeOutcome.Published(candidate)
+    }
+
+    /**
+     * The shared abortable quiesce (spec §8.4 Quiescing, steps 1–3): every step here is
+     * REVERSIBLE — nothing of the outgoing generation is torn down. Returns the abort reason,
+     * or null when the generation is fully quiesced.
+     */
+    private suspend fun runAbortableQuiesce(outgoing: RuntimeGeneration): String? {
+        publishTransitioning()
+        // Step 1: UI detach — the retire CAS closes attachment admission for the outgoing id
+        // atomically with the zero observation (no late attach can pass it).
+        if (!uiGate.awaitRetired(outgoing.id, policy.uiDisposalTimeoutMillis)) {
+            return "ui region did not dispose in time"
+        }
+        // Step 2: worker leases — close admission, await previously admitted runs.
+        workerGate.close()
+        if (!workerGate.awaitDrained(policy.drainTimeoutMillis)) {
+            return "worker lease drain timed out"
+        }
+        // Step 3: in-flight snackbar resolves (deferred-delete commits) — awaited, bounded.
+        val resolvesIdle = withTimeoutOrNull(policy.drainTimeoutMillis) {
+            policy.drainSnackbarResolves()
+        }
+        if (resolvesIdle == null) {
+            return "snackbar resolve drain timed out"
+        }
+        policy.pendingSnackbarCount().takeIf { it > 0 }?.let { queued ->
+            // Generation-tagged (spec §8.4): discarded at delivery after a COMMITTED handover
+            // (the epoch advances), preserved and executed normally after an abort.
+            logger.w {
+                "$queued queued snackbar model(s) held at the generation boundary — " +
+                    "discarded on commit, preserved on abort"
+            }
+        }
+        return null
+    }
+
+    /**
+     * Tears down the OUTGOING generation — the transition's first irreversible action (the
+     * caller crosses PONR before invoking this). Total: never throws; returns a degradation
+     * reason or null. Order: the runtime-owned ViewModelStore clears first (UI ownership), then
+     * the lifetime's DB-bound jobs are cancelled and JOINED (bounded) — every graph-owned job
+     * must be joinable; an unjoinable job is a protocol violation surfaced to the caller.
+     */
+    private suspend fun tearDownOutgoing(outgoing: RuntimeGeneration): String? {
+        val cleared = runCatching {
+            withContext(policy.mainDispatcher) { outgoing.viewModelStore.clear() }
+        }
+        if (cleared.isFailure) {
+            return "outgoing ViewModelStore clear failed: ${cleared.exceptionOrNull()}"
+        }
+        val joined = withTimeoutOrNull(policy.drainTimeoutMillis) {
+            outgoing.lifetime.cancelAndJoin()
+        }
+        if (joined == null) {
+            return "outgoing lifetime did not join in time (unjoinable DB-bound job)"
+        }
+        return null
     }
 
     private fun abortToServing(
@@ -403,80 +422,91 @@ internal class AppRuntime(
         reason: String,
     ): ReinitializeOutcome {
         logger.w { "reinitialize aborted: $reason — generation ${outgoing.id} keeps serving" }
-        reopenAdmission()
+        workerGate.reopen()
+        uiGate.reopen(outgoing.id)
         publishServing(outgoing)
         return ReinitializeOutcome.Aborted(reason = reason, serving = outgoing)
     }
 
+    /**
+     * Disposes a candidate that failed preflight/validation. Jobs are cancelled and JOINED
+     * BEFORE the candidate database closes (they may hold it); returns false when a resource
+     * could not be released — the caller's ladder must stop (Fatal), never rename again.
+     */
     private suspend fun disposeFailedCandidate(
         candidate: RuntimeGeneration,
         closeCandidateDatabase: Boolean = true,
-    ) {
-        // close() is idempotent — safe even when the inline rollback already closed it. A
-        // graph-only candidate SHARES the outgoing database and must never close it.
-        if (closeCandidateDatabase) runCatching { closeDatabase(candidate.database) }
-        withContext(policy.mainDispatcher) { candidate.viewModelStore.clear() }
-        candidate.lifetime.cancelAndJoin()
+    ): Boolean {
+        runCatching { withContext(policy.mainDispatcher) { candidate.viewModelStore.clear() } }
+            .onFailure { logger.e(it, "candidate ViewModelStore clear failed") }
+        val joined = withTimeoutOrNull(policy.drainTimeoutMillis) {
+            candidate.lifetime.cancelAndJoin()
+        }
+        if (joined == null) {
+            logger.e(
+                IllegalStateException("candidate lifetime did not join"),
+                "candidate jobs unjoinable — the candidate database cannot be closed safely",
+            )
+            return !closeCandidateDatabase
+        }
+        if (!closeCandidateDatabase) return true
+        // close() is idempotent — safe even when the inline rollback already closed it.
+        return runCatching { closeDatabase(candidate.database) }
+            .onFailure { logger.e(it, "candidate database close failed — ladder must stop") }
+            .isSuccess
     }
 
     // ------------------------------------------------------------------------------------------
-    // The database replacement transaction — submission-owned (findings 1, 4, 5, 6).
+    // The database replacement transaction.
     // ------------------------------------------------------------------------------------------
 
     private val inFlightReplacements = HashMap<ReplacementOperation, InFlightReplacement>()
 
     override suspend fun restoreFromSnapshot(
         source: File,
-        beforeMutation: suspend () -> Unit,
-    ): DatabaseReplacementResult = replace(
-        operation = ReplacementOperation.RestoreFromSnapshot(source),
-        hooks = ReplacementHooks(beforeMutation = beforeMutation),
-    ).toSeamResult()
+        effects: DatabaseReplacementEffects,
+    ): DatabaseReplacementResult =
+        replace(ReplacementOperation.RestoreFromSnapshot(source), effects).toSeamResult()
 
     override suspend fun rollbackToPreRestoreBackup(
-        onCommitted: suspend () -> Unit,
+        effects: DatabaseReplacementEffects,
     ): DatabaseReplacementResult {
         // Re-entrancy (spec §8.4): a rollback issued from INSIDE this runtime's own candidate
         // preflight is the current transaction's rollback branch, executed inline — never a
-        // nested transaction (the mutex is non-reentrant and the transaction coroutine holds it).
+        // nested transaction (the mutex is non-reentrant and the transaction coroutine holds
+        // it). This coroutine IS the transaction, so the terminal effect runs right here.
         coroutineContext[ReplacementTransaction]?.let { transaction ->
-            return runInlineRollback(closeDatabase, transaction).also { result ->
-                if (result is DatabaseReplacementResult.Committed) {
-                    runCommittedHook(onCommitted)
-                }
-            }
+            val outcome = runInlineRollback(closeDatabase, transaction)
+            return runTerminalEffects(effects, outcome, logger).toSeamResult()
         }
         // A rollback during a GRAPH-ONLY transition's preflight is rejected pre-mutation
         // (deterministic; nothing on disk or in DataStore is touched) — deadlock-free by
         // construction, and the persisted Scenario-1 state stays intact for a cold start or a
         // later replacement transaction to complete.
         if (coroutineContext[GraphOnlyTransition.Key] != null) {
-            return DatabaseReplacementResult.RejectedBeforeMutation(
+            val rejected = ReplacementOutcome.RejectedBeforeMutation(
                 BackupError.Io(IOException("rollback unavailable inside a graph-only transition")),
             )
+            return runTerminalEffects(effects, rejected, logger).toSeamResult()
         }
-        return replace(
-            operation = ReplacementOperation.RollbackToPreRestoreBackup,
-            hooks = ReplacementHooks(onCommitted = onCommitted),
-        ).toSeamResult()
+        return replace(ReplacementOperation.RollbackToPreRestoreBackup, effects).toSeamResult()
     }
 
     /**
-     * Submission entry (findings 1 + 6b): registration is ATOMIC under [submissionLock] — two
-     * same-operation requests arriving before either registers share one transaction and one
-     * outcome (the first submitter's hooks win; for the real callers a same-op race is the same
-     * semantic intent, e.g. an undo re-tap). A different operation registers its own transaction,
-     * which serializes behind the mutex and never receives another operation's result. The
-     * transaction body runs on [hostScope]; callers only await.
+     * Submission entry: registration is ATOMIC under [submissionLock] — two same-operation
+     * requests arriving before either registers share one transaction and one outcome (the
+     * first submitter's effects win; for the real callers a same-op race is the same semantic
+     * intent, e.g. an undo re-tap). A different operation registers its own transaction, which
+     * serializes behind the mutex and never receives another operation's result.
      */
     suspend fun replace(
         operation: ReplacementOperation,
-        hooks: ReplacementHooks = ReplacementHooks(),
-    ): ReplacementOutcome = submitReplacement(operation, hooks).outcome.await()
+        effects: DatabaseReplacementEffects = DatabaseReplacementEffects.None,
+    ): ReplacementOutcome = submitReplacement(operation, effects).outcome.await()
 
     private fun submitReplacement(
         operation: ReplacementOperation,
-        hooks: ReplacementHooks,
+        effects: DatabaseReplacementEffects,
     ): InFlightReplacement {
         val inFlight = synchronized(submissionLock) {
             inFlightReplacements[operation]?.let { return it }
@@ -484,48 +514,77 @@ internal class AppRuntime(
                 inFlightReplacements[operation] = it
             }
         }
+        // Source-ownership transfer (mandate 1): staging runs in THIS non-suspending frame —
+        // there is no cancellation point between registration and the transfer, so a cancelled
+        // caller can never strand a half-owned file. From here the runtime owns the staged copy.
+        if (operation is ReplacementOperation.RestoreFromSnapshot) {
+            runCatching {
+                stageRestoreSource(
+                    source = File(operation.sourcePath),
+                    stagingDirectory = policy.stagingDirectory(applicationContext),
+                    sequence = stagedSourceSequence.incrementAndGet(),
+                )
+            }.fold(
+                onSuccess = { staged -> inFlight.stagedSource = staged },
+                onFailure = { error -> inFlight.stagingFailure = error },
+            )
+        }
         hostScope.launch {
             val tracker = PonrTracker()
-            // Escape hatches are deliberately Throwable-broad (finding 1): every escape must
-            // resolve to a published state and complete the awaiters.
-            val outcome = runCatching {
+            // Escape hatches are deliberately Throwable-broad: every escape must resolve to a
+            // published state and complete the awaiters exactly once.
+            val outcome = inFlight.stagingFailure?.let { stagingError ->
+                ReplacementOutcome.RejectedBeforeMutation(
+                    BackupError.Io(IOException("restore source staging failed: $stagingError")),
+                )
+            } ?: runCatching {
                 // Cold-start rule: generation 1 exists before the transition mutex is taken.
                 currentGeneration
                 transitionMutex.withLock {
-                    runCatching { executeReplacement(operation, hooks, tracker) }
-                        .getOrElse { error ->
-                            if (error is CancellationException) {
-                                // hostScope is never cancelled; an internal CancellationException
-                                // is a bug — resolve it like any escape, never strand awaiters.
-                                logger.e(error, "replacement transaction cancelled internally")
-                            }
-                            resolveTransactionEscape(error, tracker)
+                    runCatching {
+                        executeReplacement(operation, effects, tracker, inFlight.stagedSource)
+                    }.getOrElse { error ->
+                        if (error is CancellationException) {
+                            // hostScope is never cancelled; an internal CancellationException
+                            // is a bug — resolve it like any escape, never strand awaiters.
+                            logger.e(error, "replacement transaction cancelled internally")
                         }
+                        resolveTransactionEscape(error, tracker)
+                    }
                 }
             }.getOrElse { error ->
                 // Escapes OUTSIDE the mutex (gen-1 build): nothing was mutated.
                 resolveTransactionEscape(error, tracker)
             }
+            // Exactly ONE terminal effect per transaction, on THIS coroutine (never the
+            // initiator's), for EVERY outcome (escapes included) — then the runtime's terminal
+            // source cleanup, then the awaiters.
+            val finalOutcome = runTerminalEffects(effects, outcome, logger)
+            inFlight.stagedSource?.let { staged -> runCatching { staged.delete() } }
             synchronized(submissionLock) { inFlightReplacements.remove(operation) }
-            inFlight.outcome.complete(outcome)
+            inFlight.outcome.complete(finalOutcome)
         }
         return inFlight
     }
 
     /**
-     * Deterministic resolution for an unexpected transaction escape (finding 1): before the
-     * point of no return the outgoing generation is republished (it is intact — quiesce touches
-     * nothing irreversible before PONR); after it, the state is unknown → the explicit Fatal
-     * terminal, never a stranded `Transitioning` and never a resurrected closed generation.
+     * Deterministic resolution for an unexpected transaction escape. Fatal is terminal — an
+     * escape on a Fatal runtime resolves to Fatal without touching published state. Before the
+     * point of no return the outgoing generation is republished (it is intact — the abortable
+     * quiesce touches nothing irreversible); after it, the state is unknown → the explicit
+     * Fatal terminal, never a stranded `Transitioning`, never a resurrected generation.
      */
     private fun resolveTransactionEscape(error: Throwable, tracker: PonrTracker): ReplacementOutcome {
         logger.e(error, "replacement transaction threw unexpectedly")
-        val outgoing = currentOrNull
+        if (isFatal) return ReplacementOutcome.Fatal
         return if (tracker.crossed) {
             publishFatal("transaction escaped after the point of no return: $error")
         } else {
-            reopenAdmission()
-            if (outgoing != null && !isFatal) publishServing(outgoing)
+            workerGate.reopen()
+            currentOrNull?.let { outgoing ->
+                uiGate.reopen(outgoing.id)
+                publishServing(outgoing)
+            }
             ReplacementOutcome.RejectedBeforeMutation(
                 BackupError.Io(IOException("replacement failed before mutation: $error")),
             )
@@ -534,20 +593,27 @@ internal class AppRuntime(
 
     private suspend fun executeReplacement(
         operation: ReplacementOperation,
-        hooks: ReplacementHooks,
+        effects: DatabaseReplacementEffects,
         tracker: PonrTracker,
+        stagedSource: File?,
     ): ReplacementOutcome {
+        // Fatal recheck INSIDE the mutex (mandate 8): a transaction queued behind one that went
+        // Fatal performs no validation, no close, no swap, no publication.
+        if (isFatal) return ReplacementOutcome.Fatal
         val outgoing = requireNotNull(currentOrNull) { "generation must exist before replacement" }
         val provider = outgoing.graph.databaseSnapshotProvider
-        // Running-state validation — reads the LIVE database, so it precedes any quiescing/close.
+        // Running-state validation — reads the LIVE database, so it precedes any quiescing.
         // Same checks, same order, same error taxonomy as the pre-split provider methods.
         val source: File = when (operation) {
             is ReplacementOperation.RestoreFromSnapshot -> {
-                val validation = provider.validateSnapshotForRestore(operation.source)
+                val staged = stagedSource ?: return ReplacementOutcome.RejectedBeforeMutation(
+                    BackupError.Io(IOException("staged restore source is missing")),
+                )
+                val validation = provider.validateSnapshotForRestore(staged)
                 if (validation is BackupResult.Failure) {
                     return ReplacementOutcome.RejectedBeforeMutation(validation.error)
                 }
-                operation.source
+                staged
             }
 
             ReplacementOperation.RollbackToPreRestoreBackup ->
@@ -558,37 +624,27 @@ internal class AppRuntime(
         // Pre-mutation persistence (e.g. restore's `restore_in_progress` marker) runs INSIDE the
         // transaction, under the mutex — no other transition's preflight can interleave between
         // the marker write and the swap (the spurious-Scenario-1 window is closed by ordering).
-        runCatching { hooks.beforeMutation() }.onFailure { error ->
+        runCatching { effects.onBeforeMutation() }.onFailure { error ->
             return ReplacementOutcome.RejectedBeforeMutation(
                 BackupError.Io(IOException("pre-mutation persistence failed: $error")),
             )
         }
         val consumeSource = operation is ReplacementOperation.RollbackToPreRestoreBackup
-        val outcome = when (replacementPolicy) {
+        return when (replacementPolicy) {
             ReplacementPolicy.RestartProcess ->
                 runRestartProcessSwap(closeDatabase, outgoing, provider, source, consumeSource, tracker)
 
             ReplacementPolicy.RebuildInProcess ->
                 executeRebuildTransaction(outgoing, provider, source, consumeSource, tracker)
         }
-        if (outcome is ReplacementOutcome.Completed) {
-            runCommittedHook(hooks.onCommitted)
-        }
-        return outcome
-    }
-
-    /** Post-commit effects run on the TRANSACTION's coroutine; failures are contained (KDoc). */
-    private suspend fun runCommittedHook(onCommitted: suspend () -> Unit) {
-        runCatching { onCommitted() }
-            .onFailure { error -> logger.e(error, "post-commit hook failed (contained)") }
     }
 
     /**
-     * The full in-process machine: Running → Quiescing (STRICT: every fallible step precedes the
-     * point of no return; ANY quiesce failure aborts without closing) → close → ReplacingFile →
-     * BuildingGeneration → Preflight → Publishing, with the locked post-close failure ladder.
+     * The full in-process machine (spec §8.4): abortable quiesce → PONR (teardown start) →
+     * teardown → close → ReplacingFile → the bounded ladder. Every post-PONR failure ends in a
+     * published successor ([completedOrRecovered]) or the explicit Fatal — the outgoing
+     * generation is never republished once its teardown began, and a throwing close is Fatal.
      */
-    @Suppress("ReturnCount", "LongMethod")
     private suspend fun executeRebuildTransaction(
         outgoing: RuntimeGeneration,
         provider: DatabaseSnapshotProvider,
@@ -596,81 +652,82 @@ internal class AppRuntime(
         consumeSource: Boolean,
         tracker: PonrTracker,
     ): ReplacementOutcome {
-        // ---- Quiescing: the outgoing generation stays INTACT through every abortable step ----
-        publishTransitioning()
-        val uiDetached = withTimeoutOrNull(policy.uiDisposalTimeoutMillis) {
-            awaitUiDetached(outgoing.id)
-        }
-        if (uiDetached == null) {
-            return unwindQuiesce(outgoing, "ui region did not dispose in time")
-        }
-        closeAdmission()
-        if (!awaitLeasesReleased()) {
-            return unwindQuiesce(outgoing, "worker lease drain timed out")
-        }
-        withTimeoutOrNull(policy.drainTimeoutMillis) { policy.drainSnackbarResolves() }
-            ?: return unwindQuiesce(outgoing, "snackbar resolve drain timed out")
-        policy.pendingSnackbarCount().takeIf { it > 0 }?.let { queued ->
-            logger.w { "$queued queued snackbar model(s) will cross the replacement boundary" }
-        }
-        // The lifetime join ends the graph-owned collectors/jobs. Cancel is required to end the
-        // infinite collectors, so a join timeout leaves the generation DEGRADED (reactors dead)
-        // — but per the never-close-after-failed-join rule it still ABORTS: the database is not
-        // closed, the file is not touched, and the degradation is recorded in the reason.
-        val lifetimeJoined = withTimeoutOrNull(policy.drainTimeoutMillis) {
-            outgoing.lifetime.cancelAndJoin()
-        }
-        if (lifetimeJoined == null) {
-            return unwindQuiesce(
-                outgoing,
-                "lifetime join timed out; aborted WITHOUT closing (generation degraded: " +
-                    "its reactors were cancelled — a later replacement can supersede it)",
-            )
-        }
+        runAbortableQuiesce(outgoing)?.let { reason -> return unwindQuiesce(outgoing, reason) }
 
-        // ---- Point of no return: close. Generation N is TERMINAL from here — never republished.
+        // ---- PONR: the outgoing teardown BEGINS (spec §8.4). Never abortable from here. ----
+        tracker.crossed = true
+        tearDownOutgoing(outgoing)?.let { failure ->
+            return publishFatal("outgoing teardown failed after PONR: $failure")
+        }
+        // Close INVOCATION is post-PONR by definition: a throw leaves the handle in an unknown
+        // state — Fatal, never RejectedBeforeMutation, never a republished outgoing generation.
         val closed = runCatching { closeDatabase(outgoing.database) }
         if (closed.isFailure) {
-            // Close failed → database state unknown → never rename (finding 5). Nothing on disk
-            // mutated; unwind. The generation may be degraded (lifetime already ended) — loud,
-            // recorded, retryable.
-            return unwindQuiesce(
-                outgoing,
-                "database close failed (${closed.exceptionOrNull()}); aborted without renaming",
-            )
+            return publishFatal("outgoing database close failed: ${closed.exceptionOrNull()}")
         }
-        tracker.crossed = true
 
         // ---- ReplacingFile ----
         val transaction = ReplacementTransaction(nextDbGeneration = outgoing.dbGeneration + 1)
         val replaced = provider.replaceLiveDatabaseFile(source)
         if (replaced is BackupResult.Failure) {
-            // Post-close failure ladder branch (b): rollback + one fresh generation attempt.
-            return recoverViaRollback(provider, transaction, replaced.error)
+            return recoverViaRollback(provider, transaction, replaced.error, consumeSource)
         }
         if (consumeSource) {
-            // The primary swap of the ROLLBACK operation IS a rollback: mark it as such BEFORE
-            // consuming the source (findings 5 + 6a) so a first-candidate failure takes the
-            // allowed follow-up attempt over the already-rolled-back file instead of Fatal.
+            // The primary swap of the ROLLBACK operation IS the requested rollback: mark BEFORE
+            // consuming the source so a first-candidate failure takes the allowed follow-up
+            // attempt over the already-rolled-back file instead of Fatal.
             transaction.rolledBack = true
             provider.deletePreRestoreBackup()
         }
 
         // ---- BuildingGeneration → Preflight → Publishing, with the bounded ladder ----
-        attemptGeneration(transaction)?.let { return ReplacementOutcome.Completed(it) }
-        return if (transaction.rolledBack) {
-            attemptGeneration(transaction)?.let { ReplacementOutcome.Completed(it) }
-                ?: publishFatal("post-rollback generation attempt failed")
-        } else {
-            recoverViaRollback(provider, transaction, cause = null)
+        return when (val attempt = attemptGeneration(transaction)) {
+            is AttemptResult.Published ->
+                completedOrRecovered(transaction, attempt.generation, consumeSource)
+
+            AttemptResult.LadderFatal ->
+                publishFatal("candidate resources could not be released — ladder stopped")
+
+            AttemptResult.Retryable ->
+                if (transaction.rolledBack) {
+                    when (val retry = attemptGeneration(transaction)) {
+                        is AttemptResult.Published ->
+                            completedOrRecovered(transaction, retry.generation, consumeSource)
+
+                        else -> publishFatal("post-rollback generation attempt failed")
+                    }
+                } else {
+                    recoverViaRollback(provider, transaction, cause = null, consumeSource)
+                }
         }
     }
 
-    /** Ladder branch (b): rollback file mechanics, then exactly one fresh-generation attempt. */
+    /**
+     * Result truth (mandate 3): `Completed` ONLY when the REQUESTED operation committed. A
+     * restore whose data ended up rolled back — by the ladder or the preflight's inline
+     * rollback — reports [ReplacementOutcome.RecoveredByRollback] even though a generation
+     * published successfully: the serving data is the PRE-operation data.
+     */
+    private fun completedOrRecovered(
+        transaction: ReplacementTransaction,
+        generation: RuntimeGeneration,
+        requestedRollback: Boolean,
+    ): ReplacementOutcome = if (!requestedRollback && transaction.rolledBack) {
+        ReplacementOutcome.RecoveredByRollback(
+            error = transaction.rollbackCause
+                ?: BackupError.Io(IOException("restore rolled back")),
+            generation = generation,
+        )
+    } else {
+        ReplacementOutcome.Completed(generation)
+    }
+
+    /** Ladder branch: rollback file mechanics, then exactly one fresh-generation attempt. */
     private suspend fun recoverViaRollback(
         provider: DatabaseSnapshotProvider,
         transaction: ReplacementTransaction,
         cause: BackupError?,
+        requestedRollback: Boolean,
     ): ReplacementOutcome {
         val rollbackSource = provider.getPreRestoreBackupFile()
             ?: return publishFatal("replacement failed ($cause) and no pre-restore backup exists")
@@ -678,23 +735,30 @@ internal class AppRuntime(
         if (rolledBack is BackupResult.Failure) {
             return publishFatal("replacement failed ($cause) and rollback failed (${rolledBack.error})")
         }
-        // Mark BEFORE consuming (finding 5): a crash between the two leaves a truthful flag.
+        // Mark BEFORE consuming: a crash between the two leaves a truthful flag.
         transaction.rolledBack = true
+        transaction.rollbackCause = cause
+            ?: BackupError.Io(IOException("restore could not complete; rolled back"))
         provider.deletePreRestoreBackup()
-        return attemptGeneration(transaction)
-            ?.let { ReplacementOutcome.Completed(it) }
-            ?: publishFatal("post-rollback generation attempt failed (original cause: $cause)")
+        return when (val attempt = attemptGeneration(transaction)) {
+            is AttemptResult.Published ->
+                completedOrRecovered(transaction, attempt.generation, requestedRollback)
+
+            AttemptResult.LadderFatal ->
+                publishFatal("candidate resources could not be released after rollback")
+
+            AttemptResult.Retryable ->
+                publishFatal("post-rollback generation attempt failed (original cause: $cause)")
+        }
     }
 
     /**
      * One BuildingGeneration → Preflight → Publishing attempt over the current live file.
-     * Allocation is STAGED (finding 5): a database built but orphaned by a later stage failure
-     * is closed, and a fresh lifetime is cancelled — no partial candidate leaks an open Room
-     * handle over a file a later ladder step may replace.
+     * Allocation is STAGED: a database built but orphaned by a later stage failure is closed
+     * (jobs joined first), and a close that THROWS stops the ladder ([AttemptResult.LadderFatal])
+     * — no partial candidate ever leaks an open handle over a file a later step would rename.
      */
-    private suspend fun attemptGeneration(
-        transaction: ReplacementTransaction,
-    ): RuntimeGeneration? {
+    private suspend fun attemptGeneration(transaction: ReplacementTransaction): AttemptResult {
         val candidate = runCatching {
             buildGeneration(
                 database = dbFactory(applicationContext),
@@ -703,23 +767,26 @@ internal class AppRuntime(
             )
         }.getOrElse { error ->
             logger.e(error, "candidate generation construction failed")
-            return null
+            return if (error is OrphanCloseException) AttemptResult.LadderFatal else AttemptResult.Retryable
         }
         transaction.candidate = candidate
+        transaction.candidateInvalidated = false
         val outcome = runCatching { withContext(transaction) { preflight(candidate) } }
-            .getOrElse { error ->
-                logger.e(error, "candidate preflight threw")
-                disposeFailedCandidate(candidate)
-                return null
-            }
-        if (outcome != StartupOutcome.Proceed) {
-            logger.w { "candidate preflight returned $outcome" }
-            disposeFailedCandidate(candidate)
-            return null
+        if (transaction.closeFailed) {
+            // The inline rollback's candidate close failed: unknown handle state — stop the
+            // ladder without touching the candidate again, never rename again.
+            return AttemptResult.LadderFatal
+        }
+        val proceed = outcome.getOrNull() == StartupOutcome.Proceed && !transaction.candidateInvalidated
+        if (!proceed) {
+            logger.w { "candidate preflight did not proceed: $outcome" }
+            return if (disposeFailedCandidate(candidate)) AttemptResult.Retryable else AttemptResult.LadderFatal
         }
         publishServing(candidate)
-        reopenAdmission()
-        return candidate
+        workerGate.reopen()
+        runCatching { policy.advanceSnackbarGeneration() }
+            .onFailure { logger.e(it, "snackbar epoch advance failed (post-publish, contained)") }
+        return AttemptResult.Published(candidate)
     }
 
     private fun unwindQuiesce(
@@ -727,7 +794,8 @@ internal class AppRuntime(
         reason: String,
     ): ReplacementOutcome {
         logger.w { "replacement aborted during quiesce: $reason — generation ${outgoing.id} keeps serving" }
-        reopenAdmission()
+        workerGate.reopen()
+        uiGate.reopen(outgoing.id)
         publishServing(outgoing)
         return ReplacementOutcome.RejectedBeforeMutation(BackupError.Io(IOException(reason)))
     }
@@ -735,7 +803,15 @@ internal class AppRuntime(
     private class InFlightReplacement(
         val operation: ReplacementOperation,
         val outcome: CompletableDeferred<ReplacementOutcome>,
-    )
+    ) {
+        /** The runtime-owned staged restore source; deleted on every terminal outcome. */
+        @Volatile
+        var stagedSource: File? = null
+
+        /** A staging failure recorded in the submission frame; resolved to a rejection. */
+        @Volatile
+        var stagingFailure: Throwable? = null
+    }
 
     /** Marks a graph-only transition's preflight — a rollback inside it is rejected, not run. */
     private object GraphOnlyTransition : CoroutineContext.Element {
@@ -746,9 +822,10 @@ internal class AppRuntime(
     }
 
     /**
-     * STAGED construction (finding 5): the database enters first; a graphFactory failure closes
-     * it (when this generation OWNS it — a graph-only candidate shares the outgoing database and
-     * must never close it) and cancels the fresh lifetime before rethrowing.
+     * STAGED construction: the database enters first; a graphFactory failure closes it (when
+     * this generation OWNS it — a graph-only candidate shares the outgoing database and must
+     * never close it) and cancels the fresh lifetime before rethrowing. An orphan close that
+     * ITSELF throws escalates to [OrphanCloseException] — the ladder must stop (Fatal).
      */
     private fun buildGeneration(
         database: AppDatabase,
@@ -760,8 +837,11 @@ internal class AppRuntime(
         val graph = runCatching {
             graphFactory(applicationContext, database, imageStorage, lifetime, this)
         }.getOrElse { error ->
-            if (ownsDatabase) runCatching { closeDatabase(database) }
             lifetime.cancel()
+            if (ownsDatabase) {
+                runCatching { closeDatabase(database) }
+                    .getOrElse { closeError -> throw OrphanCloseException(closeError) }
+            }
             throw error
         }
         return RuntimeGeneration(
@@ -795,39 +875,42 @@ internal class AppRuntime(
     }
 }
 
-/** Caller-supplied transaction hooks, executed on the transaction's own coroutine (class KDoc). */
-internal class ReplacementHooks(
-    val beforeMutation: suspend () -> Unit = {},
-    val onCommitted: suspend () -> Unit = {},
-)
-
 /** Typed result of a graph-only reinitialization. */
 internal sealed interface ReinitializeOutcome {
 
     /** The candidate passed preflight and is the published generation. */
     data class Published(val generation: RuntimeGeneration) : ReinitializeOutcome
 
-    /** A quiesce step or the candidate preflight failed; generation N keeps serving, intact. */
-    data class Aborted(val reason: String, val serving: RuntimeGeneration) : ReinitializeOutcome
+    /**
+     * A pre-PONR step failed; generation N keeps serving, intact. [serving] is null only for
+     * the cold-start corner where no generation could be built at all.
+     */
+    data class Aborted(val reason: String, val serving: RuntimeGeneration?) : ReinitializeOutcome
 
     /** The caller's expected generation was already replaced; no second transition ran. */
     data class AlreadyReplaced(val serving: RuntimeGeneration) : ReinitializeOutcome
+
+    /** The runtime is (or became) Fatal — the request performed nothing further. */
+    data object Fatal : ReinitializeOutcome
 }
 
 /**
  * The injectable seams of one transition (grouped so [AppRuntime]'s surface stays a handful of
- * factories): the snackbar drain, the main-thread dispatcher for ViewModelStore clears, and the
- * bounded-await budgets. Worker draining is NOT here — it is the runtime's own lease admission.
- * Production wiring lives in `BaseApplication`; tests substitute deterministic drains and
- * virtual-time budgets.
+ * factories): the snackbar drain + epoch advance, the main-thread dispatcher for ViewModelStore
+ * clears, the staging directory for restore-source ownership transfer, and the bounded-await
+ * budgets. Production wiring lives in `BaseApplication`; tests substitute deterministic seams.
  */
 internal data class RuntimeTransitionPolicy(
     val drainSnackbarResolves: suspend () -> Unit = {},
     val pendingSnackbarCount: () -> Int = { 0 },
+    /** Called ONLY after a COMMITTED handover — never on abort (spec §8.4 step 3). */
+    val advanceSnackbarGeneration: () -> Unit = {},
     val mainDispatcher: CoroutineDispatcher = Dispatchers.Main.immediate,
     // The transition executor's dispatcher (the host scope every transaction runs on) —
     // virtual-time schedulable in the JVM suites, Dispatchers.Default in production.
     val hostDispatcher: CoroutineDispatcher = Dispatchers.Default,
+    /** Where staged restore sources live — runtime-owned files, deleted on every outcome. */
+    val stagingDirectory: (Context) -> File = { context -> context.cacheDir },
     val uiDisposalTimeoutMillis: Long = DEFAULT_UI_DISPOSAL_TIMEOUT_MILLIS,
     val drainTimeoutMillis: Long = DEFAULT_DRAIN_TIMEOUT_MILLIS,
 ) {
@@ -843,32 +926,49 @@ internal enum class ReplacementPolicy { RestartProcess, RebuildInProcess }
 /** The two file-swap operations, identity-compared for same-operation coalescing. */
 internal sealed interface ReplacementOperation {
 
-    data class RestoreFromSnapshot(val source: File) : ReplacementOperation
+    /** Identity is the ORIGINAL source path — staging happens after coalescing. */
+    data class RestoreFromSnapshot(val sourcePath: String) : ReplacementOperation {
+        constructor(source: File) : this(source.absolutePath)
+    }
 
     data object RollbackToPreRestoreBackup : ReplacementOperation
 }
 
-/** Typed, PHASE-AWARE result of a replacement transaction (finding 4). */
+/** Typed, phase-aware result of a replacement transaction (mandates 3 + 4). */
 internal sealed interface ReplacementOutcome {
 
     /**
-     * The transaction committed. [generation] is the published in-process successor under
-     * [ReplacementPolicy.RebuildInProcess]; `null` under [ReplacementPolicy.RestartProcess] —
-     * the outgoing generation is terminal and the caller's process restart follows, as today.
+     * The REQUESTED operation committed. [generation] is the published in-process successor
+     * under [ReplacementPolicy.RebuildInProcess]; `null` under [ReplacementPolicy
+     * .RestartProcess] — the outgoing generation is terminal and the caller's process restart
+     * follows, as today. [effectsError] is non-null when the caller's committed-effects failed
+     * — surfaced, never swallowed into a clean commit.
      */
-    data class Completed(val generation: RuntimeGeneration?) : ReplacementOutcome
+    data class Completed(
+        val generation: RuntimeGeneration?,
+        val effectsError: BackupError? = null,
+    ) : ReplacementOutcome
 
-    /** Nothing was mutated — the outgoing generation keeps serving; pre-swap cleanup is safe. */
+    /** Nothing irreversible happened — the outgoing generation keeps serving, fully intact. */
     data class RejectedBeforeMutation(val error: BackupError) : ReplacementOutcome
 
     /**
-     * The point of no return was crossed (close and/or file mutation). Recovery assets and
-     * markers belong to the RUNTIME's ladder and the persisted-state protocol from here —
-     * callers must never clean them on this outcome.
+     * The requested RESTORE failed after PONR and the bounded recovery rolled back: a successor
+     * generation is SERVING on the PRE-operation data. Restore-FAILURE semantics for callers.
+     */
+    data class RecoveredByRollback(
+        val error: BackupError,
+        val generation: RuntimeGeneration,
+    ) : ReplacementOutcome
+
+    /**
+     * The point of no return was crossed and the transaction could not complete; no in-process
+     * recovery ran (the RestartProcess ending). Recovery assets and markers are PRESERVED and
+     * belong to the runtime/journal protocol — callers must never clean them on this outcome.
      */
     data class FailedAfterMutation(val error: BackupError) : ReplacementOutcome
 
-    /** Both construction and rollback recovery failed after close — no generation serving. */
+    /** The runtime is terminal — no generation serving, nothing further performed. */
     data object Fatal : ReplacementOutcome
 }
 

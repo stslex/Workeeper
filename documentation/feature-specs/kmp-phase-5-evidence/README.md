@@ -39,6 +39,17 @@ Standalone runs (same emulator): full unfiltered `:app:app:connectedDebugAndroid
 `:core:data:database:connectedDebugAndroidTest` 30/0 (2026-08-23);
 `:core:data:database:testDebugUnitTest` host 128/128.
 
+## Round-2 known-negatives (2026-08-23, executed and reverted per the §7 protocol)
+
+| Mutation | Red pins | Raw XML |
+|---|---|---|
+| N1 — `completedOrRecovered` forced to always return `Completed` (result-truth lie) | 4 tests: both `RecoveredByRollback, never Completed` pins, the inline-S1-rollback outer-result pin, and the composed integration gate's "no success lie" | `known-negative-n1-result-truth.xml` |
+| N2 — outgoing close-throw handled as round-1 `RejectedBeforeMutation` (cleanup-safe rejection) instead of Fatal | 5 tests: the close-throw-Fatal pin plus every downstream Fatal-terminality pin (A-Fatal-while-B-queued, replace-after-Fatal, reinitialize-after-Fatal, Fatal-holder rejection) | `known-negative-n2-close-throw-fatal.xml` |
+| N3 — the snackbar delivery epoch filter disabled (stale callbacks delivered into N+1) | 2 kit tests: discarded-at-delivery and exactly-once re-enqueue | `known-negative-n3-epoch-filter.xml` |
+
+Each mutation was applied to the MAIN source, the pinned suites ran RED (XMLs beside this
+file), and the mutation was reverted; the reverted tree re-ran green.
+
 ## Reproduction
 
 Every command above is copy-paste reproducible from the branch root with a booted API-34

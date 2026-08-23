@@ -8,6 +8,7 @@ import io.github.stslex.workeeper.core.core.platform.TempFileProvider
 import io.github.stslex.workeeper.core.data.backup.api.BackupAuth
 import io.github.stslex.workeeper.core.data.backup.api.BackupStorage
 import io.github.stslex.workeeper.core.data.backup.api.DatabaseReplacement
+import io.github.stslex.workeeper.core.data.backup.api.DatabaseReplacementEffects
 import io.github.stslex.workeeper.core.data.backup.api.DatabaseReplacementResult
 import io.github.stslex.workeeper.core.data.backup.api.SnapshotExportRunner
 import io.github.stslex.workeeper.core.data.backup.api.error.BackupError
@@ -346,11 +347,11 @@ internal class BackupInteractorImplTest {
                 downloadCaptured.captured.writeText("payload")
                 BackupResult.Success(ref.manifest)
             }
-            // Real transaction shape: the seam runs the caller's beforeMutation hook (where the
-            // in-progress marker is written, inside the transition mutex) and commits.
+            // Real transaction shape: the seam runs the typed effects' onBeforeMutation (where
+            // the in-progress marker is written, inside the transition mutex) and commits.
             coEvery { databaseReplacement.restoreFromSnapshot(any(), any()) } coAnswers {
-                secondArg<suspend () -> Unit>().invoke()
-                DatabaseReplacementResult.Committed
+                secondArg<DatabaseReplacementEffects>().onBeforeMutation()
+                DatabaseReplacementResult.Committed()
             }
             val contextSlot = slot<RestoreInProgressContext>()
             coEvery {
@@ -411,8 +412,12 @@ internal class BackupInteractorImplTest {
                 ref.manifest,
             )
             val corrupted = BackupError.CorruptedBackup("magic mismatch")
-            coEvery { databaseReplacement.restoreFromSnapshot(any(), any()) } returns
+            // The rejection's compensation rides the typed effects ON the transaction: the seam
+            // runs onRejectedBeforeMutation, then reports the rejection.
+            coEvery { databaseReplacement.restoreFromSnapshot(any(), any()) } coAnswers {
+                secondArg<DatabaseReplacementEffects>().onRejectedBeforeMutation(corrupted)
                 DatabaseReplacementResult.RejectedBeforeMutation(corrupted)
+            }
 
             val result = interactor.restoreLatest()
 
@@ -437,8 +442,12 @@ internal class BackupInteractorImplTest {
                 ref.manifest,
             )
             val postCloseError = BackupError.Io(java.io.IOException("rename failed after close"))
-            coEvery { databaseReplacement.restoreFromSnapshot(any(), any()) } returns
+            // Post-PONR without recovery: the seam runs onFailedAfterMutation (the durable
+            // journal write) and nothing else.
+            coEvery { databaseReplacement.restoreFromSnapshot(any(), any()) } coAnswers {
+                secondArg<DatabaseReplacementEffects>().onFailedAfterMutation(postCloseError)
                 DatabaseReplacementResult.FailedAfterMutation(postCloseError)
+            }
 
             val result = interactor.restoreLatest()
 
@@ -446,6 +455,36 @@ internal class BackupInteractorImplTest {
             assertSame(postCloseError, (result as BackupResult.Failure).error)
             coVerify(exactly = 0) { snapshotProvider.deletePreRestoreBackup() }
             coVerify(exactly = 0) { restoreStateRepository.clearRestoreInProgress() }
+            coVerify(exactly = 1) { restoreStateRepository.markRestoreMutationInterrupted() }
+        }
+
+    @Test
+    fun `restoreFromSnapshot RecoveredByRollback surfaces restore-failure semantics and compensates the marker`() =
+        runTest(testDispatcher) {
+            // Mandate 3: the runtime's automatic rollback restored a serving generation on the
+            // PRE-restore data — restore-FAILURE semantics for the caller. The in-progress
+            // marker is stale (recovery already happened) and the preserved rollback file was
+            // consumed by the RUNTIME, not the caller: compensation clears the markers only.
+            val ref = makeRef(schema = 4)
+            coEvery { backupStorage.listBackups() } returns BackupResult.Success(listOf(ref))
+            coEvery { snapshotProvider.currentSchemaVersion() } returns 5
+            every { snapshotProvider.hasMigrationPath(from = 4, to = 5) } returns true
+            coEvery { backupStorage.downloadBackup(any(), any()) } returns BackupResult.Success(
+                ref.manifest,
+            )
+            val recoveredError = BackupError.Io(java.io.IOException("swap failed, rolled back"))
+            coEvery { databaseReplacement.restoreFromSnapshot(any(), any()) } coAnswers {
+                secondArg<DatabaseReplacementEffects>().onRecoveredByRollback(recoveredError)
+                DatabaseReplacementResult.RecoveredByRollback(recoveredError)
+            }
+
+            val result = interactor.restoreLatest()
+
+            assertTrue(result is BackupResult.Failure)
+            assertSame(recoveredError, (result as BackupResult.Failure).error)
+            coVerify(exactly = 1) { restoreStateRepository.clearRestoreInProgress() }
+            coVerify(exactly = 1) { restoreStateRepository.clearPreRestoreBackupAvailable() }
+            coVerify(exactly = 0) { snapshotProvider.deletePreRestoreBackup() }
         }
 
     @Test
@@ -458,15 +497,21 @@ internal class BackupInteractorImplTest {
             coEvery { backupStorage.downloadBackup(any(), any()) } returns BackupResult.Success(
                 ref.manifest,
             )
-            coEvery { databaseReplacement.restoreFromSnapshot(any(), any()) } returns
+            // Terminal runtime: the seam runs onFatal (the durable journal write) and nothing
+            // else — assets preserved for the next process.
+            coEvery { databaseReplacement.restoreFromSnapshot(any(), any()) } coAnswers {
+                secondArg<DatabaseReplacementEffects>().onFatal()
                 DatabaseReplacementResult.FatalNoGeneration
+            }
 
             val result = interactor.restoreLatest()
 
             assertTrue(result is BackupResult.Failure)
             assertTrue((result as BackupResult.Failure).error is BackupError.Io)
+            coVerify(exactly = 1) { restoreStateRepository.markRestoreMutationInterrupted() }
             coVerify(exactly = 0) { snapshotProvider.deletePreRestoreBackup() }
             coVerify(exactly = 0) { restoreStateRepository.clearRestoreInProgress() }
+            coVerify(exactly = 0) { restoreStateRepository.clearPreRestoreBackupAvailable() }
         }
 
     @Test
@@ -504,7 +549,7 @@ internal class BackupInteractorImplTest {
                 BackupResult.Success(ref.manifest)
             }
             coEvery { databaseReplacement.restoreFromSnapshot(any(), any()) } returns
-                DatabaseReplacementResult.Committed
+                DatabaseReplacementResult.Committed()
 
             val result = interactor.restoreLatest()
 

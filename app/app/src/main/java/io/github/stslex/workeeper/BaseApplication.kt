@@ -13,7 +13,6 @@ import io.github.stslex.workeeper.core.core.logger.FirebaseCrashlyticsHolder
 import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.core.core.utils.CommonExt
 import io.github.stslex.workeeper.core.data.backup.worker.BackupWorkLease
-import io.github.stslex.workeeper.core.data.backup.worker.BackupWorkerDeps
 import io.github.stslex.workeeper.core.data.backup.worker.BackupWorkerDepsHolder
 import io.github.stslex.workeeper.core.data.backup.worker.MetroWorkerFactory
 import io.github.stslex.workeeper.core.data.database.buildAppDatabase
@@ -85,6 +84,10 @@ abstract class BaseApplication :
             policy = RuntimeTransitionPolicy(
                 drainSnackbarResolves = { SnackbarManager.awaitInFlightResolves() },
                 pendingSnackbarCount = { SnackbarManager.pendingModelCount },
+                // COMMITTED handovers only (the runtime never calls this on abort): models
+                // queued under the outgoing generation are discarded at delivery, never
+                // executed against the successor (spec §8.4 step 3).
+                advanceSnackbarGeneration = { SnackbarManager.advanceGenerationEpoch() },
             ),
         )
     }
@@ -116,15 +119,11 @@ abstract class BaseApplication :
     // implements RecoveryDeps, so returning it typed as RecoveryDeps is a compile-checked upcast.
     override fun recoveryDeps(): RecoveryDeps = appGraph
 
-    // God-object split (typed point-acquisition): MetroWorkerFactory (core:data:backup:worker, DATA
-    // layer) reads its 6 deps through this typed holder — it MUST NOT depend on core:ui:mvi (data→ui
-    // inversion), so it cannot use `context.appDeps<T>()`. `appGraph` implements BackupWorkerDeps, so
-    // returning it typed as BackupWorkerDeps is a compile-checked upcast.
-    override fun backupWorkerDeps(): BackupWorkerDeps = appGraph
-
-    // Atomic worker admission (Phase 5 R2): deps + quiesce-awaited lease in one step, from the
-    // runtime that owns generation transitions. See BackupWorkerDepsHolder's KDoc.
-    override fun acquireBackupWorkLease(): BackupWorkLease = appRuntime.acquireBackupWorkLease()
+    // First-operation worker admission (Phase 5 R2, spec §8.4): BackupWorker (core:data:backup:
+    // worker, DATA layer — it must not depend on core:ui:mvi) binds deps + quiesce-awaited lease
+    // in one atomic step as the FIRST operation inside doWork, from the runtime that owns
+    // generation transitions. See BackupWorkerDepsHolder's KDoc.
+    override suspend fun awaitBackupWorkLease(): BackupWorkLease = appRuntime.awaitBackupWorkLease()
 
     // Typed point-acquisition, same shape as the two above: App() lives in app:common, which
     // `:app:app` depends on — so it sits below the graph and cannot name `AppGraph` or
@@ -135,7 +134,7 @@ abstract class BaseApplication :
 
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()
-            .setWorkerFactory(MetroWorkerFactory(this))
+            .setWorkerFactory(MetroWorkerFactory())
             .build()
 
     override fun onCreate() {

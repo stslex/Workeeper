@@ -19,18 +19,14 @@ import androidx.work.WorkerParameters
  * the default reflection factory (verified against work-runtime 2.11.2 `WorkerFactory.kt`). No
  * `DelegatingWorkerFactory` needed — `BackupWorker` is the only worker in the app.
  *
- * **Lease admission (Phase 5 R2, closed-admission quiesce).** WorkManager caches THIS factory
- * for the process, so a construction-time capture of the deps would pin generation 1's graph
- * forever. Instead every [createWorker] invocation ACQUIRES an admission lease — deps and lease
- * in one atomic step through the typed holder — so the worker is coherently bound to exactly one
- * generation, a replacement transition's quiesce awaits it (constructed-but-not-yet-RUNNING
- * included), and no worker can capture an outgoing generation's dependencies after admission
- * closed: the acquisition PARKS on WorkManager's serial task-executor thread for the bounded
- * transition window and then binds against the freshly published generation.
+ * **No generation capture (Phase 5 R2, spec §8.4/§8.6).** WorkManager caches THIS factory for
+ * the process AND may construct workers it never starts (cancelled before dispatch, constraint
+ * races) — so the factory must hold NOTHING a runtime transition would have to wait for.
+ * Construction is dependency-free; admission happens as the FIRST operation inside
+ * [BackupWorker]'s `doWork` ([BackupWorkerDepsHolder.awaitBackupWorkLease]), which is the only
+ * point a run binds to a generation.
  */
-class MetroWorkerFactory(
-    private val appContext: Context,
-) : WorkerFactory() {
+class MetroWorkerFactory : WorkerFactory() {
 
     override fun createWorker(
         appContext: Context,
@@ -41,15 +37,9 @@ class MetroWorkerFactory(
             // Not our worker — return null so WorkManager falls through to the default factory.
             return null
         }
-        // Atomic admission per invocation; the cast is safe by construction — the process
-        // Application (BaseApplication) implements BackupWorkerDepsHolder. The worker releases
-        // the lease in doWork's finally.
-        val lease: BackupWorkLease =
-            (this.appContext.applicationContext as BackupWorkerDepsHolder).acquireBackupWorkLease()
         return BackupWorker(
             appContext = appContext,
             workerParams = workerParameters,
-            workLease = lease,
         )
     }
 }

@@ -4,6 +4,7 @@ package io.github.stslex.workeeper.runtime
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import io.github.stslex.workeeper.app.common.di.AppUiPhase
 import io.github.stslex.workeeper.core.core.images.ImageStorage
 import io.github.stslex.workeeper.core.data.backup.api.DatabaseReplacementResult
 import io.github.stslex.workeeper.core.data.database.AppDatabase
@@ -27,30 +28,40 @@ import org.junit.jupiter.api.Assertions.assertNotSame
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.io.TempDir
+import java.io.File
 
 /**
- * Graph-only transition pins (Phase 5 R2 + the REQUEST_CHANGES finding-7 fixes): same-database
- * handover, submission ownership, candidate-unpublished-before-preflight, abort leaving the
- * outgoing generation INTACT (ViewModelStore included), staged construction unwind, the
- * deterministic nested-rollback rejection, and the single immutable published state behind both
- * phase views. The file-swap replacement transaction has its own suite.
+ * Graph-only transition pins (round-2 protocol): same-database handover, submission ownership,
+ * candidate-unpublished-before-preflight, aborts leaving the outgoing generation INTACT
+ * (ViewModelStore included), the committed safe boundary — N's teardown completes BEFORE N+1
+ * is exposed — the deterministic nested-rollback rejection, CancellationException-safe
+ * deferreds, and the epoch/admission behavior of commits vs aborts. The file-swap replacement
+ * transaction has its own suite.
  */
 internal class AppRuntimeTest {
 
-    private class ProbeViewModel : ViewModel()
+    private class ProbeViewModel(val onClear: () -> Unit = {}) : ViewModel() {
+        override fun onCleared() = onClear()
+    }
+
+    @TempDir
+    lateinit var tempDir: File
 
     private val context = mockk<Context>(relaxed = true)
     private val database = mockk<AppDatabase>(relaxed = true)
     private var databaseBuilds = 0
-    private val builtLifetimes = mutableListOf<io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetime>()
+    private val builtLifetimes =
+        mutableListOf<io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetime>()
     private val closedDatabases = mutableListOf<AppDatabase>()
-    private var graphFactoryFailures = mutableListOf<Int>()
+    private val graphFactoryFailures = mutableSetOf<Int>()
     private var builtGraphs = 0
+    private var epochAdvances = 0
 
     private var preflightOutcome: StartupOutcome = StartupOutcome.Proceed
     private var preflightGate: CompletableDeferred<Unit>? = null
     private var preflightAction: (suspend (RuntimeGeneration) -> Unit)? = null
-    private var preflightThrows = false
+    private var preflightError: Throwable? = null
 
     private val provider = mockk<DatabaseSnapshotProvider>(relaxed = true)
 
@@ -66,7 +77,7 @@ internal class AppRuntimeTest {
             },
             imageStorageFactory = { mockk<ImageStorage>(relaxed = true) },
             graphFactory = { _, _, _, lifetime, _ ->
-                if (builtGraphs++ in graphFactoryFailures) error("injected graph construction failure")
+                check(builtGraphs++ !in graphFactoryFailures) { "injected graph construction failure" }
                 builtLifetimes += lifetime
                 mockk<AppGraph>(relaxed = true) {
                     every { databaseSnapshotProvider } returns provider
@@ -75,13 +86,15 @@ internal class AppRuntimeTest {
             preflight = { generation ->
                 preflightAction?.invoke(generation)
                 preflightGate?.await()
-                if (preflightThrows) error("injected preflight failure")
+                preflightError?.let { throw it }
                 preflightOutcome
             },
             closeDatabase = { closedDatabases += it },
             policy = RuntimeTransitionPolicy(
+                advanceSnackbarGeneration = { epochAdvances++ },
                 mainDispatcher = dispatcher,
                 hostDispatcher = dispatcher,
+                stagingDirectory = { tempDir },
                 uiDisposalTimeoutMillis = 1_000,
                 drainTimeoutMillis = 1_000,
             ),
@@ -89,10 +102,11 @@ internal class AppRuntimeTest {
         body(runtime)
     }
 
-    private fun putProbeViewModel(generation: RuntimeGeneration) {
+    private fun putProbeViewModel(generation: RuntimeGeneration, onClear: () -> Unit = {}) {
         val factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
-            override fun <T : ViewModel> create(modelClass: Class<T>): T = ProbeViewModel() as T
+            override fun <T : ViewModel> create(modelClass: Class<T>): T =
+                ProbeViewModel(onClear) as T
         }
         ViewModelProvider(generation.viewModelStore, factory)[ProbeViewModel::class.java]
     }
@@ -109,10 +123,9 @@ internal class AppRuntimeTest {
             assertEquals(1, first.id)
             assertEquals(1, first.dbGeneration)
             assertEquals(1, databaseBuilds)
-            // Finding 7: one immutable published value backs both faces — they cannot disagree.
             val phase = assertInstanceOf(RuntimePhase.Serving::class.java, runtime.phases.value)
             val uiPhase = assertInstanceOf(
-                io.github.stslex.workeeper.app.common.di.AppUiPhase.Generation::class.java,
+                AppUiPhase.Generation::class.java,
                 runtime.uiPhases.value,
             )
             assertSame(first, phase.generation)
@@ -127,36 +140,42 @@ internal class AppRuntimeTest {
 
             val outcome = runtime.reinitialize()
 
-            val genTwo = assertInstanceOf(ReinitializeOutcome.Published::class.java, outcome).generation
+            val genTwo =
+                assertInstanceOf(ReinitializeOutcome.Published::class.java, outcome).generation
             assertSame(genOne.database, genTwo.database)
             assertEquals(1, databaseBuilds, "the db factory must not run again")
             assertEquals(genOne.dbGeneration, genTwo.dbGeneration)
             assertNotSame(genOne.graph, genTwo.graph)
             assertNotSame(genOne.lifetime, genTwo.lifetime)
             assertNotSame(genOne.viewModelStore, genTwo.viewModelStore)
-            assertNotSame(genOne.graph.navigatorEventBus, genTwo.graph.navigatorEventBus)
             assertEquals(genOne.id + 1, genTwo.id)
             assertTrue(closedDatabases.isEmpty(), "graph-only transitions never close the database")
             assertSame(genTwo, runtime.currentGeneration)
         }
 
     @Test
-    fun `old lifetime is cancelled and joined after publish - new lifetime active`() =
+    fun `committed safe boundary - N teardown COMPLETES before N+1 is exposed`() =
         runtimeTest { runtime ->
             val genOne = runtime.currentGeneration
-            var finallyRan = false
+            var phaseAtVmClear: AppUiPhase? = null
+            var phaseAtJobEnd: AppUiPhase? = null
+            putProbeViewModel(genOne, onClear = { phaseAtVmClear = runtime.uiPhases.value })
             genOne.lifetime.childScope(UnconfinedTestDispatcher(testScheduler)).launch {
                 try {
                     awaitCancellation()
                 } finally {
-                    finallyRan = true
+                    phaseAtJobEnd = runtime.uiPhases.value
                 }
             }
 
             val outcome = runtime.reinitialize()
 
-            val genTwo = assertInstanceOf(ReinitializeOutcome.Published::class.java, outcome).generation
-            assertTrue(finallyRan, "the outgoing generation's collector must have ENDED")
+            val genTwo =
+                assertInstanceOf(ReinitializeOutcome.Published::class.java, outcome).generation
+            // Both teardown observers saw the TRANSITION window — never generation N+1: the
+            // publication happened only after N's teardown reached its committed boundary.
+            assertInstanceOf(AppUiPhase.Transitioning::class.java, phaseAtVmClear)
+            assertInstanceOf(AppUiPhase.Transitioning::class.java, phaseAtJobEnd)
             assertFalse(genOne.lifetime.isActive)
             assertTrue(genTwo.lifetime.isActive)
         }
@@ -190,11 +209,9 @@ internal class AppRuntimeTest {
             assertInstanceOf(ReinitializeOutcome.Aborted::class.java, outcome)
             assertSame(genOne, runtime.currentGeneration)
             assertTrue(genOne.lifetime.isActive, "an abort must leave generation 1 fully serving")
-            // Finding 7: the outgoing ViewModelStore is only touched AFTER publish — an aborted
-            // transition re-enters the same store with its ViewModels intact.
             assertTrue(
                 genOne.viewModelStore.keys().isNotEmpty(),
-                "the outgoing ViewModelStore must be intact after an abort",
+                "the outgoing ViewModelStore must be intact after a pre-PONR abort",
             )
             val candidateLifetime = builtLifetimes.last()
             assertNotSame(genOne.lifetime, candidateLifetime)
@@ -221,7 +238,7 @@ internal class AppRuntimeTest {
     @Test
     fun `preflight throw unwinds deterministically to Serving`() = runtimeTest { runtime ->
         val genOne = runtime.currentGeneration
-        preflightThrows = true
+        preflightError = IllegalStateException("injected preflight failure")
 
         val outcome = runtime.reinitialize()
 
@@ -231,15 +248,27 @@ internal class AppRuntimeTest {
     }
 
     @Test
+    fun `preflight CancellationException - the deferred STILL resolves, with an abort`() =
+        runtimeTest { runtime ->
+            val genOne = runtime.currentGeneration
+            preflightError = CancellationException("injected cancellation inside preflight")
+
+            val outcome = runtime.reinitialize()
+
+            // Mandate 8: every submitted deferred completes exactly once — an internal
+            // CancellationException resolves like any escape instead of stranding the awaiter.
+            assertInstanceOf(ReinitializeOutcome.Aborted::class.java, outcome)
+            assertSame(genOne, (runtime.phases.value as RuntimePhase.Serving).generation)
+            assertTrue(genOne.lifetime.isActive)
+            assertEquals(0, epochAdvances, "no commit — no epoch advance")
+        }
+
+    @Test
     fun `nested rollback inside a graph-only preflight is REJECTED - no deadlock, no file ops`() =
         runtimeTest { runtime ->
             val genOne = runtime.currentGeneration
             var nestedResult: DatabaseReplacementResult? = null
             preflightAction = { _ ->
-                // The coordinator's Scenario-1 failure path re-entering the seam from INSIDE a
-                // graph-only preflight: deterministically rejected pre-mutation instead of
-                // deadlocking on the non-reentrant transition mutex; persisted S1 state stays
-                // intact for a cold start or a later replacement transaction.
                 nestedResult = runtime.rollbackToPreRestoreBackup()
             }
             preflightOutcome = StartupOutcome.RestartRequired
@@ -260,7 +289,7 @@ internal class AppRuntimeTest {
     @Test
     fun `unreleased worker lease aborts the graph-only transition too`() = runtimeTest { runtime ->
         val genOne = runtime.currentGeneration
-        val lease = runtime.acquireBackupWorkLease()
+        val lease = runtime.awaitBackupWorkLease()
 
         val outcome = runtime.reinitialize()
 
@@ -280,7 +309,8 @@ internal class AppRuntimeTest {
             val second = runtime.reinitialize(expected = genOne)
 
             val published = assertInstanceOf(ReinitializeOutcome.Published::class.java, first)
-            val coalesced = assertInstanceOf(ReinitializeOutcome.AlreadyReplaced::class.java, second)
+            val coalesced =
+                assertInstanceOf(ReinitializeOutcome.AlreadyReplaced::class.java, second)
             assertSame(published.generation, coalesced.serving)
         }
 
@@ -330,5 +360,18 @@ internal class AppRuntimeTest {
             runtime.onUiGenerationDisposed(genOne.id)
             runCurrent()
             assertInstanceOf(ReinitializeOutcome.Published::class.java, transition.await())
+        }
+
+    @Test
+    fun `committed graph-only handover advances the snackbar epoch - aborts never do`() =
+        runtimeTest { runtime ->
+            runtime.currentGeneration
+            preflightOutcome = StartupOutcome.RouteToRecovery
+            runtime.reinitialize()
+            assertEquals(0, epochAdvances, "aborts preserve the queued snackbar models")
+
+            preflightOutcome = StartupOutcome.Proceed
+            assertInstanceOf(ReinitializeOutcome.Published::class.java, runtime.reinitialize())
+            assertEquals(1, epochAdvances, "the commit discards the outgoing generation's queue")
         }
 }

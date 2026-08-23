@@ -2,7 +2,10 @@
 package io.github.stslex.workeeper.runtime
 
 import android.content.Context
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import io.github.stslex.workeeper.core.core.images.ImageStorage
+import io.github.stslex.workeeper.core.data.backup.api.DatabaseReplacementEffects
 import io.github.stslex.workeeper.core.data.backup.api.DatabaseReplacementResult
 import io.github.stslex.workeeper.core.data.backup.api.error.BackupError
 import io.github.stslex.workeeper.core.data.backup.api.result.BackupResult
@@ -13,78 +16,134 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
-import kotlinx.coroutines.CancellationException
+import io.mockk.slot
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withContext
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertInstanceOf
-import org.junit.jupiter.api.Assertions.assertNotSame
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
-import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.api.io.TempDir
 import java.io.File
 import java.io.IOException
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
-import kotlin.concurrent.thread
 
 /**
- * The REQUEST_CHANGES matrix for the runtime-owned replacement transaction: submission
- * ownership under caller cancellation (finding 1), closed lease admission (finding 2), the
- * id-bound UI gate (finding 3), phase-aware outcomes (finding 4), the staged failure ladder +
- * Fatal discipline (findings 5/6a), and atomic same-operation single-flight (finding 6b).
- * Injection seams are the runtime's own factories and the mocked per-generation
- * graph/provider — no hooks, no proxies.
+ * Replacement-transaction pins for the round-2 protocol: submission-owned bodies with staged
+ * source ownership, typed effects executed exactly once on the transaction coroutine, PONR at
+ * the START of the first irreversible action (teardown / close invocation / rename),
+ * close-throw → Fatal, truthful RecoveredByRollback vs Committed, closed admission (leases +
+ * atomic UI retire), and Fatal that is terminal under concurrency.
  */
 internal class AppRuntimeReplacementTest {
 
-    private val context = mockk<Context>(relaxed = true)
-    private val snapshotSource = File("snapshot_source.db")
-    private val preservedFile = File("pre_restore_backup.db")
-
-    private val databases = mutableListOf<AppDatabase>()
-    private var dbFactoryFailures = mutableListOf<Int>()
-    private val closedDatabases = mutableListOf<AppDatabase>()
-    private var closeFailures = mutableListOf<AppDatabase>()
-    private var graphFactoryFailures = mutableListOf<Int>()
-    private var builtGraphs = 0
-
-    private var preflightOutcomes = ArrayDeque<StartupOutcome>()
-    private var preflightAction: (suspend (RuntimeGeneration) -> Unit)? = null
-    private var preflightCalls = 0
-
-    /** One shared provider mock — every generation's graph returns it (file mechanics are global). */
-    private val provider = mockk<DatabaseSnapshotProvider> {
-        coEvery { validateSnapshotForRestore(any()) } returns BackupResult.Success(Unit)
-        coEvery { replaceLiveDatabaseFile(any()) } returns BackupResult.Success(Unit)
-        every { getPreRestoreBackupFile() } returns preservedFile
-        coEvery { deletePreRestoreBackup() } returns Unit
+    private class ProbeViewModel(val onClear: () -> Unit = {}) : ViewModel() {
+        override fun onCleared() = onClear()
     }
 
+    /** Recording effects double — one label per protocol phase, order-preserving. */
+    private class RecordingEffects(
+        private val onBefore: suspend () -> Unit = {},
+        private val onCommittedBody: suspend () -> Unit = {},
+    ) : DatabaseReplacementEffects {
+        val calls = mutableListOf<String>()
+
+        override suspend fun onBeforeMutation() {
+            calls += "beforeMutation"
+            onBefore()
+        }
+
+        override suspend fun onRejectedBeforeMutation(error: BackupError) {
+            calls += "rejected"
+        }
+
+        override suspend fun onCommitted() {
+            calls += "committed"
+            onCommittedBody()
+        }
+
+        override suspend fun onRecoveredByRollback(error: BackupError) {
+            calls += "recovered"
+        }
+
+        override suspend fun onFailedAfterMutation(error: BackupError) {
+            calls += "failedAfterMutation"
+        }
+
+        override suspend fun onFatal() {
+            calls += "fatal"
+        }
+    }
+
+    @TempDir
+    lateinit var tempDir: File
+
+    private val context = mockk<Context>(relaxed = true)
+    private val databases = mutableListOf<AppDatabase>()
+
+    /** Close failures by BUILD INDEX (0 = generation 1's db, 1 = the first candidate, …). */
+    private val closeFailureIndices = mutableSetOf<Int>()
+    private val graphFactoryFailures = mutableSetOf<Int>()
+    private var builtGraphs = 0
+
+    /** Interleaving recorder: closes, job-ends and swaps push labels here. */
+    private val protocolLog = mutableListOf<String>()
+
+    private val provider = mockk<DatabaseSnapshotProvider>(relaxed = true)
+
+    private var preflightCalls = 0
+    private val preflightOutcomes = ArrayDeque<StartupOutcome>()
+    private var preflightAction: (suspend (RuntimeGeneration) -> Unit)? = null
+    private var preflightGate: CompletableDeferred<Unit>? = null
+
+    private var epochAdvances = 0
+
+    private fun sourceFile(name: String = "restore_source.db"): File =
+        File(tempDir, name).apply { writeText("snapshot-bytes") }
+
+    private fun preservedFile(): File =
+        File(tempDir, "pre_restore_backup.db").apply { writeText("preserved-bytes") }
+
     private fun runtimeTest(
-        policy: ReplacementPolicy = ReplacementPolicy.RebuildInProcess,
-        body: suspend kotlinx.coroutines.test.TestScope.(AppRuntime) -> Unit,
+        replacementPolicy: ReplacementPolicy = ReplacementPolicy.RebuildInProcess,
+        body: suspend TestScope.(AppRuntime) -> Unit,
     ) = runTest {
+        coEvery { provider.validateSnapshotForRestore(any()) } returns BackupResult.Success(Unit)
+        coEvery { provider.replaceLiveDatabaseFile(any()) } coAnswers {
+            protocolLog += "swap"
+            BackupResult.Success(Unit)
+        }
+        coEvery { provider.getPreRestoreBackupFile() } answers {
+            File(tempDir, "pre_restore_backup.db").takeIf { it.exists() }
+        }
+        coEvery { provider.deletePreRestoreBackup() } coAnswers {
+            File(tempDir, "pre_restore_backup.db").delete()
+            BackupResult.Success(Unit)
+        }
         val dispatcher = UnconfinedTestDispatcher(testScheduler)
         val runtime = AppRuntime(
             applicationContext = context,
             dbFactory = {
-                val index = databases.size
-                if (index in dbFactoryFailures) {
-                    databases += mockk<AppDatabase>(relaxed = true)
-                    error("injected db construction failure #$index")
-                }
-                mockk<AppDatabase>(relaxed = true).also { databases += it }
+                val db = mockk<AppDatabase>(relaxed = true)
+                databases += db
+                db
             },
             imageStorageFactory = { mockk<ImageStorage>(relaxed = true) },
             graphFactory = { _, _, _, _, _ ->
-                if (builtGraphs++ in graphFactoryFailures) error("injected graph construction failure")
+                check(builtGraphs++ !in graphFactoryFailures) { "injected graph construction failure" }
                 mockk<AppGraph>(relaxed = true) {
                     every { databaseSnapshotProvider } returns provider
                 }
@@ -92,16 +151,19 @@ internal class AppRuntimeReplacementTest {
             preflight = { generation ->
                 preflightCalls++
                 preflightAction?.invoke(generation)
+                preflightGate?.await()
                 preflightOutcomes.removeFirstOrNull() ?: StartupOutcome.Proceed
             },
-            closeDatabase = { database ->
-                closedDatabases += database
-                if (database in closeFailures) error("injected close failure")
+            closeDatabase = { db ->
+                protocolLog += "close"
+                check(databases.indexOf(db) !in closeFailureIndices) { "injected close failure" }
             },
-            replacementPolicy = policy,
+            replacementPolicy = replacementPolicy,
             policy = RuntimeTransitionPolicy(
+                advanceSnackbarGeneration = { epochAdvances++ },
                 mainDispatcher = dispatcher,
                 hostDispatcher = dispatcher,
+                stagingDirectory = { tempDir },
                 uiDisposalTimeoutMillis = 1_000,
                 drainTimeoutMillis = 1_000,
             ),
@@ -109,436 +171,653 @@ internal class AppRuntimeReplacementTest {
         body(runtime)
     }
 
-    // ------------------------------------------------------------------ happy paths / phases --
+    private fun stagedFiles(): List<File> =
+        tempDir.listFiles().orEmpty().filter { it.name.startsWith("staged_restore_") }
+
+    // ------------------------------------------------------------------------------------------
+    // Mandate 1 — staged source ownership at submission.
+    // ------------------------------------------------------------------------------------------
 
     @Test
-    fun `rebuild restore happy path - close, swap, fresh db generation, publish`() =
+    fun `restore stages the source at submission and cleans the staged copy on commit`() =
         runtimeTest { runtime ->
-            val genOne = runtime.currentGeneration
+            runtime.currentGeneration
+            val source = sourceFile()
 
-            val outcome = runtime.replace(ReplacementOperation.RestoreFromSnapshot(snapshotSource))
+            val outcome = runtime.replace(ReplacementOperation.RestoreFromSnapshot(source))
 
-            val genTwo = assertInstanceOf(ReplacementOutcome.Completed::class.java, outcome)
-                .generation!!
-            assertNotSame(genOne.database, genTwo.database)
-            assertEquals(genOne.dbGeneration + 1, genTwo.dbGeneration)
-            assertTrue(genOne.database in closedDatabases, "outgoing database must be closed")
-            coVerify(exactly = 1) { provider.validateSnapshotForRestore(snapshotSource) }
-            coVerify(exactly = 1) { provider.replaceLiveDatabaseFile(snapshotSource) }
-            assertFalse(genOne.lifetime.isActive, "outgoing lifetime ends before close")
-            assertSame(genTwo, runtime.currentGeneration)
-            assertSame(genTwo, (runtime.phases.value as RuntimePhase.Serving).generation)
+            assertInstanceOf(ReplacementOutcome.Completed::class.java, outcome)
+            assertFalse(source.exists(), "ownership transferred: the original path was consumed")
+            assertTrue(stagedFiles().isEmpty(), "the runtime deletes its staged copy on commit")
+            val swapped = slot<File>()
+            coVerify { provider.replaceLiveDatabaseFile(capture(swapped)) }
+            assertTrue(
+                swapped.captured.name.startsWith("staged_restore_"),
+                "the transaction swaps the RUNTIME-OWNED staged copy, got ${swapped.captured}",
+            )
         }
 
     @Test
-    fun `validation failure - RejectedBeforeMutation, nothing closed, generation 1 intact`() =
+    fun `cancelled caller deleting its temp path cannot strand the transaction - it commits`() =
         runtimeTest { runtime ->
-            val genOne = runtime.currentGeneration
-            coEvery { provider.validateSnapshotForRestore(any()) } returns BackupResult.Failure(
-                BackupError.BackupTooNew(backupSchemaVersion = 99, appSchemaVersion = 6),
-            )
+            runtime.currentGeneration
+            val source = sourceFile()
+            val gate = CompletableDeferred<Unit>()
+            preflightGate = gate
 
-            val outcome = runtime.replace(ReplacementOperation.RestoreFromSnapshot(snapshotSource))
+            val caller = launch { runtime.replace(ReplacementOperation.RestoreFromSnapshot(source)) }
+            runCurrent()
+            caller.cancel()
+            // The caller's cleanup: deleting the ORIGINAL path is a no-op post-staging.
+            source.delete()
+            runCurrent()
 
-            val rejected = assertInstanceOf(
-                ReplacementOutcome.RejectedBeforeMutation::class.java,
-                outcome,
-            )
-            assertInstanceOf(BackupError.BackupTooNew::class.java, rejected.error)
-            assertTrue(closedDatabases.isEmpty())
-            assertTrue(genOne.lifetime.isActive)
-            assertSame(genOne, runtime.currentGeneration)
+            gate.complete(Unit)
+            runCurrent()
+
+            val serving = assertInstanceOf(RuntimePhase.Serving::class.java, runtime.phases.value)
+            assertEquals(2, serving.generation.id, "the transaction completed despite the caller")
+            assertTrue(stagedFiles().isEmpty(), "terminal cleanup ran on the runtime's copy")
         }
 
     @Test
-    fun `beforeMutation hook failure - RejectedBeforeMutation, nothing closed or swapped`() =
+    fun `staging failure rejects before anything - no validation, compensation runs`() =
         runtimeTest { runtime ->
-            val genOne = runtime.currentGeneration
+            runtime.currentGeneration
+            val missing = File(tempDir, "never_created.db")
+            val effects = RecordingEffects()
 
             val outcome = runtime.replace(
-                ReplacementOperation.RestoreFromSnapshot(snapshotSource),
-                ReplacementHooks(beforeMutation = { error("marker write failed") }),
+                ReplacementOperation.RestoreFromSnapshot(missing),
+                effects,
             )
 
             assertInstanceOf(ReplacementOutcome.RejectedBeforeMutation::class.java, outcome)
-            assertTrue(closedDatabases.isEmpty())
-            coVerify(exactly = 0) { provider.replaceLiveDatabaseFile(any()) }
+            coVerify(exactly = 0) { provider.validateSnapshotForRestore(any()) }
+            assertEquals(listOf("rejected"), effects.calls)
+        }
+
+    // ------------------------------------------------------------------------------------------
+    // Mandate 2 — typed effects, runtime-owned compensation, exactly once.
+    // ------------------------------------------------------------------------------------------
+
+    @Test
+    fun `marker written - caller killed - lease timeout - transaction-owned cleanup still runs`() =
+        runtimeTest { runtime ->
+            runtime.currentGeneration
+            val lease = runtime.awaitBackupWorkLease() // the quiesce will time out on it
+            var markerWritten = false
+            val effects = RecordingEffects(onBefore = { markerWritten = true })
+            val source = sourceFile()
+
+            val caller = launch {
+                runtime.replace(ReplacementOperation.RestoreFromSnapshot(source), effects)
+            }
+            runCurrent()
+            assertTrue(markerWritten, "beforeMutation ran inside the mutex, before the quiesce")
+            caller.cancel() // the initiator dies mid-transaction
+            advanceTimeBy(3_000)
+            runCurrent()
+
+            assertEquals(
+                listOf("beforeMutation", "rejected"),
+                effects.calls,
+                "compensation ran ON the transaction despite the dead caller",
+            )
+            assertTrue(stagedFiles().isEmpty(), "the staged source was cleaned by the runtime")
+            val serving = assertInstanceOf(RuntimePhase.Serving::class.java, runtime.phases.value)
+            assertEquals(1, serving.generation.id)
+            lease.release()
+        }
+
+    @Test
+    fun `validation failure - rejection with compensation, nothing irreversible`() =
+        runtimeTest { runtime ->
+            val genOne = runtime.currentGeneration
+            coEvery { provider.validateSnapshotForRestore(any()) } returns BackupResult.Failure(
+                BackupError.BackupTooNew(backupSchemaVersion = 9, appSchemaVersion = 5),
+            )
+            val effects = RecordingEffects()
+
+            val outcome = runtime.replace(
+                ReplacementOperation.RestoreFromSnapshot(sourceFile()),
+                effects,
+            )
+
+            val rejected =
+                assertInstanceOf(ReplacementOutcome.RejectedBeforeMutation::class.java, outcome)
+            assertInstanceOf(BackupError.BackupTooNew::class.java, rejected.error)
+            assertEquals(listOf("rejected"), effects.calls)
+            assertTrue(protocolLog.isEmpty(), "no close, no swap")
             assertSame(genOne, runtime.currentGeneration)
         }
 
-    // ---------------------------------------------------- finding 1: submission ownership -----
+    @Test
+    fun `beforeMutation failure - rejection, nothing closed or swapped`() = runtimeTest { runtime ->
+        runtime.currentGeneration
+        val effects = RecordingEffects(onBefore = { error("marker write failed") })
+
+        val outcome = runtime.replace(ReplacementOperation.RestoreFromSnapshot(sourceFile()), effects)
+
+        assertInstanceOf(ReplacementOutcome.RejectedBeforeMutation::class.java, outcome)
+        assertEquals(listOf("beforeMutation", "rejected"), effects.calls)
+        assertTrue(protocolLog.isEmpty())
+    }
 
     @Test
-    fun `settings-store cancellation - the transaction completes despite the dead caller`() =
+    fun `committed effects failure is SURFACED - never a silently clean commit`() =
         runtimeTest { runtime ->
             runtime.currentGeneration
-            val gate = CompletableDeferred<Unit>()
-            preflightAction = { gate.await() }
-            var callerCancelled = false
+            val effects = RecordingEffects(onCommittedBody = { error("dialog write failed") })
 
-            // The real initiator shape: a Store-scope coroutine the Transitioning disposal kills.
-            val callerJob = launch {
-                try {
-                    runtime.replace(ReplacementOperation.RestoreFromSnapshot(snapshotSource))
-                } catch (e: CancellationException) {
-                    callerCancelled = true
-                    throw e
-                }
+            val outcome = runtime.replace(
+                ReplacementOperation.RestoreFromSnapshot(sourceFile()),
+                effects,
+            )
+
+            val completed = assertInstanceOf(ReplacementOutcome.Completed::class.java, outcome)
+            assertNotNull(completed.effectsError, "the failed commit-effects must surface")
+            assertNotNull(completed.generation, "the operation itself DID commit")
+        }
+
+    // ------------------------------------------------------------------------------------------
+    // Mandates 3 + 4 — result truth and asset preservation.
+    // ------------------------------------------------------------------------------------------
+
+    @Test
+    fun `restore swap failure with successful rollback - RecoveredByRollback, never Completed`() =
+        runtimeTest { runtime ->
+            runtime.currentGeneration
+            preservedFile()
+            val swapError = BackupError.Io(IOException("rename failed"))
+            var swaps = 0
+            coEvery { provider.replaceLiveDatabaseFile(any()) } coAnswers {
+                protocolLog += "swap"
+                if (swaps++ == 0) BackupResult.Failure(swapError) else BackupResult.Success(Unit)
             }
-            runCurrent()
-            callerJob.cancel()
-            runCurrent()
-            assertTrue(callerCancelled, "the caller's await must be cancelled")
+            val effects = RecordingEffects()
 
-            gate.complete(Unit)
-            runCurrent()
+            val outcome = runtime.replace(
+                ReplacementOperation.RestoreFromSnapshot(sourceFile()),
+                effects,
+            )
 
-            // The transaction was NOT cancelled and NOT stranded: a successor generation serves.
-            val serving = assertInstanceOf(RuntimePhase.Serving::class.java, runtime.phases.value)
-            assertEquals(2, serving.generation.id, "the transaction must have published gen 2")
-            coVerify(exactly = 1) { provider.replaceLiveDatabaseFile(snapshotSource) }
+            val recovered =
+                assertInstanceOf(ReplacementOutcome.RecoveredByRollback::class.java, outcome)
+            assertSame(swapError, recovered.error)
+            assertEquals(2, recovered.generation.id, "a successor serves the PRE-operation data")
+            assertEquals(
+                listOf("beforeMutation", "recovered"),
+                effects.calls,
+                "recovered-by-rollback effects — never onCommitted",
+            )
         }
 
     @Test
-    fun `undo initiator inside the outgoing lifetime - no deadlock, hook runs, txn completes`() =
+    fun `inline scenario-1 rollback - the outer RESTORE reports RecoveredByRollback`() =
+        runtimeTest { runtime ->
+            runtime.currentGeneration
+            preservedFile()
+            var inlineResult: DatabaseReplacementResult? = null
+            preflightAction = { _ ->
+                if (preflightCalls == 1) {
+                    inlineResult = runtime.rollbackToPreRestoreBackup()
+                }
+            }
+            preflightOutcomes += StartupOutcome.RestartRequired // after the inline rollback
+
+            val outcome = runtime.replace(ReplacementOperation.RestoreFromSnapshot(sourceFile()))
+
+            // The inline caller REQUESTED a rollback — its result is honestly Committed.
+            assertInstanceOf(DatabaseReplacementResult.Committed::class.java, inlineResult)
+            // The outer caller requested a RESTORE that ended rolled back — never Completed.
+            assertInstanceOf(ReplacementOutcome.RecoveredByRollback::class.java, outcome)
+            assertEquals(2, preflightCalls, "the retry attempt ran over the rolled-back file")
+        }
+
+    @Test
+    fun `rollback operation commits - Completed is the requested-op truth`() =
+        runtimeTest { runtime ->
+            runtime.currentGeneration
+            preservedFile()
+            val effects = RecordingEffects()
+
+            val outcome = runtime.replace(ReplacementOperation.RollbackToPreRestoreBackup, effects)
+
+            assertInstanceOf(ReplacementOutcome.Completed::class.java, outcome)
+            assertEquals(listOf("beforeMutation", "committed"), effects.calls)
+        }
+
+    @Test
+    fun `restart-process swap failure - FailedAfterMutation, journal effects, assets preserved`() =
+        runtimeTest(replacementPolicy = ReplacementPolicy.RestartProcess) { runtime ->
+            runtime.currentGeneration
+            preservedFile()
+            coEvery { provider.replaceLiveDatabaseFile(any()) } returns BackupResult.Failure(
+                BackupError.Io(IOException("rename failed")),
+            )
+            val effects = RecordingEffects()
+
+            val outcome = runtime.replace(
+                ReplacementOperation.RestoreFromSnapshot(sourceFile()),
+                effects,
+            )
+
+            assertInstanceOf(ReplacementOutcome.FailedAfterMutation::class.java, outcome)
+            assertEquals(listOf("beforeMutation", "failedAfterMutation"), effects.calls)
+            assertTrue(File(tempDir, "pre_restore_backup.db").exists(), "assets preserved")
+        }
+
+    @Test
+    fun `restart-process close throw - FailedAfterMutation, never rejected, no rename`() =
+        runtimeTest(replacementPolicy = ReplacementPolicy.RestartProcess) { runtime ->
+            runtime.currentGeneration
+            preservedFile()
+            closeFailureIndices += 0
+            val effects = RecordingEffects()
+
+            val outcome = runtime.replace(
+                ReplacementOperation.RestoreFromSnapshot(sourceFile()),
+                effects,
+            )
+
+            // Close INVOCATION = PONR (mandate 5): a throwing close is post-PONR unknown state.
+            assertInstanceOf(ReplacementOutcome.FailedAfterMutation::class.java, outcome)
+            assertEquals(0, protocolLog.count { it == "swap" }, "never rename after a failed close")
+            assertEquals(listOf("beforeMutation", "failedAfterMutation"), effects.calls)
+            assertTrue(File(tempDir, "pre_restore_backup.db").exists(), "assets preserved")
+        }
+
+    // ------------------------------------------------------------------------------------------
+    // Mandate 5 — PONR at the start of every irreversible action.
+    // ------------------------------------------------------------------------------------------
+
+    @Test
+    fun `outgoing close failure is FATAL - no rename, no republished generation`() =
+        runtimeTest { runtime ->
+            runtime.currentGeneration
+            closeFailureIndices += 0
+            val effects = RecordingEffects()
+
+            val outcome = runtime.replace(
+                ReplacementOperation.RestoreFromSnapshot(sourceFile()),
+                effects,
+            )
+
+            assertEquals(ReplacementOutcome.Fatal, outcome)
+            assertEquals(RuntimePhase.Fatal, runtime.phases.value)
+            assertFalse(protocolLog.contains("swap"), "a failed close must NEVER be renamed over")
+            assertEquals(listOf("beforeMutation", "fatal"), effects.calls)
+            assertThrows<IllegalStateException> { runtime.currentGeneration }
+        }
+
+    @Test
+    fun `strict replacement clears the probe ViewModel and joins the DB job BEFORE close`() =
         runtimeTest { runtime ->
             val genOne = runtime.currentGeneration
-            var hookRan = false
-            var initiatorCancelled = false
-            val initiatorDone = CompletableDeferred<Unit>()
-
-            // The real undo shape: the initiator's scope is a CHILD of the outgoing lifetime —
-            // the transaction's own quiesce cancels it mid-await. The cancel is what breaks the
-            // await↔join cycle; the join completes; the transaction proceeds; the post-commit
-            // hook runs under TRANSACTION ownership.
+            var probeCleared = false
+            val factory = object : ViewModelProvider.Factory {
+                @Suppress("UNCHECKED_CAST")
+                override fun <T : ViewModel> create(modelClass: Class<T>): T =
+                    ProbeViewModel(onClear = { probeCleared = true }) as T
+            }
+            ViewModelProvider(genOne.viewModelStore, factory)[ProbeViewModel::class.java]
             genOne.lifetime.childScope(UnconfinedTestDispatcher(testScheduler)).launch {
                 try {
-                    runtime.rollbackToPreRestoreBackup(onCommitted = { hookRan = true })
-                } catch (e: CancellationException) {
-                    initiatorCancelled = true
-                    initiatorDone.complete(Unit)
-                    throw e
+                    awaitCancellation()
+                } finally {
+                    protocolLog += "db-job-ended"
                 }
-                initiatorDone.complete(Unit)
             }
-            runCurrent()
-            initiatorDone.await()
 
-            assertTrue(initiatorCancelled, "the initiator dies with its generation's lifetime")
-            assertTrue(hookRan, "post-commit effects must run under transaction ownership")
-            val serving = assertInstanceOf(RuntimePhase.Serving::class.java, runtime.phases.value)
-            assertEquals(2, serving.generation.id)
-            coVerify(exactly = 1) { provider.replaceLiveDatabaseFile(preservedFile) }
-            coVerify(exactly = 1) { provider.deletePreRestoreBackup() }
+            val outcome = runtime.replace(ReplacementOperation.RestoreFromSnapshot(sourceFile()))
+
+            assertInstanceOf(ReplacementOutcome.Completed::class.java, outcome)
+            assertTrue(probeCleared, "the outgoing runtime-owned ViewModelStore must be CLEARED")
+            val jobIndex = protocolLog.indexOf("db-job-ended")
+            val closeIndex = protocolLog.indexOf("close")
+            assertTrue(jobIndex in 0 until closeIndex, "DB job joined BEFORE close: $protocolLog")
         }
 
-    // ------------------------------------------------------- finding 6b: atomic single-flight --
+    @Test
+    fun `unjoinable outgoing job after PONR - Fatal, the database is never closed`() =
+        runtimeTest { runtime ->
+            val genOne = runtime.currentGeneration
+            val never = CompletableDeferred<Unit>()
+            genOne.lifetime.childScope(UnconfinedTestDispatcher(testScheduler)).launch {
+                withContext(NonCancellable) { never.await() } // an unjoinable DB-bound job
+            }
+
+            val transaction = async {
+                runtime.replace(ReplacementOperation.RestoreFromSnapshot(sourceFile()))
+            }
+            advanceTimeBy(5_000)
+            runCurrent()
+
+            assertEquals(ReplacementOutcome.Fatal, transaction.await())
+            assertFalse(protocolLog.contains("close"), "never close under an unjoined job")
+            assertFalse(protocolLog.contains("swap"))
+            never.complete(Unit)
+            runCurrent()
+        }
 
     @Test
-    fun `simultaneous same-operation submissions share ONE transaction and outcome`() =
+    fun `candidate dispose close failure stops the ladder FATAL - no rollback rename`() =
+        runtimeTest { runtime ->
+            runtime.currentGeneration
+            preservedFile()
+            closeFailureIndices += 1 // the first CANDIDATE's close will throw during disposal
+            preflightOutcomes += StartupOutcome.RouteToRecovery // the candidate fails preflight
+
+            val outcome = runtime.replace(ReplacementOperation.RestoreFromSnapshot(sourceFile()))
+
+            assertEquals(ReplacementOutcome.Fatal, outcome)
+            assertEquals(
+                1,
+                protocolLog.count { it == "swap" },
+                "the ladder stopped: only the primary swap ran, never a rollback rename",
+            )
+        }
+
+    @Test
+    fun `orphaned candidate close failure after graphFactory throw - Fatal, ladder stopped`() =
+        runtimeTest { runtime ->
+            runtime.currentGeneration
+            preservedFile()
+            graphFactoryFailures += 1 // the candidate's graph build throws
+            closeFailureIndices += 1 // and the orphan's close throws too
+
+            val outcome = runtime.replace(ReplacementOperation.RestoreFromSnapshot(sourceFile()))
+
+            assertEquals(ReplacementOutcome.Fatal, outcome)
+            assertEquals(1, protocolLog.count { it == "swap" }, "no rollback rename after")
+        }
+
+    @Test
+    fun `graphFactory failure with clean orphan close - ladder recovers by rollback`() =
+        runtimeTest { runtime ->
+            runtime.currentGeneration
+            preservedFile()
+            graphFactoryFailures += 1 // candidate #1 fails; its db closes cleanly
+
+            val outcome = runtime.replace(ReplacementOperation.RestoreFromSnapshot(sourceFile()))
+
+            assertInstanceOf(ReplacementOutcome.RecoveredByRollback::class.java, outcome)
+        }
+
+    // ------------------------------------------------------------------------------------------
+    // Mandate 7 — admission.
+    // ------------------------------------------------------------------------------------------
+
+    @Test
+    fun `unreleased lease aborts pre-PONR - rejection, admission reopens, retry works`() =
+        runtimeTest { runtime ->
+            val genOne = runtime.currentGeneration
+            val lease = runtime.awaitBackupWorkLease()
+
+            val transaction = async {
+                runtime.replace(ReplacementOperation.RestoreFromSnapshot(sourceFile()))
+            }
+            advanceTimeBy(3_000)
+            runCurrent()
+
+            val rejected = assertInstanceOf(
+                ReplacementOutcome.RejectedBeforeMutation::class.java,
+                transaction.await(),
+            )
+            assertTrue("$rejected".contains("lease"), "reason names the lease: $rejected")
+            assertTrue(protocolLog.isEmpty(), "nothing irreversible happened")
+            assertSame(genOne, runtime.currentGeneration)
+            lease.release()
+            val retry =
+                runtime.replace(ReplacementOperation.RestoreFromSnapshot(sourceFile("second.db")))
+            assertInstanceOf(ReplacementOutcome.Completed::class.java, retry)
+        }
+
+    @Test
+    fun `worker suspended in the closed window binds to the NEW generation`() =
         runtimeTest { runtime ->
             runtime.currentGeneration
             val gate = CompletableDeferred<Unit>()
-            preflightAction = { gate.await() }
+            preflightGate = gate
 
-            val first = async { runtime.replace(ReplacementOperation.RestoreFromSnapshot(snapshotSource)) }
-            val second = async { runtime.replace(ReplacementOperation.RestoreFromSnapshot(snapshotSource)) }
+            val transaction = async {
+                runtime.replace(ReplacementOperation.RestoreFromSnapshot(sourceFile()))
+            }
+            runCurrent() // quiesce closed admission; the transaction parked at preflight
+            val leaseCall = async { runtime.awaitBackupWorkLease() }
+            runCurrent()
+            assertFalse(leaseCall.isCompleted, "admission is CLOSED during the window")
+
+            gate.complete(Unit)
+            runCurrent()
+
+            val genTwo = (transaction.await() as ReplacementOutcome.Completed).generation!!
+            assertSame(genTwo.graph, leaseCall.await().deps, "bound to the SUCCESSOR atomically")
+        }
+
+    @Test
+    fun `late ui attach after the zero observation is REFUSED - the retired id never reopens`() =
+        runtimeTest { runtime ->
+            val genOne = runtime.currentGeneration
+            val gate = CompletableDeferred<Unit>()
+            preflightGate = gate
+
+            val transaction = async {
+                runtime.replace(ReplacementOperation.RestoreFromSnapshot(sourceFile()))
+            }
+            runCurrent() // zero was observed; gen 1's id was retired atomically with it
+
+            runtime.onUiGenerationAttached(genOne.id) // the late attach — must not pass
+            assertEquals(0, runtime.uiAttachmentCount(genOne.id), "refused, not counted")
+
+            gate.complete(Unit)
+            runCurrent()
+            assertInstanceOf(ReplacementOutcome.Completed::class.java, transaction.await())
+        }
+
+    @Test
+    fun `attach BEFORE the zero observation blocks the transition until disposed`() =
+        runtimeTest { runtime ->
+            val genOne = runtime.currentGeneration
+            runtime.onUiGenerationAttached(genOne.id)
+
+            val transaction = async {
+                runtime.replace(ReplacementOperation.RestoreFromSnapshot(sourceFile()))
+            }
+            runCurrent()
+            assertTrue(transaction.isActive, "the attached region gates the whole machine")
+            assertTrue(protocolLog.isEmpty(), "nothing irreversible while the UI holds on")
+
+            runtime.onUiGenerationDisposed(genOne.id)
+            runCurrent()
+            assertInstanceOf(ReplacementOutcome.Completed::class.java, transaction.await())
+        }
+
+    @Test
+    fun `aborted transition reopens ui admission for the outgoing id`() =
+        runtimeTest { runtime ->
+            val genOne = runtime.currentGeneration
+            val lease = runtime.awaitBackupWorkLease()
+            val transaction = async {
+                runtime.replace(ReplacementOperation.RestoreFromSnapshot(sourceFile()))
+            }
+            advanceTimeBy(3_000)
+            runCurrent()
+            assertInstanceOf(
+                ReplacementOutcome.RejectedBeforeMutation::class.java,
+                transaction.await(),
+            )
+
+            runtime.onUiGenerationAttached(genOne.id)
+            assertEquals(1, runtime.uiAttachmentCount(genOne.id), "un-retired on abort")
+            runtime.onUiGenerationDisposed(genOne.id)
+            lease.release()
+        }
+
+    @Test
+    fun `committed handover advances the snackbar epoch - an abort never does`() =
+        runtimeTest { runtime ->
+            runtime.currentGeneration
+            val lease = runtime.awaitBackupWorkLease()
+            val aborted = async {
+                runtime.replace(ReplacementOperation.RestoreFromSnapshot(sourceFile()))
+            }
+            advanceTimeBy(3_000)
+            runCurrent()
+            assertInstanceOf(
+                ReplacementOutcome.RejectedBeforeMutation::class.java,
+                aborted.await(),
+            )
+            assertEquals(0, epochAdvances, "abort preserves the queued snackbar models")
+
+            lease.release()
+            runtime.replace(ReplacementOperation.RestoreFromSnapshot(sourceFile("second.db")))
+            assertEquals(1, epochAdvances, "commit discards the outgoing generation's queue")
+        }
+
+    // ------------------------------------------------------------------------------------------
+    // Mandates 6 + 8 — single-flight and Fatal under concurrency.
+    // ------------------------------------------------------------------------------------------
+
+    @Test
+    fun `simultaneous same-operation submissions share ONE transaction and one staging`() =
+        runtimeTest { runtime ->
+            runtime.currentGeneration
+            val source = sourceFile()
+            val gate = CompletableDeferred<Unit>()
+            preflightGate = gate
+
+            val first = async { runtime.replace(ReplacementOperation.RestoreFromSnapshot(source)) }
+            runCurrent()
+            val second = async { runtime.replace(ReplacementOperation.RestoreFromSnapshot(source)) }
             runCurrent()
             gate.complete(Unit)
+            runCurrent()
 
-            val a = first.await()
-            val b = second.await()
-            assertSame(a, b, "same-operation requests must receive the SAME outcome object")
-            assertEquals(1, preflightCalls, "exactly one transaction may run")
-            coVerify(exactly = 1) { provider.replaceLiveDatabaseFile(snapshotSource) }
+            assertSame(first.await(), second.await(), "one transaction, one outcome object")
+            assertEquals(1, preflightCalls)
         }
 
     @Test
     fun `different operation gets its OWN serialized result - never the other operation's`() =
         runtimeTest { runtime ->
             runtime.currentGeneration
-            every { provider.getPreRestoreBackupFile() } returns null
+            // No preserved file exists → the rollback op must reject on ITS OWN terms.
+            val restore = async {
+                runtime.replace(ReplacementOperation.RestoreFromSnapshot(sourceFile()))
+            }
+            val rollback = async {
+                runtime.replace(ReplacementOperation.RollbackToPreRestoreBackup)
+            }
+            runCurrent()
 
-            val restore = runtime.replace(ReplacementOperation.RestoreFromSnapshot(snapshotSource))
-            val rollback = runtime.replace(ReplacementOperation.RollbackToPreRestoreBackup)
-
-            assertInstanceOf(ReplacementOutcome.Completed::class.java, restore)
+            assertInstanceOf(ReplacementOutcome.Completed::class.java, restore.await())
             val rejected = assertInstanceOf(
                 ReplacementOutcome.RejectedBeforeMutation::class.java,
-                rollback,
+                rollback.await(),
             )
             assertInstanceOf(BackupError.CorruptedBackup::class.java, rejected.error)
         }
 
-    // -------------------------------------------------------- finding 2: closed admission -----
-
     @Test
-    fun `unreleased worker lease aborts the replacement before close - assets intact`() =
+    fun `A reaches Fatal while B is queued - B performs no validation, close, swap or publish`() =
         runtimeTest { runtime ->
             val genOne = runtime.currentGeneration
-            val lease = runtime.acquireBackupWorkLease()
-
-            val outcome = runtime.replace(ReplacementOperation.RestoreFromSnapshot(snapshotSource))
-
-            val rejected = assertInstanceOf(
-                ReplacementOutcome.RejectedBeforeMutation::class.java,
-                outcome,
-            )
-            assertTrue(rejected.error.toString().contains("lease"), "reason: ${rejected.error}")
-            assertTrue(closedDatabases.isEmpty(), "never close after a failed lease drain")
-            coVerify(exactly = 0) { provider.replaceLiveDatabaseFile(any()) }
-            assertSame(genOne, runtime.currentGeneration)
-            assertTrue(genOne.lifetime.isActive, "the abort precedes the lifetime join")
-
-            // Admission reopened: after releasing, the next replacement succeeds.
-            lease.release()
-            val second = runtime.replace(ReplacementOperation.RestoreFromSnapshot(snapshotSource))
-            assertInstanceOf(ReplacementOutcome.Completed::class.java, second)
-        }
-
-    @Test
-    fun `worker admitted during the closed window binds to the NEW generation`() =
-        runtimeTest { runtime ->
-            runtime.currentGeneration
-            val gate = CompletableDeferred<Unit>()
-            preflightAction = { gate.await() }
-
-            val transition = async {
-                runtime.replace(ReplacementOperation.RestoreFromSnapshot(snapshotSource))
-            }
-            runCurrent() // transaction parked in preflight; admission is CLOSED
-
-            // A real WorkManager thread parks in acquire until admission reopens at publish.
-            val acquired = CountDownLatch(1)
-            var leaseDeps: Any? = null
-            val workerThread = thread {
-                val lease = runtime.acquireBackupWorkLease()
-                leaseDeps = lease.deps
-                lease.release()
-                acquired.countDown()
-            }
-            // The thread must be BLOCKED while admission is closed.
-            assertFalse(acquired.await(150, TimeUnit.MILLISECONDS), "admission must be closed")
-
-            gate.complete(Unit)
-            runCurrent()
-            val genTwo = assertInstanceOf(ReplacementOutcome.Completed::class.java, transition.await())
-                .generation!!
-            assertTrue(acquired.await(5, TimeUnit.SECONDS), "acquire must resume after publish")
-            workerThread.join(5_000)
-            assertSame(
-                genTwo.graph,
-                leaseDeps,
-                "a worker admitted during the window must bind to the NEW generation",
-            )
-        }
-
-    // ------------------------------------------------------------- finding 3: UI gate ---------
-
-    @Test
-    fun `ui gate - wrong and stale ids never release it, all attachments must detach`() =
-        runtimeTest { runtime ->
-            val genOne = runtime.currentGeneration
+            preservedFile()
+            closeFailureIndices += 0 // A's outgoing close throws → Fatal (post-PONR)
+            // Hold A inside its machine (UI gate) so B queues behind the mutex.
             runtime.onUiGenerationAttached(genOne.id)
-            runtime.onUiGenerationAttached(genOne.id) // overlapping composition (recreation)
 
-            val transition = async {
-                runtime.replace(ReplacementOperation.RestoreFromSnapshot(snapshotSource))
-            }
+            val a = async { runtime.replace(ReplacementOperation.RestoreFromSnapshot(sourceFile())) }
             runCurrent()
-            assertEquals(RuntimePhase.Transitioning, runtime.phases.value)
-            assertTrue(transition.isActive, "gated on UI detachment")
-
-            runtime.onUiGenerationDisposed(genOne.id + 41) // wrong id — must NOT release
+            val b = async { runtime.replace(ReplacementOperation.RollbackToPreRestoreBackup) }
             runCurrent()
-            assertTrue(transition.isActive, "a wrong id must never release the gate")
-
-            runtime.onUiGenerationDisposed(genOne.id) // first of two attachments
-            runCurrent()
-            assertTrue(transition.isActive, "every attachment must detach before the gate opens")
-
-            runtime.onUiGenerationDisposed(genOne.id) // second — gate opens
-            runCurrent()
-            assertInstanceOf(ReplacementOutcome.Completed::class.java, transition.await())
-
-            // A LATE dispose for the dead generation is harmless bookkeeping.
             runtime.onUiGenerationDisposed(genOne.id)
-        }
+            runCurrent()
 
-    // ------------------------------------------- findings 4 + 5: phases, ladder, Fatal --------
-
-    @Test
-    fun `restart-process policy - validate, close, swap, no rebuild, no phase change`() =
-        runtimeTest(policy = ReplacementPolicy.RestartProcess) { runtime ->
-            val genOne = runtime.currentGeneration
-
-            val outcome = runtime.replace(ReplacementOperation.RestoreFromSnapshot(snapshotSource))
-
-            val completed = assertInstanceOf(ReplacementOutcome.Completed::class.java, outcome)
-            assertEquals(null, completed.generation, "RestartProcess publishes no successor")
-            assertTrue(genOne.database in closedDatabases)
-            assertEquals(1, databases.size, "no rebuild under RestartProcess")
-            assertEquals(0, preflightCalls)
-            assertSame(genOne, (runtime.phases.value as RuntimePhase.Serving).generation)
-            // Startable from an already-terminal generation (undo IoFailure re-tap):
-            val second = runtime.replace(ReplacementOperation.RestoreFromSnapshot(snapshotSource))
-            assertInstanceOf(ReplacementOutcome.Completed::class.java, second)
+            assertEquals(ReplacementOutcome.Fatal, a.await())
+            assertEquals(ReplacementOutcome.Fatal, b.await(), "B did nothing and reported Fatal")
+            coVerify(exactly = 0) { provider.getPreRestoreBackupFile() }
+            assertEquals(0, protocolLog.count { it == "swap" }, "no swap ran at all")
+            assertEquals(RuntimePhase.Fatal, runtime.phases.value, "nothing overwrote Fatal")
+            assertTrue(File(tempDir, "pre_restore_backup.db").exists(), "B deleted nothing")
         }
 
     @Test
-    fun `restart-process post-close failure - FailedAfterMutation, runtime deletes no assets`() =
-        runtimeTest(policy = ReplacementPolicy.RestartProcess) { runtime ->
-            runtime.currentGeneration
-            coEvery { provider.replaceLiveDatabaseFile(any()) } returns BackupResult.Failure(
-                BackupError.Io(IOException("rename failed")),
-            )
-
-            val outcome = runtime.replace(ReplacementOperation.RestoreFromSnapshot(snapshotSource))
-
-            assertInstanceOf(ReplacementOutcome.FailedAfterMutation::class.java, outcome)
-            // The runtime deleted nothing: the preserved file is the recovery path.
-            coVerify(exactly = 0) { provider.deletePreRestoreBackup() }
-        }
-
-    @Test
-    fun `close failure - never rename, RejectedBeforeMutation, generation keeps serving`() =
-        runtimeTest { runtime ->
-            val genOne = runtime.currentGeneration
-            closeFailures.add(genOne.database)
-
-            val outcome = runtime.replace(ReplacementOperation.RestoreFromSnapshot(snapshotSource))
-
-            val rejected = assertInstanceOf(
-                ReplacementOutcome.RejectedBeforeMutation::class.java,
-                outcome,
-            )
-            assertTrue(rejected.error.toString().contains("close"), "reason: ${rejected.error}")
-            coVerify(exactly = 0) { provider.replaceLiveDatabaseFile(any()) }
-            assertSame(genOne, (runtime.phases.value as RuntimePhase.Serving).generation)
-        }
-
-    @Test
-    fun `file replacement failure after close - rollback plus one fresh generation`() =
-        runtimeTest { runtime ->
-            val genOne = runtime.currentGeneration
-            coEvery { provider.replaceLiveDatabaseFile(snapshotSource) } returns BackupResult.Failure(
-                BackupError.Io(IOException("atomic rename failed")),
-            )
-            coEvery { provider.replaceLiveDatabaseFile(preservedFile) } returns BackupResult.Success(Unit)
-
-            val outcome = runtime.replace(ReplacementOperation.RestoreFromSnapshot(snapshotSource))
-
-            val genTwo = assertInstanceOf(ReplacementOutcome.Completed::class.java, outcome).generation!!
-            coVerify(exactly = 1) { provider.replaceLiveDatabaseFile(preservedFile) }
-            coVerify(exactly = 1) { provider.deletePreRestoreBackup() }
-            assertNotSame(genOne, genTwo)
-            assertEquals(1, preflightCalls)
-        }
-
-    @Test
-    fun `graphFactory failure after db creation - orphan db closed, ladder recovers`() =
+    fun `replace after Fatal returns Fatal - never a cleanup-safe rejection`() =
         runtimeTest { runtime ->
             runtime.currentGeneration
-            // Candidate #1's graph build fails AFTER its database was built: the orphan database
-            // must be closed before the ladder's rollback replaces the file under it (finding 5).
-            graphFactoryFailures.add(1)
-            coEvery { provider.replaceLiveDatabaseFile(preservedFile) } returns BackupResult.Success(Unit)
-
-            val outcome = runtime.replace(ReplacementOperation.RestoreFromSnapshot(snapshotSource))
-
-            val published = assertInstanceOf(ReplacementOutcome.Completed::class.java, outcome)
-            val orphanDb = databases[1]
-            assertTrue(orphanDb in closedDatabases, "the orphaned candidate database must be closed")
-            assertTrue(published.generation!!.database !== orphanDb)
-            coVerify(exactly = 1) { provider.replaceLiveDatabaseFile(preservedFile) }
-        }
-
-    @Test
-    fun `rollback op - primary swap marks rolledBack BEFORE consuming, candidate retry allowed`() =
-        runtimeTest { runtime ->
-            runtime.currentGeneration
-            // First candidate fails; because the PRIMARY rollback swap already rolled the file
-            // back, the ladder takes the allowed follow-up attempt instead of Fatal (finding 6a).
-            preflightOutcomes.addAll(listOf(StartupOutcome.RouteToRecovery, StartupOutcome.Proceed))
-
-            val outcome = runtime.replace(ReplacementOperation.RollbackToPreRestoreBackup)
-
-            val published = assertInstanceOf(ReplacementOutcome.Completed::class.java, outcome)
-            assertEquals(2, preflightCalls, "one failed attempt + the allowed follow-up")
-            // Exactly ONE swap (the primary) and ONE consumption — no spurious second rollback.
-            coVerify(exactly = 1) { provider.replaceLiveDatabaseFile(preservedFile) }
-            coVerify(exactly = 1) { provider.deletePreRestoreBackup() }
-            assertSame(published.generation, runtime.currentGeneration)
-        }
-
-    @Test
-    fun `preflight scenario-1 rollback runs INLINE via the transaction marker, then retry publishes`() =
-        runtimeTest { runtime ->
-            runtime.currentGeneration
-            preflightOutcomes.addAll(listOf(StartupOutcome.RestartRequired, StartupOutcome.Proceed))
-            var inlineResult: Any? = null
-            preflightAction = { _ ->
-                if (preflightCalls == 1) {
-                    inlineResult = runtime.rollbackToPreRestoreBackup()
-                }
-            }
-
-            val outcome = runtime.replace(ReplacementOperation.RestoreFromSnapshot(snapshotSource))
-
-            assertInstanceOf(DatabaseReplacementResult.Committed::class.java, inlineResult)
-            val published = assertInstanceOf(ReplacementOutcome.Completed::class.java, outcome)
-            assertEquals(2, preflightCalls, "exactly one bounded retry after the inline rollback")
-            coVerify(exactly = 1) { provider.replaceLiveDatabaseFile(preservedFile) }
-            coVerify(exactly = 1) { provider.deletePreRestoreBackup() }
-            assertSame(published.generation, runtime.currentGeneration)
-        }
-
-    @Test
-    fun `rollback mechanics failure - Fatal - holders and admission reject all reads`() =
-        runtimeTest { runtime ->
-            runtime.currentGeneration
-            coEvery { provider.replaceLiveDatabaseFile(any()) } returns BackupResult.Failure(
-                BackupError.Io(IOException("disk full")),
-            )
-
-            val outcome = runtime.replace(ReplacementOperation.RestoreFromSnapshot(snapshotSource))
-
-            assertEquals(ReplacementOutcome.Fatal, outcome)
+            closeFailureIndices += 0
+            runtime.replace(ReplacementOperation.RestoreFromSnapshot(sourceFile()))
             assertEquals(RuntimePhase.Fatal, runtime.phases.value)
-            // No closed generation is ever exposed (finding 5): both entry points THROW.
-            assertThrows(IllegalStateException::class.java) { runtime.currentGeneration }
-            assertThrows(IllegalStateException::class.java) { runtime.acquireBackupWorkLease() }
-            assertEquals(0, preflightCalls, "no candidate may be preflighted on an unreplaced file")
+            val effects = RecordingEffects()
+
+            val after = runtime.replace(
+                ReplacementOperation.RestoreFromSnapshot(sourceFile("late.db")),
+                effects,
+            )
+
+            assertEquals(ReplacementOutcome.Fatal, after)
+            assertEquals(listOf("fatal"), effects.calls, "no rejection-compensation after Fatal")
         }
 
     @Test
-    fun `preflight failing twice exhausts the ladder - Fatal`() = runtimeTest { runtime ->
+    fun `reinitialize after Fatal returns Fatal and publishes nothing`() = runtimeTest { runtime ->
         runtime.currentGeneration
-        preflightOutcomes.addAll(listOf(StartupOutcome.RouteToRecovery, StartupOutcome.RouteToRecovery))
+        closeFailureIndices += 0
+        runtime.replace(ReplacementOperation.RestoreFromSnapshot(sourceFile()))
+        assertEquals(RuntimePhase.Fatal, runtime.phases.value)
 
-        val outcome = runtime.replace(ReplacementOperation.RestoreFromSnapshot(snapshotSource))
+        val outcome = runtime.reinitialize()
 
-        assertEquals(ReplacementOutcome.Fatal, outcome)
-        assertEquals(2, preflightCalls, "one attempt + one bounded rollback-recovery attempt")
+        assertEquals(ReinitializeOutcome.Fatal, outcome)
         assertEquals(RuntimePhase.Fatal, runtime.phases.value)
     }
 
     @Test
-    fun `committed hook runs on the transaction after publish - its failure is contained`() =
+    fun `Fatal rejects reads and admission loudly - the acquirer never parks forever`() =
         runtimeTest { runtime ->
             runtime.currentGeneration
-            var hookGenerationId: Int? = null
+            closeFailureIndices += 0
+            runtime.replace(ReplacementOperation.RestoreFromSnapshot(sourceFile()))
 
-            val outcome = runtime.replace(
-                ReplacementOperation.RestoreFromSnapshot(snapshotSource),
-                ReplacementHooks(onCommitted = {
-                    hookGenerationId = (runtime.phases.value as RuntimePhase.Serving).generation.id
-                    error("hook failure must be contained")
-                }),
-            )
-
-            // The hook observed the PUBLISHED successor; its failure did not poison the outcome.
-            assertEquals(2, hookGenerationId)
-            assertInstanceOf(ReplacementOutcome.Completed::class.java, outcome)
+            assertThrows<IllegalStateException> { runtime.currentGeneration }
+            val lease = async { runCatching { runtime.awaitBackupWorkLease() } }
+            runCurrent()
+            assertTrue(lease.isCompleted, "the acquirer must fail loud, not park forever")
+            assertInstanceOf(IllegalStateException::class.java, lease.await().exceptionOrNull())
         }
+
+    @Test
+    fun `restart-process policy - validate, close, swap, no rebuild, no phase change`() =
+        runtimeTest(replacementPolicy = ReplacementPolicy.RestartProcess) { runtime ->
+            val genOne = runtime.currentGeneration
+
+            val outcome = runtime.replace(ReplacementOperation.RestoreFromSnapshot(sourceFile()))
+
+            val completed = assertInstanceOf(ReplacementOutcome.Completed::class.java, outcome)
+            assertNull(completed.generation, "no in-process successor under RestartProcess")
+            assertEquals(1, databases.size, "no rebuild")
+            assertEquals(0, preflightCalls)
+            assertSame(genOne, (runtime.phases.value as RuntimePhase.Serving).generation)
+        }
+
+    @Test
+    fun `rollback mechanics failure - Fatal with fatal effects`() = runtimeTest { runtime ->
+        runtime.currentGeneration
+        preservedFile()
+        coEvery { provider.replaceLiveDatabaseFile(any()) } coAnswers {
+            protocolLog += "swap"
+            BackupResult.Failure(BackupError.Io(IOException("disk full")))
+        }
+        val effects = RecordingEffects()
+
+        val outcome =
+            runtime.replace(ReplacementOperation.RestoreFromSnapshot(sourceFile()), effects)
+
+        assertEquals(ReplacementOutcome.Fatal, outcome)
+        assertEquals(listOf("beforeMutation", "fatal"), effects.calls)
+        assertEquals(RuntimePhase.Fatal, runtime.phases.value)
+    }
 }

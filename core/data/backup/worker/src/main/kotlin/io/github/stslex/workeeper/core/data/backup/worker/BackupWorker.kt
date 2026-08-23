@@ -7,16 +7,10 @@ import android.os.Build
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import io.github.stslex.workeeper.core.core.logger.Log
-import io.github.stslex.workeeper.core.data.backup.api.BackupStorage
-import io.github.stslex.workeeper.core.data.backup.api.SnapshotExportRunner
 import io.github.stslex.workeeper.core.data.backup.api.error.BackupError
 import io.github.stslex.workeeper.core.data.backup.api.model.BackupManifest
-import io.github.stslex.workeeper.core.data.backup.api.notification.BackupNotificationHelper
 import io.github.stslex.workeeper.core.data.backup.api.result.BackupResult
-import io.github.stslex.workeeper.core.data.backup.api.scheduling.AutoBackupController
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupErrorCode
-import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupPreferencesRepository
-import io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProvider
 import java.io.File
 
 /**
@@ -39,86 +33,84 @@ import java.io.File
  * [DatabaseSnapshotProvider.captureSnapshot] which produces a WAL-checkpointed
  * copy in [Context.getCacheDir].
  */
-// Plain CoroutineWorker constructed directly by MetroWorkerFactory. The 6 app-scope deps arrive
-// EXCLUSIVELY through the admission lease (Phase 5 R2, closed-admission quiesce): the lease and
-// the deps were acquired atomically, so this worker is coherently bound to exactly one runtime
-// generation, and the generation's quiesce drain awaits [BackupWorkLease.release] in [doWork]'s
-// finally — a worker constructed-but-not-yet-RUNNING is already visible to the drain.
+// Plain CoroutineWorker constructed directly by MetroWorkerFactory with NO dependencies — the
+// factory captures nothing generation-scoped. The 6 app-scope deps arrive EXCLUSIVELY through
+// the admission lease acquired as the FIRST operation inside [doWork] (Phase 5 R2, spec §8.4):
+// deps and lease bound atomically, so the run is coherently owned by exactly one runtime
+// generation; the quiesce drain awaits [BackupWorkLease.release] in the finally; and a worker
+// constructed but never started holds nothing a transition would have to wait for.
 internal class BackupWorker(
     appContext: Context,
     workerParams: WorkerParameters,
-    private val workLease: BackupWorkLease,
 ) : CoroutineWorker(appContext, workerParams) {
-
-    private val backupStorage: BackupStorage get() = workLease.deps.backupStorage
-    private val snapshotProvider: DatabaseSnapshotProvider get() = workLease.deps.databaseSnapshotProvider
-    private val preferences: BackupPreferencesRepository get() = workLease.deps.backupPreferencesRepository
-    private val autoBackupController: AutoBackupController get() = workLease.deps.autoBackupController
-    private val notificationHelper: BackupNotificationHelper get() = workLease.deps.backupNotificationHelper
-    private val snapshotExportRunner: SnapshotExportRunner get() = workLease.deps.snapshotExportRunner
 
     private val logger = Log.tag(TAG)
 
-    override suspend fun doWork(): Result = try {
-        runAdmittedWork()
-    } finally {
-        workLease.release()
+    override suspend fun doWork(): Result {
+        // Admission FIRST: suspends through a bounded transition window; throws loudly when the
+        // runtime is Fatal (a failed run, never work against a closed generation).
+        val lease = (applicationContext as BackupWorkerDepsHolder).awaitBackupWorkLease()
+        return try {
+            runAdmittedWork(lease.deps)
+        } finally {
+            lease.release()
+        }
     }
 
-    private suspend fun runAdmittedWork(): Result {
+    private suspend fun runAdmittedWork(deps: BackupWorkerDeps): Result {
         val now = System.currentTimeMillis()
-        preferences.setLastAttempt(now)
+        deps.backupPreferencesRepository.setLastAttempt(now)
 
         val tempFile = File.createTempFile(TEMP_PREFIX, TEMP_SUFFIX, applicationContext.cacheDir)
         return try {
-            val result = executeBackup(tempFile)
+            val result = executeBackup(deps, tempFile)
             // The binary-backup Result is already computed above. AWAIT the best-effort AI snapshot
             // before returning so WorkManager keeps the wakelock/execution window alive until the
             // visible-Drive upload finishes — a detached app-scope launch would race process death
             // on every periodic run. runCatching-wrapped so a runner fault can never change the
             // Result; D2 holds (the binary upload is done — only Result reporting is held longer).
-            runCatching { snapshotExportRunner.runIfEligibleAwaiting() }
+            runCatching { deps.snapshotExportRunner.runIfEligibleAwaiting() }
             result
         } finally {
             tempFile.delete()
         }
     }
 
-    private suspend fun executeBackup(tempFile: File): Result {
-        when (val capture = snapshotProvider.captureSnapshot(tempFile)) {
+    private suspend fun executeBackup(deps: BackupWorkerDeps, tempFile: File): Result {
+        when (val capture = deps.databaseSnapshotProvider.captureSnapshot(tempFile)) {
             is BackupResult.Success -> Unit
-            is BackupResult.Failure -> return handleFailure(capture.error)
+            is BackupResult.Failure -> return handleFailure(deps, capture.error)
         }
 
         val manifest = BackupManifest(
             appVersion = readVersionName(),
-            dbSchemaVersion = snapshotProvider.currentSchemaVersion(),
+            dbSchemaVersion = deps.databaseSnapshotProvider.currentSchemaVersion(),
             createdAtEpochMs = System.currentTimeMillis(),
             dbFileSizeBytes = tempFile.length(),
             deviceModel = Build.MODEL,
         )
 
-        return when (val upload = backupStorage.uploadBackup(tempFile, manifest)) {
-            is BackupResult.Success -> handleSuccess()
-            is BackupResult.Failure -> handleFailure(upload.error)
+        return when (val upload = deps.backupStorage.uploadBackup(tempFile, manifest)) {
+            is BackupResult.Success -> handleSuccess(deps)
+            is BackupResult.Failure -> handleFailure(deps, upload.error)
         }
     }
 
-    private suspend fun handleSuccess(): Result {
+    private suspend fun handleSuccess(deps: BackupWorkerDeps): Result {
         val now = System.currentTimeMillis()
-        preferences.setLastSuccess(now)
-        preferences.setLastError(null)
-        notificationHelper.cancelAuthPaused()
+        deps.backupPreferencesRepository.setLastSuccess(now)
+        deps.backupPreferencesRepository.setLastError(null)
+        deps.backupNotificationHelper.cancelAuthPaused()
         return Result.success()
     }
 
-    private suspend fun handleFailure(error: BackupError): Result {
+    private suspend fun handleFailure(deps: BackupWorkerDeps, error: BackupError): Result {
         logger.w { "backup failed: $error" }
-        preferences.setLastError(BackupErrorCode.from(error))
+        deps.backupPreferencesRepository.setLastError(BackupErrorCode.from(error))
         return when (error) {
             BackupError.AuthRevoked -> {
-                autoBackupController.cancelPeriodic()
-                notificationHelper.showAuthPaused()
+                deps.autoBackupController.cancelPeriodic()
+                deps.backupNotificationHelper.showAuthPaused()
                 Result.failure()
             }
             BackupError.NetworkUnavailable -> Result.retry()

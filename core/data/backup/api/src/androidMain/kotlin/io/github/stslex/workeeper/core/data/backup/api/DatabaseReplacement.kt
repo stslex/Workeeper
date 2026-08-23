@@ -6,32 +6,31 @@ import java.io.File
 
 /**
  * The live-database replacement transaction, owned by the RUNTIME (Phase 5 R2 —
- * `kmp-phase-5-startup-processor.md` §8.5). Replaces the direct
- * `DatabaseSnapshotProvider.restoreFromSnapshot` / `rollbackToPreRestoreBackup` calls: the
- * snapshot provider no longer closes or swaps the published database independently — closing a
- * Room 3 database is TERMINAL for the object (§7.1, measured on device), so the only party that
- * may do it is the one that owns the generation being ended and can mint its successor.
+ * `kmp-phase-5-startup-processor.md` §8.5). Closing a Room 3 database is TERMINAL for the object
+ * (§7.1, measured on device), so the only party that may do it is the one that owns the
+ * generation being ended and can mint its successor.
  *
- * **Submission ownership.** Callers only SUBMIT and await: the transaction runs on the runtime
- * host's own scope, so a caller whose scope the transition itself kills (the Settings restore
- * Store disposed at `Transitioning`; the undo reactor living inside the outgoing generation's
- * lifetime) abandons its await without cancelling or stranding the transaction.
+ * **Submission ownership + source ownership.** Callers only SUBMIT and await. For
+ * [restoreFromSnapshot], ownership of [source] TRANSFERS to the runtime AT SUBMISSION: the file
+ * is atomically staged into a runtime-owned location before the submitting call can be
+ * cancelled, and the runtime deletes the staged copy on EVERY terminal outcome — a cancelled
+ * caller's `finally { tempFile.delete() }` can never destroy a file the host transaction still
+ * needs.
  *
- * **Hooks.** [restoreFromSnapshot]'s `beforeMutation` runs INSIDE the transaction after
- * validation and before any quiescing/close — the place for crash-safety markers
- * (`restore_in_progress`), ordered so no other transition can interleave between the marker
- * write and the swap. [rollbackToPreRestoreBackup]'s `onCommitted` runs on the TRANSACTION's
- * coroutine after the swap committed (and, in-process, after the successor generation is
- * published), before awaiters complete — the place for post-commit state/dialog effects that
- * must survive the initiator's death. Hooks must touch only process-lifetime state (DataStore);
- * their failures are contained and logged.
+ * **Typed transaction effects.** All caller compensation rides ONE [DatabaseReplacementEffects]
+ * object, submitted with the operation and executed by the runtime on the TRANSACTION's
+ * coroutine at exactly the matching protocol phase (§8.4): preparation in
+ * [DatabaseReplacementEffects.onBeforeMutation], and exactly one terminal method per
+ * transaction. Effects must touch only process-lifetime state (DataStore, dialog flags) and be
+ * idempotent. A failing [DatabaseReplacementEffects.onCommitted] is NEVER swallowed into a clean
+ * result — it surfaces as [DatabaseReplacementResult.Committed.effectsError].
  *
- * **Phase-aware results.** Callers MUST branch on [DatabaseReplacementResult]: only
- * [DatabaseReplacementResult.RejectedBeforeMutation] permits pre-swap cleanup (deleting the
- * preserved rollback file, clearing the in-progress marker). After the point of no return the
- * recovery assets belong to the runtime's failure ladder and the persisted-state protocol —
- * deleting them on [DatabaseReplacementResult.FailedAfterMutation] would destroy the only
- * recovery path.
+ * **Result semantics (spec §8.4).** [DatabaseReplacementResult.Committed] means the REQUESTED
+ * operation committed — nothing else. A restore whose swap failed after the point of no return
+ * but whose automatic rollback restored a serving generation returns
+ * [DatabaseReplacementResult.RecoveredByRollback]: the data is the PRE-operation data, and
+ * callers must produce restore-FAILURE semantics (never a success dialog, never an undo offer).
+ * An explicitly REQUESTED rollback that commits returns Committed.
  *
  * androidMain deliberately (the signature is `java.io.File`; precedent: [BackupStorage]).
  * Implemented by the application runtime host and handed into the app graph as a `create()`
@@ -40,42 +39,110 @@ import java.io.File
 interface DatabaseReplacement {
 
     /**
-     * Validate [source] (SQLite magic, schema-version gates — same checks, same order, same
-     * error taxonomy as the pre-split provider method), run [beforeMutation], then replace the
-     * live database file. [source] is NOT consumed — the caller deletes its temp file, as before.
+     * Validate the staged copy of [source] (SQLite magic, schema-version gates — same checks,
+     * same order, same error taxonomy as the pre-split provider method), run
+     * [DatabaseReplacementEffects.onBeforeMutation], then replace the live database file.
+     * [source] is consumed by staging at submission; the caller's temp-file cleanup becomes a
+     * no-op and MUST NOT be relied on.
      */
     suspend fun restoreFromSnapshot(
         source: File,
-        beforeMutation: suspend () -> Unit = {},
+        effects: DatabaseReplacementEffects = DatabaseReplacementEffects.None,
     ): DatabaseReplacementResult
 
     /**
      * Replace the live database file from the preserved `pre_restore_backup.db`, consuming it on
      * success — the Scenario-1 auto-rollback and the undo flow, unchanged semantics.
-     * [onCommitted] carries the caller's post-commit effects (see class KDoc).
      */
     suspend fun rollbackToPreRestoreBackup(
-        onCommitted: suspend () -> Unit = {},
+        effects: DatabaseReplacementEffects = DatabaseReplacementEffects.None,
     ): DatabaseReplacementResult
+}
+
+/**
+ * The caller's compensation contract for ONE replacement transaction — the typed replacement
+ * for ad-hoc callback lambdas (spec §8.5). Every method runs ON the transaction's coroutine
+ * (the runtime host's never-cancelled scope), under the transition mutex, so the effects
+ * survive the initiator's death and no other transition can interleave with them.
+ *
+ * The runtime invokes [onBeforeMutation] once (after validation, before anything irreversible)
+ * and then EXACTLY ONE terminal method matching the transaction's outcome. Implementations must
+ * be idempotent and confined to process-lifetime state. Methods default to no-ops because every
+ * effect is caller-domain-optional; the runtime's own protocol NEVER depends on them running.
+ */
+interface DatabaseReplacementEffects {
+
+    /**
+     * Pre-mutation preparation (e.g. the crash-safety `restore_in_progress` marker). A throw
+     * rejects the transaction before anything irreversible: the outcome becomes
+     * [DatabaseReplacementResult.RejectedBeforeMutation] and [onRejectedBeforeMutation] then
+     * compensates whatever partial preparation happened.
+     */
+    suspend fun onBeforeMutation() {}
+
+    /**
+     * Terminal: the transaction ended with NOTHING irreversible done. Compensate the
+     * preparation here (delete a stale preserved snapshot, clear the in-progress marker) —
+     * pre-mutation cleanup is legal ONLY on this outcome.
+     */
+    suspend fun onRejectedBeforeMutation(error: BackupError) {}
+
+    /** Terminal: the REQUESTED operation committed. */
+    suspend fun onCommitted() {}
+
+    /**
+     * Terminal: the requested operation failed after the point of no return and the runtime's
+     * automatic rollback restored a serving generation on the PRE-operation data. Compensate
+     * the preparation (the in-progress marker is stale — recovery already happened) and surface
+     * FAILURE semantics; the preserved rollback file was consumed by the recovery.
+     */
+    suspend fun onRecoveredByRollback(error: BackupError) {}
+
+    /**
+     * Terminal: post-PONR failure with NO in-process recovery performed. The runtime preserved
+     * every recovery file and marker — record durable state for the next launch here (e.g. the
+     * restore journal's interrupted-mutation flag); never delete anything.
+     */
+    suspend fun onFailedAfterMutation(error: BackupError) {}
+
+    /** Terminal: the runtime is fatal. Assets are preserved; record durable state only. */
+    suspend fun onFatal() {}
+
+    /** The explicit no-effects object for operations with no caller compensation. */
+    object None : DatabaseReplacementEffects
 }
 
 /** The phase-aware outcome of one replacement transaction (see [DatabaseReplacement]'s KDoc). */
 sealed interface DatabaseReplacementResult {
 
-    /** The swap committed (and, in-process, a successor generation is serving). */
-    data object Committed : DatabaseReplacementResult
+    /**
+     * The REQUESTED operation committed (and, in-process, a successor generation is serving).
+     * [effectsError] is non-null when the caller's [DatabaseReplacementEffects.onCommitted]
+     * failed — the operation itself is committed, but the caller's post-commit bookkeeping is
+     * NOT done and must be surfaced, never treated as a clean commit.
+     */
+    data class Committed(val effectsError: BackupError? = null) : DatabaseReplacementResult
 
     /**
-     * The transaction ended BEFORE anything was mutated — the live file, the database handle
-     * (or its close completed cleanly-nothing-after), and all recovery assets are untouched;
-     * the previous generation keeps serving. Pre-swap cleanup is SAFE on this outcome.
+     * The transaction ended BEFORE anything irreversible — the live file, the database handle,
+     * the outgoing generation's ViewModelStore/lifetime, and all recovery assets are untouched;
+     * the previous generation keeps serving. Pre-swap cleanup ran via
+     * [DatabaseReplacementEffects.onRejectedBeforeMutation].
      */
     data class RejectedBeforeMutation(val error: BackupError) : DatabaseReplacementResult
 
     /**
-     * The point of no return was crossed (database closed and/or file mutated) and the
-     * transaction could not complete. Recovery assets and markers are the RUNTIME's — callers
-     * must never delete them on this outcome.
+     * The requested restore failed after the point of no return; the runtime's bounded recovery
+     * rolled back and a generation is SERVING on the PRE-operation data. This is a restore
+     * FAILURE for every caller: never a success dialog, never an undo offer (the preserved file
+     * was consumed by the recovery).
+     */
+    data class RecoveredByRollback(val error: BackupError) : DatabaseReplacementResult
+
+    /**
+     * The point of no return was crossed and the transaction could not complete; no in-process
+     * recovery was performed (the RestartProcess ending). Recovery assets and markers are
+     * PRESERVED and belong to the runtime/journal protocol — callers must never delete them.
      */
     data class FailedAfterMutation(val error: BackupError) : DatabaseReplacementResult
 
