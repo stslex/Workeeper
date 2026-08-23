@@ -21,7 +21,7 @@ results of the final Regression run, copied verbatim from
 
 | Command | Exit | Executed | Tests |
 |---|---|---|---|
-| `./gradlew assembleDebug testDebugUnitTest verifyPaparazziDebug lintDebug assembleDebugAndroidTest --rerun-tasks --no-build-cache --no-configuration-cache` | 0 (`BUILD SUCCESSFUL in 9m 6s`, 2026-08-23 post-rework; pre-rework 7m48s) | 3265/3265 tasks executed; `verifyPaparazziDebug` in the graph with zero movers (goldens untouched by the rework; 13 golden-holding modules per the 08-22 run) | **2609 unit/host tests, 0 failures** (pre-rework: 2461 — the delta is the rework's new/rewritten suites) |
+| `./gradlew assembleDebug testDebugUnitTest verifyPaparazziDebug lintDebug assembleDebugAndroidTest --rerun-tasks --no-build-cache --no-configuration-cache` | 0 (`BUILD SUCCESSFUL in 9m 10s`, 2026-08-23 round-2 final; round-1 9m06s/2609; pre-rework 7m48s/2461) | 3265/3265 tasks executed; `verifyPaparazziDebug` in the graph with zero movers (goldens untouched by the rework; 13 golden-holding modules per the 08-22 run) | **2648 unit/host tests, 0 failures** |
 | `./gradlew detekt --rerun-tasks --no-build-cache --no-configuration-cache` | 0 | separate forced run (re-run 2026-08-23; zero new suppressions) | — |
 | `./gradlew :lint-rules:test --rerun-tasks …` | 0 | forced (re-run 2026-08-23) | — |
 | `./gradlew :core:core:compileKotlinIosSimulatorArm64 :core:data:dataStore:… :core:data:database:… :core:data:database:kspKotlinIosSimulatorArm64 :core:data:exercise:… :core:data:backup:api:… --rerun-tasks …` | 0 | all five KMP modules' iOS klibs + Room KSP, forced; `:core:data:backup:api` (the one KMP module the rework touched — androidMain seam) re-forced 2026-08-23, exit 0 | — |
@@ -32,8 +32,8 @@ iOS **link/runtime**: UNVERIFIED — no iOS host exists before Phase 7; compile+
 
 | Command | Exit | Tests |
 |---|---|---|
-| `ANDROID_SERIAL=emulator-5554 ./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.annotation=io.github.stslex.workeeper.core.ui.test.annotations.Smoke --max-workers=2 --continue` | 0 (`BUILD SUCCESSFUL in 2m 38s`, 2026-08-23) | 43 started, 0 failures |
-| same with `…annotations.Regression` | 0 (`BUILD SUCCESSFUL in 3m 18s`, 2026-08-23) | **78** started, 0 failures (46 `app:app` — the composed handshake test joined the suite — + 30 `core:data:database` + 2 others; raw XMLs beside this file. Pre-rework: 77) |
+| `ANDROID_SERIAL=emulator-5554 ./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.annotation=io.github.stslex.workeeper.core.ui.test.annotations.Smoke --max-workers=2 --continue` | 0 (`BUILD SUCCESSFUL in 2m 41s`, 2026-08-23 round-2 final) | 43 started, 0 failures |
+| same with `…annotations.Regression` | 0 (`BUILD SUCCESSFUL in 3m 19s`, 2026-08-23 round-2 final, re-run on the hardened protocol) | **78** started, 0 failures (46 `app:app` — the composed handshake test included — + 30 `core:data:database` + 2 others; raw XMLs beside this file) |
 
 Standalone runs (same emulator): full unfiltered `:app:app:connectedDebugAndroidTest` 46/0 and
 `:core:data:database:connectedDebugAndroidTest` 30/0 (2026-08-23);

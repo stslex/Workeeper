@@ -1042,7 +1042,7 @@ protocol) · `e9886497` (adversarial-round hardening) · docs closeout (this sec
 
 ### 21.2 What each suite proves (exact claims)
 
-- `AppRuntimeReplacementTest` (JVM, 32): staging-at-submission + terminal staged cleanup +
+- `AppRuntimeReplacementTest` (JVM, 35): staging-at-submission + terminal staged cleanup +
   cancelled-caller-cannot-strand (original path deleted mid-transaction); marker-then-caller-
   killed-then-lease-timeout → transaction-owned compensation; effects exactly-once for every
   terminal (order-recorded); `Committed(effectsError)` surfacing; swap-fail→rollback →
@@ -1132,7 +1132,9 @@ the branch before submission:
   4000-iteration multi-threaded hammer for the retire CAS (a two-step observe-then-retire gate
   ends retired WITH a counted attachment and fails); the candidate-jobs-joined-before-close
   clause gained its missing pin; the undo ordering pin now records clear → publish →
-  acknowledge as one ordered list.
+  acknowledge as one ordered list. Post-hardening counts: `AppRuntimeReplacementTest` 35,
+  `AppRuntimeTest` 14, `RestoreTransactionIntegrationTest` 5, `UiAdmissionGateTest` 4,
+  `StartupProcessorTest` 10, coordinator suite 15 — all green.
 
 **Recorded residual (deliberate, documented — not silent):** under `RestartProcess`, an
 outgoing `close()` that THROWS maps to `FailedAfterMutation` + the §8.5a journal (mandate 5
