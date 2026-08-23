@@ -15,7 +15,6 @@ import io.github.stslex.workeeper.feature.app_dialogs.api.publisher.AppDialogPub
 import io.github.stslex.workeeper.feature.recovery.diagnostics.RestoreRecoveryReporter
 import io.mockk.coEvery
 import io.mockk.coVerify
-import io.mockk.coVerifyOrder
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
@@ -132,7 +131,9 @@ internal class RestoreRecoveryCoordinatorTest {
             // Round-2 mandate 4: the old defensive delete-on-FailedAfterMutation branch is
             // REMOVED. A rollback that failed after mutation leaves `restore_in_progress` set
             // and `pre_restore_backup.db` on disk, so the NEXT launch re-enters the pre-flight
-            // and retries — this caller deletes/clears/publishes NOTHING.
+            // and retries. The caller deletes/clears NOTHING — and must NOT restart (the
+            // rollback is still pending; restarting would boot-loop silently forever): the
+            // outcome is RecoveryRetryPending, and the user gets a truthful failure dialog.
             val context = makeContext()
             coEvery { restoreStateRepository.getRestoreInProgressContext() } returns context
             coEvery {
@@ -145,20 +146,22 @@ internal class RestoreRecoveryCoordinatorTest {
 
             val outcome = coordinator.handlePostRestoreLaunch()
 
-            assertEquals(RestoreRecoveryCoordinator.PreflightOutcome.RestoreRolledBack, outcome)
+            assertEquals(RestoreRecoveryCoordinator.PreflightOutcome.RecoveryRetryPending, outcome)
             coVerify(exactly = 0) { snapshotProvider.deletePreRestoreBackup() }
             coVerify(exactly = 0) { restoreStateRepository.clearRestoreInProgress() }
             coVerify(exactly = 0) { restoreStateRepository.clearPreRestoreBackupAvailable() }
-            coVerify(exactly = 0) { appDialogPublisher.publish(any()) }
+            val publishedSlot = slot<AppDialog>()
+            coVerify(exactly = 1) { appDialogPublisher.publish(capture(publishedSlot)) }
+            assertTrue(publishedSlot.captured is AppDialog.RestoreFailure)
         }
 
     @Test
     fun `scenario 1 rollback RejectedBeforeMutation preserves EVERY asset and marker`() =
         runTest {
-            // Finding 4: a pre-mutation rejection (close failed, graph-only transition holds the
-            // machine) means NOTHING was mutated — a cold start or a later transaction completes
-            // this rollback, so the coordinator must not delete the file, clear the markers, or
-            // claim failure to the user.
+            // Finding 4: a pre-mutation rejection (a graph-only transition holds the machine)
+            // means NOTHING was mutated — a cold start or a later transaction completes this
+            // rollback, so the coordinator must not delete the file or clear the markers; the
+            // user still gets truthful feedback and no restart loop (RecoveryRetryPending).
             val context = makeContext()
             coEvery { restoreStateRepository.getRestoreInProgressContext() } returns context
             coEvery {
@@ -166,15 +169,15 @@ internal class RestoreRecoveryCoordinatorTest {
             } throws IllegalStateException("migration crashed")
             coEvery { databaseReplacement.rollbackToPreRestoreBackup(any()) } returns
                 DatabaseReplacementResult.RejectedBeforeMutation(
-                    BackupError.Io(java.io.IOException("close rejected")),
+                    BackupError.Io(java.io.IOException("machine busy")),
                 )
 
-            coordinator.handlePostRestoreLaunch()
+            val outcome = coordinator.handlePostRestoreLaunch()
 
+            assertEquals(RestoreRecoveryCoordinator.PreflightOutcome.RecoveryRetryPending, outcome)
             coVerify(exactly = 0) { snapshotProvider.deletePreRestoreBackup() }
             coVerify(exactly = 0) { restoreStateRepository.clearRestoreInProgress() }
             coVerify(exactly = 0) { restoreStateRepository.clearPreRestoreBackupAvailable() }
-            coVerify(exactly = 0) { appDialogPublisher.publish(any()) }
         }
 
     @Test
@@ -235,11 +238,17 @@ internal class RestoreRecoveryCoordinatorTest {
             )
 
         val firstLaunch = makeCoordinator(fakeRepository)
-        firstLaunch.handlePostRestoreLaunch()
+        val firstOutcome = firstLaunch.handlePostRestoreLaunch()
 
-        // Nothing consumed: the in-progress context is still there for the next launch.
+        // Nothing consumed: the in-progress context is still there for the next launch; the
+        // failed attempt gave the user a truthful failure dialog and did NOT restart (a restart
+        // with the rollback uncommitted would boot-loop silently forever).
+        assertEquals(
+            RestoreRecoveryCoordinator.PreflightOutcome.RecoveryRetryPending,
+            firstOutcome,
+        )
         assertNotNull(fakeRepository.getRestoreInProgressContext())
-        coVerify(exactly = 0) { appDialogPublisher.publish(any()) }
+        coVerify(exactly = 1) { appDialogPublisher.publish(any()) }
 
         // Simulated restart: a NEW coordinator over the SAME durable state; this time the
         // rollback transaction commits and runs the typed effects.
@@ -252,9 +261,9 @@ internal class RestoreRecoveryCoordinatorTest {
 
         assertEquals(RestoreRecoveryCoordinator.PreflightOutcome.RestoreRolledBack, outcome)
         assertNull(fakeRepository.getRestoreInProgressContext())
-        val publishedSlot = slot<AppDialog>()
-        coVerify(exactly = 1) { appDialogPublisher.publish(capture(publishedSlot)) }
-        assertTrue(publishedSlot.captured is AppDialog.RestoreFailure)
+        val published = mutableListOf<AppDialog>()
+        coVerify(exactly = 2) { appDialogPublisher.publish(capture(published)) }
+        assertTrue(published.all { it is AppDialog.RestoreFailure })
     }
 
     @Test
@@ -307,23 +316,84 @@ internal class RestoreRecoveryCoordinatorTest {
         }
 
     @Test
-    fun `performUndoRestore happy path runs state and dialog writes before the caller hook`() =
+    fun `performUndoRestore happy path - clear, publish, THEN caller acknowledge, in order`() =
         runTest {
             every { snapshotProvider.getPreRestoreBackupFile() } returns java.io.File("pre_restore_backup.db")
+            // Order recorder across ALL three writes — the acknowledge's POSITION is part of
+            // the dismiss-after discipline (a dismiss before the success dialog persists would
+            // lose the dialog across a crash between the two).
+            val order = mutableListOf<String>()
+            coEvery { restoreStateRepository.clearPreRestoreBackupAvailable() } coAnswers {
+                order += "clear"
+            }
+            coEvery { appDialogPublisher.publish(AppDialog.UndoRestoreSuccess) } coAnswers {
+                order += "publish"
+            }
             stubRollbackCommitted()
-            var callerHookRan = false
 
-            val result = coordinator.performUndoRestore(onCommitted = { callerHookRan = true })
+            val result = coordinator.performUndoRestore(onCommitted = { order += "acknowledge" })
 
             assertEquals(UndoRestoreOutcome.Succeeded, result)
-            assertTrue(callerHookRan, "the caller's onCommitted must ride the transaction effects")
-            // Side-effect-first INSIDE onCommitted: undo state + success dialog precede the
-            // caller's acknowledge (the callerHookRan flag), preserving the dismiss-after
-            // discipline: clear -> publish -> caller acknowledge.
-            coVerifyOrder {
-                restoreStateRepository.clearPreRestoreBackupAvailable()
-                appDialogPublisher.publish(AppDialog.UndoRestoreSuccess)
-            }
+            assertEquals(
+                listOf("clear", "publish", "acknowledge"),
+                order,
+                "side-effect-first inside onCommitted; the caller's acknowledge comes LAST",
+            )
+        }
+
+    @Test
+    fun `undo compensation is PACKAGED in the effects object - nothing runs post-await`() =
+        runTest {
+            // The discriminator for mandate 2 (an effects-invoking stub alone cannot tell
+            // "packaged in effects" from "post-await code gated on Committed"): the seam stub
+            // CAPTURES the effects WITHOUT invoking them and returns Committed. If the
+            // coordinator ran its writes post-await, they would appear now — they must not.
+            every { snapshotProvider.getPreRestoreBackupFile() } returns java.io.File("pre_restore_backup.db")
+            val effectsSlot = slot<DatabaseReplacementEffects>()
+            coEvery { databaseReplacement.rollbackToPreRestoreBackup(capture(effectsSlot)) } returns
+                DatabaseReplacementResult.Committed()
+            var callerAcknowledged = false
+
+            val result = coordinator.performUndoRestore(onCommitted = { callerAcknowledged = true })
+
+            assertEquals(UndoRestoreOutcome.Succeeded, result)
+            coVerify(exactly = 0) { restoreStateRepository.clearPreRestoreBackupAvailable() }
+            coVerify(exactly = 0) { appDialogPublisher.publish(any()) }
+            assertTrue(!callerAcknowledged, "nothing may run outside the transaction's effects")
+
+            // The writes live INSIDE the captured effects — the transaction coroutine (which
+            // survives the initiator's death) is what executes them.
+            effectsSlot.captured.onCommitted()
+            coVerify(exactly = 1) { restoreStateRepository.clearPreRestoreBackupAvailable() }
+            coVerify(exactly = 1) { appDialogPublisher.publish(AppDialog.UndoRestoreSuccess) }
+            assertTrue(callerAcknowledged)
+        }
+
+    @Test
+    fun `scenario-1 compensation is PACKAGED in the effects object - nothing runs post-await`() =
+        runTest {
+            val context = makeContext()
+            coEvery { restoreStateRepository.getRestoreInProgressContext() } returns context
+            coEvery {
+                snapshotProvider.currentSchemaVersion()
+            } throws IllegalStateException("migration crashed")
+            val effectsSlot = slot<DatabaseReplacementEffects>()
+            coEvery { databaseReplacement.rollbackToPreRestoreBackup(capture(effectsSlot)) } returns
+                DatabaseReplacementResult.Committed()
+
+            val outcome = coordinator.handlePostRestoreLaunch()
+
+            assertEquals(RestoreRecoveryCoordinator.PreflightOutcome.RestoreRolledBack, outcome)
+            coVerify(exactly = 0) { restoreStateRepository.clearRestoreInProgress() }
+            coVerify(exactly = 0) { restoreStateRepository.clearPreRestoreBackupAvailable() }
+            coVerify(exactly = 0) { appDialogPublisher.publish(any()) }
+
+            effectsSlot.captured.onCommitted()
+            coVerify(exactly = 1) { restoreStateRepository.clearRestoreInProgress() }
+            coVerify(exactly = 1) { restoreStateRepository.clearPreRestoreBackupAvailable() }
+            val publishedSlot = slot<AppDialog>()
+            coVerify(exactly = 1) { appDialogPublisher.publish(capture(publishedSlot)) }
+            assertTrue(publishedSlot.captured is AppDialog.RestoreFailure)
         }
 
     @Test

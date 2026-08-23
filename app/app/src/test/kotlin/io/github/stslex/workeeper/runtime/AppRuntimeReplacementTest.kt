@@ -119,6 +119,9 @@ internal class AppRuntimeReplacementTest {
 
     private fun runtimeTest(
         replacementPolicy: ReplacementPolicy = ReplacementPolicy.RebuildInProcess,
+        // Standard (non-eager) host scheduling — for pins that must observe what the NON-
+        // suspending submission frame did before the host coroutine ever ran.
+        standardHostDispatcher: Boolean = false,
         body: suspend TestScope.(AppRuntime) -> Unit,
     ) = runTest {
         coEvery { provider.validateSnapshotForRestore(any()) } returns BackupResult.Success(Unit)
@@ -162,7 +165,11 @@ internal class AppRuntimeReplacementTest {
             policy = RuntimeTransitionPolicy(
                 advanceSnackbarGeneration = { epochAdvances++ },
                 mainDispatcher = dispatcher,
-                hostDispatcher = dispatcher,
+                hostDispatcher = if (standardHostDispatcher) {
+                    kotlinx.coroutines.test.StandardTestDispatcher(testScheduler)
+                } else {
+                    dispatcher
+                },
                 stagingDirectory = { tempDir },
                 uiDisposalTimeoutMillis = 1_000,
                 drainTimeoutMillis = 1_000,
@@ -585,7 +592,13 @@ internal class AppRuntimeReplacementTest {
                 runtime.replace(ReplacementOperation.RestoreFromSnapshot(sourceFile()))
             }
             runCurrent() // quiesce closed admission; the transaction parked at preflight
-            val leaseCall = async { runtime.awaitBackupWorkLease() }
+            // UNCONFINED acquirer: the reopen's StateFlow write resumes it SYNCHRONOUSLY inside
+            // the reopen call — so this test is ORDER-SENSITIVE: had the machine reopened
+            // admission before publishing the successor, the lease would bind the OUTGOING
+            // (closing) generation and the assertion below would fail.
+            val leaseCall = async(UnconfinedTestDispatcher(testScheduler)) {
+                runtime.awaitBackupWorkLease()
+            }
             runCurrent()
             assertFalse(leaseCall.isCompleted, "admission is CLOSED during the window")
 
@@ -759,7 +772,11 @@ internal class AppRuntimeReplacementTest {
             )
 
             assertEquals(ReplacementOutcome.Fatal, after)
-            assertEquals(listOf("fatal"), effects.calls, "no rejection-compensation after Fatal")
+            // Phase-aware Fatal dispatch: this transaction performed NOTHING (it landed on an
+            // already-Fatal runtime), so NO compensation runs — `onFatal` would let the caller
+            // journal a mutation that never happened; the rejection-compensation would delete
+            // the recovery assets the fatal transaction's next process needs.
+            assertEquals(emptyList<String>(), effects.calls, "no compensation for a no-op Fatal")
         }
 
     @Test
@@ -801,6 +818,104 @@ internal class AppRuntimeReplacementTest {
             assertEquals(1, databases.size, "no rebuild")
             assertEquals(0, preflightCalls)
             assertSame(genOne, (runtime.phases.value as RuntimePhase.Serving).generation)
+        }
+
+    @Test
+    fun `staging happens in the SUBMISSION frame - before the host coroutine ever runs`() =
+        runtimeTest(standardHostDispatcher = true) { runtime ->
+            runtime.currentGeneration
+            val source = sourceFile()
+
+            // UNDISPATCHED: the caller runs synchronously up to replace()'s await; the STANDARD
+            // host dispatcher guarantees the transaction body has NOT started. Ownership must
+            // already have transferred — an implementation that staged inside the host body
+            // would leave the original file in place here and fail.
+            val caller = launch(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) {
+                runtime.replace(ReplacementOperation.RestoreFromSnapshot(source))
+            }
+            assertFalse(source.exists(), "the submission frame consumed the original path")
+            assertEquals(1, stagedFiles().size, "the runtime owns the staged copy already")
+
+            caller.cancel()
+            source.delete() // the dead caller's cleanup — a no-op against the staged copy
+            runCurrent()
+            val serving = assertInstanceOf(RuntimePhase.Serving::class.java, runtime.phases.value)
+            assertEquals(2, serving.generation.id)
+            assertTrue(stagedFiles().isEmpty())
+        }
+
+    @Test
+    fun `terminal effects hold the transition mutex - a successor cannot interleave them`() =
+        runtimeTest { runtime ->
+            runtime.currentGeneration
+            preservedFile()
+            val terminalGate = CompletableDeferred<Unit>()
+            // T1: a validation-rejected restore whose REJECTION COMPENSATION suspends.
+            coEvery { provider.validateSnapshotForRestore(any()) } returns BackupResult.Failure(
+                BackupError.CorruptedBackup(reason = "magic mismatch"),
+            )
+            val t1Effects = object : DatabaseReplacementEffects {
+                override suspend fun onRejectedBeforeMutation(error: BackupError) {
+                    terminalGate.await()
+                }
+            }
+            val t2Effects = RecordingEffects()
+
+            val t1 = async {
+                runtime.replace(ReplacementOperation.RestoreFromSnapshot(sourceFile()), t1Effects)
+            }
+            runCurrent() // T1 is parked INSIDE its terminal effect, still holding the mutex
+            val t2 = async {
+                runtime.replace(ReplacementOperation.RollbackToPreRestoreBackup, t2Effects)
+            }
+            runCurrent()
+
+            // The seam contract: T2 must not enter the machine (no beforeMutation) while T1's
+            // compensation is pending — otherwise T1's cleanup could erase T2's crash-safety
+            // marker or delete the preserved snapshot mid-swap.
+            assertEquals(emptyList<String>(), t2Effects.calls, "T2 blocked behind T1's terminal")
+            assertFalse(t2.isCompleted)
+
+            terminalGate.complete(Unit)
+            runCurrent()
+            assertInstanceOf(ReplacementOutcome.RejectedBeforeMutation::class.java, t1.await())
+            assertInstanceOf(ReplacementOutcome.Completed::class.java, t2.await())
+            assertTrue(t2Effects.calls.first() == "beforeMutation")
+        }
+
+    @Test
+    fun `candidate jobs are cancelled and JOINED before the candidate database closes`() =
+        runtimeTest { runtime ->
+            runtime.currentGeneration
+            preservedFile()
+            preflightAction = { generation ->
+                if (preflightCalls == 1) {
+                    generation.lifetime.childScope(UnconfinedTestDispatcher(testScheduler)).launch {
+                        try {
+                            awaitCancellation()
+                        } finally {
+                            protocolLog += "candidate-job-ended"
+                        }
+                    }
+                    // A nested unconfined launch queues on the thread-local event loop; yield so
+                    // the job genuinely STARTS (enters its try) before this preflight returns.
+                    kotlinx.coroutines.yield()
+                }
+            }
+            preflightOutcomes += StartupOutcome.RouteToRecovery // candidate #1 fails preflight
+
+            val outcome = runtime.replace(ReplacementOperation.RestoreFromSnapshot(sourceFile()))
+
+            assertInstanceOf(ReplacementOutcome.RecoveredByRollback::class.java, outcome)
+            val jobEnd = protocolLog.indexOf("candidate-job-ended")
+            // closes: [0]=outgoing, [1]=candidate #1's dispose-close.
+            val candidateClose = protocolLog.withIndex()
+                .filter { it.value == "close" }
+                .map { it.index }[1]
+            assertTrue(
+                jobEnd in 0 until candidateClose,
+                "the candidate's DB-bound job must JOIN before its database closes: $protocolLog",
+            )
         }
 
     @Test

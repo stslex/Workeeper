@@ -477,7 +477,9 @@ internal class AppRuntime(
         // it). This coroutine IS the transaction, so the terminal effect runs right here.
         coroutineContext[ReplacementTransaction]?.let { transaction ->
             val outcome = runInlineRollback(closeDatabase, transaction)
-            return runTerminalEffects(effects, outcome, logger).toSeamResult()
+            // The inline branch runs inside the outer transaction (mutex held, PONR crossed).
+            return runTerminalEffects(effects, outcome, ponrCrossed = true, logger = logger)
+                .toSeamResult()
         }
         // A rollback during a GRAPH-ONLY transition's preflight is rejected pre-mutation
         // (deterministic; nothing on disk or in DataStore is touched) — deadlock-free by
@@ -487,7 +489,8 @@ internal class AppRuntime(
             val rejected = ReplacementOutcome.RejectedBeforeMutation(
                 BackupError.Io(IOException("rollback unavailable inside a graph-only transition")),
             )
-            return runTerminalEffects(effects, rejected, logger).toSeamResult()
+            return runTerminalEffects(effects, rejected, ponrCrossed = false, logger = logger)
+                .toSeamResult()
         }
         return replace(ReplacementOperation.RollbackToPreRestoreBackup, effects).toSeamResult()
     }
@@ -532,16 +535,23 @@ internal class AppRuntime(
         hostScope.launch {
             val tracker = PonrTracker()
             // Escape hatches are deliberately Throwable-broad: every escape must resolve to a
-            // published state and complete the awaiters exactly once.
-            val outcome = inFlight.stagingFailure?.let { stagingError ->
-                ReplacementOutcome.RejectedBeforeMutation(
+            // published state and complete the awaiters exactly once. The terminal effect runs
+            // UNDER the transition mutex on every path (seam contract): a successor transaction
+            // entering the mutex must observe this one's compensation as already complete —
+            // otherwise a pending terminal cleanup could erase the successor's crash-safety
+            // marker or delete the shared preserved snapshot mid-swap.
+            val finalOutcome = inFlight.stagingFailure?.let { stagingError ->
+                val rejected = ReplacementOutcome.RejectedBeforeMutation(
                     BackupError.Io(IOException("restore source staging failed: $stagingError")),
                 )
+                transitionMutex.withLock {
+                    runTerminalEffects(effects, rejected, tracker.crossed, logger)
+                }
             } ?: runCatching {
                 // Cold-start rule: generation 1 exists before the transition mutex is taken.
                 currentGeneration
                 transitionMutex.withLock {
-                    runCatching {
+                    val outcome = runCatching {
                         executeReplacement(operation, effects, tracker, inFlight.stagedSource)
                     }.getOrElse { error ->
                         if (error is CancellationException) {
@@ -551,15 +561,16 @@ internal class AppRuntime(
                         }
                         resolveTransactionEscape(error, tracker)
                     }
+                    runTerminalEffects(effects, outcome, tracker.crossed, logger)
                 }
             }.getOrElse { error ->
-                // Escapes OUTSIDE the mutex (gen-1 build): nothing was mutated.
-                resolveTransactionEscape(error, tracker)
+                // Escapes OUTSIDE the mutex (gen-1 build): nothing was mutated; the mutex is
+                // taken fresh so even this path's compensation cannot interleave a successor.
+                val escaped = resolveTransactionEscape(error, tracker)
+                transitionMutex.withLock {
+                    runTerminalEffects(effects, escaped, tracker.crossed, logger)
+                }
             }
-            // Exactly ONE terminal effect per transaction, on THIS coroutine (never the
-            // initiator's), for EVERY outcome (escapes included) — then the runtime's terminal
-            // source cleanup, then the awaiters.
-            val finalOutcome = runTerminalEffects(effects, outcome, logger)
             inFlight.stagedSource?.let { staged -> runCatching { staged.delete() } }
             synchronized(submissionLock) { inFlightReplacements.remove(operation) }
             inFlight.outcome.complete(finalOutcome)

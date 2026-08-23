@@ -173,6 +173,22 @@ internal class StartupProcessorTest {
         }
 
     @Test
+    fun `recovery-retry-pending CONTINUES the launch - no restart, no scenario 2, still armed`() {
+        // Round-2 caller-semantics fix: an uncommitted failure-path rollback preserves its
+        // assets for the next launch's retry — a RestartRequired here would boot-loop silently
+        // forever (restart → retry → fail → restart). The launch proceeds; the failure dialog
+        // published by the coordinator is the user's feedback.
+        coEvery { restoreCoordinator.handlePostRestoreLaunch() } returns
+            PreflightOutcome.RecoveryRetryPending
+
+        val outcome = coldStart()
+
+        assertEquals(StartupOutcome.Proceed, outcome)
+        coVerify(exactly = 0) { migrationCoordinator.checkAndRouteOrProceed() }
+        coVerify(exactly = 1) { graph.recoveryBootstrap }
+    }
+
+    @Test
     fun `planner failure is caught - startup completes with Proceed`() {
         coEvery { restoreCoordinator.handlePostRestoreLaunch() } returns PreflightOutcome.NoOp
         plannerError = IllegalStateException("corrupt file")

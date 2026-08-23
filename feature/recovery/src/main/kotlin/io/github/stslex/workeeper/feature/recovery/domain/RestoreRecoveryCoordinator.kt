@@ -81,8 +81,11 @@ class RestoreRecoveryCoordinator @Inject internal constructor(
             ?: return PreflightOutcome.NoOp
 
         if (restoreStateRepository.isRestoreMutationInterrupted()) {
-            handleRestoreFailure(inProgressContext, cause = null)
-            return PreflightOutcome.RestoreRolledBack
+            return if (handleRestoreFailure(inProgressContext, cause = null)) {
+                PreflightOutcome.RestoreRolledBack
+            } else {
+                PreflightOutcome.RecoveryRetryPending
+            }
         }
 
         val peekResult = runCatching { snapshotProvider.currentSchemaVersion() }
@@ -90,8 +93,11 @@ class RestoreRecoveryCoordinator @Inject internal constructor(
             handleRestoreSuccess(inProgressContext)
             PreflightOutcome.RestoreSucceeded
         } else {
-            handleRestoreFailure(inProgressContext, peekResult.exceptionOrNull())
-            PreflightOutcome.RestoreRolledBack
+            if (handleRestoreFailure(inProgressContext, peekResult.exceptionOrNull())) {
+                PreflightOutcome.RestoreRolledBack
+            } else {
+                PreflightOutcome.RecoveryRetryPending
+            }
         }
     }
 
@@ -179,10 +185,11 @@ class RestoreRecoveryCoordinator @Inject internal constructor(
         )
     }
 
+    /** Runs the failure-path rollback; returns true when the rollback COMMITTED. */
     private suspend fun handleRestoreFailure(
         context: RestoreInProgressContext,
         cause: Throwable?,
-    ) {
+    ): Boolean {
         if (cause != null) {
             reporter.recordRestoreTimeFailure(
                 exception = cause,
@@ -193,11 +200,12 @@ class RestoreRecoveryCoordinator @Inject internal constructor(
         val rollback = databaseReplacement.rollbackToPreRestoreBackup(
             effects = ScenarioOneRollbackEffects(),
         )
-        when (rollback) {
+        return when (rollback) {
             is DatabaseReplacementResult.Committed -> {
                 rollback.effectsError?.let { effectsError ->
                     logger.w { "scenario-1 rollback committed with failed effects: $effectsError" }
                 }
+                true
             }
 
             // EVERY non-commit preserves EVERY viable recovery file and marker (round-2
@@ -205,12 +213,19 @@ class RestoreRecoveryCoordinator @Inject internal constructor(
             // `restore_in_progress` stays set and `pre_restore_backup.db` stays on disk, so the
             // NEXT launch re-enters this pre-flight and retries the rollback — the recovery
             // path survives a process restart instead of being destroyed by its first failure.
+            // The user still gets FEEDBACK (publishing a dialog touches no recovery asset), and
+            // the caller must NOT restart: with the rollback uncommitted a restart would loop
+            // silently forever — the launch continues and the next one retries.
             is DatabaseReplacementResult.RejectedBeforeMutation,
             is DatabaseReplacementResult.RecoveredByRollback,
             is DatabaseReplacementResult.FailedAfterMutation,
             DatabaseReplacementResult.FatalNoGeneration,
             -> {
                 logger.w { "Scenario 1 rollback did not commit ($rollback) — assets preserved for retry" }
+                appDialogPublisher.publish(
+                    AppDialog.RestoreFailure(reason = BackupErrorCodeForFailure),
+                )
+                false
             }
         }
     }
@@ -248,11 +263,22 @@ class RestoreRecoveryCoordinator @Inject internal constructor(
         RestoreSucceeded,
 
         /**
-         * Migration failed; rolled back to the preserved snapshot. Caller MUST
+         * Migration failed; the rollback to the preserved snapshot COMMITTED. Caller MUST
          * restart the app because the in-process Room handle is stale (it
          * already opened the failed db).
          */
         RestoreRolledBack,
+
+        /**
+         * The failure-path rollback did NOT commit (round-2 mandate 4: every asset and marker
+         * preserved for the next launch's retry). The caller must NOT restart — the rollback is
+         * still pending, so a restart would loop silently forever ("restart → retry → fail →
+         * restart"). A [AppDialog.RestoreFailure] was published as feedback; the launch
+         * continues (journal-routed case: the live file is the untouched pre-restore data;
+         * peek-throw case: DB reads fail loud exactly as any unmigratable-database launch
+         * would) and the NEXT launch re-enters the pre-flight and retries.
+         */
+        RecoveryRetryPending,
     }
 
     private companion object {

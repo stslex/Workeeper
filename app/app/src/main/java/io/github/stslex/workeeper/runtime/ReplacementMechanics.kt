@@ -102,23 +102,43 @@ internal fun stageRestoreSource(source: File, stagingDirectory: File, sequence: 
     staged.delete()
     if (!source.renameTo(staged)) {
         // Cross-filesystem or exotic-provider fallback; copyTo throws if the source is gone.
-        source.copyTo(staged, overwrite = true)
+        // A mid-copy failure must not orphan a partial staged file — the terminal cleanup only
+        // tracks a SUCCESSFULLY staged copy, so this frame deletes its own debris.
+        runCatching { source.copyTo(staged, overwrite = true) }.onFailure { error ->
+            staged.delete()
+            throw error
+        }
         source.delete()
     }
     return staged
 }
 
 /**
- * Executes the caller's TERMINAL effect for [outcome] — exactly one method, on the calling
- * (transaction) coroutine. A failing committed-effect is surfaced on the outcome
- * ([ReplacementOutcome.Completed.effectsError]), never swallowed into a clean commit; failures
- * of compensation effects are logged loudly (the outcome already carries the primary error).
+ * Executes the caller's TERMINAL effect for [outcome] — at most one method, on the calling
+ * (transaction) coroutine, under the transition mutex. A failing committed-effect is surfaced
+ * on the outcome ([ReplacementOutcome.Completed.effectsError]), never swallowed into a clean
+ * commit; failures of compensation effects are logged loudly (the outcome already carries the
+ * primary error).
+ *
+ * **Phase-aware Fatal dispatch:** a transaction that resolves Fatal WITHOUT having crossed its
+ * own point of no return (queued behind another transaction's Fatal; submitted onto an
+ * already-Fatal runtime) performed NOTHING — dispatching `onFatal` would let a caller journal
+ * a mutation that never happened (and later force a rollback of a committed restore), while
+ * dispatching the rejection-compensation would let it delete the recovery assets the FATAL
+ * transaction's next process needs. Neither is truthful, so no compensation runs; the caller
+ * learns from the Fatal result alone.
  */
 internal suspend fun runTerminalEffects(
     effects: DatabaseReplacementEffects,
     outcome: ReplacementOutcome,
+    ponrCrossed: Boolean,
     logger: Logger,
-): ReplacementOutcome = when (outcome) {
+): ReplacementOutcome = if (outcome is ReplacementOutcome.Fatal && !ponrCrossed) {
+    logger.w {
+        "transaction performed nothing on a Fatal runtime — no compensation effect dispatched"
+    }
+    outcome
+} else when (outcome) {
     is ReplacementOutcome.Completed ->
         runCatching { effects.onCommitted() }.fold(
             onSuccess = { outcome },
