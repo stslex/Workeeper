@@ -301,8 +301,13 @@ staged copy on every terminal outcome. All caller compensation is ONE typed
 and before anything irreversible; exactly one terminal method
 (`onRejectedBeforeMutation` / `onCommitted` / `onRecoveredByRollback` / `onFailedAfterMutation`
 / `onFatal`) runs per transaction, on the transaction's coroutine, for every outcome including
-internal escapes. A failing `onCommitted` surfaces as `Committed(effectsError)` — never a
-silently clean commit.
+internal escapes. Terminal selection is DURABLE-PHASE-AWARE (R4.2): `onCommitted` is legal only
+once the durable `Committed` transition actually landed — a failure that PREVENTED it
+(promotion or the record, `CommitResult.NotDurable`) is never dispatched as a committed
+terminal, because the production committed effects resolve the still-`Prepared` attempt, clear
+availability and acknowledge the initiating action — erasing exactly the state conservative
+recovery needs. A failure OF the `onCommitted` callback itself, after a durable commit, is a
+different origin: it folds onto `Committed(effectsError)` — never a silently clean commit.
 
 **The point of no return is the START of the first irreversible action** — the outgoing
 teardown, the `close()` INVOCATION, or the file mutation — never its completion. Before it,
@@ -547,11 +552,21 @@ reservation → consume the exact rollback source a rollback op applied. A crash
 `Committed` record recovers via the journal's reservation, which the copy-based promotion
 guarantees still exists; a crash after the record but before the reservation delete is cleaned
 up idempotently by the committed cold-start finalization (§8.5b); a failure to promote or to
-record `Committed` leaves the mutation standing but unprovable, so the next launch
-conservatively rolls back — which the invariant explicitly permits, while claiming success does
-not. That failure is reported on the outcome (`effectsError`), never swallowed: **every**
-terminal compensation failure is folded onto the result, because durable state then disagrees
-with what a clean-looking outcome would imply. The in-process ladder obeys the same owner rule:
+record `Committed` leaves the mutation standing but unprovable, so recovery proceeds
+conservatively — which the invariant explicitly permits, while claiming success does not. That
+PRE-DURABLE failure is typed `CommitResult.NotDurable` (R4.2) and is **never dispatched as a
+committed terminal**: under `RestartProcess` it maps to `FailedAfterMutation` (journal
+`Prepared`, reservation retained, the next launch recovers); under `RebuildInProcess` the
+transaction diverts straight into the bounded recovery ladder (a restore rolls back onto its
+kept reservation; a requested rollback retries its own source and its durable record once, and
+a persistent record failure ends Fatal with everything preserved) — a candidate is never
+published over the unprovable file. Pre-R4.2 this failure surfaced as `Completed(effectsError)`
+and the committed terminal ran anyway, letting the production `onCommitted` effects resolve the
+still-`Prepared` attempt, clear availability, publish success and acknowledge — erasing exactly
+the state conservative recovery needed. The only `effectsError` a `Completed` can carry now
+originates from a failure OF the terminal `onCommitted` callback after a DURABLE commit — a
+different origin, still folded onto the result, never swallowed. The in-process ladder obeys
+the same owner rule:
 a pre-commit recovery applies the attempt's reservation WITHOUT consuming it (the journal still
 names it until the terminal effects resolve; the submission frame discards it after), a
 post-clean-commit recovery legally applies the canonical (the ordering proof above), a vanished
@@ -1562,3 +1577,79 @@ named tests + 1 parameterized invocation)**; the §23.2 matrix is explicitly a C
 covers any `Prepared` attempt (legacy, interrupted canonical-sourced rollback, torn write);
 and the pre-R4.1 claim that a committed rollback's source identity "cannot be known" is
 removed — `rollbackSnapshotPath` is the durable discriminator, and §8.5b now says so.
+
+## 25. R4.2 final correction record (2026-08-23)
+
+Two commits on `83793531`: `decb5e7a` (blocker A: durable-phase-aware terminal dispatch;
+blocker B: the suppression removal; the liveness-truth rewrite) and the docs commit carrying
+this section. §8.4's terminal-selection paragraph and §8.5a's durable-commit-ordering paragraph
+were rewritten IN PLACE.
+
+### 25.1 Blocker A — pre-durable failures are never committed terminals
+
+`commitMutation` now returns the explicit protocol phase — `CommitResult.Durable |
+NotDurable` — and every one of its four call sites maps `NotDurable` to a NON-committed
+continuation: `runRestartProcessSwap` → `FailedAfterMutation` (journal `Prepared`, reservation
+retained); `executeRebuildTransaction` → the bounded recovery ladder (a restore rolls back onto
+its kept reservation, deterministic `RecoveredByRollback`; a requested rollback retries source
++ record once); `recoverViaRollback` → Fatal on a persistent record failure, everything
+preserved; `runInlineRollback` → `FailedAfterMutation` (feedback allowed, no resolve, no
+clear). Pre-R4.2, `Completed(effectsError)` + the unconditional `onCommitted` dispatch let the
+production committed effects resolve the still-`Prepared` attempt, clear availability, publish
+success and acknowledge — erasing the state conservative recovery needs. The one remaining
+origin of `Completed.effectsError` is a failure OF the terminal `onCommitted` callback after a
+DURABLE commit.
+
+Production-shaped pins, seven of them RED at `83793531` (`r42-red-on-base-runtime.xml`):
+persistent-record retry with the REAL committed shape (resolve/clear/publish/ack — never
+invoked; `Prepared` + source + availability survive; bounded Fatal); one-shot record failure on
+a requested rollback (exactly ONE committed terminal — the base dispatched a stale SECOND from
+the failed first record); promotion failure under both policies; inline record failure (cannot
+erase the `Prepared` journal); the focused durable-phase-selects-terminal pin; and the two
+rewritten legacy pins. The one-shot RESTORE proof was initially green-on-base; the R4.2
+adversarial review's one confirmed finding was that a targeted mutant (gating the NotDurable
+divert on `requestedRollback`) survived it, so it was STRENGTHENED with the two missing axes —
+the recovery swap must precede the first candidate preflight (no candidate is ever built over
+the unprovable file), and the recovered outcome carries no stale pre-durable `effectsError` —
+after which it too is red on base: all EIGHT durable-phase pins fail at `83793531`.
+KNOWN-NEGATIVE R4.2-KN (the old dispatch restored on the retry path) kills the
+production-shaped pin (`known-negative-r42-predurable-dispatch.xml`); reverted, empty diff.
+
+### 25.2 Blocker B — the zero-suppression claim is true again
+
+`39e9155c` had added one `@Suppress("UNCHECKED_CAST")` in `AppRuntimeReplacementTest`. It is
+removed via a typed `ProbeViewModelFactory` (`Class.cast`), the pre-existing sibling factory
+converted with it, and the claim is verified against the FULL correction range:
+`git diff -U0 936ab699..HEAD -- '*.kt' | rg '^\+\s*@Suppress'` returns nothing.
+
+### 25.3 Liveness truth
+
+The wedged-main pin now uses a REAL queueing dispatcher (runnables retained, never executed)
+and, after the Fatal verdict, EXECUTES the abandoned clear — proving the documented residual:
+the late clear runs and changes nothing (still Fatal, no publication, epoch unchanged,
+admission retired). The unbounded-clear mutant was re-executed against this exact test — it
+fails it at the deferred-completion assertion ("the submitted deferred must complete";
+`known-negative-r42-unbounded-clear-queued.xml`) — and reverted.
+Every prior "queue-only" phrasing now describes what the test literally does.
+
+### 25.4 Adversarial review outcome and residual
+
+The mandated fresh-context review (4 hunts: durable phase vs terminal dispatch; every
+`commitMutation` call site; production caller effects and outcome mappings; test vacuity and
+evidence truth) found **no invariant counterexample** in the shipped protocol. Its one
+confirmed finding was test vacuity: the one-shot RESTORE proof survived a targeted
+divert-gating mutant — fixed by strengthening the pin (§25.1), after which all eight
+durable-phase pins are red on base. Two harness-fidelity nits (the fake journal resolves
+before its markers where production resolves last; its `onRecoveredByRollback` resolves
+unconditionally) are non-load-bearing for what the pins assert and are noted here rather than
+churned.
+
+**Named residual (outside the locked invariant, on record):** a mid-copy
+`promoteRollbackReservation` failure can leave the CANONICAL slot partially written (the
+staging fallback deletes the target before its copy; the catch cleans only the staging file),
+and rollback sources are applied without re-validating the SQLite magic — so a later user undo
+of a PREVIOUS attempt could swap in a truncated canonical. The NotDurable protocol itself
+handles the failing attempt correctly (recovery uses the reservation; availability is
+ground-truth), so this is a canonical-integrity hazard for a DIFFERENT attempt's asset, not a
+violation of the R4.2 invariant; it would surface as a failed rollback swap or a
+recovery-routed launch, never a false success.

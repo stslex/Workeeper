@@ -13,6 +13,17 @@ and the four suites run — **21 failures total (20 named tests + 1 parameterize
 all green at the current head. Raw JUnit XMLs: `r4-red-on-base-*.xml` beside this file
 (`<system-out>` stripped; testcases and failures verbatim).
 
+**R4.2 red-on-base evidence.** All EIGHT production-shaped pins for the durable-phase
+dispatch correction (spec §25) were proven to FAIL at `83793531` via the worktree recipe
+(`r42-red-on-base-runtime.xml`) — the one-shot RESTORE proof after the adversarial review's
+vacuity fix (§25.1). Known-negatives: the old pre-durable→committed dispatch
+restored on the retry path kills the production-shaped pin
+(`known-negative-r42-predurable-dispatch.xml`); the unbounded-clear mutant re-executed against
+the rewritten QUEUEING liveness test hangs it
+(`known-negative-r42-unbounded-clear-queued.xml`). Both reverted with clean diffs. The
+zero-suppression claim is verified against the FULL range: `git diff -U0 936ab699..HEAD --
+'*.kt'` adds no `@Suppress`.
+
 **R4.1 red-on-base evidence.** The six R4.1 pins (spec §24) were proven to FAIL at `7c82c368`
 the same way (`r41-red-on-base-runtime.xml` + `r41-red-on-base-coordinator.xml`); the
 liveness pin's discriminator is the executed-and-reverted unbounded-clear mutant
@@ -42,9 +53,9 @@ results of the final Regression run, copied verbatim from
 
 | Command | Exit | Executed | Tests |
 |---|---|---|---|
-| `./gradlew assembleDebug testDebugUnitTest verifyPaparazziDebug lintDebug assembleDebugAndroidTest --rerun-tasks --no-build-cache --no-configuration-cache` | 0 (`BUILD SUCCESSFUL in 32m 50s`, R4.1 final; round-4 15m31s/2712; round-3 8m29s/2688; round-2 9m10s/2648; round-1 9m06s/2609; pre-rework 7m48s/2461) | 3265/3265 tasks executed; `verifyPaparazziDebug` in the graph with zero movers (goldens untouched by every round; 13 golden-holding modules) | **2720 unit/host tests, 0 failures, 0 errors** (2204 `testDebugUnitTest` + 389 `testAndroidHostTest` + 127 `test`, counted from the raw JUnit XMLs across all three host scopes) |
-| `./gradlew detekt :lint-rules:test --rerun-tasks --no-build-cache --no-configuration-cache` | 0 (R4.1 forced re-run) | **zero new suppressions** — the full diff (`git diff 936ab699..HEAD`) adds no `@Suppress`, and no detekt config or baseline file is touched (verified by grep, not just the exit code) | 127 custom-rule tests, 0 failures |
-| `./gradlew :core:data:backup:api:compileKotlinIosSimulatorArm64 :core:core:compileKotlinIosSimulatorArm64 --rerun-tasks …` | 0 (10/10 executed, R4.1 re-forced) | the KMP modules the reworks touched. The full five-module + Room-KSP sweep stands from round 2 | — |
+| `./gradlew assembleDebug testDebugUnitTest verifyPaparazziDebug lintDebug assembleDebugAndroidTest --rerun-tasks --no-build-cache --no-configuration-cache` | 0 (`BUILD SUCCESSFUL in 9m 37s`, R4.2 final; R4.1 32m50s/2720; round-4 15m31s/2712; round-3 8m29s/2688; round-2 9m10s/2648; round-1 9m06s/2609; pre-rework 7m48s/2461) | 3265/3265 tasks executed; `verifyPaparazziDebug` in the graph with zero movers (goldens untouched by every round; 13 golden-holding modules) | **2725 unit/host tests, 0 failures, 0 errors** (2209 `testDebugUnitTest` + 389 `testAndroidHostTest` + 127 `test`, counted from the raw JUnit XMLs across all three host scopes) |
+| `./gradlew detekt :lint-rules:test --rerun-tasks --no-build-cache --no-configuration-cache` | 0 (R4.2 forced re-run) | **zero new suppressions** — the full diff (`git diff 936ab699..HEAD`) adds no `@Suppress`, and no detekt config or baseline file is touched (verified by grep, not just the exit code) | 127 custom-rule tests, 0 failures |
+| `./gradlew :core:data:backup:api:compileKotlinIosSimulatorArm64 :core:core:compileKotlinIosSimulatorArm64 --rerun-tasks …` | 0 (10/10 executed, R4.2 re-forced) | the KMP modules the reworks touched. The full five-module + Room-KSP sweep stands from round 2 | — |
 
 iOS **link/runtime**: UNVERIFIED — no iOS host exists before Phase 7; compile+KSP evidence only.
 
@@ -52,9 +63,9 @@ iOS **link/runtime**: UNVERIFIED — no iOS host exists before Phase 7; compile+
 
 | Command | Exit | Tests |
 |---|---|---|
-| `ANDROID_SERIAL=emulator-5554 ./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.annotation=io.github.stslex.workeeper.core.ui.test.annotations.Smoke --max-workers=2 --continue` | 0 (R4.1 final 44/0; round-4 3m02s/44; round-3 2m39s/44; round-2 2m41s/43) | **44** started, 0 failures (+1 over round 2: the generation-deps seam pin). Its FIRST round-3 run was RED and load-bearing — see §22.3b: `:core:ui:mvi`'s probe builds a Store with no app graph, and the processor now requires one app-scope binding, so the probe's plain `Application` failed the `appDeps` cast. Fixed by supplying the binding as production does, never by softening the seam |
-| same with `…annotations.Regression` | 0 (R4.1 final 81/0; round-4 4m06s/81; round-3 3m21s/81; round-2 3m19s/78) | **81** started, 0 failures (49 `app:app` — the composed handshake test plus round-3's three device pins — + 30 `core:data:database` + 2 others; raw XMLs beside this file) |
-| `:core:data:database:connectedDebugAndroidTest -P…class=…SameInstanceReopenAfterSwapDeviceTest` | 0 (R4.1 re-run) | **2/2** — the Room same-instance characterization is UNCHANGED in what it proves |
+| `ANDROID_SERIAL=emulator-5554 ./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.annotation=io.github.stslex.workeeper.core.ui.test.annotations.Smoke --max-workers=2 --continue` | 0 (R4.2 final 44/0; R4.1 44/0; round-4 3m02s/44; round-3 2m39s/44; round-2 2m41s/43) | **44** started, 0 failures (+1 over round 2: the generation-deps seam pin). Its FIRST round-3 run was RED and load-bearing — see §22.3b: `:core:ui:mvi`'s probe builds a Store with no app graph, and the processor now requires one app-scope binding, so the probe's plain `Application` failed the `appDeps` cast. Fixed by supplying the binding as production does, never by softening the seam |
+| same with `…annotations.Regression` | 0 (R4.2 final 81/0; R4.1 81/0; round-4 4m06s/81; round-3 3m21s/81; round-2 3m19s/78) | **81** started, 0 failures (49 `app:app` — the composed handshake test plus round-3's three device pins — + 30 `core:data:database` + 2 others; raw XMLs beside this file) |
+| `:core:data:database:connectedDebugAndroidTest -P…class=…SameInstanceReopenAfterSwapDeviceTest` | 0 (R4.2 re-run) | **2/2** — the Room same-instance characterization is UNCHANGED in what it proves |
 
 Standalone runs (same emulator): full unfiltered `:app:app:connectedDebugAndroidTest` 49/0 and
 `:core:data:database:connectedDebugAndroidTest` 30/0 (round 3);
