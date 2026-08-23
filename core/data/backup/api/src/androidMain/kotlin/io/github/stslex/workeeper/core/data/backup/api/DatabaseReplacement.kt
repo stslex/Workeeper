@@ -124,7 +124,10 @@ interface DatabaseReplacementEffects {
      * Terminal: the requested operation failed after the point of no return and the runtime's
      * automatic rollback restored a serving generation on the PRE-operation data. Compensate
      * the preparation (the in-progress marker is stale — recovery already happened) and surface
-     * FAILURE semantics; the preserved rollback file was consumed by the recovery.
+     * FAILURE semantics. Which rollback asset was consumed depends on the applied source (R4):
+     * a reservation-sourced recovery leaves the canonical undo slot — and the PREVIOUS
+     * restore's undo — intact, so availability decisions here must come from ground truth
+     * (canonical file existence), never from an assumption of consumption.
      */
     suspend fun onRecoveredByRollback(error: BackupError) {}
 
@@ -177,8 +180,9 @@ sealed interface DatabaseReplacementResult {
     /**
      * The requested restore failed after the point of no return; the runtime's bounded recovery
      * rolled back and a generation is SERVING on the PRE-operation data. This is a restore
-     * FAILURE for every caller: never a success dialog, never an undo offer (the preserved file
-     * was consumed by the recovery).
+     * FAILURE for every caller: never a success dialog, and no undo offer FOR THIS attempt —
+     * whether a previous restore's undo survives is a ground-truth question (the recovery may
+     * have applied this attempt's own reservation without touching the canonical slot).
      */
     data class RecoveredByRollback(
         val error: BackupError,

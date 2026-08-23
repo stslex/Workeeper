@@ -293,10 +293,18 @@ internal class AppRuntime(
                 }
             }.getOrElse { error ->
                 logger.e(error, "reinitialize failed outside the transition body")
-                if (isFatal) {
-                    ReinitializeOutcome.Fatal
-                } else {
-                    ReinitializeOutcome.Aborted("reinitialize failed: $error", currentOrNull)
+                when {
+                    isFatal -> ReinitializeOutcome.Fatal
+
+                    // Same terminality as [resolveTransactionEscape] (R4 review): a
+                    // failed-release signal from the generation-1 build means an unknown-state
+                    // handle or an unjoinable job holds the live file — never retryable.
+                    error is OrphanCloseException || error is PartialCandidateUnwindException -> {
+                        publishFatal("generation resources could not be released: $error")
+                        ReinitializeOutcome.Fatal
+                    }
+
+                    else -> ReinitializeOutcome.Aborted("reinitialize failed: $error", currentOrNull)
                 }
             }
             result.complete(outcome)
@@ -442,7 +450,7 @@ internal class AppRuntime(
         // nested transaction (the mutex is non-reentrant and the transaction coroutine holds
         // it). This coroutine IS the transaction, so the terminal effect runs right here.
         coroutineContext[ReplacementTransaction]?.let { transaction ->
-            val outcome = runInlineRollback(closeDatabase, transaction, effects)
+            val outcome = runInlineRollback(closeDatabase, transaction, effects, sourcePath)
             // The inline branch runs inside the outer transaction (mutex held, PONR crossed).
             return runTerminalEffects(effects, outcome, ponrCrossed = true, logger = logger)
                 .toSeamResult()
@@ -575,6 +583,13 @@ internal class AppRuntime(
     private fun resolveTransactionEscape(error: Throwable, tracker: PonrTracker): ReplacementOutcome {
         logger.e(error, "replacement transaction threw unexpectedly")
         if (isFatal) return ReplacementOutcome.Fatal()
+        // A failed-release signal is terminal even pre-PONR (R4 review): an orphan whose close
+        // threw is an unknown-state handle over the live file, and an unjoinable partial
+        // candidate still holds it — resolving to a retryable rejection would let the retry
+        // open a NEW handle beside the leaked one and later rename over it.
+        if (error is OrphanCloseException || error is PartialCandidateUnwindException) {
+            return publishFatal("generation resources could not be released: $error")
+        }
         return if (tracker.crossed) {
             publishFatal("transaction escaped after the point of no return: $error")
         } else {
@@ -797,6 +812,16 @@ internal class AppRuntime(
      * `Committed` would let the very next preflight read it as a successful restore and publish
      * `RestoreSuccess` for data that was rolled back. The caller learns the truth from the
      * `RecoveredByRollback` outcome and compensates in `onRecoveredByRollback`.
+     *
+     * When the attempt HAD already committed cleanly ([afterCleanCommit]), the journal reads
+     * `Committed` — exactly the false-success record the paragraph above guards against, left
+     * standing by the restore's own commit (R4 review). So this branch durably UN-commits
+     * first: the caller's `onBeforeMutation` re-claims the slot back to `Prepared` BEFORE the
+     * rollback swap, the canonical is applied WITHOUT being consumed, and the follow-up
+     * preflight then reads honest state — either resolving the recovery through the inline
+     * protocol (which consumes the canonical and journals `Committed`/Rollback) or, after a
+     * death, classifying conservatively. A failed un-commit is Fatal: applying the rollback
+     * over a still-`Committed` journal would recreate the false-success window.
      */
     private suspend fun recoverViaRollback(
         mutation: MutationPlan,
@@ -817,6 +842,15 @@ internal class AppRuntime(
             is RecoverySourcePlan.Apply -> {
                 rollbackSource = plan.source
                 rollbackConsume = plan.consume
+            }
+        }
+        if (afterCleanCommit) {
+            val unCommitted = runCatching { mutation.effects.onBeforeMutation("") }
+            if (unCommitted.isFailure) {
+                return publishFatal(
+                    "could not durably un-commit before the recovery rollback: " +
+                        "${unCommitted.exceptionOrNull()}",
+                )
             }
         }
         val rolledBack = provider.replaceLiveDatabaseFile(rollbackSource)
@@ -846,7 +880,24 @@ internal class AppRuntime(
                 publishFatal("candidate resources could not be released after rollback")
 
             AttemptResult.Retryable ->
-                publishFatal("post-rollback generation attempt failed (original cause: $cause)")
+                // A candidate invalidated BY ITS OWN PREFLIGHT'S INLINE ROLLBACK is not a
+                // failure of the ladder: the preflight found the un-committed journal, re-drove
+                // the recovery through the inline protocol and RESOLVED it (truthful dialogs
+                // included). One fresh attempt then runs over an empty journal — bounded: that
+                // attempt's preflight has nothing left to recover, so it can only publish or
+                // fail into the terminal branches below.
+                if (transaction.candidateInvalidated) {
+                    when (val retry = attemptGeneration(transaction)) {
+                        is AttemptResult.Published ->
+                            completedOrRecovered(transaction, retry.generation, requestedRollback)
+
+                        else -> publishFatal(
+                            "post-rollback generation attempt failed (original cause: $cause)",
+                        )
+                    }
+                } else {
+                    publishFatal("post-rollback generation attempt failed (original cause: $cause)")
+                }
         }
     }
 

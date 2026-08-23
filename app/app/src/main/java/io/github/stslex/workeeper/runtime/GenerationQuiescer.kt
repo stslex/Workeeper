@@ -1,9 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.runtime
 
+import androidx.lifecycle.ViewModelStore
 import io.github.stslex.workeeper.core.core.logger.Logger
 import io.github.stslex.workeeper.core.data.database.AppDatabase
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
 /**
@@ -72,11 +76,8 @@ internal class GenerationQuiescer(
      * the database closes.
      */
     suspend fun tearDown(outgoing: RuntimeGeneration): String? {
-        val cleared = runCatching {
-            withContext(policy.mainDispatcher) { outgoing.viewModelStore.clear() }
-        }
-        if (cleared.isFailure) {
-            return "outgoing ViewModelStore clear failed: ${cleared.exceptionOrNull()}"
+        if (!clearStoreBounded(outgoing.viewModelStore)) {
+            return "outgoing ViewModelStore clear failed or timed out"
         }
         val joined = withTimeoutOrNull(policy.drainTimeoutMillis) {
             outgoing.lifetime.cancelAndJoin()
@@ -85,6 +86,23 @@ internal class GenerationQuiescer(
             return "outgoing lifetime did not join in time (unjoinable DB-bound job)"
         }
         return null
+    }
+
+    /**
+     * Clears a runtime-owned ViewModelStore on the main dispatcher with a BOUNDED await (R4
+     * review): a `withContext` here would suspend the whole transition — mutex held, phase
+     * stranded at `Transitioning`, the submitted deferred never completing — for as long as a
+     * wedged main dispatcher or a blocking `onCleared` cares to run. The clear is dispatched
+     * detached and awaited within the drain budget; on timeout the machine proceeds to its
+     * terminal verdict and the abandoned clear finishes (or not) on its own — acceptable,
+     * because every timeout consumer treats the clear as FAILED and goes Fatal.
+     */
+    private suspend fun clearStoreBounded(store: ViewModelStore): Boolean {
+        val cleared = CompletableDeferred<Boolean>()
+        CoroutineScope(policy.mainDispatcher + SupervisorJob()).launch {
+            cleared.complete(runCatching { store.clear() }.isSuccess)
+        }
+        return withTimeoutOrNull(policy.drainTimeoutMillis) { cleared.await() } ?: false
     }
 
     /**
@@ -103,12 +121,9 @@ internal class GenerationQuiescer(
         candidate: RuntimeGeneration,
         closeCandidateDatabase: Boolean,
     ): Boolean {
-        val cleared = runCatching {
-            withContext(policy.mainDispatcher) { candidate.viewModelStore.clear() }
-        }
-        if (cleared.isFailure) {
+        if (!clearStoreBounded(candidate.viewModelStore)) {
             logger.e(
-                cleared.exceptionOrNull() ?: IllegalStateException("candidate VM clear failed"),
+                IllegalStateException("candidate VM clear failed or timed out"),
                 "candidate ViewModelStore clear failed — the ladder must stop",
             )
             return false

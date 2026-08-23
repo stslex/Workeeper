@@ -317,10 +317,12 @@ internal class DatabaseSnapshotProviderImplTest {
     fun `a stale promoting file from a crashed promotion is discarded, never promoted`() =
         runTest {
             // Deterministic handling of `.promoting` debris (R4): a crashed promotion may leave
-            // a partial staging file. It must never redirect anything — the next promotion
-            // deletes it before staging its own copy, recovery never reads it (the canonical
-            // lookup is an exact-name match), and the promoted content comes from the
-            // reservation actually passed in.
+            // a partial staging file. It must never redirect anything — recovery never reads it
+            // (the canonical lookup is an exact-name match) and the promoted content comes from
+            // the reservation actually passed in. NOTE the exact claim boundary: this pins the
+            // END STATE (canonical == fresh reservation bytes, no residue); the impl's
+            // pre-delete of the staging file is defensive and not separately observable here,
+            // because `copyTo(overwrite = true)` would produce the same end state.
             File(context.cacheDir, "pre_restore_backup.db.promoting")
                 .writeText("GARBAGE-FROM-A-CRASHED-PROMOTION")
             val reservation = File(context.cacheDir, "rollback_reservation_fresh.db")

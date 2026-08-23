@@ -347,7 +347,11 @@ internal fun selectRecoverySource(
             ?: return RecoverySourcePlan.Stop(
                 "post-commit recovery found no promoted undo slot ($cause)",
             )
-        return RecoverySourcePlan.Apply(canonical, SourceConsumption.CanonicalSlot)
+        // Deliberately NOT consumed here (R4 review): the canonical stays in place so the
+        // follow-up preflight's own honest recovery — which reads the durably UN-committed
+        // journal the caller re-claimed before this rollback — can find, re-apply and consume
+        // it through the inline protocol, resolving the journal truthfully.
+        return RecoverySourcePlan.Apply(canonical, SourceConsumption.None)
     }
     return when (mutation.consume) {
         is SourceConsumption.ExactFile -> RecoverySourcePlan.Stop(
@@ -417,21 +421,53 @@ internal suspend fun commitMutation(
     return ReplacementOutcome.Completed(generation = generation)
 }
 
-/** The inline Scenario-1 rollback branch of the CURRENT transaction (see the seam method). */
+/**
+ * The inline Scenario-1 rollback branch of the CURRENT transaction (see the seam method).
+ *
+ * R4 adversarial-review corrections — the inline branch obeys the SAME protocol as the
+ * top-level operation, because it IS the same operation submitted from inside the preflight:
+ *
+ *  - the submitted [sourcePath] is honored through [selectRollbackOperationSource] — a
+ *    journal-named source is authoritative and a missing one is a typed rejection, never a
+ *    silent substitution of the canonical slot (invariant 2; pre-fix the inline branch
+ *    hard-coded the canonical, which could apply and consume ANOTHER attempt's older
+ *    snapshot);
+ *  - [DatabaseReplacementEffects.onBeforeMutation] runs BEFORE anything irreversible, exactly
+ *    as `executeReplacement` does: the scenario-1 effects' re-claim converts the journal to
+ *    `Prepared`/`Kind.Rollback`, so a process death anywhere inside the inline mutation
+ *    replays the truthful rollback bookkeeping — pre-fix the journal stayed
+ *    `Committed`/`Kind.Restore` and a death before the terminal resolve made the next launch
+ *    peek the rolled-back file and publish a FALSE RestoreSuccess;
+ *  - the applied file is consumed EXACTLY (invariant 3), via the plan's typed consumption.
+ */
 internal suspend fun runInlineRollback(
     closeDatabase: (AppDatabase) -> Unit,
     transaction: ReplacementTransaction,
     effects: DatabaseReplacementEffects,
+    sourcePath: String?,
 ): ReplacementOutcome {
     val candidate = transaction.candidate
         ?: return ReplacementOutcome.RejectedBeforeMutation(
             BackupError.CorruptedBackup(reason = "inline rollback outside a candidate preflight"),
         )
     val provider = candidate.graph.databaseSnapshotProvider
-    val rollbackSource = provider.getPreRestoreBackupFile()
-        ?: return ReplacementOutcome.RejectedBeforeMutation(
-            BackupError.CorruptedBackup(reason = "no pre-restore backup to roll back to"),
+    val plan = when (val selected = selectRollbackOperationSource(sourcePath, provider)) {
+        is OperationSourcePlan.Reject ->
+            return ReplacementOutcome.RejectedBeforeMutation(selected.error)
+
+        is OperationSourcePlan.Proceed -> selected
+    }
+    // Pre-mutation persistence, BEFORE the candidate close: a throw (foreign journal owner, or
+    // a failed write) rejects the inline rollback while the candidate and the live file are
+    // both untouched.
+    val prepared = runCatching { effects.onBeforeMutation("") }
+    if (prepared.isFailure) {
+        return ReplacementOutcome.RejectedBeforeMutation(
+            BackupError.Io(
+                IOException("pre-mutation persistence failed: ${prepared.exceptionOrNull()}"),
+            ),
         )
+    }
     // The candidate's open-verification handle is the only open handle; close it (terminal)
     // before the file mechanics. Closing invalidates the candidate for publication either way;
     // a failed candidate close leaves an unknown-state handle over the live file — the LADDER
@@ -444,7 +480,7 @@ internal suspend fun runInlineRollback(
             BackupError.Io(IOException("candidate close failed: ${closed.exceptionOrNull()}")),
         )
     }
-    val replaced = provider.replaceLiveDatabaseFile(rollbackSource)
+    val replaced = provider.replaceLiveDatabaseFile(plan.source)
     if (replaced is BackupResult.Failure) {
         return ReplacementOutcome.FailedAfterMutation(replaced.error)
     }
@@ -454,12 +490,12 @@ internal suspend fun runInlineRollback(
         IOException("restore rolled back by the scenario-1 preflight"),
     )
     // The rollback asset is consumed only after the durable commit record — same ordering rule
-    // as every other mutation (spec §8.5a). The applied source IS the canonical undo slot here.
+    // as every other mutation (spec §8.5a), and EXACTLY the applied file (invariant 3).
     return commitMutation(
         mutation = MutationPlan(
             provider = provider,
-            source = rollbackSource,
-            consume = SourceConsumption.CanonicalSlot,
+            source = plan.source,
+            consume = plan.consume,
             effects = effects,
             reservation = null,
         ),

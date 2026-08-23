@@ -1512,6 +1512,190 @@ internal class AppRuntimeReplacementTest {
             )
         }
 
+    // ------------------------------------------------------------------------------------------
+    // R4 adversarial review — the inline rollback obeys the SAME protocol as the top level.
+    // ------------------------------------------------------------------------------------------
+
+    @Test
+    fun `the INLINE rollback honors the journal-named source - another attempt's canonical is never applied`() =
+        runtimeTest { runtime ->
+            runtime.currentGeneration
+            // Canonical B belongs to a PREVIOUS attempt; the preflight submits an explicit
+            // journal-named source A (the recovering coordinator's exact call shape). Pre-fix,
+            // the inline branch dropped the path and applied B — reverting the user past data
+            // the failed attempt never touched, and consuming B while the flag policy assumed
+            // the reservation had been used.
+            preservedFile(content = "B-OLDER-CANONICAL")
+            val sourceA = File(tempDir, "rollback_reservation_inline.db")
+                .apply { writeText("A-JOURNAL-NAMED") }
+            val applied = mutableListOf<String>()
+            var swaps = 0
+            coEvery { provider.replaceLiveDatabaseFile(any()) } coAnswers {
+                protocolLog += "swap"
+                applied += firstArg<File>().readText()
+                swaps++
+                BackupResult.Success(Unit)
+            }
+            val inlineEffects = RecordingEffects(attemptId = "inline-attempt", calls = protocolLog)
+            var inlineResult: DatabaseReplacementResult? = null
+            preflightAction = { _ ->
+                if (preflightCalls == 1) {
+                    inlineResult = runtime.rollbackToPreRestoreBackup(
+                        sourcePath = sourceA.absolutePath,
+                        effects = inlineEffects,
+                    )
+                }
+            }
+            preflightOutcomes += StartupOutcome.RestartRequired
+
+            val outcome = runtime.replace(ReplacementOperation.RestoreFromSnapshot(sourceFile()))
+
+            assertInstanceOf(DatabaseReplacementResult.Committed::class.java, inlineResult)
+            assertInstanceOf(ReplacementOutcome.RecoveredByRollback::class.java, outcome)
+            assertEquals(
+                "A-JOURNAL-NAMED",
+                applied[1],
+                "the inline rollback must apply the SUBMITTED source: $applied",
+            )
+            assertFalse(sourceA.exists(), "the exact applied file was consumed")
+            // By inline time the outer restore's CLEAN COMMIT legally promoted its own
+            // reservation onto the canonical slot (overwriting B) — the inline rollback must
+            // still neither apply nor consume that slot.
+            assertEquals(
+                RESERVATION_CONTENT,
+                File(tempDir, "pre_restore_backup.db").readText(),
+                "the canonical slot (this attempt's own promoted pre-image) is untouched",
+            )
+            // Journal honesty: the re-claim ran BEFORE the inline mutation, so a death inside
+            // it replays the truthful rollback bookkeeping instead of the restore's stale phase.
+            val inlineClaim = protocolLog.indexOf("beforeMutation")
+            val inlineSwap = protocolLog.lastIndexOf("swap")
+            assertTrue(
+                inlineClaim in 0 until inlineSwap,
+                "the inline rollback must re-claim the journal before mutating: $protocolLog",
+            )
+        }
+
+    @Test
+    fun `the INLINE rollback with a MISSING journal-named source rejects - no substitution`() =
+        runtimeTest { runtime ->
+            runtime.currentGeneration
+            preservedFile(content = "B-OLDER-CANONICAL")
+            val missing = File(tempDir, "rollback_reservation_gone.db")
+            var inlineResult: DatabaseReplacementResult? = null
+            preflightAction = { _ ->
+                if (preflightCalls == 1) {
+                    inlineResult = runtime.rollbackToPreRestoreBackup(
+                        sourcePath = missing.absolutePath,
+                        effects = RecordingEffects(attemptId = "inline-attempt"),
+                    )
+                }
+            }
+
+            val outcome = runtime.replace(ReplacementOperation.RestoreFromSnapshot(sourceFile()))
+
+            val rejected = assertInstanceOf(
+                DatabaseReplacementResult.RejectedBeforeMutation::class.java,
+                inlineResult,
+            )
+            assertTrue("$rejected".contains("journal-named"), "typed rejection: $rejected")
+            // The restore itself proceeds (its preflight returned Proceed by default).
+            assertInstanceOf(ReplacementOutcome.Completed::class.java, outcome)
+            // The canonical holds the restore's own promoted pre-image — the rejected inline
+            // rollback neither applied nor consumed it.
+            assertEquals(
+                RESERVATION_CONTENT,
+                File(tempDir, "pre_restore_backup.db").readText(),
+                "the canonical slot was never applied nor consumed",
+            )
+        }
+
+    @Test
+    fun `post-clean-commit recovery durably UN-commits before rolling back and spares the canonical`() =
+        runtimeTest { runtime ->
+            runtime.currentGeneration
+            // A cleanly committed restore leaves the journal at Committed — the exact
+            // false-success record the recovery must retract BEFORE un-doing the data: a death
+            // between the rollback swap and the terminal effects would otherwise let the next
+            // launch peek the rolled-back file and publish RestoreSuccess (R4 review).
+            graphFactoryFailures += 1 // candidate #1 fails AFTER the clean commit
+            val effects = RecordingEffects(calls = protocolLog)
+
+            val outcome = runtime.replace(
+                ReplacementOperation.RestoreFromSnapshot(sourceFile()),
+                effects,
+            )
+
+            assertInstanceOf(ReplacementOutcome.RecoveredByRollback::class.java, outcome)
+            // Two beforeMutation entries: the restore's claim, then the recovery's UN-commit.
+            val claims = protocolLog.withIndex()
+                .filter { it.value == "beforeMutation" }
+                .map { it.index }
+            assertEquals(2, claims.size, "the recovery must re-claim (un-commit): $protocolLog")
+            val secondSwap = protocolLog.withIndex()
+                .filter { it.value == "swap" }
+                .map { it.index }[1]
+            assertTrue(
+                claims[1] < secondSwap,
+                "the un-commit must land BEFORE the rollback swap: $protocolLog",
+            )
+            assertTrue(
+                File(tempDir, "pre_restore_backup.db").exists(),
+                "the canonical is applied WITHOUT being consumed — the follow-up honest " +
+                    "recovery is what consumes it",
+            )
+        }
+
+    @Test
+    fun `a preflight that re-drives the recovery inline gets ONE fresh attempt - then publishes`() =
+        runtimeTest { runtime ->
+            runtime.currentGeneration
+            graphFactoryFailures += 1 // candidate #1 fails after the clean commit
+            // Candidate #2's preflight plays the recovering coordinator: it finds the
+            // un-committed journal and re-drives the rollback INLINE (consuming the canonical,
+            // resolving the journal), which invalidates candidate #2. The machine must then
+            // run ONE fresh attempt over the now-empty journal and publish — not go Fatal.
+            var inlineResult: DatabaseReplacementResult? = null
+            preflightAction = { _ ->
+                if (preflightCalls == 1) {
+                    inlineResult = runtime.rollbackToPreRestoreBackup(
+                        sourcePath = null,
+                        effects = RecordingEffects(attemptId = "recovery-attempt"),
+                    )
+                }
+            }
+            preflightOutcomes += StartupOutcome.RestartRequired // candidate #2's verdict
+
+            val outcome = runtime.replace(ReplacementOperation.RestoreFromSnapshot(sourceFile()))
+
+            assertInstanceOf(DatabaseReplacementResult.Committed::class.java, inlineResult)
+            val recovered =
+                assertInstanceOf(ReplacementOutcome.RecoveredByRollback::class.java, outcome)
+            assertEquals(2, preflightCalls, "one fresh attempt ran after the inline recovery")
+            assertNotNull(recovered.generation, "the fresh attempt PUBLISHED — never Fatal here")
+            assertFalse(
+                File(tempDir, "pre_restore_backup.db").exists(),
+                "the inline recovery consumed the canonical it applied",
+            )
+        }
+
+    @Test
+    fun `a generation-1 orphan close-throw is FATAL - never a retryable rejection`() =
+        runtimeTest { runtime ->
+            // R4 review: the first build's graph fails AND the orphan database's close throws —
+            // an unknown-state handle over the live file. Resolving this to a cleanup-safe
+            // rejection would let a retry open a NEW handle beside the leaked one and later
+            // rename over it.
+            graphFactoryFailures += 0
+            closeFailureIndices += 0
+
+            val outcome = runtime.replace(ReplacementOperation.RestoreFromSnapshot(sourceFile()))
+
+            assertInstanceOf(ReplacementOutcome.Fatal::class.java, outcome)
+            assertEquals(RuntimePhase.Fatal, runtime.phases.value)
+            assertThrows<IllegalStateException> { runtime.currentGeneration }
+        }
+
     private companion object {
         /** The bytes a reserved rollback snapshot carries — the pre-attempt database stand-in. */
         const val RESERVATION_CONTENT = "res"

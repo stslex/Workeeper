@@ -538,8 +538,10 @@ internal class BackupInteractorImplTest {
     fun `restoreFromSnapshot RecoveredByRollback resolves the attempt and clears the undo slot`() =
         runTest(testDispatcher) {
             // The runtime's automatic rollback restored a serving generation on the PRE-restore
-            // data — restore-FAILURE semantics for the caller. The attempt is finished and the
-            // preserved rollback file was consumed by the RUNTIME, so no undo is offered.
+            // data — restore-FAILURE semantics for the caller. The attempt is finished; the
+            // availability verdict is GROUND TRUTH (R4): the canonical file is absent here
+            // (canonical-consuming recovery), so the flag clears.
+            every { snapshotProvider.getPreRestoreBackupFile() } returns null
             val ref = makeRef(schema = 4)
             stubRestorableBackup(ref)
             coEvery { backupStorage.downloadBackup(any(), any()) } returns BackupResult.Success(
@@ -563,6 +565,38 @@ internal class BackupInteractorImplTest {
             }
             coVerify(exactly = 1) { restoreStateRepository.clearPreRestoreBackupAvailable() }
             coVerify(exactly = 0) { snapshotProvider.deletePreRestoreBackup() }
+        }
+
+    @Test
+    fun `a reservation-sourced recovery keeps the previous restore's undo availability`() =
+        runTest(testDispatcher) {
+            // GROUND TRUTH (R4 review): the recovery applied THIS attempt's reservation and
+            // never touched the canonical slot — the canonical file still exists, so the
+            // PREVIOUS restore's undo stays valid and the flag must NOT clear (the pre-fix
+            // unconditional clear was the cross-owner invalidation invariant 3 bans).
+            val ref = makeRef(schema = 4)
+            stubRestorableBackup(ref)
+            coEvery { backupStorage.downloadBackup(any(), any()) } returns BackupResult.Success(
+                ref.manifest,
+            )
+            every { snapshotProvider.getPreRestoreBackupFile() } returns
+                java.io.File("pre_restore_backup.db")
+            val recoveredError = BackupError.Io(IOException("swap failed, rolled back"))
+            val effectsSlot = slot<DatabaseReplacementEffects>()
+            coEvery {
+                databaseReplacement.restoreFromSnapshot(any(), capture(effectsSlot))
+            } coAnswers {
+                secondArg<DatabaseReplacementEffects>().onRecoveredByRollback(recoveredError)
+                DatabaseReplacementResult.RecoveredByRollback(recoveredError)
+            }
+
+            val result = interactor.restoreLatest()
+
+            assertTrue(result is BackupResult.Failure)
+            coVerify(exactly = 1) {
+                restoreStateRepository.resolveAttempt(effectsSlot.captured.attemptId)
+            }
+            coVerify(exactly = 0) { restoreStateRepository.clearPreRestoreBackupAvailable() }
         }
 
     @Test

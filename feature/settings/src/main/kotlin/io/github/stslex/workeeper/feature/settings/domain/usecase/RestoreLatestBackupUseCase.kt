@@ -185,13 +185,21 @@ class RestoreLatestBackupUseCase(
         }
 
         /**
-         * In-process recovery already rolled back: the attempt is finished, and no undo is
-         * offered for data that reverted. Data-bearing write FIRST, resolve LAST (R4
-         * invariant 7): a death in between leaves the journal entry for the next launch's
-         * conservative recovery instead of a resolved journal with half-done bookkeeping.
+         * In-process recovery already rolled back: the attempt is finished. Data-bearing write
+         * FIRST, resolve LAST (R4 invariant 7): a death in between leaves the journal entry
+         * for the next launch's conservative recovery instead of a resolved journal with
+         * half-done bookkeeping.
+         *
+         * The availability verdict comes from GROUND TRUTH — the canonical file's existence
+         * (R4 review): a reservation-sourced recovery never touched the canonical, so the
+         * PREVIOUS restore's undo remains valid and clearing it here would be the cross-owner
+         * invalidation invariant 3 bans; a canonical-consuming recovery leaves no file, so the
+         * flag clears.
          */
         override suspend fun onRecoveredByRollback(error: BackupError) {
-            restoreStateRepository.clearPreRestoreBackupAvailable()
+            if (snapshotProvider.getPreRestoreBackupFile() == null) {
+                restoreStateRepository.clearPreRestoreBackupAvailable()
+            }
             restoreStateRepository.resolveAttempt(attemptId)
         }
 
