@@ -590,10 +590,14 @@ BEFORE resolving the attempt, so a death anywhere in the sequence leaves the rep
   retry (a new restore/undo in the meantime is honestly refused by `beginAttempt`).
 - committed rollback (undo and scenario-1): data-bearing writes (availability per the flag
   policy, the persisted dialog) → resolve LAST → the caller's acknowledge after everything.
-- the `RecoveryCompleted` replay branch takes its availability verdict from GROUND TRUTH — the
-  canonical file's existence — because `Kind.Rollback` cannot say which file the rollback
-  applied: a reservation-sourced recovery left the previous restore's canonical undo valid
-  (keep), a canonical-sourced one consumed it (clear).
+- the `RecoveryCompleted` replay branch is SOURCE-AWARE (R4.1): `rollbackSnapshotPath` is the
+  durable discriminator of which file the committed rollback applied. Null (the canonical was
+  the source) finishes the canonical's consumption idempotently and clears availability — a
+  death between the commit record and the consume must never leave the same undo offered
+  again, because replaying it after later writes would erase them. Non-null (an exact named
+  source) consumes that file idempotently, preserves the canonical — the PREVIOUS restore's
+  undo — and clears availability only when the canonical is actually absent. Never inferred
+  from file existence alone; the attempt resolves LAST and the branch replays idempotently.
 
 **Accepted residual (documented, deliberate):** the replay branch does not re-publish the
 interrupted rollback's user-facing dialog. `Kind.Rollback` does not record whether the rollback
@@ -1473,6 +1477,18 @@ worktree at that commit) and is green at the current head.
 | mid-finalization (any point before resolve) | `Committed` | C = pre-image, L new | full replay: mark, publish, cleanup, resolve — idempotent ✓ (pre-R4: resolve-first death hid the undo forever) |
 | after resolve | none | C = pre-image, L new, flag set | `NoOp` ✓ |
 
+And for a committed CANONICAL-sourced rollback (`Committed`/`Kind.Rollback`, source path null):
+
+| Death point | Journal | Files | Next launch |
+|---|---|---|---|
+| after `record Committed`, before the canonical consume | `Committed`+Rollback, path=null | C still present, flag still true, L = rolled-back data | the SOURCE-AWARE finalization (R4.1) finishes the consumption from the journal's own discriminator: consume C → clear availability → resolve LAST — the same undo is never offered again (pre-R4.1 the surviving file read as "a valid previous undo" and the rollback stayed replayable, erasing later writes) |
+| mid-finalization (before resolve) | `Committed`+Rollback | per progress | idempotent replay to the same terminal state ✓ |
+
+**Proof boundary:** this matrix is a COMPOSED proof — the file-level copy-survival semantics
+are pinned against the real provider over real files, the ordering pins against the runtime,
+and the classification/finalization pins against the coordinator and repository. No literal
+two-launch process-death integration test exists; the multi-launch rows compose those pins.
+
 ### 23.3 Known-negatives (executed, red, reverted; XMLs committed)
 
 | Mutation | Red pins | Raw XML |
@@ -1492,9 +1508,9 @@ worktree at that commit) and is green at the current head.
 - **`DatabaseReplacementEffects.None.attemptId == "no-effects"`** is shared by construction; no
   production mutating caller passes `None` (both coordinator effects and the settings restore
   effects are explicit), and `None` writes no journal — latent only, noted for Phase 7.
-- A `Prepared` **Restore** attempt with a null reservation path (torn write) falls back to the
-  canonical slot: for the only real producers of that state (legacy markers, interrupted
-  rollbacks whose source WAS canonical) the canonical is the owner-correct source.
+- A `Prepared` attempt with a null source path falls back to the canonical slot: its listed
+  producers — a legacy marker, an interrupted rollback whose source WAS the canonical, or a
+  torn write — all have the canonical as the owner-correct source.
 
 ### 23.5 Fresh-context adversarial review (4 hunts) — findings → fixes
 
@@ -1520,3 +1536,29 @@ exactly the right condition and cannot be swallowed; epoch/gate state after ever
 exact; `RestoreSucceeded`-with-unresolved-journal after a finalization failure is safe
 (`beginAttempt` refuses foreign claims until the replay); the graph-only unresolved-`Prepared`
 abort arms nothing on the candidate.
+
+## 24. R4.1 final correction record (2026-08-23)
+
+Two commits on `7c82c368`: `39e9155c` (the three proven protocol defects + the missing
+liveness proof) and the docs/evidence commit carrying this section. Every new pin ran RED at
+`7c82c368` (`r41-red-on-base-*.xml`, worktree run — six tests across the two suites) or
+against the executed-and-reverted unbounded-clear mutant
+(`known-negative-r41-unbounded-clear.xml`), and is green at head.
+
+| Blocker | Fix | Red pins |
+|---|---|---|
+| 1 — a committed canonical rollback stayed repeatable after a record→consume crash (the replay read the surviving file as a valid previous undo; replaying it after later writes would erase them) | source-aware finalization from the journal's own `rollbackSnapshotPath` discriminator (§8.5b): null → finish the canonical's consumption + clear availability; non-null → consume exactly the named file, preserve a surviving canonical and its availability; resolve LAST, idempotent replay | `a committed CANONICAL-sourced rollback consumes the canonical — the same undo is never offered again`; `a committed-rollback finalization failure keeps the journal — the replay is idempotent` (+ the explicit-source pair, mandated tests 3–4, green-by-design on this base) |
+| 2 — a requested rollback's successful retry committed as anonymous compensation: canonical consumed, real journal left `Prepared`/Rollback, next preflight → unresolvable → Fatal | the retry commits through the ORIGINAL effects — `Committed` recorded before the exact-source consumption, failures surfaced (never a clean `Completed`), same bounded ladder, outcome `Completed`; anonymous commit retained ONLY for the compensating rollback of a failed Restore | `a requested rollback's successful retry COMMITS as the requested operation…` (composed, journal-aware production-shaped preflight: two swaps, no third, preflight observes `Committed`/Rollback, terminal effects exactly once, successor publishes); `…whose commit record FAILS keeps the asset and reports no clean Completed` |
+| 3 — the inline rollback closed the candidate database before VM-clear/join | inline invalidation routes through THE candidate teardown protocol (suspend disposal callback → `tearDownCandidate(candidate, close = true)`), swap only after; `candidateDisposed` prevents a second teardown; a failed clear/join/close is Fatal with zero renames after | `the INLINE rollback disposes the candidate through the ONE teardown protocol before the swap` (order: VM clear / job `finally` → close → swap; exact source applied and consumed); `an UNJOINABLE candidate stops the inline rollback FATAL — zero renames after admission` |
+| liveness | — (the R4 `clearStoreBounded` stands; the missing DISCRIMINATING pin is added) | `a clear that is ACCEPTED but never RUN cannot hang the machine — Fatal within the drain budget` (a queue-only dispatcher + advanceable scheduler; the executed-and-reverted unbounded mutant hangs it) |
+
+`AppRuntime` re-crossed the LargeClass ceiling from these fixes; `InFlightReplacement`,
+`GraphOnlyTransition` and `releasePartialGeneration` moved to `ReplacementMechanics`,
+`DerivedStateFlow` to `RuntimeGeneration.kt` — no suppression added.
+
+Truth corrections in this pass: the round-4 red-on-base evidence is **21 failures total (20
+named tests + 1 parameterized invocation)**; the §23.2 matrix is explicitly a COMPOSED proof
+(no literal two-launch process-death integration test exists); §23.4's null-source residual
+covers any `Prepared` attempt (legacy, interrupted canonical-sourced rollback, torn write);
+and the pre-R4.1 claim that a committed rollback's source identity "cannot be known" is
+removed — `rollbackSnapshotPath` is the durable discriminator, and §8.5b now says so.
