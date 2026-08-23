@@ -730,10 +730,23 @@ internal class AppRuntime(
             return recoverViaRollback(mutation, transaction, replaced.error, requestedRollback)
         }
         // The mutation committed: promote the reservation and record the durable commit BEFORE
-        // consuming any rollback asset (spec §8.5a). A bookkeeping failure keeps every asset and
-        // is carried onto the final outcome.
-        val committed = commitMutation(mutation = mutation, generation = null)
-        val commitEffectsError = (committed as? ReplacementOutcome.Completed)?.effectsError
+        // consuming any rollback asset (spec §8.5a).
+        val committed = commitMutation(mutation)
+        if (committed is CommitResult.NotDurable) {
+            // PRE-DURABLE failure (R4.2): the swap ran but `Committed` never landed — the
+            // journal is still `Prepared` and every recovery asset retained. No candidate may
+            // serve the unprovable file, and the committed terminal must not run: recover
+            // deterministically under the bounded ladder (a restore rolls back onto its kept
+            // reservation; a requested rollback retries its own source and its durable record
+            // once — a persistent record failure ends Fatal with everything preserved).
+            return recoverViaRollback(
+                mutation = mutation,
+                transaction = transaction,
+                cause = committed.error,
+                requestedRollback = requestedRollback,
+                afterCleanCommit = false,
+            )
+        }
         if (requestedRollback) {
             // The primary swap of the ROLLBACK operation IS the requested rollback: mark it so a
             // first-candidate failure takes the allowed follow-up attempt over the already
@@ -744,7 +757,7 @@ internal class AppRuntime(
         // ---- BuildingGeneration → Preflight → Publishing, with the bounded ladder ----
         return when (val attempt = attemptGeneration(transaction)) {
             is AttemptResult.Published ->
-                completedOrRecovered(transaction, attempt.generation, requestedRollback, commitEffectsError)
+                completedOrRecovered(transaction, attempt.generation, requestedRollback)
 
             AttemptResult.LadderFatal ->
                 publishFatal("candidate resources could not be released — ladder stopped")
@@ -756,7 +769,6 @@ internal class AppRuntime(
                             transaction,
                             retry.generation,
                             requestedRollback,
-                            commitEffectsError,
                         )
 
                         else -> publishFatal("post-rollback generation attempt failed")
@@ -767,35 +779,12 @@ internal class AppRuntime(
                         transaction = transaction,
                         cause = null,
                         requestedRollback = requestedRollback,
-                        // A clean commit consumed the reservation BY PROTOCOL (promote → record
-                        // → consume): the canonical slot is this attempt's own promoted image.
-                        // A commit with failed bookkeeping KEPT the reservation — strict source.
-                        afterCleanCommit = commitEffectsError == null,
+                        // The commit was DURABLE (promote → record → consume all landed), so the
+                        // canonical slot provably holds this attempt's own promoted image.
+                        afterCleanCommit = true,
                     )
                 }
         }
-    }
-
-    /**
-     * Result truth (mandate 3): `Completed` ONLY when the REQUESTED operation committed. A
-     * restore whose data ended up rolled back — by the ladder or the preflight's inline
-     * rollback — reports [ReplacementOutcome.RecoveredByRollback] even though a generation
-     * published successfully: the serving data is the PRE-operation data.
-     */
-    private fun completedOrRecovered(
-        transaction: ReplacementTransaction,
-        generation: RuntimeGeneration,
-        requestedRollback: Boolean,
-        commitEffectsError: BackupError? = null,
-    ): ReplacementOutcome = if (!requestedRollback && transaction.rolledBack) {
-        ReplacementOutcome.RecoveredByRollback(
-            error = transaction.rollbackCause
-                ?: BackupError.Io(IOException("restore rolled back")),
-            generation = generation,
-            effectsError = commitEffectsError,
-        )
-    } else {
-        ReplacementOutcome.Completed(generation, effectsError = commitEffectsError)
     }
 
     /**
@@ -871,9 +860,8 @@ internal class AppRuntime(
         transaction.rollbackCause = cause
             ?: BackupError.Io(IOException("restore could not complete; rolled back"))
         // Consume ONLY the exact file that was applied (R4 invariant 3). A REQUESTED rollback's
-        // retry commits through the ORIGINAL effects (`Committed` recorded before the consume;
-        // a failed record keeps the source and the unresolved journal, surfaced on the outcome
-        // — never a clean Completed); a compensating rollback commits anonymously (see KDoc).
+        // retry commits through the ORIGINAL effects — `Committed` recorded before the consume;
+        // a compensating rollback commits anonymously (see KDoc).
         val commitEffects = if (requestedRollback) mutation.effects else DatabaseReplacementEffects.None
         val committed = commitMutation(
             mutation = MutationPlan(
@@ -883,12 +871,22 @@ internal class AppRuntime(
                 effects = commitEffects,
                 reservation = null,
             ),
-            generation = null,
         )
-        val retryEffectsError = (committed as? ReplacementOutcome.Completed)?.effectsError
+        if (committed is CommitResult.NotDurable) {
+            // PRE-DURABLE failure of the recovery's own commit (R4.2 — reachable only for a
+            // requested rollback's record retry; a compensating commit is anonymous and its
+            // record is a no-op). The rollback data stands but is not provable: journal still
+            // `Prepared`, source retained (consumption never ran), no committed terminal, no
+            // publication over the unprovable file — the truthful bounded terminal is Fatal,
+            // and the next launch completes the rollback from the preserved journal + source.
+            return publishFatal(
+                "the recovery rollback could not become durably provable " +
+                    "(${committed.error}) — journal and assets preserved",
+            )
+        }
         return when (val attempt = attemptGeneration(transaction)) {
             is AttemptResult.Published ->
-                completedOrRecovered(transaction, attempt.generation, requestedRollback, retryEffectsError)
+                completedOrRecovered(transaction, attempt.generation, requestedRollback)
 
             AttemptResult.LadderFatal ->
                 publishFatal("candidate resources could not be released after rollback")
@@ -906,7 +904,6 @@ internal class AppRuntime(
                             transaction,
                             retry.generation,
                             requestedRollback,
-                            retryEffectsError,
                         )
 
                         else -> publishFatal(

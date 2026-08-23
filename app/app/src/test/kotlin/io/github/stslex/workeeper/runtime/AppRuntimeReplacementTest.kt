@@ -59,6 +59,14 @@ internal class AppRuntimeReplacementTest {
         override fun onCleared() = onClear()
     }
 
+    /** Typed factory for [ProbeViewModel] — `Class.cast` keeps it suppression-free. */
+    private class ProbeViewModelFactory(
+        private val onClear: () -> Unit,
+    ) : ViewModelProvider.Factory {
+        override fun <T : ViewModel> create(modelClass: Class<T>): T =
+            requireNotNull(modelClass.cast(ProbeViewModel(onClear)))
+    }
+
     /**
      * Recording effects double — one label per protocol phase, order-preserving. [calls] is
      * injectable so a test can fold the effect labels into the SHARED protocol log and assert
@@ -533,8 +541,12 @@ internal class AppRuntimeReplacementTest {
         }
 
     @Test
-    fun `a failed durable commit record keeps every asset and surfaces on the outcome`() =
+    fun `a requested rollback whose record persistently fails ends FATAL - every asset preserved`() =
         runtimeTest { runtime ->
+            // R4.2: a pre-durable failure is NEVER dispatched as a committed terminal. The
+            // primary commit's record fails, the bounded recovery retries the record once, and
+            // a persistent failure ends Fatal — journal `Prepared`, canonical retained, the
+            // committed terminal (`onCommitted`) never invoked.
             runtime.currentGeneration
             preservedFile(content = "UNDO")
             val effects = RecordingEffects(
@@ -546,10 +558,10 @@ internal class AppRuntimeReplacementTest {
                 effects,
             )
 
-            val completed = assertInstanceOf(ReplacementOutcome.Completed::class.java, outcome)
-            assertNotNull(
-                completed.effectsError,
-                "an unprovable commit is surfaced, never reported as a clean one",
+            assertInstanceOf(ReplacementOutcome.Fatal::class.java, outcome)
+            assertFalse(
+                effects.calls.contains("committed"),
+                "the committed terminal must NOT run over a non-durable commit: ${effects.calls}",
             )
             coVerify(exactly = 0) { provider.deletePreRestoreBackup() }
             assertEquals(
@@ -557,7 +569,11 @@ internal class AppRuntimeReplacementTest {
                 File(tempDir, "pre_restore_backup.db").readText(),
                 "nothing was consumed — the next launch can still roll back",
             )
-            assertEquals(listOf("beforeMutation", "mutationCommitted", "committed"), effects.calls)
+            assertEquals(
+                listOf("beforeMutation", "mutationCommitted", "mutationCommitted", "fatal"),
+                effects.calls,
+                "one primary record try, one bounded retry, then the Fatal terminal",
+            )
         }
 
     @Test
@@ -728,11 +744,7 @@ internal class AppRuntimeReplacementTest {
         runtimeTest { runtime ->
             val genOne = runtime.currentGeneration
             var probeCleared = false
-            val factory = object : ViewModelProvider.Factory {
-                @Suppress("UNCHECKED_CAST")
-                override fun <T : ViewModel> create(modelClass: Class<T>): T =
-                    ProbeViewModel(onClear = { probeCleared = true }) as T
-            }
+            val factory = ProbeViewModelFactory(onClear = { probeCleared = true })
             ViewModelProvider(genOne.viewModelStore, factory)[ProbeViewModel::class.java]
             genOne.lifetime.childScope(UnconfinedTestDispatcher(testScheduler)).launch {
                 try {
@@ -1297,12 +1309,22 @@ internal class AppRuntimeReplacementTest {
         }
 
     @Test
-    fun `a failed promotion keeps the reservation - the journal still names it`() =
+    fun `a failed promotion recovers by rollback - the committed terminal NEVER runs`() =
         runtimeTest { runtime ->
+            // R4.2: promotion failure = pre-durable failure. The mutation is not provable, so
+            // the candidate must not serve it: the bounded recovery rolls back onto the KEPT
+            // reservation deterministically, and the outcome is truthful restore-FAILURE —
+            // `onCommitted` (which production effects use to resolve/clear/publish) never runs.
             runtime.currentGeneration
             coEvery { provider.promoteRollbackReservation(any()) } returns BackupResult.Failure(
                 BackupError.Io(IOException("promotion failed")),
             )
+            val applied = mutableListOf<String>()
+            coEvery { provider.replaceLiveDatabaseFile(any()) } coAnswers {
+                protocolLog += "swap"
+                applied += firstArg<File>().readText()
+                BackupResult.Success(Unit)
+            }
             val effects = RecordingEffects()
 
             val outcome = runtime.replace(
@@ -1310,16 +1332,17 @@ internal class AppRuntimeReplacementTest {
                 effects,
             )
 
-            val completed = assertInstanceOf(ReplacementOutcome.Completed::class.java, outcome)
-            assertNotNull(completed.effectsError, "a failed promotion must surface")
-            assertFalse(
-                effects.calls.contains("mutationCommitted"),
-                "the durable commit must NOT be recorded when the promotion failed",
+            assertInstanceOf(ReplacementOutcome.RecoveredByRollback::class.java, outcome)
+            assertEquals(
+                listOf("beforeMutation", "recovered"),
+                effects.calls,
+                "no durable record was attempted after the failed promotion, and the committed " +
+                    "terminal never ran: ${effects.calls}",
             )
             assertEquals(
-                1,
-                stagedReservations().size,
-                "the reservation is the recovery path the still-Prepared journal names",
+                RESERVATION_CONTENT,
+                applied.last(),
+                "the recovery applied the KEPT reservation — the pre-attempt image",
             )
         }
 
@@ -1734,33 +1757,63 @@ internal class AppRuntimeReplacementTest {
         }
     }
 
-    /** Effects wired to [FakeJournal] the way the real undo/recovery effects are. */
+    /**
+     * Effects wired to [FakeJournal] the way the real undo/recovery effects are — the
+     * PRODUCTION-SHAPED committed terminal resolves the attempt, clears availability,
+     * publishes success and acknowledges, exactly what must never run over a non-durable
+     * commit (R4.2). [failRecordTimes] injects one-shot or persistent record failures.
+     */
     private inner class JournalEffects(
         override val attemptId: String,
         private val journal: FakeJournal,
         private val kind: String,
         private val log: MutableList<String>,
+        private var failRecordTimes: Int = 0,
+        private val sourcePathOverride: String? = null,
     ) : DatabaseReplacementEffects {
+
+        var availabilityCleared = false
+        var successPublished = false
+        var acknowledged = false
+
         override suspend fun onBeforeMutation(rollbackSnapshotPath: String) {
-            check(journal.begin(attemptId, kind, rollbackSnapshotPath.takeIf { it.isNotEmpty() })) {
+            val path = sourcePathOverride ?: rollbackSnapshotPath.takeIf { it.isNotEmpty() }
+            check(journal.begin(attemptId, kind, path)) {
                 "journal slot owned by ${journal.id}"
             }
             log += "journal-prepared"
         }
 
         override suspend fun onMutationCommitted() {
+            if (failRecordTimes > 0) {
+                failRecordTimes--
+                log += "journal-record-FAILED"
+                error("durable record failed")
+            }
             check(journal.commit(attemptId)) { "journal not owned by $attemptId" }
             log += "journal-committed"
         }
 
         override suspend fun onCommitted() {
+            // The REAL shape: this erases exactly the state conservative recovery needs.
             journal.resolve(attemptId)
+            availabilityCleared = true
+            successPublished = true
+            acknowledged = true
             log += "terminal-committed"
         }
 
         override suspend fun onRecoveredByRollback(error: BackupError) {
             journal.resolve(attemptId)
             log += "terminal-recovered"
+        }
+
+        override suspend fun onFailedAfterMutation(error: BackupError) {
+            log += "terminal-failed-after-mutation"
+        }
+
+        override suspend fun onFatal() {
+            log += "terminal-fatal"
         }
     }
 
@@ -1834,8 +1887,14 @@ internal class AppRuntimeReplacementTest {
         }
 
     @Test
-    fun `a requested-rollback retry whose commit record FAILS keeps the asset and reports no clean Completed`() =
+    fun `a retry whose record persistently FAILS never runs the real committed terminal`() =
         runtimeTest { runtime ->
+            // R4.2 mandated proof 1, PRODUCTION-SHAPED: the committed terminal here would
+            // resolve the journal, clear availability, publish success and acknowledge — the
+            // erasure the old Completed(effectsError) dispatch performed. Primary swap fails,
+            // the retry swap succeeds, the durable record persistently fails: the terminal must
+            // NOT be invoked, the attempt stays Prepared with its source and availability, and
+            // the runtime reaches the bounded truthful Fatal.
             runtime.currentGeneration
             preservedFile(content = "UNDO")
             val journal = FakeJournal()
@@ -1848,34 +1907,36 @@ internal class AppRuntimeReplacementTest {
                     BackupResult.Success(Unit)
                 }
             }
-            val effects = object : DatabaseReplacementEffects {
-                override val attemptId: String = "undo-1"
-                override suspend fun onBeforeMutation(rollbackSnapshotPath: String) {
-                    journal.begin(attemptId, "Rollback", null)
-                }
-
-                override suspend fun onMutationCommitted() {
-                    error("durable commit record failed")
-                }
-            }
+            val effects = JournalEffects(
+                attemptId = "undo-1",
+                journal = journal,
+                kind = "Rollback",
+                log = protocolLog,
+                failRecordTimes = Int.MAX_VALUE,
+            )
 
             val outcome = runtime.replace(
                 ReplacementOperation.RollbackToPreRestoreBackup(),
                 effects,
             )
 
-            val completed = assertInstanceOf(ReplacementOutcome.Completed::class.java, outcome)
-            assertNotNull(
-                completed.effectsError,
-                "an unrecorded retry commit is never reported clean",
+            assertInstanceOf(ReplacementOutcome.Fatal::class.java, outcome)
+            assertEquals(
+                0,
+                protocolLog.count { it == "terminal-committed" },
+                "the committed terminal must never run over a non-durable commit: $protocolLog",
             )
+            assertFalse(effects.availabilityCleared, "availability untouched")
+            assertFalse(effects.successPublished, "no success published")
+            assertFalse(effects.acknowledged, "the initiating action was never acknowledged")
+            assertEquals("Prepared", journal.phase, "the attempt remains Prepared and owned")
+            assertEquals("undo-1", journal.id)
             coVerify(exactly = 0) { provider.deletePreRestoreBackup() }
             assertEquals(
                 "UNDO",
                 File(tempDir, "pre_restore_backup.db").readText(),
-                "the recovery asset is retained while the journal stays unresolved",
+                "the exact source is retained for the next recovery step",
             )
-            assertEquals("Prepared", journal.phase, "the journal keeps the unresolved attempt")
         }
 
     @Test
@@ -1898,14 +1959,10 @@ internal class AppRuntimeReplacementTest {
                 if (preflightCalls == 1) {
                     ViewModelProvider(
                         generation.viewModelStore,
-                        object : ViewModelProvider.Factory {
-                            @Suppress("UNCHECKED_CAST")
-                            override fun <T : ViewModel> create(modelClass: Class<T>): T =
-                                ProbeViewModel(onClear = {
-                                    vmCleared = true
-                                    protocolLog += "candidate-vm-cleared"
-                                }) as T
-                        },
+                        ProbeViewModelFactory(onClear = {
+                            vmCleared = true
+                            protocolLog += "candidate-vm-cleared"
+                        }),
                     )[ProbeViewModel::class.java]
                     generation.lifetime.childScope(UnconfinedTestDispatcher(testScheduler)).launch {
                         try {
@@ -1994,16 +2051,20 @@ internal class AppRuntimeReplacementTest {
         }
 
     @Test
-    fun `a clear that is ACCEPTED but never RUN cannot hang the machine - Fatal within the drain budget`() =
-        runtimeTest(
-            mainDispatcherOverride = object : kotlinx.coroutines.CoroutineDispatcher() {
-                // Accepts and QUEUES every runnable, never executes one — the wedged-main shape.
-                override fun dispatch(
-                    context: kotlin.coroutines.CoroutineContext,
-                    block: Runnable,
-                ) = Unit
-            },
-        ) { runtime ->
+    fun `a clear that is QUEUED but never RUN cannot hang the machine - Fatal within the drain budget`() {
+        // A REAL queueing dispatcher (R4.2 truth pass): it retains every accepted runnable so
+        // the abandoned clear can be executed AFTER the verdict, proving the documented
+        // residual — the late clear runs and changes nothing.
+        val queued = java.util.concurrent.ConcurrentLinkedQueue<Runnable>()
+        val queueOnly = object : kotlinx.coroutines.CoroutineDispatcher() {
+            override fun dispatch(
+                context: kotlin.coroutines.CoroutineContext,
+                block: Runnable,
+            ) {
+                queued += block
+            }
+        }
+        runtimeTest(mainDispatcherOverride = queueOnly) { runtime ->
             // R4.1 liveness pin: the old unbounded `withContext(mainDispatcher)` suspended the
             // whole transition — mutex held, phase stranded, the submitted deferred never
             // completing — for as long as the wedged dispatcher cared to. The bounded clear
@@ -2025,6 +2086,286 @@ internal class AppRuntimeReplacementTest {
             runCurrent()
             assertTrue(lease.isCompleted, "the worker acquirer wakes instead of parking")
             assertInstanceOf(IllegalStateException::class.java, lease.await().exceptionOrNull())
+
+            // The documented residual, EXECUTED: the wedged dispatcher finally runs its queue —
+            // the abandoned clear completes late and changes nothing.
+            assertTrue(queued.isNotEmpty(), "the clear was genuinely queued, not dropped")
+            while (true) {
+                val next = queued.poll() ?: break
+                next.run()
+            }
+            runCurrent()
+            assertEquals(RuntimePhase.Fatal, runtime.phases.value, "still Fatal after the late clear")
+            assertEquals(0, epochAdvances)
+            assertNull(runtime.admitUiGeneration(1))
+        }
+    }
+
+    @Test
+    fun `a one-shot record failure - no committed terminal before a LATER durable record lands`() =
+        runtimeTest { runtime ->
+            // R4.2 mandated proof 2. The restore's record fails ONCE (never durable for the
+            // restore); the bounded recovery rolls back onto the kept reservation; the
+            // journal-aware production-shaped preflight then observes the still-Prepared
+            // attempt and re-drives the recovery inline, whose OWN record lands durably —
+            // only THAT recovery's committed terminal runs, exactly once, and the final
+            // semantics are truthful restore-FAILURE.
+            runtime.currentGeneration
+            val journal = FakeJournal()
+            val observedPhases = mutableListOf<String>()
+            var recoveryEffects: JournalEffects? = null
+            preflightAction = { _ ->
+                protocolLog += "preflight"
+                observedPhases += "${journal.phase}/${journal.kind}"
+                if (journal.phase == "Prepared") {
+                    val recovery = JournalEffects(
+                        attemptId = requireNotNull(journal.id),
+                        journal = journal,
+                        kind = "Rollback",
+                        log = protocolLog,
+                        sourcePathOverride = journal.path,
+                    )
+                    recoveryEffects = recovery
+                    runtime.rollbackToPreRestoreBackup(
+                        sourcePath = journal.path,
+                        effects = recovery,
+                    )
+                }
+            }
+            val restoreEffects = JournalEffects(
+                attemptId = "restore-1",
+                journal = journal,
+                kind = "Restore",
+                log = protocolLog,
+                failRecordTimes = 1,
+            )
+
+            val outcome = runtime.replace(
+                ReplacementOperation.RestoreFromSnapshot(sourceFile()),
+                restoreEffects,
+            )
+
+            val recoveredOutcome =
+                assertInstanceOf(ReplacementOutcome.RecoveredByRollback::class.java, outcome)
+            assertNull(
+                recoveredOutcome.effectsError,
+                "the truthful recovery is CLEAN — no stale pre-durable error rides the outcome",
+            )
+            // The runtime's own divert must roll back BEFORE any candidate is built over the
+            // unprovable file (vacuity fix from the R4.2 review): the SECOND swap — the
+            // recovery applying the kept reservation — precedes the FIRST preflight.
+            val swapIndexes = protocolLog.withIndex().filter { it.value == "swap" }.map { it.index }
+            val firstPreflight = protocolLog.indexOf("preflight")
+            assertTrue(
+                swapIndexes.size >= 2 && swapIndexes[1] < firstPreflight,
+                "the recovery swap must precede the first candidate preflight: $protocolLog",
+            )
+            assertEquals(
+                listOf("Prepared/Restore", "null/null"),
+                observedPhases,
+                "the preflight observed the PREPARED attempt, then the resolved journal",
+            )
+            assertFalse(
+                restoreEffects.successPublished,
+                "the restore's committed terminal never ran — its record never became durable",
+            )
+            assertEquals(
+                1,
+                protocolLog.count { it == "terminal-committed" },
+                "exactly ONE committed terminal — the recovery's, after ITS durable record: " +
+                    "$protocolLog",
+            )
+            val recovered = requireNotNull(recoveryEffects)
+            assertTrue(recovered.successPublished, "the recovery's own terminal ran")
+            val durable = protocolLog.indexOf("journal-committed")
+            val committedTerminal = protocolLog.indexOf("terminal-committed")
+            assertTrue(
+                durable in 0 until committedTerminal,
+                "the committed terminal ran only AFTER a durable record landed: $protocolLog",
+            )
+            assertNull(journal.id, "the journal resolved through the recovery, exactly once")
+        }
+
+    @Test
+    fun `a one-shot record failure on a requested rollback commits exactly once - never a stale extra terminal`() =
+        runtimeTest { runtime ->
+            // R4.2 proof 2b — the base-red discriminator for the one-shot family. Pre-R4.2 the
+            // stale Completed(effectsError) from the FAILED first record was still dispatched
+            // as a committed terminal at transaction end — a SECOND terminal-committed (and a
+            // second acknowledge) on top of the recovery's own, fired for a record that never
+            // landed. The fix diverts the not-durable commit into the bounded retry, whose OWN
+            // durable record then owns the single committed terminal.
+            runtime.currentGeneration
+            preservedFile(content = "UNDO")
+            val journal = FakeJournal()
+            val observedPhases = mutableListOf<String>()
+            preflightAction = { _ ->
+                observedPhases += "${journal.phase}/${journal.kind}"
+                if (journal.phase == "Prepared") {
+                    runtime.rollbackToPreRestoreBackup(
+                        sourcePath = journal.path,
+                        effects = JournalEffects(
+                            attemptId = requireNotNull(journal.id),
+                            journal = journal,
+                            kind = "Rollback",
+                            log = protocolLog,
+                        ),
+                    )
+                }
+            }
+            val effects = JournalEffects(
+                attemptId = "undo-1",
+                journal = journal,
+                kind = "Rollback",
+                log = protocolLog,
+                failRecordTimes = 1,
+            )
+
+            val outcome = runtime.replace(
+                ReplacementOperation.RollbackToPreRestoreBackup(),
+                effects,
+            )
+
+            val completed = assertInstanceOf(ReplacementOutcome.Completed::class.java, outcome)
+            assertNull(completed.effectsError, "the healed retry is a CLEAN commit")
+            assertEquals(
+                1,
+                protocolLog.count { it == "terminal-committed" },
+                "exactly ONE committed terminal — never a stale extra from the failed first " +
+                    "record: $protocolLog",
+            )
+            assertEquals(
+                listOf("Committed/Rollback"),
+                observedPhases,
+                "the preflight observes the RETRY's durable record, never an unresolved slot",
+            )
+            val durable = protocolLog.indexOf("journal-committed")
+            val committedTerminal = protocolLog.indexOf("terminal-committed")
+            assertTrue(
+                durable in 0 until committedTerminal,
+                "the committed terminal ran only AFTER the durable record: $protocolLog",
+            )
+            assertNull(journal.id, "resolved exactly once, by the owning terminal")
+        }
+
+    @Test
+    fun `restart-process promotion failure with production-shaped effects keeps Prepared + reservation`() =
+        runtimeTest(replacementPolicy = ReplacementPolicy.RestartProcess) { runtime ->
+            // R4.2 mandated proof 3: under the PRODUCTION policy a promotion failure leaves
+            // the journal Prepared and the reservation on disk — no restore-success, no undo
+            // availability, no committed terminal; the next launch recovers conservatively.
+            runtime.currentGeneration
+            coEvery { provider.promoteRollbackReservation(any()) } returns BackupResult.Failure(
+                BackupError.Io(IOException("promotion failed")),
+            )
+            val journal = FakeJournal()
+            val effects = JournalEffects(
+                attemptId = "restore-1",
+                journal = journal,
+                kind = "Restore",
+                log = protocolLog,
+            )
+
+            val outcome = runtime.replace(
+                ReplacementOperation.RestoreFromSnapshot(sourceFile()),
+                effects,
+            )
+
+            assertInstanceOf(ReplacementOutcome.FailedAfterMutation::class.java, outcome)
+            assertEquals("Prepared", journal.phase, "the journal survives at Prepared")
+            assertEquals(
+                1,
+                reservationFiles().size,
+                "the journal-named reservation survives for the next launch",
+            )
+            assertEquals(
+                0,
+                protocolLog.count { it == "terminal-committed" },
+                "no committed terminal, no success, no availability: $protocolLog",
+            )
+            assertFalse(effects.successPublished)
+            assertFalse(effects.availabilityCleared)
+        }
+
+    @Test
+    fun `an inline recovery whose record fails cannot erase the Prepared journal`() =
+        runtimeTest { runtime ->
+            // R4.2 mandated proof 4: the restore commits cleanly, its verification "fails"
+            // (the production-shaped preflight drives the peek-failed inline recovery), and
+            // the recovery's OWN record persistently fails — the ScenarioOne-shaped committed
+            // terminal must never run, the journal must stay Prepared/Rollback, and the
+            // machine must end in the bounded truthful Fatal with the canonical retained.
+            runtime.currentGeneration
+            val journal = FakeJournal()
+            var recoveryEffects: JournalEffects? = null
+            preflightAction = { _ ->
+                if (journal.phase != null) {
+                    // Committed/Restore (peek failed) or Prepared/Rollback (retry): re-drive.
+                    val recovery = recoveryEffects ?: JournalEffects(
+                        attemptId = requireNotNull(journal.id),
+                        journal = journal,
+                        kind = "Rollback",
+                        log = protocolLog,
+                        failRecordTimes = Int.MAX_VALUE,
+                        sourcePathOverride = null,
+                    ).also { recoveryEffects = it }
+                    runtime.rollbackToPreRestoreBackup(
+                        sourcePath = null,
+                        effects = recovery,
+                    )
+                }
+            }
+            val restoreEffects = JournalEffects(
+                attemptId = "restore-1",
+                journal = journal,
+                kind = "Restore",
+                log = protocolLog,
+            )
+
+            val outcome = runtime.replace(
+                ReplacementOperation.RestoreFromSnapshot(sourceFile()),
+                restoreEffects,
+            )
+
+            assertInstanceOf(ReplacementOutcome.Fatal::class.java, outcome)
+            assertEquals(
+                0,
+                protocolLog.count { it == "terminal-committed" },
+                "the recovery's committed terminal must never run over its failed record: " +
+                    "$protocolLog",
+            )
+            assertEquals("Prepared", journal.phase, "the re-claimed attempt stays Prepared")
+            assertEquals("Rollback", journal.kind)
+            assertTrue(
+                File(tempDir, "pre_restore_backup.db").exists(),
+                "the canonical recovery source is retained",
+            )
+        }
+
+    @Test
+    fun `the file mutation alone never selects the committed terminal - the durable phase is load-bearing`() =
+        runtimeTest(replacementPolicy = ReplacementPolicy.RestartProcess) { runtime ->
+            // R4.2 mandated proof 5, focused: the swap RAN (the mutation happened), the durable
+            // record did not — terminal dispatch must select onFailedAfterMutation, never
+            // onCommitted.
+            runtime.currentGeneration
+            val effects = RecordingEffects(
+                onMutationCommittedBody = { error("durable journal write failed") },
+            )
+
+            val outcome = runtime.replace(
+                ReplacementOperation.RestoreFromSnapshot(sourceFile()),
+                effects,
+            )
+
+            assertTrue(protocolLog.contains("swap"), "the file mutation genuinely happened")
+            assertInstanceOf(ReplacementOutcome.FailedAfterMutation::class.java, outcome)
+            assertEquals(
+                listOf("beforeMutation", "mutationCommitted", "failedAfterMutation"),
+                effects.calls,
+                "durable phase, not file mutation, selects the terminal: ${effects.calls}",
+            )
+            assertEquals(1, reservationFiles().size, "the reservation is retained")
         }
 
     private companion object {

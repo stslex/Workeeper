@@ -109,11 +109,11 @@ class RestoreLatestBackupUseCase(
                     if (effectsError == null) {
                         BackupResult.Success(Unit)
                     } else {
-                        // The file swap committed but its DURABLE record did not (spec §8.5a):
-                        // the journal still reads `Prepared`, so the next launch will roll this
-                        // restore back. Reporting success here would be the false-success the
-                        // journal exists to prevent.
-                        logger.w { "restore committed without a durable record: $effectsError" }
+                        // R4.2: a pre-durable failure can no longer surface as `Committed` (it
+                        // maps to FailedAfterMutation / the bounded recovery). A non-null
+                        // effectsError here means the TERMINAL `onCommitted` callback itself
+                        // failed after a durable commit — defensive Failure mapping either way.
+                        logger.w { "restore committed with failed terminal effects: $effectsError" }
                         BackupResult.Failure(effectsError)
                     }
                 }

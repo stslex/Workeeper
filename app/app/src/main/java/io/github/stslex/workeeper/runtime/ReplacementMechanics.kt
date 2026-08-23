@@ -267,7 +267,14 @@ internal suspend fun runRestartProcessSwap(
         // stays in place and the journal stays `Prepared`, so the next launch recovers.
         return ReplacementOutcome.FailedAfterMutation(replaced.error)
     }
-    return commitMutation(mutation, generation = null)
+    return when (val committed = commitMutation(mutation)) {
+        CommitResult.Durable -> ReplacementOutcome.Completed(generation = null)
+
+        // PRE-DURABLE failure (R4.2): the swap ran but `Committed` never landed — the journal
+        // is still `Prepared` and the reservation retained, so the next launch conservatively
+        // recovers. NEVER `Completed`: the committed terminal must not run.
+        is CommitResult.NotDurable -> ReplacementOutcome.FailedAfterMutation(committed.error)
+    }
 }
 
 /**
@@ -407,6 +414,24 @@ internal fun selectRecoverySource(
 }
 
 /**
+ * The verdict of one durable commit sequence (R4.2). The PROTOCOL PHASE is encoded explicitly
+ * so terminal dispatch can never conflate two different failures:
+ *
+ *  - [NotDurable]: the file mutation ran, but the durable `Committed` transition never landed
+ *    (the promotion or the record failed). The journal is still `Prepared`, every recovery
+ *    asset is retained, and NOTHING downstream may dispatch the committed terminal effect,
+ *    resolve the attempt, clear availability, consume a source, publish success, acknowledge
+ *    the initiating action, report a clean commit, or serve the unprovable file.
+ *  - [Durable]: promote + record landed. Only now is `onCommitted` a legal terminal — and an
+ *    error thrown BY that terminal callback later is a different origin entirely, folded onto
+ *    `Completed(effectsError)` by [runTerminalEffects], never confused with this phase.
+ */
+internal sealed interface CommitResult {
+    data object Durable : CommitResult
+    data class NotDurable(val error: BackupError) : CommitResult
+}
+
+/**
  * The durable commit sequence shared by both endings (spec §8.5a), in the ONE order that keeps
  * every crash window truthful:
  *
@@ -420,29 +445,29 @@ internal fun selectRecoverySource(
  *     and 4 is cleaned up idempotently by the committed cold-start finalization);
  *  5. and only then consume EXACTLY the rollback source a rollback operation applied.
  *
- * A step-2 or step-3 failure keeps every asset and leaves the journal at `Prepared`: the
- * mutation stands but is not durably provable, so the next launch conservatively rolls back.
- * It is reported on the outcome, never swallowed.
+ * A step-2 or step-3 failure returns [CommitResult.NotDurable]: every asset is kept and the
+ * journal stays `Prepared` — the mutation stands but is not durably provable, so recovery
+ * proceeds conservatively. The caller maps it to a NON-committed outcome
+ * (`FailedAfterMutation` under RestartProcess; the bounded recovery ladder or Fatal under
+ * RebuildInProcess) — never to `Completed`, because `runTerminalEffects` would then dispatch
+ * the committed terminal over a still-`Prepared` journal (the R4.2 defect: production
+ * `onCommitted` effects resolve the attempt, clear availability and acknowledge the action,
+ * erasing exactly the state conservative recovery needs).
  */
-internal suspend fun commitMutation(
-    mutation: MutationPlan,
-    generation: RuntimeGeneration?,
-): ReplacementOutcome {
+internal suspend fun commitMutation(mutation: MutationPlan): CommitResult {
     val provider = mutation.provider
     val promoted = mutation.reservation?.let { provider.promoteRollbackReservation(it) }
     if (promoted is BackupResult.Failure) {
-        return ReplacementOutcome.Completed(
-            generation = generation,
-            effectsError = BackupError.Io(
+        return CommitResult.NotDurable(
+            BackupError.Io(
                 IOException("rollback snapshot promotion failed: ${promoted.error}"),
             ),
         )
     }
     val recorded = runCatching { mutation.effects.onMutationCommitted() }
     if (recorded.isFailure) {
-        return ReplacementOutcome.Completed(
-            generation = generation,
-            effectsError = BackupError.Io(
+        return CommitResult.NotDurable(
+            BackupError.Io(
                 IOException("durable commit bookkeeping failed: ${recorded.exceptionOrNull()}"),
             ),
         )
@@ -455,7 +480,7 @@ internal suspend fun commitMutation(
         SourceConsumption.CanonicalSlot -> provider.deletePreRestoreBackup()
         is SourceConsumption.ExactFile -> runCatching { consume.file.delete() }
     }
-    return ReplacementOutcome.Completed(generation = generation)
+    return CommitResult.Durable
 }
 
 /**
@@ -537,7 +562,7 @@ internal suspend fun runInlineRollback(
     )
     // The rollback asset is consumed only after the durable commit record — same ordering rule
     // as every other mutation (spec §8.5a), and EXACTLY the applied file (invariant 3).
-    return commitMutation(
+    val committed = commitMutation(
         mutation = MutationPlan(
             provider = provider,
             source = plan.source,
@@ -545,8 +570,17 @@ internal suspend fun runInlineRollback(
             effects = effects,
             reservation = null,
         ),
-        generation = null,
     )
+    return when (committed) {
+        CommitResult.Durable -> ReplacementOutcome.Completed(generation = null)
+
+        // PRE-DURABLE failure (R4.2): the inline swap ran but `Committed` never landed. The
+        // journal stays `Prepared` and the source is retained (consumption never ran) — the
+        // caller's `onFailedAfterMutation` may publish feedback but can neither resolve the
+        // attempt nor clear availability, so the next recovery step still observes the owned
+        // `Prepared` attempt. NEVER `Completed`: the committed terminal must not run.
+        is CommitResult.NotDurable -> ReplacementOutcome.FailedAfterMutation(committed.error)
+    }
 }
 
 /**
@@ -757,4 +791,28 @@ internal fun releasePartialGeneration(
     if (joined == null) return OrphanCloseException(cause)
     return runCatching { closeDatabase(database) }
         .fold(onSuccess = { cause }, onFailure = { OrphanCloseException(it) })
+}
+
+/**
+ * Result truth (spec §8.4): `Completed` ONLY when the REQUESTED operation committed. A restore
+ * whose data ended up rolled back — by the ladder or the preflight's inline rollback — reports
+ * [ReplacementOutcome.RecoveredByRollback] even though a generation published successfully:
+ * the serving data is the PRE-operation data. A DURABLE commit is a precondition of the
+ * `Completed` branch (R4.2): every pre-durable failure diverted into the bounded recovery
+ * before the ladder, so `effectsError` on the outcome can only ever be written later by
+ * [runTerminalEffects], from a failure OF the terminal `onCommitted` callback itself — a
+ * different origin than a failure that prevented the durable `Committed` transition.
+ */
+internal fun completedOrRecovered(
+    transaction: ReplacementTransaction,
+    generation: RuntimeGeneration,
+    requestedRollback: Boolean,
+): ReplacementOutcome = if (!requestedRollback && transaction.rolledBack) {
+    ReplacementOutcome.RecoveredByRollback(
+        error = transaction.rollbackCause
+            ?: BackupError.Io(IOException("restore rolled back")),
+        generation = generation,
+    )
+} else {
+    ReplacementOutcome.Completed(generation)
 }
