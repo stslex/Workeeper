@@ -327,31 +327,43 @@ Two policies select the ending:
 **Quiescing** (ABORTABLE: every step is reversible; nothing of generation N is torn down):
 1. Publish `Transitioning` — new UI work sees no generation; the old `key(id)` region leaves
    composition; per-entry Stores and root VMs run their `dispose()` paths. Await the region's
-   departure through the id-bound attachment gate, and RETIRE the outgoing id **in the same
-   atomic compare-and-set that observes the count at zero** — a late attach can never land after
-   the zero observation: it is refused (aborts un-retire the id; commits leave it retired
-   forever). Bounded; timeout → abort.
+   departure through the **token** gate, and RETIRE the outgoing id **in the same atomic
+   compare-and-set that observes zero outstanding tokens** — a late admission can never land
+   after that observation: it is REFUSED, and a refused region composes nothing and resolves
+   nothing (R3). Admission is taken during COMPOSITION, not from an effect, because effects run
+   at apply time — after the region's children have already resolved their Stores and
+   ViewModels. Grants are identified by token, not counted, so a release arriving after the id
+   was retired and later reopened cancels out nothing (the ABA a counter could not see). Aborts
+   un-retire the id; commits leave it retired forever. Bounded; timeout → abort.
 2. Close worker admission and await the outstanding **leases**. DB-bound work binds through a
    lease acquired atomically with the generation deps at the work's FIRST operation inside
    `doWork` (§8.6) — a worker constructed but never started holds nothing. Blocked acquirers
    suspend through the bounded window and bind to whatever generation is published when
    admission reopens. Timeout → abort (pre-PONR); the periodic schedule is never cancelled.
-3. Drain the snackbar deferred-commit path: await any in-flight `resolveSnackbarOutcome` — its
-   `NonCancellable` commit survives step 1's collector cancellation by design. Queued models are
-   **generation-tagged at enqueue**: after a COMMITTED handover the epoch advances and gen-N
-   models are discarded at delivery (their closures never execute inside gen N+1 — the ED11 /
-   D-OPEN-10 interruption semantics, logged); after an ABORT the epoch does not advance and the
-   models are preserved, delivering normally when gen N resumes. Requeues stamp the epoch still
-   current during quiesce (the advance happens only after this drain completed), so a requeued
-   gen-N model keeps its gen-N tag.
+3. FENCE the snackbar deferred-commit path: await any in-flight `resolveSnackbarOutcome` — its
+   `NonCancellable` commit survives step 1's collector cancellation by design — AND close
+   admission for new routings **in the same atomic step**, so the zero observation cannot be
+   invalidated a moment later by a collector that was about to begin one (R3). A refused routing
+   requeues its model rather than running it. Queued models are **generation-tagged at enqueue**
+   and the tag TRAVELS with the model through delivery, cancellation and requeue: a requeue
+   re-enqueues the ORIGINAL epoch, so a model the host died holding can never be re-stamped as
+   N+1. After a COMMITTED handover the epoch advances — **before the successor is published**,
+   which is what closes the window where N+1's collector is live while N's models still pass the
+   delivery filter — and gen-N models are discarded at delivery (their closures never execute
+   inside gen N+1: the ED11 / D-OPEN-10 interruption semantics, logged). After an ABORT the
+   epoch does not advance, the fence lifts, and the models deliver normally when gen N resumes.
 
 **‖ PONR — Teardown begins ‖**
 
 4. **Teardown** (post-PONR; failures are Fatal, never an abort): clear the generation's
-   runtime-owned `ViewModelStore` (deterministic `onCleared`), then `lifetime.cancelAndJoin()`
-   (bounded). Every graph-owned DB-bound job must be joinable (or covered by a lease); an
-   unjoinable job after teardown began is a protocol violation → the machine goes Fatal WITHOUT
-   closing — never a close under an unjoined job, never a republished half-torn generation.
+   runtime-owned `ViewModelStore` — `BaseStore.onCleared` now actually ENDS the Store's work
+   (R3) — then `lifetime.cancelAndJoin()` (bounded). Store jobs are descendants of that
+   lifetime: `AppCoroutineScopeImpl` takes the generation's job and puts its supervisor on the
+   winning side of the context `plus`, so the join awaits every Store `finally` — including one
+   that touches the database — BEFORE the close. Every graph-owned DB-bound job must be
+   joinable (or covered by a lease); an unjoinable job after teardown began is a protocol
+   violation → the machine goes Fatal WITHOUT closing — never a close under an unjoined job,
+   never a republished half-torn generation.
 5. **Close**: `generation.database.close()` — the invocation is post-PONR by definition. A
    throwing close is an unknown handle state → **Fatal, never `RejectedBeforeMutation`, never a
    republished outgoing generation, never a rename.**
@@ -404,9 +416,16 @@ chores + observer arming run on the new lifetime.
 (abortable, N intact) → candidate build + preflight while N is FULLY intact (still abortable;
 an abort re-enters N with its ViewModelStore untouched) → **the committed safe boundary (PONR):
 N's teardown — VM store clear + lifetime cancel-and-join — COMPLETES before N+1 is exposed**.
-Post-PONR failures never resurrect the partially disposed N: a degraded teardown logs loudly
-and the healthy candidate (which shares the still-open database) publishes; an escape after
-teardown began goes Fatal.
+Post-PONR failures never resurrect the partially disposed N: an escape after teardown began
+goes Fatal. Publication order at the boundary is fixed (R3): advance the snackbar epoch →
+publish the successor → reopen worker admission → lift the snackbar fence.
+
+**Candidate teardown** is ONE path for every candidate that must not be published (preflight
+failure, inline-rollback invalidation, partial construction): prevent publication → clear
+ViewModel ownership → cancel AND bounded-JOIN the lifetime → close the database only after the
+join → any failure stops the ladder (Fatal) with no later rename, because an unjoined job or an
+unknown-state handle may still hold the file. The same rule covers a generation whose graph
+construction threw: its lifetime is joined before the orphan database is closed.
 
 **Re-entrancy** (review v2 condition 4): a rollback request arriving from inside the
 transaction's own Preflight (the coordinator's failure path) is executed as the current
@@ -721,6 +740,12 @@ machine, policies, caller rerouting, failure injection + JVM coverage) ·
 evidence + assessment supersession).
 Round-1 rework (§20): 11. `95458856` fix(runtime) · 12. `366997da` test(app) composed
 handshake · 13. `52429c8c` docs.
+Round-3 rework (§22): 19. `db1ae8a4` `feat(backup): replace the restore booleans with a
+crash-durable attempt journal` (blockers 1+2+3+6 — the journal, the in-transaction rollback
+reservation, phase-aware recovery outcomes and the unified candidate teardown interlock through
+one transaction) · 20. `66cc5cc7` `fix(runtime): tokenized UI admission and a linearized
+snackbar handover` (blockers 4+5) · 21. docs closeout (§8.4/§8.5a/§8.5b rewritten in place +
+§22 + evidence).
 Round-2 rework (§21): 14. `6d26fbdd` `feat(ui-kit): generation-tag the snackbar queue` ·
 15. `822c8d0d` `feat(backup): add the durable restore-mutation journal` ·
 16. `d02123cd` `feat(runtime): unify the replacement transaction protocol` (the interlocked
@@ -1213,3 +1238,55 @@ a first-operation admission lease equivalent (never construction-time binding); 
 `restore_mutation_interrupted` journal in its cold-start pre-flight; (vi) drop stale saveable
 slots at cold start if it persists generation counters. The saveable-slot one-frame death
 window (§18(a)) remains deliberately deferred to the Phase 7 host design.
+
+## 22. Round-3 REQUEST_CHANGES rework record (2026-08-23)
+
+Round 2 was rejected for the crash gap between its two restore booleans and for gates that were
+counted rather than closed. Round 3 makes the durable record attempt-scoped and turns each gate
+into a real barrier. §8.4 / §8.5a / §8.5b above are rewritten in place as the governing text.
+
+### 22.1 Blockers → fixes → the exact test that pins each
+
+| # | Blocker | Fix | Proof (and its exact boundary) |
+|---|---|---|---|
+| 1 | `restore_mutation_interrupted` written only by terminal effects → a death after close-start left the OLD valid DB with no marker → cold start peeked it and published a false `RestoreSuccess` | Attempt journal (§8.5a): `Prepared` persisted atomically pre-PONR with identity + context + reserved rollback path; `Committed` recorded only after the rename returned success and the reservation was promoted; owner-only advance/resolve; legacy and unparsable states read as `Prepared` | `RestoreRecoveryCoordinatorTest`: `a PREPARED attempt never peeks the schema and never claims success` (asserts ZERO `currentSchemaVersion()` calls and no `RestoreSuccess` publish) + `a ROLLBACK-kind attempt never peeks the schema either` + `a COMMITTED attempt verifies by peek and succeeds`. `RestoreStateRepositoryImplTest` (18) pins ownership, idempotence, legacy migration and the unparsable-phase reading. **Boundary:** these prove the BRANCHING and the persisted round-trip; no test kills the process, so single-`edit` atomicity is DataStore's guarantee, not ours |
+| 2 | every non-commit rollback mapped to one `RecoveryRetryPending`, after which chores armed and the main UI showed over an unknown database | `RetrySafe` (proven pre-PONR, DB intact and open → continue, assets preserved) vs `RecoveryRequired` (post-PONR / closed / fatal / commit-without-durable-record → `RouteToRecovery`, arm NOTHING) | `StartupProcessorTest`: `RetrySafe continues the launch and arms normally` and `RecoveryRequired routes to recovery and arms ZERO db-bound work` (planner, `recoveryBootstrap` and `cleanupTempFiles` each asserted `exactly = 0`). `RestoreRecoveryCoordinatorTest` maps every result to its verdict incl. the parameterized post-mutation trio |
+| 3 | `preserveCurrentDb()` ran pre-submission, outside the mutex, onto ONE canonical path | reservation moved inside the transaction (after validation, before PONR), per-attempt file recorded in the journal, promoted on commit, discarded only by its owner; `preserveCurrentDb` deleted | `AppRuntimeReplacementTest`: reserved-inside-the-transaction (not called when validation fails; called once with the attempt id; its path reaches `onBeforeMutation`), rejected-attempt-keeps-the-previous-slot (sentinel bytes), promote-on-commit, and `BackupInteractorImplTest` asserting the use case no longer reserves anything |
+| 4 | UI gate counted attachments (ABA-prone) and admitted from an EFFECT, i.e. after the region's children had already resolved | token gate with atomic retire; admission during composition via `RememberObserver`, content gated on the grant; Store jobs parented to the generation lifetime; `dispose()` idempotent; `onCleared` ends the Store | `UiAdmissionGateTest` (ABA test that a counter cannot pass, 3000-iteration retire-CAS hammer, idempotent-release, refusal); `StoreGenerationJoinTest` (a real `BaseStore.launchDefault` whose `finally` touches the DB completes BEFORE `cancelAndJoin` returns — killed by reversing the `plus` operands); `UiAdmissionRaceTest` (composed; a refused region resolves zero dependencies). **Boundary:** the composed test drives the frame clock manually, but it proves "refused ⇒ nothing resolved", not every possible interleaving of the real Compose applier |
+| 5 | epoch advanced AFTER publish; requeue re-stamped the current epoch; resolve accounting was a non-atomic RMW with no fence | advance before publish; the epoch travels with the model (`DeliveredSnackbar`) and requeue preserves it; one linearizable gate value; fence closes admission atomically with the zero observation | `SnackbarManagerTest`: requeue-keeps-its-epoch, abort-preserves, no-resolve-after-the-fence, fence-waits-for-an-in-flight-`NonCancellable`-commit, two-overlapping-collectors; `AppRuntimeTest`: `the snackbar epoch advances BEFORE the successor is published` (records the published phase observed at advance time) |
+| 6 | `buildGeneration` cancelled a partial candidate's lifetime and closed its DB immediately | one `tearDownCandidate` path — clear → cancel + bounded JOIN → close only after the join → any failure stops the ladder with no later rename; the same rule for partially constructed generations | `AppRuntimeReplacementTest`: candidate-jobs-joined-before-close and partial-construction-joins-before-closing-the-orphan, both order-recorded with a DB-touching `finally` |
+
+### 22.2 Durable journal — transitions and crash outcomes
+
+| Crash point | Journal reads | Files on disk | Next launch concludes |
+|---|---|---|---|
+| before `beginAttempt` | no attempt | live DB untouched, previous undo slot intact | normal launch (`NoOp`) |
+| after `Prepared`, before teardown | `Prepared` + reservation path | live DB untouched; reservation == live DB | recovery: rolls back onto the reservation (a no-op restore of identical bytes) |
+| during teardown / after close begins, before rename | `Prepared` | live DB still the OLD file | recovery: rolls back onto the reservation — **never a peek-driven success**, which is the round-2 hole |
+| after rename, before promote | `Prepared` | live DB is NEW; reservation holds the true pre-attempt DB; canonical slot still the PREVIOUS restore's | recovery: rolls back onto the **reservation** (the journal names it), i.e. the correct pre-attempt data |
+| after promote, before `Committed` | `Prepared` | live DB is NEW; canonical slot now holds the true pre-attempt DB; reservation consumed by the rename | recovery: reservation path is gone → falls back to the canonical slot, which the promotion just made correct |
+| after `Committed`, before terminal effects | `Committed` | live DB is NEW; undo slot correct | success path: peek verifies the NEW file, publishes `RestoreSuccess`, resolves the attempt |
+| S1 recovery rollback, any of its own equivalents | the SAME attempt id, `Prepared` → `Committed` | as above with the roles swapped | the next launch re-enters the pre-flight and retries; a committed recovery resolves the attempt and publishes `RestoreFailure` |
+
+A crash between the file commit and the durable record therefore rolls back conservatively — permitted explicitly — and never claims success.
+
+### 22.3 Known-negatives (executed, red, reverted; XMLs committed)
+
+| Mutation | Result | Evidence |
+|---|---|---|
+| R3-A — the cold-start branch ignores `phase`, so a `Prepared` attempt takes the peek path | 7 coordinator tests red, incl. `a PREPARED attempt never peeks the schema…` failing on `currentSchemaVersion() should not be called` — the false-success reproduced | `known-negative-r3a-prepared-bypass.xml` |
+| R3-B — publish the successor BEFORE advancing the snackbar epoch | `the snackbar epoch advances BEFORE the successor is published` red | `known-negative-r3b-publish-before-epoch.xml` |
+| plus-order reversal in `AppCoroutineScopeImpl` (agent-run) | `StoreGenerationJoinTest` test 1 red: `cancelAndJoin` returned while the DB-touching `finally` was still pending | reported in the commit; re-runnable |
+| non-idempotent `dispose()`, re-stamping `requeue`, always-admit `beginResolve`, non-awaiting `fence`, collapsed resolve counter (agent-run) | each killed by its own new pin | reported in the commit; re-runnable |
+
+### 22.4 Residuals and Phase 7 obligations (delta over §21.3)
+
+- A pre-R3 install's `restore_in_progress` marker is read as `Prepared`, so the one launch that
+  spans the upgrade recovers conservatively instead of peeking. Deliberate: the old flags cannot
+  prove a commit, and the window is a single launch between the restore tap and the next start.
+- The saveable-slot one-frame death window (§18(a)) remains deferred.
+- Phase 7 additionally owns: implementing the token admission gate for its composition root
+  (grant during composition, release on both the forgotten and abandoned paths); parenting its
+  Store equivalents to the generation lifetime so teardown can join them; advancing its snackbar
+  equivalent's epoch before publication; and honoring the attempt journal's phases in its
+  cold-start pre-flight rather than peeking.

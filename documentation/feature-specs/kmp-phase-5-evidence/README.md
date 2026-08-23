@@ -50,6 +50,18 @@ Standalone runs (same emulator): full unfiltered `:app:app:connectedDebugAndroid
 Each mutation was applied to the MAIN source, the pinned suites ran RED (XMLs beside this
 file), and the mutation was reverted; the reverted tree re-ran green.
 
+## Round-3 known-negatives (2026-08-23, executed and reverted per the §7 protocol)
+
+| Mutation | Red pins | Raw XML |
+|---|---|---|
+| R3-A — the cold-start branch ignores the attempt PHASE, so a `Prepared` attempt takes the schema-peek path | 7 coordinator tests, headed by `a PREPARED attempt never peeks the schema and never claims success` failing on `currentSchemaVersion() should not be called` — i.e. the false `RestoreSuccess` reproduced on demand | `known-negative-r3a-prepared-bypass.xml` |
+| R3-B — the successor is published BEFORE the snackbar epoch advances | `the snackbar epoch advances BEFORE the successor is published` | `known-negative-r3b-publish-before-epoch.xml` |
+
+Six further mutations were run by the test authors and each was killed by its own new pin:
+plus-order reversal in `AppCoroutineScopeImpl` (Store `finally` still pending when
+`cancelAndJoin` returned), non-idempotent `dispose()`, a re-stamping `requeue`, an always-admit
+`beginResolve`, a non-awaiting `fenceResolves`, and a collapsed resolve counter.
+
 ## Reproduction
 
 Every command above is copy-paste reproducible from the branch root with a booted API-34
