@@ -1276,8 +1276,44 @@ A crash between the file commit and the durable record therefore rolls back cons
 |---|---|---|
 | R3-A — the cold-start branch ignores `phase`, so a `Prepared` attempt takes the peek path | 7 coordinator tests red, incl. `a PREPARED attempt never peeks the schema…` failing on `currentSchemaVersion() should not be called` — the false-success reproduced | `known-negative-r3a-prepared-bypass.xml` |
 | R3-B — publish the successor BEFORE advancing the snackbar epoch | `the snackbar epoch advances BEFORE the successor is published` red | `known-negative-r3b-publish-before-epoch.xml` |
+| R3-C — retire the outgoing id in a step SEPARATE from the zero observation | the rewritten hammer red at iteration 29: *"a token was granted for a generation the gate reported clear"*. The first hammer could NOT see this (its racer released its own grant before the count was read) — the adversarial review caught that, and the test now keeps the grant so a token and a "clear" verdict become mutually exclusive | `known-negative-r3c-two-step-retire.xml` |
 | plus-order reversal in `AppCoroutineScopeImpl` (agent-run) | `StoreGenerationJoinTest` test 1 red: `cancelAndJoin` returned while the DB-touching `finally` was still pending | reported in the commit; re-runnable |
 | non-idempotent `dispose()`, re-stamping `requeue`, always-admit `beginResolve`, non-awaiting `fence`, collapsed resolve counter (agent-run) | each killed by its own new pin | reported in the commit; re-runnable |
+
+### 22.3a What the adversarial review changed (2026-08-23)
+
+A fresh-context review over crash ordering, concurrent asset ownership, admission and test
+vacuity confirmed eleven defects; all are fixed and the tests that pinned the old behavior are
+now pins for the new invariants. The material ones:
+
+- **An interrupted-but-COMMITTED rollback was re-driven**, looked for the preserved file it had
+  itself consumed, failed, and left the attempt unresolved FOREVER — which then refused every
+  future restore and undo (their `beginAttempt` saw a foreign owner) with no in-app remedy. Such
+  an attempt now finishes its bookkeeping (`PreflightOutcome.RecoveryCompleted`).
+- **The recovery rollback erased the journal's `rollbackSnapshotPath`** on its re-claim, so a
+  second interruption fell back to the canonical slot — an OLDER snapshot — and silently
+  reverted data the failed attempt never touched. The path is carried through.
+- **The ladder recorded the CALLER's attempt as `Committed` for a rollback**, so the next
+  preflight read a rolled-back database as a successful restore and published `RestoreSuccess`.
+  The ladder no longer runs the caller's commit bookkeeping at all.
+- **The ladder applied the canonical slot instead of the attempt's reservation**, overwriting an
+  intact live database with older data and then deleting the reservation. It now applies the
+  reservation when it has one and consumes only what it applied.
+- **`promoteRollbackReservation` deleted the canonical slot before the move**, so a failed
+  promotion destroyed the undo slot while the journal still named a reservation the runtime then
+  deleted. It stages first, never pre-deletes, and a failed promotion keeps the reservation.
+- **`UiAdmissionGate.admit` carried its verdict in a flag mutated inside a `MutableStateFlow
+  .update` lambda**; on a losing CAS retry the flag kept the LOSING iteration's value, issuing a
+  token for a generation `awaitRetired` had already reported clear. The verdict is read off the
+  committed state.
+- **A refused region was cached against the generation id alone**, so an aborted transition's
+  same-id re-publish never re-asked for admission and left the app blank until the next Activity
+  recreation. The grant is keyed on the published phase value.
+- **Test vacuity, three cases:** the generation-job seam had NO test (a one-token revert
+  restored the defect with the suite green) — the parameter is now REQUIRED, so dropping it is a
+  compile error; the promote-before-record ordering was unpinned — it now has an interleaving
+  test; and the retire-CAS hammer could not observe its own gap — rewritten as above and proven
+  by R3-C.
 
 ### 22.4 Residuals and Phase 7 obligations (delta over §21.3)
 

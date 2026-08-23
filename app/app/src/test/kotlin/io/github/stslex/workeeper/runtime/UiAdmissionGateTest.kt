@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.concurrent.thread
 
 /**
@@ -92,30 +93,44 @@ internal class UiAdmissionGateTest {
         }
 
     @Test
-    fun `retire is ATOMIC with the zero observation - racing admissions never pass it (hammer)`() {
-        // Invariant under attack: after awaitRetired returns true, the id holds no admission and
-        // can never gain one. A two-step observe-then-retire gate lets a racer's admit land in
-        // between — the id ends retired WITH a live token (whose release is then a no-op on a
-        // retired id), which the assertion below detects.
-        repeat(3_000) { iteration ->
+    fun `retire is ATOMIC with the zero observation - a grant and a clear verdict are exclusive`() {
+        // The invariant, stated so the gap is OBSERVABLE: `awaitRetired` returning true means
+        // "no region holds this generation", so a token granted by a racing `admit` must not
+        // exist. A two-step observe-then-retire gate lets the racer's admit land in the gap and
+        // hands out BOTH — which counting after the racer cleaned up could never see, so the
+        // racer here deliberately KEEPS its token.
+        repeat(500) { iteration ->
             val id = iteration + 100
             val held = requireNotNull(gate.admit(id))
-            val ready = CountDownLatch(1)
+            val racerToken = AtomicReference<UiAdmissionGate.Token?>(null)
+            // Both sides wait on the SAME start signal so the window they race for is tight.
+            val start = CountDownLatch(1)
             val racer = thread {
-                ready.countDown()
+                start.await()
                 gate.release(held)
-                gate.admit(id)?.let(gate::release) // races the retire CAS
+                racerToken.set(gate.admit(id)) // races the retire; the grant is NOT released
             }
-            ready.await()
-            val retired = runBlocking { gate.awaitRetired(id, timeoutMillis = 2_000) }
+            start.countDown()
+            // Short budget on purpose: when the racer's admit wins, the gate MUST refuse to
+            // retire, and waiting the full production budget for that refusal would make the
+            // hammer take minutes.
+            val retired = runBlocking { gate.awaitRetired(id, timeoutMillis = 20) }
             racer.join()
-            assertTrue(retired, "iteration $iteration: the gate must retire once idle")
-            assertEquals(
-                0,
-                gate.admittedCount(id),
-                "iteration $iteration: an admission passed the retired gate — the close is not atomic",
-            )
-            assertNull(gate.admit(id), "iteration $iteration: a retired id must stay closed")
+
+            if (retired) {
+                assertNull(
+                    racerToken.get(),
+                    "iteration $iteration: a token was granted for a generation the gate " +
+                        "reported clear — the retire is not atomic with the zero observation",
+                )
+                assertEquals(0, gate.admittedCount(id))
+                assertNull(gate.admit(id), "iteration $iteration: a retired id must stay closed")
+            } else {
+                // The admit won the race: the gate then correctly refuses to retire while that
+                // region holds its grant, which is the other half of the same invariant.
+                assertNotNull(racerToken.get(), "iteration $iteration: neither side made progress")
+                gate.release(requireNotNull(racerToken.get()))
+            }
         }
     }
 }

@@ -100,8 +100,14 @@ open class BaseStore<S : State, A : Action, E : Event>(
          * The runtime generation's job (Phase 5 R3, spec §8.4). Every job this Store starts
          * becomes a descendant, so the generation's teardown can cancel AND JOIN them — a
          * Store's `finally` that touches the database completes before that database closes.
+         *
+         * REQUIRED, deliberately without a default: a default would let the one production
+         * seam that supplies it ([io.github.stslex.workeeper.core.ui.mvi.processor
+         * .rememberStoreProcessor]) drop the argument and still compile, silently un-parenting
+         * every Store job from its generation. Null is legal only where no generation exists
+         * (previews and tests that own no lifetime), and saying so is then explicit.
          */
-        generationJob: Job? = null,
+        generationJob: Job?,
     ) {
         _scope = AppCoroutineScopeImpl(
             lifecycleOwner = currentLifecycleOwner,
@@ -141,8 +147,9 @@ open class BaseStore<S : State, A : Action, E : Event>(
      * Store's jobs kept running against the outgoing generation's database.
      */
     override fun onCleared() {
+        // No super call: `ViewModel.onCleared` is annotated @EmptySuper (Android Lint's
+        // EmptySuperCall flags calling it).
         dispose()
-        super.onCleared()
     }
 
     @Suppress("UNCHECKED_CAST")

@@ -177,6 +177,7 @@ internal class AppRuntimeReplacementTest {
             BackupResult.Success(reservation)
         }
         coEvery { provider.promoteRollbackReservation(any()) } coAnswers {
+            protocolLog += "promote"
             val reservation = firstArg<File>()
             reservation.copyTo(File(tempDir, "pre_restore_backup.db"), overwrite = true)
             reservation.delete()
@@ -1246,6 +1247,27 @@ internal class AppRuntimeReplacementTest {
             assertTrue(
                 File(tempDir, "pre_restore_backup.db").exists(),
                 "the previous restore's undo slot was not the source and must survive",
+            )
+        }
+
+    @Test
+    fun `the reservation is promoted BEFORE the durable commit is recorded`() =
+        runtimeTest { runtime ->
+            runtime.currentGeneration
+            val effects = RecordingEffects(calls = protocolLog)
+
+            runtime.replace(ReplacementOperation.RestoreFromSnapshot(sourceFile()), effects)
+
+            // Recording `Committed` first would let a crash inside the promotion leave a journal
+            // that claims success while the undo slot is mid-replacement: the next launch would
+            // peek the new database, publish RestoreSuccess and offer an undo that cannot work.
+            val promote = protocolLog.indexOf("promote")
+            val recorded = protocolLog.indexOf("mutationCommitted")
+            assertTrue(promote >= 0 && recorded >= 0, "both steps must run: $protocolLog")
+            assertTrue(promote < recorded, "promote must precede the record: $protocolLog")
+            assertTrue(
+                protocolLog.indexOf("swap") < promote,
+                "and the live-file swap must precede both: $protocolLog",
             )
         }
 
