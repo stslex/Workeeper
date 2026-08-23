@@ -1315,6 +1315,32 @@ now pins for the new invariants. The material ones:
   test; and the retire-CAS hammer could not observe its own gap — rewritten as above and proven
   by R3-C.
 
+### 22.3b The generation-deps seam, closed on-device (found by the Smoke gate)
+
+Making `generationJob` required stops the ARGUMENT being dropped, but not the VALUE being wrong:
+`remember { null }` still compiles and still un-parents every Store job. The device Smoke gate is
+what surfaced the remaining hole, by going red for an unrelated-looking reason — `:core:ui:mvi`'s
+own `AppFeatureScopeTest` probe deliberately builds its Store with no app graph, and
+`rememberStoreProcessor` now legitimately requires ONE app-scope binding, so the probe's plain
+`Application` failed the `appDeps` cast.
+
+The fix supplies the contract rather than softening it. `appDeps` is strict by design — the cast
+throwing is what forbids a Store from silently starting un-parented jobs — so a `?: null` fallback
+in the processor would have turned the red gate green while re-opening the exact defect blocker 4
+exists to prevent. The probe instead provides the binding the way production does, through an
+`applicationContext` that implements `AppDepsHolder` (`ProbeAppDepsHost`, which overrides only
+`LocalContext` and so leaves the `LocalViewModelStoreOwner` / `LocalLifecycleOwner` invariants the
+test asserts untouched).
+
+`storeJobsAreDescendantsOfTheGenerationSuppliedByTheDepsSeam` then pins the seam end to end on a
+device: it composes the real `rememberMetroStoreProcessor`, starts a job through the ordinary
+`launchDefault` surface with a `finally` standing in for a database touch, and ends the lifetime
+the holder handed out. **Proof boundary:** it proves the job the SEAM supplies is the parent —
+`cancelAndJoin` cannot return before that `finally` runs. The host `StoreGenerationJoinTest` still
+owns the `AppCoroutineScopeImpl` plus-order proof, which this does not re-prove.
+Known-negative **R3-D** (`remember { null }` in `StoreProcessor`): red on exactly this test,
+green on the scope test beside it — which is why the gap survived the review's first pass.
+
 ### 22.4 Residuals and Phase 7 obligations (delta over §21.3)
 
 - A pre-R3 install's `restore_in_progress` marker is read as `Prepared`, so the one launch that
