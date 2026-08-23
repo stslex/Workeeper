@@ -98,14 +98,25 @@ public class DatabaseSnapshotProviderImpl @Inject constructor(
             val target = preRestoreBackupFile()
             val staging = File(target.parentFile, "$PRE_RESTORE_BACKUP_NAME.promoting")
             try {
-                // The canonical slot is NEVER deleted before the replacement content is safely
-                // in place: a failure between a pre-emptive delete and a failed move would
-                // destroy the undo slot while the journal still named the reservation, leaving
-                // no rollback source at all. Stage first, then swap, then drop the reservation.
+                // COPY-BASED promotion (Phase 5 R4, spec §8.5a): the reservation is the file the
+                // still-`Prepared` journal names, so it must SURVIVE every crash point of this
+                // promotion — a move here was the round-3 defect that let a death between the
+                // move and the durable `Committed` record leave the journal pointing at a path
+                // that no longer existed, misdirecting the next launch's recovery onto the
+                // canonical slot (another attempt's OLDER snapshot). The runtime deletes the
+                // reservation only AFTER `Committed` is durably recorded; a committed cold start
+                // cleans up a retained copy idempotently.
+                //
+                // The staging name is shared across attempts on purpose: promotions are
+                // mutex-serialized, recovery never reads `.promoting` (the canonical lookup is
+                // an exact-name match), and a stale file from a crashed promotion is deleted
+                // deterministically here before it could ever be renamed onto the slot.
                 staging.delete()
-                if (!reservation.renameTo(staging)) {
-                    reservation.copyTo(staging, overwrite = true)
-                }
+                reservation.copyTo(staging, overwrite = true)
+                // The canonical slot is NEVER deleted before the replacement content is safely
+                // staged: a failure between a pre-emptive delete and a failed move would leave
+                // the slot empty mid-window — harmless now that the reservation survives, but
+                // still a window in which a Committed attempt's canonical would be missing.
                 if (!staging.renameTo(target)) {
                     target.delete()
                     if (!staging.renameTo(target)) {
@@ -113,7 +124,6 @@ public class DatabaseSnapshotProviderImpl @Inject constructor(
                         staging.delete()
                     }
                 }
-                reservation.delete()
                 BackupResult.Success(Unit)
             } catch (e: IOException) {
                 staging.delete()

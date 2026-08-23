@@ -164,9 +164,9 @@ internal class RestoreTransactionIntegrationTest {
             BackupResult.Success(reservation)
         }
         coEvery { provider.promoteRollbackReservation(any()) } coAnswers {
-            val reservation = firstArg<File>()
-            reservation.copyTo(File(tempDir, "pre_restore_backup.db"), overwrite = true)
-            reservation.delete()
+            // R4 semantics: promotion COPIES; the runtime deletes the reservation only after
+            // the durable Committed record.
+            firstArg<File>().copyTo(File(tempDir, "pre_restore_backup.db"), overwrite = true)
             BackupResult.Success(Unit)
         }
         coEvery { provider.validateSnapshotForRestore(any()) } returns BackupResult.Success(Unit)

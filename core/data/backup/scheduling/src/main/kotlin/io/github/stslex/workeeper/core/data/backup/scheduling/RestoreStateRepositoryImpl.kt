@@ -64,17 +64,30 @@ class RestoreStateRepositoryImpl internal constructor(
         var claimed = false
         dataStore.edit { prefs ->
             val ownerId = prefs[KEY_ATTEMPT_ID]
-            // A DIFFERENT unresolved attempt owns the slot (including a legacy in-progress
-            // marker with no id): refuse rather than inherit its bookkeeping. Re-claiming with
-            // the same id is idempotent — a retried submission of one attempt is not a second.
-            val slotFree = ownerId == null && prefs[KEY_LEGACY_RESTORE_IN_PROGRESS] != true
-            if (!slotFree && ownerId != attempt.id) {
+            val legacyMarker = prefs[KEY_LEGACY_RESTORE_IN_PROGRESS] == true
+            // Owner isolation (R4 invariant 5). A DIFFERENT unresolved attempt owns the slot:
+            // refuse rather than inherit its bookkeeping. Re-claiming with the same id is
+            // idempotent — a retried submission of one attempt is not a second. A pre-R4 legacy
+            // marker (id-less `restore_in_progress`) is owned by exactly ONE synthetic id —
+            // [LEGACY_ATTEMPT_ID], the id `getAttempt` hands the recovery path — and its claim
+            // CONVERTS the marker into an owner-scoped record in this same atomic edit. Any
+            // other id is refused, exactly as against a live owned record.
+            val ownsSlot = when {
+                ownerId != null -> ownerId == attempt.id
+                legacyMarker -> attempt.id == LEGACY_ATTEMPT_ID
+                else -> true
+            }
+            if (!ownsSlot) {
                 claimed = false
                 return@edit
             }
             prefs[KEY_ATTEMPT_ID] = attempt.id
             prefs[KEY_ATTEMPT_KIND] = attempt.kind.name
             prefs[KEY_ATTEMPT_PHASE] = RestoreAttempt.Phase.Prepared.name
+            // The atomic legacy → owner-scoped conversion: once the synthetic owner has an
+            // id-keyed record, the id-less boolean would only shadow it.
+            prefs.remove(KEY_LEGACY_RESTORE_IN_PROGRESS)
+            prefs.remove(KEY_LEGACY_MUTATION_INTERRUPTED)
             attempt.rollbackSnapshotPath
                 ?.let { prefs[KEY_ATTEMPT_ROLLBACK_PATH] = it }
                 ?: prefs.remove(KEY_ATTEMPT_ROLLBACK_PATH)
@@ -103,9 +116,15 @@ class RestoreStateRepositoryImpl internal constructor(
         var resolved = false
         dataStore.edit { prefs ->
             val ownerId = prefs[KEY_ATTEMPT_ID]
-            // A legacy in-progress marker has no id: the first attempt that resolves clears it,
-            // otherwise the migration state would outlive every attempt.
-            val ownsLegacy = ownerId == null && prefs[KEY_LEGACY_RESTORE_IN_PROGRESS] == true
+            // Owner isolation (R4 invariant 5): an id-less legacy marker is owned by exactly
+            // the synthetic [LEGACY_ATTEMPT_ID] — an ARBITRARY attempt id must not clear it.
+            // (Pre-R4, any refused attempt's rejection compensation could erase the legacy
+            // journal here, forgetting an interrupted restore entirely.) The migration state
+            // cannot outlive every attempt: the recovery path claims it under the synthetic id,
+            // which converts it to an owned record that resolves normally.
+            val ownsLegacy = ownerId == null &&
+                prefs[KEY_LEGACY_RESTORE_IN_PROGRESS] == true &&
+                attemptId == LEGACY_ATTEMPT_ID
             if (ownerId != attemptId && !ownsLegacy) return@edit
             prefs.remove(KEY_ATTEMPT_ID)
             prefs.remove(KEY_ATTEMPT_KIND)

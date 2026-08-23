@@ -109,6 +109,17 @@ internal class RestoreRecoveryCoordinatorTest {
             context = null,
         )
         coEvery { restoreStateRepository.getAttempt() } returns attempt
+        // GROUND TRUTH for the availability verdict (R4): the canonical file is gone — the
+        // committed rollback consumed it — so the flag clears.
+        every { snapshotProvider.getPreRestoreBackupFile() } returns null
+        val order = mutableListOf<String>()
+        coEvery { restoreStateRepository.clearPreRestoreBackupAvailable() } coAnswers {
+            order += "clear"
+        }
+        coEvery { restoreStateRepository.resolveAttempt(any()) } coAnswers {
+            order += "resolve"
+            true
+        }
 
         val outcome = coordinator.handlePostRestoreLaunch()
 
@@ -118,17 +129,47 @@ internal class RestoreRecoveryCoordinatorTest {
         coVerify(exactly = 1) { restoreStateRepository.resolveAttempt(attempt.id) }
         coVerify(exactly = 1) { restoreStateRepository.clearPreRestoreBackupAvailable() }
         coVerify(exactly = 0) { restoreStateRepository.markPreRestoreBackupAvailable(any()) }
+        assertEquals(
+            listOf("clear", "resolve"),
+            order,
+            "data-bearing write FIRST, resolve LAST — a death in between must replay",
+        )
     }
+
+    @Test
+    fun `a committed RESERVATION-sourced rollback keeps the previous restore's still-valid undo`() =
+        runTest {
+            // The committed rollback applied its own reservation, so the canonical slot — the
+            // PREVIOUS restore's undo — was never consumed and remains valid. Clearing the flag
+            // here (the pre-R4 unconditional clear) revoked an undo the user still owns.
+            val attempt = makeAttempt(
+                kind = RestoreAttempt.Kind.Rollback,
+                phase = RestoreAttempt.Phase.Committed,
+                context = null,
+            )
+            coEvery { restoreStateRepository.getAttempt() } returns attempt
+            every { snapshotProvider.getPreRestoreBackupFile() } returns
+                File("pre_restore_backup.db")
+
+            val outcome = coordinator.handlePostRestoreLaunch()
+
+            assertEquals(RestoreRecoveryCoordinator.PreflightOutcome.RecoveryCompleted, outcome)
+            coVerify(exactly = 0) { restoreStateRepository.clearPreRestoreBackupAvailable() }
+            coVerify(exactly = 1) { restoreStateRepository.resolveAttempt(attempt.id) }
+        }
 
     @Test
     fun `the recovery rollback CARRIES the journal's reservation path through its re-claim`() =
         runTest {
-            // Erasing the path on the re-claim would leave a second interruption with only the
-            // canonical slot — an OLDER snapshot — silently reverting data the failed attempt
-            // never touched.
-            val attempt = makeAttempt(rollbackSnapshotPath = "/data/cache/rollback_reservation_A.db")
+            // A PREPARED attempt's reservation is the only file holding the true pre-attempt
+            // database. Erasing the path on the re-claim would leave a second interruption with
+            // only the canonical slot — an OLDER snapshot — silently reverting data the failed
+            // attempt never touched.
+            val attempt = makeAttempt(
+                phase = RestoreAttempt.Phase.Prepared,
+                rollbackSnapshotPath = "/data/cache/rollback_reservation_A.db",
+            )
             coEvery { restoreStateRepository.getAttempt() } returns attempt
-            coEvery { snapshotProvider.currentSchemaVersion() } throws IllegalStateException("boom")
             val claimed = slot<RestoreAttempt>()
             coEvery { restoreStateRepository.beginAttempt(capture(claimed)) } returns true
             coEvery { databaseReplacement.rollbackToPreRestoreBackup(any(), any()) } coAnswers {
@@ -140,6 +181,90 @@ internal class RestoreRecoveryCoordinatorTest {
 
             assertEquals(attempt.rollbackSnapshotPath, claimed.captured.rollbackSnapshotPath)
             assertEquals(attempt.id, claimed.captured.id)
+        }
+
+    @Test
+    fun `a COMMITTED attempt recovers from the CANONICAL slot - its promotion is durably done`() =
+        runTest {
+            // For a Committed attempt, the commit ordering (promote < record) proves the
+            // canonical slot holds THIS attempt's pre-image, and the retained reservation may
+            // already be cleaned up — so the rollback is submitted with sourcePath = null
+            // (canonical), never the possibly-gone reservation path, and its re-claim records
+            // the same truth.
+            val attempt = makeAttempt(
+                phase = RestoreAttempt.Phase.Committed,
+                rollbackSnapshotPath = "/data/cache/rollback_reservation_A.db",
+            )
+            coEvery { restoreStateRepository.getAttempt() } returns attempt
+            coEvery { snapshotProvider.currentSchemaVersion() } throws IllegalStateException("boom")
+            val pathSlot = slot<String?>()
+            val claimed = slot<RestoreAttempt>()
+            coEvery { restoreStateRepository.beginAttempt(capture(claimed)) } returns true
+            coEvery {
+                databaseReplacement.rollbackToPreRestoreBackup(captureNullable(pathSlot), any())
+            } coAnswers {
+                secondArg<DatabaseReplacementEffects>().onBeforeMutation("")
+                DatabaseReplacementResult.Committed()
+            }
+
+            coordinator.handlePostRestoreLaunch()
+
+            assertNull(pathSlot.captured, "a Committed attempt's source is the canonical slot")
+            assertNull(claimed.captured.rollbackSnapshotPath)
+        }
+
+    @Test
+    fun `the recovery re-claim CHECKS ownership - a foreign-owned slot rejects before mutating`() =
+        runTest {
+            // R4 blocker C: mutating the live database with no journal claim of our own would
+            // leave the interrupted state unrecoverable. A refused `beginAttempt` must throw out
+            // of onBeforeMutation — the transaction then rejects before anything irreversible.
+            coEvery { restoreStateRepository.getAttempt() } returns
+                makeAttempt(phase = RestoreAttempt.Phase.Prepared)
+            coEvery { restoreStateRepository.beginAttempt(any()) } returns false
+            val effectsSlot = slot<DatabaseReplacementEffects>()
+            coEvery {
+                databaseReplacement.rollbackToPreRestoreBackup(any(), capture(effectsSlot))
+            } returns DatabaseReplacementResult.RejectedBeforeMutation(
+                BackupError.Io(IOException("rejected by the effects throw")),
+            )
+
+            coordinator.handlePostRestoreLaunch()
+
+            val failure = runCatching { effectsSlot.captured.onBeforeMutation("") }
+                .exceptionOrNull()
+            assertTrue(
+                failure is IllegalStateException,
+                "an unchecked refusal would let the rollback mutate unjournaled; got $failure",
+            )
+        }
+
+    @Test
+    fun `the LEGACY marker's recovery completes end-to-end under the synthetic owner id`() =
+        runTest {
+            // Mandated R4 test 6 (coordinator half; the repository half proves the atomic
+            // conversion against real DataStore): the synthetic legacy owner claims, commits and
+            // resolves its own slot — pre-R4 the ignored claim refusal left the mutation
+            // unjournaled and `recordAttemptCommitted` then failed the whole recovery.
+            val legacy = RestoreAttempt(
+                id = LEGACY_ATTEMPT_ID,
+                kind = RestoreAttempt.Kind.Restore,
+                phase = RestoreAttempt.Phase.Prepared,
+                context = makeContext(),
+                rollbackSnapshotPath = null,
+            )
+            val journal = FakeRestoreStateRepository(initialAttempt = legacy)
+            stubRollbackCommitted()
+            val legacyLaunch = makeCoordinator(journal)
+
+            val outcome = legacyLaunch.handlePostRestoreLaunch()
+
+            assertEquals(
+                RestoreRecoveryCoordinator.PreflightOutcome.RestoreRolledBack,
+                outcome,
+                "the legitimate legacy recovery must complete, not loop through RecoveryRequired",
+            )
+            assertNull(journal.getAttempt(), "the synthetic owner resolved its own slot")
         }
 
     @Test
@@ -178,6 +303,78 @@ internal class RestoreRecoveryCoordinatorTest {
     }
 
     @Test
+    fun `success finalization is data-bearing-first - the attempt resolves LAST`() = runTest {
+        // R4 invariant 7: a death anywhere inside the finalization must leave the journal at
+        // `Committed` so the next launch replays it — pre-R4 the resolve came first and a death
+        // in between erased the replay token while hiding a valid undo snapshot forever.
+        coEvery { restoreStateRepository.getAttempt() } returns
+            makeAttempt(context = makeContext(startedAt = 1_700_000_000_000L))
+        coEvery { snapshotProvider.currentSchemaVersion() } returns 6
+        val order = mutableListOf<String>()
+        coEvery { restoreStateRepository.markPreRestoreBackupAvailable(any()) } coAnswers {
+            order += "mark"
+        }
+        coEvery { appDialogPublisher.publish(any()) } coAnswers { order += "publish" }
+        coEvery { restoreStateRepository.resolveAttempt(any()) } coAnswers {
+            order += "resolve"
+            true
+        }
+
+        val outcome = coordinator.handlePostRestoreLaunch()
+
+        assertEquals(RestoreRecoveryCoordinator.PreflightOutcome.RestoreSucceeded, outcome)
+        assertEquals(
+            listOf("mark", "publish", "resolve"),
+            order,
+            "undo availability and the persisted dialog must land BEFORE the replay token goes",
+        )
+    }
+
+    @Test
+    fun `a finalization failure never leaves the journal resolved with the undo hidden`() =
+        runTest {
+            // Mandated R4 test 11: "journal resolved ∧ undo snapshot exists ∧ availability
+            // absent" must be unconstructible. The mark THROWS — the resolve must not run, so
+            // the Committed journal replays the whole finalization next launch.
+            coEvery { restoreStateRepository.getAttempt() } returns makeAttempt()
+            coEvery { snapshotProvider.currentSchemaVersion() } returns 6
+            coEvery { restoreStateRepository.markPreRestoreBackupAvailable(any()) } throws
+                IOException("datastore write failed")
+
+            val outcome = coordinator.handlePostRestoreLaunch()
+
+            assertEquals(
+                RestoreRecoveryCoordinator.PreflightOutcome.RestoreSucceeded,
+                outcome,
+                "the restore IS durably committed and verified; only the finalization replays",
+            )
+            coVerify(exactly = 0) {
+                restoreStateRepository.resolveAttempt(any())
+            }
+        }
+
+    @Test
+    fun `success finalization cleans up the RETAINED reservation copy idempotently`() = runTest {
+        // Copy-based promotion retains the reservation until `Committed` is durable; a death
+        // between the record and the same-process delete leaves it behind. The committed
+        // cold-start finalization deletes the journal-named file — real file, real delete.
+        val retained = File.createTempFile("rollback_reservation_", ".db")
+            .apply { writeText("retained-copy") }
+        try {
+            coEvery { restoreStateRepository.getAttempt() } returns
+                makeAttempt(rollbackSnapshotPath = retained.absolutePath)
+            coEvery { snapshotProvider.currentSchemaVersion() } returns 6
+
+            val outcome = coordinator.handlePostRestoreLaunch()
+
+            assertEquals(RestoreRecoveryCoordinator.PreflightOutcome.RestoreSucceeded, outcome)
+            assertFalse(retained.exists(), "the retained reservation copy must be cleaned up")
+        } finally {
+            retained.delete()
+        }
+    }
+
+    @Test
     fun `a COMMITTED attempt whose peek fails recovers`() = runTest {
         val context = makeContext()
         coEvery { restoreStateRepository.getAttempt() } returns makeAttempt(context = context)
@@ -197,7 +394,9 @@ internal class RestoreRecoveryCoordinatorTest {
         }
         coVerify(exactly = 1) {
             databaseReplacement.rollbackToPreRestoreBackup(
-                sourcePath = ROLLBACK_PATH,
+                // A COMMITTED attempt's promotion is durably done, so the canonical slot is the
+                // provable source (R4) — never the possibly-cleaned-up reservation path.
+                sourcePath = null,
                 effects = any(),
             )
         }
@@ -232,37 +431,16 @@ internal class RestoreRecoveryCoordinatorTest {
         assertEquals(reservedPath, pathSlot.captured)
     }
 
-    @Test
-    fun `pre-PONR rejection yields the SAFE retry path`() = runTest {
-        // PROVEN pre-mutation rejection: nothing was closed, mutated or torn down, so the live
-        // database is intact and open. The launch continues on the safe path — no restart (it
-        // would loop) and no recovery surface (the intact database does not warrant one), with
-        // every asset and the journal entry preserved for the next attempt.
-        coEvery { restoreStateRepository.getAttempt() } returns
-            makeAttempt(phase = RestoreAttempt.Phase.Prepared)
-        val error = BackupError.Io(IOException("machine busy"))
-        coEvery { databaseReplacement.rollbackToPreRestoreBackup(any(), any()) } coAnswers {
-            secondArg<DatabaseReplacementEffects>().onRejectedBeforeMutation(error)
-            DatabaseReplacementResult.RejectedBeforeMutation(error)
-        }
-
-        val outcome = coordinator.handlePostRestoreLaunch()
-
-        assertEquals(RestoreRecoveryCoordinator.PreflightOutcome.RetrySafe, outcome)
-        assertFalse(coordinator.recoverySurfaceRequired)
-        coVerify(exactly = 0) { restoreStateRepository.resolveAttempt(any()) }
-        coVerify(exactly = 0) { restoreStateRepository.clearPreRestoreBackupAvailable() }
-        coVerify(exactly = 0) { snapshotProvider.deletePreRestoreBackup() }
-    }
-
     @ParameterizedTest
-    @MethodSource("postMutationRollbackResults")
-    fun `post-mutation outcomes require terminal recovery`(
+    @MethodSource("nonCommitRollbackResults")
+    fun `every non-commit rollback outcome requires terminal recovery`(
         rollbackResult: DatabaseReplacementResult,
     ) = runTest {
-        // Post-PONR, a closed handle, or a terminal runtime: this process must arm NO DB-bound
-        // work and must not show the main UI over a database of unknown provenance. Assets and
-        // the journal entry are preserved; the user reaches the explicit recovery surface.
+        // R4 blocker B. A pre-PONR REJECTION of the recovery rollback proves only that THIS
+        // rollback did not mutate — never what the ORIGINAL Prepared attempt did to the live
+        // file before dying — so it licenses Main UI no more than a post-PONR failure does.
+        // Every non-commit outcome lands on the same verdict: arm NO DB-bound work, show no
+        // main UI, preserve every asset and the journal entry, route to the recovery surface.
         coEvery { restoreStateRepository.getAttempt() } returns
             makeAttempt(phase = RestoreAttempt.Phase.Prepared)
         coEvery {
@@ -468,12 +646,14 @@ internal class RestoreRecoveryCoordinatorTest {
     }
 
     @Test
-    fun `performUndoRestore happy path - resolve, clear, publish, THEN acknowledge, in order`() =
+    fun `performUndoRestore happy path - clear, publish, resolve LAST, THEN acknowledge`() =
         runTest {
             stubPreservedBackupExists()
-            // Order recorder across ALL four writes — the acknowledge's POSITION is part of the
-            // dismiss-after discipline (a dismiss before the success dialog persists would lose
-            // the dialog across a crash between the two).
+            // Order recorder across ALL four writes. Data-bearing writes precede the resolve
+            // (R4 invariant 7: a death mid-sequence leaves a Committed rollback the replay
+            // branch finishes, never a resolved journal with half-done bookkeeping), and the
+            // acknowledge's POSITION is part of the dismiss-after discipline (a dismiss before
+            // the success dialog persists would lose the dialog across a crash between the two).
             val order = mutableListOf<String>()
             coEvery { restoreStateRepository.resolveAttempt(any()) } coAnswers {
                 order += "resolve"
@@ -491,9 +671,9 @@ internal class RestoreRecoveryCoordinatorTest {
 
             assertEquals(UndoRestoreOutcome.Succeeded, result)
             assertEquals(
-                listOf("resolve", "clear", "publish", "acknowledge"),
+                listOf("clear", "publish", "resolve", "acknowledge"),
                 order,
-                "side-effect-first inside onCommitted; the caller's acknowledge comes LAST",
+                "data-bearing writes first, resolve LAST, the caller's acknowledge after all",
             )
         }
 
@@ -648,12 +828,19 @@ internal class RestoreRecoveryCoordinatorTest {
         private const val ATTEMPT_ID = "attempt-7f3c"
         private const val ROLLBACK_PATH = "/data/user/0/app/cache/rollback/attempt-7f3c.db"
 
+        /** Mirrors `RestoreStateRepositoryImpl.LEGACY_ATTEMPT_ID` (wire format, private there). */
+        private const val LEGACY_ATTEMPT_ID = "legacy-restore-in-progress"
+
         /**
-         * Every rollback outcome that means "the mutation's result is unknown or the runtime is
-         * terminal" — all of them must land on the same terminal-recovery verdict.
+         * Every rollback outcome short of a clean durable commit — the pre-PONR rejection
+         * INCLUDED (R4): none of them proves the live database's provenance, so all of them
+         * must land on the same terminal-recovery verdict.
          */
         @JvmStatic
-        fun postMutationRollbackResults(): List<DatabaseReplacementResult> = listOf(
+        fun nonCommitRollbackResults(): List<DatabaseReplacementResult> = listOf(
+            DatabaseReplacementResult.RejectedBeforeMutation(
+                BackupError.CorruptedBackup(reason = "journal-named rollback source is missing"),
+            ),
             DatabaseReplacementResult.FailedAfterMutation(BackupError.Io(IOException("disk full"))),
             DatabaseReplacementResult.RecoveredByRollback(
                 BackupError.Io(IOException("swap failed post-PONR")),

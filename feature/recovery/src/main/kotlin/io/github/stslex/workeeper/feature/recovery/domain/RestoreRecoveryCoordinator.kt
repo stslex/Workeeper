@@ -19,6 +19,7 @@ import io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotPr
 import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialog
 import io.github.stslex.workeeper.feature.app_dialogs.api.publisher.AppDialogPublisher
 import io.github.stslex.workeeper.feature.recovery.diagnostics.RestoreRecoveryReporter
+import java.io.File
 import java.util.UUID
 
 /**
@@ -119,12 +120,25 @@ class RestoreRecoveryCoordinator @Inject internal constructor(
         // a preserved file the rollback itself consumed, fail, and leave this attempt
         // unresolved FOREVER — refusing every future restore and undo (whose `beginAttempt`
         // would then see a foreign owner). Finish its bookkeeping instead and continue.
+        //
+        // Replay-safe, data-bearing-first (R4): the undo-availability verdict comes from GROUND
+        // TRUTH — the canonical file's existence — because the journal cannot say which file
+        // the rollback applied: a reservation-sourced recovery consumed only its reservation,
+        // leaving the PREVIOUS restore's canonical undo valid; a canonical-sourced one consumed
+        // the slot. The applied-and-consumed source named by the journal is cleaned up
+        // idempotently, and the attempt resolves LAST, so a death anywhere in between replays
+        // this whole branch. The user-facing dialog of the interrupted rollback is deliberately
+        // NOT replayed: `Kind.Rollback` does not record whether it was a scenario-1 recovery
+        // (RestoreFailure) or a user undo (UndoRestoreSuccess), and inventing either would be
+        // worse than at-most-once feedback — the accepted, documented residual (spec §8.5b).
         if (attempt.phase == RestoreAttempt.Phase.Committed &&
             attempt.kind == RestoreAttempt.Kind.Rollback
         ) {
+            if (snapshotProvider.getPreRestoreBackupFile() == null) {
+                restoreStateRepository.clearPreRestoreBackupAvailable()
+            }
+            attempt.rollbackSnapshotPath?.let { path -> runCatching { File(path).delete() } }
             restoreStateRepository.resolveAttempt(attempt.id)
-            // The rollback consumed the undo slot; no undo is offered for data already reverted.
-            restoreStateRepository.clearPreRestoreBackupAvailable()
             logger.w { "an interrupted rollback was already committed — bookkeeping finished" }
             return PreflightOutcome.RecoveryCompleted
         }
@@ -137,10 +151,23 @@ class RestoreRecoveryCoordinator @Inject internal constructor(
     }
 
     /**
-     * The failure path: roll back onto the attempt's own rollback snapshot (the journal names it
-     * when the runtime reserved one — between the live-file mutation and the snapshot's
-     * promotion it is the only file holding the true pre-attempt database) and classify the
-     * result for the caller (spec §8.4 "safe retry vs terminal recovery").
+     * The failure path: roll back onto the attempt's own recovery source and classify the
+     * result for the caller (spec §8.4/§8.5b).
+     *
+     * **Source-owner identity (R4 invariant 2).** For a PREPARED attempt the journal-named
+     * reservation is authoritative — between the live-file mutation and the reservation's
+     * promotion it is the only file holding the true pre-attempt database, and if it is missing
+     * the canonical slot (another attempt's older snapshot) is never substituted: the seam
+     * rejects with a typed error and this launch goes to terminal recovery. For a COMMITTED
+     * attempt the promotion is durably known to have completed BEFORE `Committed` could exist
+     * (the commit-sequence ordering), so the canonical slot provably holds THIS attempt's
+     * pre-image and is the correct source — the retained reservation may already be cleaned up.
+     *
+     * **Outcome truth (R4 blocker B).** Only a rollback that COMMITTED with clean bookkeeping
+     * proves the live database's provenance. Everything else — including a pre-PONR rejection,
+     * which proves only that THIS rollback did not mutate, never what the original attempt did
+     * to the live file — is terminal recovery: no Main UI, no DB-bound work armed, every asset
+     * and the journal entry preserved for an explicit recovery attempt.
      */
     private suspend fun recoverFrom(
         attempt: RestoreAttempt,
@@ -154,9 +181,11 @@ class RestoreRecoveryCoordinator @Inject internal constructor(
                 appVersionName = platformInfo.appVersionName(),
             )
         }
+        val sourcePath = attempt.rollbackSnapshotPath
+            .takeIf { attempt.phase == RestoreAttempt.Phase.Prepared }
         val rollback = databaseReplacement.rollbackToPreRestoreBackup(
-            sourcePath = attempt.rollbackSnapshotPath,
-            effects = ScenarioOneRollbackEffects(attempt.id, attempt.rollbackSnapshotPath),
+            sourcePath = sourcePath,
+            effects = ScenarioOneRollbackEffects(attempt.id, sourcePath),
         )
         return when (rollback) {
             is DatabaseReplacementResult.Committed -> {
@@ -172,22 +201,17 @@ class RestoreRecoveryCoordinator @Inject internal constructor(
                 }
             }
 
-            // PROVEN pre-PONR rejection: nothing was closed, mutated or torn down, so the live
-            // database is intact and open and the launch may continue on the SAFE path — the
-            // assets and the journal entry stay for the next attempt.
-            is DatabaseReplacementResult.RejectedBeforeMutation -> {
-                logger.w { "scenario-1 rollback rejected pre-mutation: ${rollback.error}" }
-                PreflightOutcome.RetrySafe
-            }
-
-            // Post-PONR, a closed handle, or a terminal runtime: this process must NOT arm
-            // DB-bound work or show the main UI over an unknown database. Assets preserved;
-            // the user reaches an explicit recovery surface.
+            // A rejection proves only that THIS rollback did not mutate — the ORIGINAL attempt
+            // may have died before, during, or after its own mutation, so the live database's
+            // provenance is exactly as unknown as before the rollback ran. Terminal recovery
+            // (never the old RetrySafe, which armed DB-bound work and composed Main UI over it).
+            is DatabaseReplacementResult.RejectedBeforeMutation,
+            // Post-PONR, a closed handle, or a terminal runtime: same verdict.
             is DatabaseReplacementResult.RecoveredByRollback,
             is DatabaseReplacementResult.FailedAfterMutation,
             is DatabaseReplacementResult.FatalNoGeneration,
             -> {
-                logger.w { "scenario-1 rollback ended post-mutation ($rollback) — recovery required" }
+                logger.w { "scenario-1 rollback did not commit ($rollback) — recovery required" }
                 PreflightOutcome.RecoveryRequired
             }
         }
@@ -280,10 +304,18 @@ class RestoreRecoveryCoordinator @Inject internal constructor(
             }
         }
 
+        /**
+         * Data-bearing-first, resolve LAST (R4 invariant 7): the undo consumed the canonical
+         * slot, so the availability clear and the persisted dialog land before the attempt
+         * resolves — a death in between leaves a `Committed` rollback the next launch's replay
+         * branch finishes idempotently (ground-truth flag, resolve), instead of a resolved
+         * journal with half-done bookkeeping. The caller's acknowledge stays last: a dismiss
+         * before the success dialog persists would lose the dialog across a crash.
+         */
         override suspend fun onCommitted() {
-            restoreStateRepository.resolveAttempt(attemptId)
             restoreStateRepository.clearPreRestoreBackupAvailable()
             appDialogPublisher.publish(AppDialog.UndoRestoreSuccess)
+            restoreStateRepository.resolveAttempt(attemptId)
             acknowledge()
         }
 
@@ -297,18 +329,43 @@ class RestoreRecoveryCoordinator @Inject internal constructor(
         override suspend fun onFatal() = Unit
     }
 
+    /**
+     * The committed restore's finalization — replay-safe by ordering (R4 invariant 7): every
+     * data-bearing write lands BEFORE the attempt resolves, so a death anywhere in the sequence
+     * leaves the journal at `Committed` and the next launch replays this whole method
+     * idempotently. Pre-R4 the resolve came first, and a death in between erased the replay
+     * token while hiding a perfectly valid undo snapshot forever.
+     *
+     *  1. mark undo availability (idempotent; the promotion durably preceded `Committed`, so
+     *     the canonical slot provably holds this attempt's pre-image);
+     *  2. publish the success dialog (persisted; re-publishing on replay is at-least-once
+     *     feedback, which for a success notice is the right side to err on);
+     *  3. delete the RETAINED reservation copy the promotion left behind (idempotent — the
+     *     clean same-process path already discarded it);
+     *  4. resolve the attempt LAST.
+     *
+     * A failure inside the sequence is logged and the launch still proceeds as a success — the
+     * restore IS durably committed and verified; the unresolved journal makes the NEXT launch
+     * retry the finalization (a new restore/undo in the meantime is refused by `beginAttempt`
+     * until then, which is the honest refusal).
+     */
     private suspend fun handleRestoreSuccess(
         attempt: RestoreAttempt,
         context: RestoreInProgressContext,
     ) {
-        restoreStateRepository.resolveAttempt(attempt.id)
-        restoreStateRepository.markPreRestoreBackupAvailable(context.startedAtEpochMs)
-        appDialogPublisher.publish(
-            AppDialog.RestoreSuccess(
-                restoredAtEpochMs = System.currentTimeMillis(),
-                previousVersionAvailable = true,
-            ),
-        )
+        runCatching {
+            restoreStateRepository.markPreRestoreBackupAvailable(context.startedAtEpochMs)
+            appDialogPublisher.publish(
+                AppDialog.RestoreSuccess(
+                    restoredAtEpochMs = System.currentTimeMillis(),
+                    previousVersionAvailable = true,
+                ),
+            )
+            attempt.rollbackSnapshotPath?.let { path -> runCatching { File(path).delete() } }
+            restoreStateRepository.resolveAttempt(attempt.id)
+        }.onFailure { error ->
+            logger.e(error, "restore-success finalization failed — it will replay next launch")
+        }
     }
 
     /** The scenario-1 rollback's typed compensation — runs on the transaction's coroutine. */
@@ -316,25 +373,37 @@ class RestoreRecoveryCoordinator @Inject internal constructor(
         /** Reuses the RECOVERED attempt's id: this rollback finishes that attempt, not a new one. */
         override val attemptId: String,
         /**
-         * The recovered attempt's reservation path, CARRIED THROUGH the re-claim. Re-claiming
-         * with null would erase the journal's only pointer to the file that holds the true
-         * pre-attempt database, so a second interruption would fall back to the canonical slot —
-         * an OLDER snapshot — and silently revert data the failed attempt never touched.
+         * The source path this rollback was SUBMITTED with, CARRIED THROUGH the re-claim: the
+         * recovered attempt's reservation for a `Prepared` attempt (re-claiming with null would
+         * erase the journal's only pointer to the file holding the true pre-attempt database),
+         * or null for a `Committed` attempt, whose source is provably the canonical slot. Null
+         * also decides the flag policy below: it means the CANONICAL slot is what gets applied
+         * and consumed.
          */
-        private val reservationPath: String?,
+        private val sourcePath: String?,
     ) : DatabaseReplacementEffects {
 
-        /** The recovered attempt already owns the slot; re-claiming with its id is idempotent. */
+        /**
+         * The recovered attempt already owns the slot; re-claiming with its id is idempotent —
+         * and for a pre-R4 LEGACY marker, this claim is what atomically converts the id-less
+         * boolean into an owner-scoped record. The result is CHECKED (R4 blocker C): a refusal
+         * means the slot is owned by someone else entirely, and mutating the live database with
+         * no journal claim of our own would leave the interrupted state unrecoverable — the
+         * throw rejects the transaction before anything irreversible instead.
+         */
         override suspend fun onBeforeMutation(rollbackSnapshotPath: String) {
-            restoreStateRepository.beginAttempt(
+            val claimed = restoreStateRepository.beginAttempt(
                 RestoreAttempt(
                     id = attemptId,
                     kind = RestoreAttempt.Kind.Rollback,
                     phase = RestoreAttempt.Phase.Prepared,
                     context = null,
-                    rollbackSnapshotPath = reservationPath,
+                    rollbackSnapshotPath = sourcePath,
                 ),
             )
+            check(claimed) {
+                "the journal slot is not owned by recovered attempt $attemptId; refusing to roll back"
+            }
         }
 
         override suspend fun onMutationCommitted() {
@@ -343,13 +412,22 @@ class RestoreRecoveryCoordinator @Inject internal constructor(
             }
         }
 
+        /**
+         * Data-bearing-first, resolve LAST (R4 invariant 7). The availability flag clears ONLY
+         * when the applied source was the canonical slot ([sourcePath] == null — the slot was
+         * consumed): a reservation-sourced recovery never touched the canonical, so the
+         * PREVIOUS restore's undo remains valid and revoking it would be exactly the
+         * cross-owner invalidation R4 invariant 3 bans. A death before the resolve leaves a
+         * `Committed` rollback the replay branch finishes idempotently.
+         */
         override suspend fun onCommitted() {
-            restoreStateRepository.resolveAttempt(attemptId)
-            // No undo slot after a failure rollback — the preserved file was consumed.
-            restoreStateRepository.clearPreRestoreBackupAvailable()
+            if (sourcePath == null) {
+                restoreStateRepository.clearPreRestoreBackupAvailable()
+            }
             appDialogPublisher.publish(
                 AppDialog.RestoreFailure(reason = BackupErrorCodeForFailure),
             )
+            restoreStateRepository.resolveAttempt(attemptId)
         }
 
         /**
@@ -399,18 +477,21 @@ class RestoreRecoveryCoordinator @Inject internal constructor(
         RestoreRolledBack,
 
         /**
-         * PROVEN pre-PONR rejection: nothing was closed, mutated or torn down, so the live
-         * database is intact and open. The launch continues on the SAFE path (spec §8.4) with
-         * every asset and the journal entry preserved for the next attempt — no restart, which
-         * would loop, and no recovery surface, which the intact database does not warrant.
-         */
-        RetrySafe,
-
-        /**
-         * TERMINAL recovery: the mutation's outcome is unknown or the runtime is fatal, so this
-         * process must arm NO DB-bound work (query planner, repositories, dialog observer) and
-         * must not show the main UI over a database of unknown provenance. Every recovery asset
-         * is preserved and the user is routed to the explicit recovery surface.
+         * TERMINAL recovery: the recovery rollback did not durably commit — rejected, failed
+         * post-PONR, fatal, or committed with broken bookkeeping — so the live database's
+         * provenance is unproven. This process must arm NO DB-bound work (query planner,
+         * repositories, dialog observer) and must not show the main UI. Every recovery asset
+         * and the journal entry are preserved and the user is routed to the explicit recovery
+         * surface.
+         *
+         * There is deliberately NO "safe retry" sibling (R4 blocker B): a pre-PONR rejection of
+         * the RECOVERY rollback proves only that the rollback did not mutate — never what the
+         * ORIGINAL `Prepared` attempt did to the live file before dying — so no rollback
+         * outcome short of a clean durable commit can license Main UI over that file. The one
+         * in-process consequence is that a graph-only reinitialize whose preflight finds an
+         * unresolved `Prepared` attempt now ABORTS (outgoing generation keeps serving, journal
+         * intact) instead of publishing a fresh generation over unproven data — which is what
+         * locked invariant 4 requires.
          */
         RecoveryRequired,
 

@@ -203,12 +203,54 @@ internal class RestoreStateRepositoryImplTest {
         assertFalse(repo.beginAttempt(attempt(id = "attempt-new")))
         assertEquals(LEGACY_ATTEMPT_ID, repo.getAttempt()?.id)
 
-        // ACTUAL behavior pinned: a legacy marker has no id, so the FIRST resolver clears it —
-        // an arbitrary attempt id succeeds, not just the synthetic LEGACY_ATTEMPT_ID. Without
-        // that, the migration state would outlive every attempt.
-        assertTrue(repo.resolveAttempt("some-unrelated-attempt-id"))
-        assertNull(repo.getAttempt())
+        // Owner isolation (R4 invariant 5): an ARBITRARY attempt id must not clear the legacy
+        // marker — pre-R4, any refused attempt's rejection compensation could erase the
+        // interrupted restore's journal entirely, and the next launch was a NoOp over a
+        // database of unknown provenance.
+        assertFalse(repo.resolveAttempt("some-unrelated-attempt-id"))
+        assertEquals(LEGACY_ATTEMPT_ID, repo.getAttempt()?.id)
     }
+
+    @Test
+    fun `only the synthetic legacy owner claims the legacy slot - the claim converts it atomically`() =
+        runTest {
+            val context = RestoreInProgressContext(
+                backupSchemaVersion = 4,
+                backupCreatedAtEpochMs = 1_600_000_000_000L,
+                backupAppVersion = "0.9.1",
+                startedAtEpochMs = 1_610_000_000_000L,
+            )
+            writeLegacyInProgress(context)
+            dataStore.edit { prefs -> prefs[KEY_LEGACY_MUTATION_INTERRUPTED] = true }
+
+            // A foreign id is refused, exactly as against a live owned record.
+            assertFalse(repo.beginAttempt(attempt(id = "attempt-foreign")))
+
+            // The synthetic owner's claim succeeds and CONVERTS the id-less marker into an
+            // owner-scoped record in one atomic edit (R4 blocker C): both legacy booleans are
+            // gone, the id-keyed record owns the slot.
+            val legacyClaim = RestoreAttempt(
+                id = LEGACY_ATTEMPT_ID,
+                kind = RestoreAttempt.Kind.Rollback,
+                phase = RestoreAttempt.Phase.Prepared,
+                context = null,
+                rollbackSnapshotPath = null,
+            )
+            assertTrue(repo.beginAttempt(legacyClaim))
+            val prefs = dataStore.data.first()
+            assertNull(prefs[KEY_LEGACY_RESTORE_IN_PROGRESS], "converted — the boolean is gone")
+            assertNull(prefs[KEY_LEGACY_MUTATION_INTERRUPTED])
+            assertEquals(LEGACY_ATTEMPT_ID, prefs[KEY_ATTEMPT_ID])
+
+            // The converted record then walks the FULL owner-scoped lifecycle end-to-end:
+            // Prepared → Committed → resolved, and only under its own id.
+            assertFalse(repo.recordAttemptCommitted("attempt-foreign"))
+            assertTrue(repo.recordAttemptCommitted(LEGACY_ATTEMPT_ID))
+            assertEquals(RestoreAttempt.Phase.Committed, repo.getAttempt()?.phase)
+            assertFalse(repo.resolveAttempt("attempt-foreign"))
+            assertTrue(repo.resolveAttempt(LEGACY_ATTEMPT_ID))
+            assertNull(repo.getAttempt())
+        }
 
     @Test
     fun `resolveAttempt clears the legacy mutation-interrupted flag`() = runTest {

@@ -520,16 +520,15 @@ internal class AppRuntime(
                 }
             }
             inFlight.stagedSource?.let { staged -> runCatching { staged.delete() } }
-            // The reservation is this attempt's asset, but after PONR without recovery it may be
-            // the ONLY copy of the pre-attempt database and the durable journal names it — those
-            // outcomes keep it for the next launch. Every other outcome resolved the journal
-            // (or promoted the file away), so discarding is safe.
+            // The reservation is this attempt's asset, but whenever the journal may still be
+            // UNRESOLVED and naming it, it is the recovery source — not litter (R4 invariant 8).
+            // That is every post-PONR-without-recovery outcome AND every outcome whose terminal
+            // compensation failed: a rejection whose `resolveAttempt` threw leaves the journal
+            // at `Prepared` pointing at this file exactly like a failed commit record does.
+            // Only an outcome that is both terminal-clean and journal-resolving discards it.
             val keepReservation = finalOutcome is ReplacementOutcome.FailedAfterMutation ||
                 finalOutcome is ReplacementOutcome.Fatal ||
-                // A commit whose durable bookkeeping or promotion FAILED leaves the journal at
-                // `Prepared` still naming this reservation: it is the recovery path, not litter.
-                (finalOutcome as? ReplacementOutcome.Completed)?.effectsError != null ||
-                (finalOutcome as? ReplacementOutcome.RecoveredByRollback)?.effectsError != null
+                finalOutcome.effectsError() != null
             if (!keepReservation) {
                 inFlight.reservation?.let { reserved -> runCatching { reserved.delete() } }
             }
@@ -576,7 +575,9 @@ internal class AppRuntime(
         val provider = outgoing.graph.databaseSnapshotProvider
         // Running-state validation — reads the LIVE database, so it precedes any quiescing.
         // Same checks, same order, same error taxonomy as the pre-split provider methods.
-        val source: File = when (operation) {
+        val source: File
+        val consume: SourceConsumption
+        when (operation) {
             is ReplacementOperation.RestoreFromSnapshot -> {
                 val staged = stagedSource ?: return ReplacementOutcome.RejectedBeforeMutation(
                     BackupError.Io(IOException("staged restore source is missing")),
@@ -585,15 +586,38 @@ internal class AppRuntime(
                 if (validation is BackupResult.Failure) {
                     return ReplacementOutcome.RejectedBeforeMutation(validation.error)
                 }
-                staged
+                source = staged
+                consume = SourceConsumption.None
             }
 
-            is ReplacementOperation.RollbackToPreRestoreBackup ->
-                operation.sourcePath?.let(::File)?.takeIf { it.exists() }
-                    ?: provider.getPreRestoreBackupFile()
-                    ?: return ReplacementOutcome.RejectedBeforeMutation(
-                        BackupError.CorruptedBackup(reason = "no pre-restore backup to roll back to"),
-                    )
+            is ReplacementOperation.RollbackToPreRestoreBackup -> {
+                val explicitPath = operation.sourcePath
+                if (explicitPath != null) {
+                    // A journal-named source is AUTHORITATIVE (R4 invariant 2): when it is
+                    // missing, the canonical slot — which belongs to ANOTHER attempt — is never
+                    // substituted for it. The typed rejection routes the recovering launch to
+                    // terminal recovery instead of silently reverting onto older data.
+                    val explicit = File(explicitPath)
+                    if (!explicit.exists()) {
+                        return ReplacementOutcome.RejectedBeforeMutation(
+                            BackupError.CorruptedBackup(
+                                reason = "journal-named rollback source is missing: $explicitPath",
+                            ),
+                        )
+                    }
+                    source = explicit
+                    consume = SourceConsumption.ExactFile(explicit)
+                } else {
+                    // No explicit source: the canonical undo slot IS the requested source.
+                    source = provider.getPreRestoreBackupFile()
+                        ?: return ReplacementOutcome.RejectedBeforeMutation(
+                            BackupError.CorruptedBackup(
+                                reason = "no pre-restore backup to roll back to",
+                            ),
+                        )
+                    consume = SourceConsumption.CanonicalSlot
+                }
+            }
         }
         // ROLLBACK-SLOT RESERVATION (spec §8.5a) — inside the transaction, after validation and
         // before anything irreversible, so the snapshot belongs to THIS serialized attempt: a
@@ -622,19 +646,20 @@ internal class AppRuntime(
                     BackupError.Io(IOException("pre-mutation persistence failed: $error")),
                 )
             }
-        val consumeSource = operation is ReplacementOperation.RollbackToPreRestoreBackup
+        val requestedRollback = operation is ReplacementOperation.RollbackToPreRestoreBackup
         return when (replacementPolicy) {
             ReplacementPolicy.RestartProcess -> runRestartProcessSwap(
                 closeDatabase = closeDatabase,
                 outgoing = outgoing,
-                mutation = MutationPlan(provider, source, consumeSource, effects, reservation),
+                mutation = MutationPlan(provider, source, consume, effects, reservation),
                 tracker = tracker,
             )
 
             ReplacementPolicy.RebuildInProcess -> executeRebuildTransaction(
                 outgoing = outgoing,
-                mutation = MutationPlan(provider, source, consumeSource, effects, reservation),
+                mutation = MutationPlan(provider, source, consume, effects, reservation),
                 tracker = tracker,
+                requestedRollback = requestedRollback,
             )
         }
     }
@@ -649,9 +674,8 @@ internal class AppRuntime(
         outgoing: RuntimeGeneration,
         mutation: MutationPlan,
         tracker: PonrTracker,
+        requestedRollback: Boolean,
     ): ReplacementOutcome {
-        val provider = mutation.provider
-        val consumeSource = mutation.consumeSource
         val effects = mutation.effects
         publishTransitioning()
         quiescer.quiesce(outgoing)?.let { reason -> return unwindQuiesce(outgoing, reason) }
@@ -670,16 +694,16 @@ internal class AppRuntime(
 
         // ---- ReplacingFile ----
         val transaction = ReplacementTransaction(nextDbGeneration = outgoing.dbGeneration + 1)
-        val replaced = provider.replaceLiveDatabaseFile(mutation.source)
+        val replaced = mutation.provider.replaceLiveDatabaseFile(mutation.source)
         if (replaced is BackupResult.Failure) {
-            return recoverViaRollback(mutation, transaction, replaced.error, consumeSource)
+            return recoverViaRollback(mutation, transaction, replaced.error, requestedRollback)
         }
         // The mutation committed: promote the reservation and record the durable commit BEFORE
         // consuming any rollback asset (spec §8.5a). A bookkeeping failure keeps every asset and
         // is carried onto the final outcome.
         val committed = commitMutation(mutation = mutation, generation = null)
         val commitEffectsError = (committed as? ReplacementOutcome.Completed)?.effectsError
-        if (consumeSource) {
+        if (requestedRollback) {
             // The primary swap of the ROLLBACK operation IS the requested rollback: mark it so a
             // first-candidate failure takes the allowed follow-up attempt over the already
             // rolled-back file instead of Fatal.
@@ -689,7 +713,7 @@ internal class AppRuntime(
         // ---- BuildingGeneration → Preflight → Publishing, with the bounded ladder ----
         return when (val attempt = attemptGeneration(transaction)) {
             is AttemptResult.Published ->
-                completedOrRecovered(transaction, attempt.generation, consumeSource, commitEffectsError)
+                completedOrRecovered(transaction, attempt.generation, requestedRollback, commitEffectsError)
 
             AttemptResult.LadderFatal ->
                 publishFatal("candidate resources could not be released — ladder stopped")
@@ -700,14 +724,23 @@ internal class AppRuntime(
                         is AttemptResult.Published -> completedOrRecovered(
                             transaction,
                             retry.generation,
-                            consumeSource,
+                            requestedRollback,
                             commitEffectsError,
                         )
 
                         else -> publishFatal("post-rollback generation attempt failed")
                     }
                 } else {
-                    recoverViaRollback(mutation, transaction, cause = null, consumeSource)
+                    recoverViaRollback(
+                        mutation = mutation,
+                        transaction = transaction,
+                        cause = null,
+                        requestedRollback = requestedRollback,
+                        // A clean commit consumed the reservation BY PROTOCOL (promote → record
+                        // → consume): the canonical slot is this attempt's own promoted image.
+                        // A commit with failed bookkeeping KEPT the reservation — strict source.
+                        afterCleanCommit = commitEffectsError == null,
+                    )
                 }
         }
     }
@@ -740,8 +773,11 @@ internal class AppRuntime(
      * The rollback source is THIS attempt's own reservation when it has one — after a failed
      * live-file swap the reservation, not the canonical slot, holds the true pre-attempt
      * database; the canonical slot still holds the PREVIOUS restore's older snapshot, and
-     * applying that would revert data the failed swap never touched. Only the file actually
-     * applied is consumed.
+     * applying that would revert data the failed swap never touched. An applied CANONICAL slot
+     * is consumed here; an applied RESERVATION is deliberately not — it stays the journal-named
+     * recovery source until the caller's terminal effects resolve the attempt, after which the
+     * submission frame discards it (a crash in between leaves the journal still pointing at a
+     * file that exists).
      *
      * The caller's effects are deliberately NOT used for the commit bookkeeping: what committed
      * here is the ROLLBACK, not the requested operation, so recording the caller's attempt as
@@ -754,12 +790,58 @@ internal class AppRuntime(
         transaction: ReplacementTransaction,
         cause: BackupError?,
         requestedRollback: Boolean,
+        afterCleanCommit: Boolean = false,
     ): ReplacementOutcome {
         val provider = mutation.provider
-        val reservation = mutation.reservation?.takeIf { it.exists() }
-        val rollbackSource = reservation
-            ?: provider.getPreRestoreBackupFile()
-            ?: return publishFatal("replacement failed ($cause) and no pre-restore backup exists")
+        // Source-owner identity (R4 invariant 2): the recovery source is the attempt's OWN
+        // asset, never a substitute belonging to another attempt.
+        //  - A restore attempt recovering BEFORE its commit sequence completed rolls back onto
+        //    its reservation; if that vanished mid-transaction, the canonical slot — another
+        //    attempt's OLDER snapshot — is never applied in its place: the ladder stops instead
+        //    of silently reverting data this attempt never touched. The reservation is NOT
+        //    consumed here: it stays the journal-named recovery source until the caller's
+        //    terminal effects resolve the attempt (the submission frame then discards it; a
+        //    crash first leaves the journal still pointing at it).
+        //  - AFTER a clean commit ([afterCleanCommit]: promote → durable record → reservation
+        //    consumed, in that order), the canonical slot provably holds THIS attempt's
+        //    promoted pre-image — the same ordering proof the Committed cold-start rule rests
+        //    on — so it is the attempt's own recovery source, not a substitute.
+        //  - A canonical-slot rollback retries its own source once (the file is intact after a
+        //    failed copy/rename; the failure may be transient).
+        //  - An EXPLICIT-source rollback whose swap failed gets no substitute at all — applying
+        //    the canonical here would be exactly the cross-owner substitution invariant 2 bans.
+        val rollbackSource: File
+        val rollbackConsume: SourceConsumption
+        if (mutation.reservation != null && !afterCleanCommit) {
+            if (!mutation.reservation.exists()) {
+                return publishFatal(
+                    "replacement failed ($cause) and this attempt's reservation vanished",
+                )
+            }
+            rollbackSource = mutation.reservation
+            rollbackConsume = SourceConsumption.None
+        } else if (mutation.reservation != null) {
+            rollbackSource = provider.getPreRestoreBackupFile()
+                ?: return publishFatal(
+                    "post-commit recovery found no promoted undo slot ($cause)",
+                )
+            rollbackConsume = SourceConsumption.CanonicalSlot
+        } else {
+            when (mutation.consume) {
+                is SourceConsumption.ExactFile -> return publishFatal(
+                    "the journal-named rollback source could not be applied ($cause) — " +
+                        "the canonical slot belongs to another attempt and is never substituted",
+                )
+
+                SourceConsumption.CanonicalSlot, SourceConsumption.None -> {
+                    rollbackSource = provider.getPreRestoreBackupFile()
+                        ?: return publishFatal(
+                            "replacement failed ($cause) and no pre-restore backup exists",
+                        )
+                    rollbackConsume = SourceConsumption.CanonicalSlot
+                }
+            }
+        }
         val rolledBack = provider.replaceLiveDatabaseFile(rollbackSource)
         if (rolledBack is BackupResult.Failure) {
             return publishFatal("replacement failed ($cause) and rollback failed (${rolledBack.error})")
@@ -768,13 +850,12 @@ internal class AppRuntime(
         transaction.rolledBack = true
         transaction.rollbackCause = cause
             ?: BackupError.Io(IOException("restore could not complete; rolled back"))
-        // Consume ONLY what was applied. A reservation is the runtime's own file (the submission
-        // frame deletes it); the canonical slot is consumed through the provider.
+        // Consume ONLY the exact file that was applied (R4 invariant 3).
         commitMutation(
             mutation = MutationPlan(
                 provider = provider,
                 source = rollbackSource,
-                consumeSource = reservation == null,
+                consume = rollbackConsume,
                 effects = DatabaseReplacementEffects.None,
                 reservation = null,
             ),

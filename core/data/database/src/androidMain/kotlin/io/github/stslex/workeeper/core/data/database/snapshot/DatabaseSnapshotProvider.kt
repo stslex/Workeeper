@@ -89,9 +89,13 @@ interface DatabaseSnapshotProvider {
     suspend fun reserveRollbackSnapshot(attemptId: String): BackupResult<File>
 
     /**
-     * Atomically moves a reservation from [reserveRollbackSnapshot] onto the canonical
+     * COPIES a reservation from [reserveRollbackSnapshot] onto the canonical
      * `cache/pre_restore_backup.db` undo slot, replacing whatever the previous restore left
-     * there. Called only after the attempt's live-file mutation committed.
+     * there. Called only after the attempt's live-file mutation committed, and NEVER moves or
+     * deletes the reservation (Phase 5 R4, spec §8.5a): the still-`Prepared` journal names that
+     * file, so it must remain recoverable across every crash point of the promotion. The
+     * runtime deletes the reservation only after the durable `Committed` record lands; a
+     * committed cold start cleans a retained copy up idempotently.
      */
     suspend fun promoteRollbackReservation(reservation: File): BackupResult<Unit>
 

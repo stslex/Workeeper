@@ -178,9 +178,11 @@ internal class AppRuntimeReplacementTest {
         }
         coEvery { provider.promoteRollbackReservation(any()) } coAnswers {
             protocolLog += "promote"
-            val reservation = firstArg<File>()
-            reservation.copyTo(File(tempDir, "pre_restore_backup.db"), overwrite = true)
-            reservation.delete()
+            // Mirrors the R4 production semantics: promotion COPIES onto the canonical slot and
+            // the reservation SURVIVES — the runtime deletes it only after the durable
+            // `Committed` record (the real-file crash-window pins live in
+            // DatabaseSnapshotProviderImplTest).
+            firstArg<File>().copyTo(File(tempDir, "pre_restore_backup.db"), overwrite = true)
             BackupResult.Success(Unit)
         }
         val dispatcher = UnconfinedTestDispatcher(testScheduler)
@@ -469,8 +471,21 @@ internal class AppRuntimeReplacementTest {
         runtimeTest { runtime ->
             runtime.currentGeneration
             preservedFile(content = "OLD")
+            // R4: the reservation must still EXIST at the moment the durable commit is
+            // recorded — it is the file the still-`Prepared` journal names, and destroying it
+            // before `Committed` lands (the old move-based promotion) left a crash window in
+            // which recovery was misdirected onto the canonical slot's OLDER snapshot.
+            var reservationAtRecordTime: Boolean? = null
+            val effects = RecordingEffects(
+                onMutationCommittedBody = {
+                    reservationAtRecordTime = reservations.single().exists()
+                },
+            )
 
-            val outcome = runtime.replace(ReplacementOperation.RestoreFromSnapshot(sourceFile()))
+            val outcome = runtime.replace(
+                ReplacementOperation.RestoreFromSnapshot(sourceFile()),
+                effects,
+            )
 
             assertInstanceOf(ReplacementOutcome.Completed::class.java, outcome)
             val reservation = reservations.single()
@@ -479,7 +494,15 @@ internal class AppRuntimeReplacementTest {
                 File(tempDir, "pre_restore_backup.db").readText(),
                 "the undo slot holds the db that IMMEDIATELY preceded this restore",
             )
-            assertFalse(reservation.exists(), "the reservation was promoted (moved), not copied")
+            assertEquals(
+                true,
+                reservationAtRecordTime,
+                "the journal-named reservation must survive the promotion until Committed is durable",
+            )
+            assertFalse(
+                reservation.exists(),
+                "the retained reservation is deleted only AFTER the durable record",
+            )
             assertTrue(reservationFiles().isEmpty())
         }
 
@@ -1315,6 +1338,179 @@ internal class AppRuntimeReplacementTest {
         assertEquals(listOf("beforeMutation", "fatal"), effects.calls)
         assertEquals(RuntimePhase.Fatal, runtime.phases.value)
     }
+
+    // ------------------------------------------------------------------------------------------
+    // R4 blocker A — source-owner identity and exact-file consumption.
+    // ------------------------------------------------------------------------------------------
+
+    @Test
+    fun `a MISSING journal-named rollback source is a typed rejection - the canonical slot is never substituted`() =
+        runtimeTest { runtime ->
+            runtime.currentGeneration
+            // The canonical slot holds ANOTHER attempt's (older) snapshot — sentinel B. The
+            // journal names reservation A, which is gone (the exact crash shape a move-based
+            // promotion produced). Substituting B for A would silently revert the user past
+            // data the interrupted attempt never touched.
+            preservedFile(content = "OLDER-CANONICAL-B")
+            val missingA = File(tempDir, "rollback_reservation_gone.db")
+            val effects = RecordingEffects()
+
+            val outcome = runtime.replace(
+                ReplacementOperation.RollbackToPreRestoreBackup(missingA.absolutePath),
+                effects,
+            )
+
+            val rejected =
+                assertInstanceOf(ReplacementOutcome.RejectedBeforeMutation::class.java, outcome)
+            assertInstanceOf(BackupError.CorruptedBackup::class.java, rejected.error)
+            assertTrue(
+                "$rejected".contains("journal-named"),
+                "the rejection must name the missing journal source: $rejected",
+            )
+            assertEquals(0, protocolLog.count { it == "swap" }, "NOTHING may be applied")
+            assertEquals(
+                "OLDER-CANONICAL-B",
+                File(tempDir, "pre_restore_backup.db").readText(),
+                "the other attempt's canonical slot is untouched — neither applied nor consumed",
+            )
+            assertEquals(listOf("rejected"), effects.calls)
+        }
+
+    @Test
+    fun `an explicit rollback applies and consumes EXACTLY its named source - the canonical survives`() =
+        runtimeTest { runtime ->
+            runtime.currentGeneration
+            // Distinct sentinels: A is the journal-named reservation, B the canonical slot a
+            // PREVIOUS restore left. The committed rollback must apply A, consume A, touch B
+            // in no way.
+            val sourceA = File(tempDir, "rollback_reservation_A.db").apply { writeText("A") }
+            preservedFile(content = "B")
+            val applied = mutableListOf<String>()
+            coEvery { provider.replaceLiveDatabaseFile(any()) } coAnswers {
+                protocolLog += "swap"
+                applied += firstArg<File>().readText()
+                BackupResult.Success(Unit)
+            }
+            val effects = RecordingEffects()
+
+            val outcome = runtime.replace(
+                ReplacementOperation.RollbackToPreRestoreBackup(sourceA.absolutePath),
+                effects,
+            )
+
+            assertInstanceOf(ReplacementOutcome.Completed::class.java, outcome)
+            assertEquals(listOf("A"), applied, "the applied bytes are the NAMED source's")
+            assertFalse(sourceA.exists(), "the exact applied file was consumed")
+            assertEquals(
+                "B",
+                File(tempDir, "pre_restore_backup.db").readText(),
+                "the previous attempt's canonical undo survives byte-for-byte",
+            )
+            coVerify(exactly = 0) { provider.deletePreRestoreBackup() }
+            assertEquals(listOf("beforeMutation", "mutationCommitted", "committed"), effects.calls)
+        }
+
+    @Test
+    fun `a rejection whose terminal compensation fails KEEPS the reservation the journal names`() =
+        runtimeTest { runtime ->
+            runtime.currentGeneration
+            val lease = runtime.awaitBackupWorkLease() // the quiesce will time out on it
+            // The terminal resolveAttempt THROWS: the journal is left at `Prepared`, still
+            // naming this attempt's reservation — deleting the file would strand the next
+            // launch's recovery exactly like a failed commit record would (R4 invariant 8).
+            val effects = RecordingEffects(onRejectedBody = { error("journal resolve failed") })
+
+            val transaction = async {
+                runtime.replace(ReplacementOperation.RestoreFromSnapshot(sourceFile()), effects)
+            }
+            advanceTimeBy(3_000)
+            runCurrent()
+
+            val rejected = assertInstanceOf(
+                ReplacementOutcome.RejectedBeforeMutation::class.java,
+                transaction.await(),
+            )
+            assertNotNull(rejected.effectsError, "the failed compensation is surfaced")
+            assertEquals(
+                1,
+                reservationFiles().size,
+                "an unresolved journal may still name this reservation — it must survive",
+            )
+            lease.release()
+        }
+
+    @Test
+    fun `ladder recovery whose reservation VANISHED goes Fatal - never the older canonical`() =
+        runtimeTest { runtime ->
+            runtime.currentGeneration
+            preservedFile(content = "OLDER-CANONICAL")
+            var swaps = 0
+            coEvery { provider.replaceLiveDatabaseFile(any()) } coAnswers {
+                protocolLog += "swap"
+                if (swaps++ == 0) {
+                    // The primary swap fails AND the reservation disappears mid-transaction
+                    // (cache eviction) — the one state in which the old code substituted the
+                    // canonical slot and silently reverted data this attempt never touched.
+                    reservations.single().delete()
+                    BackupResult.Failure(BackupError.Io(IOException("rename failed")))
+                } else {
+                    BackupResult.Success(Unit)
+                }
+            }
+
+            val outcome = runtime.replace(ReplacementOperation.RestoreFromSnapshot(sourceFile()))
+
+            assertInstanceOf(ReplacementOutcome.Fatal::class.java, outcome)
+            assertEquals(1, protocolLog.count { it == "swap" }, "no substitute was ever applied")
+            assertEquals(
+                "OLDER-CANONICAL",
+                File(tempDir, "pre_restore_backup.db").readText(),
+                "the other attempt's canonical slot is untouched",
+            )
+        }
+
+    @Test
+    fun `ladder recovery applies the reservation WITHOUT consuming it - the journal still names it until resolve`() =
+        runtimeTest { runtime ->
+            runtime.currentGeneration
+            preservedFile(content = "OLDER-CANONICAL")
+            var swaps = 0
+            coEvery { provider.replaceLiveDatabaseFile(any()) } coAnswers {
+                protocolLog += "swap"
+                if (swaps++ == 0) {
+                    BackupResult.Failure(BackupError.Io(IOException("rename failed")))
+                } else {
+                    // At the moment the ROLLBACK swap runs, the reservation being applied must
+                    // still exist afterwards: the caller's terminal effects have not resolved
+                    // the journal yet, and a crash right here must leave the named file behind.
+                    BackupResult.Success(Unit)
+                }
+            }
+            var reservationAtRecoveredTime: Boolean? = null
+            val effects = object : DatabaseReplacementEffects {
+                override val attemptId: String = "attempt-1"
+                override suspend fun onRecoveredByRollback(error: BackupError) {
+                    reservationAtRecoveredTime = reservations.single().exists()
+                }
+            }
+
+            val outcome = runtime.replace(
+                ReplacementOperation.RestoreFromSnapshot(sourceFile()),
+                effects,
+            )
+
+            assertInstanceOf(ReplacementOutcome.RecoveredByRollback::class.java, outcome)
+            assertEquals(
+                true,
+                reservationAtRecoveredTime,
+                "the reservation must outlive the rollback until the terminal effects resolved " +
+                    "the journal — a crash before then recovers from exactly this file",
+            )
+            assertTrue(
+                reservationFiles().isEmpty(),
+                "after the clean terminal effects, the submission frame discards it",
+            )
+        }
 
     private companion object {
         /** The bytes a reserved rollback snapshot carries — the pre-attempt database stand-in. */

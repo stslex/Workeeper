@@ -223,14 +223,35 @@ internal suspend fun runRestartProcessSwap(
 }
 
 /**
+ * WHICH file a committed mutation consumes as its rollback source (Phase 5 R4). A rollback
+ * consumes EXACTLY the file it applied — never "the canonical slot" as a proxy: when the
+ * applied source was a journal-named reservation, the canonical slot belongs to a PREVIOUS
+ * attempt and consuming it would revoke a still-valid undo while orphaning the file actually
+ * used. Any canonical invalidation beyond the exact applied file is a separate, explicit,
+ * owner-side decision (the effects' flag policy), never an implicit side effect here.
+ */
+internal sealed interface SourceConsumption {
+
+    /** A restore: the swapped-in source is the staged snapshot; nothing is a rollback asset. */
+    data object None : SourceConsumption
+
+    /** The rollback applied the canonical `pre_restore_backup.db` undo slot — consume IT. */
+    data object CanonicalSlot : SourceConsumption
+
+    /** The rollback applied exactly [file] (a journal-named reservation) — consume only it. */
+    data class ExactFile(val file: File) : SourceConsumption
+}
+
+/**
  * Everything one attempt's mutation needs, grouped so both endings take the same shape: where
- * the file mechanics live, what is being swapped in, whether the source is consumed on success,
- * the caller's attempt-scoped effects, and the rollback snapshot this attempt reserved.
+ * the file mechanics live, what is being swapped in, the EXACT consumption of the applied
+ * rollback source, the caller's attempt-scoped effects, and the rollback snapshot this attempt
+ * reserved.
  */
 internal class MutationPlan(
     val provider: DatabaseSnapshotProvider,
     val source: File,
-    val consumeSource: Boolean,
+    val consume: SourceConsumption,
     val effects: DatabaseReplacementEffects,
     val reservation: File?,
 )
@@ -240,16 +261,18 @@ internal class MutationPlan(
  * every crash window truthful:
  *
  *  1. the live-file mutation already committed (the caller's rename returned success);
- *  2. promote the attempt's reserved rollback snapshot onto the canonical undo slot — a crash
- *     before this leaves the reservation, which the journal names, as the true pre-attempt
- *     database; a crash after it leaves the canonical slot holding exactly that database;
+ *  2. promote (COPY) the attempt's reserved rollback snapshot onto the canonical undo slot —
+ *     the reservation itself survives, so a crash anywhere inside the promotion leaves the
+ *     journal-named file recoverable and owner-identifiable;
  *  3. record the durable `Committed` transition — the ONLY point after which a cold start may
  *     conclude success;
- *  4. and only then consume the rollback asset a rollback operation just applied.
+ *  4. only after `Committed` is durable, delete the retained reservation (a crash between 3
+ *     and 4 is cleaned up idempotently by the committed cold-start finalization);
+ *  5. and only then consume EXACTLY the rollback source a rollback operation applied.
  *
- * A step-3 failure keeps every asset and leaves the journal at `Prepared`: the mutation stands
- * but is not durably provable, so the next launch conservatively rolls back. It is reported on
- * the outcome, never swallowed.
+ * A step-2 or step-3 failure keeps every asset and leaves the journal at `Prepared`: the
+ * mutation stands but is not durably provable, so the next launch conservatively rolls back.
+ * It is reported on the outcome, never swallowed.
  */
 internal suspend fun commitMutation(
     mutation: MutationPlan,
@@ -274,7 +297,14 @@ internal suspend fun commitMutation(
             ),
         )
     }
-    if (mutation.consumeSource) provider.deletePreRestoreBackup()
+    // Step 4 — the reservation is deleted ONLY once `Committed` is durable: before that, it is
+    // the journal-named recovery source and must survive (the promotion above only copied it).
+    mutation.reservation?.let { reserved -> runCatching { reserved.delete() } }
+    when (val consume = mutation.consume) {
+        SourceConsumption.None -> Unit
+        SourceConsumption.CanonicalSlot -> provider.deletePreRestoreBackup()
+        is SourceConsumption.ExactFile -> runCatching { consume.file.delete() }
+    }
     return ReplacementOutcome.Completed(generation = generation)
 }
 
@@ -315,12 +345,12 @@ internal suspend fun runInlineRollback(
         IOException("restore rolled back by the scenario-1 preflight"),
     )
     // The rollback asset is consumed only after the durable commit record — same ordering rule
-    // as every other mutation (spec §8.5a).
+    // as every other mutation (spec §8.5a). The applied source IS the canonical undo slot here.
     return commitMutation(
         mutation = MutationPlan(
             provider = provider,
             source = rollbackSource,
-            consumeSource = true,
+            consume = SourceConsumption.CanonicalSlot,
             effects = effects,
             reservation = null,
         ),
@@ -479,6 +509,15 @@ internal class WorkerAdmissionGate {
 
 /** Monotonic staged-source sequence — process-scoped, feeds [stageRestoreSource] file names. */
 internal val stagedSourceSequence = AtomicLong(0)
+
+/** The terminal-compensation failure carried by any outcome variant (spec §8.5a). */
+internal fun ReplacementOutcome.effectsError(): BackupError? = when (this) {
+    is ReplacementOutcome.Completed -> effectsError
+    is ReplacementOutcome.RejectedBeforeMutation -> effectsError
+    is ReplacementOutcome.RecoveredByRollback -> effectsError
+    is ReplacementOutcome.FailedAfterMutation -> effectsError
+    is ReplacementOutcome.Fatal -> effectsError
+}
 
 /** Maps the runtime's transaction outcome onto the caller seam's result type. */
 internal fun ReplacementOutcome.toSeamResult(): DatabaseReplacementResult = when (this) {

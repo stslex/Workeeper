@@ -280,6 +280,69 @@ internal class DatabaseSnapshotProviderImplTest {
         }
 
     @Test
+    fun `promotion COPIES - the journal-named reservation survives with its exact bytes`() =
+        runTest {
+            // R4 blocker A, real files, distinct sentinels. The reservation (A) is the file the
+            // still-`Prepared` journal names; the canonical slot (B) belongs to an OLDER
+            // attempt. The old move-based promotion destroyed A at its FIRST step, so a process
+            // death anywhere before the durable `Committed` record left the journal pointing at
+            // a missing file — and recovery silently fell back to B. Copy-based promotion keeps
+            // A intact across EVERY crash point of the promotion: at any interruption the next
+            // launch still recovers from A, never B.
+            val reservationA = File(context.cacheDir, "rollback_reservation_r4.db")
+                .apply { writeText("SENTINEL-A-TRUE-PRE-ATTEMPT") }
+            File(context.cacheDir, "pre_restore_backup.db").writeText("SENTINEL-B-OLDER")
+
+            val promoted = provider.promoteRollbackReservation(reservationA)
+
+            assertEquals(BackupResult.Success(Unit), promoted)
+            assertTrue(
+                reservationA.exists(),
+                "the reservation must SURVIVE the promotion — the journal still names it " +
+                    "until the runtime durably records Committed",
+            )
+            assertEquals("SENTINEL-A-TRUE-PRE-ATTEMPT", reservationA.readText())
+            assertEquals(
+                "SENTINEL-A-TRUE-PRE-ATTEMPT",
+                File(context.cacheDir, "pre_restore_backup.db").readText(),
+                "the canonical slot now holds this attempt's pre-image",
+            )
+            assertFalse(
+                File(context.cacheDir, "pre_restore_backup.db.promoting").exists(),
+                "no staging residue is left behind",
+            )
+        }
+
+    @Test
+    fun `a stale promoting file from a crashed promotion is discarded, never promoted`() =
+        runTest {
+            // Deterministic handling of `.promoting` debris (R4): a crashed promotion may leave
+            // a partial staging file. It must never redirect anything — the next promotion
+            // deletes it before staging its own copy, recovery never reads it (the canonical
+            // lookup is an exact-name match), and the promoted content comes from the
+            // reservation actually passed in.
+            File(context.cacheDir, "pre_restore_backup.db.promoting")
+                .writeText("GARBAGE-FROM-A-CRASHED-PROMOTION")
+            val reservation = File(context.cacheDir, "rollback_reservation_fresh.db")
+                .apply { writeText("FRESH-RESERVATION") }
+
+            val promoted = provider.promoteRollbackReservation(reservation)
+
+            assertEquals(BackupResult.Success(Unit), promoted)
+            assertEquals(
+                "FRESH-RESERVATION",
+                File(context.cacheDir, "pre_restore_backup.db").readText(),
+                "the canonical content comes from the reservation, never from stale staging",
+            )
+            assertFalse(File(context.cacheDir, "pre_restore_backup.db.promoting").exists())
+            assertEquals(
+                null,
+                provider.getPreRestoreBackupFile()?.name?.takeIf { it.endsWith(".promoting") },
+                "the canonical lookup can never resolve to a staging file",
+            )
+        }
+
+    @Test
     fun `getPreRestoreBackupFile returns null when no file was preserved`() = runTest {
         // The CorruptedBackup mapping for this case moved to the runtime transaction, which
         // resolves the source through this accessor before touching anything.
@@ -472,9 +535,13 @@ internal class DatabaseSnapshotProviderImplTest {
         if (reserved is BackupResult.Failure) return reserved
         val file = (reserved as BackupResult.Success).data
         return when (val promoted = provider.promoteRollbackReservation(file)) {
-            is BackupResult.Success -> BackupResult.Success(
-                requireNotNull(provider.getPreRestoreBackupFile()),
-            )
+            is BackupResult.Success -> {
+                // The runtime's step 4 (R4): the retained reservation is discarded only after
+                // the durable Committed record — mirrored here so the helper leaves the same
+                // end state the real transaction does.
+                file.delete()
+                BackupResult.Success(requireNotNull(provider.getPreRestoreBackupFile()))
+            }
 
             is BackupResult.Failure -> promoted
         }

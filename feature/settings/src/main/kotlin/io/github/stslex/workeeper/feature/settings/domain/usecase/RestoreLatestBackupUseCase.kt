@@ -185,12 +185,14 @@ class RestoreLatestBackupUseCase(
         }
 
         /**
-         * In-process recovery already rolled back: the attempt is finished and the preserved
-         * slot was consumed by the recovery, so no undo is offered.
+         * In-process recovery already rolled back: the attempt is finished, and no undo is
+         * offered for data that reverted. Data-bearing write FIRST, resolve LAST (R4
+         * invariant 7): a death in between leaves the journal entry for the next launch's
+         * conservative recovery instead of a resolved journal with half-done bookkeeping.
          */
         override suspend fun onRecoveredByRollback(error: BackupError) {
-            restoreStateRepository.resolveAttempt(attemptId)
             restoreStateRepository.clearPreRestoreBackupAvailable()
+            restoreStateRepository.resolveAttempt(attemptId)
         }
 
         /**

@@ -172,23 +172,15 @@ internal class StartupProcessorTest {
             coVerify(exactly = 1) { graph.recoveryBootstrap }
         }
 
-    @Test
-    fun `RetrySafe continues the launch and arms normally`() {
-        // Round-3 caller semantics: a PROVEN pre-PONR rejection touched nothing — the live
-        // database is intact and open, the assets and the journal entry stay for the next
-        // attempt. A RestartRequired here would boot-loop silently forever (restart → retry →
-        // fail → restart) and a recovery surface is not warranted by an intact database, so the
-        // launch continues on the SAFE path with every chore and the observer armed.
-        coEvery { restoreCoordinator.handlePostRestoreLaunch() } returns PreflightOutcome.RetrySafe
-
-        val outcome = coldStart()
-
-        assertEquals(StartupOutcome.Proceed, outcome)
-        coVerify(exactly = 0) { migrationCoordinator.checkAndRouteOrProceed() }
-        coVerify(exactly = 1) { imageStorage.cleanupTempFiles() }
-        assertEquals(1, plannerRuns, "the intact database is safe to warm")
-        coVerify(exactly = 1) { graph.recoveryBootstrap }
-    }
+    // Mandated R4 test 1 is a two-module pair: the DISCRIMINATING half — a `Prepared` attempt
+    // whose recovery rollback is RejectedBeforeMutation classifies as RecoveryRequired, because
+    // the rejection proves only that the ROLLBACK did not mutate, never what the original
+    // attempt did to the live file — lives beside the real coordinator
+    // (`RestoreRecoveryCoordinatorTest`, "every non-commit rollback outcome requires terminal
+    // recovery"; the coordinator's constructor is module-internal, so it cannot be composed
+    // here). The zero-arming half is the two `RecoveryRequired routes to recovery and arms
+    // ZERO db-bound work` pins below, which close the chain: classification → no planner, no
+    // observer, no cleanup, no Main UI.
 
     @Test
     fun `RecoveryRequired routes to recovery and arms ZERO db-bound work`() {
