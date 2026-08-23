@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.runtime
 
+import io.github.stslex.workeeper.app.common.di.AppUiAdmissionToken
 import io.github.stslex.workeeper.core.core.logger.Logger
 import io.github.stslex.workeeper.core.data.backup.api.DatabaseReplacementEffects
 import io.github.stslex.workeeper.core.data.backup.api.DatabaseReplacementResult
@@ -337,50 +338,78 @@ internal suspend fun runInlineRollback(
  */
 internal class UiAdmissionGate(private val logger: Logger) {
 
+    /**
+     * One admitted UI region. Identity is the token itself, not the generation id, which is what
+     * makes release ABA-safe: a token released after its generation was retired and the id later
+     * reopened decrements nothing, so it can never cancel out a LATER region's admission.
+     */
+    class Token internal constructor(
+        internal val generationId: Int,
+        internal val serial: Long,
+    ) : AppUiAdmissionToken
+
     private data class State(
-        val counts: Map<Int, Int> = emptyMap(),
+        val live: Map<Int, Set<Long>> = emptyMap(),
         val retired: Set<Int> = emptySet(),
     )
 
     private val state = MutableStateFlow(State())
+    private val nextSerial = AtomicLong(0)
 
-    fun attach(id: Int) {
-        val after = state.updateAndGet { s ->
-            if (id in s.retired) s
-            else s.copy(counts = s.counts + (id to (s.counts[id] ?: 0) + 1))
+    /**
+     * Requests admission for a generation region DURING COMPOSITION, before the region resolves
+     * any dependency. Returns null when the generation is retired — the caller must then render
+     * nothing and resolve nothing, which is the whole point: a retired generation's content may
+     * not touch its graph, Stores or ViewModels.
+     */
+    fun admit(generationId: Int): Token? {
+        val serial = nextSerial.incrementAndGet()
+        var granted = false
+        state.update { s ->
+            if (generationId in s.retired) {
+                s
+            } else {
+                granted = true
+                s.copy(live = s.live + (generationId to (s.live[generationId].orEmpty() + serial)))
+            }
         }
-        if (id in after.retired) {
-            // Refused: retirement only ever happens at count zero, so a retired id has no
-            // outstanding attachments — this attach is a stale frame's and must not pass.
-            logger.e(
-                IllegalStateException("ui attach for RETIRED generation $id refused"),
-                "a stale frame attached a retired generation — refused by the admission gate",
+        if (!granted) {
+            logger.w {
+                "ui admission REFUSED for retired generation $generationId — the region renders nothing"
+            }
+            return null
+        }
+        return Token(generationId, serial)
+    }
+
+    /** Releases exactly this token. Idempotent, and a no-op for a token that never counted. */
+    fun release(token: Token) {
+        state.update { s ->
+            val serials = s.live[token.generationId] ?: return@update s
+            if (token.serial !in serials) return@update s
+            val remaining = serials - token.serial
+            s.copy(
+                live = if (remaining.isEmpty()) {
+                    s.live - token.generationId
+                } else {
+                    s.live + (token.generationId to remaining)
+                },
             )
         }
     }
 
-    fun dispose(id: Int) {
-        state.update { s ->
-            if (id in s.retired) s
-            else when (val remaining = (s.counts[id] ?: 0) - 1) {
-                in Int.MIN_VALUE..0 -> s.copy(counts = s.counts - id)
-                else -> s.copy(counts = s.counts + (id to remaining))
-            }
-        }
-    }
-
     /**
-     * Awaits the id's attachment count reaching zero and CLOSES admission for it in one atomic
-     * step (the retire CAS). Returns false on timeout — the id stays un-retired.
+     * Awaits the generation having no admitted region and CLOSES admission for it in one atomic
+     * step (the retire CAS). Returns false on timeout — the id stays admittable.
      */
     suspend fun awaitRetired(id: Int, timeoutMillis: Long): Boolean =
         withTimeoutOrNull(timeoutMillis) {
             var retired = false
             while (!retired) {
-                state.first { s -> (s.counts[id] ?: 0) == 0 || id in s.retired }
+                state.first { s -> s.live[id].isNullOrEmpty() || id in s.retired }
                 val after = state.updateAndGet { s ->
-                    if ((s.counts[id] ?: 0) == 0 && id !in s.retired) {
-                        s.copy(counts = s.counts - id, retired = s.retired + id)
+                    if (s.live[id].isNullOrEmpty() && id !in s.retired) {
+                        s.copy(live = s.live - id, retired = s.retired + id)
                     } else {
                         s
                     }
@@ -389,13 +418,13 @@ internal class UiAdmissionGate(private val logger: Logger) {
             }
         } != null
 
-    /** Reopens attachment admission for an ABORTED transition's outgoing id. */
+    /** Reopens admission for an ABORTED transition's outgoing id. */
     fun reopen(id: Int) {
         state.update { s -> s.copy(retired = s.retired - id) }
     }
 
-    /** Test/diagnostic view: the current attachment count for [id]. */
-    fun attachmentCount(id: Int): Int = state.value.counts[id] ?: 0
+    /** Test/diagnostic view: how many regions currently hold admission for [id]. */
+    fun admittedCount(id: Int): Int = state.value.live[id].orEmpty().size
 }
 
 /**

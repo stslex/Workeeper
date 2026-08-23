@@ -3,6 +3,7 @@ package io.github.stslex.workeeper.runtime
 
 import android.content.Context
 import androidx.lifecycle.ViewModelStore
+import io.github.stslex.workeeper.app.common.di.AppUiAdmissionToken
 import io.github.stslex.workeeper.app.common.di.AppUiPhase
 import io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetime
 import io.github.stslex.workeeper.core.core.images.ImageStorage
@@ -188,8 +189,10 @@ internal class AppRuntime(
         // in-process outcome is the calling HOST's wiring (Phase 7 / instrumentation).
         publishedFlow.value = Published(RuntimePhase.Fatal, AppUiPhase.Transitioning)
         // Wake any parked lease acquirer so it hits the fatal check and fails LOUD instead of
-        // suspending a worker forever.
+        // suspending a worker forever, and reopen the snackbar gate so the host is not left
+        // silently refusing every routing.
         workerGate.reopen()
+        policy.unfenceSnackbarResolves()
         return ReplacementOutcome.Fatal()
     }
 
@@ -220,12 +223,20 @@ internal class AppRuntime(
     // Admission gate delegates (the gates themselves live in ReplacementMechanics.kt).
     // ------------------------------------------------------------------------------------------
 
-    fun onUiGenerationAttached(id: Int) = uiGate.attach(id)
+    /**
+     * Admission for a generation's UI region, requested during COMPOSITION before the region
+     * resolves anything (spec §8.4 step 1). Null means the generation is retired: the region
+     * must render nothing and touch no dependency.
+     */
+    fun admitUiGeneration(id: Int): AppUiAdmissionToken? = uiGate.admit(id)
 
-    fun onUiGenerationDisposed(id: Int) = uiGate.dispose(id)
+    /** Releases exactly one admitted region; idempotent and ABA-safe. */
+    fun releaseUiGeneration(token: AppUiAdmissionToken) {
+        (token as? UiAdmissionGate.Token)?.let(uiGate::release)
+    }
 
     /** Test-facing view of the UI admission gate (JVM + instrumentation assertions). */
-    fun uiAttachmentCount(id: Int): Int = uiGate.attachmentCount(id)
+    fun uiAttachmentCount(id: Int): Int = uiGate.admittedCount(id)
 
     /**
      * First-operation worker admission (spec §8.4): suspends while a transition holds admission
@@ -353,10 +364,13 @@ internal class AppRuntime(
                 "graph-only teardown degraded post-PONR; publishing the candidate anyway",
             )
         }
+        // The epoch advances BEFORE the successor is published (spec §8.4 step 3): otherwise
+        // N+1's collector is live for a window in which generation N's queued models still pass
+        // the delivery filter and run their callbacks against the successor.
+        policy.advanceSnackbarGeneration()
         publishServing(candidate)
         workerGate.reopen()
-        runCatching { policy.advanceSnackbarGeneration() }
-            .onFailure { logger.e(it, "snackbar epoch advance failed (post-publish, contained)") }
+        policy.unfenceSnackbarResolves()
         return ReinitializeOutcome.Published(candidate)
     }
 
@@ -377,11 +391,13 @@ internal class AppRuntime(
         if (!workerGate.awaitDrained(policy.drainTimeoutMillis)) {
             return "worker lease drain timed out"
         }
-        // Step 3: in-flight snackbar resolves (deferred-delete commits) — awaited, bounded.
-        val resolvesIdle = withTimeoutOrNull(policy.drainTimeoutMillis) {
-            policy.drainSnackbarResolves()
+        // Step 3: in-flight snackbar resolves (deferred-delete commits) — awaited AND fenced in
+        // one atomic step, so no new routing can start behind the zero observation.
+        val resolvesFenced = withTimeoutOrNull(policy.drainTimeoutMillis) {
+            policy.fenceSnackbarResolves()
         }
-        if (resolvesIdle == null) {
+        if (resolvesFenced == null) {
+            policy.unfenceSnackbarResolves()
             return "snackbar resolve drain timed out"
         }
         policy.pendingSnackbarCount().takeIf { it > 0 }?.let { queued ->
@@ -425,6 +441,7 @@ internal class AppRuntime(
         logger.w { "reinitialize aborted: $reason — generation ${outgoing.id} keeps serving" }
         workerGate.reopen()
         uiGate.reopen(outgoing.id)
+        policy.unfenceSnackbarResolves()
         publishServing(outgoing)
         return ReinitializeOutcome.Aborted(reason = reason, serving = outgoing)
     }
@@ -638,6 +655,7 @@ internal class AppRuntime(
             publishFatal("transaction escaped after the point of no return: $error")
         } else {
             workerGate.reopen()
+            policy.unfenceSnackbarResolves()
             currentOrNull?.let { outgoing ->
                 uiGate.reopen(outgoing.id)
                 publishServing(outgoing)
@@ -890,10 +908,10 @@ internal class AppRuntime(
             logger.w { "candidate preflight did not proceed: $outcome" }
             return if (disposeFailedCandidate(candidate)) AttemptResult.Retryable else AttemptResult.LadderFatal
         }
+        policy.advanceSnackbarGeneration()
         publishServing(candidate)
         workerGate.reopen()
-        runCatching { policy.advanceSnackbarGeneration() }
-            .onFailure { logger.e(it, "snackbar epoch advance failed (post-publish, contained)") }
+        policy.unfenceSnackbarResolves()
         return AttemptResult.Published(candidate)
     }
 
@@ -904,6 +922,7 @@ internal class AppRuntime(
         logger.w { "replacement aborted during quiesce: $reason — generation ${outgoing.id} keeps serving" }
         workerGate.reopen()
         uiGate.reopen(outgoing.id)
+        policy.unfenceSnackbarResolves()
         publishServing(outgoing)
         return ReplacementOutcome.RejectedBeforeMutation(BackupError.Io(IOException(reason)))
     }
@@ -1039,9 +1058,17 @@ internal sealed interface ReinitializeOutcome {
  * budgets. Production wiring lives in `BaseApplication`; tests substitute deterministic seams.
  */
 internal data class RuntimeTransitionPolicy(
-    val drainSnackbarResolves: suspend () -> Unit = {},
+    /**
+     * Atomically awaits "no snackbar routing in flight" AND closes admission for new ones
+     * (spec §8.4 step 3). Every non-committing path must call [unfenceSnackbarResolves].
+     */
+    val fenceSnackbarResolves: suspend () -> Unit = {},
+    val unfenceSnackbarResolves: () -> Unit = {},
     val pendingSnackbarCount: () -> Int = { 0 },
-    /** Called ONLY after a COMMITTED handover — never on abort (spec §8.4 step 3). */
+    /**
+     * Called ONLY after a COMMITTED handover and BEFORE the successor is published — never on
+     * abort (spec §8.4 step 3).
+     */
     val advanceSnackbarGeneration: () -> Unit = {},
     val mainDispatcher: CoroutineDispatcher = Dispatchers.Main.immediate,
     // The transition executor's dispatcher (the host scope every transaction runs on) —

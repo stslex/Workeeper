@@ -135,7 +135,7 @@ internal class ExerciseDeferredDeleteDbTest {
         )
         handler.invoke(Action.Click.OnPermanentDeleteMenuClick)
         handler.invoke(Action.Click.OnConfirmPermanentDelete)
-        return SnackbarManager.snackbar.first()
+        return SnackbarManager.snackbar.first().model
     }
 
     @Test

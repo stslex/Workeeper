@@ -309,7 +309,7 @@ internal class ClickHandlerTest {
         coVerify(exactly = 0) { interactor.permanentlyDelete(any()) }
         verify { store.consume(Action.Navigation.Back) }
 
-        val pending = SnackbarManager.snackbar.first()
+        val pending = SnackbarManager.snackbar.first().model
         pending.onDismissed()
         coVerify(exactly = 1) { interactor.permanentlyDelete("uuid-1") }
     }

@@ -2,6 +2,7 @@
 package io.github.stslex.workeeper.core.ui.kit.snackbar
 
 import androidx.compose.material3.SnackbarResult
+import io.github.stslex.workeeper.core.core.logger.Log
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.NonCancellable
@@ -12,8 +13,10 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeoutOrNull
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
 /**
@@ -27,6 +30,35 @@ import org.junit.jupiter.api.Test
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 internal class SnackbarOutcomeTest {
+
+    /**
+     * The drain below can meet a stale-epoch leftover from a sibling class in this JVM, and the
+     * discard branch logs through kermit's Logcat writer, which throws off-device. Same fix and
+     * same reason as [SnackbarManagerTest]: flip the call-time gate, not the captured logger.
+     */
+    private var wasLogging = true
+
+    @BeforeEach
+    fun silenceLogSink() {
+        wasLogging = Log.isLogging
+        Log.isLogging = false
+    }
+
+    @AfterEach
+    fun restoreLogSink() {
+        Log.isLogging = wasLogging
+    }
+
+    /**
+     * [SnackbarManager]'s resolve gate is process-wide: a case that left it FENCED would make
+     * every later [resolveSnackbarOutcomeOrRequeue] in this JVM requeue instead of route, so
+     * admission is reopened after each case. Idempotent — the cases that never fence pay
+     * nothing.
+     */
+    @AfterEach
+    fun reopenResolveGate() {
+        SnackbarManager.unfenceResolves()
+    }
 
     private class Recorder {
         var actions = 0
@@ -112,42 +144,49 @@ internal class SnackbarOutcomeTest {
      * cancels it must go BACK — dropped, a deferred delete's confirmed commit silently
      * never runs while the process is alive. Each case drains what it queues: the manager
      * is a singleton and a leftover would leak into a sibling test.
+     *
+     * The model under test is taken off the real flow rather than hand-built: a
+     * [DeliveredSnackbar] carries the generation epoch it was ENQUEUED under, and only the
+     * live delivery path stamps the current one (sibling tests in this JVM advance it).
      */
     @Test
     fun `a show cancelled mid-flight requeues the model`() = runTest {
-        val model = AppSnackbarModel(message = "requeue-show")
+        val delivered = deliverOnce(AppSnackbarModel(message = "requeue-show"))
         var escaped = false
         try {
-            resolveSnackbarOutcomeOrRequeue(model) {
+            resolveSnackbarOutcomeOrRequeue(delivered) {
                 throw CancellationException("host recreating")
             }
         } catch (expected: CancellationException) {
             escaped = true
         }
         assertTrue(escaped)
-        assertEquals("requeue-show", SnackbarManager.snackbar.first().message)
+        assertEquals("requeue-show", SnackbarManager.snackbar.first().model.message)
     }
 
     @Test
     fun `cancellation inside the commit requeues the model`() = runTest {
-        val model = AppSnackbarModel(
-            message = "requeue-commit",
-            onDismissed = { throw CancellationException("host recreating mid-commit") },
+        val delivered = deliverOnce(
+            AppSnackbarModel(
+                message = "requeue-commit",
+                onDismissed = { throw CancellationException("host recreating mid-commit") },
+            ),
         )
         var escaped = false
         try {
-            resolveSnackbarOutcomeOrRequeue(model) { null }
+            resolveSnackbarOutcomeOrRequeue(delivered) { null }
         } catch (expected: CancellationException) {
             escaped = true
         }
         assertTrue(escaped)
-        assertEquals("requeue-commit", SnackbarManager.snackbar.first().message)
+        assertEquals("requeue-commit", SnackbarManager.snackbar.first().model.message)
     }
 
     @Test
     fun `a routed outcome does not requeue`() = runTest {
         val recorder = Recorder()
-        resolveSnackbarOutcomeOrRequeue(recorder.model()) { SnackbarResult.Dismissed }
+        val delivered = deliverOnce(recorder.model())
+        resolveSnackbarOutcomeOrRequeue(delivered) { SnackbarResult.Dismissed }
         assertEquals(1, recorder.dismissals)
         // Nothing queued: an immediate poll of the singleton queue must come up empty.
         assertTrue(withTimeoutOrNull(POLL_MILLIS) { SnackbarManager.snackbar.first() } == null)
@@ -175,6 +214,32 @@ internal class SnackbarOutcomeTest {
         job.cancel()
         advanceUntilIdle()
         assertTrue(committed)
+    }
+
+    /**
+     * Enqueues [model] through the real path and takes its one delivery back, so the returned
+     * [DeliveredSnackbar] carries the CURRENT generation epoch — the requeue cases above assert
+     * on a redelivery, which a stale stamp would silently discard instead. Leftovers from a
+     * sibling test in this JVM are drained first so the delivery taken back is this case's own.
+     */
+    private suspend fun deliverOnce(model: AppSnackbarModel): DeliveredSnackbar {
+        drainLeftovers()
+        SnackbarManager.showSnackbar(model)
+        val delivered = SnackbarManager.snackbar.first()
+        assertEquals(model, delivered.model)
+        return delivered
+    }
+
+    /**
+     * [SnackbarManager] is process-wide, so entries outlive the test that queued them. Consume
+     * whatever is left until the queue stops producing — [SnackbarManager.pendingModelCount] is
+     * documented approximate and can sit above zero over an empty queue, so the poll's null,
+     * not the count, is the loop's real terminator.
+     */
+    private suspend fun drainLeftovers() {
+        while (SnackbarManager.pendingModelCount > 0) {
+            withTimeoutOrNull(POLL_MILLIS) { SnackbarManager.snackbar.first() } ?: return
+        }
     }
 
     private companion object {

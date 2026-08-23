@@ -30,6 +30,7 @@ import io.github.stslex.workeeper.core.data.exercise.session.SessionConflictReso
 import io.github.stslex.workeeper.core.data.exercise.session.SessionRepository
 import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolderProducer
 import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
+import io.github.stslex.workeeper.core.ui.mvi.di.StoreGenerationDeps
 import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
 import io.github.stslex.workeeper.core.ui.mvi.holders.LoggerHolder
 import io.github.stslex.workeeper.core.ui.navigation.Navigator
@@ -67,7 +68,8 @@ import kotlinx.coroutines.CoroutineDispatcher
 internal interface AppGraph :
     RecoveryDeps,
     BackupWorkerDeps,
-    AppRootDeps {
+    AppRootDeps,
+    StoreGenerationDeps {
 
     /**
      * Root accessor: the single app-scoped [AnalyticsHolder]. Read by the `:app` extension identity
@@ -234,7 +236,7 @@ internal interface AppGraph :
      * the runtime/identity tests to assert the root is threaded, and by `BaseApplication`'s startup
      * chores until the runtime host owns them.
      */
-    val appScopeLifetime: AppScopeLifetime
+    override val appScopeLifetime: AppScopeLifetime
 
     /**
      * The recovery cluster — feature/recovery `@SingleIn(AppScope)` graph nodes read by

@@ -6,6 +6,7 @@ import android.app.Application
 import androidx.work.Configuration
 import io.github.stslex.workeeper.app.common.di.AppRootDeps
 import io.github.stslex.workeeper.app.common.di.AppRootDepsHolder
+import io.github.stslex.workeeper.app.common.di.AppUiAdmissionToken
 import io.github.stslex.workeeper.app.common.di.AppUiGenerationsHolder
 import io.github.stslex.workeeper.app.common.di.AppUiPhase
 import io.github.stslex.workeeper.core.core.images.buildImageStorage
@@ -82,7 +83,8 @@ abstract class BaseApplication :
                 )
             },
             policy = RuntimeTransitionPolicy(
-                drainSnackbarResolves = { SnackbarManager.awaitInFlightResolves() },
+                fenceSnackbarResolves = { SnackbarManager.fenceResolves() },
+                unfenceSnackbarResolves = { SnackbarManager.unfenceResolves() },
                 pendingSnackbarCount = { SnackbarManager.pendingModelCount },
                 // COMMITTED handovers only (the runtime never calls this on abort): models
                 // queued under the outgoing generation are discarded at delivery, never
@@ -104,9 +106,10 @@ abstract class BaseApplication :
     override val appUiPhases: StateFlow<AppUiPhase>
         get() = appRuntime.uiPhases
 
-    override fun onUiGenerationAttached(id: Int) = appRuntime.onUiGenerationAttached(id)
+    override fun admitUiGeneration(id: Int): AppUiAdmissionToken? = appRuntime.admitUiGeneration(id)
 
-    override fun onUiGenerationDisposed(id: Int) = appRuntime.onUiGenerationDisposed(id)
+    override fun releaseUiGeneration(token: AppUiAdmissionToken) =
+        appRuntime.releaseUiGeneration(token)
 
     // Feature-side readers acquire their own contributed `XxxGraph.Factory` via `context.appDeps<T>()`.
     // Every `@ContributesTo(AppScope::class)` extension factory is merged into `appGraph`, so the

@@ -71,8 +71,9 @@ suspend fun resolveSnackbarOutcome(result: SnackbarResult?, model: AppSnackbarMo
 /**
  * One toast's whole lifetime at the host: [show] displays it (the host times it — B25) and
  * the result routes through [resolveSnackbarOutcome] — and if the host dies BETWEEN taking
- * the model off the queue and completing that routing, the model goes back on the queue for
- * the collector that replaces it. The queue does not replay ([SnackbarManager]'s channel
+ * the model off the queue and completing that routing, the model goes back on the queue (with
+ * its ORIGINAL generation epoch) for the collector that replaces it. The queue does not
+ * replay ([SnackbarManager]'s channel
  * delivers once), and the collector is a `LaunchedEffect` that dies with its composition —
  * so without the requeue, an activity recreated under a visible toast drops the model with
  * neither callback run, and a deferred delete's confirmed commit silently never happens
@@ -86,21 +87,26 @@ suspend fun resolveSnackbarOutcome(result: SnackbarResult?, model: AppSnackbarMo
  * stop signal, not an outcome.
  */
 suspend fun resolveSnackbarOutcomeOrRequeue(
-    model: AppSnackbarModel,
+    delivered: DeliveredSnackbar,
     show: suspend () -> SnackbarResult?,
 ) {
+    // Admission first (R3, spec §8.4 step 3): a transition that already observed zero routings
+    // and FENCED the gate must not have a new one start behind its back. A refused routing puts
+    // the model back with its OWN epoch — preserved on an abort, discarded at delivery after a
+    // committed handover — so the outcome is never decided by which side of the fence the
+    // collector happened to land on.
+    if (!SnackbarManager.beginResolve()) {
+        SnackbarManager.requeue(delivered)
+        return
+    }
     var routed = false
-    // In-flight accounting brackets the WHOLE routing, including the NonCancellable commit inside
-    // resolveSnackbarOutcome — the Phase 5 Quiescing stage awaits this count reaching zero before
-    // a database replacement may close the generation's database (spec §8.4 step 3).
-    SnackbarManager.resolveStarted()
     try {
-        resolveSnackbarOutcome(show(), model)
+        resolveSnackbarOutcome(show(), delivered.model)
         routed = true
     } finally {
         if (!routed) {
-            SnackbarManager.showSnackbar(model)
+            SnackbarManager.requeue(delivered)
         }
-        SnackbarManager.resolveFinished()
+        SnackbarManager.endResolve()
     }
 }

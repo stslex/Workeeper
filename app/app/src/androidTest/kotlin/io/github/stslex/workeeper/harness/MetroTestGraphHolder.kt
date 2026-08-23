@@ -2,7 +2,9 @@
 package io.github.stslex.workeeper.harness
 
 import androidx.lifecycle.ViewModelStore
+import androidx.test.platform.app.InstrumentationRegistry
 import androidx.lifecycle.ViewModelStoreOwner
+import io.github.stslex.workeeper.app.common.di.AppUiAdmissionToken
 import io.github.stslex.workeeper.app.common.di.AppUiPhase
 import io.github.stslex.workeeper.di.AppGraph
 import io.github.stslex.workeeper.runtime.AppRuntime
@@ -59,14 +61,56 @@ internal object MetroTestGraphHolder {
 
     fun effectiveUiPhases(): StateFlow<AppUiPhase> = runtimeDelegate?.uiPhases ?: uiPhases
 
-    fun onUiGenerationAttached(id: Int) {
-        runtimeDelegate?.onUiGenerationAttached(id)
-            ?: staticAttachments.computeIfAbsent(id) { AtomicInteger() }.incrementAndGet()
+    /**
+     * Ids the harness has RETIRED (Phase 5 R3, spec §8.4 step 1). A retired generation's admission
+     * must be refused, which is what `App()`'s region turns into "render nothing and resolve
+     * nothing". `UiAdmissionRaceTest` drives this; [reset] clears it.
+     */
+    private val retiredIds: MutableSet<Int> = ConcurrentHashMap.newKeySet()
+
+    /**
+     * How many times `App()`'s generation region resolved its app-scope dependencies — counted at
+     * [TestApplication.appRootDeps], which `App()` calls exactly once per composed region and
+     * nothing else in the app calls at all. Zero is the assertable meaning of "a stale region
+     * resolved nothing".
+     */
+    val appRootDepsResolutions = AtomicInteger()
+
+    /** Static-mode admission token — real accounting, assertable by the harness tests. */
+    private class StaticToken(val id: Int) : AppUiAdmissionToken
+
+    /**
+     * Retires [id]: every later admission request for it is REFUSED, exactly as the runtime's own
+     * gate refuses a generation it has already handed over.
+     */
+    fun retireUiGeneration(id: Int) {
+        retiredIds.add(id)
     }
 
-    fun onUiGenerationDisposed(id: Int) {
-        runtimeDelegate?.onUiGenerationDisposed(id)
-            ?: staticAttachments.computeIfAbsent(id) { AtomicInteger() }.decrementAndGet()
+    /** Tokens currently outstanding for [id] — a leaked grant shows up here as a non-zero count. */
+    fun outstandingAdmissions(id: Int): Int = staticAttachments[id]?.get() ?: 0
+
+    /** The published generation's id, or `null` while the harness is between generations. */
+    val currentGenerationId: Int?
+        get() = (effectiveUiPhases().value as? AppUiPhase.Generation)?.id
+
+    fun admitUiGeneration(id: Int): AppUiAdmissionToken? {
+        if (retiredIds.contains(id)) return null
+        return runtimeDelegate?.admitUiGeneration(id)
+            ?: StaticToken(id).also {
+                staticAttachments.computeIfAbsent(id) { AtomicInteger() }.incrementAndGet()
+            }
+    }
+
+    fun releaseUiGeneration(token: AppUiAdmissionToken) {
+        val delegate = runtimeDelegate
+        if (delegate != null) {
+            delegate.releaseUiGeneration(token)
+            return
+        }
+        (token as? StaticToken)?.let {
+            staticAttachments.computeIfAbsent(it.id) { AtomicInteger() }.decrementAndGet()
+        }
     }
 
     /** The graph installed for the currently-running test. Throws if read before [MetroTestRule] sets it. */
@@ -86,7 +130,13 @@ internal object MetroTestGraphHolder {
      */
     fun install(graph: AppGraph) {
         uiPhaseFlow.value = AppUiPhase.Transitioning
-        currentStore?.clear()
+        // On the MAIN thread, as the production teardown does (`AppRuntime.tearDownOutgoing`
+        // wraps its clear in `policy.mainDispatcher`): since R3 a cleared Store actually
+        // disposes, and disposal detaches a `LifecycleRegistry` observer, which Lifecycle
+        // enforces to the main thread.
+        currentStore?.let { store ->
+            InstrumentationRegistry.getInstrumentation().runOnMainSync { store.clear() }
+        }
         current = graph
         val store = ViewModelStore()
         currentStore = store
@@ -100,9 +150,13 @@ internal object MetroTestGraphHolder {
 
     fun reset() {
         runtimeDelegate = null
+        retiredIds.clear()
+        appRootDepsResolutions.set(0)
         staticAttachments.clear()
         uiPhaseFlow.value = AppUiPhase.Transitioning
-        currentStore?.clear()
+        currentStore?.let { store ->
+            InstrumentationRegistry.getInstrumentation().runOnMainSync { store.clear() }
+        }
         currentStore = null
         current = null
     }

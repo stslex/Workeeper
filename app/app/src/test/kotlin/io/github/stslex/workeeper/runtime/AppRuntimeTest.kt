@@ -343,21 +343,23 @@ internal class AppRuntimeTest {
         }
 
     @Test
-    fun `attached ui region gates the transition - only the OUTGOING id releases it`() =
+    fun `an admitted ui region gates the transition - only ITS OWN token releases it`() =
         runtimeTest { runtime ->
             val genOne = runtime.currentGeneration
-            runtime.onUiGenerationAttached(genOne.id)
+            val token = requireNotNull(runtime.admitUiGeneration(genOne.id))
+            // A second region of ANOTHER generation, whose release must not open this gate.
+            val foreign = requireNotNull(runtime.admitUiGeneration(genOne.id + 7))
             val transition = async { runtime.reinitialize() }
             runCurrent()
 
             assertEquals(RuntimePhase.Transitioning, runtime.phases.value)
             assertTrue(transition.isActive)
 
-            runtime.onUiGenerationDisposed(genOne.id + 7) // wrong id — must not release
+            runtime.releaseUiGeneration(foreign) // another generation's token — must not release
             runCurrent()
             assertTrue(transition.isActive)
 
-            runtime.onUiGenerationDisposed(genOne.id)
+            runtime.releaseUiGeneration(token)
             runCurrent()
             assertInstanceOf(ReinitializeOutcome.Published::class.java, transition.await())
         }

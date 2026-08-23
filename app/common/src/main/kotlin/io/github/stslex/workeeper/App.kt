@@ -18,8 +18,8 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.RememberObserver
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -42,6 +42,7 @@ import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation3.runtime.rememberNavBackStack
 import io.github.stslex.workeeper.app.common.di.AppRootDepsHolder
+import io.github.stslex.workeeper.app.common.di.AppUiAdmissionToken
 import io.github.stslex.workeeper.app.common.di.AppUiGenerationsHolder
 import io.github.stslex.workeeper.app.common.di.AppUiPhase
 import io.github.stslex.workeeper.bottom_app_bar.BottomBarItem
@@ -107,22 +108,28 @@ fun App() {
     when (val currentPhase = phase) {
         is AppUiPhase.Generation -> saveableStateHolder.SaveableStateProvider(currentPhase.id) {
             key(currentPhase.id) {
-                CompositionLocalProvider(
-                    LocalViewModelStoreOwner provides currentPhase.viewModelStoreOwner,
-                ) {
-                    DisposableEffect(currentPhase.id) {
-                        generationsHolder.onUiGenerationAttached(currentPhase.id)
-                        onDispose { generationsHolder.onUiGenerationDisposed(currentPhase.id) }
+                // Admission is taken DURING COMPOSITION (R3, spec §8.4 step 1), not from an
+                // effect: effects run at APPLY time, after this region's children have already
+                // composed and resolved their Stores and ViewModels. A retired generation must
+                // resolve nothing at all, so the grant has to gate the content itself.
+                val admission = remember(currentPhase.id) {
+                    GenerationAdmission(generationsHolder, currentPhase.id)
+                }
+                if (admission.granted) {
+                    CompositionLocalProvider(
+                        LocalViewModelStoreOwner provides currentPhase.viewModelStoreOwner,
+                    ) {
+                        LaunchedEffect(currentPhase.id) {
+                            // A COMPLETED transition (new id) drops the old generation's saved
+                            // slot — no resurrection; an aborted one (same id) keeps it and
+                            // restores.
+                            previousGenerationId
+                                ?.takeIf { it != currentPhase.id }
+                                ?.let(saveableStateHolder::removeState)
+                            previousGenerationId = currentPhase.id
+                        }
+                        AppGenerationContent()
                     }
-                    LaunchedEffect(currentPhase.id) {
-                        // A COMPLETED transition (new id) drops the old generation's saved slot —
-                        // no resurrection; an aborted one (same id) keeps it and restores.
-                        previousGenerationId
-                            ?.takeIf { it != currentPhase.id }
-                            ?.let(saveableStateHolder::removeState)
-                        previousGenerationId = currentPhase.id
-                    }
-                    AppGenerationContent()
                 }
             }
         }
@@ -132,6 +139,32 @@ fun App() {
                 .fillMaxSize()
                 .testTag("AppTransitioning"),
         )
+    }
+}
+
+/**
+ * The generation region's admission grant, held for exactly as long as the region is remembered.
+ * [RememberObserver] is what makes it leak-free in BOTH directions Compose allows: a composition
+ * that is applied releases through `onForgotten`, and one that is ABANDONED (composed but never
+ * applied — the window a retirement can land in) releases through `onAbandoned`.
+ */
+private class GenerationAdmission(
+    private val holder: AppUiGenerationsHolder,
+    generationId: Int,
+) : RememberObserver {
+
+    private val token: AppUiAdmissionToken? = holder.admitUiGeneration(generationId)
+
+    val granted: Boolean = token != null
+
+    override fun onRemembered() = Unit
+
+    override fun onForgotten() {
+        token?.let(holder::releaseUiGeneration)
+    }
+
+    override fun onAbandoned() {
+        token?.let(holder::releaseUiGeneration)
     }
 }
 
@@ -198,14 +231,16 @@ private fun AppGenerationContent() {
         val accessibilityManager = LocalAccessibilityManager.current
         LaunchedEffect(accessibilityManager) {
             SnackbarManager.snackbar
-                .collect { model ->
+                .collect { delivered ->
                     // ActionPerformed → action; Dismissed or timeout → onDismissed. The
                     // routing is the kit's own named function so the deferred-delete window
                     // (ED11) is asserted at its selector, not read off this collector — the
                     // callbacks' failures are contained there, and a model this collector
                     // dies holding (the activity recreates under a visible toast) goes back
-                    // on the queue for the collector that replaces it.
-                    resolveSnackbarOutcomeOrRequeue(model) {
+                    // on the queue WITH ITS ORIGINAL GENERATION EPOCH for the collector that
+                    // replaces it.
+                    val model = delivered.model
+                    resolveSnackbarOutcomeOrRequeue(delivered) {
                         withTimeoutOrNull(
                             toastTimeoutMillis(
                                 accessibilityManager = accessibilityManager,

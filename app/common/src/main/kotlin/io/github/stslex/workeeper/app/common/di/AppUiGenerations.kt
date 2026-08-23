@@ -43,12 +43,28 @@ interface AppUiGenerationsHolder {
     val appUiPhases: StateFlow<AppUiPhase>
 
     /**
-     * The generation region entered composition. LOAD-BEARING (no default): the runtime's
-     * transition gate counts attachments per generation id, and a host that silently dropped
-     * these signals would let a replacement close the database under a live UI.
+     * Requests admission for a generation's UI region, DURING COMPOSITION and before the region
+     * resolves ANY dependency (Phase 5 R3, spec §8.4 step 1). LOAD-BEARING (no default): the
+     * runtime's transition gate holds the transition open while a token is outstanding, and a
+     * host that silently granted admission would let a replacement close the database under a
+     * live UI.
+     *
+     * Returns `null` when the generation is already retired — the region must then render
+     * nothing and resolve nothing, so a stale frame can never reach the graph, its Stores or
+     * its ViewModels.
      */
-    fun onUiGenerationAttached(id: Int)
+    fun admitUiGeneration(id: Int): AppUiAdmissionToken?
 
-    /** The generation region left composition (all its stores/effects disposed). Load-bearing. */
-    fun onUiGenerationDisposed(id: Int)
+    /**
+     * Releases exactly the region [token] admitted. Idempotent, and ABA-safe by identity: a
+     * token released after its generation was retired (and its id possibly reopened) cancels
+     * out nothing, so it can never release a LATER region's admission.
+     */
+    fun releaseUiGeneration(token: AppUiAdmissionToken)
 }
+
+/**
+ * An opaque admission grant for one generation UI region. The runtime owns the implementation;
+ * `app:common` only needs identity, which is what makes release ABA-safe.
+ */
+interface AppUiAdmissionToken

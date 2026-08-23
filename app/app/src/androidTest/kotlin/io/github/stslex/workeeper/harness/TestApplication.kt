@@ -2,6 +2,8 @@
 package io.github.stslex.workeeper.harness
 
 import io.github.stslex.workeeper.BaseApplication
+import io.github.stslex.workeeper.app.common.di.AppRootDeps
+import io.github.stslex.workeeper.app.common.di.AppUiAdmissionToken
 import io.github.stslex.workeeper.app.common.di.AppUiPhase
 import io.github.stslex.workeeper.di.AppGraph
 import kotlinx.coroutines.flow.StateFlow
@@ -43,9 +45,22 @@ internal class TestApplication : BaseApplication() {
 
     // REAL accounting in both harness modes (the interface forbids silent no-ops): static mode
     // counts into the holder's assertable map; runtime mode drives the production gate.
-    override fun onUiGenerationAttached(id: Int) = MetroTestGraphHolder.onUiGenerationAttached(id)
+    override fun admitUiGeneration(id: Int): AppUiAdmissionToken? =
+        MetroTestGraphHolder.admitUiGeneration(id)
 
-    override fun onUiGenerationDisposed(id: Int) = MetroTestGraphHolder.onUiGenerationDisposed(id)
+    override fun releaseUiGeneration(token: AppUiAdmissionToken) =
+        MetroTestGraphHolder.releaseUiGeneration(token)
+
+    /**
+     * The REAL deps, counted. `App()`'s generation region is the only caller in the whole app, and
+     * it calls this once per composed region — so the count IS "how many times a generation region
+     * resolved anything from the graph", which is what `UiAdmissionRaceTest` asserts is zero for a
+     * retired generation.
+     */
+    override fun appRootDeps(): AppRootDeps {
+        MetroTestGraphHolder.appRootDepsResolutions.incrementAndGet()
+        return super.appRootDeps()
+    }
 
     override fun onCreateGraphBootstrap() {
         // Intentionally empty — see class doc. The graph is installed per test by MetroTestRule.

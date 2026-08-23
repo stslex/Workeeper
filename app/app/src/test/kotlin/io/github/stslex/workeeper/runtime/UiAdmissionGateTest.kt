@@ -5,74 +5,117 @@ import io.github.stslex.workeeper.core.core.logger.Log
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import java.util.concurrent.CountDownLatch
 import kotlin.concurrent.thread
 
 /**
- * Direct pins for [UiAdmissionGate]'s atomic zero-observation + retire close (round-2 mandate 7).
- * The deterministic tests pin the refusal/reopen semantics; the multi-threaded hammer pins the
- * ATOMICITY itself — an implementation that observes zero and retires in two separate steps lets
- * a racing attach land in the gap (counted under a retired id), which the invariant assertion
- * catches with overwhelming probability across the iterations.
+ * Direct pins for [UiAdmissionGate] (Round-3 blocker 4): admission is a TOKEN, not a count, so
+ * release is ABA-safe; a retired generation refuses admission outright (its content must resolve
+ * nothing); release is idempotent and releases exactly its own grant; and the retire CAS closes
+ * admission atomically with the zero observation.
  */
 internal class UiAdmissionGateTest {
 
     private val gate = UiAdmissionGate(Log.tag("UiAdmissionGateTest"))
 
     @Test
-    fun `attach against a retired id is refused - never counted`() = runBlocking {
+    fun `a retired generation refuses admission outright`() = runBlocking {
         assertTrue(gate.awaitRetired(id = 1, timeoutMillis = 1_000))
 
-        gate.attach(1)
-
-        assertEquals(0, gate.attachmentCount(1), "a retired id must refuse attaches")
+        assertNull(gate.admit(1), "a retired generation must hand out no token")
+        assertEquals(0, gate.admittedCount(1))
     }
 
     @Test
-    fun `reopen un-retires - the id counts attaches again`() = runBlocking {
+    fun `reopen re-admits - the id grants tokens again`() = runBlocking {
         assertTrue(gate.awaitRetired(id = 1, timeoutMillis = 1_000))
         gate.reopen(1)
 
-        gate.attach(1)
+        val token = gate.admit(1)
 
-        assertEquals(1, gate.attachmentCount(1))
-        gate.dispose(1)
+        assertNotNull(token)
+        assertEquals(1, gate.admittedCount(1))
+        gate.release(requireNotNull(token))
+        assertEquals(0, gate.admittedCount(1))
     }
 
     @Test
-    fun `awaitRetired times out while an attachment is outstanding`() = runBlocking {
-        gate.attach(7)
+    fun `awaitRetired times out while a region still holds its token`() = runBlocking {
+        val token = requireNotNull(gate.admit(7))
 
         assertFalse(gate.awaitRetired(id = 7, timeoutMillis = 50))
 
-        assertEquals(1, gate.attachmentCount(7), "timeout must not retire or consume the count")
-        gate.dispose(7)
+        assertEquals(1, gate.admittedCount(7), "timeout must not retire or drop the grant")
+        gate.release(token)
     }
 
     @Test
-    fun `retire is ATOMIC with the zero observation - racing attaches never pass it (hammer)`() {
-        // Invariant under attack: after awaitRetired returns true, the id's count is zero and
-        // stays zero — an attach that raced the retire either landed BEFORE the CAS (count > 0,
-        // the retire re-waits) or AFTER it (refused). A two-step observe-then-retire gate lets
-        // the racer's attach land in between: the id ends retired WITH a counted attachment
-        // (its dispose is a no-op on a retired id), which the assertion below detects.
-        repeat(4_000) { iteration ->
+    fun `release is idempotent and releases exactly its own token`() = runBlocking {
+        val first = requireNotNull(gate.admit(3))
+        val second = requireNotNull(gate.admit(3))
+        assertEquals(2, gate.admittedCount(3))
+
+        gate.release(first)
+        gate.release(first) // idempotent — must not release `second` as collateral
+        assertEquals(1, gate.admittedCount(3))
+
+        gate.release(second)
+        assertEquals(0, gate.admittedCount(3))
+    }
+
+    @Test
+    fun `a token released after retirement and reopen cannot cancel a LATER admission (ABA)`() =
+        runBlocking {
+            // The ABA the counter form could not see: region A of generation 5 is admitted, the
+            // generation is retired and later reopened (an aborted transition), a NEW region B
+            // takes admission — and only then A's stale release lands. With a counter, A's
+            // decrement would zero B's admission and let a transition close the database under a
+            // live region. With tokens, A's serial is no longer live and the release is a no-op.
+            val stale = requireNotNull(gate.admit(5))
+            gate.release(stale)
+            assertTrue(gate.awaitRetired(id = 5, timeoutMillis = 1_000))
+            gate.reopen(5)
+            val fresh = requireNotNull(gate.admit(5))
+
+            gate.release(stale) // the late, already-spent grant
+
+            assertEquals(1, gate.admittedCount(5), "the LATER region must still hold admission")
+            assertFalse(
+                gate.awaitRetired(id = 5, timeoutMillis = 50),
+                "a stale release must not open the gate under a live region",
+            )
+            gate.release(fresh)
+        }
+
+    @Test
+    fun `retire is ATOMIC with the zero observation - racing admissions never pass it (hammer)`() {
+        // Invariant under attack: after awaitRetired returns true, the id holds no admission and
+        // can never gain one. A two-step observe-then-retire gate lets a racer's admit land in
+        // between — the id ends retired WITH a live token (whose release is then a no-op on a
+        // retired id), which the assertion below detects.
+        repeat(3_000) { iteration ->
             val id = iteration + 100
-            gate.attach(id)
+            val held = requireNotNull(gate.admit(id))
+            val ready = CountDownLatch(1)
             val racer = thread {
-                gate.dispose(id)
-                gate.attach(id) // races the retire CAS
-                gate.dispose(id) // balances if the attach was counted pre-retire
+                ready.countDown()
+                gate.release(held)
+                gate.admit(id)?.let(gate::release) // races the retire CAS
             }
+            ready.await()
             val retired = runBlocking { gate.awaitRetired(id, timeoutMillis = 2_000) }
             racer.join()
             assertTrue(retired, "iteration $iteration: the gate must retire once idle")
             assertEquals(
                 0,
-                gate.attachmentCount(id),
-                "iteration $iteration: an attach passed the retired gate — the close is not atomic",
+                gate.admittedCount(id),
+                "iteration $iteration: an admission passed the retired gate — the close is not atomic",
             )
+            assertNull(gate.admit(id), "iteration $iteration: a retired id must stay closed")
         }
     }
 }

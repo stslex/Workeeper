@@ -18,6 +18,8 @@ import io.github.stslex.workeeper.core.ui.mvi.BaseStore
 import io.github.stslex.workeeper.core.ui.mvi.Store.Action
 import io.github.stslex.workeeper.core.ui.mvi.Store.Event
 import io.github.stslex.workeeper.core.ui.mvi.Store.State
+import io.github.stslex.workeeper.core.ui.mvi.di.StoreGenerationDeps
+import io.github.stslex.workeeper.core.ui.mvi.di.appDeps
 import io.github.stslex.workeeper.core.ui.mvi.performance.FirebaseScreenRenderRecorder
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import androidx.compose.runtime.State as ComposeState
@@ -65,8 +67,13 @@ inline fun <reified TStoreImpl : BaseStore<*, *, *>> rememberStoreProcessor(
     val context = LocalContext.current
 
     val store = storeCreator()
+    // The CURRENT generation's lifetime (spec §8.4): every job this Store starts parents to it,
+    // so a replacement's teardown cancels AND JOINS them before closing the database they touch.
+    val generationJob = remember(context) {
+        context.appDeps<StoreGenerationDeps>().appScopeLifetime.job
+    }
     DisposableEffect(store, currentLifecycleOwner) {
-        store.init(currentLifecycleOwner)
+        store.init(currentLifecycleOwner, generationJob)
         FirebaseCrashlyticsHolder.setScreenName(store.name)
         FirebaseAnalyticsHolder.log(FirebaseEvent.Screen(store.name))
 

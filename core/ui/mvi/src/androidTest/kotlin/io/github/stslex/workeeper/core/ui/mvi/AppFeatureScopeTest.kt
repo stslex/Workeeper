@@ -12,10 +12,16 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.stslex.workeeper.core.ui.test.TestActivity
 import io.github.stslex.workeeper.core.ui.test.annotations.Smoke
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertSame
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Verifies the screen-less [AppFeature] composition entry resolves its Store at the
@@ -47,6 +53,8 @@ internal class AppFeatureScopeTest {
     @get:Rule
     val composeRule = createAndroidComposeRule<TestActivity>()
 
+    private val probeDeps = ProbeGenerationDeps()
+
     @Test
     fun appFeatureProcessorResolvesAtActivityScope() {
         var capturedOwner: ViewModelStoreOwner? = null
@@ -54,28 +62,30 @@ internal class AppFeatureScopeTest {
         var capturedStore: AppRootProbeStoreImpl? = null
 
         composeRule.setContent {
-            // Composed as a sibling of any NavHost would be — i.e. directly at the
-            // App root depth — so LocalViewModelStoreOwner.current must resolve to
-            // the host ComponentActivity, not a NavBackStackEntry.
-            AppRootProbeFeature.processor()
+            ProbeAppDepsHost(probeDeps) {
+                // Composed as a sibling of any NavHost would be — i.e. directly at the
+                // App root depth — so LocalViewModelStoreOwner.current must resolve to
+                // the host ComponentActivity, not a NavBackStackEntry.
+                AppRootProbeFeature.processor()
 
-            // The instance the line above retained, read back through the SAME androidx path
-            // `rememberMetroStoreProcessor` uses — `viewModel<T>()` with no explicit key against the
-            // current LocalViewModelStoreOwner (the de-Hilt'd equivalent of the old `hiltViewModel()`).
-            // It returns the already-cached entry, so no factory is invoked here.
-            val directStore: AppRootProbeStoreImpl = viewModel()
+                // The instance the line above retained, read back through the SAME androidx path
+                // `rememberMetroStoreProcessor` uses — `viewModel<T>()` with no explicit key against the
+                // current LocalViewModelStoreOwner (the de-Hilt'd equivalent of the old `hiltViewModel()`).
+                // It returns the already-cached entry, so no factory is invoked here.
+                val directStore: AppRootProbeStoreImpl = viewModel()
 
-            // LifecycleOwner and ViewModelStoreOwner snapshots from the same
-            // composition that AppFeature is composed in: BaseStore.init was called
-            // with whatever rememberLifecycleOwner() (== LocalLifecycleOwner.current)
-            // returned, which must be the Activity at this depth.
-            val owner = LocalViewModelStoreOwner.current
-            val lifecycleOwner = LocalLifecycleOwner.current
+                // LifecycleOwner and ViewModelStoreOwner snapshots from the same
+                // composition that AppFeature is composed in: BaseStore.init was called
+                // with whatever rememberLifecycleOwner() (== LocalLifecycleOwner.current)
+                // returned, which must be the Activity at this depth.
+                val owner = LocalViewModelStoreOwner.current
+                val lifecycleOwner = LocalLifecycleOwner.current
 
-            SideEffect {
-                capturedOwner = owner
-                capturedLifecycle = lifecycleOwner
-                capturedStore = directStore
+                SideEffect {
+                    capturedOwner = owner
+                    capturedLifecycle = lifecycleOwner
+                    capturedStore = directStore
+                }
             }
         }
 
@@ -115,5 +125,63 @@ internal class AppFeatureScopeTest {
             activity,
             lifecycle,
         )
+    }
+
+    /**
+     * Phase 5 R3, blocker 4 — the SEAM, on-device, through the production path.
+     *
+     * `StoreGenerationJoinTest` (host) passes a generation job to `BaseStore.init` by hand, so it
+     * proves `AppCoroutineScopeImpl`'s parenting but not that anything supplies the job. This
+     * composes the real `rememberMetroStoreProcessor` under a real `appDeps` holder and then ends
+     * the generation lifetime the holder handed out: a Store job started through the ordinary
+     * `launchDefault` surface must be a DESCENDANT, so `cancelAndJoin` cannot return until that
+     * job's `finally` has run. That is the property the runtime relies on when it closes a
+     * generation's database immediately after joining its lifetime.
+     */
+    @Test
+    fun storeJobsAreDescendantsOfTheGenerationSuppliedByTheDepsSeam() {
+        var capturedStore: AppRootProbeStoreImpl? = null
+
+        composeRule.setContent {
+            ProbeAppDepsHost(probeDeps) {
+                AppRootProbeFeature.processor()
+                val directStore: AppRootProbeStoreImpl = viewModel()
+                SideEffect { capturedStore = directStore }
+            }
+        }
+
+        composeRule.waitForIdle()
+        val store = checkNotNull(capturedStore) { "Probe Store not resolved in composition" }
+
+        val started = CountDownLatch(1)
+        val finallyRan = AtomicBoolean(false)
+        store.launchDefault(
+            onError = {},
+            onSuccess = {},
+            action = {
+                try {
+                    started.countDown()
+                    awaitCancellation()
+                } finally {
+                    // Stands in for the real thing: a Store job whose cleanup touches the
+                    // generation's database. It MUST complete before the runtime closes it.
+                    finallyRan.set(true)
+                }
+            },
+        )
+        check(started.await(WAIT_SECONDS, TimeUnit.SECONDS)) { "probe job never started" }
+
+        runBlocking { probeDeps.appScopeLifetime.cancelAndJoin() }
+
+        assertTrue(
+            "cancelAndJoin on the generation lifetime returned while a Store job's finally had " +
+                "not run — the Store's jobs are not parented to the generation the deps seam " +
+                "supplied, so the runtime would close the database under them",
+            finallyRan.get(),
+        )
+    }
+
+    private companion object {
+        const val WAIT_SECONDS = 5L
     }
 }

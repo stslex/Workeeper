@@ -940,7 +940,8 @@ internal class AppRuntimeReplacementTest {
             }
             runCurrent() // zero was observed; gen 1's id was retired atomically with it
 
-            runtime.onUiGenerationAttached(genOne.id) // the late attach — must not pass
+            val late = runtime.admitUiGeneration(genOne.id) // the late attach — must not pass
+            assertNull(late, "a retired generation must refuse admission outright")
             assertEquals(0, runtime.uiAttachmentCount(genOne.id), "refused, not counted")
 
             gate.complete(Unit)
@@ -952,16 +953,16 @@ internal class AppRuntimeReplacementTest {
     fun `attach BEFORE the zero observation blocks the transition until disposed`() =
         runtimeTest { runtime ->
             val genOne = runtime.currentGeneration
-            runtime.onUiGenerationAttached(genOne.id)
+            val token = requireNotNull(runtime.admitUiGeneration(genOne.id))
 
             val transaction = async {
                 runtime.replace(ReplacementOperation.RestoreFromSnapshot(sourceFile()))
             }
             runCurrent()
-            assertTrue(transaction.isActive, "the attached region gates the whole machine")
+            assertTrue(transaction.isActive, "the admitted region gates the whole machine")
             assertTrue(protocolLog.isEmpty(), "nothing irreversible while the UI holds on")
 
-            runtime.onUiGenerationDisposed(genOne.id)
+            runtime.releaseUiGeneration(token)
             runCurrent()
             assertInstanceOf(ReplacementOutcome.Completed::class.java, transaction.await())
         }
@@ -981,9 +982,9 @@ internal class AppRuntimeReplacementTest {
                 transaction.await(),
             )
 
-            runtime.onUiGenerationAttached(genOne.id)
+            val readmitted = requireNotNull(runtime.admitUiGeneration(genOne.id))
             assertEquals(1, runtime.uiAttachmentCount(genOne.id), "un-retired on abort")
-            runtime.onUiGenerationDisposed(genOne.id)
+            runtime.releaseUiGeneration(readmitted)
             lease.release()
         }
 
@@ -1061,13 +1062,13 @@ internal class AppRuntimeReplacementTest {
             preservedFile()
             closeFailureIndices += 0 // A's outgoing close throws → Fatal (post-PONR)
             // Hold A inside its machine (UI gate) so B queues behind the mutex.
-            runtime.onUiGenerationAttached(genOne.id)
+            val holdToken = requireNotNull(runtime.admitUiGeneration(genOne.id))
 
             val a = async { runtime.replace(ReplacementOperation.RestoreFromSnapshot(sourceFile())) }
             runCurrent()
             val b = async { runtime.replace(ReplacementOperation.RollbackToPreRestoreBackup()) }
             runCurrent()
-            runtime.onUiGenerationDisposed(genOne.id)
+            runtime.releaseUiGeneration(holdToken)
             runCurrent()
 
             assertInstanceOf(ReplacementOutcome.Fatal::class.java, a.await())
