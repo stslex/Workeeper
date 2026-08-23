@@ -84,8 +84,17 @@ class RestoreStateRepositoryImpl internal constructor(
             prefs.remove(KEY_BACKUP_CREATED_AT)
             prefs.remove(KEY_BACKUP_APP_VERSION)
             prefs.remove(KEY_RESTORE_STARTED_AT)
+            // The journal entry is scoped to the same restore attempt (api KDoc).
+            prefs.remove(KEY_RESTORE_MUTATION_INTERRUPTED)
         }
     }
+
+    override suspend fun markRestoreMutationInterrupted() {
+        dataStore.edit { prefs -> prefs[KEY_RESTORE_MUTATION_INTERRUPTED] = true }
+    }
+
+    override suspend fun isRestoreMutationInterrupted(): Boolean =
+        dataStore.data.first()[KEY_RESTORE_MUTATION_INTERRUPTED] == true
 
     override suspend fun markPreRestoreBackupAvailable(originalDataDateEpochMs: Long) {
         dataStore.edit { prefs ->
@@ -121,6 +130,9 @@ class RestoreStateRepositoryImpl internal constructor(
             stringPreferencesKey("restore_in_progress_backup_app_version")
         val KEY_RESTORE_STARTED_AT =
             longPreferencesKey("restore_in_progress_started_at_epoch_ms")
+
+        val KEY_RESTORE_MUTATION_INTERRUPTED =
+            booleanPreferencesKey("restore_mutation_interrupted")
 
         val KEY_PRE_RESTORE_AVAILABLE = booleanPreferencesKey("pre_restore_backup_available")
         val KEY_PRE_RESTORE_ORIGINAL_DATE =

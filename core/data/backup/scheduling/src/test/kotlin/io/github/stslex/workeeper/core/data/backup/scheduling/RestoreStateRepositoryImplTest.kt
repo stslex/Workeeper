@@ -133,6 +133,29 @@ internal class RestoreStateRepositoryImplTest {
             assertNull(repo.getRestoreInProgressContext())
         }
 
+    @Test
+    fun `mutation-interrupted journal - marked then read back true, default false`() = runTest {
+        assertFalse(repo.isRestoreMutationInterrupted())
+        repo.markRestoreMutationInterrupted()
+        assertTrue(repo.isRestoreMutationInterrupted())
+    }
+
+    @Test
+    fun `clearRestoreInProgress clears the mutation-interrupted journal entry`() = runTest {
+        repo.markRestoreMutationInterrupted()
+        repo.clearRestoreInProgress()
+        assertFalse(repo.isRestoreMutationInterrupted())
+    }
+
+    @Test
+    fun `the journal entry is idempotent`() = runTest {
+        repo.markRestoreMutationInterrupted()
+        repo.markRestoreMutationInterrupted()
+        assertTrue(repo.isRestoreMutationInterrupted())
+        repo.clearRestoreInProgress()
+        assertFalse(repo.isRestoreMutationInterrupted())
+    }
+
     private companion object {
         const val PREFS_FILE_NAME = "restore_state_prefs"
     }

@@ -44,11 +44,27 @@ interface RestoreStateRepository {
     suspend fun getRestoreInProgressContext(): RestoreInProgressContext?
 
     /**
-     * Clears the `restore_in_progress` flag and its context payload. Called
-     * after the pre-flight resolves the in-progress restore (either success
-     * or rollback).
+     * Clears the `restore_in_progress` flag and its context payload — and the
+     * [markRestoreMutationInterrupted] journal entry, which is scoped to the
+     * same restore attempt. Called after the pre-flight resolves the
+     * in-progress restore (either success or rollback).
      */
     suspend fun clearRestoreInProgress()
+
+    /**
+     * Durable restore-journal entry (Phase 5 R2, spec §8.4): the restore's file
+     * mutation FAILED or ended in an unknown state after the point of no
+     * return. While set (together with `restore_in_progress`), the post-restart
+     * pre-flight must take the FAILURE path directly — a schema peek could
+     * succeed against the untouched OLD file and produce a false
+     * "restore succeeded" — and roll back via the preserved snapshot. Written
+     * by the restore transaction's effects on the transaction's own coroutine;
+     * idempotent; cleared by [clearRestoreInProgress].
+     */
+    suspend fun markRestoreMutationInterrupted()
+
+    /** Reads the [markRestoreMutationInterrupted] journal entry. */
+    suspend fun isRestoreMutationInterrupted(): Boolean
 
     /** Record that `cache/pre_restore_backup.db` is preserved and available for undo. */
     suspend fun markPreRestoreBackupAvailable(originalDataDateEpochMs: Long)
