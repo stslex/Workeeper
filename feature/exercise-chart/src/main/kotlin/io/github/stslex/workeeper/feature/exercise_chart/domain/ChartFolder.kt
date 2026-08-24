@@ -13,14 +13,8 @@ import java.time.LocalDate
 import java.time.ZoneId
 
 /**
- * Pure folding logic for the chart screen — converts raw history into the points + footer
- * the canvas needs to render. Lives in the domain layer; the UI mapper consumes the
- * resulting [ChartFoldDomain] and produces UI types with locale-aware formatting.
- *
- * The preset acts as a **filter** only: the §4.6 canvas is index-spaced, so there is no
- * render window to compute — the visible span IS the point list. (The date-proportional
- * canvas this fold used to serve carried a window-tightening pass for sparse ALL-preset
- * history; it died with date-spacing.)
+ * Pure folding logic for the chart screen: raw history into the points + footer the canvas
+ * renders. The preset acts as a filter only — the §4.6 canvas is index-spaced.
  */
 internal fun bucketAndFold(
     history: List<HistoryEntryDomain>,
@@ -52,26 +46,17 @@ internal fun bucketAndFold(
         .toList()
 
     // Same eligibility as the PR rule (`SessionDao.PR_ELIGIBILITY`): a zero-rep set is not a
-    // data point, and for a WEIGHTED exercise a weight-null set is excluded rather than
-    // coerced to 0.0 — coercion invents a point at the bottom of the axis.
+    // data point, and a weight-null set on a WEIGHTED exercise is excluded, never coerced.
     val eligible = flat.filter { it.isEligible(exerciseType) }
 
     if (eligible.isEmpty()) return ChartFoldDomain(points = emptyList(), footer = null)
 
-    // Eligibility decides which set represents a session; it does not decide how many sets
-    // the user logged in that session. Both grounds `isEligible` drops on were still logged,
-    // so the readout count comes from the unfiltered window.
+    // Eligibility decides which set represents a session, not how many sets were logged, so
+    // the readout count comes from the unfiltered window.
     val setsPerSession = flat.groupingBy(FlatSet::sessionUuid).eachCount()
 
-    // Which set — or, under VOLUME_PER_SESSION, which total — represents each session. The
-    // metric comes first — that is what the axis plots. Two ordering chains exist, and no
-    // third: under HEAVIEST_WEIGHT a tie on the metric *is* a tie on weight, so reps DESC ranks
-    // equal-weight sets exactly as the PR rule does. Both volume metrics use the other chain —
-    // metric DESC only: a volume tie means the candidates traded weight against reps
-    // (100×2 == 50×4), where reps DESC would quietly read as
-    // "prefer the lighter set" — volume is not a PR metric, so nothing licenses that key.
-    // Position ASC is the last criterion either way and comes for free — `sortedWith` is
-    // stable and each session's sets arrive in position order from the history query.
+    // Which set — or, under VOLUME_PER_SESSION, which total — represents each session. Metric
+    // DESC first; reps DESC only breaks HEAVIEST_WEIGHT ties. See v2.2-exercise-charts.md.
     val byMetric = compareByDescending<FlatSet> { f -> metricValue(f, metric, exerciseType) }
     val pointsBySession = when (metric) {
         ChartMetricDomain.HEAVIEST_WEIGHT -> eligible.foldSessionWinners(
@@ -124,14 +109,8 @@ private fun List<FlatSet>.foldSessionWinners(
     }
 
 /**
- * The per-session fold (§11.2). A session's total is the sum of its sets' contributions —
- * [metricValue] under [ChartMetricDomain.VOLUME_PER_SESSION] is the per-set volume, so the
- * session metric is definitionally "the sum of Подход over the session" and introduces no
- * new per-set value. Every completed session remains a point, including multiple sessions
- * on the same calendar day.
- *
- * The resulting point is an aggregate: no single set is "the" point, so `weight`/`reps`
- * carry no meaning and are null/0 — see the [ChartPointDomain] contract.
+ * The per-session fold (§11.2): a session's total is the sum of its sets' per-set volumes.
+ * The point is an aggregate, so `weight`/`reps` carry no meaning — see [ChartPointDomain].
  */
 private fun List<FlatSet>.foldSessionTotals(
     metric: ChartMetricDomain,
@@ -161,28 +140,13 @@ private fun List<FlatSet>.foldSessionTotals(
         )
     }
 
-/**
- * A set is plottable under the same rule that makes it PR-eligible, minus the session-state
- * clauses the history query has already applied.
- */
+/** Plottable under the same rule that makes a set PR-eligible, minus the session-state clauses. */
 private fun FlatSet.isEligible(type: ExerciseTypeDomain): Boolean =
     reps > 0 && (type == ExerciseTypeDomain.WEIGHTLESS || weight != null)
 
 /**
- * Branches on the metric first, then on what that metric can mean for the exercise type — the
- * other way round reads as if the type silences the metric.
- *
- * For a WEIGHTLESS exercise both metrics genuinely collapse to reps: there is no weight to be
- * heaviest, and per-set volume with an unknown constant bodyweight is reps up to that
- * constant. Nothing is lost by the collapse, and the metric toggle is not offered for those
- * exercises anyway (`ExerciseChartStore.State.showMetricToggle`).
- *
- * `weight` is non-null here: [isEligible] dropped weight-null rows for WEIGHTED exercises
- * before this is ever called.
- *
- * Under [ChartMetricDomain.VOLUME_PER_SESSION] this is the set's *contribution* to the
- * session total, which is exactly the per-set volume — [foldSessionTotals] sums it. One
- * value definition per metric; the session metric adds a fold, not a new per-set value.
+ * Branches on the metric first, then on what it can mean for the exercise type; WEIGHTLESS
+ * collapses both metrics to reps, and `weight` is non-null here because [isEligible] ran.
  */
 private fun metricValue(
     set: FlatSet,

@@ -8,14 +8,7 @@ import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.core.ui.navigation.navScreen
 import io.github.stslex.workeeper.core.ui.navigation.navScreenWithResults
 
-/**
- * NavComponentScreen is a composable function that provides a StoreProcessor
- * for a given feature and screen type within a navigation graph. It allows you to access the processor
- * within the composable content.
- *
- * @param feature The feature that provides the StoreProcessor.
- * @param content The composable content that receives the StoreProcessor.
- */
+/** Registers [feature]'s destination and hands its [StoreProcessor] to [content]. */
 inline fun <
     TProcessor : StoreProcessor<*, *, *>,
     reified TScreen : Screen,
@@ -30,11 +23,7 @@ inline fun <
 
 /**
  * Like [navComponentScreen], for a destination that reads a result back from one it opened.
- *
- * The content lambda gets a [NavResults] rather than a raw transport: the result is typed off
- * the destination, and the transport stays inside this module. Registered only for the
- * [FeatureAssisted] shape: both consumers are assisted, and an unused overload is API that
- * has to be kept working for no caller.
+ * Registered only for the [FeatureAssisted] shape — both consumers are assisted.
  */
 inline fun <
     TProcessor : StoreProcessor<*, *, *>,

@@ -8,25 +8,14 @@ import io.github.stslex.workeeper.feature.plan_editor.domain.model.PlanSetDomain
 interface PlanEditorInteractor {
 
     /**
-     * Loads exercise metadata + initial plan. When [trainingUuid] is null the plan is read
-     * from `exercise_table.last_adhoc_sets`; otherwise from
-     * `training_exercise_table.plan_sets` for the (training, exercise) pair. The exercise's
-     * own `type` is always returned (it's the source of truth for both
-     * `last_adhoc_sets` and any plan_sets row in a training, since training-exercise rows
-     * inherit shape from the parent exercise).
+     * Loads exercise metadata plus the plan [trainingUuid] selects (null reads `last_adhoc_sets`).
+     * The exercise's own `type` is always returned. See documentation/architecture.md.
      */
     suspend fun loadPlan(exerciseUuid: String, trainingUuid: String?): PlanEditorLoadResult
 
     /**
-     * Persists [plan] (or null to clear) to the appropriate backing store, plus the
-     * [type] when [trainingUuid] is null (i.e. Mode.Exercise — PlanEditor owns the type
-     * for the parent exercise). For Mode.PerformedExercise the [type] is ignored — the
-     * type lives on the parent exercise and isn't editable through a training-scoped
-     * editor.
-     *
-     * When [type] flips a Mode.Exercise from WEIGHTED to WEIGHTLESS the implementation
-     * also wipes weights from every plan_sets row that references this exercise so
-     * weighted plan values do not survive the type change.
+     * Persists [plan] (null clears) to the store [trainingUuid] selects. [type] is written only
+     * when [trainingUuid] is null, and a flip to WEIGHTLESS wipes weights from this exercise.
      */
     suspend fun savePlan(
         exerciseUuid: String,

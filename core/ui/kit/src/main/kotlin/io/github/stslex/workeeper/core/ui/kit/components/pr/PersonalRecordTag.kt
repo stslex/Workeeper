@@ -31,16 +31,8 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
 
 /**
- * The set row's `.prtag` (extraction §1.6): the trailing chip a record row shows **instead
- * of** the type chip — same 34×32 slot geometry as `AppSetTypeChip`, never both.
- *
- * Outlined, not filled: 1px `molten.border` ring, molten text — distinct from
- * [PersonalRecordBadge], which is the solid pill. Type is `mono.caption` at **SemiBold** with
- * the mockup's `.1em` tracking — the first consumer of the bundled IBM Plex Mono 600, which
- * B2 shipped for exactly this selector ("174 608 bytes on account", `AppTypography`'s mono
- * KDoc).
- *
- * The label is the latin "PR" in every locale, like the badge.
+ * The set row's `.prtag`: the trailing chip a record row shows instead of the type chip, in the
+ * same slot geometry as `AppSetTypeChip` and never both. Outlined molten, not the solid badge.
  */
 @Composable
 fun PersonalRecordTag(
@@ -66,14 +58,8 @@ fun PersonalRecordTag(
 }
 
 /**
- * The tag's own intrinsic width: its label at its own style, plus its own padding.
- *
- * `CHIP_MIN_WIDTH` is a MINIMUM, and this label outgrows it — at fontScale 2.0 the tag
- * measures wider than the type chip it replaces. A trailing slot pinned to the minimum
- * therefore leaves a record row's fields narrower than its siblings' and than the header's
- * columns, which is why `SetRowGeometry.resolveTrailingSlotWidth` measures this rather than
- * assuming the minimum. Measured here, beside the label and style it measures, so the two
- * cannot drift.
+ * The tag's own intrinsic width: its label at its own style plus its padding. `CHIP_MIN_WIDTH`
+ * is a minimum this label outgrows, so `SetRowGeometry` measures it rather than assuming it.
  */
 @Composable
 internal fun personalRecordTagIntrinsicWidth(): Dp {

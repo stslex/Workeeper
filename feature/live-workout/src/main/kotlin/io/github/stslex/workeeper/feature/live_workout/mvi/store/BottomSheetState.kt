@@ -10,11 +10,7 @@ sealed interface BottomSheetState {
     @Stable
     data object Hidden : BottomSheetState
 
-    /**
-     * Inline exercise picker bottom-sheet state. Display strings (no-match headline,
-     * Create CTA label) are pre-formatted in the handler so the kit composable does
-     * not derive text — keeps the picker locale-shape agnostic.
-     */
+    /** Inline exercise picker; display strings are pre-formatted in the handler. */
     @Stable
     data class ExercisePicker(
         val query: String,
@@ -31,10 +27,7 @@ sealed interface BottomSheetState {
     @Stable
     data class ExerciseMenu(val performedExerciseUuid: String) : BottomSheetState
 
-    /**
-     * `sh-del`: the exercise-removal confirmation reached from [ExerciseMenu]'s delete item.
-     * Copy uses the durable session context; template sessions retain their added/planned body.
-     */
+    /** `sh-del`: the exercise-removal confirmation, reached from [ExerciseMenu]'s delete. */
     @Stable
     data class DeleteExerciseConfirm(val performedExerciseUuid: String) : BottomSheetState
 

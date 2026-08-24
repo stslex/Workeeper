@@ -34,12 +34,8 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 
 /**
- * Pins the wiring for all three [Action.RepoAction] branches in
- * [AppDialogRepoHandler]. Observe is dispatched via `initialActions`;
- * Publish and Dismiss have no production dispatcher today (the `@Singleton`
- * facades bypass the Store — see PR description). Tests are kept because
- * they validate handler routing cheaply and prevent silent regressions if
- * a Store-mediated dispatch path is added later.
+ * Pins routing for all three [Action.RepoAction] branches. Publish and Dismiss have no production
+ * dispatcher today, so these tests are the only thing holding their wiring.
  */
 internal class AppDialogRepoHandlerTest {
 

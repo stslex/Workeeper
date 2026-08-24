@@ -8,28 +8,8 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import io.github.stslex.workeeper.core.ui.mvi.BaseStore
 
 /**
- * Metro-backed Store resolution path.
- *
- * A feature supplies [factory] — a lambda that resolves its Metro graph / assisted factory
- * and constructs the [BaseStore] subclass. Because [BaseStore] already IS an
- * `androidx.lifecycle.ViewModel`, the Metro-created Store is retained **directly** in the
- * Compose `ViewModelStore` via [viewModel] — scoped to the current
- * `LocalViewModelStoreOwner` (the per-entry store `rememberViewModelStoreNavEntryDecorator`
- * installs inside `NavDisplay`): survives
- * configuration change and recomposition, cleared on back-stack pop. No separate ViewModel
- * shim is needed.
- *
- * The retained Store is then handed to the backend-agnostic
- * [rememberStoreProcessor] `(StoreCreator)` overload, which owns ALL lifecycle wiring
- * (`store.init` / `store.dispose` via `DisposableEffect`, analytics, render trace).
- *
- * NOTE (Android-only): this file resolves retention on Android. iOS retention (no
- * `ViewModelStore`) is resolved by the Compose Multiplatform nav host and lives in the
- * feature's `iosMain` — see the C.1.2 archive conversion.
- *
- * @param factory resolves the Metro graph and creates the [BaseStore] subclass. Invoked at
- * most once per retained Store instance (inside the [viewModel] initializer).
- * @see rememberStoreProcessor
+ * Metro-backed Store resolution: [factory] constructs the [BaseStore], which is retained directly
+ * in the current `LocalViewModelStoreOwner` via [viewModel] — a [BaseStore] already is a ViewModel.
  */
 @Composable
 inline fun <reified TStoreImpl : BaseStore<*, *, *>> rememberMetroStoreProcessor(

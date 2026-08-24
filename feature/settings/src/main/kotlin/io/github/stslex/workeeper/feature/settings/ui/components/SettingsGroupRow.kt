@@ -31,18 +31,8 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.kit.theme.fadedOut
 
 /**
- * The mockup's `.srow` (extraction §5.3): min-height 64dp — deliberately NOT the 88dp
- * `--row-h` of the detail screens; two row heights coexist in the design — a top rule on
- * every row (`--hair-s` → `borderSubtle`, the standing no-slot substitution), gap 12dp,
- * title at the body rung in `--max` (or `--rust` → `status.error` for the destructive
- * variant — text colour only, no icon, no container; rust sits on the page surface, the
- * pair the contrast map passes by construction), optional `.meta` sub-line at 4dp.
- *
- * Trailing, in order: an optional `.val` (mono 15/500, `--body`), then a chevron
- * ([RowChevron.InApp] `M9 6l6 6-6 6` / [RowChevron.External] the arrow-out-of-box — §5.3
- * keeps the two destinations visually distinct), or a [content] trailing control slot (`.mseg`,
- * `.sw`) for plain rows. The mockup's hover (`--sec`) maps onto the pressed state, like
- * every v3 control.
+ * A settings row: top rule, title (destructive = text colour only), optional sub-line, then an
+ * optional value, a chevron, or a [content] trailing control. Hover maps onto the pressed state.
  */
 @Composable
 internal fun SettingsGroupRow(
@@ -53,8 +43,7 @@ internal fun SettingsGroupRow(
     chevron: RowChevron = RowChevron.None,
     destructive: Boolean = false,
     onClick: (() -> Unit)? = null,
-    // The trailing control slot — named `content` because it is this row's single
-    // composable slot and lint's ComposableLambdaParameterNaming demands the name.
+    // GUARD: must stay named `content` — lint's ComposableLambdaParameterNaming, CI-gated.
     content: (@Composable RowScope.() -> Unit)? = null,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -133,7 +122,7 @@ internal fun SettingsGroupRow(
     }
 }
 
-/** What sits after an interactive row's text: the in-app chevron, the out-of-app arrow, or nothing. */
+/** What follows an interactive row's text: in-app chevron, out-of-app arrow, or nothing. */
 internal enum class RowChevron { InApp, External, None }
 
 @Composable
@@ -147,5 +136,5 @@ private fun RowChevronIcon(icon: ImageVector) {
     )
 }
 
-/** `.srow{min-height:64px}` — the settings row's own height (§5.3), `heightXl`'s rung. */
+/** The settings row's own height — deliberately not the 88dp detail-screen row. */
 private val ROW_MIN_HEIGHT = AppDimension.heightXl

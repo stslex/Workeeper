@@ -8,30 +8,15 @@ internal object AppExt {
 
     const val APP_PREFIX = "io.github.stslex.workeeper"
 
-    /**
-     * Get the version catalog for the project
-     * */
     val Project.libs: VersionCatalog
         get() = extensions.getByType<VersionCatalogsExtension>().named("libs")
 
-    /**
-     * Find the version of the library
-     */
     fun VersionCatalog.findVersionInt(name: String) = findVersionString(name).toInt()
 
-    /**
-     * Find the version of the library
-     */
     fun VersionCatalog.findVersionString(name: String) = findVersion(name).get().toString()
 
-    /**
-     * Find the plugin id
-     */
     fun VersionCatalog.findPluginId(alias: String) = findPlugin(alias).get().get().pluginId
 
-    /**
-     * Find the library by alias
-     */
     fun Project.implementation(vararg alias: String) {
         dependencies {
             alias.forEach {
@@ -40,9 +25,6 @@ internal object AppExt {
         }
     }
 
-    /**
-     * Find the library by alias
-     */
     fun Project.api(vararg alias: String) {
         dependencies {
             alias.forEach {
@@ -70,9 +52,6 @@ internal object AppExt {
         }
     }
 
-    /**
-     * Find the bundle by alias
-     */
     fun Project.implementationBundle(vararg alias: String) {
         dependencies {
             alias.forEach {
@@ -81,9 +60,6 @@ internal object AppExt {
         }
     }
 
-    /**
-     * Find the library by alias
-     */
     fun Project.androidTestImplementation(vararg alias: String) {
         dependencies {
             alias.forEach {
@@ -92,9 +68,6 @@ internal object AppExt {
         }
     }
 
-    /**
-     * Find the library by alias
-     */
     fun Project.androidTestApi(vararg alias: String) {
         dependencies {
             alias.forEach {
@@ -103,9 +76,6 @@ internal object AppExt {
         }
     }
 
-    /**
-     * Find the library by alias
-     */
     fun Project.androidTestImplementationBundle(vararg alias: String) {
         dependencies {
             alias.forEach {
@@ -136,9 +106,6 @@ internal object AppExt {
         }
     }
 
-    /**
-     * Find the library by alias
-     */
     fun Project.testImplementationBundle(vararg alias: String) {
         dependencies {
             alias.forEach {
@@ -147,9 +114,6 @@ internal object AppExt {
         }
     }
 
-    /**
-     * Find the library by alias
-     */
     fun Project.coreLibraryDesugaring(vararg alias: String) {
         dependencies {
             alias.forEach {
@@ -158,9 +122,6 @@ internal object AppExt {
         }
     }
 
-    /**
-     * Find the library by alias
-     */
     fun Project.ksp(vararg alias: String) {
         dependencies {
             alias.forEach {
@@ -169,9 +130,6 @@ internal object AppExt {
         }
     }
 
-    /**
-     * Find the bundle by alias
-     */
     fun Project.annotationProcessor(vararg alias: String) {
         dependencies {
             alias.forEach {
@@ -180,9 +138,6 @@ internal object AppExt {
         }
     }
 
-    /**
-     * Find the bundle by alias
-     */
     fun Project.testRuntimeOnly(vararg alias: String) {
         dependencies {
             alias.forEach {

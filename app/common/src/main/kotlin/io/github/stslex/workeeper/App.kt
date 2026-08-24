@@ -64,33 +64,8 @@ import io.github.stslex.workeeper.navigation.NavigatorExt.NavigationEventBusSetu
 import kotlinx.coroutines.withTimeoutOrNull
 
 /**
- * The generation shell (Phase 5, `kmp-phase-5-startup-processor.md` §8.7). The WHOLE app body —
- * including the [AppRootViewModel] resolution, which ctor-captures the generation's
- * `navigatorEventBus` — composes inside a region that is:
- *
- *  - **keyed on the generation id**: a new generation drops every positional state slot, so the
- *    Nav3 back stack restarts at Home and nothing remembered under generation N can leak into
- *    N+1 (Back cannot reach the old stack — the list object itself is gone);
- *  - **saveable-scoped per generation** ([rememberSaveableStateHolder]): generation N's saved
- *    state lives only under slot N — an ABORTED transition re-enters slot N and restores the old
- *    back stack intact, while a completed one removes the old slot so old entries can never
- *    resurrect. Cold start always composes slot 1, so ordinary Activity-recreation and
- *    process-death restoration are byte-identical to the pre-Phase-5 tree (pinned by
- *    `BackStackStateRestorationTest`);
- *  - **ViewModel-scoped to the generation**: the runtime-owned [AppUiPhase.Generation
- *    .viewModelStoreOwner] is provided as the root `LocalViewModelStoreOwner`, so
- *    [AppRootViewModel] and the app-dialog Store survive Activity recreation (the runtime
- *    outlives the Activity) yet die deterministically when the runtime clears the generation's
- *    store. NavDisplay's per-entry decorator re-provides the entry owner underneath, so
- *    per-screen Stores are untouched by this.
- *
- * The [DisposableEffect] is the runtime's Quiescing signal: it is the FIRST thing remembered in
- * the region, so Compose forgets it LAST — its `onDispose` fires only after every inner Store's
- * own dispose ran, which is exactly the "the UI let go of generation N" moment the runtime
- * awaits before touching the generation's ViewModelStore.
- *
- * [AppUiPhase.Transitioning] composes a bare neutral box (deliberately theme-independent: the
- * theme flows from the generation's own [AppRootViewModel], which does not exist in this window).
+ * The generation shell: the whole app body composes in a region keyed and saveable-scoped on the
+ * generation id, under the generation's ViewModelStoreOwner. See the Phase-5 startup spec §8.7.
  */
 @Composable
 fun App() {
@@ -106,8 +81,7 @@ fun App() {
     when (val currentPhase = phase) {
         is AppUiPhase.Generation -> saveableStateHolder.SaveableStateProvider(currentPhase.id) {
             key(currentPhase.id) {
-                // Admission must gate composition before content resolves generation dependencies.
-                // Key by phase instance so an aborted transition can reopen the same id.
+                // Admission gates composition; keyed by phase so an aborted transition reopens it.
                 val admission = remember(currentPhase) {
                     GenerationAdmission(generationsHolder, currentPhase.id)
                 }
@@ -116,9 +90,8 @@ fun App() {
                         LocalViewModelStoreOwner provides currentPhase.viewModelStoreOwner,
                     ) {
                         LaunchedEffect(currentPhase.id) {
-                            // A COMPLETED transition (new id) drops the old generation's saved
-                            // slot — no resurrection; an aborted one (same id) keeps it and
-                            // restores.
+                            // A completed transition (new id) drops the old saved slot; an
+                            // aborted one (same id) keeps it and restores.
                             previousGenerationId
                                 ?.takeIf { it != currentPhase.id }
                                 ?.let(saveableStateHolder::removeState)
@@ -139,10 +112,8 @@ fun App() {
 }
 
 /**
- * The generation region's admission grant, held for exactly as long as the region is remembered.
- * [RememberObserver] is what makes it leak-free in BOTH directions Compose allows: a composition
- * that is applied releases through `onForgotten`, and one that is ABANDONED (composed but never
- * applied — the window a retirement can land in) releases through `onAbandoned`.
+ * The generation region's admission grant, held as long as the region is remembered.
+ * [RememberObserver] releases it on both `onForgotten` and `onAbandoned`.
  */
 private class GenerationAdmission(
     private val holder: AppUiGenerationsHolder,
@@ -167,14 +138,8 @@ private class GenerationAdmission(
 @Composable
 @Suppress("LongMethod")
 private fun AppGenerationContent() {
-    // AppRootViewModel is a plain ViewModel constructed via viewModel {} with deps read from the
-    // app graph — through [AppRootDeps], never the graph itself. `@DependencyGraph(AppScope)` and
-    // `AppGraphOwner` are internal to `:app:app`, which depends on THIS module, so the graph is
-    // below-the-line here by construction and cannot be named. `AppGraph` implements the contract;
-    // the cast is safe because `BaseApplication : AppRootDepsHolder` is compile-visible there. Same
-    // typed-point-acquisition shape as RecoveryDepsHolder / BackupWorkerDepsHolder. The resolution
-    // happens INSIDE the generation region (see [App]'s KDoc), so the holder read returns the
-    // CURRENT generation's deps and the ViewModel lands in the generation's store.
+    // AppRootViewModel reads deps through [AppRootDeps]; the app graph is below-the-line here and
+    // cannot be named. Resolving inside the region binds it to the current generation.
     val context = LocalContext.current
     val viewModel: AppRootViewModel = viewModel {
         val deps = (context.applicationContext as AppRootDepsHolder).appRootDeps()
@@ -186,11 +151,8 @@ private fun AppGenerationContent() {
     val themeMode by viewModel.themeMode.collectAsState()
 
     AppTheme(themeMode = themeMode) {
-        // The app-owned back stack. The COMMON rememberNavBackStack overload, always: the
-        // explicit SavedStateConfiguration is what survives process death (see
-        // screenSavedStateConfiguration's KDoc), and the reflection overload does not exist
-        // off Android — using the config overload here is what keeps phase 7 a dependency
-        // swap instead of a rewrite.
+        // App-owned back stack. The common overload with an explicit SavedStateConfiguration is
+        // what survives process death and keeps phase 7 a dependency swap.
         val backStack = rememberNavBackStack(
             screenSavedStateConfiguration,
             Screen.BottomBar.Home,
@@ -209,32 +171,14 @@ private fun AppGenerationContent() {
 
         val snackbarHostState = remember { SnackbarHostState() }
 
-        // B25 branch B: the host owns the toast's lifetime, because the drawing gives a number
-        // Material3 has no rung for.
-        //
-        // `showSnackbar`'s `duration` defaults to `Indefinite` whenever an `actionLabel` is
-        // present — a deliberate M3 default, paired with a dismiss affordance this app's `.toast`
-        // does not draw. The result was three undo toasts that never went away. `SnackbarDuration`
-        // offers only 4000ms and 10000ms; `session-v3f.html` says 5000, so the timeout is applied
-        // here instead of rounded onto a rung.
-        //
-        // The snackbar is therefore shown as `Indefinite` and cancelled by `withTimeoutOrNull` —
-        // cancelling the caller removes it from display, which M3's own KDoc guarantees. The
-        // accessibility recommendation is applied by `toastTimeoutMillis` rather than left to M3:
-        // an `Indefinite` snackbar short-circuits `calculateRecommendedTimeoutMillis` before the
-        // system manager is reached, so it is the one duration that silently ignores a user's
-        // display-timeout preference. A finite base restores it.
+        // The host owns the toast lifetime: `showSnackbar` defaults to `Indefinite` when an
+        // actionLabel is present, so it is shown Indefinite and cancelled by `withTimeoutOrNull`.
         val accessibilityManager = LocalAccessibilityManager.current
         LaunchedEffect(accessibilityManager) {
             SnackbarManager.snackbar
                 .collect { delivered ->
-                    // ActionPerformed → action; Dismissed or timeout → onDismissed. The
-                    // routing is the kit's own named function so the deferred-delete window
-                    // (ED11) is asserted at its selector, not read off this collector — the
-                    // callbacks' failures are contained there, and a model this collector
-                    // dies holding (the activity recreates under a visible toast) goes back
-                    // on the queue WITH ITS ORIGINAL GENERATION EPOCH for the collector that
-                    // replaces it.
+                    // ActionPerformed → action; dismiss or timeout → onDismissed, routed through
+                    // the kit's selector so a model this collector dies holding is requeued.
                     val model = delivered.model
                     resolveSnackbarOutcomeOrRequeue(delivered) {
                         withTimeoutOrNull(
@@ -281,12 +225,6 @@ private fun AppGenerationContent() {
                     animationSpec = tween(AppUi.motion.base),
                 ),
             ) {
-                // The v2 bar clipped its own top corners from `Radius.largest` (128dp) down to 0
-                // across the enter transition. That treatment goes with the bar: `#s-nav` draws a
-                // flat `--sec` track with a hairline along its top edge, and a 128dp top radius
-                // both contradicts the drawn shape and cuts the hairline off at both ends. The
-                // show/hide transition itself is untouched — only the shape animation the deleted
-                // component owned.
                 AppNavBar(
                     items = BottomBarItem.entries.map { item ->
                         AppNavBarItem(
@@ -298,9 +236,8 @@ private fun AppGenerationContent() {
                     selectedIndex = bottomBarNavigationListener.selectedIndex.value,
                     onSelect = { index ->
                         val item = BottomBarItem.entries[index]
-                        // §26 "Haptics": SegmentTick on a nav tab change. Fired here rather than
-                        // inside `AppNavBar` because every haptic in this app is fired at a
-                        // feature/graph level — `core/ui/kit/src/main` has none, measured.
+                        // §26 "Haptics": SegmentTick on a nav tab change, fired here because
+                        // every haptic is fired at feature/graph level, never inside the kit.
                         hapticFeedback.performHapticFeedback(HapticFeedbackType.SegmentTick)
                         navigatorEventBus.navTo(item.screen)
                     },
@@ -314,14 +251,8 @@ private fun AppGenerationContent() {
                 results = navigatorEventBus,
             )
 
-            // NO host-owned affordance goes here. The host may not place a control in a band a
-            // screen owns and can replace whole — §26, "A host-owned affordance may not float over
-            // a bar a screen replaces", and B26 for what the last one cost.
-            //
-            // Interim, stated rather than papered over: all-trainings, all-exercises and archive
-            // have **no settings entry of their own** until that pass rules the resting bar. Home
-            // keeps its own (`HomeScreen`'s `actions`), and Home is one tap away on the nav bar, so
-            // the three screens reach settings in two taps. Do not restore this overlay for them.
+            // GUARD: no host-owned affordance here — the host may not place a control in a band
+            // a screen owns and replaces whole. See v3-redesign-spec.md §26.
 
             SnackbarHost(
                 modifier = Modifier.align(Alignment.BottomCenter),
@@ -330,12 +261,8 @@ private fun AppGenerationContent() {
                 AppSnackbar(snackbarData = data)
             }
 
-            // Sibling of AppNavigationHost (not a child of any destination) so the
-            // dialog appears regardless of the current route and survives
-            // navigation. Its state lives in DataStore — surviving process
-            // restart is the load-bearing property.
-            // See documentation/feature-specs/app-dialogs.md → "AppDialogHost
-            // mounting".
+            // Sibling of AppNavigationHost so the dialog shows on any route; its state lives in
+            // DataStore. See documentation/feature-specs/app-dialogs.md → "AppDialogHost mounting".
             AppDialogHost()
         }
     }

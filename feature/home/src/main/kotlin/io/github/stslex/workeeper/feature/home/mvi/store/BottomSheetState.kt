@@ -6,15 +6,8 @@ import io.github.stslex.workeeper.feature.home.mvi.model.PickerTrainingItem
 import kotlinx.collections.immutable.ImmutableList
 
 /**
- * Home's one sheet slot. Two sheets exist on this screen — the training picker and the
- * start card's mode picker — so per the dialog-state rule they share a single sealed field:
- * one variant live at a time, mutual exclusivity at the type level, an open replacing
- * whatever was up. The conflict dialog stays its own nullable on `State` — it is the
- * screen's only dialog, and sheets and dialogs are separate families here as in
- * live-workout.
- *
- * Replaces the `State.PickerState` nested sealed type, whose `Hidden`/`Visible` pair was
- * this shape for one sheet.
+ * Home's one sheet slot: the training picker and the mode picker share a single sealed field.
+ * The conflict dialog stays its own nullable — sheets and dialogs are separate families.
  */
 @Stable
 sealed interface BottomSheetState {
@@ -29,10 +22,7 @@ sealed interface BottomSheetState {
         val isLoading: Boolean,
     ) : BottomSheetState
 
-    /**
-     * The start card's mode picker (home-start-card.md HS4). Carries no payload — the
-     * checked row reads `State.startCardMode`, the single source of the selection.
-     */
+    /** The mode picker (HS4); no payload — the checked row reads `State.startCardMode`. */
     @Stable
     data object StartModePicker : BottomSheetState
 }

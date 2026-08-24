@@ -174,8 +174,9 @@ of Phase 2's scope.
   dispatcher-qualifier inheritance assertions (`the extension inherits the Default
   dispatcher key and not the IO one`).
 - **Red direction:** deleting the moved container fails `:app:app` compile loudly.
-  (`AppGraph`'s import of the container is KDoc-linking only; `@DependencyGraph(scope =
-  AppScope::class)` carries no explicit container list — consumption is pure aggregation.)
+  (`AppGraph` carries no import of the container — the one it had was KDoc-linking only and
+  went with the KDoc in the comment trim; `@DependencyGraph(scope = AppScope::class)` carries
+  no explicit container list either, so consumption is pure aggregation.)
 - **Phase-3 consequence:** the `core:core-android` sibling exists *only* because core:core
   predates Metro-on-KMP. Aggregation from androidMain works, so the collapse
   (`ResourceWrapper` impls, platform providers, both binding containers moving into

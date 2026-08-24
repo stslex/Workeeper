@@ -73,12 +73,7 @@ internal fun ExerciseDetailScreen(
     }
 }
 
-/**
- * `.topbar` (extraction §1.2 applied to §3.1's frame): back chevron hanging into the
- * gutter · the exercise name at `h1.sm` · the `⋮` overflow opening the Store-homed
- * detail-menu sheet. Internal so the goldens can render it in isolation, same move as
- * past-session's TopBar.
- */
+/** `.topbar`: back chevron, the exercise name at `h1.sm`, `⋮` opening the detail-menu sheet. */
 @Composable
 internal fun TopBar(
     state: State,
@@ -109,14 +104,7 @@ internal fun TopBar(
     )
 }
 
-/**
- * `v3-editors.md` §3.1's frame, in its order: tags · record · plan · description · history.
- *
- * The **description** sits after the plan and before the history — ED3's order, where the
- * description follows the screen's main slot — and it carries the image (D-OPEN-9). The **plan**
- * is the set-row card the editor draws (ED2). Both are the frame's placements and not this
- * file's: move either and this screen stops agreeing with the editor.
- */
+/** `v3-editors.md` §3.1's frame, in its order: tags · record · plan · description · history. */
 @Composable
 private fun Body(
     state: State,
@@ -127,15 +115,11 @@ private fun Body(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                // Content scrolls out UNDER the dock; the clearance keeps the last block
-                // reachable above it.
+                // Content scrolls out UNDER the dock; the clearance keeps the last block reachable.
                 .padding(bottom = DOCK_CLEARANCE),
         ) {
             TagMetaLine(tags = state.tags)
-            // §3.1 frame order: the record block sits above the default plan (`.prhero`'s
-            // 6px top margin lands on the tag row's 16px bottom — the lg rung). The whole
-            // hero is the chart entry point; the PR explainer moved to the history row's
-            // record tag (the past-session pattern).
+            // §3.1 frame order: the record block sits above the default plan.
             state.personalRecord?.let { pr ->
                 InGutter(top = AppDimension.Space.lg) {
                     PersonalRecordHero(
@@ -177,14 +161,7 @@ private fun InGutter(
     }
 }
 
-/**
- * §3.1's `meta` line — the tags, on ONE mono line, and **the exercise type is not among them**
- * (ED12). The type is a property of the exercise and is declared once, on the plan head, where it
- * explains the shape of the rows underneath it; a chip here would read as a tag the user applied.
- *
- * The separator is the app's own meta separator — `ExerciseHistoryRow`'s set summary and
- * `.prhero`'s date line both use it — so a meta line looks like a meta line wherever it appears.
- */
+/** §3.1's `meta` line — the tags on ONE mono line; the type is not among them (ED12). */
 @Composable
 private fun TagMetaLine(tags: ImmutableList<AppTagItem>) {
     if (tags.isEmpty()) return
@@ -203,16 +180,7 @@ private fun TagMetaLine(tags: ImmutableList<AppTagItem>) {
 /** `.meta`'s own separator — the middle dot with air either side, as every meta line draws it. */
 private const val META_SEPARATOR = " · "
 
-/**
- * §3.1 — `ПЛАН ПО УМОЛЧАНИЮ` with the type as its trailing label (ED12), over the read-only
- * [PlanSetCard] (ED2). Read and edit draw the same card by ruling (D-OPEN-6).
- *
- * **A section with nothing in it does not render** — the read frame's one rule (S8, the same
- * rule the description block and the history follow). The empty card — head plus a setbar whose
- * «− подход» is disabled — belongs to the editor, where the setbar is a target; read has no
- * target. The type declaration (ED12) leaves with the head: it explains the shape of the rows
- * underneath it, and with no rows there is nothing to explain.
- */
+/** §3.1 — `ПЛАН ПО УМОЛЧАНИЮ` over the read-only [PlanSetCard] (ED2); empty renders nothing. */
 @Composable
 private fun DefaultPlanSection(state: State) {
     if (state.adhocPlan.isNullOrEmpty()) return
@@ -235,21 +203,7 @@ private fun DefaultPlanSection(state: State) {
     }
 }
 
-/**
- * §3.1 — `ОПИСАНИЕ` over the block that carries the description and the picture beside it
- * (D-OPEN-9). The block is built once and the editor consumes the same one; the head stays with
- * the host, whose section rhythm differs from a form's.
- *
- * Read has no picker: an image chosen here would be a `pendingImage` on a screen with no Save.
- * So the block gets the viewer and nothing else.
- *
- * **A section with nothing in it does not render.** Text OR picture puts it on the screen;
- * neither takes the head away with it and `ИСТОРИЯ` follows the plan card directly. The
- * disjunction is the point and an `&&` would be a different screen: a description with no photo,
- * and a photo with no description, are both worth a section. **The dashed placeholder belongs to
- * the editor**, where it is a target you can tap; on read it announces that there is nothing to
- * announce, which is why the whole section leaves rather than the box alone.
- */
+/** §3.1 — `ОПИСАНИЕ` with the picture beside it (D-OPEN-9); read gets the viewer, no picker. */
 @Composable
 private fun DescriptionSection(
     state: State,
@@ -275,16 +229,7 @@ private fun DescriptionSection(
     }
 }
 
-/**
- * §3.5 — the История section: head with the session count as its trailing label, then a
- * full-bleed `.list` ruled ABOVE the first row and BELOW every row (`hair-s` →
- * borderDefault) — deliberately N+1 rules, the drawn conflict with `AppSection`'s
- * between-only rule (extraction C5; reported, not resolved). The record row's trailing
- * tag replaces the chevron and opens the PR explainer.
- *
- * **A section with nothing in it does not render** (S8): zero sessions is nothing to list,
- * so the head goes with the rows and the screen is shorter.
- */
+/** §3.5 — История: the count in the head, full-bleed `.list` with N+1 rules (C5). */
 @Composable
 private fun HistorySection(
     state: State,
@@ -332,11 +277,7 @@ private fun HistoryRule() {
     )
 }
 
-/**
- * `.dock` (§3.6): sticky at the bottom over a `linear-gradient(to top, base 62%,
- * transparent)` scrim, ghost `Изменить` at a fixed 128dp beside the primary
- * `Записать сейчас` taking the rest — same gradient mechanics as live-workout's dock.
- */
+/** `.dock` (§3.6): sticky over a gradient scrim, ghost `Изменить` at 128dp beside the primary. */
 @Composable
 private fun Dock(
     state: State,

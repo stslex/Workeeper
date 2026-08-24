@@ -26,19 +26,8 @@ import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
 
 /**
- * Unit coverage for the consumer-side reactor [RestoreDialogChoiceObserver].
- *
- * Each test stubs a single [AppDialogObserver.observeUserActions] emission, then
- * constructs the SUT on an injected [UnconfinedTestDispatcher] that shares the
- * test scheduler, so the `init { ... launchIn(scope) }` subscription runs under
- * the test's control. `advanceUntilIdle()` drains the reaction before every
- * assertion — a negative assertion (`exactly = 0`) would otherwise pass for a
- * coroutine that simply has not run yet.
- *
- * [RestoreRecoveryCoordinator] is a relaxed mock: its real [restartApp] delegates to
- * `AppReinitializer.reinitialize()`, whose Android actual calls `Runtime.getRuntime().exit(0)`
- * and would kill the test JVM if ever invoked. `restartApp` is non-suspend, so it is
- * asserted with `verify`, not `coVerify`.
+ * Unit coverage for [RestoreDialogChoiceObserver] on a scheduler-sharing test dispatcher.
+ * GUARD: [RestoreRecoveryCoordinator] stays a relaxed mock — the real `restartApp` exits the JVM.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 internal class RestoreDialogChoiceObserverTest {
@@ -111,10 +100,7 @@ internal class RestoreDialogChoiceObserverTest {
     fun `ConfirmUndo Succeeded acknowledges through the onCommitted hook and restarts`() = runTest {
         val dialog = AppDialog.UndoRestoreConfirmation(originalDataDateEpochMs = 123L)
         stubChoice(dialog, AppDialogUserAction.ConfirmUndo)
-        // Real transaction shape: the coordinator runs the observer's onCommitted hook on the
-        // transaction's coroutine before completing. Invoking it here proves the observer's
-        // SUCCESS acknowledge is passed AS that hook — not left as post-await code the
-        // transition's lifetime kill could strand.
+        // Invoking the hook proves the acknowledge is passed as the transaction's onCommitted.
         coEvery { coordinator.performUndoRestore(any()) } coAnswers {
             firstArg<suspend () -> Unit>().invoke()
             UndoRestoreOutcome.Succeeded

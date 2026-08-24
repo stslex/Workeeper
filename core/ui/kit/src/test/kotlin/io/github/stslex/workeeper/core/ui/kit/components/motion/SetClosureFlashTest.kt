@@ -5,19 +5,14 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
 /**
- * The flash-gating rule from §9, stated where it can be tested without a frame clock.
- *
- * `rememberSetClosureVisuals` fires its pulse only on a false -> true transition. The subtlety
- * is that `LaunchedEffect(isDone)` ALSO runs on first composition, so keying on the value alone
- * flashes every already-completed set whenever a session loads or a completed card is collapsed
- * and reopened — a burst of wow moments for work the user finished minutes ago.
+ * GUARD: the set-closure pulse fires only on a false -> true transition — keying on `isDone`
+ * alone would flash every already-completed set whenever a session loads.
  */
 internal class SetClosureFlashTest {
 
     @Test
     fun `an already-done row entering composition does not flash`() {
-        // The regression this pins. `wasDone` is seeded from the CURRENT value precisely so
-        // the first composition is a no-op whichever state the row arrives in.
+        // `wasDone` is seeded from the current value, so first composition is always a no-op.
         assertEquals(false, closedJustNow(previous = true, current = true))
     }
 

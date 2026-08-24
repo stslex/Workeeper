@@ -15,12 +15,8 @@ import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorSto
 import kotlinx.collections.immutable.ImmutableList
 
 /**
- * Full-screen plan editor. Holds the draft set list, owns the WEIGHTED / WEIGHTLESS type for
- * [Mode.Exercise], and persists to the DB on its own Save.
- *
- * **Creation does not come through here.** An exercise that has no persisted UUID is built on the
- * exercise form, which hosts [PlanEditorBody] inline — one screen, no route hop, no payload
- * handed back. This store serves the two modes that edit something already on disk.
+ * Full-screen editor for a plan already on disk: holds the draft set list, owns the type for
+ * [Mode.Exercise], and persists on its own Save. Creation never routes here.
  */
 interface PlanEditorStore : Store<State, Action, Event> {
 
@@ -38,7 +34,6 @@ interface PlanEditorStore : Store<State, Action, Event> {
         val dialogState: DialogState,
     ) : Store.State {
 
-        /** True when the working type or draft differ from their initial values. */
         val isDirty: Boolean
             get() = draft != initialDraft || type != initialType
 
@@ -46,15 +41,8 @@ interface PlanEditorStore : Store<State, Action, Event> {
             get() = type == ExerciseTypeUiModel.WEIGHTED
 
         /**
-         * The route's BackHandler intercepts when there are unsaved edits or a modal is open.
-         *
-         * **NO PER-VARIANT EXCEPTION HERE, and one must not be added to route a back press past
-         * an open sheet.** Every modal on this screen is an `AppConfirmSheet`, i.e. a
-         * `ModalBottomSheet`, and that renders in its own `ComponentDialog` window which consumes
-         * system back itself and calls `onDismissRequest` (§26, "Every modal on the three editors
-         * is a SHEET"). A back press with a sheet up therefore never reaches this route at all,
-         * whatever this property says — so an exception here buys nothing and only describes a
-         * flow that cannot happen.
+         * True when the route's BackHandler intercepts: unsaved edits or an open modal. No
+         * per-variant exception — sheets own system back themselves, so one would be unreachable.
          */
         val interceptBack: Boolean
             get() = isDirty || dialogState !is DialogState.Hidden
@@ -63,13 +51,8 @@ interface PlanEditorStore : Store<State, Action, Event> {
         sealed interface Mode {
 
             /**
-             * Editing the plan attached to either a performed-exercise row in a live session
-             * (live workout — [performedExerciseUuid] non-null) or to a training template row
-             * (single-training edit — [performedExerciseUuid] null, [trainingUuid] non-null).
-             * The backing store is always `plan_sets` on `training_exercise_table` keyed by
-             * `(trainingUuid, exerciseUuid)`. When [trainingUuid] is null the exercise is
-             * ad-hoc (live workout adhoc session) and the editor falls back to
-             * `last_adhoc_sets`.
+             * Editing a plan reached through a live session or a training row. Storage is keyed on
+             * [trainingUuid]: null falls back to `last_adhoc_sets`. See architecture.md.
              */
             @Stable
             data class PerformedExercise(
@@ -78,11 +61,7 @@ interface PlanEditorStore : Store<State, Action, Event> {
                 val trainingUuid: String?,
             ) : Mode
 
-            /**
-             * Editing the default plan attached to a persisted exercise (no live session, no
-             * training association). The backing store is `exercise_table.last_adhoc_sets`
-             * and `exercise_table.type`.
-             */
+            /** Editing a persisted exercise's own default plan: `last_adhoc_sets` + `type`. */
             @Stable
             data class Exercise(val exerciseUuid: String) : Mode
         }
@@ -155,11 +134,8 @@ interface PlanEditorStore : Store<State, Action, Event> {
             data object Back : Navigation
 
             /**
-             * Pop after a successful save in [Mode.Exercise] / [Mode.PerformedExercise].
-             * The NavigationHandler writes the
-             * `plan-editor-saved` flag to the previous backstack entry's
-             * SavedStateHandle so the caller (Live workout, Single training,
-             * Exercise detail) reloads its plan-driven state on resume.
+             * Pop after a successful save; the NavigationHandler flags the caller's backstack
+             * entry so it reloads its plan-driven state on resume.
              */
             data object BackAfterSave : Navigation
         }

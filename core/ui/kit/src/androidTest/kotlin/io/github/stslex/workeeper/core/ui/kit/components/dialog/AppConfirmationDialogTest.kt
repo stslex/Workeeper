@@ -18,14 +18,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * `@Smoke` by the taxonomy: `createComposeRule` with state passed straight into the widget, no
- * DI container, no database, no Activity (`documentation/testing.md` → "Categorization with
- * `@Smoke` and `@Regression`"). Two things must hold together for this annotation to select
- * anything: it is declared here, and `:core:ui:test-utils` stays on this module's androidTest
- * classpath — androidx.test silently DROPS ui_tests.yml's filter when it cannot load the
- * annotation class it names, which runs every test here in both suites. `detektAndroidTestSuite`
- * and `verifyInstrumentedSuiteClasspath` gate the two halves
- * (`documentation/feature-specs/kmp-phase-0-instrumented-filter.md` → "The gate").
+ * GUARD: `@Smoke` only selects while `:core:ui:test-utils` stays on this androidTest classpath
+ * — androidx.test silently drops the filter otherwise. See kmp-phase-0-instrumented-filter.md.
  */
 @Smoke
 @RunWith(AndroidJUnit4::class)
@@ -70,7 +64,6 @@ class AppConfirmationDialogTest {
 
     @Test
     fun dismissLabelHiddenWhenNull() {
-        // Single-action dialog: dismissLabel null → only confirm button rendered.
         composeTestRule.setContent {
             AppTheme {
                 AppConfirmationDialog(
@@ -107,10 +100,7 @@ class AppConfirmationDialogTest {
 
     @Test
     fun strictDismissPropertiesAreRespectedByConstruction() {
-        // Strict (`dismissOnBackPress = false`) mode is enforced by the caller via
-        // `properties`. The widget forwards properties unchanged — verified by
-        // instantiating with restrictive properties and observing that the dialog
-        // still renders its confirm path.
+        // The widget forwards `properties` unchanged; strict mode must not break the confirm path.
         val strict = DialogProperties(
             dismissOnBackPress = false,
             dismissOnClickOutside = false,

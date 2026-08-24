@@ -19,52 +19,23 @@ import kotlinx.collections.immutable.persistentListOf
 
 interface ExerciseChartStore : Store<State, Action, Event> {
 
-    /**
-     * Why the chart canvas is not currently rendered. Four distinct cases drive four
-     * distinct empty-state UIs and CTAs — never collapse them into a single "isEmpty"
-     * flag, the recovery action differs.
-     */
+    /** Why the chart canvas is not rendered. Four cases, four different recovery actions. */
     @Stable
     enum class EmptyReason {
         /** Fresh install or no finished sessions ever — no exercises to pick from. */
         NO_FINISHED_SESSIONS,
 
-        /**
-         * `initialUuid` was provided but the exercise is not in the picker list (archived,
-         * permanently deleted, or its only performed rows are skipped / set-less). Picker
-         * stays accessible — it is the user's recovery path.
-         */
+        /** `initialUuid` was given but the exercise is not in the picker list. */
         EXERCISE_NOT_FOUND,
 
-        /**
-         * An exercise is selected but produced fewer than two points for the active preset
-         * window (§4.8: the chart appears after two recorded sessions — one point is no
-         * line, so sub-threshold is this state, not a degenerate chart). Picker stays
-         * accessible; preset chips stay accessible — a wider window may show data.
-         */
+        /** Selected, but fewer than [State.MIN_CHART_POINTS] points in the preset window. */
         NO_DATA_FOR_EXERCISE,
 
-        /**
-         * A read threw, so there is no answer — as opposed to an answer of "nothing". This is
-         * the only reason whose recovery is to ask again, and it is the reason [Content] can
-         * resolve at all after a failure: without it the load leaves `emptyReason` null and no
-         * points, which is [Content.Loading] forever, and the route draws nothing.
-         */
+        /** A read threw: no answer rather than an answer of "nothing". Recovery is a retry. */
         LOAD_FAILED,
     }
 
-    /**
-     * What the screen may draw right now — **the single decision**, derived once on
-     * [State] rather than inferred at the call site from three fields.
-     *
-     * The canvas exists only under [Plot], and [Plot] is unreachable unless the dataset is
-     * actually plottable. That is the invariant: no state can be emitted in which an
-     * unplottable dataset reaches the draw phase. The old screen inferred the branch from
-     * `isLoading` / `points.isEmpty()` / `emptyReason` independently, and a sub-threshold
-     * one-point dataset satisfied none of the guards — it composed the canvas, which drew
-     * its four gridlines and bailed, so a metric tap on a one-session exercise showed a
-     * bare grid with stale footer numbers for the whole DB round-trip.
-     */
+    /** What the screen may draw — one decision, so an unplottable dataset never reaches draw. */
     @Stable
     sealed interface Content {
 
@@ -88,17 +59,11 @@ interface ExerciseChartStore : Store<State, Action, Event> {
         val metric: ChartMetricUiModel,
         val points: ImmutableList<ChartPointUiModel>,
         val footerStats: ChartFooterStatsUiModel?,
-        // The scrubbed point (§4.5/§4.6): drives the readout and the canvas's scrub line +
-        // enlarged point. Defaults to the last (most recent) point on load; a metric switch
-        // preserves the same session, while a preset/exercise switch resets it.
+        // The scrubbed point (§4.5/§4.6); a metric switch preserves it, a preset switch resets.
         val activeIndex: Int?,
         val readout: ChartReadoutUiModel?,
         val isPickerOpen: Boolean,
-        /**
-         * The picker's filter-as-you-type text. Only the query is state: the filtered list
-         * is a pure function of it and [recentExercises], derived where it is drawn, so the
-         * two can never disagree. Reset whenever the sheet opens or closes.
-         */
+        /** The picker's filter-as-you-type text; reset whenever the sheet opens or closes. */
         val pickerQuery: String,
         val emptyReason: EmptyReason?,
     ) : Store.State {
@@ -106,16 +71,7 @@ interface ExerciseChartStore : Store<State, Action, Event> {
         val showMetricToggle: Boolean
             get() = selectedExercise?.type == ExerciseTypeUiModel.WEIGHTED
 
-        /**
-         * See [Content]. A resolved reason wins over a stale dataset, and a dataset that
-         * cannot be drawn never reaches [Content.Plot].
-         *
-         * `isLoading` deliberately does not participate: while a reload is in flight the
-         * previous **resolved** content stays on screen — which is what lets the canvas
-         * retarget its animations from where the line already is instead of tearing the
-         * chart down and rebuilding it. A reload that resolves to nothing lands on
-         * [Content.Empty] without ever passing through a blank frame.
-         */
+        /** See [Content]. `isLoading` stays out: a reload keeps the resolved content drawn. */
         val content: Content
             get() = when {
                 emptyReason != null -> Content.Empty(emptyReason)
@@ -133,10 +89,7 @@ interface ExerciseChartStore : Store<State, Action, Event> {
                 initialUuid = initialUuid,
                 selectedExercise = null,
                 recentExercises = persistentListOf(),
-                // The chart is an exploration surface — show the full picture by default
-                // and let the user narrow with a preset chip when focusing. A 3M default
-                // hid older history and produced a "no data" branch on long-dormant
-                // exercises that actually had data.
+                // The chart is an exploration surface: show the full picture by default.
                 preset = ChartPresetUiModel.ALL,
                 metric = ChartMetricUiModel.HEAVIEST_WEIGHT,
                 points = persistentListOf(),
@@ -165,11 +118,7 @@ interface ExerciseChartStore : Store<State, Action, Event> {
             data class OnPickerItemSelect(val uuid: String) : Click
             data class OnPickerQueryChange(val query: String) : Click
 
-            /**
-             * The §4.6 scrub gesture: the canvas mapped a pointer x to the nearest point
-             * index. The handler dedups (a repeat of the current index is a no-op) and owns
-             * the per-crossing haptic tick.
-             */
+            /** The §4.6 scrub gesture; the handler dedups repeats and owns the haptic tick. */
             data class OnScrub(val index: Int) : Click
             data object OnEmptyCtaClick : Click
             data object OnRetryLoad : Click

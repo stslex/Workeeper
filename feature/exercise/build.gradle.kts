@@ -1,25 +1,19 @@
 plugins {
     alias(libs.plugins.convention.composeLibrary)
-    // Collider — @DefaultDispatcher + @MainImmediateDispatcher (both CoroutineDispatcher) + Context.
-    // The Screen.Exercise route arg enters as a @Provides bound instance on the extension factory
-    // (shape B), so the graph's root accessor is the Store itself and there is no assisted machinery.
+    // Collider — two same-typed dispatchers + Context; the route arg is a bound instance (shape B).
     alias(libs.plugins.metro)
-    // Goldens for the exercise-detail surface (extraction Part 3). The harness is NOT copied:
-    // it comes from core:ui:golden-harness, so device config, tolerance and canvas width
-    // cannot drift between modules.
+    // Goldens for the exercise-detail surface; the harness comes from core:ui:golden-harness.
     alias(libs.plugins.paparazzi)
 }
 
-// Metro reads javax.inject qualifiers so the two same-typed dispatchers keep their qualifiers:
-// (type + qualifier) is the Metro binding key → @Default and @MainImmediate resolve distinctly.
+// includeJavax keeps @Default and @MainImmediate distinct as binding keys.
 metro {
     interop {
         includeJavax()
     }
 }
 
-// App-Scope Collapse Step 6 (Phase 3.4): androidTest here is screen-render only (BaseComposeTest, no DI
-// graph, no in-memory DB), so the module uses the convention default AndroidJUnitRunner.
+// androidTest here is screen-render only, so the module uses the convention default runner.
 
 dependencies {
     implementation(project(":core:core"))
@@ -36,8 +30,7 @@ dependencies {
 
     testImplementation(kotlin("test"))
     testImplementation(project(":core:ui:golden-harness"))
-    // The deferred-delete witness (S7): a real in-memory Room DB — the row is the witness,
-    // and only `RepositoryTestEnv` can show it surviving the window.
+    // The deferred-delete witness (S7): only a real in-memory Room DB shows the row survive.
     testImplementation(project(":core:data:database-test"))
 
     androidTestImplementation(libs.bundles.android.test)

@@ -17,12 +17,8 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.EnumSource
 
 /**
- * The mode sheet's CONTENT on the surface it actually sits on (`surfaceTier3`, the
- * `AppBottomSheet` window fill) — the window itself (scrim, grab handle, entrance) renders
- * out of Paparazzi's model and stays on the device checklist, same split as the session
- * sheets. Rendered at `values-ru` because every string on this surface is shipped RU copy
- * ruled verbatim by the arc; an `en`-locale picture would gate the fallback translations
- * instead of the contract.
+ * The mode sheet's content on `surfaceTier3`; the window itself renders outside Paparazzi's
+ * model and stays on the device checklist. Rendered at `values-ru` because the copy is ruled RU.
  */
 internal class StartCardModeSheetGoldenTest {
 

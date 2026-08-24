@@ -12,19 +12,8 @@ import io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotPr
 import io.github.stslex.workeeper.feature.recovery.domain.StartupMigrationFailureReason
 
 /**
- * Wraps [FirebaseCrashlyticsHolder] for the Scenario 2 (startup) recovery
- * non-fatal. Mirrors [RestoreRecoveryReporter] but with the Scenario 2
- * key set per `documentation/feature-specs/backup-recovery.md` →
- * "Crashlytics non-fatals" (`triggered_at = "startup"`,
- * `restore_in_progress = false`, no `backup_version`, plus
- * `startup_failure_reason` and `install_source`).
- *
- * Records a synthetic [StartupMigrationFailure] exception when the
- * pre-flight detected an unrecoverable state via pure file inspection
- * (no Room throw to forward). This is intentional — Crashlytics needs
- * *some* `Throwable` to group reports by, and synthesizing one here
- * makes the dashboard surface the failure mode even though no Room
- * exception was caught.
+ * Crashlytics non-fatal reporter for Scenario 2 (startup) recovery.
+ * See documentation/feature-specs/backup-recovery.md → "Crashlytics non-fatals".
  */
 @SingleIn(AppScope::class)
 internal class StartupMigrationReporter @Inject constructor(
@@ -97,12 +86,7 @@ internal class StartupMigrationReporter @Inject constructor(
     }
 }
 
-/**
- * Synthetic exception used as the `Throwable` payload for Crashlytics
- * when the startup pre-flight detected unrecoverable state via file
- * inspection (no real Room exception was caught). Lives at file scope
- * so Crashlytics groups by class name without dashboard noise.
- */
+/** Synthetic payload for Crashlytics, which groups non-fatals by `Throwable` class. */
 internal class StartupMigrationFailure(
     fromSchema: Int,
     toSchema: Int,

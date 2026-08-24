@@ -24,14 +24,8 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
 
 /**
- * The v3 `.toast` (extraction §1.9): a floating `slab` panel with a hairline ring, a body-rung
- * message in `max`, and an uppercase mono **molten** action — the only place molten appears
- * outside the record surfaces, sanctioned by the mockup's own `Отменить` button. The heavy
- * `0 14px 40px` cast shadow ships in both themes; unlike the lifted surface, the toast floats
- * over dark content too, so the dark theme keeps a real shadow rather than an edge highlight.
- *
- * Presentation (placement, the 5s auto-dismiss, entrance motion) belongs to the host — this
- * is only the panel, which is exactly what makes it goldenable.
+ * The toast panel only: message plus an optional uppercase mono action. Placement, auto-dismiss
+ * and entrance motion belong to the host.
  */
 @Composable
 fun AppToast(
@@ -82,10 +76,9 @@ fun AppToast(
     }
 }
 
-/** `.toast button{letter-spacing:.08em}` at the 12.5 meta rung. */
 private val TOAST_ACTION_TRACKING = 1.sp
 
-/** `box-shadow: 0 14px 40px rgba(0,0,0,.4)` as an elevation; both themes. */
+// The toast floats over dark content, so both themes keep a real cast shadow.
 private val TOAST_SHADOW_ELEVATION = 12.dp
 
 @Preview

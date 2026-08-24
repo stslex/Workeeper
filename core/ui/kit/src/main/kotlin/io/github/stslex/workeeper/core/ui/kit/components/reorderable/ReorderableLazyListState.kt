@@ -13,13 +13,8 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 
 /**
- * State driving a reorderable LazyColumn. The drop target is resolved against the lazy
- * list's `visibleItemsInfo`, so it survives the user scrolling out the source row.
- *
- * Live preview: [displacementFor] returns a non-zero offset for non-dragged items
- * between the source and current target index, so siblings animate out of the way as the
- * drag progresses. `onMove` still fires once on release with the final `(from, to)` —
- * consumers update their list there.
+ * State driving a reorderable LazyColumn; the drop target is resolved against the lazy list's
+ * `visibleItemsInfo`. `onMove` fires once on release with the final `(from, to)`.
  */
 @Stable
 class ReorderableLazyListState internal constructor(
@@ -93,10 +88,7 @@ class ReorderableLazyListState internal constructor(
         if (index < lastIndex) onMoveResolved(index, index + 1)
     }
 
-    /**
-     * Y displacement (in px) for the item at [index] / [key] while another item is being
-     * dragged. See [ReorderableColumnState.displacementFor] for the semantics.
-     */
+    /** Y displacement in px for the item at [index] / [key] while another item is dragged. */
     fun displacementFor(index: Int, key: Any): Float {
         if (key == draggedKey) return 0f
         val from = draggedFromIndex

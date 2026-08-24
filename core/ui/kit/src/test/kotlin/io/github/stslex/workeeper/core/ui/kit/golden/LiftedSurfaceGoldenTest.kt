@@ -18,20 +18,8 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.EnumSource
 
 /**
- * The v3 `--slabtop` lifted surface, **as a pair** — §10.2.
- *
- * A lone lifted golden would assert nothing about when lifting applies: whatever it captured
- * would become the baseline, including "lifted always" or "lifted never". The pair is what
- * carries the claim, and it carries it twice over, because the mechanism inverts by theme:
- *
- * - `[1] LIGHT` resting vs lifted must differ by a **cast shadow** and a `slab` fill;
- * - `[2] DARK` resting vs lifted must differ by a **1dp top-edge highlight** and a `slab` fill.
- *
- * If either mechanism silently stopped working, its theme's two images would converge to the
- * same picture apart from the fill, and the diff against these baselines is what says so.
- *
- * Rendered on `surfaceTier0` deliberately: the light half casts onto the page, and a golden that
- * put it on a card would be measuring a shadow against the wrong backdrop.
+ * The lifted surface as a resting/lifted pair — a lone frame would assert nothing about when
+ * lifting applies. Light lifts by cast shadow, dark by a top-edge highlight.
  */
 internal class LiftedSurfaceGoldenTest {
 
@@ -48,11 +36,8 @@ internal class LiftedSurfaceGoldenTest {
     }
 }
 
-/**
- * Padded on all sides so the light theme's cast shadow has canvas to fall on — `SHRINK` sizes the
- * image to the content, and a shadow drawn outside the specimen's own bounds would otherwise be
- * cropped away by exactly the amount that makes it visible.
- */
+// GUARD: padded on all sides so the light theme's cast shadow has canvas to fall on — SHRINK
+// sizes the image to the content and would crop the very thing under test.
 @Composable
 private fun LiftSpecimen(lifted: Boolean) {
     Box(modifier = Modifier.padding(AppDimension.Space.xl)) {

@@ -17,23 +17,12 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
 /**
- * Replaces the former feature-module `HomeGraphBridgeTest` (a `@GraphExtension` cannot be created
- * standalone, so the assertion must run where the parent [AppGraph] is compiled — here, `:app`).
- *
- * Proves the contributed extension aggregates into the REAL parent graph and inherits its app-scoped
- * bindings by IDENTITY, not copy:
- *  1. the extension resolves `HomeStoreImpl` (constructed via its INTERNAL ctor + internal handlers,
- *     entirely by :app-generated code), and
- *  2. the store's app-scoped deps are the SAME instances the parent graph holds (`===`).
- *
- * home keeps the plain construction assertion its siblings use — unlike [SettingsExtensionIdentityTest],
- * whose Store cannot be built off-device (see STANDING RULE 4 in the arc HANDOFF). Nothing home resolves
- * touches a platform singleton, which is part of why it was chosen as the build-time disambiguator.
+ * Identity claims for the home `@GraphExtension`: it resolves its Store from the real parent
+ * [AppGraph] and inherits app-scoped bindings by identity, not copy.
  */
 internal class HomeExtensionIdentityTest {
 
-    // The real parent graph provides Dispatchers.Main.immediate (DispatchersBindingContainer); a plain
-    // JVM test must install a Main dispatcher before the store constructs.
+    // GUARD: Store construction reads the parent graph's Main.immediate binding.
     @BeforeEach
     fun setUp() {
         Dispatchers.setMain(Dispatchers.Unconfined)
@@ -72,7 +61,6 @@ internal class HomeExtensionIdentityTest {
             .createHomeGraph()
             .homeStore
 
-        // Identity, not just non-null: the extension inherits the parent's app-scoped singletons.
         assertSame(
             appGraph.analyticsHolder,
             store.analyticsHolder,

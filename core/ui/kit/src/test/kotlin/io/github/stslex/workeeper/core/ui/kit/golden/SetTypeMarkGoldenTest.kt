@@ -18,22 +18,8 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.EnumSource
 
 /**
- * The four `.tchip` marks, **in both languages**, and the `.setbar` beneath them.
- *
- * §26 "Set types take their first letter" rules the marks as **the first letter of each type's own
- * name in the current language** — Р / О / Д against W / F / D — and that is a claim no
- * single-locale picture can make. A literal in `AppSetTypeChip` draws `W` over разминка, and no
- * `en`-only frame can see that: at the harness's default locale a literal and a resource render
- * identically.
- *
- * So the Russian frame is not a nicety, it is the only frame that can fail on the defect the
- * ruling names, and the English one beside it is what makes the pair a comparison rather than two
- * pictures. `CyrillicTextGoldenTest` establishes the `LOCALE_RU` idiom; this uses it for a
- * behaviour rather than for a script.
- *
- * The bar is in the same frames because its labels localise too («+ подход» / «+ set») and because
- * the drawn `opacity:.35` disabled half has no other instrument — a handler test cannot see an
- * alpha.
+ * The set-type marks in both languages, plus the set bar. GUARD: only the RU frame can fail on
+ * a hardcoded set-type letter — at the default locale a literal and a resource render alike.
  */
 internal class SetTypeMarkGoldenTest {
 
@@ -66,8 +52,7 @@ private fun Marks() {
             onAdd = {},
             onRemove = {},
         )
-        // The empty-draft foot: «− подход» at the drawn `opacity:.35`, beside the enabled pair
-        // above it, because a disabled control alone in a frame shows no step.
+        // The disabled half, beside the enabled pair — alone in a frame it would show no step.
         AppSetBar(
             addLabel = stringResource(R.string.core_ui_kit_setbar_add),
             removeLabel = stringResource(R.string.core_ui_kit_setbar_remove),

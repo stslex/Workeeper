@@ -183,8 +183,7 @@ internal class ChartFolderTest {
 
     @Test
     fun `setCount counts sets the chart cannot plot`() {
-        // Eligibility picks the session's winner; it must not shrink the set count. A weighted
-        // set logged without a weight is unplottable but was still performed.
+        // Eligibility picks the winner; it must not shrink the set count.
         val result = bucketAndFold(
             history = listOf(
                 entry(
@@ -309,20 +308,13 @@ internal class ChartFolderTest {
         assertEquals("in-window", result.points.single().sessionUuid)
     }
 
-    // DST-pinned window-boundary tests. These run in a real DST-observing zone
-    // (America/New_York) at that zone's actual 2026 transition dates, with `now` near local
-    // midnight — the only conditions under which the epoch-millis <-> local-calendar-day
-    // window-start conversion can drift a day. The existing suite runs in UTC (no DST) and so
-    // can never exercise this class of bug.
+    // DST-pinned window-boundary tests: a real DST zone (America/New_York) at its 2026
+    // transitions, with `now` near local midnight. The rest of the suite runs in UTC.
 
     @Test
     fun `MONTH_1 filter tracks calendar days across a DST spring-forward`() {
-        // 2026-03-08 springs forward (a 23h day). With `now` just after local midnight, a naive
-        // `now - 30 * 24h` boundary drifts back an hour, across the transition, onto the
-        // PREVIOUS calendar day — and would admit an entry the calendar window excludes. The
-        // filter is the surviving observable (the render window died with date-spacing), so
-        // the claim is inclusion: the boundary is 30 CALENDAR days before now, local time
-        // preserved (2026-02-18 00:30), not the naive 02-17 23:30.
+        // 2026-03-08 springs forward. A naive `now - 30 * 24h` boundary drifts back onto the
+        // previous calendar day and would admit an entry the calendar window excludes.
         val nyZone = ZoneId.of("America/New_York")
         val now = zonedMillis(nyZone, 2026, 3, 20, hour = 0, minute = 30)
 
@@ -352,10 +344,8 @@ internal class ChartFolderTest {
 
     @Test
     fun `MONTH_1 filter tracks calendar days across a DST fall-back`() {
-        // 2026-11-01 falls back (a 25h day). With `now` just before local midnight, a naive
-        // `now - 30 * 24h` boundary drifts forward an hour, onto the NEXT calendar day — and
-        // would drop an entry the calendar window includes. Correct boundary: 10-16 23:30;
-        // naive: 10-17 00:30. The 10-17 00:00 entry discriminates.
+        // 2026-11-01 falls back. A naive boundary drifts forward onto the next calendar day
+        // and would drop an entry the calendar window includes; 10-17 00:00 discriminates.
         val nyZone = ZoneId.of("America/New_York")
         val now = zonedMillis(nyZone, 2026, 11, 15, hour = 23, minute = 30)
 
@@ -455,8 +445,7 @@ internal class ChartFolderTest {
 
     @Test
     fun `volume tie inside one session keeps the earlier position`() {
-        // A drop set ties with itself: every set of a session shares one finishedAt, so the
-        // position order the history query delivers is what decides, via a stable sort.
+        // A drop set ties with itself; position order from the history query decides.
         val result = bucketAndFold(
             history = listOf(
                 entry(
@@ -512,9 +501,8 @@ internal class ChartFolderTest {
 
     @Test
     fun `session volume excludes ineligible sets from the sum but not from setCount`() {
-        // A weight-null set on a WEIGHTED exercise contributes nothing — coercing it to 0.0
-        // would be invisible in a sum, but the shared eligibility floor is the rule, not an
-        // arithmetic accident. The zero-rep set is the discriminating case either way.
+        // A weight-null set on a WEIGHTED exercise contributes nothing: the shared eligibility
+        // floor is the rule, not an arithmetic accident.
         val result = bucketAndFold(
             history = listOf(
                 entry(

@@ -34,47 +34,8 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 
 /**
- * The mockup's `.field` — a value and its unit on a recessed panel (extraction §1.6).
- *
- * ## The value is `dataValue` — blocker B1, landed
- *
- * `.data-l` is 25px Archivo `wdth 115 / wght 700` → the 26 rung, named
- * `AppTypography.dataValue`. At 26sp bold the WCAG threshold is **3:1**, which retires the
- * measurement that used to sit here: at the previous 19sp/600 the value owed 4.5:1 and molten
- * could not pay it in light (4.14). At this rung the mockup's colour ramp ships as drawn:
- *
- *  - resting: `textTertiary`. The mockup paints `--idle`, whose light value (#7C858F) sits at
- *    3.11:1 on the field — inside quantisation noise of the 3:1 line — and whose dark value IS
- *    `meta`'s hex. Same correction §2.4 applied to light `meta`: the mockup was drawn, not
- *    measured; the pending value uses the meta value in both themes. The brightness principle
- *    survives — pending is dimmer than done.
- *  - done ([isDone]): `textPrimary` — `.set.done .data-l{color:var(--max)}`.
- *  - logged ([isLogged]): `textPrimary` on the **plain** `surfaceTier3` field — the past
- *    session's inline override (`pass2d.html:306`, `style="color:var(--max)"` on every
- *    ordinary row). A past set is complete by construction, so its value takes full
- *    contrast, but it is *not* "done-during-a-session": the `donefill` wash marks the act
- *    of completing, and a finished record carries no such act. Colour without the wash.
- *  - record ([isRecord]): `record.textPrimary` — `.set.pr .data-l{color:var(--molten)}`,
- *    legal at TITLE. Record wins over done and logged, as in the stylesheet (`.pr` is
- *    declared after `.done`, and the past markup omits its inline override on the PR row).
- *
- * ## The washes replace the fill — blocker B7, landed
- *
- * `.set.done .field{background:var(--donefill)}` and `.set.pr .field{background:var(--molten-bg)}`
- * **replace** the field tier; the translucent wash composites over the card behind the row
- * (`sec`, or `slab` when the card is lifted). An earlier revision stacked the record wash on
- * `surfaceTier3` because the done ROW washed `surfaceTier4` behind it and the CSS-faithful
- * composite failed on that backdrop (3.99 dark). B7 removed the row wash — the backdrop that
- * failed no longer exists, and over the card tiers every pair clears its threshold
- * (`ContrastContract`, the `donefill` and `record.background` rows `over` tier1/tier2).
- *
- * No default border: the mockup's field is recessed by tier alone. The error outline remains.
- *
- * ## [suffix] is not the set rows' unit
- *
- * Set rows carry their unit in `SetColumnHeader`, never here: a suffix takes intrinsic width
- * ahead of the `weight(1f)` value, a priority inversion their measured budget cannot pay
- * (set-field-column-headers.md §5). [suffix] serves the roomier `PlanSetCard` rows (§4 D4).
+ * The mockup's `.field`: a value and its unit on a recessed panel, with done / logged / record
+ * colour and wash variants. See documentation/feature-specs/set-field-column-headers.md.
  */
 @Composable
 fun AppNumberInput(
@@ -112,10 +73,8 @@ fun AppNumberInput(
         label = "field-bg",
     )
     val shape = RoundedCornerShape(AppDimension.Radius.small)
-    // [fieldInset] is an EXPLICIT choice by the consumer, never a measured-width threshold:
-    // a width trigger is calibrated to today's geometry and becomes a silent tripwire under
-    // any future width change (set-field-column-headers.md §7a).
-    // Set rows pass `SetRowGeometry.compactFieldInset`; everything else keeps Space.md.
+    // [fieldInset] is an explicit consumer choice, never a measured-width threshold, which would
+    // become a silent tripwire under any future width change.
     Row(
         modifier = modifier
             .clip(shape)
@@ -131,29 +90,20 @@ fun AppNumberInput(
                     base
                 }
             }
-            // heightIn, not height: 48dp is the floor the mockup draws, but at fontScale
-            // above ~1.5 the 26sp value's line height exceeds it and a hard height would
-            // clip vertically what this component exists to stop clipping horizontally.
+            // GUARD: heightIn, not height — above ~fontScale 1.5 the 26sp line height exceeds
+            // 48dp and a hard height would clip vertically.
             .heightIn(min = AppDimension.heightMd)
             .padding(horizontal = fieldInset),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // BoxWithConstraints rather than Box: the slot width is a *measured input* — it feeds
-        // the rung choice below, and [valueSlotProbe] reports it with the resolved style to the
-        // overflow gate (test-only; production never passes it). Overflow cannot be read off the
-        // rendered field instead: BasicTextField measures singleLine at infinite width and clips
-        // inside its scroll layer (set-field-column-headers.md §6). Alignment gates read this
-        // field's left edge from the semantics tree — do not add an `onGloballyPositioned` node
-        // here for a test-only capture; it dispatches on every scroll frame of a live session.
+        // BoxWithConstraints, not Box: the slot width feeds the rung choice and [valueSlotProbe]
+        // (test-only). GUARD: no `onGloballyPositioned` here — it fires on every scroll frame.
         BoxWithConstraints(modifier = Modifier.weight(1f)) {
             val slotWidthPx = constraints.maxWidth
             val valueStyle = resolveValueStyle(value = value, slotWidthPx = slotWidthPx)
             valueSlotProbe?.invoke(slotWidthPx, valueStyle)
-            // Aliased before the semantics block: a bare `contentDescription` inside the
-            // receiver is a self-assign (the AppExerciseThumb note). A field built on
-            // BasicTextField owes its name explicitly — with the unit living in the column
-            // header, this label is the only thing telling TalkBack WHICH field this is
-            // (set-field-column-headers.md §4 D6).
+            // Aliased before the semantics block: a bare `contentDescription` in the receiver
+            // is a self-assign.
             val fieldLabel = accessibilityLabel
             BasicTextField(
                 modifier = Modifier.semantics {
@@ -170,12 +120,7 @@ fun AppNumberInput(
         }
         suffix?.let {
             val unitColor by animateColorAsState(
-                // The mockup's `.unit` is `--dim` in every state. Measured, that fails on the
-                // washes: over a LIFTED card (slab) in dark, `textDim` lands at 4.40 (record
-                // wash) / 4.45 (donefill) against the 4.5 an 11sp label owes — the same
-                // failure B7 exists to close, one backdrop later. On washed fields the unit
-                // promotes one step to `textSecondary`; a completed row brightening as a
-                // whole is §1's principle, not a contradiction of it.
+                // GUARD: `textDim` fails 4.5:1 over the washes; the unit promotes one step there.
                 targetValue = if (isRecord || isDone) {
                     AppUi.colors.textSecondary
                 } else {
@@ -196,20 +141,8 @@ fun AppNumberInput(
 }
 
 /**
- * The rung the value renders at, decided by MEASUREMENT ahead of layout
- * (set-field-column-headers.md §4 D5): the first ladder rung whose single-line advance
- * fits the slot, through the same text stack that will draw it. A glyph-count heuristic
- * does not belong here — it is open-loop in both directions.
- *
- * Acyclic by construction: [slotWidthPx] is the parent flex split's decision, so the
- * chosen style cannot feed back into the constraint — no reflow loop, no oscillation.
- * `onTextLayout` stays a test oracle only.
- *
- * The ladder floor is contrast-pinned at the 19sp section rung: below ~18.66sp bold a
- * value owes 4.5:1, which the record molten (light theme) and the pending
- * `textTertiary` colours cannot pay — no lower rung may be added. A value that exceeds
- * even the floor overflows into the field's scroll layer rather than shrinking into
- * illegibility; those cells are ledgered (§7).
+ * The rung the value renders at, measured ahead of layout through the same text stack that draws
+ * it. The ladder floor is contrast-pinned at 19sp; see set-field-column-headers.md §4 D5.
  */
 @Composable
 private fun resolveValueStyle(value: String, slotWidthPx: Int): TextStyle {

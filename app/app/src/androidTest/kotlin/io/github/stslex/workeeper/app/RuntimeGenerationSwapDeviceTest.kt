@@ -32,30 +32,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * THE PER-GENERATION GREEN DEVICE GATE (Phase 5 R2, `kmp-phase-5-startup-processor.md` §11.2):
- * the full `RebuildInProcess` replacement transaction over the COMPLETE production database
- * factory ([buildAppDatabase]: production driver + full migrations chain), the real Metro
- * [buildAppGraph], and the real [StartupProcessor] preflight — no fakes on the database path.
- *
- * One flow exercises BOTH replacement operations as two consecutive cycles
- * (restore → rollback), proving:
- *  1. a real inode-changing production swap (Os.stat before/after each cycle);
- *  2. the old generation's DB/DAO are unusable after close — LOUD (pool-closed), never stale;
- *  3. a newly built `AppDatabase` + newly resolved DAO see NEW and not OLD;
- *  4. graph dependencies resolve from the new DB generation (the new graph's snapshot provider
- *     reads schema through the NEW database — a provider still bound to the closed generation
- *     would throw pool-closed here);
- *  5. repeated replacement cycles work (two consecutive swaps, three generations);
- *  6. the known-negative (§7 protocol): bypassing the swap with a graph-only transition turns
- *     the sentinel assertions red — executed and reverted, not committed.
- *
- * BOUNDARY OF THE CLAIM (deliberately narrow): the runtime host is built directly — no Activity,
- * no composition, no WorkManager, no [io.github.stslex.workeeper.harness.MetroTestRule]. The
- * transaction's quiesce stages therefore run over EMPTY populations (zero UI attachments, zero
- * admitted worker leases): this test proves the inode swap, the terminal close, and the fresh
- * Room generation's coherence — it does NOT prove the UI-disposal handshake or the lease drain
- * against live members. Those are pinned by [AppRuntimeUiHandshakeDeviceTest] (composed, real
- * `AppRuntime` behind the app shell) and the JVM suites' gate/lease tests respectively.
+ * The `RebuildInProcess` replacement transaction over the production database factory, real graph
+ * and real preflight. No UI here — the live-disposal half is [AppRuntimeUiHandshakeDeviceTest].
  */
 @Regression
 @RunWith(AndroidJUnit4::class)
@@ -93,7 +71,7 @@ internal class RuntimeGenerationSwapDeviceTest {
 
     @Test
     fun greenGate_restoreThenRollback_coherentGenerationHandover() = runBlocking {
-        // ---------- Cycle 1: RESTORE ----------
+        // Cycle 1: restore.
         val genOne = runtime.currentGeneration
         val daoOne = genOne.database.tagDao
         daoOne.insert(TagEntity(name = SNAPSHOT_SENTINEL))
@@ -108,12 +86,9 @@ internal class RuntimeGenerationSwapDeviceTest {
         val genTwo = (restore as? ReplacementOutcome.Completed)?.generation
             ?: fail_("restore transaction must complete; got $restore")
 
-        // (1) real inode-changing swap
         assertNotEquals("restore must install a new inode", inodeBeforeRestore, liveDbInode())
-        // (2) the old generation fails LOUD, never stale
         assertOldGenerationFailsLoud(genOne)
         assertFalse("old lifetime must have ended", genOne.lifetime.isActive)
-        // (3) new AppDatabase + newly resolved DAO see NEW, not OLD
         assertNotSame(genOne.database, genTwo.database)
         val namesAfterRestore = genTwo.database.tagDao.searchByPrefix(SENTINEL_PREFIX).map { it.name }
         assertTrue(
@@ -124,11 +99,10 @@ internal class RuntimeGenerationSwapDeviceTest {
             "new generation must NOT serve the live-only sentinel; got $namesAfterRestore",
             namesAfterRestore.contains(LIVE_ONLY_SENTINEL),
         )
-        // (4) graph dependencies resolve from the NEW DB generation
         val schemaViaNewGraph = genTwo.graph.databaseSnapshotProvider.currentSchemaVersion()
         assertTrue("new graph's provider must read through the new db", schemaViaNewGraph > 0)
 
-        // ---------- Cycle 2: ROLLBACK ----------
+        // Cycle 2: rollback.
         val daoTwo = genTwo.database.tagDao
         val reserved = assertSuccess(
             "reserveRollbackSnapshot",
@@ -162,12 +136,11 @@ internal class RuntimeGenerationSwapDeviceTest {
             null,
             genThree.graph.databaseSnapshotProvider.getPreRestoreBackupFile(),
         )
-        // (5) repeated cycles: three coherent generations, monotonically advancing ids
         assertTrue(genThree.id > genTwo.id && genTwo.id > genOne.id)
         assertTrue(genThree.dbGeneration > genTwo.dbGeneration)
     }
 
-    /** §11.2 point 2 — the terminal generation throws loud pool-closed; it never serves stale rows. */
+    /** The terminal generation throws loud pool-closed; it never serves stale rows. */
     private suspend fun assertOldGenerationFailsLoud(old: RuntimeGeneration) {
         val result = runCatching { old.database.tagDao.searchByPrefix(SENTINEL_PREFIX) }
         val error = result.exceptionOrNull()

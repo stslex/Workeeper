@@ -42,68 +42,8 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 
 /**
- * The v3 `.tf` — the typing field (extraction §7.2). **Outlined, and not filled.**
- *
- * ## Why it is not `.field`
- *
- * `AppNumberInput` is the mockup's `.field`: the session's tap-to-enter value box, with no caret,
- * no label and no error. It is not the referent for a thing you type into, so this component is
- * its own drawing rather than a variant of that one. The two differ in every property that
- * matters — fill, outline, type family, what happens when the value is wrong.
- *
- * ## Geometry, derived rather than transcribed (§0.2)
- *
- * - `background:none` → **no fill**. The page tier shows through; on a sheet, the sheet does.
- *   There is no container colour: outlined *and* filled is two treatments doing one job.
- * - radius 12px → **8dp** (`Radius.small`). The 12 rung does not exist (extraction E7) and every
- *   site rounds it down with its reason at the site, as `AppIconButton` already does.
- * - `min-height:52px` → **48dp** (`heightMd`), the same way `.field`'s own 52 resolves.
- * - `.tf.multi{min-height:96px}` → **96dp**, which is `heightMd × 2` exactly. Multiline is the
- *   same box, taller: [singleLine] moves one height and nothing else. **No call site sets its own
- *   height** — a field that does not own its multiline size gets a different number at every host.
- * - padding `14px 12px` → **12dp** on both axes, and a multiline field aligns its text to the
- *   **top** rather than centring it.
- *
- * ## The outline, and the ONE deliberate divergence from the drawing
- *
- * The drawing paints the outline **`--idle`** and this paints **`borderDefault`**, on purpose.
- * `--idle` maps to [io.github.stslex.workeeper.core.ui.kit.theme.AppColors.textDisabled], which
- * `ContrastContract` declares **EXEMPT** — WCAG carves disabled controls out of the non-text
- * requirement — so painting an *enabled* field's outline with it is wrong on the semantics and
- * would drag every `textDisabled` pair into the gate to make it right. `borderDefault` is
- * `*_CONTROL_OUTLINE`, the slot the app created when `--hair-s` forced the same move (B19's
- * non-mapping). Both clear the 3:1 an enabled outline owes, measured with the gate's arithmetic:
- * `--idle` **6.40 dark / 3.49 light** on `--base`, `borderDefault` **4.09 / 3.60**. The rejected
- * `--hair-s` candidate measures **1.51 / 1.35**. Full table and reasoning: §26 "The editors' text
- * field", extraction §7.2. **Do not "fix" this to `textDisabled`.**
- *
- * Four outline states, and only two of them are drawn:
- *
- * | State | Colour | Width | Drawn? |
- * |---|---|---|---|
- * | resting, enabled | `borderDefault` | 1dp | yes — `.tf` |
- * | error | `status.error` | **1.5dp** | yes — `.tf.err` |
- * | focused | `accent` | 1dp | **no** |
- * | disabled | `borderSubtle` | 1dp | **no** |
- *
- * The error width is the second half of the signal: the same contour is changing colour, and
- * weight is what makes that legible without adding an element. It is why this is a
- * [BasicTextField] and not an `OutlinedTextField` — M3 exposes border thickness only through
- * `OutlinedTextFieldDefaults.Container`, and only as focused/unfocused, so an *unfocused* error
- * would have drawn at 1dp.
- *
- * Error beats focus: an error is the more important thing the outline can be saying, and the two
- * cannot be shown at once by one contour.
- *
- * The focused and disabled states are **not drawn anywhere** and are kept rather than invented
- * away. Dropping the focus tint would remove a real affordance (WCAG 2.4.7) to satisfy a drawing
- * that is silent about it, and §0.1 gives the drawing what it draws, not what it omits.
- *
- * ## The label is above the field, and this component does not draw one
- *
- * **There is no `label` parameter and there must not be one.** M3's floating label is drawn nowhere
- * in either mockup; the form puts a `.flabel` above the box — see `AppFieldLabel`, which is where
- * that treatment lives.
+ * The v3 `.tf` typing field: outlined, never filled. GUARD: no `label` parameter (the label is a
+ * sibling `AppFieldLabel`) and the outline stays `borderDefault`, never `textDisabled`.
  */
 @Suppress("LongParameterList")
 @Composable
@@ -134,21 +74,15 @@ fun AppTextField(
     val outlineWidth = if (isError && enabled) FIELD_ERROR_BORDER else AppDimension.Border.small
     val contentColor = if (enabled) AppUi.colors.textPrimary else AppUi.colors.textTertiary
     val minHeight = if (singleLine) AppDimension.heightMd else MULTILINE_MIN_HEIGHT
-    // WCAG/TalkBack: the outline is the sighted signal and this is the other one. M3's
-    // `OutlinedTextField` sets it from `isError` internally (`TextFieldImpl.kt`), so a field built
-    // on `BasicTextField` owes it explicitly or an invalid box announces as an ordinary one.
+    // M3 sets error semantics from `isError` internally; a `BasicTextField` owes it explicitly.
     val errorMessage = stringResource(R.string.core_ui_kit_field_error)
     BasicTextField(
         modifier = modifier
             .fillMaxWidth()
             .semantics {
                 if (isError) error(errorMessage)
-                // The drawn `.flabel` is a SIBLING node, so it names the field on screen and not
-                // to a screen reader — with a value present the placeholder is gone too, and the
-                // field announces its text and its role without ever saying which field it is.
-                // `OutlinedTextField(label = …)` made that association itself; a `BasicTextField`
-                // owes it explicitly. Every caller that draws an `AppFieldLabel` passes the same
-                // string here.
+                // `.flabel` is a SIBLING node, so it names the field on screen but not to
+                // TalkBack. Every caller drawing an `AppFieldLabel` passes the same string here.
                 if (accessibilityLabel != null) contentDescription = accessibilityLabel
             },
         value = value,
@@ -184,9 +118,7 @@ fun AppTextField(
                         Text(
                             text = placeholder,
                             style = AppUi.typography.text.body,
-                            // `.tf.ghosty` is `--dim`. Declared at BODY in `ContrastContract`
-                            // alongside the CAPTION row it already had — same 4.5:1 either way,
-                            // but the slot names what is painted.
+                            // `.tf.ghosty` is `--dim`, declared at BODY in `ContrastContract`.
                             color = AppUi.colors.textDim,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
@@ -207,7 +139,7 @@ fun AppTextField(
     )
 }
 
-/** `.tf.err{border-width:1.5px}` — off the `Border` ladder on purpose; see the KDoc. */
+/** `.tf.err{border-width:1.5px}` — off the `Border` ladder: width is half the error signal. */
 private val FIELD_ERROR_BORDER: Dp = 1.5.dp
 
 /** `.tf.multi{min-height:96px}` — `heightMd × 2`, so the rung is the one below it doubled. */

@@ -17,15 +17,8 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.EnumSource
 
 /**
- * The whole scale on one page: six steps, three families.
- *
- * A type scale reviewed as a diff of numbers is not reviewed. This makes it a picture, so the
- * six rungs can be judged against each other — and against the next step's mockups — at a
- * glance. It is also the golden most likely to expose render nondeterminism, since it carries
- * more glyphs than anything else in the set.
- *
- * **The Archivo column is digits only.** That is O2, not an aesthetic choice: the family has
- * no Cyrillic coverage, so a specimen that fed it words would be modelling a violation.
+ * The whole type scale on one page: six rungs, three families. The Archivo column is digits
+ * only — the family has no Cyrillic coverage, so words there would model a violation.
  */
 internal class TypeSpecimenGoldenTest {
 

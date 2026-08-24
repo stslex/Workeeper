@@ -18,38 +18,22 @@ import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.collections.immutable.toImmutableMap
 
-/**
- * Set-level state mutator: every transition that rewrites `performedSets`,
- * `setDrafts`, or `exercise.status` runs through here. Owns the recompute pipeline
- * (status mapper + presentation + visible-row resolver) so handlers stay focused on
- * action dispatch, side effects, and IO.
- *
- * `@SingleIn(LiveWorkoutScope)` (Metro; formerly Hilt `@ViewModelScoped`) — one instance per
- * `LiveWorkoutStoreImpl`.
- */
+/** Set-level mutator for every `performedSets` / `setDrafts` / status transition. */
 @Inject
 @SingleIn(LiveWorkoutScope::class)
 internal class LiveSetMutator(
     private val statusMapper: StateStatusMapper,
 ) {
 
-    /**
-     * Re-runs the status pipeline against the current state. Used by error-revert
-     * paths to drop optimistic mutations and resnap statuses from `performedSets`.
-     */
+    /** Re-runs the status pipeline; used by error-revert paths to drop optimistic edits. */
     fun recomputeStatuses(state: State): State = statusMapper.recomputeStatuses(state)
 
     fun findExercise(state: State, performedExerciseUuid: String): LiveExerciseUiModel? =
         state.exercises.firstOrNull { it.performedExerciseUuid == performedExerciseUuid }
 
     /**
-     * Visible-row seed *with draft priority* for paths that read the row the user is
-     * about to commit (mark-done). Priority: draft > performed > plan > fallback. The
-     * draft-first priority is intentional and differs from the visible-row resolver
-     * (`performed > draft > plan > fallback`): mark-done captures user input still in
-     * the draft layer; performed winning here would freeze the row's previous values.
-     * In normal flow the row is undone when mark-done fires, so performed is absent
-     * and the two priorities collapse.
+     * Visible-row seed for mark-done. Priority draft > performed > plan > fallback, inverted
+     * against the visible-row resolver on purpose — performed would freeze the old values.
      */
     fun draftFor(state: State, performedExerciseUuid: String, position: Int): LiveSetUiModel {
         val key = State.DraftKey(performedExerciseUuid, position)
@@ -171,15 +155,8 @@ internal class LiveSetMutator(
     }
 
     /**
-     * `+ подход` (extraction §1.7): appends a row directly after the last VISIBLE one,
-     * seeded by copying it (`addSet` copies the last set's w/r — session-v3f.html:423) and
-     * never marked as a record (`addSet` omits `pr`). The row-count override moves with it,
-     * so an exercise the user truncated grows back one row at a time rather than snapping
-     * to the plan length.
-     *
-     * Statuses are recomputed because §6.4 says adding a set to a COMPLETED exercise
-     * returns it to incomplete — the fresh unfilled row breaks `isDoneLive` and the card
-     * re-derives. Returns `state` unchanged on a stale dispatch.
+     * `+ подход`: appends a row after the last visible one, seeded by copying it and never
+     * marked as a record. Statuses recompute so a completed exercise returns to incomplete.
      */
     fun applyAddSet(state: State, performedExerciseUuid: String): State {
         val exercise = findExercise(state, performedExerciseUuid) ?: return state
@@ -201,9 +178,8 @@ internal class LiveSetMutator(
             isDone = false,
         )
         val key = State.DraftKey(performedExerciseUuid, nextPosition)
-        // Rows first, statuses second: `isDoneLive` reads `visibleSets`, so the fresh row
-        // must be resolved before the DONE derivation runs or a completed exercise stays
-        // completed (§6.4's rule would silently not fire).
+        // GUARD: rows first, statuses second — `isDoneLive` reads `visibleSets`, so the new
+        // row must be resolved before the DONE derivation runs.
         return state.copy(
             setDrafts = (state.setDrafts + (key to seed)).toImmutableMap(),
             rowCountOverrides = (state.rowCountOverrides + (performedExerciseUuid to nextPosition + 1))
@@ -218,13 +194,7 @@ internal class LiveSetMutator(
         val removedPerformedPosition: Int?,
     )
 
-    /**
-     * `− подход` (§6.4): removes the LAST visible row — always the last, middle deletion is
-     * not planned — even when it is a done set (the mockup's `delSet` pops regardless,
-     * session-v3f.html:429). Refuses to go below one row; the setbar disables the button
-     * there and this guard backs it. The plan is untouched: truncation lives entirely in
-     * [State.rowCountOverrides].
-     */
+    /** `− подход`: removes the LAST visible row; truncation lives in the row-count override. */
     fun applyRemoveLastSet(state: State, performedExerciseUuid: String): RemoveLastSetResult {
         val exercise = findExercise(state, performedExerciseUuid)
             ?: return RemoveLastSetResult(state, null)
@@ -258,13 +228,7 @@ internal class LiveSetMutator(
         )
     }
 
-    /**
-     * §6.1 skip: a reversible flag, NOT a destructive reset — performed sets and drafts all
-     * survive, which is what makes `Вернуть в сессию` lossless. Un-skipping seeds the row
-     * PENDING and lets the status pipeline re-derive DONE/CURRENT from the preserved sets.
-     * (The earlier revision wiped sets here; the confirmation dialog that guarded that wipe
-     * is gone with it — extraction §6.1/C9.)
-     */
+    /** Skip is a reversible flag, not a reset: performed sets and drafts all survive. */
     fun applySkipToggle(state: State, performedExerciseUuid: String, skipped: Boolean): State {
         val rebuilt = state.exercises.map { exercise ->
             if (exercise.performedExerciseUuid == performedExerciseUuid) {

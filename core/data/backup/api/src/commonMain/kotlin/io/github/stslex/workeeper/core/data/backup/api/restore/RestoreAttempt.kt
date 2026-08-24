@@ -7,10 +7,7 @@ data class RestoreAttempt(
     val id: String,
     val kind: Kind,
     val phase: Phase,
-    /**
-     * The manifest context of a [Kind.Restore] attempt (Crashlytics keys + the undo UI's
-     * "your data will revert to …" date). Null for [Kind.Rollback] attempts.
-     */
+    /** Manifest context of a [Kind.Restore] attempt; null for [Kind.Rollback]. */
     val context: RestoreInProgressContext?,
     /** Reserved rollback path; authoritative for this prepared attempt. */
     val rollbackSnapshotPath: String?,

@@ -11,18 +11,8 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.EnumSource
 
 /**
- * The section, which is the structure the whole step rests on.
- *
- * Three separate goldens rather than one, because they answer three different questions and a
- * single combined image would let a regression in one hide inside the noise of another:
- *
- *  - [sectionWithHeader] — air above, a single label, rows, hairlines **between** rows only. The
- *    thing to look for is the absence of a rule above the first row and below the last: section
- *    separation is carried by the gutter and the label, not by a line.
- *  - [sectionWithBothLabels] — the two-label head. Left and right are the same rung, baseline
- *    aligned, with the right one carrying a count.
- *  - [rowHeights] — the two row heights side by side, so the 88.dp / 64.dp split is visible as a
- *    geometric fact rather than asserted in a comment.
+ * The section structure, in three goldens rather than one so a regression in the header, the
+ * two-label head or the row heights cannot hide inside another's noise.
  */
 internal class SectionGoldenTest {
 
@@ -57,12 +47,8 @@ internal class SectionGoldenTest {
 }
 
 /**
- * The row's three states of height, stacked: single-line (64.dp), title plus supporting (88.dp),
- * and a title long enough to wrap to the second line the 88.dp was derived for.
- *
- * The third is the one that matters. If the arithmetic in `AppDimension.rowHeight` is right, the
- * wrapped row is exactly as tall as the two-line row above it — the height was chosen to hold two
- * lines, so reaching two lines must not grow it.
+ * The row's three heights stacked: single-line, title plus supporting, and a title long enough
+ * to wrap - the wrapped row must be exactly as tall as the two-line row above it.
  */
 @Composable
 private fun RowHeightSpecimen() {

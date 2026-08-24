@@ -21,42 +21,19 @@ import org.junit.jupiter.api.Test
 import kotlin.reflect.KClass
 
 /**
- * The navigation-result contract: a destination declares what it hands back, a producer
- * hands one back, and the consumer reads it at that type.
- *
- * **Written against the contract, not against the transport.** Every assertion is about
- * [ScreenWithResult] semantics — what the type is, when a result is present, when it is
- * `null`, when it is delivered, when it is cleared, and whether two destinations can
- * collide. None of that depends on how the value physically travels, so this file is the
- * witness that the contract still holds when the transport underneath is replaced.
- *
- * **One line knows the transport: [transport].** That is the seam. Change that factory and
- * every assertion here stays exactly as written; if one then fails, the behaviour moved.
- *
- * What is NOT covered here, and why: `NavResults.OnResult` is a `@Composable` and needs a
- * composition to run, which this module's unit tests have no host for. Its two behaviours
- * — deliver only on a non-null result, and clear after delivering — are the composition of
- * [NavResults.result] and [NavResults.clear], and both are covered directly, including the
- * full re-arm cycle.
+ * The navigation-result contract: what a destination hands back, and when it reads as present,
+ * cleared, or absent. Written against [ScreenWithResult] semantics, not against the transport.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 internal class NavigationResultContractTest {
 
-    /**
-     * The only transport-aware line in this file — see the class KDoc.
-     *
-     * Point it at a different transport and nothing else in this file moves.
-     */
+    /** The only transport-aware line in this file; point it elsewhere and nothing else moves. */
     private fun transport(): Pair<NavResults, TestProducer> {
         val source = InMemoryNavResultsSource()
         return NavResults(source) to TestProducer(source)
     }
 
-    /**
-     * The post-swap transport, in miniature: the same keyed nullable-StateFlow shape
-     * `NavigatorEventBus` implements in `:app:app`. This class changing at the swap while every
-     * assertion below stayed as written is the whole reason this file exists — see the class KDoc.
-     */
+    /** The transport in miniature: the keyed nullable-StateFlow shape `NavigatorEventBus` has. */
     private class InMemoryNavResultsSource : NavResultsSource {
 
         private val flows = mutableMapOf<String, MutableStateFlow<Any?>>()
@@ -76,13 +53,8 @@ internal class NavigationResultContractTest {
     }
 
     /**
-     * Stands in for `Navigator.popBackWithResult`, whose real implementation lives in
-     * `:app:app` and needs a live back stack to pop.
-     *
-     * It is not a hand-rolled stand-in for the *key*, which is the part that matters: it
-     * calls the same [NavResultKey.of] production calls, so producer and consumer agree
-     * here for the same reason they agree in production. If that agreement broke, these
-     * tests would fail rather than pass against a private convention.
+     * Stands in for `Navigator.popBackWithResult`, which needs a live back stack to pop. It calls
+     * the production [NavResultKey.of], so producer and consumer agree as they do in production.
      */
     private class TestProducer(private val source: NavResultsSource) {
 
@@ -109,8 +81,7 @@ internal class NavigationResultContractTest {
 
         producer.produce(Screen.PlanEditor::class, true)
 
-        // The declared type is what makes this assignment compile: PlanEditor is
-        // ScreenWithResult<Boolean>, so `saved` is Boolean? with no cast at the call site.
+        // PlanEditor is ScreenWithResult<Boolean>, so `saved` is Boolean? with no cast.
         val saved: Boolean? = results.result(Screen.PlanEditor::class).first()
         assertEquals(true, saved)
     }
@@ -170,15 +141,8 @@ internal class NavigationResultContractTest {
     }
 
     /**
-     * A sealed destination and one of its variants are different channels.
-     *
-     * `Screen.PlanEditor` is what both sides of the plan-editor result pass, while the route
-     * registered and popped is the concrete `Existing` — the runtime type never enters the
-     * key, only the reference passed does. Narrowing one side to the variant would still
-     * compile and still typecheck, and the result would simply stop arriving; per the
-     * `.catch { onError(it) }` swallow in `AppCoroutineScopeImpl`, silently.
-     *
-     * Pinned here so that stops being a matter of everyone remembering.
+     * GUARD: producer and consumer must pass the same KClass — a parent and its variant are
+     * different result channels, and a mismatch fails silently.
      */
     @Test
     fun `a destination and its variant do not share a result channel`() {

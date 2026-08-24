@@ -81,8 +81,7 @@ internal class ClickHandler @Inject constructor(
 
     private fun processBackClick() {
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
-        // Spec dismissal order: picker → empty-finish dialog → name edit → plan-editor
-        // dirty → default back.
+        // Dismissal order: picker → empty-finish dialog → name edit → default back.
         val current = state.value
         if (current.bottomSheetState is BottomSheetState.ExercisePicker) {
             pickerHandler.invoke(ExercisePickerAction.OnDismiss)
@@ -93,13 +92,11 @@ internal class ClickHandler @Inject constructor(
             return
         }
         if (current.isTrainingNameEditing) {
-            // Submit on back so the keyboard dismiss flow persists changes (per A1
-            // "save on blur via tap-out, IME Done, or back-dismissed keyboard").
+            // Submit on back so a back-dismissed keyboard still persists the edit.
             processTrainingNameSubmit(Action.Click.OnTrainingNameSubmit(current.trainingNameDraft))
             return
         }
-        // Leaving the screen closes the undo window — the deferred §6.1 delete commits now
-        // rather than dying with the Store.
+        // GUARD: leaving closes the undo window; the deferred delete must commit here.
         flushPendingUndo(interactor)
         consume(Action.Navigation.Back)
     }
@@ -122,17 +119,12 @@ internal class ClickHandler @Inject constructor(
         val trimmed = action.text.trim()
         val current = state.value
         val trainingUuid = current.trainingUuid
-        // Blank submit closes the editor without touching the persisted name. State is
-        // left unchanged so the header keeps showing whatever was loaded — placeholder
-        // when trainingName is blank, the saved value otherwise. Writing "" to the DB
-        // would clobber a previously-saved name on next reload.
+        // Blank submit must not write "" — that would clobber a previously-saved name.
         if (trimmed.isBlank()) {
             updateState { latest -> latest.copy(isTrainingNameEditing = false) }
             return
         }
-        // Snapshot pre-edit values so a write failure can revert the optimistic update;
-        // otherwise State carries the new name while the DB still holds the old one and
-        // the next reload silently undoes the user's input.
+        // Snapshot pre-edit values so a write failure can revert the optimistic update.
         val previousName = current.trainingName
         val previousLabel = current.trainingNameLabel
         updateState { latest ->
@@ -160,9 +152,7 @@ internal class ClickHandler @Inject constructor(
     }
 
     private fun processTrainingNameDismiss() {
-        // Revert path — used when the keyboard is dismissed without commit (we currently
-        // route every blur through Submit, so this fires only from explicit Cancel triggers
-        // a future iteration may wire up).
+        // Revert path; every blur routes through Submit, so only an explicit Cancel hits it.
         updateState { current ->
             current.copy(
                 isTrainingNameEditing = false,
@@ -232,8 +222,7 @@ internal class ClickHandler @Inject constructor(
         val performed = exercise.performedSets.firstOrNull { it.position == action.position }
         val nextType = action.type.next()
         if (performed != null && performed.isDone) {
-            // For a checked set, type changes are persisted immediately so the saved set
-            // matches what the user sees. The optimistic UI update below keeps it instant.
+            // A checked set persists type changes at once so the saved set matches the UI.
             updateState { latest ->
                 setMutator.applySetTypeChange(
                     latest,
@@ -299,11 +288,7 @@ internal class ClickHandler @Inject constructor(
         )
     }
 
-    /**
-     * `− подход` (§6.4). Always the last visible row; the mutator refuses below one row.
-     * When the removed row was persisted (a done set), the DB row goes with it — same
-     * optimistic shape as [processSetUncheck].
-     */
+    /** `− подход`: always the last visible row; a persisted row's DB row goes with it. */
     private fun processRemoveLastSet(action: Action.Click.OnRemoveLastSet) {
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
         val prior = state.value
@@ -350,8 +335,7 @@ internal class ClickHandler @Inject constructor(
         updateState { it.copy(bottomSheetState = BottomSheetState.Hidden) }
         val current = state.value
         val exercise = setMutator.findExercise(current, action.performedExerciseUuid) ?: return
-        // The plan editor is a full-screen route that hands back a typed result; the graph
-        // forwards it as Action.Common.PlanResultReceived, and a save re-reads planSets.
+        // The plan editor is a full-screen route; its result arrives as PlanResultReceived.
         consume(
             Action.Navigation.OpenPlanEditor(
                 performedExerciseUuid = exercise.performedExerciseUuid,
@@ -376,11 +360,7 @@ internal class ClickHandler @Inject constructor(
         }
     }
 
-    /**
-     * §6.1 / extraction C9: skip is a reversible in-place TOGGLE — no confirmation, no
-     * snackbar, nothing destroyed. The dialog this used to open guarded a set wipe that no
-     * longer happens; `Пропустить упражнение` ⇄ `Вернуть в сессию` is the whole flow.
-     */
+    /** Skip is a reversible in-place toggle — no confirmation, nothing destroyed. */
     private fun processSkipExerciseToggle(action: Action.Click.OnSkipExercise) {
         sendEvent(Event.HapticImpact(HapticFeedbackType.LongPress))
         val current = state.value
@@ -417,11 +397,7 @@ internal class ClickHandler @Inject constructor(
         }
     }
 
-    /**
-     * `Только на сегодня` (extraction §1.9): flips plan attachment live behind the open
-     * sheet — no snapshot, no toast, exactly the mockup's `toggleOnce`. Non-ad-hoc sessions
-     * only; the sheet never offers the row otherwise.
-     */
+    /** `Только на сегодня`: flips plan attachment behind the open sheet; non-ad-hoc only. */
     private fun processToggleOneOff(action: Action.Click.OnToggleOneOff) {
         sendEvent(Event.HapticClick(HapticFeedbackType.SegmentTick))
         val current = state.value
@@ -497,9 +473,7 @@ internal class ClickHandler @Inject constructor(
         flushPendingUndo(interactor)
         val current = state.value
         if (current.isSessionEmpty) {
-            // E1 lock — empty-finish branches into a confirm dialog. Discard CTA is enabled
-            // only when the parent training is ad-hoc, so library training sessions get the
-            // Continue-editing-only variant.
+            // The Discard CTA is enabled only when the parent training is ad-hoc.
             updateState {
                 it.copy(
                     dialogState = DialogState.EmptyFinish(
@@ -554,22 +528,7 @@ internal class ClickHandler @Inject constructor(
         }
     }
 
-    /**
-     * The only producer of manual disclosure intent (§7). It records what the user asked for
-     * and lets `DisclosureAutomaton` decide what is expanded — this handler no longer writes
-     * `expandedExerciseUuids` itself, so the transition table stays the single description of
-     * the behaviour.
-     *
-     * A tap is a toggle against the *currently rendered* state, so tapping an auto-expanded
-     * card collapses it (rule 2) and tapping a completed card opens it (rule 3), which is the
-     * only way its add/remove-set buttons become reachable.
-     */
-    /**
-     * The amended disclosure model, complete (spec §7 superseded by decision): a header tap
-     * flips this card's membership in the open set, and nothing else happens anywhere — no
-     * active-set bookkeeping, no status recompute, no side effects on other cards. Skipped
-     * cards toggle like any other; the contract carries no exceptions.
-     */
+    /** A header tap flips this card's membership in the open set; nothing else happens. */
     private fun processExerciseHeaderClick(action: Action.Click.OnExerciseHeaderClick) {
         updateState { current ->
             val uuid = action.performedExerciseUuid

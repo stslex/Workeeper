@@ -12,12 +12,8 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
- * The unfilled-set predicate (§6.1) and the count the finish dialog states.
- *
- * The distinction being pinned: `reps <= 0` is the "not entered" sentinel, and a row carrying
- * it is only unfilled while it is also **not done**. A done row always has `reps > 0` because
- * `ClickHandler.processSetMarkDone` rejects anything else, so the `!isDone` clause is a guard
- * against a future writer, not a currently reachable case.
+ * The unfilled-set predicate (§6.1) and the count the finish dialog states; the `!isDone`
+ * clause is a guard against a future writer, not a reachable case today.
  */
 internal class UnfilledSetTest {
 
@@ -33,8 +29,7 @@ internal class UnfilledSetTest {
 
     @Test
     fun `a done row is never unfilled even at zero reps`() {
-        // Not reachable through the UI today; pinned so a future writer cannot make a done
-        // row silently vanish from the record at finish.
+        // Pinned so a future writer cannot make a done row vanish from the record at finish.
         assertFalse(setRow(reps = 0, isDone = true).isUnfilled)
     }
 
@@ -56,8 +51,6 @@ internal class UnfilledSetTest {
                 status = ExerciseStatusUiModel.PENDING,
                 sets = listOf(setRow(reps = 0, isDone = false), setRow(reps = 0, isDone = false)),
             ),
-            // Skipped rows are already outside the progress denominator; counting them would
-            // overstate what the user is about to lose.
             exercise(
                 uuid = "pe-3",
                 status = ExerciseStatusUiModel.SKIPPED,

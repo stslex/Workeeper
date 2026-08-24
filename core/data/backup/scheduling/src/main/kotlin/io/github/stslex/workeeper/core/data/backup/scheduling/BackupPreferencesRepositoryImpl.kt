@@ -20,27 +20,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
 /**
- * Metro-owned via `@ContributesBinding(AppScope)`, which the app-scope `AppGraph` auto-aggregates
- * (interface-bound → the single supertype `BackupPreferencesRepository` is the implicit bound type).
- * `@SingleIn(AppScope)` gives a process-lifetime single owner.
- *
- * `public` (was `internal`): Metro 1.1.1 rejects a cross-Gradle-module `@ContributesBinding` on an
- * `internal` class — the merged graph in `:app:app` cannot extend an internal contribution from another
- * module (MergedContributionChecker `isInternalInFriendModule`; verified in the B4 spike — internal,
- * `@PublishedApi internal`, and both `@ContributesTo`-container shapes all fail). Only public aggregates.
- * The widening is narrow: the override methods were already public via the interface; only the class and
- * constructor visibility change.
- *
- * Mint the store through [DataStoreProviderFactory] only. A `DataStore` is a per-file singleton whose
- * memoization is process-lifetime while this class is graph-lifetime, so a second `AppGraph` that built
- * its own store would throw `IllegalStateException: There are multiple DataStores active` on the second
- * read. Pinned by `app/app` androidTest `AppScopeDataStoreSingletonTest`.
- *
- * Bind the `internal` primary constructor in unit tests, not the provider: the provider's map outlives
- * the test that populated it and leaks state into the next one.
- *
- * Mechanism, the file-path identity argument and the red-first evidence:
- * `documentation/tech-debt.md` -> "DataStore singleton bypass".
+ * DataStore-backed [BackupPreferencesRepository] over `backup_scheduling_prefs`.
+ * GUARD: mint the store via [DataStoreProviderFactory] only. See documentation/tech-debt.md.
  */
 @ContributesBinding(AppScope::class)
 @SingleIn(AppScope::class)

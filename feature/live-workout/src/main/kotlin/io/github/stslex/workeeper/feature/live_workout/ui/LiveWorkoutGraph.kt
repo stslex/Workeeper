@@ -22,8 +22,6 @@ fun NavGraphScope.liveWorkoutGraph(
 ) {
     navComponentScreenWithResults(LiveWorkoutFeature) { results, processor ->
 
-        // The plan editor returned. Forwarding is all this does: whether the result means
-        // the session must be re-read is the Store's decision, not this composable's.
         results.OnResult(Screen.PlanEditor::class) { saved ->
             processor.consume(Action.Common.PlanResultReceived(saved))
         }
@@ -45,11 +43,8 @@ fun NavGraphScope.liveWorkoutGraph(
 
         val loadFailedMessage = stringResource(R.string.feature_live_workout_error_session_load_failed)
 
-        // Driven by STATE, not by an event: a failure that resolves before this collector exists
-        // would be dropped by a replay-free event flow, and the dropped case is the dangerous one
-        // (see `State.loadFailed`). Both steps run here, in this order, so the message reaches the
-        // app-scoped SnackbarManager — which outlives this destination — before the pop that
-        // disposes this composition is asked for.
+        // GUARD: state, not an event (a replay-free flow would drop it), and the snackbar must
+        // be shown before the pop. See documentation/architecture.md.
         if (processor.state.value.loadFailed) {
             LaunchedEffect(Unit) {
                 SnackbarManager.showSnackbar(message = loadFailedMessage)
@@ -57,11 +52,8 @@ fun NavGraphScope.liveWorkoutGraph(
             }
         }
 
-        // §26's route gate. GUARD: this screen's emptiness predicate reads `exercises.isEmpty()`
-        // and nothing else, so composing it before `isLoading` clears makes it assert "No exercises
-        // yet" — headline, CTA and all — over a session that may be full. `loadFailed` is in the
-        // predicate for the same reason: a failed load clears `isLoading`, and without this the
-        // screen would render that same lie for as long as the pop takes.
+        // GUARD: §26's route gate needs both flags — the screen's emptiness predicate is
+        // `exercises.isEmpty()` alone, so composing early asserts an empty session.
         AppLoadedContent(
             isLoaded = with(processor.state.value) { isLoading.not() && loadFailed.not() },
         ) {

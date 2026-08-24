@@ -6,22 +6,8 @@ import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 
 /**
- * The tail wiring, which no golden can see.
- *
- * §26 "Paging tails": three states, **two drawings**. The two footers are photographed; *when* they
- * appear was not, and the hole was measured rather than suspected — deleting the `LoadState.Error`
- * branch from the screen's `LazyListScope` block left every golden byte-identical. A whole-screen
- * golden cannot reach an append-error state: Paparazzi renders one frame of a `PagingData.from`
- * source, which never appends and never fails.
- *
- * Found on the sibling screen, and the identical hole was open here. The decision is extracted to
- * [pagingTailKind] on both and asserted on both. §27's class: name the thing the picture cannot
- * contain, and assert the value itself.
- *
- * [PagingTailKind.NONE] carries **both** exhausted and idle, and that is the drawing — "конец
- * списка" states nothing beyond what is already visible, so the absence *is* the treatment. It is
- * asserted, not assumed, because "no footer" is the one outcome a missing branch produces by
- * accident.
+ * The tail wiring, which no golden can see: Paparazzi renders one frame of a `PagingData.from`
+ * source, which never appends and never fails. [PagingTailKind.NONE] covers exhausted and idle.
  */
 internal class PagingTailKindTest {
 

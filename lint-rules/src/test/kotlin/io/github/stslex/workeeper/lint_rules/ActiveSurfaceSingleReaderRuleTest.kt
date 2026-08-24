@@ -8,18 +8,12 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 /**
- * The rule keys on the file's path, so every fixture is compiled *at a path*.
- *
- * `Rule.lint(String)` synthesises a virtual file at an internal location, which no path predicate
- * can match — a test written that way would pass for the wrong reason, reporting a violation
- * because the fixture is nowhere rather than because the call is misplaced. `lintAt` below uses the
- * same `compileContentForTest(content, path)` route `DomainLayerPurityRuleTest` established.
+ * Coverage for [ActiveSurfaceSingleReaderRule]. GUARD: the rule keys on the file path, so every
+ * fixture is compiled at a path — `lint(String)` would pass for the wrong reason.
  */
 internal class ActiveSurfaceSingleReaderRuleTest {
 
     private val rule = ActiveSurfaceSingleReaderRule()
-
-    // ---- known-NEGATIVE anchors: each one compiles and looks reasonable, and MUST flag ----
 
     @Test
     fun `a second call site in another feature is flagged`() {
@@ -158,8 +152,6 @@ internal class ActiveSurfaceSingleReaderRuleTest {
                 "file next to it is an unguarded way to raise a second surface.",
         )
     }
-
-    // ---- known-POSITIVE anchors: the intended usage must not be flagged ----
 
     @Test
     fun `the permitted reader passes`() {

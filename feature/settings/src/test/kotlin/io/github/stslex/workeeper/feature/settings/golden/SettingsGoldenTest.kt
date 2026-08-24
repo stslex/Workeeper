@@ -17,19 +17,8 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.EnumSource
 
 /**
- * The settings golden suite. The BASELINE commit (S0) records the pre-rebuild surface —
- * `SettingsSection`'s 2dp bordered boxes in the About → Appearance → Backup → Data order,
- * radio-button theme rows, `AppButton.Secondary` backup rows — so each Part-5 rebuild
- * commit reads as an image diff.
- *
- * Fixture data mirrors `pass2d.html` §`s-set` where the mockup draws it (the account row's
- * placeholder email/name, daily schedule, three stored backups) so the final
- * element-by-element pass holds golden beside mockup with no renaming.
- *
- * Out of model, per the harness KDoc: the three `DialogState` surfaces — both
- * `AppConfirmDialog`s and the `FrequencyPickerBottomSheet` are windows (§10.4, device
- * checklist). The `RestoreProgressOverlay` is NOT a window (a scrim `Box` in the root) and
- * is recorded in both variants.
+ * The settings golden suite. The three `DialogState` surfaces are windows and out of the
+ * harness's model; `RestoreProgressOverlay` is not, so both its variants are recorded.
  */
 internal class SettingsGoldenTest {
 
@@ -49,12 +38,7 @@ internal class SettingsGoldenTest {
         }
     }
 
-    /**
-     * The mseg thumb's transient pair (§10.2): both travel endpoints — the default frames
-     * hold the thumb on the first stop (SYSTEM); this one parks it on the last (DARK) with
-     * the sub-line following («Тёмная»). The lift/colour transitions between stops are
-     * time-based and outside the gate.
-     */
+    /** The segmented thumb's far travel endpoint; the default frames hold the near one. */
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
     fun screenThemeDark(theme: GoldenTheme, testInfo: TestInfo) {
@@ -109,16 +93,11 @@ private fun baseState(): State = State.initial(
     appVersion = "1.48.0",
     appVersionCode = 49,
 ).copy(
-    // The Appearance group's second row (HS5): fixture holds the default so the sub-line
-    // renders «Неделя» rather than the pre-emission blank.
+    // Fixture holds the default so the sub-line renders rather than the pre-emission blank.
     startCardMode = StartCardModeUi.WEEK,
 )
 
-/**
- * The fullest signed-in surface: account row, auto-backup with a next-run line, AI export
- * on, backup info, and the conditional revert row — every branch `BackupSection` can show
- * at once.
- */
+/** The fullest signed-in surface: every branch `BackupSection` can show, at once. */
 private fun signedInState(): State = baseState().copy(
     backupAuth = BackupAuthUi.Authenticated(
         email = "user@example.com",

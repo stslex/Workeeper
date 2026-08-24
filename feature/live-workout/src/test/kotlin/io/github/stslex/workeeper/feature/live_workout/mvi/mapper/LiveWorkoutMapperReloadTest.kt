@@ -13,16 +13,8 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
 /**
- * Locks the load path's position propagation: a `SetDomain` stored at position N
- * surfaces in the UI at the same position, regardless of how many other
- * positions are populated. Without that, sparse-position state (e.g. only the
- * 5th set of a 5-set plan marked done) collapses into the first row on reload
- * because the mapper rebuilds positions from the input list index.
- *
- * Cases 4 and 5 also lock the load-path "exercise is done" rule for adhoc:
- * performed positions are part of `expectedPositions`, so an adhoc exercise
- * with sparse done-sets and no drafts (drafts are not persisted) is DONE iff
- * every performed-position row is done.
+ * Locks the load path's position propagation: a set stored at position N surfaces at
+ * position N, however sparse the rest. Cases 4 and 5 add the adhoc load-path done rule.
  */
 internal class LiveWorkoutMapperReloadTest {
 
@@ -100,8 +92,7 @@ internal class LiveWorkoutMapperReloadTest {
 
     @Test
     fun `adhoc partial - empty plan, single done at position 0, status is DONE`() {
-        // Reload has no drafts, so expectedPositions = performed positions only.
-        // Single performed-and-done at pos 0 → DONE.
+        // Reload has no drafts, so expectedPositions is the performed positions only.
         val performed = listOf(
             SetDomain(
                 uuid = "set-0",
@@ -120,7 +111,6 @@ internal class LiveWorkoutMapperReloadTest {
 
     @Test
     fun `adhoc full sparse - empty plan, performed positions 2 and 4, status is DONE`() {
-        // expectedPositions = {2, 4}; both performed-and-done → DONE.
         val performed = listOf(
             SetDomain(
                 uuid = "set-2",

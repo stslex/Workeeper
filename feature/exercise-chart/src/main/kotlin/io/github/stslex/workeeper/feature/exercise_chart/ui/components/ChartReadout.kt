@@ -30,20 +30,8 @@ import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartReadoutUiModel
 
 /**
- * The mockup's `.readout` (extraction §4.5) — the persistent inspection block that replaces
- * the tap tooltip: metric name and the active point's caption on the left, the value and its
- * unit on the right, the two columns bottom-aligned (`align-items:flex-end`).
- *
- * Type, derived (§0.2): the label is the kit `AppLabel` (the mockup's `.label` — uppercase
- * mono 11, `--dim`), prefixed with the 8dp molten `.mdot` (9px → 8 rung) when the active
- * point is the record. The caption is `.meta` — **mono** 12.5, `--meta`. The value is
- * `.data-hero` at its inline 38px → the 34 rung, `numeric.display` (Archivo `wdth 116` — the
- * hero's drawn `wdth 122` is a width the single bundled cut does not carry, B3's
- * reinstatement note covers it; its declared −.02em stays off the numeric slots per B4). The
- * unit is `.unit` at its inline 14px → 15 rung, mono, `--dim`.
- *
- * `min-height:78px` has no rung (extraction reports it; nearest are 72/80) — kept literal
- * at 80dp so a one-line caption and the record's three-part caption measure the same block.
+ * The mockup's `.readout` (extraction §4.5): the persistent inspection block — metric name
+ * and caption on the left, value and unit on the right, bottom-aligned.
  */
 @Composable
 internal fun ChartReadout(

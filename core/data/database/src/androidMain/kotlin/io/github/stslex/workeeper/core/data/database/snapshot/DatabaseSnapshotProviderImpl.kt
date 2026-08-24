@@ -91,8 +91,7 @@ public class DatabaseSnapshotProviderImpl @Inject constructor(
             val target = preRestoreBackupFile()
             val staging = File(target.parentFile, "$PRE_RESTORE_BACKUP_NAME.promoting")
             try {
-                // Copy keeps the Prepared journal's reservation recoverable through promotion.
-                // Serialized promotions never read `.promoting`; delete stale staging first.
+                // Copy, not move: the journal's reservation stays recoverable through promotion.
                 staging.delete()
                 reservation.copyTo(staging, overwrite = true)
                 // Keep the canonical slot until replacement content is safely staged.
@@ -119,11 +118,8 @@ public class DatabaseSnapshotProviderImpl @Inject constructor(
     override suspend fun preserveDbBeforeMigration(): File? = withContext(dispatcher) {
         val source = context.getDatabasePath(AppDatabase.NAME)
         if (!source.exists()) return@withContext null
-        // Checkpoint the WAL via a direct SQLite open so committed-but-unsynced rows
-        // make it into the snapshot. We cannot go through `appDatabase.openHelper`
-        // here — that would trigger Room's migration path, which is exactly what
-        // the caller is trying to avoid. The SQLite open with OPEN_READWRITE does
-        // not invoke Room and does not run migrations; it just flushes the WAL.
+        // GUARD: checkpoint through a direct SQLite open, never through Room — opening via Room
+        // would run the very migration this snapshot exists to protect against.
         runCatching {
             SQLiteDatabase.openDatabase(
                 source.absolutePath,
@@ -131,8 +127,7 @@ public class DatabaseSnapshotProviderImpl @Inject constructor(
                 SQLiteDatabase.OPEN_READWRITE,
             ).use { db -> db.execSQL("PRAGMA wal_checkpoint(TRUNCATE)") }
         }.onFailure { e ->
-            // A stale snapshot is strictly better than no snapshot for the
-            // recovery export; proceed with whatever data is in the main file.
+            // A stale snapshot beats no snapshot for the recovery export.
             Log.tag(TAG).w("WAL checkpoint failed; snapshot may miss recent commits", e)
         }
         val target = preMigrationBackupFile()
@@ -220,11 +215,8 @@ public class DatabaseSnapshotProviderImpl @Inject constructor(
     }
 
     /**
-     * Flush Room's WAL into the main db file so a subsequent file copy captures committed rows.
-     * Room 3 removed `openHelper.writableDatabase.query(...)`; the checkpoint now runs through a
-     * writer connection. `PRAGMA wal_checkpoint(TRUNCATE)` RETURNS a row (busy, log, checkpointed)
-     * — `stmt.step()` is what actually executes the pragma, so it must be stepped (a prepared-but-
-     * unstepped statement would silently no-op and leave the WAL beside the snapshot).
+     * Flush the WAL into the main db file so a later file copy captures committed rows.
+     * GUARD: the pragma returns a row — only `step()` executes it; unstepped it silently no-ops.
      */
     private suspend fun checkpointWal() {
         appDatabase.useWriterConnection { connection ->
@@ -232,7 +224,7 @@ public class DatabaseSnapshotProviderImpl @Inject constructor(
         }
     }
 
-    /** Live schema version via `PRAGMA user_version` (Room 3 replacement for `openHelper.*.version`). */
+    /** Live schema version via `PRAGMA user_version`. */
     private suspend fun readUserVersion(): Int =
         appDatabase.useReaderConnection { connection ->
             connection.usePrepared("PRAGMA user_version") { stmt ->

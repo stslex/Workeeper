@@ -35,25 +35,8 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertDoesNotThrow
 
 /**
- * The generation-join contract for [BaseStore] (KMP Phase 5 R3, spec §8.4 — round-3 blocker 4).
- *
- * The claim under test is the one a replacement transaction rests on: **a Store's jobs are
- * DESCENDANTS of the runtime generation's lifetime**, so the runtime's Quiescing stage can
- * `cancelAndJoin()` them and every `finally` — including one that touches the generation's
- * database — has finished by the time that join returns and the database is closed.
- *
- * Nothing here stands in for the production wiring: it builds a REAL [BaseStore] over the REAL
- * [io.github.stslex.workeeper.core.core.coroutine.scope.AppCoroutineScopeImpl] (the only scope
- * [BaseStore.init] ever constructs) and a REAL [AppScopeLifetime]. The single fake is the
- * [LifecycleOwner], because a composition owner cannot exist in a JVM test — and it is precisely
- * the object the pre-R3 plus-order bug parented every Store job to.
- *
- * The known-negative this file pins is a one-token edit in `AppCoroutineScopeImpl`: write the
- * `SupervisorJob(generationJob)` as the LEFT operand of the `plus` (as it was before R3) and
- * `CoroutineContext.plus` discards it in favour of `lifecycleScope`'s Job. Store jobs stop being
- * reachable from the lifetime, and the first test below fails on its ORDERING assertion —
- * `cancelAndJoin` returns while the database-touching `finally` is still pending, which is the
- * production defect verbatim (a job writing into a database the runtime has already closed).
+ * The generation-join contract for [BaseStore]: a Store's jobs are descendants of the runtime
+ * generation's lifetime, so `cancelAndJoin` waits for every `finally` before the database closes.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 internal class StoreGenerationJoinTest {
@@ -62,22 +45,14 @@ internal class StoreGenerationJoinTest {
     private lateinit var owner: FakeLifecycleOwner
     private var wasLogging: Boolean = true
 
-    /**
-     * `Log.isLogging` goes off for the duration: [BaseStore]'s logger is the production [Log],
-     * whose Kermit writer is the logcat writer on this (Android library) unit-test classpath, and
-     * `android.util.Log` is not mocked in a plain JVM test — the first `consume` would throw. The
-     * Firebase sinks need no such handling: both holders resolve their client through a
-     * `runCatching` that yields `null` off-device, so every call there is already a no-op.
-     */
+    /** Logging off for the duration: the logcat writer throws on unmocked `android.util.Log`. */
     @BeforeEach
     fun setUp() {
         wasLogging = Log.isLogging
         Log.isLogging = false
         dispatcher = StandardTestDispatcher()
-        // `lifecycleScope` builds its scope on `Dispatchers.Main.immediate`, so a Main dispatcher
-        // must exist before any Store is initialised. Installing a TestDispatcher also makes the
-        // `runTest`s below adopt ITS scheduler, which is what puts the store's jobs, the
-        // lifecycle registration and the test body on one deterministic timeline.
+        // GUARD: setMain before any Store init — lifecycleScope builds on Main.immediate; the
+        // shared TestDispatcher scheduler puts Store jobs and the test body on one timeline.
         Dispatchers.setMain(dispatcher)
         owner = FakeLifecycleOwner()
     }
@@ -104,9 +79,7 @@ internal class StoreGenerationJoinTest {
                 started.complete(Unit)
                 awaitCancellation()
             } finally {
-                // NonCancellable + a delay is what a real teardown write looks like: work that
-                // must still run AFTER cancellation and that takes time. A lifetime that only
-                // cancelled (never joined) would return while this is still pending.
+                // A teardown write: work that must still run after cancellation, and takes time.
                 withContext(NonCancellable) {
                     delay(TEARDOWN_WORK_MILLIS)
                     databaseTouch()
@@ -174,8 +147,7 @@ internal class StoreGenerationJoinTest {
         assertTrue(job.isCancelled, "a cleared Store must not keep running against the old generation")
         assertEquals(1, store.handledActions.size, "the dispose action runs once on the clear")
 
-        // Idempotence: the composition's own onDispose lands AFTER the clear. Before R3 this
-        // second call read the nulled scope through `requireNotNull` and threw.
+        // Idempotence: the composition's own onDispose lands after the clear.
         assertDoesNotThrow { store.dispose() }
         assertEquals(1, store.handledActions.size, "a second dispose must repeat no dispose work")
         assertTrue(lifetime.isActive, "clearing one Store does not end the generation")
@@ -215,10 +187,8 @@ internal class StoreGenerationJoinTest {
 }
 
 /**
- * A [LifecycleOwner] usable off-device. [LifecycleRegistry.createUnsafe] drops the main-thread
- * assertion `ArchTaskExecutor` makes (it reads `Looper.getMainLooper()`, which is not mocked in a
- * JVM unit test); the registry is otherwise the production one, so `lifecycleScope` and
- * [BaseStore]'s lifecycle observer behave as they do in the app.
+ * A [LifecycleOwner] usable off-device: [LifecycleRegistry.createUnsafe] drops the main-thread
+ * assertion, and the registry is otherwise the production one.
  */
 private class FakeLifecycleOwner : LifecycleOwner {
 
@@ -233,11 +203,7 @@ private data object ProbeAction : Store.Action
 
 private data object ProbeEvent : Store.Event
 
-/**
- * The smallest REAL [BaseStore]. It carries a dispose action and records every action its handler
- * receives, so idempotence can be asserted as behaviour ("the dispose work ran exactly once")
- * rather than as "the second call did not throw".
- */
+/** The smallest REAL [BaseStore]; it records handled actions so dispose idempotence is testable. */
 private class ProbeStore(
     storeDispatchers: StoreDispatchers,
     private val handled: MutableList<ProbeAction> = mutableListOf(),

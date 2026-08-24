@@ -71,14 +71,6 @@ class AppCoroutineScopeImpl(
         )
     }
 
-    /**
-     * Launches a flow and collects it in the screenModelScope. The flow is collected on the default dispatcher.
-     * @param onError - error handler
-     * @param each - action for each element of the flow
-     * @return Job
-     * @see kotlinx.coroutines.flow.Flow
-     * @see Job
-     * */
     override fun <T> launch(
         flow: Flow<T>,
         workDispatcher: CoroutineDispatcher?,

@@ -39,30 +39,8 @@ import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 
 /**
- * Bottom sheet for adding an exercise to an active Live workout session. Stateless: each
- * input emits an [ExercisePickerAction] back to the parent, which holds the query +
- * results in its `Store.State` and re-renders.
- *
- * Search-or-create UX (Q3 lock):
- *  - Empty query → show all library entries from [results].
- *  - Non-empty query without matches → [noMatchHeadline] is non-null, [createCtaLabel] is
- *    non-null, both rendered as separate elements (explicit no-match indicator before
- *    Create per the spec).
- *  - Non-empty query with partial matches → results list rendered, [createCtaLabel] is
- *    non-null and shown below the list so the user can still create the distinct typed
- *    name. Only an exact case-insensitive name match suppresses [createCtaLabel].
- *
- * The headline + Create label come pre-formatted from the parent so this composable does
- * not derive display text — kit composables stay locale-agnostic and stateless.
- *
- * @param query current search input
- * @param results filtered library list (already excludes the active session's exercises)
- * @param noMatchHeadline pre-formatted "No exercises match '{query}'" string, null when
- * results is non-empty (partial matches do not warrant the no-match indicator)
- * @param createCtaLabel pre-formatted "Create '{query}'" string, null when an exact
- * case-insensitive match exists (DB-level dedupe would kick in)
- * @param isPrimaryActionEnabled drives the Create CTA enabled state — false while a fetch
- * is in flight (throttle for rapid double-taps)
+ * Stateless bottom sheet for adding an exercise to a Live session; each input emits an
+ * [ExercisePickerAction]. Caller sets [isPrimaryActionEnabled] false while a fetch is in flight.
  */
 @Composable
 fun ExercisePickerBottomSheet(

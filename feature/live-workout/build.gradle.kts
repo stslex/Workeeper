@@ -1,13 +1,8 @@
 plugins {
     alias(libs.plugins.convention.composeLibrary)
-    // Largest feature. Route-arg feature (shape B — the arg is a @Provides bound instance on the
-    // extension factory, not an @Assisted param), single @DefaultDispatcher.
+    // Largest feature. Route-arg feature (shape B), single @DefaultDispatcher.
     alias(libs.plugins.metro)
-    // Goldens for the session's set and exercise states. They live here rather than in
-    // core:ui:kit because LiveSetRow and LiveExerciseCard are feature components and stay
-    // that way — v3 step 5 explicitly defers unifying LiveSetRow with past-session's row.
-    // The harness itself is NOT copied: it comes from core:ui:golden-harness, so device
-    // config, tolerance and canvas width cannot drift between modules.
+    // Goldens for the session's set and exercise states; harness from core:ui:golden-harness.
     alias(libs.plugins.paparazzi)
 }
 
@@ -29,9 +24,7 @@ dependencies {
 
     testImplementation(kotlin("test"))
     testImplementation(project(":core:ui:golden-harness"))
-    // Compose's semantics-tree surface on the JVM side, for LiveSetRowSemanticsTest: the
-    // announced field name is a semantics property no golden can photograph and no handler
-    // test can reach. Same reasoning as core:ui:kit, feature:home and feature:settings.
+    // `runComposeUiTest` for LiveSetRowSemanticsTest — a semantics property no golden can show.
     testImplementation(libs.androidx.compose.ui.test.junit4)
 
     androidTestImplementation(libs.bundles.android.test)

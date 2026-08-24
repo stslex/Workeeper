@@ -11,27 +11,8 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 
 /**
- * State driving non-lazy reorderable Column items.
- *
- * Used inside an outer LazyColumn item where nesting another LazyColumn is not safe
- * (Compose forbids nested same-direction scroll containers). Each child registers its
- * measured Y bounds via the modifier's `onGloballyPositioned`; reorder targets are
- * resolved against those bounds.
- *
- * Live-commit semantics: as the dragged item's center crosses a neighbor's center we
- * fire [onMoveResolved] immediately and re-anchor the offset so the finger stays on
- * the same visual point across the swap. The list is therefore always in its actual
- * order during drag — no preview-displacement layer that has to "undo" itself on
- * release. On release the state simply resets; no terminal `onMoveResolved` call.
- *
- * Requirement: consumers must apply `onMoveResolved` synchronously (update list state
- * before returning from the lambda). Async/throttled updates desync the crossover
- * logic and are not supported.
- *
- * Sibling motion: with live-commit there is no preview displacement — non-dragged
- * rows snap to their new layout positions when the list reorders. To get smooth
- * slide-in for non-dragged rows, wrap the consumer Column in a `LookaheadScope` and
- * apply `Modifier.animateBounds(scope)` to each row.
+ * State driving non-lazy reorderable Column items; live-commit swaps as centres cross.
+ * GUARD: consumers must apply `onMoveResolved` synchronously. See documentation/design-system.md.
  */
 @Stable
 class ReorderableColumnState internal constructor(
@@ -58,10 +39,7 @@ class ReorderableColumnState internal constructor(
     var dragOffsetPx: Float by mutableFloatStateOf(0f)
         private set
 
-    /**
-     * Window-Y of the dragged item's resting center at its current index.
-     * Re-anchored after every committed adjacent swap.
-     */
+    /** Window-Y of the dragged item's resting centre; re-anchored after every committed swap. */
     private var startCenterPx: Float = 0f
 
     val isDragging: Boolean get() = draggedKey != null
@@ -72,8 +50,7 @@ class ReorderableColumnState internal constructor(
         top: Float,
         bottom: Float,
     ) {
-        // During drag, boundsInWindow() for dragged item includes graphicsLayer.translationY.
-        // Do not feed transformed bounds back into crossover math.
+        // The dragged item's boundsInWindow() includes the drag translation; never feed it back.
         if (key == draggedKey) return
 
         val oldIndex = itemIndices[key]
@@ -88,24 +65,14 @@ class ReorderableColumnState internal constructor(
     }
 
     /**
-     * Forget a row that has left composition.
-     *
-     * **Registration without this is a leak with teeth, not a tidiness problem.** `onItemPlaced`
-     * is the only writer and a removed row simply stops calling it, so its bounds, its index and
-     * its slot in [keysByIndex] all survive it. A drag then crosses a centre that belongs to
-     * nothing rendered — the swap commits and re-anchors against a dead key, so the row jumps and
-     * the haptic fires for a move that cannot happen — and [moveDown]'s own guard, which reads
-     * `keysByIndex.keys.maxOrNull()`, still believes there is a row below the real last one.
-     *
-     * Called from `reorderableColumnItem`'s `DisposableEffect`, so both consumers get it without
-     * either having to recreate the state when membership changes.
+     * Forget a row that has left composition; a stale registration lets a drag swap against a
+     * dead key. See documentation/design-system.md.
      */
     internal fun onItemDisposed(key: Any) {
         itemTops.remove(key)
         itemBottoms.remove(key)
         val index = itemIndices.remove(key)
-        // Only clear the slot if it still points at THIS key: a reorder may already have handed
-        // that index to someone else, and dropping it would strand the row that now holds it.
+        // Clear the slot only if it still points at THIS key; a reorder may have reassigned it.
         if (index != null && keysByIndex[index] == key) {
             keysByIndex.remove(index)
         }
@@ -134,12 +101,8 @@ class ReorderableColumnState internal constructor(
 
         dragOffsetPx += deltaY
 
-        // Direction must be based on the latest gesture delta, not on total dragOffset.
-        // Otherwise after re-anchor dragOffset can change sign and immediately swap back.
-        // The invariant that currently makes the wrong expression harmless is the loop's, not
-        // this line's, so this is defence against a change to the commit path — which would
-        // break it with nothing going red. Mutating it today is a no-op; why, in §27 "Gates",
-        // "A guard can be correct, load-bearing, and still un-mutatable".
+        // GUARD: direction comes from the latest delta, not the total offset, which can change
+        // sign after a re-anchor and swap straight back.
         val direction = if (deltaY > 0f) 1 else -1
 
         var safety = MAX_SWAPS_PER_FRAME
@@ -215,8 +178,7 @@ class ReorderableColumnState internal constructor(
         }
         val newTargetBottom = newTargetTop + targetHeight
 
-        // Keep our local cache coherent immediately. We cannot wait for the next
-        // layout pass because the same pointer event can chain several swaps.
+        // Keep the local cache coherent now; one pointer event can chain several swaps.
         draggedRestingTopPx = newDraggedTop
         draggedRestingBottomPx = newDraggedBottom
 

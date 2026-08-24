@@ -18,18 +18,8 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.EnumSource
 
 /**
- * The set card's **read-only host** — the exercise read screen's plan (`v3-editors.md` ED2).
- *
- * Its partner is `PlanEditorBodyGoldenTest`, and the pair is the instrument for D-OPEN-6: read and
- * edit are ruled **identical**, so the two suites photograph the same fixture on the same canvas
- * at the same width, and the only differences an eye should find between them are the ones the
- * read-only host is defined by — **no `.setbar` foot**, and a different empty line, because the
- * editor's hint names a control this host does not have. Same card, same tier, same rows, same
- * `.tchip`: a chip removal or a tier change would show here as a diff against a picture that is
- * meant to match.
- *
- * Rendered in **Russian**, like its partner: the empty line and the units are the strings a
- * Russian user reads, and an `en` frame cannot fail on them.
+ * The set card's read-only host — the exercise read screen's plan. Paired with
+ * `PlanEditorBodyGoldenTest` as the instrument for D-OPEN-6 (`v3-editors.md` ED2).
  */
 internal class PlanSetCardReadOnlyGoldenTest {
 
@@ -39,18 +29,14 @@ internal class PlanSetCardReadOnlyGoldenTest {
         goldenSubject(testInfo, theme, locale = LOCALE_RU) { Card(isWeighted = true) }
     }
 
-    /** B11's half: a weightless exercise drops the weight column and keeps everything else. */
+    /** A weightless exercise drops the weight column and keeps everything else. */
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
     fun readOnlyWeightless(theme: GoldenTheme, testInfo: TestInfo) {
         goldenSubject(testInfo, theme, locale = LOCALE_RU) { Card(isWeighted = false) }
     }
 
-    /**
-     * A 5-glyph weight, "102.5": the measured stepdown keeps the full 26sp wherever the slot
-     * fits the value, which `PlanSetCard`'s weight box does. This frame is what pins that
-     * (set-field-column-headers.md §8, fixture 4).
-     */
+    /** A 5-glyph weight keeps the full 26sp where the slot fits it (set-field-column-headers). */
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
     fun readOnlyFiveGlyphWeight(theme: GoldenTheme, testInfo: TestInfo) {
@@ -65,10 +51,7 @@ internal class PlanSetCardReadOnlyGoldenTest {
         }
     }
 
-    /**
-     * An exercise with no default plan. The read screen draws the section anyway — the head is
-     * where the type is stated — so this branch is on screen, not a theoretical state.
-     */
+    /** An exercise with no default plan — the read screen draws the section anyway. */
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
     fun readOnlyEmpty(theme: GoldenTheme, testInfo: TestInfo) {
@@ -86,8 +69,7 @@ internal class PlanSetCardReadOnlyGoldenTest {
 private fun Card(isWeighted: Boolean) {
     PlanSetCard(
         modifier = Modifier.padding(SUBJECT_INSET),
-        // The same four rows `PlanEditorBodyGoldenTest` photographs, so the two images are
-        // comparable by eye and D-OPEN-6's "identical" is checkable rather than asserted.
+        // The same four rows `PlanEditorBodyGoldenTest` photographs, so the pair is comparable.
         plan = listOf(
             PlanSetUiModel(weight = 40.0, reps = 12, type = SetTypeUiModel.WARMUP),
             PlanSetUiModel(weight = 60.0, reps = 10, type = SetTypeUiModel.WORK),

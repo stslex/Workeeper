@@ -14,26 +14,10 @@ import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupErrorCod
 import java.io.File
 
 /**
- * Single source of truth for backup execution. Used by BOTH the periodic
- * auto-backup work (`UNIQUE_PERIODIC_WORK_NAME`) and the
- * one-time manual-backup work (`UNIQUE_ONE_TIME_WORK_NAME`); the two work names
- * route to the same worker class.
- *
- * Failure handling:
- * - [BackupError.AuthRevoked] → cancel the periodic work entirely, show the
- *   auth-paused notification, return [Result.failure]. The user must re-sign-in
- *   to resume auto-backup.
- * - [BackupError.NetworkUnavailable] → [Result.retry]. WorkManager will retry
- *   with exponential backoff when the network constraint is satisfied.
- * - [BackupError.StorageQuotaExceeded] → [Result.failure]. Non-retryable
- *   without user action.
- * - All other failures → [Result.retry] with WorkManager's default backoff.
- *
- * The worker never mutates the live database — it reads via
- * [DatabaseSnapshotProvider.captureSnapshot] which produces a WAL-checkpointed
- * copy in [Context.getCacheDir].
+ * Single source of truth for backup execution, shared by the periodic and one-time work names.
+ * Never mutates the live database; it reads a WAL-checkpointed cache copy. See the backup spec.
  */
-// Dependency-free construction prevents WorkManager-created idle workers from capturing a generation.
+// Dependency-free construction: a WorkManager-created idle worker must not capture a generation.
 internal class BackupWorker(
     appContext: Context,
     workerParams: WorkerParameters,
@@ -58,11 +42,8 @@ internal class BackupWorker(
         val tempFile = File.createTempFile(TEMP_PREFIX, TEMP_SUFFIX, applicationContext.cacheDir)
         return try {
             val result = executeBackup(deps, tempFile)
-            // The binary-backup Result is already computed above. AWAIT the best-effort AI snapshot
-            // before returning so WorkManager keeps the wakelock/execution window alive until the
-            // visible-Drive upload finishes — a detached app-scope launch would race process death
-            // on every periodic run. runCatching-wrapped so a runner fault can never change the
-            // Result; D2 holds (the binary upload is done — only Result reporting is held longer).
+            // GUARD: AWAIT the snapshot so WorkManager keeps the execution window alive; a
+            // detached launch would race process death. runCatching keeps the Result unchanged.
             runCatching { deps.snapshotExportRunner.runIfEligibleAwaiting() }
             result
         } finally {

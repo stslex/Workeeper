@@ -28,46 +28,9 @@ import org.junit.runner.RunWith
 import java.io.File
 
 /**
- * PHASE 5 ROOM ENTRY GATE — real device, production driver, production swap code. Answers the
- * question `kmp-migration-assessment.md` §"restart-free actual" specified for Room 2.8.4 but never
- * ran, now against the shipped Room 3 driver mode: after the PRODUCTION atomic database-file
- * replacement (restore or rollback), can the **same `AppDatabase` object** and a **DAO captured
- * before the close** serve the swapped file's data?
- *
- * ## MEASURED ANSWER (Pixel 6 emulator, API 34, arm64-v8a, Room 3.0.0, 2026-08-22): NO — RED.
- *
- * Both production replacement paths succeed on disk (proven by the fresh-handle disk-truth read
- * and the inode change), and the subsequent read through the retained DAO throws
- * `android.database.SQLException: Error code: 21, message: Connection pool is closed`
- * (`ConnectionPoolImpl.useConnection` → `RoomConnectionManager.useConnection` →
- * `RoomDatabase.useConnection` → `performSuspending`). Room 3's `RoomDatabase.close()` is
- * terminal for the object: `closeBarrier.close()` is a one-way CAS, the connection manager is
- * assigned once, and a closed pool throws `SQLITE_MISUSE` forever — there is no reopen path.
- * The Room 2.8.4-era claim that "captured DAOs follow the reopen for free"
- * (kmp-migration-assessment.md:546) does NOT hold on Room 3.
- *
- * What this test therefore PINS (and must keep pinning):
- *  1. the production swap really replaces the file (disk truth: snapshot sentinel present,
- *     live-only sentinel absent, inode changed) — a bypassed swap goes red here (known-negative
- *     of the gate protocol, run and reverted, documentation/feature-specs/
- *     kmp-phase-5-startup-processor.md §7);
- *  2. a stale captured handle fails **LOUD** — it never silently serves the pre-swap rows. The
- *     silent-stale-inode outcome is the corruption class the assessment warned about; measured,
- *     it does not occur: the pool-closed throw is deterministic;
- *  3. the tripwire: **if [GateOutcome.ReopenServedSwappedData] is ever observed, this test fails
- *     with a "gate flipped GREEN" message** — that means a Room upgrade made same-object reopen
- *     real, and the Phase 5 restore-flow descope (restore/rollback stay process-restart) should
- *     be revisited. A green flip must be a loud, deliberate discovery, not a silent one.
- *
- * Anti-vacuity (same discipline as [AtomicRollbackDeviceTest]): the pre-swap read through the
- * retained DAO must see both sentinels (proves the handle worked before the swap), every
- * production call is asserted `Success`, and disk truth is asserted before the gate read — so a
- * gate-read failure can only ever mean "the same object cannot serve the swapped file", never
- * "the swap silently did nothing".
- *
- * ⚠️ MUST STAY androidDeviceTest + FILE-BACKED + BundledSQLiteDriver. Robolectric is not an
- * admissible oracle for file-handle/connection-pool semantics (see AtomicRollbackDeviceTest's
- * header), and an in-memory DB has no file to swap.
+ * Phase 5 entry gate — device, production driver, production swap: a DAO captured before the close
+ * must fail loud after the file replacement, never serve stale rows (spec §7). GUARD: device-only
+ * on the bundled driver, and a green flip fails on purpose rather than passing quietly.
  */
 @Regression
 @RunWith(AndroidJUnit4::class)
@@ -84,9 +47,7 @@ internal class SameInstanceReopenAfterSwapDeviceTest {
     fun setUp() {
         context = ApplicationProvider.getApplicationContext()
         wipeFiles()
-        // Production shape: file-backed at the production name (the swap code resolves
-        // getDatabasePath(AppDatabase.NAME) internally), production driver. Migrations are
-        // irrelevant here — the file is created fresh at the current schema version.
+        // Production shape: file-backed at the production name, production driver.
         database = Room.databaseBuilder<AppDatabase>(context, AppDatabase.NAME)
             .setDriver(BundledSQLiteDriver())
             .build()
@@ -116,8 +77,7 @@ internal class SameInstanceReopenAfterSwapDeviceTest {
         )
         val inodeBeforeSwap = liveDbInode()
 
-        // The production RestartProcess transaction sequence (spec §8.5): validate through the
-        // still-open db → close (terminal; runtime-owned) → pure file mechanics.
+        // The production RestartProcess sequence (spec §8.5): validate → close → file mechanics.
         assertSuccess("validateSnapshotForRestore", provider.validateSnapshotForRestore(snapshotFile()))
         closeAppDatabase(database)
         assertSuccess("replaceLiveDatabaseFile", provider.replaceLiveDatabaseFile(snapshotFile()))
@@ -129,10 +89,7 @@ internal class SameInstanceReopenAfterSwapDeviceTest {
     @Test
     fun gate_rollbackSwap_retainedHandlesFailLoud_neverStale() = runBlocking {
         retainedDao.insert(TagEntity(name = SNAPSHOT_SENTINEL))
-        // Stage the production undo slot (cache/pre_restore_backup.db) through the production
-        // preserve path — the same file rollbackToPreRestoreBackup consumes.
-        // R3: the canonical undo slot is staged by reserve+promote (the runtime's own sequence,
-        // spec §8.5a) — identical bytes at the identical path as the removed preserveCurrentDb().
+        // Stage the canonical undo slot through the production reserve+promote sequence.
         val reserved = assertSuccess("reserveRollbackSnapshot", provider.reserveRollbackSnapshot("gate"))
         assertSuccess("promoteRollbackReservation", provider.promoteRollbackReservation(reserved))
         retainedDao.insert(TagEntity(name = LIVE_ONLY_SENTINEL))
@@ -160,10 +117,8 @@ internal class SameInstanceReopenAfterSwapDeviceTest {
         retainedDao.searchByPrefix(SENTINEL_PREFIX).map { it.name }
 
     /**
-     * Disk truth through a FRESH framework-SQLite handle on the live path, plus file identity:
-     * the atomic rename must have installed a NEW inode. Red here means the production swap
-     * itself failed; the gate classification below is then not reached, so a gate red can only
-     * ever mean "the same object cannot serve the swapped file".
+     * Disk truth through a fresh framework-SQLite handle plus inode identity, so a gate red can
+     * only mean the retained object failed — never that the swap did nothing.
      */
     private fun assertSwapRealOnDisk(inodeBeforeSwap: Long) {
         val inodeAfterSwap = liveDbInode()
@@ -208,9 +163,8 @@ internal class SameInstanceReopenAfterSwapDeviceTest {
     }
 
     /**
-     * THE GATE, classified. Exactly one outcome is currently legal: [GateOutcome.FailedLoud] with
-     * Room 3's pool-closed `SQLException`. The other two outcomes fail with messages explaining
-     * what a flip means — see the class KDoc.
+     * The gate, classified. Only [GateOutcome.FailedLoud] is legal today; the other two fail with
+     * messages explaining what a flip means.
      */
     private suspend fun assertGateOutcome() {
         val outcome = runCatching { readSentinelsViaRetainedDao() }.fold(

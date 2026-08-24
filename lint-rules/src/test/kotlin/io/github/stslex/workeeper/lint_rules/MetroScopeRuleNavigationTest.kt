@@ -6,22 +6,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
-/**
- * Coverage for the navigation-architecture-specific scope expectations of [MetroScopeRule]
- * after the lifecycle-safe navigation refactor.
- *
- * The rule walks Metro-`@Inject` classes (class-level or primary-constructor) whose name matches a
- * dependency bucket ([ScopedClassNames.isScopeChecked]) and requires a Metro `@SingleIn(<Scope>::class)`.
- * A `*Handler` additionally must not be `@SingleIn(AppScope)`.
- *
- * The navigation architecture introduces classes that must NOT be flagged:
- *   - `NavigatorEventBus` — singleton command bus; its `Bus` suffix keeps its name out of every
- *     bucket predicate, so the rule never scope-checks it.
- *   - Feature `NavigationHandler`s — `@SingleIn(<Feature>Scope) @Inject Navigator` is the canonical
- *     shape after this refactor.
- *
- * These tests pin those invariants.
- */
+/** Coverage for [MetroScopeRule] on the navigation classes. See documentation/lint-rules.md. */
 internal class MetroScopeRuleNavigationTest {
 
     private val rule = MetroScopeRule()
@@ -68,8 +53,6 @@ internal class MetroScopeRuleNavigationTest {
 
     @Test
     fun `NavigationHandler with javax Singleton triggers a finding`() {
-        // @Singleton (javax.inject, retained for Metro includeJavax) is NOT a Metro scope — the graph
-        // ignores it. A name-matched ctor-@Inject Handler with only @Singleton is silently unscoped.
         val findings = rule.lint(
             """
             package io.github.stslex.workeeper.feature.example.mvi.handler
@@ -112,7 +95,6 @@ internal class MetroScopeRuleNavigationTest {
 
     @Test
     fun `NavigatorReceiver as an interface is skipped`() {
-        // The rule short-circuits on `klass.isInterface()` — interfaces have no scope by themselves.
         val findings = rule.lint(
             """
             package io.github.stslex.workeeper.navigation
@@ -126,8 +108,6 @@ internal class MetroScopeRuleNavigationTest {
 
     @Test
     fun `NavigationModule has no ctor Inject and is skipped`() {
-        // A class with no Metro @Inject at all — neither on the class nor on the primary constructor —
-        // short-circuits at the injection check and is not scope-checked.
         val findings = rule.lint(
             """
             package io.github.stslex.workeeper.di

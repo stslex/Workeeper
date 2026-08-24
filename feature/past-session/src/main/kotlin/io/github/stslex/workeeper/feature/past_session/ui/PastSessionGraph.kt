@@ -41,14 +41,8 @@ fun NavGraphScope.pastSessionGraph(
             }
         }
 
-        // The route gate (§26). GUARD: this screen's top bar falls back to a placeholder title
-        // when the phase is not `Loaded`, so composing it before the load lands puts a heading on
-        // screen that the load then rewrites.
-        //
-        // GUARD: gated on the FIRST load only. The Error phase must still compose, or a failed
-        // load becomes the permanently empty frame this gate exists to avoid — and `hasResolved`
-        // keeps the shell once it has resolved, because Retry re-enters `Loading` with the screen
-        // already up, and withholding it there blanks the route mid-flow.
+        // GUARD: gate the route on the FIRST load only — `hasResolved` keeps the shell up, or the
+        // Error phase and Retry would blank the route (§26).
         AppLoadedContent(
             isLoaded = with(processor.state.value) {
                 phase !is PastSessionStore.State.Phase.Loading || hasResolved

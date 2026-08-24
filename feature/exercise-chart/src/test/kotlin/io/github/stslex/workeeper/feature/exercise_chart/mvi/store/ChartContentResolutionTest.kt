@@ -28,16 +28,8 @@ import org.junit.jupiter.api.Test
 import java.time.LocalDate
 
 /**
- * The empty-state flash, pinned where it is caused: in the **state model**.
- *
- * A canvas cannot be un-drawn by the composable that draws it — by the time an unplottable
- * dataset reaches the draw phase the frame is already wrong. So the invariant is asserted on
- * the Store: drive the real handlers over data that cannot be plotted and assert that **no
- * emitted state** resolves to [Content.Plot]. Every emission is captured, not just the
- * settled one — the flash lived entirely in an intermediate emission.
- *
- * These are animations' only testable half: the morph itself is time-based and outside the
- * golden gate (§10.4), but "which states may compose the canvas at all" is pure state.
+ * The empty-state flash, pinned in the state model: drive the real handlers over unplottable
+ * data and assert that no emitted state resolves to [Content.Plot].
  */
 internal class ChartContentResolutionTest {
 
@@ -70,9 +62,8 @@ internal class ChartContentResolutionTest {
     }
 
     /**
-     * The discriminator: without it the assertions above would pass on a `content` that
-     * never plots anything. Plottable data must still reach the canvas, on every emission
-     * once it has resolved.
+     * The discriminator: without it the assertions above would pass on a `content` that never
+     * plots anything.
      */
     @Test
     fun `two-point exercise does resolve to Plot`() {
@@ -101,8 +92,8 @@ internal class ChartContentResolutionTest {
     }
 
     /**
-     * Init, then a metric switch, then a preset switch — the three retarget sources a user
-     * can reach from an empty chart. Returns every state the handlers emitted, in order.
+     * Init, then a metric switch, then a preset switch. Returns every state the handlers
+     * emitted, in order.
      */
     private fun driveSwitches(fold: ChartFoldDomain): List<State> {
         val flow = MutableStateFlow(State.create(initialUuid = EXERCISE_UUID))
@@ -143,9 +134,7 @@ internal class ChartContentResolutionTest {
                 setCount = 2,
             )
         }
-        // The one-point case carries a non-null footer in production — `toFooter` returns
-        // stats for any non-empty list — which is exactly what used to render under the
-        // blank grid.
+        // The one-point case carries a non-null footer in production, as `toFooter` does too.
         val footer = points.firstOrNull()?.let { first ->
             ChartFooterStatsDomain(min = first, max = points.last(), last = points.last())
         }

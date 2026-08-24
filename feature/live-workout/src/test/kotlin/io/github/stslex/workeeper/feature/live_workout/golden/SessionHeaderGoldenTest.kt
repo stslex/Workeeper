@@ -14,20 +14,8 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.EnumSource
 
 /**
- * `.topbar` and `.shead` (extraction §1.2–1.3), at rest.
- *
- * The header is the screen region step 5 got most visibly wrong — rendered as a card — so
- * these goldens lock the corrected picture: three texts on `surfaceTier0`, the training name
- * on the 26 rung, the meta line in mono, and the timer through `AppTypography.timer` —
- * Archivo `wdth 116`'s first production call site.
- *
- * The name strings are Cyrillic on purpose: they exercise the real `text.title` rendering
- * path for the app's primary locale, while the timer glyphs stay inside Archivo's
- * digits-and-separators charset (spec C2).
- *
- * `sheadEditing` pairs with `sheadDefault` (§10.2): the edit field must reproduce the `h2`
- * treatment exactly, and only the pair shows it — a lone editing golden would lock whatever
- * the field happened to render.
+ * `.topbar` and `.shead` (extraction §1.2–1.3), at rest: three texts on `surfaceTier0`, no
+ * card. `sheadEditing` only means anything paired with `sheadDefault` (§10.2).
  */
 internal class SessionHeaderGoldenTest {
 
@@ -84,8 +72,7 @@ private fun Shead(metaLabel: String, isEditing: Boolean) {
         onNameTap = {},
         onNameChange = {},
         onNameSubmit = {},
-        // requestFocus() reaches for the IME, and layoutlib's HandlerThread delegate dies on
-        // the host JVM — racily. The golden asserts pixels, not focus; see the field's KDoc.
+        // Focus is skipped: it reaches the IME, which layoutlib cannot survive.
         requestFocusWhenEditing = false,
     )
 }

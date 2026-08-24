@@ -18,12 +18,7 @@ interface BackupInteractor {
 
     suspend fun signIn(): SignInOutcomeDomain
 
-    /**
-     * Requests the optional `drive.file` (visible-Drive) scope on the already-connected
-     * account — the incremental grant for AI export. Does NOT start a fresh sign-in. Same
-     * [SignInOutcomeDomain] contract as [signIn]; the resolution result (if any) is forwarded
-     * via [completeSignIn], exactly like sign-in.
-     */
+    /** Requests the optional `drive.file` scope; any resolution goes through [completeSignIn]. */
     suspend fun requestDriveFileAccess(): SignInOutcomeDomain
 
     /** One-shot read of whether `drive.file` is currently granted (post-grant reconciliation). */
@@ -33,11 +28,7 @@ interface BackupInteractor {
 
     suspend fun signOut(): BackupResult<Unit>
 
-    /**
-     * Best-effort removal of previously-exported AI snapshots from the visible Drive folder.
-     * Invoked when the user disables AI export (consent withdrawal) and during sign-out, BEFORE
-     * [signOut] revokes the grant — afterwards the files can no longer be reached. Never throws.
-     */
+    /** Best-effort snapshot removal; must run before [signOut] revokes the grant. Never throws. */
     suspend fun deleteAiExportSnapshots()
 
     suspend fun createBackup(): BackupResult<Unit>
@@ -46,13 +37,6 @@ interface BackupInteractor {
 
     suspend fun listBackups(): BackupResult<List<BackupSummaryDomain>>
 
-    /**
-     * Restores the most recent backup available for the signed-in account. v1 surfaces
-     * latest only — no picker UI. A v1.1 follow-up will introduce a picker driven from
-     * `Action.Backup.RequestRestore`; tracked in `documentation/tech-debt.md`.
-     *
-     * The caller MUST trigger an app restart on `BackupResult.Success` — the Room graph
-     * is stale after `restoreFromSnapshot` and only a fresh process can rebuild it.
-     */
+    /** Restores the most recent backup. GUARD: the caller MUST restart the app on Success. */
     suspend fun restoreLatest(): BackupResult<Unit>
 }

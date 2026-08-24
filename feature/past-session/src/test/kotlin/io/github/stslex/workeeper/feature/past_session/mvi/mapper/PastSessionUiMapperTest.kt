@@ -29,8 +29,7 @@ internal class PastSessionUiMapperTest {
             R.string.feature_past_session_totals_format -> "${args[0]} · ${args[1]}"
             R.string.feature_past_session_totals_format_with_tonnage ->
                 "${args[0]} · ${args[1]} · ${args[2]}"
-            // The real resource is "%,d kg"; the grouping comes from `Resources.getString`
-            // against the configuration locale, which is not exercised on the host JVM.
+            // The real "%,d kg" grouping is locale-resolved and unexercised on the host JVM.
             R.string.feature_past_session_tonnage_format -> "${args[0]} kg"
             else -> error("Unexpected string id: $id")
         }
@@ -74,8 +73,7 @@ internal class PastSessionUiMapperTest {
         assertEquals("Ad-hoc workout", ui.trainingName)
         assertEquals("Apr 28", ui.finishedAtAbsoluteLabel)
         assertEquals("01:30", ui.durationLabel)
-        // Tonnage counts the weighted exercise only: 5x100 + 3x90 = 770. The weightless
-        // Pull Up's 10 reps contribute nothing, and the skipped Fly has no sets.
+        // Tonnage counts the weighted exercise only: 5x100 + 3x90 = 770.
         assertEquals("2 exercises · 3 sets · 770 kg", ui.totalsLabel)
 
         assertEquals(
@@ -117,9 +115,6 @@ internal class PastSessionUiMapperTest {
 
     @Test
     fun `mapper sums tonnage over weighted sets`() {
-        // Replaces the v2.4 5.7 guard `mapper does not surface a volume label even when
-        // weighted sets are present`, which existed to keep total-kg OUT of the header.
-        // Spec §11.1 reverses that decision, so the guard is retired rather than broken.
         val ui = sessionDetail(
             isAdhoc = false,
             exercises = listOf(
@@ -149,10 +144,7 @@ internal class PastSessionUiMapperTest {
 
     @Test
     fun `mapper excludes a weightless exercise carrying a residual weight from tonnage`() {
-        // The reason the predicate is `type == WEIGHTED` and not `weight ?: 0.0`. `SetEntity`
-        // does not constrain weight by exercise type, residual non-null weights on weightless
-        // rows exist in shipped data, and spec §12 rejected scrubbing them by migration. A sum
-        // that read the column regardless would report 300 kg of work that was never lifted.
+        // Residual non-null weights exist on weightless rows in shipped data; a sum reads them.
         val ui = sessionDetail(
             isAdhoc = false,
             exercises = listOf(
@@ -208,14 +200,9 @@ internal class PastSessionUiMapperTest {
         assertEquals("1 exercise · 1 set", ui.totalsLabel)
     }
 
-    // --- setSummary: the collapsed card's plan line --------------------------------------
-
     @Test
     fun `mapper builds the collapsed summary per exercise type`() {
-        // The whole point of these assertions: `setSummary` is read nowhere else in the
-        // suite. The goldens hand-write the string into their fixtures and never call
-        // `toUi`, so before this test `return ""` kept everything green while collapsed
-        // cards silently lost their plan line.
+        // `setSummary` is read nowhere else in the suite: the goldens hand-write the string.
         val ui = sessionDetail(
             isAdhoc = false,
             exercises = listOf(
@@ -225,11 +212,9 @@ internal class PastSessionUiMapperTest {
             ),
         ).toUi(resources)
 
-        // Weighted: `{weight}×{reps}` per set, joined by " · " (U+00B7 with hair spaces).
         assertEquals("100×5 · 90×3", ui.exercises[1].setSummary)
-        // Weightless: bare rep counts — the weight dimension does not exist for the type.
+        // Weightless: bare rep counts — the type has no weight dimension.
         assertEquals("10", ui.exercises[0].setSummary)
-        // No sets logged: empty, which is what lets the card omit the line entirely.
         assertEquals("", ui.exercises[2].setSummary)
         // The separator is U+00D7, not the Latin letter x.
         assertTrue(ui.exercises[1].setSummary.contains('×'))
@@ -237,8 +222,7 @@ internal class PastSessionUiMapperTest {
 
     @Test
     fun `mapper excludes unfilled sets from the collapsed summary`() {
-        // `reps > 0` is the same sentinel the set count uses, so a card cannot summarise a
-        // row the header refuses to count.
+        // `reps > 0` is the same sentinel the set count uses.
         val ui = sessionDetail(
             isAdhoc = false,
             exercises = listOf(
@@ -262,9 +246,7 @@ internal class PastSessionUiMapperTest {
 
     @Test
     fun `mapper marks a weighted set with no logged weight instead of printing bare reps`() {
-        // A blank weight is valid input on this screen and persists as null. Printing the
-        // bare rep count here would put "15" among "49×15" neighbours, where every leading
-        // number is a weight — so the reps would read as kilograms.
+        // A blank weight persists as null; bare reps would read as kg among weighted neighbours.
         val ui = sessionDetail(
             isAdhoc = false,
             exercises = listOf(
@@ -285,8 +267,6 @@ internal class PastSessionUiMapperTest {
 
         assertEquals("49×15 · —×15", ui.exercises.single().setSummary)
     }
-
-    // --- withExpansionCarriedFrom: the amended §7 model's seed-or-carry ------------------
 
     @Test
     fun `first Loaded state seeds exactly the first card open`() {

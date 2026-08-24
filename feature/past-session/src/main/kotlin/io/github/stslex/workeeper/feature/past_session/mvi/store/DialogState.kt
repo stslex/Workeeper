@@ -3,13 +3,7 @@ package io.github.stslex.workeeper.feature.past_session.mvi.store
 
 import androidx.compose.runtime.Stable
 
-/**
- * The screen's modal dialogs, mutually exclusive by construction (`mvi-dialog-state`,
- * Rule 4 of the compose state discipline). Replaces the single `deleteDialogVisible`
- * boolean the moment the screen gained a second dialog: the PR explainer used to live in a
- * composable-local `remember`, which is exactly the Rule-4 violation the sealed shape
- * retires.
- */
+/** The screen's modal dialogs, mutually exclusive by construction (see `mvi-dialog-state`). */
 @Stable
 sealed interface DialogState {
 
@@ -25,10 +19,7 @@ sealed interface DialogState {
     data object PrExplainer : DialogState
 }
 
-/**
- * The screen's bottom sheets. One today — the topbar `⋮` menu (extraction §2.2 draws the
- * glyph and no target; the session screen's `sh-session` pattern supplies the shape).
- */
+/** The screen's bottom sheets. One today — the topbar `⋮` menu. */
 @Stable
 sealed interface BottomSheetState {
 

@@ -5,23 +5,15 @@ import androidx.compose.runtime.Stable
 import io.github.stslex.workeeper.feature.archive.domain.model.ArchivedItem
 
 /**
- * One archived row, with its meta line **already composed**.
- *
- * The sibling screens compose their meta line in the row composable, off `stringResource`. This
- * screen composes it in `ArchiveUiMapper` instead, and the difference is not stylistic: archive
- * already had a `ResourceWrapper`-backed mapper, and CLAUDE.md allows either — but only the mapper
- * form can be asserted without a composition, and the kind token is the one thing on this row that
- * a picture cannot check (`ArchiveMetaLineTest`).
- *
- * §26 "Meta-line order": `kind · archived-since · tags`, one line, no wrap, tags last because the
- * tail is what truncates.
+ * One archived row with its meta line already composed — `kind · archived-since · tags` (§26),
+ * built in the mapper so `ArchiveMetaLineTest` can assert it without a composition.
  */
 @Stable
 sealed interface ArchivedItemUi {
 
     val item: ArchivedItem
 
-    /** `kind · archived-since · tags`, pre-joined. See `ArchiveUiMapper.composeMetaLine`. */
+    /** `kind · archived-since · tags`, pre-joined by `ArchiveUiMapper`. */
     val metaLine: String
 
     @Stable

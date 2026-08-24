@@ -66,10 +66,6 @@ internal class LiveWorkoutInteractorImplTest {
 
     @BeforeEach
     fun stubFirebaseCrashlytics() {
-        // `loadSession`'s `traceExecutionTime` calls fan out to `Log.i { ... }`, which
-        // unconditionally resolves the singleton `Firebase.crashlytics` and crashes
-        // without an initialised `FirebaseApp`. Stub the holder so the logging path
-        // is a no-op in tests.
         mockkObject(FirebaseCrashlyticsHolder)
         every { FirebaseCrashlyticsHolder.log(any()) } returns Unit
         every { FirebaseCrashlyticsHolder.recordException(any(), any()) } returns Unit
@@ -189,9 +185,7 @@ internal class LiveWorkoutInteractorImplTest {
             coEvery { trainingExerciseRepository.getPlan(trainingUuid, "ex-1") } returns listOf(
                 PlanSetDataModel(weight = 90.0, reps = 5, type = SetTypeDataModel.WORK),
             )
-            // Key presence is the plan-attached flag (v3 §6.2): both exercises have a
-            // `training_exercise_table` row, so both are part of the saved template and their
-            // plans are written back to the training rather than to the exercise.
+            // Both exercises have a plan row, so both plans write back to the training.
             coEvery {
                 trainingExerciseRepository.getPlans(trainingUuid, listOf("ex-1", "ex-2"))
             } returns mapOf("ex-1" to null, "ex-2" to null)
@@ -207,7 +201,6 @@ internal class LiveWorkoutInteractorImplTest {
 
             val result = interactor.finishSession(sessionUuid)
 
-            // Only the non-skipped exercise contributes a PlanUpdate.
             assertEquals(1, captured.captured.size)
             val update = captured.captured.single()
             assertEquals("ex-1", update.exerciseUuid)
@@ -324,9 +317,7 @@ internal class LiveWorkoutInteractorImplTest {
 
     @Test
     fun `setSkipped never touches set rows in either direction`() = runTest {
-        // §6.1: skip is reversible in place — the flag flips, the logged sets survive.
-        // The wipe this method used to perform is the reason a confirmation dialog once
-        // guarded it; both are gone together (extraction C9).
+        // Skip is reversible in place — the flag flips, the logged sets survive.
         interactor.setSkipped("pe-1", skipped = true)
         coVerify(exactly = 1) { performedExerciseRepository.setSkipped("pe-1", true) }
         interactor.setSkipped("pe-1", skipped = false)
@@ -343,8 +334,7 @@ internal class LiveWorkoutInteractorImplTest {
             val adhoc =
                 listOf(PlanSetDataModel(weight = 80.0, reps = 5, type = SetTypeDataModel.WORK))
             seedNonAdhocLoad(sessionUuid, trainingUuid, exerciseUuid)
-            // Batch API: training plan map carries `exerciseUuid -> null` so the loadSession
-            // fallback resolves it via `getAdhocPlans` ONLY for the null entries.
+            // The plan map carries `uuid -> null`, so the fallback resolves only null entries.
             coEvery {
                 trainingExerciseRepository.getPlans(trainingUuid, listOf(exerciseUuid))
             } returns mapOf(exerciseUuid to null)
@@ -364,10 +354,7 @@ internal class LiveWorkoutInteractorImplTest {
     @Test
     fun `loadSession reads isPlanAttached from key presence, not from plan nullability`() =
         runTest {
-            // The PF1 distinction (v3 §6.3). Both exercises resolve to a null plan through
-            // `map[uuid]`, so a null-check cannot tell them apart. Only key presence can:
-            // `attached` has a training_exercise row whose plan_sets is NULL; `oneOff` has no
-            // row at all. Conflating them is what would make a one-off edit the template.
+            // Only key presence tells them apart: `attached` has a NULL-plan row, `oneOff` none.
             val sessionUuid = "session-1"
             val trainingUuid = "training-1"
             seedNonAdhocLoad(sessionUuid, trainingUuid, "ex-attached", "ex-one-off")
@@ -392,8 +379,7 @@ internal class LiveWorkoutInteractorImplTest {
 
     @Test
     fun `loadSession on an adhoc training treats every exercise as plan-attached`() = runTest {
-        // An adhoc training has no template to diverge from, so the axis does not apply and
-        // the one-off affordance must not appear.
+        // An adhoc training has no template, so the one-off affordance must not appear.
         val sessionUuid = "session-1"
         val trainingUuid = "training-1"
         val exerciseUuid = "ex-1"
@@ -407,8 +393,7 @@ internal class LiveWorkoutInteractorImplTest {
 
     @Test
     fun `finishSession routes a one-off plan to the exercise instead of the training`() = runTest {
-        // Without this routing the template write matches zero rows and the sets the user
-        // just logged are persisted nowhere.
+        // Without this routing the template write matches zero rows and the sets are lost.
         val sessionUuid = "session-1"
         val trainingUuid = "training-1"
         coEvery { sessionRepository.getById(sessionUuid) } returns SessionDataModel(
@@ -459,22 +444,17 @@ internal class LiveWorkoutInteractorImplTest {
 
         interactor.finishSession(sessionUuid)
 
-        // `isAdhoc = true` on PlanUpdate means "write to exercise.last_adhoc_sets", which is
-        // also where loadSession's read-time fallback will look for it next session.
+        // `isAdhoc = true` on PlanUpdate means "write to exercise.last_adhoc_sets".
         val update = captured.captured.single()
         assertEquals("ex-one-off", update.exerciseUuid)
         assertEquals(true, update.isAdhoc)
-        // The training template is never consulted for a one-off.
         coVerify(exactly = 0) { trainingExerciseRepository.getPlan(trainingUuid, "ex-one-off") }
     }
 
     @Test
     fun `finishSession discards a persisted zero-rep set and leaves it out of the plan`() =
         runTest {
-            // Defence-in-depth (§6.1). No production writer can persist reps <= 0 today, so
-            // this row is seeded directly — it stands in for legacy or imported data. The
-            // assertion is that such a row is deleted, excluded from setsLogged, and never
-            // promoted into the next session's plan.
+            // Defence-in-depth: no production writer persists reps <= 0; seeded directly here.
             val sessionUuid = "session-1"
             val trainingUuid = "training-1"
             coEvery { sessionRepository.getById(sessionUuid) } returns SessionDataModel(
@@ -539,15 +519,12 @@ internal class LiveWorkoutInteractorImplTest {
 
             val result = interactor.finishSession(sessionUuid)
 
-            // The zero-rep row is handed to the transaction rather than deleted here, so a
-            // failed finish rolls it back with everything else.
+            // The zero-rep row goes to the transaction, so a failed finish rolls it back.
             assertEquals(listOf("s-2"), discarded.captured)
-            // Nothing is deleted outside the transaction.
             coVerify(exactly = 0) {
                 setRepository.deleteByPerformedAndPosition(any(), any())
             }
             assertEquals(1, result?.discardedUnfilledSets)
-            // It counts as neither logged work nor part of the next plan.
             assertEquals(1, result?.setsLogged)
             assertEquals(
                 listOf(PlanSetDataModel(weight = 100.0, reps = 5, type = SetTypeDataModel.WORK)),
@@ -562,8 +539,7 @@ internal class LiveWorkoutInteractorImplTest {
             val trainingUuid = "training-1"
             val exerciseUuid = "ex-1"
             seedNonAdhocLoad(sessionUuid, trainingUuid, exerciseUuid)
-            // Empty list is treated as "user deliberately cleared the plan" — preserved as
-            // empty in the snapshot, NOT replaced by an adhoc fallback.
+            // An empty list means "deliberately cleared" — preserved, never adhoc-filled.
             coEvery {
                 trainingExerciseRepository.getPlans(trainingUuid, listOf(exerciseUuid))
             } returns mapOf(exerciseUuid to emptyList())
@@ -571,8 +547,7 @@ internal class LiveWorkoutInteractorImplTest {
             val snapshot = interactor.loadSession(sessionUuid)
 
             assertEquals(emptyList<PlanSetDomain>(), snapshot?.exercises?.single()?.planSets)
-            // Crucially, with no null entries in the training plans map, getAdhocPlans is
-            // not called at all — Phase 6's "Empty nullExerciseUuids" assertion.
+            // With no null entries in the plans map, getAdhocPlans is not called at all.
             coVerify(exactly = 0) { exerciseRepository.getAdhocPlans(any()) }
         }
 
@@ -595,7 +570,6 @@ internal class LiveWorkoutInteractorImplTest {
                 listOf(PlanSetDomain(weight = 100.0, reps = 3, type = SetTypeDomain.WORK)),
                 snapshot?.exercises?.single()?.planSets,
             )
-            // No null entries → getAdhocPlans is NOT called.
             coVerify(exactly = 0) { exerciseRepository.getAdhocPlans(any()) }
         }
 
@@ -639,10 +613,7 @@ internal class LiveWorkoutInteractorImplTest {
 
         interactor.loadSession(sessionUuid)
 
-        // Perf guard: the PR pre-snapshot must stay on `observePersonalRecordsBatch`
-        // (single Room query) rather than a combine-of-N over per-exercise flows. The
-        // combine-of-N variant `observePersonalRecords` has since been deleted outright,
-        // so this positive assertion is now the whole guard.
+        // Perf guard: the PR pre-snapshot must stay on the single-query batch API.
         verify(exactly = 1) {
             personalRecordRepository.observePersonalRecordsBatch(any())
         }
@@ -660,7 +631,6 @@ internal class LiveWorkoutInteractorImplTest {
 
         interactor.loadSession(sessionUuid)
 
-        // The refactor consolidated the per-performed-exercise loop into one batch read.
         coVerify(exactly = 1) {
             setRepository.getByPerformedExercises(listOf("pe-1"))
         }
@@ -737,8 +707,7 @@ internal class LiveWorkoutInteractorImplTest {
         performedUuids.forEach { performedUuid ->
             coEvery { setRepository.getByPerformedExercise(performedUuid) } returns emptyList()
         }
-        // New batch-API default: empty performed-set map by default; tests that need a
-        // populated map override this stub.
+        // Empty performed-set map by default; tests needing a populated map override this.
         coEvery { setRepository.getByPerformedExercises(performedUuids) } returns emptyMap()
     }
 

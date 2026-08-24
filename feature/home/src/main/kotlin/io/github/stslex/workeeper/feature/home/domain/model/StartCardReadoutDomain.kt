@@ -2,14 +2,8 @@
 package io.github.stslex.workeeper.feature.home.domain.model
 
 /**
- * What the start card has to show for the selected mode (home-start-card.md §3) — data or
- * that mode's own empty state, never another mode's readout (HD2/HD3/HD4: no mode ever
- * falls back to a sibling; silently replacing the mode the user chose makes the switch a
- * liar).
- *
- * [NoSessions] serves both «Неделя» and «Дни без тренировки»: their empty condition is the
- * same fact — no session has ever finished — and per HD4 the copy is per NEWS, which here
- * is one piece of news.
+ * What the start card has to show for the selected mode (home-start-card.md §3) — data or that
+ * mode's own empty state, never a sibling's readout. [NoSessions] serves the first two modes.
  */
 sealed interface StartCardReadoutDomain {
 
@@ -35,10 +29,7 @@ sealed interface StartCardReadoutDomain {
     /** «Отставшие группы» with no tagged training history to measure. */
     data object NoTaggedHistory : StartCardReadoutDomain
 
-    /**
-     * «Забытая тренировка»: the most forgotten template. [daysIdle] is null for a template
-     * never run — by the metric the most forgotten thing there is (HD1).
-     */
+    /** «Забытая тренировка»: the most forgotten template; [daysIdle] is null if never run. */
     data class Forgotten(
         val trainingUuid: String,
         val trainingName: String,

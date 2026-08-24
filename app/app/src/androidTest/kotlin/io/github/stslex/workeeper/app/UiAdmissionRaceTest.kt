@@ -26,36 +26,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * THE STALE-REGION PROOF (Phase 5 R3, spec §8.4 step 1 — round-3 blocker 5), composed.
- *
- * `App()`'s generation region takes its admission **during composition** —
- * `remember(id) { GenerationAdmission(holder, id) }` — and composes `AppGenerationContent()` only
- * when that grant was given. The property this file pins is the consequence: **a generation that
- * is already retired when its region composes resolves ZERO dependencies and leaks no grant.**
- *
- * The region under test is the REAL one: this test composes the production [App] composable, and
- * the admission it asks for goes through the production `AppUiGenerationsHolder` seam that
- * `TestApplication` implements. The two harness-side knobs are honest accounting rather than
- * stand-ins:
- *  - `MetroTestGraphHolder.retireUiGeneration(id)` makes `admitUiGeneration(id)` answer `null`,
- *    which is exactly what the runtime's own gate answers for a generation it has handed over;
- *  - `MetroTestGraphHolder.appRootDepsResolutions` counts `TestApplication.appRootDeps()`, and
- *    `App()` is the only caller of that method in the entire app (measured) — it resolves it once
- *    per composed region, to build the `AppRootViewModel` that ctor-captures the generation's
- *    `navigatorEventBus`. Zero is therefore a literal "this region reached the graph zero times".
- *
- * **What the third test drives, and how the race is made deterministic.** With
- * `mainClock.autoAdvance = false` no frame runs until this test asks for one, so the publication
- * of generation N+1 and the recomposition that would compose its region are separated by a window
- * the test owns. The retirement is applied INSIDE that window — after the phase is published,
- * before any frame composes it. No `waitForIdle` is used to close the race; the clock is.
- *
- * Boundary of the claim, stated rather than implied: this proves the REFUSAL path — a region that
- * composes under an already-retired id resolves nothing. It does NOT prove the other half of
- * `GenerationAdmission`'s leak-freedom, `onAbandoned` (a composition composed and then thrown away
- * before it is applied): Compose offers no supported way to force an abandoned composition from a
- * test, so that path stays covered by construction (the `RememberObserver` contract) rather than
- * by execution here.
+ * A generation already retired when its region composes resolves zero dependencies and leaks no
+ * grant. Refusal only — `onAbandoned` is not executable from a test. See the Phase-5 spec.
  */
 @Regression
 @RunWith(AndroidJUnit4::class)
@@ -78,10 +50,7 @@ internal class UiAdmissionRaceTest {
         secondDatabase = null
     }
 
-    /**
-     * The positive control. Without it "resolved nothing" below would be vacuous — a region that
-     * resolves nothing when it IS admitted proves nothing about admission.
-     */
+    /** Positive control: without it, "resolved nothing" below would be vacuous. */
     @Test
     fun admittedGeneration_composesTheRegion_andResolvesItsDependencies() {
         val generationId = publishedGenerationId()
@@ -102,10 +71,7 @@ internal class UiAdmissionRaceTest {
         )
     }
 
-    /**
-     * Retired BEFORE the region ever composes: the grant is refused during composition, so the
-     * content the grant gates is never composed and nothing behind it is ever resolved.
-     */
+    /** Retired before the region composes: the grant is refused, so nothing behind it resolves. */
     @Test
     fun retiredGeneration_composesNothing_andResolvesNothing() {
         val generationId = publishedGenerationId()
@@ -125,16 +91,14 @@ internal class UiAdmissionRaceTest {
             0,
             MetroTestGraphHolder.outstandingAdmissions(generationId),
         )
-        // The published phase IS a Generation, so an absent AppRoot means the REGION rendered
-        // nothing — not that the shell was showing the Transitioning interstitial instead.
+        // The published phase IS a Generation, so an absent AppRoot means the region drew nothing.
         composeRule.onNodeWithTag(APP_ROOT_TAG).assertDoesNotExist()
         composeRule.onNodeWithTag(TRANSITIONING_TAG).assertDoesNotExist()
     }
 
     /**
-     * THE RACE. Generation N+1 is published while the composition is live, and retired inside the
-     * window between that publication and the frame that would compose its region. The stale
-     * region must resolve nothing.
+     * THE RACE: generation N+1 is retired inside the window between its publication and the frame
+     * that would compose its region.
      */
     @Test
     fun retirementBetweenPublicationAndFrame_resolvesNothing() {
@@ -143,8 +107,7 @@ internal class UiAdmissionRaceTest {
         val generationOne = publishedGenerationId()
         composeRule.onNodeWithTag(APP_ROOT_TAG).assertIsDisplayed()
 
-        // From here the test owns the apply boundary: nothing recomposes until a frame is asked
-        // for, which is what makes the window below a window and not a hope.
+        // From here the test owns the apply boundary — the clock closes the race, not waitForIdle.
         composeRule.mainClock.autoAdvance = false
 
         publishSecondGeneration()

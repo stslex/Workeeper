@@ -29,11 +29,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * Smoke test for `LiveWorkoutScreen` covering the action-dispatch surface that the
- * draft / visible-row refactor touches. Drives the screen with a fixed `State` and
- * asserts that user gestures route through the right `Action` variants. State
- * mutation is the store's job and is covered by handler / mapper / mutator tests —
- * this test is intentionally about the UI ↔ MVI boundary.
+ * Smoke test for `LiveWorkoutScreen`: a fixed `State` in, and the `Action` variants each
+ * gesture dispatches out. Deliberately about the UI ↔ MVI boundary only.
  */
 @Smoke
 @RunWith(AndroidJUnit4::class)
@@ -78,10 +75,8 @@ internal class LiveWorkoutScreenTest : BaseComposeTest() {
 
     @Test
     fun type_chip_click_dispatches_OnSetTypeSelect_with_current_chip_type() {
-        // Plan type=WORK at position 0; clicking the chip carries the current chip type
-        // (WORK). The handler advances via `.next()` — that side of the contract is
-        // covered by `LiveSetDraftBehaviorTest`. This test locks the UI half: the action
-        // carries the row's current type.
+        // The UI half of the chip contract: the action carries the row's CURRENT type, and
+        // the handler is what advances it.
         val capture = createActionCapture<Action>()
         composeRule.setThemedContent {
             LiveWorkoutScreen(state = stateWithOnePlanSet(), consume = capture)
@@ -127,10 +122,7 @@ internal class LiveWorkoutScreenTest : BaseComposeTest() {
         assertEquals(0, action.position)
     }
 
-    /**
-     * Wraps the rendered widget in `AppTheme` so `LocalAppColors` is provided. Without
-     * this, every read of `AppUi.colors.*` inside the screen throws at composition.
-     */
+    /** Wraps the widget in `AppTheme`; without it every `AppUi.colors.*` read throws. */
     private fun ComposeContentTestRule.setThemedContent(content: @Composable () -> Unit) {
         setContent {
             AppTheme(themeMode = ThemeMode.LIGHT) { content() }

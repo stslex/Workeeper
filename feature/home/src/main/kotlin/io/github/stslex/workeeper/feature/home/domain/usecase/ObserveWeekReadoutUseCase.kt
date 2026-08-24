@@ -16,13 +16,8 @@ import kotlinx.coroutines.flow.map
 import kotlinx.datetime.TimeZone
 
 /**
- * Observes the «Неделя» readout: the calendar week containing [invoke]'s `nowMillis`,
- * Monday-first, in [timeZone].
- *
- * The window is computed once per collection, not per emission — Room re-emits on table
- * changes only, so a screen left open across midnight keeps the window it opened with
- * until the flow is re-collected. Accepted: the card is a log, and Home re-collects on
- * every screen entry.
+ * Observes the «Неделя» readout: the calendar week containing `nowMillis`, Monday-first. The
+ * window is fixed for the lifetime of the collection — see home-start-card.md.
  */
 @Inject
 @SingleIn(HomeScope::class)

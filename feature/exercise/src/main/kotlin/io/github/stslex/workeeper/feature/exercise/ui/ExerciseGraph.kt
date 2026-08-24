@@ -52,13 +52,7 @@ fun NavGraphScope.exerciseGraph(
 ) {
     navComponentScreenWithResults(ExerciseFeature) { results, processor ->
 
-        // Image-viewer return. The viewer carries the picture's two verbs now (§26, "The image
-        // moves into the pushed top bar") and performs neither: it pops with a REQUEST, and the
-        // machinery that can honour it — the source sheet, the camera permission, the temp URI,
-        // the uncommitted `PendingImage` — stays here, where it already was.
-        //
-        // What the request MEANS is not decided here. Resolving the name to a verb and choosing
-        // the action is state-shaped work, and it lives in the Store.
+        // Image-viewer return: the viewer pops with a REQUEST, the Store resolves what it means.
         results.OnResult(Screen.ExerciseImage::class) { request ->
             processor.consume(Action.Common.ImageRequestReceived(request))
         }
@@ -72,11 +66,8 @@ fun NavGraphScope.exerciseGraph(
         val imageDecodeFailed =
             stringResource(R.string.feature_exercise_image_error_decode_failed)
 
-        // pendingCameraTempUri is *bridge state* for the camera Activity Result Contract,
-        // not a UI dialog. The launcher's result callback needs the URI it was launched
-        // with so it can decide whether the capture succeeded; rotation between launch and
-        // result is rare in practice and recovering after process death is out of scope
-        // for this rule. Keep as a local var.
+        // Bridge state for the camera contract: the result callback needs the URI it launched
+        // with. Rotation between launch and result is out of scope.
         var pendingCameraTempUri by remember { mutableStateOf<Uri?>(null) }
 
         val cameraLauncher = rememberLauncherForActivityResult(
@@ -122,8 +113,7 @@ fun NavGraphScope.exerciseGraph(
 
                 is Event.ShowTagLimitReached -> SnackbarManager.showSnackbar(message = event.message)
 
-                // The toast is app-level and can outlive the draft, so the action carries
-                // the event's draftEpoch back and the handler decides whether it applies.
+                // The toast can outlive the draft, so the action carries the epoch back.
                 is Event.ShowSetRemovedUndo -> SnackbarManager.showSnackbar(
                     AppSnackbarModel(
                         message = event.message,
@@ -175,38 +165,15 @@ fun NavGraphScope.exerciseGraph(
             }
         }
 
-        // Intercept the system back gesture for unsaved edits or open dialogs — otherwise
-        // BackHandler stays unsubscribed so Compose nav handles the gesture natively
-        // (including the Android 13+ predictive-back preview animation). The TopAppBar
-        // back arrow and Cancel button still emit OnBackClick directly so explicit taps
-        // always flow through the store regardless of interceptBack.
+        // Intercepted only for unsaved edits or open dialogs; otherwise nav handles back natively.
         BackHandler(enabled = processor.state.value.interceptBack) {
             processor.consume(Action.Click.OnBackClick)
         }
 
         val state = processor.state.value
 
-        // §26 "A route does not compose until it has loaded". Everything above this line still
-        // runs while the load is in flight — the image-result forward, the activity-result
-        // launchers, the event `Handle`, the back interception — and only the screen waits.
-        //
-        // Nothing is drawn instead, deliberately: neither mockup draws a loading surface, and
-        // `AppNavigationHost` paints the background under every destination, so an unloaded
-        // route is an empty frame in the app's own colour rather than a hole.
-        //
-        // It gates BOTH modes because they are one route and one store. `isLoading` is
-        // `uuid != null`, so a create flow is never withheld — there is nothing to load — and
-        // an existing exercise never draws a shell with a blank name and an empty history
-        // while the read is in flight.
-        //
-        // LOAD-BEARING PRECONDITION: `loadExercise` must clear `isLoading` on FAILURE as well
-        // as on success, because `HandlerStore.launch` defaults `onError` to `{}` (B17, B21).
-        // A throw that leaves the flag set is a permanently empty screen — this gate is what
-        // gives that failure a cost. `CommonHandler.loadExercise` closes its own.
-        // GUARD: this wrapper must sit ABOVE the early return. `AnimatedVisibility` does not
-        // animate a composable that enters composition already visible, so it has to be composed
-        // while the route is still loading or the fade silently disappears. The modal content
-        // below stays behind the return, withheld until the load lands.
+        // GUARD: this wrapper must sit ABOVE the early return — AnimatedVisibility does not
+        // animate a composable that enters composition already visible, so the fade would vanish.
         AppLoadedContent(isLoaded = state.isLoading.not()) {
             when (state.mode) {
                 Mode.Read -> ExerciseDetailScreen(
@@ -244,9 +211,7 @@ fun NavGraphScope.exerciseGraph(
                 PlanInfoSheetContent(consume = processor::consume)
             }
 
-            // ED7: search · the dictionary as chips, a tap toggles live · «+ Создать «X»» ·
-            // «Готово». Dismissal by any route lands on the same action — the selection is
-            // already applied, so there is nothing to confirm or roll back.
+            // ED7: dismissal by any route lands on one action — the selection is already applied.
             BottomSheetState.TagPicker -> AppBottomSheet(
                 onDismiss = { processor.consume(Action.Click.OnTagPickerDismiss) },
             ) {
@@ -267,8 +232,7 @@ fun NavGraphScope.exerciseGraph(
         when (val dialog = state.dialogState) {
             DialogState.Hidden -> Unit
 
-            // §26 "Every modal on the three editors is a SHEET" — the drawing has no dialog
-            // primitive at all. Strings from the kit: one component, one table, three editors.
+            // §26: every modal on the three editors is a sheet; the strings come from the kit.
             is DialogState.DiscardConfirm -> AppConfirmSheet(
                 title = stringResource(KitR.string.core_ui_kit_discard_sheet_title),
                 body = stringResource(KitR.string.core_ui_kit_discard_sheet_body),
@@ -279,8 +243,7 @@ fun NavGraphScope.exerciseGraph(
                 onDismiss = { processor.consume(Action.Click.OnDismissDiscard) },
             )
 
-            // The inline plan editor's type switch. Same sheet the full-screen route raises, so
-            // the two hosts ask the question the same way.
+            // The inline plan editor's type switch — the same sheet the full-screen route raises.
             is DialogState.TypeChangeConfirm -> AppConfirmSheet(
                 title = dialog.title,
                 body = dialog.body,
@@ -300,8 +263,7 @@ fun NavGraphScope.exerciseGraph(
                 onDismiss = { processor.consume(Action.Click.OnDismissArchiveBlocked) },
             )
 
-            // `#sh-del`'s form: the one true confirmation is a SHEET (D-OPEN-1 — §7.4 stands,
-            // no dialog primitive in this language). The impact line rides `emphasis`.
+            // `#sh-del`: the one true confirmation is a sheet; the impact line rides `emphasis`.
             is DialogState.PermanentDeleteConfirm -> AppConfirmSheet(
                 title = dialog.title,
                 body = dialog.body,
@@ -317,10 +279,7 @@ fun NavGraphScope.exerciseGraph(
                 onDismiss = { processor.consume(Action.Click.OnPrExplainerDismiss) },
             )
 
-            // A MENU sheet rather than a confirm one: two choices and no question, which is
-            // `#sh-pick`'s shape. The two Material photo glyphs go with the dialog — the kit
-            // ships neither, and inventing them would settle B33(b)'s open questions.
-            // The cancel button goes too: a sheet's scrim and drag are its dismiss.
+            // A MENU sheet rather than a confirm one: two choices and no question (`#sh-pick`).
             DialogState.ImageSourcePicker -> AppBottomSheet(
                 onDismiss = { processor.consume(Action.Click.OnImageSourceDialogDismiss) },
             ) {

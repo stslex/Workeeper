@@ -47,16 +47,8 @@ fun AppConfirmDialog(
 }
 
 /**
- * The dialog's **content**, without the window.
- *
- * `Dialog {}` composes into its own window and Paparazzi models a single one, so a confirm
- * dialog drawn only inside [AppConfirmDialog] has no visual gate at all — the combination of
- * a surface with a drawn treatment and no way to photograph it is the one worth avoiding. The
- * window is the part Paparazzi cannot model; the content is not, and it is where every colour,
- * radius and rung actually lives. Splitting them costs one composable and buys the gate.
- *
- * [AppConfirmDialog] is the only production caller. This exists so goldens can render the same
- * pixels without a window, which is why it must stay a pure function of its arguments.
+ * The dialog's content without the window, so goldens can photograph it — Paparazzi models a
+ * single window. Must stay a pure function of its arguments.
  */
 @Composable
 fun AppConfirmDialogContent(

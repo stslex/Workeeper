@@ -34,18 +34,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.StateFlow
 
 /**
- * The process [Application] base, Hilt-free (App-Scope Collapse Step 6 — the cut). Holds the Metro
- * app-scope [AppGraph] for the whole process and exposes it through the interface seams every consumer
- * reads: [AppGraphOwner] (in-module: `MainActivity` and other `:app:app` readers), [AppDepsHolder]
- * (the 13 feature-side readers via `context.appDeps<XxxGraph.Factory>()`), and the typed
- * [RecoveryDepsHolder] / [BackupWorkerDepsHolder] (the two framework readers that must not depend on
- * `core:ui:mvi`).
- *
- * Two `Context`-cast seams used to sit alongside them and are both gone. `AppDialogInternalsHolder`
- * handed app-dialogs/impl its own app-scoped singletons because no dep interface could name those
- * impl-owned types; `AppDialogPublisherHolder` exposed the publisher to cross-module producers. The
- * contributed extensions inherit both from [AppGraph], and producers (settings / recovery) take
- * `AppDialogPublisher` as an ordinary constructor dep.
+ * Process [Application] base. Holds the Metro app-scope [AppGraph] and exposes it through the
+ * holder seams its consumers read. See documentation/architecture.md.
  */
 abstract class BaseApplication :
     Application(),
@@ -96,25 +86,15 @@ abstract class BaseApplication :
     override fun releaseUiGeneration(token: AppUiAdmissionToken) =
         appRuntime.releaseUiGeneration(token)
 
-    // Feature-side readers acquire their own contributed `XxxGraph.Factory` via `context.appDeps<T>()`.
-    // Every `@ContributesTo(AppScope::class)` extension factory is merged into `appGraph`, so the
-    // accessor's `as T` cast is safe by construction.
+    // Every `@ContributesTo(AppScope::class)` factory is merged in, so a caller's `as T` is safe.
     override fun appDeps(): Any = appGraph
 
-    // God-object split (typed point-acquisition): the framework-instantiated RecoveryActivity reads
-    // its 2 deps through this typed holder instead of `context.appDeps<T>()` — it uses no core:ui:mvi
-    // symbols, so it must not gain a parasitic mvi edge just to reach the mvi-homed accessor. `appGraph`
-    // implements RecoveryDeps, so returning it typed as RecoveryDeps is a compile-checked upcast.
+    // Typed seam: RecoveryActivity must not gain a parasitic `core:ui:mvi` edge.
     override fun recoveryDeps(): RecoveryDeps = appGraph
 
-    // BackupWorker binds dependencies and its lease atomically at first operation.
     override suspend fun awaitBackupWorkLease(): BackupWorkLease = appRuntime.awaitBackupWorkLease()
 
-    // Typed point-acquisition, same shape as the two above: App() lives in app:common, which
-    // `:app:app` depends on — so it sits below the graph and cannot name `AppGraph` or
-    // `AppGraphOwner` at all. `appGraph` implements AppRootDeps, so returning it typed as AppRootDeps
-    // is a compile-checked upcast, and the `as AppRootDepsHolder` cast at the App() call site is safe
-    // by construction because this class implements the holder.
+    // Typed seam: `App()` lives in app:common, below the graph, and cannot name [AppGraph].
     override fun appRootDeps(): AppRootDeps = appGraph
 
     override val workManagerConfiguration: Configuration
@@ -132,15 +112,11 @@ abstract class BaseApplication :
     }
 
     /**
-     * The graph-touching half of [onCreate], extracted behind an overridable seam (App-Scope Collapse
-     * Step 6, Phase 3.3). Every statement here reads [appGraph], which would force the `by lazy` graph to
-     * build with the production `create()` roots (file-backed `buildAppDatabase`). The consolidated
-     * `:app:app` androidTest harness overrides this to a no-op in its `TestApplication`, so the
-     * `MetroTestRule` can install a fresh per-test graph (in-memory / fail-fast DB) BEFORE any graph read.
-     * `protected open` keeps the seam `:app:app`-internal — no cross-module visibility change.
+     * The graph-touching half of [onCreate]. Overridable so the androidTest `TestApplication` can
+     * no-op it and install a per-test graph before any graph read.
      */
     protected open fun onCreateGraphBootstrap() {
-        // First generation read — builds and publishes generation 1 (mutex-free, cold-start rule).
+        // First read builds and publishes generation 1.
         val generation = appRuntime.currentGeneration
         val outcome = startupProcessor.coldStart(
             graph = generation.graph,
@@ -148,20 +124,13 @@ abstract class BaseApplication :
             lifetime = generation.lifetime,
         )
         if (outcome == StartupOutcome.RestartRequired) {
-            // Scenario 1 rolled the live db back — restart so the next process rebuilds against
-            // the rolled-back file. Never returns (Runtime.exit inside).
+            // Never returns: restarts so the next process rebuilds against the rolled-back file.
             appGraph.restoreRecoveryCoordinator.restartApp()
         }
-        // Proceed / RouteToRecovery: the decision is cached on the coordinator; MainActivity
-        // reads it in its own onCreate — unchanged from the pre-extraction flow.
+        // Proceed / RouteToRecovery is cached on the coordinator; MainActivity reads it.
     }
 
-    /**
-     * The extracted startup sequence (Phase 5, spec §8.3) — an order-preserving refactor of the
-     * four inline stages this class used to hold; every stage's ordering, blocking, guard, and
-     * failure-policy guarantee is documented on [StartupProcessor]. The one production seam wired
-     * here is the low-RAM check, which needs this [android.content.Context].
-     */
+    /** The startup sequence; the low-RAM seam is wired here because it needs the Context. */
     private val startupProcessor = StartupProcessor(
         isLowRamDevice = {
             getSystemService(ActivityManager::class.java)?.isLowRamDevice == true

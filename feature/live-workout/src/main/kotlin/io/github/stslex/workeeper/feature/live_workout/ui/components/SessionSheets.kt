@@ -23,15 +23,8 @@ import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveExerciseUiM
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore
 
 /*
- * The session's four sheets (extraction §1.9), as bare CONTENT composables — the window
- * (AppBottomSheet: tier3, r32, grab) wraps them at the call site, which keeps every one of
- * them goldenable (§10.4 excludes the window, not the drawing).
- *
- * Deliberate deltas against the drawn sheet inventory, all reported in the PR:
- * - `sh-session` omits `Изменить порядок`: the item is a no-op in the mockup and reorder has
- *   no mechanics anywhere — a dead menu row would be worse than an absent one.
- * - `sh-ex` carries `Изменить план` and `Сбросить подходы` above the drawn three: both are
- *   real mechanics the extraction says to keep ("removing them is a scope decision").
+ * The session's four sheets (extraction §1.9) as bare CONTENT composables — `AppBottomSheet`
+ * wraps them at the call site, which is what keeps each of them goldenable.
  */
 
 /** `sh-session`: no title — add exercise · cancel session (rust). */
@@ -57,10 +50,7 @@ internal fun SessionMenuSheetContent(
     }
 }
 
-/**
- * `sh-ex`: titled with the exercise name. One-off switch (mid-session additions in plan
- * sessions only, §6.1) · plan/reset (kept mechanics) · skip toggle · delete (rust).
- */
+/** `sh-ex`: one-off switch (plan sessions only) · plan/reset · skip toggle · delete. */
 @Composable
 internal fun ExerciseMenuSheetContent(
     exercise: LiveExerciseUiModel,

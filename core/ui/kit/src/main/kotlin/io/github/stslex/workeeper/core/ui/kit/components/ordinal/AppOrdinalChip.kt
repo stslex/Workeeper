@@ -28,35 +28,8 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
 
 /**
- * The session card's `.ordchip` — a 24dp state chip that *is* the card's state indicator
- * (extraction §1.5). Seven variants, resolved with the mockup stylesheet's own precedence
- * (session-v3f.html L86–96; later rules win):
- *
- * | state | background | content | border |
- * |---|---|---|---|
- * | resting | — | `dim` number | — |
- * | active (open card) | `max` | `base` number, 500 | — |
- * | fin | **`donefill`** | `meta` **checkmark** | — |
- * | skip | — | `dim` number | dashed `hair-s` (→ `borderDefault`) |
- * | temp (one-off) | — | `dim` number | dashed `dim` |
- * | temp.active | — | `max` number, 500 | dashed `max` |
- * | temp.fin | — | `meta` **checkmark** | dashed `meta` |
- *
- * Two rules that are easy to get wrong, both verified against the stylesheet:
- * - **`fin` always swaps the number for the checkmark** — `.card.fin .ordchip svg` has no
- *   `:not(.temp)` guard, so a finished one-off shows a `meta` check inside a dashed `meta`
- *   chip. (The extraction's own table says "number" there; the stylesheet disagrees and the
- *   stylesheet is the mockup.)
- * - a skipped one-off keeps the `temp` chip (dashed `dim`) — `.temp` is declared after
- *   `.skip`, so the one-off treatment wins the chip while `.skip` wins the card.
- *
- * "Done" for an exercise is this chip plus the title's `meta`/500 treatment — **not** an
- * opacity change, which is precisely the step-5 defect this component replaces.
- *
- * `isActive` is the mockup's `.card.active`, i.e. the card is **open** — not "this is the
- * current exercise". The two usually coincide (the automaton opens the current card), but a
- * manually-opened finished card is active-without-being-current, and it lifts and re-chips
- * exactly like the mockup's.
+ * The session card's 24dp `.ordchip` state indicator. `isActive` is the card being open, not
+ * "this is the current exercise". See documentation/feature-specs/screen-extraction.md §1.5.
  */
 @Composable
 fun AppOrdinalChip(

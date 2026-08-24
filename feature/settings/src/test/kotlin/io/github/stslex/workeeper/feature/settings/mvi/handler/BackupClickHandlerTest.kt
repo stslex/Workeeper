@@ -178,16 +178,14 @@ internal class BackupClickHandlerTest {
 
         authFlow.value = BackupAuthDomain.NotAuthenticated
 
-        // `Unknown`, not null. Signing out does not mean "this account has no backups" — it means
-        // we no longer know, which is exactly the distinction the sealed type exists to keep.
+        // `Unknown`: signing out means we no longer know, not that there are none.
         assertEquals(BackupInfoUi.Unknown, store.stateFlow.value.backupInfo)
     }
 
     @Test
     fun `SignIn Success flips operation to Idle and rehydrates auto-backup`() =
         runTest(testDispatcher) {
-            // Pin steady-state so the rehydrate branch (not bootstrap) is exercised; the
-            // bootstrap-from-SignIn scenario is covered by its own test below.
+            // Pin steady-state so the rehydrate branch, not bootstrap, is exercised.
             preferencesFlow.value = preferencesFlow.value.copy(
                 autoBackupBootstrapped = true,
                 schedule = BackupSchedule.Daily,
@@ -260,7 +258,7 @@ internal class BackupClickHandlerTest {
         runTest(testDispatcher) {
             handler.invoke(Action.Backup.ToggleAiExport(false))
 
-            // Flag off FIRST (so a racing worker won't re-upload), then delete the plaintext copies.
+            // Flag off first so a racing worker won't re-upload, then delete the copies.
             coVerifyOrder {
                 preferencesRepository.setAiExportEnabled(false)
                 interactor.deleteAiExportSnapshots()
@@ -686,8 +684,7 @@ internal class BackupClickHandlerTest {
 
             handler.invoke(Action.Backup.LoadBackupList)
 
-            // A FAILED list call leaves the state where it was: `Unknown`. Reporting `Empty`
-            // here would turn a network failure into a claim about the account.
+            // `Empty` here would turn a network failure into a claim about the account.
             assertEquals(BackupInfoUi.Unknown, store.stateFlow.value.backupInfo)
             assertTrue(store.events.isEmpty(), "LoadBackupList failure must stay silent")
         }
@@ -770,9 +767,7 @@ internal class BackupClickHandlerTest {
                 ),
             )
 
-            // The snapshot handed to schedulePeriodic must carry the persisted
-            // non-sentinel fields; DEFAULT-based construction would have zeroed
-            // them out.
+            // The snapshot must carry the persisted non-sentinel fields; DEFAULT.copy zeroes them.
             coVerify {
                 autoBackupController.schedulePeriodic(
                     match { snapshot ->

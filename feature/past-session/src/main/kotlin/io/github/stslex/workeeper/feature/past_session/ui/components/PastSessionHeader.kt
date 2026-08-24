@@ -20,17 +20,7 @@ import kotlinx.collections.immutable.persistentListOf
 
 /**
  * The v3 header block (extraction §2.3): `.label` eyebrow, `.data-hero` duration, `.meta`
- * summary line — three texts directly on the page under the gutter. **This is not a card**;
- * `pass2d.html:296-300` draws no container, and the v2.4 `AppCard` wrapper is exactly the
- * treatment the rebuild retires.
- *
- * - Eyebrow: `Завершена · 23 июля 2026` in the `.label` treatment ([AppLabel] — uppercase
- *   mono caption, `textDim`; casing is the style's job, not the string's).
- * - Duration: `.data-hero` is drawn at 44px, off the six-step scale; §0.2 says the scale
- *   wins, so it lands on `numeric.display` (34 rung) — digits and a colon only, which is
- *   what the C2 charset rule permits. `margin-top:10px` → 8dp.
- * - Summary: `.meta` — mono 12.5 in `textTertiary`, carrying the §11.1 tonnage as its third
- *   term when the session lifted anything. `margin-top:10px` → 8dp.
+ * summary line — three texts directly on the page, not a card.
  */
 @Composable
 internal fun PastSessionHeader(

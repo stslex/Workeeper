@@ -30,15 +30,8 @@ import org.robolectric.annotation.Config
 import tech.apter.junit.jupiter.robolectric.RobolectricExtension
 
 /**
- * Verification for [MetroWorkerFactory] (Phase 5 R2, first-operation lease admission): the factory
- * dispatch logic is proven on BOTH a known-positive (BackupWorker's class name → a constructed
- * worker) and a known-negative (any other class name → null fallthrough), and — the §8.4/§8.6
- * shape — CONSTRUCTION touches no admission at all. The factory captures nothing
- * generation-scoped; a run binds to a generation only when `doWork` acquires its lease through
- * the typed [BackupWorkerDepsHolder] as the first operation.
- *
- * The test Application implements [BackupWorkerDepsHolder] and RECORDS the leases it mints, so
- * the tests assert against the atomically-captured lease deps rather than lazy holder reads.
+ * [MetroWorkerFactory] dispatch on a known-positive and known-negative class name; construction
+ * must touch no admission. The test Application records every lease it mints.
  */
 @ExtendWith(RobolectricExtension::class)
 @Config(application = MetroWorkerFactoryTest.TestApplication::class, sdk = [33])
@@ -77,9 +70,7 @@ internal class MetroWorkerFactoryTest {
             workerParameters = workerParameters,
         )
 
-        // Construction is dependency-free (spec §8.6): WorkManager caches the factory for the
-        // process and may construct workers it never starts, so the factory must capture NO
-        // admission lease — admission is doWork's first operation, never the factory's.
+        // GUARD: construction must capture NO lease; admission is doWork's first operation.
         assertInstanceOf(BackupWorker::class.java, worker)
         assertTrue(application.acquiredLeases.isEmpty())
     }
@@ -92,10 +83,8 @@ internal class MetroWorkerFactoryTest {
             workerParameters = workerParameters,
         )
 
-        // null → WorkManager's inherited createWorkerWithDefaultFallback constructs unknown
-        // workers via the default reflection factory. The admission gate must NOT be entered on
-        // the negative path — a foreign worker must never hold up a replacement transition's
-        // lease drain.
+        // null hands construction to WorkManager's default reflection factory; the negative path
+        // must not enter the admission gate or a foreign worker blocks the quiesce drain.
         assertNull(worker)
         assertTrue(application.acquiredLeases.isEmpty())
     }
@@ -109,16 +98,13 @@ internal class MetroWorkerFactoryTest {
             workerParameters = workerParameters,
         ) as BackupWorker
 
-        // The generation swap AFTER construction but BEFORE the run: a factory that captured
-        // deps at construction (the pre-Phase-5 `by lazy`) would pin this run to
-        // constructionDeps — serving a terminal generation to every future worker (spec §8.6).
+        // Swap the generation after construction: a construction-time capture would pin the run.
         val doWorkTimeDeps = newWorkerDeps()
         application.deps = doWorkTimeDeps
 
         worker.doWork()
 
-        // First-op admission bound the run to the deps CURRENT at doWork time, atomically with
-        // the lease the quiesce drain awaits.
+        // First-op admission bound the run to the deps current at doWork time.
         val lease = application.acquiredLeases.single()
         assertSame(doWorkTimeDeps, lease.deps)
         assertNotSame(constructionDeps, lease.deps)
@@ -129,8 +115,7 @@ internal class MetroWorkerFactoryTest {
 private fun newWorkerDeps(): BackupWorkerDeps = mockk(relaxed = true) {
     every { backupStorage } returns mockk<BackupStorage>(relaxed = true)
     every { databaseSnapshotProvider } returns mockk<DatabaseSnapshotProvider>(relaxed = true) {
-        // A real sealed-type result so a run through these deps takes the early-return failure
-        // path (relaxed MockK cannot synthesize a BackupResult branch the exhaustive when knows).
+        // Relaxed MockK cannot synthesize a sealed BackupResult branch; stub the failure path.
         coEvery { captureSnapshot(any()) } returns
             BackupResult.Failure(BackupError.NetworkUnavailable)
     }

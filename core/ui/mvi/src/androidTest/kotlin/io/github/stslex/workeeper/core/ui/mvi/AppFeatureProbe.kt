@@ -71,10 +71,8 @@ internal class AppRootProbeStoreImpl(
 internal typealias AppRootProbeStoreProcessor = StoreProcessor<State, Action, Event>
 
 /**
- * The ONE app-scope binding the production Store path reads (Phase 5 R3, spec §8.4):
- * `rememberStoreProcessor` resolves `appDeps<StoreGenerationDeps>()` to parent every Store job to
- * the current generation. The probe owns its own [AppScopeLifetime] so the test can end it and
- * observe the parenting directly.
+ * The one app-scope binding the production Store path reads: `rememberStoreProcessor` resolves
+ * `appDeps<StoreGenerationDeps>()` to parent every Store job to the current generation.
  */
 internal class ProbeGenerationDeps(
     override val appScopeLifetime: AppScopeLifetime = AppScopeLifetime(),
@@ -82,15 +80,7 @@ internal class ProbeGenerationDeps(
 
 /**
  * Supplies [ProbeGenerationDeps] the way production does — through an `applicationContext` that
- * implements [AppDepsHolder] — WITHOUT giving this module an app graph.
- *
- * The seam is deliberately strict: `appDeps` casts the application context and throws when it is
- * not a holder, which is what forbids a Store from silently starting un-parented jobs. So the
- * repair here is to satisfy the contract, never to soften it — a `?: null` fallback in
- * `rememberStoreProcessor` would compile, keep this probe green, and re-open exactly the defect
- * (Store jobs outliving the database they touch) that the required `generationJob` parameter
- * exists to make impossible. Overriding [LocalContext] leaves `LocalViewModelStoreOwner` and
- * `LocalLifecycleOwner` untouched, so the mount-site scope invariant under test is unaffected.
+ * implements [AppDepsHolder] — without giving this module an app graph.
  */
 @Composable
 internal fun ProbeAppDepsHost(
@@ -110,14 +100,8 @@ internal fun ProbeAppDepsHost(
 }
 
 /**
- * App-Scope Collapse Step 6 (Phase 3.4): de-Hilt'd. The former `@HiltViewModel` / `@Inject` /
- * `@ViewModelScoped` probe classes are now plain classes, and the Store is resolved through the same
- * Metro path every production `AppFeature` uses (`rememberMetroStoreProcessor`, see `AppDialogFeature`) —
- * the deps (`StoreDispatchers`, `AnalyticsHolder`, `LoggerHolder`) are constructed directly with reals.
- * The one thing it does NOT construct directly is the generation lifetime: that arrives through the real
- * `appDeps` seam via [ProbeAppDepsHost], because the seam itself is under test. This preserves the
- * mount-site scope invariant [AppFeatureScopeTest] asserts: `rememberMetroStoreProcessor` retains the
- * Store in the current `LocalViewModelStoreOwner`.
+ * Resolves its Store through the same Metro path production `AppFeature`s use; only the generation
+ * lifetime arrives through the real `appDeps` seam, because that seam is what is under test.
  */
 internal object AppRootProbeFeature : AppFeature<AppRootProbeStoreProcessor>() {
 

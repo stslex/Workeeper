@@ -22,16 +22,8 @@ import tech.apter.junit.jupiter.robolectric.RobolectricExtension
 import kotlin.uuid.Uuid
 
 /**
- * Home's recent-session list against a real database.
- *
- * Replaces `SessionDaoRecentWithStatsTest`, whose two cases were "returns rows with counts" and
- * "respects limit" — and the limit is gone. What takes its place is not one more case: **a limit of
- * ten hides what a predicate does at scale**, so the query's filters are now asserted individually,
- * including the one that excludes rows silently and the one whose value turns out to be dead.
- *
- * Every case here writes rows and reads them back through Room. None of it is a claim from reading
- * SQL — §0.3 records this arc's behavioural-reading claims failing seven for seven, and two of the
- * findings below contradicted a first reading of the same query.
+ * Home's recent-session list against a real database. Each filter of the query is asserted on its
+ * own — a limit of ten used to hide what a predicate does at scale.
  */
 @ExtendWith(RobolectricExtension::class)
 @Config(application = BaseDatabaseTest.TestApplication::class, sdk = [33])
@@ -62,9 +54,7 @@ internal class SessionDaoPagedRecentWithStatsTest : BaseDatabaseTest() {
         val newest = insertFinishedSession(template, finishedAt = 3_000L) {
             listOf(performed(bench, 0, skipped = false), performed(fly, 1, skipped = true))
         }
-        // Two sets on the one non-skipped exercise: `exercise_count` filters `skipped = 0`,
-        // `set_count` does not filter at all, so the two subqueries must disagree here or neither
-        // is being exercised.
+        // Two sets on the one non-skipped exercise, so the two count subqueries must disagree.
         val performedRows = performedExerciseDao.getBySession(newest)
             .filter { it.exerciseUuid == bench }
         repeat(2) { index ->
@@ -102,13 +92,8 @@ internal class SessionDaoPagedRecentWithStatsTest : BaseDatabaseTest() {
         val training = Uuid.random()
         seedTraining(training, "Push Day", isAdhoc = false)
         val finished = insertFinishedSession(training, finishedAt = 1_000L) { emptyList() }
-        // The in-progress row is given a NON-NULL `finished_at`, which is unnatural for the app and
-        // is the whole point: with the natural `null` the row is excluded by the *second* predicate
-        // too, and the two filters overlap so completely that this case cannot see the first one.
-        //
-        // Measured, not reasoned: the first draft seeded `finishedAt = null` here and deleting
-        // `s.state = 'FINISHED'` from the query left this case GREEN. A test that two predicates
-        // both satisfy tells you nothing about either.
+        // The in-progress row gets a NON-NULL `finished_at` on purpose: with the natural `null`
+        // the second predicate excludes it too and the case cannot see the state filter at all.
         sessionDao.insert(
             SessionEntity(
                 uuid = Uuid.random(),
@@ -125,10 +110,8 @@ internal class SessionDaoPagedRecentWithStatsTest : BaseDatabaseTest() {
     @Test
     @DisplayName("filter 2: FINISHED with a null finished_at is excluded, not sorted to the tail")
     fun excludesFinishedWithoutTimestamp() = runTest {
-        // `ORDER BY finished_at DESC` on a nullable column parks nulls LAST on SQLite, so without
-        // the `IS NOT NULL` predicate such a row would not vanish — it would sit permanently below
-        // every dated session, which is a different and worse bug than being absent. The predicate
-        // is asserted here rather than assumed to be belt-and-braces with the state filter.
+        // GUARD: `ORDER BY finished_at DESC` parks nulls LAST on SQLite, so without `IS NOT NULL`
+        // such a row would sit permanently below every dated session rather than vanish.
         val training = Uuid.random()
         seedTraining(training, "Push Day", isAdhoc = false)
         val dated = insertFinishedSession(training, finishedAt = 1_000L) { emptyList() }
@@ -148,22 +131,8 @@ internal class SessionDaoPagedRecentWithStatsTest : BaseDatabaseTest() {
     @Test
     @DisplayName("filter 3: the INNER JOIN cannot drop anything — a foreign key forbids the orphan")
     fun deletingATrainingCascadesToItsSessions() = runTest {
-        // **This case is here because it started out asserting the opposite, and a mutation caught
-        // it.** It was written as "the INNER JOIN silently drops a session whose training row is
-        // gone" — a filter nobody chose, invisible behind a limit of ten, the shape of a B24
-        // absence. Then `INNER JOIN` → `LEFT JOIN` was run as a controlled mutation and the case
-        // stayed **green**, which it could not have done if an orphan ever reached the query.
-        //
-        // The reason is in the schema, not in the query: `SessionEntity`'s foreign key on
-        // `training_uuid` is `onDelete = ForeignKey.CASCADE`, so deleting a training deletes its
-        // sessions in the same statement. There is no orphan for the join to drop, and there
-        // cannot be one while that key stands — which is a far stronger guarantee than "no current
-        // delete path produces one", and it is what the row now records.
-        //
-        // The generalisable half is B23's, reproduced while writing a test about reachability:
-        // **a test that builds its own precondition cannot tell you whether the precondition is
-        // reachable.** The first version hand-built a state the database forbids and would have
-        // passed forever, certifying a filter that never fires.
+        // The INNER JOIN drops nothing: `SessionEntity`'s FK on `training_uuid` is CASCADE, so
+        // deleting a training deletes its sessions and no orphan can ever reach the query.
         val liveTraining = Uuid.random()
         seedTraining(liveTraining, "Push Day", isAdhoc = false)
         val kept = insertFinishedSession(liveTraining, finishedAt = 2_000L) { emptyList() }
@@ -185,21 +154,8 @@ internal class SessionDaoPagedRecentWithStatsTest : BaseDatabaseTest() {
     @Test
     @DisplayName("no is_adhoc filter — and the flag it selects is dead for every row the app writes")
     fun adhocFlagIsPassedThroughAndIsFalseInPractice() = runTest {
-        // Two findings in one case, and the second is the one worth having.
-        //
-        // (1) There is no `is_adhoc` predicate: an ad-hoc training's finished session IS returned.
-        //     Home is the only surface in the app that shows them at all — every trainings list
-        //     filters `is_adhoc = 0`.
-        //
-        // (2) And yet `RecentSessionItem.isAdhoc` is dead for anything the app produces, because
-        //     `finishSessionAtomic` calls `trainingDao.graduateTraining(...)` unconditionally in
-        //     the same transaction as the FINISHED flip. This case reproduces both halves: the row
-        //     written directly with `is_adhoc = 1` comes back `true` (so the column really is
-        //     passed through and the flag is not being dropped somewhere), and the same training
-        //     after graduation comes back `false`.
-        //
-        //     The reachable exception is a restore of legacy or hand-edited backup data, which is
-        //     why the column stays selected instead of being deleted from the projection.
+        // No `is_adhoc` predicate — an ad-hoc training's finished session is returned — yet the
+        // flag is false for every row the app writes, because finishing graduates the training.
         val adhoc = Uuid.random()
         seedTraining(adhoc, "Quick Session", isAdhoc = true)
         insertFinishedSession(adhoc, finishedAt = 1_000L) { emptyList() }
@@ -223,9 +179,7 @@ internal class SessionDaoPagedRecentWithStatsTest : BaseDatabaseTest() {
     @Test
     @DisplayName("pages past the old ten-row ceiling")
     fun pagesBeyondTheOldLimit() = runTest {
-        // The change this file exists for. The predecessor asserted `limit = 2` returned 2 rows;
-        // the honest assertion now is that row eleven is REACHABLE, since being unreachable from
-        // Home is exactly what the hardcoded ten did.
+        // The claim is that row eleven is REACHABLE; the hardcoded ten is what made it not.
         val training = Uuid.random()
         seedTraining(training, "Push Day", isAdhoc = false)
         repeat(TOTAL_SESSIONS) { index ->
@@ -237,11 +191,8 @@ internal class SessionDaoPagedRecentWithStatsTest : BaseDatabaseTest() {
         ) as PagingSource.LoadResult.Page
         assertEquals(PAGE, first.data.size)
 
-        // Append until the source says there is nothing after it. Walking to exhaustion rather
-        // than asserting one append's size is the point: the claim is that row eleven is
-        // REACHABLE, and one page of five cannot show that. (`loadSize` bounds each append, so a
-        // second page returns PAGE items, not "everything left" — the first draft of this case
-        // asserted the latter and was wrong by 4.)
+        // Walk to exhaustion: one page of five cannot show row eleven is reachable, and `loadSize`
+        // bounds each append rather than returning everything left.
         val rows = first.data.toMutableList()
         var key = first.nextKey
         while (key != null) {

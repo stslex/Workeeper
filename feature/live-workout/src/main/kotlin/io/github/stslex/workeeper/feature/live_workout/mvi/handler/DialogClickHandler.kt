@@ -52,10 +52,8 @@ internal class DialogClickHandler @Inject constructor(
     }
 
     /**
-     * `sh-del`'s confirm (§6.1 "deleted: excluded, plan cleaned, 5-second undo toast").
-     * The removal is SOFT here: the exercise leaves State, the toast opens the 5s window,
-     * and the transactional hard delete rides `PendingUndo.deferredCommit` — committed on
-     * timeout/replacement/navigation, restored wholesale on `Отменить`.
+     * `sh-del`'s confirm (§6.1). The removal is soft: the hard delete rides
+     * `PendingUndo.deferredCommit` and only commits when the undo window closes.
      */
     private fun processDeleteExerciseConfirm(action: Action.DialogClick.OnDeleteExerciseConfirm) {
         sendEvent(Event.HapticImpact(HapticFeedbackType.LongPress))
@@ -65,12 +63,8 @@ internal class DialogClickHandler @Inject constructor(
             isAdhocSession = prior.isAdhoc,
             isMidSessionAdded = action.performedExerciseUuid in prior.midSessionAddedUuids,
         )
-        // Plan-attachment is the only question here — an ad-hoc session is NOT exempt. Its
-        // training carries real `training_exercise_table` rows (both `createAdhocSession`
-        // and every mid-session add write one), so skipping the pair delete left a row
-        // pointing at an exercise the orphan cleanup then tried to delete, and the FK's
-        // RESTRICT rolled the entire removal back. The ad-hoc row is bookkeeping for a
-        // template the user never sees; it leaves with the exercise.
+        // GUARD: plan-attachment is the only question — an ad-hoc session is NOT exempt, or
+        // the orphaned plan row makes the exercise FK's RESTRICT roll the removal back.
         val removeFromPlan = exercise.isPlanAttached
         updateState { latest ->
             setMutator.recomputeStatuses(
@@ -122,9 +116,7 @@ internal class DialogClickHandler @Inject constructor(
         val current = state.value
         val sessionUuid = current.sessionUuid
         val trainingUuid = current.trainingUuid
-        // Defence: discard cascade only fires for ad-hoc trainings. Library sessions can't
-        // reach this path (canDiscard = false in the dialog), but we double-check before
-        // calling the cascade DAO write.
+        // Defence: the discard cascade must only ever fire for ad-hoc trainings.
         if (!current.isAdhoc || sessionUuid.isNullOrBlank() || trainingUuid.isNullOrBlank()) {
             updateState { it.copy(dialogState = DialogState.Hidden) }
             return
@@ -205,8 +197,8 @@ internal class DialogClickHandler @Inject constructor(
                 sendError(ErrorType.FinishFailed)
             },
         ) {
-            // Rename + finish are paired inside finishSessionAtomic so a crash between
-            // the two writes can no longer leave a named-but-IN_PROGRESS session.
+            // Rename + finish are paired inside finishSessionAtomic; a crash between the
+            // two writes cannot leave a named-but-IN_PROGRESS session.
             interactor.finishSession(
                 sessionUuid = sessionUuid,
                 newTrainingName = requiredName,

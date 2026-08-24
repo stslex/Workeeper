@@ -24,16 +24,8 @@ import java.util.concurrent.ConcurrentHashMap
 import kotlin.reflect.KClass
 
 /**
- * `@ContributesBinding(AppScope)` binds it to the [Navigator] interface for the feature readers; the app
- * `AppGraph` ALSO exposes the concrete type via the `AppRootDeps` contract for `AppRootViewModel`
- * (hand-constructed in `App.kt` with the concrete bus, which then serves as the
- * [NavigatorReceiver] for `NavigatorExt`). One
- * `@SingleIn(AppScope)` instance backs both — the same dual concrete/interface shape as
- * `AppDialogObserverImpl`.
- *
- * Since the Nav3 swap it is ALSO the [NavResultsSource]: results live inside the Navigator
- * implementation (there is no library transport to carry them), keyed by [NavResultKey] strings,
- * written by the command executor before the pop and cleared by `NavResults` after delivery.
+ * The one `@SingleIn(AppScope)` navigator: bound to [Navigator] for features, exposed concretely
+ * through `AppRootDeps`, and — since the Nav3 swap — also the [NavResultsSource].
  */
 @ContributesBinding(AppScope::class, binding = binding<Navigator>())
 @SingleIn(AppScope::class)
@@ -64,11 +56,8 @@ class NavigatorEventBus(
     private fun resultFlow(key: String): MutableStateFlow<Any?> =
         results.getOrPut(key) { MutableStateFlow(null) }
 
-    // A pending result survives ONLY the pop that delivers it (popBackWithResult does not
-    // clear). Every other navigation resets every channel: the transport is process-wide and
-    // keyed by destination, not by entry, so without this a value written over a
-    // non-consuming screen would leak into a later, unrelated composition of the consumer.
-    // Pinned by NavigatorEventBusTest's pending-result lifecycle tests.
+    // GUARD: every navigation but popBackWithResult resets every result channel — the transport
+    // is process-wide and keyed by destination, so a stale value would leak into a later consumer.
     private fun clearAllResults() {
         results.values.forEach { flow -> flow.value = null }
     }
@@ -96,10 +85,8 @@ class NavigatorEventBus(
     }
 
     override fun restartApp() {
-        // Restart is terminal and platform-owned — resolve the process-scoped
-        // AppReinitializer by constructor injection and invoke it directly rather than
-        // routing a NavCommand through the replay=0 command bus (which would silently
-        // drop with no mounted subscriber, the OpenRecovery hazard).
+        // Restart is terminal and platform-owned: invoke the injected AppReinitializer directly
+        // rather than routing through the replay=0 command bus, which drops with no subscriber.
         appReinitializer.reinitialize()
     }
 

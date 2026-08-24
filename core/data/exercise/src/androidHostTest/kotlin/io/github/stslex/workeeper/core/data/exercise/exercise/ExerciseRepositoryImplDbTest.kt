@@ -59,9 +59,8 @@ internal class ExerciseRepositoryImplDbTest {
 
     @BeforeEach
     fun setup() {
-        // `getAdhocPlans` wraps its JSON deserialisation in `traceExecutionTime`,
-        // which fans out to `Log.i { ... }` and resolves the singleton
-        // `Firebase.crashlytics`. Stub the holder so the logging path is a no-op.
+        // GUARD: plan reads log through `traceExecutionTime`; stub the holder or Firebase
+        // resolves. See documentation/testing.md.
         mockkObject(FirebaseCrashlyticsHolder)
         every { FirebaseCrashlyticsHolder.log(any()) } returns Unit
         env = RepositoryTestEnv()
@@ -141,7 +140,6 @@ internal class ExerciseRepositoryImplDbTest {
         )
 
         assertEquals(SaveResult.DuplicateName, collisionResult)
-        // The original row is still present and unchanged.
         val rows = env.exerciseDao.getAllActive()
         assertEquals(1, rows.size)
         assertEquals(firstUuid, rows.single().uuid)
@@ -157,26 +155,19 @@ internal class ExerciseRepositoryImplDbTest {
         val firstLabels = repository.getLabels(uuid.toString()).sorted()
         assertEquals(listOf("legs", "lower"), firstLabels)
 
-        // Save again with a different label set — the old "lower" should detach.
         repository.saveItem(
             exerciseChange(uuid = uuid, name = "Squat", labels = listOf("legs", "quads")),
         )
 
         val updated = repository.getLabels(uuid.toString()).sorted()
         assertEquals(listOf("legs", "quads"), updated)
-        // D-OPEN-4, auto-prune: the save that dropped "lower"'s last link swept its
-        // dictionary row IN THE SAME TRANSACTION. Before S6 this assertion read
-        // `containsAll(listOf("legs", "lower", "quads"))` — the dictionary only grew (B-E2).
+        // The save that dropped "lower"'s last link swept its dictionary row in the same
+        // transaction.
         val tagNames = env.tagDao.observeAll().first().map { it.name }.sorted()
         assertEquals(listOf("legs", "quads"), tagNames)
     }
 
-    /**
-     * The prune's predicate is a conjunction over BOTH link tables, and each conjunct needs a
-     * fixture only IT keeps alive (§27, "a test that two predicates both satisfy tells you
-     * nothing about either"): a tag whose only remaining link is a TRAINING's must survive an
-     * exercise save that drops its exercise link.
-     */
+    /** Covers the training-link conjunct of the prune predicate on its own. */
     @Test
     fun `a tag still linked by a training survives an exercise save that unlinks it`() = runTest {
         val trainingUuid = Uuid.random()
@@ -295,15 +286,13 @@ internal class ExerciseRepositoryImplDbTest {
             val withPlanUuid = Uuid.random()
             val withNullPlanUuid = Uuid.random()
             val unknownUuid = Uuid.random()
-            // Write the plan via the setter so the JSON shape exercises the converter's
-            // serialise → deserialise round-trip rather than a hand-rolled string.
+            // Write via the setter so the JSON exercises the converter's round-trip.
             repository.saveItem(exerciseChange(uuid = withPlanUuid, name = "Bench"))
             val plan = listOf(
                 PlanSetDataModel(weight = 80.0, reps = 5, type = SetTypeDataModel.WORK),
                 PlanSetDataModel(weight = 90.0, reps = 4, type = SetTypeDataModel.FAILURE),
             )
             repository.setAdhocPlan(withPlanUuid.toString(), plan)
-            // The other row has last_adhoc_sets = null.
             repository.saveItem(exerciseChange(uuid = withNullPlanUuid, name = "Squat"))
 
             val result = repository.getAdhocPlans(
@@ -314,14 +303,10 @@ internal class ExerciseRepositoryImplDbTest {
                 ),
             )
 
-            // Round-trip parity: written-via-setter plan reads back exactly equal.
             assertEquals(plan, result[withPlanUuid.toString()])
-            // Null preservation: the null column surfaces as Map value = null, and the
-            // key remains in the result so callers can distinguish "row exists but no
-            // plan" from "row not in the DB".
+            // A null column stays a present key with a null value — not an absent key.
             assertTrue(result.containsKey(withNullPlanUuid.toString()))
             assertNull(result[withNullPlanUuid.toString()])
-            // Unknown uuids do not appear at all.
             assertFalse(result.containsKey(unknownUuid.toString()))
         }
 
@@ -362,9 +347,7 @@ internal class ExerciseRepositoryImplDbTest {
                 listOf(nullPlanUuid.toString(), emptyPlanUuid.toString()),
             )
 
-            // Same load-bearing distinction as TrainingExerciseRepository.getPlans: the
-            // null entry is the one the loadSession fallback resolves; the empty list
-            // is preserved as empty so a deliberately-cleared plan stays empty.
+            // Only the null entry gets the loadSession fallback; a cleared plan stays empty.
             assertNull(result[nullPlanUuid.toString()])
             assertNotNull(result[emptyPlanUuid.toString()])
             assertEquals(emptyList<PlanSetDataModel>(), result[emptyPlanUuid.toString()])
@@ -398,7 +381,6 @@ internal class ExerciseRepositoryImplDbTest {
                     archived = false,
                     createdAt = 0L,
                     archivedAt = null,
-                    // Existing weighted plan entries should have weight cleared after the call.
                     lastAdhocSets = """[{"weight":20.0,"reps":5,"type":"WORK"}]""",
                 ),
             )
@@ -441,8 +423,7 @@ internal class ExerciseRepositoryImplDbTest {
             val trainingUuid = Uuid.random()
             seedWeightedExerciseWithPlans(exerciseUuid, trainingUuid)
 
-            // The written row itself carries weights, so this also pins the cascade running
-            // AFTER the row write inside `saveItem` — not before it, where it would be undone.
+            // The saved payload carries weights, pinning the cascade to run after the row write.
             repository.saveItem(
                 exerciseChange(uuid = exerciseUuid, name = "Pull Up", lastAdhoc = WEIGHTED_PLAN)
                     .copy(type = ExerciseTypeDataModel.WEIGHTLESS),
@@ -456,14 +437,7 @@ internal class ExerciseRepositoryImplDbTest {
             assertTrue(planJson!!.contains("\"weight\":null"))
         }
 
-    /**
-     * The save and its cascade are ONE act, as on the training side. A failure in the cascade
-     * must take the type change with it, or the user is told «Сохранено» over a WEIGHTLESS row
-     * whose plans still carry weights.
-     *
-     * Real in-memory Room, not Robolectric-mocked Room: only a real transaction can answer
-     * whether the rollback happened.
-     */
+    /** A cascade failure must take the type change with it; needs a real transaction. */
     @Test
     fun `saveItem as WEIGHTLESS leaves nothing behind when the cascade throws`() = runTest {
         val exerciseUuid = Uuid.random()
@@ -739,7 +713,6 @@ internal class ExerciseRepositoryImplDbTest {
         repository.saveItem(
             exerciseChange(uuid = pullUuid, name = "Pull", labels = listOf("upper", "back")),
         )
-        // Archived row is not visible in `exercises` / `pagedActiveByTags` / `pagedActiveWithStats`.
         repository.saveItem(
             exerciseChange(uuid = archivedUuid, name = "Sit-Up", archived = true),
         )
@@ -773,7 +746,6 @@ internal class ExerciseRepositoryImplDbTest {
                     labels = listOf("upper"),
                 ),
             )
-            // Wire one finished session that logs the exercise — bumps session_count.
             val trainingUuid = Uuid.random()
             env.trainingDao.insert(
                 TrainingEntity(
@@ -930,7 +902,6 @@ internal class ExerciseRepositoryImplDbTest {
 
             assertTrue(repository.canPermanentlyDeleteImmediately(exerciseUuid.toString()))
 
-            // Add an active template referencing the exercise — should now be false.
             val trainingUuid = Uuid.random()
             env.trainingDao.insert(
                 TrainingEntity(
@@ -1033,7 +1004,6 @@ internal class ExerciseRepositoryImplDbTest {
 
         assertNull(repository.observeLastTrainedAt(exerciseUuid.toString()).first())
 
-        // Two finished sessions; observeLastTrainedAt should report the newer.
         val firstSession = Uuid.random()
         val secondSession = Uuid.random()
         env.sessionDao.insert(
@@ -1325,7 +1295,6 @@ internal class ExerciseRepositoryImplDbTest {
             repository.saveItem(exerciseChange(uuid = freshUuid, name = "Fresh"))
             assertTrue(repository.canBulkPermanentDelete(setOf(freshUuid.toString())))
 
-            // Add a session referencing the exercise — should now be false.
             val trainingUuid = Uuid.random()
             env.trainingDao.insert(
                 TrainingEntity(

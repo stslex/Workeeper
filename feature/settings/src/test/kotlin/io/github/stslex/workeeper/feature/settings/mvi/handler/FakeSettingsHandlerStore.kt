@@ -19,12 +19,8 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.runBlocking
 
 /**
- * Hand-written test double for `SettingsHandlerStore`. Executes `launchDefault {}`
- * and `Flow<T>.launch {}` closures synchronously on the supplied dispatcher so
- * tests can observe state/event transitions immediately after `handler.invoke(...)`.
- *
- * MockK cannot cleanly mock the `Flow<T>.launch` member extension on
- * `HandlerStore`; a real implementation is the cheaper option here.
+ * Test double for `SettingsHandlerStore`, running closures synchronously on the supplied
+ * dispatcher. Hand-written because MockK cannot cleanly mock the `Flow<T>.launch` extension.
  */
 internal class FakeSettingsHandlerStore(
     private val dispatcher: CoroutineDispatcher,

@@ -26,8 +26,6 @@ import java.util.concurrent.atomic.AtomicLong
 import kotlin.coroutines.AbstractCoroutineContextElement
 import kotlin.coroutines.CoroutineContext
 
-/** Transaction mechanics shared by [AppRuntime]'s replacement paths. */
-
 /** Crossed before the first irreversible action. */
 internal class PonrTracker {
     @Volatile
@@ -45,7 +43,6 @@ internal class ReplacementTransaction(
     @Volatile
     var rolledBack = false
 
-    /** Failure carried into RecoveredByRollback. */
     @Volatile
     var rollbackCause: BackupError? = null
 
@@ -57,7 +54,6 @@ internal class ReplacementTransaction(
     @Volatile
     var candidateInvalidated = false
 
-    /** Inline rollback already tore down the current candidate. */
     @Volatile
     var candidateDisposed = false
 
@@ -73,7 +69,6 @@ internal class InFlightReplacement(
     @Volatile
     var stagedSource: File? = null
 
-    /** A staging failure recorded in the submission frame; resolved to a rejection. */
     @Volatile
     var stagingFailure: Throwable? = null
 
@@ -90,7 +85,6 @@ internal object GraphOnlyTransition : CoroutineContext.Element {
     object Key : CoroutineContext.Key<GraphOnlyTransition>
 }
 
-/** One BuildingGeneration→Preflight→Publishing attempt's result (the ladder's step verdict). */
 internal sealed interface AttemptResult {
     class Published(val generation: RuntimeGeneration) : AttemptResult
 
@@ -101,7 +95,6 @@ internal sealed interface AttemptResult {
     data object LadderFatal : AttemptResult
 }
 
-/** Thrown by generation construction when an ORPHANED candidate database failed to close. */
 internal class OrphanCloseException(cause: Throwable) :
     IllegalStateException("orphaned candidate database failed to close", cause)
 
@@ -114,7 +107,7 @@ internal fun stageRestoreSource(source: File, stagingDirectory: File, sequence: 
     val staged = File(stagingDirectory, "staged_restore_$sequence.db")
     staged.delete()
     if (!source.renameTo(staged)) {
-        // Copy fallback cleans its partial file because terminal cleanup sees only a completed stage.
+        // The copy fallback cleans its partial file: terminal cleanup sees only a completed stage.
         runCatching { source.copyTo(staged, overwrite = true) }.onFailure { error ->
             staged.delete()
             throw error
@@ -161,7 +154,6 @@ internal suspend fun runTerminalEffects(
     is ReplacementOutcome.Fatal -> outcome.withEffects(logger, "onFatal") { effects.onFatal() }
 }
 
-/** Folds a terminal-effect failure onto its outcome. */
 private suspend fun ReplacementOutcome.withEffects(
     logger: Logger,
     label: String,
@@ -222,7 +214,6 @@ internal sealed interface SourceConsumption {
     data class ExactFile(val file: File) : SourceConsumption
 }
 
-/** Inputs and ownership data for one mutation. */
 internal class MutationPlan(
     val provider: DatabaseSnapshotProvider,
     val source: File,
@@ -231,7 +222,6 @@ internal class MutationPlan(
     val reservation: File?,
 )
 
-/** Resolved source for a rollback operation. */
 internal sealed interface OperationSourcePlan {
     class Proceed(val source: File, val consume: SourceConsumption) : OperationSourcePlan
     class Reject(val error: BackupError) : OperationSourcePlan
@@ -260,7 +250,6 @@ internal fun selectRollbackOperationSource(
     return OperationSourcePlan.Proceed(canonical, SourceConsumption.CanonicalSlot)
 }
 
-/** Recovery ladder source verdict. */
 internal sealed interface RecoverySourcePlan {
     class Apply(val source: File, val consume: SourceConsumption) : RecoverySourcePlan
     class Stop(val reason: String) : RecoverySourcePlan
@@ -354,7 +343,6 @@ internal suspend fun runInlineRollback(
     transaction: ReplacementTransaction,
     effects: DatabaseReplacementEffects,
     sourcePath: String?,
-    /** Clears the store, joins the lifetime, then closes the candidate database. */
     disposeCandidate: suspend (RuntimeGeneration) -> Boolean,
 ): ReplacementOutcome {
     val candidate = transaction.candidate
@@ -490,7 +478,6 @@ internal class UiAdmissionGate(private val logger: Logger) {
         state.update { s -> s.copy(retired = s.retired - id) }
     }
 
-    /** Test/diagnostic view: how many regions currently hold admission for [id]. */
     fun admittedCount(id: Int): Int = state.value.live[id].orEmpty().size
 }
 
@@ -501,7 +488,6 @@ internal class WorkerAdmissionGate {
     private val closed = MutableStateFlow(false)
     private val activeLeases = MutableStateFlow(0)
 
-    /** Waits for admission, then atomically increments the lease count and binds dependencies. */
     suspend fun awaitLease(deps: () -> BackupWorkerDeps): BackupWorkLease {
         while (true) {
             synchronized(lock) {
@@ -535,7 +521,6 @@ internal class WorkerAdmissionGate {
 /** Monotonic staged-source sequence — process-scoped, feeds [stageRestoreSource] file names. */
 internal val stagedSourceSequence = AtomicLong(0)
 
-/** The terminal-compensation failure carried by any outcome variant (spec §8.5a). */
 internal fun ReplacementOutcome.effectsError(): BackupError? = when (this) {
     is ReplacementOutcome.Completed -> effectsError
     is ReplacementOutcome.RejectedBeforeMutation -> effectsError
@@ -544,7 +529,6 @@ internal fun ReplacementOutcome.effectsError(): BackupError? = when (this) {
     is ReplacementOutcome.Fatal -> effectsError
 }
 
-/** Maps the runtime's transaction outcome onto the caller seam's result type. */
 internal fun ReplacementOutcome.toSeamResult(): DatabaseReplacementResult = when (this) {
     is ReplacementOutcome.Completed -> DatabaseReplacementResult.Committed(effectsError)
 

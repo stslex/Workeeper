@@ -31,14 +31,7 @@ fun interface StoreCreator<TStoreImpl : BaseStore<*, *, *>> {
     operator fun invoke(): TStoreImpl
 }
 
-/**
- * StoreProcessor is an interface that defines the contract for processing actions and events in a store.
- * It provides methods to consume actions and handle events.
- *
- * @param S The type of the state.
- * @param A The type of the action.
- * @param E The type of the event.
- */
+/** Contract for consuming actions and handling events on behalf of a Store. */
 @Immutable
 interface StoreProcessor<S : State, A : Action, E : Event> {
 
@@ -51,12 +44,8 @@ interface StoreProcessor<S : State, A : Action, E : Event> {
 }
 
 /**
- * Remembers and returns a [StoreProcessor], wiring it to the store lifecycle, initializing
- * analytics/render tracing, and disposing store resources when the composable leaves the composition.
- *
- * App-Scope Collapse Step 6 (cut): the two Hilt-backed overloads (`hiltViewModel`-resolved) were removed
- * with Hilt — every feature resolves its Store through the backend-agnostic [StoreCreator] overload below
- * (via `rememberMetroStoreProcessor`, which supplies a Metro-constructed Store).
+ * Remembers a [StoreProcessor] and owns the Store lifecycle wiring: `init` / `dispose`, analytics,
+ * and the render trace.
  */
 @Composable
 inline fun <reified TStoreImpl : BaseStore<*, *, *>> rememberStoreProcessor(
@@ -67,8 +56,7 @@ inline fun <reified TStoreImpl : BaseStore<*, *, *>> rememberStoreProcessor(
     val context = LocalContext.current
 
     val store = storeCreator()
-    // The CURRENT generation's lifetime (spec §8.4): every job this Store starts parents to it,
-    // so a replacement's teardown cancels AND JOINS them before closing the database they touch.
+    // The current generation's lifetime — Store jobs parent to it so teardown can join them.
     val generationJob = remember(context) {
         context.appDeps<StoreGenerationDeps>().appScopeLifetime.job
     }

@@ -30,31 +30,8 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 
 /**
- * The empty-state pattern: **glyph, title, one sentence, then nothing / one button / two.**
- *
- * ## The sentence says what to do next
- *
- * It does not narrate emptiness. "No exercises yet" is already the title; a body that repeats it in
- * longer words spends the one line the user will actually read on information they have. The body's
- * job is the next action — "Tap + to create your first exercise". Where there genuinely is no next
- * action (the archive: nothing to create, only things that arrive by being archived) the sentence
- * explains what the surface is *for*, which is still forward-looking. Copy is the caller's, but
- * this is the contract the component is shaped around.
- *
- * ## Two actions
- *
- * [actionLabel] is the primary action and [secondaryActionLabel] the alternative. They stack
- * vertically, primary first, because the buttons are full-width at this width and a side-by-side
- * pair would put the two at the same weight — which is the one thing a primary/secondary pair must
- * not do. The mockup stacks them for the same reason (`pass2d.html:183`, `.empty .btns` is
- * `flex-direction:column`).
- *
- * ## The label-without-handler behaviour is deliberate and load-bearing
- *
- * A button renders only when **both** its label and its handler are non-null. Two callers already
- * depend on this to switch an action off by nulling one side — `ChartEmptyState.kt:41` passes
- * `ctaLabel.takeIf { onCta != null }`, and `LiveWorkoutScreen.kt:313` passes both through
- * `.takeIf { isAddEnabled }`. Changing it to render a dead button, or to throw, breaks both.
+ * The empty-state pattern: glyph, title, one sentence, then nothing / one button / two.
+ * GUARD: a button renders only when BOTH its label and handler are non-null; callers rely on it.
  */
 @Composable
 fun AppEmptyState(
@@ -106,13 +83,8 @@ fun AppEmptyState(
 }
 
 /**
- * The glyph, in its dashed tile.
- *
- * The tile is what stops a lone 22.dp icon reading as a mis-sized button on an otherwise empty
- * screen — the mockup draws it as a dashed-outline square (`pass2d.html:179`). The outline is
- * decorative reinforcement around an icon that is itself decorative, so it takes `borderSubtle`
- * and no contrast threshold; the glyph carries no meaning the title does not already state, which
- * is also why `contentDescription` is null.
+ * The glyph, in its tile; the tile stops a lone icon reading as a mis-sized button. The outline
+ * is decorative, so it takes `borderSubtle` and no contrast threshold.
  */
 @Composable
 private fun EmptyStateGlyph(
@@ -178,18 +150,13 @@ private fun EmptyStateActions(
     }
 }
 
-/**
- * The sentence is capped so it breaks into two or three short lines rather than running the full
- * width of a tablet. The mockup caps it at 274px (`pass2d.html:182`); 272.dp is the same measure
- * rounded onto the 8.dp grid. A measurement, not a spacing token — there is no ladder step here
- * and pretending otherwise would put a fake name on an arbitrary number.
- */
+/** Caps the sentence to two or three short lines; a measurement, not a spacing token. */
 private val SENTENCE_MAX_WIDTH = 272.dp
 
 /** The action stack's cap. The mockup's `.empty .btns` is 288px (`pass2d.html:183`). */
 private val ACTIONS_MAX_WIDTH = 288.dp
 
-/** The tile around the glyph — 52px in the mockup (`pass2d.html:179`), [AppDimension.iconXl] here. */
+/** The tile around the glyph — 52px in the mockup, [AppDimension.iconXl] here. */
 private val GLYPH_TILE = AppDimension.iconXl
 
 @Preview(name = "Light", showBackground = true)

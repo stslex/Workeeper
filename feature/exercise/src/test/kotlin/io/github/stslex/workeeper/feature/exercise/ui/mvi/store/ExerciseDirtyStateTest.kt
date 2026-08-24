@@ -15,23 +15,8 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 /**
- * `hasChanges`, asserted directly — because the discard sheet is what reads it and no picture can
- * see a predicate.
- *
- * **Why a file of its own, and why one case per disjunct.** `hasChanges` is a three-way OR:
- *
- * ```
- * originalSnapshot?.matches(this) == false || isImageDirty || isAdhocPlanDirty
- * ```
- *
- * §27's own rule for multi-predicate coverage: **for each term, the fixture must contain a state
- * that ONLY that term makes true** — otherwise the suite measures the disjunction and reports it
- * as coverage of the parts. Three call sites branch on this predicate, so each term owes its own
- * isolating case in both directions.
- *
- * The consumer, named per §27: `ClickHandler.processCancelClick` and `processBackClick`, which
- * open `DialogState.DiscardConfirm` on it — and `State.interceptBack`, which arms the system
- * gesture from it. Not a test that reads the field.
+ * `hasChanges`, asserted directly: it is a three-way OR, and each term gets a case where only
+ * that term is true (§27). The consumers are the discard sheet and `State.interceptBack`.
  */
 internal class ExerciseDirtyStateTest {
 
@@ -75,8 +60,7 @@ internal class ExerciseDirtyStateTest {
 
     @Test
     fun `ONLY the image term - a staged picture the snapshot cannot see`() {
-        // `Snapshot` carries name / type / description / tags / plan and NOT the image, which is
-        // why the image needs its own term at all. This is the case that proves it does.
+        // `Snapshot` does not carry the image, which is why the image needs its own term.
         val state = loaded().copy(pendingImage = PendingImage.NewFromUri(mockk<Uri>(relaxed = true)))
 
         assertTrue(state.hasChanges)
@@ -86,9 +70,7 @@ internal class ExerciseDirtyStateTest {
 
     @Test
     fun `ONLY the plan term - create mode, where there is no snapshot to compare against`() {
-        // `originalSnapshot` is null until the first save, so the first term is false by
-        // construction (`null == false`). Without the plan term a create-flow plan edit would be
-        // silently discarded by Cancel, which is what that term's KDoc says it exists to stop.
+        // `originalSnapshot` is null until the first save, so the first term is false here.
         val state = ExerciseStore.State
             .create(uuid = null)
             .copy(isLoading = false, adhocPlan = loadedPlan)
@@ -106,17 +88,8 @@ internal class ExerciseDirtyStateTest {
     }
 
     /**
-     * **The §25 B39 case: `adhocPlan` has exactly ONE baseline, and it is `originalSnapshot`.**
-     *
-     * Only a load or a completed Save may write the baseline; the inline plan editor's
-     * `OnAdhocPlanEditorAction` writes `adhocPlan` alone. A second baseline field would need
-     * every baseline writer to keep both in step, and the failure of not doing so is silent
-     * and permanent: the form reads dirty FOREVER after a save, so Cancel raises the discard
-     * sheet over work already on disk and back is intercepted for the same reason.
-     *
-     * That is why `isAdhocPlanDirty` reads the snapshot rather than a companion field — create
-     * mode falls out correctly because a null snapshot means "no plan yet". A pairing kept in step
-     * by hand is a pairing that comes apart; one source cannot.
+     * B39: `adhocPlan` has exactly ONE baseline, `originalSnapshot` — a second one would need
+     * every writer to keep both in step, and the form would read dirty forever after a save.
      */
     @Test
     fun `a plan the baseline has seen reads clean`() {
@@ -146,11 +119,7 @@ internal class ExerciseDirtyStateTest {
         assertTrue(state.isAdhocPlanDirty)
     }
 
-    /**
-     * `null` and an empty list both mean "no plan attached", and an in-flight edit that toggles
-     * between them must not register as dirty — the normalisation `Snapshot` already documents,
-     * asserted on the term that also relies on it.
-     */
+    /** `null` and an empty list both mean "no plan attached", so toggling between them is clean. */
     @Test
     fun `an empty plan and a null plan are the same plan`() {
         val state = ExerciseStore.State

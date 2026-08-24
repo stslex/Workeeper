@@ -22,30 +22,10 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
 /**
- * DataStore-backed implementation of [RestoreStateRepository]. Lives in the
- * scheduling module alongside [BackupPreferencesRepositoryImpl] because both
- * own DataStore Preferences files in the same module-local layout.
- *
- * Storage: a separate Preferences file (`restore_state_prefs.preferences_pb`)
- * so the restore-recovery flags stay isolated from the auto-backup schedule
- * / last-error tuple owned by `BackupPreferencesRepository`. The two sets of
- * keys have orthogonal lifecycles and clearing one must never disturb the
- * other.
- *
- * Key names are **wire format** — same stability rule as
- * `feature/app-dialogs/impl/.../AppDialogKeys`. Never rename without the
- * deprecation path (add new key, write both, ship, remove old). Renaming a
- * `restore_in_progress` key mid-flow would lose a user's pending dialog on
- * app update.
+ * DataStore-backed [RestoreStateRepository] over its own `restore_state_prefs` file.
+ * GUARD: key names are wire format - never rename without a deprecation path.
  */
-// App-Scope Collapse Step 3 (SB1): Hilt @Inject/@Singleton stripped, @Binds removed; Metro-owned via
-// @ContributesBinding(AppScope). Public for cross-module aggregation (D1; never hand-construct — resolve
-// via DI).
-//
-// Mint the store through DataStoreProviderFactory only: a second AppGraph that built its own would
-// throw "There are multiple DataStores active" on the second read. Pinned by app/app androidTest
-// AppScopeDataStoreSingletonTest. Bind the internal primary ctor in unit tests, not the provider.
-// Mechanism and evidence: documentation/tech-debt.md -> "DataStore singleton bypass".
+// GUARD: mint the store via DataStoreProviderFactory only. See documentation/tech-debt.md.
 @ContributesBinding(AppScope::class)
 @SingleIn(AppScope::class)
 class RestoreStateRepositoryImpl internal constructor(

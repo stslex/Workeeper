@@ -20,21 +20,15 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
 /**
- * ED11's window-close signal at its selector. The consumer, named per §27's discriminator:
- * `App.kt`'s snackbar collector calls [resolveSnackbarOutcome] on every toast, and the
- * exercise feature's deferred permanent delete rides `onDismissed` — so «`Отменить` never
- * commits» and «a closed window always commits» are exactly the two branches here.
- *
- * Each case asserts BOTH lambdas — the fired one fired once and the other not at all —
- * because the defect this routing exists to prevent is delete-AND-undo running together.
+ * ED11's window-close routing: «Отменить» never commits, a closed window always commits.
+ * Each case asserts both lambdas, since the defect is delete-and-undo running together.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 internal class SnackbarOutcomeTest {
 
     /**
-     * The drain below can meet a stale-epoch leftover from a sibling class in this JVM, and the
-     * discard branch logs through kermit's Logcat writer, which throws off-device. Same fix and
-     * same reason as [SnackbarManagerTest]: flip the call-time gate, not the captured logger.
+     * GUARD: kermit's Logcat writer throws off-device, and the drain can reach a discard log.
+     * Flip the call-time gate, not the captured logger. Same as [SnackbarManagerTest].
      */
     private var wasLogging = true
 
@@ -49,12 +43,7 @@ internal class SnackbarOutcomeTest {
         Log.isLogging = wasLogging
     }
 
-    /**
-     * [SnackbarManager]'s resolve gate is process-wide: a case that left it FENCED would make
-     * every later [resolveSnackbarOutcomeOrRequeue] in this JVM requeue instead of route, so
-     * admission is reopened after each case. Idempotent — the cases that never fence pay
-     * nothing.
-     */
+    /** [SnackbarManager]'s resolve gate is process-wide; a fenced leftover misroutes later. */
     @AfterEach
     fun reopenResolveGate() {
         SnackbarManager.unfenceResolves()
@@ -96,13 +85,7 @@ internal class SnackbarOutcomeTest {
         assertEquals(1, recorder.dismissals)
     }
 
-    /**
-     * The containment half of the routing's contract: both callbacks run inside the
-     * app-level collector, which outlives every screen — a throwing commit (B-E7's RESTRICT
-     * gap can reach one until its arc widens the eligibility predicate) must degrade to
-     * B17/B21's silent class, not cancel the one collector every toast shares. These two
-     * pass exactly when [resolveSnackbarOutcome] returns instead of rethrowing.
-     */
+    /** Both callbacks run in the app-level collector, so a throwing one must not cancel it. */
     @Test
     fun `a throwing commit is contained — the collector outlives it`() = runTest {
         val model = AppSnackbarModel(
@@ -138,17 +121,7 @@ internal class SnackbarOutcomeTest {
         assertTrue(escaped)
     }
 
-    /**
-     * The requeue half ([resolveSnackbarOutcomeOrRequeue]): the queue delivers once and the
-     * collector dies with its composition, so a model the host holds when recreation
-     * cancels it must go BACK — dropped, a deferred delete's confirmed commit silently
-     * never runs while the process is alive. Each case drains what it queues: the manager
-     * is a singleton and a leftover would leak into a sibling test.
-     *
-     * The model under test is taken off the real flow rather than hand-built: a
-     * [DeliveredSnackbar] carries the generation epoch it was ENQUEUED under, and only the
-     * live delivery path stamps the current one (sibling tests in this JVM advance it).
-     */
+    /** The requeue half; each case drains what it queues, the manager being a singleton. */
     @Test
     fun `a show cancelled mid-flight requeues the model`() = runTest {
         val delivered = deliverOnce(AppSnackbarModel(message = "requeue-show"))
@@ -193,11 +166,8 @@ internal class SnackbarOutcomeTest {
     }
 
     /**
-     * The window has CLOSED once [AppSnackbarModel.onDismissed] is entered, so the commit
-     * it carries runs [NonCancellable]: the host dying mid-transaction must not tear it in
-     * half — and must not requeue a model whose delete already landed, which would re-show
-     * an «Отменить» that can no longer undo anything. A commit either never starts (the
-     * requeue's case) or finishes.
+     * The window has CLOSED once [AppSnackbarModel.onDismissed] is entered, so its commit runs
+     * [NonCancellable]: a commit either never starts or finishes.
      */
     @Test
     fun `the host dying cannot tear a commit that began`() = runTest {
@@ -216,12 +186,7 @@ internal class SnackbarOutcomeTest {
         assertTrue(committed)
     }
 
-    /**
-     * Enqueues [model] through the real path and takes its one delivery back, so the returned
-     * [DeliveredSnackbar] carries the CURRENT generation epoch — the requeue cases above assert
-     * on a redelivery, which a stale stamp would silently discard instead. Leftovers from a
-     * sibling test in this JVM are drained first so the delivery taken back is this case's own.
-     */
+    /** Enqueues [model] through the real path so the [DeliveredSnackbar] carries the live epoch. */
     private suspend fun deliverOnce(model: AppSnackbarModel): DeliveredSnackbar {
         drainLeftovers()
         SnackbarManager.showSnackbar(model)
@@ -230,12 +195,7 @@ internal class SnackbarOutcomeTest {
         return delivered
     }
 
-    /**
-     * [SnackbarManager] is process-wide, so entries outlive the test that queued them. Consume
-     * whatever is left until the queue stops producing — [SnackbarManager.pendingModelCount] is
-     * documented approximate and can sit above zero over an empty queue, so the poll's null,
-     * not the count, is the loop's real terminator.
-     */
+    /** Drains the process-wide queue; the poll's null, not the approximate count, terminates. */
     private suspend fun drainLeftovers() {
         while (SnackbarManager.pendingModelCount > 0) {
             withTimeoutOrNull(POLL_MILLIS) { SnackbarManager.snackbar.first() } ?: return

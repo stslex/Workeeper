@@ -35,11 +35,8 @@ import tech.apter.junit.jupiter.robolectric.RobolectricExtension
 import java.io.File
 
 /**
- * [BackupWorker] behavior under first-operation lease admission (Phase 5 R2, spec §8.4): the
- * worker is constructed dep-free by the DEFAULT reflection factory (its ctor is the standard
- * `(Context, WorkerParameters)` pair — no [MetroWorkerFactory] wiring needed), and its deps
- * arrive exclusively through the [BackupWorkLease] minted by the process Application's
- * [BackupWorkerDepsHolder.awaitBackupWorkLease] as `doWork`'s first operation.
+ * [BackupWorker] under first-operation lease admission: constructed dep-free by the default
+ * factory, deps arriving via [BackupWorkerDepsHolder.awaitBackupWorkLease] inside `doWork`.
  */
 @ExtendWith(RobolectricExtension::class)
 @Config(application = BackupWorkerTest.TestApplication::class, sdk = [33])
@@ -47,10 +44,8 @@ internal class BackupWorkerTest {
 
     class TestApplication : Application(), BackupWorkerDepsHolder {
 
-        /** Installed by each test's `setUp` — the generation deps the holder admits against. */
         lateinit var deps: BackupWorkerDeps
 
-        /** Every lease this holder minted, in acquisition order. */
         val acquiredLeases = mutableListOf<RecordingBackupWorkLease>()
 
         override suspend fun awaitBackupWorkLease(): BackupWorkLease =
@@ -133,8 +128,7 @@ internal class BackupWorkerTest {
 
         makeWorker().doWork()
 
-        // The worker holds a wakelock window, so it must AWAIT the snapshot (keeps the process
-        // alive for the upload) and never use the detached fire-and-forget path.
+        // The wakelock window means the worker must await the export, never fire-and-forget.
         coVerify(exactly = 1) { snapshotExportRunner.runIfEligibleAwaiting() }
         coVerify(exactly = 0) { snapshotExportRunner.runIfEligible() }
     }
@@ -236,10 +230,7 @@ internal class BackupWorkerTest {
 
             makeWorker().doWork()
 
-            // A replacement transition's quiesce drain awaits this release — a worker that
-            // finished without releasing would block every future transition until its bounded
-            // abort. Exactly ONE lease for the run, released exactly once; together with the
-            // never-started gate below, this pins admission to doWork's first operation.
+            // A transition's quiesce drain awaits this release: one lease, released once.
             assertEquals(1, application.acquiredLeases.size)
             assertEquals(1, application.acquiredLeases.single().releaseCount.get())
         }
@@ -256,8 +247,7 @@ internal class BackupWorkerTest {
 
     @Test
     fun `a worker constructed but never started acquires NO lease`() {
-        // Both construction paths WorkManager can take: the default reflection factory (what the
-        // test builder uses for the plain 2-arg ctor) and the production MetroWorkerFactory.
+        // Both construction paths: the default reflection factory and MetroWorkerFactory.
         makeWorker()
         MetroWorkerFactory().createWorker(
             appContext = ApplicationProvider.getApplicationContext(),
@@ -265,8 +255,7 @@ internal class BackupWorkerTest {
             workerParameters = mockk<WorkerParameters>(relaxed = true),
         )
 
-        // Constructed-but-never-started workers (cancelled before dispatch, constraint races)
-        // must hold NOTHING a runtime transition would have to wait for.
+        // A constructed-but-never-started worker must hold nothing a transition would await.
         assertTrue(application.acquiredLeases.isEmpty())
     }
 }

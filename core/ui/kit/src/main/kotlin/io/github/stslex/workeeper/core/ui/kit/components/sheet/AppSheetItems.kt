@@ -23,10 +23,8 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 
 /**
- * The v3 sheet row vocabulary (extraction §1.9): [AppSheetItem] is `.mitem`, [AppSheetSwitchRow]
- * is `.mrow` + `.sw`, [AppSheetSeparator] is `.msep`. Distinct from the older
- * [AppSheetMenuContent], whose 88dp section rows belong to list screens — a sheet menu row is
- * a lighter thing, and the mockup draws it with its own geometry.
+ * A sheet menu row. Lighter geometry than [AppSheetMenuContent], whose taller section rows
+ * belong to list screens.
  */
 @Composable
 fun AppSheetItem(
@@ -65,10 +63,7 @@ fun AppSheetItem(
     }
 }
 
-/**
- * `.mrow` — a titled switch row: `.t` at the body rung in `max`, the supporting line in
- * `meta`, the 46×28 switch trailing.
- */
+/** A titled switch row: title over a supporting line, switch trailing. */
 @Composable
 fun AppSheetSwitchRow(
     title: String,
@@ -106,7 +101,6 @@ fun AppSheetSwitchRow(
     }
 }
 
-/** `.msep{height:1px;background:--hair;margin:6px 0}`. */
 @Composable
 fun AppSheetSeparator(modifier: Modifier = Modifier) {
     HorizontalDivider(
@@ -116,5 +110,4 @@ fun AppSheetSeparator(modifier: Modifier = Modifier) {
     )
 }
 
-/** `.mitem svg` — 19×19 at 1.8 stroke. */
 private val SHEET_ITEM_GLYPH = 19.dp

@@ -11,37 +11,8 @@ import org.jetbrains.kotlin.psi.KtAnnotationEntry
 import org.jetbrains.kotlin.psi.KtClass
 
 /**
- * Enforces Metro scope annotations on `@Inject`-annotated MVI dependencies.
- *
- * DI is 100% Metro (`dev.zacsweers.metro`). An injected component that participates in a feature graph
- * must declare its lifetime with `@SingleIn(<Scope>::class)` — the scope key that binds one instance to
- * one graph. Both Metro `@Inject` shapes count: the annotation on the primary constructor
- * (`class ClickHandler @Inject constructor(...)`) AND the class-level form
- * (`@Inject @SingleIn(X) class FooInteractorImpl(...)`), which is what most of the tree uses and which
- * also covers classes with no primary-constructor parens at all. `@AssistedInject` is deliberately NOT
- * treated as injection here: Metro forbids scoping an assisted type, so demanding a `@SingleIn` on one
- * would be wrong (`DataStoreProvider` is the live example). This rule walks those classes when their
- * name matches a known dependency bucket ([ScopedClassNames.isScopeChecked]) and requires:
- *
- * - **A scope must be declared.** A name-matched `@Inject` class with no `@SingleIn` is flagged: it either
- *   forgot the scope, or is using a non-Metro scope annotation (`javax.inject.@Singleton` still resolves
- *   because `javax.inject` is retained for Metro's `includeJavax()` qualifier interop, so a developer can
- *   still write `@Singleton` and be silently wrong under Metro — the graph does not honour it).
- * - **A Handler must not be app-scoped.** `@SingleIn(AppScope)` on a `*Handler` is a mis-scope (a
- *   per-screen Handler pinned to the process-lifetime app graph); the rule reads the scope ARGUMENT, not
- *   just the annotation name, and rejects it. A Handler scoped to its own feature scope
- *   (`@SingleIn(<Feature>Scope)`) passes.
- *
- * A Metro `Store` is intentionally UNSCOPED (retained by the Android `ViewModelStore` via
- * `rememberMetroStoreProcessor`), so a `*StoreImpl` is exempted BY NAME via
- * [ScopedClassNames.isStoreImpl] — an explicit exemption, not an accident of which `@Inject` shape it
- * happens to use. The `*HandlerStoreImpl` adapters are NOT covered by that exemption: they are ordinary
- * feature-scoped graph nodes and are scope-checked like any other `*Handler`.
- *
- * (Formerly `HiltScopeRule`: the Hilt-annotation branches — requiring `dagger.hilt.android.scopes.ViewModelScoped`
- * on Handler/Interactor/Mapper and `@HiltViewModel` on Store, plus the cross-bucket exclusivity loop — were
- * deleted once Hilt left every classpath, making those FQNs unresolvable. The retained checks all key off
- * annotations a developer can still write: `dev.zacsweers.metro.SingleIn` and `javax.inject.@Singleton`.)
+ * Requires `@SingleIn(<Scope>::class)` on name-matched `@Inject` MVI dependencies and forbids
+ * `@SingleIn(AppScope)` on a `*Handler`. See documentation/lint-rules.md.
  */
 class MetroScopeRule(
     config: Config = Config.empty,
@@ -59,19 +30,15 @@ class MetroScopeRule(
 
         val className = klass.name ?: return
 
-        // Skip test classes and interfaces
         if (klass.containingKtFile.virtualFilePath.contains("/test/") || klass.isInterface()) {
             return
         }
         if (klass.isMetroInjected().not()) return
 
-        // An MVI Store is intentionally UNSCOPED (the Android ViewModelStore retains it), so it is
-        // exempted explicitly by name. `*HandlerStoreImpl` is NOT a Store in this sense and stays checked.
+        // An MVI Store is intentionally unscoped — the Android ViewModelStore retains it.
         if (ScopedClassNames.isStoreImpl(className)) return
 
-        // Only name-matched dependency buckets are scope-checked (Repository / Handler / Interactor / …).
-        // A name with no bucket (e.g. `NavigatorEventBus`, the `Bus` suffix dodges every predicate) is
-        // intentionally unconstrained.
+        // Only name-matched dependency buckets are scope-checked; an unmatched name is free.
         if (ScopedClassNames.isScopeChecked(className).not()) return
 
         val singleInEntry = klass.annotationEntries.firstOrNull {
@@ -79,8 +46,7 @@ class MetroScopeRule(
         }
 
         if (singleInEntry == null) {
-            // No `@SingleIn` at all — the class either forgot its Metro scope or used a non-Metro one
-            // (`javax.inject.@Singleton` resolves but the Metro graph ignores it). Flag it.
+            // No `@SingleIn`: forgotten, or a non-Metro `@Singleton` the Metro graph ignores.
             report(
                 CodeSmell(
                     issue,
@@ -93,9 +59,7 @@ class MetroScopeRule(
             return
         }
 
-        // Soundness guard: a Handler is feature-scoped, never app-scoped. `@SingleIn(AppScope)` on a
-        // `*Handler` is a mis-scope (a per-screen Handler pinned to the app singleton graph). Read the
-        // scope argument and reject it.
+        // GUARD: a Handler is feature-scoped, never app-scoped — read the scope ARGUMENT.
         if (className.contains(HANDLER) && singleInEntry.referencesScope(APP_SCOPE)) {
             report(
                 CodeSmell(
@@ -109,12 +73,8 @@ class MetroScopeRule(
     }
 
     /**
-     * True when the class is Metro-injected in either shape: `@Inject` on the class itself, or `@Inject`
-     * on its primary constructor. Reading only the constructor would exempt the dominant shape in this
-     * tree — every `*InteractorImpl` / `*HandlerStoreImpl` carries the annotation on the class, and some
-     * have no primary-constructor parens at all, so `primaryConstructor` is null.
-     *
-     * `@AssistedInject` is intentionally excluded: Metro forbids scoping an assisted type.
+     * True when Metro-injected in either shape: `@Inject` on the class or on its primary
+     * constructor. `@AssistedInject` is excluded — Metro forbids scoping an assisted type.
      */
     private fun KtClass.isMetroInjected(): Boolean {
         val onClass = annotationEntries.any { it.shortName?.asString() == INJECT_ANNOTATION }
@@ -126,15 +86,11 @@ class MetroScopeRule(
     }
 
     /**
-     * True when this `@SingleIn(...)` entry's scope argument references [scopeSimpleName]
-     * (e.g. `@SingleIn(AppScope::class)` references `AppScope`). Matches on the class-literal's
-     * simple name, so a fully-qualified `some.pkg.AppScope::class` is caught too, while a
-     * feature scope like `ArchiveScope::class` is not.
+     * True when this `@SingleIn(...)` argument references [scopeSimpleName], matched on the
+     * class-literal's simple name so a fully-qualified scope is caught too.
      */
     private fun KtAnnotationEntry.referencesScope(scopeSimpleName: String): Boolean {
         val argument = valueArguments.firstOrNull()?.getArgumentExpression() ?: return false
-        // Text is e.g. "AppScope::class" or "dev.zacsweers.metro.AppScope::class". Take the
-        // referenced type name (strip "::class" and any package qualifier).
         val referencedType = argument.text
             .substringBefore("::")
             .substringAfterLast('.')
@@ -144,16 +100,15 @@ class MetroScopeRule(
 
     private companion object {
 
-        /** Metro's injection annotation (`dev.zacsweers.metro.Inject`), class- or constructor-level. */
+        /** `dev.zacsweers.metro.Inject`, class- or constructor-level. */
         const val INJECT_ANNOTATION = "Inject"
 
-        /** Metro's scope annotation (`dev.zacsweers.metro.SingleIn`). */
+        /** `dev.zacsweers.metro.SingleIn`. */
         const val METRO_SCOPE_ANNOTATION = "SingleIn"
 
-        /** Metro's app/singleton scope. A feature-scoped Handler must never be scoped to it. */
+        /** Metro's app/singleton scope; a Handler must never be scoped to it. */
         const val APP_SCOPE = "AppScope"
 
-        /** Name fragment identifying a Handler class (the feature-scoped-only bucket). */
         const val HANDLER = "Handler"
     }
 }

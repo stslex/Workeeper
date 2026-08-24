@@ -16,10 +16,8 @@ sealed interface DialogState {
     ) : DialogState
 
     /**
-     * Empty-finish confirm dialog (E1 lock). Triggered when the user taps Finish on a
-     * session with no performed sets. Discard CTA is enabled only for ad-hoc trainings;
-     * library training sessions get a Continue-editing-only variant — we do not delete
-     * library trainings via session cancellation.
+     * Empty-finish confirm dialog: Finish tapped with no performed sets. Discard is offered
+     * only for ad-hoc trainings, never for library ones.
      */
     @Stable
     data class EmptyFinish(
@@ -61,11 +59,7 @@ sealed interface DialogState {
         val exercisesSummaryLabel: String,
         val setsLoggedLabel: String,
         val newPersonalRecords: ImmutableList<NewPrEntry>,
-        /**
-         * Visible rows the user never filled in. Rendered as an explicit line in
-         * `FinishConfirmDialog` when non-zero, so the discard at finish is stated rather than
-         * silent (§6.1). Zero hides the line entirely.
-         */
+        /** Visible rows never filled in; shown when non-zero so the discard is stated (§6.1). */
         val unfilledSetCount: Int = 0,
         val requiresName: Boolean = false,
         val nameDraft: String = "",

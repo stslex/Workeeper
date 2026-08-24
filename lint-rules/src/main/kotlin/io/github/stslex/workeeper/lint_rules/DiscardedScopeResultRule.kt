@@ -18,20 +18,8 @@ import org.jetbrains.kotlin.psi.KtIfExpression
 import org.jetbrains.kotlin.psi.KtWhenExpression
 
 /**
- * Flags a pure, value-returning transform (`plus` / `minus` / `map` / `filter` / `copy` …)
- * whose result is discarded as a statement inside an `apply { }` or `also { }` block.
- *
- * `apply` and `also` return their *receiver*, not the lambda result, so a bare `plus(x)` or
- * `list.map { }` statement inside them silently throws away the new value it produced. This
- * is exactly the dead permanent-delete menu bug this rule was written for:
- *
- * ```
- * persistentListOf(edit, archive).apply {
- *     if (canDelete) { plus(deleteAction) } // result discarded → delete item never added
- * }
- * ```
- *
- * Fix by returning/assigning the result instead — e.g. `buildList { … }` or reassignment.
+ * Flags a pure transform (`plus` / `map` / `copy` …) whose result is discarded as a statement
+ * inside `apply { }` / `also { }`, which return their receiver rather than the lambda result.
  */
 class DiscardedScopeResultRule(
     config: Config = Config.empty,
@@ -68,7 +56,7 @@ class DiscardedScopeResultRule(
             }
     }
 
-    /** Descends only into control-flow branches (if/when), never into nested lambdas or call args. */
+    /** Descends into control-flow branches (if/when) only, never into lambdas or call args. */
     private fun flattenStatements(statements: List<KtExpression>): List<KtExpression> =
         statements.flatMap { stmt ->
             when (stmt) {

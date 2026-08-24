@@ -23,16 +23,8 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 /**
- * `isLoading`'s lifecycle on the training editor.
- *
- * `SingleTrainingGraph` withholds the whole screen while the flag is true (§26, "A route does not
- * compose until it has loaded"), which is what makes these assertions claims about the app rather
- * than about a field (§27: "a gate whose subject is unconsumed is vacuous in precisely the way a
- * green one is").
- *
- * The consumer, named per §27's discriminator: that graph's
- * `if (state.isLoading) return@navComponentScreen`, which decides whether
- * `TrainingDetailScreen` / `TrainingEditScreen` is composed at all. Not a test that reads the field.
+ * `isLoading`'s lifecycle on the training editor. The consumer is `SingleTrainingGraph`'s
+ * `if (state.isLoading) return@navComponentScreen`, which withholds the whole screen.
  */
 internal class CommonHandlerTest {
 
@@ -43,11 +35,8 @@ internal class CommonHandlerTest {
     private val resourceWrapper = mockk<ResourceWrapper>(relaxed = true)
 
     /**
-     * The store mock runs `launch` synchronously and routes a throw to `onError`, because that
-     * routing is the thing under test: production's default for `onError` is `{}` (B17, B21), so a
-     * mock that swallowed the throw would report the defect as fixed. `supervisorScope` matches the
-     * sibling fixture in `feature/exercise` — it is not needed for this handler's sequential load,
-     * and keeping the two fixtures identical is worth more than shaving a wrapper off one of them.
+     * The store mock runs `launch` synchronously and routes a throw to `onError` — that routing is
+     * the thing under test, since production's default `onError` is `{}`.
      */
     private fun setup(initialState: State): Pair<MutableStateFlow<State>, CommonHandler> {
         val stateFlow = MutableStateFlow(initialState)
@@ -98,11 +87,7 @@ internal class CommonHandlerTest {
         assertFalse(stateFlow.value.isLoading)
     }
 
-    /**
-     * §3.3: the История head's count is the TOTAL of finished sessions, not the size of the
-     * five-row page the list shows — the consumer is `TrainingDetailScreen.HistorySection`'s
-     * `trailingLabel`, which pluralises this number, not `pastSessions.size`.
-     */
+    /** §3.3: the head's count is the total of finished sessions, not the visible page. */
     @Test
     fun `the История count is the total, not the visible page`() {
         coEvery { interactor.getTraining(any()) } returns mockk(relaxed = true)
@@ -123,8 +108,7 @@ internal class CommonHandlerTest {
         handler.invoke(Action.Common.Init)
 
         assertFalse(stateFlow.value.isLoading)
-        // The create branch also takes its dirty baseline here, so an untouched new training does
-        // not open already dirty — which is what the discard sheet keys off.
+        // The create branch takes its dirty baseline here, so a new training opens clean.
         assertNotNull(stateFlow.value.originalSnapshot)
         assertFalse(stateFlow.value.hasChanges)
     }

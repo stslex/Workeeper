@@ -23,14 +23,8 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 /**
- * Unit tests for the extracted state mutator. Drives every public method with
- * representative state shapes and asserts the resulting `State` snapshot —
- * `performedSets`, `setDrafts`, `status`, and `visibleSets` — without standing up a
- * handler or a store.
- *
- * `ResourceWrapper` is relaxed-mocked because the mutator only forwards it through to
- * `withPresentation` for label shaping; assertions key off structure, not display
- * strings.
+ * Unit tests for the state mutator: every public method against a `State` snapshot, with no
+ * handler or store. `ResourceWrapper` is relaxed-mocked since assertions key off structure.
  */
 internal class LiveSetMutatorTest {
 
@@ -163,8 +157,7 @@ internal class LiveSetMutatorTest {
 
     @Test
     fun `applySetUnchecked restores draft from user values when the row was a modified plan set`() {
-        // Plan position 0 was 100x5 WORK; user edited to 110x6 FAILURE before tapping done.
-        // After uncheck, the draft must mirror what the user entered — not the plan.
+        // After uncheck the draft must mirror what the user entered, not the plan.
         val state = stateWith(
             exerciseWithPlan(
                 plan = persistentListOf(
@@ -200,8 +193,7 @@ internal class LiveSetMutatorTest {
 
     @Test
     fun `applySetUnchecked restores draft from user values for a set added beyond plan via Add Set`() {
-        // No plan. User added set 0 via Add Set (drafted 80x10 WORK), tapped done.
-        // Uncheck must restore the draft with those user values, not a fallback.
+        // Uncheck must restore the user's drafted values, not a fallback row.
         val state = stateWith(
             exerciseWithPlan(
                 plan = persistentListOf(),
@@ -249,8 +241,7 @@ internal class LiveSetMutatorTest {
 
     @Test
     fun `applySetUnchecked recomputes status from DONE to CURRENT after dropping the only done set`() {
-        // Stale status DONE; after uncheck the exercise has no done sets, so the
-        // auto-current rule (no explicit active uuids) elects it as CURRENT.
+        // With no done sets left, the auto-current rule elects this exercise CURRENT.
         val state = stateWith(
             exerciseWithPlan(
                 plan = persistentListOf(
@@ -286,7 +277,6 @@ internal class LiveSetMutatorTest {
         val performed = result.exercises.first().performedSets
         assertEquals(SetTypeUiModel.WORK, performed[0].type)
         assertEquals(SetTypeUiModel.FAILURE, performed[1].type)
-        // Visible row resolver must have re-run so visibleSets reflects performed.
         assertEquals(SetTypeUiModel.FAILURE, result.exercises.first().visibleSets[1].type)
     }
 
@@ -367,7 +357,6 @@ internal class LiveSetMutatorTest {
 
         val restored = mutator.applySkipToggle(skipped, PE_UUID, skipped = false)
 
-        // Un-skip re-derives from the preserved rows: one done of two -> back in play.
         assertTrue(restored.exercises.first().status != ExerciseStatusUiModel.SKIPPED)
         assertEquals(1, restored.exercises.first().performedSets.size)
     }
@@ -492,8 +481,7 @@ internal class LiveSetMutatorTest {
 
     @Test
     fun `completing the last set never collapses the card`() {
-        // The amended disclosure model's headline retirement: no auto-collapse on
-        // completion. The open set is untouched by any status recompute.
+        // No auto-collapse on completion: status recompute never touches the open set.
         val plan = persistentListOf(
             PlanSetUiModel(weight = 100.0, reps = 5, type = SetTypeUiModel.WORK),
         )
@@ -507,8 +495,6 @@ internal class LiveSetMutatorTest {
         assertEquals(ExerciseStatusUiModel.DONE, result.exercises.first().status)
         assertTrue(PE_UUID in result.expandedExerciseUuids)
     }
-
-    // --- setbar mechanics (§6.4, extraction §1.7) ------------------------------------
 
     @Test
     fun `applyAddSet appends a copy of the last visible row and raises the override`() {

@@ -23,17 +23,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * INVALIDATION ORACLE — real device, real FILE-BACKED database. Proves that a write through
- * the ported (Room 3) `DbTransitionRunner` re-emits Room-native `Flow`s, so the UI does not
- * silently go stale after a write.
- *
- * ARTIFACT FACT: room3-runtime 3.0.0's `useWriterConnection` already calls
- * `invalidationTracker.refreshAsync()` internally (verified in its bytecode:
- * `getInvalidationTracker().refreshAsync()`), so no manual refresh was added — this test proves
- * the built-in refresh actually reaches a collected Flow end-to-end.
- *
- * ⚠️ androidDeviceTest + file-backed on purpose — Robolectric is not a valid oracle for
- * invalidation/Flow re-emission any more than for transaction rollback.
+ * Invalidation oracle: a write through the ported transaction must re-emit collected Flows.
+ * GUARD: real device + file-backed DB — Robolectric is not a valid oracle for invalidation.
  */
 @Regression
 @RunWith(AndroidJUnit4::class)
@@ -65,14 +56,11 @@ internal class InvalidationDeviceTest {
 
     @Test
     fun flowReEmitsAfterWriteThroughPortedTransaction() = runBlocking {
-        // Baseline: the Flow's first emission is the current (empty) table.
         assertEquals(emptyList<TagEntity>(), tagDao.observeAll().first())
 
-        // Write through the ported DbTransitionRunner (useWriterConnection → refreshAsync).
         transition { tagDao.insert(TagEntity(name = "invalidate-me")) }
 
-        // The Flow MUST re-emit with the new row. withTimeout so a non-re-emitting Flow fails
-        // the test (hangs → TimeoutCancellationException) rather than hanging forever.
+        // withTimeout so a non-re-emitting Flow fails the test instead of hanging forever.
         val reEmitted = withTimeout(TIMEOUT_MS) {
             tagDao.observeAll().first { rows -> rows.any { it.name == "invalidate-me" } }
         }
@@ -84,16 +72,12 @@ internal class InvalidationDeviceTest {
 
     @Test
     fun knownNegative_flowDoesNotReEmitWithoutAWrite() = runBlocking {
-        // KNOWN-NEGATIVE: with no write, the Flow emits its initial value and then does NOT
-        // re-emit. A second collection times out → proving the re-emit assertion above can
-        // actually distinguish "re-emitted" from "did not", i.e. it is a real guard.
+        // KNOWN-NEGATIVE: no write → no re-emit, proving the positive assertion can fail.
         tagDao.insert(TagEntity(name = "seed"))
-        // Drain the initial emission.
         assertEquals(listOf("seed"), tagDao.observeAll().first().map { it.name })
 
         val sawSpurious = runCatching {
             withTimeout(TIMEOUT_MS) {
-                // Wait for an emission of anything OTHER than the seeded state; none should come.
                 tagDao.observeAll().first { rows -> rows.map { it.name } != listOf("seed") }
             }
         }.isSuccess

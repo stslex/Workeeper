@@ -17,24 +17,9 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * The `AccountDataStore` singleton invariant: two `AppGraph`s in one process resolve ONE
- * `DataStore` over `backup_account_prefs`.
- *
- * A `DataStore` is a per-file singleton; `DataStoreProvider` enforces that with a static,
- * process-lifetime map, while `AccountDataStoreImpl` is `@SingleIn(AppScope)` — graph-lifetime.
- * A holder minting its own store per instance collides the moment a second graph exists in the
- * process — exactly what `MetroTestRule`'s per-test graph rebuild produces — and DataStore 1.1+
- * throws `IllegalStateException: There are multiple DataStores active for the same file` on the
- * second collection.
- *
- * [twoAppGraphsInOneProcessShareTheAccountDataStore] **collects from both graphs rather than
- * merely constructing them**: the collision manifests only when the file opens, so a test that
- * stopped at graph construction (or at resolving `backupAuth`) would stay green even with a
- * per-instance store present.
- *
- * [accountPrefsFileIsTheRelativePathUnderFilesDir] pins the prefs-name → file mapping the
- * provider routing relies on. The pin is the RELATIVE path under `filesDir` on purpose — the
- * absolute path contains the applicationId, which differs between `:app:dev` and `:app:store`.
+ * `AccountDataStore` singleton invariant: two `AppGraph`s in one process resolve ONE store over
+ * `backup_account_prefs`. GUARD: collect from both graphs — the collision surfaces when the file
+ * opens. See documentation/tech-debt.md -> "DataStore singleton bypass".
  */
 @Regression
 @RunWith(AndroidJUnit4::class)

@@ -26,28 +26,13 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
 /**
- * Verifies the singleton command-bus contract:
- *  - `navTo(screen)` emits exactly one `NavCommand.NavTo(screen)`.
- *  - `replaceTo(screen)` emits exactly one `NavCommand.ReplaceTo(screen)`.
- *  - `popBack()` emits exactly one `NavCommand.PopBack`.
- *  - `popBackWithResult(destination, result)` emits one `NavCommand.PopBackWithResult`
- *    keyed by the destination, carrying the value unchanged.
- *  - Multiple emissions arrive on the receiver in the order they were dispatched.
- *
- * Each test attaches a collector before invoking the producer because the bus uses
- * `MutableSharedFlow(extraBufferCapacity = 64)` with `replay = 0` — emissions made
- * while no subscriber is attached are not replayed to subscribers that attach later.
- * The lifecycle regression test covers what the production bridge does in that case
- * (the bridge attaches via `LaunchedEffect(navController)` before any decision-side
- * emit can happen for that composition).
+ * The singleton command-bus contract. Every test attaches a collector before emitting: the bus is
+ * `replay = 0`, so emissions made with no subscriber are never replayed.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 internal class NavigatorEventBusTest {
 
-    // `NavigatorEventBus` constructs a `Log.tag(...)` logger that funnels through
-    // `FirebaseCrashlyticsHolder` → `Firebase.crashlytics` on every emit. In a JVM
-    // unit test Firebase is not initialized and `Process.myPid()` is not mocked,
-    // so the real logger throws. Stub `Log.tag(...)` to return a relaxed Logger.
+    // The real `Log.tag` logger reaches Firebase, which is not initialized in a JVM test.
     @BeforeEach
     fun setUpLogger() {
         mockkObject(Log)
@@ -110,11 +95,7 @@ internal class NavigatorEventBusTest {
         assertEquals(NavCommand.PopBack, collector.await())
     }
 
-    /**
-     * The bus keys the command off the destination and carries the value through unchanged.
-     * Absence is not expressed here at all — a destination that produced nothing pops via
-     * [Navigator.popBack], and the read side is what reports `null`.
-     */
+    /** The bus keys the command off the destination and carries the value through unchanged. */
     @Test
     fun `popBackWithResult keys the command by destination and carries the result`() = runTest {
         val dispatcher = UnconfinedTestDispatcher(testScheduler)
@@ -182,22 +163,17 @@ internal class NavigatorEventBusTest {
     fun `bus exposes the same instance across Navigator and NavigatorReceiver surfaces`() {
         val bus = NavigatorEventBus(mockk(relaxed = true))
 
-        // The singleton design relies on the producer interface (`Navigator`) and the
-        // consumer interface (`NavigatorReceiver`) pointing at the same SharedFlow. If
-        // they diverge, commands emitted by Stores are never seen by the App/UI bridge.
+        // Producer and consumer interfaces must point at the same SharedFlow, or commands emitted
+        // by Stores are never seen by the UI bridge.
         val producer: io.github.stslex.workeeper.core.ui.navigation.Navigator = bus
         val receiver: NavigatorReceiver = bus
 
-        // Both surfaces must observe the same underlying flow.
         assertEquals(receiver.commands, (producer as NavigatorEventBus).commands)
     }
 
     /**
-     * The pending-result lifecycle: a result survives ONLY the pop that delivers it. Any other
-     * navigation — forward, replace, or a plain back — clears every pending channel, so a value
-     * written over a non-consuming screen can never leak into a later, unrelated composition of
-     * the one consumer for that key. (The transport is process-wide and keyed by destination,
-     * not by entry — this clearing is what stands in for Nav2-style per-entry scoping.)
+     * The pending-result lifecycle: a result survives only the pop that delivers it, and every
+     * other navigation clears every channel — the stand-in for Nav2-style per-entry scoping.
      */
     @Test
     fun `navTo clears a pending result`() {

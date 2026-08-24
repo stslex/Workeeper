@@ -26,16 +26,8 @@ object SnackbarManager {
     private class Queued(val model: AppSnackbarModel, val epoch: Long)
 
     /**
-     * The toast queue: unbounded, FIFO, and never dropping while the process lives — except at
-     * a COMMITTED generation handover (see [advanceGenerationEpoch]).
-     * [AppSnackbarModel.onDismissed] carries a deferred delete's COMMIT (ED11), not just
-     * feedback — a dropped entry is not a stale toast skipped, it is a confirmed delete
-     * that silently never runs after the screen that promised it popped. So neither a full
-     * buffer nor a burst may evict: entries are tiny, every producer is a user gesture,
-     * and the single collector (`App.kt`) drains one per toast lifetime. DO NOT cap this
-     * queue or give it an overflow policy — any bound reintroduces the eviction, and
-     * [SnackbarManagerTest] holds a burst case that goes red on one. Process death cancels
-     * everything queued — D-OPEN-10's recorded shape, unchanged.
+     * The toast queue: unbounded FIFO, dropping only at a committed generation handover.
+     * GUARD: never cap it or give it an overflow policy; an entry can carry a deferred commit.
      */
     private val queue = Channel<Queued>(capacity = Channel.UNLIMITED)
 
@@ -85,9 +77,8 @@ object SnackbarManager {
     val pendingModelCount: Int get() = queuedCount.value
 
     /**
-     * Atomically observes "no resolve in flight" AND closes admission for new ones. Suspends
-     * until both hold; the caller bounds it. Every path that does not commit MUST call
-     * [unfenceResolves].
+     * Atomically observes "no resolve in flight" and closes admission for new ones; the caller
+     * bounds the suspend. GUARD: every path that does not commit MUST call [unfenceResolves].
      */
     suspend fun fenceResolves() {
         while (true) {
@@ -105,8 +96,8 @@ object SnackbarManager {
     }
 
     /**
-     * Admits one routing. Returns false when the gate is fenced: the caller must NOT run the
-     * outcome and must requeue the model with its own epoch instead.
+     * Admits one routing; false means fenced — do not run the outcome, requeue the model with
+     * its own epoch instead.
      */
     internal fun beginResolve(): Boolean {
         val after = resolveGate.updateAndGet { gate ->
@@ -120,11 +111,8 @@ object SnackbarManager {
     }
 
     /**
-     * Marks a COMMITTED generation handover: models queued under earlier epochs are discarded
-     * lazily at delivery (never executed against the new generation). Called by the runtime
-     * ONLY after a successful handover and BEFORE the successor is published — an ABORTED
-     * transition never advances the epoch, so the queued models are preserved and deliver
-     * normally when the outgoing generation resumes.
+     * Marks a COMMITTED generation handover; earlier-epoch models are discarded at delivery.
+     * An aborted transition never advances the epoch, so its queued models still deliver.
      */
     fun advanceGenerationEpoch() {
         generationEpoch.incrementAndGet()

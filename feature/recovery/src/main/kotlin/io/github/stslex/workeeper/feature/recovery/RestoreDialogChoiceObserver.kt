@@ -30,10 +30,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import io.github.stslex.workeeper.feature.recovery.R as RecoveryR
 
-/**
- * App-scoped dialog-choice reactor. It is eagerly constructed for recovery bootstrap and always
- * acknowledges after its effect succeeds; an undo I/O failure remains visible for retry.
- */
+/** App-scoped dialog-choice reactor; it acknowledges only after its effect succeeds. */
 @SingleIn(AppScope::class)
 @ContributesBinding(AppScope::class)
 // Public for cross-module Metro aggregation; obtain through DI.
@@ -135,13 +132,8 @@ class RestoreDialogChoiceObserver @Inject constructor(
     }
 
     /**
-     * Publishes [AppDialog.UndoRestoreConfirmation] and returns whether it was
-     * published. Returns `false` without publishing when the preserved backup
-     * was evicted between [AppDialog.RestoreSuccess] being shown and the user
-     * tapping "Undo restore" (`getPreRestoreOriginalDate()` is `null`). In that
-     * case the caller must NOT acknowledge `RestoreSuccess`: dismissing it would
-     * silently destroy the user's only undo entry point. Keeping `RestoreSuccess`
-     * visible is the same choice already made for [UndoRestoreOutcome.IoFailure].
+     * Publishes the undo confirmation; `false` when the preserved backup was already evicted, in
+     * which case the caller must keep `RestoreSuccess` visible as the only undo entry point.
      */
     private suspend fun publishUndoConfirmation(): Boolean {
         val originalDate = restoreStateRepository.getPreRestoreOriginalDate()

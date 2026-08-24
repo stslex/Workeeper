@@ -87,8 +87,7 @@ internal class AppDialogRepositoryTest {
     fun `dismiss clears only the named variant's flags`() = runTest {
         val success = AppDialog.RestoreSuccess(restoredAtEpochMs = 100L, previousVersionAvailable = true)
         val failure = AppDialog.RestoreFailure(reason = BackupErrorCode.Unknown)
-        // Both pending — priority resolution is covered by AppDialogResolverTest.
-        // This test pins that dismiss(failure) does not also clear success's flags.
+        // Both pending: dismiss(failure) must not clear success's flags.
         repository.publish(success)
         repository.publish(failure)
         repository.dismiss(failure)
@@ -110,8 +109,7 @@ internal class AppDialogRepositoryTest {
             val success = AppDialog.RestoreSuccess(restoredAtEpochMs = 1L, previousVersionAvailable = false)
             repository.publish(failure)
             repository.publish(success)
-            // Failure still wins priority, but the success payload should be persisted
-            // (verifiable after dismissing failure).
+            // Failure still wins priority; the success payload is persisted underneath.
             repository.dismiss(failure)
             assertEquals(success, repository.currentDialog.first())
         }
@@ -127,9 +125,5 @@ internal class AppDialogRepositoryTest {
         assertEquals(second, repository.currentDialog.first())
     }
 
-    // Note: a "process restart" simulation test would require cancelling the
-    // DataStore's internal scope before recreating, because Preferences DataStore
-    // enforces singleton-per-file at runtime. Cross-restart persistence is the
-    // DataStore library's responsibility; the publish-then-read tests above
-    // exercise the same persistence path through the file storage layer.
+    // No process-restart test — DataStore is singleton-per-file; see documentation/testing.md.
 }

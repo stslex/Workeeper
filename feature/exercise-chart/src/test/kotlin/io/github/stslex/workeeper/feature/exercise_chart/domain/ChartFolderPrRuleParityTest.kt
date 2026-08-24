@@ -14,18 +14,8 @@ import org.junit.jupiter.api.Test
 import java.time.ZoneId
 
 /**
- * `ChartFolder` applies the PR eligibility and ordering when it chooses the set that represents
- * each session. The shared [PrRuleFixture] keeps that selection aligned with the data-layer
- * sites. Multiple fixture sessions can share one day and remain separate chart points.
- *
- * The parity claim is asserted under [ChartMetricDomain.HEAVIEST_WEIGHT], because that is the
- * metric under which the chart's primary sort key *is* the PR rule's primary key. Under
- * [ChartMetricDomain.VOLUME_PER_SET] the chart deliberately ranks by `weight × reps` instead:
- * eligibility and the lower `finishedAt` / position tiebreaks are still shared, but the reps
- * key is not. A volume tie is a trade of weight against reps, so ranking by reps there would
- * amount to ranking by *ascending* weight. The one test below that does pass
- * [ChartMetricDomain.VOLUME_PER_SET] therefore claims only the shared eligibility, not the
- * winner.
+ * `ChartFolder` applies the PR eligibility and ordering when it picks each session's set.
+ * Parity is claimed under HEAVIEST_WEIGHT only; volume metrics share eligibility, not reps.
  */
 internal class ChartFolderPrRuleParityTest {
 
@@ -69,9 +59,7 @@ internal class ChartFolderPrRuleParityTest {
 
     @Test
     fun `an ineligible set never becomes the session point`() {
-        // Before the fix, a weight-null set on a WEIGHTED exercise was coerced to 0.0 rather
-        // than excluded, so an exercise whose sets all lack a weight plotted a flat run of
-        // zeroes instead of plotting nothing.
+        // A weight-null set on a WEIGHTED exercise is excluded, never coerced to 0.0.
         val scenario = PrRuleFixture.WEIGHTED_WITH_NO_WEIGHTS_HAS_NO_RECORD
 
         val fold = bucketAndFold(
@@ -89,8 +77,7 @@ internal class ChartFolderPrRuleParityTest {
 
     @Test
     fun `volume metric keeps the shared eligibility even though it ranks differently`() {
-        // The 200kg zero-rep set has volume 0 and heaviest-weight 200; under either metric it
-        // is ineligible, and the day belongs to the set that was actually performed.
+        // The 200kg zero-rep set is ineligible under either metric.
         val scenario = PrRuleFixture.ZERO_REP_SET_IS_NOT_A_RECORD
 
         val fold = bucketAndFold(
@@ -109,10 +96,8 @@ internal class ChartFolderPrRuleParityTest {
 
     @Test
     fun `session metric keeps the shared eligibility in its sum`() {
-        // Same claim as the per-set volume test, one fold later: the session total is a SUM
-        // over the shared eligibility floor, so the 200kg zero-rep set contributes nothing
-        // and the session's total is exactly the performed set's volume. Eligibility only —
-        // like VOLUME_PER_SET, the session metric makes no winner-parity claim.
+        // Eligibility only, one fold later: the session total sums over the same floor, so the
+        // zero-rep set contributes nothing. No winner-parity claim.
         val scenario = PrRuleFixture.ZERO_REP_SET_IS_NOT_A_RECORD
 
         val fold = bucketAndFold(
@@ -128,9 +113,8 @@ internal class ChartFolderPrRuleParityTest {
     }
 
     /**
-     * Candidates sharing a `finishedAt` share a session, matching how `PrRuleDbSeeder` lays
-     * them out in SQL, and are listed in position order — the order
-     * `SessionDao.getHistoryByExercise` delivers them in.
+     * Candidates sharing a `finishedAt` share a session, and are listed in position order —
+     * the order `SessionDao.getHistoryByExercise` delivers.
      */
     private fun PrRuleFixture.PrScenario.toHistory(): List<HistoryEntryDomain> = candidates
         .groupBy { it.finishedAt }

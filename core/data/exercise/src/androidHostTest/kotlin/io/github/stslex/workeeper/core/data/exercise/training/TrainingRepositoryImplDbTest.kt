@@ -48,7 +48,7 @@ internal class TrainingRepositoryImplDbTest {
     fun setup() {
         env = RepositoryTestEnv()
         exerciseRepository = mockk<ExerciseRepository>(relaxed = true)
-        // Default: no plan inheritance from exercise.last_adhoc_sets unless a test overrides.
+        // Default: no plan inheritance from last_adhoc_sets unless a test overrides.
         coEvery { exerciseRepository.getAdhocPlan(any()) } returns null
         repository = TrainingRepositoryImpl(
             dao = env.trainingDao,
@@ -130,15 +130,13 @@ internal class TrainingRepositoryImplDbTest {
             seedLibraryExercise(keptExerciseUuid, "Bench")
             seedLibraryExercise(newExerciseUuid, "Press")
 
-            // First save with one exercise + an existing plan via getAdhocPlan stub.
             val firstSave = TrainingChangeDataModel(
                 uuid = trainingUuid.toString(),
                 name = "Push",
                 timestamp = 1L,
                 exerciseUuids = listOf(keptExerciseUuidStr),
             )
-            // The first save is treated as a "new attachment" — the repository inherits from
-            // exercise.adhocPlan via the injected exerciseRepository.
+            // A first save is a new attachment, so the plan is inherited from adhocPlan.
             coEvery { exerciseRepository.getAdhocPlan(keptExerciseUuidStr) } returns listOf(
                 PlanSetDataModel(weight = 100.0, reps = 5, type = SetTypeDataModel.WORK),
             )
@@ -148,8 +146,6 @@ internal class TrainingRepositoryImplDbTest {
             assertNotNull(initialPlan)
             assertTrue(initialPlan!!.contains("\"weight\":100.0"))
 
-            // Second save adds a new exercise; existing plan should be preserved (kept) and the
-            // new one should inherit from a different adhocPlan.
             coEvery { exerciseRepository.getAdhocPlan(keptExerciseUuidStr) } returns listOf(
                 PlanSetDataModel(weight = 999.0, reps = 1, type = SetTypeDataModel.WORK),
             )
@@ -161,12 +157,10 @@ internal class TrainingRepositoryImplDbTest {
             )
 
             val keptPlan = env.trainingExerciseDao.getPlanSets(trainingUuid, keptExerciseUuid)
-            // Original plan preserved (didn't pick up the 999.0 from the new adhocPlan).
             assertTrue(keptPlan!!.contains("\"weight\":100.0"))
             assertFalse(keptPlan.contains("999.0"))
 
             val newPlan = env.trainingExerciseDao.getPlanSets(trainingUuid, newExerciseUuid)
-            // Newly attached row inherits from getAdhocPlan.
             assertTrue(newPlan!!.contains("\"weight\":60.0"))
         }
 
@@ -176,9 +170,7 @@ internal class TrainingRepositoryImplDbTest {
             val trainingUuid = Uuid.random()
             val exerciseUuid = Uuid.random()
             seedLibraryExercise(exerciseUuid, "Bench")
-            // Pre-seed an existing training_exercise row with an empty `[]` plan to mimic the
-            // user-cleared state. Persist via a manual write to avoid going through
-            // updateTraining, which is the SUT.
+            // Seed a user-cleared `[]` plan by hand, since updateTraining is the SUT.
             env.trainingDao.insert(
                 TrainingEntity(
                     uuid = trainingUuid,
@@ -200,7 +192,7 @@ internal class TrainingRepositoryImplDbTest {
                     ),
                 ),
             )
-            // Even though adhocPlan is non-null, the existing empty plan must survive.
+            // A non-null adhocPlan must not overwrite the existing empty plan.
             coEvery { exerciseRepository.getAdhocPlan(exerciseUuid.toString()) } returns listOf(
                 PlanSetDataModel(weight = 80.0, reps = 5, type = SetTypeDataModel.WORK),
             )
@@ -256,8 +248,7 @@ internal class TrainingRepositoryImplDbTest {
             ),
         )
 
-        // The existing null is preserved; the repository does NOT re-apply adhocPlan as a
-        // late fallback for a row that was deliberately cleared and saved.
+        // A deliberately-cleared row keeps its null; adhocPlan is not re-applied late.
         assertNull(env.trainingExerciseDao.getPlanSets(trainingUuid, exerciseUuid))
     }
 
@@ -277,7 +268,6 @@ internal class TrainingRepositoryImplDbTest {
         repository.updateName(uuid.toString(), "Updated Header")
 
         assertEquals("Updated Header", env.trainingDao.getById(uuid)?.name)
-        // Label rows were NOT recreated by the lightweight name update.
         assertEquals(labelsBefore, env.trainingTagDao.getTagNames(uuid))
     }
 
@@ -328,11 +318,8 @@ internal class TrainingRepositoryImplDbTest {
         assertNotNull(env.trainingDao.getById(survivor))
     }
 
-    // The post-refactor `getTraining` calls `dbTransition { ... async { ... } ... }`.
-    // The testFixture's `transition` runs `coroutineScope` INSIDE `withTransaction`
-    // so the receiver passed to `block` inherits Room's `TransactionElement`; the
-    // async children launched here therefore reuse the parent's transaction connection
-    // instead of contending with it.
+    // The fixture nests `coroutineScope` inside `withTransaction`, so the `async` children
+    // inherit Room's `TransactionElement` and reuse the connection. See documentation/testing.md.
     @Test
     fun `getTraining returns the data model with labels and exerciseUuids`() = runTest {
         val trainingUuid = Uuid.random()
@@ -416,19 +403,10 @@ internal class TrainingRepositoryImplDbTest {
             assertEquals(emptyList<String>(), result?.exerciseUuids)
         }
 
-    // Atomicity of `getTraining`'s `dbTransition` block is delegated to Room's
-    // `withTransaction` and is not verifiable at the unit-test level (no observable
-    // mid-transaction side effect to interrupt). Parallelism of the two `async {}`
-    // branches is covered by construction — the DAO calls are independent and the
-    // production path uses `async {}` — but is not asserted here because the
-    // delay-based scheduling assertion would re-trip the same testFixture deadlock
-    // documented above.
-
     @Test
     fun `subscribeForTraining emits the data model and falls back to a placeholder for missing rows`() =
         runTest {
             val missingUuid = Uuid.random()
-            // Missing rows: emits a placeholder with the raw uuid + empty fields.
             val missing = repository.subscribeForTraining(missingUuid.toString()).first()
             assertEquals(missingUuid.toString(), missing.uuid)
             assertEquals("", missing.name)
@@ -541,7 +519,6 @@ internal class TrainingRepositoryImplDbTest {
                 ),
             )
         }
-        // In-progress session does not count.
         env.sessionDao.insert(
             SessionEntity(
                 uuid = Uuid.random(),
@@ -569,7 +546,6 @@ internal class TrainingRepositoryImplDbTest {
                 exerciseUuids = listOf(exerciseUuid.toString()),
             ),
         )
-        // One finished session for last-session timestamp; one active session for isActive.
         env.sessionDao.insert(
             SessionEntity(
                 uuid = Uuid.random(),
@@ -663,7 +639,6 @@ internal class TrainingRepositoryImplDbTest {
                     timestamp = 0L,
                 ),
             )
-            // An active session for the blocked training prevents bulk archive.
             env.sessionDao.insert(
                 SessionEntity(
                     uuid = Uuid.random(),
@@ -722,7 +697,6 @@ internal class TrainingRepositoryImplDbTest {
             )
             assertTrue(repository.canBulkPermanentDelete(setOf(cleanUuid.toString())))
 
-            // Adding a finished session should block bulk delete.
             env.sessionDao.insert(
                 SessionEntity(
                     uuid = Uuid.random(),
@@ -735,11 +709,7 @@ internal class TrainingRepositoryImplDbTest {
             assertFalse(repository.canBulkPermanentDelete(setOf(cleanUuid.toString())))
         }
 
-    /**
-     * The training editor's Save is ONE act: the training row and every listed exercise's
-     * plan commit in one transaction. Happy path first — the persisted `plan_sets` read back
-     * through the real DAO.
-     */
+    /** The training row and every listed plan commit in one transaction — happy path. */
     @Test
     fun `updateTrainingWithPlans persists the training and every plan`() = runTest {
         val trainingUuid = Uuid.random()
@@ -772,10 +742,8 @@ internal class TrainingRepositoryImplDbTest {
     }
 
     /**
-     * D-OPEN-4, auto-prune on the TRAINING save path: a save that drops a tag's last link
-     * sweeps its dictionary row in the same transaction, while a tag whose only remaining
-     * link is an EXERCISE's survives — the fixture only the `exercise_tag_table` conjunct
-     * keeps alive (§27's per-predicate-fixture rule, mirrored from the exercise-side test).
+     * Auto-prune on the training save path, with a tag held alive only by an exercise link —
+     * the fixture that covers the `exercise_tag_table` conjunct on its own.
      */
     @Test
     fun `updateTrainingWithPlans prunes its orphaned tag and keeps the exercise-held one`() =
@@ -813,11 +781,8 @@ internal class TrainingRepositoryImplDbTest {
         }
 
     /**
-     * The transactional guarantee itself, and the test that MUST fail without the
-     * transaction: the plan write throws after the training row and its exercise rows are
-     * already written, and NOTHING survives — no training row, no exercise rows. The mockk
-     * here is the one place the skill allows it: a spy on the real DAO so the sync's own
-     * calls stay real and only the plan update throws, mid-transaction.
+     * The transactional guarantee: the plan write throws after the rows are written and
+     * nothing survives. The DAO spy keeps every other call real.
      */
     @Test
     fun `updateTrainingWithPlans leaves nothing behind when a plan write throws`() = runTest {
@@ -857,7 +822,6 @@ internal class TrainingRepositoryImplDbTest {
             }
         }
 
-        // Rolled back whole: the training row AND the exercise rows the same call wrote.
         assertNull(env.trainingDao.getById(trainingUuid))
         assertTrue(env.trainingExerciseDao.getByTraining(trainingUuid).isEmpty())
     }

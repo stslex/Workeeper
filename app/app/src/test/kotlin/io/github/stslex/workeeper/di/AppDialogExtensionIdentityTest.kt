@@ -18,28 +18,13 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
 /**
- * Replaces the former feature-module `AppDialogGraphBridgeTest` (a `@GraphExtension` cannot be created
- * standalone, so the assertion must run where the parent [AppGraph] is compiled — here, `:app`).
- *
- * app-dialogs is **port 13 — the thirteenth and last feature graph of the arc**, and its narrowest at
- * 6 forced-public. It is the only one with no route arg (`AppFeature<P>`, screen-less), so there is no
- * per-extension arg claim to make; and the only one that both CONTRIBUTES app-scoped bindings and owns
- * a feature-scoped graph.
- *
- * The claim that matters here is specific to this port: [AppDialogRepository] and
- * [AppDialogObserverImpl] used to be handed in through the `AppDialogInternalsHolder` seam — an
- * `Application`-implements-holder trick, because no other module can name those impl-owned types. As a
- * contributed extension the graph inherits both straight from the parent. **Asserting they are the
- * PARENT's instances is what proves the seam is genuinely redundant and not merely unused.** A double
- * here would mean the app-root dialog state silently forking from the one the rest of the app writes.
- *
- * Every `assertSame` has one operand from the EXTENSION — an assertion whose operands both come from
- * the parent tests parent-side stability, not inheritance (adjacent-answer witness 13).
+ * Identity claims for the app-dialogs `@GraphExtension`: it inherits the parent [AppGraph]'s
+ * app-scoped dialog singletons instead of building doubles.
+ * See documentation/graph-extension-arc/HANDOFF.md.
  */
 internal class AppDialogExtensionIdentityTest {
 
-    // The real parent graph provides Dispatchers.Main.immediate (DispatchersBindingContainer); a plain
-    // JVM test must install a Main dispatcher before the store constructs.
+    // GUARD: Store construction reads the parent graph's Main.immediate binding.
     @BeforeEach
     fun setUp() {
         Dispatchers.setMain(Dispatchers.Unconfined)
@@ -87,11 +72,6 @@ internal class AppDialogExtensionIdentityTest {
         )
     }
 
-    /**
-     * The claim that retires the `AppDialogInternalsHolder` seam. Both singletons must be the parent's
-     * own — if the extension built its own, the app-root dialog state would fork from the one every
-     * other feature publishes to, and the seam could not be deleted.
-     */
     @Test
     fun `the app-scoped dialog singletons are inherited, retiring the internals holder seam`() {
         val appGraph = buildAppGraph()
@@ -110,11 +90,6 @@ internal class AppDialogExtensionIdentityTest {
         )
     }
 
-    /**
-     * Screen-less counterpart of the other ports' per-arg claim. There is no route arg, so the
-     * property to pin is the opposite one: the creator takes no parameters, and each call still builds
-     * a DISTINCT extension whose Store is distinct — the extension is not itself a singleton.
-     */
     @Test
     fun `the no-arg creator builds a distinct extension and store per call`() {
         val appGraph = buildAppGraph()
@@ -128,7 +103,6 @@ internal class AppDialogExtensionIdentityTest {
             second.appDialogStore,
             "each extension must build its own Store — retention is the ViewModelStore's job, not the graph's",
         )
-        // ...while the INHERITED app-scoped singleton stays one instance across both.
         assertSame(
             first.appDialogRepository,
             second.appDialogRepository,

@@ -18,32 +18,8 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.EnumSource
 
 /**
- * The shared plan-editor body — the set list §26 "Sets: add and remove move to the card's foot"
- * rules, and its only visual gate.
- *
- * **Why it lives here and not in a host.** Both remaining editors compose this body and neither can
- * photograph it: the exercise editor's whole-screen frame scrolls it off the bottom of a single
- * Paparazzi viewport, and the full-screen route's module has no goldens at all. §24.2 item 6 names
- * this component as the one no mockup section draws; that is a reason to gate it more carefully,
- * not less.
- *
- * Four claims, every one of them a one-frame static fact and no other instrument holding any of
- * them:
- *
- *  - the rows sit on a **card** (`surfaceTier1`, `Radius.medium`), so the foot's top rule has
- *    something to be the foot of;
- *  - the foot is the drawn **`.setbar`** — two mono uppercase halves split by a hairline — and the
- *    per-row `✕` is **gone**;
- *  - the `.tchip` carries a **letter** for warmup and failure and the dot for work;
- *  - the values are in the **normal colour**. `textPrimary`, not `textTertiary`, which draws a
- *    number the user has typed as "not yet entered". That one is a colour
- *    swap between two roles that are genuinely different values, so a picture can see it — unlike
- *    the `textDim`/`textTertiary` alias §27 records as ungatable by any golden.
- *
- * [emptyDraft] is the control and the second half of the foot's contract: with no rows, «− подход»
- * is disabled at the drawn `opacity:.35` and the hint takes the card. Photographed in **Russian**,
- * because the empty hint and both foot labels are the strings a Russian user actually sees and the
- * default `en` frame cannot fail on them.
+ * The shared plan-editor body's only visual gate — neither host can photograph it (v3-editors.md
+ * ED2). Rows on a card, the `.setbar` foot, the `.tchip` letter, values in `textPrimary`.
  */
 internal class PlanEditorBodyGoldenTest {
 
@@ -53,7 +29,7 @@ internal class PlanEditorBodyGoldenTest {
         goldenSubject(testInfo, theme, locale = LOCALE_RU) { Body(isWeighted = true) }
     }
 
-    /** B11's half: a weightless exercise drops the weight column and keeps everything else. */
+    /** A weightless exercise drops the weight column and keeps everything else. */
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
     fun weightlessDraft(theme: GoldenTheme, testInfo: TestInfo) {
@@ -87,8 +63,7 @@ private fun Body(isWeighted: Boolean) {
         ).toImmutableList(),
         isWeighted = isWeighted,
         onAction = {},
-        // The host owns the scroll on both surfaces this body ships on; a capped inner scroller
-        // inside a SHRINK canvas would photograph the cap rather than the list.
+        // GUARD: hosts own the scroll; a capped inner scroller in a SHRINK canvas shoots the cap.
         scrollable = false,
     )
 }

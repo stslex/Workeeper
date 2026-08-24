@@ -16,20 +16,8 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.EnumSource
 
 /**
- * ED7's two surfaces — the ONE tag picker the two editors used to duplicate:
- *
- *  - [formRowEmpty] / [formRowWithTags] — the in-form row: selected chips, each with `✕`,
- *    and the dashed «+ тег» chip. The dash is D-OPEN-5's kept outline (the label identifies
- *    the control; the dash owes no threshold), painted `borderDefault` — `--hair-s`'s
- *    control-outline reroute (B19), matching `.addex`. Empty is not a decoration: it is what
- *    a fresh record's form shows, and the dashed chip standing alone is the whole affordance.
- *  - [sheetQueryMatching] / [sheetQueryNotMatching] — the sheet's drawing (the window is
- *    `AppBottomSheet` at the call site, outside Paparazzi's one-window model): search over
- *    the dictionary as selectable chips, and the «+ Создать «X»» row appearing EXACTLY when
- *    no exact match exists — the pair is the difference assertion.
- *
- * Russian, deliberately: «+ тег», «Поиск тегов…», «+ Создать «X»» and «Готово» are the
- * given RU copy verbatim, and the default `en` frame cannot fail on a Russian-only defect.
+ * The tag picker's two surfaces: the in-form row and the sheet content. RU locale throughout —
+ * the default `en` frame cannot fail on a Russian-only defect.
  */
 internal class TagPickerGoldenTest {
 
@@ -110,7 +98,6 @@ internal class TagPickerGoldenTest {
     )
 }
 
-/** Air only — the backdrop is `goldenSubject`'s own `surface` (`tier0` form, `tier3` sheet). */
 @Composable
 private fun Padded(content: @Composable () -> Unit) {
     androidx.compose.foundation.layout.Box(

@@ -26,16 +26,8 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
 /**
- * Default [SnapshotExportRunner]: gate on toggle + `drive.file` grant, then export the JSON
- * and upload it. The whole body is wrapped so it never throws to the caller (D2). Only
- * UNEXPECTED failures (serialization / IO bugs) are recorded as Crashlytics non-fatals (via
- * [Log.e]); transient typed [BackupError]s (network / auth / quota / not-authenticated) are
- * logged only (via [Log.w], which does not record a non-fatal).
- *
- * Metro-owned via `@ContributesBinding(AppScope)` on the (public) impl. All deps are graph-resolvable:
- * `BackupPreferencesRepository` / `BackupAuth` / `DatabaseJsonExporter` / `SnapshotStorage` are
- * `@ContributesBinding`; `Context` is the plain `create()` bound-instance root; `@IODispatcher` is the
- * direct `Dispatchers.IO`. Public for cross-module aggregation (D1).
+ * Default [SnapshotExportRunner]: gates on toggle + `drive.file` grant, exports and uploads JSON.
+ * The body never throws to the caller; only unexpected failures become Crashlytics non-fatals.
  */
 @SingleIn(AppScope::class)
 @ContributesBinding(AppScope::class)
@@ -51,19 +43,12 @@ public class SnapshotExportRunnerImpl @Inject constructor(
 
     private val logger = Log.tag(TAG)
 
-    // App-lifetime scope for the FOREGROUND fire-and-forget path so the manual backup returns
-    // immediately and is never delayed by the DB-export + visible-Drive upload (D2). The worker
-    // instead awaits via runIfEligibleAwaiting() to keep its wakelock window. Best-effort — if the
-    // process is reclaimed before it finishes, the next backup re-exports (losing a snapshot loses
-    // nothing recoverable).
-    // Generation-owned (Phase 5, spec §8.2): an in-flight fire-and-forget export is cancelled and
-    // awaited with its generation during Quiescing instead of racing a database replacement.
+    // App-lifetime scope for the foreground fire-and-forget path; generation-owned, so an
+    // in-flight export is cancelled with its generation instead of racing a replacement.
     private val scope = lifetime.childScope(dispatcher)
 
-    // Serializes the export's Drive mutation across the manual + worker triggers (both funnel
-    // through this singleton). Without it, two overlapping runs could create duplicate Workeeper/
-    // folders (resolveFolderId is check-then-act) or violate the rotation cap (list-then-delete).
-    // In-process is sufficient: WorkManager runs the worker in the app process.
+    // Serializes the export's Drive mutation across the manual + worker triggers; without it two
+    // runs could duplicate the Workeeper/ folder or break the rotation cap.
     private val exportMutex = Mutex()
 
     override fun runIfEligible() {
@@ -76,8 +61,7 @@ public class SnapshotExportRunnerImpl @Inject constructor(
 
     override suspend fun clearSnapshots() {
         runCatching {
-            // Serialize with the export paths: deleting while an upload is mid-rotation could
-            // delete the wrong set or race the folder lookup. The storage gates on the grant.
+            // Serialize with the export paths so a delete cannot race an in-flight upload.
             exportMutex.withLock {
                 when (val result = snapshotStorage.deleteAllSnapshots()) {
                     is BackupResult.Success -> Unit

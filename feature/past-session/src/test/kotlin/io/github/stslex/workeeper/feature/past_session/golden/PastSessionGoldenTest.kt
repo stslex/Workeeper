@@ -32,33 +32,10 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.EnumSource
 
 /**
- * The past-session golden suite. The BASELINE commit (C0) recorded the pre-rebuild surface;
- * each rebuild commit re-records exactly its region, so the reviewer reads image diffs
- * commit by commit rather than a hex diff at the end.
- *
- * The fixture data deliberately mirrors `pass2d.html` §`s-past` (49/71/77×15 with the record
- * on set 3, «разведение ног», 56:08) so the final element-by-element pass can hold the golden
- * beside the mockup with no mental renaming. Data strings are fixture-side, so the Cyrillic
- * names render regardless of the harness's `en` resource locale.
- *
- * ## On §10.2's transient-pair rule
- *
- * This screen has no transient state, by decision: a finished session's records do not
- * change while on screen, so there is no false→true transition and nothing animates into
- * molten — animating one would reproduce the exact §10.2 defect for no behaviour. What the
- * rule still buys is the **difference assertion**, and three pairs carry it:
- * [setRowPlain]/[setRowPersonalRecord] (one flag apart), [header]/[headerWithoutTonnage]
- * (the §11.1 drop-out branch), and [cardWithSets]/[cardCollapsed] (the lift, §10.2's
- * unlifted/lifted pair). The two animated things — the card's expand size change and the
- * lift's colour tween — settle to their targets under Paparazzi's single frame; their rest
- * states are the covered pictures and the motion itself is on the device checklist (§10.4).
- *
- * Out of model, per the harness KDoc: `DeleteConfirmDialog` and `PrExplainerDialog` render in
- * their own windows and stay on manual verification.
+ * The past-session golden suite; fixtures mirror `pass2d.html` §`s-past` so a golden can be held
+ * beside the mockup. Dialogs render in their own windows and stay on manual verification.
  */
 internal class PastSessionGoldenTest {
-
-    // --- Whole frame -----------------------------------------------------------------------
 
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
@@ -86,8 +63,6 @@ internal class PastSessionGoldenTest {
         }
     }
 
-    // --- Topbar ----------------------------------------------------------------------------
-
     /** `.topbar` (§2.2): back chevron · `h1.sm` title · ⋮ overflow — no delete glyph. */
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
@@ -97,12 +72,7 @@ internal class PastSessionGoldenTest {
         }
     }
 
-    // --- Sheets ----------------------------------------------------------------------------
-
-    /**
-     * The `⋮` menu's CONTENT on the sheet tier — the `ModalBottomSheet` window itself is out
-     * of Paparazzi's one-window model and stays on the device checklist (§10.4).
-     */
+    /** The `⋮` menu's CONTENT; the sheet window is out of Paparazzi's one-window model. */
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
     fun sheetSessionMenu(theme: GoldenTheme, testInfo: TestInfo) {
@@ -110,8 +80,6 @@ internal class PastSessionGoldenTest {
             PastSessionMenuSheetContent(consume = {})
         }
     }
-
-    // --- Header ----------------------------------------------------------------------------
 
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
@@ -121,11 +89,7 @@ internal class PastSessionGoldenTest {
         }
     }
 
-    /**
-     * Pair partner of [header] (§10.2's difference assertion): a session that lifted nothing
-     * drops the third term rather than printing "· 0 kg". Without this, the tonnage golden
-     * could not tell a computed figure from an always-printed one.
-     */
+    /** Pair partner of [header]: a session that lifted nothing drops the third term. */
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
     fun headerWithoutTonnage(theme: GoldenTheme, testInfo: TestInfo) {
@@ -135,8 +99,6 @@ internal class PastSessionGoldenTest {
             }
         }
     }
-
-    // --- Exercise card ---------------------------------------------------------------------
 
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
@@ -155,11 +117,7 @@ internal class PastSessionGoldenTest {
         }
     }
 
-    /**
-     * Disclosure pair partner of [cardWithSets] (§10.2's unlifted/lifted pair): the resting
-     * card — `.ord` · title · `.plan-line` summary · the static bare chevron, on
-     * `surfaceTier1` with no lift.
-     */
+    /** Disclosure pair partner of [cardWithSets]: the resting card, no lift. */
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
     fun cardCollapsed(theme: GoldenTheme, testInfo: TestInfo) {
@@ -178,9 +136,8 @@ internal class PastSessionGoldenTest {
     }
 
     /**
-     * Ten sets — the index column must render a two-digit ordinal. Pins the fix for the
-     * silent wrap a fixed 12dp column caused: `Text` breaks an over-wide token at a
-     * grapheme boundary, so "10" stacked as 1-over-0 without changing row height.
+     * Ten sets — the index column must render a two-digit ordinal. Pins the fix for the silent
+     * grapheme-boundary wrap a fixed-width column caused.
      */
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
@@ -199,11 +156,7 @@ internal class PastSessionGoldenTest {
         }
     }
 
-    /**
-     * The skipped card, collapsed — the session sibling treatment (§1.5 applied to §2.5's
-     * two-state card): 0.5 alpha, struck-through title in `textTertiary`, the plan-line
-     * replaced by the literal skipped line. The v2.4 warning chip is retired.
-     */
+    /** The skipped card, collapsed: 0.5 alpha, struck-through title, the skipped line. */
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
     fun cardSkippedEmpty(theme: GoldenTheme, testInfo: TestInfo) {
@@ -226,11 +179,8 @@ internal class PastSessionGoldenTest {
     }
 
     /**
-     * Skipped **with** sets and a non-empty summary — the fixture that actually pins the
-     * precedence. `cardSkippedEmpty` zeroes `setSummary` and `sets` together, so swapping
-     * the skipped and summary branches of the plan-line `when` produced byte-identical
-     * pixels there. The state is reachable: the live session preserves performed sets
-     * across a skip toggle, and the mapper fills both fields regardless of `skipped`.
+     * Skipped WITH sets and a summary — the fixture that pins the plan-line branch order;
+     * [cardSkippedEmpty] zeroes both fields, so a swap there is byte-identical.
      */
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
@@ -248,8 +198,6 @@ internal class PastSessionGoldenTest {
             )
         }
     }
-
-    // --- Set row ---------------------------------------------------------------------------
 
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
@@ -284,11 +232,7 @@ internal class PastSessionGoldenTest {
         }
     }
 
-    /**
-     * B11 coverage: the weightless row, whose write path carries the #178 stale-weight hazard.
-     * The rebuild does not touch that arc, but this golden is the coverage that lets its future
-     * fix read as a visible delta instead of shipping invisibly.
-     */
+    /** The weightless row — coverage that lets a future write-path fix read as a delta. */
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
     fun setRowWeightless(theme: GoldenTheme, testInfo: TestInfo) {
@@ -343,7 +287,7 @@ private fun loadedState(): State = State(
     sessionUuid = "s-1",
     phase = State.Phase.Loaded(detail = detail()),
     hasResolved = true,
-    // First-entry rule of the amended §7 model: the first card open, the rest closed.
+    // First-entry rule (§7): the first card open, the rest closed.
     expandedExerciseUuids = persistentSetOf("pe-1"),
     dialogState = DialogState.Hidden,
     bottomSheetState = BottomSheetState.Hidden,
@@ -391,12 +335,7 @@ private fun weightlessExercise(): PastExerciseUiModel = PastExerciseUiModel(
     ).toImmutableList(),
 )
 
-/**
- * Ten sets, so the index column has to render a two-digit ordinal. A fixed 12dp column
- * cannot fit "10" at `mono.meta`, and `Text` breaks an over-wide token at a grapheme
- * boundary rather than overflowing — which stacked the digits silently, because the 48dp
- * fields dominate the row height. This is the fixture that makes that visible.
- */
+/** Ten sets, so the index column has to render a two-digit ordinal. */
 private fun tenSetExercise(): PastExerciseUiModel = PastExerciseUiModel(
     performedExerciseUuid = "pe-3",
     exerciseName = "жим платформы",

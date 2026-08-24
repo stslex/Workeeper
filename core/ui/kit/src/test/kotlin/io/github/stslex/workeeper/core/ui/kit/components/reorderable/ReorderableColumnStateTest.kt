@@ -8,27 +8,8 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 /**
- * The reorder drag, asserted directly — because a golden cannot see it.
- *
- * §27: "a golden image gates only what a single static frame contains. Anything whose evidence
- * needs a second frame, a gesture or a scroll is invisible to it, and will pass a mutation
- * silently." A drag is three frames minimum and a gesture throughout, so the pictures this stage
- * records for the training editor can show that the row carries **one handle** and nothing at all
- * about whether dragging it works.
- *
- * **This class is the training editor's only reorder affordance and its only tested one.**
- * `ClickHandlerTest`'s `OnExerciseReorder` cases cover the store side; nothing but this file
- * covers the gesture that produces those arguments. A control the user has no alternative to,
- * with no assertion on it, is a coverage hole shaped like a redesign — which is what this file
- * refuses.
- *
- * Its semantics are documented and non-obvious, so each is asserted rather than assumed:
- * **live commit** (the move fires as centres cross, not on release), **re-anchoring** (the finger
- * stays on the same visual point across a swap, so a continued drag does not immediately swap
- * back), and **no terminal call on release**.
- *
- * Geometry: three 100px rows at y = 0/100/200, centres at 50/150/250 — chosen so a crossing is a
- * round number and a reader can check the arithmetic without running anything.
+ * The reorder drag: live commit, re-anchoring, and no terminal call on release — none of which a
+ * golden can see. Geometry throughout: three 100px rows at y = 0/100/200, centres at 50/150/250.
  */
 internal class ReorderableColumnStateTest {
 
@@ -47,11 +28,8 @@ internal class ReorderableColumnStateTest {
     }
 
     /**
-     * **A row that leaves composition must leave the state with it.** `onItemPlaced` is the only
-     * writer, and a removed row simply stops calling it — so without an unregister path its
-     * bounds, its index and its slot in the index map all outlive it. Two consequences, one per
-     * case below: a drag can cross a centre belonging to nothing on screen, and the boundary
-     * guard that reads the highest known index still believes there is a row below the last one.
+     * GUARD: `onItemPlaced` is the only writer, so a row leaving composition must be disposed —
+     * otherwise its bounds and its index outlive it as a phantom drop target.
      */
     @Test
     fun `a disposed row stops being a drop target`() {
@@ -59,8 +37,7 @@ internal class ReorderableColumnStateTest {
         state.onItemDisposed("c")
 
         state.onDragStart("b")
-        // "b" rests centred at 150; "c" was centred at 250. 101px puts the finger at 251, which
-        // would have crossed the departed row's centre.
+        // "b" rests centred at 150; 101px puts the finger at 251, past "c"'s departed centre.
         state.onDrag(deltaY = 101f)
 
         assertTrue(moves.isEmpty())
@@ -71,8 +48,7 @@ internal class ReorderableColumnStateTest {
         placeThreeRows()
         state.onItemDisposed("c")
 
-        // "b" is the last row now. `moveDown`'s guard reads the highest registered index, so a
-        // stale entry for "c" makes it believe index 1 can still move down.
+        // "b" is the last row now; a stale entry for "c" would let index 1 still move down.
         state.moveDown(index = 1)
 
         assertTrue(moves.isEmpty())
@@ -130,9 +106,7 @@ internal class ReorderableColumnStateTest {
 
     @Test
     fun `cancel commits nothing further either, and it does NOT undo`() {
-        // Live-commit semantics, stated in the class KDoc and asserted here because the opposite
-        // is the more common design: the list is in its real order throughout the drag, so a
-        // cancelled gesture leaves the committed swaps in place rather than rolling them back.
+        // Live commit: a cancelled gesture leaves committed swaps in place, it does not roll back.
         placeThreeRows()
         state.onDragStart("a")
         state.onDrag(deltaY = 101f)
@@ -149,8 +123,7 @@ internal class ReorderableColumnStateTest {
         state.onDragStart("a")
 
         state.onDrag(deltaY = 101f)
-        // Re-anchoring means the finger is now at "a"'s NEW centre (150) plus the 1px overshoot.
-        // Another 100px carries it past "c"'s centre at 250.
+        // Re-anchoring puts the finger at "a"'s NEW centre (150) + 1px; another 100 crosses 250.
         state.onDrag(deltaY = 100f)
 
         assertEquals(listOf(0 to 1, 1 to 2), moves)
@@ -158,10 +131,7 @@ internal class ReorderableColumnStateTest {
 
     @Test
     fun `dragging back the other way swaps back, once`() {
-        // The re-anchor exists so this does NOT happen spuriously: after a swap the raw
-        // `dragOffsetPx` can change sign, and a direction read off the total offset rather than
-        // off the latest delta would fire an immediate reverse swap. Going back has to be an
-        // actual reverse gesture, and this asserts it is one.
+        // The re-anchor stops a spurious reverse: direction reads the latest delta, not the total.
         placeThreeRows()
         state.onDragStart("a")
         state.onDrag(deltaY = 101f)
@@ -202,12 +172,7 @@ internal class ReorderableColumnStateTest {
         assertEquals(listOf<Any>("b"), dragStarts)
     }
 
-    /**
-     * The accessibility path, which is what carries reorder's SEMANTICS (§26, "Reorder is
-     * long-press drag"). `reorderableColumnItem` registers up and down as
-     * `CustomAccessibilityAction`s, so the drag gesture is not the only way in — provided these
-     * two clamp at the ends, which is the whole of their logic.
-     */
+    /** The accessibility path: up/down are custom actions too; clamping is their whole logic. */
     @Test
     fun `moveUp and moveDown carry the deleted arrows' semantics, and clamp at both ends`() {
         placeThreeRows()

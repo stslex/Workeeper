@@ -70,7 +70,6 @@ internal class ClickHandlerTest {
 
     @Test
     fun `OnExerciseHeaderClick toggles SKIPPED cards like any other`() {
-        // Amended contract: four rules, no exceptions — the old skip no-op is retired.
         val stateFlow =
             MutableStateFlow(baseState(doneExercise(status = ExerciseStatusUiModel.SKIPPED)))
         val store = handlerStore(stateFlow)
@@ -91,8 +90,7 @@ internal class ClickHandlerTest {
 
     @Test
     fun `OnExerciseHeaderClick expands exactly the tapped card and touches nothing else`() {
-        // Amended contract rule 4: expand -> it expands, NOTHING else happens anywhere — no
-        // active-set promotion, no status recompute, no sibling cards moved.
+        // Rule 4: expand -> it expands and nothing else happens anywhere.
         val stateFlow = MutableStateFlow(
             baseState(doneExercise(status = ExerciseStatusUiModel.PENDING))
                 .copy(
@@ -118,9 +116,7 @@ internal class ClickHandlerTest {
 
         handler.invoke(Action.Click.OnExerciseHeaderClick("pe-2"))
 
-        // Both stay open — multiple open cards are legal and expected.
         assertEquals(setOf("pe-1", "pe-2"), stateFlow.value.expandedExerciseUuids.toSet())
-        // No explicit active-set marker: the toggle leaves it untouched.
         assertEquals(persistentSetOf<String>(), stateFlow.value.activeExerciseUuids)
         val pe2 = stateFlow.value.exercises.first { it.performedExerciseUuid == "pe-2" }
         assertEquals(ExerciseStatusUiModel.PENDING, pe2.status)
@@ -146,8 +142,7 @@ internal class ClickHandlerTest {
         handler.invoke(Action.Click.OnExerciseHeaderClick("pe-1"))
 
         assertEquals(persistentSetOf<String>(), stateFlow.value.expandedExerciseUuids)
-        // Rule 3: collapse -> it collapses, nothing else — the logged set and the (now
-        // consumer-less) active marker are exactly as they were.
+        // Rule 3: collapse -> it collapses, and nothing else changes.
         assertEquals(persistentSetOf("pe-1"), stateFlow.value.activeExerciseUuids)
         assertEquals(1, stateFlow.value.exercises.first().performedSets.size)
     }
@@ -323,8 +318,7 @@ internal class ClickHandlerTest {
 
     @Test
     fun `an adhoc session still removes the plan row on delete`() = runTest {
-        // Ad-hoc trainings carry real plan rows, and leaving one behind made the orphan
-        // cleanup trip the FK's RESTRICT and roll the whole removal back.
+        // Ad-hoc trainings carry real plan rows; leaving one behind trips the FK RESTRICT.
         every {
             resourceWrapper.getString(
                 R.string.feature_live_workout_toast_exercise_removed_from_workout,
@@ -439,8 +433,6 @@ internal class ClickHandlerTest {
         handler.invoke(Action.Click.OnTrainingNameSubmit("   "))
         store.runLatestLaunch(this)
 
-        // Blank submit closes the editor but neither State nor DB carry an empty string —
-        // a previously-saved name survives on next reload.
         assertEquals("Push Day", store.state.value.trainingName)
         assertEquals("Push Day", store.state.value.trainingNameLabel)
         assertEquals(false, store.state.value.isTrainingNameEditing)
@@ -467,12 +459,10 @@ internal class ClickHandlerTest {
         )
 
         handler.invoke(Action.Click.OnTrainingNameSubmit("New Name"))
-        // Optimistic update lands first.
         assertEquals("New Name", store.state.value.trainingName)
         store.runLatestLaunch(this)
 
-        // After the interactor throws, State reverts to the pre-edit name + label so the
-        // header stops lying about a value the DB never accepted.
+        // After the throw, State reverts so the header cannot show an unaccepted value.
         assertEquals("Old Name", store.state.value.trainingName)
         assertEquals("Old Name", store.state.value.trainingNameLabel)
     }
@@ -583,8 +573,7 @@ internal class ClickHandlerTest {
         ): Job = Job()
 
         suspend fun runLatestLaunch(scope: CoroutineScope) {
-            // Mirror production: catch a thrown action and route it through onError so
-            // tests can observe the same revert/error paths the real Handler would.
+            // Mirror production: a throw routes through onError.
             try {
                 latestLaunch?.invoke(scope)
             } catch (throwable: Throwable) {

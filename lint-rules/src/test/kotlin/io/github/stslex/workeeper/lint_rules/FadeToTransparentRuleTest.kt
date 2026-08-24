@@ -6,13 +6,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
-/**
- * Coverage for `FadeToTransparentRule`.
- *
- * The rule is PSI-only by necessity — this repo's detekt runs without type resolution, so a
- * type-resolving rule silently finds nothing in CI. Everything below therefore tests text
- * matching, including the cases the rule deliberately cannot see.
- */
+/** Coverage for `FadeToTransparentRule`; PSI-only, so every case below is text matching. */
 internal class FadeToTransparentRuleTest {
 
     private val rule = FadeToTransparentRule()
@@ -60,10 +54,7 @@ internal class FadeToTransparentRuleTest {
         assertTrue(findings.isEmpty())
     }
 
-    /**
-     * A surface that is simply invisible never interpolates, so there is no mid-frame to be wrong.
-     * Flagging static transparency would make the rule noise and get it switched off.
-     */
+    /** An invisible surface never interpolates, so there is no mid-frame to be wrong. */
     @Test
     fun `ignores a static Color Transparent outside an animation`() {
         val findings = rule.lint(
@@ -89,9 +80,8 @@ internal class FadeToTransparentRuleTest {
     }
 
     /**
-     * The known blind spot, asserted so it is a recorded limit rather than an assumption. A value
-     * laundered through a local carries no `Color.Transparent` text into the call, and a PSI rule
-     * cannot follow it. `FadeOutTest`'s per-site measurement is what covers this.
+     * Recorded limit: a transparent laundered through a local carries no matching text into the
+     * call. `FadeOutTest`'s per-site measurement is what covers it.
      */
     @Test
     fun `does NOT see a transparent laundered through a local — recorded limit`() {

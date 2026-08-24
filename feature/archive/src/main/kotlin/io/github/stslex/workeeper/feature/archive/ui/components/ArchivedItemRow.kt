@@ -33,35 +33,8 @@ import io.github.stslex.workeeper.feature.archive.domain.model.ArchivedItem
 import io.github.stslex.workeeper.feature.archive.domain.model.ExerciseTypeDomain
 
 /**
- * One archived row — `pass2d.html` `#s-list` `.row`, **the fourth payload**.
- *
- * ## Same skeleton as both siblings, and the drawing says so outright
- *
- * `#s-list`'s hint: "Скелет строки один — 88px, линейка снизу, имя и мета-строка, шеврон. Начинки
- * разные: поля у четырёх экранов не совпадают" — and its first frame draws all four, the last of
- * them this screen's:
- *
- * ```
- * Румынская тяга
- * упражнение · в архиве с 3 июля
- * ```
- *
- *
- * ## This row does not yet conform, and that is now scheduled rather than open
- *
- * §2.1 asked whether the drawn one-slot skeleton or this screen's two live verbs win. **It is RULED
- * (Ilya, §24.2 group A):** an archived item **opens** — read-only detail — so the drawn chevron is
- * true, this row takes the drawn 20dp slot like its three siblings, and restore and
- * permanent-delete come off it. Where they go is the one part still open, and it belongs to the
- * drawing.
- *
- * **What ships here is the pre-ruling row, deliberately.** Applying the ruling moves pixels — a
- * chevron appears, two affordances leave, and the row drops to the drawn 88dp, which it currently
- * exceeds because its trailing region is not the slot. The extraction this file is part of asserts
- * the opposite (every golden byte-identical), so conformance cannot land in the same change without
- * destroying the only claim that change makes. **It lands in the archive rebuild, after group A is
- * drawn**, and until then this row is the one consumer of [AppListRow] that does not use
- * `AppListRowSlot` — by schedule, not by exception.
+ * One archived row — `#s-list` `.row`, the fourth payload. The one [AppListRow] consumer that is
+ * not slotted yet; the slot lands with the archive rebuild. See `archive-delta.md` §2.1.
  */
 @Composable
 internal fun ArchivedItemRow(
@@ -79,12 +52,7 @@ internal fun ArchivedItemRow(
         meta = metaLine,
         metaTestTag = "ArchivedItemMeta_${item.uuid}",
         showDivider = showDivider,
-        // SCHEDULED, not open — §2.1 is ruled (§24.2 group A): the row will take the drawn 20dp
-        // slot with a chevron and these two verbs leave it. Not applied here because this change
-        // asserts every golden stays byte-identical and applying it moves pixels; it lands with
-        // the archive rebuild. Until then this stays un-slotted BY SCHEDULE — so do not wrap it in
-        // `AppListRowSlot` piecemeal either: the slot arrives with the click and the destination
-        // or not at all.
+        // GUARD: un-slotted by schedule — do not wrap this in `AppListRowSlot` piecemeal.
         content = {
             TrailingAffordances(
                 item = item,
@@ -95,7 +63,7 @@ internal fun ArchivedItemRow(
     )
 }
 
-/** The two contested verbs, unchanged. See [ArchivedItemRow]'s KDoc and `archive-delta.md` §2.1. */
+/** Restore plus the permanent-delete overflow. See `archive-delta.md` §2.1. */
 @Composable
 private fun TrailingAffordances(
     item: ArchivedItem,

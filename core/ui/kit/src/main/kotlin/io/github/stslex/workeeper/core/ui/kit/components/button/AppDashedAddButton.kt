@@ -26,28 +26,8 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 
 /**
- * The v3 `.addex` — a full-width dashed tile that adds a thing to the list above it
- * (`session-v3f.html` L143–145, copied into `pass2d.html` `#s-editor`; extraction §7.6).
- *
- * ```css
- * .addex{display:flex;align-items:center;justify-content:center;gap:9px;height:60px;
- *        margin:12px var(--gutter) 0;border:1px dashed var(--hair-s);border-radius:16px;
- *        color:var(--meta);font-family:var(--ff-ui);font-size:15px}
- * .addex svg{width:17px;height:17px;stroke-width:1.9}
- * ```
- *
- * Geometry, derived (§0.2): height 60 → **56dp** ([AppDimension.heightLg]) — the same rung
- * `.topbar` and `.nb` put it on, because one drawn value should not have several dp answers.
- * Radius 16 → `Radius.medium`, exactly. Label 15px
- * → the body rung. Gap 9 → `Space.sm`. Glyph 17 → `iconSm` (18), at [AppIcons.Plus], which already
- * carries this component's own 1.9 stroke — `ADDEX_STROKE` is named after it.
- *
- * **The border is `borderDefault`, not `borderSubtle`, and the discriminator is not thickness.**
- * `AppEmptyState`'s dashed tile takes `borderSubtle` because it is decorative reinforcement around
- * an icon that is itself decorative. Here the dashed outline **is the button** — remove it and
- * there is no control on the screen, only a label — so WCAG 1.4.11 applies at 3:1 and the slot is
- * the control-outline one, exactly as `AppTextField`'s. `--hair-s` cannot pay that (1.12–1.52),
- * which is the reroute B19 records.
+ * The v3 `.addex`: a full-width dashed tile that adds a thing to the list above it. The dashed
+ * outline IS the control, so it takes `borderDefault` at 3:1, not `AppEmptyState`'s subtle one.
  */
 @Composable
 fun AppDashedAddButton(
@@ -65,8 +45,7 @@ fun AppDashedAddButton(
                 color = AppUi.colors.borderDefault,
                 cornerRadius = AppDimension.Radius.medium,
             )
-            // `Role.Button` is the control type, and a foundation `clickable` supplies none:
-            // without it TalkBack announces the app's only add-exercise affordance as a generic
+            // Role.Button: a foundation `clickable` supplies no control type to TalkBack.
             .clickable(role = Role.Button, onClick = onClick),
         horizontalArrangement = Arrangement.spacedBy(
             space = AppDimension.Space.sm,

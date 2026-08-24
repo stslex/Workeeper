@@ -120,18 +120,11 @@ class ExerciseRepositoryImpl @Inject internal constructor(
             return@transition SaveResult.DuplicateName
         }
         syncLabels(entity.uuid, item.labels)
-        // A WEIGHTLESS row may not leave weights behind it anywhere — not in its own
-        // `last_adhoc_sets`, not in any `training_exercise.plan_sets` that references it.
-        // Derived from the type being written, NOT taken as a parameter and NOT left to the
-        // caller: a rule about row consistency belongs where the row is written, beside
-        // `syncLabels`, and a caller-obligation form is one a new writer of this column can
-        // omit without noticing. Inside this transaction, so save and cascade are one act.
+        // A WEIGHTLESS row may leave no weights behind, here or in any referencing `plan_sets`.
         if (item.type == ExerciseTypeDataModel.WEIGHTLESS) {
             clearWeightsForExercise(entity.uuid)
         }
-        // Auto-prune on SAVE COMMIT, inside the same transaction as the link writes above
-        // (D-OPEN-4) — a save that drops a tag's last link takes the dictionary row with it,
-        // atomically. The DAO KDoc carries where-not-to-run-this.
+        // Auto-prune orphan tags in the same transaction as the link writes above.
         tagDao.deleteOrphans()
         SaveResult.Success
     }
@@ -157,9 +150,7 @@ class ExerciseRepositoryImpl @Inject internal constructor(
         name: String,
     ): InlineAdhocResult = transition {
         val trimmed = name.trim()
-        // Case-insensitive lookup before insert so a user-typed name that already maps to a
-        // library row (or a stray adhoc orphan) does not trip the UNIQUE(name) constraint.
-        // Existing row is returned untouched — `is_adhoc` is intentionally not modified.
+        // Case-insensitive lookup before insert so a typed name does not trip UNIQUE(name).
         val existing = dao.findByName(trimmed)
         if (existing != null) {
             return@transition InlineAdhocResult(
@@ -213,15 +204,7 @@ class ExerciseRepositoryImpl @Inject internal constructor(
         transition { clearWeightsForExercise(Uuid.parse(exerciseUuid)) }
     }
 
-    /**
-     * The cascade's body, callable from inside an already-open transaction — [saveItem] runs
-     * it as part of one act, and [clearWeightsFromAllPlansForExercise] wraps it for the
-     * type-only write path. One body, so the two entry points cannot drift.
-     *
-     * Rows whose weights are already null are left alone: the save path calls this on EVERY
-     * weightless save, and a write per link per save with nothing to change is cost for no
-     * effect.
-     */
+    /** The cascade body, callable inside an open transaction; already-null rows are skipped. */
     private suspend fun clearWeightsForExercise(exerciseUuid: Uuid) = coroutineScope {
         val exercise = dao.getById(exerciseUuid) ?: return@coroutineScope
         val adhoc = PlanSetsConverter.fromJson(exercise.lastAdhocSets)
@@ -426,9 +409,7 @@ class ExerciseRepositoryImpl @Inject internal constructor(
         }
         return pager.flow
             .map { pagingData ->
-                // Tag names are denormalized per row; matches the existing pattern in
-                // TrainingRepositoryImpl.pagedActiveWithStats. Acceptable at v2.4 sizes
-                // (paged 10 rows at a time); profile if drift detected.
+                // Tag names are denormalized per row; acceptable at a page size of 10.
                 pagingData.map { row ->
                     row.toData(
                         tags = exerciseTagDao.getTagNames(row.exercise.uuid),
@@ -446,9 +427,7 @@ class ExerciseRepositoryImpl @Inject internal constructor(
         val (allowed, blocked) = parsed.partition { uuid ->
             trainingExerciseDao.countActiveTemplatesUsing(uuid) == 0
         }
-        // Reuse the same query the detail-screen archive uses (getActiveTemplateNamesUsing)
-        // so both surfaces name the blocking trainings identically. The blocked subset is
-        // small (only the user-selected exercises that are still referenced).
+        // Same query the detail-screen archive uses, so both surfaces name the blockers alike.
         val blockedExercises = blocked.mapNotNull { uuid ->
             val name = dao.getById(uuid)?.name ?: return@mapNotNull null
             BulkArchiveOutcome.BlockedExercise(
@@ -507,10 +486,8 @@ class ExerciseRepositoryImpl @Inject internal constructor(
     }
 
     /**
-     * Match the portable UNIQUE-violation text shared by the framework host-test driver and the
-     * bundled production driver. Keep this a member: a file-private helper called from the class
-     * needs a synthetic accessor, and lint rightly objects. See kmp-phase-6-data-layer.md → §10
-     * "androidx.sqlite.SQLiteException is actual typealias … on Android."
+     * Portable UNIQUE-violation text shared by the host-test and production drivers. Keep it a
+     * member — a file-private helper would need a synthetic accessor and lint objects.
      */
     private fun SQLiteException.isUniqueConstraintViolation(): Boolean =
         message.orEmpty().contains("UNIQUE constraint failed")

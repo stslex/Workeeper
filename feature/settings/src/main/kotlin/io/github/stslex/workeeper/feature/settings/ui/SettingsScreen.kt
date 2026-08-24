@@ -60,7 +60,6 @@ internal fun SettingsScreen(
                 .background(AppUi.colors.surfaceTier0)
                 .testTag("SettingsScreen"),
         ) {
-            // §5.1: back + h1 «Настройки» — the default (20px → section) title, not h1.sm.
             AppTopBar(
                 title = stringResource(R.string.feature_settings_title),
                 navigation = {
@@ -72,9 +71,6 @@ internal fun SettingsScreen(
                     )
                 },
             )
-            // §5.2: a group is 32dp of air + a label — no container. Mockup order (§5.6):
-            // Оформление → Резервные копии → Данные → О приложении. First group sits 8px
-            // under the topbar (the mockup's inline margin-top override).
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -87,8 +83,7 @@ internal fun SettingsScreen(
                         selected = state.themeMode,
                         onSelect = { mode -> consume(Action.Input.OnThemeChange(mode)) },
                     )
-                    // HS5's second entry point. Appearance is the group that fits: like the
-                    // theme row above it, this configures what a surface shows, not data.
+                    // The start card's second entry point; it configures a surface, not data.
                     SettingsGroupRow(
                         modifier = Modifier.testTag("SettingsStartCardModeRow"),
                         title = stringResource(R.string.feature_settings_start_card_row_title),
@@ -112,9 +107,7 @@ internal fun SettingsScreen(
                     SettingsGroupRow(
                         modifier = Modifier.testTag("SettingsArchiveRow"),
                         title = stringResource(R.string.feature_settings_archive_entry),
-                        // §26 draws this row with a sub-line — «4 упражнения · 1 тренировка».
-                        // Null until the counts arrive: an empty row is honest, a "0 · 0" flash is
-                        // not. B15 held it open on the premise that no data source existed.
+                        // Null until the counts arrive: an empty row is honest, a "0 · 0" is not.
                         subtitle = state.archivedCounts?.let { counts ->
                             listOf(
                                 pluralStringResource(
@@ -173,10 +166,8 @@ internal fun SettingsScreen(
                 state = dialog,
                 onAction = { consume(it) },
             )
-            // Passed through, never substituted — the same rule the row's sub-line above
-            // follows. Until the preference's first emission the sheet checks nothing; a
-            // guessed WEEK here would be a reading of a value we do not have, and it is the
-            // wrong reading for every user whose persisted mode is one of the other three.
+            // GUARD: pass the null through, never a default — until the preference's first
+            // emission the sheet must check nothing. Pinned by SettingsStartCardModeSheetTest.
             DialogState.StartCardModePicker -> StartCardModeSheet(
                 selected = state.startCardMode,
                 onSelect = { mode -> consume(Action.Input.OnStartCardModeChange(mode)) },
@@ -188,11 +179,7 @@ internal fun SettingsScreen(
 }
 
 /**
- * §5.4/§5.6: the theme row is `.srow.plain` — the title, the CURRENT theme's name as the
- * sub-line, and the `.mseg` icon trio trailing. The mockup's own hint states the intent:
- * the theme became an ordinary row with a compact control, "не первый по важности элемент
- * экрана и не читается как вкладки". The old ThemeOption_* testTags ride on the mseg
- * buttons so the smoke suite keeps its handles.
+ * The theme row: title, the current theme's name as the sub-line, and the icon trio trailing.
  */
 @Composable
 private fun ThemeRow(

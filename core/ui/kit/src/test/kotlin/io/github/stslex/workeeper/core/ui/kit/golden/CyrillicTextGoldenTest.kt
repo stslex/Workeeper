@@ -17,20 +17,8 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.EnumSource
 
 /**
- * Load-bearing golden, not a nice-to-have.
- *
- * Spec constraint O2: Archivo Expanded has **zero** Cyrillic coverage and must never receive a
- * translatable string. Enforced only by code review, that constraint is a promise. Rendered
- * into a golden it becomes mechanical: the moment a display face without Cyrillic glyphs is
- * applied to one of these strings, the text turns to tofu boxes and the pixels move.
- *
- * The strings are pulled from `values-ru` through the real resource path — the device locale is
- * set to [LOCALE_RU] and each line resolves via `stringResource`. Nothing here is invented
- * text, so the golden also breaks if a translation is dropped rather than merely re-styled.
- *
- * Every type slot the redesign is likely to touch is represented, and the long plan-editor
- * subtitle is included on purpose: it wraps, so a metrics change shows up as re-flow rather
- * than as a single shifted glyph.
+ * Mechanical guard on the no-Cyrillic display face: real `values-ru` strings across every type
+ * slot, so applying a face without Cyrillic glyphs turns them to tofu and moves the pixels.
  */
 internal class CyrillicTextGoldenTest {
 

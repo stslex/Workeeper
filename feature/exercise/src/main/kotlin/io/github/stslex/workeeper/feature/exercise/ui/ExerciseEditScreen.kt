@@ -54,21 +54,7 @@ import kotlinx.collections.immutable.toImmutableList
 import io.github.stslex.workeeper.core.ui.kit.R as KitR
 import io.github.stslex.workeeper.core.ui.plan_editor.R as CoreEditorR
 
-/**
- * `v3-editors.md` §3.2's frame, in its order:
- *
- *     topbar   ‹ · name, or the create title dim          no thumb (ED6)
- *     fgrp     Название                                   the one .flabel + .tf (ED3)
- *     head     ПЛАН ПО УМОЛЧАНИЮ  (i)                     type toggle + plan card (ED1, ED5)
- *     head     ТЕГИ  N из 10
- *     head     ОПИСАНИЕ                                   + image beside it (D-OPEN-3)
- *     dock     Отмена · Сохранить                         Save always enabled (§7.3)
- *
- * The plan is edited **where it is drawn, in both modes** (ED1) — this screen is the plan's
- * whole editor, and nothing routes away from it. ED3 rules the rhythm — a labelled field only
- * where text is typed, a `.section-head` everywhere else — which is why the name keeps its
- * `.flabel` and everything below it is a section.
- */
+/** `v3-editors.md` §3.2's frame: name field · plan · tags · description · dock (ED1, ED3). */
 @Composable
 internal fun ExerciseEditScreen(
     state: State,
@@ -87,12 +73,8 @@ internal fun ExerciseEditScreen(
             .background(AppUi.colors.surfaceTier0)
             .testTag("ExerciseEditScreen"),
     ) {
-        // The bar is `AppTopBar` in BOTH modes of this screen (§26, "The editors' six
-        // code-diverges") and carries NO trailing thumb (ED6): the image affordance lives
-        // beside the description now, and it is the only one. The title falls back to the
-        // mode's own string only while the name is blank — an unnamed record has no name to
-        // show — and the fallback renders DIM (§3.2), because a placeholder title is not the
-        // record's name.
+        // `AppTopBar` in BOTH modes, with no trailing thumb (ED6). The title falls back to the
+        // mode's own string only while the name is blank, and that fallback renders dim (§3.2).
         AppTopBar(
             title = state.name.ifBlank { stringResource(fallbackTitleRes) },
             smallTitle = true,
@@ -148,11 +130,7 @@ private fun InGutter(
     }
 }
 
-/**
- * The form's ONE labelled field (ED3): `.flabel` above `.tf`. **No placeholder** — ED4 rules
- * that a placeholder repeating the label is a second description of one object, so an empty
- * name field is empty.
- */
+/** The form's ONE labelled field (ED3): `.flabel` above `.tf`, and no placeholder (ED4). */
 @Composable
 private fun NameField(
     state: State,
@@ -187,18 +165,7 @@ private fun NameField(
     }
 }
 
-/**
- * §3.2 — `ПЛАН ПО УМОЛЧАНИЮ` with the `(i)` in the head's trailing slot (ED8), over
- * [PlanEditorBody]: the monochrome toggle (ED5) above the set card with its `.setbar` foot. The
- * head
- * carries a short label; the REASON — what a default plan is for — lives in the sheet the `(i)`
- * opens, and not in a subtitle under the label.
- *
- * Creation starts from an EMPTY draft (ED13) — no seeded sets, and the card's own foot disables
- * «− подход» while the draft is empty. Supplying [Action.Click.OnTypeToggle] is what makes the
- * toggle appear (the null is the exclusion, `PlanEditorBody`'s own grammar), and this form
- * supplies it in both modes: the type belongs to the exercise and this is the exercise's editor.
- */
+/** §3.2 — `ПЛАН ПО УМОЛЧАНИЮ` with the `(i)` (ED8) over [PlanEditorBody]; ED13 starts empty. */
 @Composable
 private fun PlanSection(
     state: State,
@@ -223,13 +190,7 @@ private fun PlanSection(
     }
 }
 
-/**
- * The plan head, hand-composed from the kit's own pieces because `AppSectionHeader` has no
- * icon slot: [AppLabel] on the left — the same rung both real heads on this screen use — and
- * the `.mini`-treatment `(i)` on the right. The mini button is 34dp visual, so the head keeps
- * `AppSectionHeader`'s text rhythm by letting the button's extra height centre around the
- * label rather than pushing the section apart.
- */
+/** Hand-composed from the kit's pieces: `AppSectionHeader` has no slot for the `.mini` `(i)`. */
 @Composable
 private fun PlanSectionHead(consume: (Action) -> Unit) {
     Row(
@@ -256,14 +217,7 @@ private fun PlanSectionHead(consume: (Action) -> Unit) {
     }
 }
 
-/**
- * §3.2 — `ТЕГИ` with the `N из 10` counter as the head's trailing label. The counter renders
- * **only** on this editor: the limit is this feature's ([State.MAX_TAGS_PER_EXERCISE]), and
- * `feature/single-training` has none, so showing one there would be a lie.
- *
- * The row under the head is ED7's: selected chips with `✕` plus the dashed «+ тег» chip that
- * opens the picker SHEET — the search and the dictionary live there now, not in the form.
- */
+/** §3.2 — `ТЕГИ` with the `N из 10` counter, which renders only on this editor; chips are ED7's. */
 @Composable
 private fun TagsSection(
     state: State,
@@ -292,11 +246,7 @@ private fun TagsSection(
     }
 }
 
-/**
- * §3.2 — `ОПИСАНИЕ` over [ExerciseDescriptionBlock] in its **editable** mode: `.tf.multi` with
- * the image beside it (D-OPEN-3). The whole image affordance is here, and there is none in the
- * top bar (ED6).
- */
+/** §3.2 — `ОПИСАНИЕ` over the editable [ExerciseDescriptionBlock], image beside it (D-OPEN-3). */
 @Composable
 private fun DescriptionSection(
     state: State,
@@ -323,14 +273,7 @@ private fun DescriptionSection(
     }
 }
 
-/**
- * `.dock` (§3.2, §7.1): sticky over the same gradient scrim as the read screen's, ghost
- * `Отмена` beside primary `Сохранить`, both flex — the drawn `.btn{flex:1}` with no fixed
- * width on either, unlike `#s-ex`'s 130px `Изменить`.
- *
- * Save carries no `enabled` (§7.3, "Save is never disabled"): the only condition available
- * here is the one that produces `nameError`, so gating on it makes that error unreachable.
- */
+/** `.dock` (§3.2, §7.1): ghost `Отмена` beside primary `Сохранить`; Save is never disabled. */
 @Composable
 private fun Dock(
     consume: (Action) -> Unit,

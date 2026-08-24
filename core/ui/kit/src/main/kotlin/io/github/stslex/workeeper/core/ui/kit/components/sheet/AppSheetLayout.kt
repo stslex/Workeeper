@@ -31,43 +31,10 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 
 /**
- * The anatomy of a bottom sheet's **contents**: title, then content.
+ * A bottom sheet's contents: title, then content. Split from [AppBottomSheet] so the layout
+ * renders in the main window and can have goldens; scrim and grab handle belong to the window.
  *
- * ## Why this is separate from [AppBottomSheet]
- *
- * A sheet is two things stacked: a *window* (the scrim, the drag behaviour, the dismiss plumbing —
- * Material's `ModalBottomSheet`, which [AppBottomSheet] wraps) and a *layout* (what is inside it).
- * Paparazzi models one window, so anything rendered through `ModalBottomSheet` is invisible to the
- * visual gate — the harness says so itself (`GoldenHarness.kt:53-57`).
- *
- * Splitting the layout out is what makes the larger half testable. This composable is an ordinary
- * `Column`; it renders in the main window, so it has goldens. What stays unverifiable is the
- * genuinely window-shaped part: the scrim's opacity, the sheet's entry animation, the drag
- * dismissal, and how tall the sheet settles. Those are on the PR's manual checklist, and that
- * split is the point rather than an omission.
- *
- * ## What the window owns: the scrim AND the grab handle
- *
- * Neither is drawn here, for the same reason. Both are affordances for gestures the *window*
- * handles — the scrim dismisses on tap, the handle affords dragging the sheet — so drawing either
- * one in the content means drawing an affordance for a gesture the content cannot service.
- *
- * The handle is the easier of the two to get wrong, and this layout got it wrong first:
- * `ModalBottomSheet` declares `dragHandle: @Composable (() -> Unit)? = { BottomSheetDefaults
- * .DragHandle() }`, and [AppBottomSheet] does not override it. A handle drawn here would therefore
- * be the *second* one in every sheet, sitting under Material's. Read out of the Material 3
- * 1.5.0-alpha15 sources rather than assumed.
- *
- * So the anatomy names four layers and this composable owns the last two: scrim and handle belong
- * to the window; title and content belong here.
- *
- * ## The three forms
- *
- * All three are this layout with a different `content`:
- *  - **item list** — a stack of [AppSectionRow] separated by [AppSectionDivider]; see
- *    [AppSheetMenuContent].
- *  - **button stack** — a confirmation: a sentence, then actions; see [AppSheetConfirmContent].
- *  - **free content** — anything, with a close affordance in the title row ([onClose]).
+ * GUARD: never draw a grab handle here — `ModalBottomSheet` supplies one by default.
  */
 @Composable
 fun AppSheetLayout(
@@ -102,11 +69,7 @@ fun AppSheetLayout(
                         Icon(
                             modifier = Modifier.size(AppDimension.iconSm),
                             imageVector = Icons.Default.Close,
-                            // Labelled, not decorative: when `onClose` is supplied this icon is
-                            // the sheet's only close affordance, so a null description leaves a
-                            // TalkBack user with an unlabelled button and no way to know what it
-                            // does. The glyph carries the whole meaning, which is exactly when a
-                            // content description is mandatory rather than noise.
+                            // Labelled, not decorative: this is the only close affordance.
                             contentDescription = stringResource(R.string.core_ui_kit_sheet_close),
                             tint = AppUi.colors.textTertiary,
                         )
@@ -145,11 +108,8 @@ data class AppSheetMenuItem(
 )
 
 /**
- * Form (b): a confirmation. An explanation, then the actions stacked.
- *
- * Confirm sits above dismiss, and dismiss is the quieter of the two — the destructive reading of
- * this layout ("the dangerous button is the big one at the top") is why [confirmDestructive]
- * exists rather than being inferred.
+ * Form (b): a confirmation. An explanation, then the actions stacked, confirm above dismiss.
+ * [confirmDestructive] is passed rather than inferred.
  */
 @Composable
 fun AppSheetConfirmContent(

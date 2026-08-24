@@ -50,9 +50,7 @@ internal fun ImageViewerScreen(
                     ) {
                         Icon(
                             modifier = Modifier.size(AppDimension.iconSm),
-                            // A kit stroke mark, not a filled Material import: this bar's
-                            // trailing slot carries one, and a bar mixing the two families is
-                            // visible in a single frame (B33).
+                            // A kit stroke mark: this bar's trailing slot carries one too.
                             imageVector = AppIcons.ChevronLeft,
                             contentDescription = stringResource(
                                 R.string.feature_image_viewer_back,
@@ -62,15 +60,8 @@ internal fun ImageViewerScreen(
                     }
                 },
                 actions = {
-                    // The picture's two verbs live where the picture is (§26, "The image moves
-                    // into the pushed top bar"). One `⋮` rather than two marks, because the kit
-                    // ships no camera and no bin, and inventing either would settle B33(b)'s
-                    // open glyph questions by writing them.
-                    //
-                    // Drawn only when the CALLER can honour the request. The exercise detail
-                    // screen opens this same route and has no Save and no dirty interception, so
-                    // an affordance there would stage an edit that looks applied and is lost on
-                    // the way out — worse than no affordance, because it reads as having worked.
+                    // One `⋮` for the picture's two verbs, drawn only when the CALLER can honour
+                    // the request — an affordance elsewhere would stage an edit that is lost.
                     if (state.editable) {
                         IconButton(
                             modifier = Modifier.testTag("ImageViewerMenuButton"),
@@ -121,11 +112,7 @@ internal fun ImageViewerScreen(
         }
     }
 
-    // A SHEET, not a dialog — §26 "Every modal on the three editors is a SHEET" rules the editors
-    // and this is the surface their image row moved to, so drawing a dialog here would put the
-    // one modal in the flow that is not a sheet at the end of it. Text items, no glyphs: the kit
-    // ships no camera and no bin, and inventing either would settle B33(b)'s open questions
-    // by writing them.
+    // A SHEET, not a dialog, per §26; text items because the kit ships no camera and no bin glyph.
     when (state.sheetState) {
         State.SheetState.Hidden -> Unit
 

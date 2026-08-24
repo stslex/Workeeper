@@ -19,19 +19,8 @@ import io.github.stslex.workeeper.feature.exercise.R
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ImageSourceUiModel
 
 /**
- * «Камера» · «Галерея» — the picker the empty thumb opens (§26, "Every modal on the three editors
- * is a SHEET"; extraction §7.4).
- *
- * A **menu** sheet, not a confirmation: two choices and no question, which is `#sh-pick`'s shape
- * and why `AppConfirmSheet` is the wrong component for it.
- *
- * **No glyphs and no cancel row.** `PhotoCamera` / `PhotoLibrary` are Material fills the kit does
- * not ship, and drawing them here would settle B33(b)'s open glyph questions by writing them;
- * `#sh-pick` draws its items as text and so does this. A cancel row is a button for a
- * gesture — the scrim and the drag ARE the dismiss.
- *
- * Content-only, hosted by `AppBottomSheet` at the call site: `ModalBottomSheet` composes into its
- * own window and Paparazzi models one, so the layout is separated to keep it photographable.
+ * «Камера» · «Галерея» — the picker the empty thumb opens (extraction §7.4). A menu sheet, not a
+ * confirmation; content-only, hosted by `AppBottomSheet` so the layout stays photographable.
  */
 @Composable
 internal fun ImageSourceSheetContent(

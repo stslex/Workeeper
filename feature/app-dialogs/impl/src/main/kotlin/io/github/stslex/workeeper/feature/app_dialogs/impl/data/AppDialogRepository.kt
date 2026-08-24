@@ -17,31 +17,10 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 
 /**
- * Single writer of every `pending_*` flag in the `app_dialogs_prefs` DataStore
- * and the persistence layer of the cross-feature `AppDialog` mechanism.
- * Implements [AppDialogPublisher] for producers; the impl-only [dismiss] entry
- * point is used by `AppDialogHost` (and, after the MVI rewrite, by the
- * `DismissHandler` / `UserActionHandler` inside `AppDialogStore`).
+ * Single writer of every `pending_*` flag in the `app_dialogs_prefs` DataStore; state is derived
+ * from DataStore on every read so a pending dialog survives process death.
  *
- * State is derived from DataStore on every read — no in-memory queue, no
- * `MutableStateFlow<AppDialog?>` field. This is load-bearing: backup recovery's
- * primary case is "show this dialog after a process restart", which an
- * in-memory queue would not survive (see
- * `documentation/feature-specs/app-dialogs.md` → "Single source of truth").
- *
- * DI (App-Scope Collapse Step 3, app-dialogs slice): Metro-owned, self-bound
- * app singleton (`@SingleIn(AppScope)` + `@Inject` on the DataStore-building
- * secondary ctor). Public because app/app's `AppGraph` names the concrete type
- * in its accessor (Metro contributions/accessors can't reach an `internal`
- * cross-module type). It implements [AppDialogPublisher] but is NOT bound to it
- * (the producer binding is [AppDialogPublisherImpl]); so it is a self accessor,
- * never `@ContributesBinding`.
- *
- * Mint the store through [DataStoreProviderFactory] only: a second `AppGraph` that
- * built its own would throw `IllegalStateException: There are multiple DataStores
- * active` on the second read. Pinned by `app/app` androidTest
- * `AppScopeDataStoreSingletonTest`. Mechanism and evidence:
- * `documentation/tech-debt.md` -> "DataStore singleton bypass".
+ * GUARD: mint the store through [DataStoreProviderFactory] only — a second one throws at runtime.
  */
 @SingleIn(AppScope::class)
 class AppDialogRepository internal constructor(
@@ -53,11 +32,7 @@ class AppDialogRepository internal constructor(
         storeFactory.create(PREFS_NAME).dataStore,
     )
 
-    /**
-     * Reactive view of the currently-pending top-priority dialog. Re-emits on
-     * every DataStore write; emits `null` when no flag is set. Priority is
-     * resolved by [AppDialogResolver]; this repository only owns persistence.
-     */
+    /** Highest-priority pending dialog, or `null`; re-emits on every DataStore write. */
     val currentDialog: Flow<AppDialog?> = dataStore.data
         .map { prefs -> AppDialogResolver(prefs) }
         .distinctUntilChanged()
@@ -69,11 +44,7 @@ class AppDialogRepository internal constructor(
         }
     }
 
-    /**
-     * Clear every flag belonging to [dialog]. Internal API reached through
-     * `AppDialogObserver.acknowledgeReaction` (the consumer-side reactor's
-     * dismiss-after step) — never exposed via [AppDialogPublisher].
-     */
+    /** Clears every flag of [dialog]; reached through `AppDialogObserver.acknowledgeReaction`. */
     suspend fun dismiss(dialog: AppDialog) {
         dataStore.edit { prefs -> prefs.clearFlags(dialog) }
     }

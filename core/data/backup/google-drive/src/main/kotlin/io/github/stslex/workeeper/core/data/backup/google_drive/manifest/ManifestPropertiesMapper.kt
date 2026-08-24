@@ -6,22 +6,8 @@ import io.github.stslex.workeeper.core.data.backup.api.model.BackupManifest
 import io.github.stslex.workeeper.core.data.backup.api.result.BackupResult
 
 /**
- * Maps [BackupManifest] to/from the Drive file `appProperties` map.
- *
- * Drive enforces two limits on `appProperties`: 124 bytes UTF-8 per individual
- * key+value pair AND 30 KB total across all entries. The previous single-key
- * JSON serialization (`appProperties.manifest = "{…}"`) clipped the per-pair
- * limit because the full JSON was ~130 bytes. Splitting into one entry per
- * field keeps every pair well under 124 bytes:
- *
- *  - `app_version=1.43.0`            → 19 bytes
- *  - `db_schema_version=6`           → 19 bytes
- *  - `created_at_epoch_ms=…`         → ≤ 38 bytes (epoch ms fits 19 digits)
- *  - `db_file_size_bytes=…`          → ≤ 37 bytes
- *  - `device_model=<≤100 chars>`     → ≤ 113 bytes (truncated defensively)
- *
- * Decode failures collapse to [BackupError.CorruptedBackup] with a per-field
- * reason so callers can surface a typed restore error.
+ * Maps [BackupManifest] to/from the Drive `appProperties` map, one entry per field to stay under
+ * Drive's per-pair byte limit. Decode failures collapse to [BackupError.CorruptedBackup].
  */
 internal object ManifestPropertiesMapper {
 

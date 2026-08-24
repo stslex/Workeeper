@@ -24,17 +24,9 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * The UI half of the R2 generation boundary (Phase 5, `kmp-phase-5-startup-processor.md` §8.7),
- * proven against the composed app shell: a generation swap resets Nav3 to the root, the old
- * stack is unreachable, and — the resurrection pin — an ordinary Activity recreation AFTER the
- * swap restores the NEW generation's state, never the old generation's saved entries (they live
- * only under the old `SaveableStateProvider` slot, which the swap removed).
- *
- * The swap is driven through [MetroTestGraphHolder.install] — the harness's runtime-equivalent:
- * clear the old generation's ViewModelStore, publish a fresh generation id with a fresh store.
- * The runtime side of the same transition (quiesce ordering, DB handover) is proven by
- * `AppRuntimeTest`/`AppRuntimeReplacementTest` (JVM) and `RuntimeGenerationSwapDeviceTest`
- * (device); THIS test pins what composition does with the published id change.
+ * UI half of the generation boundary: a swap resets Nav3 to the root, and an Activity recreation
+ * after it restores the NEW generation, never the old saveable slot.
+ * See documentation/feature-specs/kmp-phase-5-startup-processor.md §8.7.
  */
 @Regression
 @RunWith(AndroidJUnit4::class)
@@ -63,7 +55,6 @@ internal class UiGenerationSwapTest {
         composeRule.onNodeWithTag("AppRoot").assertIsDisplayed()
         composeRule.onNodeWithTag("HomeGraph").assertIsDisplayed()
 
-        // Leave the root: generation 1's stack now shows Trainings.
         composeRule.onNodeWithTag(BottomBarItem.TRAININGS.testTag).performClick()
         composeRule.waitForIdle()
         composeRule.onNodeWithTag("AllTrainingsGraph").assertIsDisplayed()
@@ -71,13 +62,10 @@ internal class UiGenerationSwapTest {
         swapToSecondGeneration()
         composeRule.waitForIdle()
 
-        // The new generation starts at the intended root; the old top is gone with its stack.
         composeRule.onNodeWithTag("HomeGraph").assertIsDisplayed()
         composeRule.onNodeWithTag("AllTrainingsGraph").assertDoesNotExist()
 
-        // Ordinary Activity recreation AFTER the swap: the new generation's saveable slot
-        // restores (Home), and generation 1's saved entries must NOT resurrect — their slot
-        // was removed when the new id composed.
+        // Recreation after the swap restores the new slot; generation 1 must not resurrect.
         composeRule.activityRule.scenario.recreate()
         composeRule.waitForIdle()
         composeRule.onNodeWithTag("AppRoot").assertIsDisplayed()

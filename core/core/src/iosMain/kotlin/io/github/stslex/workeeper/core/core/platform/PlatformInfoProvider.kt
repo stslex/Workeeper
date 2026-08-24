@@ -5,9 +5,8 @@ import platform.Foundation.NSBundle
 import platform.UIKit.UIDevice
 
 /**
- * iOS [PlatformInfoProvider]: reads the main bundle's info dictionary
- * (`CFBundleShortVersionString` / `CFBundleVersion`) and `UIDevice.model`.
- * Compile-verified only until the iOS app target exists — no runtime consumer yet.
+ * iOS [PlatformInfoProvider]: reads the main bundle info dictionary and `UIDevice.model`.
+ * Compile-verified only until the iOS app target exists.
  */
 actual class PlatformInfoProvider {
 
@@ -15,10 +14,8 @@ actual class PlatformInfoProvider {
         NSBundle.mainBundle.objectForInfoDictionaryKey(KEY_VERSION_NAME) as? String ?: ""
 
     /**
-     * `CFBundleVersion` may be a plain build number ("47", mapped exactly) or a legitimate
-     * dotted version ("1.2.3"): dotted forms with 2–3 numeric components in 0..999 pack as
-     * `major * 10^6 + minor * 10^3 + patch`, which never coerces a valid dotted build to 0
-     * and stays monotone within the dotted scheme. Anything else maps to 0.
+     * `CFBundleVersion` is a plain build number or a dotted version; dotted forms with 2–3
+     * components in 0..999 pack as `major * 10^6 + minor * 10^3 + patch`, anything else to 0.
      */
     actual fun appVersionCode(): Long {
         val raw = NSBundle.mainBundle.objectForInfoDictionaryKey(KEY_VERSION_CODE) as? String

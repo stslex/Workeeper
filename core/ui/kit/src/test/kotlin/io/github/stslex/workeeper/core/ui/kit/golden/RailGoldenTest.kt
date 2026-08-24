@@ -17,17 +17,8 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.EnumSource
 
 /**
- * The §8 degradation ladder, rendered.
- *
- * The four exercise x set combinations are the mockup's own degradation toggles. **Measured:
- * at the golden's 392dp width they reach only two of the three levels** — 2x4 and 5x4 are
- * SETS, and both 8x4 and 16x5 are EXERCISES. That is not an artefact of the golden canvas;
- * the same four land the same way at the mockup's own 412px rail width. Reaching OVERALL at
- * full width would take 24 exercises, which is past any real session.
- *
- * So OVERALL is a narrow-width state, and [narrowRailIsOverall] covers it by constraining the
- * rail rather than by inflating the data — which is also the honest picture of what that level
- * is for. `RailDetailTest` pins the levels themselves; these prove what they look like.
+ * The rail degradation ladder, rendered. OVERALL is only reachable at narrow widths, so
+ * [narrowRailIsOverall] constrains the rail. `RailDetailTest` pins the levels themselves.
  */
 internal class RailGoldenTest {
 
@@ -70,8 +61,7 @@ internal class RailGoldenTest {
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
     fun railWithSkippedAndRecord(theme: GoldenTheme, testInfo: TestInfo) {
-        // A skipped group renders as an outline rather than an unfilled track — the two must
-        // not look alike — and a record segment resolves to `molten` rather than `max` (§9).
+        // A skipped group must not look like an unfilled track; a record segment reads molten.
         goldenSubject(testInfo, theme) {
             Rail(
                 listOf(
@@ -85,10 +75,8 @@ internal class RailGoldenTest {
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
     fun railWithOneOffUnderline(theme: GoldenTheme, testInfo: TestInfo) {
-        // `.grp.temp::after` — the dashed `dim` underline beneath a one-off group (§6.2),
-        // finally read from `RailGroup.isOneOff` (the flag was carried and never rendered).
-        // The underline draws 4dp BELOW the band (in the railmeta gap on screen); the
-        // shrink canvas needs that room reserved or it clips the very thing under test.
+        // GUARD: the one-off underline draws below the band; without the bottom padding the
+        // shrink canvas clips the thing under test.
         goldenSubject(testInfo, theme) {
             Box(modifier = Modifier.padding(bottom = 8.dp)) {
                 AppProgressRail(

@@ -32,37 +32,8 @@ import io.github.stslex.workeeper.feature.all_exercises.mvi.model.ExerciseUiMode
 import kotlinx.collections.immutable.persistentListOf
 
 /**
- * One row of the exercises list — `pass2d.html` `#s-list` `.row`, the exercise payload.
- *
- * ## One skeleton, four payloads — this is the second of them
- *
- * `#s-list`'s hint states it outright: "Скелет строки один — 88px, линейка снизу, имя и мета-строка,
- * шеврон. Начинки разные". The skeleton is now [AppListRow] and is documented there.
- *
- * What this row keeps is its own: the payload, the meta line's composition and the trailing slot's
- * three states.
- *
- * ## What this payload does differently, and it is one thing
- *
- * **The type is the meta line's first token, as a word.** `#s-list`'s type frame draws
- * «со весом · 14 сессий · последняя 9 июля · плечи», and its navnote gives the reason rather than
- * leaving it to be inferred: "Ведущего слота у строки нет: миниатюра и иконка типа остаются на
- * детали. Тип поэтому идёт словом и **первым токеном** мета-строки — по тому же правилу «сведения,
- * потом теги», — и обрезается последним, а не первым."
- *
- * So the leading slot going is not a subtraction on its own — it is a move. `ExerciseLeading` drew
- * either a Coil thumb off `imagePath` or a 28dp type tile; both are named in that navnote as
- * belonging to the detail screen, and dropping them without putting the type into the line would
- * lose the type entirely. A side effect worth having: the row is now a pure function of its model
- * and photographs without an image loader.
- *
- * ## The chevron, and why the old comment is cited rather than deleted
- *
- *
- * ## `lifted` is selection alone
- *
- * `TrainingRow` lifts on `isSelected || item.isActive` because a training can be running. Nothing on
- * this screen can be, so there is no collision here and none of that reasoning transfers.
+ * One row of the exercises list (`pass2d.html` `#s-list` `.row`). No leading slot: the type moves
+ * into the meta line as its first token, so the row is a pure function of its model.
  */
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
@@ -77,10 +48,8 @@ internal fun ExerciseRow(
 ) {
     AppListRow(
         modifier = modifier,
-        // Called unconditionally and driven by the flag, per its own KDoc: branching at the call
-        // site would rebuild the modifier graph on the flip and kill the tween. The drawn resting
-        // row has no fill of its own — it sits on `--base` — so the resting colour is transparent
-        // rather than the default `surfaceTier1`.
+        // GUARD: call `liftedSurface` unconditionally and let the flag drive it — branching here
+        // rebuilds the modifier graph and kills the tween. The resting row has no fill of its own.
         rowModifier = Modifier
             .liftedSurface(
                 shape = RectangleShape,
@@ -101,29 +70,8 @@ internal fun ExerciseRow(
 }
 
 /**
- * The fixed-width trailing slot: chevron at rest, check when selected, and **empty** when selection
- * is on and this row is not. The width is held whatever is in it — a slot that follows its contents
- * reflows the text column on entering the mode and on every toggle (§26 "Selection mode", as
- * amended).
- *
- * ## The crossfade — §26, continuity motion
- *
- * The chevron and the check used to replace each other between two frames, with no path between
- * them: a glyph the user was looking at became a different glyph, instantly, on a gesture whose
- * whole point is that the row is still the same row. That is the definition of the continuity
- * class — remove the tween and something teleports — so it is not a third §9 moment and it carries
- * no expressive weight.
- *
- * Two properties are deliberate. `using null` **suppresses the size transform**: the slot is
- * already fixed at [SLOT] and an animated container would put back exactly the reflow the amended
- * ledger row removed. And the transition is a **pure alpha crossfade on one shared spec** — no
- * colour is interpolated anywhere in it, which is what keeps the `fadedOut` rule satisfied by
- * construction rather than by care, since the two glyphs carry different tints and lerping between
- * them is precisely the Oklab path §27 measured.
- *
- * Which kind is drawn is [trailingSlotKind]'s decision, not this function's — a picture of the
- * slot cannot see the choice, and now that the choice drives a 260ms transition it is worth less
- * than ever to leave unasserted.
+ * The fixed-width trailing slot: chevron at rest, check when selected, empty when another row is.
+ * GUARD: keep `using null` — an animated container puts back the reflow the fixed slot removes.
  */
 @Composable
 private fun TrailingSlot(
@@ -163,13 +111,8 @@ private fun TrailingSlot(
 }
 
 /**
- * §26 "Meta-line order": **information first, tags last** — and on this screen the type is the
- * information that goes first of all.
- *
- * `footerLabel` arrives pre-joined from `AllExercisesUiMapper.composeFooterLabel` (sessions, linked
- * trainings, last-trained). The type is prepended and the tags appended, so the composed order is
- * the drawn one. The line does not wrap, so what truncates is always the tail — which is why the
- * type, the one token that must survive, sits at the head.
+ * Meta line: information first, tags last (spec §26). The type heads it because the line does not
+ * wrap, so the tail is what truncates.
  */
 @Composable
 private fun ExerciseUiModel.metaLine(): String {

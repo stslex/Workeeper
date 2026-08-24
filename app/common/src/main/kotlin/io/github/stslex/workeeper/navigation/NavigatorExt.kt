@@ -64,15 +64,8 @@ object NavigatorExt {
     }
 
     /**
-     * Push, or — for a singleTop destination, i.e. a bottom-bar root — replace the top entry.
-     *
-     * Replace-last IS the singleTop semantic here, not an approximation: tab round trips arrive
-     * reset, pinned by `BackStackStateRestorationTest.
-     * selectionModeArrivesResetAfterABottomBarRoundTrip`. Re-tapping the ACTIVE tab does not mint
-     * a fresh entry — the roots are `data object`s and entry state is keyed by the key's
-     * identity, so `stack[lastIndex] = screen` with an equal key is deliberately a no-op.
-     * Derivation and the equivalence argument: `documentation/feature-specs/nav3-stage-1-3.md`
-     * §3.5.
+     * Push, or — for a singleTop destination, i.e. a bottom-bar root — replace the top entry, so
+     * tab round trips arrive reset. See nav3-stage-1-3.md §3.5.
      */
     private fun navTo(
         holder: NavigatorHolder,
@@ -93,9 +86,8 @@ object NavigatorExt {
     }
 
     /**
-     * Pops only when there is something underneath — the same observable as Nav2's
-     * `popBackStack()`, which returns `false` at the root. System back at the root is the
-     * platform's (the activity finishes); `NavDisplay` must never be handed an empty stack.
+     * Pops only when there is something underneath: system back at the root is the platform's,
+     * and `NavDisplay` must never be handed an empty stack.
      */
     private fun popBack(holder: NavigatorHolder) {
         logger.d("popBack")
@@ -108,13 +100,8 @@ object NavigatorExt {
     }
 
     /**
-     * The Nav3 half of [io.github.stslex.workeeper.core.ui.navigation.ScreenWithResult]:
-     * publish the result into the app-owned [NavResultsSource], then pop.
-     *
-     * Order matters and is unchanged from the Nav2 adapter — the value has to be readable
-     * *before* the pop reveals the consumer, or it recomposes on arrival with nothing there and
-     * the result is lost. This is the only place the untyped key/`Any` shape executes; both
-     * sides of it are typed off the destination.
+     * Publishes the result into the app-owned [NavResultsSource], then pops — in that order, or
+     * the consumer recomposes on arrival with nothing there.
      */
     private fun popBackWithResult(
         holder: NavigatorHolder,

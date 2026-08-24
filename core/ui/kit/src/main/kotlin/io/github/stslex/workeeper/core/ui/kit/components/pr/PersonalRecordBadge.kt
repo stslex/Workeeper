@@ -23,12 +23,8 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 private const val PR_LABEL = "PR"
 
 /**
- * Compact amber pill that flags a personal record. Used in Live workout set rows, Past
- * session set rows, and the finish dialog header. Visual intentionally small enough to sit
- * inside a row without forcing extra height.
- *
- * Pass [onClick] to make the badge a tap target — typically used to surface
- * [PrExplainerDialog]. When `null`, the badge is purely decorative.
+ * Compact pill flagging a personal record, sized to sit inside a row without adding height.
+ * [onClick] makes it a tap target (typically the PR explainer); `null` leaves it decorative.
  */
 @Composable
 fun PersonalRecordBadge(

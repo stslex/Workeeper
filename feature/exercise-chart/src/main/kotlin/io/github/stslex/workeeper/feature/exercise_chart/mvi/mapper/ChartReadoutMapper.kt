@@ -9,18 +9,10 @@ import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartPointUiM
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartReadoutUiModel
 import kotlin.math.roundToLong
 
-/**
- * The `.readout` block's mapper (extraction §4.5) — split from [ExerciseChartUiMapper]
- * along the mockup's own seam: everything here feeds the persistent inspection block and
- * the record marking, nothing here is an enum bridge or a tooltip/footer formatter.
- */
+/** The `.readout` block's mapper (extraction §4.5), split from [ExerciseChartUiMapper]. */
 internal object ChartReadoutMapper {
 
-    /**
-     * The record among the visible points. Weight ties use the representative set's reps;
-     * every remaining tie stays on the earliest session. See the chart spec's "Record
-     * selection" anchor.
-     */
+    /** The record among the visible points; weight ties use reps, then the earliest session. */
     fun recordIndex(
         points: List<ChartPointUiModel>,
         metric: ChartMetricUiModel,
@@ -36,12 +28,7 @@ internal object ChartReadoutMapper {
         return points.indexOf(record)
     }
 
-    /**
-     * The mockup's `readout()` (extraction §4.5): metric long name, the active point's date +
-     * set count (+ `рекорд` on the record point), and the value with its unit. The value is
-     * `Math.round(n).toLocaleString('ru-RU')` in the mockup — rounded to a whole number and
-     * thousand-grouped; see [formatGrouped] for the pinned NBSP separator.
-     */
+    /** The mockup's `readout()` (§4.5): metric name, caption, and the grouped value + unit. */
     fun toReadout(
         points: List<ChartPointUiModel>,
         activeIndex: Int?,
@@ -78,17 +65,7 @@ internal object ChartReadoutMapper {
         )
     }
 
-    /**
-     * Round to a whole number and group thousands — `4620.0` → `4 620` with an NBSP
-     * (U+00A0), the separator the mockup's `fmt()` (`toLocaleString('ru-RU')`) emits.
-     * The literal is pinned here rather than taken from a locale API so the output cannot
-     * drift to NNBSP (U+202F) on an ICU update: the Archivo cut has real glyphs for SPACE
-     * and NBSP (cmap gid 619/620) but none for NNBSP, and only the missing one could seam.
-     * (An earlier revision shipped a plain space on the claim that the cut's charset held
-     * digits and `:.,-+/%` only — the cut is a full latin instance and the claim was false;
-     * see licenses/README.md "Character coverage".) Shared with the footer — `fmt()` feeds
-     * the readout and all three statrows alike.
-     */
+    /** Round and group thousands — `4620.0` → `4 620` with the pinned [GROUP_SEPARATOR]. */
     internal fun formatGrouped(value: Double): String {
         val digits = value.roundToLong().toString()
         return digits
@@ -100,6 +77,6 @@ internal object ChartReadoutMapper {
 
     private const val GROUP_SIZE = 3
 
-    /** NBSP — present in the Archivo cut, unbreakable mid-number, what ru-RU draws. */
+    /** NBSP — the Archivo cut has this glyph but not NNBSP (U+202F); never a locale API. */
     private const val GROUP_SEPARATOR = "\u00A0"
 }

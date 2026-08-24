@@ -29,15 +29,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlin.uuid.Uuid
 
-/**
- * Default [DatabaseJsonExporter]: load every table once (the unfiltered `getAll` / batch
- * tag readers), assemble the nested graph in memory with `groupBy` (zero N+1), and encode.
- * `explicitNulls = false` realizes the spec's "omit nullable fields when null"; `prettyPrint`
- * keeps the artifact human-readable.
- *
- * Metro-owned via `@ContributesBinding(AppScope)` on the (public) impl — derives from the [AppDatabase]
- * `create()` root; `@IODispatcher` is the direct `Dispatchers.IO`. Public for cross-module aggregation (D1).
- */
+/** Loads every table once, assembles the nested graph in memory, and encodes it as JSON. */
 @SingleIn(AppScope::class)
 @ContributesBinding(AppScope::class)
 public class DatabaseJsonExporterImpl @Inject constructor(
@@ -55,20 +47,14 @@ public class DatabaseJsonExporterImpl @Inject constructor(
         deviceModel: String?,
         exportedAtEpochMs: Long,
     ): ByteArray = withContext(dispatcher) {
-        // Process-stable (only changes on migration at open); read once, outside the transaction.
-        // Room 3 removed `openHelper`; read PRAGMA user_version through a reader connection.
+        // Process-stable (changes only on migration at open); read once, outside the transaction.
         val dbSchemaVersion = database.useReaderConnection { connection ->
             connection.usePrepared("PRAGMA user_version") { stmt ->
                 if (stmt.step()) stmt.getLong(0).toInt() else 0
             }
         }
-        // One consistent snapshot: every table read + the in-memory index build runs inside a
-        // single Room read transaction. The export is fire-and-forget (spec D2) so it can overlap
-        // live workout edits; without the transaction each DAO call would observe its own snapshot
-        // and an interleaved insert could surface a child row whose parent/name row was not read
-        // (e.g. `exerciseNameByUuid` falling back to ""). The transaction pins all reads to one state.
-        // Room 3: `withTransaction {}` → `useReaderConnection { it.deferredTransaction {} }` (reads only);
-        // `coroutineScope` is nested INSIDE so the `async {}` children reuse the transaction connection.
+        // One read transaction pins every read to one snapshot; the export can overlap live edits.
+        // GUARD: `coroutineScope` nests INSIDE so the `async {}` children reuse that connection.
         val snapshot = database.useReaderConnection { transactor ->
             transactor.deferredTransaction {
                 coroutineScope {
@@ -95,7 +81,6 @@ public class DatabaseJsonExporterImpl @Inject constructor(
                 }
             }
         }
-        // Encode outside the transaction — pure CPU, no DB access; keeps the transaction short.
         json.encodeToString(snapshot).encodeToByteArray()
     }
 
@@ -125,8 +110,6 @@ public class DatabaseJsonExporterImpl @Inject constructor(
         }
         return ExportIndex(
             exerciseNameByUuid = exerciseNameByUuidDeferred.await(),
-            // Full-table tag joins (no uuid binding) — cannot hit SQLITE_MAX_VARIABLE_NUMBER, and
-            // consistent with the unfiltered getAll() readers below.
             tagsByExercise = tagsByExerciseDeferred.await(),
             tagsByTraining = tagsByTrainingDeferred.await(),
             planByTraining = planByTrainingDeferred.await(),

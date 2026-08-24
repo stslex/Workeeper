@@ -43,35 +43,8 @@ import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 
 /**
- * One exercise of the training editor's list, as a card — **collapsed by default** (ED14,
- * `v3-editors.md` §3.4).
- *
- * Collapsed is the drawn `#s-past` form — ordinal, type glyph, name, `.plan-line` summary —
- * plus the two controls the editor adds: the drag handle and the `✕`. Expanded adds
- * [PlanEditorBody]'s rows and `.setbar` under the same head; an open card takes the lifted
- * surface, the same `.card.open` signature the past session draws.
- *
- * The collapsed form itself is [CardHeadContent], shared with the read screen's
- * [TrainingExerciseReadCard] (ED9): one drawn form, two trailing treatments — the editor's
- * two controls here, the `.chev` there. A second copy of the head is the drift this arc
- * exists to remove.
- *
- * **`onTypeChange = null` IS the rule**: type belongs to the exercise, not to a
- * training-scoped editor, and the exclusion is carried by the argument — the body draws no
- * toggle for a host that supplies no handler, with no `when` on a mode anywhere.
- *
- * ## The head's three targets, and why none swallows another
- *
- * Expansion is the head's tap ([onToggle], on the head Row's `clickable`), but the handle and
- * the `✕` are its children, and children see pointer events first:
- *
- *  - the `✕` is an [IconButton] — its own clickable node consumes the tap outright, so the
- *    head's `clickable` never fires under it;
- *  - the handle's box carries only the long-press drag detector ([dragHandleModifier]); a
- *    long-press starts the drag and cancels the head's tap, while a plain tap deliberately
- *    falls through to expansion — the handle's own gesture is the long-press, and it keeps it.
- *
- * Both are 48dp boxes ([AppDimension.iconXl]), so neither target shrinks to its glyph.
+ * One exercise of the training editor's list, as a card — collapsed by default (ED14,
+ * `v3-editors.md` §3.4). `onTypeChange = null` is the rule: type belongs to the exercise.
  */
 @Composable
 internal fun TrainingExerciseCard(
@@ -113,13 +86,7 @@ internal fun TrainingExerciseCard(
     }
 }
 
-/**
- * The read screen's exercise card (ED9, `v3-editors.md` §3.3): [CardHeadContent] — the same
- * collapsed form S4 shipped in the editor — minus the drag handle and the `✕`, plus the
- * `.chev`. Always collapsed, always resting: an exercise on the read screen is a thing with
- * contents you navigate INTO, not a row you edit, so the card carries one gesture and one
- * promise.
- */
+/** The read screen's exercise card (ED9): the collapsed form plus `.chev`, always resting. */
 @Composable
 internal fun TrainingExerciseReadCard(
     item: TrainingExerciseItem,
@@ -166,17 +133,15 @@ private fun CardHead(
         horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
     ) {
         CardHeadContent(item = item)
-        // THE GESTURE IS ON THE CONTAINER, NOT ON THE GLYPH — a bare `pointerInput` gets none
-        // of `IconButton`'s minimum-touch-target expansion, so the box is the 48dp target and
-        // the glyph stays small.
+        // The drag gesture sits on the 48dp box, not the glyph — a bare `pointerInput` gets
+        // none of IconButton's minimum-touch-target expansion.
         Box(
             modifier = dragHandleModifier
                 .size(AppDimension.iconXl)
                 .testTag("TrainingExerciseCardDrag_${item.exerciseUuid}"),
             contentAlignment = Alignment.Center,
         ) {
-            // `Icons.Filled.DragHandle`, exactly as the row it replaces drew it — B33(b) is
-            // open and a new stroke glyph here would settle it by accident.
+            // `Icons.Filled.DragHandle`, exactly as the row it replaces drew it.
             Icon(
                 modifier = Modifier.size(AppDimension.iconSm),
                 imageVector = Icons.Filled.DragHandle,
@@ -192,8 +157,7 @@ private fun CardHead(
         ) {
             Icon(
                 modifier = Modifier.size(AppDimension.iconSm),
-                // Removes from THIS training only, immediately and unconfirmed (D-OPEN-11):
-                // the draft is unsaved and Cancel stands behind it.
+                // Removes from this training only, unconfirmed (D-OPEN-11).
                 imageVector = AppIcons.Close,
                 contentDescription = stringResource(R.string.feature_training_edit_remove_exercise),
                 tint = AppUi.colors.textTertiary,
@@ -202,11 +166,7 @@ private fun CardHead(
     }
 }
 
-/**
- * The collapsed card's drawn form (`#s-past`, ED14): ordinal · type glyph · name over the
- * `.plan-line` summary. Both hosts — the editor's [CardHead] and [TrainingExerciseReadCard] —
- * compose this and add only their trailing controls.
- */
+/** The collapsed card's drawn form: ordinal · type glyph · name over the `.plan-line`. */
 @Composable
 private fun RowScope.CardHeadContent(item: TrainingExerciseItem) {
     Text(
@@ -255,9 +215,7 @@ internal fun TypeIcon(type: ExerciseTypeUiModel) {
     ) {
         Icon(
             modifier = Modifier.size(AppDimension.iconSm),
-            // §26 "The image moves into the pushed top bar" — the same two stroke marks the
-            // thumb and the hero draw. A stroke here too: a filled mark would
-            // ship the exercise type as two different pictures.
+            // Stroke marks, as the thumb and the hero draw them (§26).
             imageVector = if (isWeighted) AppIcons.ExerciseWeighted else AppIcons.ExerciseWeightless,
             contentDescription = null,
             tint = if (isWeighted) {

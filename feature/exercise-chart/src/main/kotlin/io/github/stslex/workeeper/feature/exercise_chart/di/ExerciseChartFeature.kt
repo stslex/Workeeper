@@ -16,19 +16,9 @@ import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChart
 internal typealias ExerciseChartStoreProcessor = StoreProcessor<State, Action, Event>
 
 /**
- * feature/exercise-chart resolves its Store through the Metro **graph-extension** path.
- *
- * The app-scope graph (returned as `Any` by the `AppDepsHolder` seam) IS the parent graph and, once
- * `:app` is compiled, implements the contributed [ExerciseChartGraph.Factory]; `appDeps<T>()` re-narrows
- * it with its `as T` cast. All 8 formerly hand-threaded app-scoped deps are inherited from the parent,
- * so the three `appDeps` dep-interface lookups this file used to make, and the whole
- * `createGraphFactory(...).create(...)` argument list, are gone.
- *
- * The `Screen.ExerciseChart` route arg is passed to the extension factory as a bound instance (shape B),
- * so the extension is built per navigation entry and carries that entry's arg — the Store needs no
- * assisted factory. The extension is created INSIDE the `rememberMetroStoreProcessor` lambda, so it is
- * built at most once per retained Store (per `NavBackStackEntry`), binding it and its
- * `@SingleIn(ExerciseChartScope)` nodes to exactly the Store's lifetime.
+ * feature/exercise-chart resolves its Store through the Metro graph-extension path. The
+ * extension is created inside `rememberMetroStoreProcessor`, so it lives exactly as long as
+ * the retained Store.
  */
 internal object ExerciseChartFeature : FeatureAssisted<
     ExerciseChartStoreProcessor,

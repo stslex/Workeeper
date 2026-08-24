@@ -189,16 +189,8 @@ class ExerciseChartScreenTest : BaseComposeTest() {
 
     @Test
     fun chart_singlePoint_neverReachesTheCanvas() {
-        // v3 put a SECOND, earlier gate in front of the canvas. The canvas still keeps its own
-        // below-two-points fallback — it draws gridlines and returns, index spacing needs n ≥ 2
-        // (ChartCanvas.kt) — but the screen no longer routes a sub-threshold dataset there at
-        // all: `points.size >= MIN_CHART_POINTS -> Content.Plot`, else `Content.Loading`
-        // (ExerciseChartStore.kt). So what this pins is reachability, not the canvas's maths.
-        // It is ChartContent's claim — "there is no arrangement of fields here that can put an
-        // empty chart on screen" — turned into a test. Production never builds this state
-        // (CommonHandler resolves a sub-threshold dataset to EmptyReason.NO_DATA_FOR_EXERCISE),
-        // so constructing it by hand is the only way to attack the gate. Measured, not assumed:
-        // relax the branch to `points.isNotEmpty()` and this test goes red.
+        // Pins reachability, not the canvas's maths: the screen routes a sub-threshold dataset
+        // to Content.Loading, so it never composes the canvas. Production never builds this.
         val singlePointState = baseState().copy(
             points = persistentListOf(
                 ChartPointUiModel(LocalDate.of(2026, 4, 20), 0L, "session-1", 100.0, 1),

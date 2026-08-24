@@ -49,8 +49,7 @@ internal class CommonHandler @Inject constructor(
                         recentExercises = result.recents,
                         selectedExercise = result.selected,
                         emptyReason = result.emptyReason,
-                        // Stop the spinner only when we're not about to fire loadChart —
-                        // otherwise loadChart owns the false transition.
+                        // loadChart owns the false transition when it is about to fire.
                         isLoading = result.isLoading,
                     )
                 }
@@ -58,10 +57,8 @@ internal class CommonHandler @Inject constructor(
                     loadChart(selected)
                 }
             },
-            // GUARD: `HandlerStore.launch` defaults `onError` to `{}` (B17, B21), and the route
-            // composes nothing until the state resolves. A swallowed throw here leaves
-            // `emptyReason` null with no points, which is `Content.Loading` — a blank screen with
-            // no way out. Resolving to LOAD_FAILED is what gives the failure a rendered form.
+            // GUARD: `HandlerStore.launch` defaults `onError` to `{}`, and a swallowed throw
+            // leaves the screen on `Content.Loading` forever — resolve to LOAD_FAILED instead.
             onError = { resolveToLoadFailure() },
         ) {
             val recentsDeferred = async {
@@ -90,24 +87,12 @@ internal class CommonHandler @Inject constructor(
         }
     }
 
-    /**
-     * Re-fetch and bucket the chart for [exercise] using the current preset / metric.
-     * Toggles `isLoading` true → false around the fetch and clears any prior tooltip /
-     * `emptyReason`. On empty result, sets `EmptyReason.NO_DATA_FOR_EXERCISE`.
-     *
-     * Exposed for [ClickHandler] to call on picker / preset / metric changes.
-     */
+    /** Re-fetch and bucket the chart for [exercise]; [ClickHandler] calls it on every change. */
     fun loadChart(exercise: ExercisePickerItemUiModel) {
         val current = state.value
         val metric = current.metric.toDomain()
         val type = exercise.type.toDomain()
-        // The retarget sources — metric tabs, preset chips, picker — are one path with
-        // three triggers, and a user can fire them faster than the DB answers. Two guards,
-        // because neither alone is enough: the previous request is cancelled so it stops
-        // competing, and the response carries the request that asked for it so a winner
-        // that is already stale cannot be applied. Without them the last response to LAND
-        // won outright, and since `metric` is never rewritten by a load, the chart could
-        // settle showing Сессия's data under a highlighted Сет tab, permanently.
+        // Two staleness guards: cancel the previous load, and stamp the response with its request.
         val request = ChartRequest(
             exerciseUuid = exercise.uuid,
             preset = current.preset,
@@ -117,21 +102,12 @@ internal class CommonHandler @Inject constructor(
         loadJob = launchDefault(
             onSuccess = { result ->
                 if (state.value.requestOf() != request) return@launchDefault
-                // Rule 1 (compose-state-discipline): everything below is mapped in the
-                // collector body, off Main.immediate; the lambda only copies State. The
-                // prior points/activeIndex are read here rather than from the lambda
-                // argument — a scrub landing in between would be lost either way (it is a
-                // second writer of activeIndex), and the guard above has just established
-                // that this response is the live one.
+                // Rule 1: mapping happens here; the lambda only copies State.
                 val prior = state.value
                 val newPoints = result.toUiPoints()
-                // §4.8: the copy states the threshold — the chart appears after TWO
-                // recorded sessions. Below two points there is no line to draw (the
-                // canvas is index-spaced), so sub-threshold is an empty state, not a
-                // degenerate chart, and the readout/scrub state stays clear.
+                // §4.8: below two points there is no line, so sub-threshold is an empty state.
                 val subThreshold = newPoints.size < State.MIN_CHART_POINTS
-                // A metric switch replots the same sessions. Session identity, rather than
-                // day, keeps duplicate-day points from transferring the scrub to a sibling.
+                // Session identity, not day: duplicate-day points must not transfer the scrub.
                 val sameSessions = prior.points.map(ChartPointUiModel::sessionUuid) ==
                     newPoints.map(ChartPointUiModel::sessionUuid)
                 val activeIndex = if (subThreshold) {
@@ -164,9 +140,8 @@ internal class CommonHandler @Inject constructor(
                     )
                 }
             },
-            // Same guard as processInit. The staleness check is repeated because `runCatching`
-            // in AppCoroutineScopeImpl catches CancellationException too: `loadJob.cancel()` on
-            // the next preset/metric tap must not paint a failure over the load that replaced it.
+            // Same guard as processInit; the staleness check is repeated because
+            // `AppCoroutineScopeImpl`'s `runCatching` catches CancellationException too.
             onError = {
                 if (state.value.requestOf() != request) return@launchDefault
                 resolveToLoadFailure()
@@ -182,13 +157,7 @@ internal class CommonHandler @Inject constructor(
         }
     }
 
-    /**
-     * Resolves the screen to the one empty reason whose recovery is "ask again".
-     *
-     * Deliberately does not reuse NO_DATA_FOR_EXERCISE or NO_FINISHED_SESSIONS: those state that
-     * the database answered and the answer was nothing. A read that threw has no answer, and the
-     * CTA it needs is a retry, not the picker or home.
-     */
+    /** Resolves the screen to LOAD_FAILED — the one empty reason whose recovery is a retry. */
     private suspend fun resolveToLoadFailure() {
         updateStateImmediate { current ->
             current.copy(

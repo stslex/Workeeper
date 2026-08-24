@@ -13,9 +13,8 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 /**
- * Pins the [AppScopeLifetime] contract the Phase 5 generation model stands on
- * (`kmp-phase-5-startup-processor.md` §8.2): per-consumer supervisor isolation identical to the
- * anonymous scopes it replaces, plus the ONE property those scopes lacked — a deterministic end.
+ * Pins the [AppScopeLifetime] contract: per-consumer supervisor isolation, plus the property the
+ * anonymous scopes it replaced lacked — a deterministic end.
  */
 internal class AppScopeLifetimeTest {
 
@@ -38,8 +37,7 @@ internal class AppScopeLifetimeTest {
 
         lifetime.cancelAndJoin()
 
-        // Join semantics, not just cancel semantics: the Quiescing contract is "the work has
-        // ENDED", which includes the collector's finally path having run.
+        // Join semantics, not just cancel: "ended" includes the collector's finally path.
         assertTrue(finallyRan, "cancelAndJoin must await the cancelled child's finally block")
         assertFalse(lifetime.isActive, "the lifetime must be inactive after cancelAndJoin")
     }
@@ -55,9 +53,7 @@ internal class AppScopeLifetimeTest {
         lifetime.childScope(dispatcher).launch { siblingRan = true }
         runCurrent()
 
-        // The pre-Phase-5 anonymous scopes were per-consumer supervisors; the lifetime preserves
-        // exactly that isolation — a failed reactor must not take down the auth mirror, and must
-        // not end the generation.
+        // Isolation: a failed consumer ends neither a sibling nor the generation.
         assertTrue(siblingRan, "a sibling consumer's work must run despite another's failure")
         assertTrue(lifetime.isActive, "a consumer failure must not cancel the generation lifetime")
     }
@@ -87,8 +83,7 @@ internal class AppScopeLifetimeTest {
         lifetime.childScope(dispatcher).launch { ran = true }
         runCurrent()
 
-        // A terminal generation must be terminal for late arrivals too: a scope derived after the
-        // end is dead on arrival, not a resurrection hatch.
+        // A terminal generation is terminal for late arrivals too.
         assertFalse(ran, "work launched on a post-cancel child scope must not run")
     }
 

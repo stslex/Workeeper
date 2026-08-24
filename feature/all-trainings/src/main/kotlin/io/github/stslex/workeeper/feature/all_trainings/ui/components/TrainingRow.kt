@@ -31,19 +31,8 @@ import io.github.stslex.workeeper.feature.all_trainings.mvi.model.TrainingListIt
 import kotlinx.collections.immutable.persistentListOf
 
 /**
- * One row of the trainings list — `pass2d.html` `#s-list` `.row`.
- *
- * The skeleton is [AppListRow] — 88dp, ruled, two-line name over one meta line, trailing region —
- * and its derivations live there: the gutter, the fixed-width slot's measured reflow, and the
- * `--hair-s` rule. What follows is this payload's own.
- *
- * ## No leading media, and no chips
- *
- * §26 "Leading media in list rows" is a stated **absence** — `imagePath` and the type icon stay on
- * the detail screen. §26 "Meta-line order" rejects in-row tag chips: `.tag` as drawn does not sit
- * in an 88dp row, and the full set lives in the filter band above the list, so the row **confirms**
- * tags rather than enumerating them. Both shipped here before the extraction; both are gone.
- *
+ * One row of the trainings list, on the [AppListRow] skeleton. No leading media and no in-row
+ * tag chips — the filter band above the list carries the full set (§26).
  */
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
@@ -56,18 +45,12 @@ internal fun TrainingRow(
     onLongPress: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // Selected and active share one surface — `--slab` + `--slabtop` — and that is the drawing's
-    // own answer rather than a collision left unresolved: the live row carries its running-ness in
-    // the meta line («идёт сейчас · 12:04»), which is content and survives selection mode, so a row
-    // that is both is still legible as running. The accent ring this row used to keep under
-    // selection was solving a problem the meta line already solves.
+    // Selected and active share one surface — the meta line keeps a live row legible either way.
     val lifted = isSelected || item.isActive
     AppListRow(
         modifier = modifier,
-        // Called unconditionally and driven by the flag, per its own KDoc: branching at the call
-        // site would rebuild the modifier graph on the flip and kill the tween. The drawn resting
-        // row has no fill of its own — it sits on `--base` — so the resting colour is transparent
-        // rather than the default `surfaceTier1`.
+        // GUARD: call unconditionally and drive it by the flag — branching here rebuilds the
+        // modifier graph on the flip and kills the tween. Resting colour is transparent here.
         rowModifier = Modifier
             .liftedSurface(
                 shape = RectangleShape,
@@ -87,28 +70,8 @@ internal fun TrainingRow(
 }
 
 /**
- * The fixed-width trailing slot: chevron at rest, check when selected, and **empty** when selection
- * is on and this row is not — a row in that mode leads nowhere and has nothing to promise, so the
- * chevron goes and the slot stays.
- *
- * ## The crossfade — §26, continuity motion
- *
- * The chevron and the check used to replace each other between two frames, with no path between
- * them: a glyph the user was looking at became a different glyph, instantly, on a gesture whose
- * whole point is that the row is still the same row. That is the definition of the continuity
- * class — remove the tween and something teleports — so it is not a third §9 moment and it carries
- * no expressive weight.
- *
- * Two properties are deliberate. `using null` **suppresses the size transform**: the slot is
- * already fixed at [SLOT] and an animated container would put back exactly the reflow the amended
- * ledger row removed. And the transition is a **pure alpha crossfade on one shared spec** — no
- * colour is interpolated anywhere in it, which is what keeps the `fadedOut` rule satisfied by
- * construction rather than by care, since the two glyphs carry different tints and lerping between
- * them is precisely the Oklab path §27 measured.
- *
- * Which kind is drawn is [trailingSlotKind]'s decision, not this function's — a picture of the
- * slot cannot see the choice, and now that the choice drives a 260ms transition it is worth less
- * than ever to leave unasserted.
+ * The fixed-width trailing slot: chevron at rest, check when selected, empty while selecting
+ * another row. GUARD: `using null` suppresses the size transform, which would reflow every row.
  */
 @Composable
 private fun TrailingSlot(
@@ -147,11 +110,7 @@ private fun TrailingSlot(
     }
 }
 
-/**
- * §26 "Meta-line order": **information first, tags last.** The line does not wrap, so what
- * truncates is always the tail, and the tail is tags — which is why the order is fixed rather
- * than incidental.
- */
+/** §26 "Meta-line order": information first, tags last, since the tail is what truncates. */
 @Composable
 private fun TrainingListItemUi.metaLine(): String {
     val count = pluralStringResource(

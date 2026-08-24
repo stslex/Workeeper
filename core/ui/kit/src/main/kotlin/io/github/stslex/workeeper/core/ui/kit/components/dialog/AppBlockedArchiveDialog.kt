@@ -27,13 +27,8 @@ import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 
 /**
- * Acknowledge-style dialog shown when one or more exercises could not be archived because
- * they are still used by active trainings. Shared by the all-exercises list (bulk archive)
- * and the exercise detail screen (single archive) so the "blocked" feedback can't drift.
- *
- * All display strings are pre-formatted by the caller's UI mapper (including truncation of
- * long training lists); this component only lays them out. There is nothing to confirm —
- * the single button dismisses.
+ * Acknowledge-style dialog for exercises that could not be archived because active trainings
+ * still use them. Every display string arrives pre-formatted from the caller's UI mapper.
  */
 @Composable
 fun AppBlockedArchiveDialog(
@@ -59,16 +54,8 @@ fun AppBlockedArchiveDialog(
 }
 
 /**
- * The dialog's **content**, without the window.
- *
- * Same split, and the same reason, as [AppConfirmDialogContent]: `Dialog {}` composes into its own
- * window and Paparazzi models a single one, so this — the only surface that reports a partially
- * blocked bulk archive — had a drawn treatment and no visual gate at all. The window is the part
- * Paparazzi cannot model; the content is not, and it is where every colour, rung and the scrolling
- * cap actually live.
- *
- * [AppBlockedArchiveDialog] is the only production caller. This exists so goldens can render the
- * same pixels without a window, which is why it must stay a pure function of its arguments.
+ * The dialog's content without the window, so goldens can render the same pixels - Paparazzi
+ * models a single window. Must stay a pure function of its arguments.
  */
 @Composable
 fun AppBlockedArchiveDialogContent(
@@ -151,10 +138,7 @@ private fun BlockedRow(item: BlockedArchiveItem) {
     }
 }
 
-/**
- * One blocked exercise. [trainingsLabel] is already formatted (and truncated) by the
- * caller's UI mapper, e.g. "used in Push Day, Leg Day +3 more".
- */
+/** One blocked exercise; [trainingsLabel] arrives already formatted and truncated. */
 data class BlockedArchiveItem(
     val exerciseName: String,
     val trainingsLabel: String,

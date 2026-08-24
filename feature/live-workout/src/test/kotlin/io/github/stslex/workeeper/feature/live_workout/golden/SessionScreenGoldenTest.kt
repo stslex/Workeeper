@@ -22,12 +22,8 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.EnumSource
 
 /**
- * The whole frame (extraction §1.1): topbar · shead · rail · cards · addex · dock, on one
- * full-device canvas. The per-region goldens lock each element; this one locks how they
- * compose — the gutters, the vertical rhythm, the dock gradient over the scrolled tail —
- * which is exactly the layer step 5's per-component view missed.
- *
- * Out-of-window surfaces (sheets, dialogs, dropdown) stay Hidden here by design (§10.4).
+ * The whole frame (extraction §1.1) on one full-device canvas: this locks how the regions
+ * compose, not the regions themselves. Out-of-window surfaces stay Hidden (§10.4).
  */
 internal class SessionScreenGoldenTest {
 

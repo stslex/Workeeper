@@ -10,16 +10,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.junit4.ComposeContentTestRule
 import io.github.stslex.workeeper.core.ui.mvi.Store
 
-/**
- * Base class for Compose UI tests providing common functionality
- */
+/** Shared helpers for Compose UI tests. */
 @VisibleForTesting
 abstract class BaseComposeTest {
 
-    /**
-     * Wraps content with SharedTransitionScope for testing
-     * Use this with ComposeTestRule.setContent { ... }
-     */
+    /** Mounts [content] inside a `SharedTransitionScope`, for widgets that require one. */
     @SuppressLint("UnusedContentLambdaTargetStateParameter")
     protected fun ComposeContentTestRule.setTransitionContent(
         content: @Composable SharedTransitionScope.(
@@ -41,9 +36,7 @@ abstract class BaseComposeTest {
 
     protected fun <T : Store.Action> createActionCapture(): ActionCapture<T> = ActionCapture()
 
-    /**
-     * Captures actions for verification in tests
-     */
+    /** Collects dispatched actions so a test can assert on them. */
     protected class ActionCapture<T : Store.Action> internal constructor() : (T) -> Unit {
         val capturedActions = mutableListOf<T>()
 

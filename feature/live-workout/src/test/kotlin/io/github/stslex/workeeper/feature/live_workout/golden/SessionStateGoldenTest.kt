@@ -19,18 +19,7 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.EnumSource
 
 /**
- * The session's set and exercise states (§6.1, §6.5, §14), at rest.
- *
- * These render the real feature components rather than kit stand-ins, which is why the
- * goldens live in this module. The harness comes from `core:ui:kit`'s testFixtures, so device
- * config, `maxPercentDifference`, `useDeviceResolution` and the 392dp canvas are the same
- * values the kit goldens use — a copied harness would let those drift per module and weaken
- * the gate silently.
- *
- * **Explicitly not covered**, per §10.4: both wow moments. The set-closure morph, the row
- * flash and the molten unfurl are time-based, and Paparazzi renders one frame of a single
- * window. The `pr` case below is the *resting* record state, not the animation that reaches
- * it. Those are on the device checklist.
+ * The session's set and exercise states at rest, on `core:ui:kit`'s shared golden harness.
  */
 internal class SessionStateGoldenTest {
 
@@ -57,17 +46,14 @@ internal class SessionStateGoldenTest {
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
     fun setUnfilled(theme: GoldenTheme, testInfo: TestInfo) {
-        // §6.1's sentinel rendered: reps = 0 shows an EMPTY field, which is precisely why a
-        // deliberate zero cannot be told from an unfilled row and why discarding is safe.
+        // reps = 0 renders an EMPTY field, so a deliberate zero cannot be told apart.
         goldenSubject(testInfo, theme) { SetRow(set(isDone = false, reps = 0)) }
     }
 
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
     fun setPersonalRecordDone(theme: GoldenTheme, testInfo: TestInfo) {
-        // pr + done: molten wins the value and the mark (`.pr` is declared after `.done`),
-        // the wash stays molten, the field's inputs are locked. Weight 102.5 on purpose —
-        // the 5-glyph worst case for the 26sp Archivo value's width budget.
+        // pr + done: molten wins the value and the mark; 102.5 is the 5-glyph worst case.
         goldenSubject(testInfo, theme) {
             SetRow(set(isDone = true, isRecord = true, weight = 102.5))
         }
@@ -76,8 +62,7 @@ internal class SessionStateGoldenTest {
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
     fun setTwoDigitReps(theme: GoldenTheme, testInfo: TestInfo) {
-        // Pins the weighted two-digit-reps cell — the tightest value the reps column
-        // carries (set-field-column-headers.md §8, fixture 1).
+        // Pins the weighted two-digit-reps cell — the tightest value the reps column carries.
         goldenSubject(testInfo, theme) { SetRow(set(isDone = false, reps = 12)) }
     }
 
@@ -102,9 +87,7 @@ internal class SessionStateGoldenTest {
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
     fun setFlashPeak(theme: GoldenTheme, testInfo: TestInfo) {
-        // The §10.2 pair with `setDone`: the flash frozen at its peak through
-        // `flashAlphaOverride`. A lone resting golden asserts nothing about the wash's
-        // strength or its per-theme peak (13% dark / 9% light — `--flash` as drawn).
+        // The §10.2 pair with `setDone`: the flash frozen at its peak via `flashAlphaOverride`.
         goldenSubject(testInfo, theme) {
             LiveSetRow(
                 set = set(isDone = true),
@@ -120,13 +103,7 @@ internal class SessionStateGoldenTest {
         }
     }
 
-    // --- Exercise states (§1.5): resting, active, fin, fin-reopened, skip, temp --------
-    //
-    // BASELINE CORRECTIONS against the step-5 goldens: the card is 16dp-radius, the ordinal
-    // is the 7-state `.ordchip`, done is a checkmark-on-donefill + meta/500 title (not an
-    // alpha fade), skip is opacity .5 + strikethrough, the sub is always the plan, the head
-    // carries the pstrip micro-rail and the `.mini` cluster with the rotating chevron — and
-    // the LIFT keys on *expanded* (`.card.active` == isOpen), not on CURRENT.
+    // Exercise states (§1.5): resting, active, fin, fin-reopened, skip, temp.
     // `exercisePending`/`exerciseActive` are the lift's §10.2 pair (unlifted / lifted).
 
     @ParameterizedTest
@@ -148,8 +125,7 @@ internal class SessionStateGoldenTest {
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
     fun exerciseSingleRow(theme: GoldenTheme, testInfo: TestInfo) {
-        // The setbar's §10.2 pair with `exerciseActive`: at one visible row `− подход` is
-        // disabled (opacity .35, extraction §1.7) while `+ подход` stays live.
+        // The setbar's §10.2 pair with `exerciseActive`: at one row `− подход` is disabled.
         goldenSubject(testInfo, theme) {
             Card(exercise(ExerciseStatusUiModel.CURRENT, done = 0, sets = 1), expanded = true)
         }
@@ -166,11 +142,7 @@ internal class SessionStateGoldenTest {
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
     fun exerciseFinishedReopened(theme: GoldenTheme, testInfo: TestInfo) {
-        // A completed card opens and closes like any other (the amended disclosure model;
-        // the old §7 auto-collapse is retired) and lifts like any open card — fin + active
-        // co-exist, fin winning the chip (stylesheet order, L87–88). No golden ever pinned
-        // the automaton's dynamics — every case passes `expanded` explicitly — so its
-        // retirement moves no pixels here.
+        // A completed card opens, closes and lifts like any other; fin wins the chip.
         goldenSubject(testInfo, theme) {
             Card(exercise(ExerciseStatusUiModel.DONE, done = 3), expanded = true)
         }
@@ -187,8 +159,7 @@ internal class SessionStateGoldenTest {
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
     fun exerciseOneOff(theme: GoldenTheme, testInfo: TestInfo) {
-        // The `temp` state of §6.1: in the session, not in the plan (§6.2). NOT `is_adhoc` —
-        // this exercise may be a long-standing library entry added as a one-off today.
+        // `temp`: in the session, not in the plan — NOT `is_adhoc`.
         goldenSubject(testInfo, theme) {
             Card(
                 exercise(ExerciseStatusUiModel.CURRENT, done = 0, isPlanAttached = false),
@@ -201,7 +172,7 @@ internal class SessionStateGoldenTest {
     @EnumSource(GoldenTheme::class)
     fun exerciseOneOffFinished(theme: GoldenTheme, testInfo: TestInfo) {
         // temp.fin: the checkmark replaces the number here too — `.card.fin .ordchip svg`
-        // has no `:not(.temp)` guard (the extraction's own state table has this wrong).
+        // has no `:not(.temp)` guard.
         goldenSubject(testInfo, theme) {
             Card(
                 exercise(ExerciseStatusUiModel.DONE, done = 3, isPlanAttached = false),
@@ -213,10 +184,7 @@ internal class SessionStateGoldenTest {
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
     fun exerciseTenSets(theme: GoldenTheme, testInfo: TestInfo) {
-        // The D3 canary (set-field-column-headers.md §8, fixture 3): at ten sets the index
-        // label "10" measures past the 12dp minimum, and the resolved width reaches the
-        // header AND every row from one place — this frame pins them aligned at the grown
-        // gutter. The past-session twin is `cardDoubleDigitIndex`.
+        // The D3 canary: at ten sets the index label "10" grows the shared resolved width.
         goldenSubject(testInfo, theme) {
             Card(exercise(ExerciseStatusUiModel.CURRENT, done = 4, sets = 10), expanded = true)
         }
@@ -225,9 +193,7 @@ internal class SessionStateGoldenTest {
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
     fun exerciseBodyweightRu(theme: GoldenTheme, testInfo: TestInfo) {
-        // Pins the ПОВТОРЕНИЙ header over the single bodyweight column in the shipped RU
-        // strings — the widest header label there is (set-field-column-headers.md §8,
-        // fixture 2). Two-digit reps on purpose: the tightest value under it.
+        // Pins the ПОВТОРЕНИЙ header — the widest label — over the bodyweight column.
         val weighted = exercise(ExerciseStatusUiModel.CURRENT, done = 0)
         goldenSubject(testInfo, theme, locale = LOCALE_RU) {
             Card(

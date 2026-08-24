@@ -6,42 +6,18 @@ import io.github.stslex.workeeper.core.core.images.model.ImageSaveResult
 interface ImageStorage {
 
     /**
-     * Reads the image at [sourceRef], decodes it, downsamples to fit within
-     * [MAX_EDGE]x[MAX_EDGE], compresses as JPEG quality [QUALITY], and writes
-     * it atomically to filesDir/exercise_images/<exerciseUuid>.jpg.
-     *
-     * If a file already exists at the destination, it is overwritten (atomic
-     * via temp file + rename — old file remains intact if the process dies).
-     *
-     * Caller is responsible for invoking deleteImage() on any *previous* path
-     * that this exercise had — saveImage does not track that.
-     *
-     * @return [ImageSaveResult.Success] on success, or [ImageSaveResult.Failure]
-     *         on failure. Never throws.
+     * Downsamples [sourceRef] and writes it atomically as JPEG to the exercise's canonical path.
+     * Never throws; the caller must delete the exercise's previous path itself.
      */
     suspend fun saveImage(sourceRef: ImageRef, exerciseUuid: String): ImageSaveResult
 
-    /**
-     * Returns a temporary capture reference (an image URI on Android) suitable for
-     * handing to the camera launcher; on success, the camera writes the captured image
-     * there. The caller is then expected to call saveImage(ref, exerciseUuid) to
-     * downsample + persist to the canonical location.
-     *
-     * Temp files live in filesDir/exercise_images/.tmp/ and are cleaned up by
-     * cleanupTempFiles() on next app start.
-     */
+    /** A temp capture reference for the camera launcher; pass it to [saveImage] to persist. */
     suspend fun createTempCaptureRef(): ImageRef
 
-    /**
-     * Deletes the file at [path]. No-op if absent. Returns true if a file
-     * was actually deleted.
-     */
+    /** Deletes the file at [path]. No-op if absent; returns true if a file was deleted. */
     suspend fun deleteImage(path: String): Boolean
 
-    /**
-     * Removes any temp capture files left behind by killed processes.
-     * Called once at app startup.
-     */
+    /** Removes temp capture files left behind by killed processes. Runs once at app startup. */
     suspend fun cleanupTempFiles()
 
     companion object {

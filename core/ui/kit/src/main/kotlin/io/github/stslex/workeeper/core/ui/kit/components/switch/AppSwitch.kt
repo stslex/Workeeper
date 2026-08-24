@@ -28,14 +28,8 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
 
 /**
- * The v3 `.sw` (extraction §1.9): a 46×28 capsule whose ON state is `max` — the achromatic
- * accent, not a hue. Knob 22dp at a 3dp inset, travelling 18dp on the `spring` curve
- * (geometry, so overshoot is legal — spec §5); track and knob colours ride `out`.
- *
- * Two measured substitutions, both the palette's standing corrections for `hair-s`:
- * the OFF track is [io.github.stslex.workeeper.core.ui.kit.theme.AppColors.borderDefault]
- * (the mockup's `--hair-s` measures 1.12–1.52:1 — invisible for a control that IS its
- * track), and the OFF knob keeps the mockup's `meta`.
+ * A capsule switch whose ON state is the achromatic accent. The OFF track uses `borderDefault`,
+ * not the drawn hairline, which is too faint for a control that IS its track.
  */
 @Composable
 fun AppSwitch(
@@ -87,7 +81,6 @@ private val TRACK_RADIUS = 14.dp
 private val KNOB_SIZE = 22.dp
 private val KNOB_INSET = 3.dp
 
-/** `translateX(18px)`. */
 private val KNOB_TRAVEL = 18.dp
 
 @Preview

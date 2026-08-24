@@ -42,11 +42,7 @@ fun AppFAB(
     contentColor: Color = AppUi.colors.onAccent,
     cornerRadius: Dp = AppDimension.Radius.medium,
 ) {
-    // The morph is shape only. `#s-list` opens the squircle into a circle — 18px into 28px on a
-    // 56px button, i.e. exactly half its size — over `260ms var(--e-spring)`, and changes nothing
-    // else: the fill stays `--max` and the content `--base` through the whole transition. Colour
-    // was carrying a claim the action does not make (§26, "FAB in selection mode"). The overshoot
-    // is legal here because a corner radius encodes no value (§26, overshoot row).
+    // The selection-mode morph is shape only: the corner radius opens the squircle into a circle.
     val animatedRadius by animateDpAsState(
         targetValue = cornerRadius,
         animationSpec = tween(
@@ -67,10 +63,8 @@ fun AppFAB(
     FloatingActionButton(
         modifier = modifier
             .size(56.dp)
-            // The description lives on the BUTTON, not on the glyph, and that is a consequence of
-            // the crossfade below rather than a preference: for 260ms two `Icon`s are composed at
-            // once, and a description on each would merge into a node announcing both. One stable
-            // node whose label changes when the parameter does; the glyphs are decoration.
+            // GUARD: the description belongs on the button, not the glyphs — the crossfade
+            // composes two Icons at once and per-glyph descriptions would merge into one node.
             .semantics { contentDescription?.let { this.contentDescription = it } },
         onClick = onClick,
         containerColor = animatedContainer,
@@ -83,18 +77,8 @@ fun AppFAB(
             hoveredElevation = 0.dp,
         ),
     ) {
-        // §26 continuity motion, and this site is the class's own definition failing inside one
-        // component. The radius above interpolates across the full 260ms while the glyph changed
-        // between two adjacent frames — measured on device, `+` at full opacity in frame N and the
-        // archive box at full opacity in frame N+1, in both directions — so half of this button
-        // travelled and half teleported, at the same instant, on the same gesture.
-        //
-        // It is a transit by the membership test (delete the animation and something jumps) and it
-        // carries no character, so it takes the class's alpha spec and needs no ledger row of its
-        // own. Alpha, therefore `continuityAlphaSpec` — the split is by what is interpolated, and
-        // the radius above is the same component making the other choice for the other reason.
-        // `using null` suppresses the size transform: both glyphs are [AppDimension.iconMd], and an
-        // animated container would introduce a reflow the fixed size exists to prevent.
+        // GUARD: `using null` suppresses AnimatedContent's size transform — both glyphs are
+        // iconMd, and an animated container would reflow what the fixed size exists to prevent.
         AnimatedContent(
             targetState = icon,
             transitionSpec = { fadeIn(glyphSpec) togetherWith fadeOut(glyphSpec) using null },

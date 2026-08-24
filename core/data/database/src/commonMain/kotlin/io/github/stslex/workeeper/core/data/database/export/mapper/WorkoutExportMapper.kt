@@ -25,13 +25,7 @@ import io.github.stslex.workeeper.core.data.database.training.TrainingEntity
 import io.github.stslex.workeeper.core.data.database.training.TrainingExerciseEntity
 import kotlin.time.Instant
 
-/**
- * Pure entity → export-DTO conversions for the AI snapshot (spec §4.1). Keeps mapping
- * out of [io.github.stslex.workeeper.core.data.database.export.DatabaseJsonExporter],
- * which only loads + groups. Children/tags are resolved by the exporter and passed in;
- * the column-stored `planSets` / `lastAdhocSets` JSON is decoded here via
- * [PlanSetsConverter] (never passed through as a raw string).
- */
+/** Pure entity → export-DTO conversions for the AI snapshot; children are passed in. */
 internal object WorkoutExportMapper {
 
     /** DB epoch-millis → UTC ISO-8601 (e.g. `2026-06-26T10:42:23Z`). */
@@ -133,10 +127,6 @@ internal object WorkoutExportMapper {
         SetTypeEntity.DROP -> SetTypeExportDto.DROP
     }
 
-    /**
-     * Plan sets are stored with the `SetTypeDataModel` vocabulary (`WARMUP`/`FAILURE`);
-     * normalize to the performed-set vocabulary (`WARM`/`FAIL`) through the total
-     * `toEntity()` bridge so the export emits one set-type language (spec §3).
-     */
+    /** Normalizes the stored `WARMUP`/`FAILURE` plan vocabulary onto the performed one. */
     private fun SetTypeDataModel.toExportSetType(): SetTypeExportDto = toEntity().toExport()
 }

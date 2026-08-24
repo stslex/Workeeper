@@ -5,12 +5,8 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.TimeSource
 
 /**
- * Debounces duplicate log/analytics events by key within a short window. Uses a monotonic
- * [TimeSource] rather than wall-clock so the window is immune to clock adjustments.
- *
- * Called only from the platform Firebase-holder actuals, whose public methods are already
- * `@Synchronized` on Android; iOS holders are no-ops. `@Volatile` (the multiplatform
- * `kotlin.concurrent.Volatile`) keeps the last-event read visible across those callers.
+ * Debounces duplicate log/analytics events by key within a short monotonic window.
+ * GUARD: holds no lock — call it only from the `@Synchronized` platform Firebase holders.
  */
 internal class EventsFilter {
 

@@ -14,10 +14,8 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.concurrent.thread
 
 /**
- * Direct pins for [UiAdmissionGate] (Round-3 blocker 4): admission is a TOKEN, not a count, so
- * release is ABA-safe; a retired generation refuses admission outright (its content must resolve
- * nothing); release is idempotent and releases exactly its own grant; and the retire CAS closes
- * admission atomically with the zero observation.
+ * Direct pins for [UiAdmissionGate]: admission is a TOKEN, not a count, so release is ABA-safe and
+ * idempotent, and the retire CAS closes admission atomically with the zero observation.
  */
 internal class UiAdmissionGateTest {
 
@@ -71,11 +69,8 @@ internal class UiAdmissionGateTest {
     @Test
     fun `a token released after retirement and reopen cannot cancel a LATER admission (ABA)`() =
         runBlocking {
-            // The ABA the counter form could not see: region A of generation 5 is admitted, the
-            // generation is retired and later reopened (an aborted transition), a NEW region B
-            // takes admission — and only then A's stale release lands. With a counter, A's
-            // decrement would zero B's admission and let a transition close the database under a
-            // live region. With tokens, A's serial is no longer live and the release is a no-op.
+            // With a counter, the stale release would zero the later region's admission and let a
+            // transition close the database under it.
             val stale = requireNotNull(gate.admit(5))
             gate.release(stale)
             assertTrue(gate.awaitRetired(id = 5, timeoutMillis = 1_000))
@@ -94,11 +89,8 @@ internal class UiAdmissionGateTest {
 
     @Test
     fun `retire is ATOMIC with the zero observation - a grant and a clear verdict are exclusive`() {
-        // The invariant, stated so the gap is OBSERVABLE: `awaitRetired` returning true means
-        // "no region holds this generation", so a token granted by a racing `admit` must not
-        // exist. A two-step observe-then-retire gate lets the racer's admit land in the gap and
-        // hands out BOTH — which counting after the racer cleaned up could never see, so the
-        // racer here deliberately KEEPS its token.
+        // A two-step observe-then-retire gate would hand out both, so the racer deliberately KEEPS
+        // its token — counting after a cleanup could never observe the gap.
         repeat(500) { iteration ->
             val id = iteration + 100
             val held = requireNotNull(gate.admit(id))
@@ -111,9 +103,7 @@ internal class UiAdmissionGateTest {
                 racerToken.set(gate.admit(id)) // races the retire; the grant is NOT released
             }
             start.countDown()
-            // Short budget on purpose: when the racer's admit wins, the gate MUST refuse to
-            // retire, and waiting the full production budget for that refusal would make the
-            // hammer take minutes.
+            // Short budget on purpose: the production budget would make the hammer take minutes.
             val retired = runBlocking { gate.awaitRetired(id, timeoutMillis = 20) }
             racer.join()
 
@@ -126,8 +116,7 @@ internal class UiAdmissionGateTest {
                 assertEquals(0, gate.admittedCount(id))
                 assertNull(gate.admit(id), "iteration $iteration: a retired id must stay closed")
             } else {
-                // The admit won the race: the gate then correctly refuses to retire while that
-                // region holds its grant, which is the other half of the same invariant.
+                // The admit won: refusing to retire under a live grant is the other half.
                 assertNotNull(racerToken.get(), "iteration $iteration: neither side made progress")
                 gate.release(requireNotNull(racerToken.get()))
             }

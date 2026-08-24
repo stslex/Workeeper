@@ -87,8 +87,7 @@ internal class ClickHandlerTest {
         assertEquals(2, stateFlow.value.draft.size)
         val added = stateFlow.value.draft.last()
         assertEquals(8, added.reps)
-        // New set always cycles back to WORK regardless of previous type — workout
-        // pattern: warmups precede work sets, so the next add is a work set by default.
+        // A new set always cycles back to WORK: warmups precede work sets.
         assertEquals(SetTypeUiModel.WORK, added.type)
     }
 
@@ -173,8 +172,7 @@ internal class ClickHandlerTest {
         handler.invoke(Action.Click.OnTypeToggle(ExerciseTypeUiModel.WEIGHTLESS))
 
         assertTrue(stateFlow.value.dialogState is DialogState.TypeChangeConfirm)
-        // Type stays WEIGHTED until the user confirms — pending lives in
-        // `pendingTypeChange` and is committed by `OnTypeChangeConfirm`.
+        // Type stays WEIGHTED until the user confirms; the target waits in `pendingTypeChange`.
         assertEquals(ExerciseTypeUiModel.WEIGHTED, stateFlow.value.type)
         assertEquals(ExerciseTypeUiModel.WEIGHTLESS, stateFlow.value.pendingTypeChange)
     }
@@ -304,12 +302,6 @@ internal class ClickHandlerTest {
         verify(exactly = 1) { store.consume(Action.Navigation.Back) }
     }
 
-    /**
-     * The one-channel invariant, and the one a `Boolean` beside a sealed field cannot state:
-     * **the two modals are mutually exclusive by construction** (§26; `mvi-dialog-state`). With a
-     * second field, "discard open" and "type-change open" is a reachable pair and the screen draws
-     * both.
-     */
     @Test
     fun `the discard sheet and the type-change sheet cannot be open at once`() {
         val (stateFlow, _, handler) = setup(
@@ -330,15 +322,6 @@ internal class ClickHandlerTest {
         assertEquals(DialogState.Hidden, stateFlow.value.dialogState)
     }
 
-    /**
-     * **The discard sheet is not exempt from the one modal rule, and it must never navigate.**
-     *
-     * This arm is a fallback rather than the live path: every modal here is an `AppConfirmSheet`,
-     * which owns back inside its own `ComponentDialog` window and routes it to `onDismissRequest`
-     * before the route's handler sees anything. What the assertion protects is the *shape* of the
-     * fallback — a variant that navigated away instead would turn a stray back press into a silent
-     * discard of the draft.
-     */
     @Test
     fun `back with the discard sheet open hides it and never navigates`() {
         val (stateFlow, store, handler) = setup(
@@ -378,12 +361,6 @@ internal class ClickHandlerTest {
         assertTrue(stateFlow.value.isDirty)
     }
 
-    /**
-     * **No variant is exempt from interception**, the discard sheet included. An exception here
-     * would describe a flow that cannot happen: an `AppConfirmSheet` is a `ModalBottomSheet`, it
-     * owns back inside its own `ComponentDialog` window, and the route never sees the press while
-     * one is up — so disabling interception for a variant routes nothing anywhere.
-     */
     @Test
     fun `interceptBack stays armed while the discard sheet is shown`() {
         val (stateFlow, _, _) = setup(
@@ -396,7 +373,6 @@ internal class ClickHandlerTest {
         assertTrue(stateFlow.value.interceptBack)
     }
 
-    /** The other half of the same predicate: any OTHER open modal intercepts too. */
     @Test
     fun `interceptBack stays armed while the type-change sheet is shown`() {
         val (stateFlow, _, _) = setup(
@@ -422,8 +398,6 @@ internal class ClickHandlerTest {
             ),
         )
 
-        // Type-change confirm uses BackHandler interception so the system back gesture
-        // routes through `OnBackClick` → dialog dismiss before propagating to a pop.
         assertTrue(stateFlow.value.interceptBack)
     }
 }

@@ -18,59 +18,35 @@ class LintConventionPlugin : Plugin<Project> {
                 apply(libs.findPluginId("detekt"))
             }
 
-            // The shared option block lives in configureLintOptions so the KMP convention
-            // (whose android DSL is not a CommonExtension and is invisible to this lookup)
-            // applies the identical configuration.
+            // Shared block: the KMP convention's android DSL is not a CommonExtension and is
+            // invisible to this lookup, so it applies configureLintOptions itself.
             extensions.findByType(CommonExtension::class.java)
                 ?.lint
                 ?.let { lint -> configureLintOptions(lint) }
 
-            // RemoveWorkManagerInitializer runs per application module and does
-            // not see the directive when it is contributed via the shared
-            // :app:app library manifest. The AGP merger applies it correctly at
-            // the application-level merge (verified in merged_manifest output).
-            // Disable only on application modules — adding it to every module
-            // (e.g. via lint.xml or the CommonExtension above) trips
-            // UnknownIssueId in library modules that don't depend on
-            // androidx.work. See documentation/feature-specs/backup.md →
-            // WorkManager setup.
+            // Application modules only: the check misses the directive contributed via the
+            // shared :app:app manifest, and a global disable trips UnknownIssueId elsewhere.
             extensions.findByType(ApplicationExtension::class.java)
                 ?.lint
                 ?.disable
                 ?.add("RemoveWorkManagerInitializer")
 
-            // Configure detekt for each module
             afterEvaluate {
                 extensions.findByType(io.gitlab.arturbosch.detekt.extensions.DetektExtension::class.java)
                     ?.let { detektExt ->
                         detektExt.config.setFrom(rootProject.file("lint-rules/detekt.yml"))
                         detektExt.buildUponDefaultConfig = true
-                        // detekt is a GATE: it reports, it never writes. autoCorrect applies
-                        // formatting/FQ-reference autofixes to any file it analyses — including
-                        // files outside the diff being verified — so with it enabled the
-                        // pre-commit hook and CI mutate the very tree they are checking. That
-                        // breaks per-commit verification: a bisect over the graph-extension arc
-                        // cannot trust a chain whose commits rewrite themselves mid-check.
-                        // The formatter role stays available on demand, per invocation:
-                        //   ./gradlew detekt --auto-correct
+                        // detekt is a GATE: autoCorrect would mutate the tree it verifies.
+                        // The formatter role stays on demand: ./gradlew detekt --auto-correct
                         detektExt.autoCorrect = false
                         detektExt.allRules = false
 
-                        // Single centralized detekt baseline file for all modules
                         detektExt.baseline = rootProject.file("lint-rules/detekt-baseline.xml")
                     }
             }
 
-            // detekt defaults its --jvm-target to the version of the JVM running the daemon, which
-            // is the wrong number: the gate should analyse against the bytecode level the project
-            // actually produces. Keep in sync with KotlinAndroid.configureKotlin /
-            // KmpLibraryConventionPlugin.
-            //
-            // This is NOT a licence to move the daemon off JDK 21. detekt's embedded Kotlin
-            // compiler caps --jvm-target at 22 ("Invalid value (25) passed to --jvm-target"), and
-            // above that its bundled intellij-core also fails to parse java.version at all
-            // (IllegalArgumentException: 25.0.2 from JavaVersion.parse). The daemon JVM is pinned
-            // to 21 in gradle/gradle-daemon-jvm.properties for exactly this reason.
+            // detekt defaults --jvm-target to the daemon's JVM; pin it to what the project
+            // produces. GUARD: detekt's compiler caps this at 22, so the daemon JVM stays on 21.
             tasks.withType(Detekt::class.java).configureEach { jvmTarget = "21" }
             tasks.withType(DetektCreateBaselineTask::class.java).configureEach { jvmTarget = "21" }
 
@@ -79,10 +55,7 @@ class LintConventionPlugin : Plugin<Project> {
                 "detektPlugins"(project(":lint-rules"))
             }
 
-            // Every module gets the instrumented-suite gate, whether or not it has instrumented
-            // tests today. This plugin is the one hook every convention applies, which is what
-            // makes the gate unforgettable — see configureInstrumentedSuiteGate's KDoc for why
-            // an opt-in version would not have caught the defect that motivated it.
+            // Every module gets the gate, whether or not it has instrumented tests today.
             configureInstrumentedSuiteGate()
         }
     }

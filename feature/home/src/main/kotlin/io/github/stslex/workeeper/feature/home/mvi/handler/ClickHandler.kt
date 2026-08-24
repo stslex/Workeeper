@@ -58,9 +58,8 @@ internal class ClickHandler @Inject constructor(
     }
 
     /**
-     * Persist-only on purpose: `State.startCardMode` and the body follow through
-     * `CommonHandler`'s DataStore-driven pipeline, so head and readout swap together —
-     * a mode label over a sibling mode's data never renders.
+     * Persist-only: the mode and the body both follow through `CommonHandler`'s DataStore
+     * pipeline, so head and readout swap together.
      */
     private fun processModeSelected(mode: StartCardModeUi) {
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
@@ -127,21 +126,8 @@ internal class ClickHandler @Inject constructor(
     }
 
     /**
-     * The card's primary button, for every mode — §3.4: on «Забытая тренировка» it starts
-     * THAT training directly, with no picker in between; every other body opens the picker.
-     *
-     * The rule is executed here, so this is where it is written down. The card dispatches
-     * one action and names no mode, which means a fifth mode adds an arm to this `when` and
-     * to nothing else — with the branch up in the composable it would have needed one there
-     * too, and the compiler would not have said so.
-     *
-     * **The discriminator is the BODY, not the mode**, and the `when` is exhaustive rather
-     * than an `as?` so the sealed type carries that. `Forgotten` occurs only under
-     * FORGOTTEN_TRAINING, and that mode degrades to `Empty` when there is no template left
-     * to start (HD2) — which must open the picker exactly as an `Empty` under any other mode
-     * does. Reading it from `state.value` at click time is also what makes head and action
-     * atomic: `CommonHandler` swaps mode and body in one `copy`, so the uuid started is
-     * always the one the card was showing when it was tapped.
+     * The card's primary button, for every mode (§3.4). GUARD: the discriminator is the BODY,
+     * never the mode — FORGOTTEN_TRAINING degrades to `Empty`, which must open the picker.
      */
     private fun processStartActionClick() {
         when (val body = state.value.startCardBody) {

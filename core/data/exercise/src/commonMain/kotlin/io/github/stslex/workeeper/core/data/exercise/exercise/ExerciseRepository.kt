@@ -26,12 +26,7 @@ interface ExerciseRepository {
 
     suspend fun saveItem(item: ExerciseChangeDataModel): SaveResult
 
-    /**
-     * Inserts an `is_adhoc = 1` exercise row from a single user-typed name. Used by the
-     * inline-create flow inside the Quick start / Track Now exercise picker. Type defaults
-     * to `WEIGHTED`; description, image, and tags are not captured at create time — the
-     * user can enrich the exercise from Exercise detail after the session graduates it.
-     */
+    /** Inserts an `is_adhoc = 1` exercise from a typed name; type defaults to `WEIGHTED`. */
     suspend fun createInlineAdhocExercise(name: String): InlineAdhocResult
 
     suspend fun getAdhocPlan(exerciseUuid: String): List<PlanSetDataModel>?
@@ -39,12 +34,8 @@ interface ExerciseRepository {
     suspend fun setAdhocPlan(exerciseUuid: String, planSets: List<PlanSetDataModel>?)
 
     /**
-     * Updates only the `type` column on `exercise_table`. The plan editor uses this when
-     * persisting a type change without rewriting the rest of the exercise row (name,
-     * description, image, tags). This is the ONE write path to `type` that asks the caller to
-     * run [clearWeightsFromAllPlansForExercise] itself when the type flips to WEIGHTLESS;
-     * [saveItem] derives the cascade from the row it writes instead, so that a caller who does
-     * not know about this obligation cannot strand weights on a weightless exercise.
+     * Updates only `exercise_table.type`. GUARD: on a flip to WEIGHTLESS the caller owes
+     * [clearWeightsFromAllPlansForExercise]; [saveItem] derives that cascade itself.
      */
     suspend fun setExerciseType(
         exerciseUuid: String,
@@ -52,26 +43,14 @@ interface ExerciseRepository {
     )
 
     /**
-     * Wipes the `weight` column from `exercise.last_adhoc_sets` and from every
-     * `training_exercise.plan_sets` row that references this exercise, so weighted plan
-     * values do not survive a WEIGHTED → WEIGHTLESS flip and resurface in a Live workout
-     * pre-fill.
-     *
-     * For the [setExerciseType] path only. A full [saveItem] runs the same cascade itself,
-     * inside its own transaction, whenever the row it writes is WEIGHTLESS.
-     *
-     * Runs as a single repository transaction; either every plan-set row referencing the
-     * exercise has its weights cleared, or none do.
+     * Wipes `weight` from `exercise.last_adhoc_sets` and every referencing `plan_sets`, in one
+     * transaction. For the [setExerciseType] path — [saveItem] runs the same cascade itself.
      */
     suspend fun clearWeightsFromAllPlansForExercise(exerciseUuid: String)
 
     suspend fun deleteItem(uuid: String)
 
-    /**
-     * One-shot list of active exercises filtered by [query] (case-insensitive prefix on
-     * name) with [excludeUuids] removed. Used by the Training Edit "Add exercises" picker
-     * sheet. The list is small enough that filtering in memory is acceptable.
-     */
+    /** Active exercises matching [query] (case-insensitive prefix) minus [excludeUuids]. */
     suspend fun searchActiveExercises(
         query: String,
         excludeUuids: Set<String>,
@@ -97,27 +76,17 @@ interface ExerciseRepository {
 
     suspend fun countSessionsUsing(exerciseUuid: String): Int
 
-    /**
-     * Count of distinct active library trainings (non-archived, non-adhoc) referencing
-     * [exerciseUuid] via `training_exercise_table`. Surfaces as the "in M trainings"
-     * footer segment on Exercise rows. (v2.4 F1.)
-     */
+    /** Count of active library trainings referencing [exerciseUuid] ("in M trainings" footer). */
     fun observeLinkedTrainingsCount(exerciseUuid: String): Flow<Int>
 
-    /**
-     * Timestamp (epoch millis) of the most recently finished session in which a non-skipped
-     * performed-exercise referenced [exerciseUuid]. `null` when no such session exists.
-     * Surfaces as the "last Xd ago" footer segment on Exercise rows. (v2.4 F2.)
-     */
+    /** Epoch millis of the last finished, non-skipped use of [exerciseUuid]; null when none. */
     fun observeLastTrainedAt(exerciseUuid: String): Flow<Long?>
 
     fun pagedActiveByTags(tagUuids: Set<String>): Flow<PagingData<ExerciseDataModel>>
 
     /**
-     * Paged active library exercises joined with derived stats: session count,
-     * linked-trainings count, last-trained timestamp, and tag names. Drives the v2.4
-     * footer on the all-exercises list. When [filterTagUuids] is non-empty, applies OR
-     * semantics (matches any of the given tags). (v2.4 E6.)
+     * Paged active library exercises with derived stats (sessions, linked trainings, last
+     * trained, tags). A non-empty [filterTagUuids] matches any of the given tags.
      */
     fun pagedActiveWithStats(
         filterTagUuids: Set<String>,
@@ -125,45 +94,25 @@ interface ExerciseRepository {
 
     suspend fun getRecentHistory(exerciseUuid: String, limit: Int): List<HistoryEntry>
 
-    /**
-     * UUID of the exercise from the most recently finished session, or `null` when no
-     * finished sessions exist. Used by the v2.2 chart screen to pick a default selection
-     * when entered without an explicit `exerciseUuid`.
-     */
+    /** UUID of the exercise from the most recent finished session; null when there are none. */
     suspend fun getLastTrainedExerciseUuid(): String?
 
-    /**
-     * Active exercises with at least one finished session, ordered by most-recent-finished
-     * first. Powers the v2.2 chart picker.
-     */
+    /** Active exercises with at least one finished session, most-recent-finished first. */
     suspend fun getRecentlyTrainedExercises(): List<RecentExerciseDataModel>
 
-    /**
-     * Returns the tag names denormalized through the `exercise_tag` join. Replaces the
-     * legacy `ExerciseDataModel.labels` field; callers query this only when they actually
-     * need to render tags so the Exercise data model stays untainted by join data.
-     */
+    /** Tag names via the `exercise_tag` join; queried only where tags are actually rendered. */
     suspend fun getLabels(exerciseUuid: String): List<String>
 
     /**
-     * Bulk-archive a batch of exercises. Mirrors [ExerciseRepository.archive] except it
-     * runs in one transaction; exercises currently used by an active (non-archived)
-     * training are excluded and surfaced in [BulkArchiveOutcome.blocked], each with the
-     * names of the active trainings that block it so the caller can tell the user why.
+     * Bulk-archive in one transaction; exercises used by an active training are skipped and
+     * surfaced in [BulkArchiveOutcome.blocked] with the blocking training names.
      */
     suspend fun bulkArchive(uuids: Set<String>): BulkArchiveOutcome
 
-    /**
-     * Bulk-permanent-delete exercises. Caller is expected to pre-validate via
-     * [canBulkPermanentDelete] — the DAO RESTRICTs deletion when an exercise is
-     * referenced by an active template or any session history.
-     */
+    /** Bulk-permanent-delete; pre-validate via [canBulkPermanentDelete] — the DAO RESTRICTs. */
     suspend fun bulkPermanentDelete(uuids: Set<String>)
 
-    /**
-     * True when every exercise in [uuids] has zero session history and is not used by an
-     * active (non-archived) template.
-     */
+    /** True when every exercise in [uuids] has no session history and no active template. */
     suspend fun canBulkPermanentDelete(uuids: Set<String>): Boolean
 
     sealed interface SaveResult {
@@ -178,11 +127,7 @@ interface ExerciseRepository {
         val blocked: List<BlockedExercise>,
     ) {
 
-        /**
-         * An exercise that could not be archived because it is still referenced by at
-         * least one active (non-archived, non-adhoc) training. [activeTrainings] holds
-         * those training names so the UI can name them and tell the user what to do.
-         */
+        /** An exercise blocked by active trainings; [activeTrainings] names them for the UI. */
         data class BlockedExercise(
             val name: String,
             val activeTrainings: List<String>,
@@ -190,10 +135,8 @@ interface ExerciseRepository {
     }
 
     /**
-     * Result of [createInlineAdhocExercise]. [reusedExisting] is true when a case-insensitive
-     * name match was found and the existing row was returned without insert. The picker uses
-     * this flag to decide whether to fetch the PR baseline — reused rows have history,
-     * fresh-inserted ad-hoc rows do not.
+     * Result of [createInlineAdhocExercise]. [reusedExisting] means a case-insensitive name
+     * match was returned without insert, so the row has history and a PR baseline to fetch.
      */
     data class InlineAdhocResult(
         val exercise: ExerciseDataModel,

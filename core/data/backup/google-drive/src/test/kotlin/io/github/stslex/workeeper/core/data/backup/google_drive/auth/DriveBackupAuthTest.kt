@@ -533,10 +533,8 @@ internal class DriveBackupAuthTest {
     @Test
     fun `requestDriveFileAccess clears stale cached token when drive_file granted with no fresh token`() =
         runTest {
-            // GMS can return a Success that grants drive.file but carries no access token (it
-            // deems a cached credential sufficient). The cached token predates the grant and may
-            // be appdata-only, so it must be dropped to force a drive.file-capable refresh rather
-            // than 403 the visible-Drive upload until its TTL expires.
+            // A grant can arrive with no access token. The cached one predates it and may be
+            // appdata-only, so drop it to force a drive.file-capable refresh instead of a 403.
             val authResult = mockk<AuthorizationResult> {
                 every { hasResolution() } returns false
                 every { grantedScopes } returns listOf(
@@ -561,10 +559,8 @@ internal class DriveBackupAuthTest {
     @Test
     fun `requestDriveFileAccess preserves existing account when grant carries no fresh identity`() =
         runTest {
-            // Already signed in with a real identity. Enabling AI export drives an incremental
-            // drive.file grant that GMS satisfies with a cached credential: success, but no fresh
-            // accessToken and no GoogleSignInAccount. The placeholder must NOT clobber the stored
-            // email/display name.
+            // GMS can satisfy an incremental grant from a cached credential: success, but no
+            // fresh token and no GoogleSignInAccount. The placeholder must not clobber identity.
             accountFlow.value = Account(email = "real@example.com", displayName = "Real User")
             val authResult = mockk<AuthorizationResult> {
                 every { hasResolution() } returns false

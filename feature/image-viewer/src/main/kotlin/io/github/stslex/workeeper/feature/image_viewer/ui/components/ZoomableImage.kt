@@ -54,17 +54,12 @@ internal fun ZoomableImage(
     onDoubleTap: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // animate so double-tap toggle and scale changes ease in instead of snapping.
     val animatedScale by animateFloatAsState(scale, label = "scale")
     val animatedOffsetX by animateFloatAsState(offsetX, label = "offsetX")
     val animatedOffsetY by animateFloatAsState(offsetY, label = "offsetY")
 
-    // pointerInput's coroutine is launched once and captures whatever values
-    // existed at launch time. Without rememberUpdatedState, scale/offset reads
-    // inside the gesture lambda always see the launch-time snapshot, so each
-    // pinch frame computes newScale = STALE_scale * zoom — accumulation breaks.
-    // rememberUpdatedState gives the long-lived coroutine a stable State holder
-    // it can re-read on every frame without restarting the coroutine.
+    // GUARD: pointerInput's coroutine captures launch-time values, so every value the gesture
+    // lambda reads must go through rememberUpdatedState or pinch accumulation breaks.
     val currentScale by rememberUpdatedState(scale)
     val currentOffsetX by rememberUpdatedState(offsetX)
     val currentOffsetY by rememberUpdatedState(offsetY)
@@ -79,8 +74,7 @@ internal fun ZoomableImage(
             .testTag("ImageViewerCanvas")
             .onSizeChanged { viewportSize = it }
             .pointerInput(viewportSize) {
-                // Compose runs only the first matching detector inside one pointerInput,
-                // so transform-gestures and tap-gestures must live in separate blocks.
+                // GUARD: one pointerInput runs only its first detector; taps need their own block.
                 detectTransformGestures { _, pan, zoom, _ ->
                     val newScale = (currentScale * zoom).coerceIn(MIN_SCALE, MAX_SCALE)
                     val newOffsetX: Float
@@ -89,8 +83,7 @@ internal fun ZoomableImage(
                         newOffsetX = 0f
                         newOffsetY = 0f
                     } else {
-                        // Bound = ((scale - 1) * viewportSize) / 2 keeps image edges from
-                        // pulling beyond the viewport on either side.
+                        // Bound keeps the image edges from pulling inside the viewport.
                         val maxOffsetX = (viewportSize.width * (newScale - 1f)) / 2f
                         val maxOffsetY = (viewportSize.height * (newScale - 1f)) / 2f
                         newOffsetX = (currentOffsetX + pan.x).coerceIn(-maxOffsetX, maxOffsetX)

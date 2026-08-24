@@ -17,20 +17,8 @@ import io.github.stslex.workeeper.core.data.backup.api.notification.BackupNotifi
 import io.github.stslex.workeeper.core.data.backup.worker.R
 
 /**
- * Owns the lifecycle of the persistent "Auto-backup paused" notification surfaced
- * by [io.github.stslex.workeeper.core.data.backup.worker.BackupWorker] on
- * [io.github.stslex.workeeper.core.data.backup.api.error.BackupError.AuthRevoked].
- *
- * The notification is dismissible (the settings banner persists regardless) and
- * is intentionally low-importance — it should not interrupt the user, only
- * surface in the shade. Channel registration is idempotent and runs on the
- * first show call rather than at app startup so app cold-start cost stays flat
- * for users who never hit the auth-revoked path.
- *
- * App-Scope Collapse Step 6 (worker de-cycle): Metro-owned via `@ContributesBinding(AppScope)`, bound to
- * the [BackupNotificationHelper] api interface (in `core:data:backup:api`) so app-scope dep interfaces
- * (the worker's own `BackupWorkerDeps`) can name it via the api type without depending on this worker
- * module. Public for cross-module aggregation (D1); `Context` plain.
+ * Persistent low-importance "Auto-backup paused" notification for `BackupError.AuthRevoked`.
+ * The Settings banner is the source of truth, so a denied notification permission just skips.
  */
 @SingleIn(AppScope::class)
 @ContributesBinding(AppScope::class)
@@ -41,9 +29,7 @@ class BackupNotificationHelperImpl(
 
     override fun showAuthPaused() {
         val manager = NotificationManagerCompat.from(context)
-        // POST_NOTIFICATIONS is runtime on API 33+. We never prompt for it ourselves —
-        // if the user denied it, the persistent banner in Settings remains the source of
-        // truth and the notification is silently skipped.
+        // The app never prompts for POST_NOTIFICATIONS; the Settings banner covers this state.
         if (!manager.areNotificationsEnabled()) return
         ensureChannel()
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)

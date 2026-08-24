@@ -74,12 +74,7 @@ import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.persistentMapOf
 import kotlinx.coroutines.delay
 
-/**
- * §8's 22px gap above the rail. There is no 22dp rung on the `AppDimension` ladder and §0.1's
- * round-to-nearest would take it to 24dp; kept at 22dp because the rail's own height is also
- * off-ladder and the pair reads as one measured block. Flagged with the rail's other
- * unverified geometry for the device check.
- */
+/** §8's 22px gap above the rail; off-ladder on purpose, paired with the rail's height. */
 private val RAIL_TOP_MARGIN = 22.dp
 
 @Composable
@@ -127,9 +122,8 @@ internal fun LiveWorkoutScreen(
                 ) {
                     ExerciseMenuSheetContent(
                         exercise = exercise,
-                        // §6.1: the toggle appears only on mid-session additions, and never
-                        // in an ad-hoc session (there is no plan to be excluded from). A
-                        // restored one-off keeps its row via !isPlanAttached.
+                        // GUARD: both disjuncts are needed — `midSessionAddedUuids` is
+                        // ephemeral, so `!isPlanAttached` keeps the row after a reload.
                         showOneOffRow = !state.isAdhoc && (
                             exercise.performedExerciseUuid in state.midSessionAddedUuids ||
                                 !exercise.isPlanAttached
@@ -233,12 +227,7 @@ internal fun LiveWorkoutScreen(
     }
 }
 
-/**
- * `.topbar` (extraction §1.2): back chevron leading, empty spacer, vertical three-dot
- * trailing opening `sh-session`. No title — §1.2 is explicit that the session top bar has
- * none. The old overflow's `Удалить сессию` item is not part of the drawn surface; its
- * dialog and actions remain in code, reported with the PR.
- */
+/** `.topbar`: back chevron, spacer, three-dot trailing opening `sh-session`. No title. */
 @Composable
 internal fun TopBar(consume: (Action) -> Unit) {
     AppTopBar(
@@ -270,8 +259,7 @@ private fun Body(
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            // Content scrolls out UNDER the dock (`.dock{position:sticky}` with its base
-            // gradient); the clearance keeps the last row reachable above it.
+            // Content scrolls out UNDER the sticky dock; the clearance keeps the tail usable.
             contentPadding = PaddingValues(bottom = DOCK_CLEARANCE),
         ) {
             item(key = "shead") {
@@ -292,11 +280,7 @@ private fun Body(
                 }
             }
             item(key = "rail") {
-                // §14's frame: shead -> rail -> railmeta. The rail supersedes the header's
-                // LinearProgressIndicator — two progress bars for one session would
-                // contradict each other the moment their denominators diverged. (The old
-                // frame double-inset the rail with a second screenEdge padding; the mockup
-                // aligns it to the same gutter as everything else.)
+                // The rail supersedes a second progress bar — two denominators would diverge.
                 Column(modifier = Modifier.padding(horizontal = AppDimension.screenEdge)) {
                     Spacer(Modifier.height(RAIL_TOP_MARGIN))
                     AppProgressRail(
@@ -330,8 +314,7 @@ private fun Body(
                         modifier = Modifier.padding(
                             start = AppDimension.screenEdge,
                             end = AppDimension.screenEdge,
-                            // `.cards{margin-top:26px; gap:10px}` -> 24dp above the first
-                            // card, 8dp between cards.
+                            // 24dp above the first card, 8dp between cards.
                             top = if (index == 0) AppDimension.Space.xl else AppDimension.Space.sm,
                         ),
                     )
@@ -355,9 +338,8 @@ private fun Body(
             modifier = Modifier.align(Alignment.BottomCenter),
         )
         state.pendingUndo?.let { pending ->
-            // `.toast{bottom:118px}` — floated above the dock; auto-dismiss commits the
-            // deferred write after TOAST_TIMEOUT_MS, keyed on the undo id so a replacement
-            // toast restarts the window (mockup: clearTimeout + fresh 5000ms).
+            // Auto-dismiss commits the deferred write, keyed on the undo id so a replacement
+            // toast restarts the window.
             LaunchedEffect(pending.id) {
                 delay(TOAST_TIMEOUT_MS)
                 consume(Action.Click.OnUndoTimeout(pending.id))
@@ -379,11 +361,7 @@ private fun Body(
     }
 }
 
-/**
- * `.addex` (extraction §1.8): a dashed full-width 48dp button below the cards — `meta` text,
- * a `hair-s` (-> `borderDefault`) dashed outline at the card radius, the 17dp plus at its
- * heavier 1.9 stroke. String: `Добавить упражнение`, no "+" prefix — the plus is the icon.
- */
+/** `.addex`: a dashed full-width 48dp button below the cards; the plus is the icon. */
 @Composable
 private fun AddExerciseButton(
     onClick: () -> Unit,
@@ -418,10 +396,7 @@ private fun AddExerciseButton(
     }
 }
 
-/**
- * `.dock` (extraction §1.8): sticky at the bottom, `linear-gradient(to top, base 62%,
- * transparent)` behind the finish button so content visibly scrolls out underneath.
- */
+/** `.dock`: sticky at the bottom, gradient behind the finish button. */
 @Composable
 private fun Dock(
     onFinish: () -> Unit,
@@ -461,7 +436,6 @@ private fun Dock(
 /** `linear-gradient(to top, base 62%, …)`: solid from the bottom 62%, i.e. from 38% top-down. */
 private const val DOCK_GRADIENT_STOP = 0.38f
 
-/** Clearance so the list's tail scrolls clear of the overlaid dock. */
 private val DOCK_CLEARANCE = 104.dp
 
 /** `.toast{bottom:118px}` → the ladder-nearest 120dp above the screen edge. */
@@ -470,17 +444,11 @@ private val TOAST_BOTTOM_OFFSET = 120.dp
 /** The mockup's 5000ms auto-dismiss — spec §6.1's "5-second undo toast". */
 private const val TOAST_TIMEOUT_MS = 5_000L
 
-/** The `.addex` plus renders at 17dp (mockup 17×17, stroke 1.9). */
 private val ADDEX_GLYPH_SIZE = 17.dp
 
 private const val EMPTY_STATE_HEIGHT_FRACTION = 0.6f
 
-/**
- * `.railmeta` (extraction §1.4): two `.label`s, space-between. The left one names the
- * detail level the rail RESOLVED (the slot hands it over, so they cannot disagree); the
- * right one counts every exercise (skipped included), sets over non-skipped only, plus
- * `разовых: n` when one-offs exist — the mockup's own denominators.
- */
+/** `.railmeta`: the resolved detail level on the left, session counts on the right. */
 @Composable
 private fun RailMetaRow(detail: RailDetail, state: State) {
     Row(

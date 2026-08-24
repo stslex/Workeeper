@@ -7,16 +7,8 @@ import io.github.stslex.workeeper.core.core.images.model.ImageSaveResult
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * In-memory fake of [ImageStorage] for instrumentation tests.
- *
- * Tracks the source URI committed for each `exerciseUuid` (no actual image decoding or
- * disk I/O), surfaces a stable synthetic absolute path, and counts every method call so
- * tests can assert behaviour without reaching into internals. [snapshot] is the read
- * surface; [reset] is for setup between tests.
- *
- * App-Scope Collapse Step 6 (Phase 3.2): a plain class — no Hilt `@Inject`/`@Singleton`.
- * The Metro test harness constructs it directly and passes it as the `imageStorage`
- * `create()` bound-instance root via `buildAppGraph(...)`.
+ * In-memory fake of [ImageStorage] for instrumentation tests: records the committed source per
+ * exercise, returns a synthetic path, counts calls. Read through [snapshot]; [reset] between tests.
  */
 class FakeImageStorage : ImageStorage {
 

@@ -12,31 +12,17 @@ import io.github.stslex.workeeper.core.data.database.AppDatabase
 import java.io.File
 
 /**
- * The SINGLE construction site for the app-scope [AppGraph]. Both real callers —
- * `BaseApplication.appGraph` (prod) and `MetroTestRule` (the `:app:app` androidTest harness, which
- * installs a fresh per-test graph into `MetroTestGraphHolder`) — delegate here, so the `create(...)`
- * argument list is threaded in exactly ONE place.
- *
- * App-Scope Collapse Step 5 (5a): the DB-cascade substrate collapsed to a single [AppDatabase] `create()`
- * root. The 9 Room DAOs + `DbTransitionRunner` now derive from it graph-internally
- * (`DbCascadeBindingContainer`); the 3 `AppDatabase`-derived interface bindings are `@ContributesBinding` on
- * their impls. Callers pull the graph's BOUND-INSTANCE [AppDatabase] + [ImageStorage] (never construct) so
- * tests that swap an in-memory `AppDatabase` / a `FakeImageStorage` via the create() bound-instance roots
- * still resolve. Cycle-free: every
- * derived binding reads `AppDatabase` (root) / a direct `Dispatchers.IO` — no `@IO`→`appGraph` back-edge.
+ * The single construction site for the app-scope [AppGraph]: the `create(...)` argument list is
+ * threaded in exactly one place. DAOs and `DbTransitionRunner` derive from the [AppDatabase] root.
  */
 internal fun buildAppGraph(
     applicationContext: Context,
     appDatabase: AppDatabase,
     imageStorage: ImageStorage,
-    // Defaulted for the JVM identity tests, which build throwaway graphs whose scopes die with the
-    // test process — a fresh uncancelled lifetime is exactly the pre-Phase-5 anonymous-scope
-    // behavior. The two REAL callers both pass one explicitly: the AppRuntime threads the
-    // generation lifetime; MetroTestRule passes a per-test lifetime it cancels in after().
+    // Defaulted for throwaway test graphs; hosts pass a lifetime they own and cancel.
     appScopeLifetime: AppScopeLifetime = AppScopeLifetime(),
-    // Defaulted to the fail-fast stub for graphs built OUTSIDE a runtime host (identity tests,
-    // the androidTest harness): the replacement transaction is runtime-owned, so a graph with no
-    // runtime must fail LOUDLY on a swap attempt, never no-op past it.
+    // Defaulted to the fail-fast stub: the transaction is runtime-owned, so a graph without a
+    // runtime must fail loudly on a swap rather than no-op past it.
     databaseReplacement: DatabaseReplacement = NoRuntimeDatabaseReplacement,
 ): AppGraph = createGraphFactory<AppGraph.Factory>().create(
     applicationContext = applicationContext,
@@ -46,7 +32,7 @@ internal fun buildAppGraph(
     databaseReplacement = databaseReplacement,
 )
 
-/** The loud default for runtime-less graphs — see [buildAppGraph]'s parameter KDoc. */
+/** The loud default for runtime-less graphs. */
 private object NoRuntimeDatabaseReplacement : DatabaseReplacement {
 
     override suspend fun restoreFromSnapshot(

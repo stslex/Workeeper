@@ -5,13 +5,8 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
 /**
- * Pins [WorkoutExportMapper.epochToIso]'s output format to literal strings, independently of
- * any date-time library: the export is a persisted artifact (the AI snapshot), so its timestamp
- * rendering is an interface, not an implementation detail. Whole-second values must carry no
- * fractional part; sub-second values exactly three digits; negative epochs the astronomical
- * year-borrowing form. [io.github.stslex.workeeper.core.data.database.export.DatabaseJsonExporterImplTest]
- * additionally asserts equality against `java.time.Instant` — together the two make any
- * divergence between the mapper's rendering and the JDK's ISO-8601 contract visible.
+ * Pins [WorkoutExportMapper.epochToIso] to literal strings: the export is a persisted
+ * artifact, so its timestamp rendering is an interface, not an implementation detail.
  */
 internal class WorkoutExportMapperEpochToIsoTest {
 

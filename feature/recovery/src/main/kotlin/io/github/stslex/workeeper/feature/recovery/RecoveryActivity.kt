@@ -37,36 +37,10 @@ import java.io.File
 
 /**
  * Room-free fallback launcher for Scenario 2 (startup migration failure).
- * Hosted by `feature/recovery` because it must run without any DI graph
- * entry that touches `AppDatabase`.
- *
- * **DB-free invariant**: this activity only calls methods on its injected
- * collaborators that operate on file paths or pure-Kotlin data
- * (`getPreMigrationBackupFile`, `availableMigrationsLabel`,
- * `exportStartupMigrationFailure`). Calling
- * `currentSchemaVersion`/`captureSnapshot`/`restoreFromSnapshot`/
- * `reserveRollbackSnapshot` would open a `SQLiteConnection` to the live `AppDatabase`
- * — which triggers the migration we are trying to avoid. Tests verify
- * the four buttons stay on Room-free paths.
- *
- * Routing entry: `MainActivity.onCreate` reads
- * `StartupMigrationCoordinator`'s persisted result; on
- * `RouteToRecovery` it finishes itself and starts this activity via
- * intent. The activity exposes four actions:
- *
- * | Action | Behavior |
- * |---|---|
- * | Update app | `market://details?id=<package>` with `https://play.google.com/...` fallback. |
- * | Export raw data | Shares `cache/pre_migration_backup.db` via FileProvider. |
- * | Report issue | Opens the GitHub issue URL with `bug,migration` labels. |
- * | Export diagnostics | Writes a `.txt` via `RecoveryDiagnosticsExporter` and launches `ACTION_SEND`. |
+ * See documentation/feature-specs/backup-recovery.md.
  */
-// Reads its two app-scope deps through the typed [RecoveryDepsHolder] point-acquisition (this Activity uses
-// no core:ui:mvi symbols, so it does NOT take the mvi-homed appDeps<T>() path and gains no mvi edge).
-// ROOM-FREE PRESERVED: resolving databaseSnapshotProvider + recoveryDiagnosticsExporter builds the graph
-// (buildAppDatabase = a cold Room.build(), no SQLite open) and constructs the two impls (ctors only store
-// refs — no connection open); the DB opens only when a forbidden method is called, which this activity never
-// does.
+// GUARD: call only file-path / pure-Kotlin collaborator methods here; opening a SQLiteConnection
+// triggers the very migration this screen exists to avoid.
 class RecoveryActivity : ComponentActivity() {
 
     private val deps: RecoveryDeps by lazy {
@@ -77,16 +51,7 @@ class RecoveryActivity : ComponentActivity() {
 
     private val diagnosticsExporter get() = deps.recoveryDiagnosticsExporter
 
-    /**
-     * Reads BOTH lazily-resolved app-graph collaborators and returns them.
-     *
-     * Production never calls this: `deps` is a `by lazy` and the two accessors are only read from the
-     * button handlers, so a plain CREATED → STARTED → RESUMED walk never touches either. The DB-free
-     * tripwire (`RecoveryActivityDbFreeTest`) calls this from `scenario.onActivity { }` to force the
-     * resolution + construction of both collaborators INSIDE the window where the fail-fast
-     * `SQLiteDriver` is installed. Returning them (rather than reading them as bare statements) keeps
-     * the reads observable and un-elidable.
-     */
+    /** Test-only seam: forces resolution of both lazily-resolved app-graph collaborators. */
     @VisibleForTesting
     fun warmDeps(): List<Any> = listOf(snapshotProvider, diagnosticsExporter)
 
@@ -164,9 +129,7 @@ class RecoveryActivity : ComponentActivity() {
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         runCatching { startActivity(chooser) }
             .onFailure { e ->
-                // Best-effort — the share intent failure (e.g. no app handles
-                // the MIME) is non-fatal; the user can still use the other
-                // recovery buttons.
+                // Non-fatal — no installed app handles the MIME type.
                 if (e !is ActivityNotFoundException) throw e
             }
     }

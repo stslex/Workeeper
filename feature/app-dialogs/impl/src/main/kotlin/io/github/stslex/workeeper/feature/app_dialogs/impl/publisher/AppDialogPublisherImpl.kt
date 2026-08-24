@@ -10,18 +10,8 @@ import io.github.stslex.workeeper.feature.app_dialogs.api.publisher.AppDialogPub
 import io.github.stslex.workeeper.feature.app_dialogs.impl.data.AppDialogRepository
 
 /**
- * Thin facade in front of [AppDialogRepository.publish].
- *
- * The split (Publisher in `api`, Repository in `impl`) keeps producer
- * features depending only on the api module — they never reach into the
- * impl module's DataStore, Resolver, or Store. The facade adds no logic of
- * its own; per-variant dedup and the atomic `dataStore.edit { }` write
- * live in the repository.
- *
- * DI (App-Scope Collapse Step 3): Metro-owned, `@ContributesBinding(AppScope)`
- * binds it to [AppDialogPublisher] for the cross-module producer readers
- * (settings). Public because `@ContributesBinding` on an `internal` class does
- * not aggregate across Gradle modules.
+ * App-scoped facade over [AppDialogRepository.publish] so producer features depend on the api
+ * module only; it adds no logic of its own.
  */
 @ContributesBinding(AppScope::class)
 @SingleIn(AppScope::class)

@@ -28,26 +28,9 @@ interface ExerciseStore : Store<State, Action, Event> {
     data class State(
         val uuid: String?,
         val mode: Mode,
-        /**
-         * Which edit session the current draft belongs to — bumped on every entry into
-         * [Mode.Edit]. The set-removed toast carries it back with its undo action: a toast
-         * outlives the draft it edited (5s, accessibility-stretched), so Save or Cancel can
-         * end the draft — and Edit can start a new one — while «Отменить» is still on
-         * screen. The undo handler no-ops unless the epoch still matches, so a stale undo
-         * cannot put an unsaved row onto the Read screen or into a draft it never edited.
-         */
+        /** Which edit session the draft belongs to — bumped on each [Mode.Edit] entry. */
         val draftEpoch: Int,
-        /**
-         * A save's write is in flight: the snapshot is already captured, so the draft may
-         * not take an undo any more — a row restored now would reach the screen and miss
-         * the database. Discard is refused for the same reason in the other direction: a
-         * rollback now would leave the landing save's [originalSnapshot] holding the
-         * saved values while the visible fields show the reverted ones. Set
-         * when Save dispatches, cleared on every outcome (the success flip to Read, or
-         * the failure that keeps the draft alive and re-arms its undos — `DuplicateName`
-         * and a failed image commit both stay in Edit) — and defensively on Edit entry,
-         * so a flag orphaned with a dead draft cannot gag the next one.
-         */
+        /** A save's write is in flight: the draft refuses undo and discard until it lands. */
         val isSaving: Boolean,
         val name: String,
         val nameError: Boolean,
@@ -74,8 +57,7 @@ interface ExerciseStore : Store<State, Action, Event> {
         val personalRecord: PersonalRecordUiModel?,
     ) : Store.State {
 
-        // NO SAVE-ENABLED PREDICATE HERE, and none may be added: gating Save on `name` is
-        // gating it on the exact condition that produces `nameError`, which makes that error
+        // GUARD: no save-enabled predicate here — gating Save on `name` makes `nameError`
         // unreachable (§26, "Save is never disabled").
 
         val hasChanges: Boolean
@@ -85,15 +67,8 @@ interface ExerciseStore : Store<State, Action, Event> {
             get() = pendingImage != PendingImage.Unchanged
 
         /**
-         * Compares the working ad-hoc plan against the baseline. It exists for CREATE mode, where
-         * [originalSnapshot] is null until the first save and the first term of [hasChanges] is
-         * therefore false by construction — without it, a plan built in the create flow would be
-         * silently discarded by Cancel. A null snapshot reads as "no plan yet", which is exactly
-         * the comparison create mode needs.
-         *
-         * **The baseline is [originalSnapshot] and there must not be a second one.** Two baselines
-         * for one value need every writer to keep both in step, and every writer will not: §25
-         * **B39** is what that costs here. Asserted both ways in `ExerciseDirtyStateTest`.
+         * Dirty check for the ad-hoc plan; needed in create mode, where [originalSnapshot] is
+         * null until the first save. That snapshot is the only baseline; do not add a second.
          */
         val isAdhocPlanDirty: Boolean
             get() = (adhocPlan ?: persistentListOf<PlanSetUiModel>()) !=
@@ -110,13 +85,7 @@ interface ExerciseStore : Store<State, Action, Event> {
                 }
             }
 
-        /**
-         * True when the system back gesture must surface the discard-changes dialog,
-         * close an open dialog before propagating, or flip an existing exercise's Edit
-         * mode back to Read instead of popping. When false, BackHandler stays
-         * unsubscribed so Compose nav handles the gesture natively (including the
-         * Android 13+ predictive-back preview animation).
-         */
+        /** Back must raise the discard dialog, close an open dialog, or flip Edit → Read. */
         val interceptBack: Boolean
             get() = (mode is Mode.Edit && (hasChanges || !mode.isCreate)) ||
                 dialogState !is DialogState.Hidden
@@ -146,11 +115,7 @@ interface ExerciseStore : Store<State, Action, Event> {
 
             private companion object {
 
-                /**
-                 * Treat `null` and an empty list as equal — both mean "no plan attached".
-                 * Without this, an in-flight edit that toggles between empty list and null
-                 * would falsely register as dirty.
-                 */
+                /** `null` and an empty list both mean "no plan attached". */
                 fun normalizePlan(
                     plan: ImmutableList<PlanSetUiModel>?,
                 ): ImmutableList<PlanSetUiModel> = plan ?: persistentListOf()
@@ -159,11 +124,7 @@ interface ExerciseStore : Store<State, Action, Event> {
 
         companion object {
 
-            /**
-             * One limit, two readers: `ClickHandler` enforces it and the ТЕГИ head's
-             * `N из 10` counter displays it (§3.2 — the counter renders only where a limit
-             * exists, which is this feature and not `feature/single-training`).
-             */
+            /** Enforced by `ClickHandler`, displayed by the ТЕГИ head's `N из 10` counter. */
             const val MAX_TAGS_PER_EXERCISE: Int = 10
 
             fun create(uuid: String?): State = State(
@@ -208,14 +169,8 @@ interface ExerciseStore : Store<State, Action, Event> {
             data object ImagePickCancelled : Common
 
             /**
-             * The image viewer popped asking for something — [request] is a
-             * [Screen.ExerciseImageRequest] name.
-             *
-             * A name and not the enum, because that is what crosses the destination
-             * boundary (see [Screen.ExerciseImage]); resolving it is this Store's job.
-             * An unrecognised name is ignored rather than thrown on: a request nobody can
-             * name is a request nobody can honour, and the viewer that sent it is already
-             * gone by the time this arrives.
+             * A request popped by the image viewer: [request] names a
+             * [Screen.ExerciseImageRequest]; an unrecognised name is ignored.
              */
             data class ImageRequestReceived(val request: String) : Common
         }
@@ -271,21 +226,13 @@ interface ExerciseStore : Store<State, Action, Event> {
             /** The plan head's `(i)` — opens the [BottomSheetState.PlanInfo] sheet (ED8). */
             data object OnPlanInfoClick : Click
 
-            /**
-             * Mutates the in-memory ad-hoc plan — the plan is edited **inline, in the form,
-             * in both modes** (ED1): the body in `ExerciseEditScreen` emits the body action
-             * wrapped in this store action, the handler delegates to `PlanDraftReducer`, and
-             * nothing is persisted until Save.
-             */
+            /** Mutates the in-memory ad-hoc plan; nothing is persisted until Save (ED1). */
             @Suppress("MviActionNamingRule")
             data class OnAdhocPlanEditorAction(
                 val action: PlanEditorBodyAction,
             ) : Click
 
-            /**
-             * The inline plan editor's WEIGHTED / WEIGHTLESS toggle. The form owns the type in
-             * both modes, because the rows whose shape it decides are drawn on this form.
-             */
+            /** The inline plan editor's WEIGHTED / WEIGHTLESS toggle. */
             data class OnTypeToggle(val value: ExerciseTypeUiModel) : Click
 
             /** Commit a switch that the weight-wipe confirm asked about. */
@@ -353,11 +300,7 @@ interface ExerciseStore : Store<State, Action, Event> {
 
             data class OpenLiveWorkout(val sessionUuid: String) : Navigation
 
-            /**
-             * [editable] states whether THIS caller can honour a replace/remove request coming
-             * back from the viewer. Read mode cannot — no Save, no dirty interception — so the
-             * viewer draws no verbs for it.
-             */
+            /** [editable] states whether this caller can honour a replace/remove request. */
             data class OpenImageViewer(val model: String, val editable: Boolean) : Navigation
 
             data class OpenChart(val exerciseUuid: String) : Navigation
@@ -373,12 +316,7 @@ interface ExerciseStore : Store<State, Action, Event> {
 
         data class ShowTagLimitReached(val message: String) : Event
 
-        /**
-         * `− подход` in the editor is a DRAFT edit (§4's table): nothing is persisted, so
-         * the undo restores the draft — [set] back at [index] — and there is no timer and
-         * no deferred anything. Item-wise rather than a whole-draft snapshot, so queued
-         * toasts compose: each undo restores exactly the row its toast named.
-         */
+        /** Draft-only undo — [set] goes back at [index]; item-wise so queued toasts compose. */
         data class ShowSetRemovedUndo(
             val message: String,
             val set: PlanSetUiModel,
@@ -398,11 +336,7 @@ interface ExerciseStore : Store<State, Action, Event> {
         data class ShowImageError(val errorType: ImageErrorType) : Event
     }
 
-    /**
-     * Where the user is heading after confirming a discard. The form-level discard either
-     * pops the screen (creation flow) or flips back to Read mode (edit flow); plan-editor
-     * discard is now handled by the standalone PlanEditor route, not here.
-     */
+    /** Where a confirmed discard goes: pop the screen (create) or flip back to Read. */
     @Stable
     enum class DiscardTarget { POP_SCREEN, FLIP_TO_READ }
 }

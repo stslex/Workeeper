@@ -24,16 +24,8 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 
 /**
- * Row-container modifier for a reorderable Column item. Registers the item's measured
- * bounds (so the state can pick a drop target), applies the drag visual (shadow +
- * vertical translation) when this row is the one being dragged, and otherwise applies an
- * animated displacement so siblings between source and target shift out of the way as
- * the drag progresses.
- *
- * Gesture detection lives in [reorderableColumnDragHandle] — this modifier deliberately
- * does **not** install a long-press detector on the whole row, so child widgets that
- * consume long-press (text fields, tooltip wrappers) no longer block the reorder
- * affordance.
+ * Row-container modifier for a reorderable Column item: registers bounds, applies the drag
+ * visual, and displaces siblings. Gesture detection lives in [reorderableColumnDragHandle].
  */
 @Composable
 fun Modifier.reorderableColumnItem(
@@ -52,12 +44,10 @@ fun Modifier.reorderableColumnItem(
         targetValue = if (isDragged) tintSelected else tintUnselected,
         label = "reorderable-column-background",
     )
-    // Resolved out here rather than inside the `semantics` lambda: that block is not a composable
-    // scope, and these are announced strings, so they are resources in every language the app has.
+    // The `semantics` block is not a composable scope, so the announced strings resolve here.
     val moveUpLabel = stringResource(R.string.core_ui_kit_reorder_move_up)
     val moveDownLabel = stringResource(R.string.core_ui_kit_reorder_move_down)
-    // The row registers itself while placed and MUST unregister when it leaves: nothing else
-    // removes it, and a stale entry is a drop target that is not on screen.
+    // GUARD: nothing else unregisters the row; a stale entry is an off-screen drop target.
     DisposableEffect(key) {
         onDispose { state.onItemDisposed(key) }
     }
@@ -69,8 +59,6 @@ fun Modifier.reorderableColumnItem(
         }
         .zIndex(if (isDragged) 1f else 0f)
         .graphicsLayer {
-            // If this item is being dragged, we want to disable the default layout-based
-            // placement and just follow the finger.
             if (isDragged) {
                 translationY = dragOffset
             }
@@ -78,14 +66,8 @@ fun Modifier.reorderableColumnItem(
         .background(backgroundColor)
         .padding(vertical = verticalPadding)
         .semantics {
-            // Only the moves that can actually happen are offered. `moveUp` no-ops at 0 and
-            // `moveDown` no-ops at [lastIndex], so registering both unconditionally advertises an
-            // impossible action to a screen reader AND returns `true` for it — the action reports
-            // success having done nothing — and a control that reports a move it did not make is
-            // worse than one that is simply absent.
-            //
-            // [lastIndex] is REQUIRED and must not gain a default: a default is a value every
-            // existing call site would silently keep, which is the bug.
+            // GUARD: register only reachable moves - moveUp/moveDown no-op at the ends while
+            // still returning true. [lastIndex] is required and must not gain a default.
             customActions = buildList {
                 if (index > 0) {
                     add(
@@ -108,11 +90,8 @@ fun Modifier.reorderableColumnItem(
 }
 
 /**
- * Gesture-only modifier for the small drag-handle widget inside a reorderable row.
- * Applies long-press-to-drag detection scoped to whatever element it decorates — usually
- * a 24dp Icon at the trailing edge.
- *
- * Set [enabled] to `false` to keep the handle visible but inert (e.g. read-only rows).
+ * Gesture-only modifier for the drag handle inside a reorderable row: long-press-to-drag,
+ * scoped to whatever it decorates. [enabled] = false keeps the handle visible but inert.
  */
 fun Modifier.reorderableColumnDragHandle(
     state: ReorderableColumnState,

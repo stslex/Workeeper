@@ -48,10 +48,8 @@ fun ReorderableLazyColumn(
 }
 
 /**
- * Row-container modifier for an item inside a [ReorderableLazyColumn]. Applies the drag
- * visual when this row is being dragged and an animated displacement on siblings between
- * source and target so the user sees the future order before they release. Gesture
- * detection lives in [reorderableDragHandle].
+ * Row-container modifier for an item in a [ReorderableLazyColumn]: drag visual plus animated
+ * sibling displacement. Gesture detection lives in [reorderableDragHandle].
  */
 @Composable
 fun Modifier.reorderableLazyItem(
@@ -78,12 +76,8 @@ fun Modifier.reorderableLazyItem(
 }
 
 /**
- * Gesture-only modifier for the drag-handle widget inside a reorderable lazy row. Long-
- * press starts the drag, which then tracks the finger via `onDrag`. Pair with
- * [reorderableLazyItem] on the row container.
- *
- * `lastIndex` is plumbed through so the accessibility "Move down" action can no-op at
- * the bottom of the list.
+ * Gesture-only modifier for the drag handle; pair with [reorderableLazyItem] on the row.
+ * `lastIndex` lets the accessibility "Move down" action no-op at the bottom of the list.
  */
 fun Modifier.reorderableDragHandle(
     state: ReorderableLazyListState,

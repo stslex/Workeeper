@@ -6,14 +6,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 /**
- * Depth tokens.
- *
- * [level0]–[level5] are **tone**, not z: this palette expresses ordinary depth by surface
- * colour, and [shadow] is `0.dp` because nothing in the app floats. That stays true.
- *
- * The three `lift*` values are the exception, and they are the v3 `--slabtop` token. See
- * `Modifier.liftedSurface` for what the role is and why its mechanism inverts by theme; only
- * the numbers live here.
+ * Depth tokens. [level0]-[level5] are tone, not z, and [shadow] is `0.dp` because nothing floats.
+ * The `lift*` values are the v3 `--slabtop` token; see `Modifier.liftedSurface` for the role.
  */
 @Immutable
 data class AppElevation(
@@ -25,36 +19,18 @@ data class AppElevation(
     val level5: Color,
     val shadow: Dp,
     val borderHairline: Dp,
-    /**
-     * `--slabtop`, the **dark** half: the colour of the 1dp highlight drawn along the inside of
-     * a lifted surface's top edge. `rgba(255,255,255,.055)`, transcribed as `0x0EFFFFFF`
-     * (0.055 x 255 = 14.0 = 0x0E).
-     *
-     * `Color.Transparent` in light, where the mechanism is [liftShadow] instead.
-     */
+    /** `--slabtop`, dark half: the 1dp inner top-edge highlight. Transparent in light. */
     val liftHighlight: Color,
-    /**
-     * `--slabtop`, the **light** half: the cast-shadow elevation of a lifted surface.
-     *
-     * `0.dp` in dark, where the mechanism is [liftHighlight] instead.
-     */
+    /** `--slabtop`, light half: the cast-shadow elevation of a lifted surface. `0.dp` in dark. */
     val liftShadow: Dp,
     /** The hue [liftShadow] casts in. Meaningless when [liftShadow] is `0.dp`. */
     val liftShadowColor: Color,
 )
 
-/**
- * `rgba(255,255,255,.055)` — the dark theme's inner top-edge highlight.
- *
- * 0.055 x 255 = 14.025, which rounds to 14 = `0x0E`. Round-trips to 0.0549.
- */
+/** `rgba(255,255,255,.055)` - the dark theme's inner top-edge highlight. */
 private const val LIFT_HIGHLIGHT_DARK: Long = 0x0EFFFFFF
 
-/**
- * The mockup draws two shadow layers, `0 1px 3px` and `0 6px 18px`. Android casts one shadow
- * per elevation, so the outer layer's 6px offset is the value carried across — it is the layer
- * that does the lifting; the 1px contact layer is a seam the 6dp shadow already implies.
- */
+/** The outer of the mockup's two shadow layers; Android casts one shadow per elevation. */
 private val LIFT_SHADOW_LIGHT: Dp = 6.dp
 
 /** `rgba(13,17,20,…)` — the hue both mockup shadow layers cast in. This is light `max`. */

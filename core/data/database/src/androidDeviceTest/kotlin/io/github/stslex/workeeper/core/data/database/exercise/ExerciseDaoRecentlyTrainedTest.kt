@@ -24,12 +24,8 @@ import org.junit.runner.RunWith
 import kotlin.uuid.Uuid
 
 /**
- * Instrumented coverage of the v2.2 chart picker query. Exercises real Android SQLite so
- * the query's behavior matches what ships on devices, not what Robolectric's bundled
- * SQLite would do.
- *
- * Each case constructs minimal seed data via the project DAOs (no raw SQL), then calls
- * [ExerciseDao.getRecentlyTrainedExercises] and asserts the resulting picker rows.
+ * Coverage of [ExerciseDao.getRecentlyTrainedExercises] on real Android SQLite —
+ * Robolectric's bundled SQLite is not the SQLite that ships on devices.
  */
 @Regression
 @RunWith(AndroidJUnit4::class)
@@ -131,9 +127,7 @@ internal class ExerciseDaoRecentlyTrainedTest {
         val exercise = Uuid.random()
         seedTraining(training)
         seedExercise(exercise, "Bench")
-        // A FINISHED row with NULL finished_at is physically possible (old data, broken
-        // migrations); the query must defend against it because MAX(finished_at) over a
-        // group containing only NULL would otherwise yield a NULL last_finished_at.
+        // A FINISHED row with NULL finished_at is physically possible (old data, bad migrations).
         seedSession(
             trainingUuid = training,
             exerciseUuid = exercise,
@@ -209,9 +203,7 @@ internal class ExerciseDaoRecentlyTrainedTest {
 
     @Test
     fun mixedPerformedRows_invalidRowMoreRecent_lastFinishedAtMatchesValidRow() = runBlocking {
-        // Row A: valid, older. Row B: skipped (invalid), more recent. The MAX must come
-        // from the valid row, not the skipped one — that's the whole point of filtering
-        // before the aggregate.
+        // The MAX must come from the valid older row, not from the more recent skipped one.
         val training = Uuid.random()
         val exercise = Uuid.random()
         seedTraining(training)

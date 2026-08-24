@@ -56,9 +56,7 @@ internal class ClickHandler @Inject constructor(
     }
 
     private fun processExerciseLongPress(action: Action.Click.OnExerciseLongPress) {
-        // §26 "Haptics": LongPress is for ENTERING selection. A long press while already in
-        // selection is a toggle and gets ContextClick from `processSelectionToggle` — firing
-        // LongPress first would put two in a row, which reads as a fault.
+        // LongPress is for entering selection; a toggle inside it already fires ContextClick.
         if (state.value.selectionMode is SelectionMode.On) {
             processSelectionToggle(Action.Click.OnSelectionToggle(action.uuid))
             return
@@ -77,10 +75,7 @@ internal class ClickHandler @Inject constructor(
     }
 
     private fun processTagFilterToggle(action: Action.Click.OnTagFilterToggle) {
-        // No haptic. §26 "Haptics" names four constants and gives SegmentTick to the nav bar's tab
-        // change; this screen borrowed it for a filter chip, which is a different gesture on a
-        // different surface. The vocabulary is not extended here — and the sibling screen, which
-        // draws the same band, already dropped it.
+        // No haptic: the §26 vocabulary has no constant for "a filter changed".
         updateState { current ->
             val next = if (action.tagUuid in current.activeTagFilter) {
                 current.activeTagFilter - action.tagUuid
@@ -92,13 +87,8 @@ internal class ClickHandler @Inject constructor(
     }
 
     /**
-     * Clears the tag filter whole. No haptic, for the same reason [processTagFilterToggle] fires
-     * none: the vocabulary is four constants and none of them is "a filter changed".
-     *
-     * Guarded on an already-empty filter so a redundant emit cannot restart the paging flow the
-     * filter feeds. `PagingHandler` flat-maps `activeTagFilter` through `distinctUntilChanged`,
-     * which absorbs it today — the guard states the intent where the emit is, rather than resting
-     * on a downstream operator staying where it is.
+     * Clears the tag filter whole; no haptic, as with [processTagFilterToggle]. Guarded on an
+     * already-empty filter so a redundant emit cannot restart the paging flow the filter feeds.
      */
     private fun processClearTagFilter() {
         if (state.value.activeTagFilter.isEmpty()) return
@@ -107,9 +97,7 @@ internal class ClickHandler @Inject constructor(
 
     private fun processConfirmPermanentDelete() {
         val pending = state.value.pendingPermanentDelete ?: return
-        // §26 "Haptics": Confirm is the confirmed-deletion buzz — after the dialog, not on the
-        // button that opens it. (B23: nothing sets `pendingPermanentDelete`, so this path is
-        // currently unreachable. Corrected anyway rather than left wrong behind a dead gate.)
+        // Confirm is the post-dialog deletion buzz, not the button that opens the dialog.
         sendEvent(Event.Haptic(HapticFeedbackType.Confirm))
         updateState { it.copy(pendingPermanentDelete = null) }
         launch {
@@ -152,18 +140,13 @@ internal class ClickHandler @Inject constructor(
     }
 
     /**
-     * Bulk-delete FAB → confirm dialog whenever at least one row is selected. The
-     * underlying call is `bulkArchive` (soft-delete), not `bulkPermanentDelete` — permanent
-     * delete requires zero session history per row, which the v2.4 selection-mode entry
-     * cannot guarantee. Archived exercises are restorable from Settings → Archive.
+     * Bulk-delete FAB → confirm dialog whenever at least one row is selected. The underlying call
+     * is `bulkArchive` (soft-delete); archived exercises are restorable from Settings → Archive.
      */
     private fun processBulkDelete() {
         val mode = state.value.selectionMode as? SelectionMode.On ?: return
         if (mode.selectedUuids.isEmpty()) return
-        // §26 "Haptics": the FAB morph fires NOTHING. It follows the long press that already
-        // fired, and two in a row read as a fault. This is also the selection top bar's archive
-        // action, which is not a morph — but it opens the same dialog, and the confirmation is
-        // where the buzz belongs.
+        // No haptic: the morph follows a long press that already fired; the buzz is on confirm.
         updateState { current ->
             current.copy(pendingBulkDelete = PendingBulkDelete(count = mode.selectedUuids.size))
         }
@@ -193,8 +176,7 @@ internal class ClickHandler @Inject constructor(
                         ),
                     )
                 } else {
-                    // Any blocked exercise → one consistent, persistent mechanism: a dialog
-                    // naming the blocking trainings, never a droppable snackbar.
+                    // Blocked rows get a dialog, never a droppable snackbar.
                     val dialog = with(AllExercisesUiMapper) {
                         result.toBlockedArchiveDialog(resourceWrapper)
                     }

@@ -9,11 +9,8 @@ import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMap
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.PendingUndo
 
 /**
- * The single-level undo machinery shared by every handler that snapshots (extraction §1.9,
- * mockup `snap()`/`undo()` semantics — one level, latest wins, replacement commits).
- *
- * All functions run against the store the handlers already delegate to; the interactor rides
- * in per call because each handler owns its own instance.
+ * Single-level undo machinery shared by every handler that snapshots: latest wins, and a
+ * replacement commits the one it replaces. See documentation/feature-specs/live-workout.md.
  */
 internal object PendingUndoOps {
 
@@ -21,10 +18,7 @@ internal object PendingUndoOps {
 
     fun nextUndoId(): Long = ++counter
 
-    /**
-     * Replaces the pending undo with [next], committing the previous one's deferred write
-     * first — the mockup's `snap()` overwrites the old snapshot the same way.
-     */
+    /** Replaces the pending undo with [next], committing the previous one's deferred write. */
     fun LiveWorkoutHandlerStore.pushUndo(interactor: LiveWorkoutInteractor, next: PendingUndo) {
         commitDeferred(interactor, state.value.pendingUndo)
         updateState { it.copy(pendingUndo = next) }
@@ -71,10 +65,7 @@ internal object PendingUndoOps {
         }
     }
 
-    /**
-     * Closes the undo window (timeout, navigation, finish, or replacement) and commits the
-     * deferred destructive write if one is held. Safe to call with no pending undo.
-     */
+    /** Closes the undo window and commits the deferred destructive write, if one is held. */
     fun LiveWorkoutHandlerStore.flushPendingUndo(interactor: LiveWorkoutInteractor) {
         val pending = state.value.pendingUndo ?: return
         commitDeferred(interactor, pending)
@@ -87,8 +78,7 @@ internal object PendingUndoOps {
     ) {
         val deferred = pending?.deferredCommit ?: return
         launch(
-            // The exercise is already gone from State; a failed hard-delete resurfaces on
-            // the next reload rather than crashing the session. Logged, not surfaced.
+            // A failed hard-delete resurfaces on the next reload; logged, not surfaced.
             onError = { error -> logger.e(error, "deferred exercise delete failed") },
         ) {
             interactor.deleteExerciseFromSession(

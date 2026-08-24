@@ -11,16 +11,7 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
 
-/**
- * Pins the priority walk implemented by [AppDialogResolver]. Tests pass
- * hand-built [Preferences] snapshots straight into the resolver — no DataStore,
- * no Robolectric, no Hilt.
- *
- * The repository's own test ([io.github.stslex.workeeper.feature.app_dialogs.impl.data.AppDialogRepositoryTest])
- * exercises the publish/dismiss persistence path; this file owns the priority
- * contract so that future variants must update one fixed-order `when` chain
- * and one matrix of expectations here.
- */
+/** Pins the priority walk in [AppDialogResolver] against hand-built [Preferences] snapshots. */
 internal class AppDialogResolverTest {
 
     @Test

@@ -23,43 +23,14 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
 /**
- * Lifecycle coverage for the navigation command-bus.
- *
- * Renamed from `NavigationLifecycleRegressionTest` at the Nav3 swap: the stage-1.3 plan marked
- * both variants of that class for deletion, but only the INSTRUMENTED one guarded the
- * Nav2-specific bug class (a singleton-scoped, controller-backed navigator going stale across
- * `scenario.recreate()`). The five tests here reference no controller and no navigation library
- * at all — they pin the `NavigatorEventBus` invariants the bridge KEEPS relying on under Nav3,
- * where `NavigatorExt.NavigationEventBusSetup` collects the same hot flow inside a
- * `LaunchedEffect(navigatorHolder)` and re-binds across recompositions exactly as it did across
- * fresh controllers.
- *
- * The architecture the invariants describe: decisions and execution split — the singleton
- * `NavigatorEventBus` stores only a `SharedFlow<NavCommand>` (no back-stack reference), and the
- * bridge collector is the only thing that touches the app-owned stack.
- *
- * The tests below cover the JVM-observable invariants of that design:
- *  - The bus instance stays usable across "bridge detach" / "bridge re-attach" — the
- *    singleton is unchanged and a fresh subscriber on the same instance receives
- *    new emissions.
- *  - Commands emitted **after** a new collector attaches are observed by the new
- *    collector. Pre-subscription emissions are NOT guaranteed to be replayed:
- *    `NavigatorEventBus` uses `MutableSharedFlow(replay = 0, extraBufferCapacity = 64)`
- *    where the buffer absorbs `tryEmit` so it does not block, but does not redeliver
- *    to subscribers that attach later. The production bridge attaches synchronously
- *    inside `App.kt` before any Store action could emit for that composition, so
- *    pre-subscription emits are not part of the lifecycle contract.
- *  - Multiple concurrent collectors each see the same hot stream slice — the stream
- *    is multicast, not single-shot.
- *  - Command order is preserved within each subscriber's slice.
+ * Lifecycle coverage for the command-bus singleton: it survives bridge detach and re-attach,
+ * multicasts to concurrent collectors and preserves order. `replay = 0`, so pre-subscription
+ * emissions are not part of the contract.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 internal class NavigatorEventBusLifecycleTest {
 
-    // `NavigatorEventBus` constructs a `Log.tag(...)` logger that funnels through
-    // `FirebaseCrashlyticsHolder` → `Firebase.crashlytics` on every emit. In a JVM
-    // unit test Firebase is not initialized and `Process.myPid()` is not mocked,
-    // so the real logger throws. Stub `Log.tag(...)` to return a relaxed Logger.
+    // The real `Log.tag` logger reaches Firebase, which is not initialized in a JVM test.
     @BeforeEach
     fun setUpLogger() {
         mockkObject(Log)
@@ -76,8 +47,7 @@ internal class NavigatorEventBusLifecycleTest {
         val dispatcher = UnconfinedTestDispatcher(testScheduler)
         val bus = NavigatorEventBus(mockk(relaxed = true))
 
-        // Bridge 1 attaches, observes one command, then detaches when its launched
-        // job completes (simulates LaunchedEffect leaving the composition).
+        // Bridge 1 attaches, observes one command, then detaches when its job completes.
         val bridge1 = async(dispatcher) { bus.commands.first() }
         testScheduler.advanceUntilIdle()
         bus.navTo(Screen.Exercise(uuid = "ex-1"))
@@ -102,19 +72,13 @@ internal class NavigatorEventBusLifecycleTest {
         val dispatcher = UnconfinedTestDispatcher(testScheduler)
         val bus = NavigatorEventBus(mockk(relaxed = true))
 
-        // Decision-side dispatch happens while no executor is collecting (the bridge
-        // has not attached yet). The bus uses replay = 0 with extraBufferCapacity = 64,
-        // so `tryEmit` returns true without blocking; the emissions are NOT cached for
-        // subscribers that attach later. The load-bearing assertion is simply that
-        // the bus does not crash or get into a stuck state.
+        // Dispatch while no executor is collecting: `tryEmit` buffers without blocking, and the
+        // emissions are not cached for subscribers that attach later.
         bus.navTo(Screen.Exercise(uuid = "ex-1"))
         bus.replaceTo(Screen.PastSession(sessionUuid = "session-1"))
         bus.popBack()
 
-        // A fresh subscriber attaches (mimics the bridge of a new composition) and
-        // observes the next emission. We do NOT assert on the pre-subscription
-        // emissions — they are not guaranteed to be replayed and the production
-        // bridge attaches before any Store action could fire for that composition.
+        // A fresh subscriber attaches and observes the next emission, not the earlier ones.
         val deferred = async(dispatcher) { bus.commands.first() }
         testScheduler.advanceUntilIdle()
         bus.navTo(Screen.BottomBar.Home)
@@ -156,8 +120,7 @@ internal class NavigatorEventBusLifecycleTest {
         bus.navTo(Screen.BottomBar.AllTrainings)
         val firstObserved = first.await()
 
-        // Second bridge attaches (post-recreation). It should see the next two
-        // emissions in dispatch order.
+        // Second bridge attaches post-recreation and sees the next two emissions in order.
         val second = async(dispatcher) { bus.commands.take(2).toList() }
         testScheduler.advanceUntilIdle()
         bus.navTo(Screen.Exercise(uuid = "ex-2"))
@@ -184,9 +147,7 @@ internal class NavigatorEventBusLifecycleTest {
     fun `repeated subscription returns the same SharedFlow instance from the bus`() {
         val bus = NavigatorEventBus(mockk(relaxed = true))
 
-        // Repeated reads must return the same flow instance — otherwise re-attaching
-        // after recreation would attach to a different stream and miss subsequent
-        // commands.
+        // Repeated reads must return the same flow, or a re-attach would miss later commands.
         val first = bus.commands
         val second = bus.commands
 

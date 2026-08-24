@@ -5,32 +5,17 @@ import androidx.compose.ui.graphics.Color
 import io.github.stslex.workeeper.core.ui.kit.theme.AppColors
 
 /**
- * Every colour slot in the palette, found by reflection rather than by a hand-written list.
- *
- * The list is mechanical on purpose. A hand-written inventory is a comment: it is correct on
- * the day it is written and silently wrong the first time somebody adds a slot. [ContrastGateTest]
- * asks this object what exists and then insists that every combination be accounted for, so a
- * new slot arrives as a test failure rather than as an unmeasured pair.
+ * Every colour slot in the palette, found by reflection so a new slot cannot be forgotten.
+ * [ContrastGateTest] insists every combination this returns is accounted for.
  */
 internal object PaletteInventory {
 
-    /**
-     * Package prefix a nested colour group must live in to be recursed into. Keeps the walk
-     * inside the design system instead of descending into Compose or the JDK.
-     */
+    /** Package prefix a nested colour group must live in to be recursed into. */
     private const val THEME_PACKAGE = "io.github.stslex.workeeper.core.ui.kit.theme"
 
     /**
      * Fully-qualified slot name to value, e.g. `surfaceTier1`, `setType.failureForeground`.
-     *
-     * Nested groups are **discovered**, not listed. The previous version named the four groups
-     * it knew about, which reintroduced exactly the failure this file exists to prevent: a
-     * fifth group added to [AppColors] would have been skipped by the walk, its colours would
-     * never have reached `ContrastContract.ROLES`, and the gate would have stayed green while
-     * an entire group went unclassified. A hard-coded list of the things you must not forget is
-     * not a safeguard.
-     *
-     * `isDark` is a `Boolean`, so it is neither a colour nor a group and is never visited.
+     * Nested groups are discovered by the walk, never listed.
      */
     fun slots(colors: AppColors): Map<String, Color> {
         val out = sortedMapOf<String, Color>()
@@ -53,11 +38,7 @@ internal object PaletteInventory {
         }
     }
 
-    /**
-     * Every property of [instance] that is itself a colour group — i.e. a theme-package type
-     * that declares at least one `Color`. Depth is unbounded, so a group nested inside a group
-     * is still found.
-     */
+    /** Every property of [instance] that is itself a theme-package colour group, at any depth. */
     private fun nestedGroups(instance: Any): List<Pair<String, Any>> = instance.javaClass.methods
         .filter { method ->
             method.parameterCount == 0 &&
@@ -73,11 +54,8 @@ internal object PaletteInventory {
 }
 
 /**
- * What a slot *is*, which decides whether and how it is measured.
- *
- * Derived from call sites, not from the slot's name — the recon pass found three slots whose
- * names lie about their role (`record.border` fills a pill, `accentTintedForeground` fills a
- * circle, `borderSubtle` paints a Box that is functionally a rule).
+ * What a slot *is*, which decides whether and how it is measured. Derived from call sites,
+ * never from the slot's name. See documentation/design-system.md.
  */
 internal enum class SlotRole {
 
@@ -91,19 +69,12 @@ internal enum class SlotRole {
     BOTH,
 
     /**
-     * Decorative: a separator, a hairline, a reinforcing border. Takes **no** threshold.
-     *
-     * v3 separates sections with a 30px gutter and a label, not with a line (spec §3.1), so a
-     * hairline carries no information a user could lose. WCAG 1.4.11 exempts decoration
-     * explicitly. Scoring these would be theatre: every one of them fails 3:1 by construction
-     * (dark `hair-s` on `slab` is 1.22:1) because they are *meant* to be barely there.
+     * Decorative: a separator, a hairline, a reinforcing border. Takes **no** threshold —
+     * WCAG 1.4.11 exempts decoration, and these are meant to be barely there.
      */
     DECORATIVE,
 
-    /**
-     * Inactive. WCAG 1.4.3 and 1.4.11 both carve out "inactive user interface components", so
-     * these carry no contrast obligation at all.
-     */
+    /** Inactive: WCAG 1.4.3 and 1.4.11 both carve out inactive components. */
     EXEMPT,
 
     /** No readers. Not measured because nothing renders it. */

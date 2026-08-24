@@ -40,14 +40,11 @@ class AllExercisesScreenTest : BaseComposeTest() {
     @Ignore("Awaiting feature rewrite — see GH issue #93 for coverage scope.")
     fun pendingFeatureRewrite() {
         // Placeholder so AndroidJUnit4 has at least one @Test to discover.
-        // Remove when real tests are added.
     }
 
     /**
-     * The blocked-archive path must give reliable, actionable feedback: a persistent dialog
-     * that names each blocked exercise and the trainings blocking it (not a droppable
-     * snackbar). Renders the screen with a populated [State.blockedArchiveDialog] and asserts
-     * the blocked exercise + its trainings label show, and that acknowledging dismisses it.
+     * The blocked-archive path gives persistent, actionable feedback: a dialog naming each blocked
+     * exercise and the trainings blocking it, dismissed only by acknowledging.
      */
     @Test
     @Regression

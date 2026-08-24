@@ -14,20 +14,8 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 
 /**
- * The v3 `.flabel` — a field's own label, **above** the box (extraction §7.2).
- *
- * ```css
- * .flabel{font-family:var(--ff-ui);font-size:13px;color:var(--dim);margin:0 0 6px 2px}
- * ```
- *
- * 13px → the **12.5 rung** (`text.meta`), `--dim` → `textDim`, and the 2px left offset is
- * `Space.xxs` exactly. The 6px gap below is **not** applied here — the caller's own
- * `Arrangement.spacedBy` owns the distance to the field, the way every form section in the app
- * already spaces its parts, and baking a margin into the label would give two owners one number.
- *
- * It exists because M3's floating label is drawn nowhere in either mockup, so [AppTextField] has
- * no `label` parameter and the treatment needs a home of its own. One implementation, so the three
- * editors and the finish sheet cannot describe the same object four ways.
+ * A field's own label, drawn above the box — [AppTextField] has no `label` parameter. The gap
+ * below belongs to the caller's `Arrangement.spacedBy`, not to this composable.
  */
 @Composable
 fun AppFieldLabel(

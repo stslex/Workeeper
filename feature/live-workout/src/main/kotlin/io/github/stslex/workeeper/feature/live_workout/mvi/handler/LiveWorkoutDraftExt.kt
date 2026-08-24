@@ -8,14 +8,8 @@ import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStor
 import kotlinx.collections.immutable.toImmutableMap
 
 /**
- * Single canonical entry point for draft seed lookup and draft update.
- *
- * `draft update = current visible row seed + changed field` is the invariant; this
- * helper enforces it. Every handler that creates or mutates a draft routes through
- * `updateSetDraft`, never assembles a `LiveSetUiModel` inline. Type chip clicks
- * preserve weight/reps; weight/reps edits preserve type. See
- * [documentation/feature-specs/live-workout.md → Set draft and visible row architecture]
- * for the rule.
+ * Canonical draft seed lookup. GUARD: every draft mutation routes through `updateSetDraft`,
+ * never assembles a `LiveSetUiModel` inline. See documentation/feature-specs/live-workout.md.
  */
 internal fun State.lookupSetDraftSeed(
     performedExerciseUuid: String,

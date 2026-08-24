@@ -18,12 +18,8 @@ enum class ChartPresetDomain(
     ;
 
     /**
-     * Inclusive window start as epoch millis, or `null` for [ALL]. Subtracts [windowDays]
-     * **calendar** days from [now] in [zone], preserving local time-of-day, so a window that
-     * spans a DST transition stays aligned to the correct calendar boundary. A naive
-     * `now - days * 24h` drifts by the transition's offset and, when [now] is within an hour
-     * of local midnight, lands the boundary on the wrong day — a bug a UTC test zone (which
-     * has no DST) can never surface.
+     * Inclusive window start as epoch millis, or `null` for [ALL]. Subtracts calendar days in
+     * [zone] rather than fixed 24h spans, so a DST transition cannot shift the boundary.
      */
     fun windowStartMillis(now: Long, zone: ZoneId): Long? = windowDays?.let { days ->
         Instant.ofEpochMilli(now).atZone(zone).minusDays(days).toInstant().toEpochMilli()

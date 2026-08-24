@@ -41,20 +41,12 @@ import java.io.File
 import java.io.IOException
 
 /**
- * THE COMPOSED SEAM GATE (round-2 required test, round-3 journal edition): the REAL
- * [RestoreLatestBackupUseCase] driving the REAL [AppRuntime] transaction over ACTUAL temp files
- * — no mocked seam in between. Proves end-to-end: source-ownership transfer at submission (the
- * caller's `finally { tempFile.delete() }` — which genuinely runs on cancellation — can never
- * destroy the staged copy), the durable attempt journal claimed on `onBeforeMutation` and
- * advanced to `Committed` only once the mutation committed, transaction-owned compensation when
- * the initiator is dead, and the truthful RecoveredByRollback → restore-FAILURE mapping.
+ * Composed-seam gate: the real [RestoreLatestBackupUseCase] over the real [AppRuntime] transaction
+ * and actual temp files. See documentation/feature-specs/kmp-phase-5-startup-processor.md §8.5a.
  */
 internal class RestoreTransactionIntegrationTest {
 
-    /**
-     * Stateful in-memory journal — the same ownership rules as the DataStore implementation: at
-     * most ONE unresolved attempt, and only its owner may advance or clear it.
-     */
+    /** In-memory journal: at most one unresolved attempt, advanced or cleared only by its owner. */
     private class FakeRestoreStateRepository : RestoreStateRepository {
         var attempt: RestoreAttempt? = null
         var preRestoreAvailable: Long? = null
@@ -155,8 +147,7 @@ internal class RestoreTransactionIntegrationTest {
         coEvery { provider.deletePreRestoreBackup() } coAnswers {
             File(tempDir, "pre_restore_backup.db").delete()
         }
-        // R3 (spec §8.5a): the rollback snapshot is a per-attempt RESERVATION taken inside the
-        // transaction, promoted onto the canonical undo slot only once the mutation committed.
+        // Per-attempt reservation, promoted onto the undo slot only once the mutation committed.
         coEvery { provider.reserveRollbackSnapshot(any()) } coAnswers {
             val reservation = File(tempDir, "reservation_${firstArg<String>()}.db")
                 .apply { writeText(PRE_ATTEMPT_DB) }
@@ -164,8 +155,7 @@ internal class RestoreTransactionIntegrationTest {
             BackupResult.Success(reservation)
         }
         coEvery { provider.promoteRollbackReservation(any()) } coAnswers {
-            // R4 semantics: promotion COPIES; the runtime deletes the reservation only after
-            // the durable Committed record.
+            // Promotion copies; the reservation is deleted after the durable Committed record.
             firstArg<File>().copyTo(File(tempDir, "pre_restore_backup.db"), overwrite = true)
             BackupResult.Success(Unit)
         }
@@ -285,9 +275,7 @@ internal class RestoreTransactionIntegrationTest {
             advanceTimeBy(3_000)
             runCurrent()
 
-            // The REAL RestoreTransactionEffects ran on the transaction: the pre-mutation
-            // rejection released the journal slot, and the runtime discarded ONLY its own
-            // reservation — the canonical undo slot was never touched.
+            // The rejection released the journal slot and discarded only the attempt's reservation.
             assertNull(restoreState.attempt, "onRejectedBeforeMutation resolved the attempt")
             assertTrue(reservationFiles().isEmpty(), "the attempt's reservation was discarded")
             assertFalse(
@@ -303,8 +291,7 @@ internal class RestoreTransactionIntegrationTest {
     fun `swap failure with successful rollback - Failure result, journal resolved, no success lie`() =
         integrationTest { useCase, runtime ->
             runtime.currentGeneration
-            // The undo slot left behind by an EARLIER restore — what the in-process recovery
-            // rolls back onto when this attempt's own swap fails before any promotion.
+            // An earlier restore's undo slot — what in-process recovery rolls back onto here.
             File(tempDir, "pre_restore_backup.db").writeText("previous-undo-slot")
             val swapError = BackupError.Io(IOException("rename failed"))
             var swaps = 0
@@ -330,9 +317,8 @@ internal class RestoreTransactionIntegrationTest {
     fun `post-PONR failure without recovery leaves the attempt unresolved with its reservation`() =
         integrationTest { useCase, runtime ->
             runtime.currentGeneration
-            // Swap fails AND no undo slot exists → the ladder cannot roll back → Fatal. Nothing
-            // resolves the journal, so the next launch reads an unresolved `Prepared` attempt
-            // and recovers instead of letting a schema peek claim a success.
+            // No undo slot → the ladder cannot roll back → Fatal, and the unresolved `Prepared`
+            // attempt is what routes the next launch to recovery.
             coEvery { provider.replaceLiveDatabaseFile(any()) } returns BackupResult.Failure(
                 BackupError.Io(IOException("rename failed")),
             )
@@ -359,7 +345,7 @@ internal class RestoreTransactionIntegrationTest {
         }
 
     private companion object {
-        /** The bytes a reserved rollback snapshot carries — the pre-attempt database stand-in. */
+        /** The pre-attempt database stand-in a reserved rollback snapshot carries. */
         const val PRE_ATTEMPT_DB = "pre-attempt-db"
     }
 }

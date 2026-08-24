@@ -15,13 +15,8 @@ import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 
 /**
- * The form's tag row (ED7): the selected chips, each with `✕`, and the dashed «+ тег» chip
- * that opens the picker sheet ([AppTagPickerSheetContent]). Nothing else — no field labelled
- * with the section head's own word, no button row stacked over a text field; the search and
- * the dictionary live in the sheet.
- *
- * ONE component for both editors — this row's whole reason to be in the kit (ED7,
- * `v3-editors.md` §2, B36): a feature must not grow its own copy of it.
+ * The form's tag row: selected chips plus the dashed add chip that opens
+ * [AppTagPickerSheetContent]. One component for both editors; features must not copy it.
  */
 @Composable
 fun AppTagFormRow(
@@ -54,10 +49,9 @@ fun AppTagFormRow(
 /** Stable across both hosts, so a UI test does not need to know which editor it is on. */
 const val FORM_ROW_TAG: String = "AppTagFormRow"
 
-/** See [FORM_ROW_TAG]. */
 const val ADD_CHIP_TAG: String = "AppTagFormRowAdd"
 
-/** See [FORM_ROW_TAG]; suffixed with the tag's uuid. */
+/** Suffixed with the tag's uuid. */
 const val SELECTED_TAG_PREFIX: String = "AppTagFormRowSelected_"
 
 @Preview

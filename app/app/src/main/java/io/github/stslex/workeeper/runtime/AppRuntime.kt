@@ -58,7 +58,6 @@ internal class AppRuntime(
 
     private val logger = Log.tag(TAG)
 
-    /** Process-lifetime owner for submitted transactions. */
     private val hostScope = CoroutineScope(
         SupervisorJob() +
             policy.hostDispatcher +
@@ -72,14 +71,12 @@ internal class AppRuntime(
 
     private val buildLock = Any()
 
-    /** Makes same-operation registration atomic. */
     private val submissionLock = Any()
 
     private val uiGate = UiAdmissionGate(logger)
 
     private val workerGate = WorkerAdmissionGate()
 
-    /** Quiesces and tears down outgoing generations. */
     private val quiescer = GenerationQuiescer(
         uiGate = uiGate,
         workerGate = workerGate,
@@ -90,15 +87,12 @@ internal class AppRuntime(
 
     val imageStorage: ImageStorage by lazy { imageStorageFactory(applicationContext) }
 
-    // One immutable publication backs both runtime and UI faces.
-
     private class Published(val phase: RuntimePhase, val ui: AppUiPhase)
 
     private val publishedFlow = MutableStateFlow(
         Published(RuntimePhase.Transitioning, AppUiPhase.Transitioning),
     )
 
-    /** The published phase stream (runtime-internal face). */
     val phases: StateFlow<RuntimePhase> = DerivedStateFlow(publishedFlow) { it.phase }
 
     /** The app:common face — what `BaseApplication` exposes through `AppUiGenerationsHolder`. */
@@ -120,7 +114,6 @@ internal class AppRuntime(
     }
 
     private fun publishTransitioning() {
-        // Fatal must never be overwritten by a transition window.
         check(!isFatal) { "a Fatal runtime must never publish Transitioning" }
         publishedFlow.value = Published(RuntimePhase.Transitioning, AppUiPhase.Transitioning)
     }
@@ -130,7 +123,6 @@ internal class AppRuntime(
         isFatal = true
         // The host chooses how an in-process Fatal reaches recovery UI.
         publishedFlow.value = Published(RuntimePhase.Fatal, AppUiPhase.Transitioning)
-        // Wake parked workers into the fatal check and release the snackbar fence.
         workerGate.reopen()
         policy.unfenceSnackbarResolves()
         return ReplacementOutcome.Fatal()
@@ -140,10 +132,8 @@ internal class AppRuntime(
     private val nextGenerationId = AtomicInteger(FIRST_GENERATION_ID)
 
     /**
-     * The one published generation; builds and publishes generation 1 on first read. Reads
-     * during a transition answer with the outgoing generation (alive and open for graph-only
-     * transitions; terminal reads after a replacement's close fail loud — §7.1's measured pin).
-     * After [RuntimePhase.Fatal] this THROWS: no closed generation is ever exposed.
+     * The one published generation; builds and publishes generation 1 on first read. Reads during
+     * a transition answer with the outgoing generation; after [RuntimePhase.Fatal] this THROWS.
      */
     val currentGeneration: RuntimeGeneration
         get() {
@@ -159,12 +149,9 @@ internal class AppRuntime(
             }
         }
 
-    // Admission-gate delegates.
-
     /**
-     * Admission for a generation's UI region, requested during COMPOSITION before the region
-     * resolves anything (spec §8.4 step 1). Null means the generation is retired: the region
-     * must render nothing and touch no dependency.
+     * Admission for a generation's UI region, requested during composition. Null means the
+     * generation is retired: the region must render nothing and touch no dependency.
      */
     fun admitUiGeneration(id: Int): AppUiAdmissionToken? = uiGate.admit(id)
 
@@ -173,20 +160,16 @@ internal class AppRuntime(
         (token as? UiAdmissionGate.Token)?.let(uiGate::release)
     }
 
-    /** Test-facing UI admission count. */
     fun uiAttachmentCount(id: Int): Int = uiGate.admittedCount(id)
 
     /**
-     * First-operation worker admission (spec §8.4): suspends while a transition holds admission
-     * closed, then atomically binds the lease to the CURRENT generation's deps. Throws when the
-     * runtime is Fatal — no work may ever bind to a closed generation.
+     * First-operation worker admission: suspends while a transition holds admission closed, then
+     * binds the lease to the current generation's deps. Throws when the runtime is Fatal.
      */
     suspend fun awaitBackupWorkLease(): BackupWorkLease = workerGate.awaitLease {
         check(!isFatal) { "runtime is Fatal — no generation may admit new work" }
         currentGeneration.graph
     }
-
-    // Graph-only transitions.
 
     override fun requestReinitialize() {
         val expected = currentOrNull
@@ -254,7 +237,6 @@ internal class AppRuntime(
         outgoing: RuntimeGeneration,
         tracker: PonrTracker,
     ): ReinitializeOutcome {
-        // Stop new UI admission before quiescing the outgoing generation.
         publishTransitioning()
         quiescer.quiesce(outgoing)?.let { reason -> return abortToServing(outgoing, reason) }
 
@@ -327,8 +309,6 @@ internal class AppRuntime(
         publishServing(outgoing)
         return ReinitializeOutcome.Aborted(reason = reason, serving = outgoing)
     }
-
-    // Database replacement transactions.
 
     private val inFlightReplacements = HashMap<ReplacementOperation, InFlightReplacement>()
 
@@ -410,7 +390,6 @@ internal class AppRuntime(
                     runTerminalEffects(effects, rejected, tracker.crossed, logger)
                 }
             } ?: runCatching {
-                // Cold-start rule: generation 1 exists before the transition mutex is taken.
                 currentGeneration
                 transitionMutex.withLock {
                     val outcome = runCatching {
@@ -423,8 +402,7 @@ internal class AppRuntime(
                         )
                     }.getOrElse { error ->
                         if (error is CancellationException) {
-                            // hostScope is never cancelled; an internal CancellationException
-                            // is a bug — resolve it like any escape, never strand awaiters.
+                            // hostScope is never cancelled; an internal one is a bug.
                             logger.e(error, "replacement transaction cancelled internally")
                         }
                         resolveTransactionEscape(error, tracker)
@@ -432,8 +410,7 @@ internal class AppRuntime(
                     runTerminalEffects(effects, outcome, tracker.crossed, logger)
                 }
             }.getOrElse { error ->
-                // Escapes OUTSIDE the mutex (gen-1 build): nothing was mutated; the mutex is
-                // taken fresh so even this path's compensation cannot interleave a successor.
+                // Escapes OUTSIDE the mutex (gen-1 build): nothing was mutated.
                 val escaped = resolveTransactionEscape(error, tracker)
                 transitionMutex.withLock {
                     runTerminalEffects(effects, escaped, tracker.crossed, logger)
@@ -481,7 +458,6 @@ internal class AppRuntime(
         stagedSource: File?,
         reservationSlot: (File) -> Unit,
     ): ReplacementOutcome {
-        // A request queued after Fatal performs no work.
         if (isFatal) return ReplacementOutcome.Fatal()
         val outgoing = requireNotNull(currentOrNull) { "generation must exist before replacement" }
         val provider = outgoing.graph.databaseSnapshotProvider
@@ -580,7 +556,6 @@ internal class AppRuntime(
         if (replaced is BackupResult.Failure) {
             return recoverViaRollback(mutation, transaction, replaced.error, requestedRollback)
         }
-        // Promote, record Committed, then consume the exact rollback source.
         val committed = commitMutation(mutation)
         if (committed is CommitResult.NotDurable) {
             // A non-durable mutation is unprovable: retain assets and enter recovery.
@@ -629,11 +604,8 @@ internal class AppRuntime(
     }
 
     /**
-     * Runs one recovery rollback and one fresh-generation attempt.
-     *
-     * The journal-named reservation is authoritative until terminal effects resolve it. Requested
-     * rollbacks commit through caller effects; compensating restore rollbacks do not. A clean
-     * prior commit must be reclaimed to Prepared before its recovery rollback.
+     * Runs one recovery rollback and one fresh-generation attempt. Requested rollbacks commit
+     * through caller effects; compensating restore rollbacks do not.
      */
     private suspend fun recoverViaRollback(
         mutation: MutationPlan,
@@ -643,7 +615,6 @@ internal class AppRuntime(
         afterCleanCommit: Boolean = false,
     ): ReplacementOutcome {
         val provider = mutation.provider
-        // Recovery uses its own asset; a reservation remains until terminal effects resolve it.
         val rollbackSource: File
         val rollbackConsume: SourceConsumption
         when (val plan = selectRecoverySource(mutation, cause, afterCleanCommit)) {
@@ -800,16 +771,13 @@ internal class AppRuntime(
 /** Result of a graph-only reinitialization. */
 internal sealed interface ReinitializeOutcome {
 
-    /** Candidate published after preflight. */
     data class Published(val generation: RuntimeGeneration) : ReinitializeOutcome
 
     /** A pre-PONR failure left [serving] intact. */
     data class Aborted(val reason: String, val serving: RuntimeGeneration?) : ReinitializeOutcome
 
-    /** The expected generation was already replaced. */
     data class AlreadyReplaced(val serving: RuntimeGeneration) : ReinitializeOutcome
 
-    /** The runtime is Fatal. */
     data object Fatal : ReinitializeOutcome
 }
 
@@ -880,7 +848,6 @@ internal sealed interface ReplacementOutcome {
         val effectsError: BackupError? = null,
     ) : ReplacementOutcome
 
-    /** Runtime is terminal with no serving generation. */
     data class Fatal(val effectsError: BackupError? = null) : ReplacementOutcome
 }
 

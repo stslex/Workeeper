@@ -74,7 +74,6 @@ class RestoreLatestBackupUseCase(
             if (download is BackupResult.Failure) {
                 return@withContext download
             }
-            // Submission stages the source, so this caller's cleanup cannot strand the transaction.
             val snapshotResult = databaseReplacement.restoreFromSnapshot(
                 source = tempFile,
                 effects = RestoreTransactionEffects(
@@ -123,7 +122,8 @@ class RestoreLatestBackupUseCase(
         private val context: RestoreInProgressContext,
     ) : DatabaseReplacementEffects {
 
-        /** Claims this attempt's `Prepared` journal slot before mutation. */
+        // Claims this attempt's `Prepared` journal slot. A refusal throws, which the runtime
+        // maps to `RejectedBeforeMutation`. See the Phase-5 startup-processor spec.
         override suspend fun onBeforeMutation(rollbackSnapshotPath: String) {
             val claimed = restoreStateRepository.beginAttempt(
                 RestoreAttempt(
@@ -139,13 +139,11 @@ class RestoreLatestBackupUseCase(
             }
         }
 
-        /** Records the only journal phase that may later produce success. */
         override suspend fun onMutationCommitted() {
             val recorded = restoreStateRepository.recordAttemptCommitted(attemptId)
             check(recorded) { "the journal slot is no longer owned by attempt $attemptId" }
         }
 
-        /** Pre-mutation rejection releases only this attempt's slot. */
         override suspend fun onRejectedBeforeMutation(error: BackupError) {
             restoreStateRepository.resolveAttempt(attemptId)
         }

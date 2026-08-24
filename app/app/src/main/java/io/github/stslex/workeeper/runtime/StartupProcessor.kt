@@ -14,31 +14,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 
 /**
- * The startup sequence of one runtime generation, extracted from
- * `BaseApplication.onCreateGraphBootstrap` as an order-preserving refactor (Phase 5, spec §8.3).
- * The stages and their guarantees are UNCHANGED from the measured inventory (spec §2):
- *
- *  1. **Scenario 1** (post-restart restore verification) — blocking. `RestoreRolledBack` →
- *     [StartupOutcome.RestartRequired] (caller restarts; nothing else runs, matching the old
- *     non-returning `restartApp()`). `RestoreSucceeded` → Scenario 2 is SKIPPED.
- *  2. **Scenario 2** (startup-migration peek, Room-free) — blocking, only after a Scenario-1
- *     no-op. Its decision stays cached on `StartupMigrationCoordinator.lastDecision`; the
- *     RouteToRecovery routing itself remains MainActivity's read, exactly as before.
- *  3. **Chores**, fire-and-forget on the generation lifetime (no anonymous scopes): image
- *     temp-file cleanup (best-effort, unguarded body — same failure policy as before) and the
- *     query-planner warm-up (never on `RouteToRecovery`, never on low-RAM devices, `runCatching`
- *     + log — the full rationale lives in spec §2 stage 4 and the pre-extraction KDocs, preserved
- *     in git history at `BaseApplication.kt@1845d7c9:189-229`).
- *  4. **Dialog-observer arming** — the eager `recoveryBootstrap` read that registers the
- *     choice-bus subscriber BEFORE any `MainActivity.onCreate` (replay-0 bus; a lazy read drops
- *     the first dispatch).
- *
- * Both `runBlocking` boundaries are load-bearing and deliberate: dispatching the preflight on a
- * background coroutine would briefly show MainActivity content before recovery routing decides.
- *
- * The three constructor seams exist for the JVM tests ONLY — production passes the real values
- * (`BaseApplication` wires `isLowRamDevice` from `ActivityManager`, and the defaults are the
- * production planner + IO dispatcher).
+ * Startup sequence of one runtime generation: restore preflight, migration peek, chores, observer
+ * arming. See the Phase-5 startup-processor spec.
  */
 internal class StartupProcessor(
     private val isLowRamDevice: () -> Boolean,
@@ -47,8 +24,8 @@ internal class StartupProcessor(
 ) {
 
     /**
-     * Cold-start pass, blocking (main thread, inside `Application.onCreate`). Returns the typed
-     * outcome; the caller maps [StartupOutcome.RestartRequired] to the process restart.
+     * Cold-start pass, blocking on the main thread inside `Application.onCreate`; a background
+     * preflight would flash MainActivity content before recovery routing decides.
      */
     fun coldStart(
         graph: AppGraph,
@@ -59,21 +36,14 @@ internal class StartupProcessor(
             graph.restoreRecoveryCoordinator.handlePostRestoreLaunch()
         }
         if (restoreOutcome == PreflightOutcome.RestoreRolledBack) {
-            // The caller restarts the process; chores and observer arming are intentionally
-            // skipped — identical to the pre-extraction flow, where the non-returning
-            // restartApp() prevented them from ever running.
+            // Chores and observer arming are skipped: the caller restarts the process.
             return StartupOutcome.RestartRequired
         }
         if (restoreOutcome == PreflightOutcome.RecoveryRequired) {
-            // TERMINAL recovery (spec §8.4): the mutation's outcome is unknown or the runtime is
-            // fatal. This process arms NOTHING DB-bound — no planner, no repositories, no dialog
-            // observer — and does not show the main UI over a database of unknown provenance.
-            // Every recovery asset stays on disk; the caller routes to the recovery surface.
+            // GUARD: terminal recovery arms nothing DB-bound and shows no main UI.
             return StartupOutcome.RouteToRecovery
         }
         if (restoreOutcome == PreflightOutcome.NoOp) {
-            // Scenario 1 found no restore in progress — run Scenario 2. (RestoreSucceeded skips
-            // it: the freshly-restored db was already verified by the Scenario-1 open.)
             runBlocking {
                 graph.startupMigrationCoordinator.checkAndRouteOrProceed()
             }
@@ -88,15 +58,8 @@ internal class StartupProcessor(
     }
 
     /**
-     * The same stages as [coldStart] in the same order, in suspend form for CANDIDATE
-     * generations during an in-process transition (spec §8.3 "replacement preflight" / §8.4
-     * Preflight state). No `runBlocking`: the transition machine is already off the main thread,
-     * and the cold-start blocking rationale (content must not flash before routing) does not
-     * apply — the UI is showing the Transitioning interstitial. The small duplication of
-     * [coldStart]'s ordering logic is deliberate: sharing one body would either force the
-     * suspend path through `runBlocking` or dissolve the two load-bearing cold-start blocking
-     * boundaries into an abstraction; fifteen duplicated lines are cheaper than either, and
-     * `StartupProcessorTest` pins both orderings.
+     * [coldStart]'s stages in the same order, suspending, for candidate generations during an
+     * in-process transition. See the Phase-5 startup-processor spec.
      */
     suspend fun preflightAndArm(
         graph: AppGraph,
@@ -108,10 +71,7 @@ internal class StartupProcessor(
             return StartupOutcome.RestartRequired
         }
         if (restoreOutcome == PreflightOutcome.RecoveryRequired) {
-            // TERMINAL recovery (spec §8.4): the mutation's outcome is unknown or the runtime is
-            // fatal. This process arms NOTHING DB-bound — no planner, no repositories, no dialog
-            // observer — and does not show the main UI over a database of unknown provenance.
-            // Every recovery asset stays on disk; the caller routes to the recovery surface.
+            // GUARD: terminal recovery arms nothing DB-bound and shows no main UI.
             return StartupOutcome.RouteToRecovery
         }
         if (restoreOutcome == PreflightOutcome.NoOp) {
@@ -127,12 +87,8 @@ internal class StartupProcessor(
     }
 
     /**
-     * Stages 3–4: the two chores and the observer arming, in the pre-extraction order
-     * (cleanup → planner → observer). Runs for every outcome that keeps this process on the
-     * normal path. It is deliberately NOT reached for [PreflightOutcome.RestoreRolledBack]
-     * (restart follows) nor for [PreflightOutcome.RecoveryRequired] (spec §8.4: terminal
-     * recovery arms zero DB-bound work). A migration-driven `RouteToRecovery` still arms, where
-     * only the planner's own guard changes anything — unchanged behavior.
+     * Chores then observer arming, in order: cleanup → planner → observer. Not reached for a
+     * rolled-back restore or for terminal recovery.
      */
     private fun armPostPreflight(
         graph: AppGraph,
@@ -165,9 +121,8 @@ internal class StartupProcessor(
     }
 
     /**
-     * Eagerly constructs the cross-feature dialog reactor so its subscriber registers on the
-     * choice SharedFlow before the first Activity. The return value is intentionally discarded —
-     * construction is the side-effect.
+     * Eagerly constructs the dialog reactor so its subscriber registers on the replay-0 choice
+     * bus before the first Activity; construction is the side-effect.
      */
     private fun armDialogObserver(graph: AppGraph) {
         graph.recoveryBootstrap

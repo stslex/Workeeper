@@ -27,16 +27,8 @@ import org.junit.jupiter.api.Test
 import java.io.File
 
 /**
- * Bind the `internal` store constructor to a fresh temp file per test, for the same reason as
- * `BackupPreferencesRepositoryImplTest`: the provider's memoization is static and process-lifetime,
- * so routing these tests through it would share one store across every test method. The provider
- * routing itself is pinned on device by `app/app` androidTest `AppScopeDataStoreSingletonTest`.
- *
- * The journal tests (Phase 5 R3) drive the public API for everything the runtime does, and write
- * RAW preference keys only where the scenario cannot be produced through the API at all — a
- * pre-R3 install's legacy `restore_in_progress` marker, and a corrupt/partial record. Those raw
- * key names are duplicated here on purpose: they are wire format, and a silent rename in the impl
- * must fail a test rather than silently strand a user mid-restore.
+ * Binds the `internal` store constructor to a fresh temp file per test; the provider's memoization
+ * is static and would otherwise share one store across every test method.
  */
 internal class RestoreStateRepositoryImplTest {
 
@@ -109,7 +101,6 @@ internal class RestoreStateRepositoryImplTest {
         assertTrue(repo.beginAttempt(first))
         assertFalse(repo.beginAttempt(second))
 
-        // Nothing of B leaked into the slot: A still owns every field.
         assertEquals(first, repo.getAttempt())
     }
 
@@ -154,7 +145,6 @@ internal class RestoreStateRepositoryImplTest {
 
         assertTrue(repo.recordAttemptCommitted("attempt-a"))
         assertEquals(RestoreAttempt.Phase.Committed, repo.getAttempt()?.phase)
-        // Advancing the phase leaves the rest of the record untouched.
         assertEquals(owner.copy(phase = RestoreAttempt.Phase.Committed), repo.getAttempt())
     }
 
@@ -186,8 +176,7 @@ internal class RestoreStateRepositoryImplTest {
         )
         writeLegacyInProgress(context)
 
-        // A pre-R3 marker carries no phase, so its outcome is unknown: it must read as Prepared
-        // (recovery), never as a success verdict.
+        // A pre-R3 marker carries no phase: it reads as Prepared, never as a success verdict.
         assertEquals(
             RestoreAttempt(
                 id = LEGACY_ATTEMPT_ID,
@@ -199,14 +188,10 @@ internal class RestoreStateRepositoryImplTest {
             repo.getAttempt(),
         )
 
-        // The legacy marker owns the slot: a new attempt cannot claim it while unresolved.
         assertFalse(repo.beginAttempt(attempt(id = "attempt-new")))
         assertEquals(LEGACY_ATTEMPT_ID, repo.getAttempt()?.id)
 
-        // Owner isolation (R4 invariant 5): an ARBITRARY attempt id must not clear the legacy
-        // marker — pre-R4, any refused attempt's rejection compensation could erase the
-        // interrupted restore's journal entirely, and the next launch was a NoOp over a
-        // database of unknown provenance.
+        // Owner isolation: an arbitrary attempt id must not clear the legacy marker.
         assertFalse(repo.resolveAttempt("some-unrelated-attempt-id"))
         assertEquals(LEGACY_ATTEMPT_ID, repo.getAttempt()?.id)
     }
@@ -223,12 +208,9 @@ internal class RestoreStateRepositoryImplTest {
             writeLegacyInProgress(context)
             dataStore.edit { prefs -> prefs[KEY_LEGACY_MUTATION_INTERRUPTED] = true }
 
-            // A foreign id is refused, exactly as against a live owned record.
             assertFalse(repo.beginAttempt(attempt(id = "attempt-foreign")))
 
-            // The synthetic owner's claim succeeds and CONVERTS the id-less marker into an
-            // owner-scoped record in one atomic edit (R4 blocker C): both legacy booleans are
-            // gone, the id-keyed record owns the slot.
+            // The synthetic owner's claim converts the id-less marker in one atomic edit.
             val legacyClaim = RestoreAttempt(
                 id = LEGACY_ATTEMPT_ID,
                 kind = RestoreAttempt.Kind.Rollback,
@@ -242,8 +224,7 @@ internal class RestoreStateRepositoryImplTest {
             assertNull(prefs[KEY_LEGACY_MUTATION_INTERRUPTED])
             assertEquals(LEGACY_ATTEMPT_ID, prefs[KEY_ATTEMPT_ID])
 
-            // The converted record then walks the FULL owner-scoped lifecycle end-to-end:
-            // Prepared → Committed → resolved, and only under its own id.
+            // The converted record then walks the full lifecycle, only under its own id.
             assertFalse(repo.recordAttemptCommitted("attempt-foreign"))
             assertTrue(repo.recordAttemptCommitted(LEGACY_ATTEMPT_ID))
             assertEquals(RestoreAttempt.Phase.Committed, repo.getAttempt()?.phase)
@@ -291,9 +272,7 @@ internal class RestoreStateRepositoryImplTest {
 
     @Test
     fun `an attempt whose context is partially written reads back with a null context`() = runTest {
-        // Defensive: the impl writes the four context fields in one edit, so a partial record is
-        // only reachable through a torn/legacy file. Any missing field collapses to a null
-        // context rather than a half-populated one.
+        // A partial record is reachable only via a torn file; it collapses to a null context.
         dataStore.edit { prefs ->
             prefs[KEY_ATTEMPT_ID] = "attempt-a"
             prefs[KEY_ATTEMPT_KIND] = RestoreAttempt.Kind.Restore.name
@@ -326,8 +305,7 @@ internal class RestoreStateRepositoryImplTest {
 
     @Test
     fun `pre-restore availability and the attempt journal are independent`() = runTest {
-        // Claiming or resolving an attempt must not touch pre_restore_backup_available,
-        // or vice versa.
+        // Claiming or resolving an attempt must not touch pre_restore_backup_available.
         val owner = attempt(id = "attempt-a")
         repo.markPreRestoreBackupAvailable(1_700_000_000_000L)
         assertTrue(repo.beginAttempt(owner))
@@ -337,7 +315,6 @@ internal class RestoreStateRepositoryImplTest {
 
         assertTrue(repo.resolveAttempt("attempt-a"))
         assertNull(repo.getAttempt())
-        // Pre-restore availability unaffected by resolving the attempt.
         assertTrue(repo.observePreRestoreBackupAvailable().first())
         assertEquals(1_700_000_000_000L, repo.getPreRestoreOriginalDate())
     }
@@ -377,7 +354,7 @@ internal class RestoreStateRepositoryImplTest {
         /** Mirrors `RestoreStateRepositoryImpl.LEGACY_ATTEMPT_ID` (private there). */
         const val LEGACY_ATTEMPT_ID = "legacy-restore-in-progress"
 
-        // Raw wire-format keys, duplicated from the impl's private companion on purpose.
+        // GUARD: wire-format keys duplicated from the impl on purpose; a rename must fail here.
         val KEY_ATTEMPT_ID = stringPreferencesKey("restore_attempt_id")
         val KEY_ATTEMPT_KIND = stringPreferencesKey("restore_attempt_kind")
         val KEY_ATTEMPT_PHASE = stringPreferencesKey("restore_attempt_phase")

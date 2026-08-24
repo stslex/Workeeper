@@ -10,14 +10,7 @@ import io.gitlab.arturbosch.detekt.api.Severity
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.KtClass
 
-/**
- * Rule to ensure Store.State is properly defined
- *
- * Store.State should:
- * - Be a data class
- * - Implement Store.State interface
- * - Have immutable properties
- */
+/** A nested `State` in a `*Store` must be a data class implementing `Store.State`. */
 class MviStoreStateRule(
     config: Config = Config.empty,
 ) : Rule(config) {
@@ -34,23 +27,19 @@ class MviStoreStateRule(
 
         val className = klass.name ?: return
 
-        // Skip test classes
         if (klass.containingKtFile.virtualFilePath.contains("/test/")) {
             return
         }
 
-        // Check if this is a State class in a Store
         if (className != "State") {
             return
         }
 
-        // Check if parent is a Store
         val parentClass = klass.parent?.parent as? KtClass
         if (parentClass == null || !parentClass.name.orEmpty().endsWith("Store")) {
             return
         }
 
-        // Check if it's a data class
         if (!klass.hasModifier(KtTokens.DATA_KEYWORD)) {
             report(
                 CodeSmell(
@@ -61,7 +50,6 @@ class MviStoreStateRule(
             )
         }
 
-        // Check if it implements Store.State
         val implementsStoreState = klass.superTypeListEntries.any {
             it.text.contains("Store.State")
         }

@@ -54,8 +54,7 @@ internal class StartupProcessorTest {
             plannerError?.let { throw it }
             plannerRuns++
         },
-        // Unconfined so fire-and-forget chores execute inline and the test can assert them
-        // synchronously; production keeps Dispatchers.IO via the default.
+        // Unconfined so fire-and-forget chores execute inline; production keeps Dispatchers.IO.
         ioDispatcher = Dispatchers.Unconfined,
     )
 
@@ -69,7 +68,6 @@ internal class StartupProcessorTest {
         val outcome = coldStart()
 
         assertEquals(StartupOutcome.RestartRequired, outcome)
-        // Pre-extraction, the non-returning restartApp() prevented all of these from running.
         coVerify(exactly = 0) { migrationCoordinator.checkAndRouteOrProceed() }
         coVerify(exactly = 0) { imageStorage.cleanupTempFiles() }
         assertEquals(0, plannerRuns)
@@ -85,8 +83,7 @@ internal class StartupProcessorTest {
         assertEquals(StartupOutcome.Proceed, outcome)
         coVerify(exactly = 0) { migrationCoordinator.checkAndRouteOrProceed() }
         coVerify(exactly = 1) { imageStorage.cleanupTempFiles() }
-        // Measured pre-extraction edge (spec §2): lastDecision is null on this path, so the
-        // planner guard passes and the warm-up runs against the freshly-restored file.
+        // lastDecision is null on this path, so the planner guard passes (spec §2).
         assertEquals(1, plannerRuns)
         coVerify(exactly = 1) { graph.recoveryBootstrap }
     }
@@ -172,21 +169,9 @@ internal class StartupProcessorTest {
             coVerify(exactly = 1) { graph.recoveryBootstrap }
         }
 
-    // Mandated R4 test 1 is a two-module pair: the DISCRIMINATING half — a `Prepared` attempt
-    // whose recovery rollback is RejectedBeforeMutation classifies as RecoveryRequired, because
-    // the rejection proves only that the ROLLBACK did not mutate, never what the original
-    // attempt did to the live file — lives beside the real coordinator
-    // (`RestoreRecoveryCoordinatorTest`, "every non-commit rollback outcome requires terminal
-    // recovery"; the coordinator's constructor is module-internal, so it cannot be composed
-    // here). The zero-arming half is the two `RecoveryRequired routes to recovery and arms
-    // ZERO db-bound work` pins below, which close the chain: classification → no planner, no
-    // observer, no cleanup, no Main UI.
-
     @Test
     fun `RecoveryRequired routes to recovery and arms ZERO db-bound work`() {
-        // TERMINAL recovery (spec §8.4): the mutation's outcome is unknown or the runtime is
-        // fatal. This process must not open, warm or observe a database of unknown provenance —
-        // it arms nothing at all and hands the launch to the recovery surface.
+        // Terminal recovery: the mutation's outcome is unknown, so this launch arms nothing.
         coEvery { restoreCoordinator.handlePostRestoreLaunch() } returns
             PreflightOutcome.RecoveryRequired
 
@@ -221,8 +206,7 @@ internal class StartupProcessorTest {
 
         val outcome = coldStart()
 
-        // Caught rather than propagated: a corrupt db must not take down the launch that most
-        // needs to reach recovery.
+        // Caught, not propagated: a corrupt db must not take down the launch that needs recovery.
         assertEquals(StartupOutcome.Proceed, outcome)
         coVerify(exactly = 1) { graph.recoveryBootstrap }
     }

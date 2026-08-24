@@ -84,10 +84,7 @@ internal class ClickHandlerTest {
 
         assertEquals(ChartPresetUiModel.YEAR_1, flow.value.preset)
         assertTrue(flow.value.isLoading)
-        // The reason describes THIS exercise and the exercise has not changed, so it
-        // stands until loadChart resolves the new window. Clearing it here is what used
-        // to drop the screen out of its resolved empty state mid-reload — see
-        // ChartContentResolutionTest.
+        // The exercise has not changed, so the reason stands until loadChart resolves the window.
         assertEquals(EmptyReason.NO_DATA_FOR_EXERCISE, flow.value.emptyReason)
         verify(exactly = 1) { commonHandler.loadChart(benchExercise) }
         val captured = slot<Event>()
@@ -133,8 +130,7 @@ internal class ClickHandlerTest {
 
         assertEquals("тяг", flow.value.pickerQuery)
 
-        // Closing clears it: a sheet that reopens still filtered by a forgotten word looks
-        // like a list that lost its entries.
+        // Closing clears it: reopening on a forgotten filter looks like a list that lost rows.
         handler.invoke(Action.Click.OnPickerDismiss)
         assertEquals("", flow.value.pickerQuery)
 
@@ -183,8 +179,7 @@ internal class ClickHandlerTest {
         assertEquals("uuid-2", flow.value.selectedExercise?.uuid)
         assertFalse(flow.value.isPickerOpen)
         assertTrue(flow.value.isLoading)
-        // EXERCISE_NOT_FOUND clears immediately, before loadChart finishes — picker
-        // dismissal must not flash the not-found state for the new selection.
+        // Clears before loadChart finishes: dismissal must not flash not-found for the new pick.
         assertNull(flow.value.emptyReason)
         verify(exactly = 1) {
             commonHandler.loadChart(

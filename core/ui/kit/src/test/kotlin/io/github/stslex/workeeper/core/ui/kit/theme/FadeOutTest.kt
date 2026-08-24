@@ -9,30 +9,16 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 /**
- * The mid-transition frame, which no golden can see — and every site that has one.
- *
- * `FadeToTransparentRule` stops the idiom coming back in a form it can read. This measures the
- * consequence at each real site, which is what covers the forms it cannot read (a value laundered
- * through a local, an aliased animation). The two together are the guard.
- *
- * The tween is sampled with Compose's own [lerp], not a reimplementation of it: a hand-rolled RGB
- * midpoint would agree with the fix and disagree with the framework, which is the one way this file
- * could pass while the screen still flashes.
+ * The mid-transition frame no golden can see, measured at every real fade site. Sampled with
+ * Compose's own [lerp] so this cannot agree with the fix and disagree with the framework.
  */
 internal class FadeOutTest {
 
     /** Sample points across the fade. The endpoints are the goldens' job. */
     private val midpoints = listOf(0.25f, 0.5f, 0.75f)
 
-    /**
-     * How far a mid-frame may fall below the darker endpoint, per channel.
-     *
-     * A cross-fade should stay between its endpoints. 0.02 is measurement slack; the defects this
-     * caught were +0.275 to +0.290, an order of magnitude out.
-     */
+    /** How far a mid-frame may fall below the darker endpoint, per channel. Measurement slack. */
     private val tolerance = 0.02f
-
-    // ---- the rule ------------------------------------------------------------------------------
 
     @Test
     fun `fadedOut keeps the colour and drops the alpha`() {
@@ -61,13 +47,7 @@ internal class FadeOutTest {
         assertEquals(chosen, restingFill(chosen, Color(0xFFFFFFFF)))
     }
 
-    // ---- every fade site in the app ------------------------------------------------------------
-
-    /**
-     * Each site is (name, target, the surface it sits on). Adding a colour animation that fades
-     * something out means adding a row here — `FadeToTransparentRule` catches the literal form, and
-     * this catches the rest.
-     */
+    /** Each site is (name, target, the surface behind it). A new fade animation adds a row. */
     private fun sites(c: AppColors) = listOf(
         Triple("list row lift", c.surfaceTier2, c.surfaceTier0),
         Triple("top-bar icon press", c.surfaceTier1, c.surfaceTier0),
@@ -89,12 +69,7 @@ internal class FadeOutTest {
             assertNoExcursion(name, target, behind)
         }
 
-    /**
-     * The regression stated as the failing case, not only as the fixed one.
-     *
-     * Four light-theme sites were excursing at once when this was found. If [fadedOut] ever stops
-     * being used, this is what ships — and nothing else in the repo would notice.
-     */
+    /** The regression as the failing case: four light-theme sites were excursing at once. */
     @Test
     fun `fading to Color Transparent is what these tests exist to prevent`() {
         val c = provideLightAppColors()
@@ -123,7 +98,7 @@ internal class FadeOutTest {
         }
     }
 
-    /** Source-over composite, which is what a background modifier does against what is behind it. */
+    /** Source-over composite: what a background modifier does against whatever is behind it. */
     private fun composite(src: Color, over: Color): Color = Color(
         red = src.red * src.alpha + over.red * (1 - src.alpha),
         green = src.green * src.alpha + over.green * (1 - src.alpha),

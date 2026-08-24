@@ -16,16 +16,8 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.EnumSource
 
 /**
- * Sheet **contents** in all three forms.
- *
- * These render on `surfaceTier1`, the sheet's own tier, rather than on the page — a sheet's
- * contents never sit on `surfaceTier0` in production, and recording them there would make every
- * one of these images a picture of a contrast pairing that does not occur.
- *
- * What these goldens do **not** cover, and cannot: the scrim, the entry animation, the drag-to-
- * dismiss, and the height the sheet settles at. Those live in the sheet's own window, which
- * Paparazzi does not model. They are on the PR's manual checklist instead — the split is the
- * point, not a gap.
+ * Sheet contents in all three forms, on the sheet's own `surfaceTier1`. The scrim, entry
+ * animation and settle height live in the sheet's window, which Paparazzi does not model.
  */
 internal class SheetAnatomyGoldenTest {
 

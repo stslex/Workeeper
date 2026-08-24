@@ -5,19 +5,8 @@ import androidx.compose.ui.graphics.Color
 import java.lang.reflect.Method
 
 /**
- * Reads every `Color` property off an object by reflection, so the contrast measurement
- * enumerates the palette *mechanically* instead of from a hand-written list that silently
- * rots the moment someone adds a colour.
- *
- * `androidx.compose.ui.graphics.Color` is a `@JvmInline value class` over `ULong`, so its
- * property getters compile to no-arg methods returning primitive `long`, usually with a
- * mangled name suffix (`getPrimary-0d7_KjU`). The suffix is treated as optional so an
- * un-mangled getter is still found.
- *
- * Known limitation: a plain non-colour `Long` property would also match. That is deliberate —
- * over-reporting is safe here, because [PaletteContrastReportTest] asserts the scanned name set
- * against an explicit expected set. A false positive fails loudly; a false negative would be
- * the dangerous one, and cannot happen.
+ * Enumerates a palette's `Color` properties by reflection — `Color` is a value class over
+ * `ULong`, so its getters are zero-arg `long` methods with an optional mangled name suffix.
  */
 internal object ColorFieldScanner {
 

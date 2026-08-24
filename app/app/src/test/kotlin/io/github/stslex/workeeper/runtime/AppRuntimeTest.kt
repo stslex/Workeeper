@@ -38,12 +38,8 @@ import org.junit.jupiter.api.io.TempDir
 import java.io.File
 
 /**
- * Graph-only transition pins (round-2 protocol): same-database handover, submission ownership,
- * candidate-unpublished-before-preflight, aborts leaving the outgoing generation INTACT
- * (ViewModelStore included), the committed safe boundary — N's teardown completes BEFORE N+1
- * is exposed — the deterministic nested-rollback rejection, CancellationException-safe
- * deferreds, and the epoch/admission behavior of commits vs aborts. The file-swap replacement
- * transaction has its own suite.
+ * Graph-only transition pins: same-database handover, aborts leaving the outgoing generation
+ * intact, the committed safe boundary. The file-swap transaction has its own suite.
  */
 internal class AppRuntimeTest {
 
@@ -193,8 +189,7 @@ internal class AppRuntimeTest {
 
             val genTwo =
                 assertInstanceOf(ReinitializeOutcome.Published::class.java, outcome).generation
-            // Both teardown observers saw the TRANSITION window — never generation N+1: the
-            // publication happened only after N's teardown reached its committed boundary.
+            // Both teardown observers saw the transition window, never generation N+1.
             assertInstanceOf(AppUiPhase.Transitioning::class.java, phaseAtVmClear)
             assertInstanceOf(AppUiPhase.Transitioning::class.java, phaseAtJobEnd)
             assertFalse(genOne.lifetime.isActive)
@@ -276,8 +271,7 @@ internal class AppRuntimeTest {
 
             val outcome = runtime.reinitialize()
 
-            // Mandate 8: every submitted deferred completes exactly once — an internal
-            // CancellationException resolves like any escape instead of stranding the awaiter.
+            // Every submitted deferred completes exactly once, internal cancellation included.
             assertInstanceOf(ReinitializeOutcome.Aborted::class.java, outcome)
             assertSame(genOne, (runtime.phases.value as RuntimePhase.Serving).generation)
             assertTrue(genOne.lifetime.isActive)
@@ -376,7 +370,7 @@ internal class AppRuntimeTest {
             assertEquals(RuntimePhase.Transitioning, runtime.phases.value)
             assertTrue(transition.isActive)
 
-            runtime.releaseUiGeneration(foreign) // another generation's token — must not release
+            runtime.releaseUiGeneration(foreign)
             runCurrent()
             assertTrue(transition.isActive)
 
@@ -392,9 +386,7 @@ internal class AppRuntimeTest {
 
             assertInstanceOf(ReinitializeOutcome.Published::class.java, runtime.reinitialize())
 
-            // Round-3 blocker 5: publishing first would leave a window in which the successor's
-            // collector is live while generation N's queued models still pass the delivery
-            // filter — their callbacks would then run against N+1.
+            // Publishing first would let generation N's queued models run against N+1.
             assertEquals(1, phaseAtEpochAdvance.size)
             assertInstanceOf(
                 AppUiPhase.Transitioning::class.java,
@@ -403,16 +395,12 @@ internal class AppRuntimeTest {
             )
         }
 
-    // ------------------------------------------------------------------------------------------
-    // R4 blocker D — a failed graph-only teardown is TERMINAL, never publish-anyway.
-    // ------------------------------------------------------------------------------------------
+    // A failed graph-only teardown is terminal, never publish-anyway.
 
     @Test
     fun `outgoing ViewModelStore clear failure after PONR is FATAL - no successor is published`() =
         runtimeTest { runtime ->
-            // Mandated R4 test 7. A throwing clear leaves generation N's ViewModel-owned work
-            // in an unknown state; pre-R4 the machine logged "publishing the candidate anyway"
-            // and exposed N+1 while N's work survived.
+            // A throwing clear leaves generation N's ViewModel-owned work in an unknown state.
             val genOne = runtime.currentGeneration
             putProbeViewModel(genOne, onClear = { error("injected onCleared failure") })
 
@@ -431,9 +419,7 @@ internal class AppRuntimeTest {
     @Test
     fun `unjoinable outgoing lifetime after PONR is FATAL - epoch unchanged, admission refused`() =
         runtimeTest { runtime ->
-            // Mandated R4 test 8. A DB-bound job of generation N that cannot be joined means N's
-            // work survives any publication — the machine must end terminally with the epoch
-            // untouched and both admission gates effectively closed.
+            // An unjoinable job of generation N means N's work survives any publication.
             val genOne = runtime.currentGeneration
             val never = CompletableDeferred<Unit>()
             genOne.lifetime.childScope(UnconfinedTestDispatcher(testScheduler)).launch {
@@ -462,10 +448,8 @@ internal class AppRuntimeTest {
     @Test
     fun `candidate preflight failure with an unjoinable candidate is FATAL - N is never republished`() =
         runtimeTest { runtime ->
-            // Mandated R4 test 9. The candidate's jobs share the LIVE database; republishing N
-            // beside an unjoined candidate job (pre-R4: the tearDownCandidate verdict was
-            // discarded) leaves an orphan no later teardown ever joins — a later replacement
-            // would close the shared database under it.
+            // The candidate's jobs share the live database, so republishing N beside an
+            // unjoined candidate job would strand an orphan over it.
             runtime.currentGeneration
             val never = CompletableDeferred<Unit>()
             preflightAction = { generation ->
@@ -474,8 +458,7 @@ internal class AppRuntimeTest {
                         never.await()
                     }
                 }
-                // A nested unconfined launch queues on the thread-local event loop; yield so the
-                // job genuinely STARTS (enters NonCancellable) before this preflight returns.
+                // Yield so the nested unconfined job genuinely starts before preflight returns.
                 kotlinx.coroutines.yield()
             }
             preflightOutcome = StartupOutcome.RouteToRecovery
@@ -498,18 +481,14 @@ internal class AppRuntimeTest {
     @Test
     fun `partial construction with an unjoinable child is TERMINAL - not an ordinary abort`() =
         runtimeTest { runtime ->
-            // Mandated R4 test 10. The graph constructor hands the fresh lifetime to a consumer
-            // that starts an unjoinable job, then throws. Pre-R4 releasePartialGeneration
-            // computed the join verdict and DISCARDED it for shared-database candidates, so the
-            // graph-only caller treated this as "candidate construction failed" and republished
-            // N beside the live orphan.
+            // The graph constructor starts an unjoinable job on the fresh lifetime, then throws.
             runtime.currentGeneration
             val never = CompletableDeferred<Unit>()
             graphFactoryFailures.add(1)
             graphFactoryAction = { index, lifetime ->
                 if (index == 1) {
-                    // Real dispatcher: the unwind join runs inside buildGeneration's own
-                    // runBlocking, not on the test scheduler.
+                    // GUARD: a real dispatcher — the unwind join runs inside buildGeneration's
+                    // own runBlocking, which the test scheduler never advances.
                     lifetime.childScope(Dispatchers.Unconfined).launch {
                         withContext(NonCancellable) {
                             never.await()

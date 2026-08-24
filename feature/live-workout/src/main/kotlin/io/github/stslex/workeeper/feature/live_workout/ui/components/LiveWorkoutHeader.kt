@@ -34,24 +34,8 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
 
 /**
- * `.shead` (extraction §1.3): the training name, the meta line, and the elapsed timer —
- * three texts sitting directly on `surfaceTier0`.
- *
- * **THIS IS NOT A CARD.** No background, no border, no radius, no elevation — the extraction
- * calls out the step-5 card as the headline defect of this screen. The only chrome here is
- * layout.
- *
- * - name: `text.title` (26sp / 600 / −0.39sp) in `textPrimary` — the mockup's `h2`.
- * - meta: `mono.meta` (12.5sp) in `textTertiary`, 8dp below the name (Part 1's rounding of
- *   the mockup's 6px; §0.5's ladder would say 4dp — the two contradict, Part 1 wins as the
- *   per-screen contract and the conflict is reported in the PR).
- * - timer: [io.github.stslex.workeeper.core.ui.kit.theme.AppTypography.timer] — Archivo
- *   `wdth 116` at the 34 rung, tabular by construction. This is the named slot's first
- *   production call site.
- *
- * The name keeps its v2.3 tap-to-edit mechanic (save on blur / IME done); the mockup draws
- * no affordance for it, so the edit field reproduces the `h2` treatment exactly and adds
- * nothing else.
+ * `.shead`: training name, meta line and elapsed timer, sitting directly on `surfaceTier0`.
+ * GUARD: this is not a card — no background, border, radius or elevation. See extraction §1.3.
  */
 @Composable
 internal fun LiveWorkoutHeader(
@@ -112,15 +96,8 @@ internal fun LiveWorkoutHeader(
 }
 
 /**
- * Inline-edit text field that reproduces the header title typography. Focus is requested as
- * soon as the field appears (when the user taps the label); a focus-loss event submits the
- * current value, matching the "save on blur via tap-out, IME Done, or back-dismissed
- * keyboard" rule from spec A1.
- *
- * `requestFocusOnAppear` exists for the golden: `requestFocus()` pulls in the IME path, and
- * layoutlib's `HandlerThread_Delegate` dies with `NoSuchMethodError:
- * Thread.setPosixNicenessInternal` on the host JVM — racily, which is worse than reliably.
- * Production always passes `true`; the flag changes no pixels, only the side effect.
+ * Inline-edit field in header title typography; focus loss submits the value (spec A1).
+ * `requestFocusOnAppear` exists only so the golden can skip the layoutlib-hostile IME path.
  */
 @Composable
 private fun EditableTrainingNameField(

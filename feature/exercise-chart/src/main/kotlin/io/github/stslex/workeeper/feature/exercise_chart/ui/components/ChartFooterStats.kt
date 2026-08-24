@@ -23,12 +23,8 @@ import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartFooterStatsUiModel
 
 /**
- * The three `.statrow`s (extraction §4.7): ruled top and bottom — the first row carries the
- * mockup's inline `border-top`, every row its class `border-bottom` — with `.meta` (mono
- * 12.5, `--meta`) on the left and `.val` (mono 15/500, `--body`, tabular by family) plus its
- * dimmer `.unit` on the right. Rules run full-bleed; content sits inside the gutter; row
- * padding 14px → 12dp. The rule treatment mirrors exercise-detail's history rows
- * (`HorizontalDivider`, 1dp, `borderSubtle` — hair-s has no slot by design).
+ * The three `.statrow`s (extraction §4.7): rules run full-bleed, content sits inside the gutter,
+ * `.meta` on the left and `.val` plus its dimmer `.unit` on the right.
  */
 @Composable
 internal fun ChartFooterStats(

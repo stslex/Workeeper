@@ -8,13 +8,8 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 
 /**
- * The loading deferral's two numbers and the arithmetic between them.
- *
- * **Nothing else in the repository can see any of this.** §10.4: a delay is invisible to a golden —
- * Paparazzi renders one frame and has no clock, so neither the 140 ms before the spinner appears
- * nor the 260 ms it is held afterwards can reach an image. The same class as
- * `LIST_BOTTOM_CLEARANCE`, and the same remedy: name the values, extract the arithmetic, assert it
- * directly.
+ * The loading deferral's two numbers and the arithmetic between them; a delay is invisible to a
+ * golden, so the values are named and asserted directly. See the v3 redesign spec §10.4.
  */
 internal class LoadingVisibilityTest {
 
@@ -23,9 +18,7 @@ internal class LoadingVisibilityTest {
     @Test
     @DisplayName("both numbers come off the motion scale, and they are the two they claim to be")
     fun bothNumbersAreOnTheScale() {
-        // §5: "anything that needs a duration not on this list is a design decision". The point of
-        // asserting this is that a future edit to either number has to move it to another RUNG,
-        // not to an invented value — the failure mode this catches is `140` quietly becoming `150`.
+        // §5: a duration off the scale is a design decision; catches 140 quietly becoming 150.
         assertEquals(140, motion.fast)
         assertEquals(260, motion.base)
         assertTrue(motion.fast in setOf(motion.fast, motion.base, motion.slow))
@@ -34,9 +27,7 @@ internal class LoadingVisibilityTest {
     @Test
     @DisplayName("the appear delay clears the measured worst-case load with margin")
     fun appearDelayClearsMeasuredLoads() {
-        // Device-instrumented: a cold all-trainings entry resolved `refresh` in 61 ms, Home's warm
-        // path in 23 ms. The delay must exceed the slower of those or the spinner still flashes on
-        // a normal load, which is the whole complaint.
+        // Device-instrumented: a cold all-trainings `refresh` took 61 ms; the delay must clear it.
         val worstMeasuredLoadMs = 61
         assertTrue(motion.fast > worstMeasuredLoadMs) {
             "appear delay ${motion.fast}ms must exceed the measured ${worstMeasuredLoadMs}ms load"
@@ -46,9 +37,7 @@ internal class LoadingVisibilityTest {
     @Test
     @DisplayName("loading with nothing shown: wait the APPEAR DELAY, then show")
     fun stepShowsAfterTheAppearDelay() {
-        // The case that was ungated until the step was extracted: with `delay(motion.fast)` inline
-        // in the composable, mutating it to `delay(0)` — which restores the flash outright — came
-        // back GREEN. The duration now lives in a value a test can read.
+        // With `delay(motion.fast)` inline, mutating it to `delay(0)` came back green.
         assertEquals(
             LoadingStep.ShowAfter(140L),
             loadingStep(loading = true, visible = false, shownAtMillis = 0L, nowMillis = 0L, motion = motion),
@@ -87,9 +76,7 @@ internal class LoadingVisibilityTest {
     @Test
     @DisplayName("the hold counts from when it APPEARED, not from when loading ended")
     fun holdCountsFromAppearance() {
-        // The defect this rules out: holding for 260 ms after loading *ends* would keep a spinner
-        // that had already been up for a second on screen for another 260 ms — the same flash
-        // defect with a longer tail. 100 ms in, 160 ms remain.
+        // Holding for 260 ms after loading ends would be the same flash with a longer tail.
         assertEquals(160L, loadingHoldRemaining(shownAtMillis = 1_000L, nowMillis = 1_100L, motion = motion))
     }
 
@@ -97,18 +84,14 @@ internal class LoadingVisibilityTest {
     @DisplayName("a spinner already past the minimum is released immediately, never negatively")
     fun holdClampsAtZero() {
         assertEquals(0L, loadingHoldRemaining(shownAtMillis = 1_000L, nowMillis = 1_260L, motion = motion))
-        // Clamped rather than negative: `delay(-1)` would not throw but would be a silent no-op,
-        // and a negative here would mean the arithmetic had gone wrong somewhere it could not be
-        // seen. Asserted on a value far past the minimum so the clamp is what is being measured.
+        // Clamped rather than negative: `delay(-1)` is a silent no-op, not a throw.
         assertEquals(0L, loadingHoldRemaining(shownAtMillis = 1_000L, nowMillis = 9_999L, motion = motion))
     }
 
     @Test
     @DisplayName("the worst case: a 141ms load costs 259ms of added delay, and that is the ceiling")
     fun worstCaseArithmetic() {
-        // The row of the KDoc's table that decides whether a two-number rule is worth it. A load
-        // finishing one millisecond after the spinner appears is held for the full minimum, so the
-        // content it was hiding is delayed by the minimum less that millisecond.
+        // A load finishing 1 ms after the spinner appears is held for the full minimum.
         val loadMs = motion.fast + 1
         val shownAt = motion.fast.toLong()
         val addedDelay = loadingHoldRemaining(shownAt, loadMs.toLong(), motion)
@@ -123,10 +106,7 @@ internal class LoadingVisibilityTest {
     @Test
     @DisplayName("only loads in (140, 400) are delayed at all")
     fun onlyTheWindowIsDelayed() {
-        // Below the appear delay nothing is shown, so nothing is held — the function is never
-        // consulted. Above appear+hold the spinner has already outlived its minimum by the time
-        // the data lands, so the hold adds nothing. Both ends asserted, because "the window is
-        // bounded on both sides" is the claim that makes the trade acceptable.
+        // Both ends: below the appear delay nothing shows, above appear+hold the hold adds nothing.
         val window = motion.fast + motion.base
         assertEquals(400, window)
         assertEquals(0L, loadingHoldRemaining(motion.fast.toLong(), window.toLong(), motion))
@@ -138,11 +118,7 @@ internal class LoadingVisibilityTest {
     @Test
     @DisplayName("the hold draws LOADING while the data is NOT loading")
     fun holdOutlivesTheLoadingVerdict() {
-        // The whole point of the minimum, and the one row every other test above was blind to: the
-        // durations were asserted while the value they produce was discarded downstream. In the
-        // entire interval the hold exists for — (140, 400) — the selector has ALREADY left LOADING,
-        // so a screen reading its own verdict beside `visible` draws nothing and the spinner
-        // flashes for the millisecond the two numbers exist to prevent.
+        // In the whole (140, 400) interval the selector has already left LOADING; the hold wins.
         assertEquals(
             Surface.LOADING,
             deferredSurface(
@@ -166,9 +142,7 @@ internal class LoadingVisibilityTest {
     @Test
     @DisplayName("the deferral window draws NOTHING on a cold open — nothing has been settled yet")
     fun deferralWindowDrawsNothingOnColdOpen() {
-        // Loading with nothing ever drawn: null. Returning the raw LOADING verdict here would put
-        // the spinner up at once and delete the appear delay; the two are the same value and mean
-        // opposite things, which is why the window has its own.
+        // Loading with nothing ever drawn: null; the raw verdict would delete the appear delay.
         assertEquals(
             null,
             deferredSurface(
@@ -183,12 +157,7 @@ internal class LoadingVisibilityTest {
     @Test
     @DisplayName("the deferral window KEEPS the outgoing surface when there is one — the retry blank")
     fun deferralWindowKeepsTheOutgoingSurface() {
-        // Found in review on #212. A screen renders this verdict by REMOVING the block it names
-        // (`deferredSurface ?: return` at all four sites), so `null` deletes rather than preserves,
-        // and Compose keeps no frame behind a composable that has left composition. Tapping retry
-        // on a cold-open error moves the verdict REFRESH_ERROR -> LOADING while the appear delay is
-        // still running: with `null` the error vanished at once and the region sat blank for up to
-        // 140ms before the spinner — a blank flash, in the file whose subject is not flashing.
+        // Tapping retry on a cold-open error would blank the region for up to 140ms without this.
         assertEquals(
             Surface.ERROR,
             deferredSurface(
@@ -198,8 +167,7 @@ internal class LoadingVisibilityTest {
                 lastSettled = Surface.ERROR,
             ),
         )
-        // And it is the WINDOW that keeps it, not the hold: once the delay elapses the spinner
-        // replaces the error rather than the error outliving it.
+        // The WINDOW keeps it, not the hold: once the delay elapses the spinner replaces the error.
         assertEquals(
             Surface.LOADING,
             deferredSurface(
@@ -214,18 +182,14 @@ internal class LoadingVisibilityTest {
     @Test
     @DisplayName("the HOLD withholds the rows, not just the surface verdict")
     fun holdWithholdsRows() {
-        // The second half of the same defect, and the one a screen can lose on its own: the hold
-        // keeps LOADING on screen after the data says CONTENT, so a list composed independently of
-        // the verdict draws its rows UNDER the loading treatment for the rest of the hold. Three of
-        // the four screens did exactly that until this rule was named.
+        // The hold keeps LOADING after the data says CONTENT, so the rows must be withheld too.
         assertEquals(ListBody.REGION, listBody(Surface.LOADING, Surface.CONTENT))
     }
 
     @Test
     @DisplayName("the deferral window withholds the rows too — nothing draws at all")
     fun deferralWindowWithholdsRows() {
-        // `null` is "loading, nothing shown yet". Rows are the one thing that must not appear in
-        // that window: a list that pops in at 40ms is what the appear delay protects the eye from.
+        // Rows must not appear in the window: a list popping in at 40ms is what the delay prevents.
         assertEquals(ListBody.REGION, listBody(null, Surface.CONTENT))
     }
 

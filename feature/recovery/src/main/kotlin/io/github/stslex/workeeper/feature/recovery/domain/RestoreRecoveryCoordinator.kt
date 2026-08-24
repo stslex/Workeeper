@@ -291,7 +291,6 @@ class RestoreRecoveryCoordinator @Inject internal constructor(
         }
     }
 
-    /** Delegates restart to the platform reinitialization seam. */
     fun restartApp() {
         appReinitializer.reinitialize()
     }

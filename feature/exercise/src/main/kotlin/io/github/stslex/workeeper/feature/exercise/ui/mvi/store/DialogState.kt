@@ -4,36 +4,18 @@ package io.github.stslex.workeeper.feature.exercise.ui.mvi.store
 import androidx.compose.runtime.Stable
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.BlockedArchiveItem
 
-/**
- * Single source of truth for every dialog rendered on the Exercise screen. Folds the
- * legacy `sourceDialogVisible`, `permissionDeniedDialogVisible`, `pendingConflict` State
- * fields plus the `Event.Show*` dialog events into one sealed interface so at most one
- * dialog is open at a time — enforced by the type system, not a comment. See the Rule 4
- * "Dialogs and bottom sheets are State, not Events" section of compose-state-discipline.md.
- */
+/** Every dialog on the Exercise screen as one sealed type — Rule 4 of compose-state-discipline. */
 @Stable
 sealed interface DialogState {
 
     @Stable
     data object Hidden : DialogState
 
-    /**
-     * Edit-mode discard confirmation. The `target` controls whether the post-confirm
-     * action pops the screen (creation flow) or flips back to Read mode (edit flow).
-     */
+    /** Edit-mode discard confirmation; `target` decides pop-the-screen vs flip-to-Read. */
     @Stable
     data class DiscardConfirm(val target: ExerciseStore.DiscardTarget) : DialogState
 
-    /**
-     * "Switching to weightless will clear the weights you have typed" confirmation, raised by the
-     * inline plan editor's type toggle. The pending target lives in `State.pendingTypeChange` so
-     * the confirm handler knows which value to commit; this variant carries only the pre-resolved
-     * strings (Rule 1 — no `stringResource` inside an `updateState` lambda).
-     *
-     * **The wipe here is local and that is not an oversight.** A record being created has no row
-     * on disk and nothing else references it, so there is no cross-plan cascade to run — the only
-     * weights in existence are the ones in this draft.
-     */
+    /** "Switching to weightless clears typed weights" confirm; strings are pre-resolved. */
     @Stable
     data class TypeChangeConfirm(
         val title: String,
@@ -42,12 +24,7 @@ sealed interface DialogState {
         val confirmLabel: String,
     ) : DialogState
 
-    /**
-     * Surfaced when archiving an exercise that is still referenced by an active training.
-     * Rendered by the shared `AppBlockedArchiveDialog` (same component the all-exercises
-     * bulk-archive path uses) so the two surfaces can't drift. [item] carries the exercise
-     * name and the pre-formatted "used in …" trainings label built by the handler.
-     */
+    /** Archiving an exercise still referenced by an active training; [item] carries the labels. */
     @Stable
     data class ArchiveBlocked(val item: BlockedArchiveItem) : DialogState
 
@@ -71,11 +48,7 @@ sealed interface DialogState {
     @Stable
     data object PermissionDenied : DialogState
 
-    /**
-     * Track Now conflict — surfaced when an active session exists for a different
-     * exercise. Carries the active session's UUID so Resume / Delete-and-start can
-     * act without consulting another State field.
-     */
+    /** Track Now conflict: an active session exists for a different exercise. */
     @Stable
     data class ActiveSessionConflict(
         val sessionUuid: String,
@@ -84,14 +57,7 @@ sealed interface DialogState {
     ) : DialogState
 }
 
-/**
- * The topbar `⋮` overflow, Store-homed like every other modal on this screen (Rule 4 of
- * compose-state-discipline). The v2.4 `DropdownMenu` rendered from an anchored composable
- * with no state backing; the v3 sheet survives the same way the dialogs do. Kept separate
- * from [DialogState] deliberately — the past-session rebuild established the two-field
- * shape (`dialogState` + `bottomSheetState`), and a menu item that opens a dialog closes
- * the sheet in the same state transition.
- */
+/** The topbar `⋮` overflow, Store-homed (Rule 4) and kept separate from [DialogState]. */
 @Stable
 sealed interface BottomSheetState {
 
@@ -102,18 +68,11 @@ sealed interface BottomSheetState {
     @Stable
     data object DetailMenu : BottomSheetState
 
-    /**
-     * The editor plan head's `(i)` (ED8): what a default plan is for, in a sheet rather than
-     * as a subtitle under the head — a long explanation is a reason, and reasons live behind
-     * the `i`. Referent: the session's `.mini.info` → `#sh-desc`.
-     */
+    /** The editor plan head's `(i)` (ED8): what a default plan is for, in a sheet. */
     @Stable
     data object PlanInfo : BottomSheetState
 
-    /**
-     * ED7: the tag picker's sheet — search, the dictionary as selectable chips, the create
-     * row, «Готово». Opened by the form's dashed «+ тег» chip; selection applies live.
-     */
+    /** ED7: the tag picker's sheet — search, chips, create row, «Готово»; selection is live. */
     @Stable
     data object TagPicker : BottomSheetState
 }

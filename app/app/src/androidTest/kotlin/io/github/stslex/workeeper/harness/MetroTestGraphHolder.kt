@@ -15,21 +15,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
- * Process-wide, resettable slot for the per-test Metro [AppGraph] (App-Scope Collapse Step 6, Phase 3.3).
- *
- * Android instrumentation runs the whole suite in ONE process and creates the [TestApplication] exactly
- * once, so the app-scope graph cannot be a construction-time constant — fail-fast-DB and in-memory-DB
- * tests would collide on a single shared graph. [MetroTestRule] rebuilds a fresh graph per test and
- * publishes it here in `@Before`; [TestApplication.appGraph] reads it; `@After` clears it.
- *
- * Phase 5 adds the UI-generation face: the rule also publishes [AppUiPhase.Generation] `(1, a
- * fresh per-test ViewModelStore)` so `App()` composes — with no published generation the shell
- * shows only the Transitioning interstitial. The per-test store gives `AppRootViewModel` and the
- * app-dialog Store the same fresh-per-test lifecycle the per-test graph gives everything else,
- * and [reset] clears it so nothing retains a dead graph's deps across tests.
- *
- * Lives in `:app:app` androidTest so it can name the module-`internal` [AppGraph] — the entire reason the
- * harness consolidates here rather than in a shared upstream infra module (which cannot see it).
+ * Process-wide resettable slot for the per-test Metro [AppGraph] and its published UI generation.
+ * Lives in `:app:app` androidTest because only here can it name the module-`internal` [AppGraph].
  */
 internal object MetroTestGraphHolder {
 
@@ -44,11 +31,8 @@ internal object MetroTestGraphHolder {
     private val uiPhaseFlow = MutableStateFlow<AppUiPhase>(AppUiPhase.Transitioning)
 
     /**
-     * RUNTIME MODE (Phase 5 handshake tests): when set, [TestApplication] delegates the UI
-     * phase stream AND the attach/dispose gate to this real [AppRuntime] — the production
-     * handshake, not a harness stand-in. Static mode (the default) serves [uiPhaseFlow] and
-     * counts attachments in [staticAttachments] so the callbacks are REAL accounting either way
-     * (the interface has no silent no-op defaults by design).
+     * When set, [TestApplication] delegates the phase stream and the attach/dispose gate to this
+     * real runtime; the default static mode serves [uiPhaseFlow] and counts [staticAttachments].
      */
     @Volatile
     var runtimeDelegate: AppRuntime? = null
@@ -61,28 +45,19 @@ internal object MetroTestGraphHolder {
 
     fun effectiveUiPhases(): StateFlow<AppUiPhase> = runtimeDelegate?.uiPhases ?: uiPhases
 
-    /**
-     * Ids the harness has RETIRED (Phase 5 R3, spec §8.4 step 1). A retired generation's admission
-     * must be refused, which is what `App()`'s region turns into "render nothing and resolve
-     * nothing". `UiAdmissionRaceTest` drives this; [reset] clears it.
-     */
+    /** Ids the harness has retired; their admission must be refused. */
     private val retiredIds: MutableSet<Int> = ConcurrentHashMap.newKeySet()
 
     /**
-     * How many times `App()`'s generation region resolved its app-scope dependencies — counted at
-     * [TestApplication.appRootDeps], which `App()` calls exactly once per composed region and
-     * nothing else in the app calls at all. Zero is the assertable meaning of "a stale region
-     * resolved nothing".
+     * Times a generation region resolved its app-scope deps. `App()` is the only caller, once per
+     * region, so zero means "this region reached the graph zero times".
      */
     val appRootDepsResolutions = AtomicInteger()
 
     /** Static-mode admission token — real accounting, assertable by the harness tests. */
     private class StaticToken(val id: Int) : AppUiAdmissionToken
 
-    /**
-     * Retires [id]: every later admission request for it is REFUSED, exactly as the runtime's own
-     * gate refuses a generation it has already handed over.
-     */
+    /** Retires [id]: every later admission request for it is refused, as the runtime does. */
     fun retireUiGeneration(id: Int) {
         retiredIds.add(id)
     }
@@ -121,19 +96,13 @@ internal object MetroTestGraphHolder {
         )
 
     /**
-     * Installs a graph as the CURRENT test generation. Re-installing within one test is the
-     * harness's generation swap (the UI-swap suite uses it): the previous generation's
-     * ViewModelStore is cleared deterministically (mirroring the runtime's disposal) and a fresh
-     * id is published, which is what re-keys `App()`'s generation region. Ids increment per
-     * install — stable WITHIN a test (Activity recreation restores against the same id), fresh
-     * ACROSS installs (a swap must never reuse the old saveable slot).
+     * Installs a graph as the current test generation; re-installing within one test is the
+     * harness's generation swap. Ids increment per install so no swap reuses a saveable slot.
      */
     fun install(graph: AppGraph) {
         uiPhaseFlow.value = AppUiPhase.Transitioning
-        // On the MAIN thread, as the production teardown does (`AppRuntime.tearDownOutgoing`
-        // wraps its clear in `policy.mainDispatcher`): since R3 a cleared Store actually
-        // disposes, and disposal detaches a `LifecycleRegistry` observer, which Lifecycle
-        // enforces to the main thread.
+        // GUARD: clear on the main thread — disposal detaches a Lifecycle observer, which
+        // Lifecycle enforces to the main thread. Production teardown does the same.
         currentStore?.let { store ->
             InstrumentationRegistry.getInstrumentation().runOnMainSync { store.clear() }
         }

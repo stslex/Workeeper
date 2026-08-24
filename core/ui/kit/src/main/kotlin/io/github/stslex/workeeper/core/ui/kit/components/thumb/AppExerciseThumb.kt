@@ -30,55 +30,8 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 
 /**
- * The v3 `.thumb` — an exercise's picture, 48dp, in the pushed top bar beside the title
- * (`pass2d.html` `#s-editor` form 5; extraction §7.7). **NEW.**
- *
- * ```css
- * .thumb{width:44px;height:44px;border-radius:12px;border:1px solid var(--hair-s);
- *        background:var(--field)}
- * .thumb.has{background:linear-gradient(135deg,var(--raise),var(--sec))}
- * .thumb.none{border-style:dashed}
- * .thumb svg{width:21px;height:21px;stroke-width:1.7}
- * ```
- *
- * ## Why it is in the bar and not in the form
- *
- * It costs the form **no vertical space at all** and gives the record a face at the top of every
- * screen that shows it. The picture's two verbs are not here: §26 puts them where the picture is,
- * so with an image the tap opens the full-screen viewer and replace/remove live in it.
- *
- * ## The empty state draws the TYPE
- *
- * With no photo the box draws the exercise's `type` mark. **Rejected: a camera glyph** — it
- * promises one of the two things the picker sheet offers, and it erases the type. Nothing is
- * drawn inside the FILLED thumb either: a camera in a box that already holds a photo reads as
- * "take another".
- *
- * Geometry, derived (§0.2): the drawn 44px is `.icon-btn`'s own box, and it takes `.icon-btn`'s
- * rung — **48dp** ([AppDimension.iconXl]), by §0.5's `44 / 46 / 48 → 48dp` row. **The thumb is a
- * control in the bar, so it takes the bar's control size rather than one of its own**; landing on
- * `AppIconButton`'s box is the point, not a collision to avoid. That also makes the drawn box the
- * minimum interactive target, so the gesture sits on it directly and nothing is added around it.
- * Radius 12 → 8dp (`Radius.small`), the E7 rounding every site makes. Glyph 21 → `iconLg`'s
- * neighbour is 32 and `iconMd` is 24, so the literal is kept for the same reason `AppTopBar`'s own
- * 21dp glyph is.
- *
- * The border is `borderDefault`, not `borderSubtle`: dashed or solid, this outline **is** the
- * control — it is the only thing that draws the target at all — so WCAG 1.4.11 applies at 3:1.
- * The same discriminator `AppDashedAddButton` states, and the same one that keeps
- * `AppEmptyState`'s decorative tile on `borderSubtle`.
- *
- * The picture slot is the trailing lambda ([content]) rather than an `image:` parameter, so the
- * empty state is `null` and Compose's own naming rule is satisfied — the box is the component and
- * the picture is what goes in it.
- *
- * ## A null [onClick] is a box with nowhere to go, and that is a state a host can be in
- *
- * The exercise **read** screen draws this beside the description (`v3-editors.md` D-OPEN-3,
- * D-OPEN-9) and has exactly one destination for it: the viewer, which needs a picture to show.
- * With no picture there is nothing to open and read mode cannot pick one, so the box is drawn and
- * is not a control. Announcing a button that does nothing is worse than announcing a picture that
- * is absent, which is what [contentDescription] then says.
+ * The v3 `.thumb`: an exercise's picture at [AppDimension.iconXl], drawing the exercise type
+ * mark when empty. A null [onClick] draws a box that is not a control. See the extraction spec.
  */
 @Composable
 fun AppExerciseThumb(
@@ -90,13 +43,10 @@ fun AppExerciseThumb(
 ) {
     val shape = RoundedCornerShape(AppDimension.Radius.small)
     val hasImage = content != null
-    // Aliased before the `semantics` block: inside it a bare `contentDescription` resolves to the
-    // receiver's own property, so `this.contentDescription = contentDescription` is a self-assign.
+    // GUARD: inside `semantics {}` a bare `contentDescription` is the receiver's own property,
+    // so writing it straight from the parameter is a silent self-assign. Alias it first.
     val label = contentDescription
-    // The drawn box IS the touch target: [AppDimension.iconXl] is both `.icon-btn`'s rung and the
-    // 48dp minimum, so a foundation `clickable` — which gets none of `IconButton`'s target
-    // expansion — needs nothing around it here. Shrink this below the rung and the hit area
-    // shrinks with it, on the only image affordance the screen has.
+    // The drawn box IS the touch target: iconXl is the 48dp minimum, and `clickable` adds none.
     Box(
         modifier = modifier
             .size(AppDimension.iconXl)
@@ -140,9 +90,7 @@ fun AppExerciseThumb(
                 } else {
                     AppIcons.ExerciseWeightless
                 },
-                // Decorative: the box is the control and it carries [contentDescription] as its
-                // click label. Describing the mark here too would announce the exercise's TYPE
-                // where the user needs to hear the ACTION, and one control cannot say both.
+                // Decorative: the box is the control and carries the click label.
                 contentDescription = null,
                 tint = AppUi.colors.textDim,
             )

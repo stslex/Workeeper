@@ -7,31 +7,8 @@ import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialog
 import io.github.stslex.workeeper.feature.app_dialogs.impl.data.AppDialogKeys
 
 /**
- * Pure priority walk over the persisted dialog flag set. Returns the single
- * highest-priority pending `AppDialog?`, or `null` when no flag is set.
- *
- * The order is intentionally a literal `when` chain rather than a sortable
- * list / enum-ordinal sort so that any priority change shows up in code review
- * with surrounding context. Priority is a property of the variant, not of
- * runtime data.
- *
- * Priority (highest first):
- *
- * 1. [AppDialog.RestoreFailure] — critical; the user must acknowledge that
- *    their restore failed and their data is intact.
- * 2. [AppDialog.RestoreSuccess] — informational; positive confirmation of
- *    restore.
- * 3. [AppDialog.UndoRestoreSuccess] — informational; positive confirmation
- *    of undo.
- * 4. [AppDialog.UndoRestoreConfirmation] — user-initiated; least urgent
- *    because the user chose to enter this flow themselves.
- *
- * One read per [Preferences] snapshot — there is no flag-by-flag iteration
- * pass; the `when` short-circuits at the first true branch.
- *
- * Pure object: no `@Inject`, no DI, no state. Consumers (the repository
- * inside its `dataStore.data.map { ... }`, plus unit tests with synthetic
- * `Preferences`) treat this as a function literal.
+ * Pure priority walk over the persisted flag set, returning the highest-priority pending dialog.
+ * A literal `when` chain rather than a sorted list so priority changes surface in review.
  */
 internal object AppDialogResolver {
 

@@ -87,12 +87,8 @@ internal class PlanUpdateRuleTest {
     }
 
     /**
-     * v2.4 reorder regression guard. Plan reorder is positional permutation only — same
-     * set count, no size change. The grow-but-not-shrink rule fires only at session
-     * finish when [performed] arrives; it must not be reachable from the editor's reorder
-     * path, but if a future caller wires reorder through `update` by mistake, the
-     * permutation contract still holds: the result equals the performed list (no head/
-     * tail merging).
+     * Reorder is positional permutation only; if a future caller wires reorder through `update`,
+     * the result must still equal the performed list, with no head/tail merging.
      */
     @Test
     fun `reorder permutation when performed and plan have equal size yields performed`() {

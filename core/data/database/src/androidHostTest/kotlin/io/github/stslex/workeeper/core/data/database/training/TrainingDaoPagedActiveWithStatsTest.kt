@@ -47,9 +47,7 @@ internal class TrainingDaoPagedActiveWithStatsTest : BaseDatabaseTest() {
         val pushUuid = Uuid.random()
         val pullUuid = Uuid.random()
         val emptyUuid = Uuid.random()
-        // v2.4 E7 sort: last-trained DESC NULLS LAST, then created DESC. Created
-        // timestamps below tie-break the two never-trained trainings (Push has an
-        // active session but no finished_at, so it counts as never-trained too).
+        // Created timestamps tie-break the never-trained pair (Push has no finished_at).
         seedTraining(pushUuid, "Push Day", isAdhoc = false, archived = false, createdAt = 200L)
         seedTraining(pullUuid, "Pull Day", isAdhoc = false, archived = false, createdAt = 100L)
         seedTraining(emptyUuid, "Empty Day", isAdhoc = false, archived = false, createdAt = 300L)
@@ -88,10 +86,7 @@ internal class TrainingDaoPagedActiveWithStatsTest : BaseDatabaseTest() {
 
         val rows = loadAllRows()
 
-        // v2.4 E7 sort:
-        //   1. Pull Day (last_session_at = 2_500L → not null, so first group)
-        //   2. Empty Day (null last_session_at, createdAt 300 — newer)
-        //   3. Push Day (null last_session_at, createdAt 200)
+        // v2.4 E7 sort: last-trained first, then never-trained by created DESC.
         assertEquals(
             listOf("Pull Day", "Empty Day", "Push Day"),
             rows.map { it.name },

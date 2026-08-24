@@ -5,21 +5,8 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 /**
- * Registry-level integrity check for [MIGRATIONS]. Pairs with the per-migration
- * fixture in `core/data/database/src/androidDeviceTest/.../AppDatabaseMigrationTest.kt`,
- * which exercises each `Migration` end-to-end against `Y.json` / `Y+1.json` schema
- * snapshots via Room's `MigrationTestHelper`.
- *
- * The split: this class enforces the array-level invariant ("every consecutive
- * version pair from [MIN_SUPPORTED_SCHEMA_VERSION] forward has a registered
- * path"), so a schema bump that adds `Migration(N+1, N+2)` but forgets
- * `Migration(N, N+1)` fails this class before the deliberate absence of
- * `fallbackToDestructiveMigration*` in `buildAppDatabase` (`AppDatabaseFactory.kt`)
- * can hurt a user shipped on DB version N. `AppDatabaseMigrationTest` covers
- * SQL-level correctness per migration.
- *
- * Spec: `documentation/feature-specs/backup-recovery.md` →
- * "CI-enforced migration test".
+ * Array-level integrity check for [MIGRATIONS]: every consecutive version pair from
+ * [MIN_SUPPORTED_SCHEMA_VERSION] forward has a registered path. See backup-recovery.md.
  */
 internal class MigrationsRegistryTest {
 
@@ -39,10 +26,7 @@ internal class MigrationsRegistryTest {
 
     @Test
     fun `every registered migration is reachable in the forward direction`() {
-        // Each registered Migration(X, Y) must be self-consistent: a graph walk
-        // from X to Y must succeed. This is a sanity check that the migration is
-        // actually wired into the array (groupBy by startVersion sees it) and not
-        // accidentally registered with endVersion < startVersion.
+        // A registered Migration(X, Y) must be self-consistent: X must reach Y.
         MIGRATIONS.forEach { migration ->
             val start = migration.startVersion
             val end = migration.endVersion

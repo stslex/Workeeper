@@ -14,11 +14,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertAll
 
-/**
- * The header is one `AnnotatedString` in one `Text`, so truncation must eat the unit — the
- * string's tail — before the name (set-field-column-headers.md §4 D2). Rendered through the
- * Paparazzi measurement harness: Robolectric is false-negative for text metrics.
- */
+/** Truncation must eat the unit, not the name; Robolectric is false-negative for text metrics. */
 internal class SetColumnHeaderTest {
 
     @Test
@@ -77,9 +73,7 @@ internal class SetColumnHeaderTest {
                     val visibleEnd = layout.getLineEnd(lineIndex = 0, visibleEnd = true)
                     val visible = fullText.take(visibleEnd)
                     if (layout.isLineEllipsized(0)) {
-                        // The cut must come from the tail: the full unit may never survive
-                        // a truncation (losing anything else first would mean the name went
-                        // before the unit — set-field-column-headers.md §2 decision 4).
+                        // The cut comes from the tail: the full unit never survives truncation.
                         assertFalse(
                             visible.contains(unit),
                             "at ${widthPx}px the ellipsis kept the unit intact: \"$visible\"",
@@ -95,8 +89,7 @@ internal class SetColumnHeaderTest {
                 }
             },
         )
-        // The sweep must actually contain the interesting regime — unit truncated while the
-        // name still reads in full — or the assertions above ran over nothing that matters.
+        // The sweep must contain the interesting regime, or the assertions ran over nothing.
         assertTrue(
             unitCutNameIntact.isNotEmpty(),
             "no sweep width produced an ellipsized label with the name intact " +

@@ -20,23 +20,8 @@ import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorSto
 import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorStore.Event
 
 /**
- * Registers the plan editor's one destination, [Screen.PlanEditor.Existing] — DB-backed, persists
- * `(type, plan)` to disk on Save and hands `true` back to the caller on the way out.
- *
- * **There is no creation destination.** An exercise with no persisted UUID is built on the exercise
- * form, which hosts `PlanEditorBody` inline; nothing routes here to make one.
- *
- * **Why this one graph calls [navScreen] and not `navComponentScreen`** — the twelfth call site,
- * and the only one that is not uniform. [PlanEditorFeature] is typed on the sealed parent
- * `Screen.PlanEditor`, because that is what the store's assisted injection and the DI factory
- * take; the registered ROUTE is the concrete [Screen.PlanEditor.Existing]. `navComponentScreen`
- * reifies one type for both, so it would try to register the sealed interface as a route.
- *
- * The alternatives are a third type parameter on `navComponentScreen` to separate route from
- * feature — new API for exactly one caller — or retyping `PlanEditorFeature` to `Existing`,
- * which reaches into this feature's DI graph and its store's assisted contract for a cosmetic
- * gain. Neither is worth it: this registers through the same project-owned scope and primitive
- * as every other graph and names no navigation-library type, which is what the contract is for.
+ * Registers the plan editor's one destination, [Screen.PlanEditor.Existing]. It uses [navScreen]
+ * rather than `navComponentScreen` because route and feature type differ here. See architecture.md.
  */
 fun NavGraphScope.planEditorGraph(
     modifier: Modifier = Modifier,
@@ -56,8 +41,8 @@ private fun PlanEditorContent(
 ) {
     val haptic = LocalHapticFeedback.current
     val state by processor.state
-    // Pre-resolve error copy in composable scope so the suspend Handle lambda below
-    // does not call `Context.getString` (Lint: LocalContextGetResourceValueCall).
+    // Resolved here because the suspend Handle lambda would call `Context.getString`
+    // (Lint: LocalContextGetResourceValueCall).
     val loadFailedMessage = stringResource(ErrorType.LoadFailed.msgRes)
     val saveFailedMessage = stringResource(ErrorType.SaveFailed.msgRes)
 
@@ -79,24 +64,8 @@ private fun PlanEditorContent(
         processor.consume(Action.Click.OnBackClick)
     }
 
-    // §26 "A route does not compose until it has loaded". Everything above this line still
-    // runs while the load is in flight — the event Handle, the back interception — and only
-    // the screen waits.
-    //
-    // It matters most on this route. `Screen.PlanEditor.Existing` seeds `type = WEIGHTED`
-    // because the real value is on disk, and `CommonHandler.loadPlan` overwrites
-    // `draft` / `type` / `initialType` / `initialDraft` unconditionally when the read lands.
-    // Both are only safe because the seed is never seen and the window has no user in it: the
-    // gate is what makes the unconditional write correct rather than merely unnoticed.
-    //
-    // Nothing is drawn instead, deliberately: neither mockup draws a loading surface, and
-    // `AppNavigationHost` paints the background under every destination, so an unloaded route
-    // is an empty frame in the app's own colour.
-    //
-    // LOAD-BEARING PRECONDITION: every path that sets `isLoading = true` must clear it on
-    // FAILURE as well as on success. `HandlerStore.launch`/`launchDefault` default `onError`
-    // to `{}` (B17, B21), so a throw that leaves the flag set is a permanently empty screen —
-    // this gate is what gives that failure a cost. `CommonHandler.loadPlan` closes its own.
+    // The route does not compose until it has loaded (v3 redesign spec §26). GUARD: every path
+    // that sets `isLoading` must clear it on failure too, or the screen stays empty forever.
     AppLoadedContent(isLoaded = state.isLoading.not()) {
         PlanEditorScreen(
             modifier = modifier,

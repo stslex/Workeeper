@@ -10,16 +10,8 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 /**
- * Confirms `ExerciseDoneRule.isDoneLive` and `isDoneLoad` agree when the live
- * state has no drafts and no visible-row slots beyond the persisted plan +
- * performed (i.e. `visibleSets = emptyList()`). Under that condition the live
- * `expectedPositions` collapses to the load definition. The five inputs mirror
- * the cases locked in `LiveWorkoutMapperReloadTest` so a regression in either
- * entry point shows up here too.
- *
- * The trailing test locks the *intended* divergence: a typed-but-unchecked
- * draft pushes the live path back to "not done" while the load path still says
- * "done" because no draft is persisted.
+ * Confirms `isDoneLive` and `isDoneLoad` agree when the live state has no drafts, and locks
+ * the intended divergence when it has one.
  */
 internal class ExerciseDoneRuleTest {
 
@@ -66,9 +58,7 @@ internal class ExerciseDoneRuleTest {
 
     @Test
     fun `live and load diverge when a draft fills an extra visible row`() {
-        // Lock the intended asymmetry: a typed-but-unchecked draft at the next
-        // position keeps the live path CURRENT while the load path still says
-        // DONE because no draft is persisted.
+        // A typed-but-unchecked draft keeps the live path CURRENT; the load path never sees it.
         val plan = emptyList<PlanSetUiModel>()
         val performed = listOf(set(position = 0, isDone = true))
         val visibleWithDraft = listOf(

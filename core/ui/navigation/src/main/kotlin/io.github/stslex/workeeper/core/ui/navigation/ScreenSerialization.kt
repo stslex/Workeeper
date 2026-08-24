@@ -8,18 +8,8 @@ import kotlinx.serialization.modules.polymorphic
 import kotlinx.serialization.modules.subclass
 
 /**
- * The polymorphic registry that lets the app-owned back stack survive process death.
- *
- * `rememberNavBackStack(configuration, …)` — the common, reflection-free overload — encodes each
- * entry through this module's `NavKey` open polymorphism. Every CONCRETE [Screen] leaf must be
- * listed; a missing one fails at SAVE time, i.e. in production only, on process death. That
- * failure mode is why `ScreenSerializationTest` exists: it enumerates the sealed hierarchy via
- * `sealedSubclasses` and round-trips an instance of each leaf through
- * `encodeToSavedState`/`decodeFromSavedState` with THIS configuration, so an unregistered
- * destination is a red unit test on every PR instead.
- *
- * Registered under [NavKey] only — that is the single static type the back-stack serializer
- * uses, and a second registration under `Screen` would be a second list to forget.
+ * Polymorphic registry that lets the app-owned back stack survive process death. Every concrete
+ * [Screen] leaf must be listed; a missing one fails at SAVE time, in production only.
  */
 val screenSerializersModule: SerializersModule = SerializersModule {
     polymorphic(NavKey::class) {

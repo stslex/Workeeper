@@ -18,48 +18,11 @@ import kotlin.math.abs
 import kotlin.math.min
 
 /**
- * The `gel` stretch, for a sliding indicator that moves at constant width.
+ * The `gel` stretch for a sliding indicator that moves at constant width; the peak is
+ * `1 + [INDICATOR_STRETCH] × k`, `k = |Δ| / trackWidth`. See the v3 redesign spec §26.
  *
- * **ONE call site — `MetricTabs`. `AppNavBar` does not use this.** Written here because the
- * opposite was claimed when the chart tabs took the gel (§26, `.tabs` gel row, corrected): the pill
- * keeps its own `Animatable`, its own keyframes and its own `navPillStretchPeak`, whose body is
- * identical to [indicatorStretchPeak]. What the two genuinely share is [INDICATOR_STRETCH] — the
- * ledger coefficient — and nothing else. So editing anything in this file changes the tabs and
- * leaves the pill exactly as it was; **B31** registers what that has already cost.
- *
- * ## What the coefficient means, and why it transfers here
- *
- * `k = |Δ| / trackWidth`, clamped to 1, and the peak is `1 + [INDICATOR_STRETCH] × k` — so the
- * stretch is proportional to **how far the indicator jumped as a fraction of its own track**, not
- * to an absolute distance. That is what makes it portable between indicators of different size,
- * and it is why the same 0.30 lands within 0.2 percentage points on both of this app's tracks:
- *
- * | | track | item | neighbour peak | two-step peak |
- * |---|---|---|---|---|
- * | `AppNavBar` pill | 411.4dp | 129.1dp | +9.71% (12.5dp) | +19.41% (25.1dp) |
- * | `MetricTabs` thumb | 379.3dp | 121.1dp | +9.89% (12.0dp) | +19.79% (24.0dp) |
- *
- * Both are three equal-width stops, so `pitch / track` is ~1/3 and ~2/3 on each. **Transferable is
- * not identical** — the tabs' item is 8dp narrower, so the same percentage is ~1dp less drawn
- * width. A track with unequal or differently-many stops would not land here, and the numbers above
- * would have to be recomputed rather than assumed.
- *
- * ## The restriction this carries
- *
- * §26: gel is available to an indicator that moves at **constant size**, and unavailable to one
- * that resizes — a `scaleX` excursion has to be the only width change in the frame or it stops
- * reading as "how far it jumped". Both indicators qualify: measured frame by frame on device,
- * `MetricTabs`' thumb is 318px in every frame of a two-step jump, and the pill translates at a
- * fixed width by construction.
- *
- * @param travelMillis the transit's own duration; the gel runs on the same clock.
- * @param selectedIndex the stop the indicator is travelling to. Drives the effect; the animation
- *  restarts on every change.
- * @param itemPitch centre-to-centre distance between adjacent stops.
- * @param trackWidth the OUTER track width — the denominator `k` is taken against. Passing the
- *  padded inner width instead inflates every peak.
- * @return the `scaleX` to hand to a `graphicsLayer`, and the origin to pin it by. The origin is
- *  the LEADING edge, so the tail lags and catches up.
+ * @param trackWidth the OUTER track width; passing the padded inner width inflates every peak.
+ * @return the `scaleX` for a `graphicsLayer` and the LEADING-edge origin to pin it by.
  */
 @Composable
 fun rememberIndicatorGel(
@@ -71,12 +34,9 @@ fun rememberIndicatorGel(
 ): IndicatorGel {
     val easing = AppUi.motion.out
     val stretch = remember { Animatable(1f) }
-    // Seeded with the initial selection so first composition does not read 0 -> n as travel and
-    // fire a stretch nobody asked for. A settled indicator animates nothing.
+    // Seeded with the initial selection so first composition does not read 0 -> n as travel.
     var previousIndex by remember { mutableIntStateOf(selectedIndex) }
-    // LATCHED, not derived: the origin belongs to the jump in flight, and the jump's delta is gone
-    // from the state as soon as `previousIndex` catches up. Recomputing it during composition
-    // would flip the origin part-way through and stretch from the wrong edge for the rest.
+    // LATCHED, not derived: the origin belongs to the jump in flight, whose delta is soon gone.
     var origin by remember { mutableStateOf(LEADING_EDGE_RIGHT) }
 
     LaunchedEffect(selectedIndex) {
@@ -105,7 +65,7 @@ data class IndicatorGel(
     val origin: TransformOrigin,
 )
 
-/** `1 + 0.30·k`, `k = |Δ| / trackWidth` clamped to 1. Pure, so the peaks above are assertable. */
+/** `1 + 0.30·k`, `k = |Δ| / trackWidth` clamped to 1. Pure, so the peak is assertable. */
 fun indicatorStretchPeak(travel: Dp, trackWidth: Dp): Float {
     if (trackWidth.value <= 0f) return 1f
     val k = min(abs(travel.value) / trackWidth.value, 1f)

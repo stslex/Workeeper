@@ -5,11 +5,8 @@ import io.github.stslex.workeeper.core.data.backup.api.error.BackupError
 import java.io.File
 
 /**
- * Runtime-owned live-database replacement transaction.
- *
- * Restore source ownership transfers at submission. The runtime executes `onBeforeMutation` and
- * exactly one terminal effect on its transaction coroutine. [DatabaseReplacementEffects.None]
- * is valid: implementations must not assume every caller owns journal or file cleanup.
+ * Runtime-owned live-database replacement transaction. Restore source ownership transfers at
+ * submission; [DatabaseReplacementEffects.None] is valid, so do not assume caller cleanup.
  */
 interface DatabaseReplacement {
 
@@ -42,7 +39,6 @@ interface DatabaseReplacementEffects {
     /** Records durable commit bookkeeping before rollback-source consumption. */
     suspend fun onMutationCommitted() {}
 
-    /** Terminal pre-mutation rejection. */
     suspend fun onRejectedBeforeMutation(error: BackupError) {}
 
     /** Terminal: the REQUESTED operation committed. */
@@ -57,7 +53,6 @@ interface DatabaseReplacementEffects {
     /** Terminal runtime failure; preserve assets. */
     suspend fun onFatal() {}
 
-    /** The explicit no-effects object for operations with no caller compensation. */
     object None : DatabaseReplacementEffects {
         override val attemptId: String = "no-effects"
     }

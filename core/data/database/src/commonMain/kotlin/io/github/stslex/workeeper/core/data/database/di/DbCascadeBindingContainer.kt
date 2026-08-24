@@ -26,21 +26,8 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 
 /**
- * App-Scope Collapse Step 5 (5a). The DB-cascade "derived" bindings — the 9 Room DAOs +
- * [DbTransitionRunner] — Metro-owned, deriving from the [AppDatabase] **`create()` bound-instance root**
- * (§Test-override root / §D3a in the execution spec). `AppDatabase` itself stays a `create()` root (a
- * test-override I/O boundary the seam swaps in-memory); everything here is DERIVED from it, so it moves off
- * the `create()` param list and into this contributed container.
- *
- * `@BindingContainer @ContributesTo(AppScope)` aggregates into the app-scope `@DependencyGraph` (mirrors the
- * dispatcher / resource-wrapper containers). Each `@Provides` reads `AppDatabase` FROM the graph (the root) —
- * a forward dependency, NOT a back-edge through the `appGraph` accessor (no C2 `@IO`→appGraph cycle:
- * [provideDbTransitionRunner]'s `@IODispatcher` resolves to the direct `Dispatchers.IO` from
- * `DispatchersBindingContainer`, never routed through `appGraph`).
- *
- * The DAOs mirror `db.<dao>` exactly as the deleted Hilt `CoreDatabaseModule` did; `DbTransitionRunner`
- * carries the identical `db.withTransaction` + `@IODispatcher` construction (former `CoreDatabaseModule.kt:51`).
- * Container is `public` for cross-module aggregation (D1).
+ * Metro container for the DB-cascade bindings: the 9 Room DAOs and [DbTransitionRunner],
+ * all derived from the [AppDatabase] `create()` root.
  */
 @BindingContainer
 @ContributesTo(AppScope::class)
@@ -56,11 +43,8 @@ public object DbCascadeBindingContainer {
         override suspend fun <T> invoke(
             block: suspend CoroutineScope.() -> T,
         ): T = withContext(ioDispatcher) {
-            // Room 3 replaced `withTransaction {}` with `useWriterConnection { it.immediateTransaction {} }`
-            // (per the Room KMP migration guide — the documented equivalent). `coroutineScope` is nested
-            // INSIDE so the receiver `block` runs inherits the transaction context, and any `async {}`
-            // children participate in the same transaction (identical rollback semantics to the former
-            // `withTransaction`). Verified by the atomicity probe in AtomicRollbackTest.
+            // GUARD: `coroutineScope` nests INSIDE `immediateTransaction` so `async {}` children
+            // join the same transaction; hoisting it out silently breaks child-write rollback.
             db.useWriterConnection { transactor ->
                 transactor.immediateTransaction {
                     coroutineScope {

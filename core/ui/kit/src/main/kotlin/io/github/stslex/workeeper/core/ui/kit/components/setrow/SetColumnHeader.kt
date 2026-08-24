@@ -30,30 +30,8 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 
 /**
- * The set-row column header — the unit lives here, not in the field
- * (documentation/feature-specs/set-field-column-headers.md §2).
- *
- * ## Geometry mirrors the row, from one source
- *
- * `[index gutter] [weight header] [reps header] [trailing gutter]`. The index gutter takes
- * [indexColumnWidth] — the SAME resolved value the container passes to every row
- * ([SetRowGeometry], §4 D3) — and the flex split reads [SetRowGeometry.WEIGHT_COLUMN_FLEX],
- * so header and rows cannot drift apart. [trailingWidth] is the consumer's trailing cluster
- * (chip slot + gap + checkmark / drag handle), computed by the feature from its own
- * components' widths, because the two rows deliberately differ there.
- *
- * ## Two-tone, one Text
- *
- * The NAME is `textSecondary`, the UNIT in parentheses a `SpanStyle` of `textDim` — never
- * dimmer than that: a caption-rung label owes 4.5:1 (§2). One `AnnotatedString` in one
- * `Text` with `TextOverflow.Ellipsis` is what makes the unit truncate before the name;
- * splitting the two into separate `Text`s breaks that order (§4 D2).
- *
- * Casing is applied here rather than in strings.xml, through the locale-INVARIANT
- * `uppercase()`: the rendered label must not change with the device locale, or a golden
- * and a user's screen can disagree. Style is `mono.caption`, never the numeric family —
- * Archivo has zero Cyrillic, and `NumericFontFamilyOnLocalizedTextRule` guards that
- * boundary.
+ * The set-row column header; geometry mirrors the rows from [SetRowGeometry], and name plus unit
+ * are one `Text` so the unit truncates first. See the set-field-column-headers spec.
  */
 @Composable
 fun SetColumnHeader(
@@ -109,9 +87,8 @@ fun SetColumnHeader(
 }
 
 /**
- * One column's label, inset to sit over the field's VALUE rather than its edge — by the
- * same [SetRowGeometry.compactFieldInset] the rows pass to their fields, so label and
- * value cannot drift apart (§7a).
+ * One column's label, inset by the same [SetRowGeometry.compactFieldInset] the rows pass to
+ * their fields, so label and value cannot drift apart.
  */
 @Composable
 private fun HeaderCell(
@@ -127,9 +104,8 @@ private fun HeaderCell(
 }
 
 /**
- * The header's single `Text`. Internal so the ellipsis order can be proven on the REAL
- * text parameters rather than on a lookalike; [onTextLayout] is a test oracle only —
- * never drive state from it (§4 D5).
+ * The header's single `Text`, internal so the ellipsis order can be proven on the real
+ * parameters. GUARD: [onTextLayout] is a test oracle only — never drive state from it.
  */
 @Composable
 internal fun SetColumnHeaderLabel(
@@ -149,11 +125,8 @@ internal fun SetColumnHeaderLabel(
 }
 
 /**
- * `ВЕС (КГ)` from `вес` + `кг`: `uppercase()` at the edge — the no-arg overload, whose
- * mapping is Unicode-invariant rather than locale-sensitive, so the label reads the same
- * on every device. Parentheses are added here: formatting is the component's, not the
- * translation's. The unit span is the string's TAIL, which is what hands the truncation
- * order to `TextOverflow` (§2).
+ * `ВЕС (КГ)` from `вес` + `кг`, uppercased with the locale-invariant overload. The unit span
+ * is the string's tail, which is what hands the truncation order to `TextOverflow`.
  */
 internal fun buildSetColumnHeaderLabel(
     name: String,

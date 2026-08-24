@@ -2,14 +2,8 @@
 package io.github.stslex.workeeper.core.ui.start_mode.model
 
 /**
- * The four readouts `HomeStartCard` can show (home-start-card.md HS2). This module owns the
- * catalog because two features consume it — the card's head names the current mode and the
- * Settings entry (HS5) reaches the same picker sheet — and feature modules cannot depend on
- * each other.
- *
- * Persistence stores a per-feature domain enum's name, not this type: the UI enum stays out
- * of the domain layer (`DomainLayerNoUiRule`), so each consuming feature maps its own
- * `StartCardModeDomain` onto this catalog in `mvi/mapper/`.
+ * The four readouts `HomeStartCard` can show (home-start-card.md HS2). Shared because two
+ * features consume it; each maps its own `StartCardModeDomain` onto this catalog.
  */
 enum class StartCardModeUi {
     WEEK,

@@ -20,12 +20,9 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * Dialog exactly-once semantics across a generation replacement (Phase 5 R2, spec §12): the
- * `pending_*` flags are DataStore-persisted process state, so a dialog published by generation N
- * is VISIBLE to generation N+1 (survival), and one acknowledgement through EITHER generation's
- * observer clears it for both (exactly-once — the flag, not the repository instance, is the
- * truth). Two full Metro graphs over one process DataStore, the
- * `AppScopeDataStoreSingletonTest` shape applied to the dialog subsystem.
+ * Dialog exactly-once semantics across a generation replacement: the `pending_*` flags are
+ * DataStore process state, so the flag — not the repository instance — is the truth.
+ * See documentation/feature-specs/app-dialogs.md.
  */
 @Regression
 @RunWith(AndroidJUnit4::class)
@@ -74,17 +71,15 @@ internal class DialogStateAcrossGenerationsTest {
         // The replacement: a fresh graph generation over the SAME process DataStore.
         val generationTwo = newGeneration()
 
-        // Survival: the pending flag is state, not an instance property.
         val visibleInTwo = generationTwo.appDialogRepository.currentDialog.first()
         assertTrue(
             "the pending dialog must survive the generation replacement; got $visibleInTwo",
             visibleInTwo is AppDialog.RestoreSuccess,
         )
 
-        // Exactly-once: one acknowledgement through the NEW generation clears the flag…
+        // Exactly-once: one acknowledgement clears the flag for both generations' readers.
         generationTwo.appDialogObserver.acknowledgeReaction(visibleInTwo!!)
         assertNull(generationTwo.appDialogRepository.currentDialog.first())
-        // …for the old generation's reader too — no second pending copy exists anywhere.
         assertNull(generationOne.appDialogRepository.currentDialog.first())
     }
 }

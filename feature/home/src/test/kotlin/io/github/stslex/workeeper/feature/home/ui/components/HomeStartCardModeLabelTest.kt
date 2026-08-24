@@ -31,46 +31,8 @@ import tech.apter.junit.jupiter.robolectric.RobolectricExtension
 import io.github.stslex.workeeper.core.ui.start_mode.R as StartModeR
 
 /**
- * HS6 on the card: the head names no mode until the persisted one arrives.
- *
- * `State.init` used to seed `StartCardModeUi.WEEK`, so every cold start drew «НЕДЕЛЯ» in the
- * screen's most prominent element before anything had been read — and the label is
- * indistinguishable from a real reading, which is what makes a seed worse than an empty head.
- * Reinstate the seed and this suite reds where it says nothing is named: `State.init` hands
- * back WEEK, the head draws «НЕДЕЛЯ», and `assertDoesNotExist` on `HomeStartModeLabel` fails.
- *
- * ## Subject
- *
- * The mode comes from `State.init` and goes into `HomeStartCard`, which is the whole path the
- * seed travelled. `HomeScreen` is deliberately NOT composed: it brings a `LazyColumn`, a
- * paging collector and `rememberDeferredSurface`'s 140/260ms hold, none of which this claim
- * needs and all of which are ways for a Compose test to settle late or not at all. The screen
- * hands the card `state.startCardMode` unaltered — one call site, no expression — and
- * `HomeStartCardSeedTest` pins the other end of the wire without a composition at all.
- *
- * ## Shape
- *
- * Robolectric plus `runComposeUiTest`, so it runs under `testDebugUnitTest` and gates every
- * PR (`ui_tests.yml` is `workflow_dispatch`-only; an assertion there is not a gate). **One
- * `@Test`, one composition**, per `core:ui:kit`'s `AccessibilitySemanticsTest`: a second
- * Compose environment in the same Robolectric sandbox hangs rather than fails. Both halves of
- * the claim therefore share one composition, separated by a state change — which is also the
- * truer subject, since that change is precisely what DataStore's first emission does.
- *
- * `useUnmergedTree`: the head is `clickable`, which merges its descendants, so the label's tag
- * is not reachable in the merged tree.
- *
- * ## Three phases, and why the middle one exists
- *
- * 1. Nothing known — no label; the head still exists, is still clickable and is still 48dp
- *    wide, because withholding the claim must not cost the control.
- * 2. A readout arrives while the mode is still unknown. `CommonHandler` writes mode and body
- *    in one `copy`, so production cannot reach this state — which is precisely why the card's
- *    `if (mode == null) null else body` guard has no other witness: delete it and every suite
- *    in the repository stays green.
- * 3. Both resolved. The label is that mode's name, **and the readout draws** — which is what
- *    gives phase 2's absence its meaning: same card, same harness, a body that provably
- *    renders, so "not there" was the null mode suppressing it and not a dead fixture.
+ * HS6 on the card: the head names no mode until the persisted one arrives, and a body under a
+ * null mode does not draw — the only witness of the card's `if (mode == null) null else body`.
  */
 @ExtendWith(RobolectricExtension::class)
 @Config(sdk = [33])
@@ -79,8 +41,7 @@ internal class HomeStartCardModeLabelTest {
 
     @Test
     fun theHeadNamesNoModeUntilOneIsKnown() = runComposeUiTest {
-        // Straight out of the production factory — not a hand-built null. If the seed comes
-        // back, it comes back through here.
+        // Straight out of the production factory, not a hand-built null.
         val mode = mutableStateOf(
             State.init(
                 pagingUiState = PagingUiState { flowOf(PagingData.empty<RecentSessionItem>()) },
@@ -100,41 +61,30 @@ internal class HomeStartCardModeLabelTest {
         }
         waitForIdle()
 
-        // The card is there and the head is still a target — the sheet must open, and with
-        // nothing known it checks nothing. What is missing is only the claim.
-        //
-        // CARD and HEAD are asserted BEFORE the label's absence on purpose: an
-        // `assertDoesNotExist` is also what a subtree that never composed would report, so
-        // without these two the first half of this suite would be green on an empty screen.
+        // CARD and HEAD are asserted BEFORE the label's absence: `assertDoesNotExist` is also
+        // what a subtree that never composed would report.
         onNodeWithTag(CARD).assertExists()
         onNodeWithTag(HEAD, useUnmergedTree = true)
             .assertExists()
-            // The head is a target, not merely a rectangle. Both KDocs justify keeping the
-            // caret and the minimum width on the promise that the sheet still opens; without
-            // this, gating `.clickable(...)` on `label != null` would leave every other
-            // assertion here green — `clickable` adds no measurement, so even the width holds.
+            // The head is a target, not merely a rectangle: `clickable` adds no measurement,
+            // so the width assertion below would hold without it.
             .assertHasClickAction()
         onNodeWithTag(LABEL, useUnmergedTree = true).assertDoesNotExist()
 
-        // A label-less head is a lone 16dp caret, so the head takes a minimum width while it
-        // has none. Without it this commit would trade a false claim for an unpressable
-        // control, which is the same defect wearing the other hat.
+        // A label-less head is a lone 16dp caret, so it takes a minimum width instead.
         val head = onNodeWithTag(HEAD, useUnmergedTree = true).getUnclippedBoundsInRoot()
         val width = head.right - head.left
         assertTrue(width >= MIN_TOUCH_TARGET, "label-less head is $width wide, under $MIN_TOUCH_TARGET")
 
-        // A readout arrives while the mode is still unknown. `CommonHandler` writes the pair
-        // in one `copy` so this cannot happen in production — which is exactly why the card's
-        // guard needs a witness of its own: delete `if (mode == null) null else body` and
-        // nothing else in the repository notices.
+        // A readout under a still-unknown mode: unreachable in production, which is exactly
+        // why the card's guard needs a witness of its own.
         runOnIdle { body.value = WEEK_BODY }
         waitForIdle()
 
         onNodeWithTag(LABEL, useUnmergedTree = true).assertDoesNotExist()
         onNodeWithText(WEEK_BODY.sessionsCountLabel).assertDoesNotExist()
 
-        // Resolved, and to a mode that is NOT the old seed: a resolved WEEK renders exactly
-        // what the seed rendered, so it could not tell the two apart.
+        // Resolved, and deliberately not to WEEK: a resolved WEEK renders what a seed would.
         runOnIdle {
             mode.value = StartCardModeUi.DAYS_SINCE_LAST
             body.value = DAYS_SINCE_BODY
@@ -147,9 +97,7 @@ internal class HomeStartCardModeLabelTest {
             .getString(StartModeR.string.core_ui_start_mode_name_days_since_last)
             .uppercase()
         onNodeWithTag(LABEL, useUnmergedTree = true).assertTextEquals(expected)
-        // And the readout is drawn now. This is what makes the absence above mean something:
-        // the same card, the same harness, a body that provably renders — so the earlier
-        // "not there" was the null mode suppressing it, not a fixture that never draws.
+        // The readout draws now, which is what gives the absence above its meaning.
         onNodeWithText(DAYS_SINCE_BODY.daysCountLabel).assertExists()
     }
 
