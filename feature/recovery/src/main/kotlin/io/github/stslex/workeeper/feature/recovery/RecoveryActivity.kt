@@ -36,7 +36,8 @@ import kotlinx.coroutines.launch
 import java.io.File
 
 /**
- * Room-free fallback launcher for Scenario 2 (startup migration failure).
+ * Room-free fallback launcher for Scenario 2 (startup migration failure) and for a Scenario-1
+ * restore attempt whose outcome is not provable.
  * See documentation/feature-specs/backup-recovery.md.
  */
 // GUARD: call only file-path / pure-Kotlin collaborator methods here; opening a SQLiteConnection

@@ -560,6 +560,56 @@ internal class RestoreRecoveryCoordinatorTest {
     }
 
     @Test
+    fun `a RecoveryRequired verdict preserves the live db for the export button`() = runTest {
+        // RecoveryActivity's "Export your data" shares cache/pre_migration_backup.db. The
+        // Scenario-1 route never reaches StartupMigrationCoordinator.routeToRecovery, which is
+        // the only OTHER producer of that file, so this verdict must preserve it itself.
+        coEvery { restoreStateRepository.getAttempt() } returns
+            makeAttempt(phase = RestoreAttempt.Phase.Prepared)
+        coEvery { databaseReplacement.rollbackToPreRestoreBackup(any(), any()) } returns
+            DatabaseReplacementResult.RejectedBeforeMutation(
+                BackupError.CorruptedBackup(reason = "journal-named rollback source is missing"),
+            )
+        coEvery { snapshotProvider.preserveDbBeforeMigration() } returns
+            File("pre_migration_backup.db")
+
+        val outcome = coordinator.handlePostRestoreLaunch()
+
+        assertEquals(RestoreRecoveryCoordinator.PreflightOutcome.RecoveryRequired, outcome)
+        assertTrue(coordinator.recoverySurfaceRequired)
+        coVerify(exactly = 1) { snapshotProvider.preserveDbBeforeMigration() }
+    }
+
+    @Test
+    fun `a failing preserve still routes to recovery instead of crashing the launch`() = runTest {
+        // The preserve runs inside Application.onCreate's runBlocking: an escape here would
+        // crash the very launch whose job is to reach the recovery surface.
+        coEvery { restoreStateRepository.getAttempt() } returns
+            makeAttempt(phase = RestoreAttempt.Phase.Prepared)
+        coEvery { databaseReplacement.rollbackToPreRestoreBackup(any(), any()) } returns
+            DatabaseReplacementResult.FatalNoGeneration()
+        coEvery { snapshotProvider.preserveDbBeforeMigration() } throws IOException("disk full")
+
+        val outcome = coordinator.handlePostRestoreLaunch()
+
+        assertEquals(RestoreRecoveryCoordinator.PreflightOutcome.RecoveryRequired, outcome)
+        assertTrue(coordinator.recoverySurfaceRequired)
+    }
+
+    @Test
+    fun `an outcome that keeps the main UI never copies the database`() = runTest {
+        // The discriminating negative: preserving is a whole-file copy, so it must not land on
+        // the ordinary cold start that every launch takes.
+        coEvery { restoreStateRepository.getAttempt() } returns null
+
+        val outcome = coordinator.handlePostRestoreLaunch()
+
+        assertEquals(RestoreRecoveryCoordinator.PreflightOutcome.NoOp, outcome)
+        assertFalse(coordinator.recoverySurfaceRequired)
+        coVerify(exactly = 0) { snapshotProvider.preserveDbBeforeMigration() }
+    }
+
+    @Test
     fun `recovery path survives a process restart after FailedAfterMutation`() = runTest {
         // Launch 1's rollback fails after the point of no return; launch 2 is a NEW coordinator
         // over the SAME durable journal and completes the rollback.

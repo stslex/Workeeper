@@ -51,7 +51,28 @@ class RestoreRecoveryCoordinator @Inject internal constructor(
         get() = lastPreflightOutcome == PreflightOutcome.RecoveryRequired
 
     suspend fun handlePostRestoreLaunch(): PreflightOutcome =
-        runPostRestoreLaunch().also { lastPreflightOutcome = it }
+        runPostRestoreLaunch().also { outcome ->
+            // Preserve BEFORE publishing the verdict: `recoverySurfaceRequired` is what routes
+            // MainActivity to the surface that shares this file.
+            if (outcome == PreflightOutcome.RecoveryRequired) preserveDbForRecoveryExport()
+            lastPreflightOutcome = outcome
+        }
+
+    /**
+     * Scenario-1 recovery never reaches [StartupMigrationCoordinator]'s route — `StartupProcessor`
+     * returns `RouteToRecovery` above the branch that runs it — so the live database is preserved
+     * here, or `RecoveryActivity`'s export button has nothing to share.
+     */
+    private suspend fun preserveDbForRecoveryExport() {
+        // GUARD: recovery is the last line of defence; a preserve failure must never crash the
+        // launch that routes to it.
+        val preserved = runCatching { snapshotProvider.preserveDbBeforeMigration() }
+            .onFailure { error -> logger.e(error, "preserving the live db for recovery failed") }
+            .getOrNull()
+        if (preserved == null) {
+            logger.w { "recovery export will be empty: no live database was preserved" }
+        }
+    }
 
     private suspend fun runPostRestoreLaunch(): PreflightOutcome {
         val attempt = restoreStateRepository.getAttempt() ?: return PreflightOutcome.NoOp
