@@ -2,7 +2,6 @@
 package io.github.stslex.workeeper.navigation
 
 import android.content.Context
-import android.content.Intent
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.platform.LocalContext
@@ -14,7 +13,7 @@ import io.github.stslex.workeeper.core.ui.navigation.NavResultsSource
 import io.github.stslex.workeeper.core.ui.navigation.NavigatorHolder
 import io.github.stslex.workeeper.core.ui.navigation.NavigatorReceiver
 import io.github.stslex.workeeper.core.ui.navigation.Screen
-import io.github.stslex.workeeper.feature.recovery.RecoveryActivity
+import io.github.stslex.workeeper.feature.recovery.RecoveryScenario
 
 object NavigatorExt {
 
@@ -129,9 +128,11 @@ object NavigatorExt {
         }
     }
 
+    // The in-app seam is the Scenario-2 route by construction: Scenario 1 is decided before any
+    // composition exists and launches from MainActivity. See RecoveryScenario.
     private fun openRecovery(context: Context) {
-        val intent = Intent(context, RecoveryActivity::class.java)
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        context.startActivity(intent)
+        context.startActivity(
+            RecoveryScenario.intent(context, RecoveryScenario.StartupMigration),
+        )
     }
 }

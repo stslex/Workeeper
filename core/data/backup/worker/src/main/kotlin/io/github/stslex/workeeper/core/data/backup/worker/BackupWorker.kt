@@ -28,6 +28,13 @@ internal class BackupWorker(
     override suspend fun doWork(): Result {
         // Admission is first so dependencies and lease bind to the same generation.
         val lease = (applicationContext as BackupWorkerDepsHolder).awaitBackupWorkLease()
+        if (lease == null) {
+            // Refused BEFORE setLastAttempt: this process cannot prove what its database holds,
+            // and uploading it would rotate a good Drive copy away. `failure` over `retry` so a
+            // periodic name resets to its interval instead of backing off into a wake loop.
+            logger.w { "worker admission is sealed — this process routed to recovery" }
+            return Result.failure()
+        }
         return try {
             runAdmittedWork(lease.deps)
         } finally {

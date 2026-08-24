@@ -5,10 +5,33 @@ import io.github.stslex.workeeper.core.data.backup.api.result.BackupResult
 import java.io.File
 
 /**
+ * Two-phase canonical undo-slot promotion. The slot is written ONLY by an atomic rename of a
+ * fully staged file, and only after the durable `Committed` record. See spec §8.5a.
+ */
+interface RollbackPromotion {
+
+    /** Copies [reservation] beside the canonical slot under [attemptId]. The slot is untouched. */
+    suspend fun stagePromotedRollback(reservation: File, attemptId: String): BackupResult<Unit>
+
+    /**
+     * Installs [attemptId]'s staged image over the canonical slot, atomically and idempotently:
+     * a pending staging is renamed; else [reservation] is re-staged and renamed; else an existing
+     * slot is already this attempt's. Fails only when no undo image can be produced.
+     */
+    suspend fun completePromotedRollback(
+        reservation: File?,
+        attemptId: String,
+    ): BackupResult<Unit>
+
+    /** Discards the staging of an attempt that never became durable. */
+    suspend fun discardStagedPromotion(attemptId: String)
+}
+
+/**
  * File-level backup and restore mechanics. The runtime owns database close and replacement;
  * this provider validates while open and performs pure file replacement after close.
  */
-interface DatabaseSnapshotProvider {
+interface DatabaseSnapshotProvider : RollbackPromotion {
 
     /**
      * Checkpoints the WAL, then file-copies the live `.db` over [target]. Briefly blocks writes and
@@ -18,6 +41,12 @@ interface DatabaseSnapshotProvider {
 
     /** Validates [source] against the still-open live database before quiescing and close. */
     suspend fun validateSnapshotForRestore(source: File): BackupResult<Unit>
+
+    /**
+     * Validates a rollback source — SQLite magic and page-count completeness. The rollback
+     * direction has no other check, so an unvalidated swap is a false success (spec §25.4).
+     */
+    suspend fun validateRollbackSource(source: File): BackupResult<Unit>
 
     /** Performs sidecar cleanup, copy, and atomic rename; runtime owns validation and close. */
     suspend fun replaceLiveDatabaseFile(source: File): BackupResult<Unit>
@@ -38,9 +67,6 @@ interface DatabaseSnapshotProvider {
     suspend fun peekSnapshotSchemaVersion(source: File): BackupResult<Int>
 
     suspend fun reserveRollbackSnapshot(attemptId: String): BackupResult<File>
-
-    /** Copies, never moves, an attempt reservation to the canonical undo slot. */
-    suspend fun promoteRollbackReservation(reservation: File): BackupResult<Unit>
 
     /** Canonical undo slot, if present. */
     fun getPreRestoreBackupFile(): File?

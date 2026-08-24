@@ -11,6 +11,8 @@ data class RestoreAttempt(
     val context: RestoreInProgressContext?,
     /** Reserved rollback path; authoritative for this prepared attempt. */
     val rollbackSnapshotPath: String?,
+    /** Why a [Kind.Rollback] runs; null for [Kind.Restore]. */
+    val rollbackOrigin: RollbackOrigin?,
 ) {
 
     /** Which operation the attempt performs — they recover differently. */
@@ -20,6 +22,15 @@ data class RestoreAttempt(
 
         /** A rollback onto the preserved pre-restore snapshot (undo, or scenario-1 recovery). */
         Rollback,
+    }
+
+    /** Durable discriminator of a rollback's user-facing terminal. GUARD: names are wire format. */
+    enum class RollbackOrigin {
+        /** The user's "Revert last restore". */
+        UserUndo,
+
+        /** Startup recovery of an unresolved attempt. */
+        ScenarioOneRecovery,
     }
 
     /** [Committed] alone permits success; [Prepared] is unknown and must recover. */

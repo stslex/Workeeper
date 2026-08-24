@@ -8,6 +8,7 @@ import io.github.stslex.workeeper.app.common.di.AppUiAdmissionToken
 import io.github.stslex.workeeper.app.common.di.AppUiPhase
 import io.github.stslex.workeeper.di.AppGraph
 import io.github.stslex.workeeper.runtime.AppRuntime
+import io.github.stslex.workeeper.runtime.clearStoreOnHostTeardown
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -118,6 +119,17 @@ internal object MetroTestGraphHolder {
                 override val viewModelStore: ViewModelStore = store
             },
         )
+    }
+
+    /** The production host-teardown clear, routed to whichever generation source is installed. */
+    fun onUiHostDestroyed() {
+        val delegate = runtimeDelegate
+        if (delegate != null) {
+            delegate.clearStoreOnHostTeardown()
+            return
+        }
+        // Already on the main thread: Activity lifecycle callbacks are dispatched there.
+        currentStore?.clear()
     }
 
     fun reset() {

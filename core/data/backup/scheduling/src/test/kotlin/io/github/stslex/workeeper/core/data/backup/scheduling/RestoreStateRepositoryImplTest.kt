@@ -16,6 +16,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -24,6 +25,7 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import java.io.File
 
 /**
@@ -59,7 +61,7 @@ internal class RestoreStateRepositoryImplTest {
     }
 
     @Test
-    fun `beginAttempt persists identity, kind, context and rollback path atomically`() = runTest {
+    fun `beginAttempt persists identity, kind, context, rollback path and origin atomically`() = runTest {
         val attempt = RestoreAttempt(
             id = "attempt-a",
             kind = RestoreAttempt.Kind.Restore,
@@ -71,6 +73,7 @@ internal class RestoreStateRepositoryImplTest {
                 startedAtEpochMs = 1_710_000_000_000L,
             ),
             rollbackSnapshotPath = "/data/cache/rollback_attempt-a.db",
+            rollbackOrigin = null,
         )
 
         assertTrue(repo.beginAttempt(attempt))
@@ -86,11 +89,109 @@ internal class RestoreStateRepositoryImplTest {
             phase = RestoreAttempt.Phase.Prepared,
             context = null,
             rollbackSnapshotPath = "/data/cache/pre_restore_backup.db",
+            rollbackOrigin = RestoreAttempt.RollbackOrigin.UserUndo,
         )
 
         assertTrue(repo.beginAttempt(attempt))
 
         assertEquals(attempt, repo.getAttempt())
+    }
+
+    @Test
+    fun `a Rollback attempt written before the origin key reads as a recovery`() = runTest {
+        // Backward compatibility: an entry this build did not write carries no origin. Reading
+        // it as UserUndo would announce a successful undo for an interrupted recovery.
+        dataStore.edit { prefs ->
+            prefs[KEY_ATTEMPT_ID] = "attempt-preorigin"
+            prefs[KEY_ATTEMPT_KIND] = "Rollback"
+            prefs[KEY_ATTEMPT_PHASE] = "Prepared"
+        }
+
+        assertEquals(
+            RestoreAttempt.RollbackOrigin.ScenarioOneRecovery,
+            repo.getAttempt()?.rollbackOrigin,
+        )
+    }
+
+    @Test
+    fun `an unparsable origin reads as a recovery`() = runTest {
+        dataStore.edit { prefs ->
+            prefs[KEY_ATTEMPT_ID] = "attempt-future"
+            prefs[KEY_ATTEMPT_KIND] = "Rollback"
+            prefs[KEY_ATTEMPT_PHASE] = "Prepared"
+            prefs[KEY_ATTEMPT_ROLLBACK_ORIGIN] = "Teleport"
+        }
+
+        assertEquals(
+            RestoreAttempt.RollbackOrigin.ScenarioOneRecovery,
+            repo.getAttempt()?.rollbackOrigin,
+        )
+    }
+
+    @Test
+    fun `a Restore attempt ignores a stray origin key`() = runTest {
+        dataStore.edit { prefs ->
+            prefs[KEY_ATTEMPT_ID] = "attempt-restore"
+            prefs[KEY_ATTEMPT_KIND] = "Restore"
+            prefs[KEY_ATTEMPT_PHASE] = "Prepared"
+            prefs[KEY_ATTEMPT_ROLLBACK_ORIGIN] = "UserUndo"
+        }
+
+        assertNull(repo.getAttempt()?.rollbackOrigin)
+    }
+
+    @Test
+    fun `a rollback with no journaled origin is refused - the replay could not pick a dialog`() {
+        assertThrows<IllegalArgumentException> {
+            runBlocking {
+                repo.beginAttempt(
+                    RestoreAttempt(
+                        id = "attempt-originless",
+                        kind = RestoreAttempt.Kind.Rollback,
+                        phase = RestoreAttempt.Phase.Prepared,
+                        context = null,
+                        rollbackSnapshotPath = null,
+                        rollbackOrigin = null,
+                    ),
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `resolveAttempt clears the origin key`() = runTest {
+        repo.beginAttempt(
+            RestoreAttempt(
+                id = "attempt-undo",
+                kind = RestoreAttempt.Kind.Rollback,
+                phase = RestoreAttempt.Phase.Prepared,
+                context = null,
+                rollbackSnapshotPath = null,
+                rollbackOrigin = RestoreAttempt.RollbackOrigin.UserUndo,
+            ),
+        )
+
+        assertTrue(repo.resolveAttempt("attempt-undo"))
+
+        assertNull(dataStore.data.first()[KEY_ATTEMPT_ROLLBACK_ORIGIN])
+    }
+
+    @Test
+    fun `a same-id re-claim with no origin clears the stale origin`() = runTest {
+        val undo = RestoreAttempt(
+            id = "attempt-same",
+            kind = RestoreAttempt.Kind.Rollback,
+            phase = RestoreAttempt.Phase.Prepared,
+            context = null,
+            rollbackSnapshotPath = null,
+            rollbackOrigin = RestoreAttempt.RollbackOrigin.UserUndo,
+        )
+        assertTrue(repo.beginAttempt(undo))
+
+        // Put/remove, never put-only: a re-claim must not inherit a foreign origin.
+        assertTrue(repo.beginAttempt(undo.copy(kind = RestoreAttempt.Kind.Restore, rollbackOrigin = null)))
+
+        assertNull(dataStore.data.first()[KEY_ATTEMPT_ROLLBACK_ORIGIN])
     }
 
     @Test
@@ -184,6 +285,7 @@ internal class RestoreStateRepositoryImplTest {
                 phase = RestoreAttempt.Phase.Prepared,
                 context = context,
                 rollbackSnapshotPath = null,
+                rollbackOrigin = null,
             ),
             repo.getAttempt(),
         )
@@ -217,6 +319,7 @@ internal class RestoreStateRepositoryImplTest {
                 phase = RestoreAttempt.Phase.Prepared,
                 context = null,
                 rollbackSnapshotPath = null,
+                rollbackOrigin = RestoreAttempt.RollbackOrigin.ScenarioOneRecovery,
             )
             assertTrue(repo.beginAttempt(legacyClaim))
             val prefs = dataStore.data.first()
@@ -335,6 +438,10 @@ internal class RestoreStateRepositoryImplTest {
         schemaVersion: Int = 6,
         appVersion: String = "1.2.3",
         rollbackSnapshotPath: String? = "/data/cache/rollback_$id.db",
+        rollbackOrigin: RestoreAttempt.RollbackOrigin? =
+            RestoreAttempt.RollbackOrigin.ScenarioOneRecovery.takeIf {
+                kind == RestoreAttempt.Kind.Rollback
+            },
     ): RestoreAttempt = RestoreAttempt(
         id = id,
         kind = kind,
@@ -346,6 +453,7 @@ internal class RestoreStateRepositoryImplTest {
             startedAtEpochMs = 1_710_000_000_000L,
         ),
         rollbackSnapshotPath = rollbackSnapshotPath,
+        rollbackOrigin = rollbackOrigin,
     )
 
     private companion object {
@@ -358,6 +466,7 @@ internal class RestoreStateRepositoryImplTest {
         val KEY_ATTEMPT_ID = stringPreferencesKey("restore_attempt_id")
         val KEY_ATTEMPT_KIND = stringPreferencesKey("restore_attempt_kind")
         val KEY_ATTEMPT_PHASE = stringPreferencesKey("restore_attempt_phase")
+        val KEY_ATTEMPT_ROLLBACK_ORIGIN = stringPreferencesKey("restore_attempt_rollback_origin")
 
         val KEY_BACKUP_SCHEMA_VERSION =
             intPreferencesKey("restore_in_progress_backup_schema_version")

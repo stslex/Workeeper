@@ -86,28 +86,63 @@ public class DatabaseSnapshotProviderImpl @Inject constructor(
             }
         }
 
-    override suspend fun promoteRollbackReservation(reservation: File): BackupResult<Unit> =
-        withContext(dispatcher) {
-            val target = preRestoreBackupFile()
-            val staging = File(target.parentFile, "$PRE_RESTORE_BACKUP_NAME.promoting")
-            try {
-                // Copy, not move: the journal's reservation stays recoverable through promotion.
-                staging.delete()
-                reservation.copyTo(staging, overwrite = true)
-                // Keep the canonical slot until replacement content is safely staged.
-                if (!staging.renameTo(target)) {
-                    target.delete()
-                    if (!staging.renameTo(target)) {
-                        staging.copyTo(target, overwrite = true)
-                        staging.delete()
-                    }
-                }
-                BackupResult.Success(Unit)
-            } catch (e: IOException) {
-                staging.delete()
-                BackupResult.Failure(BackupError.Io(e))
+    override suspend fun stagePromotedRollback(
+        reservation: File,
+        attemptId: String,
+    ): BackupResult<Unit> = withContext(dispatcher) {
+        val staging = promotionStagingFile(attemptId)
+        try {
+            staging.parentFile?.mkdirs()
+            // Debris from a crashed attempt of the same id is discarded deterministically.
+            staging.delete()
+            // Copy, not move: the journal's reservation stays recoverable through promotion.
+            reservation.copyTo(staging, overwrite = true)
+            BackupResult.Success(Unit)
+        } catch (e: IOException) {
+            staging.delete()
+            BackupResult.Failure(BackupError.Io(e))
+        }
+    }
+
+    override suspend fun completePromotedRollback(
+        reservation: File?,
+        attemptId: String,
+    ): BackupResult<Unit> = withContext(dispatcher) {
+        val staging = promotionStagingFile(attemptId)
+        if (!staging.exists()) {
+            // The reservation outlives a landed install, so it outranks an existing slot.
+            if (reservation != null && reservation.exists()) {
+                val staged = stagePromotedRollback(reservation, attemptId)
+                if (staged is BackupResult.Failure) return@withContext staged
+            } else if (preRestoreBackupFile().exists()) {
+                return@withContext BackupResult.Success(Unit)
+            } else {
+                return@withContext BackupResult.Failure(
+                    BackupError.CorruptedBackup(reason = "no undo image to promote"),
+                )
             }
         }
+        installStagedPromotion(staging)
+    }
+
+    override suspend fun discardStagedPromotion(attemptId: String) {
+        withContext(dispatcher) { promotionStagingFile(attemptId).delete() }
+    }
+
+    /** Atomic install: the canonical slot never receives a partially written file. */
+    private fun installStagedPromotion(staging: File): BackupResult<Unit> {
+        val target = preRestoreBackupFile()
+        if (staging.renameTo(target)) return BackupResult.Success(Unit)
+        // A filesystem refusing a rename onto an existing target: still a rename, never a copy.
+        target.delete()
+        if (staging.renameTo(target)) return BackupResult.Success(Unit)
+        return BackupResult.Failure(
+            BackupError.Io(IOException("undo-slot install failed: rename refused")),
+        )
+    }
+
+    private fun promotionStagingFile(attemptId: String): File =
+        File(context.cacheDir, "$PRE_RESTORE_BACKUP_NAME.$attemptId$PROMOTION_STAGING_SUFFIX")
 
     override fun getPreRestoreBackupFile(): File? =
         preRestoreBackupFile().takeIf { it.exists() }
@@ -157,10 +192,21 @@ public class DatabaseSnapshotProviderImpl @Inject constructor(
 
     private fun preRestoreBackupFile(): File = File(context.cacheDir, PRE_RESTORE_BACKUP_NAME)
 
+    override suspend fun validateRollbackSource(source: File): BackupResult<Unit> =
+        withContext(dispatcher) {
+            // GUARD: no schema peek here — it opens SQLite and leaves -shm/-wal sidecars beside
+            // the FIXED canonical name, which the next different canonical would inherit.
+            val magicResult = verifySqliteMagic(source)
+            if (magicResult is BackupResult.Failure) return@withContext magicResult
+            SqliteHeaderCheck.verifyComplete(source)
+        }
+
     override suspend fun validateSnapshotForRestore(source: File): BackupResult<Unit> =
         withContext(dispatcher) {
             val magicResult = verifySqliteMagic(source)
             if (magicResult is BackupResult.Failure) return@withContext magicResult
+            val complete = SqliteHeaderCheck.verifyComplete(source)
+            if (complete is BackupResult.Failure) return@withContext complete
 
             val sourceVersion = when (val r = peekSnapshotSchemaVersion(source)) {
                 is BackupResult.Success -> r.data
@@ -236,6 +282,7 @@ public class DatabaseSnapshotProviderImpl @Inject constructor(
         const val TAG = "DatabaseSnapshotProvider"
         const val SQLITE_HEADER_SIZE = 16
         const val PRE_RESTORE_BACKUP_NAME = "pre_restore_backup.db"
+        const val PROMOTION_STAGING_SUFFIX = ".promoting"
         const val ROLLBACK_RESERVATION_PREFIX = "rollback_reservation_"
         const val PRE_MIGRATION_BACKUP_NAME = "pre_migration_backup.db"
         val SQLITE_MAGIC: ByteArray =

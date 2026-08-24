@@ -292,16 +292,14 @@ The DB-free invariant — RecoveryActivity must not initialize Room — is a
 
 As shipped, that tripwire is
 `app/app/src/androidTest/kotlin/io/github/stslex/workeeper/app/RecoveryActivityDbFreeTest.kt`,
-and a lifecycle walk alone would be vacuous: `deps` is a `by lazy` behind the
-`snapshotProvider` / `diagnosticsExporter` `get()` accessors, which only the four
-button handlers read, and `onCreate` merely binds callable references
-(`::exportRawData`, …) into `setContent`. So CREATED → STARTED → RESUMED never
-resolves either collaborator. `RecoveryActivity.warmDeps()` exists solely for
-this test — it has no production caller; the test calls it from
-`scenario.onActivity { }` to force resolution **and** construction of
-`databaseSnapshotProvider` + `recoveryDiagnosticsExporter` inside the window
-where the fail-fast `SQLiteDriver` is installed. It returns
-`listOf(snapshotProvider, diagnosticsExporter)` rather than reading them as bare
+and a lifecycle walk alone would be vacuous: `deps` is a `by lazy` behind `get()`
+accessors that only the four button handlers read, and `onCreate` merely binds
+callable references (`::exportRawData`, …) into `setContent`. So CREATED →
+STARTED → RESUMED never resolves any collaborator. `RecoveryActivity.warmDeps()`
+exists solely for this test — it has no production caller; the test calls it from
+`scenario.onActivity { }` to force resolution **and** construction of every
+`RecoveryDeps` member inside the window where the fail-fast `SQLiteDriver` is
+installed. It returns them as a `List` rather than reading them as bare
 statements so the reads stay observable and un-elidable.
 
 Still uncovered: the four button callbacks are never invoked, so
@@ -833,11 +831,16 @@ App dialog strings (live in `feature/app-dialogs/impl/src/main/res/`):
   `dialog_undo_restore_cancel`
 - `dialog_undo_restore_success_title`, `dialog_undo_restore_success_body`
 
-RecoveryActivity strings (live in `app/app/src/main/res/`):
+RecoveryActivity strings (live in `feature/recovery/src/main/res/`):
 
-- `recovery_title`, `recovery_body`
-- `recovery_update_app`, `recovery_export_data`,
-  `recovery_report_issue`, `recovery_export_diagnostics`
+- Scenario 2: `recovery_title`, `recovery_body`, `recovery_update_app`,
+  `recovery_report_title`
+- Scenario 1: `recovery_restore_title`, `recovery_restore_body`,
+  `recovery_restore_report_title` — selected by the `RecoveryScenario` extra the
+  launcher stamps on the Intent. "Update app" is not rendered on this route: no
+  update exists for an interrupted restore and the Play Store is a dead end for it.
+- Shared: `recovery_export_data`, `recovery_report_issue`,
+  `recovery_export_diagnostics`
 
 Settings backup additions (live in `feature/settings/src/main/res/`):
 

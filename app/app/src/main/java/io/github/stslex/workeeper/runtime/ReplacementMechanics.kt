@@ -248,8 +248,38 @@ internal sealed interface OperationSourcePlan {
     class Reject(val error: BackupError) : OperationSourcePlan
 }
 
+/**
+ * Resolves and validates the source a submitted operation applies, while the live database is
+ * still open. A restore validates its staged snapshot; a rollback validates the journal-named
+ * file or, only when none is named, the canonical undo slot.
+ */
+internal suspend fun selectOperationSource(
+    operation: ReplacementOperation,
+    provider: DatabaseSnapshotProvider,
+    stagedSource: File?,
+): OperationSourcePlan = when (operation) {
+    is ReplacementOperation.RestoreFromSnapshot -> {
+        val staged = stagedSource
+        when {
+            staged == null -> OperationSourcePlan.Reject(
+                BackupError.Io(IOException("staged restore source is missing")),
+            )
+
+            else -> when (val check = provider.validateSnapshotForRestore(staged)) {
+                is BackupResult.Failure -> OperationSourcePlan.Reject(check.error)
+                is BackupResult.Success ->
+                    OperationSourcePlan.Proceed(staged, SourceConsumption.None)
+            }
+        }
+    }
+
+    // A missing explicit source is rejected; never substitute the canonical slot.
+    is ReplacementOperation.RollbackToPreRestoreBackup ->
+        selectRollbackOperationSource(operation.sourcePath, provider)
+}
+
 /** Resolves the explicit journal source or, only when absent, the canonical undo slot. */
-internal fun selectRollbackOperationSource(
+internal suspend fun selectRollbackOperationSource(
     explicitPath: String?,
     provider: DatabaseSnapshotProvider,
 ): OperationSourcePlan {
@@ -262,13 +292,23 @@ internal fun selectRollbackOperationSource(
                 ),
             )
         }
-        return OperationSourcePlan.Proceed(explicit, SourceConsumption.ExactFile(explicit))
+        return validatedPlan(explicit, SourceConsumption.ExactFile(explicit), provider)
     }
     val canonical = provider.getPreRestoreBackupFile()
         ?: return OperationSourcePlan.Reject(
             BackupError.CorruptedBackup(reason = "no pre-restore backup to roll back to"),
         )
-    return OperationSourcePlan.Proceed(canonical, SourceConsumption.CanonicalSlot)
+    return validatedPlan(canonical, SourceConsumption.CanonicalSlot, provider)
+}
+
+/** A rollback never applies an unverified file — the swap direction has no other check. */
+private suspend fun validatedPlan(
+    source: File,
+    consume: SourceConsumption,
+    provider: DatabaseSnapshotProvider,
+): OperationSourcePlan = when (val check = provider.validateRollbackSource(source)) {
+    is BackupResult.Failure -> OperationSourcePlan.Reject(check.error)
+    is BackupResult.Success -> OperationSourcePlan.Proceed(source, consume)
 }
 
 internal sealed interface RecoverySourcePlan {
@@ -277,30 +317,32 @@ internal sealed interface RecoverySourcePlan {
 }
 
 /**
- * Resolves only the attempt-owned recovery source. Before a clean commit that is its reservation;
- * after one it is the canonical slot. An explicit missing source has no canonical fallback.
+ * Resolves only the attempt-owned recovery source. A surviving reservation is deleted only after
+ * the undo-slot install landed, so its presence means the canonical may still be the PREVIOUS
+ * attempt's image and must never be substituted. An explicit missing source has no fallback.
  */
-internal fun selectRecoverySource(
+internal suspend fun selectRecoverySource(
     mutation: MutationPlan,
     cause: BackupError?,
     afterCleanCommit: Boolean,
 ): RecoverySourcePlan {
+    val provider = mutation.provider
     val reservation = mutation.reservation
-    if (reservation != null && !afterCleanCommit) {
-        if (!reservation.exists()) {
+    if (reservation != null) {
+        if (reservation.exists()) {
+            return validatedRecovery(reservation, SourceConsumption.None, provider, cause)
+        }
+        if (!afterCleanCommit) {
             return RecoverySourcePlan.Stop(
                 "replacement failed ($cause) and this attempt's reservation vanished",
             )
         }
-        return RecoverySourcePlan.Apply(reservation, SourceConsumption.None)
-    }
-    if (reservation != null) {
-        val canonical = mutation.provider.getPreRestoreBackupFile()
+        val canonical = provider.getPreRestoreBackupFile()
             ?: return RecoverySourcePlan.Stop(
                 "post-commit recovery found no promoted undo slot ($cause)",
             )
         // Preflight owns canonical consumption after reclaiming the journal.
-        return RecoverySourcePlan.Apply(canonical, SourceConsumption.None)
+        return validatedRecovery(canonical, SourceConsumption.None, provider, cause)
     }
     return when (mutation.consume) {
         is SourceConsumption.ExactFile -> RecoverySourcePlan.Stop(
@@ -309,13 +351,25 @@ internal fun selectRecoverySource(
         )
 
         SourceConsumption.CanonicalSlot, SourceConsumption.None -> {
-            val canonical = mutation.provider.getPreRestoreBackupFile()
+            val canonical = provider.getPreRestoreBackupFile()
                 ?: return RecoverySourcePlan.Stop(
                     "replacement failed ($cause) and no pre-restore backup exists",
                 )
-            RecoverySourcePlan.Apply(canonical, SourceConsumption.CanonicalSlot)
+            validatedRecovery(canonical, SourceConsumption.CanonicalSlot, provider, cause)
         }
     }
+}
+
+private suspend fun validatedRecovery(
+    source: File,
+    consume: SourceConsumption,
+    provider: DatabaseSnapshotProvider,
+    cause: BackupError?,
+): RecoverySourcePlan = when (val check = provider.validateRollbackSource(source)) {
+    is BackupResult.Failure ->
+        RecoverySourcePlan.Stop("the recovery source is unusable (${check.error}) after $cause")
+
+    is BackupResult.Success -> RecoverySourcePlan.Apply(source, consume)
 }
 
 /** `Durable` permits committed effects; `NotDurable` retains Prepared recovery state. */
@@ -325,29 +379,42 @@ internal sealed interface CommitResult {
 }
 
 /**
- * Commits in crash-safe order: promote reservation, record `Committed`, remove reservation,
- * then consume the exact rollback source. A promotion or record failure remains `Prepared`.
+ * Commits in crash-safe order: stage the promotion, record `Committed`, install the undo slot,
+ * remove the reservation, then consume the exact rollback source. Only the STAGING and the record
+ * are pre-durable; a failed install costs the new undo image, never the commit. See spec §8.5a.
  */
 internal suspend fun commitMutation(mutation: MutationPlan): CommitResult {
     val provider = mutation.provider
-    val promoted = mutation.reservation?.let { provider.promoteRollbackReservation(it) }
-    if (promoted is BackupResult.Failure) {
-        return CommitResult.NotDurable(
-            BackupError.Io(
-                IOException("rollback snapshot promotion failed: ${promoted.error}"),
-            ),
-        )
+    val reservation = mutation.reservation
+    val attemptId = mutation.effects.attemptId
+    if (reservation != null) {
+        val staged = provider.stagePromotedRollback(reservation, attemptId)
+        if (staged is BackupResult.Failure) {
+            return CommitResult.NotDurable(
+                BackupError.Io(IOException("undo-slot staging failed: ${staged.error}")),
+            )
+        }
     }
     val recorded = runCatching { mutation.effects.onMutationCommitted() }
     if (recorded.isFailure) {
+        // Pre-durable: this attempt owns nothing yet, so its staged image goes and the PREVIOUS
+        // attempt's undo slot is left exactly as it was.
+        if (reservation != null) provider.discardStagedPromotion(attemptId)
         return CommitResult.NotDurable(
             BackupError.Io(
                 IOException("durable commit bookkeeping failed: ${recorded.exceptionOrNull()}"),
             ),
         )
     }
-    // Remove the reservation only after `Committed` is durable.
-    mutation.reservation?.let { reserved -> runCatching { reserved.delete() } }
+    if (reservation != null) {
+        val installed = provider.completePromotedRollback(reservation, attemptId)
+        if (installed is BackupResult.Failure) {
+            Log.tag(COMMIT_TAG).w { "undo slot not installed; the reservation is retained" }
+        } else {
+            // Remove the reservation only once the undo slot holds this attempt's pre-image.
+            runCatching { reservation.delete() }
+        }
+    }
     when (val consume = mutation.consume) {
         SourceConsumption.None -> Unit
         SourceConsumption.CanonicalSlot -> provider.deletePreRestoreBackup()
@@ -355,6 +422,8 @@ internal suspend fun commitMutation(mutation: MutationPlan): CommitResult {
     }
     return CommitResult.Durable
 }
+
+private const val COMMIT_TAG = "commitMutation"
 
 /**
  * Executes preflight rollback inside the current transaction with the same journal and source
@@ -509,9 +578,18 @@ internal class WorkerAdmissionGate {
     private val closed = MutableStateFlow(false)
     private val activeLeases = MutableStateFlow(0)
 
-    suspend fun awaitLease(deps: () -> BackupWorkerDeps): BackupWorkLease {
+    /**
+     * Terminal refusal, distinct from [close]'s reversible transition barrier: this process
+     * declared its database provenance unprovable and nothing can prove it again. See spec §8.5b.
+     */
+    @Volatile
+    private var sealed = false
+
+    /** Null once [seal]ed: the caller must touch no database and record no bookkeeping. */
+    suspend fun awaitLease(deps: () -> BackupWorkerDeps): BackupWorkLease? {
         while (true) {
             synchronized(lock) {
+                if (sealed) return null
                 if (!closed.value) {
                     val bound = deps()
                     activeLeases.update { it + 1 }
@@ -521,6 +599,12 @@ internal class WorkerAdmissionGate {
             closed.first { isClosed -> !isClosed }
         }
     }
+
+    /**
+     * Driven only from the cold-start recovery verdict, which runs inside `Application.onCreate`
+     * before any component callback — so no acquirer can be parked when it fires.
+     */
+    fun seal() = synchronized(lock) { sealed = true }
 
     fun close() = synchronized(lock) { closed.value = true }
 

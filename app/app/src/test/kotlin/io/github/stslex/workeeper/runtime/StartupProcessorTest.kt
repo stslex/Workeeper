@@ -27,9 +27,20 @@ import org.junit.jupiter.api.Test
 internal class StartupProcessorTest {
 
     private val restoreCoordinator = mockk<RestoreRecoveryCoordinator>()
+
+    private var peeks = 0
+    private var peekDecision: StartupCheck = StartupCheck.Proceed
+    private var lastDecisionValue: StartupCheck? = null
+
+    // The peek WRITES the decision, exactly as the real coordinator does: an outcome assertion
+    // over a pre-stubbed `lastDecision` would stay green with the peek deleted.
     private val migrationCoordinator = mockk<StartupMigrationCoordinator> {
-        coEvery { checkAndRouteOrProceed() } returns StartupCheck.Proceed
-        every { lastDecision } returns null
+        coEvery { checkAndRouteOrProceed() } coAnswers {
+            peeks++
+            lastDecisionValue = peekDecision
+            peekDecision
+        }
+        every { lastDecision } answers { lastDecisionValue }
     }
     private val imageStorage = mockk<ImageStorage> {
         coEvery { cleanupTempFiles() } returns Unit
@@ -48,8 +59,11 @@ internal class StartupProcessorTest {
     private var plannerError: Throwable? = null
     private var lowRam = false
 
+    private var seals = 0
+
     private fun processor() = StartupProcessor(
         isLowRamDevice = { lowRam },
+        sealWorkerAdmission = { seals++ },
         warmPlanner = {
             plannerError?.let { throw it }
             plannerRuns++
@@ -104,8 +118,7 @@ internal class StartupProcessorTest {
     @Test
     fun `route-to-recovery decision skips the planner but keeps cleanup and observer arming`() {
         coEvery { restoreCoordinator.handlePostRestoreLaunch() } returns PreflightOutcome.NoOp
-        every { migrationCoordinator.lastDecision } returns
-            StartupCheck.RouteToRecovery(StartupMigrationFailureReason.APP_DOWNGRADE)
+        peekDecision = StartupCheck.RouteToRecovery(StartupMigrationFailureReason.APP_DOWNGRADE)
 
         val outcome = coldStart()
 
@@ -197,6 +210,82 @@ internal class StartupProcessorTest {
             coVerify(exactly = 0) { graph.recoveryBootstrap }
             coVerify(exactly = 0) { imageStorage.cleanupTempFiles() }
             assertEquals(0, plannerRuns)
+        }
+
+    @Test
+    fun `RecoveryCompleted peeks the live schema - the rollback replaced the file out of process`() {
+        // The committed rollback ran in an EARLIER process and validated nothing on the way in,
+        // so this launch has proven nothing about the file it is about to open.
+        coEvery { restoreCoordinator.handlePostRestoreLaunch() } returns
+            PreflightOutcome.RecoveryCompleted
+
+        val outcome = coldStart()
+
+        assertEquals(StartupOutcome.Proceed, outcome)
+        assertEquals(1, peeks, "the scenario-2 peek must run on a RecoveryCompleted launch")
+        coVerify(exactly = 1) { graph.recoveryBootstrap }
+    }
+
+    @Test
+    fun `a RecoveryCompleted launch over an unopenable file routes to recovery`() {
+        coEvery { restoreCoordinator.handlePostRestoreLaunch() } returns
+            PreflightOutcome.RecoveryCompleted
+        peekDecision = StartupCheck.RouteToRecovery(StartupMigrationFailureReason.APP_DOWNGRADE)
+
+        val outcome = coldStart()
+
+        assertEquals(StartupOutcome.RouteToRecovery, outcome)
+        assertEquals(0, plannerRuns, "ANALYZE would open the file the peek just rejected")
+    }
+
+    @Test
+    fun `suspend preflight - RecoveryCompleted peeks the live schema too`() =
+        kotlinx.coroutines.test.runTest {
+            coEvery { restoreCoordinator.handlePostRestoreLaunch() } returns
+                PreflightOutcome.RecoveryCompleted
+
+            val outcome = processor().preflightAndArm(graph, appDatabase, lifetime)
+
+            assertEquals(StartupOutcome.Proceed, outcome)
+            assertEquals(1, peeks)
+        }
+
+    @Test
+    fun `a terminal recovery route SEALS worker admission - both scenarios`() {
+        // Startup arms nothing, but the process keeps running: a persisted BackupWorker would
+        // otherwise bind a lease over the file this launch declared unprovable.
+        coEvery { restoreCoordinator.handlePostRestoreLaunch() } returns
+            PreflightOutcome.RecoveryRequired
+        assertEquals(StartupOutcome.RouteToRecovery, coldStart())
+        assertEquals(1, seals, "scenario 1 seals")
+
+        coEvery { restoreCoordinator.handlePostRestoreLaunch() } returns PreflightOutcome.NoOp
+        peekDecision = StartupCheck.RouteToRecovery(StartupMigrationFailureReason.APP_DOWNGRADE)
+        assertEquals(StartupOutcome.RouteToRecovery, coldStart())
+        assertEquals(2, seals, "scenario 2 seals too")
+    }
+
+    @Test
+    fun `an ordinary launch never seals worker admission`() {
+        coEvery { restoreCoordinator.handlePostRestoreLaunch() } returns PreflightOutcome.NoOp
+
+        assertEquals(StartupOutcome.Proceed, coldStart())
+
+        assertEquals(0, seals, "auto-backup must keep running on a healthy launch")
+    }
+
+    @Test
+    fun `the CANDIDATE preflight never seals - its abort leaves a healthy generation serving`() =
+        kotlinx.coroutines.test.runTest {
+            // A candidate's RouteToRecovery aborts the transition; generation N keeps serving and
+            // its auto-backup must not be killed by the aborted successor's verdict.
+            coEvery { restoreCoordinator.handlePostRestoreLaunch() } returns
+                PreflightOutcome.RecoveryRequired
+
+            val outcome = processor().preflightAndArm(graph, appDatabase, lifetime)
+
+            assertEquals(StartupOutcome.RouteToRecovery, outcome)
+            assertEquals(0, seals)
         }
 
     @Test

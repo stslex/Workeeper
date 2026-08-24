@@ -89,9 +89,13 @@ internal class SameInstanceReopenAfterSwapDeviceTest {
     @Test
     fun gate_rollbackSwap_retainedHandlesFailLoud_neverStale() = runBlocking {
         retainedDao.insert(TagEntity(name = SNAPSHOT_SENTINEL))
-        // Stage the canonical undo slot through the production reserve+promote sequence.
+        // Stage the canonical undo slot through the production reserve+stage+install sequence.
         val reserved = assertSuccess("reserveRollbackSnapshot", provider.reserveRollbackSnapshot("gate"))
-        assertSuccess("promoteRollbackReservation", provider.promoteRollbackReservation(reserved))
+        assertSuccess("stagePromotedRollback", provider.stagePromotedRollback(reserved, "gate"))
+        assertSuccess(
+            "completePromotedRollback",
+            provider.completePromotedRollback(reserved, "gate"),
+        )
         retainedDao.insert(TagEntity(name = LIVE_ONLY_SENTINEL))
         assertEquals(
             "pre-swap: the retained DAO must see both sentinels (handle-works precondition)",

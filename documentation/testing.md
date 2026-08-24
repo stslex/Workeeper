@@ -268,7 +268,7 @@ These bite any JVM host test, not only the ones named as carriers.
   `beginAttempt` / `recordAttemptCommitted` / `resolveAttempt` `returns true` and pin
   `getAttempt()` to `null` ("no unresolved attempt"): the coordinator's
   `DatabaseReplacementEffects` implementations (`UndoRollbackEffects` and
-  `ScenarioOneRollbackEffects`, `onBeforeMutation` / `onMutationCommitted`) read `false` as
+  `RecoveryRollbackEffects`, `onBeforeMutation` / `onMutationCommitted`) read `false` as
   "another unresolved attempt owns the journal slot" and throw out of their `check(...)` calls.
 - MockK cannot cleanly mock the `Flow<T>.launch` **member extension** declared on `HandlerStore`
   — a real implementation is the cheaper option, which is why `FakeSettingsHandlerStore` is

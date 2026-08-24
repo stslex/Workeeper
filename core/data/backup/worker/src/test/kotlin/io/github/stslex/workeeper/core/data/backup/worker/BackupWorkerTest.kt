@@ -48,8 +48,11 @@ internal class BackupWorkerTest {
 
         val acquiredLeases = mutableListOf<RecordingBackupWorkLease>()
 
-        override suspend fun awaitBackupWorkLease(): BackupWorkLease =
-            RecordingBackupWorkLease(deps).also { acquiredLeases += it }
+        /** Mirrors a process that routed to recovery: admission is terminally refused. */
+        var sealed = false
+
+        override suspend fun awaitBackupWorkLease(): BackupWorkLease? =
+            if (sealed) null else RecordingBackupWorkLease(deps).also { acquiredLeases += it }
     }
 
     private val backupStorage = mockk<BackupStorage>(relaxed = true)
@@ -83,11 +86,28 @@ internal class BackupWorkerTest {
                 this@BackupWorkerTest.snapshotExportRunner
         }
         application.acquiredLeases.clear()
+        application.sealed = false
         coEvery { snapshotProvider.captureSnapshot(any()) } answers {
             firstArg<File>().writeText("snapshot")
             BackupResult.Success(Unit)
         }
         coEvery { snapshotProvider.currentSchemaVersion() } returns 5
+    }
+
+    @Test
+    fun `a sealed admission refuses BEFORE any bookkeeping or upload`() = runBlocking {
+        // The recovery-routed process cannot prove what its database holds; uploading it would
+        // rotate one of the user's three Drive backups away and record a false success.
+        application.sealed = true
+
+        val result = makeWorker().doWork()
+
+        assertEquals(ListenableWorker.Result.failure(), result)
+        coVerify(exactly = 0) { preferences.setLastAttempt(any()) }
+        coVerify(exactly = 0) { preferences.setLastSuccess(any()) }
+        coVerify(exactly = 0) { snapshotProvider.captureSnapshot(any()) }
+        coVerify(exactly = 0) { backupStorage.uploadBackup(any(), any()) }
+        assertTrue(application.acquiredLeases.isEmpty())
     }
 
     @Test

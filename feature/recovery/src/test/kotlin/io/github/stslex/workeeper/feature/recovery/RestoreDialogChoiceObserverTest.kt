@@ -3,13 +3,13 @@ package io.github.stslex.workeeper.feature.recovery
 
 import android.content.Context
 import io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetime
-import io.github.stslex.workeeper.core.data.backup.api.RecoveryDiagnosticsExporter
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreStateRepository
 import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialog
 import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialogUserAction
 import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialogUserChoice
 import io.github.stslex.workeeper.feature.app_dialogs.api.observer.AppDialogObserver
 import io.github.stslex.workeeper.feature.app_dialogs.api.publisher.AppDialogPublisher
+import io.github.stslex.workeeper.feature.recovery.diagnostics.RestoreDiagnosticsExport
 import io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinator
 import io.github.stslex.workeeper.feature.recovery.domain.UndoRestoreOutcome
 import io.mockk.coEvery
@@ -37,7 +37,7 @@ internal class RestoreDialogChoiceObserverTest {
     private val coordinator = mockk<RestoreRecoveryCoordinator>(relaxed = true)
     private val restoreStateRepository = mockk<RestoreStateRepository>(relaxed = true)
     private val appDialogPublisher = mockk<AppDialogPublisher>(relaxed = true)
-    private val diagnosticsExporter = mockk<RecoveryDiagnosticsExporter>(relaxed = true)
+    private val restoreDiagnosticsExport = mockk<RestoreDiagnosticsExport>(relaxed = true)
 
     private fun TestScope.createObserver(): RestoreDialogChoiceObserver = RestoreDialogChoiceObserver(
         context = androidContext,
@@ -45,13 +45,29 @@ internal class RestoreDialogChoiceObserverTest {
         coordinator = coordinator,
         restoreStateRepository = restoreStateRepository,
         appDialogPublisher = appDialogPublisher,
-        diagnosticsExporter = diagnosticsExporter,
+        restoreDiagnosticsExport = restoreDiagnosticsExport,
         lifetime = AppScopeLifetime(),
         dispatcher = UnconfinedTestDispatcher(testScheduler),
     )
 
     private fun stubChoice(dialog: AppDialog, action: AppDialogUserAction) {
         every { observer.observeUserActions() } returns flowOf(AppDialogUserChoice(dialog, action))
+    }
+
+    @Test
+    fun `an unusable undo source acknowledges the confirmation instead of wedging it`() = runTest {
+        // Another tap cannot help: the image exists but is not a database. Leaving the dialog
+        // visible would offer a retry that fails identically forever.
+        val dialog = AppDialog.UndoRestoreConfirmation(originalDataDateEpochMs = 0L)
+        stubChoice(dialog, AppDialogUserAction.ConfirmUndo)
+        coEvery { coordinator.performUndoRestore(any()) } returns
+            UndoRestoreOutcome.SourceUnusable
+
+        createObserver()
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { observer.acknowledgeReaction(dialog) }
+        verify(exactly = 0) { coordinator.restartApp() }
     }
 
     @Test

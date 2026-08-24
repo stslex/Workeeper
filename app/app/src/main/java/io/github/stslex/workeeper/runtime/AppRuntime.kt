@@ -163,10 +163,21 @@ internal class AppRuntime(
     fun uiAttachmentCount(id: Int): Int = uiGate.admittedCount(id)
 
     /**
-     * First-operation worker admission: suspends while a transition holds admission closed, then
-     * binds the lease to the current generation's deps. Throws when the runtime is Fatal.
+     * The serving generation's store, or null before generation 1 exists. `currentOrNull`, never
+     * `currentGeneration`: reading this must never BUILD a generation, and a Fatal runtime's
+     * store must still be releasable — it will never publish again.
      */
-    suspend fun awaitBackupWorkLease(): BackupWorkLease = workerGate.awaitLease {
+    val servingViewModelStore: ViewModelStore? get() = currentOrNull?.viewModelStore
+
+    /** Terminally refuses DB-bound work admission for the rest of this process. */
+    fun sealWorkerAdmission() = workerGate.seal()
+
+    /**
+     * First-operation worker admission: suspends while a transition holds admission closed, then
+     * binds the lease to the current generation's deps. Throws when the runtime is Fatal, and
+     * answers `null` once admission is sealed — the caller must touch no database.
+     */
+    suspend fun awaitBackupWorkLease(): BackupWorkLease? = workerGate.awaitLease {
         check(!isFatal) { "runtime is Fatal — no generation may admit new work" }
         currentGeneration.graph
     }
@@ -423,8 +434,11 @@ internal class AppRuntime(
                 }
             }
             inFlight.stagedSource?.let { staged -> runCatching { staged.delete() } }
-            // Keep a journal-named reservation until a clean terminal outcome resolves it.
-            val keepReservation = finalOutcome is ReplacementOutcome.FailedAfterMutation ||
+            // Keep a journal-named reservation until a clean terminal outcome resolves it. A
+            // Completed transaction's reservation belongs to the commit protocol, which deleted it
+            // when the undo slot landed and deliberately kept it when the install failed.
+            val keepReservation = finalOutcome is ReplacementOutcome.Completed ||
+                finalOutcome is ReplacementOutcome.FailedAfterMutation ||
                 finalOutcome is ReplacementOutcome.Fatal ||
                 finalOutcome.effectsError() != null
             if (!keepReservation) {
@@ -468,34 +482,14 @@ internal class AppRuntime(
         val outgoing = requireNotNull(currentOrNull) { "generation must exist before replacement" }
         val provider = outgoing.graph.databaseSnapshotProvider
         // Validate while the live database remains open.
-        val source: File
-        val consume: SourceConsumption
-        when (operation) {
-            is ReplacementOperation.RestoreFromSnapshot -> {
-                val staged = stagedSource ?: return ReplacementOutcome.RejectedBeforeMutation(
-                    BackupError.Io(IOException("staged restore source is missing")),
-                )
-                val validation = provider.validateSnapshotForRestore(staged)
-                if (validation is BackupResult.Failure) {
-                    return ReplacementOutcome.RejectedBeforeMutation(validation.error)
-                }
-                source = staged
-                consume = SourceConsumption.None
-            }
+        val plan = when (val selected = selectOperationSource(operation, provider, stagedSource)) {
+            is OperationSourcePlan.Reject ->
+                return ReplacementOutcome.RejectedBeforeMutation(selected.error)
 
-            is ReplacementOperation.RollbackToPreRestoreBackup -> {
-                // A missing explicit source is rejected; never substitute the canonical slot.
-                when (val plan = selectRollbackOperationSource(operation.sourcePath, provider)) {
-                    is OperationSourcePlan.Reject ->
-                        return ReplacementOutcome.RejectedBeforeMutation(plan.error)
-
-                    is OperationSourcePlan.Proceed -> {
-                        source = plan.source
-                        consume = plan.consume
-                    }
-                }
-            }
+            is OperationSourcePlan.Proceed -> selected
         }
+        val source = plan.source
+        val consume = plan.consume
         // Reserve after validation and before PONR; each attempt owns only its own snapshot.
         var reservation: File? = null
         if (operation is ReplacementOperation.RestoreFromSnapshot) {
@@ -631,7 +625,12 @@ internal class AppRuntime(
             }
         }
         if (afterCleanCommit) {
-            val unCommitted = runCatching { mutation.effects.onBeforeMutation("") }
+            // Re-journal the exact source this recovery applies: a null path would let the next
+            // launch substitute a canonical that may still be the PREVIOUS attempt's image.
+            val rejournalled = rollbackSource.takeIf { it == mutation.reservation }
+            val unCommitted = runCatching {
+                mutation.effects.onBeforeMutation(rejournalled?.absolutePath.orEmpty())
+            }
             if (unCommitted.isFailure) {
                 return publishFatal(
                     "could not durably un-commit before the recovery rollback: " +

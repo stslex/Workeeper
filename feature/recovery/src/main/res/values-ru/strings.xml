@@ -11,6 +11,10 @@
     <string name="recovery_export_diagnostics_chooser" tools:ignore="DuplicateStrings">Поделиться диагностикой</string>
     <string name="recovery_report_title">Ошибка миграции при запуске</string>
 
+    <string name="recovery_restore_title">Восстановление прервано</string>
+    <string name="recovery_restore_body">Восстановление из резервной копии не завершилось, поэтому приложение не может определить, какая версия ваших данных находится на устройстве. Ничего не удалено. Экспортируйте необработанные данные, чтобы сохранить копию, и отправьте диагностику для исправления.</string>
+    <string name="recovery_restore_report_title" tools:ignore="DuplicateStrings">Ошибка восстановления</string>
+
     <string name="recovery_restore_failure_share_chooser" tools:ignore="DuplicateStrings">Поделиться диагностикой</string>
     <string name="recovery_restore_failure_report_title" tools:ignore="DuplicateStrings">Ошибка восстановления</string>
 

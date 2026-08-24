@@ -304,7 +304,7 @@ internal class AppRuntimeTest {
     @Test
     fun `unreleased worker lease aborts the graph-only transition too`() = runtimeTest { runtime ->
         val genOne = runtime.currentGeneration
-        val lease = runtime.awaitBackupWorkLease()
+        val lease = checkNotNull(runtime.awaitBackupWorkLease())
 
         val outcome = runtime.reinitialize()
 

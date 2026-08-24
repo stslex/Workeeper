@@ -87,7 +87,7 @@ public class RecoveryDiagnosticsExporterImpl @Inject constructor(
                 "restoreStartedAt: ${formatIsoUtc(inProgressContext.startedAtEpochMs)}",
             )
         } else {
-            appendLine("(no in-progress context — flag was set but payload missing)")
+            appendLine("(no restore manifest context journalled for this attempt)")
         }
         appendLine()
         appendExceptionSection(exception)

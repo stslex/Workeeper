@@ -91,6 +91,9 @@ internal class RestoreTransactionIntegrationTest {
     @TempDir
     lateinit var tempDir: File
 
+    private fun stagingFile(attemptId: String): File =
+        File(tempDir, "pre_restore_backup.db.$attemptId.promoting")
+
     private val context = mockk<Context>(relaxed = true)
     private val provider = mockk<DatabaseSnapshotProvider>(relaxed = true)
     private val backupStorage = mockk<BackupStorage>(relaxed = true)
@@ -154,11 +157,32 @@ internal class RestoreTransactionIntegrationTest {
             reservations += reservation
             BackupResult.Success(reservation)
         }
-        coEvery { provider.promoteRollbackReservation(any()) } coAnswers {
-            // Promotion copies; the reservation is deleted after the durable Committed record.
-            firstArg<File>().copyTo(File(tempDir, "pre_restore_backup.db"), overwrite = true)
+        // Staged beside the slot before the record; installed by rename only after it.
+        coEvery { provider.stagePromotedRollback(any(), any()) } coAnswers {
+            firstArg<File>().copyTo(stagingFile(secondArg()), overwrite = true)
             BackupResult.Success(Unit)
         }
+        coEvery { provider.completePromotedRollback(any(), any()) } coAnswers {
+            val staging = stagingFile(secondArg())
+            val reservation = firstArg<File?>()
+            if (!staging.exists() && reservation != null && reservation.exists()) {
+                reservation.copyTo(staging, overwrite = true)
+            }
+            if (staging.exists()) {
+                staging.copyTo(File(tempDir, "pre_restore_backup.db"), overwrite = true)
+                staging.delete()
+                BackupResult.Success(Unit)
+            } else if (File(tempDir, "pre_restore_backup.db").exists()) {
+                BackupResult.Success(Unit)
+            } else {
+                BackupResult.Failure(BackupError.CorruptedBackup(reason = "no undo image"))
+            }
+        }
+        coEvery { provider.discardStagedPromotion(any()) } coAnswers {
+            stagingFile(firstArg<String>()).delete()
+            Unit
+        }
+        coEvery { provider.validateRollbackSource(any()) } returns BackupResult.Success(Unit)
         coEvery { provider.validateSnapshotForRestore(any()) } returns BackupResult.Success(Unit)
         coEvery { provider.replaceLiveDatabaseFile(any()) } returns BackupResult.Success(Unit)
         // Storage: one backup; the download writes REAL bytes into the caller's temp file.
@@ -266,7 +290,7 @@ internal class RestoreTransactionIntegrationTest {
     fun `caller killed then lease timeout - transaction-owned compensation with the real effects`() =
         integrationTest { useCase, runtime ->
             runtime.currentGeneration
-            val lease = runtime.awaitBackupWorkLease() // quiesce will time out on this
+            val lease = checkNotNull(runtime.awaitBackupWorkLease()) // quiesce will time out on this
 
             val caller = launch { useCase() }
             runCurrent()

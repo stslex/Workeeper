@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper
 
-import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -12,7 +11,7 @@ import io.github.stslex.workeeper.core.ui.mvi.performance.FirebaseScreenRenderRe
 import io.github.stslex.workeeper.core.ui.mvi.performance.PerformanceMetricsRecorder
 import io.github.stslex.workeeper.core.ui.mvi.performance.RecordAction
 import io.github.stslex.workeeper.di.AppGraphOwner
-import io.github.stslex.workeeper.feature.recovery.RecoveryActivity
+import io.github.stslex.workeeper.feature.recovery.RecoveryScenario
 import io.github.stslex.workeeper.feature.recovery.domain.StartupCheck
 
 // Reads its app-scope deps from the internal AppGraph through AppGraphOwner, never a concrete cast.
@@ -29,15 +28,20 @@ class MainActivity : ComponentActivity() {
         )
         super.onCreate(savedInstanceState)
 
-        // Hand off to the DB-free recovery surface: a Scenario-2 migration decision, or a
-        // Scenario-1 attempt with no provable outcome. See feature-specs/backup-recovery.md.
-        if (startupMigrationCoordinator.lastDecision is StartupCheck.RouteToRecovery ||
-            appGraph.restoreRecoveryCoordinator.recoverySurfaceRequired
-        ) {
-            startActivity(
-                Intent(this, RecoveryActivity::class.java)
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-            )
+        // Hand off to the DB-free recovery surface, stamped with WHICH failure routed us: a
+        // Scenario-2 migration decision, or a Scenario-1 attempt with no provable outcome. The
+        // two need different copy and different diagnostics. See feature-specs/backup-recovery.md.
+        val recoveryScenario = when {
+            appGraph.restoreRecoveryCoordinator.recoverySurfaceRequired ->
+                RecoveryScenario.InterruptedRestore
+
+            startupMigrationCoordinator.lastDecision is StartupCheck.RouteToRecovery ->
+                RecoveryScenario.StartupMigration
+
+            else -> null
+        }
+        if (recoveryScenario != null) {
+            startActivity(RecoveryScenario.intent(this, recoveryScenario))
             finish()
             return
         }

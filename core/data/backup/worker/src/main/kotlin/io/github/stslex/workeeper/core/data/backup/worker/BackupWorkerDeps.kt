@@ -24,5 +24,6 @@ interface BackupWorkerDeps {
 /** Data-layer seam for first-operation worker admission. */
 interface BackupWorkerDepsHolder {
 
-    suspend fun awaitBackupWorkLease(): BackupWorkLease
+    /** `null` once the process declared its database unprovable: touch no database, record none. */
+    suspend fun awaitBackupWorkLease(): BackupWorkLease?
 }

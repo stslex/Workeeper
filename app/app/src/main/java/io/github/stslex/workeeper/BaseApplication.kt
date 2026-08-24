@@ -31,6 +31,8 @@ import io.github.stslex.workeeper.runtime.AppRuntime
 import io.github.stslex.workeeper.runtime.RuntimeTransitionPolicy
 import io.github.stslex.workeeper.runtime.StartupOutcome
 import io.github.stslex.workeeper.runtime.StartupProcessor
+import io.github.stslex.workeeper.runtime.UiHostLifecycleTracker
+import io.github.stslex.workeeper.runtime.clearStoreOnHostTeardown
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.StateFlow
 
@@ -94,7 +96,8 @@ abstract class BaseApplication :
     // Typed seam: RecoveryActivity must not gain a parasitic `core:ui:mvi` edge.
     override fun recoveryDeps(): RecoveryDeps = appGraph
 
-    override suspend fun awaitBackupWorkLease(): BackupWorkLease = appRuntime.awaitBackupWorkLease()
+    override suspend fun awaitBackupWorkLease(): BackupWorkLease? =
+        appRuntime.awaitBackupWorkLease()
 
     // Typed seam: `App()` lives in app:common, below the graph, and cannot name [AppGraph].
     override fun appRootDeps(): AppRootDeps = appGraph
@@ -109,6 +112,7 @@ abstract class BaseApplication :
         FirebaseCrashlyticsHolder.initialize()
         Log.isLogging = isDebugLoggingAllow
         CommonExt.isTraceExecutionEnabled = isDebugLoggingAllow
+        registerActivityLifecycleCallbacks(uiHostTracker)
         onCreateGraphBootstrap()
         PerformanceMetricsRecorder.process(RecordAction.AppCreated)
     }
@@ -132,10 +136,22 @@ abstract class BaseApplication :
         // Proceed / RouteToRecovery is cached on the coordinator; MainActivity reads it.
     }
 
+    /** Restores the Activity-destroy store clear the §8.7 owner re-parenting removed. */
+    private val uiHostTracker = UiHostLifecycleTracker { onUiHostDestroyed() }
+
+    /**
+     * The host's last Activity is gone for good. Overridable for the same reason as
+     * [onCreateGraphBootstrap]: the androidTest harness routes it to its own generation source.
+     */
+    protected open fun onUiHostDestroyed() {
+        appRuntime.clearStoreOnHostTeardown()
+    }
+
     /** The startup sequence; the low-RAM seam is wired here because it needs the Context. */
     private val startupProcessor = StartupProcessor(
         isLowRamDevice = {
             getSystemService(ActivityManager::class.java)?.isLowRamDevice == true
         },
+        sealWorkerAdmission = { appRuntime.sealWorkerAdmission() },
     )
 }

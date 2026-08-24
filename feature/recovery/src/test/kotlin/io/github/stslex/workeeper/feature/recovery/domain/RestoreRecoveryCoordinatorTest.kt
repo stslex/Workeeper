@@ -10,6 +10,7 @@ import io.github.stslex.workeeper.core.data.backup.api.error.BackupError
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreAttempt
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreInProgressContext
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreStateRepository
+import io.github.stslex.workeeper.core.data.backup.api.result.BackupResult
 import io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProvider
 import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialog
 import io.github.stslex.workeeper.feature.app_dialogs.api.publisher.AppDialogPublisher
@@ -55,6 +56,8 @@ internal class RestoreRecoveryCoordinatorTest {
         coEvery { restoreStateRepository.beginAttempt(any()) } returns true
         coEvery { restoreStateRepository.recordAttemptCommitted(any()) } returns true
         coEvery { restoreStateRepository.resolveAttempt(any()) } returns true
+        coEvery { snapshotProvider.completePromotedRollback(any(), any()) } returns
+            BackupResult.Success(Unit)
         coordinator = makeCoordinator(restoreStateRepository)
     }
 
@@ -348,6 +351,7 @@ internal class RestoreRecoveryCoordinatorTest {
                 phase = RestoreAttempt.Phase.Prepared,
                 context = makeContext(),
                 rollbackSnapshotPath = null,
+                rollbackOrigin = null,
             )
             val journal = FakeRestoreStateRepository(initialAttempt = legacy)
             stubRollbackCommitted()
@@ -782,6 +786,11 @@ internal class RestoreRecoveryCoordinatorTest {
         assertEquals(RestoreAttempt.Kind.Rollback, claimed.kind)
         assertEquals(RestoreAttempt.Phase.Prepared, claimed.phase)
         assertNull(claimed.context, "a rollback carries no restore manifest context")
+        assertEquals(
+            RestoreAttempt.RollbackOrigin.UserUndo,
+            claimed.rollbackOrigin,
+            "the undo journals its own origin; the replay reads it to pick the dialog",
+        )
 
         effects.onMutationCommitted()
         coVerify(exactly = 1) { restoreStateRepository.recordAttemptCommitted(effects.attemptId) }
@@ -845,6 +854,293 @@ internal class RestoreRecoveryCoordinatorTest {
             assertTrue(callerAcknowledged)
         }
 
+    // Review finding 5 — a rollback's terminal follows its journaled ORIGIN, never its shape.
+
+    @Test
+    fun `an interrupted USER UNDO replays as UndoRestoreSuccess, never a restore failure`() =
+        runTest {
+            // The undo claimed the slot, the swap landed, the process died before the durable
+            // record. The replay re-applies the canonical and the undo DID succeed — reporting
+            // "Restore failed" for it inverts the outcome the user is told about.
+            coEvery { restoreStateRepository.getAttempt() } returns makeAttempt(
+                kind = RestoreAttempt.Kind.Rollback,
+                phase = RestoreAttempt.Phase.Prepared,
+                context = null,
+                rollbackSnapshotPath = null,
+                rollbackOrigin = RestoreAttempt.RollbackOrigin.UserUndo,
+            )
+            stubRollbackCommitted()
+
+            val outcome = coordinator.handlePostRestoreLaunch()
+
+            assertEquals(
+                RestoreRecoveryCoordinator.PreflightOutcome.RestoreRolledBack,
+                outcome,
+            )
+            val published = mutableListOf<AppDialog>()
+            coVerify { appDialogPublisher.publish(capture(published)) }
+            assertTrue(
+                published.contains(AppDialog.UndoRestoreSuccess),
+                "the replayed undo owes its success dialog: $published",
+            )
+            assertTrue(
+                published.none { it is AppDialog.RestoreFailure },
+                "and must never report the restore-failure terminal: $published",
+            )
+            coVerify(exactly = 1) { restoreStateRepository.resolveAttempt(ATTEMPT_ID) }
+        }
+
+    @Test
+    fun `an interrupted SCENARIO-1 recovery still replays as RestoreFailure`() = runTest {
+        // The mirror pin: "kind == Rollback implies UndoRestoreSuccess" would announce a
+        // successful undo for a failed restore and suppress a genuine failure report.
+        coEvery { restoreStateRepository.getAttempt() } returns makeAttempt(
+            kind = RestoreAttempt.Kind.Rollback,
+            phase = RestoreAttempt.Phase.Prepared,
+            rollbackOrigin = RestoreAttempt.RollbackOrigin.ScenarioOneRecovery,
+        )
+        stubRollbackCommitted()
+
+        coordinator.handlePostRestoreLaunch()
+
+        val published = slot<AppDialog>()
+        coVerify(exactly = 1) { appDialogPublisher.publish(capture(published)) }
+        assertTrue(published.captured is AppDialog.RestoreFailure)
+    }
+
+    @Test
+    fun `a Rollback attempt with an UNKNOWN origin replays as a recovery failure`() = runTest {
+        // Pre-origin journal entries carry no origin. Reading them as UserUndo would announce a
+        // successful undo for an interrupted recovery; over-reporting a failure is the safe error.
+        coEvery { restoreStateRepository.getAttempt() } returns makeAttempt(
+            kind = RestoreAttempt.Kind.Rollback,
+            phase = RestoreAttempt.Phase.Prepared,
+            rollbackOrigin = null,
+        )
+        stubRollbackCommitted()
+
+        coordinator.handlePostRestoreLaunch()
+
+        val published = slot<AppDialog>()
+        coVerify(exactly = 1) { appDialogPublisher.publish(capture(published)) }
+        assertTrue(published.captured is AppDialog.RestoreFailure)
+    }
+
+    @Test
+    fun `the recovery rollback CARRIES the journal's origin through its re-claim`() = runTest {
+        // Dropping the origin on the re-claim reintroduces the defect one launch later.
+        coEvery { restoreStateRepository.getAttempt() } returns makeAttempt(
+            kind = RestoreAttempt.Kind.Rollback,
+            phase = RestoreAttempt.Phase.Prepared,
+            rollbackSnapshotPath = null,
+            rollbackOrigin = RestoreAttempt.RollbackOrigin.UserUndo,
+        )
+        val claimed = slot<RestoreAttempt>()
+        coEvery { restoreStateRepository.beginAttempt(capture(claimed)) } returns true
+        coEvery { databaseReplacement.rollbackToPreRestoreBackup(any(), any()) } coAnswers {
+            secondArg<DatabaseReplacementEffects>().onBeforeMutation("")
+            DatabaseReplacementResult.Committed()
+        }
+
+        coordinator.handlePostRestoreLaunch()
+
+        assertEquals(
+            RestoreAttempt.RollbackOrigin.UserUndo,
+            claimed.captured.rollbackOrigin,
+        )
+    }
+
+    @Test
+    fun `a failed undo replay publishes nothing and keeps its retry assets`() = runTest {
+        coEvery { restoreStateRepository.getAttempt() } returns makeAttempt(
+            kind = RestoreAttempt.Kind.Rollback,
+            phase = RestoreAttempt.Phase.Prepared,
+            rollbackSnapshotPath = null,
+            rollbackOrigin = RestoreAttempt.RollbackOrigin.UserUndo,
+        )
+        coEvery { databaseReplacement.rollbackToPreRestoreBackup(any(), any()) } coAnswers {
+            secondArg<DatabaseReplacementEffects>().onFailedAfterMutation(
+                BackupError.Io(IOException("disk full")),
+            )
+            DatabaseReplacementResult.FailedAfterMutation(BackupError.Io(IOException("disk full")))
+        }
+
+        val outcome = coordinator.handlePostRestoreLaunch()
+
+        assertEquals(RestoreRecoveryCoordinator.PreflightOutcome.RecoveryRequired, outcome)
+        coVerify(exactly = 0) { appDialogPublisher.publish(any()) }
+        coVerify(exactly = 0) { restoreStateRepository.clearPreRestoreBackupAvailable() }
+        coVerify(exactly = 0) { restoreStateRepository.resolveAttempt(any()) }
+    }
+
+    @Test
+    fun `a COMMITTED user undo replays its UndoRestoreSuccess dialog`() = runTest {
+        val attempt = makeAttempt(
+            kind = RestoreAttempt.Kind.Rollback,
+            phase = RestoreAttempt.Phase.Committed,
+            context = null,
+            rollbackSnapshotPath = null,
+            rollbackOrigin = RestoreAttempt.RollbackOrigin.UserUndo,
+        )
+        coEvery { restoreStateRepository.getAttempt() } returns attempt
+        every { snapshotProvider.getPreRestoreBackupFile() } returns
+            File("pre_restore_backup.db")
+        val order = mutableListOf<String>()
+        coEvery { snapshotProvider.deletePreRestoreBackup() } coAnswers { order += "consume" }
+        coEvery { restoreStateRepository.clearPreRestoreBackupAvailable() } coAnswers {
+            order += "clear"
+        }
+        coEvery { appDialogPublisher.publish(any()) } coAnswers { order += "publish" }
+        coEvery { restoreStateRepository.resolveAttempt(any()) } coAnswers {
+            order += "resolve"
+            true
+        }
+
+        val outcome = coordinator.handlePostRestoreLaunch()
+
+        assertEquals(RestoreRecoveryCoordinator.PreflightOutcome.RecoveryCompleted, outcome)
+        assertEquals(
+            listOf("consume", "clear", "publish", "resolve"),
+            order,
+            "data-bearing writes first, the owed dialog next, resolve LAST",
+        )
+        val published = slot<AppDialog>()
+        coVerify(exactly = 1) { appDialogPublisher.publish(capture(published)) }
+        assertEquals(AppDialog.UndoRestoreSuccess, published.captured)
+    }
+
+    @Test
+    fun `a COMMITTED scenario-1 recovery replays its RestoreFailure dialog`() = runTest {
+        coEvery { restoreStateRepository.getAttempt() } returns makeAttempt(
+            kind = RestoreAttempt.Kind.Rollback,
+            phase = RestoreAttempt.Phase.Committed,
+            context = null,
+            rollbackSnapshotPath = null,
+            rollbackOrigin = RestoreAttempt.RollbackOrigin.ScenarioOneRecovery,
+        )
+        every { snapshotProvider.getPreRestoreBackupFile() } returns null
+
+        coordinator.handlePostRestoreLaunch()
+
+        val published = slot<AppDialog>()
+        coVerify(exactly = 1) { appDialogPublisher.publish(capture(published)) }
+        assertTrue(published.captured is AppDialog.RestoreFailure)
+    }
+
+    // Review finding 1 — the undo slot is installed only after the durable record.
+
+    @Test
+    fun `a COMMITTED restore completes its owed promotion BEFORE the peek decides anything`() =
+        runTest {
+            val order = mutableListOf<String>()
+            coEvery { restoreStateRepository.getAttempt() } returns makeAttempt()
+            coEvery { snapshotProvider.completePromotedRollback(any(), any()) } coAnswers {
+                order += "install"
+                BackupResult.Success(Unit)
+            }
+            coEvery { snapshotProvider.currentSchemaVersion() } coAnswers {
+                order += "peek"
+                6
+            }
+            coEvery { restoreStateRepository.markPreRestoreBackupAvailable(any()) } coAnswers {
+                order += "mark"
+            }
+
+            coordinator.handlePostRestoreLaunch()
+
+            assertEquals(listOf("install", "peek", "mark"), order)
+        }
+
+    @Test
+    fun `a COMMITTED restore whose promotion cannot complete never claims a fresh undo`() =
+        runTest {
+            // The canonical still holds the PREVIOUS restore's image, and its availability record
+            // still truthfully describes it — so this restore claims no undo of its own.
+            val retained = File.createTempFile("rollback_reservation_", ".db")
+                .apply { writeText("retained") }
+            try {
+                coEvery { restoreStateRepository.getAttempt() } returns
+                    makeAttempt(rollbackSnapshotPath = retained.absolutePath)
+                coEvery { snapshotProvider.completePromotedRollback(any(), any()) } returns
+                    BackupResult.Failure(BackupError.CorruptedBackup(reason = "no undo image"))
+                coEvery { snapshotProvider.currentSchemaVersion() } returns 6
+
+                val outcome = coordinator.handlePostRestoreLaunch()
+
+                assertEquals(
+                    RestoreRecoveryCoordinator.PreflightOutcome.RestoreSucceeded,
+                    outcome,
+                    "the restore IS durably committed and verified",
+                )
+                coVerify(exactly = 0) {
+                    restoreStateRepository.markPreRestoreBackupAvailable(any())
+                }
+                val published = slot<AppDialog>()
+                coVerify(exactly = 1) { appDialogPublisher.publish(capture(published)) }
+                assertFalse(
+                    (published.captured as AppDialog.RestoreSuccess).previousVersionAvailable,
+                )
+                assertTrue(retained.exists(), "the reservation is kept for a later install")
+            } finally {
+                retained.delete()
+            }
+        }
+
+    @Test
+    fun `a COMMITTED attempt whose promotion is still owed recovers from its RESERVATION`() =
+        runTest {
+            // While the install is owed the canonical may still be the PREVIOUS attempt's image;
+            // substituting it would apply another attempt's snapshot over the live file.
+            val reservedPath = "/data/cache/rollback_reservation_owed.db"
+            coEvery { restoreStateRepository.getAttempt() } returns
+                makeAttempt(rollbackSnapshotPath = reservedPath)
+            coEvery { snapshotProvider.completePromotedRollback(any(), any()) } returns
+                BackupResult.Failure(BackupError.CorruptedBackup(reason = "no undo image"))
+            coEvery { snapshotProvider.currentSchemaVersion() } throws
+                IllegalStateException("peek failed")
+            val pathSlot = slot<String?>()
+            coEvery {
+                databaseReplacement.rollbackToPreRestoreBackup(captureNullable(pathSlot), any())
+            } returns DatabaseReplacementResult.Committed()
+
+            coordinator.handlePostRestoreLaunch()
+
+            assertEquals(reservedPath, pathSlot.captured)
+        }
+
+    // Review finding 6 — an unusable undo image terminates instead of looping.
+
+    @Test
+    fun `an undo whose source is unusable is acknowledged, not retried forever`() = runTest {
+        stubPreservedBackupExists()
+        coEvery { databaseReplacement.rollbackToPreRestoreBackup(any(), any()) } returns
+            DatabaseReplacementResult.RejectedBeforeMutation(
+                BackupError.CorruptedBackup(reason = "database truncated"),
+            )
+
+        val result = coordinator.performUndoRestore()
+
+        assertEquals(UndoRestoreOutcome.SourceUnusable, result)
+        coVerify(exactly = 1) { restoreStateRepository.clearPreRestoreBackupAvailable() }
+        coVerify(exactly = 0) { snapshotProvider.deletePreRestoreBackup() }
+        coVerify(exactly = 0) { appDialogPublisher.publish(any()) }
+    }
+
+    @Test
+    fun `an IO rejection still keeps the undo offer for a retry`() = runTest {
+        // The discriminating negative for the branch above: only CorruptedBackup terminates.
+        stubPreservedBackupExists()
+        coEvery { databaseReplacement.rollbackToPreRestoreBackup(any(), any()) } returns
+            DatabaseReplacementResult.RejectedBeforeMutation(
+                BackupError.Io(IOException("lease drain timed out")),
+            )
+
+        val result = coordinator.performUndoRestore()
+
+        assertEquals(UndoRestoreOutcome.IoFailure, result)
+        coVerify(exactly = 0) { restoreStateRepository.clearPreRestoreBackupAvailable() }
+    }
+
     @Test
     fun `restartApp delegates to the AppReinitializer seam`() {
         coordinator.restartApp()
@@ -898,12 +1194,17 @@ internal class RestoreRecoveryCoordinatorTest {
         phase: RestoreAttempt.Phase = RestoreAttempt.Phase.Committed,
         context: RestoreInProgressContext? = makeContext(),
         rollbackSnapshotPath: String? = ROLLBACK_PATH,
+        rollbackOrigin: RestoreAttempt.RollbackOrigin? =
+            RestoreAttempt.RollbackOrigin.ScenarioOneRecovery.takeIf {
+                kind == RestoreAttempt.Kind.Rollback
+            },
     ): RestoreAttempt = RestoreAttempt(
         id = id,
         kind = kind,
         phase = phase,
         context = context,
         rollbackSnapshotPath = rollbackSnapshotPath,
+        rollbackOrigin = rollbackOrigin,
     )
 
     /**

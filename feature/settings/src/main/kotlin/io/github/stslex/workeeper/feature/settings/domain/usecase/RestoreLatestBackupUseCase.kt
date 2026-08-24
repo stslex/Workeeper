@@ -132,6 +132,7 @@ class RestoreLatestBackupUseCase(
                     phase = RestoreAttempt.Phase.Prepared,
                     context = context,
                     rollbackSnapshotPath = rollbackSnapshotPath.takeIf { it.isNotEmpty() },
+                    rollbackOrigin = null,
                 ),
             )
             check(claimed) {

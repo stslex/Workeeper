@@ -3,10 +3,7 @@ package io.github.stslex.workeeper.feature.recovery
 
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageInfo
-import android.content.pm.PackageManager
 import android.net.Uri
-import android.os.Build
 import androidx.core.net.toUri
 import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.Inject
@@ -15,7 +12,6 @@ import io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetime
 import io.github.stslex.workeeper.core.core.di.AppScope
 import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
 import io.github.stslex.workeeper.core.core.logger.Log
-import io.github.stslex.workeeper.core.data.backup.api.RecoveryDiagnosticsExporter
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreStateRepository
 import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialog
 import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialogUserAction
@@ -23,6 +19,7 @@ import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialogUserCho
 import io.github.stslex.workeeper.feature.app_dialogs.api.observer.AppDialogObserver
 import io.github.stslex.workeeper.feature.app_dialogs.api.publisher.AppDialogPublisher
 import io.github.stslex.workeeper.feature.recovery.boot.RecoveryBootstrap
+import io.github.stslex.workeeper.feature.recovery.diagnostics.RestoreDiagnosticsExport
 import io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinator
 import io.github.stslex.workeeper.feature.recovery.domain.UndoRestoreOutcome
 import kotlinx.coroutines.CoroutineDispatcher
@@ -40,7 +37,7 @@ class RestoreDialogChoiceObserver @Inject constructor(
     private val coordinator: RestoreRecoveryCoordinator,
     private val restoreStateRepository: RestoreStateRepository,
     private val appDialogPublisher: AppDialogPublisher,
-    private val diagnosticsExporter: RecoveryDiagnosticsExporter,
+    private val restoreDiagnosticsExport: RestoreDiagnosticsExport,
     lifetime: AppScopeLifetime,
     @DefaultDispatcher private val dispatcher: CoroutineDispatcher,
 ) : RecoveryBootstrap {
@@ -119,7 +116,10 @@ class RestoreDialogChoiceObserver @Inject constructor(
                 val outcome = coordinator.performUndoRestore(onCommitted = {
                     observer.acknowledgeReaction(dialog)
                 })
-                if (outcome == UndoRestoreOutcome.FileMissing) {
+                // Both terminal refusals: another tap cannot help, so dismiss rather than wedge.
+                if (outcome == UndoRestoreOutcome.FileMissing ||
+                    outcome == UndoRestoreOutcome.SourceUnusable
+                ) {
                     observer.acknowledgeReaction(dialog)
                 }
                 if (outcome == UndoRestoreOutcome.Succeeded) coordinator.restartApp()
@@ -147,15 +147,7 @@ class RestoreDialogChoiceObserver @Inject constructor(
         return true
     }
 
-    private suspend fun exportRestoreDiagnostics(): Uri? {
-        val info = readPackageInfo()
-        return diagnosticsExporter.exportRestoreFailure(
-            exception = null,
-            context = restoreStateRepository.getAttempt()?.context,
-            appVersionName = info.versionName.orEmpty(),
-            appVersionCode = info.longVersionCode,
-        )
-    }
+    private suspend fun exportRestoreDiagnostics(): Uri? = restoreDiagnosticsExport.export()
 
     private fun openReportIssue() {
         val title = Uri.encode(context.getString(RecoveryR.string.recovery_restore_failure_report_title))
@@ -181,17 +173,6 @@ class RestoreDialogChoiceObserver @Inject constructor(
         ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         runCatching { context.startActivity(chooser) }
     }
-
-    private fun readPackageInfo(): PackageInfo =
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            context.packageManager.getPackageInfo(
-                context.packageName,
-                PackageManager.PackageInfoFlags.of(0),
-            )
-        } else {
-            @Suppress("DEPRECATION")
-            context.packageManager.getPackageInfo(context.packageName, 0)
-        }
 
     private companion object {
         const val TAG = "RestoreDialogChoiceObserver"

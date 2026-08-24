@@ -37,6 +37,9 @@ internal class TestApplication : BaseApplication() {
         return super.appRootDeps()
     }
 
+    // The harness owns the generation source, so the host-teardown clear routes there too.
+    override fun onUiHostDestroyed() = MetroTestGraphHolder.onUiHostDestroyed()
+
     override fun onCreateGraphBootstrap() {
         // Intentionally empty: MetroTestRule installs the graph per test, after onCreate runs.
     }

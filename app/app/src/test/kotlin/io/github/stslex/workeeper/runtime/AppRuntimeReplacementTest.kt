@@ -142,6 +142,9 @@ internal class AppRuntimeReplacementTest {
     private fun preservedFile(content: String = "preserved-bytes"): File =
         File(tempDir, "pre_restore_backup.db").apply { writeText(content) }
 
+    private fun stagingFile(attemptId: String): File =
+        File(tempDir, "pre_restore_backup.db.$attemptId.promoting")
+
     private fun runtimeTest(
         replacementPolicy: ReplacementPolicy = ReplacementPolicy.RebuildInProcess,
         standardHostDispatcher: Boolean = false,
@@ -166,11 +169,38 @@ internal class AppRuntimeReplacementTest {
             reservations += reservation
             BackupResult.Success(reservation)
         }
-        coEvery { provider.promoteRollbackReservation(any()) } coAnswers {
-            protocolLog += "promote"
-            // Promotion COPIES onto the canonical slot; the reservation survives until Committed.
-            firstArg<File>().copyTo(File(tempDir, "pre_restore_backup.db"), overwrite = true)
+        coEvery { provider.validateRollbackSource(any()) } returns BackupResult.Success(Unit)
+        coEvery { provider.stagePromotedRollback(any(), any()) } coAnswers {
+            protocolLog += "stage"
+            // Staging COPIES beside the slot; the reservation survives until Committed.
+            firstArg<File>().copyTo(stagingFile(secondArg()), overwrite = true)
             BackupResult.Success(Unit)
+        }
+        coEvery { provider.completePromotedRollback(any(), any()) } coAnswers {
+            protocolLog += "install"
+            val staging = stagingFile(secondArg())
+            val reservation = firstArg<File?>()
+            if (!staging.exists() && reservation != null && reservation.exists()) {
+                reservation.copyTo(staging, overwrite = true)
+            }
+            when {
+                staging.exists() -> {
+                    staging.copyTo(File(tempDir, "pre_restore_backup.db"), overwrite = true)
+                    staging.delete()
+                    BackupResult.Success(Unit)
+                }
+
+                File(tempDir, "pre_restore_backup.db").exists() -> BackupResult.Success(Unit)
+                else -> BackupResult.Failure(
+                    BackupError.CorruptedBackup(reason = "no undo image to promote"),
+                )
+            }
+        }
+        coEvery { provider.discardStagedPromotion(any()) } coAnswers {
+            protocolLog += "discardStaging"
+            stagingFile(firstArg())
+            stagingFile(firstArg<String>()).delete()
+            Unit
         }
         val dispatcher = UnconfinedTestDispatcher(testScheduler)
         val runtime = AppRuntime(
@@ -315,7 +345,7 @@ internal class AppRuntimeReplacementTest {
     fun `marker written - caller killed - lease timeout - transaction-owned cleanup still runs`() =
         runtimeTest { runtime ->
             runtime.currentGeneration
-            val lease = runtime.awaitBackupWorkLease() // the quiesce will time out on it
+            val lease = checkNotNull(runtime.awaitBackupWorkLease()) // the quiesce will time out on it
             var markerWritten = false
             val effects = RecordingEffects(onBefore = { markerWritten = true })
             val source = sourceFile()
@@ -882,7 +912,7 @@ internal class AppRuntimeReplacementTest {
     fun `unreleased lease aborts pre-PONR - rejection, admission reopens, retry works`() =
         runtimeTest { runtime ->
             val genOne = runtime.currentGeneration
-            val lease = runtime.awaitBackupWorkLease()
+            val lease = checkNotNull(runtime.awaitBackupWorkLease())
 
             val transaction = async {
                 runtime.replace(ReplacementOperation.RestoreFromSnapshot(sourceFile()))
@@ -916,7 +946,7 @@ internal class AppRuntimeReplacementTest {
             runCurrent() // quiesce closed admission; the transaction parked at preflight
             // ORDER-SENSITIVE: the unconfined acquirer resumes synchronously inside reopen.
             val leaseCall = async(UnconfinedTestDispatcher(testScheduler)) {
-                runtime.awaitBackupWorkLease()
+                checkNotNull(runtime.awaitBackupWorkLease())
             }
             runCurrent()
             assertFalse(leaseCall.isCompleted, "admission is CLOSED during the window")
@@ -971,7 +1001,7 @@ internal class AppRuntimeReplacementTest {
     fun `aborted transition reopens ui admission for the outgoing id`() =
         runtimeTest { runtime ->
             val genOne = runtime.currentGeneration
-            val lease = runtime.awaitBackupWorkLease()
+            val lease = checkNotNull(runtime.awaitBackupWorkLease())
             val transaction = async {
                 runtime.replace(ReplacementOperation.RestoreFromSnapshot(sourceFile()))
             }
@@ -992,7 +1022,7 @@ internal class AppRuntimeReplacementTest {
     fun `committed handover advances the snackbar epoch - an abort never does`() =
         runtimeTest { runtime ->
             runtime.currentGeneration
-            val lease = runtime.awaitBackupWorkLease()
+            val lease = checkNotNull(runtime.awaitBackupWorkLease())
             val aborted = async {
                 runtime.replace(ReplacementOperation.RestoreFromSnapshot(sourceFile()))
             }
@@ -1226,30 +1256,133 @@ internal class AppRuntimeReplacementTest {
         }
 
     @Test
-    fun `the reservation is promoted BEFORE the durable commit is recorded`() =
+    fun `the undo slot is INSTALLED only after the durable commit record`() =
         runtimeTest { runtime ->
+            // The canonical slot is the PREVIOUS restore's undo image until this attempt is
+            // durable: staging touches nothing, and only the post-record install replaces it.
             runtime.currentGeneration
             val effects = RecordingEffects(calls = protocolLog)
 
             runtime.replace(ReplacementOperation.RestoreFromSnapshot(sourceFile()), effects)
 
-            val promote = protocolLog.indexOf("promote")
+            val swap = protocolLog.indexOf("swap")
+            val stage = protocolLog.indexOf("stage")
             val recorded = protocolLog.indexOf("mutationCommitted")
-            assertTrue(promote >= 0 && recorded >= 0, "both steps must run: $protocolLog")
-            assertTrue(promote < recorded, "promote must precede the record: $protocolLog")
+            val install = protocolLog.indexOf("install")
             assertTrue(
-                protocolLog.indexOf("swap") < promote,
-                "and the live-file swap must precede both: $protocolLog",
+                swap in 0 until stage && stage < recorded && recorded < install,
+                "order must be swap → stage → record → install: $protocolLog",
             )
         }
 
     @Test
-    fun `a failed promotion recovers by rollback - the committed terminal NEVER runs`() =
+    fun `a record failure leaves the PREVIOUS undo slot byte-for-byte intact`() =
+        runtimeTest(replacementPolicy = ReplacementPolicy.RestartProcess) { runtime ->
+            // Finding 1: the pre-durable promotion destroyed the previous restore's undo image
+            // on behalf of an attempt that never commits, while its date kept advertising it.
+            runtime.currentGeneration
+            preservedFile("D0-PREVIOUS-UNDO-IMAGE")
+            val journal = FakeJournal()
+            val effects = JournalEffects(
+                attemptId = "restore-1",
+                journal = journal,
+                kind = "Restore",
+                log = protocolLog,
+                failRecordTimes = Int.MAX_VALUE,
+            )
+
+            val outcome = runtime.replace(
+                ReplacementOperation.RestoreFromSnapshot(sourceFile()),
+                effects,
+            )
+
+            assertInstanceOf(ReplacementOutcome.FailedAfterMutation::class.java, outcome)
+            assertEquals(
+                "D0-PREVIOUS-UNDO-IMAGE",
+                File(tempDir, "pre_restore_backup.db").readText(),
+                "a non-durable attempt must not invalidate the previous restore's undo image",
+            )
+            assertTrue(
+                tempDir.listFiles().orEmpty().none { it.name.endsWith(".promoting") },
+                "the pre-durable staging is discarded, never left as debris",
+            )
+            assertEquals("Prepared", journal.phase)
+            assertEquals(1, reservationFiles().size, "the reservation carries the recovery")
+        }
+
+    @Test
+    fun `an install failure after the durable record is a COMMIT, not a rollback`() =
+        runtimeTest(replacementPolicy = ReplacementPolicy.RestartProcess) { runtime ->
+            // Post-durable: the mutation is committed and verified; only the NEW undo image is
+            // lost, so the reservation is retained and the commit is never re-opened.
+            runtime.currentGeneration
+            coEvery {
+                provider.completePromotedRollback(any(), any())
+            } returns BackupResult.Failure(BackupError.Io(IOException("rename refused")))
+            val journal = FakeJournal()
+            val effects = JournalEffects(
+                attemptId = "restore-1",
+                journal = journal,
+                kind = "Restore",
+                log = protocolLog,
+            )
+
+            val outcome = runtime.replace(
+                ReplacementOperation.RestoreFromSnapshot(sourceFile()),
+                effects,
+            )
+
+            assertInstanceOf(ReplacementOutcome.Completed::class.java, outcome)
+            assertTrue(
+                protocolLog.contains("journal-committed"),
+                "the durable record stands: $protocolLog",
+            )
+            assertEquals(
+                1,
+                protocolLog.count { it == "terminal-committed" },
+                "the commit is never re-opened as a rollback: $protocolLog",
+            )
+            assertEquals(
+                1,
+                reservationFiles().size,
+                "the reservation is retained so the next launch can finish the install",
+            )
+        }
+
+    @Test
+    fun `a rollback whose source fails validation is a typed rejection - nothing is swapped`() =
+        runtimeTest(replacementPolicy = ReplacementPolicy.RestartProcess) { runtime ->
+            // Finding 6: a truncated canonical was renamed over the live database and reported
+            // as a clean undo. Validation now rejects it before the point of no return.
+            runtime.currentGeneration
+            preservedFile("TRUNCATED")
+            coEvery { provider.validateRollbackSource(any()) } returns BackupResult.Failure(
+                BackupError.CorruptedBackup(reason = "database truncated"),
+            )
+            val effects = RecordingEffects()
+
+            val outcome = runtime.replace(
+                ReplacementOperation.RollbackToPreRestoreBackup(),
+                effects,
+            )
+
+            val rejected = assertInstanceOf(
+                ReplacementOutcome.RejectedBeforeMutation::class.java,
+                outcome,
+            )
+            assertInstanceOf(BackupError.CorruptedBackup::class.java, rejected.error)
+            assertEquals(listOf("rejected"), effects.calls, "nothing was journaled or mutated")
+            assertFalse(protocolLog.contains("swap"), "no rename: $protocolLog")
+            assertTrue(File(tempDir, "pre_restore_backup.db").exists(), "the file is KEPT")
+        }
+
+    @Test
+    fun `a failed promotion STAGING recovers by rollback - the committed terminal NEVER runs`() =
         runtimeTest { runtime ->
             runtime.currentGeneration
-            coEvery { provider.promoteRollbackReservation(any()) } returns BackupResult.Failure(
-                BackupError.Io(IOException("promotion failed")),
-            )
+            coEvery {
+                provider.stagePromotedRollback(any(), any())
+            } returns BackupResult.Failure(BackupError.Io(IOException("staging failed")))
             val applied = mutableListOf<String>()
             coEvery { provider.replaceLiveDatabaseFile(any()) } coAnswers {
                 protocolLog += "swap"
@@ -1362,7 +1495,7 @@ internal class AppRuntimeReplacementTest {
     fun `a rejection whose terminal compensation fails KEEPS the reservation the journal names`() =
         runtimeTest { runtime ->
             runtime.currentGeneration
-            val lease = runtime.awaitBackupWorkLease() // the quiesce will time out on it
+            val lease = checkNotNull(runtime.awaitBackupWorkLease()) // the quiesce will time out on it
             // The terminal resolve THROWS: the journal stays Prepared and still names the file.
             val effects = RecordingEffects(onRejectedBody = { error("journal resolve failed") })
 
@@ -2102,13 +2235,13 @@ internal class AppRuntimeReplacementTest {
         }
 
     @Test
-    fun `restart-process promotion failure with production-shaped effects keeps Prepared + reservation`() =
+    fun `restart-process staging failure with production-shaped effects keeps Prepared + reservation`() =
         runtimeTest(replacementPolicy = ReplacementPolicy.RestartProcess) { runtime ->
-            // Under the production policy a promotion failure leaves Prepared + the reservation.
+            // Under the production policy a pre-durable staging failure leaves Prepared + R.
             runtime.currentGeneration
-            coEvery { provider.promoteRollbackReservation(any()) } returns BackupResult.Failure(
-                BackupError.Io(IOException("promotion failed")),
-            )
+            coEvery {
+                provider.stagePromotedRollback(any(), any())
+            } returns BackupResult.Failure(BackupError.Io(IOException("staging failed")))
             val journal = FakeJournal()
             val effects = JournalEffects(
                 attemptId = "restore-1",

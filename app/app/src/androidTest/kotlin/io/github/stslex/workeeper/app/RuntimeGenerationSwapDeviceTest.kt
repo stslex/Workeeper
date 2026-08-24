@@ -109,8 +109,12 @@ internal class RuntimeGenerationSwapDeviceTest {
             genTwo.graph.databaseSnapshotProvider.reserveRollbackSnapshot("gate"),
         )
         assertSuccess(
-            "promoteRollbackReservation",
-            genTwo.graph.databaseSnapshotProvider.promoteRollbackReservation(reserved),
+            "stagePromotedRollback",
+            genTwo.graph.databaseSnapshotProvider.stagePromotedRollback(reserved, "gate"),
+        )
+        assertSuccess(
+            "completePromotedRollback",
+            genTwo.graph.databaseSnapshotProvider.completePromotedRollback(reserved, "gate"),
         )
         daoTwo.insert(TagEntity(name = POST_PRESERVE_SENTINEL))
         val inodeBeforeRollback = liveDbInode()
@@ -174,6 +178,11 @@ internal class RuntimeGenerationSwapDeviceTest {
     private fun wipeFiles() {
         context.deleteDatabase(AppDatabase.NAME)
         File(context.cacheDir, "pre_restore_backup.db").delete()
+        // A journal left over by another test makes the preflight recover instead of proceeding.
+        context.deleteSharedPreferences("restore_state_prefs")
+        context.cacheDir.listFiles().orEmpty()
+            .filter { it.name.endsWith(".promoting") }
+            .forEach { it.delete() }
         snapshotFile().delete()
     }
 

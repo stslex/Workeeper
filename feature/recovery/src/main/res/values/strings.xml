@@ -17,6 +17,11 @@
     <string name="recovery_export_diagnostics_chooser" tools:ignore="DuplicateStrings">Share diagnostics</string>
     <string name="recovery_report_title">Startup migration failure</string>
 
+    <!-- Scenario 1 surface: an interrupted restore. No app update exists for this failure. -->
+    <string name="recovery_restore_title">Restore was interrupted</string>
+    <string name="recovery_restore_body">A backup restore did not finish, so this app cannot tell which version of your data is on the device. Nothing has been deleted. Export your raw data to keep a copy, then send the diagnostics so this can be fixed.</string>
+    <string name="recovery_restore_report_title" tools:ignore="DuplicateStrings">Restore failed</string>
+
     <!--
         Scenario 1 intent-side strings (relocated from feature/app-dialogs/impl
         during the recovery-boundary refactor, renamed from

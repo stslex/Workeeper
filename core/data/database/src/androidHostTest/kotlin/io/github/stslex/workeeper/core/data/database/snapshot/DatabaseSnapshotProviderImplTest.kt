@@ -272,59 +272,142 @@ internal class DatabaseSnapshotProviderImplTest {
         }
 
     @Test
-    fun `promotion COPIES - the journal-named reservation survives with its exact bytes`() =
+    fun `staging a promotion never touches the canonical slot`() = runTest {
+        // Review finding 1: the pre-durable promotion overwrote the PREVIOUS restore's undo
+        // image on behalf of an attempt that may never commit. Staging must be inert.
+        val reservationA = File(context.cacheDir, "rollback_reservation_r5.db")
+            .apply { writeText("SENTINEL-A-TRUE-PRE-ATTEMPT") }
+        File(context.cacheDir, "pre_restore_backup.db").writeText("SENTINEL-B-OLDER")
+
+        val staged = provider.stagePromotedRollback(reservationA, "r5")
+
+        assertEquals(BackupResult.Success(Unit), staged)
+        assertEquals(
+            "SENTINEL-B-OLDER",
+            File(context.cacheDir, "pre_restore_backup.db").readText(),
+            "the previous restore's undo image must survive an attempt that is not yet durable",
+        )
+        assertEquals("SENTINEL-A-TRUE-PRE-ATTEMPT", reservationA.readText())
+        assertEquals(
+            "SENTINEL-A-TRUE-PRE-ATTEMPT",
+            File(context.cacheDir, "pre_restore_backup.db.r5.promoting").readText(),
+        )
+    }
+
+    @Test
+    fun `a pre-durable staging is discarded without disturbing the slot`() = runTest {
+        File(context.cacheDir, "pre_restore_backup.db").writeText("SENTINEL-B-OLDER")
+        val reservationA = File(context.cacheDir, "rollback_reservation_r5.db")
+            .apply { writeText("SENTINEL-A") }
+        provider.stagePromotedRollback(reservationA, "r5")
+
+        provider.discardStagedPromotion("r5")
+
+        assertFalse(File(context.cacheDir, "pre_restore_backup.db.r5.promoting").exists())
+        assertEquals(
+            "SENTINEL-B-OLDER",
+            File(context.cacheDir, "pre_restore_backup.db").readText(),
+        )
+    }
+
+    @Test
+    fun `completing a pending promotion installs the staged image and keeps the reservation`() =
         runTest {
-            // The reservation (A) is what the still-`Prepared` journal names; the canonical slot
-            // (B) belongs to an older attempt. Copy-based promotion keeps A intact across crashes.
-            val reservationA = File(context.cacheDir, "rollback_reservation_r4.db")
+            val reservationA = File(context.cacheDir, "rollback_reservation_r5.db")
                 .apply { writeText("SENTINEL-A-TRUE-PRE-ATTEMPT") }
             File(context.cacheDir, "pre_restore_backup.db").writeText("SENTINEL-B-OLDER")
+            provider.stagePromotedRollback(reservationA, "r5")
 
-            val promoted = provider.promoteRollbackReservation(reservationA)
+            val installed = provider.completePromotedRollback(reservationA, "r5")
 
-            assertEquals(BackupResult.Success(Unit), promoted)
-            assertTrue(
-                reservationA.exists(),
-                "the reservation must SURVIVE the promotion — the journal still names it " +
-                    "until the runtime durably records Committed",
-            )
-            assertEquals("SENTINEL-A-TRUE-PRE-ATTEMPT", reservationA.readText())
+            assertEquals(BackupResult.Success(Unit), installed)
             assertEquals(
                 "SENTINEL-A-TRUE-PRE-ATTEMPT",
                 File(context.cacheDir, "pre_restore_backup.db").readText(),
-                "the canonical slot now holds this attempt's pre-image",
             )
-            assertFalse(
-                File(context.cacheDir, "pre_restore_backup.db.promoting").exists(),
-                "no staging residue is left behind",
+            assertTrue(
+                reservationA.exists(),
+                "the reservation goes only after the install lands — the runtime deletes it",
+            )
+            assertFalse(File(context.cacheDir, "pre_restore_backup.db.r5.promoting").exists())
+        }
+
+    @Test
+    fun `a completion with no staging re-promotes from the surviving reservation`() = runTest {
+        // The crash window between the durable record and the install: the next launch finishes
+        // it from the reservation, which is exactly why the reservation outlives the record.
+        val reservationA = File(context.cacheDir, "rollback_reservation_r5.db")
+            .apply { writeText("SENTINEL-A-TRUE-PRE-ATTEMPT") }
+        File(context.cacheDir, "pre_restore_backup.db").writeText("SENTINEL-B-OLDER")
+
+        val installed = provider.completePromotedRollback(reservationA, "r5")
+
+        assertEquals(BackupResult.Success(Unit), installed)
+        assertEquals(
+            "SENTINEL-A-TRUE-PRE-ATTEMPT",
+            File(context.cacheDir, "pre_restore_backup.db").readText(),
+        )
+    }
+
+    @Test
+    fun `a completion with neither staging nor reservation fails rather than claiming success`() =
+        runTest {
+            val absent = File(context.cacheDir, "rollback_reservation_gone.db")
+
+            val installed = provider.completePromotedRollback(absent, "r5")
+
+            assertTrue(
+                installed is BackupResult.Failure,
+                "no image, no undo slot — never a silent success: $installed",
             )
         }
 
     @Test
-    fun `a stale promoting file from a crashed promotion is discarded, never promoted`() =
-        runTest {
-            // `.promoting` debris from a crashed promotion must never redirect anything. This pins
-            // the end state only — the impl's pre-delete is not separately observable here.
-            File(context.cacheDir, "pre_restore_backup.db.promoting")
-                .writeText("GARBAGE-FROM-A-CRASHED-PROMOTION")
-            val reservation = File(context.cacheDir, "rollback_reservation_fresh.db")
-                .apply { writeText("FRESH-RESERVATION") }
+    fun `a staging from ANOTHER attempt is never installed by this one`() = runTest {
+        File(context.cacheDir, "pre_restore_backup.db").writeText("SENTINEL-B-OLDER")
+        File(context.cacheDir, "pre_restore_backup.db.foreign.promoting")
+            .writeText("FOREIGN-ATTEMPT-IMAGE")
+        val mine = File(context.cacheDir, "rollback_reservation_mine.db")
+            .apply { writeText("MY-PRE-IMAGE") }
 
-            val promoted = provider.promoteRollbackReservation(reservation)
+        provider.completePromotedRollback(mine, "mine")
 
-            assertEquals(BackupResult.Success(Unit), promoted)
-            assertEquals(
-                "FRESH-RESERVATION",
-                File(context.cacheDir, "pre_restore_backup.db").readText(),
-                "the canonical content comes from the reservation, never from stale staging",
-            )
-            assertFalse(File(context.cacheDir, "pre_restore_backup.db.promoting").exists())
-            assertEquals(
-                null,
-                provider.getPreRestoreBackupFile()?.name?.takeIf { it.endsWith(".promoting") },
-                "the canonical lookup can never resolve to a staging file",
-            )
-        }
+        assertEquals(
+            "MY-PRE-IMAGE",
+            File(context.cacheDir, "pre_restore_backup.db").readText(),
+            "the staging is attempt-named; positional debris is never an ownership claim",
+        )
+    }
+
+    @Test
+    fun `a TRUNCATED rollback source fails validation`() = runTest {
+        // Review finding 6: a partially written canonical was renamed over the live database and
+        // reported as a clean undo. Magic alone passes on a tail truncation; the page count does not.
+        database.tagDao.insert(TagEntity(uuid = Uuid.random(), name = "Row"))
+        val reserved = provider.reserveRollbackSnapshot("truncate")
+        val source = (reserved as BackupResult.Success).data
+        val full = source.readBytes()
+        source.writeBytes(full.copyOfRange(0, full.size / 2))
+
+        val validated = provider.validateRollbackSource(source)
+
+        assertTrue(
+            validated is BackupResult.Failure &&
+                validated.error is BackupError.CorruptedBackup,
+            "a truncated database must never be applied over the live file: $validated",
+        )
+    }
+
+    @Test
+    fun `a valid rollback source passes validation`() = runTest {
+        // Anti-vacuity partner: the validator must not simply reject everything.
+        database.tagDao.insert(TagEntity(uuid = Uuid.random(), name = "Row"))
+        val reserved = provider.reserveRollbackSnapshot("intact")
+
+        val validated = provider.validateRollbackSource((reserved as BackupResult.Success).data)
+
+        assertEquals(BackupResult.Success(Unit), validated)
+    }
 
     @Test
     fun `getPreRestoreBackupFile returns null when no file was preserved`() = runTest {
@@ -503,7 +586,9 @@ internal class DatabaseSnapshotProviderImplTest {
         val reserved = provider.reserveRollbackSnapshot("test-attempt")
         if (reserved is BackupResult.Failure) return reserved
         val file = (reserved as BackupResult.Success).data
-        return when (val promoted = provider.promoteRollbackReservation(file)) {
+        val staged = provider.stagePromotedRollback(file, "test-attempt")
+        if (staged is BackupResult.Failure) return staged
+        return when (val promoted = provider.completePromotedRollback(file, "test-attempt")) {
             is BackupResult.Success -> {
                 // Mirrors the runtime's step 4: the reservation goes only after Committed is
                 // durable, so the helper leaves the same end state the real transaction does.

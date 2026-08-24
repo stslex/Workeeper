@@ -32,12 +32,14 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.feature.recovery.di.RecoveryDeps
 import io.github.stslex.workeeper.feature.recovery.di.RecoveryDepsHolder
+import io.github.stslex.workeeper.feature.recovery.diagnostics.RestoreDiagnosticsExport
 import kotlinx.coroutines.launch
 import java.io.File
 
 /**
  * Room-free fallback launcher for Scenario 2 (startup migration failure) and for a Scenario-1
- * restore attempt whose outcome is not provable.
+ * restore attempt whose outcome is not provable. [RecoveryScenario] — stamped on the launching
+ * Intent — selects the copy and the diagnostics format; the two failures need different both.
  * See documentation/feature-specs/backup-recovery.md.
  */
 // GUARD: call only file-path / pure-Kotlin collaborator methods here; opening a SQLiteConnection
@@ -52,19 +54,25 @@ class RecoveryActivity : ComponentActivity() {
 
     private val diagnosticsExporter get() = deps.recoveryDiagnosticsExporter
 
-    /** Test-only seam: forces resolution of both lazily-resolved app-graph collaborators. */
+    private val restoreDiagnosticsExport: RestoreDiagnosticsExport
+        get() = deps.restoreDiagnosticsExport
+
+    /** Test-only seam: forces resolution of every lazily-resolved app-graph collaborator. */
     @VisibleForTesting
-    fun warmDeps(): List<Any> = listOf(snapshotProvider, diagnosticsExporter)
+    fun warmDeps(): List<Any> =
+        listOf(snapshotProvider, diagnosticsExporter, restoreDiagnosticsExport)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val scenario = RecoveryScenario.fromIntent(intent)
         setContent {
             AppTheme {
                 RecoveryContent(
+                    scenario = scenario,
                     onUpdateApp = ::openPlayStore,
                     onExportRawData = ::exportRawData,
-                    onReportIssue = ::openGitHubIssue,
-                    onExportDiagnostics = ::exportDiagnostics,
+                    onReportIssue = { openGitHubIssue(scenario) },
+                    onExportDiagnostics = { exportDiagnostics(scenario) },
                 )
             }
         }
@@ -93,8 +101,8 @@ class RecoveryActivity : ComponentActivity() {
         )
     }
 
-    private fun openGitHubIssue() {
-        val title = Uri.encode(getString(R.string.recovery_report_title))
+    private fun openGitHubIssue(scenario: RecoveryScenario) {
+        val title = Uri.encode(getString(scenario.reportTitleRes))
         val labels = Uri.encode(GITHUB_ISSUE_LABELS)
         val url = "$GITHUB_ISSUE_BASE_URL?title=$title&labels=$labels"
         runCatching {
@@ -105,9 +113,19 @@ class RecoveryActivity : ComponentActivity() {
         }
     }
 
-    private fun exportDiagnostics() {
+    /**
+     * The Scenario-1 export carries the interrupted restore's journalled manifest context; the
+     * Scenario-2 one reads its own version + install source. Sharing the wrong one hands the
+     * user a file with none of the facts their failure needs.
+     */
+    private fun exportDiagnostics(scenario: RecoveryScenario) {
         lifecycleScope.launch {
-            val uri = diagnosticsExporter.exportStartupMigrationFailure() ?: return@launch
+            val uri = when (scenario) {
+                RecoveryScenario.StartupMigration ->
+                    diagnosticsExporter.exportStartupMigrationFailure()
+
+                RecoveryScenario.InterruptedRestore -> restoreDiagnosticsExport.export()
+            } ?: return@launch
             shareFile(
                 uri = uri,
                 mimeType = MIME_DIAGNOSTICS,
@@ -143,8 +161,28 @@ class RecoveryActivity : ComponentActivity() {
     }
 }
 
+/** Title/body/report-title copy per scenario; the enum keeps the three in step. */
+internal val RecoveryScenario.titleRes: Int
+    get() = when (this) {
+        RecoveryScenario.StartupMigration -> R.string.recovery_title
+        RecoveryScenario.InterruptedRestore -> R.string.recovery_restore_title
+    }
+
+internal val RecoveryScenario.bodyRes: Int
+    get() = when (this) {
+        RecoveryScenario.StartupMigration -> R.string.recovery_body
+        RecoveryScenario.InterruptedRestore -> R.string.recovery_restore_body
+    }
+
+internal val RecoveryScenario.reportTitleRes: Int
+    get() = when (this) {
+        RecoveryScenario.StartupMigration -> R.string.recovery_report_title
+        RecoveryScenario.InterruptedRestore -> R.string.recovery_restore_report_title
+    }
+
 @Composable
 internal fun RecoveryContent(
+    scenario: RecoveryScenario,
     onUpdateApp: () -> Unit,
     onExportRawData: () -> Unit,
     onReportIssue: () -> Unit,
@@ -161,12 +199,12 @@ internal fun RecoveryContent(
         verticalArrangement = Arrangement.spacedBy(AppDimension.Space.md),
     ) {
         Text(
-            text = stringResource(R.string.recovery_title),
+            text = stringResource(scenario.titleRes),
             style = AppUi.typography.titleLarge,
             color = AppUi.colors.textPrimary,
         )
         Text(
-            text = stringResource(R.string.recovery_body),
+            text = stringResource(scenario.bodyRes),
             style = AppUi.typography.bodyMedium,
             color = AppUi.colors.textSecondary,
         )
@@ -176,12 +214,16 @@ internal fun RecoveryContent(
                 .padding(top = AppDimension.Space.md),
             verticalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
         ) {
-            AppButton.Primary(
-                text = stringResource(R.string.recovery_update_app),
-                onClick = onUpdateApp,
-                size = AppButtonSize.LARGE,
-                modifier = Modifier.fillMaxWidth(),
-            )
+            // GUARD: no "Update app" on an interrupted restore — no update exists and none
+            // would help; the Play Store is a dead end for that failure.
+            if (scenario == RecoveryScenario.StartupMigration) {
+                AppButton.Primary(
+                    text = stringResource(R.string.recovery_update_app),
+                    onClick = onUpdateApp,
+                    size = AppButtonSize.LARGE,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
             AppButton.Tertiary(
                 text = stringResource(R.string.recovery_export_data),
                 onClick = onExportRawData,
@@ -204,11 +246,26 @@ internal fun RecoveryContent(
     }
 }
 
-@Preview(name = "Light", showBackground = true)
+@Preview(name = "Startup migration", showBackground = true)
 @Composable
 private fun RecoveryContentPreview() {
     AppTheme {
         RecoveryContent(
+            scenario = RecoveryScenario.StartupMigration,
+            onUpdateApp = {},
+            onExportRawData = {},
+            onReportIssue = {},
+            onExportDiagnostics = {},
+        )
+    }
+}
+
+@Preview(name = "Interrupted restore", showBackground = true)
+@Composable
+private fun RecoveryContentRestorePreview() {
+    AppTheme {
+        RecoveryContent(
+            scenario = RecoveryScenario.InterruptedRestore,
             onUpdateApp = {},
             onExportRawData = {},
             onReportIssue = {},

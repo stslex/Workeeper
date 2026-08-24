@@ -41,6 +41,9 @@ class RestoreStateRepositoryImpl internal constructor(
         require(attempt.phase == RestoreAttempt.Phase.Prepared) {
             "an attempt enters the slot as Prepared, not ${attempt.phase}"
         }
+        require(
+            attempt.kind != RestoreAttempt.Kind.Rollback || attempt.rollbackOrigin != null,
+        ) { "a rollback must journal its origin; the replay reads it to pick the user's dialog" }
         var claimed = false
         dataStore.edit { prefs ->
             val ownerId = prefs[KEY_ATTEMPT_ID]
@@ -64,6 +67,10 @@ class RestoreStateRepositoryImpl internal constructor(
             attempt.rollbackSnapshotPath
                 ?.let { prefs[KEY_ATTEMPT_ROLLBACK_PATH] = it }
                 ?: prefs.remove(KEY_ATTEMPT_ROLLBACK_PATH)
+            // Put/remove, never put-only: a same-id re-claim must not inherit a stale origin.
+            attempt.rollbackOrigin
+                ?.let { prefs[KEY_ATTEMPT_ROLLBACK_ORIGIN] = it.name }
+                ?: prefs.remove(KEY_ATTEMPT_ROLLBACK_ORIGIN)
             attempt.context?.let { context ->
                 prefs[KEY_BACKUP_SCHEMA_VERSION] = context.backupSchemaVersion
                 prefs[KEY_BACKUP_CREATED_AT] = context.backupCreatedAtEpochMs
@@ -98,6 +105,7 @@ class RestoreStateRepositoryImpl internal constructor(
             prefs.remove(KEY_ATTEMPT_KIND)
             prefs.remove(KEY_ATTEMPT_PHASE)
             prefs.remove(KEY_ATTEMPT_ROLLBACK_PATH)
+            prefs.remove(KEY_ATTEMPT_ROLLBACK_ORIGIN)
             prefs.remove(KEY_BACKUP_SCHEMA_VERSION)
             prefs.remove(KEY_BACKUP_CREATED_AT)
             prefs.remove(KEY_BACKUP_APP_VERSION)
@@ -122,6 +130,7 @@ class RestoreStateRepositoryImpl internal constructor(
                 phase = RestoreAttempt.Phase.Prepared,
                 context = context,
                 rollbackSnapshotPath = null,
+                rollbackOrigin = null,
             )
         }
         // An unparsable phase is unknown state → Prepared (recovery), never a success verdict.
@@ -137,7 +146,22 @@ class RestoreStateRepositoryImpl internal constructor(
             phase = phase,
             context = context,
             rollbackSnapshotPath = prefs[KEY_ATTEMPT_ROLLBACK_PATH],
+            rollbackOrigin = readRollbackOrigin(prefs, kind),
         )
+    }
+
+    /**
+     * An absent or unparsable origin reads as recovery — the pre-origin build's terminal, never a
+     * false undo success. A [RestoreAttempt.Kind.Restore] drops a stray value.
+     */
+    private fun readRollbackOrigin(
+        prefs: Preferences,
+        kind: RestoreAttempt.Kind,
+    ): RestoreAttempt.RollbackOrigin? {
+        if (kind != RestoreAttempt.Kind.Rollback) return null
+        return prefs[KEY_ATTEMPT_ROLLBACK_ORIGIN]
+            ?.let { name -> RestoreAttempt.RollbackOrigin.entries.firstOrNull { it.name == name } }
+            ?: RestoreAttempt.RollbackOrigin.ScenarioOneRecovery
     }
 
     private fun readContext(prefs: Preferences): RestoreInProgressContext? = RestoreInProgressContext(
@@ -178,6 +202,8 @@ class RestoreStateRepositoryImpl internal constructor(
         val KEY_ATTEMPT_PHASE = stringPreferencesKey("restore_attempt_phase")
         val KEY_ATTEMPT_ROLLBACK_PATH =
             stringPreferencesKey("restore_attempt_rollback_snapshot_path")
+        val KEY_ATTEMPT_ROLLBACK_ORIGIN =
+            stringPreferencesKey("restore_attempt_rollback_origin")
 
         val KEY_BACKUP_SCHEMA_VERSION =
             intPreferencesKey("restore_in_progress_backup_schema_version")
