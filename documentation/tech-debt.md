@@ -795,15 +795,31 @@ These were tracked as debt in earlier versions of this doc. Verified resolved by
 
 - `AppSection` — ruled lists won on three consecutive screens (exercise detail, settings, history); `SettingsSection` is already deleted (#191). When the derived screens stop consuming it, delete rather than restyle.
 
-## AppCoroutineScopeImpl's SupervisorJob is inert (measured, KMP Phase 5 discovery)
+## ✅ RESOLVED — AppCoroutineScopeImpl's SupervisorJob is inert (measured, KMP Phase 5 discovery; resolved 2026-08-23, KMP phase 5 R3)
 
-`core/core/src/commonMain/.../coroutine/scope/AppCoroutineScopeImpl.kt:29` assembles the Store
-scope as `SupervisorJob() + CoroutineName("FeatureScope") + lifecycleOwner.lifecycleScope
-.coroutineContext`. `CoroutineContext.plus` lets the right operand win per key, and
-`lifecycleScope.coroutineContext` carries its own `Job` and `Main.immediate` — so the written
-`SupervisorJob()` is silently discarded: the Store scope's Job IS the LifecycleOwner's
-`lifecycleScope` Job, and `BaseStore.dispose()`'s `scope.cancel()` cancels that composition
-LifecycleOwner's own `lifecycleScope`. Behavior has been like this throughout Nav3 operation and
-every suite is green against it, so Phase 5 deliberately did NOT change it (out of scope:
-unrelated product behavior). Recorded so the next Store-scope change starts from the measured
-fact, not the written intent.
+`AppCoroutineScopeImpl.kt:32-35` now assembles the scope as
+`lifecycleOwner.lifecycleScope.coroutineContext + CoroutineName("FeatureScope") +
+SupervisorJob(generationJob)`. The
+supervisor moved to the WINNING side of the `plus`, so a Store's Job is its own
+`SupervisorJob` parented to the runtime generation's lifetime, not the LifecycleOwner's
+`lifecycleScope` Job. `BaseStore.dispose()`'s `scope.cancel()` therefore ends that Store's own
+jobs and no longer cancels the composition LifecycleOwner's `lifecycleScope`, and
+`AppScopeLifetime.cancelAndJoin()` can await every Store `finally` — including one that
+touches the database — before a generation's database closes.
+
+Resolved as a REQUIREMENT of the generation lifetime rather than as the standalone bug fix
+this entry originally deferred: the join is what makes "no close under an unjoined DB-bound
+job" provable (spec §8.4). Pinned by `StoreGenerationJoinTest`; the plus-order reversal is a
+recorded red mutant (spec §22.3).
+
+Original entry follows, in the past tense it now belongs in.
+
+`AppCoroutineScopeImpl` assembled the Store scope as `SupervisorJob() +
+CoroutineName("FeatureScope") + lifecycleOwner.lifecycleScope.coroutineContext`.
+`CoroutineContext.plus` lets the right operand win per key, and `lifecycleScope.coroutineContext`
+carries its own `Job` and `Main.immediate` — so the written `SupervisorJob()` was silently
+discarded: the Store scope's Job WAS the LifecycleOwner's `lifecycleScope` Job, and
+`BaseStore.dispose()`'s `scope.cancel()` cancelled that composition LifecycleOwner's own
+`lifecycleScope`. Behavior had been like this throughout Nav3 operation with every suite green
+against it, and Phase 5 first scoped it out as an unrelated bug. Recorded so the next Store-scope
+change starts from the measured fact, not the written intent.

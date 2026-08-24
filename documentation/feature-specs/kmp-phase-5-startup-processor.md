@@ -57,8 +57,10 @@ Deliver an explicitly owned startup and runtime-generation lifecycle that:
 
 Non-goals: Phase 7 UI/CMP work, `iosApp`, KMP conversion of `app:common`, Room schema/dependency/
 toolchain changes, `File`→okio, Metro/Nav3/Room replacement, DAO/repository proxies or graph-wide
-swappable indirection, unrelated bug fixes (including the inert `SupervisorJob()` in
-`AppCoroutineScopeImpl.kt:29` — §15), golden re-recording, new suppressions/baselines.
+swappable indirection, unrelated bug fixes, golden re-recording, new suppressions/baselines.
+(The inert `SupervisorJob()` in `AppCoroutineScopeImpl` was scoped out here and then became
+in-scope at R3: the generation join requires the supervisor on the winning side of the `plus`
+— §8.4, §22.3.)
 
 ## 2. Measured startup-stage matrix
 
