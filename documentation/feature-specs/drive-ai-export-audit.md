@@ -30,13 +30,13 @@ There are **two** runtime paths that produce a backup, both ending in the identi
 
 | Path | Trigger | Executes | Citation |
 |---|---|---|---|
-| **Manual "Create backup"** (inline) | `Action.Backup.CreateBackup` button | Runs **inline** in the settings handler coroutine — NOT via WorkManager | `feature/settings/.../mvi/handler/BackupClickHandler.kt:274–300` → `feature/settings/.../domain/BackupInteractorImpl.kt:54–70` |
-| **Auto-backup** (periodic + bootstrap one-time) | First sign-in bootstrap and the periodic schedule | `BackupWorker` (`@HiltWorker CoroutineWorker`) | `core/data/backup/worker/.../BackupWorker.kt:44–87` |
+| **Manual "Create backup"** (inline) | `Action.Backup.CreateBackup` button | Runs **inline** in the settings handler coroutine — NOT via WorkManager | `feature/settings/.../mvi/handler/BackupClickHandler.kt:260–300` → `feature/settings/.../domain/BackupInteractorImpl.kt:54–70` |
+| **Auto-backup** (periodic + bootstrap one-time) | First sign-in bootstrap and the periodic schedule | `BackupWorker` (`@HiltWorker CoroutineWorker`) | `core/data/backup/worker/.../BackupWorker.kt:23–87` |
 
 - **Bootstrap.** On the first transition to authenticated, `bootstrapOrRehydrate()` sets the default
   schedule (Daily, Wi-Fi-only), calls `schedulePeriodic(DEFAULT)` and `enqueueOneTime()`, and shows a
   snackbar. Re-entry only re-arms the periodic schedule.
-  `feature/settings/.../mvi/handler/BackupClickHandler.kt:162–177`, `:123–145`.
+  `feature/settings/.../mvi/handler/BackupClickHandler.kt:150–177`, `:123–145`.
 - **Scheduling.** `BackupScheduler` (implements `AutoBackupController`) enqueues a
   `PeriodicWorkRequest<BackupWorker>` under unique name `"auto_backup"` (Daily = 1 day, Weekly = 7
   days; `ManualOnly` cancels it) with `ExistingPeriodicWorkPolicy.UPDATE`, and a
@@ -45,11 +45,11 @@ There are **two** runtime paths that produce a backup, both ending in the identi
   `allowOnMobileData`) and `setRequiresBatteryNotLow(true)` for the periodic one.
   `core/data/backup/worker/.../scheduler/BackupScheduler.kt:36–101`.
 - **Worker is the single executor** for both periodic and one-time work; the two unique names route
-  to the same class. `core/data/backup/worker/.../BackupWorker.kt:24–28`.
+  to the same class. `core/data/backup/worker/.../BackupWorker.kt:21–28`.
 - Worker failure routing: `AuthRevoked` → cancel periodic + "auth paused" notification +
   `Result.failure()`; `NetworkUnavailable` → `Result.retry()`; `StorageQuotaExceeded` /
   `NotAuthenticated` → `Result.failure()`; everything else → `Result.retry()`.
-  `core/data/backup/worker/.../BackupWorker.kt:97–111`.
+  `core/data/backup/worker/.../BackupWorker.kt:72–111`.
 
 ### 1.2 Drive client library + how it's built — `CONFIRMED`
 
@@ -59,18 +59,18 @@ There are **two** runtime paths that produce a backup, both ending in the identi
 - `DriveApiImpl` uses a single shared `HttpClient(Android)`:
   - List/download/delete → `https://www.googleapis.com/drive/v3/files`
   - Upload → `https://www.googleapis.com/upload/drive/v3/files`
-  - `core/data/backup/google-drive/.../network/DriveApiImpl.kt:97–98`.
+  - `core/data/backup/google-drive/.../network/DriveApiImpl.kt:94–98`.
 - The client is built in `NetworkModule.provideHttpClient` with `ContentNegotiation` (kotlinx JSON,
   `ignoreUnknownKeys`/`encodeDefaults`), `Logging(LogLevel.ALL)`, the custom `DriveAuthPlugin`, and a
   `defaultRequest { url("https://www.googleapis.com/") }`. `expectSuccess = true`.
   `core/data/backup/google-drive/.../di/NetworkModule.kt:21–48`.
 - Authorization is attached per-request by `DriveAuthPlugin` (a Ktor `createClientPlugin`) as
   `Authorization: Bearer <token>`, and it converts a 401 response into a typed
-  `DriveException.AuthRevoked`. `core/data/backup/google-drive/.../network/DriveAuthPlugin.kt:17–35`.
+  `DriveException.AuthRevoked`. `core/data/backup/google-drive/.../network/DriveAuthPlugin.kt:13–35`.
 
 ### 1.3 OAuth scope(s) — `CONFIRMED` **[BLOCKER]**
 
-`core/data/backup/google-drive/.../auth/DriveAuthScopes.kt:17–41`:
+`core/data/backup/google-drive/.../auth/DriveAuthScopes.kt:10–41`:
 
 - **Requested on every `AuthorizationRequest` / `RevokeAccessRequest`:**
   - `https://www.googleapis.com/auth/drive.appdata`
@@ -86,11 +86,11 @@ Backups are written to the **hidden, app-private `appDataFolder`** — never to 
 Drive". Evidence:
 
 - Upload metadata sets `parents = listOf("appDataFolder")`.
-  `core/data/backup/google-drive/.../storage/DriveBackupStorage.kt:63`, const at `:151`.
+  `core/data/backup/google-drive/.../storage/DriveBackupStorage.kt:56`, const at `:151`.
 - List query uses `parameter("spaces", "appDataFolder")`.
-  `core/data/backup/google-drive/.../network/DriveApiImpl.kt:45`, const at `:99`.
+  `core/data/backup/google-drive/.../network/DriveApiImpl.kt:41`, const at `:99`.
 - DTO doc confirms: "`parents` for backup uploads is always `["appDataFolder"]`".
-  `core/data/backup/google-drive/.../network/DriveDtos.kt:27–31`.
+  `core/data/backup/google-drive/.../network/DriveDtos.kt:18–31`.
 
 The `appDataFolder` is only reachable by this app's own OAuth client under the `drive.appdata`
 scope; it does not appear in the user's Drive UI and cannot be shared.
@@ -101,25 +101,25 @@ The uploaded payload is a **binary, raw SQLite database file** (the whole Room D
 
 - The snapshot is produced by `DatabaseSnapshotProviderImpl.captureSnapshot`: it runs
   `PRAGMA wal_checkpoint(TRUNCATE)` on the live DB then `File.copyTo`s the on-disk `app.db`.
-  `core/data/database/.../snapshot/DatabaseSnapshotProviderImpl.kt:29–41`.
+  `core/data/database/.../snapshot/DatabaseSnapshotProviderImpl.kt:27–41`.
 - The upload sets `mimeType = "application/x-sqlite3"`.
-  `core/data/backup/google-drive/.../storage/DriveBackupStorage.kt:64`, const at `:152`.
+  `core/data/backup/google-drive/.../storage/DriveBackupStorage.kt:57`, const at `:152`.
 - `uploadMultipart` builds a `multipart/related` body = JSON metadata part **+** `content.readBytes()`
   (the raw DB bytes) **+** closing boundary; whole file buffered in memory.
-  `core/data/backup/google-drive/.../network/DriveApiImpl.kt:54–77`.
+  `core/data/backup/google-drive/.../network/DriveApiImpl.kt:50–77`.
 - The only JSON in the request is the Drive **file metadata** part (`name`, `parents`, `mimeType`,
-  `appProperties`) — it carries no workout data. `DriveApiImpl.kt:59–65`,
-  `DriveDtos.kt:32–38` (`DriveFileMetadataDto`).
+  `appProperties`) — it carries no workout data. `DriveApiImpl.kt:55–65`,
+  `DriveDtos.kt:23–38` (`DriveFileMetadataDto`).
 
 ### 1.6 File naming scheme — `CONFIRMED`
 
 - Filename: `app_<createdAtEpochMs>.db` — `"${FILE_PREFIX}${createdAtEpochMs}${DB_FILE_SUFFIX}"`.
-  `core/data/backup/google-drive/.../storage/DriveBackupStorage.kt:147–148`;
+  `core/data/backup/google-drive/.../storage/DriveBackupStorage.kt:130–148`;
   `FILE_PREFIX = "app_"`, `DB_FILE_SUFFIX = ".db"` at `core/data/backup/api/.../BackupConstants.kt:14,17`.
 - The manifest is **not** a sidecar file. It is stored as Drive **`appProperties`** (custom key/value
   pairs on the same file), split one entry per field to stay under Drive's 124-byte-per-pair limit:
   `app_version`, `db_schema_version`, `created_at_epoch_ms`, `db_file_size_bytes`, `device_model`
-  (truncated to 100 chars). `core/data/backup/google-drive/.../manifest/ManifestPropertiesMapper.kt:26–45`.
+  (truncated to 100 chars). `core/data/backup/google-drive/.../manifest/ManifestPropertiesMapper.kt:12–45`.
 - **Dead constant:** `BackupConstants.MANIFEST_FILE_SUFFIX = ".json"` exists with a comment about a
   "sidecar manifest uploaded alongside the db file", but a tree-wide search shows it is **defined and
   never referenced** — no separate `.json` file is uploaded today.
@@ -129,27 +129,27 @@ The uploaded payload is a **binary, raw SQLite database file** (the whole Room D
 
 - **Mechanism:** GMS Identity `AuthorizationClient` (`Identity.getAuthorizationClient(context)`).
   No `CredentialManager`, no legacy `GoogleSignIn` client, no Drive-Java `GoogleAccountCredential`.
-  `core/data/backup/google-drive/.../auth/DriveBackupAuth.kt:54–55`;
+  `core/data/backup/google-drive/.../auth/DriveBackupAuth.kt:43–55`;
   provider at `core/data/backup/google-drive/.../di/AuthProvidersModule.kt:18–22`.
 - **Sign-in:** `signIn()` builds `AuthorizationRequest.setRequestedScopes(ALL)` and calls
   `authorize()`. If `hasResolution()` it returns `SignInResult.NeedsResolution(intentSender)` for the
   UI to launch; otherwise it checks for missing required scopes, captures the access token, fetches
-  userinfo, and stores the account. `DriveBackupAuth.kt:74–88, 157–177`.
+  userinfo, and stores the account. `DriveBackupAuth.kt:57–88, 157–177`.
 - **Completion:** `completeSignIn(intent)` → `getAuthorizationResultFromIntent`, partial-grant guard
-  (`MissingRequiredScope`), token capture, userinfo, persist. `DriveBackupAuth.kt:90–121`.
+  (`MissingRequiredScope`), token capture, userinfo, persist. `DriveBackupAuth.kt:73–121`.
 - **Sign-out:** `RevokeAccessRequest` via `revokeAccess` (chosen over the OAuth2 revoke endpoint
-  because it also clears the GMS-local token cache), then local clear. `DriveBackupAuth.kt:130–142`.
+  because it also clears the GMS-local token cache), then local clear. `DriveBackupAuth.kt:108–142`.
 - **Token storage:** access token + expiry persisted in a **Preferences DataStore** named
   `"backup_account_prefs"`, keys `access_token` / `access_token_expires_at` (alongside `email` /
-  `display_name`). `core/data/backup/google-drive/.../auth/AccountDataStoreImpl.kt:49–61, 75–81`.
+  `display_name`). `core/data/backup/google-drive/.../auth/AccountDataStoreImpl.kt:40–61, 75–81`.
 - **Token TTL:** `TOKEN_TTL_MS = 50L * 60 * 1000` (50 min), defined in
   `core/data/backup/google-drive/.../auth/TokenSnapshot.kt`.
 - **Token serving:** `DriveAuthTokenProvider.currentToken()` returns `null` if no account; else
   prefers the cached token while unexpired; else does a silent `authorize()` refresh and re-caches.
-  `core/data/backup/google-drive/.../auth/DriveAuthTokenProvider.kt:35–67`.
+  `core/data/backup/google-drive/.../auth/DriveAuthTokenProvider.kt:28–67`.
 - **Identity:** email + display name come from a follow-up call to
   `https://www.googleapis.com/oauth2/v3/userinfo` via `UserInfoFetcher` (best-effort; falls back to a
-  `drive_account` placeholder). `DriveBackupAuth.kt:48–51, 152–155, 195–201`;
+  `drive_account` placeholder). `DriveBackupAuth.kt:43–51, 152–155, 195–201`;
   `core/data/backup/google-drive/.../auth/UserInfoFetcherImpl.kt`.
 
 ### 1.8 Existing retention / rotation — `CONFIRMED` (rotation exists)
@@ -157,7 +157,7 @@ The uploaded payload is a **binary, raw SQLite database file** (the whole Room D
 - `MAX_BACKUPS = 3` per account. `core/data/backup/api/.../BackupConstants.kt:10–11`.
 - After each successful upload, `DriveBackupStorage.rotate()` re-lists and deletes the oldest entries
   beyond the cap; rotation is **best-effort** and never fails the upload.
-  `core/data/backup/google-drive/.../storage/DriveBackupStorage.kt:56–75, 99–115`.
+  `core/data/backup/google-drive/.../storage/DriveBackupStorage.kt:49–75, 99–115`.
 - Pure selection logic: `RotationPolicy.refsToDelete` sorts by `manifest.createdAtEpochMs` ascending
   and drops `size - max`. `core/data/backup/google-drive/.../storage/RotationPolicy.kt:11–19`.
 
@@ -169,14 +169,14 @@ The uploaded payload is a **binary, raw SQLite database file** (the whole Room D
   single-digit-MB DBs). `core/data/backup/google-drive/.../network/DriveApiImpl.kt:22–30, 54–77`.
 - **Download** also buffers fully via `bodyAsBytes()` then `writeBytes`; the caller verifies size
   against `manifest.dbFileSizeBytes` with a 16-byte tolerance, else `CorruptedBackup`.
-  `DriveApiImpl.kt:79–88`; `DriveBackupStorage.kt:77–87, 131–145`.
+  `DriveApiImpl.kt:76–88`; `DriveBackupStorage.kt:70–87, 131–145`.
 - **No temp-name-then-rename on the Drive side** — upload is a direct `files.create`. The 401 path
   invalidates the token and retries the call exactly once (`withTokenRefreshOn401`).
-  `DriveBackupStorage.kt:117–129`.
+  `DriveBackupStorage.kt:105–129`.
 - **Partial-write protection on the local DB side** (restore, not upload): `captureSnapshot` does NOT
   delete the target on failure (caller owns cleanup), but `restoreFromSnapshot` /
   `rollbackToPreRestoreBackup` write to a same-directory `.tmp` and atomically `renameTo` the live
-  slot. `core/data/database/.../snapshot/DatabaseSnapshotProviderImpl.kt:164–200, 83–109`.
+  slot. `core/data/database/.../snapshot/DatabaseSnapshotProviderImpl.kt:138–200, 83–109`.
 
 ---
 
@@ -192,13 +192,13 @@ deserialization and no text/JSON read path anywhere.
 2. Schema gate: if `backupSchemaVersion > current` → `BackupTooNew`; if `backupSchemaVersion <
    current` and `!hasMigrationPath(...)` → `MissingMigrationPath`.
 3. `preserveCurrentDb()` → copies live DB to `cache/pre_restore_backup.db` (WAL-checkpointed) so undo
-   / rollback has a source. `DatabaseSnapshotProviderImpl.kt:67–81`.
+   / rollback has a source. `DatabaseSnapshotProviderImpl.kt:60–81`.
 4. `markRestoreInProgress(RestoreInProgressContext(...))` (DataStore flag + payload).
 5. `downloadBackup(ref, tempFile)` → binary DB to a cache temp file.
 6. `restoreFromSnapshot(tempFile)`: validate the 16-byte `"SQLite format 3\0"` magic header, peek
    `PRAGMA user_version`, reject if newer than running schema, `appDatabase.close()`, delete
    `-wal`/`-shm`, copy to `.tmp`, atomic `renameTo` the live `app.db`.
-   `DatabaseSnapshotProviderImpl.kt:164–214`.
+   `DatabaseSnapshotProviderImpl.kt:138–214`.
 7. On any pre-swap failure → `rollbackPreSwapFailure()` deletes the preserved file + clears the flag.
 
 **Post-restart recovery (`feature/recovery/.../domain/RestoreRecoveryCoordinator.kt`):**
@@ -211,14 +211,14 @@ deserialization and no text/JSON read path anywhere.
 - **Scenario 3 undo (`performUndoRestore`, :104–121).** `rollbackToPreRestoreBackup()` →
   `AppDialog.UndoRestoreSuccess` → restart.
 - UI side: `BackupClickHandler.confirmRestore()` drives the restore then `scheduleAppRestart()` after a
-  2 s delay. `feature/settings/.../mvi/handler/BackupClickHandler.kt:344–401`.
+  2 s delay. `feature/settings/.../mvi/handler/BackupClickHandler.kt:322–401`.
 - `restartApp()` relaunches the package with `NEW_TASK|CLEAR_TASK` and `Runtime.exit(0)`.
-  `RestoreRecoveryCoordinator.kt:179–186`.
+  `RestoreRecoveryCoordinator.kt:122–186`.
 
 **Error taxonomy** (the typed contract both backup and restore speak):
 `NotAuthenticated`, `NetworkUnavailable`, `AuthRevoked`, `MissingRequiredScope`,
 `StorageQuotaExceeded`, `CorruptedBackup(reason)`, `BackupTooNew(…)`, `MissingMigrationPath(…)`,
-`Io(cause)`, `Unknown(cause)`. `core/data/backup/api/.../error/BackupError.kt:10–71`.
+`Io(cause)`, `Unknown(cause)`. `core/data/backup/api/.../error/BackupError.kt:5–71`.
 
 ---
 
@@ -226,7 +226,7 @@ deserialization and no text/JSON read path anywhere.
 
 ### 3.1 Training-related entities (fields/relations) — `CONFIRMED`
 
-Schema version **6** (`core/data/database/.../migration/MigrationsRegistry.kt:15`,
+Schema version **6** (`core/data/database/.../migration/MigrationsRegistry.kt:10`,
 `APP_DATABASE_VERSION = 6`). DB file name `app.db`
 (`core/data/database/.../AppDatabase.kt:58`). `exportSchema = true`. Type converters:
 `UuidConverter`, `PlanSetsConverter`. The `@Database` entity list (read directly,
@@ -280,9 +280,9 @@ the navigation/plan-editor UI modules — but only for Room column JSON, Drive w
 
 ### 3.4 schemaVersion, minSdk — `CONFIRMED`
 
-- Room `schemaVersion` = **6** (`MigrationsRegistry.kt:15`). Registered migrations: `MIGRATIONS =
+- Room `schemaVersion` = **6** (`MigrationsRegistry.kt:10`). Registered migrations: `MIGRATIONS =
   arrayOf(Migration6)`; `MIN_SUPPORTED_SCHEMA_VERSION` derived from it (versions 1–4 are
-  non-migratable pre-Play-Store history). `MigrationsRegistry.kt:29–44`.
+  non-migratable pre-Play-Store history). `MigrationsRegistry.kt:16–44`.
 - `minSdk = 28`, `targetSdk = 37`, `compileSdk = 36` (`gradle/libs.versions.toml:8–10`).
 
 ---
@@ -394,7 +394,7 @@ that consumes the backup API).
   `Event.AuthResolutionRequested(intentSender)` → `SettingsGraph` launches it via
   `rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult())`, and feeds
   the result back as `Action.Backup.HandleAuthResult`. `feature/settings/.../ui/SettingsGraph.kt:36–57`;
-  `feature/settings/.../mvi/handler/BackupClickHandler.kt:179–242`.
+  `feature/settings/.../mvi/handler/BackupClickHandler.kt:167–242`.
 - **Manifest notes:** `RecoveryActivity` is `exported=false` with no launcher intent-filter (only
   reached programmatically). The default `androidx.work.WorkManagerInitializer` is removed via
   `tools:node="remove"` — WorkManager is initialized on-demand through `BaseApplication`'s
@@ -413,10 +413,10 @@ Two independent disqualifiers:
 1. **Location.** Backups live in the hidden `appDataFolder` (`spaces=appDataFolder`,
    `parents=["appDataFolder"]`). This space is private to this app's OAuth client under the
    `drive.appdata` scope — it is not visible in the user's Drive, not shareable, and not reachable by a
-   general Drive access token. `DriveApiImpl.kt:45`, `DriveBackupStorage.kt:63`.
+   general Drive access token. `DriveApiImpl.kt:41`, `DriveBackupStorage.kt:56`.
 2. **Format.** The payload is a **binary SQLite `.db`** (`mimeType application/x-sqlite3`), produced by
    a WAL-checkpoint + raw file copy — not text/JSON an LLM can parse.
-   `DriveBackupStorage.kt:64`, `DatabaseSnapshotProviderImpl.kt:29–41`.
+   `DriveBackupStorage.kt:57`, `DatabaseSnapshotProviderImpl.kt:27–41`.
 
 To make a backup AI-readable, **both** would have to change (a visible/text destination *and* a text
 serialization).
@@ -424,7 +424,7 @@ serialization).
 ### b. Current scope, and does a visible folder need a new scope? — **`drive.appdata`; yes, needs `drive.file`.**
 
 - Current: `drive.appdata` (hard-required) + `userinfo.email` + `userinfo.profile`.
-  `DriveAuthScopes.kt:19–40`.
+  `DriveAuthScopes.kt:10–40`.
 - `drive.appdata` grants access **only** to the hidden app-data folder; it cannot create or write
   files in user-visible "My Drive". Writing a visible (and shareable) file requires at minimum the
   **`drive.file`** scope (per-file access to files the app creates). The broad `drive` scope is not

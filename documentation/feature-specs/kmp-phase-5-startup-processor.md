@@ -66,44 +66,44 @@ in-scope at R3: the generation join requires the supervisor on the winning side 
 
 `BaseApplication` is abstract; manifest apps are `DevMobileApp`/`StoreMobileApp`. All stages run
 synchronously on the main thread unless noted. Graph construction happens inside stage 5a — the
-first `appGraph` read forces the `by lazy` build (`BaseApplication.kt:81-87`), which also forces
-the lazy cold `buildAppDatabase` (`:66`, opens no SQLite file — `AppDatabaseFactory.kt:30-34`).
+first `appGraph` read forces the `by lazy` build (`BaseApplication.kt:62-68`), which also forces
+the lazy cold `buildAppDatabase` (`:66`, opens no SQLite file — `AppDatabaseFactory.kt:15`).
 
 | # | Stage | Sync/async | Dispatcher | Graph | DB | Predecessor / deadline | Owner & cancellation | Failure policy | Test seam |
 |---|-------|-----------|-----------|-------|----|------------------------|----------------------|----------------|-----------|
-| 1 | `super.onCreate` + Crashlytics init + `Log.isLogging` + trace flag (`BaseApplication.kt:119-122`) | sync | main | no | no | first | n/a | crashlytics null-guarded | none needed |
-| 2 | `handleRecoveryPreflightChain()` (`:158-178`) — Scenario 1 then Scenario 2 | **sync, `runBlocking` ×2** (`:159,:173`) | main blocks; inner hops to IO (`DatabaseSnapshotProviderImpl.kt:40,57,65`) | **first graph read** | S1: one DataStore read; SQLite open only if `restore_in_progress`. S2: Room-free framework-SQLite peek | must complete before any Activity (async would flash MainActivity — KDoc `:155-157`) | `runBlocking` — uncancellable by design | S1 peek `runCatching`→rollback→`restartApp()` (process exit, `:162-165`); S2 failure → `RouteToRecovery` decision, not a crash | `TestApplication.onCreateGraphBootstrap` no-op (`harness/TestApplication.kt:32-34`) |
+| 1 | `super.onCreate` + Crashlytics init + `Log.isLogging` + trace flag (`BaseApplication.kt:93`) | sync | main | no | no | first | n/a | crashlytics null-guarded | none needed |
+| 2 | `handleRecoveryPreflightChain()` (`:158-178`) — Scenario 1 then Scenario 2 | **sync, `runBlocking` ×2** (`:159,:173`) | main blocks; inner hops to IO (`DatabaseSnapshotProviderImpl.kt:33,57,65`) | **first graph read** | S1: one DataStore read; SQLite open only if `restore_in_progress`. S2: Room-free framework-SQLite peek | must complete before any Activity (async would flash MainActivity — KDoc `:155-157`) | `runBlocking` — uncancellable by design | S1 peek `runCatching`→rollback→`restartApp()` (process exit, `:162-165`); S2 failure → `RouteToRecovery` decision, not a crash | `TestApplication.onCreateGraphBootstrap` no-op (`harness/TestApplication.kt:19-20`) |
 | 3 | `cleanupOrphanedImageTempFiles()` (`:180-187`) | fire-and-forget launch | **anonymous** `CoroutineScope(SupervisorJob()+Dispatchers.IO)` (`:184`) | reads `appGraph.imageStorage` | no | after preflight; no deadline | **UNOWNED — never cancelled** | none at launch site; body deletes `files/images/temp/*` (`ImageStorageImpl.kt:93-97`) | same no-op seam |
-| 4 | `warmQueryPlanner()` (`:222-229`) | 2 sync guards, then fire-and-forget | **anonymous** `CoroutineScope(SupervisorJob()+Dispatchers.IO)` (`:225`) | reads `lastDecision` | **yes — `ANALYZE` opens the DB** (`QueryPlannerStatistics.kt:37-41`) | strictly after preflight (decision cached); never on `RouteToRecovery` (`:223`); skipped on `isLowRamDevice` (`:224`); no reader waits on it | **UNOWNED — never cancelled** | `runCatching` + `Log.e` (`:226-227`) | same |
-| 5 | `bootstrapAppDialogObserver()` (`:237-239`) — eager `appGraph.recoveryBootstrap` read | sync construction; collector async | observer's own `CoroutineScope(SupervisorJob()+@DefaultDispatcher)` (`RestoreDialogChoiceObserver.kt:91`) | yes | no | **must subscribe before first `MainActivity.onCreate`** — choice bus is `MutableSharedFlow(replay=0)`, pre-subscription emits lost (`AppDialogObserverImpl.kt:60-64`) | scope owned by the `@SingleIn(AppScope)` singleton — **never cancelled** | per-choice `runCatching` (`:100-103`) | same |
+| 4 | `warmQueryPlanner()` (`:222-229`) | 2 sync guards, then fire-and-forget | **anonymous** `CoroutineScope(SupervisorJob()+Dispatchers.IO)` (`:225`) | reads `lastDecision` | **yes — `ANALYZE` opens the DB** (`QueryPlannerStatistics.kt:15-19`) | strictly after preflight (decision cached); never on `RouteToRecovery` (`:223`); skipped on `isLowRamDevice` (`:224`); no reader waits on it | **UNOWNED — never cancelled** | `runCatching` + `Log.e` (`:226-227`) | same |
+| 5 | `bootstrapAppDialogObserver()` (`:237-239`) — eager `appGraph.recoveryBootstrap` read | sync construction; collector async | observer's own `CoroutineScope(SupervisorJob()+@DefaultDispatcher)` (`RestoreDialogChoiceObserver.kt:51`) | yes | no | **must subscribe before first `MainActivity.onCreate`** — choice bus is `MutableSharedFlow(replay=0)`, pre-subscription emits lost (`AppDialogObserverImpl.kt:28-32`) | scope owned by the `@SingleIn(AppScope)` singleton — **never cancelled** | per-choice `runCatching` (`:100-103`) | same |
 | 6 | `PerformanceMetricsRecorder.process(AppCreated)` (`:124`) | sync | main | no | no | last in `onCreate` | n/a | — | none |
-| 7 | `MainActivity.onCreate`: S2 routing via cached `lastDecision` → direct `Intent(RecoveryActivity)`+`finish()` (`MainActivity.kt:50-57`); else metrics + `activityProducer.produce(this)` + `setContent { App() }` (`:59-64`) | sync | main | via `get()` accessors — **no capture** (`:23-25`) | no | after stage 2's cached decision | Activity | — | instrumented tests use the same activity |
+| 7 | `MainActivity.onCreate`: S2 routing via cached `lastDecision` → direct `Intent(RecoveryActivity)`+`finish()` (`MainActivity.kt:34-38`); else metrics + `activityProducer.produce(this)` + `setContent { App() }` (`:59-64`) | sync | main | via `get()` accessors — **no capture** (`:23-25`) | no | after stage 2's cached decision | Activity | — | instrumented tests use the same activity |
 
 Measured edge (recorded, behavior preserved): on the Scenario-1 `RestoreSucceeded` path Scenario 2
 never runs, so `lastDecision == null` and stage 4's guard passes — the `ANALYZE` is then the first
 open of the freshly-restored file, and any pending restore migration runs on that IO coroutine
-inside `runCatching` (`BaseApplication.kt:166-171` + `:223`).
+inside `runCatching` (`BaseApplication.kt:124-128` + `:223`).
 
 WorkManager: default initializer removed in manifest (`AndroidManifest.xml:72-81`); on-demand init
-via `Configuration.Provider` building `MetroWorkerFactory(this)` per read (`BaseApplication.kt:113-116`);
+via `Configuration.Provider` building `MetroWorkerFactory(this)` per read (`BaseApplication.kt:90`);
 the factory `by lazy`-captures `BackupWorkerDeps` (= the graph) for its own lifetime
-(`MetroWorkerFactory.kt:28-30`) — a production graph **capture** (§4).
+(`MetroWorkerFactory.kt:10-12`) — a production graph **capture** (§4).
 
 ## 3. Lifetime matrix
 
 | Object | Classification (R2) | Evidence / consequence |
 |---|---|---|
-| `AppDatabase` | **DB-generation** — same object across graph-only handovers; a NEW object after every file-swap replacement | the only `close()` sites are the restore/rollback swaps (`DatabaseSnapshotProviderImpl.kt:104,196`); §7.1 measured close() terminal. Under R2 the runtime owns close+swap and mints the next DB generation via the full production factory (`buildAppDatabase`). |
-| `ImageStorage` | **process** — preserve | stateless dir wrapper, `create()` root (`BaseApplication.kt:85`); reused across generations. |
-| DataStore instances (5 files: `common_prefs`, `backup_scheduling_prefs`, `restore_state_prefs`, `app_dialogs_prefs`, `backup_account_prefs`) | **process** — preserve | `DataStoreProvider`'s companion CAS memo is explicitly process-lifetime (`DataStoreProvider.kt:32-66`); pinned by `AppScopeDataStoreSingletonTest`. |
-| Dialog state (`pending_*` flags) | **process (persisted)** — preserve | `AppDialogRepository` derives state from DataStore on every read (`AppDialogRepository.kt:26-31,61-63`). Survives replacement; exactly-once consumption via dismiss-after acknowledge. |
+| `AppDatabase` | **DB-generation** — same object across graph-only handovers; a NEW object after every file-swap replacement | the only `close()` sites are the restore/rollback swaps (`DatabaseSnapshotProviderImpl.kt:95,196`); §7.1 measured close() terminal. Under R2 the runtime owns close+swap and mints the next DB generation via the full production factory (`buildAppDatabase`). |
+| `ImageStorage` | **process** — preserve | stateless dir wrapper, `create()` root (`BaseApplication.kt:66`); reused across generations. |
+| DataStore instances (5 files: `common_prefs`, `backup_scheduling_prefs`, `restore_state_prefs`, `app_dialogs_prefs`, `backup_account_prefs`) | **process** — preserve | `DataStoreProvider`'s companion CAS memo is explicitly process-lifetime (`DataStoreProvider.kt:26-43`); pinned by `AppScopeDataStoreSingletonTest`. |
+| Dialog state (`pending_*` flags) | **process (persisted)** — preserve | `AppDialogRepository` derives state from DataStore on every read (`AppDialogRepository.kt:25,61-63`). Survives replacement; exactly-once consumption via dismiss-after acknowledge. |
 | `AppReinitializer`, Firebase holders, `PerformanceMetricsRecorder` | **process** | stateless / static singletons. |
 | `AppGraph` + every `@SingleIn(AppScope)` binding (61 sites — scope-sweep) | **runtime-generation** — rebuild & dispose as one unit with the DB it binds | includes `NavigatorEventBus`, `AppDialogObserverImpl`, the 9 repositories, DAO providers (derive from the generation's DB root), gd auth chain, coordinators, `DatabaseSnapshotProviderImpl` (holds the generation's `AppDatabase`). |
-| `RestoreDialogChoiceObserver` (+ collector), `DriveBackupAuth.authScope` (+ collector), `SnapshotExportRunnerImpl.scope`, both startup chores | **runtime-generation, lifetime-owned** | today process-lifetime, never cancelled (`RestoreDialogChoiceObserver.kt:91-97`, `DriveBackupAuth.kt:70-80`, `SnapshotExportRunnerImpl.kt:59`, `BaseApplication.kt:184,225`); §8.2 makes them children of the generation's `AppScopeLifetime`, cancelled-and-joined during Quiescing. |
+| `RestoreDialogChoiceObserver` (+ collector), `DriveBackupAuth.authScope` (+ collector), `SnapshotExportRunnerImpl.scope`, both startup chores | **runtime-generation, lifetime-owned** | today process-lifetime, never cancelled (`RestoreDialogChoiceObserver.kt:51-53`, `DriveBackupAuth.kt:56-63`, `SnapshotExportRunnerImpl.kt:48`, `BaseApplication.kt:135,225`); §8.2 makes them children of the generation's `AppScopeLifetime`, cancelled-and-joined during Quiescing. |
 | `MetroWorkerFactory` captured deps | **RESOLVED — the factory captures nothing** | §8.6: construction is dependency-free; a run binds deps+lease atomically at `doWork`'s first operation. |
 | **In-flight `BackupWorker`** | **runtime-generation live capture** | a RUN (not a constructed worker) holds the six deps bound atomically into its admission lease at `doWork`'s first operation (§8.6); §8.4's Quiescing closes admission and awaits every outstanding lease before PONR. |
-| Nav3 back stack, `NavigatorHolder`, per-entry Stores, `AppRootViewModel`, `AppDialogStoreImpl`, `NavigationEventBusSetup` collector | **UI/navigation-generation** — recreate/reset with the runtime generation | back stack `rememberNavBackStack(screenSavedStateConfiguration, Home)` (`App.kt:79-83`); `AppRootViewModel` ctor-captures `commonDataStore`+`navigatorEventBus` (`App.kt:64-70`); `AppDialogStoreImpl` Activity-store-scoped today (`AppDialogFeature.kt:35-46`); command collection is composition-side (`NavigatorExt.kt:32-41`). |
-| `ActivityHolderImpl` content | **UI-generation adjacent** | re-registered only on Activity lifecycle events (`MainActivity.kt:60,69`); after a mid-Activity replacement the new generation's holder is empty until the next event — zero production readers today (measured); recorded property. |
+| Nav3 back stack, `NavigatorHolder`, per-entry Stores, `AppRootViewModel`, `AppDialogStoreImpl`, `NavigationEventBusSetup` collector | **UI/navigation-generation** — recreate/reset with the runtime generation | back stack `rememberNavBackStack(screenSavedStateConfiguration, Home)` (`App.kt:70`); `AppRootViewModel` ctor-captures `commonDataStore`+`navigatorEventBus` (`App.kt:64-70`); `AppDialogStoreImpl` Activity-store-scoped today (`AppDialogFeature.kt:23-34`); command collection is composition-side (`NavigatorExt.kt:32-41`). |
+| `ActivityHolderImpl` content | **UI-generation adjacent** | re-registered only on Activity lifecycle events (`MainActivity.kt:41,69`); after a mid-Activity replacement the new generation's holder is empty until the next event — zero production readers today (measured); recorded property. |
 | `iosApp` host, iOS DB factory, iOS composition root | **platform-host — Phase 7** | do not exist; nothing here may pretend they do. |
 
 ## 4. Graph-reader / capture inventory — including live captures
@@ -111,11 +111,11 @@ the factory `by lazy`-captures `BackupWorkerDeps` (= the graph) for its own life
 Five publication seams, all on `BaseApplication` (`:49-56`): `AppGraphOwner` (MainActivity `:23`,
 non-capturing `get()`), `AppDepsHolder.appDeps()` (13 feature readers — acquire-and-drop inside
 `rememberMetroStoreProcessor` factories), `RecoveryDepsHolder` (RecoveryActivity, activity-scoped),
-`BackupWorkerDepsHolder` (**captures** via `by lazy`, `MetroWorkerFactory.kt:28-30`),
+`BackupWorkerDepsHolder` (**captures** via `by lazy`, `MetroWorkerFactory.kt:10-12`),
 `AppRootDepsHolder` (**captures** into `AppRootViewModel`, `App.kt:64-70`).
 
 `App()` is the ONLY caller of `AppRootDepsHolder.appRootDeps()` in the app (measured; the single
-call site is `app/common/.../App.kt:180`), once per composed generation region. That is what makes
+call site is `app/common/.../App.kt:143`), once per composed generation region. That is what makes
 `MetroTestGraphHolder.appRootDepsResolutions == 0` a literal "this region reached the graph zero
 times" in `UiAdmissionRaceTest`.
 
@@ -125,26 +125,26 @@ graph-access-site analysis alone is insufficient):
 | Live capture | Held for | Quiesce treatment (§8.4) |
 |---|---|---|
 | `BackupWorker` in `doWork()` — six lease-bound deps incl. DB-bound provider | the admitted run (lease acquired at the first op, released in the finally) | close admission + await outstanding leases, bounded; timeout → abort pre-PONR |
-| `SnapshotExportRunnerImpl` in-flight `runExport()` (DB JSON export, `SnapshotExportRunnerImpl.kt:67-69`) | export duration | lifetime child → `cancelAndJoin` |
+| `SnapshotExportRunnerImpl` in-flight `runExport()` (DB JSON export, `SnapshotExportRunnerImpl.kt:52-54`) | export duration | lifetime child → `cancelAndJoin` |
 | `RestoreDialogChoiceObserver` collector; `DriveBackupAuth` collector | infinite | lifetime children → `cancelAndJoin` (last quiesce step, §8.4) |
 | Per-entry Stores / `AppRootViewModel` / `AppDialogStoreImpl` (repos, bus captured at ctor) | entry / generation-VM-store lifetime | UI region disposal + generation `ViewModelStore.clear()` |
 | Startup chores (cleanup, `ANALYZE`) | one-shot | lifetime children → `cancelAndJoin` |
 | `MetroWorkerFactory` lazy deps | ~~process (defect)~~ RESOLVED | §8.6: the factory captures NOTHING; admission moved to doWork's first operation |
 | **Snackbar deferred-commit path** — `AppSnackbarModel`'s `onDismissed` runs under `withContext(NonCancellable)`; the ED11 deferred permanent-delete commits DB work there via a closure capturing gen-N repositories; `SnackbarManager` is a process-level object with an unlimited queue whose requeue path can carry gen-N closures into the gen-N+1 collector (review v2 finding 1) | until the resolve completes / queue drained | Quiescing sub-step: await the in-flight resolve before PONR; queued models are generation-tagged at enqueue — discarded at delivery after a COMMITTED handover (epoch advance), preserved on abort (§8.4 step 3) |
-| JVM identity tests + androidTest singleton tests build graphs (`buildAppGraph` — 14 JVM files + `AccountDataStoreSingletonTest.kt:49,54`, `AppScopeDataStoreSingletonTest.kt:89,94`) | test | reach the 4th root via `buildAppGraph`'s defaulted parameter (the default = pre-Phase-5 anonymous-scope behavior) |
+| JVM identity tests + androidTest singleton tests build graphs (`buildAppGraph` — 14 JVM files + `AccountDataStoreSingletonTest.kt:34,54`, `AppScopeDataStoreSingletonTest.kt:71,94`) | test | reach the 4th root via `buildAppGraph`'s defaulted parameter (the default = pre-Phase-5 anonymous-scope behavior) |
 
 ## 5. Restore / rollback / undo call paths (measured, pre-R2)
 
 - **Restore** (Settings): `BackupInteractorImpl.restoreLatest` → version gates → `preserveCurrentDb()`
   → `markRestoreInProgress` → download → `restoreFromSnapshot(temp)` = magic check → source-version
   peek → **`appDatabase.close()`** → delete `-wal`/`-shm` → copy → `app.db.tmp` → `renameTo`
-  (`DatabaseSnapshotProviderImpl.kt:176-212`) → `NavigatorEventBus.restartApp()` → process exit.
-  Verification happens in the **new** process's Scenario 1 (`RestoreRecoveryCoordinator.kt:69-81`).
+  (`DatabaseSnapshotProviderImpl.kt:151-185`) → `NavigatorEventBus.restartApp()` → process exit.
+  Verification happens in the **new** process's Scenario 1 (`RestoreRecoveryCoordinator.kt:42-45`).
 - **Rollback** (Scenario-1 failure and undo): `rollbackToPreRestoreBackup()` — same swap core from
   `cache/pre_restore_backup.db` + `source.delete()` (`:95-121`). Restore has its own structurally
   identical copy of the swap core.
 - **Undo**: `performUndoRestore` three-way outcome, dismiss-after discipline, restart on `Succeeded`
-  (`RestoreDialogChoiceObserver.kt:152-175`).
+  (`RestoreDialogChoiceObserver.kt:108-125`).
 - Every replacement ends in process exit today; **no code path reuses a closed `AppDatabase`**.
 - **R2 changes the mechanics ownership (§8.5): the provider stops closing/swapping independently;
   callers route through the runtime-owned replacement transaction.** Android production keeps the
@@ -251,8 +251,8 @@ class AppScopeLifetime(parent: Job? = null) {
 4th `create()` bound-instance root (`AppGraph.Factory.create` gains `appScopeLifetime`; threaded
 through `buildAppGraph`; `MetroTestRule` passes a per-test lifetime cancelled in `after()`; the 14
 JVM identity tests + the two androidTest singleton tests pass one explicitly). Consumers replace
-their self-created scopes: `RestoreDialogChoiceObserver.kt:91` → `lifetime.childScope(default)`;
-`DriveBackupAuth.kt:70` and `SnapshotExportRunnerImpl.kt:59` → `lifetime.childScope(io)`; the two
+their self-created scopes: `RestoreDialogChoiceObserver.kt:51` → `lifetime.childScope(default)`;
+`DriveBackupAuth.kt:56` and `SnapshotExportRunnerImpl.kt:48` → `lifetime.childScope(io)`; the two
 `BaseApplication` chores run on the generation lifetime via the startup processor. Per-consumer
 `SupervisorJob(parent)` children preserve today's isolation exactly while making
 `cancelAndJoin()` deterministically END every generation-owned job and collector. No anonymous
@@ -897,21 +897,21 @@ persisted-format change, no golden change anywhere in the plan.
 3. Phase 4 spec startup inventory — dated supersession note (predates `warmQueryPlanner`).
 4. `app/app/src/main/AndroidManifest.xml:54-62` — Hilt/`HiltWorkerFactory`/`@AssistedInject`
    comment vs Metro reality.
-5. `DatabaseSnapshotProvider.kt:44-47` ("caller MUST tear down every consumer"), `:52-54` ("via
-   Room's open helper"), `:106-109` + `UndoRestoreOutcome.kt:20` ("atomic rename" — actually
+5. `DatabaseSnapshotProvider.kt:20` ("caller MUST tear down every consumer"), `:52-54` ("via
+   Room's open helper"), `:106-109` + `UndoRestoreOutcome.kt:11` ("atomic rename" — actually
    copy+rename+delete), `:150-151` (pre-migration WAL-checkpoint claim) — all superseded by the
    §8.5 split anyway.
 6. `documentation/ci-cd.md:342-345` + `lint-rules.md:724-731` — pre-commit hook described as
    disabled/copied; measured: `core.hooksPath`, detekt runs on staged `.kt`.
-7. Nav2-era wording: `AppFeature.kt:13,18-23`, `Feature.kt:20`, `FeatureAssisted.kt:21`,
-   `MetroStoreProcessor.kt:17`; `NavigatorEventBus.kt:29` ("injects"); `AppDialogHost.kt:28`
-   ("@Singleton"); coordinator/repository KDoc caller claims (`RestoreRecoveryCoordinator.kt:32-33`,
-   `AppDialogRepository.kt:72-74`); post-§8.7: `AppFeature.kt:16-19` + `AppDialogFeature.kt:23-25`
+7. Nav2-era wording: `AppFeature.kt:12,18-23`, `Feature.kt:13`, `FeatureAssisted.kt:13`,
+   `MetroStoreProcessor.kt:14`; `NavigatorEventBus.kt:30` ("injects"); `AppDialogHost.kt:14`
+   ("@Singleton"); coordinator/repository KDoc caller claims (`RestoreRecoveryCoordinator.kt:31`,
+   `AppDialogRepository.kt:48`); post-§8.7: `AppFeature.kt:12` + `AppDialogFeature.kt:23`
    ("LocalViewModelStoreOwner is the host ComponentActivity").
 8. `documentation/performance.md` `AppCreated` boundary — verify against §2 stage 6.
 9. `android_build_unified.yml:146` "13 golden-holding modules" — 14 apply Paparazzi (recorded, not
    edited — CI text change out of scope).
-9b. `MetroWorkerFactory.kt:19` KDoc cites work-runtime 2.10.0; the catalog ships 2.11.2.
+9b. `MetroWorkerFactory.kt:10` KDoc cites work-runtime 2.10.0; the catalog ships 2.11.2.
 10. Unverified-claims register at implementation end: iOS link/runtime behavior of the reworked
     iosMain actual (compile-verified only); `key()`/SaveableStateHolder interaction with
     saved-state beyond the tested API-34 emulator.
@@ -985,7 +985,7 @@ body), and the Transitioning interstitial uses a theme-independent background (t
 from that VM); §10's DataStore count corrected to 5 files; the identity tests reach the 4th root
 through `buildAppGraph`'s defaulted parameter (reconciled — the default IS the pre-Phase-5
 anonymous-scope behavior); `DatabaseReplacement` lives in `core:data:backup:api` **androidMain**
-(the module is KMP; `java.io.File` precedent: `BackupStorage`); `MetroWorkerFactory.kt:19`'s
+(the module is KMP; `java.io.File` precedent: `BackupStorage`); `MetroWorkerFactory.kt:10`'s
 work-runtime 2.10.0 KDoc cite is stale (catalog: 2.11.2) → §15; `LargeClass` (600) is the one
 detekt ceiling to watch for the state machine.
 

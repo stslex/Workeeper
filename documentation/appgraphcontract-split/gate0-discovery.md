@@ -21,7 +21,7 @@
 
 - **`core:ui:mvi` DOES depend on `core:ui:navigation`** — `core/ui/mvi/build.gradle.kts:25 implementation(project(":core:ui:navigation"))`. So `core:ui:mvi` can name all four spine types: `AnalyticsHolder`/`LoggerHolder`/`StoreDispatchers` (its own) + `Navigator` (from navigation). **[resolved]**
 - **All 13 features depend on `core:ui:mvi`** (verified each `feature/*/build.gradle.kts` → `project(":core:ui:mvi")` = 1). So a `StoreDeps` in `core:ui:mvi` is reachable by every feature with no new edge. **[resolved]**
-- Spine types are **public**: `AnalyticsHolder.kt:12 class AnalyticsHolder`, `LoggerHolder.kt:20 class LoggerHolder`, `StoreDispatchers.kt:23 data class StoreDispatchers`, `Navigator.kt:7 interface Navigator`. All nameable in a public interface. **[resolved]**
+- Spine types are **public**: `AnalyticsHolder.kt:12 class AnalyticsHolder`, `LoggerHolder.kt:13 class LoggerHolder`, `StoreDispatchers.kt:17 data class StoreDispatchers`, `Navigator.kt:7 interface Navigator`. All nameable in a public interface. **[resolved]**
 - **CAVEAT — `api`-promotion required.** `core:ui:mvi`'s dep on navigation is `implementation` (`:25`), so `Navigator` is NOT on `core:ui:mvi`'s ABI. A public `StoreDeps` exposing `val navigator: Navigator` requires promoting to **`api(project(":core:ui:navigation"))`** in `core:ui:mvi` — else feature consumers cannot resolve the `Navigator` return type. This is a real build-script change in C1. **[resolved]**
 - **`:app` can implement `StoreDeps`** — `app/app/build.gradle.kts:43 implementation(project(":core:ui:mvi"))`. **[resolved]**
 
@@ -49,7 +49,7 @@ The cluster types resolve (from `AppGraphContract.kt` imports — authoritative 
 
 ### Per-feature `XDeps` (domain tails) — HOME: each feature's own module ✓
 
-- **0 internal exercise repositories** (`git grep "internal interface \w+Repository"` in `core/data/exercise` = 0) — all 8 repos + `SessionConflictResolver` (`SessionConflictResolver.kt:27 class`) are public. Each feature already depends on `core:data:exercise` (its repos), so a feature-local `XDeps` naming its own repos + `@DefaultDispatcher`/`ResourceWrapper` has no cycle and no visibility block. **[resolved]**
+- **0 internal exercise repositories** (`git grep "internal interface \w+Repository"` in `core/data/exercise` = 0) — all 8 repos + `SessionConflictResolver` (`SessionConflictResolver.kt:15 class`) are public. Each feature already depends on `core:data:exercise` (its repos), so a feature-local `XDeps` naming its own repos + `@DefaultDispatcher`/`ResourceWrapper` has no cycle and no visibility block. **[resolved]**
 
 ---
 
@@ -58,10 +58,10 @@ The cluster types resolve (from `AppGraphContract.kt` imports — authoritative 
 Both accessors are read by **0/15 through the contract**, and their bindings survive via `@Inject`/`@ContributesBinding` (independent of the contract accessor):
 
 - **`appReinitializer` (contract `:75`)** — the `AppReinitializer` binding is consumed by **constructor injection**, not the contract:
-  - `app/app/.../navigation/NavigatorEventBus.kt:56 appReinitializer.reinitialize()` (ctor-injected into `NavigatorEventBus`)
-  - `feature/recovery/.../RestoreRecoveryCoordinator.kt:165 appReinitializer.reinitialize()` (ctor-injected)
-  - The only contract-surface refs are the accessor decl (`AppGraphContract.kt:75`) + its `AppGraph.kt:136` override. **Dropping the accessor is safe.** **[resolved]**
-- **`liveDatabaseLocator` (contract `:105`)** — bound via `@ContributesBinding(AppScope, binding=binding<LiveDatabaseLocator>())` (`DatabaseSnapshotProviderImpl.kt:36`) and consumed by **ctor `@Inject`**: `StartupMigrationCoordinator.kt:100 @Inject internal constructor(... :102 private val liveDatabaseLocator: LiveDatabaseLocator ...)` → `:125 liveDatabaseLocator.liveDatabaseFile()`. Contract-surface refs: accessor decl (`AppGraphContract.kt:105`) + `AppGraph.kt:256` override only. **Dropping the accessor is safe.** **[resolved]**
+  - `app/app/.../navigation/NavigatorEventBus.kt:48 appReinitializer.reinitialize()` (ctor-injected into `NavigatorEventBus`)
+  - `feature/recovery/.../RestoreRecoveryCoordinator.kt:118 appReinitializer.reinitialize()` (ctor-injected)
+  - The only contract-surface refs are the accessor decl (`AppGraphContract.kt:75`) + its `AppGraph.kt:83` override. **Dropping the accessor is safe.** **[resolved]**
+- **`liveDatabaseLocator` (contract `:105`)** — bound via `@ContributesBinding(AppScope, binding=binding<LiveDatabaseLocator>())` (`DatabaseSnapshotProviderImpl.kt:29`) and consumed by **ctor `@Inject`**: `StartupMigrationCoordinator.kt:43 @Inject internal constructor(... :102 private val liveDatabaseLocator: LiveDatabaseLocator ...)` → `:125 liveDatabaseLocator.liveDatabaseFile()`. Contract-surface refs: accessor decl (`AppGraphContract.kt:105`) + `AppGraph.kt:132` override only. **Dropping the accessor is safe.** **[resolved]**
 
 **Verdict:** both dead accessors are droppable in C(n+1); their `AppReinitializer`/`LiveDatabaseLocator` bindings are untouched.
 
@@ -113,7 +113,7 @@ Spine = `StoreDeps` {analyticsHolder, loggerHolder, storeDispatchers, navigator}
 
 ## Verification method for EXECUTION (unchanged from spec, confirmed applicable)
 - Per commit: `:app:dev:assembleDebug --rerun-tasks --no-build-cache` + `detekt --no-daemon --rerun-tasks --no-build-cache` (zero suppressions) + affected-module `testDebugUnitTest --rerun-tasks`.
-- Additive-first strangler: `AppGraph : AppGraphContract` (`AppGraph.kt:65`) stays until C(last); new interfaces added to its supertype list additively.
+- Additive-first strangler: `AppGraph : AppGraphContract` (`AppGraph.kt:50`) stays until C(last); new interfaces added to its supertype list additively.
 - Final gates: `git grep "appGraphContract("` and `"AppGraphContract"` in real source (excl worktrees/build/KDoc) = 0; new-interface accessor union == the 30; `:core:di` removed from `settings.gradle.kts` + every `implementation(project(":core:di"))`.
 - Working tree dirty → all verification against the ref, as here.
 

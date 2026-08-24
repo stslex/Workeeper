@@ -369,23 +369,23 @@ The repo has two custom Detekt rules policing `domain/` packages — `DomainLaye
 | `core/core` | `di/CoreModule.kt:43` | @Provides param |
 | `core/core` | `images/ImageStorageImpl.kt:30` | **Field**, @Singleton |
 | `core/core` | `resources/AndroidResourceWrapper.kt:12` | **Field**, @Singleton |
-| `core/data/dataStore` | `core/DataStoreProvider.kt:15` | param, not retained |
+| `core/data/dataStore` | `core/DataStoreProvider.kt:13` | param, not retained |
 | `core/data/database` | `di/CoreDatabaseModule.kt:36` | @Provides param |
 | `core/data/database` | `snapshot/DatabaseSnapshotProviderImpl.kt:25` | **Field**, @Singleton |
-| `core/data/database-test` | `di/TestDatabaseModule.kt:49`; `InMemoryDatabaseProvider.kt:19` | @Provides param / plain function param |
-| `core/data/backup/worker` | `BackupWorker.kt:47` | Expected — `@Assisted appContext: Context` on a CoroutineWorker, required by WorkManager API |
+| `core/data/database-test` | `di/TestDatabaseModule.kt:49`; `InMemoryDatabaseProvider.kt:13` | @Provides param / plain function param |
+| `core/data/backup/worker` | `BackupWorker.kt:26` | Expected — `@Assisted appContext: Context` on a CoroutineWorker, required by WorkManager API |
 | `core/data/backup/worker` | `notification/BackupNotificationHelper.kt:30` | **Field**, @Singleton |
 | `core/data/backup/worker` | `scheduler/BackupScheduler.kt:30` | param, not retained (used once for `WorkManager.getInstance`) |
 | `core/data/backup/google-drive` | `di/AuthProvidersModule.kt:21` | @Provides param |
-| `core/data/backup/google-drive` | `auth/AccountDataStoreImpl.kt:23` | **Field**, @Singleton |
-| `core/data/backup/google-drive` | `SnapshotExportRunnerImpl.kt:41` | **Field**, @Singleton |
-| `core/data/backup/scheduling` | `BackupPreferencesRepositoryImpl.kt:25`; `RestoreStateRepositoryImpl.kt:43` | **Field** ×2, @Singleton |
+| `core/data/backup/google-drive` | `auth/AccountDataStoreImpl.kt:24` | **Field**, @Singleton |
+| `core/data/backup/google-drive` | `SnapshotExportRunnerImpl.kt:33` | **Field**, @Singleton |
+| `core/data/backup/scheduling` | `BackupPreferencesRepositoryImpl.kt:26`; `RestoreStateRepositoryImpl.kt:29` | **Field** ×2, @Singleton |
 | `core/ui/kit` | `utils/resource/ResourceManagerImpl.kt:12` | **Field** (`fallbackContext`), @Singleton |
 | `core/ui/test-utils` | `runner/WorkeeperTestRunner.kt:24` | test, `newApplication()` override |
-| `feature/app-dialogs/impl` | `data/AppDialogRepository.kt:45` | secondary-ctor param, converted to a DataStore not retained itself; class is @Singleton |
+| `feature/app-dialogs/impl` | `data/AppDialogRepository.kt:25` | secondary-ctor param, converted to a DataStore not retained itself; class is @Singleton |
 | `feature/exercise` | `ui/mvi/handler/ClickHandler.kt:53-54` | **Field** (`@ApplicationContext`), @ViewModelScoped — "Handler" named literally in the stated no-Context convention |
-| `feature/recovery` | `RestoreDialogChoiceObserver.kt:76`; `diagnostics/RecoveryDiagnosticsExporter.kt:45`; `diagnostics/StartupMigrationReporter.kt:31` | **Field** ×3, all @Singleton |
-| `feature/recovery` (domain) | `domain/RestoreRecoveryCoordinator.kt:57`; `domain/StartupMigrationCoordinator.kt:102` | **Field + domain** — tabled above |
+| `feature/recovery` | `RestoreDialogChoiceObserver.kt:35`; `diagnostics/RecoveryDiagnosticsExporter.kt:45`; `diagnostics/StartupMigrationReporter.kt:20` | **Field** ×3, all @Singleton |
+| `feature/recovery` (domain) | `domain/RestoreRecoveryCoordinator.kt:31`; `domain/StartupMigrationCoordinator.kt:45` | **Field + domain** — tabled above |
 | `feature/settings` (domain) | `domain/BackupInteractorImpl.kt:42`; `domain/SettingsInteractorImpl.kt:21` | **Field + domain** — tabled above |
 | `feature/settings` | `mvi/handler/BackupClickHandler.kt:49` | **Field**, @ViewModelScoped — "Handler" named literally |
 | `feature/settings` | `mvi/mapper/BackupDateMapper.kt:14,23,40`; `BackupUiMapper.kt:25` | function params on `object` mappers — not stored, but Context-coupled API surface |
@@ -403,7 +403,7 @@ Plus ~15 test-only occurrences across the same modules (standard `Application`/`
 | `core/data/dataStore` | `core/DataStoreProvider.kt:3` | content.Context |
 | `core/data/database` | `snapshot/DatabaseSnapshotProviderImpl.kt:4-6`; `di/CoreDatabaseModule.kt:3` | content.Context, database.sqlite.SQLiteDatabase/SQLiteException |
 | `core/data/exercise` | `exercise/ExerciseRepositoryImpl.kt:3` | database.sqlite.SQLiteConstraintException |
-| `core/data/backup/worker` | `BackupWorker.kt:4-6`; `notification/BackupNotificationHelper.kt:4-8`; `scheduler/BackupScheduler.kt:4` | content.Context, content.pm.PackageManager, os.Build, app.NotificationChannel/Manager/PendingIntent, content.Intent |
+| `core/data/backup/worker` | `BackupWorker.kt:4-6`; `notification/BackupNotificationHelper.kt:8`; `scheduler/BackupScheduler.kt:4` | content.Context, content.pm.PackageManager, os.Build, app.NotificationChannel/Manager/PendingIntent, content.Intent |
 | `core/data/backup/google-drive` | `di/AuthProvidersModule.kt:4`; `SnapshotExportRunnerImpl.kt:4-6`; `auth/AccountDataStoreImpl.kt:4`; `auth/DriveBackupAuth.kt:4` | content.Context, content.pm.PackageManager, os.Build, content.Intent |
 | `core/data/backup/scheduling` | `BackupPreferencesRepositoryImpl.kt:4`; `RestoreStateRepositoryImpl.kt:4` | content.Context |
 | `core/data/backup/api` | `model/SignInResult.kt:4`; `BackupAuth.kt:4` | content.IntentSender, content.Intent |
@@ -420,17 +420,17 @@ Supplementary: 44 low-severity `@Preview(uiMode = android.content.res.Configurat
 
 | File:Line | Pattern | Assessment |
 |---|---|---|
-| `app/app/.../MainActivity.kt:22` | `class MainActivity : ComponentActivity()`, `@AndroidEntryPoint` | Expected — the app launcher Activity |
-| `feature/recovery/.../RecoveryActivity.kt:66` | `class RecoveryActivity : ComponentActivity()`, declared in app/app manifest:40 | A second, independent Activity living inside a feature module — no iOS Activity concept exists |
+| `app/app/.../MainActivity.kt:21` | `class MainActivity : ComponentActivity()`, `@AndroidEntryPoint` | Expected — the app launcher Activity |
+| `feature/recovery/.../RecoveryActivity.kt:45` | `class RecoveryActivity : ComponentActivity()`, declared in app/app manifest:40 | A second, independent Activity living inside a feature module — no iOS Activity concept exists |
 | `core/ui/test-utils/.../TestActivity.kt:16` | `class TestActivity : ComponentActivity()` | Test scaffolding |
 | `core/ui/kit/.../activityHolder/ActivityHolderImpl.kt:8,11,13,16-21` | @Singleton retains `WeakReference<Activity>` as a field, mutated from MainActivity.onCreate/onDestroy | Singleton storing Activity — the convention violation, softened only by WeakReference |
 | `core/ui/kit/.../utils/resource/ResourceManagerImpl.kt:13,17` | @Singleton resolves `activityHolder.activity ?: fallbackContext` | Singleton indirectly depending on live Activity |
 | `core/ui/mvi/.../performance/FirebaseScreenRenderRecorder.kt:11,18-30` | object takes `Activity?` param → `FrameMetricsRecorder(activity)` | Not retained beyond the call — perf/telemetry util |
-| `core/ui/mvi/.../processor/StoreProcessor.kt:87,98` | `LocalActivity.current` fed into screen-trace recording | Baked into the shared MVI plumbing used by every screen, though Compose-local not stored |
+| `core/ui/mvi/.../processor/StoreProcessor.kt:75,98` | `LocalActivity.current` fed into screen-trace recording | Baked into the shared MVI plumbing used by every screen, though Compose-local not stored |
 | `core/core/.../coroutine/scope/AppCoroutineScopeImpl.kt:3-4,24,29-31,92-98` | `private val lifecycleOwner: LifecycleOwner` stored as ctor field | Raw LifecycleOwner retained outside ordinary ViewModel usage |
 | `core/ui/mvi/.../BaseStore.kt:5-6,92-108,115` | Every Store extends this; manually threads a raw LifecycleOwner + registers a LifecycleEventObserver | Single highest-leverage Lifecycle-coupling point — base class of every Store in the app |
 | `core/ui/mvi/.../processor/EffectsProcessor.kt:6-8,18-20` | `repeatOnLifecycle(STARTED)` | Standard Compose lifecycle idiom, lower risk |
-| `feature/recovery/.../domain/RestoreRecoveryCoordinator.kt:183-184` | `if (context is Activity) context.finishAffinity()` | Domain-layer Activity coupling — duplicate of sanctioned restart logic |
+| `feature/recovery/.../domain/RestoreRecoveryCoordinator.kt:122` | `if (context is Activity) context.finishAffinity()` | Domain-layer Activity coupling — duplicate of sanctioned restart logic |
 
 No `androidx.appcompat.app.AppCompatActivity` usage found anywhere.
 
@@ -439,7 +439,7 @@ No `androidx.appcompat.app.AppCompatActivity` usage found anywhere.
 | File:Line | API |
 |---|---|
 | `feature/exercise/.../ui/mvi/handler/ClickHandler.kt:685-688` | `ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA)` |
-| `feature/exercise/.../ui/ExerciseGraph.kt:96-97, 107-108, 116-117, 155` | `rememberLauncherForActivityResult(TakePicture / PickVisualMedia / RequestPermission)` |
+| `feature/exercise/.../ui/ExerciseGraph.kt:87-88, 107-108, 116-117, 155` | `rememberLauncherForActivityResult(TakePicture / PickVisualMedia / RequestPermission)` |
 | `feature/settings/.../ui/SettingsGraph.kt:38-39` | `rememberLauncherForActivityResult(StartIntentSenderForResult)` — Drive consent resolution |
 
 `AndroidManifest.xml` permissions: `app/app/src/main/AndroidManifest.xml:5` → `CAMERA`; `core/data/backup/worker/src/main/AndroidManifest.xml:4` → `POST_NOTIFICATIONS`. Classic (non-Compose) `ActivityCompat.requestPermissions`/`registerForActivityResult` — not found anywhere; all permission plumbing goes through the modern Compose wrapper.
@@ -450,19 +450,19 @@ No `androidx.appcompat.app.AppCompatActivity` usage found anywhere.
 
 **Firebase** — Crashlytics + Analytics are wrapped in two `core/core` holders (`logger/FirebaseCrashlyticsHolder.kt`, `logger/FirebaseAnalyticsHolder.kt`), consumed app-wide only through those; no other module imports `com.google.firebase.*` directly. Both app variants (`app/dev`, `app/store`) share **one Firebase project** (`workeeper-fb593`) with per-applicationId client blocks inside the same `google-services.json` family — not two separate projects. CI re-provisions these files from base64 secrets before every build (multiple workflow files) — they're live, not placeholders.
 
-**TTID / frame-metrics instrumentation — confirmed precisely.** Matches `documentation/performance.md`: `core/ui/mvi/.../performance/{RecordAction,PerformanceRecorder,PerformanceMetricsRecorder,FirebaseScreenRenderRecorder}.kt` implement a custom TTID/AppCreate/ActivityCreate trace pipeline that calls **non-public** `com.google.firebase.perf.*` internals (`FrameMetricsRecorder`, `Constants`, `ScreenTraceUtil` — `FirebaseScreenRenderRecorder.kt:4-7,30,31,71`). Hooked from `app/app/BaseApplication.kt:45`, `MainActivity.kt:62,74`, `navigation/NavigatorExt.kt:66,105`, and a `Modifier.reportScreenPlace<S>()` applied across all 12 screen graphs in `host/AppNavigationHost.kt`.
+**TTID / frame-metrics instrumentation — confirmed precisely.** Matches `documentation/performance.md`: `core/ui/mvi/.../performance/{RecordAction,PerformanceRecorder,PerformanceMetricsRecorder,FirebaseScreenRenderRecorder}.kt` implement a custom TTID/AppCreate/ActivityCreate trace pipeline that calls **non-public** `com.google.firebase.perf.*` internals (`FrameMetricsRecorder`, `Constants`, `ScreenTraceUtil` — `FirebaseScreenRenderRecorder.kt:4-7,30,31,71`). Hooked from `app/app/BaseApplication.kt:40`, `MainActivity.kt:43,74`, `navigation/NavigatorExt.kt:66,105`, and a `Modifier.reportScreenPlace<S>()` applied across all 12 screen graphs in `host/AppNavigationHost.kt`.
 
 Explicitly verified absent (worth stating since the original brief hypothesized them): no `reportFullyDrawn` anywhere (this app's "TTID" is a custom Firebase Trace, not the platform API of the same name); no `Choreographer` usage; no reflection (`kotlin.reflect.KClass` is used only as a type token for trace naming, not runtime introspection). This has **no iOS equivalent** — flagged for the Phase 3 monitoring-parity gap.
 
 ### Drive auth flow — detailed notes
 
-Sign-in: `Identity.getAuthorizationClient(context)` (`di/AuthProvidersModule.kt:22`) → `DriveBackupAuth.signIn()` (L77) requests `DriveAuthScopes.ALL` = `drive.appdata` + `userinfo.email` + `userinfo.profile` (`DriveAuthScopes.kt:27,39-43`) via `AuthorizationRequest` + `authorizationClient.authorize(request).await()` (L89-94). A second additive scope set, `ALL_WITH_DRIVE_FILE` (L46), backs an incremental-grant flow for a separate "AI-readable Drive snapshot export" feature (`documentation/feature-specs/drive-ai-export.md` — not `backup.md`) sharing the same `DriveBackupAuth`/`AccountDataStore`.
+Sign-in: `Identity.getAuthorizationClient(context)` (`di/AuthProvidersModule.kt:22`) → `DriveBackupAuth.signIn()` (L77) requests `DriveAuthScopes.ALL` = `drive.appdata` + `userinfo.email` + `userinfo.profile` (`DriveAuthScopes.kt:12,39-43`) via `AuthorizationRequest` + `authorizationClient.authorize(request).await()` (L89-94). A second additive scope set, `ALL_WITH_DRIVE_FILE` (L46), backs an incremental-grant flow for a separate "AI-readable Drive snapshot export" feature (`documentation/feature-specs/drive-ai-export.md` — not `backup.md`) sharing the same `DriveBackupAuth`/`AccountDataStore`.
 
 Consent resolution: `SignInResult.NeedsResolution(pendingIntent.intentSender)` (L190-198) surfaces through `SettingsGraph.kt:39,57` (`StartIntentSenderForResult`) back to `completeSignIn` → `getAuthorizationResultFromIntent` (L113). Identity (email) resolved via userinfo endpoint, falling back to `toGoogleSignInAccount()`, then a placeholder.
 
 Token caching: `DriveAuthTokenProvider.currentToken()` (L37-46) — null if no account in `AccountDataStore`; else cached `TokenSnapshot` if `expiresAtEpochMs > now` (50-minute TTL, a 10-minute margin under Google's ~60-minute token life); else silent re-`authorize()`. No refresh tokens exist — every refresh is a fresh silent authorization call.
 
-Transport: REST via Ktor, `ktor-client-android` engine, base URL `googleapis.com`. `network/DriveAuthPlugin.kt:17-34` attaches Bearer auth per request, throws on HTTP 401; `DriveApiImpl` hand-builds `multipart/related` uploads against `/upload/drive/v3/files`; `DriveBackupStorage.withTokenRefreshOn401` invalidates caches and retries once.
+Transport: REST via Ktor, `ktor-client-android` engine, base URL `googleapis.com`. `network/DriveAuthPlugin.kt:13-30` attaches Bearer auth per request, throws on HTTP 401; `DriveApiImpl` hand-builds `multipart/related` uploads against `/upload/drive/v3/files`; `DriveBackupStorage.withTokenRefreshOn401` invalidates caches and retries once.
 
 Sign-out (`BackupClickHandler.confirmSignOut`, L340-363): cancels periodic work + deletes AI-export snapshots, then `DriveBackupAuth.signOut()` (L145-157) calls `revokeAccess()` then unconditionally clears local state (never the HTTP revoke endpoint).
 
@@ -476,10 +476,10 @@ WorkManager: `BackupScheduler` runs two independent unique work names — period
 
 Meanwhile **four separate production classes across three other modules** each independently hand-roll their own `PreferenceDataStoreFactory.create { context.preferencesDataStoreFile(name) }`:
 
-- `core/data/backup/google-drive/.../auth/AccountDataStoreImpl.kt:26-30` — `"backup_account_prefs"`, 6 keys (account/token/snapshotFolderId/driveFileGranted)
-- `core/data/backup/scheduling/.../BackupPreferencesRepositoryImpl.kt:28-32` — `"backup_scheduling_prefs"`, 7 keys
-- `core/data/backup/scheduling/.../RestoreStateRepositoryImpl.kt:46-50` — `"restore_state_prefs"`, 7 keys
-- `feature/app-dialogs/impl/.../data/AppDialogRepository.kt:40-49` — `"app_dialogs_prefs"`, 8 keys
+- `core/data/backup/google-drive/.../auth/AccountDataStoreImpl.kt:24` — `"backup_account_prefs"`, 6 keys (account/token/snapshotFolderId/driveFileGranted)
+- `core/data/backup/scheduling/.../BackupPreferencesRepositoryImpl.kt:26` — `"backup_scheduling_prefs"`, 7 keys
+- `core/data/backup/scheduling/.../RestoreStateRepositoryImpl.kt:29-30` — `"restore_state_prefs"`, 7 keys
+- `feature/app-dialogs/impl/.../data/AppDialogRepository.kt:25-28` — `"app_dialogs_prefs"`, 8 keys
 
 ⚠ Surprise: `core/data/backup/google-drive/build.gradle.kts` declares a project dependency on `:core:data:dataStore` that is **never actually imported** — a dead Gradle edge; the module separately pulls raw `androidx.datastore` libraries instead. Net effect for KMP: DataStore-Preferences 1.2.0 is itself already multiplatform-capable, but the migration touches **four independent construction sites**, not one.
 
@@ -529,9 +529,9 @@ Classifying each layer as **COMMON-READY** / **COMMON-WITH-CHANGES** / **EXPECT-
 
 None of these are large individually, but they're qualitatively different from "domain is already pure Kotlin" — item 3 is an open architecture question and item 5 is a contract redesign touching 3 layers.
 
-**1. AppVersionProvider extraction.** `SettingsInteractorImpl.kt:26-36`, `BackupInteractorImpl.kt:176-187`, and `RestoreRecoveryCoordinator.kt:160-171` each independently read `context.packageManager.getPackageInfo(...)` for `versionName`/`versionCode` — **identical code duplicated 3×**. Fix: an `expect`/`actual` `AppVersionProvider` (Android: `PackageManager`; iOS: `Bundle.main.infoDictionary`). A single fix collapses all 3 leaks at once. Effort: **trivial**.
+**1. AppVersionProvider extraction.** `SettingsInteractorImpl.kt:26-36`, `BackupInteractorImpl.kt:176-187`, and `RestoreRecoveryCoordinator.kt:118-122` each independently read `context.packageManager.getPackageInfo(...)` for `versionName`/`versionCode` — **identical code duplicated 3×**. Fix: an `expect`/`actual` `AppVersionProvider` (Android: `PackageManager`; iOS: `Bundle.main.infoDictionary`). A single fix collapses all 3 leaks at once. Effort: **trivial**.
 
-**2. Platform path resolution.** `BackupInteractorImpl.kt:76,148` uses `context.cacheDir` for temp backup/restore files; `StartupMigrationCoordinator.kt:126` uses `context.getDatabasePath(name)` to peek the live DB's `PRAGMA user_version` without opening Room. Fix: `expect`/`actual` path resolution — the same pattern already required for DataStore's `producePath` (see Data layer) and Room-KMP's driver setup. Not new scope; do it once, reuse everywhere. Effort: **small** (rides along with the data-layer work).
+**2. Platform path resolution.** `BackupInteractorImpl.kt:76,148` uses `context.cacheDir` for temp backup/restore files; `StartupMigrationCoordinator.kt:64` uses `context.getDatabasePath(name)` to peek the live DB's `PRAGMA user_version` without opening Room. Fix: `expect`/`actual` path resolution — the same pattern already required for DataStore's `producePath` (see Data layer) and Room-KMP's driver setup. Not new scope; do it once, reuse everywhere. Effort: **small** (rides along with the data-layer work).
 
 **3. AppRestarter redesign.** `RestoreRecoveryCoordinator.restartApp():179-186` — `getLaunchIntentForPackage` + `startActivity` + `context is Activity` + `Runtime.exit(0)`. This is a **process-kill-and-relaunch primitive with no iOS equivalent** — iOS apps cannot programmatically relaunch themselves. It's also a near-duplicate of the sanctioned restart logic in `app/app/.../NavigatorExt.kt`. This is a real design question, not a port: does iOS even need "restart"? The reason for restart today is a stale in-process Room/DAO singleton graph after a live DB-file swap — a DI container that can be torn down and rebuilt *in place* (Metro/Koin both support this) might sidestep the need entirely. Consolidate the duplicate logic into one `Navigator.restartApp()` call while at it (free cleanup). Effort: **medium** — flagged as a Phase 5 design decision, not just an estimate line.
 
@@ -610,7 +610,7 @@ See [Phase 0 → Headline finding](#headline-finding--the-domain-layer-is-not-ac
 | Surface | Verified status | Classification |
 |---|---|---|
 | **Resources** | **541** `R.string`/`drawable`/`array`/`font` references, **74** `stringResource(` call sites, **19** per-module `strings.xml` files (1,538 lines total across EN+RU). Only **3** files reference `painterResource`/`ImageVector` — a small drawable surface. CMP's resource system (`org.jetbrains.compose.resources`) is the de-facto-stable standard path; migration is manual but ~80% scriptable (move `strings.xml` verbatim into `commonMain/composeResources/`, regenerate, rename `R.string.x`→`Res.string.x` at each of the 74 call sites). No conversion tooling exists — plurals and any locale-qualified resources need manual attention. | COMMON-WITH-CHANGES (mechanical, ~80% scriptable) |
-| **Google Fonts downloadable provider** | `core/ui/kit`'s `AppTypography.kt:34-35` uses the GMS downloadable-font provider — confirmed **Android-only, no iOS equivalent**, and CMP's own feature request for it is still open/unimplemented. Standard substitute: bundle the actual static font files under `composeResources/font`. | ANDROID-ONLY → small asset-prep fix |
+| **Google Fonts downloadable provider** | `core/ui/kit`'s `AppTypography.kt:31-37` uses the GMS downloadable-font provider — confirmed **Android-only, no iOS equivalent**, and CMP's own feature request for it is still open/unimplemented. Standard substitute: bundle the actual static font files under `composeResources/font`. | ANDROID-ONLY → small asset-prep fix |
 | **AndroidX Lifecycle / ViewModel** | Core APIs KMP-compatible since 2.8.0; **full Compose-integration parity on iOS landed in 2.11.0 (June 2026) — weeks old as of this report**, not battle-tested. Since Hilt has no KMP story, `hiltViewModel()` must be replaced by whatever the new DI framework's ViewModel-scoping helper is (`koinViewModel()`, etc.) — **and** Google's own KMP guide requires *hand-writing* an iOS-side `ObservableObject`-backed `ViewModelStoreOwner` wrapper, since Compose's automatic Activity/NavBackStackEntry-tied wiring is Android-specific. This is real glue code per app, not a drop-in swap. | EXPECT-ACTUAL NEEDED (freshly-stable, real glue) |
 | **Navigation** | See callout below — a compound decision (library choice + a real historical data point) worth its own treatment. | COMMON-WITH-CHANGES |
 | **Window insets / haptics** | Both framework-handled in CMP (insets mirror Jetpack's API; `LocalHapticFeedback` bridged to `UIFeedbackGenerator` since CMP 1.6.10). Low expected cost; full `HapticFeedbackType` parity unverified but low-risk. | COMMON-READY |
@@ -841,7 +841,7 @@ These are large numbers. They are the single most important input to the go/no-g
 Nothing in `feature/recovery` gets a new, additional line item beyond workstream #4's small residual. Precisely:
 
 - `RestoreRecoveryCoordinator`'s `readVersionName()` Context usage = **workstream #1** (AppVersionProvider), already counted.
-- `RestoreRecoveryCoordinator.restartApp()`'s Context usage = **workstream #3** (reinit redesign) — and direct grep confirms this is one of exactly **3 call sites** for "restart" logic in the whole repo (`BaseApplication.kt:81`, `RestoreDialogChoiceObserver.kt:163`, `SettingsNavigationHandler.kt:20`→`NavigatorEventBus`→`NavigatorExt.kt:118`), backed by exactly **2 duplicate Context-based implementations** (`NavigatorExt.kt:118` and `RestoreRecoveryCoordinator.kt:179`) that workstream #3 collapses into one. Already counted there, not added again here.
+- `RestoreRecoveryCoordinator.restartApp()`'s Context usage = **workstream #3** (reinit redesign) — and direct grep confirms this is one of exactly **3 call sites** for "restart" logic in the whole repo (`BaseApplication.kt:62`, `RestoreDialogChoiceObserver.kt:119`, `SettingsNavigationHandler.kt:20`→`NavigatorEventBus`→`NavigatorExt.kt:106`), backed by exactly **2 duplicate Context-based implementations** (`NavigatorExt.kt:106` and `RestoreRecoveryCoordinator.kt:122`) that workstream #3 collapses into one. Already counted there, not added again here.
 - `StartupMigrationCoordinator`'s `context.getDatabasePath(...)` usage = the same platform-path-resolution pattern already required by **workstream #6** (Room-KMP driver setup) — one more application of a fix already budgeted, not a new one.
 - The one genuinely new item: `StartupMigrationCoordinator`'s Room-free `PRAGMA user_version` peek uses Android's raw `SQLiteDatabase.openDatabase` — the iOS equivalent reimplements this via Room-KMP's own `BundledSQLiteDriver` rather than an expect/actual copy-paste. Small, real, ~1 day — this is the residual in workstream #4.
 - `RecoveryActivity` itself (Scenario 2's UI): deferred, Android-only, $0 in the base estimate. See Phase 3 for the reasoning.
@@ -937,6 +937,6 @@ Extract `feature/exercise-chart`'s `domain/` + data path into a KMP module targe
 
 ## Methodology note
 
-Phase 0 was gathered via 5 parallel code-search agents (module graph classification ×2, Android-touchpoint sweeps ×3) plus direct shell verification (LOC counts, dependency-catalog cross-checks). Phases 1-3 added: an independent exhaustive re-scan of every `domain/` directory in the repo (26 directories, not a sample); direct reads of all 8 leaking domain files, the 3 neutral-seam contract files (`AutoBackupController.kt`, `BackupAuth.kt`, `SignInResult.kt`), `RecoveryActivity.kt` and the full `backup-recovery.md` spec, and all 8 `java.time`-using files in `feature/exercise-chart`; a precise repo-wide Hilt-annotation count; and 6 independent live web-research passes (navigation, Room/DataStore/Ktor, Compose resources/Lifecycle, DI alternatives, Firebase/Google-Sign-In-iOS, testing strategy) each cross-checking claims against primary sources with dates. Phase 4-5 added a precise `restartApp()` call-site/implementation count via direct grep (which surfaced a discrepancy between the `backup-recovery.md` spec's prose description and the actual call path in `BaseApplication.kt:81`, noted rather than silently reconciled) and a custom-`@Qualifier` count, then rolled every workstream into T1/T2 ranges with an explicitly-stated part-time calendar assumption.
+Phase 0 was gathered via 5 parallel code-search agents (module graph classification ×2, Android-touchpoint sweeps ×3) plus direct shell verification (LOC counts, dependency-catalog cross-checks). Phases 1-3 added: an independent exhaustive re-scan of every `domain/` directory in the repo (26 directories, not a sample); direct reads of all 8 leaking domain files, the 3 neutral-seam contract files (`AutoBackupController.kt`, `BackupAuth.kt`, `SignInResult.kt`), `RecoveryActivity.kt` and the full `backup-recovery.md` spec, and all 8 `java.time`-using files in `feature/exercise-chart`; a precise repo-wide Hilt-annotation count; and 6 independent live web-research passes (navigation, Room/DataStore/Ktor, Compose resources/Lifecycle, DI alternatives, Firebase/Google-Sign-In-iOS, testing strategy) each cross-checking claims against primary sources with dates. Phase 4-5 added a precise `restartApp()` call-site/implementation count via direct grep (which surfaced a discrepancy between the `backup-recovery.md` spec's prose description and the actual call path in `BaseApplication.kt:62`, noted rather than silently reconciled) and a custom-`@Qualifier` count, then rolled every workstream into T1/T2 ranges with an explicitly-stated part-time calendar assumption.
 
 Every current-status claim is cited; anything that could not be verified live is marked **UNVERIFIED** rather than asserted from memory — including two failed live-fetch attempts on GitHub's Actions billing page during this assessment, flagged rather than papered over.

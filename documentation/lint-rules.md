@@ -212,7 +212,7 @@ name contains `Handler`:
 - They must declare a primary constructor.
 - The primary constructor must carry `@Inject`. The rule's source has a literal-name
   exemption for `NavigationHandler`
-  (`lint-rules/.../MviHandlerConstructorRule.kt:74`) for historical reasons. The
+  (`lint-rules/.../MviHandlerConstructorRule.kt:64`) for historical reasons. The
   current architecture uses normal Metro constructor injection on every handler,
   including `NavigationHandler` — `@SingleIn(<Feature>Scope::class) @Inject Navigator` is the
   canonical shape (see e.g.

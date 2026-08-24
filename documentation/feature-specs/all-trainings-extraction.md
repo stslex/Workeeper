@@ -120,7 +120,7 @@ These are **findings to decide**, not obstacles to route around. Nothing below i
 |---|---|---|---|
 | ~~G1~~ | **`TagFilterRow`** | — | **CLOSED — drawn.** `.tagrow` is in `#s-list` above the list, with its own §26 row. It stopped being a gap the moment it was drawn; the deltas against the code are M39 |
 | ~~G2~~ | Chip selected-vs-unselected is one colour | — | **Recategorised → [B20](v3-redesign-spec.md#25-blocker-registry--append-only).** Not an undrawn region: a live defect, and not screen-local — every `AppTagChip.Selectable` in the app has it. Evidence moved to the registry with it |
-| **G3** | Host settings gear | `#s-list` topbar; §26 "Drawn rejections"'s audit of the undrawn topbar `+` | Drawn nowhere. `App.kt:172-192` overlays an `IconButton` at `TopEnd` on every bottom-bar destination, i.e. over this screen's app bar. §26 "Drawn rejections" audits what the topbar may carry and never mentions it |
+| **G3** | Host settings gear | `#s-list` topbar; §26 "Drawn rejections"'s audit of the undrawn topbar `+` | Drawn nowhere. `App.kt:135-149` overlays an `IconButton` at `TopEnd` on every bottom-bar destination, i.e. over this screen's app bar. §26 "Drawn rejections" audits what the topbar may carry and never mentions it |
 | **G4** | Confirm dialog treatment | all three sections; every modal primitive in the file (`.sheet`/`.grab`/`.mitem` are session/chart/settings) | **No dialog is drawn anywhere in the shell.** §26 "Haptics" nonetheless *presupposes* one ("`Confirm` after a **confirmed** destructive action"). The screen ships `AppConfirmDialog` with four strings; its treatment has no referent |
 | **G5** | Snackbar / result surface | all three sections | Not drawn. `.toast` is a session element only. The screen emits `ShowBulkDeleteSuccess` into the host `SnackbarHost` |
 | ~~G6~~ | Non-paging error surface | — | **Recategorised → B21.** Not an undrawn region: a live defect, and the **second instance of B17's class** (a `launch` with no `onError`) rather than a screen quirk. The genuinely undrawn half — the shell draws no general error surface, `.perr` is a paging tail only — is recorded in the B21 entry |
@@ -170,7 +170,7 @@ The contract has a drawn answer here, so this is not a gap. It is a **conflict b
 a deliberate prior decision that left a comment behind**, and it gets its own row so that whoever wrote
 the comment is not overruled silently.
 
-**The code's argument** — `TrainingRow.kt:99`:
+**The code's argument** — `TrainingRow.kt:76`:
 
 > `// Chevron always visible — selection state is conveyed by the filled card.`
 
@@ -208,7 +208,7 @@ about redundancy: in selection mode a tap toggles, it does not navigate, and a c
 
 **The v2.4 decision is superseded, not wrong.** It answered "is the chevron ambiguous next to a filled
 card" (no). §26 "Selection mode" answers a different question — "does a row in selection mode promise navigation"
-(also no, and the chevron says otherwise). The comment at `TrainingRow.kt:99` should be replaced by a
+(also no, and the chevron says otherwise). The comment at `TrainingRow.kt:76` should be replaced by a
 citation to §26 "Selection mode" rather than deleted, so the next reader finds the reason and not a silence.
 
 ---
@@ -258,7 +258,7 @@ Recorded, and explicitly **not applied**, at §24 "Carried to the code PR":
 > `screenEdge + heightLg + screenEdge` = **88** (§26, "Add action"). Two call sites, +16dp each, no
 > other screen affected. Recorded here rather than applied: this PR ships no code.
 
-All-trainings' half is **one call site**: `AllTrainingsScreen.kt:171-176`, `bottom = heightLg +
+All-trainings' half is **one call site**: `AllTrainingsScreen.kt:161`, `bottom = heightLg +
 screenEdge` → `screenEdge + heightLg + screenEdge`. Verified still 72dp at `dev` = `1a486a13`; the §24
 line numbers have not drifted. The sibling screen's identical edit is **not** in this screen's scope.
 

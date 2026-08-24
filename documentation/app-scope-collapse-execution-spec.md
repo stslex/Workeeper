@@ -48,11 +48,11 @@ internal contribution containers do NOT route around it). So every migrated impl
 
 - Anchor (mechanic): `core/ui/kit/src/main/kotlin/io/github/stslex/workeeper/core/ui/kit/utils/NumUiUtilsImpl.kt:20`
   — default-public class, `@ContributesBinding(AppScope::class) @SingleIn(AppScope::class) @Inject`.
-- Anchor (convention KDoc): `core/data/backup/google-drive/src/main/kotlin/io/github/stslex/workeeper/core/data/backup/google_drive/auth/AccountDataStoreImpl.kt:25`
+- Anchor (convention KDoc): `core/data/backup/google-drive/src/main/kotlin/io/github/stslex/workeeper/core/data/backup/google_drive/auth/AccountDataStoreImpl.kt:24`
   — *"Public because `@ContributesBinding` on an internal class does not aggregate across Gradle modules."*
-- Anchor (D1-tagged convention KDoc): `core/data/backup/scheduling/src/main/kotlin/io/github/stslex/workeeper/core/data/backup/scheduling/RestoreStateRepositoryImpl.kt:44`
+- Anchor (D1-tagged convention KDoc): `core/data/backup/scheduling/src/main/kotlin/io/github/stslex/workeeper/core/data/backup/scheduling/RestoreStateRepositoryImpl.kt:29`
   — *"Public for cross-module aggregation (D1; never hand-construct — resolve via DI)."*
-- Anchor (graph): `app/app/src/main/java/io/github/stslex/workeeper/di/AppGraph.kt:75` —
+- Anchor (graph): `app/app/src/main/java/io/github/stslex/workeeper/di/AppGraph.kt:57` —
   `@DependencyGraph(scope = AppScope::class) internal interface AppGraph`.
 
 **Scope-soundness guard (detekt), not visibility.** A `@ContributesBinding` carrying the wrong scope (or
@@ -61,10 +61,10 @@ silently fails to aggregate** — a false-green. This is caught by a custom dete
 
 - `ContributesBindingScopeRule` — fails a `@ContributesBinding` whose scope arg is not the project
   `AppScope` (missing arg / wrong simple-name / Metro built-in by import).
-  Anchor: `lint-rules/src/main/kotlin/io/github/stslex/workeeper/lint_rules/ContributesBindingScopeRule.kt:36`.
+  Anchor: `lint-rules/src/main/kotlin/io/github/stslex/workeeper/lint_rules/ContributesBindingScopeRule.kt:18`.
 - `ContributesToScopeRule` — the provides-factory twin (§provides-factory), guards `@BindingContainer`'s
-  `@ContributesTo` scope. Anchor: `.../lint_rules/ContributesToScopeRule.kt:43`.
-- **Do NOT conflate** these with `MetroScopeRule` (`.../lint_rules/MetroScopeRule.kt:78`), which is a
+  `@ContributesTo` scope. Anchor: `.../lint_rules/ContributesToScopeRule.kt:18`.
+- **Do NOT conflate** these with `MetroScopeRule` (`.../lint_rules/MetroScopeRule.kt:45`), which is a
   Handler-lifetime guard (rejects `@SingleIn(AppScope)` on a `*Handler`), unrelated to aggregation.
 
 **Encapsulation tradeoff — currently UN-BACKSTOPPED.** Widening impls to `public` loses the compile-time
@@ -117,12 +117,12 @@ bound instance via `create(...)`, so nothing reads Hilt's `@ApplicationContext` 
 graph interface stays small. Bindings arrive via `@ContributesBinding` auto-aggregation, not a `@Provides`
 per binding; the graph declares an accessor only where a shim or a test needs to read one.
 
-- Anchor: `app/app/src/main/java/io/github/stslex/workeeper/di/AppGraph.kt:64-67` (Context-as-bound-instance
+- Anchor: `app/app/src/main/java/io/github/stslex/workeeper/di/AppGraph.kt:50` (Context-as-bound-instance
   rationale), `:76` (`@DependencyGraph(scope = AppScope::class)`), `:267` (`@Provides applicationContext:
   Context` in `create(...)`).
 
 **`create(...)` signature.** *Current, source-true @ `589777d9`:* the factory takes **12** `@Provides`
-bound instances (`AppGraph.kt:265-286`) — `applicationContext` + the **9 Room DAOs** + `dbTransitionRunner`
+bound instances (`AppGraph.kt:134-142`) — `applicationContext` + the **9 Room DAOs** + `dbTransitionRunner`
 + `imageStorage`. `AppDatabase` is **not** a `create()` param today; the 9 DAOs proxy it (bridge-read from
 Hilt, Step-5-fenced). *Step-5 (5a) **target** — intent, not current state:* collapse to **3 roots** —
 `create(applicationContext, appDatabase, imageStorage)` — where `appDatabase` and `imageStorage` are
@@ -152,7 +152,7 @@ compiler plugin (§D10), and `core:core` — the only module that has `commonMai
 (`core/core/build.gradle.kts` applies only `convention.kmpLibrary`; no build-logic convention applies Metro).
 Declaring the token in `commonMain` is a no-op; contributing from `commonMain`/`iosMain` would be the leak.
 
-- Anchor: `core/core/src/commonMain/kotlin/io/github/stslex/workeeper/core/core/di/AppScope.kt:29` (the
+- Anchor: `core/core/src/commonMain/kotlin/io/github/stslex/workeeper/core/core/di/AppScope.kt:8` (the
   declaration; the file is 29 lines — SPDX line, package line, and KDoc above it, no imports).
 - Enforcement split: `ContributesBindingScopeRule` / `ContributesToScopeRule` guard the scope *identity*
   (project token vs Metro's built-in `dev.zacsweers.metro.AppScope`, §V) — neither rule looks at the source
@@ -194,7 +194,7 @@ set (`git grep -E '^\s*@ContributesBinding' -- '*/src/androidTest/*' '*/src/test
 
 **How the swap actually happens.** `AppGraphAdoptBackSeamTest.kt:621` builds an in-memory DB
 (`InMemoryDatabaseProvider.create(...)`) and `:644` passes `imageStorage = FakeImageStorage()` — both
-`create()` bound-instance factory params (`AppGraph.kt:265-286`), bridge-read fake-aware from Hilt in
+`create()` bound-instance factory params (`AppGraph.kt:134-142`), bridge-read fake-aware from Hilt in
 `AppGraphSourceModule.kt:49-53`.
 
 **Consequence for Steps 5–6 (target, not current state).** The Step-5 (5a) target collapses the 9 DAOs +
@@ -257,7 +257,7 @@ Per bulk binding, in dependency-layer order:
    reader) need no shim — accessor only, for identity tests.
 3. **db-cascade bridge (transient).** Repos whose ctor needs DAOs / `DbTransitionRunner` (Step-5 bindings)
    receive those as `@Provides` bound-instance factory params on `AppGraph.create(...)`, bridge-read from
-   Hilt in `AppGraphSourceModule`. Retired at Step 5. Anchors: `AppGraph.kt:255-274` (`create()` params),
+   Hilt in `AppGraphSourceModule`. Retired at Step 5. Anchors: `AppGraph.kt:132-136` (`create()` params),
    `AppGraphSourceModule.kt:49-53` (fake-aware bridge-read rationale).
 
 **Adopt-back lifecycle.** An adopt-back `@Provides` (and its `AppGraph` accessor, if it exists only to feed
@@ -284,7 +284,7 @@ object in the owning module. The app graph auto-aggregates it cross-module by sc
   `@Provides` funcs for exactly this.
 - **Mis-scope is a SILENT-GREEN**, not a compile error: a container `@ContributesTo` the wrong scope compiles
   green and silently fails to aggregate — caught by `ContributesToScopeRule` (detekt), NOT the compiler.
-  Anchor: `lint-rules/src/main/kotlin/io/github/stslex/workeeper/lint_rules/ContributesToScopeRule.kt:20-41`.
+  Anchor: `lint-rules/src/main/kotlin/io/github/stslex/workeeper/lint_rules/ContributesToScopeRule.kt:18`.
   Verified empirically on **Metro 1.1.1** (PF.0 gate): a container pointed at a feature scope OR at
   Metro's built-in `dev.zacsweers.metro.AppScope` (a different class from the project token, same simple
   name) both compile with zero diagnostic **when no reader forces resolution**. The neighbouring
@@ -295,14 +295,14 @@ object in the owning module. The app graph auto-aggregates it cross-module by sc
 
 Real examples (all public `@BindingContainer @ContributesTo(AppScope::class) object`):
 
-- `core/core-android/.../di/ResourceWrapperBindingContainer.kt:5-34` — `@Provides ResourceWrapper` from a
+- `core/core-android/.../di/ResourceWrapperBindingContainer.kt:5` — `@Provides ResourceWrapper` from a
   `Context` dep.
-- `core/core-android/.../di/DispatchersBindingContainer.kt:33-55` — four **qualified** `@Provides`
+- `core/core-android/.../di/DispatchersBindingContainer.kt:26` — four **qualified** `@Provides`
   (`@IODispatcher`/`@DefaultDispatcher`/`@MainDispatcher`/`@MainImmediateDispatcher`); proves qualified
   `@IO` binding resolves cross-module (live consumer:
-  `core/data/backup/google-drive/.../network/DriveApiImpl.kt:36`, `@IODispatcher ... CoroutineDispatcher`).
-- `core/data/backup/google-drive/.../di/NetworkBindingContainer.kt:31-57` — `@Provides` ktor `HttpClient`.
-- `core/data/backup/google-drive/.../di/AuthProvidersBindingContainer.kt:27-35` — `@Provides` GMS
+  `core/data/backup/google-drive/.../network/DriveApiImpl.kt:32`, `@IODispatcher ... CoroutineDispatcher`).
+- `core/data/backup/google-drive/.../di/NetworkBindingContainer.kt:25-51` — `@Provides` ktor `HttpClient`.
+- `core/data/backup/google-drive/.../di/AuthProvidersBindingContainer.kt:17-25` — `@Provides` GMS
   `AuthorizationClient` from a `Context` dep.
 
 ---
@@ -341,23 +341,23 @@ that app/app *source* imports zero `com.google.android.gms`/`io.ktor`. The mecha
 
 1. The dirty types are constructed inside gd's own **public** `@BindingContainer @ContributesTo(AppScope)`
    objects, never in app/app:
-   - `AuthProvidersBindingContainer.kt:27` — provides GMS `AuthorizationClient`.
-   - `NetworkBindingContainer.kt:31` — provides ktor `HttpClient`.
+   - `AuthProvidersBindingContainer.kt:17` — provides GMS `AuthorizationClient`.
+   - `NetworkBindingContainer.kt:25` — provides ktor `HttpClient`.
 2. The inner impls that take a GMS/ktor ctor param use the **`class X @Inject internal constructor(...)`**
    pattern — a **public class** (so `@ContributesBinding(AppScope)` aggregates cross-module) with an
    **internal constructor** (so the GMS/ktor ctor-param types stay non-public). Anchors:
-   `DriveAuthTokenProvider.kt:34`, `DriveBackupAuth.kt:62`, `DriveTokenInvalidator.kt:18`,
-   `UserInfoFetcherImpl.kt:22`, `DriveApiImpl.kt:34`, `DriveBackupStorage.kt:40`, `DriveSnapshotStorage.kt:37`.
+   `DriveAuthTokenProvider.kt:27`, `DriveBackupAuth.kt:46`, `DriveTokenInvalidator.kt:18`,
+   `UserInfoFetcherImpl.kt:22`, `DriveApiImpl.kt:30`, `DriveBackupStorage.kt:33`, `DriveSnapshotStorage.kt:32`.
 3. `AppGraph` exposes only the GMS-clean api interfaces (`BackupAuth`/`BackupStorage`/`SnapshotStorage`,
    plus the Context-only `AccountDataStore`) — no accessor for `AuthorizationClient`/`HttpClient`, so app/app
-   never names them. Anchor: `AppGraph.kt:222-234`. Post-flip Hilt `AuthBindingsModule.kt:26` retains only
+   never names them. Anchor: `AppGraph.kt:117-121`. Post-flip Hilt `AuthBindingsModule.kt:26` retains only
    `bindSnapshotExportRunner` (the old Hilt `AuthProvidersModule`/`NetworkModule` were deleted in `947fed3a`).
 4. Identity proven on-device: `AppGraphAdoptBackSeamTest.kt:414`
    (`googleDriveAuthChain_facadeAndInternalCrossReadResolveTheSameMetroInstances`).
 
 `snapshotStorage` is a **transient** accessor+shim — read by the still-Hilt `SnapshotExportRunnerImpl` whose
 `DatabaseJsonExporter → AppDatabase` tether is Step-5-fenced; retired when `SnapshotExportRunner` migrates in
-Step 5 (`AppGraph.kt:222-234`).
+Step 5 (`AppGraph.kt:117-121`).
 
 ---
 
@@ -402,7 +402,7 @@ custom Detekt rules.** Any earlier "no assisted→Metro mechanic" framing is sta
 The two bindings once tracked here are **separate, unrelated problems** (never an assisted capability gap):
 
 - **CommonDataStore — DONE (`589777d9`).** Migrated to Metro-owned: `@ContributesBinding(AppScope::class)`
-  on the now-public `CommonDataStoreImpl` (`CommonDataStoreImpl.kt:24`, `@SingleIn(AppScope)` `:25`) using
+  on the now-public `CommonDataStoreImpl` (`CommonDataStoreImpl.kt:16`, `@SingleIn(AppScope)` `:25`) using
   Metro-native assisted — `DataStoreProviderFactory` is `dev.zacsweers.metro.AssistedFactory`
   (`.../core/DataStoreProviderFactory.kt:3`); `DataStoreProvider` is `dev.zacsweers.metro.@AssistedInject`
   (`DataStoreProvider.kt:8-9`). The produced `DataStoreProvider` stays **unscoped** (Metro forbids scoping
@@ -419,7 +419,7 @@ The two bindings once tracked here are **separate, unrelated problems** (never a
   into the main-compiled graph (§Test-override root), so `ImageStorage` cannot be flipped to a contribution
   without a silent-green fake fallback. Resolution: `ImageStorage` **stays a permanent `create()`
   bound-instance root** — the graph owns it, tests inject `FakeImageStorage()` via `create()` (as
-  `AppGraph.kt:285` + `AppGraphAdoptBackSeamTest.kt:644` already do). It is a test-override root, not a
+  `AppGraph.kt:142` + `AppGraphAdoptBackSeamTest.kt:644` already do). It is a test-override root, not a
   deferred flip; there is nothing left to "design later."
 
 ---

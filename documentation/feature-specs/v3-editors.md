@@ -60,16 +60,16 @@ Verified by grep against `dev @ 5b3c1cb2`. Each symbol is named so CC deletes ra
 - `ExerciseGraph`'s `savedStateHandle.getStateFlow(Screen.PlanEditor.planEditorSavedAttr)` bridge
 - `TypeChipReadOnly` + `feature_exercise_edit_type_chip_hint`
 - `DefaultPlanSection`'s summary branch — **two identically-named private composables exist**. The
-  one that dies is `ExerciseEditScreen.kt:201-255`, which branches on `isCreate` and renders the
-  summary label in its else-branch. `ExerciseDetailScreen.kt:224` has **no branch** and renders
+  one that dies is `ExerciseEditScreen.kt:169-216`, which branches on `isCreate` and renders the
+  summary label in its else-branch. `ExerciseDetailScreen.kt:192` has **no branch** and renders
   `PlanCard` unconditionally — that one is S2's to rebuild, not S3's to delete.
-- `adhocPlanSummaryLabel` — **measured, not assumed**: its only read is `ExerciseEditScreen.kt:236`,
+- `adhocPlanSummaryLabel` — **measured, not assumed**: its only read is `ExerciseEditScreen.kt:197`,
   inside the branch above. The read screen never references it, so it dies with the branch.
-- `ExerciseTopBarThumb` and its **one** call site, `ExerciseEditScreen.kt:92` (ED6). The read screen
+- `ExerciseTopBarThumb` and its **one** call site, `ExerciseEditScreen.kt:78` (ED6). The read screen
   never had a thumb: its trailing slot is the `⋮` `AppIconButton` and its image affordance is
   `ExerciseHero` in the scrolling body, so ED6's read half is already true at HEAD.
 - `ExerciseHero`'s **call site in the read body** and the `state.effectiveImageDisplay !is
-  ImageDisplay.None` gate around it — `ExerciseDetailScreen.kt:134-142`, the **only** production
+  ImageDisplay.None` gate around it — `ExerciseDetailScreen.kt:121-126`, the **only** production
   call site; the image moves beside the description (D-OPEN-9). Perimeter counted by kind: 1
   production call site, 2 previews and 3 `testTag` literals, all three kinds inside
   `ExerciseHero.kt` itself, and **no test asserts the tags**. Whether the component file survives
@@ -436,7 +436,7 @@ was holding; §6 says which PR that step now ships in.
 |---|---|---|---|
 | **D-OPEN-1** | **RULED** | dialog vs sheet for delete confirmation. → **Sheet.** §7.4 stands; **no dialog primitive is added** to this language. | S7 — unblocked |
 | **D-OPEN-2** | **RULED**, both halves | which "delete an exercise", and deferred-delete (a) vs retain-and-re-insert (b). → **Scope:** removing an exercise from a training removes it **from that training only**; confirmation sheet + undo snackbar — **since narrowed by D-OPEN-11 to undo snackbar alone, no confirmation.** Cite both rows, never this one alone. → **Mechanism, for every undoable delete: deferred (a).** Nothing is deleted while the snackbar lives; the order is strict and it *is* the rule — timer expires → snackbar dismissed → only then the delete commits. **Never delete first and undo by re-inserting.** ED11 carries this as its mechanism sentence. | S7 — unblocked |
-| **D-OPEN-3** | **RULED** | **where the image entry point lives now that ED6 removed the thumb.** #213 shipped the thumb on the **editor only** — `ExerciseTopBarThumb` has exactly one call site, `ExerciseEditScreen.kt:92`; the read screen's trailing slot is the `⋮` `AppIconButton` and its image affordance is `ExerciseHero` in the scrolling body, so ED6's read half is already true at HEAD. The photo, the viewer and the source picker all still exist. → **The image is available on both read and edit, and its entry point sits BESIDE THE DESCRIPTION** — not in the top bar, not among the plan, not among the tags. Its placement is what states that it is optional and descriptive. **The thumb deletion (ED6) stands.** | S3 — unblocked |
+| **D-OPEN-3** | **RULED** | **where the image entry point lives now that ED6 removed the thumb.** #213 shipped the thumb on the **editor only** — `ExerciseTopBarThumb` has exactly one call site, `ExerciseEditScreen.kt:78`; the read screen's trailing slot is the `⋮` `AppIconButton` and its image affordance is `ExerciseHero` in the scrolling body, so ED6's read half is already true at HEAD. The photo, the viewer and the source picker all still exist. → **The image is available on both read and edit, and its entry point sits BESIDE THE DESCRIPTION** — not in the top bar, not among the plan, not among the tags. Its placement is what states that it is optional and descriptive. **The thumb deletion (ED6) stands.** | S3 — unblocked |
 | **D-OPEN-4** | **RULED** | orphan tags. The symbol with **zero callers anywhere** is `TagRepository.delete` (`TagRepository.kt:16`); `TagDao.delete(uuid)` has exactly one production caller, `TagRepositoryImpl.delete` (`TagRepositoryImpl.kt:53`), which nothing calls. Nothing in the app ever deletes a tag, and `Создать` writes the dictionary immediately, before the exercise is saved. → **Auto-prune.** A tag with no remaining links is deleted from the dictionary — shipped as `TagDao.deleteOrphans()` inside both save transactions, which this ruling's own in-transaction ordering forced; the per-uuid `TagRepository.delete` chain is deleted rather than left callerless (B-E2's closure note has the derivation). A tag editor screen showing each tag's links is a **future item, not this arc** — recorded as **B-E5**. | S6 — unblocked |
 | **D-OPEN-5** | **RULED** | dashed `--hair-s` as a control outline (`+ тег`, `.addex`) measures **1.52 dark / 1.35 light** against 3.0. → **Keep the dashed `--hair-s` outline.** The **label** identifies the control; the dash is decoration and owes no contrast threshold. Same answer for `+ тег` and `.addex`, as the row required. The measurement and this reasoning are recorded here so the pair is not re-litigated. | S6 — unblocked |
 | **D-OPEN-6** | **RULED** | read card and edit card are now visually near-identical. Intended, or does read drop the chip / sit on `surfaceTier1`? → **Identical.** No chip removal, no tier change. You read the plan in the shape you will perform it. | S2 — unblocked |
@@ -556,7 +556,7 @@ card.
 - **B-E1** — `Screen.PlanEditor` survives with one caller (live session). The route, module and
   `planEditorSavedAttr` contract cannot be deleted until the session edits its plan inline. The
   later deletion arc inherits more than the three consumer features: the route is also referenced
-  by `AppNavigationHost.kt:141` (`.reportScreenPlace<Screen.PlanEditor>()`, production) and by two
+  by `AppNavigationHost.kt:120` (`.reportScreenPlace<Screen.PlanEditor>()`, production) and by two
   test files outside those features — `app/app/.../PlanEditorExtensionIdentityTest.kt` and
   `core/ui/mvi/.../SavedStateHandleNavigationResultTest.kt` — on top of the feature-side
   `NavigationHandlerTest`s that go with their own features.
@@ -571,7 +571,7 @@ card.
   **CONFIRMED at the arc's close (PR-D) — the census, measured, `Screen.PlanEditor` by word
   boundary plus every `feature.plan_editor` import outside the module.** Production: **one**
   route construction, `live-workout/.../NavigationHandler.kt:26` (fed by that feature's own
-  `Action.Navigation.OpenPlanEditor` — `ClickHandler.kt:357`, `LiveWorkoutStore.kt:303`); **one**
+  `Action.Navigation.OpenPlanEditor` — `ClickHandler.kt:357`, `LiveWorkoutStore.kt:225`); **one**
   return bridge, `LiveWorkoutGraph.kt` (`planEditorSavedAttr`, two lines); **two** host
   references, `AppNavigationHost.kt` (the `planEditorGraph` import and
   `.reportScreenPlace<Screen.PlanEditor>()`); the definition in `core/ui/navigation/Screen.kt`.
@@ -602,7 +602,7 @@ card.
   zero references outside its own file — that half carries forward.
 - **B-E4** — no clamp is declared for `.prhero`'s meta line; a long training name grows it. The
   pushed-bar title is **not** part of this blocker: `AppTopBar` declares `maxLines = 1` +
-  `TextOverflow.Ellipsis` (`AppTopBar.kt:89-90`) and has since the file was introduced.
+  `TextOverflow.Ellipsis` (`AppTopBar.kt:65-66`) and has since the file was introduced.
   **CLOSED by S8, and the premise was true of the plan, not of the shipped hero:** the meta
   line has clamped (`maxLines = 1` + `Ellipsis`) since `PersonalRecordHero` was built
   (`e7577ba7`, PR-A) — the row predates the component and nobody re-measured. What S8 added is

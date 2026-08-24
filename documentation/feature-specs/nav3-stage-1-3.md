@@ -176,10 +176,10 @@ removal.
 
 ### 3.10 KDoc / doc corrections riding along
 `NavigatorHolder` is re-typed (`NavHostController` → the back stack) and finally gets KDoc.
-Corrections found by the pre-1.3 survey land in the same docs commit: `Navigator.kt:58-59`
+Corrections found by the pre-1.3 survey land in the same docs commit: `Navigator.kt:33`
 (cites `MutableSharedFlow(replay = 0)`; actual is `extraBufferCapacity = 64`, which makes the drop
-silent AND the warning log unreachable), `ScreenWithResult.kt:33-34` (names `Navigator` as the
-producer; actual is `NavigatorEventBus`), `NavGraphScope.kt:23-24` (overstates the gate's
+silent AND the warning log unreachable), `ScreenWithResult.kt:16` (names `Navigator` as the
+producer; actual is `NavigatorEventBus`), `NavGraphScope.kt:14-15` (overstates the gate's
 coverage), and `core/ui/navigation/build.gradle.kts:6-7` (two unused project deps, `:core:core`
 and `:core:ui:plan-editor` — removed). The stale statements S1–S19 catalogued in the survey are
 corrected in `nav3-migration.md`/`nav3-stage-1-2.md` in a separate docs push.
