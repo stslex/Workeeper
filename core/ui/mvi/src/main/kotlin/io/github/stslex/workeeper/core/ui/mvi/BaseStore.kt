@@ -96,17 +96,7 @@ open class BaseStore<S : State, A : Action, E : Event>(
 
     fun init(
         currentLifecycleOwner: LifecycleOwner,
-        /**
-         * The runtime generation's job (Phase 5 R3, spec §8.4). Every job this Store starts
-         * becomes a descendant, so the generation's teardown can cancel AND JOIN them — a
-         * Store's `finally` that touches the database completes before that database closes.
-         *
-         * REQUIRED, deliberately without a default: a default would let the one production
-         * seam that supplies it ([io.github.stslex.workeeper.core.ui.mvi.processor
-         * .rememberStoreProcessor]) drop the argument and still compile, silently un-parenting
-         * every Store job from its generation. Null is legal only where no generation exists
-         * (previews and tests that own no lifetime), and saying so is then explicit.
-         */
+        /** Generation parent for joinable Store jobs; null is explicit for previews and tests. */
         generationJob: Job?,
     ) {
         _scope = AppCoroutineScopeImpl(
@@ -120,16 +110,7 @@ open class BaseStore<S : State, A : Action, E : Event>(
         initialActions.forEach { consume(it) }
     }
 
-    /**
-     * Ends this Store's work. IDEMPOTENT (R3): both the composition's `onDispose` and
-     * [onCleared] call it, and a generation teardown clears the ViewModelStore before the
-     * composition unwinds.
-     *
-     * MAIN THREAD, like every other disposal path: detaching the lifecycle observer goes through
-     * `LifecycleRegistry`, which enforces it. Composition disposal is already on main, and the
-     * runtime's teardown clears the generation's `ViewModelStore` inside
-     * `policy.mainDispatcher` for exactly this reason.
-     */
+    /** Idempotently ends Store work; lifecycle observer removal requires the main thread. */
     fun dispose() {
         if (_scope == null) return
         disposeActions.forEach {
@@ -141,11 +122,7 @@ open class BaseStore<S : State, A : Action, E : Event>(
         _scope = null
     }
 
-    /**
-     * A generation teardown clears its runtime-owned `ViewModelStore` (spec §8.4), which must
-     * actually END this Store's work — before R3 `BaseStore` ignored `onCleared`, so a cleared
-     * Store's jobs kept running against the outgoing generation's database.
-     */
+    /** A generation ViewModelStore clear must also end Store work. */
     override fun onCleared() {
         // No super call: `ViewModel.onCleared` is annotated @EmptySuper (Android Lint's
         // EmptySuperCall flags calling it).

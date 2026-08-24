@@ -100,22 +100,14 @@ fun App() {
     }
     val phase by generationsHolder.appUiPhases.collectAsState()
     val saveableStateHolder = rememberSaveableStateHolder()
-    // Saveable: an Activity recreation between publish and the removal effect must not forget
-    // which slot still needs dropping (final-review finding; the residual one-frame process-death
-    // window is recorded in the spec's §18 register).
+    // Survives recreation until the successor can drop the old generation's slot.
     var previousGenerationId by rememberSaveable { mutableStateOf<Int?>(null) }
 
     when (val currentPhase = phase) {
         is AppUiPhase.Generation -> saveableStateHolder.SaveableStateProvider(currentPhase.id) {
             key(currentPhase.id) {
-                // Admission is taken DURING COMPOSITION (R3, spec §8.4 step 1), not from an
-                // effect: effects run at APPLY time, after this region's children have already
-                // composed and resolved their Stores and ViewModels. A retired generation must
-                // resolve nothing at all, so the grant has to gate the content itself.
-                // Keyed on the PHASE INSTANCE, not just its id: an aborted transition
-                // deliberately re-opens the same id and re-publishes a fresh Generation value,
-                // and a refusal cached against the id alone would survive that re-publish —
-                // leaving the app blank until the next Activity recreation.
+                // Admission must gate composition before content resolves generation dependencies.
+                // Key by phase instance so an aborted transition can reopen the same id.
                 val admission = remember(currentPhase) {
                     GenerationAdmission(generationsHolder, currentPhase.id)
                 }

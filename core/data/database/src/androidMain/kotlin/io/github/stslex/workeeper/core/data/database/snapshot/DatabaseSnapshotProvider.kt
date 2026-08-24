@@ -5,21 +5,8 @@ import io.github.stslex.workeeper.core.data.backup.api.result.BackupResult
 import java.io.File
 
 /**
- * File-level access to the Room-backed SQLite database for backup/restore.
- *
- * **The provider never closes or swaps the published database** (Phase 5 R2,
- * `kmp-phase-5-startup-processor.md` §8.5): Room 3's `close()` is terminal for the object
- * (§7.1, measured), so close-and-replace is a runtime-generation transition owned by the
- * application runtime host, reached by callers through the
- * [io.github.stslex.workeeper.core.data.backup.api.DatabaseReplacement] seam. What lives here
- * is everything AROUND that transaction:
- *
- *  - [captureSnapshot] / [reserveRollbackSnapshot] produce portable copies (checkpoint + copy);
- *  - [validateSnapshotForRestore] runs the pre-swap gates (magic header, schema-version
- *    comparison) through the STILL-OPEN live database;
- *  - [replaceLiveDatabaseFile] is the pure file mechanics (sidecar delete + copy + atomic
- *    rename) the runtime invokes AFTER it closed the generation's database;
- *  - version peeks, migration-path queries, and the preserved-file lifecycle.
+ * File-level backup and restore mechanics. The runtime owns database close and replacement;
+ * this provider validates while open and performs pure file replacement after close.
  */
 interface DatabaseSnapshotProvider {
 
@@ -36,24 +23,10 @@ interface DatabaseSnapshotProvider {
      */
     suspend fun captureSnapshot(target: File): BackupResult<Unit>
 
-    /**
-     * The pre-swap restore gates, in the exact order the pre-split `restoreFromSnapshot` ran
-     * them: (1) SQLite magic header on [source]; (2) [source]'s schema version via
-     * [peekSnapshotSchemaVersion], compared against the LIVE database's `user_version` —
-     * returning [io.github.stslex.workeeper.core.data.backup.api.error.BackupError.BackupTooNew]
-     * when [source] is newer. Reads the live database, so the runtime MUST call this while the
-     * generation's database is still open — before Quiescing and close.
-     */
+    /** Validates [source] against the still-open live database before quiescing and close. */
     suspend fun validateSnapshotForRestore(source: File): BackupResult<Unit>
 
-    /**
-     * The pure file mechanics of a live-database replacement: delete the `-wal` and `-shm`
-     * sidecars, copy [source] to a same-directory temp file, atomically rename it into the live
-     * slot. [source] is NOT consumed and NOT validated — validation is [validateSnapshotForRestore]
-     * and consumption is the caller's — and, critically, the database is NOT closed here: the
-     * runtime closes the generation's `AppDatabase` (terminal, §7.1) before invoking this, as one
-     * step of the replacement transaction it owns. Never call this outside that transaction.
-     */
+    /** Performs sidecar cleanup, copy, and atomic rename; runtime owns validation and close. */
     suspend fun replaceLiveDatabaseFile(source: File): BackupResult<Unit>
 
     /**
@@ -82,33 +55,12 @@ interface DatabaseSnapshotProvider {
      */
     suspend fun peekSnapshotSchemaVersion(source: File): BackupResult<Int>
 
-    // `preserveCurrentDb()` (a copy straight onto the canonical undo slot) is GONE: an attempt
-    // reserves its own snapshot and promotes it on commit (spec §8.5a), which is what keeps two
-    // concurrent restores from overwriting each other's rollback file.
-
     suspend fun reserveRollbackSnapshot(attemptId: String): BackupResult<File>
 
-    /**
-     * COPIES a reservation from [reserveRollbackSnapshot] onto the canonical
-     * `cache/pre_restore_backup.db` undo slot, replacing whatever the previous restore left
-     * there. Called only after the attempt's live-file mutation committed, and NEVER moves or
-     * deletes the reservation (Phase 5 R4, spec §8.5a): the still-`Prepared` journal names that
-     * file, so it must remain recoverable across every crash point of the promotion. The
-     * runtime deletes the reservation only after the durable `Committed` record lands; a
-     * committed cold start cleans a retained copy up idempotently.
-     */
+    /** Copies, never moves, an attempt reservation to the canonical undo slot. */
     suspend fun promoteRollbackReservation(reservation: File): BackupResult<Unit>
 
-    // An unused reservation is deleted by the runtime that owns it — the same file-ownership
-    // rule the staged restore source follows; no provider method is needed for a plain delete.
-
-    /**
-     * The preserved `cache/pre_restore_backup.db` when it exists, else `null`. The runtime's
-     * rollback branch replays it through [replaceLiveDatabaseFile] and then consumes it via
-     * [deletePreRestoreBackup] — the same net effect (and the same crash-window shape) as the
-     * pre-split copy+rename+delete sequence. Also the Settings "Revert last restore" row's
-     * existence check (`!= null` — the separate boolean accessor was merged into this one).
-     */
+    /** Canonical undo slot, if present. */
     fun getPreRestoreBackupFile(): File?
 
     /**

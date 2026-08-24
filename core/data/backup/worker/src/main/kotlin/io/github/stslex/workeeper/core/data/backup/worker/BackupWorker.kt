@@ -33,12 +33,7 @@ import java.io.File
  * [DatabaseSnapshotProvider.captureSnapshot] which produces a WAL-checkpointed
  * copy in [Context.getCacheDir].
  */
-// Plain CoroutineWorker constructed directly by MetroWorkerFactory with NO dependencies — the
-// factory captures nothing generation-scoped. The 6 app-scope deps arrive EXCLUSIVELY through
-// the admission lease acquired as the FIRST operation inside [doWork] (Phase 5 R2, spec §8.4):
-// deps and lease bound atomically, so the run is coherently owned by exactly one runtime
-// generation; the quiesce drain awaits [BackupWorkLease.release] in the finally; and a worker
-// constructed but never started holds nothing a transition would have to wait for.
+// Dependency-free construction prevents WorkManager-created idle workers from capturing a generation.
 internal class BackupWorker(
     appContext: Context,
     workerParams: WorkerParameters,
@@ -47,8 +42,7 @@ internal class BackupWorker(
     private val logger = Log.tag(TAG)
 
     override suspend fun doWork(): Result {
-        // Admission FIRST: suspends through a bounded transition window; throws loudly when the
-        // runtime is Fatal (a failed run, never work against a closed generation).
+        // Admission is first so dependencies and lease bind to the same generation.
         val lease = (applicationContext as BackupWorkerDepsHolder).awaitBackupWorkLease()
         return try {
             runAdmittedWork(lease.deps)

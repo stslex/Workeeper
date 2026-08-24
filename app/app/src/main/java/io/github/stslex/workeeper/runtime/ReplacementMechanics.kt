@@ -26,29 +26,15 @@ import java.util.concurrent.atomic.AtomicLong
 import kotlin.coroutines.AbstractCoroutineContextElement
 import kotlin.coroutines.CoroutineContext
 
-/**
- * The transaction-protocol mechanics of [AppRuntime] (Phase 5 R2, spec §8.4/§8.5) — the
- * admission gates, per-transaction bookkeeping, source staging, typed-effects execution, and
- * the pure swap endings. Everything that touches the runtime's PUBLISHED state (phases,
- * Fatal) stays on the runtime; these pieces read and publish none of it.
- */
+/** Transaction mechanics shared by [AppRuntime]'s replacement paths. */
 
-/**
- * Per-transaction point-of-no-return flag. Crossed at the START of the FIRST irreversible
- * action — the outgoing teardown (ViewModelStore clear / lifetime cancel), the database close
- * INVOCATION, or the file mutation — never at its completion (spec §8.4): a step that began
- * and failed leaves unknown state, which is post-PONR by definition.
- */
+/** Crossed before the first irreversible action. */
 internal class PonrTracker {
     @Volatile
     var crossed = false
 }
 
-/**
- * The per-transaction CoroutineContext marker: installed around the candidate preflight so
- * the coordinator's rollback call is detected as the current transaction's rollback branch,
- * never a nested transaction.
- */
+/** Context marker that routes preflight rollback into its current transaction. */
 internal class ReplacementTransaction(
     var nextDbGeneration: Int,
 ) : AbstractCoroutineContextElement(Key) {
@@ -59,29 +45,19 @@ internal class ReplacementTransaction(
     @Volatile
     var rolledBack = false
 
-    /** The primary failure that made [rolledBack] happen — carried into RecoveredByRollback. */
+    /** Failure carried into RecoveredByRollback. */
     @Volatile
     var rollbackCause: BackupError? = null
 
-    /**
-     * A candidate/orphan `close()` FAILED — the ladder must stop with Fatal and never attempt
-     * another rename over a file an unknown-state handle may still hold (spec §8.4).
-     */
+    /** A candidate close failed, so the ladder must stop. */
     @Volatile
     var closeFailed = false
 
-    /**
-     * The CURRENT candidate's database was closed by the inline rollback — the candidate can
-     * never be published even if its preflight reports Proceed; the ladder retries fresh.
-     */
+    /** Inline rollback invalidated the current candidate. */
     @Volatile
     var candidateInvalidated = false
 
-    /**
-     * The CURRENT candidate was already FULLY torn down (VM store cleared, lifetime joined,
-     * database closed) by the inline rollback's disposal (R4.1) — `attemptGeneration` must not
-     * run a second teardown over it.
-     */
+    /** Inline rollback already tore down the current candidate. */
     @Volatile
     var candidateDisposed = false
 
@@ -129,30 +105,16 @@ internal sealed interface AttemptResult {
 internal class OrphanCloseException(cause: Throwable) :
     IllegalStateException("orphaned candidate database failed to close", cause)
 
-/**
- * Thrown by generation construction when a SHARED-database candidate's partial unwind failed
- * (R4 blocker D): the graph constructor threw after handing the fresh lifetime to a consumer
- * whose job could not be cancelled-and-joined. The caller must treat this as TERMINAL — an
- * ordinary "construction failed" abort would republish Serving N beside a live orphan job that
- * still holds the shared database, and a later replacement's teardown (which joins only the
- * OUTGOING generation's lifetime) would close that database under it.
- */
+/** A shared-database candidate could not be fully unwound and must not be republished beside N. */
 internal class PartialCandidateUnwindException(cause: Throwable) :
     IllegalStateException("partially built candidate could not be unwound", cause)
 
-/**
- * Stages a restore source into a runtime-owned file (spec §8.5 source-ownership transfer).
- * Runs inside the NON-SUSPENDING submission call, so a caller cancellation can never strand a
- * half-transferred file: after this returns, the runtime owns the staged copy and deletes it
- * on every terminal outcome; the caller's own temp-file cleanup becomes a no-op.
- */
+/** Stages a restore source before suspension, transferring ownership to the runtime. */
 internal fun stageRestoreSource(source: File, stagingDirectory: File, sequence: Long): File {
     val staged = File(stagingDirectory, "staged_restore_$sequence.db")
     staged.delete()
     if (!source.renameTo(staged)) {
-        // Cross-filesystem or exotic-provider fallback; copyTo throws if the source is gone.
-        // A mid-copy failure must not orphan a partial staged file — the terminal cleanup only
-        // tracks a SUCCESSFULLY staged copy, so this frame deletes its own debris.
+        // Copy fallback cleans its partial file because terminal cleanup sees only a completed stage.
         runCatching { source.copyTo(staged, overwrite = true) }.onFailure { error ->
             staged.delete()
             throw error
@@ -163,19 +125,8 @@ internal fun stageRestoreSource(source: File, stagingDirectory: File, sequence: 
 }
 
 /**
- * Executes the caller's TERMINAL effect for [outcome] — at most one method, on the calling
- * (transaction) coroutine, under the transition mutex. A failing committed-effect is surfaced
- * on the outcome ([ReplacementOutcome.Completed.effectsError]), never swallowed into a clean
- * commit; failures of compensation effects are logged loudly (the outcome already carries the
- * primary error).
- *
- * **Phase-aware Fatal dispatch:** a transaction that resolves Fatal WITHOUT having crossed its
- * own point of no return (queued behind another transaction's Fatal; submitted onto an
- * already-Fatal runtime) performed NOTHING — dispatching `onFatal` would let a caller journal
- * a mutation that never happened (and later force a rollback of a committed restore), while
- * dispatching the rejection-compensation would let it delete the recovery assets the FATAL
- * transaction's next process needs. Neither is truthful, so no compensation runs; the caller
- * learns from the Fatal result alone.
+ * Runs exactly one terminal effect on the transaction coroutine. Effect failures are surfaced on
+ * the outcome. A pre-PONR Fatal dispatches no effect because this transaction did no mutation.
  */
 internal suspend fun runTerminalEffects(
     effects: DatabaseReplacementEffects,
@@ -210,11 +161,7 @@ internal suspend fun runTerminalEffects(
     is ReplacementOutcome.Fatal -> outcome.withEffects(logger, "onFatal") { effects.onFatal() }
 }
 
-/**
- * Runs one terminal compensation and folds its failure ONTO the outcome (spec §8.5a): a
- * terminal effect that throws leaves durable state disagreeing with what the outcome implies,
- * so it can never be merely logged behind a clean-looking result.
- */
+/** Folds a terminal-effect failure onto its outcome. */
 private suspend fun ReplacementOutcome.withEffects(
     logger: Logger,
     label: String,
@@ -234,18 +181,7 @@ private suspend fun ReplacementOutcome.withEffects(
     },
 )
 
-/**
- * The Android-production ending, byte-equivalent to the pre-split provider methods: close
- * (the generation is now terminal) + atomic file replacement, NO quiescing (process death is
- * the quiescence — the caller's restart flow follows), NO phase change (the app keeps
- * running on the loud-failing closed database until the restart lands, exactly as today).
- * Deliberately startable from an already-terminal generation: a failure re-tap re-runs the
- * idempotent close + rename.
- *
- * PONR = the close INVOCATION (spec §8.4): [tracker] is crossed BEFORE the call, and a close
- * throw is a post-PONR unknown state — [ReplacementOutcome.FailedAfterMutation], never
- * RejectedBeforeMutation; every recovery asset stays preserved for the journal protocol.
- */
+/** Android restart-process ending: close, replace the file, then let the caller restart. */
 internal suspend fun runRestartProcessSwap(
     closeDatabase: (AppDatabase) -> Unit,
     outgoing: RuntimeGeneration,
@@ -262,29 +198,18 @@ internal suspend fun runRestartProcessSwap(
     }
     val replaced = provider.replaceLiveDatabaseFile(mutation.source)
     if (replaced is BackupResult.Failure) {
-        // Today's shipped post-close failure behavior: surface the error, no restart, no
-        // rebuild — the closed database fails loud until the user acts. Every recovery asset
-        // stays in place and the journal stays `Prepared`, so the next launch recovers.
+        // Preserve recovery assets after a post-close failure.
         return ReplacementOutcome.FailedAfterMutation(replaced.error)
     }
     return when (val committed = commitMutation(mutation)) {
         CommitResult.Durable -> ReplacementOutcome.Completed(generation = null)
 
-        // PRE-DURABLE failure (R4.2): the swap ran but `Committed` never landed — the journal
-        // is still `Prepared` and the reservation retained, so the next launch conservatively
-        // recovers. NEVER `Completed`: the committed terminal must not run.
+        // The mutation is not durable; keep Prepared state for conservative recovery.
         is CommitResult.NotDurable -> ReplacementOutcome.FailedAfterMutation(committed.error)
     }
 }
 
-/**
- * WHICH file a committed mutation consumes as its rollback source (Phase 5 R4). A rollback
- * consumes EXACTLY the file it applied — never "the canonical slot" as a proxy: when the
- * applied source was a journal-named reservation, the canonical slot belongs to a PREVIOUS
- * attempt and consuming it would revoke a still-valid undo while orphaning the file actually
- * used. Any canonical invalidation beyond the exact applied file is a separate, explicit,
- * owner-side decision (the effects' flag policy), never an implicit side effect here.
- */
+/** Rollback consumes exactly its applied source; broader cleanup is explicit owner policy. */
 internal sealed interface SourceConsumption {
 
     /** A restore: the swapped-in source is the staged snapshot; nothing is a rollback asset. */
@@ -297,12 +222,7 @@ internal sealed interface SourceConsumption {
     data class ExactFile(val file: File) : SourceConsumption
 }
 
-/**
- * Everything one attempt's mutation needs, grouped so both endings take the same shape: where
- * the file mechanics live, what is being swapped in, the EXACT consumption of the applied
- * rollback source, the caller's attempt-scoped effects, and the rollback snapshot this attempt
- * reserved.
- */
+/** Inputs and ownership data for one mutation. */
 internal class MutationPlan(
     val provider: DatabaseSnapshotProvider,
     val source: File,
@@ -311,19 +231,13 @@ internal class MutationPlan(
     val reservation: File?,
 )
 
-/** A rollback OPERATION's resolved source (R4 invariant 2) — see [selectRollbackOperationSource]. */
+/** Resolved source for a rollback operation. */
 internal sealed interface OperationSourcePlan {
     class Proceed(val source: File, val consume: SourceConsumption) : OperationSourcePlan
     class Reject(val error: BackupError) : OperationSourcePlan
 }
 
-/**
- * Resolves a `RollbackToPreRestoreBackup` operation's source. A journal-named [explicitPath] is
- * AUTHORITATIVE: when the file is missing, the canonical slot — which belongs to ANOTHER
- * attempt — is never substituted for it; the typed rejection routes the recovering launch to
- * terminal recovery instead of silently reverting onto older data. The canonical undo slot is
- * the requested source only when no explicit path was submitted.
- */
+/** Resolves the explicit journal source or, only when absent, the canonical undo slot. */
 internal fun selectRollbackOperationSource(
     explicitPath: String?,
     provider: DatabaseSnapshotProvider,
@@ -346,31 +260,15 @@ internal fun selectRollbackOperationSource(
     return OperationSourcePlan.Proceed(canonical, SourceConsumption.CanonicalSlot)
 }
 
-/** The ladder's recovery-source verdict (R4 invariant 2) — see [selectRecoverySource]. */
+/** Recovery ladder source verdict. */
 internal sealed interface RecoverySourcePlan {
     class Apply(val source: File, val consume: SourceConsumption) : RecoverySourcePlan
     class Stop(val reason: String) : RecoverySourcePlan
 }
 
 /**
- * Source-owner identity for the in-process recovery ladder: the recovery source is the
- * attempt's OWN asset, never a substitute belonging to another attempt.
- *
- *  - A restore attempt recovering BEFORE its commit sequence completed rolls back onto its
- *    reservation; if that vanished mid-transaction, the canonical slot — another attempt's
- *    OLDER snapshot — is never applied in its place: the ladder stops instead of silently
- *    reverting data this attempt never touched. The reservation is NOT consumed on this path:
- *    it stays the journal-named recovery source until the caller's terminal effects resolve
- *    the attempt (the submission frame then discards it; a crash first leaves the journal
- *    still pointing at it).
- *  - AFTER a clean commit ([afterCleanCommit]: promote → durable record → reservation
- *    consumed, in that order), the canonical slot provably holds THIS attempt's promoted
- *    pre-image — the same ordering proof the Committed cold-start rule rests on — so it is the
- *    attempt's own recovery source, not a substitute.
- *  - A canonical-slot rollback retries its own source once (the file is intact after a failed
- *    copy/rename; the failure may be transient).
- *  - An EXPLICIT-source rollback whose swap failed gets no substitute at all — applying the
- *    canonical here would be exactly the cross-owner substitution invariant 2 bans.
+ * Resolves only the attempt-owned recovery source. Before a clean commit that is its reservation;
+ * after one it is the canonical slot. An explicit missing source has no canonical fallback.
  */
 internal fun selectRecoverySource(
     mutation: MutationPlan,
@@ -391,10 +289,7 @@ internal fun selectRecoverySource(
             ?: return RecoverySourcePlan.Stop(
                 "post-commit recovery found no promoted undo slot ($cause)",
             )
-        // Deliberately NOT consumed here (R4 review): the canonical stays in place so the
-        // follow-up preflight's own honest recovery — which reads the durably UN-committed
-        // journal the caller re-claimed before this rollback — can find, re-apply and consume
-        // it through the inline protocol, resolving the journal truthfully.
+        // Preflight owns canonical consumption after reclaiming the journal.
         return RecoverySourcePlan.Apply(canonical, SourceConsumption.None)
     }
     return when (mutation.consume) {
@@ -413,46 +308,15 @@ internal fun selectRecoverySource(
     }
 }
 
-/**
- * The verdict of one durable commit sequence (R4.2). The PROTOCOL PHASE is encoded explicitly
- * so terminal dispatch can never conflate two different failures:
- *
- *  - [NotDurable]: the file mutation ran, but the durable `Committed` transition never landed
- *    (the promotion or the record failed). The journal is still `Prepared`, every recovery
- *    asset is retained, and NOTHING downstream may dispatch the committed terminal effect,
- *    resolve the attempt, clear availability, consume a source, publish success, acknowledge
- *    the initiating action, report a clean commit, or serve the unprovable file.
- *  - [Durable]: promote + record landed. Only now is `onCommitted` a legal terminal — and an
- *    error thrown BY that terminal callback later is a different origin entirely, folded onto
- *    `Completed(effectsError)` by [runTerminalEffects], never confused with this phase.
- */
+/** `Durable` permits committed effects; `NotDurable` retains Prepared recovery state. */
 internal sealed interface CommitResult {
     data object Durable : CommitResult
     data class NotDurable(val error: BackupError) : CommitResult
 }
 
 /**
- * The durable commit sequence shared by both endings (spec §8.5a), in the ONE order that keeps
- * every crash window truthful:
- *
- *  1. the live-file mutation already committed (the caller's rename returned success);
- *  2. promote (COPY) the attempt's reserved rollback snapshot onto the canonical undo slot —
- *     the reservation itself survives, so a crash anywhere inside the promotion leaves the
- *     journal-named file recoverable and owner-identifiable;
- *  3. record the durable `Committed` transition — the ONLY point after which a cold start may
- *     conclude success;
- *  4. only after `Committed` is durable, delete the retained reservation (a crash between 3
- *     and 4 is cleaned up idempotently by the committed cold-start finalization);
- *  5. and only then consume EXACTLY the rollback source a rollback operation applied.
- *
- * A step-2 or step-3 failure returns [CommitResult.NotDurable]: every asset is kept and the
- * journal stays `Prepared` — the mutation stands but is not durably provable, so recovery
- * proceeds conservatively. The caller maps it to a NON-committed outcome
- * (`FailedAfterMutation` under RestartProcess; the bounded recovery ladder or Fatal under
- * RebuildInProcess) — never to `Completed`, because `runTerminalEffects` would then dispatch
- * the committed terminal over a still-`Prepared` journal (the R4.2 defect: production
- * `onCommitted` effects resolve the attempt, clear availability and acknowledge the action,
- * erasing exactly the state conservative recovery needs).
+ * Commits in crash-safe order: promote reservation, record `Committed`, remove reservation,
+ * then consume the exact rollback source. A promotion or record failure remains `Prepared`.
  */
 internal suspend fun commitMutation(mutation: MutationPlan): CommitResult {
     val provider = mutation.provider
@@ -472,8 +336,7 @@ internal suspend fun commitMutation(mutation: MutationPlan): CommitResult {
             ),
         )
     }
-    // Step 4 — the reservation is deleted ONLY once `Committed` is durable: before that, it is
-    // the journal-named recovery source and must survive (the promotion above only copied it).
+    // Remove the reservation only after `Committed` is durable.
     mutation.reservation?.let { reserved -> runCatching { reserved.delete() } }
     when (val consume = mutation.consume) {
         SourceConsumption.None -> Unit
@@ -484,36 +347,14 @@ internal suspend fun commitMutation(mutation: MutationPlan): CommitResult {
 }
 
 /**
- * The inline Scenario-1 rollback branch of the CURRENT transaction (see the seam method).
- *
- * R4 adversarial-review corrections — the inline branch obeys the SAME protocol as the
- * top-level operation, because it IS the same operation submitted from inside the preflight:
- *
- *  - the submitted [sourcePath] is honored through [selectRollbackOperationSource] — a
- *    journal-named source is authoritative and a missing one is a typed rejection, never a
- *    silent substitution of the canonical slot (invariant 2; pre-fix the inline branch
- *    hard-coded the canonical, which could apply and consume ANOTHER attempt's older
- *    snapshot);
- *  - [DatabaseReplacementEffects.onBeforeMutation] runs BEFORE anything irreversible, exactly
- *    as `executeReplacement` does: the scenario-1 effects' re-claim converts the journal to
- *    `Prepared`/`Kind.Rollback`, so a process death anywhere inside the inline mutation
- *    replays the truthful rollback bookkeeping — pre-fix the journal stayed
- *    `Committed`/`Kind.Restore` and a death before the terminal resolve made the next launch
- *    peek the rolled-back file and publish a FALSE RestoreSuccess;
- *  - the applied file is consumed EXACTLY (invariant 3), via the plan's typed consumption.
+ * Executes preflight rollback inside the current transaction with the same journal and source
+ * ownership rules as a top-level rollback.
  */
 internal suspend fun runInlineRollback(
     transaction: ReplacementTransaction,
     effects: DatabaseReplacementEffects,
     sourcePath: String?,
-    /**
-     * THE candidate teardown protocol (R4.1): clear the candidate's ViewModelStore, cancel and
-     * bounded-join its lifetime, then close its database — `AppRuntime` backs this with
-     * `GenerationQuiescer.tearDownCandidate(candidate, closeCandidateDatabase = true)`.
-     * Pre-R4.1 the inline branch closed the candidate database DIRECTLY, before the store was
-     * cleared or the lifetime joined — a candidate job's DB-touching `finally` could then run
-     * against the closed handle.
-     */
+    /** Clears the store, joins the lifetime, then closes the candidate database. */
     disposeCandidate: suspend (RuntimeGeneration) -> Boolean,
 ): ReplacementOutcome {
     val candidate = transaction.candidate
@@ -527,9 +368,7 @@ internal suspend fun runInlineRollback(
 
         is OperationSourcePlan.Proceed -> selected
     }
-    // Pre-mutation persistence, BEFORE the candidate teardown: a throw (foreign journal owner,
-    // or a failed write) rejects the inline rollback while the candidate and the live file are
-    // both untouched.
+    // Claim the journal before teardown or file mutation.
     val prepared = runCatching { effects.onBeforeMutation("") }
     if (prepared.isFailure) {
         return ReplacementOutcome.RejectedBeforeMutation(
@@ -538,10 +377,7 @@ internal suspend fun runInlineRollback(
             ),
         )
     }
-    // Invalidate, then run the ONE candidate teardown protocol before the file mechanics: the
-    // candidate's jobs may hold its database, so their `finally` blocks must finish BEFORE the
-    // close, and the close before the swap. A failed clear/join/close leaves an unknown state
-    // over the live file — the LADDER MUST STOP (Fatal), and no rename may run (spec §8.4).
+    // Teardown order is store clear, lifetime join, database close, then file swap.
     transaction.candidateInvalidated = true
     val disposed = runCatching { disposeCandidate(candidate) }.getOrDefault(false)
     if (!disposed) {
@@ -555,13 +391,12 @@ internal suspend fun runInlineRollback(
     if (replaced is BackupResult.Failure) {
         return ReplacementOutcome.FailedAfterMutation(replaced.error)
     }
-    // Mark BEFORE consuming, and record the cause for the outer transaction's outcome.
+    // Mark before consuming so the outer result stays truthful.
     transaction.rolledBack = true
     transaction.rollbackCause = BackupError.Io(
         IOException("restore rolled back by the scenario-1 preflight"),
     )
-    // The rollback asset is consumed only after the durable commit record — same ordering rule
-    // as every other mutation (spec §8.5a), and EXACTLY the applied file (invariant 3).
+    // Consume only after durable commit, and only the applied source.
     val committed = commitMutation(
         mutation = MutationPlan(
             provider = provider,
@@ -574,30 +409,15 @@ internal suspend fun runInlineRollback(
     return when (committed) {
         CommitResult.Durable -> ReplacementOutcome.Completed(generation = null)
 
-        // PRE-DURABLE failure (R4.2): the inline swap ran but `Committed` never landed. The
-        // journal stays `Prepared` and the source is retained (consumption never ran) — the
-        // caller's `onFailedAfterMutation` may publish feedback but can neither resolve the
-        // attempt nor clear availability, so the next recovery step still observes the owned
-        // `Prepared` attempt. NEVER `Completed`: the committed terminal must not run.
+        // Preserve Prepared state and source; a non-durable swap is never Committed.
         is CommitResult.NotDurable -> ReplacementOutcome.FailedAfterMutation(committed.error)
     }
 }
 
-/**
- * The UI attachment admission gate (spec §8.4 Quiescing step 1). Counts attachments per
- * generation id; a transition RETIRES its outgoing id in the SAME atomic compare-and-set that
- * observes the count at zero, so no late attach can land between the zero observation and
- * anything irreversible: an attach against a retired id is refused (and logged loudly — the
- * region cannot exist, its phase is no longer published). An ABORTED transition un-retires the
- * id before republishing; a COMMITTED one leaves it retired forever.
- */
+/** UI admission gate that atomically observes zero attachments and retires a generation. */
 internal class UiAdmissionGate(private val logger: Logger) {
 
-    /**
-     * One admitted UI region. Identity is the token itself, not the generation id, which is what
-     * makes release ABA-safe: a token released after its generation was retired and the id later
-     * reopened decrements nothing, so it can never cancel out a LATER region's admission.
-     */
+    /** Token identity makes late release ABA-safe. */
     class Token internal constructor(
         internal val generationId: Int,
         internal val serial: Long,
@@ -611,18 +431,10 @@ internal class UiAdmissionGate(private val logger: Logger) {
     private val state = MutableStateFlow(State())
     private val nextSerial = AtomicLong(0)
 
-    /**
-     * Requests admission for a generation region DURING COMPOSITION, before the region resolves
-     * any dependency. Returns null when the generation is retired — the caller must then render
-     * nothing and resolve nothing, which is the whole point: a retired generation's content may
-     * not touch its graph, Stores or ViewModels.
-     */
+    /** Requests composition-time admission; a retired generation receives no token. */
     fun admit(generationId: Int): Token? {
         val serial = nextSerial.incrementAndGet()
-        // The verdict is READ OFF the committed state, never carried out of the update lambda:
-        // `update` retries on a losing CAS and the lambda is re-run, so a captured flag would
-        // keep the value a LOSING iteration wrote — issuing a token for a generation the winning
-        // iteration had already retired.
+        // Read the verdict from the winning CAS state, not a retried update lambda.
         val after = state.updateAndGet { s ->
             if (generationId in s.retired) {
                 s
@@ -656,10 +468,7 @@ internal class UiAdmissionGate(private val logger: Logger) {
         }
     }
 
-    /**
-     * Awaits the generation having no admitted region and CLOSES admission for it in one atomic
-     * step (the retire CAS). Returns false on timeout — the id stays admittable.
-     */
+    /** Atomically waits for zero admissions and retires the id; timeout leaves it admittable. */
     suspend fun awaitRetired(id: Int, timeoutMillis: Long): Boolean =
         withTimeoutOrNull(timeoutMillis) {
             var retired = false
@@ -685,23 +494,14 @@ internal class UiAdmissionGate(private val logger: Logger) {
     fun admittedCount(id: Int): Int = state.value.live[id].orEmpty().size
 }
 
-/**
- * The DB-bound background-work admission gate (spec §8.4 Quiescing step 2): leases are
- * acquired atomically with the generation deps at the work's FIRST operation, a transition
- * closes admission and awaits the outstanding count, and blocked acquirers suspend through
- * the bounded transition window.
- */
+/** DB-bound work admission; a lease binds dependencies atomically at first operation. */
 internal class WorkerAdmissionGate {
 
     private val lock = Any()
     private val closed = MutableStateFlow(false)
     private val activeLeases = MutableStateFlow(0)
 
-    /**
-     * Suspends while admission is closed, then atomically (under the gate lock) increments the
-     * lease count and captures the current generation's deps via [deps] — which must be
-     * fail-fast on a Fatal runtime so no work ever binds to a closed generation.
-     */
+    /** Waits for admission, then atomically increments the lease count and binds dependencies. */
     suspend fun awaitLease(deps: () -> BackupWorkerDeps): BackupWorkLease {
         while (true) {
             synchronized(lock) {
@@ -761,16 +561,8 @@ internal fun ReplacementOutcome.toSeamResult(): DatabaseReplacementResult = when
 }
 
 /**
- * Releases a generation whose graph construction failed, and returns the exception to throw:
- * the orphan database is closed only AFTER its lifetime is cancelled and JOINED, because a
- * partially constructed graph may already have handed that lifetime to consumers that started
- * jobs. For an OWNED database, a failed join or close escalates to [OrphanCloseException]; for
- * a SHARED-database candidate the join verdict is equally load-bearing (R4 blocker D) — an
- * unjoinable child holds the LIVE database and no later mechanism joins an abandoned candidate
- * lifetime, so it escalates to [PartialCandidateUnwindException]. Both signals stop the caller
- * terminally instead of resolving to an ordinary retryable abort. Non-suspend by necessity —
- * generation 1 is built from the `currentGeneration` getter — so the join runs on the caller's
- * thread with the same bounded budget the candidate paths use.
+ * Releases a failed graph candidate: join its lifetime before closing an owned database. Failed
+ * cleanup is terminal because candidate work may still hold the live file.
  */
 internal fun releasePartialGeneration(
     lifetime: AppScopeLifetime,
@@ -793,16 +585,7 @@ internal fun releasePartialGeneration(
         .fold(onSuccess = { cause }, onFailure = { OrphanCloseException(it) })
 }
 
-/**
- * Result truth (spec §8.4): `Completed` ONLY when the REQUESTED operation committed. A restore
- * whose data ended up rolled back — by the ladder or the preflight's inline rollback — reports
- * [ReplacementOutcome.RecoveredByRollback] even though a generation published successfully:
- * the serving data is the PRE-operation data. A DURABLE commit is a precondition of the
- * `Completed` branch (R4.2): every pre-durable failure diverted into the bounded recovery
- * before the ladder, so `effectsError` on the outcome can only ever be written later by
- * [runTerminalEffects], from a failure OF the terminal `onCommitted` callback itself — a
- * different origin than a failure that prevented the durable `Committed` transition.
- */
+/** `Completed` means the requested operation committed; restored pre-operation data is recovery. */
 internal fun completedOrRecovered(
     transaction: ReplacementTransaction,
     generation: RuntimeGeneration,

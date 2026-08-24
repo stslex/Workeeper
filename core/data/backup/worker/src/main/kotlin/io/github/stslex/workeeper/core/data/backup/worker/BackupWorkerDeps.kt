@@ -33,21 +33,7 @@ interface BackupWorkerDeps {
     val snapshotExportRunner: SnapshotExportRunner
 }
 
-/**
- * Held-instance seam for worker admission: the process `Application` exposes the runtime's
- * admission gate typed for the data layer. This is the accepted layer-specific acquisition for
- * the data layer, which cannot reach the UI-homed `appDeps<T>()`.
- *
- * **First-operation admission (Phase 5 R2, spec §8.4).** [BackupWorker] calls
- * [awaitBackupWorkLease] as the FIRST operation inside `doWork` — never at construction. The
- * factory therefore captures NO generation dependencies, and a worker WorkManager constructed
- * but never started holds nothing a transition would have to wait for. The acquisition
- * suspends while a runtime transition holds admission closed (bounded by the transition
- * window) and then returns the CURRENT generation's deps together with the lease the
- * transition's quiesce awaits — deps and lease bound atomically, so the run is coherently
- * owned by exactly one generation. Throws when the runtime is Fatal (no generation may admit
- * work).
- */
+/** Data-layer seam for first-operation worker admission. */
 interface BackupWorkerDepsHolder {
 
     suspend fun awaitBackupWorkLease(): BackupWorkLease

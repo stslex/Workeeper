@@ -4,14 +4,7 @@ package io.github.stslex.workeeper.app.common.di
 import androidx.lifecycle.ViewModelStoreOwner
 import kotlinx.coroutines.flow.StateFlow
 
-/**
- * The UI face of one runtime generation (Phase 5, `kmp-phase-5-startup-processor.md` §8.7).
- * `App()` keys its whole body on [id] and provides [viewModelStoreOwner] as the root
- * `LocalViewModelStoreOwner`, which is what makes the Nav3 back stack, the per-entry Stores,
- * `AppRootViewModel`, and the app-dialog Store generation-owned: a new generation starts at the
- * root with fresh instances from the new graph, and the old generation's store is cleared
- * deterministically by the runtime — never left to Activity death.
- */
+/** UI publication state for a runtime generation. */
 sealed interface AppUiPhase {
 
     class Generation(
@@ -19,11 +12,7 @@ sealed interface AppUiPhase {
         val viewModelStoreOwner: ViewModelStoreOwner,
     ) : AppUiPhase
 
-    /**
-     * The transition window: no generation is published for new UI work. `App()` composes a
-     * neutral interstitial (theme-independent — the theme flows from the generation's own
-     * `AppRootViewModel`, which does not exist in this window).
-     */
+    /** No generation is published to new UI work. */
     data object Transitioning : AppUiPhase
 }
 
@@ -42,17 +31,7 @@ interface AppUiGenerationsHolder {
 
     val appUiPhases: StateFlow<AppUiPhase>
 
-    /**
-     * Requests admission for a generation's UI region, DURING COMPOSITION and before the region
-     * resolves ANY dependency (Phase 5 R3, spec §8.4 step 1). LOAD-BEARING (no default): the
-     * runtime's transition gate holds the transition open while a token is outstanding, and a
-     * host that silently granted admission would let a replacement close the database under a
-     * live UI.
-     *
-     * Returns `null` when the generation is already retired — the region must then render
-     * nothing and resolve nothing, so a stale frame can never reach the graph, its Stores or
-     * its ViewModels.
-     */
+    /** Requests composition-time admission; null means render without resolving dependencies. */
     fun admitUiGeneration(id: Int): AppUiAdmissionToken?
 
     /**

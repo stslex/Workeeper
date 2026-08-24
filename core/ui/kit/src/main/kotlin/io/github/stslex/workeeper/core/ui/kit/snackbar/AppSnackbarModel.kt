@@ -90,11 +90,7 @@ suspend fun resolveSnackbarOutcomeOrRequeue(
     delivered: DeliveredSnackbar,
     show: suspend () -> SnackbarResult?,
 ) {
-    // Admission first (R3, spec §8.4 step 3): a transition that already observed zero routings
-    // and FENCED the gate must not have a new one start behind its back. A refused routing puts
-    // the model back with its OWN epoch — preserved on an abort, discarded at delivery after a
-    // committed handover — so the outcome is never decided by which side of the fence the
-    // collector happened to land on.
+    // Fence before routing so a quiescing transition cannot miss this callback.
     if (!SnackbarManager.beginResolve()) {
         SnackbarManager.requeue(delivered)
         return

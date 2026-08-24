@@ -230,21 +230,10 @@ internal interface AppGraph :
      */
     val imageStorage: ImageStorage
 
-    /**
-     * The generation lifetime this graph was built with — the `create()` bound-instance root every
-     * scope-owning app-scope singleton derives its `childScope` from (Phase 5, spec §8.2). Read by
-     * the runtime/identity tests to assert the root is threaded, and by `BaseApplication`'s startup
-     * chores until the runtime host owns them.
-     */
+    /** Generation lifetime root for graph-owned scopes. */
     override val appScopeLifetime: AppScopeLifetime
 
-    /**
-     * The recovery cluster — feature/recovery `@SingleIn(AppScope)` graph nodes read by
-     * `BaseApplication`/`MainActivity` (both in app/app, so read the INTERNAL graph directly via
-     * `AppGraphOwner`, not through a dep interface). [recoveryBootstrap] is the
-     * `RestoreDialogChoiceObserver` (via its `RecoveryBootstrap` supertype, `@ContributesBinding`) —
-     * resolving it eagerly arms the observer's `init{}` subscriber (app-dialogs BLOCKER 1).
-     */
+    /** Recovery graph nodes. Resolving [recoveryBootstrap] eagerly arms its subscriber. */
     val restoreRecoveryCoordinator: RestoreRecoveryCoordinator
     val startupMigrationCoordinator: StartupMigrationCoordinator
     val recoveryBootstrap: RecoveryBootstrap
@@ -259,13 +248,7 @@ internal interface AppGraph :
      */
     val restoreStateRepository: RestoreStateRepository
 
-    /**
-     * The `AppDatabase`-derived DB-snapshot binding, Metro-owned via `@ContributesBinding(AppScope)` on
-     * `DatabaseSnapshotProviderImpl` (derives from the `appDatabase` `create()` root). Read cross-module by
-     * the restore path (BackupWorker, RecoveryActivity, the recovery observers, settings) via the graph.
-     * (The sibling `LiveDatabaseLocator` binding — the SAME instance — is consumed by `StartupMigration
-     * Coordinator` via ctor `@Inject`, not through a graph accessor, so it has no accessor here.)
-     */
+    /** Database-snapshot binding derived from this graph's [AppDatabase] root. */
     override val databaseSnapshotProvider: DatabaseSnapshotProvider
 
     /**
@@ -278,21 +261,7 @@ internal interface AppGraph :
 
     @DependencyGraph.Factory
     fun interface Factory {
-        // create() has 4 ROOTS. Each is a test-override boundary the seam swaps directly; everything
-        // else derives.
-        //  - applicationContext: the app Context (plain).
-        //  - appDatabase: the generation's Room instance (caller-constructed root, threaded in). The 9
-        //    DAOs + DbTransitionRunner DERIVE from it graph-internally (DbCascadeBindingContainer), and
-        //    the 3 AppDatabase-derived interface bindings are @ContributesBinding on their impls. The
-        //    seam swaps an in-memory AppDatabase here; prod passes the file-backed one.
-        //  - imageStorage: permanent create() root; tests pass a FakeImageStorage here.
-        //  - appScopeLifetime: the generation lifetime (Phase 5, spec §8.2) — decided by the owner that
-        //    also decides this graph's lifetime, so it CANNOT be a graph-internal binding. The three
-        //    scope-owning singletons (RestoreDialogChoiceObserver, DriveBackupAuth,
-        //    SnapshotExportRunnerImpl) derive their scopes from it.
-        //  - databaseReplacement: the runtime-owned replacement transaction (Phase 5 R2, spec §8.5) —
-        //    implemented by the runtime host that owns the generation being replaced, so it CANNOT be
-        //    graph-internal either. Consumed by the settings restore flow and the recovery coordinator.
+        // Bound roots are owned by the runtime or test harness; all remaining bindings derive here.
         fun create(
             @Provides applicationContext: Context,
             @Provides appDatabase: AppDatabase,

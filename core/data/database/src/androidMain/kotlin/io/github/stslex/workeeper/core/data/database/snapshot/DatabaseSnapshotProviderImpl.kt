@@ -23,14 +23,7 @@ import java.io.File
 import java.io.IOException
 import io.github.stslex.workeeper.core.data.database.migration.hasMigrationPath as registryHasMigrationPath
 
-/**
- * App-Scope Collapse Step 5 (5a). Metro-owned via repeatable `@ContributesBinding(AppScope)` — binds BOTH
- * [DatabaseSnapshotProvider] and [LiveDatabaseLocator] to this ONE `@SingleIn(AppScope)` instance (the same
- * `@Binds`-pair the deleted `CoreDatabaseBindingsModule` held). Public for cross-module aggregation (D1;
- * never hand-construct — resolve via DI). Derives from the [AppDatabase] `create()` root; `Context` is
- * PLAIN (from the graph's `create(applicationContext)` — `@ApplicationContext` is a Hilt qualifier, not
- * carried into the Metro graph); `@IODispatcher` is the direct `Dispatchers.IO`. No `appGraph` back-edge.
- */
+/** App-scoped Metro binding for snapshot and live-database lookup. */
 @SingleIn(AppScope::class)
 @ContributesBinding(AppScope::class, binding = binding<DatabaseSnapshotProvider>())
 @ContributesBinding(AppScope::class, binding = binding<LiveDatabaseLocator>())
@@ -98,25 +91,11 @@ public class DatabaseSnapshotProviderImpl @Inject constructor(
             val target = preRestoreBackupFile()
             val staging = File(target.parentFile, "$PRE_RESTORE_BACKUP_NAME.promoting")
             try {
-                // COPY-BASED promotion (Phase 5 R4, spec §8.5a): the reservation is the file the
-                // still-`Prepared` journal names, so it must SURVIVE every crash point of this
-                // promotion — a move here was the round-3 defect that let a death between the
-                // move and the durable `Committed` record leave the journal pointing at a path
-                // that no longer existed, misdirecting the next launch's recovery onto the
-                // canonical slot (another attempt's OLDER snapshot). The runtime deletes the
-                // reservation only AFTER `Committed` is durably recorded; a committed cold start
-                // cleans up a retained copy idempotently.
-                //
-                // The staging name is shared across attempts on purpose: promotions are
-                // mutex-serialized, recovery never reads `.promoting` (the canonical lookup is
-                // an exact-name match), and a stale file from a crashed promotion is deleted
-                // deterministically here before it could ever be renamed onto the slot.
+                // Copy keeps the Prepared journal's reservation recoverable through promotion.
+                // Serialized promotions never read `.promoting`; delete stale staging first.
                 staging.delete()
                 reservation.copyTo(staging, overwrite = true)
-                // The canonical slot is NEVER deleted before the replacement content is safely
-                // staged: a failure between a pre-emptive delete and a failed move would leave
-                // the slot empty mid-window — harmless now that the reservation survives, but
-                // still a window in which a Committed attempt's canonical would be missing.
+                // Keep the canonical slot until replacement content is safely staged.
                 if (!staging.renameTo(target)) {
                     target.delete()
                     if (!staging.renameTo(target)) {
@@ -207,8 +186,7 @@ public class DatabaseSnapshotProviderImpl @Inject constructor(
 
     override suspend fun replaceLiveDatabaseFile(source: File): BackupResult<Unit> =
         withContext(dispatcher) {
-            // Pure file mechanics — the runtime already closed the generation's database (Phase 5
-            // R2, spec §8.5); nothing here touches a Room connection.
+            // Runtime has closed the generation database; this path has no Room access.
             try {
                 val target = context.getDatabasePath(AppDatabase.NAME)
                 val parent = target.parentFile

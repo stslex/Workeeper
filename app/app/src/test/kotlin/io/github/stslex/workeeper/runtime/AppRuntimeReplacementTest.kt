@@ -43,16 +43,7 @@ import org.junit.jupiter.api.io.TempDir
 import java.io.File
 import java.io.IOException
 
-/**
- * Replacement-transaction pins for the round-2 protocol EXTENDED with the round-3 durable
- * attempt journal (spec §8.5a): submission-owned bodies with staged source ownership, typed
- * effects executed exactly once on the transaction coroutine, the per-attempt rollback
- * RESERVATION taken inside the transaction (after validation, before anything irreversible),
- * the promote → durable-commit-record → consume ordering, terminal compensation failures folded
- * onto the outcome, PONR at the START of the first irreversible action (teardown / close
- * invocation / rename), close-throw → Fatal, truthful RecoveredByRollback vs Committed, closed
- * admission (leases + atomic UI retire), and Fatal that is terminal under concurrency.
- */
+/** Replacement transaction regression tests for ownership, ordering, recovery, and terminal truth. */
 internal class AppRuntimeReplacementTest {
 
     private class ProbeViewModel(val onClear: () -> Unit = {}) : ViewModel() {
@@ -1364,18 +1355,13 @@ internal class AppRuntimeReplacementTest {
         assertEquals(RuntimePhase.Fatal, runtime.phases.value)
     }
 
-    // ------------------------------------------------------------------------------------------
-    // R4 blocker A — source-owner identity and exact-file consumption.
-    // ------------------------------------------------------------------------------------------
+    // Source-owner identity and exact-file consumption.
 
     @Test
     fun `a MISSING journal-named rollback source is a typed rejection - the canonical slot is never substituted`() =
         runtimeTest { runtime ->
             runtime.currentGeneration
-            // The canonical slot holds ANOTHER attempt's (older) snapshot — sentinel B. The
-            // journal names reservation A, which is gone (the exact crash shape a move-based
-            // promotion produced). Substituting B for A would silently revert the user past
-            // data the interrupted attempt never touched.
+            // Canonical B belongs to another attempt; missing explicit A must not select it.
             preservedFile(content = "OLDER-CANONICAL-B")
             val missingA = File(tempDir, "rollback_reservation_gone.db")
             val effects = RecordingEffects()
@@ -1537,19 +1523,13 @@ internal class AppRuntimeReplacementTest {
             )
         }
 
-    // ------------------------------------------------------------------------------------------
-    // R4 adversarial review — the inline rollback obeys the SAME protocol as the top level.
-    // ------------------------------------------------------------------------------------------
+    // Inline rollback shares top-level source and journal rules.
 
     @Test
     fun `the INLINE rollback honors the journal-named source - another attempt's canonical is never applied`() =
         runtimeTest { runtime ->
             runtime.currentGeneration
-            // Canonical B belongs to a PREVIOUS attempt; the preflight submits an explicit
-            // journal-named source A (the recovering coordinator's exact call shape). Pre-fix,
-            // the inline branch dropped the path and applied B — reverting the user past data
-            // the failed attempt never touched, and consuming B while the flag policy assumed
-            // the reservation had been used.
+            // Explicit source A is authoritative; canonical B belongs to an earlier attempt.
             preservedFile(content = "B-OLDER-CANONICAL")
             val sourceA = File(tempDir, "rollback_reservation_inline.db")
                 .apply { writeText("A-JOURNAL-NAMED") }
@@ -1721,9 +1701,7 @@ internal class AppRuntimeReplacementTest {
             assertThrows<IllegalStateException> { runtime.currentGeneration }
         }
 
-    // ------------------------------------------------------------------------------------------
-    // R4.1 — the three remaining rollback protocol gaps + the bounded-clear liveness pin.
-    // ------------------------------------------------------------------------------------------
+    // Rollback replay and bounded-clear liveness pins.
 
     /** A minimal durable-journal double with the real ownership rules, for composed pins. */
     private class FakeJournal {
@@ -1757,12 +1735,7 @@ internal class AppRuntimeReplacementTest {
         }
     }
 
-    /**
-     * Effects wired to [FakeJournal] the way the real undo/recovery effects are — the
-     * PRODUCTION-SHAPED committed terminal resolves the attempt, clears availability,
-     * publishes success and acknowledges, exactly what must never run over a non-durable
-     * commit (R4.2). [failRecordTimes] injects one-shot or persistent record failures.
-     */
+    /** Journal-backed effects double; [failRecordTimes] injects durable-record failure. */
     private inner class JournalEffects(
         override val attemptId: String,
         private val journal: FakeJournal,
@@ -1820,10 +1793,7 @@ internal class AppRuntimeReplacementTest {
     @Test
     fun `a requested rollback's successful retry COMMITS as the requested operation - never as compensation`() =
         runtimeTest { runtime ->
-            // R4.1 blocker 2, composed with a journal-aware production-shaped preflight.
-            // Pre-R4.1 the retry committed anonymously: the canonical was consumed while the
-            // REAL journal stayed Prepared/Rollback, and the preflight — finding an
-            // unresolvable Prepared attempt with no source left — went Fatal.
+            // Retry must commit through the original rollback effects.
             runtime.currentGeneration
             preservedFile(content = "UNDO")
             val journal = FakeJournal()
@@ -1889,12 +1859,7 @@ internal class AppRuntimeReplacementTest {
     @Test
     fun `a retry whose record persistently FAILS never runs the real committed terminal`() =
         runtimeTest { runtime ->
-            // R4.2 mandated proof 1, PRODUCTION-SHAPED: the committed terminal here would
-            // resolve the journal, clear availability, publish success and acknowledge — the
-            // erasure the old Completed(effectsError) dispatch performed. Primary swap fails,
-            // the retry swap succeeds, the durable record persistently fails: the terminal must
-            // NOT be invoked, the attempt stays Prepared with its source and availability, and
-            // the runtime reaches the bounded truthful Fatal.
+            // A retry with no durable record must retain Prepared state and skip committed effects.
             runtime.currentGeneration
             preservedFile(content = "UNDO")
             val journal = FakeJournal()
@@ -1942,9 +1907,7 @@ internal class AppRuntimeReplacementTest {
     @Test
     fun `the INLINE rollback disposes the candidate through the ONE teardown protocol before the swap`() =
         runtimeTest { runtime ->
-            // R4.1 blocker 3: pre-fix the inline branch closed the candidate database DIRECTLY
-            // — before its ViewModelStore was cleared or its lifetime joined, so a candidate
-            // job's DB-touching `finally` could run against the closed handle.
+            // Candidate store clear and lifetime join must precede close and swap.
             runtime.currentGeneration
             val sourceA = File(tempDir, "rollback_reservation_inline.db")
                 .apply { writeText("A-INLINE-SOURCE") }
@@ -2052,9 +2015,7 @@ internal class AppRuntimeReplacementTest {
 
     @Test
     fun `a clear that is QUEUED but never RUN cannot hang the machine - Fatal within the drain budget`() {
-        // A REAL queueing dispatcher (R4.2 truth pass): it retains every accepted runnable so
-        // the abandoned clear can be executed AFTER the verdict, proving the documented
-        // residual — the late clear runs and changes nothing.
+        // Retain accepted work to prove a late clear cannot change the Fatal verdict.
         val queued = java.util.concurrent.ConcurrentLinkedQueue<Runnable>()
         val queueOnly = object : kotlinx.coroutines.CoroutineDispatcher() {
             override fun dispatch(
@@ -2065,10 +2026,7 @@ internal class AppRuntimeReplacementTest {
             }
         }
         runtimeTest(mainDispatcherOverride = queueOnly) { runtime ->
-            // R4.1 liveness pin: the old unbounded `withContext(mainDispatcher)` suspended the
-            // whole transition — mutex held, phase stranded, the submitted deferred never
-            // completing — for as long as the wedged dispatcher cared to. The bounded clear
-            // must reach the terminal verdict within the drain budget.
+            // A queued main clear must reach terminal verdict within the drain budget.
             runtime.currentGeneration
 
             val transaction = async {

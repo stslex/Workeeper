@@ -10,17 +10,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
-/**
- * The QUIESCENCE half of a generation transition (Phase 5, spec §8.4): the three admission
- * barriers a transition must close before anything irreversible, the outgoing generation's
- * teardown, and the single candidate-teardown path. Extracted from [AppRuntime] because it is a
- * cohesive concern with one job — deciding when no old-generation work can still touch the
- * database — while the runtime keeps everything that PUBLISHES state (phases, Fatal, the
- * generation sequence).
- *
- * Every method here is TOTAL: it reports a reason instead of throwing, because its callers are
- * the transaction machines, which must resolve every path to a published state.
- */
+/** Closes admission and tears down generations without publishing runtime state. */
 internal class GenerationQuiescer(
     private val uiGate: UiAdmissionGate,
     private val workerGate: WorkerAdmissionGate,
@@ -29,23 +19,18 @@ internal class GenerationQuiescer(
     private val logger: Logger,
 ) {
 
-    /**
-     * The ABORTABLE quiesce (spec §8.4 steps 1–3): every step is REVERSIBLE — nothing of the
-     * outgoing generation is torn down. Returns the abort reason, or null when quiesced.
-     */
+    /** Closes reversible admission barriers; returns an abort reason or null. */
     suspend fun quiesce(outgoing: RuntimeGeneration): String? {
-        // Step 1: UI regions — the retire CAS closes admission for the outgoing id atomically
-        // with the observation that no region holds a token, so no late admission can pass it.
+        // Retire UI admission atomically with the zero-token observation.
         if (!uiGate.awaitRetired(outgoing.id, policy.uiDisposalTimeoutMillis)) {
             return "ui region did not dispose in time"
         }
-        // Step 2: worker leases — close admission, await previously admitted runs.
+        // Close worker admission, then drain admitted leases.
         workerGate.close()
         if (!workerGate.awaitDrained(policy.drainTimeoutMillis)) {
             return "worker lease drain timed out"
         }
-        // Step 3: in-flight snackbar routings (deferred-delete commits) — awaited AND fenced in
-        // one atomic step, so no new routing can start behind the zero observation.
+        // Drain and fence snackbar routing atomically.
         val fenced = withTimeoutOrNull(policy.drainTimeoutMillis) { policy.fenceSnackbarResolves() }
         if (fenced == null) {
             policy.unfenceSnackbarResolves()
@@ -67,14 +52,7 @@ internal class GenerationQuiescer(
         policy.unfenceSnackbarResolves()
     }
 
-    /**
-     * Tears down the OUTGOING generation — the transition's first irreversible action, so the
-     * caller crosses PONR before invoking this. Total: returns a degradation reason or null.
-     * The runtime-owned ViewModelStore clears first (which now genuinely ends each Store's
-     * work), then the lifetime's jobs — Store jobs included, since they are parented to it —
-     * are cancelled and JOINED, so every `finally` that touches the database completes BEFORE
-     * the database closes.
-     */
+    /** Clears the store, then cancels and joins the lifetime before database close. */
     suspend fun tearDown(outgoing: RuntimeGeneration): String? {
         if (!clearStoreBounded(outgoing.viewModelStore)) {
             return "outgoing ViewModelStore clear failed or timed out"
@@ -88,15 +66,7 @@ internal class GenerationQuiescer(
         return null
     }
 
-    /**
-     * Clears a runtime-owned ViewModelStore on the main dispatcher with a BOUNDED await (R4
-     * review): a `withContext` here would suspend the whole transition — mutex held, phase
-     * stranded at `Transitioning`, the submitted deferred never completing — for as long as a
-     * wedged main dispatcher or a blocking `onCleared` cares to run. The clear is dispatched
-     * detached and awaited within the drain budget; on timeout the machine proceeds to its
-     * terminal verdict and the abandoned clear finishes (or not) on its own — acceptable,
-     * because every timeout consumer treats the clear as FAILED and goes Fatal.
-     */
+    /** Bounded detached clear prevents a wedged main dispatcher from stranding the transition. */
     private suspend fun clearStoreBounded(store: ViewModelStore): Boolean {
         val cleared = CompletableDeferred<Boolean>()
         CoroutineScope(policy.mainDispatcher + SupervisorJob()).launch {
@@ -105,18 +75,7 @@ internal class GenerationQuiescer(
         return withTimeoutOrNull(policy.drainTimeoutMillis) { cleared.await() } ?: false
     }
 
-    /**
-     * THE ONE candidate teardown path, used by every candidate that must not be published
-     * (preflight failure, inline-rollback invalidation, partial construction):
-     *
-     *  1. publication is already prevented (the caller never published this candidate);
-     *  2. clear its ViewModel ownership;
-     *  3. cancel AND bounded-JOIN its lifetime — a candidate's own jobs can hold the candidate
-     *     database, so their `finally` blocks must finish first;
-     *  4. only then close the database;
-     *  5. any failure returns false → the caller stops the ladder (Fatal) and performs no later
-     *     rename, because an unjoined job or an unknown-state handle may still hold the file.
-     */
+    /** Clears, joins, then closes an unpublished candidate; failure stops the replacement ladder. */
     suspend fun tearDownCandidate(
         candidate: RuntimeGeneration,
         closeCandidateDatabase: Boolean,
@@ -139,7 +98,7 @@ internal class GenerationQuiescer(
             return false
         }
         if (!closeCandidateDatabase) return true
-        // close() is idempotent — safe even when the inline rollback already closed it.
+        // Close is idempotent, including an already-invalidated inline candidate.
         return runCatching { closeDatabase(candidate.database) }
             .onFailure { logger.e(it, "candidate database close failed — ladder must stop") }
             .isSuccess

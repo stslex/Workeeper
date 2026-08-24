@@ -65,13 +65,7 @@ class RestoreStateRepositoryImpl internal constructor(
         dataStore.edit { prefs ->
             val ownerId = prefs[KEY_ATTEMPT_ID]
             val legacyMarker = prefs[KEY_LEGACY_RESTORE_IN_PROGRESS] == true
-            // Owner isolation (R4 invariant 5). A DIFFERENT unresolved attempt owns the slot:
-            // refuse rather than inherit its bookkeeping. Re-claiming with the same id is
-            // idempotent — a retried submission of one attempt is not a second. A pre-R4 legacy
-            // marker (id-less `restore_in_progress`) is owned by exactly ONE synthetic id —
-            // [LEGACY_ATTEMPT_ID], the id `getAttempt` hands the recovery path — and its claim
-            // CONVERTS the marker into an owner-scoped record in this same atomic edit. Any
-            // other id is refused, exactly as against a live owned record.
+            // Same-id reclaim is idempotent; a legacy marker belongs only to its synthetic owner.
             val ownsSlot = when {
                 ownerId != null -> ownerId == attempt.id
                 legacyMarker -> attempt.id == LEGACY_ATTEMPT_ID
@@ -84,8 +78,7 @@ class RestoreStateRepositoryImpl internal constructor(
             prefs[KEY_ATTEMPT_ID] = attempt.id
             prefs[KEY_ATTEMPT_KIND] = attempt.kind.name
             prefs[KEY_ATTEMPT_PHASE] = RestoreAttempt.Phase.Prepared.name
-            // The atomic legacy → owner-scoped conversion: once the synthetic owner has an
-            // id-keyed record, the id-less boolean would only shadow it.
+            // Convert legacy state to the owner-scoped record in this atomic edit.
             prefs.remove(KEY_LEGACY_RESTORE_IN_PROGRESS)
             prefs.remove(KEY_LEGACY_MUTATION_INTERRUPTED)
             attempt.rollbackSnapshotPath
@@ -116,12 +109,7 @@ class RestoreStateRepositoryImpl internal constructor(
         var resolved = false
         dataStore.edit { prefs ->
             val ownerId = prefs[KEY_ATTEMPT_ID]
-            // Owner isolation (R4 invariant 5): an id-less legacy marker is owned by exactly
-            // the synthetic [LEGACY_ATTEMPT_ID] — an ARBITRARY attempt id must not clear it.
-            // (Pre-R4, any refused attempt's rejection compensation could erase the legacy
-            // journal here, forgetting an interrupted restore entirely.) The migration state
-            // cannot outlive every attempt: the recovery path claims it under the synthetic id,
-            // which converts it to an owned record that resolves normally.
+            // Only the synthetic legacy owner may resolve an id-less marker.
             val ownsLegacy = ownerId == null &&
                 prefs[KEY_LEGACY_RESTORE_IN_PROGRESS] == true &&
                 attemptId == LEGACY_ATTEMPT_ID
@@ -146,10 +134,7 @@ class RestoreStateRepositoryImpl internal constructor(
         val context = readContext(prefs)
         val id = prefs[KEY_ATTEMPT_ID]
         if (id == null) {
-            // Legacy migration (pre-R3 installs): a `restore_in_progress` marker written by an
-            // older build carries no phase, so its outcome is UNKNOWN — the conservative
-            // reading is Prepared, which routes the next launch through recovery instead of
-            // letting a schema peek claim a success the old flags cannot prove.
+            // Legacy marker has unknown phase and is conservatively Prepared.
             if (prefs[KEY_LEGACY_RESTORE_IN_PROGRESS] != true) return null
             return RestoreAttempt(
                 id = LEGACY_ATTEMPT_ID,
@@ -207,7 +192,7 @@ class RestoreStateRepositoryImpl internal constructor(
     private companion object {
         const val PREFS_NAME = "restore_state_prefs"
 
-        // Attempt-journal keys (R3). Wire format — never rename without a deprecation path.
+        // Attempt-journal wire keys; preserve names or add a migration path.
         val KEY_ATTEMPT_ID = stringPreferencesKey("restore_attempt_id")
         val KEY_ATTEMPT_KIND = stringPreferencesKey("restore_attempt_kind")
         val KEY_ATTEMPT_PHASE = stringPreferencesKey("restore_attempt_phase")
@@ -223,7 +208,7 @@ class RestoreStateRepositoryImpl internal constructor(
         val KEY_RESTORE_STARTED_AT =
             longPreferencesKey("restore_in_progress_started_at_epoch_ms")
 
-        // Read-only legacy flags from pre-R3 installs; cleared when an attempt resolves.
+        // Legacy flags remain readable until their owning attempt resolves.
         val KEY_LEGACY_RESTORE_IN_PROGRESS = booleanPreferencesKey("restore_in_progress")
         val KEY_LEGACY_MUTATION_INTERRUPTED =
             booleanPreferencesKey("restore_mutation_interrupted")

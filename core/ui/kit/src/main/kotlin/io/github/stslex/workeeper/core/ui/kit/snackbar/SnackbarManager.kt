@@ -12,12 +12,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.updateAndGet
 import java.util.concurrent.atomic.AtomicLong
 
-/**
- * One toast handed to the host collector, carrying the generation epoch it was ENQUEUED under
- * (Phase 5 R3, spec §8.4 step 3). The epoch travels with the model through delivery,
- * cancellation and requeue, so a model produced by generation N can never be re-stamped as N+1
- * and executed inside the successor's collector.
- */
+/** Toast delivered with its enqueue epoch, preserved through requeue. */
 data class DeliveredSnackbar internal constructor(
     val model: AppSnackbarModel,
     internal val epoch: Long,
@@ -44,14 +39,7 @@ object SnackbarManager {
      */
     private val queue = Channel<Queued>(capacity = Channel.UNLIMITED)
 
-    /**
-     * The resolve gate as ONE linearizable value (R3). [inFlight] counts
-     * [resolveSnackbarOutcomeOrRequeue] routings — including the `NonCancellable` commit inside
-     * [resolveSnackbarOutcome], which is why a replacement must await it. [fenced] closes
-     * admission: after a transition observes zero in-flight and fences in the SAME atomic step,
-     * no new resolve can start, so the drain's zero observation cannot be invalidated a moment
-     * later by a collector that was about to begin one.
-     */
+    /** Linearizable routing count and admission fence. */
     private data class ResolveGate(val inFlight: Int = 0, val fenced: Boolean = false)
 
     private val resolveGate = MutableStateFlow(ResolveGate())
@@ -59,14 +47,7 @@ object SnackbarManager {
     /** Approximate count of queued-but-undelivered models. Maintained on send/receive. */
     private val queuedCount = MutableStateFlow(0)
 
-    /**
-     * The generation epoch. Every queued model is stamped at enqueue; delivery FILTERS OUT
-     * models from an older epoch, so a callback whose closure captured generation N's
-     * repositories can never execute inside generation N+1. The runtime advances it on a
-     * COMMITTED handover only, and does so BEFORE publishing the successor (spec §8.4), so
-     * there is no window in which N+1's collector is live while N's models still pass the
-     * filter.
-     */
+    /** Epoch advances before successor publication, excluding stale callbacks at delivery. */
     private val generationEpoch = AtomicLong(0)
 
     val snackbar: Flow<DeliveredSnackbar> = queue.receiveAsFlow()
@@ -76,10 +57,7 @@ object SnackbarManager {
             if (queued.epoch == epoch) {
                 DeliveredSnackbar(queued.model, queued.epoch)
             } else {
-                // The documented interruption semantics (ED11 / D-OPEN-10): a model that
-                // crossed a COMMITTED generation handover is discarded — its deferred-delete
-                // commit never runs and the delete reverts, the same designed outcome as
-                // process death mid-window. Logged, never silent.
+                // A committed handover discards stale callbacks rather than running them in N+1.
                 logger.w {
                     "discarding snackbar '${queued.model.message}' from a replaced generation " +
                         "(epoch ${queued.epoch} < $epoch)"
@@ -92,11 +70,7 @@ object SnackbarManager {
         enqueue(model, generationEpoch.get())
     }
 
-    /**
-     * Puts a delivered-but-unrouted model back with its ORIGINAL epoch (R3). Re-stamping it
-     * with the current epoch is the bug this replaces: a model whose generation was replaced
-     * while the host held it would come back looking current and execute against the successor.
-     */
+    /** Requeues with original epoch so a stale callback cannot become current. */
     internal fun requeue(delivered: DeliveredSnackbar) {
         enqueue(delivered.model, delivered.epoch)
     }

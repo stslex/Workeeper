@@ -3,26 +3,7 @@ package io.github.stslex.workeeper.core.data.backup.api.restore
 
 import kotlinx.coroutines.flow.Flow
 
-/**
- * DataStore-backed state for the restore-recovery flows
- * (`documentation/feature-specs/backup-recovery.md`).
- *
- * Two distinct pieces of state, both surviving process restart:
- *
- * 1. **The attempt journal** ([RestoreAttempt], Phase 5 R3 — spec §8.5a) — at most ONE
- *    unresolved database-replacement attempt at a time. Claimed atomically before the point of
- *    no return, advanced to [RestoreAttempt.Phase.Committed] only once the requested file
- *    mutation is durably committed, and cleared only by the attempt that owns it. The
- *    cold-start pre-flight reads it to decide success vs recovery: a
- *    [RestoreAttempt.Phase.Prepared] (or otherwise unknown) attempt NEVER yields a success
- *    verdict, however healthy the live database looks.
- *
- * 2. **`pre_restore_backup_available`** — a longer-lived flag set after the
- *    post-restart pre-flight verifies the restore succeeded. While `true`,
- *    Settings renders the "Revert last restore" row and the corresponding
- *    `cache/pre_restore_backup.db` snapshot is preserved. Cleared on undo or
- *    when the next Restore's snapshot is promoted over it.
- */
+/** Persistent attempt journal and canonical-undo availability state. */
 interface RestoreStateRepository {
 
     /**

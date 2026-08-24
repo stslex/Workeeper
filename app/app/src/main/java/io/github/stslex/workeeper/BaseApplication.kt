@@ -59,16 +59,7 @@ abstract class BaseApplication :
 
     abstract val isDebugLoggingAllow: Boolean
 
-    /**
-     * The application-owned runtime host (Phase 5 R2, spec §8.1) — owns the DB factory, the
-     * process [io.github.stslex.workeeper.core.core.images.ImageStorage], and the sequence of
-     * runtime generations. Every seam below answers from its published generation. `by lazy` so
-     * nothing is built before [onCreateGraphBootstrap]'s first read — preserving the cold-build
-     * ordering ([buildAppDatabase] opens no SQLite file; `RecoveryActivity`'s Room-free bootstrap
-     * safety holds). `Dispatchers.IO` is passed to [buildImageStorage] directly: the graph is
-     * under construction at that point — reading its own dispatcher accessor would cycle, and
-     * `Dispatchers.IO` is the identical stateless process-singleton the accessor returns.
-     */
+    /** Process-owned runtime, built lazily at the startup boundary. */
     private val appRuntime: AppRuntime by lazy {
         AppRuntime(
             applicationContext = applicationContext,
@@ -86,19 +77,13 @@ abstract class BaseApplication :
                 fenceSnackbarResolves = { SnackbarManager.fenceResolves() },
                 unfenceSnackbarResolves = { SnackbarManager.unfenceResolves() },
                 pendingSnackbarCount = { SnackbarManager.pendingModelCount },
-                // COMMITTED handovers only (the runtime never calls this on abort): models
-                // queued under the outgoing generation are discarded at delivery, never
-                // executed against the successor (spec §8.4 step 3).
+                // Runtime advances this only for committed handovers.
                 advanceSnackbarGeneration = { SnackbarManager.advanceGenerationEpoch() },
             ),
         )
     }
 
-    /**
-     * The published generation's Metro graph. A `get()` accessor, never a capture: readers that
-     * re-read per access (MainActivity, the five holder seams) always observe the CURRENT
-     * generation — the atomic-handover half of the R2 replacement invariant.
-     */
+    /** Current generation graph; accessors must not capture it across replacement. */
     @Suppress("EXPOSED_PROPERTY_TYPE_IN_CONSTRUCTOR_ERROR", "EXPOSED_PROPERTY_TYPE")
     override val appGraph: AppGraph
         get() = appRuntime.currentGeneration.graph
@@ -122,10 +107,7 @@ abstract class BaseApplication :
     // implements RecoveryDeps, so returning it typed as RecoveryDeps is a compile-checked upcast.
     override fun recoveryDeps(): RecoveryDeps = appGraph
 
-    // First-operation worker admission (Phase 5 R2, spec §8.4): BackupWorker (core:data:backup:
-    // worker, DATA layer — it must not depend on core:ui:mvi) binds deps + quiesce-awaited lease
-    // in one atomic step as the FIRST operation inside doWork, from the runtime that owns
-    // generation transitions. See BackupWorkerDepsHolder's KDoc.
+    // BackupWorker binds dependencies and its lease atomically at first operation.
     override suspend fun awaitBackupWorkLease(): BackupWorkLease = appRuntime.awaitBackupWorkLease()
 
     // Typed point-acquisition, same shape as the two above: App() lives in app:common, which

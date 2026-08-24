@@ -4,7 +4,7 @@ First measured 2026-08-22; re-measured after each rework — round 2 (spec §20/
 (spec §22, the attempt journal + admission/snackbar linearization), and round 4 (spec §23, the
 maintainer correction: crash-safe promotion/consumption, terminal classification, legacy owner
 isolation, graph-only teardown terminality, replay-safe finalization). The tables below carry
-the CURRENT (round-4) numbers, with earlier figures noted where they differ.
+the CURRENT (R4.2) numbers, with earlier figures noted where they differ.
 Branch `feature/kmp-phase-5-startup-processor` (PR #252).
 
 **Round-4 red-on-base evidence.** Every mandated round-4 test was proven to FAIL at the

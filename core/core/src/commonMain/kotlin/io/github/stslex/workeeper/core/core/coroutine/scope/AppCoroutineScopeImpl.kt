@@ -24,21 +24,11 @@ class AppCoroutineScopeImpl(
     private val lifecycleOwner: LifecycleOwner,
     override val defaultDispatcher: CoroutineDispatcher,
     override val immediateDispatcher: CoroutineDispatcher,
-    /**
-     * The runtime generation this scope's work belongs to (Phase 5 R3, spec §8.4). Parenting the
-     * scope's supervisor to it is what makes Store jobs JOINABLE by the generation: the runtime's
-     * teardown cancels-and-joins the lifetime, so every `finally` — including one that touches
-     * the database — completes BEFORE the generation's database is closed. Null only in tests and
-     * previews that own no generation.
-     */
+    /** Generation parent for joinable Store jobs; null is for previews and tests. */
     generationJob: Job? = null,
 ) : AppCoroutineScope, CoroutineScope {
 
-    // The supervisor is the RIGHT operand deliberately: `CoroutineContext.plus` lets the right
-    // side win per key, so this Job — not `lifecycleScope`'s — is the scope's Job. Before R3 the
-    // operands were reversed and the written SupervisorJob was silently discarded (recorded in
-    // tech-debt.md), which parented every Store job to the composition LifecycleOwner and left
-    // the generation unable to join them.
+    // Right-side Job wins CoroutineContext.plus key conflicts, retaining the generation parent.
     override val coroutineContext: CoroutineContext =
         lifecycleOwner.lifecycleScope.coroutineContext +
             CoroutineName("FeatureScope") +

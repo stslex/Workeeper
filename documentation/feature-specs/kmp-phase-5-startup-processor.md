@@ -1580,7 +1580,7 @@ removed — `rollbackSnapshotPath` is the durable discriminator, and §8.5b now 
 
 ## 25. R4.2 final correction record (2026-08-23)
 
-Two commits on `83793531`: `decb5e7a` (blocker A: durable-phase-aware terminal dispatch;
+Two commits on `83793531`: `f2d3c81a` (blocker A: durable-phase-aware terminal dispatch;
 blocker B: the suppression removal; the liveness-truth rewrite) and the docs commit carrying
 this section. §8.4's terminal-selection paragraph and §8.5a's durable-commit-ordering paragraph
 were rewritten IN PLACE.
