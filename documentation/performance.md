@@ -284,6 +284,14 @@ in `AppCreate_App` — which already paginates by per-cold-start row in the Fire
 console — and the next step would be either to add a dedicated trace then, or to
 move the blocks behind a deferred initializer.
 
+## Measured list-load durations
+
+Device-instrumented, and the sizing evidence for the paging spinner's appear delay: a **cold**
+all-trainings entry resolved Paging `refresh` in **61 ms**; Home's **warm** path in **23 ms**.
+The appear delay (`motion.fast` = 140 ms) has to exceed the slower of the two or the spinner
+still flashes on a normal load, which is the complaint the deferral exists for.
+`LoadingVisibilityTest.appearDelayClearsMeasuredLoads` pins `motion.fast > 61`.
+
 ## Tech debt
 
 Outstanding items affecting the performance metrics infrastructure are tracked under

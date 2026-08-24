@@ -429,8 +429,10 @@ serialization).
   files in user-visible "My Drive". Writing a visible (and shareable) file requires at minimum the
   **`drive.file`** scope (per-file access to files the app creates). The broad `drive` scope is not
   required and is a Google-"restricted" scope requiring app verification — avoid it. Adding a scope
-  means updating `DriveAuthScopes.ALL` (and keeping sign-in/refresh/revoke in lock-step, as the file's
-  own KDoc warns).
+  means updating `DriveAuthScopes.ALL` and keeping sign-in / silent refresh / revoke in lock-step:
+  `AuthorizationClient.authorize()` raises a resolution (no silent token) whenever a *requested* scope
+  is ungranted, so requesting `drive.file` on the silent path for an appdata-only account would break
+  its token refresh. A mismatch on revoke leaves userinfo-derived identity stranded in the GMS cache.
 
 ### c. Does a serializable export model exist? — **No; must be built from scratch.**
 

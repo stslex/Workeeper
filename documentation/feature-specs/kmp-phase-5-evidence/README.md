@@ -74,9 +74,10 @@ Standalone runs (same emulator): full unfiltered `:app:app:connectedDebugAndroid
 The whole 46 → 49 delta is `UiAdmissionRaceTest` (added in `66cc5cc7`): admission is taken during
 COMPOSITION and its three cases prove an admitted region resolves its dependencies, a retired one
 resolves nothing, and retirement landing between publication and frame resolves nothing. Its
-boundary is stated honestly in the KDoc — it runs against the harness's `retiredIds` set, so it
-pins the SHELL's use of the gate; the gate's own atomicity is pinned on the host by
-`UiAdmissionGateTest` and by known-negative R3-C.
+boundary: it runs against the harness's `retiredIds` set, so it pins the SHELL's use of the gate;
+the gate's own atomicity is pinned on the host by `UiAdmissionGateTest` and by known-negative
+R3-C, and the abandoned-composition half of the leak-freedom is covered by construction only
+(spec §22.4).
 
 ## Round-2 known-negatives (2026-08-23, executed and reverted per the §7 protocol)
 

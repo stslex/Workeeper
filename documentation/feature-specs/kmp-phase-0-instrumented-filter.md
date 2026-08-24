@@ -60,12 +60,45 @@ resolves to `src/main` + `src/test` only, and probing `:app:app` reports 0 files
 this follows that precedent, and the rule is `active: false` in the shared `detekt.yml` because
 `src/test` unit tests take no suite annotation.
 
+**It owns its report filenames** — `reports/detekt/detektAndroidTestSuite.xml` and `.txt`. Detekt's
+defaults are `detekt.xml`/`detekt.txt`, which the plain `detekt` task in the same module also writes,
+and since `detekt` dependsOn this task the plain run overwrites the gate's report every time, leaving
+the gate with no durable evidence of its own.
+
 **The import is load-bearing.** The rule runs without type resolution, so it matches by name. A
 locally declared `annotation class Smoke` would satisfy a naive name check while leaving the real
 filter unsatisfiable — the same false green in a new costume. Coverage is credited only when the
 name is bound to `io.github.stslex.workeeper.core.ui.test.annotations` by an import (alias included)
 or written fully qualified. Class-level and method-level annotations both count, and both are used
 in the repo: `AllExercisesScreenTest` is `@Smoke` at the class with one method also `@Regression`.
+
+**A star import over the annotations package binds every canonical name, and that branch is
+load-bearing rather than defensive.** `detekt.yml`'s `WildcardImport` is `active: true` but excludes
+`**/test/**`, `**/androidTest/**`, `**/androidHostTest/**`, `**/androidDeviceTest/**`,
+`**/commonTest/**`, `**/jvmTest/**`, `**/jsTest/**`, `**/iosTest/**`, and ktlint's `NoWildcardImports`
+never reaches androidTest either (the plain `detekt` task cannot see that source set, and
+`detekt-androidtest-suite.yml` activates only this rule). Wildcard imports are permitted in precisely
+the source set this rule polices, so failing to bind them would report correctly-annotated tests as
+unselectable and red the gate on good code. `isAllUnder` is checked **before** the exact-FQN
+comparison, because a star import's `importedFqName` is the PACKAGE, not a class, and would otherwise
+fall through to "binds nothing".
+
+**Both annotation spellings are read.** `hasAnnotationIn` compares `entry.shortName?.asString()` *and*
+the raw `entry.typeReference?.text?.trim()`: `shortName` normalises the identifier — it strips the
+backticks off an escaped `` @`Test` `` — while the raw text does not; conversely only the raw text
+carries a fully-qualified `@org.junit.Test`. Reading either alone leaves a spelling the Kotlin compiler
+accepts and the rule cannot see, which for a test annotation means an unselectable test passing
+unreported. Covered by `InstrumentedSuiteSelectorRuleTest`'s `flags an unannotated test written with a
+backticked annotation name` and `accepts a backticked suite annotation`.
+
+**Inheritable test classes are refused outright.** `@Smoke` / `@Regression` are not `@Inherited`, and
+androidx.test's filter reads the annotations of the CONCRETE class it runs — so a class-level
+annotation on an abstract/sealed/open base does not travel to subclasses, and an outer class's
+annotation does not propagate to a nested class. The rule therefore rejects any instrumented `@Test`
+declared in an inheritable class (`KtTokens.ABSTRACT_KEYWORD` / `SEALED_KEYWORD` / `OPEN_KEYWORD`)
+whatever it is annotated with; the other direction is invisible too, because a concrete subclass that
+declares no `@Test` of its own is never visited by `visitNamedFunction`. Declare instrumented tests in
+the concrete class that runs them.
 
 ### `verifyInstrumentedSuiteClasspath` — the resolvability half
 
@@ -77,10 +110,23 @@ annotations elsewhere would each quietly falsify. What the runner does is look t
 APK's classloader; what this task does is look the class file up on the classpath that APK is built
 from.
 
+**Why an artifact view and not the `Configuration`.** A raw `Configuration` added to a file collection
+resolves without AGP's `artifactType` attribute, and a dependency publishing several Android variants —
+measured on the KMP `:core:core` — is then ambiguous and fails resolution outright. `isLenient = true`
+keeps an unrelated resolution problem from masquerading as a verdict: anything it drops is absent from
+the scan, which fails this gate rather than passing it.
+
 It hangs off **`assembleDebugAndroidTest`**, which already resolves that configuration — so it adds
 resolution work to no build that was not doing it anyway, runs in CI, and precedes every local
 `connectedDebugAndroidTest`. Hanging it off `detekt` instead would make every commit resolve every
 module's androidTest dependency graph to learn nothing new.
+
+**The assemble hook alone does not in fact precede a local run.** `connectedDebugAndroidTest` does NOT
+depend on the `assembleDebugAndroidTest` lifecycle task — it consumes the APK artifacts from their
+producers (verified with `--dry-run`) — so hooking the assemble names alone leaves a developer's direct
+`./gradlew connectedDebugAndroidTest` running with the gate absent from the task graph; CI is covered
+only incidentally, by assembling in an earlier step. The run tasks are therefore hooked in addition:
+`connectedDebugAndroidTest` and `connectedAndroidDeviceTest`.
 
 ### Why both
 

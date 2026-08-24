@@ -276,10 +276,22 @@ object in the owning module. The app graph auto-aggregates it cross-module by sc
 
 - Exact annotation FQNs: `dev.zacsweers.metro.{BindingContainer, ContributesTo, Provides, SingleIn}`; scope
   token is the project `io.github.stslex.workeeper.core.core.di.AppScope`, NOT Metro's built-in `AppScope`.
-- The container must be **public** for the same cross-module reason as D1 impls.
+- The container must be **public** for the same cross-module reason as D1 impls. The switch behind
+  that reason is Metro's `nonPublicContributionSeverity`, which **defaults to NONE**: `@ContributesTo`
+  on an `internal` `@BindingContainer` (like `@ContributesBinding` on an internal class) compiles
+  green and silently fails to aggregate cross-Gradle-module. `DispatchersBindingContainer` and
+  `ResourceWrapperBindingContainer` (both `core/core` androidMain) are public objects with public
+  `@Provides` funcs for exactly this.
 - **Mis-scope is a SILENT-GREEN**, not a compile error: a container `@ContributesTo` the wrong scope compiles
   green and silently fails to aggregate — caught by `ContributesToScopeRule` (detekt), NOT the compiler.
   Anchor: `lint-rules/src/main/kotlin/io/github/stslex/workeeper/lint_rules/ContributesToScopeRule.kt:20-41`.
+  Verified empirically on **Metro 1.1.1** (PF.0 gate): a container pointed at a feature scope OR at
+  Metro's built-in `dev.zacsweers.metro.AppScope` (a different class from the project token, same simple
+  name) both compile with zero diagnostic **when no reader forces resolution**. The neighbouring
+  duplicate-binding mode, by contrast, IS compile-caught (`[Metro/DuplicateBinding]`) and needs no rule —
+  only the scope-aggregation modes are silent. The rule therefore also flags a `@BindingContainer` with
+  NO `@ContributesTo` at all (an orphan: never aggregated, silently inert), and deliberately does not
+  check `@SingleIn` placement on the inner `@Provides` — lifetime is a separate, non-aggregation concern.
 
 Real examples (all public `@BindingContainer @ContributesTo(AppScope::class) object`):
 

@@ -117,9 +117,18 @@ The reasoning is:
   Activity's `ViewModelStore`, the Repository replays from DataStore, and
   the user sees the `RestoreFailure` dialog. An in-memory queue would be
   wiped; a DataStore-backed flag survives.
-- **One writer.** `AppDialogRepositoryImpl` is the only writer for
-  `pending_*` keys. Dismiss is the only consumer-driven write; it goes
-  through the repository via `Action.RepoAction.Dismiss` → `AppDialogRepoHandler`.
+- **One writer, reached without the Store.** `AppDialogRepositoryImpl` is the
+  only writer for `pending_*` keys. Producers reach it through the
+  `@SingleIn(AppScope)` `AppDialogPublisher` facade (`AppDialogPublisherImpl` →
+  `repository.publish`); dismissal is the only consumer-driven write and goes
+  through `AppDialogObserver.acknowledgeReaction()` (`AppDialogObserverImpl` →
+  `repository.dismiss`). Both bypass the Store, so `Action.RepoAction.Publish`
+  and `Action.RepoAction.Dismiss` have **no production dispatcher** — only
+  `Observe` does, from `AppDialogStoreImpl`'s `initialActions`. The two
+  variants are kept as surface points for a future caller that needs the write
+  observable in `State` or routed through the Store's instrumentation, and
+  `AppDialogRepoHandlerTest` pins their routing so that path cannot regress
+  silently.
 - **Reactive view.** `repository.observe(): Flow<AppDialog?>` combines flag
   reads through `AppDialogResolver` and emits the single highest-priority
   variant. `AppDialogStore` collects this flow inside `Action.RepoAction.Observe` and
@@ -166,7 +175,7 @@ if multiple are pending).
 |     observe(): Flow<AppDialog?>   — repository.data.map(resolver)  |
 |     publish(dialog)                — atomic DataStore.edit write   |
 |     dismiss(dialog)                — atomic DataStore.edit clear   |
-|     recordUserChoice(choice)       — atomic edit, fed to observer  |
+|     (no user-choice record — the choice transport is transient)    |
 |                                                                    |
 |   AppDialogObserver (@SingleIn(AppScope))                          |
 |     observeUserActions(): Flow<AppDialogUserChoice>                |
@@ -223,9 +232,14 @@ The pattern is documented in
 `app_dialogs_prefs.preferences_pb` and survive every app update. Adding new
 keys for new variants is safe (existing users simply have no value for the
 new key, which decodes as `null`/`false` — the correct "no pending dialog"
-default). **Renaming an existing key requires the deprecation path
-described in `AppDialogKeys.kt`'s class KDoc** — drop a rename and any user
-mid-flow loses their pending dialog on update.
+default). **Never rename an existing key** — drop a rename and any user
+mid-flow loses their pending dialog on update. If a key MUST be renamed:
+
+1. Add the new key under the new name; do not touch the old key.
+2. Write to BOTH keys; read prefers the new key and falls back to the old.
+3. Ship one release.
+4. Remove the old key in the next release, once telemetry confirms zero
+   reads of the old name.
 
 ## Priority ordering
 
@@ -393,13 +407,27 @@ interface AppDialogObserver {
     /**
      * Stream of user-action choices emitted by `ChooseHandler`. Each
      * emission carries the variant the user was looking at and the action
-     * they tapped. Backed by a DataStore-persisted "last choice" record
-     * that the host clears after the consumer has had a chance to react,
-     * so re-subscribing observers do not replay stale choices.
+     * they tapped. Hot, no replay.
      */
     fun observeUserActions(): Flow<AppDialogUserChoice>
+
+    /** Clears the dialog's `pending_*` flag. Called AFTER the side-effect. */
+    suspend fun acknowledgeReaction(dialog: AppDialog)
 }
 ```
+
+**The choice is a transient signal, not a persisted record.** It is never
+written to DataStore, so there is no replay-on-restart of a reaction: a
+crash mid-reaction leaves the `pending_*` flag set, the dialog re-shows on
+next launch and the user re-taps — idempotent by construction.
+
+**Acknowledgement is dismiss-AFTER, uniformly.** `acknowledgeReaction(dialog)`
+clears the `pending_*` flag through the repository's `dismiss`, and the
+consumer MUST call it only after its side-effect has run — including on the
+destructive `UndoRestoreConfirmation` + `ConfirmUndo` path. Calling it first
+clears the dialog and leaves the side-effect free to fail silently
+afterwards, which is the exact failure class App Dialogs exists to prevent.
+No signature enforces the ordering.
 
 `AppDialogUserChoice(dialog: AppDialog, action: AppDialogUserAction)` is a
 data class in the api module. `AppDialogUserAction` enumerates the buttons
@@ -412,12 +440,13 @@ that any variant can present:
 | `UndoRestoreConfirmation` | Confirm → `ConfirmUndo`; Cancel → `Cancel` |
 | `UndoRestoreSuccess` | OK → `Acknowledge` |
 
-`AppDialogObserverImpl` is `@SingleIn(AppScope)` and is **backed by the repository**,
-not by the Activity-scoped Store. The rationale is scope: a `@SingleIn(AppScope)`
-in another feature (`feature/recovery`'s `RestoreDialogChoiceObserver`, for example) cannot
-inject the Activity-scoped Metro Store. The observer reads from
-the repository's persisted user-choice record, which is the same source
-the Store's `ChooseHandler` writes to. Single source of truth holds.
+`AppDialogObserverImpl` is `@SingleIn(AppScope)` and is **not** the Activity-scoped
+Store. The rationale is scope: a `@SingleIn(AppScope)` in another feature
+(`feature/recovery`'s `RestoreDialogChoiceObserver`, for example) cannot inject the
+Activity-scoped Metro Store. It owns the choice transport itself — a `replay = 0`
+`MutableSharedFlow` the Store's `ChooseHandler` emits into — and delegates
+`acknowledgeReaction` to the repository, the same `pending_*` writer everything
+else uses. Single source of truth holds.
 
 Consumers (one per producing feature) inject `AppDialogObserver` and
 launch a long-lived collector. They are responsible for branching on

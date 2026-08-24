@@ -332,6 +332,13 @@ When adding new reporting jobs (e.g. for additional API levels or test types), p
 `check_name` for both the EnricoMi `check_name` and `comment_title` and the mikepenz
 `check_name` to avoid clobbering existing checks.
 
+## Toolchain pins
+
+- The root `build.gradle.kts` `buildscript` block forces `org.jetbrains:annotations:23.0.0`
+  (`resolutionStrategy`): AGP requires `annotations:23.0.0` while Gradle's embedded Kotlin pins
+  `annotations:13.0` **strictly**, and forcing the higher version is what resolves that conflict.
+  Removing the force reintroduces it. Recorded against AGP 9.1.0 / Gradle 9.3.1.
+
 ## Branch model
 
 - `master` is the long-lived main branch. Pushes to `master` retrigger the unified build.

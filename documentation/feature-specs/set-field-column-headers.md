@@ -50,7 +50,10 @@ corrected figure is stated and the delta explained.
 
 1. Unit labels move OUT of the field and INTO a column header inside the exercise
    card. The field keeps 48 dp height (as `heightIn(min)`) and the 26sp `dataValue`
-   rung.
+   rung. `heightIn`, never `height`: 48 dp is the floor the mockup draws, but above
+   roughly fontScale 1.5 the 26sp `dataValue` line height exceeds it and a hard height
+   would clip vertically exactly what this component exists to stop clipping
+   horizontally.
 2. Header text, Russian: `ВЕС (КГ)` and `ПОВТОРЫ`; bodyweight: `ПОВТОРЕНИЙ`. Casing
    applied by the component via `uppercase()`, matching `AppLabel`. That no-arg overload
    is locale-INVARIANT (`Locale.ROOT` mapping), which is the property wanted here: the
@@ -129,6 +132,45 @@ corrected figure is stated and the delta explained.
   composition per class; never `createComposeRule()` — silently undiscovered under
   JUnit 5).
 
+## 4a. Column geometry — the resolved widths, as built
+
+D3 closes the leading side. Two more columns behave the same way, and all three must be
+resolved once and handed to the header and every row.
+
+- **Trailing slot.** `SetRowGeometry.resolveTrailingSlotWidth()` =
+  `max(setTypeSlotWidth, personalRecordTagIntrinsicWidth())`, by measurement.
+  `CHIP_MIN_WIDTH` (34 dp) is a *minimum* `AppSetTypeChip` and `PersonalRecordTag`
+  share, and the `PR` label outgrows it above roughly fontScale 1.6 — at 2.0 the tag
+  measures wider than the chip it replaces. A slot pinned to the minimum leaves a
+  RECORD row's fields narrower than its non-record siblings' and than the header's
+  columns. Both trailing branches of `LiveSetRow` / `PastSetEditRow` take the one
+  resolved width, never their intrinsic widths.
+- `personalRecordTagIntrinsicWidth()` measures the label at `prTagTextStyle()`
+  (`mono.caption` at `FontWeight.SemiBold`, `PR_TAG_TRACKING` = 1.1.sp) plus
+  `AppDimension.Space.xs` × 2, and lives beside the label and style it measures so the
+  two cannot drift.
+- **Header gutters mirror the rows from the components' own constants**, not from
+  copied numbers: live = `AppCheckmarkButtonTouchSize` (48 dp — public for this reason,
+  not for callers to size the button; the mockup's `.mark` is 46 px, 48 dp is the rung
+  and the minimum touch target); past = `resolveTrailingSlotWidth() +
+  AppDimension.Space.sm + DragHandleSize` (24 dp) in `PastExerciseCard.CardBody`.
+  Changing either side desynchronises header and rows.
+- Every fixture sits at fontScale 1.0, where chip and tag both measure exactly the
+  minimum, so no golden and no width gate can see the divergence. The alignment gate's
+  fourth axis is what covers it — WHICH trailing component the row draws:
+  `Case(label = "1 record set @2.0", setCount = 1, fontScale = 2f, isRecord = true)`.
+- **Index column (D3), why measured rather than tabulated:** a fixed 12 dp box clips a
+  SINGLE digit at fontScale ~1.6. At 10+ sets header and rows must be handed the same
+  resolved value or the rows shift ~3 dp out from under a static header.
+- **Card-head ordinal, a third column.** `PastExerciseCard.OrdinalWidth` = 16 dp
+  (`.chead .ord { width: 16px }`) is applied as `widthIn(min = ...)` plus
+  `maxLines = 1`, the same correction the set row's `indexColumnWidth` carries. 16 dp
+  fits a two-digit ordinal only at fontScale 1.0; in a FIXED box Compose `Text` breaks
+  the over-wide token at a GRAPHEME boundary rather than overflowing, so "10" stacks
+  1-over-0. The wrap is SILENT — the title column (card head) and the 48 dp fields (set
+  row) set the row height, so nothing moves.
+  `PastSessionGoldenTest.cardDoubleDigitIndex` is the fixture that makes it visible.
+
 ## 5. Measured width budget
 
 Golden device: Pixel 5, 1080 px @ 440 dpi = 2.75 px/dp = 392.727 dp;
@@ -155,6 +197,11 @@ mono @11sp + 0.5sp tracking = 7.10 dp/glyph → `кг` 14.2, `повт`/`reps` 2
 
 Bodyweight branch: 4 children → fixed 118 → field 210.727 → value box 111.73 (RU) /
 154.33 (EN).
+
+`SetRowGeometry.WEIGHT_COLUMN_FLEX` = 1.2f is a deliberate deviation from the mockup,
+which draws `flex: 1` on both fields: weights carry decimals ("102.5") and reps never
+do, so the extra fifth softens the budget. Restoring 1f to "match the drawing" narrows
+the weight field.
 
 ### 5.2 Past weighted row, in-app
 
@@ -195,6 +242,12 @@ Probe findings the design rests on (measured 2026-08-18, throwaway test, deleted
 - Plain `testDebugUnitTest` renders via the HTML report writer — no golden
   comparison, no `src/` writes; `assertGoldenLiveness` hooks only
   `verifyPaparazzi*`/`recordPaparazzi*` and counts only `*.golden.*` suites.
+- Robolectric is false-negative for text metrics, so the header ellipsis sweep
+  (`SetColumnHeaderTest`) renders through the Paparazzi measurement harness
+  (`OverflowGateSdk`), never a Robolectric composition. ~156 px is the full Russian weight header
+  advance at `mono.caption` on the golden device, which is what makes
+  `CONSTRAINED_WIDTHS_PX = listOf(220, 150, 130, 110, 90, 70, 50)` straddle the regime
+  the test needs — unit truncated while the name still reads in full.
 
 ### Gate design (R1 + R2 compliant)
 
@@ -231,6 +284,21 @@ Probe findings the design rests on (measured 2026-08-18, throwaway test, deleted
 7. **Commit rule.** The gate lands together with the change that makes its asserted
    band green (bisect-green): the fontScale-1.0 band with commit 2 (suffix removal +
    header), the full R4 matrix with commit 5 (stepdown). No red state is committed.
+8. **GUARD — no `onGloballyPositioned` inside `AppNumberInput`** for a test-only
+   capture: it dispatches on every scroll frame of a live session. The seam is the
+   probe callback (shipped as `valueSlotProbe`), fed from the `BoxWithConstraints` the
+   D5 rung choice needs anyway; production never passes it.
+9. **Edge capture reads the SEMANTICS TREE, never test tags.** The alignment asserts
+   address the header label by its text and the field by its accessibility label
+   through `ViewRootForTest.semanticsOwner.getAllSemanticsNodes(mergingEnabled = false)`
+   — the same public access path Paparazzi's own accessibility extension uses under
+   layoutlib, so the capture leaves ZERO trace in production composables. GUARD: do not
+   add test tags to reach these edges. The gutter/index pair keeps its `onSizeChanged`
+   probes only because they fire on size change, never per frame.
+10. **Why the read happens in the frame hook.** `OverflowGateSdk.renderView` invokes its
+    `onFrame` hook from `PaparazziSdk`'s `onNewFrame` consumer because the frame is the
+    one moment the caller's view is attached and its composition live — the only window
+    in which a read of the rendered semantics tree is guaranteed valid.
 
 ## 7a. Second-round rulings (Gate 2, 2026-08-18)
 

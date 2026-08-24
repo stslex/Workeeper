@@ -112,6 +112,11 @@ non-capturing `get()`), `AppDepsHolder.appDeps()` (13 feature readers — acquir
 `BackupWorkerDepsHolder` (**captures** via `by lazy`, `MetroWorkerFactory.kt:28-30`),
 `AppRootDepsHolder` (**captures** into `AppRootViewModel`, `App.kt:64-70`).
 
+`App()` is the ONLY caller of `AppRootDepsHolder.appRootDeps()` in the app (measured; the single
+call site is `app/common/.../App.kt:180`), once per composed generation region. That is what makes
+`MetroTestGraphHolder.appRootDepsResolutions == 0` a literal "this region reached the graph zero
+times" in `UiAdmissionRaceTest`.
+
 **Live-capture audit** (objects holding old-generation dependencies while work is in flight —
 graph-access-site analysis alone is insufficient):
 
@@ -225,7 +230,10 @@ internal sealed interface RuntimePhase {
 
 Construction is factory-parameterized so the androidTest harness installs a runtime over test
 roots; the §11.2 gate installs one over the **production** DB factory. `AppRuntime` implements
-`AppReinitializationHost` (§8.8).
+`AppReinitializationHost` (§8.8). The close is a constructor seam too —
+`closeDatabase: (AppDatabase) -> Unit = ::closeAppDatabase` — for two reasons: `app:app` must stay
+Room-free (its build script names no `androidx.room3` artifact, only `:core:data:database` and
+`:core:data:database-test` for androidTest), and the JVM suites record close ordering.
 
 ### 8.2 `AppScopeLifetime` (new, `core:core` commonMain)
 
@@ -362,7 +370,11 @@ Two policies select the ending:
 
 4. **Teardown** (post-PONR; failures are Fatal, never an abort): clear the generation's
    runtime-owned `ViewModelStore` — `BaseStore.onCleared` now actually ENDS the Store's work
-   (R3) — then `lifetime.cancelAndJoin()` (bounded). Store jobs are descendants of that
+   (R3) — then `lifetime.cancelAndJoin()` (bounded). The clear must run on the MAIN thread
+   (`GenerationQuiescer.clearStoreBounded` dispatches it on `policy.mainDispatcher`; the
+   androidTest harness mirrors it with `runOnMainSync`): since R3 a cleared Store actually
+   disposes, disposal detaches a `LifecycleRegistry` observer, and Lifecycle enforces observer
+   removal on the main thread — an off-main clear throws. Store jobs are descendants of that
    lifetime: `AppCoroutineScopeImpl` takes the generation's job and puts its supervisor on the
    winning side of the context `plus`, so the join awaits every Store `finally` — including one
    that touches the database — BEFORE the close. Every graph-owned DB-bound job must be
@@ -508,13 +520,22 @@ Ownership rules, all enforced by the repository rather than by convention:
 
 - `beginAttempt` REFUSES when a different unresolved attempt owns the slot (same-id re-claim is
   idempotent) — a new restore can never inherit or overwrite another attempt's bookkeeping, and
-  the refusal is what rejects the second of two rapid restores before anything irreversible.
+  the refusal is what rejects the second of two rapid restores before anything irreversible. The
+  refusal reaches the runtime as a THROW: `RestoreTransactionEffects.onBeforeMutation` wraps the
+  claim in `check(claimed)`, and the runtime maps that escape to
+  `DatabaseReplacementResult.RejectedBeforeMutation` — nothing irreversible runs and
+  `recordAttemptCommitted` never fires against the other attempt's bookkeeping (pinned by
+  `a second restore is refused while an attempt is unresolved`).
 - `recordAttemptCommitted` and `resolveAttempt` are no-ops for a non-owner, so a late terminal
   effect from a superseded attempt cannot erase the live one's state.
 - An unparsable/legacy state reads as `Prepared`. A pre-R3 install's `restore_in_progress` marker
   carries no phase, so its outcome is unknown by construction: the conservative reading routes
   that one launch through recovery rather than letting a peek claim a success the old flags
-  cannot prove.
+  cannot prove. The synthetic owner it converts to is the persisted wire-format literal
+  `"legacy-restore-in-progress"` (`RestoreStateRepositoryImpl.LEGACY_ATTEMPT_ID`, private to that
+  module and therefore hand-duplicated in `RestoreStateRepositoryImplTest` and
+  `RestoreRecoveryCoordinatorTest`): changing it in one place alone silently breaks
+  `the LEGACY marker's recovery completes end-to-end under the synthetic owner id`.
 
 **Rollback-slot reservation.** The rollback snapshot is no longer taken by the caller before
 submission (where two concurrent restores would race over one canonical path). The runtime takes
@@ -641,6 +662,11 @@ constructed-but-never-started worker therefore holds no lease (nothing leaks, no
 transition), and a run can never tear across two generations. Throws loudly when the runtime is
 Fatal.
 
+A `createWorker` returning **null** is DELEGATION, not failure: WorkManager's inherited
+`createWorkerWithDefaultFallback` then builds the unknown worker through the default reflection
+factory. That path must never enter the admission gate — a foreign worker holding a
+`BackupWorkLease` would hold up a replacement transition's lease drain.
+
 ### 8.7 UI generation boundary (`app:common`, narrowest seam)
 
 ```kotlin
@@ -650,6 +676,10 @@ sealed interface AppUiPhase {
 }
 interface AppUiGenerationsHolder { val appUiPhases: StateFlow<AppUiPhase> }
 ```
+
+Unlike `AppRootDeps`, `AppUiGenerationsHolder` may NOT be a member of the graph's contract: the
+phase stream must OUTLIVE every graph, because it is what announces graph replacement. The process
+`Application` satisfies it instead, from below both the graph and the runtime.
 
 `BaseApplication` implements the holder from the runtime; `TestApplication` inherits a
 harness-controlled source (`MetroTestRule` installs a static `Generation(1, testOwner)` for
@@ -740,6 +770,7 @@ behavior, composition root, and binding the iOS runtime host.
 | Nav3 canonical; root reset; no resurrection; restoration oracle unchanged; no graph/navigator CompositionLocals | §8.7 (measured: `NavCommand` has 5 variants, no `ResetToRoot`) |
 | Metro-only DI; module boundaries; `core:core` ↛ app | §8.2 root + §8.5 seam placement + §8.8 direction |
 | Schema, migrations, driver unchanged | new DB generations use `buildAppDatabase` verbatim; no builder changes |
+| **The snackbar queue stays unbounded** — `SnackbarManager.queue` is `Channel<Queued>(capacity = Channel.UNLIMITED)`; never cap it, never give it an overflow policy | `AppSnackbarModel.onDismissed` carries a deferred delete's COMMIT (ED11), not just feedback, so an evicted entry is a confirmed delete that silently never runs after the screen that promised it popped. `SnackbarManagerTest`'s `a commit queued behind a burst is delivered, never evicted` reds on any bound. Entries are tiny, every producer is a user gesture, and the single collector (`App.kt`) drains one per toast lifetime; process death cancelling everything queued is D-OPEN-10's recorded shape, unchanged |
 
 ## 11. Gates
 
@@ -1127,10 +1158,17 @@ section is the findings→fixes→proofs map and supersedes anything above that 
   Known-negative (executed+reverted): severing `TestApplication`'s dispose callback turns this
   exact test red with the bounded `Aborted("ui region did not dispose in time")` and the
   outgoing generation kept serving — raw XML committed
-  (`known-negative-ui-handshake-severed-dispose.xml`).
-- `RuntimeGenerationSwapDeviceTest`: claims NARROWED (its KDoc now states the boundary): it
-  proves the inode swap, terminal close, and fresh-Room coherence over EMPTY quiesce
-  populations — it does not claim the UI handshake or live lease drain.
+  (`known-negative-ui-handshake-severed-dispose.xml`). The `reinitialize(expected = genOne)`
+  submission runs on a background `thread(name = "handshake-submitter")` while the TEST thread
+  pumps composition (`composeRule.waitUntil(timeoutMillis = 15_000)`): the compose rule owns the
+  frame clock, so blocking the test thread on the transition instead would starve recomposition,
+  the live region would never dispose, and the run would report a FAKE `Aborted` disposal timeout
+  instead of exercising the handshake.
+- `RuntimeGenerationSwapDeviceTest`: claims NARROWED. The runtime host is built directly — no
+  Activity, no composition, no WorkManager, no `MetroTestRule` — so the quiesce stages run over
+  EMPTY populations (zero UI attachments, zero admitted leases): it proves the inode swap, the
+  terminal close and the fresh-Room generation's coherence, and claims neither the UI handshake
+  (`AppRuntimeUiHandshakeDeviceTest`) nor the live lease drain (the JVM gate/lease suites).
 
 ### 20.3 Re-verification (2026-08-23, all forced)
 
@@ -1440,6 +1478,10 @@ green on the scope test beside it — which is why the gap survived the review's
   spans the upgrade recovers conservatively instead of peeking. Deliberate: the old flags cannot
   prove a commit, and the window is a single launch between the restore tap and the next start.
 - The saveable-slot one-frame death window (§18(a)) remains deferred.
+- `UiAdmissionRaceTest` executes only the REFUSAL half of `GenerationAdmission`'s leak-freedom.
+  The other half — `onAbandoned`, a composition composed and then thrown away before it is
+  applied — stays covered by construction through the `RememberObserver` contract rather than by
+  execution: Compose offers no supported way to force an abandoned composition from a test.
 - Phase 7 additionally owns: implementing the token admission gate for its composition root
   (grant during composition, release on both the forgotten and abandoned paths); parenting its
   Store equivalents to the generation lifetime so teardown can join them; advancing its snackbar
@@ -1475,7 +1517,7 @@ worktree at that commit) and is green at the current head.
 | E3 | Committed recovers from canonical | `recoverFrom` passes `sourcePath` only for `Prepared` | `a COMMITTED attempt recovers from the CANONICAL slot…` |
 | D1 | post-PONR teardown failure terminal | best-effort candidate release → aggregate → `publishFatal`; no epoch advance, no publication, UI gate stays retired | `outgoing ViewModelStore clear failure after PONR is FATAL…` (test 7); `unjoinable outgoing lifetime after PONR is FATAL…` (test 8) |
 | D2 | candidate teardown verdict checked | preflight-fail path: `tearDownCandidate == false` → Fatal, never a republished N | `candidate preflight failure with an unjoinable candidate is FATAL…` (test 9) |
-| D3 | partial-unwind signal distinct | `releasePartialGeneration` honors the join verdict for `ownsDatabase=false` → `PartialCandidateUnwindException` → Fatal | `partial construction with an unjoinable child is TERMINAL…` (test 10) |
+| D3 | partial-unwind signal distinct | `releasePartialGeneration` honors the join verdict for `ownsDatabase=false` → `PartialCandidateUnwindException` → Fatal | `partial construction with an unjoinable child is TERMINAL…` (test 10) — the child job started from `graphFactoryAction` must run on a REAL dispatcher (`Dispatchers.Unconfined`), not the test scheduler, because the unwind path `ReplacementMechanics.releasePartialGeneration` joins it inside its own `runBlocking`, which the `TestScope` scheduler never advances |
 
 ### 23.2 Crash-state matrix — one restore attempt, RestartProcess, current protocol
 

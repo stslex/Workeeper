@@ -23,6 +23,20 @@ contract they enforce, see [architecture.md](architecture.md#mvi-contract).
   `buildUponDefaultConfig = true`, **`autoCorrect = false`** (see below).
 - Adds two `detektPlugins` dependencies: `detekt-formatting` (formatting rules) and the
   `:lint-rules` project itself (the custom MVI rule set).
+- Pins `jvmTarget = "21"` on `Detekt` and `DetektCreateBaselineTask`. detekt defaults its
+  `--jvm-target` to the JVM running the daemon, and the analysis must match the bytecode level the
+  project produces. This is not a licence to move the daemon off JDK 21: detekt's embedded Kotlin
+  compiler caps `--jvm-target` at 22 (`Invalid value (25) passed to --jvm-target`), and above that
+  its bundled intellij-core fails to parse `java.version` at all (`IllegalArgumentException: 25.0.2`
+  from `JavaVersion.parse`). `gradle/gradle-daemon-jvm.properties` pins the daemon to 21 for exactly
+  this reason.
+- Applies the shared Android Lint option block through `configureLintOptions`
+  (`build-logic/convention/src/main/kotlin/io/github/stslex/workeeper/ConfigureLint.kt`). Every
+  convention that reaches an Android `Lint` DSL object must apply it and never inline its own copy:
+  the classic Android conventions reach lint through `CommonExtension`, but `KmpLibraryConventionPlugin`
+  reaches it through `KotlinMultiplatformAndroidLibraryExtension.lint`, which is **not** a
+  `CommonExtension` and so is invisible to this plugin's `findByType(CommonExtension::class.java)`
+  lookup. A per-convention copy is how the two surfaces would drift apart.
 
 ### Detekt is a gate, not a formatter
 
@@ -576,6 +590,107 @@ sealed interface ArchivedItem { ... }
 // The @Stable wrapper lives in feature/archive/mvi/model/ArchivedItemUi.kt.
 ```
 
+### `UiLayerNoDataRule`
+
+**File:** `UiLayerNoDataRule.kt` · **Severity:** Defect.
+
+Flags `core.data.*` data-shape imports under a `/ui/` path — `core/ui/*` kit modules and any feature
+`ui/` subtree. Repository, dispatcher and other infrastructure imports from `core.data.*` are
+intentionally permitted; they are abstractions, not data models.
+
+Two asymmetries with `DomainLayerPurityRule`, both deliberate:
+
+- **No `ui/mapper/` exemption.** Any UI-side data import counts as a leak, mapper files included —
+  a UI mapper should map between domain and UI types only.
+- **`/core/ui/mvi/` is excluded** from the `/ui/` path predicate. It is the MVI framework and is
+  permitted to reference data abstractions if ever needed (none currently).
+
+### `PagingCollectionRule`
+
+**File:** `PagingCollectionRule.kt` · **Severity:** Defect.
+
+Bans raw `collectAsLazyPagingItems()` everywhere except the kit helper
+`core/ui/kit/.../components/CollectPagingItems.kt` (matched on the full repo-relative
+`virtualFilePath`, not the basename — a basename match would excuse any same-named file anywhere in
+the tree). Screens call `PagingUiState.collectAsItems()`. The helper and the rule are one guard —
+the helper makes the mistake unrepresentable, the rule keeps the unsafe path from coming back — and
+neither is sufficient alone.
+
+What the raw call costs: `PagingUiState` is a `fun interface`, so invoking it builds a NEW `Flow`
+every time, and `collectAsLazyPagingItems()` caches on that flow instance
+(`remember(this) { LazyPagingItems(this) }`). A new flow means a new `LazyPagingItems`, which starts
+at `refresh = Loading` / `itemCount = 0` (paging-compose 3.5.0, `InitialLoadStates`) — so calling the
+fun interface inline in a composable resets the list to loading on every recomposition. Home wrote
+`state.pagingUiState().collectAsLazyPagingItems()`; three other screens wrote
+`remember(state.pagingUiState) { state.pagingUiState() }` and composed twice on entry and never
+again. Measured on device on a **debug** build with a workout running (Home recomposes once a second
+on the session timer): **13 flow rebuilds in 12 seconds**, each blanking the list to the paging
+spinner for **~23 ms**. The rebuild count is structural — a `fun interface` invocation allocates a
+new `Flow` under R8 exactly as without it — while the ~23 ms is a debug duration; release would blank
+for less, but would still blank once a second.
+
+`collectAsItems()`'s `remember` key is the `PagingUiState` **instance**, not the flow it returns.
+That instance is created once in the feature's paging handler and carried through every
+`State.copy()`, which is what makes it stable across the state changes that recompose the screen.
+
+The kit-helper exclusion is deliberately **not** unit-tested. `lint()` synthesises a file name, so a
+case asserting "silent inside `CollectPagingItems.kt`" would be asserting the synthetic name rather
+than the exclusion — a green that means nothing. Its coverage is the real detekt run over the tree:
+if the exclusion broke, `CollectPagingItems.kt` itself would be flagged and the build would go red.
+Proven by mutation, not by a test that cannot see it.
+
+### `ActiveSurfaceSingleReaderRule`
+
+**File:** `ActiveSurfaceSingleReaderRule.kt` · **Severity:** Defect.
+
+`AppActiveSurface` has exactly one permitted call site (hard-coded in `PERMITTED_READERS`). The rule
+keeps a mutable `callsInFile` field so it counts calls **within** the permitted file too, making it a
+one-call-site rule rather than a one-permitted-file rule — the version it shipped with returned early
+on a permitted path, which let `LiveExerciseCard` raise two surfaces and stay green. The mutable
+field is safe only because detekt constructs ONE rule instance and visits files sequentially through
+`visitKtFile`, where the counter is reset.
+
+### `NumericFontFamilyOnLocalizedTextRule`
+
+**File:** `NumericFontFamilyOnLocalizedTextRule.kt` · **Severity:** Defect.
+
+Flags a `Text` / `BasicText` that renders a `stringResource(` / `pluralStringResource(` in the
+numeric font family — Archivo has no Cyrillic coverage (see
+[design-system.md](design-system.md)). Matching is on source text, so every *spelling* of the family
+must be registered in `NUMERIC_MARKERS`: `numericFontFamily`, `typography.numeric`,
+`typography.timer` and `typography.dataValue`. The last two are the aliases `AppTypography.timer`
+(= `numeric.display`) and `AppTypography.dataValue` (= `numeric.title`). Naming a new alias of a
+numeric style without adding its name to that list leaves the guard blind to exactly the call site
+the new name exists to invite.
+
+Separately, `TnumCanaryGoldenTest` renders *through* `AppTypography.timer`, so repointing that
+property at a style without tabular figures makes the canary's colons drift apart.
+
+### `FadeToTransparentRule`
+
+**File:** `FadeToTransparentRule.kt` · **Severity:** Defect.
+
+A colour animation must fade a colour out (`fadedOut()`), never fade to `Color.Transparent`, which is
+transparent black and darkens the mid-frames.
+
+Recorded blind spot, asserted by the test `does NOT see a transparent laundered through a local —
+recorded limit`: a `Color.Transparent` assigned to a local first carries no `Color.Transparent` text
+into the `animateColorAsState` call, and a PSI rule cannot follow it. `FadeOutTest`'s per-site
+measurement is what covers that case. If the assertion ever fails the rule got stronger and the KDoc
+must be updated.
+
+### `NoActualForExpectSuppressionRule`
+
+**File:** `NoActualForExpectSuppressionRule.kt` · **Severity:** Defect.
+
+Bans `@Suppress("NO_ACTUAL_FOR_EXPECT")` — it masks a missing `actual` for an `expect` declaration, a
+proven false green.
+
+The rule matches only `@Suppress` annotation arguments **in the AST**, never string content, and that
+is load-bearing: `NoActualForExpectSuppressionRuleTest` embeds `@Suppress("NO_ACTUAL_FOR_EXPECT")`
+inside triple-quoted fixtures, so a maintainer "hardening" the rule to plain text matching would make
+it flag its own test file on the repo-wide detekt run.
+
 ### `ScopedClassNames` (helper, not a rule)
 
 `ScopedClassNames.kt` holds the class-name predicates shared by `MetroScopeRule` and
@@ -592,6 +707,29 @@ so the classifier collapsed to a `Boolean`:
   intentionally unscoped), and `ScreenInjectionRule` allows the route arg into its primary constructor.
   The `HandlerStoreImpl` exclusion is load-bearing in both — those adapters are feature-scoped graph
   nodes, not Stores.
+
+Naming has consequences, and they are invisible at the declaration. `AccountDataStore`
+(`core/data/backup/google-drive/.../auth/`) carries the `DataStore` suffix rather than the spec's
+`AccountStore` so it lands in `isScopeChecked`'s bucket, where `MetroScopeRule` requires
+`@SingleIn(AppScope::class)`. A bare `Store` suffix is outside every bucket — the scope requirement
+would silently stop being enforced — and additionally reads as an intentionally unscoped MVI Store.
+Renaming such a class compiles and passes detekt while dropping it out of enforcement.
+
+## androidTest navigation-import gate
+
+`app/app/build.gradle.kts` registers `detektAndroidTestNavigation`, a `Detekt` task over
+`src/androidTest/kotlin` **and** `src/androidTest/java` reading `lint-rules/detekt-androidtest.yml`
+(`buildUponDefaultConfig = false`, no baseline). It forbids `androidx.navigation.**` and
+`androidx.navigation3.**` — both named, because glob dots are literal and `androidx.navigation.**`
+does not match `androidx.navigation3.*`. It hangs off `detekt` as well as `check`, since the gate
+everyone actually runs is bare `./gradlew detekt`.
+
+**Its coverage is narrower than it reads: `app/app`'s instrumented sources only.**
+`NavGraphScope.builder` (`EntryProviderScope<NavKey>`) and `NavGraphScope.results`
+(`NavResultsSource`) are public only because `core:ui:mvi`'s inline/reified `navComponentScreen*`
+helpers need cross-module access; reaching for either from a feature module would require importing
+`androidx.navigation3` types to name them — which this gate does **not** see. Feature modules are
+kept honest by review and by that KDoc, not by any Gradle task.
 
 ## Android Lint configuration
 
@@ -619,6 +757,23 @@ so the classifier collapsed to a `Boolean`:
   Metro: per the catalog's own comment, `metro = "1.3.2"` is built against Kotlin 2.4.0, so
   `kotlin = "2.4.10"` moves in lockstep with the Metro line. `ksp = "2.3.9"` is pinned for a
   separate, documented reason (2.3.6 silently skips KMP/native codegen).
+
+### Checks that constrain how code is written
+
+Three checks are load-bearing at specific call sites, where the conformant shape reads as an oversight
+and the tidier-looking edit reddens the CI-gated `lintDebug`:
+
+- **`EmptySuperCall`** — `BaseStore.onCleared()` calls only `dispose()` and makes NO super call:
+  `androidx.lifecycle.ViewModel.onCleared` is annotated `@EmptySuper`, so adding the conventional
+  `super.onCleared()` is flagged.
+- **`ComposableLambdaParameterNaming`** — a composable's sole composable slot must be named `content`.
+  It binds on `SettingsGroupRow`'s trailing control slot and on
+  `core/ui/kit/src/main/kotlin/io/github/stslex/workeeper/core/ui/kit/components/list/AppListRow.kt`;
+  a more descriptive name (e.g. `trailing`) fails lint.
+- **`LocalContextGetResourceValueCall`** — error copy must be resolved with `stringResource(...)` in
+  composable scope and passed in. `PlanEditorContent` hoists `loadFailedMessage` / `saveFailedMessage`
+  for this reason: resolving them inside the `processor.Handle { event -> ... }` suspend lambda would
+  make it call `Context.getString`, which the check flags.
 
 ### Categories
 
@@ -683,6 +838,14 @@ Two practical rules:
 - **Prefer narrowing the scope** (`<ignore path="..."/>`) over flipping the rule severity to
   `ignore` for the whole project.
 
+One suppression deliberately does **not** live in `lint.xml`: `RemoveWorkManagerInitializer` is added
+to `disable` only via `ApplicationExtension.lint` in `LintConventionPlugin`. The check runs per
+application module and does not see the manifest directive when that directive is contributed through
+the shared `:app:app` library manifest; AGP's merger applies it correctly at the application-level
+merge (verified in `merged_manifest` output). Disabling it for every module instead — via `lint.xml`
+or the `CommonExtension` block — trips `UnknownIssueId` in library modules that do not depend on
+androidx.work.
+
 ## Baselines
 
 Baselines exist so existing findings do not block new work after a rule is introduced. There
@@ -743,6 +906,15 @@ Android Lint half, which stays CI-enforced (`lintDebug` in the unified workflow)
    below — the `--stop` is not optional). If the new rule produces unavoidable existing
    findings, generate a baseline entry with
    `./lint-rules/baseline-manager.sh update-detekt`.
+
+### A path-keyed rule cannot be tested with `Rule.lint(String)`
+
+`Rule.lint(String)` synthesises a virtual file at an internal location, so a rule's path-based
+predicates (`/feature/...`, `/domain/mapper/`, `/src/test/`) never match and the test passes for the
+wrong reason. Use detekt-test's `compileContentForTest(content, filename)` instead: the filename lands
+as the resulting `KtFile.virtualFilePath`, which is what such rules read via
+`importDirective.containingKtFile.virtualFilePath`. `DomainLayerPurityRuleTest.lintForPath`
+established this route; `ActiveSurfaceSingleReaderRuleTest.lintAt` reuses it.
 
 ### The Gradle daemon caches the rule jar — stop it after every rule edit
 

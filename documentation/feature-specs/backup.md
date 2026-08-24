@@ -199,10 +199,29 @@ The Ktor `HttpClient` used by `DriveApi` is configured (see
 3. Otherwise → `authorize()` silently with the same scope set, cache the new
    token with a 50-minute TTL, and return it.
 
+`DriveBackupAuth.persistTokenAndGrant` writes the `drive.file` grant flag
+(`accountStore.setDriveFileGranted`) **first**, before touching the token cache,
+so a concurrent `DriveAuthTokenProvider` refresh that misses the cache requests
+the correct scope set. A GMS success `AuthorizationResult` can carry a newly
+granted scope but a `null` `accessToken` — GMS returns no token when it deems a
+cached credential sufficient. In that case, when `drive.file` is now granted the
+cached token is dropped (`accountStore.clearToken()`, never `setToken`): it
+predates the grant and may be appdata-only, so serving it would 403 the
+visible-Drive upload until its ~50-minute `TOKEN_TTL_MS` expires. A fresh token
+is cached with `expiresAtEpochMs = System.currentTimeMillis() + TOKEN_TTL_MS`.
+
 `DriveBackupStorage.withTokenRefreshOn401 { ... }` wraps every Drive HTTP call.
 On a typed `DriveException.AuthRevoked` from the auth plugin, it invalidates
 both caches via `DriveTokenInvalidator` and retries the call once. A second
 401 propagates as `BackupError.AuthRevoked`. See `DriveTokenInvalidatorTest`.
+
+Clearing the DataStore alone is not enough: GMS holds its own per-account token
+cache that the next silent `authorize()` hits, returning the same stale value —
+so `TokenInvalidator.invalidate()` also calls
+`AuthorizationClient.clearToken(ClearTokenRequest)`. Invalidation is best-effort:
+failures are logged, never propagated, because the caller is a retry path that
+can only attempt the refresh anyway. Consumers are `DriveBackupStorage` and
+`DriveSnapshotStorage`.
 
 ### Common authentication failures
 
@@ -221,7 +240,15 @@ both caches via `DriveTokenInvalidator` and retries the call once. A second
   userinfo endpoint's job. Fall back to the `GoogleSignInAccount` derived from
   the result only when userinfo fetch fails; if that also fails, persist the
   placeholder `"drive_account"` string. See
-  `DriveBackupAuth.toAccount(userInfo)`.
+  `DriveBackupAuth.toAccount(userInfo)`. That build step is now
+  `toAccountOrNull(userInfo)`, and `resolveAccount(result)` inserts one step
+  before the placeholder: the already-stored `accountStore.account()`. An
+  incremental `drive.file` grant that GMS satisfies from a cached credential
+  returns `accessToken == null` **and** `toGoogleSignInAccount() == null`, so
+  going straight to the placeholder would clobber the signed-in user's email /
+  display name purely because they flipped the AI-export toggle. Only a genuine
+  first-time sign-in with no derivable identity and no prior stored account
+  reaches `PLACEHOLDER_EMAIL = "drive_account"`.
 - **Partial grant (user unchecked `drive.appdata` on the consent screen).**
   `AuthorizationResult` comes back with a non-null `accessToken` but a
   `grantedScopes` set that omits a required scope. `DriveBackupAuth` checks
@@ -235,7 +262,12 @@ both caches via `DriveTokenInvalidator` and retries the call once. A second
   The UI shows an explicit "Drive access wasn't granted — sign in again" 
   snackbar via `BackupErrorUi.MISSING_REQUIRED_SCOPE`. `userinfo.email` and
   `userinfo.profile` are NOT in `REQUIRED` — declining them only forces the
-  placeholder display fallback in `toAccount`.
+  placeholder display fallback in `toAccount`. The obligation is api-level, not
+  Drive-specific: `SignInResult.PartialGrant(missingScopes)` requires every
+  `BackupAuth` impl to skip the token cache, skip the signed-in transition, and
+  drop the just-issued token from the provider's own cache. `missingScopes` is
+  the declined subset of `DriveAuthScopes.REQUIRED` — logging / diagnostics
+  only, never user-facing.
 
 ## Backup storage
 
@@ -299,6 +331,11 @@ fix was to split into per-field entries; every pair now stays well under the
 | `db_file_size_bytes` | `Long` (as String) | The SQLite file's actual size. |
 | `device_model` | `String` (≤ 100 chars) | `Build.MODEL`, defensively truncated to keep the pair under 124 bytes. |
 
+Budget per pair against the 124-byte ceiling: `app_version=1.43.0` 19 bytes,
+`db_schema_version=6` 19 bytes, `created_at_epoch_ms=…` ≤ 38 bytes (epoch ms fits
+19 digits), `db_file_size_bytes=…` ≤ 37 bytes, `device_model=<≤ 100 chars>`
+≤ 113 bytes — that ≤ 113 is what `DEVICE_MODEL_MAX_LEN = 100` buys.
+
 `ManifestPropertiesMapper.fromAppProperties` parses on restore and collapses
 any missing/invalid field to `BackupError.CorruptedBackup(reason = "manifest
 field X missing or invalid")` so the UI can surface a typed error rather than
@@ -349,6 +386,14 @@ because a rotation cleanup failed.
    which clears the task stack and calls `Runtime.getRuntime().exit(0)`.
    The process termination is the load-bearing step — only a cold start
    rebuilds the Room graph with the restored file.
+
+On success `confirmRestore` resets `backupOperation` to `BackupOperationUi.Idle`
+at the same moment it sets `restoreProgress = Completed`, because the restart
+(`delay(RESTART_DELAY_MS = 2_000L)` then `Action.Navigation.RestartApp`) can be
+aborted or delayed — process held in background, navigation pushing a different
+screen, a paused debugger. Leaving `Restoring` in place locks every backup row
+(they are all gated on `operation.isInProgress`). Asserted in `ConfirmRestore
+Success sets Completed then consumes RestartApp after delay`.
 
 ## Scheduling
 
@@ -423,6 +468,23 @@ Persisted in DataStore Preferences via
 payloads (`CorruptedBackup.reason`, `SchemaTooNew.versions`, `Io.cause`,
 `Unknown.cause`) collapse to the discriminator only, which is all the UI
 surface needs (banner / notification / settings badge).
+
+- Updaters are per-field, never a whole-object `setPreferences(p)`: each issues
+  a DataStore `edit { }` that touches only its own key, so the worker writing
+  `setLastAttempt` cannot clobber a concurrent user toggle of
+  `setAllowOnMobileData`. Settings UI, worker and the post-sign-in bootstrap
+  share the one `@Singleton` instance.
+- `BackupSchedule` is persisted via `Enum.name`, so the spelling of `Daily` /
+  `Weekly` / `ManualOnly` **and** their declaration order are part of the
+  persistence contract — renaming or reordering requires a DataStore migration.
+- The snapshot handed to `schedulePeriodic` is built by copying the two edited
+  fields onto `preferencesRepository.observe().first()`, never onto
+  `BackupPreferences.DEFAULT`: the `DEFAULT.copy(...)` shortcut would pass
+  sentinel `lastAttemptAtEpochMs` / `lastSuccessAtEpochMs` / `lastError` /
+  `autoBackupBootstrapped` into another module. `schedulePeriodic` consumes only
+  schedule + allowOnMobileData today, so the corruption would stay invisible
+  until a future reader of the snapshot's other fields. Pinned by `SaveFrequency
+  preserves persisted non-sentinel fields in scheduled snapshot`.
 
 ### First-sign-in bootstrap
 
@@ -537,7 +599,12 @@ The auth-paused notification is owned by `BackupNotificationHelper`:
 - The helper guards `notify(...)` behind
   `NotificationManagerCompat.areNotificationsEnabled()` so a user that denied
   `POST_NOTIFICATIONS` on Android 13+ silently falls back to the in-app
-  banner only.
+  banner only. The app never prompts for that permission itself, and the
+  `notify(...)` call is additionally wrapped in `catch (_: SecurityException)`
+  for the race where the permission is revoked between the check and the call.
+- The channel is registered idempotently on the first `showAuthPaused()` call
+  rather than at app startup, so cold-start cost stays flat for users who never
+  hit the auth-revoked path.
 
 ## Cloud Console setup
 

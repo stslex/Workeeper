@@ -209,11 +209,16 @@ after the Scenario 1 check returns no-op. Routes to `RecoveryActivity`
 (also in `feature/recovery`) via a `MainActivity.onCreate` check on
 `StartupMigrationCoordinator.lastDecision`. MainActivity launches
 RecoveryActivity directly via Intent because the call site fires before
-`setContent { App() }` — `NavCommand.OpenRecovery` is reserved for
-in-composition callers per `Navigator.openRecovery()` KDoc.
+`setContent { App() }`. `NavCommand.OpenRecovery` is processed only by the
+composable-mounted `NavigationEventBusSetup`, and the bus is a
+`MutableSharedFlow(extraBufferCapacity = 64)` with `replay = 0`: an emission
+with no attached subscriber is dropped, and dropped silently in the strongest
+sense — the buffer makes `tryEmit` return `true`, so not even the failed-emit
+warning fires. `Navigator.openRecovery()` is therefore for in-composition
+callers only; the caller should `finish()` after dispatching, and the fresh
+task replaces the current one via `FLAG_ACTIVITY_NEW_TASK`.
 
-**Implementation deviates from the literal spec** in two ways, both
-documented in the coordinator KDoc:
+**Implementation deviates from the literal spec** in two ways:
 
 1. **The pre-flight does not trigger Room migration.** It peeks the live
    `PRAGMA user_version` via the Room-free `SQLiteDatabase.openDatabase`
@@ -285,6 +290,24 @@ The DB-free invariant — RecoveryActivity must not initialize Room — is a
   to prevent regression if a future contributor wires a Room-dependent
   collaborator into the activity.
 
+As shipped, that tripwire is
+`app/app/src/androidTest/kotlin/io/github/stslex/workeeper/app/RecoveryActivityDbFreeTest.kt`,
+and a lifecycle walk alone would be vacuous: `deps` is a `by lazy` behind the
+`snapshotProvider` / `diagnosticsExporter` `get()` accessors, which only the four
+button handlers read, and `onCreate` merely binds callable references
+(`::exportRawData`, …) into `setContent`. So CREATED → STARTED → RESUMED never
+resolves either collaborator. `RecoveryActivity.warmDeps()` exists solely for
+this test — it has no production caller; the test calls it from
+`scenario.onActivity { }` to force resolution **and** construction of
+`databaseSnapshotProvider` + `recoveryDiagnosticsExporter` inside the window
+where the fail-fast `SQLiteDriver` is installed. It returns
+`listOf(snapshotProvider, diagnosticsExporter)` rather than reading them as bare
+statements so the reads stay observable and un-elidable.
+
+Still uncovered: the four button callbacks are never invoked, so
+`getPreMigrationBackupFile()` / `exportStartupMigrationFailure()` are proven
+Room-free at resolution time only, not at call time.
+
 It is a single Compose-rendered activity with four actions:
 
 | Action | Behavior |
@@ -307,7 +330,16 @@ is rendered in
 when `state.canRevertLastRestore` is true.
 [`BackupClickHandler.observeRestoreState`](../../feature/settings/src/main/kotlin/io/github/stslex/workeeper/feature/settings/mvi/handler/BackupClickHandler.kt)
 subscribes to `RestoreStateRepository.observePreRestoreBackupAvailable()`
-and pushes the result into state. The tap publishes
+and pushes the result into state. `canRevertLastRestore` is gated on **both**
+that `pre_restore_backup_available` flag and
+`snapshotProvider.getPreRestoreBackupFile() != null`: the file lives in
+`cacheDir`, which Android can reclaim under storage pressure, so the flag can
+survive while the file is gone, and a row tap in that state lands in a
+silent-failure path inside `RestoreRecoveryCoordinator.performUndoRestore`. On
+`flagged && !fileExists` the handler calls
+`restoreStateRepository.clearPreRestoreBackupAvailable()` to self-heal the flag
+back into sync; defence-in-depth for the observation-to-tap race window stays in
+`performUndoRestore`. The tap publishes
 `AppDialog.UndoRestoreConfirmation` via `AppDialogPublisher`. When the
 user confirms, `AppDialogHost` dispatches `Action.UserAction(dialog,
 AppDialogUserAction.ConfirmUndo)` to the Store, which records the choice.
@@ -477,6 +509,44 @@ happens when storage is critically low. If reclaimed, the
 crash, no data loss. The alternative (`filesDir`) would keep the file
 through reclaim, but at the cost of pushing the file into the user's
 uninstall-survives-backup quota.
+
+WAL flush mechanics, both in `DatabaseSnapshotProviderImpl`:
+
+- `preserveDbBeforeMigration()` checkpoints through a direct
+  `SQLiteDatabase.openDatabase(path, null, OPEN_READWRITE)`, **not** through
+  `appDatabase` / `openHelper` — opening via Room would trigger Room's migration
+  path, which is exactly what the caller is avoiding. The raw open runs no
+  migrations, it just flushes the WAL. A checkpoint that throws is logged and the
+  copy proceeds anyway: a stale snapshot is strictly better than no snapshot for
+  the recovery export.
+- On the Room-owned paths, `PRAGMA wal_checkpoint(TRUNCATE)` **returns a row**
+  (busy, log, checkpointed), so `stmt.step()` is what actually executes it — a
+  prepared-but-unstepped statement silently no-ops and leaves the WAL beside the
+  snapshot. Room 3 removed `openHelper.writableDatabase.query(...)`, so
+  `checkpointWal()` runs it as
+  `appDatabase.useWriterConnection { connection.usePrepared("PRAGMA wal_checkpoint(TRUNCATE)") { stmt -> stmt.step() } }`;
+  `readUserVersion()` is the same shape over a reader connection
+  (`PRAGMA user_version`, the Room 3 replacement for `openHelper.*.version`).
+
+### Restore-journal DataStore keys
+
+Written by `RestoreStateRepositoryImpl` into `restore_state_prefs`. These names
+are wire format on user devices — preserve them or add a migration path:
+`restore_attempt_id`, `restore_attempt_kind`, `restore_attempt_phase`,
+`restore_attempt_rollback_snapshot_path`,
+`restore_in_progress_backup_schema_version`,
+`restore_in_progress_backup_created_at_epoch_ms`,
+`restore_in_progress_backup_app_version`,
+`restore_in_progress_started_at_epoch_ms`, plus the legacy
+`restore_in_progress` / `restore_mutation_interrupted` booleans and
+`LEGACY_ATTEMPT_ID = "legacy-restore-in-progress"`.
+
+`RestoreStateRepositoryImplTest` duplicates these literals instead of sharing
+constants **on purpose**: the duplication is the assertion, so a silent rename
+inside the impl fails a test rather than stranding a user mid-restore. Do not
+"fix" it by extracting shared constants. The test writes raw keys only for
+scenarios unreachable through the public API — a pre-R3 install's legacy marker
+and a torn/partial record.
 
 ## Pre-restore compatibility checks
 
@@ -670,6 +740,17 @@ filter the Crashlytics dashboard by scenario:
 | `triggered_at` | `String` | `"restore"` for Scenario 1, `"startup"` for Scenario 2. |
 | `restore_in_progress` | `Boolean` | Always `true` for Scenario 1, `false` for Scenario 2. |
 | `backup_version` | `Int` | Scenario 1 only — what the user tried to restore from. |
+| `startup_failure_reason` | `String` | Scenario 2 only — `StartupMigrationFailureReason.name`. |
+| `install_source` | `String` | Scenario 2 only — Play vs sideload, from `PackageManager.getInstallSourceInfo(...)`. |
+
+The Scenario 2 pre-flight detects unrecoverable state by pure file inspection,
+so there is no Room exception to forward. `recordStartupMigrationFailure`
+therefore records a synthesized `StartupMigrationFailure(fromSchema, toSchema,
+reason)` when `exception` is null — Crashlytics needs *some* `Throwable` to group
+non-fatals by, and without one the failure mode would not surface on the
+dashboard at all. The class is declared at file scope rather than nested inside
+`StartupMigrationReporter` so Crashlytics groups by a clean class name without
+dashboard noise.
 
 `FirebaseCrashlytics.setUserId(...)` is **not** added here — the existing
 project policy is to not pin a user identifier. Filtering by the keys above

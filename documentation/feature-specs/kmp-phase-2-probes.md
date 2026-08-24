@@ -239,6 +239,12 @@ Phase 7, so the go/no-go signal arrived last. It is now measured, early, green:
 4. **`androidResources.enable = true`** belongs in the Compose convention (two measured
    failure modes without it), NOT in the base convention (pure-logic KMP modules keep the
    AGP default off).
+5. **The JVM_21 pin in `KmpLibraryConventionPlugin` is load-bearing, not cosmetic.**
+   `tasks.withType<KotlinJvmCompile>().configureEach { compilerOptions.jvmTarget.set(JvmTarget.JVM_21) }`
+   — without it a KMP module inherits the Gradle daemon's JDK as its jvmTarget, and on any JDK
+   newer than 21 every Android consumer fails with "Cannot inline bytecode built with JVM target
+   <N>" the moment it calls an inline helper from the module. Keep in sync with
+   `KotlinAndroid.configureKotlin`.
 
 ## Corrections of record
 

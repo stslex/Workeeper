@@ -134,6 +134,10 @@ Constructor parameters:
 `BaseStore` deduplicates consecutive identical actions unless they implement `Action.RepeatLast`,
 logs every action and event, and exposes `launch(...)` helpers built on `AppCoroutineScope`.
 
+`dispose()` is idempotent (it early-returns when `_scope == null`) and MAIN-THREAD-ONLY: its
+`scope.removeObserver(lifecycleObserver)` step reaches androidx `LifecycleRegistry`, which asserts
+the main thread. A Store may not be disposed off main.
+
 ### `Handler`
 
 `core/ui/mvi/src/main/kotlin/io/github/stslex/workeeper/core/ui/mvi/handler/Handler.kt` is a
@@ -408,6 +412,20 @@ same three roots are the test-override seam: `MetroTestRule`
 (`app/app/src/androidTest/.../harness/MetroTestRule.kt`) rebuilds the graph per test over an
 in-memory `AppDatabase` and a `FakeImageStorage` — see [Testing](testing.md).
 
+`buildImageStorage(applicationContext, Dispatchers.IO)` takes BOTH ctor deps from the caller
+rather than from the graph: at that call site the graph is still under construction, so reading
+its own `DispatchersBindingContainer` `@IODispatcher` accessor would cycle. The value is
+equivalent — that accessor returns the identical stateless `Dispatchers.IO` process-singleton.
+
+An accessor on `AppGraph` is NOT what makes a binding reachable: every `@GraphExtension` inherits
+all `AppScope` bindings whether or not an accessor names it. The policy is that an accessor stays
+only when something reads it (`BaseApplication` / `MainActivity` / `App.kt`, `RecoveryDeps`,
+`BackupWorkerDeps`, or a `:app` identity test) — reader-less ones were deleted. Four are kept with
+NO reader as the compile-time assertion that the binding still resolves in `AppScope`:
+`storeDispatchers`, `navigator`, `appDialogObserver`, `backupAuth`. `DispatchersBindingContainer`
+contributes FOUR qualified dispatchers but only three are exposed — `@MainDispatcher` has no
+accessor.
+
 Everything else contributes INTO that graph rather than being listed on it:
 
 - `core/data/database/.../di/DbCascadeBindingContainer.kt` — a
@@ -453,6 +471,21 @@ Bindings on the extension:
 - Root accessor — the feature's `*StoreImpl`.
 - `<Name>Interactor` (where present) — `@Binds` from its `Impl`, `@SingleIn(<Name>Scope::class)`.
 - `<Name>HandlerStore` — `@Binds` from the `BaseHandlerStore` subclass.
+
+`@SingleIn(<Name>Scope::class)` on the `*HandlerStoreImpl` is what collapses its two binding keys
+into one object — the CONCRETE key the Store injects as `storeEmitter`, and the INTERFACE key every
+handler injects — and nothing checks it. Deleting the annotation or mistyping its KClass still
+compiles (an unscoped `@Inject` class is a legal Metro binding, and `nonPublicContributionSeverity`
+gates `AppScope` contributions only), Metro then builds one emitter per key, only the Store's
+receives `setStore(this)` from `BaseStore.init {}`, and the first action hits
+`requireNotNull(_store)` on the other — the screen crashes on open. Only an `assertSame` whose BOTH
+operands are read from ONE extension is sensitive to this (`ArchiveExtensionIdentityTest`); the
+parent-vs-extension shape used by the sibling identity tests is not.
+
+Read the Store accessor EXACTLY ONCE per created extension. The Store is unscoped, so the accessor
+is not cached: every read builds a fresh Store whose `BaseStore.init` re-runs
+`storeEmitter.setStore(this)` on the shared `@SingleIn` handler store, silently rebinding the
+emitter away from the Store the previous read returned.
 
 The factory's creator method name must be UNIQUE across all contributed extension factories
 (every one of them merges into `AppGraph`), hence `createExerciseGraph(...)` /
@@ -1192,10 +1225,15 @@ invocation rather than a bus emission:
    drop the command when no bridge subscriber is attached.
 4. The Android `AppReinitializer` actual relaunches the
    package's launch intent (`FLAG_ACTIVITY_NEW_TASK | CLEAR_TASK`) on the
-   application `Context` and calls `Runtime.getRuntime().exit(0)`. (The iOS
-   actual throws until Phase 5 delivers the in-place reinit — iOS has no
-   self-restart API; see the expect KDoc for the DataStore-memoization
-   precondition.)
+   application `Context` and calls `Runtime.getRuntime().exit(0)`. iOS has no
+   self-restart API, so its actual delegates to the root-bound
+   `AppReinitializationHost` — an in-process runtime-generation rebuild.
+   That rebuild puts a SECOND generation in one process, which every
+   app-scoped `DataStore` holder must survive: mint through
+   `DataStoreProvider`'s process-lifetime memoization, never per-instance, or
+   the second generation breaks silently rather than loudly. A holder that
+   mints its own store re-breaks the rebuild without failing any existing test
+   but `app/app` androidTest `AppScopeDataStoreSingletonTest`.
 
 What this pattern replaces — and why:
 
@@ -1254,8 +1292,9 @@ The mechanics:
    there and the result is lost. This is the only place the transport is
    untyped. **Accepted delta:** a result does not survive process death
    inside the set→collect window — the window is one recomposition wide, and
-   no user journey holds a result across process death (see
-   `NavResultsSource`'s KDoc).
+   no user journey holds a result across process death. Derivation and
+   decision record:
+   [nav3-stage-1-3.md](feature-specs/nav3-stage-1-3.md) §3.6.
 3. The consumer's graph registers with `navComponentScreenWithResults`, whose
    content lambda receives a `NavResults` rather than the raw
    `NavResultsSource`:
@@ -1282,6 +1321,27 @@ it exhaustively over `Screen.ExerciseImageRequest`.
 `NavResults` holds the `NavResultsSource` privately and exposes nothing that
 leaks it, so the transport still never reaches a Store, Handler,
 ViewModel, or graph branch — by construction rather than by convention.
+
+**The key is the `KClass` that is passed, not the destination that is popped.**
+`NavResultKey.of(Screen.PlanEditor::class) != NavResultKey.of(Screen.PlanEditor.Existing::class)` —
+a sealed destination and one of its variants are DIFFERENT channels. For the plan-editor result
+both producer and consumer pass `Screen.PlanEditor` while the route actually registered and popped
+is the concrete `Existing`; that mismatch is deliberate, because the runtime type never enters the
+key. Narrowing either side to the variant still compiles and still typechecks (`R` is identical on
+both) and the result simply stops arriving — silently, per the `.catch { onError(it) }` swallow
+below. If a result goes missing with both sides looking correct, compare the two `KClass`
+references first. Pinned by `NavigationResultContractTest`'s
+`a destination and its variant do not share a result channel`.
+
+**A pending value survives ONLY the pop that delivers it; every other navigation clears every
+channel.** `navTo`, `popBack` and `replaceTo` each call `NavigatorEventBus`'s private
+`clearAllResults()`, which nulls every keyed flow; `popBackWithResult` deliberately does not. The
+store is process-wide and keyed by DESTINATION, not by back-stack entry, so this blanket clearing
+is what stops a value written while a non-consuming screen was on top from leaking into a later,
+unrelated composition of that key's consumer — it stands in for Nav2-style per-entry scoping.
+Pinned by `NavigatorEventBusTest`'s pending-result lifecycle tests (`navTo clears a pending
+result`, `replaceTo clears a pending result`, `plain popBack clears a pending result`,
+`popBackWithResult does not clear other pending channels`).
 
 > **Note for tests.** `AppCoroutineScopeImpl.launch(flow, …)` applies
 > `.catch { onError(it) }`, so a flow error inside a Store is swallowed: a
@@ -1336,6 +1396,23 @@ built on the exercise form, which hosts `PlanEditorBody` inline — so there is
 no in-flight draft to carry to another screen and hand back. Every
 destination here edits something that exists.
 
+The route carries three uuids and the editor's load reads `exerciseUuid` — never
+`performedExerciseUuid`. A wrong one resolves to `NotFound`, which surfaces as an error EVENT
+(`Event.ShowError(ErrorType.LoadFailed)`) rather than a screen stuck loading, so a plan-editor
+journey failing with the editor's load error rather than a missing graph tag is a wrong-uuid bug.
+
+Storage routing is keyed on `trainingUuid` nullability alone, NOT on `State.Mode`.
+`loadPlan(exerciseUuid, trainingUuid)` / `savePlan(exerciseUuid, trainingUuid, type, plan)` pick
+the backing store as: `trainingUuid == null` → `exercise_table.last_adhoc_sets`; non-null →
+`training_exercise_table.plan_sets` for that (training, exercise) pair. `type` is written only on
+the null branch (Mode.Exercise) and ignored otherwise, but `loadPlan` ALWAYS returns the exercise's
+own `type`, because `exercise_table.type` is the source of truth for both locations —
+training-exercise rows inherit shape from the parent exercise. Consequence:
+`Mode.PerformedExercise` with `trainingUuid == null` (the live-workout ad-hoc entry —
+`performedExerciseUuid != null`, `trainingUuid == null` in `Screen.PlanEditor.Existing.toMode()`)
+reads and writes `last_adhoc_sets`, not `training_exercise_table.plan_sets`, despite the mode
+name.
+
 Type ownership lives in PlanEditor. The toggle and
 the type-change-confirm dialog (with weight-wipe semantics for
 WEIGHTED → WEIGHTLESS flips) are the plan editor's responsibility, not the
@@ -1348,8 +1425,13 @@ exercise and isn't editable through a training-scoped editor.
 rather than `navComponentScreen`, because `PlanEditorFeature` is typed on the
 sealed parent `Screen.PlanEditor` (what the store's DI factory takes) while
 the registered ROUTE is the concrete `Existing`, and `navComponentScreen`
-reifies one type for both. See the graph's KDoc for the alternatives
-considered and rejected.
+reifies one type for both — it would try to register the sealed interface as a
+route. Both alternatives were rejected: a third type parameter on
+`navComponentScreen` separating route from feature is new API for exactly one
+caller, and retyping `PlanEditorFeature` to `Existing` reaches into this
+feature's DI graph and its store's contract for a cosmetic gain. This call
+still registers through the same project-owned scope and primitive as every
+other graph and names no navigation-library type.
 
 #### Dispatching navigation from background coroutines
 
@@ -1556,6 +1638,13 @@ exactly what that start must avoid. And it is `ANALYZE` rather than the more usu
 `PRAGMA optimize`, which is a no-op when called before its own connection has read anything and
 whose override bit needs a newer SQLite than `minSdk 28` can assume.
 
+`refreshQueryPlannerStatistics(database)` takes the database as a PARAMETER rather than being an
+extension on it, and `closeAppDatabase(database)` beside it does the same: `:app:app` holds the
+`AppDatabase` (it threads it into the graph) but is deliberately kept Room-free on its compile
+classpath, and resolving an extension on a Room type there fails on the unreachable `RoomDatabase`
+supertype. DB-touching operations therefore live next to the database in `core:data:database` as
+plain functions taking it as a parameter — that is the module boundary, not a style choice.
+
 ### Navigation host and shared element transitions
 
 `app/common/src/main/kotlin/io/github/stslex/workeeper/host/AppNavigationHost.kt` receives the
@@ -1681,6 +1770,33 @@ both are read in the *placement* block, so they invalidate layout every frame, a
 graph here carries `Modifier.reportScreenPlace<...>()` whose `onPlaced` would then fire per
 frame per scene.
 
+Five smaller invariants hold up `NavTransitions.kt` and `DisplayCornerShape.kt`, and none of them
+is visible at its own call site:
+
+- Three animations Compose registers on the host's behalf are proven to contribute ZERO to
+  `transition.totalDurationNanos`, which is what keeps that max equal to `AppMotion.base`: the
+  transform-origin spring (both endpoints resolve to `predictivePivot`'s value), the outgoing
+  scene's veil (endpoints equal while `predictiveScrimColor` stays pure black), and `NavDisplay`'s
+  `sizeTransform`, which this host does not pass.
+- GUARD: `predictivePivot` must not gain a `layoutDirection` input. `NavigationEvent.EDGE_LEFT` /
+  `EDGE_RIGHT` are PHYSICAL edges and a `TransformOrigin` is written straight onto
+  `GraphicsLayerScope` with no RTL mirroring, so the pivot is already correct under RTL. Material 3
+  needs an `rtlMultiplier` for the same gesture only because it computes a layout offset.
+- `predictivePivot` ends in `else ->` rather than an exhaustive `when` on purpose:
+  `NavigationEvent.EDGE_NONE` cannot reach it through `NavDisplay`'s own gating (the predictive
+  branch requires `InProgress`, and `EDGE_NONE` is produced only on the `Idle` arm), yet an event
+  carrying it — or a future fourth constant — is representable and must not crash a transition. A
+  centred shrink is the chosen answer for "back, with no direction".
+- GUARD: `RoundedCorner.POSITION_TOP_LEFT` / `POSITION_TOP_RIGHT` / `POSITION_BOTTOM_RIGHT` /
+  `POSITION_BOTTOM_LEFT` are compile-time constants, so naming one at any call site outside a
+  version check inlines an API-31 field into the `minSdk 28` binary and trips Android Lint's
+  `InlinedApi`. They are named only inside the `@RequiresApi(S)` `View.displayCorners`, which is
+  reached only past the `SDK_INT < S` early return.
+- The `ViewTreeObserver` captured when `addOnGlobalLayoutListener` was called can be dead by the
+  time `onDispose` runs — the platform replaces a View's observer when the View is re-attached — so
+  removal goes through `if (observer.isAlive) observer else view.viewTreeObserver`. Removing from
+  the captured-but-dead observer would leak the listener.
+
 A route does not compose until it has loaded (§26), and it arrives with a fade rather than a
 snap: `AppLoadedContent` (`core:ui:kit/.../loading/`) wraps the content of `exercise`,
 `single-training`, `plan-editor`, `live-workout` and `past-session`, composing it only once the
@@ -1691,11 +1807,32 @@ what each store models: `isLoading` for `exercise`, `single-training` and `plan-
 withheld — Retry re-enters `Loading` with the screen already up, and withholding it there blanks the
 route mid-flow).
 
+**GUARD: the wrapper must be composed WHILE the route is still loading.** `AnimatedVisibility` does
+not animate a composable that enters composition already visible, so hoisting `AppLoadedContent`
+below an early return silently drops the `continuityAlphaSpec` fade — nothing fails, the fade
+simply never plays. `exerciseGraph` is the shape to copy: the wrapper sits ABOVE
+`if (state.isLoading) return@navComponentScreenWithResults`, and only the modal content (sheets and
+dialogs) stays behind that early return — the image-result forward, the three activity-result
+launchers, the event `Handle` and the `BackHandler` all keep running during the load.
+`exit = ExitTransition.None` is deliberate: `isLoaded` goes false only when a route RE-enters
+loading, and holding a stale screen mid-fade there would show the previous record's data over the
+next one's load.
+
 **`live-workout`'s second term is load-bearing and must not be simplified away.** A failed load
 clears `isLoading` deliberately — a latched flag behind the gate is a permanently empty frame — and
 records `loadFailed` in the same update. Without that term in the predicate the route would compose
 the failed session as a successfully empty workout, Finish dock and all, for as long as the
 asynchronous pop takes.
+
+`loadFailed` is State and not an Event because the event flow is replay-free and its only collector
+is the screen's `Handle`, which subscribes from a `LaunchedEffect` — later than the
+`DisposableEffect` that dispatches `Init`. A load that resolves inside that window emits into no
+subscriber and is dropped, which is exactly the dangerous case; State cannot be dropped, because
+whenever the screen composes it reads the flag. In `LiveWorkoutGraph`'s exit effect
+`SnackbarManager.showSnackbar(loadFailedMessage)` must run BEFORE
+`processor.consume(Action.Navigation.Back)`: `SnackbarManager` is app-scoped and outlives this
+destination, so the message has to reach it before the pop that disposes this composition is asked
+for.
 
 `exercise-chart` is the deliberate exception and must stay one: its top bar carries no title and
 its exercise header renders only inside `state.selectedExercise?.let`, so nothing on its shell can
@@ -1736,9 +1873,15 @@ collection, preserving the fires-for-the-initial-destination semantic the Nav2 l
 got from registration replay. The visible screen maps to its tab via
 `BottomBarItem.getByScreen` — value identity (`entry.screen == screen`; the roots are
 `data object`s, so `==` IS type identity), with no route string to parse. The listener
-also latches `selectedIndex` separately from the nullable `bottomBarDestination`, so the
-nav pill does not snap back to the first item while the bar's exit animation is still
-composing — see the class KDoc.
+also latches `selectedIndex` — never null — separately from the nullable
+`bottomBarDestination`. The nullable one goes null the moment a non-bottom-bar screen is
+pushed and the bar hides on that signal, but `AnimatedVisibility` keeps composing its content
+for the whole exit animation, so a bar reading its selection off the nullable state would
+resolve `null` to "no index" and slide the pill back to the first item WHILE the bar is
+animating away — a visible snap on every push off a bottom-bar destination, and one no golden
+can catch (a golden gates one static frame). Latching in the collector rather than in `App.kt`
+keeps the fix out of the composition phase: both states are written from the same
+`snapshotFlow` collector, so nothing writes snapshot state while composing.
 
 `ClearFocusOnDestinationChanged` (`app/common/.../host/ClearFocusOnDestinationChanged.kt`)
 follows the same `snapshotFlow`-over-the-stack pattern to clear keyboard focus on every
@@ -1749,6 +1892,12 @@ navigation tick, including once at startup.
 `app/common/.../bottom_app_bar/BottomBarItem.kt` declares three tab entries — `HOME`,
 `TRAININGS`, `EXERCISES` — each pointing at a `Screen.BottomBar`. `BottomAppBar.kt` renders
 them with haptic feedback on selection.
+
+The destinations stay in `app:common` because the compiler forbids the alternative: `core:ui:kit`
+depends on neither `core:ui:navigation` (so it cannot name `Screen.BottomBar`) nor this module's
+resources (so it cannot resolve `R.string.bottom_bar_label_*`). The kit owns only the treatment
+(`AppNavBar`); moving the destinations there forces hardcoded English labels in a
+Russian-language app, which is what the deleted `AppBottomBarDestination` did (`label = "Home"`).
 
 ## Cross-cutting channels
 
@@ -1773,6 +1922,10 @@ calling `LocalHapticFeedback.current.performHapticFeedback(...)` — see
 `app/common/.../bottom_app_bar/BottomAppBar.kt` for a non-event-driven example using
 `HapticFeedbackType.SegmentTick`. The `Haptic` token is in `MviEventNamingRule.validPatterns`.
 
+Every haptic in this app is fired at a feature/graph level: `core/ui/kit/src/main` contains no
+haptic call at all (measured), which is why the nav-tab `SegmentTick` is fired in `App.kt`'s
+`onSelect` rather than inside the kit's `AppNavBar`. A kit component must not acquire one.
+
 ### Coroutine scope and dispatchers
 
 - `core/core/.../coroutine/scope/AppCoroutineScope.kt` wraps a `CoroutineScope`,
@@ -1783,6 +1936,14 @@ calling `LocalHapticFeedback.current.performHapticFeedback(...)` — see
 - `StoreDispatchers` (`core/ui/mvi/.../di/StoreDispatchers.kt`) injects `@DefaultDispatcher`
   and `@MainImmediateDispatcher`, both contributed by
   `core/core/src/androidMain/.../di/DispatchersBindingContainer.kt`.
+- `AppCoroutineScopeImpl`'s `CoroutineExceptionHandler` is the backstop that keeps an `async`
+  fan-out recoverable. `feature/exercise`'s `CommonHandler.loadExercise` fans out through SIX
+  `async` children (`getExercise`, `getLabels`, `getRecentHistory`, `countSessions`,
+  `canPermanentlyDelete`, `getAdhocPlan`); in a plain (non-supervisor) scope the first child
+  failure cancels the parent before the `onError` arm that clears `isLoading` can run, and only
+  that backstop saves it. A handler test must reproduce the same observable with
+  `runCatching { supervisorScope { action() } }` — simplifying the mock to a bare scope turns the
+  throwing-load test green for the wrong reason.
 
 ### Localization
 
@@ -2169,6 +2330,12 @@ Concretely:
 - The seed lookup priority is **performed > draft > plan > fallback** — the same
   priority the visible-row resolver uses, so the chip click reads the row the user
   sees.
+- The one deliberate exception is `LiveSetMutator.draftFor`, the seed for mark-done, which
+  inverts the first two: **draft > performed > plan > fallback**. Mark-done commits user input
+  that is still in the draft layer, and performed winning there would freeze the row's previous
+  values. In normal flow the row is undone when mark-done fires, so performed is absent and the
+  two priorities collapse to the same answer — aligning them would look like a cleanup and
+  silently freeze stale values.
 - A draft update keeps every field of the seed and overwrites only the field the user
   changed. Type chip click preserves weight + reps. Weight input preserves type +
   reps. Reps input preserves type + weight.
@@ -2393,6 +2560,27 @@ To keep the keyboard open and cursor stable across user typing:
 For lists of TextField rows (e.g. plan editor sets), each row needs a stable key so its
 TextField identity is preserved when adjacent rows are added, removed, or reordered.
 
+### Paged lists
+
+Collect a `PagingUiState` only through `PagingUiState.collectAsItems()`
+(`core/ui/kit/.../components/CollectPagingItems.kt`), never through a raw
+`collectAsLazyPagingItems()` — `PagingCollectionRule` bans the raw call outside that file.
+
+`PagingUiState` is a `fun interface`, so `state.pagingUiState()` BUILDS A NEW `Flow` on every call,
+and `collectAsLazyPagingItems()` keys its own cache on that flow (`remember(this) {
+LazyPagingItems(this) }`), so a fresh `Flow` means a fresh `LazyPagingItems`, which starts at
+`refresh = Loading` with `itemCount = 0` (`InitialLoadStates`, paging-compose 3.5.0
+`LazyPagingItems.kt:174`). Calling the fun interface inline therefore resets the list to loading on
+EVERY recomposition. Measured on a `debug` build with a workout running, where Home recomposes once
+a second on the session timer: 13 rebuilds in 12 seconds, each blanking the list to the paging
+spinner for ~23 ms — a visible flash once a second on the app's primary screen. The rebuild count
+is STRUCTURAL (a fun-interface invocation allocates a new `Flow` under R8 exactly as without it);
+the 23 ms is a debug duration and not a shipping claim. The three screens that wrapped the call in
+`remember(state.pagingUiState) { state.pagingUiState() }` composed twice on entry and never again;
+Home wrote `state.pagingUiState().collectAsLazyPagingItems()` and flashed. The `remember` key is
+the `PagingUiState` INSTANCE — created once in the feature's paging handler and carried through
+every `State.copy()` — not the flow it builds.
+
 ### Composable previews
 
 Every public or internal `@Composable` function has at least one `@Preview` next to it.
@@ -2426,7 +2614,11 @@ Convention plugins live in `build-logic/convention/src/main/kotlin/`:
   `configureAndroidCompose`.
 - `RoomLibraryConventionPlugin` — applies `room` and `ksp`, sets `room.generateKotlin=true`,
   configures `schemaDirectory("$projectDir/schemas")`, and adds the `room` bundle plus
-  `androidx-paging-runtime` and `androidx-room-testing`.
+  `androidx-paging-runtime` and `androidx-room-testing`. It branches on
+  `pluginManager.hasPlugin("org.jetbrains.kotlin.multiplatform")`, so a KMP consumer MUST list
+  `convention.kmpLibrary` BEFORE `convention.roomLibrary` in its plugins block: applied the other
+  way round it takes the Android branch, whose `implementation` configuration does not exist on a
+  KMP module, and the build fails at configuration time.
 - `LintConventionPlugin` — applies `detekt`, points lint and detekt at the centralized configs
   (`lint-rules/lint.xml`, `lint-rules/detekt.yml`) and baselines, registers the
   `:lint-rules` project as a `detektPlugins` dependency. See
@@ -2441,6 +2633,11 @@ Helpers in the same directory:
 - `io/github/stslex/workeeper/{ConfigureApplication.kt, KotlinAndroid.kt, ComposeAndroid.kt,
   LocalPropertiesConstants.kt}` contain the actual `configureApplication`,
   `configureKotlinAndroid`, and `configureAndroidCompose` functions that the plugins call.
+  `configureKotlinAndroid` adds bare `javax-inject` to EVERY Android module's `implementation`
+  list (alongside `androidx-core-ktx`, `kotlinx-collections-immutable`, `coroutines`) because
+  every module needs `javax.inject.Qualifier` on its classpath for Metro's `includeJavax()` to
+  recognise the `@DefaultDispatcher` / `@IODispatcher` / `@MainImmediateDispatcher` qualifiers.
+  It used to arrive transitively via `hilt-android`.
 
 ### Toolchain
 

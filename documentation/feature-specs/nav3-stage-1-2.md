@@ -50,11 +50,13 @@ not exist in Nav3.
 - `SaveHandlerAttr` is deleted, not renamed. String keys and `Any?` disappear
   entirely; the type lives on `Screen`.
 
-Why on the destination rather than on the call: `Screen.PlanEditor`'s KDoc
-claimed three consumers and had exactly one — undetected for months, found only
-by grep. With the type declared on the destination, a wrong-typed read does not
-compile, and "who reads this" becomes a question for the compiler instead of a
-comment.
+Why on the destination rather than on the call: live-workout is the only producer
+of `Screen.PlanEditor` and the only consumer of its result — one
+`PlanEditor.Existing(` construction site in production, in live-workout's
+`NavigationHandler`. The pre-1.2 prose named three navigators into the route and
+went uncorrected for months; only a grep could check it. With the type declared
+on the destination, a wrong-typed read does not compile, and "who reads this"
+becomes a question for the compiler instead of a comment.
 
 ### 2.2 Project-owned registration DSL
 
