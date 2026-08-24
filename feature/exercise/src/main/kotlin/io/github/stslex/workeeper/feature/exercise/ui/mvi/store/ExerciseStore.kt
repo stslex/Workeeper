@@ -6,6 +6,7 @@ import androidx.compose.runtime.Stable
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagItem
 import io.github.stslex.workeeper.core.ui.mvi.Store
+import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanEditorBodyAction
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
@@ -205,6 +206,18 @@ interface ExerciseStore : Store<State, Action, Event> {
             data class ImagePicked(val uri: Uri) : Common
 
             data object ImagePickCancelled : Common
+
+            /**
+             * The image viewer popped asking for something — [request] is a
+             * [Screen.ExerciseImageRequest] name.
+             *
+             * A name and not the enum, because that is what crosses the destination
+             * boundary (see [Screen.ExerciseImage]); resolving it is this Store's job.
+             * An unrecognised name is ignored rather than thrown on: a request nobody can
+             * name is a request nobody can honour, and the viewer that sent it is already
+             * gone by the time this arrives.
+             */
+            data class ImageRequestReceived(val request: String) : Common
         }
 
         sealed interface Click : Action {

@@ -536,8 +536,8 @@ Scrim `--scrim` = `rgba(4,5,6,.66)` dark / `rgba(13,17,20,.34)` light.
 
 | id | Title | Content |
 |---|---|---|
-| `sh-ex` | the exercise name | `.mrow` one-off switch **(only when `adhoc`)** + `.msep`, then `.mitem` skip, then `.mitem.rust` delete |
-| `sh-del` | `Удалить из плана тренировки?` | body `<p>`, then `.stack` of `.btn.ghost` **`Оставить`** and `.btn.danger` **`Удалить из плана`** |
+| `sh-ex` | the exercise name | `.mrow` one-off switch **(only for template-backed mid-session additions)** + `.msep`, then `.mitem` skip, then `.mitem.rust` delete |
+| `sh-del` | context-dependent exercise-removal title | body `<p>`, then `.stack` of `.btn.ghost` keep and `.btn.danger` remove |
 | `sh-desc` | the exercise name | `.desc` free text, then `.btn.ghost` **`Закрыть`** |
 | `sh-session` | *(none)* | `.mitem` **`Добавить упражнение`**, `.mitem` **`Изменить порядок`**, `.mitem.rust` **`Отменить сессию`** |
 
@@ -553,14 +553,20 @@ leading SVG 19×19 `stroke-width:1.8`. `.mitem.rust` → `color:--rust`.
 - one-off row: **`Только на сегодня`** / sub **`останется в этой сессии, но не попадёт в план тренировки`**
 - skip item: **`Пропустить упражнение`** ⇄ **`Вернуть в сессию`** when already skipped
 - delete item: **`Удалить упражнение`**
-- `sh-del` body, **adhoc**: `«{name}» было добавлено в этой сессии. Записанные подходы пропадут.`
-- `sh-del` body, **planned**: `«{name}» исчезнет из плана тренировки и не появится в следующих
-  сессиях. Если не хочешь делать его только сегодня — лучше пропустить.`
+- `sh-del`, **ad-hoc workout**: `Remove from this workout?` / `“{name}” will be removed from this
+  workout. Its logged sets will be lost.` / `Remove from workout`. This selection uses the durable
+  session context and therefore survives loss of the ephemeral mid-session-added marker.
+- `sh-del`, **template-backed mid-session addition**: keep the plan title and confirm action, with
+  the concise body `“{name}” was added in this session. Its logged sets will be lost.`
+- `sh-del`, **template-planned exercise**: keep `Remove from the training plan?` /
+  `“{name}” will disappear from the training plan and future sessions. If you just don’t want it
+  today — skipping is the better move.` / `Remove from plan`.
 
 `.toast` — `bottom:118px`, `background:--slab`, **1px `--hair-s` border**, radius 16px,
 `padding:14px 16px`, `box-shadow:0 14px 40px rgba(0,0,0,.4)`, auto-dismiss **5000ms**.
 Text 14.5px `--max`; action mono 12px `.08em` uppercase **`--molten`**, label **`Отменить`**.
-Toast strings: `Подход добавлен` · `Подход удалён` · `«{name}» добавлено` · `«{name}» удалено из плана`.
+The removal toast follows the same context: `“{name}” removed from workout` for an ad-hoc workout,
+or `“{name}” removed from plan` for a template-backed session.
 Names truncated to **24 chars + `…`**.
 
 ## 1.10 Disclosure automaton (JS, verbatim in behaviour)
@@ -594,9 +600,9 @@ Matches spec §7. Auto-collapse on completion is deferred **420ms**
 | Bodyweight row | **one** field, `flex:2`, unit `повторений` | two fields | **differs** |
 | `.pstrip` | per-exercise 4px micro-rail in the card head | — | **missing** |
 | `.sub` | always the plan, single line, ellipsis | status text varies by state | **differs** |
-| `sh-ex` | one-off switch (adhoc only) · skip · **delete** | Изменить план · Сбросить сеты · Пропустить | **differs** |
+| `sh-ex` | one-off switch (template-backed additions only) · skip · **delete** | Изменить план · Сбросить сеты · Пропустить | **differs** |
 | `sh-desc` | exercise description sheet | — | **missing** |
-| `sh-del` | two-button plan-removal sheet, adhoc/planned copy | — | **missing** |
+| `sh-del` | two-button exercise-removal sheet, ad-hoc/template copy | — | **missing** |
 | Skip | menu item, reversible in place, **no confirmation** | confirmation **dialog** | **differs** |
 | **Set noun** | **`подход`** | **`сет`** | **differs** |
 | Rail thresholds | **9px** sets / **11px** groups | 9dp only | **differs** |
@@ -1096,10 +1102,14 @@ Geometry from `draw()`: `H = 212`, `PADT = 16`, `PADB = 24`, `W = clientWidth - 
   `rgba(13,17,20,.09)`), 1px. There are **no vertical gridlines and no axis lines**.
 - **Series: exactly one.** A polyline through every point, `--max`, **stroke-width 2.2** → 2dp,
   round caps and joins, no fill. `xs(i) = (i/(n-1))*(W-10)+5`, i.e. **index-spaced, not
-  date-spaced**. `ys(v)` normalises to `[min,max]` of the visible metric.
+  date-spaced**. `ys(v)` normalises to `[min,max]` of the visible metric. The dataset contains
+  one point per completed session: two sessions on one date occupy separate adjacent indices.
 - **Ordinary point**: `r = 4`, **fill `--base`**, stroke `--max` 2px → a **donut**.
 - **Record point** (`.pt.pr`): **fill `--molten-solid`**, **stroke `--base`**, stroke-width **2.5** —
   the fill/stroke roles invert, so it reads as a solid molten disc ringed by the page colour.
+  Selection follows the chart spec's [Record selection](v2.2-exercise-charts.md#record-selection):
+  Weight breaks equal plotted weights by reps, then earliest session; Set and Session keep the
+  earliest session on an equal plotted value.
 - **Active/scrubbed point**: `r = 5.5` instead of 4, and `.pt.act` fills `--max` (a solid dot).
   A record that is also active stays molten-filled.
 - **Scrub line**: a vertical line at the active x, from `y = PADT-8` to `y = H-PADB+6`, `--dim`,
@@ -1108,7 +1118,8 @@ Geometry from `draw()`: `H = 212`, `PADT = 16`, `PADB = 24`, `W = clientWidth - 
 
 **Interaction:** `pointerdown` captures the pointer and scrubs; `pointermove` scrubs while pressed.
 `scrub()` maps x to the **nearest index** (`Math.round`), and on a change fires
-`navigator.vibrate(4)` — a 4ms haptic tick per point crossed.
+`navigator.vibrate(4)` — a 4ms haptic tick per point crossed. Point identity is `sessionUuid`,
+so duplicate-day sessions remain independently reachable through scrub and metric retargets.
 
 **Metric switching is animated:** `setMetric()` tweens **every point's value** from the old series to
 the new over **D = 420ms** with `e = 1-(1-k)³` (ease-out cubic), redrawing each frame. The line
@@ -1154,8 +1165,9 @@ Strings: **`Минимум`** · **`Максимум`** · **`Последний
 - **No buttons** for the chart variant (§19 agrees).
 - Padding `48px 34px` → 48dp / 32dp.
 
-**The copy states the threshold: the chart appears after TWO recorded sessions.** So `< 2` points is
-an empty state, not a degenerate chart.
+**The copy states the threshold: the chart appears after TWO recorded sessions.** A point is a
+completed session, not a distinct calendar date, so two sessions on one date meet the threshold.
+`< 2` points is an empty state, not a degenerate chart.
 
 ## 4.9 Surfaces reachable
 

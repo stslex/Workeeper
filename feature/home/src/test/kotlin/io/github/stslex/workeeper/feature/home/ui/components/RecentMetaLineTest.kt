@@ -54,7 +54,7 @@ internal class RecentMetaLineTest {
     @Test
     @DisplayName("an empty token is dropped, not left as a dangling separator")
     fun emptyTokensAreDropped() {
-        // Reachable: `formatRelativeTime` and `formatElapsedDuration` both return strings, and a
+        // Reachable: `getAbbreviatedRelativeTime` and `formatElapsedDuration` both return strings, and a
         // zero-length one would otherwise print a leading « · ». The filter is one call and the
         // failure it prevents is visible on every row at once.
         assertEquals(

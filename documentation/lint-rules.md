@@ -284,7 +284,7 @@ The lifecycle-safe navigation architecture (see
 that the `MetroScopeRule` predicates must NOT flag:
 
 - `NavigatorEventBus`
-  (`app/app/.../navigation/NavigatorEventBus.kt`) — the app-scoped command-bus
+  (`app/common/.../navigation/NavigatorEventBus.kt`) — the app-scoped command-bus
   implementation of `Navigator` and `NavigatorReceiver`. **Intentionally allowed at
   app scope** because it is controller-free: the class stores only a
   `MutableSharedFlow<NavCommand>` and four emit methods. There is no
@@ -301,7 +301,7 @@ that the `MetroScopeRule` predicates must NOT flag:
     `ScopedClassNames.isScopeChecked("NavigatorEventBus")` returns `false` and
     the rule short-circuits. The `Bus` suffix was chosen with this rule in mind.
 - `NavigatorReceiver`
-  (`app/app/.../navigation/NavigatorReceiver.kt`) — interface only; the rule skips
+  (`core/ui/navigation/.../NavigatorReceiver.kt`) — interface only; the rule skips
   interfaces.
 - Feature `NavigationHandler` classes
   (`feature/<name>/.../mvi/handler/NavigationHandler.kt`) — `@SingleIn(<Feature>Scope::class)`
@@ -597,10 +597,14 @@ so the classifier collapsed to a `Boolean`:
 
 `lint-rules/lint.xml` is the single source of truth. Settings worth knowing:
 
-- **Default severity** is `error` for almost every rule. Exactly eight entries are `warning`:
+- **Default severity** is `error` for almost every rule. Exactly seven entries are `warning`:
   `SetJavaScriptEnabled`, `GradleDependency`, `NewerVersionAvailable`,
-  `AndroidGradlePluginVersion`, `KotlinPropertyAccess`, `FragmentTagUsage`, `Deprecated`, and
-  `ObsoleteSdkInt`.
+  `AndroidGradlePluginVersion`, `KotlinPropertyAccess`, `Deprecated`, and `ObsoleteSdkInt`.
+  `FragmentTagUsage` was removed: it is contributed by androidx.fragment's own lint registry rather
+  than built into lint, so a module without that dependency fails `lint` with
+  `Unknown issue id ... [UnknownIssueId]`. This repo has no Fragments, so the check could never
+  fire. Never suppress `UnknownIssueId` to keep such an entry — that would blind this file to real
+  typos.
 - **Test sources** are excluded from `HardcodedText` and `SetTextI18n` to allow inline strings
   in tests.
 - **Mipmap launcher icons** are exempted from icon-related checks

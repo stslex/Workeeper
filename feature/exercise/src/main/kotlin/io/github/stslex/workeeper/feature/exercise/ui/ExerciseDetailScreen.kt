@@ -91,6 +91,7 @@ internal fun TopBar(
         smallTitle = true,
         navigation = {
             AppIconButton(
+                modifier = Modifier.testTag("ExerciseDetailBackButton"),
                 icon = AppIcons.ChevronLeft,
                 contentDescription = stringResource(
                     io.github.stslex.workeeper.core.ui.kit.R.string.core_ui_kit_action_back,

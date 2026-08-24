@@ -1,16 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.app_dialogs.impl.data
 
-import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.MutablePreferences
-import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.preferencesDataStoreFile
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.di.AppScope
+import io.github.stslex.workeeper.core.data.dataStore.core.DataStoreProviderFactory
 import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialog
 import io.github.stslex.workeeper.feature.app_dialogs.api.publisher.AppDialogPublisher
 import io.github.stslex.workeeper.feature.app_dialogs.impl.domain.AppDialogResolver
@@ -37,9 +35,13 @@ import kotlinx.coroutines.flow.map
  * in its accessor (Metro contributions/accessors can't reach an `internal`
  * cross-module type). It implements [AppDialogPublisher] but is NOT bound to it
  * (the producer binding is [AppDialogPublisherImpl]); so it is a self accessor,
- * never `@ContributesBinding`. The `Context` drops from Hilt's
- * `@ApplicationContext` to a plain param resolved from the graph's
- * `create(applicationContext)` bound instance.
+ * never `@ContributesBinding`.
+ *
+ * Mint the store through [DataStoreProviderFactory] only: a second `AppGraph` that
+ * built its own would throw `IllegalStateException: There are multiple DataStores
+ * active` on the second read. Pinned by `app/app` androidTest
+ * `AppScopeDataStoreSingletonTest`. Mechanism and evidence:
+ * `documentation/tech-debt.md` -> "DataStore singleton bypass".
  */
 @SingleIn(AppScope::class)
 class AppDialogRepository internal constructor(
@@ -47,10 +49,8 @@ class AppDialogRepository internal constructor(
 ) : AppDialogPublisher {
 
     @Inject
-    constructor(context: Context) : this(
-        PreferenceDataStoreFactory.create {
-            context.preferencesDataStoreFile(PREFS_NAME)
-        },
+    constructor(storeFactory: DataStoreProviderFactory) : this(
+        storeFactory.create(PREFS_NAME).dataStore,
     )
 
     /**

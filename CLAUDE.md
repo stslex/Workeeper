@@ -43,7 +43,9 @@ Full rule, with the stacking costs it comes with: [AGENTS.md](AGENTS.md) § "Mer
 - [documentation/lint-rules.md](documentation/lint-rules.md) — Detekt MVI rules + Android Lint.
 - [documentation/performance.md](documentation/performance.md) — Firebase Performance pipelines (TTID, Screen rendering, AppCreate / ActivityCreate).
 - [documentation/feature-specs/backup.md](documentation/feature-specs/backup.md) — Drive backup + restore + auto-backup scheduling: architecture, auth flow, scheduling, Cloud Console setup, error taxonomy, troubleshooting.
+- [documentation/feature-specs/kmp-phase-2-probes.md](documentation/feature-specs/kmp-phase-2-probes.md) — Phase 2 probe report: the measured KMP/CMP toolchain facts (Paparazzi-on-KMP, testFixtures absence, golden-gate divergences, Metro-from-androidMain, CMP-on-simulator, Room/KSP2) and the Phase-7 checklist they buy.
 - [documentation/feature-specs/app-dialogs.md](documentation/feature-specs/app-dialogs.md) — Cross-feature process-survival dialog catalog (`AppDialog`, `AppDialogStore`, `AppDialogHost`, DataStore-backed `pending_*` flags). Planned alongside backup-recovery.
+- [documentation/feature-specs/set-field-column-headers.md](documentation/feature-specs/set-field-column-headers.md) — Set-row value clipping fix (E-d): measured width budget, column-header design, closed-loop overflow gate, golden blast-radius prediction, rulings R1–R8.
 - [CONTRIBUTING.md](CONTRIBUTING.md) — contributor workflow, commit format.
 
 ## Domain layer
@@ -76,7 +78,7 @@ skill when the user asks for one of these tasks:
   pattern.
 - [`write-repository-test`](.claude/skills/write-repository-test.md) — write a real-DB JUnit
   5 unit test for a `*RepositoryImpl` using the shared `RepositoryTestEnv` in-memory Room
-  fixture from the `core/data/database` testFixtures source set.
+  fixture from the `core:data:database-test` module.
 - [`write-ui-test`](.claude/skills/write-ui-test.md) — write a `@Smoke` Compose UI test using
   `BaseComposeTest`, `ActionCapture`, `MockDataFactory`, and `PagingTestUtils`.
 - [`add-database-migration`](.claude/skills/add-database-migration.md) — bump
@@ -97,7 +99,9 @@ skill when the user asks for one of these tasks:
 ## Current focus
 
 - `master` is the release branch; ongoing work targets `dev`.
-- UI tests (`ui_tests.yml`) are `workflow_dispatch`-only and do not gate PRs.
+- UI tests (`ui_tests.yml`) run weekly (Mondays 05:00 UTC, against `dev`; the cron activates
+  once the workflow reaches `master` with a release) and on manual dispatch; they do not
+  gate PRs.
 - `mockup_gate.yml` runs `documentation/mockups/shell_gate.py` on every PR except those into
   `master`, plus its `--target f52462c7` known negative, which must go red. Editing
   `documentation/mockups/pass2d.html` **or** `AppColors.kt` can red it; reproduce with

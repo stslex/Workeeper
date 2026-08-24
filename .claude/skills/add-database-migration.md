@@ -19,19 +19,19 @@ must preserve real user data. The pattern is documented in
 [documentation/architecture.md → Migration policy (release)](../../documentation/architecture.md#data-layer):
 
 - `@Database(version = APP_DATABASE_VERSION)` on
-  `core/data/database/src/main/kotlin/io/github/stslex/workeeper/core/data/database/AppDatabase.kt`
+  `core/data/database/src/commonMain/kotlin/io/github/stslex/workeeper/core/data/database/AppDatabase.kt`
   reads the constant, so the version is bumped in ONE place:
   `migration/MigrationsRegistry.kt`.
 - A `Migration(X, Y)` object lives under
-  `core/data/database/src/main/kotlin/io/github/stslex/workeeper/core/data/database/migration/`
+  `core/data/database/src/commonMain/kotlin/io/github/stslex/workeeper/core/data/database/migration/`
   and is registered by appending it to the `MIGRATIONS` array in
   `migration/MigrationsRegistry.kt`. `MIGRATIONS` is `internal` to the module and is
   spread onto the `Room.databaseBuilder` chain by `buildAppDatabase(...)` in
-  `core/data/database/src/main/kotlin/.../AppDatabaseFactory.kt`. **Never write a second
+  `core/data/database/src/androidMain/kotlin/.../AppDatabaseFactory.kt`. **Never write a second
   `addMigrations(...)` call site** — divergence between the builder and the array is
   exactly the bug `MigrationsRegistryTest` prevents.
 - A migration test in
-  `core/data/database/src/androidTest/.../AppDatabaseMigrationTest.kt` uses Room's
+  `core/data/database/src/androidDeviceTest/.../AppDatabaseMigrationTest.kt` uses Room's
   `MigrationTestHelper` to seed a v(X) DB, run the migration, and assert the resulting
   v(Y) DB has the expected shape and data.
 - The new schema JSON is committed under
@@ -59,9 +59,9 @@ must preserve real user data. The pattern is documented in
 - The Room library convention plugin is applied
   (`build-logic/convention/src/main/kotlin/RoomLibraryConventionPlugin.kt`) — it sets
   `schemaDirectory("$projectDir/schemas")`, exports schemas on every build,
-  and pulls in `androidx-room-testing` as `androidTestImplementation` so
+  and pulls in `androidx-room-testing` as `androidDeviceTestImplementation` so
   `MigrationTestHelper` is available to migration tests.
-- The module is on Room 3 (`androidx.room3`) with an explicit `AndroidSQLiteDriver`.
+- The module is on Room 3 (`androidx.room3`) with an explicit production SQLite driver.
   `Migration.migrate` is a **`suspend`** function taking an `androidx.sqlite.SQLiteConnection`,
   NOT the Room 2 `SupportSQLiteDatabase`.
 - [documentation/architecture.md](../../documentation/architecture.md#data-layer) describes
@@ -71,14 +71,14 @@ must preserve real user data. The pattern is documented in
 
 1. Decide the new schema version `Y = X + 1`. The current `X` is the value of
    `APP_DATABASE_VERSION` in
-   `core/data/database/src/main/kotlin/.../migration/MigrationsRegistry.kt` (6 at the
+   `core/data/database/src/commonMain/kotlin/.../migration/MigrationsRegistry.kt` (6 at the
    time of writing).
 
 2. Make the entity / DAO changes under
-   `core/data/database/src/main/kotlin/io/github/stslex/workeeper/core/data/database/`.
+   `core/data/database/src/commonMain/kotlin/io/github/stslex/workeeper/core/data/database/`.
    If you add a new entity, register its DAO as `abstract val <name>Dao: <Name>Dao` on
    `AppDatabase` **and** add the matching accessor binding in
-   `core/data/database/src/main/kotlin/.../di/DbCascadeBindingContainer.kt`:
+   `core/data/database/src/commonMain/kotlin/.../di/DbCascadeBindingContainer.kt`:
 
    ```kotlin
    @Provides
@@ -97,7 +97,7 @@ must preserve real user data. The pattern is documented in
    `Y.json` schema during the next build.
 
 4. Write the migration next to the existing ones, at
-   `core/data/database/src/main/kotlin/.../migration/Migration<Y>.kt` (the file and
+   `core/data/database/src/commonMain/kotlin/.../migration/Migration<Y>.kt` (the file and
    object are named after the TARGET version, e.g. `Migration6`):
 
    ```kotlin
@@ -141,7 +141,7 @@ must preserve real user data. The pattern is documented in
    `fallbackToDestructiveMigration*` on that chain and there must not be one.
 
 6. Add a migration test. The fixture in
-   `core/data/database/src/androidTest/.../AppDatabaseMigrationTest.kt` is already wired
+   `core/data/database/src/androidDeviceTest/.../AppDatabaseMigrationTest.kt` is already wired
    with Room 3's `MigrationTestHelper` — see the class KDoc for the pattern. Add a
    `runTest` method that:
 
@@ -157,7 +157,8 @@ must preserve real user data. The pattern is documented in
    tables. If your migration is supposed to drop a table, assert it explicitly against
    `sqlite_master` — see `migrate5to6_validatesNoUnregisteredTablesSurvive`.
 
-   `MigrationsRegistryTest` (`core/data/database/src/test/.../migration/MigrationsRegistryTest.kt`)
+   `MigrationsRegistryTest`
+   (`core/data/database/src/androidHostTest/.../migration/MigrationsRegistryTest.kt`)
    already enforces that every consecutive version pair from
    `MIN_SUPPORTED_SCHEMA_VERSION` forward has a registered path — it fails any commit
    that bumps `APP_DATABASE_VERSION` without appending the matching migration.

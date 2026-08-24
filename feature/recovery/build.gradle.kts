@@ -20,7 +20,7 @@ metro {
 
 dependencies {
     // AppReinitializer / PlatformInfoProvider are the core:core interfaces this module injects; the
-    // Android impls (core:core-android) are resolved by the app graph, never named here.
+    // Android impls/actuals (core:core androidMain) are resolved by the app graph, never named here.
     implementation(project(":core:core"))
     implementation(project(":core:ui:kit"))
     implementation(project(":core:ui:navigation"))

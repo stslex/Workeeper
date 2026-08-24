@@ -5,14 +5,13 @@ import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.rememberNavController
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.stslex.workeeper.core.data.database.exercise.ExerciseTypeEntity
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.core.ui.test.TestActivity
+import io.github.stslex.workeeper.core.ui.test.TestSingleScreenHost
 import io.github.stslex.workeeper.core.ui.test.annotations.Regression
 import io.github.stslex.workeeper.feature.exercise.ui.exerciseGraph
 import io.github.stslex.workeeper.harness.MetroTestRule
@@ -38,8 +37,10 @@ import org.junit.runner.RunWith
  * coverage.
  *
  * Hosted by the empty [TestActivity] (not `MainActivity`, which sets its own content in `onCreate`) so
- * `composeRule.setContent { ... }` mounts the feature NavHost directly — the same host the pre-cut
- * version used.
+ * `composeRule.setContent { ... }` mounts the feature graph in [TestSingleScreenHost] — a real
+ * NavDisplay with the production decorator pair, and the reason this file no longer needs (or is
+ * allowed) an `androidx.navigation*` import: the gate's two named exclusions were deleted with the
+ * Nav2 host.
  */
 @Regression
 @RunWith(AndroidJUnit4::class)
@@ -64,11 +65,7 @@ internal class ExerciseCreatePersistenceTest {
             // ExerciseEditScreen reads `LocalAppColors` (AppUi.colors), so the mount must live inside
             // `AppTheme` exactly like the production hierarchy — same wrap the pre-cut version used.
             AppTheme(themeMode = ThemeMode.LIGHT) {
-                val navController = rememberNavController()
-                NavHost(
-                    navController = navController,
-                    startDestination = Screen.Exercise(uuid = null),
-                ) {
+                TestSingleScreenHost(start = Screen.Exercise(uuid = null)) {
                     exerciseGraph()
                 }
             }

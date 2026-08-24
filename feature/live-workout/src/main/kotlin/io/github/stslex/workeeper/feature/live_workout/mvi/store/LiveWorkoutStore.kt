@@ -60,8 +60,9 @@ interface LiveWorkoutStore :
         /**
          * Exercises added DURING this session (picker adds, both library and inline). Gates
          * the `sh-ex` one-off switch (§6.1: "the toggle appears only on mid-session
-         * additions") and picks `sh-del`'s adhoc body. Ephemeral by design — a process
-         * restore loses it, and a loaded one-off keeps its toggle via `!isPlanAttached`.
+         * additions") and selects the shorter loss body inside a template-backed session.
+         * Ephemeral by design — ad-hoc removal copy instead uses durable [isAdhoc], while a
+         * loaded one-off keeps its toggle via `!isPlanAttached`.
          */
         val midSessionAddedUuids: ImmutableSet<String> = persistentSetOf(),
         /**
@@ -89,6 +90,18 @@ interface LiveWorkoutStore :
         val isAddExerciseInFlight: Boolean,
         val isFinishInFlight: Boolean,
         val isLoading: Boolean,
+        /**
+         * The session could not be loaded, and the route must leave rather than render.
+         *
+         * GUARD: this is STATE and not an event, and that is the whole point. An event is
+         * replay-free and its only collector is the screen's `Handle`, which subscribes from a
+         * `LaunchedEffect` — later than the `DisposableEffect` that dispatches `Init`. A load that
+         * resolves inside that window emits into no subscriber and is dropped, leaving `isLoading`
+         * clear, the route composed on an empty seed, and a Finish dock enabled over a session
+         * whose exercises never arrived. State cannot be dropped: whenever the screen composes it
+         * reads this, and both the withholding and the leaving hang off it.
+         */
+        val loadFailed: Boolean,
         val dialogState: DialogState,
         val bottomSheetState: BottomSheetState,
     ) : Store.State {
@@ -176,6 +189,7 @@ interface LiveWorkoutStore :
                 isAddExerciseInFlight = false,
                 isFinishInFlight = false,
                 isLoading = true,
+                loadFailed = false,
                 dialogState = DialogState.Hidden,
                 bottomSheetState = BottomSheetState.Hidden,
             )
@@ -311,11 +325,15 @@ interface LiveWorkoutStore :
             data object Init : Common
 
             /**
-             * Triggered by the LiveWorkoutGraph after returning from the PlanEditor
-             * route with a saved-flag set. Re-runs the session-load pipeline so the
-             * new plan is reflected on the next composition.
+             * The plan editor returned. [saved] is its declared result — `true` when a plan
+             * was written to disk.
+             *
+             * The graph forwards this without inspecting it; whether a result means the
+             * session must be re-read is a decision for the Handler. Re-running the
+             * session-load pipeline is what makes the new plan visible on the next
+             * composition, and it only happens when [saved] is `true`.
              */
-            data object Reload : Common
+            data class PlanResultReceived(val saved: Boolean) : Common
         }
     }
 

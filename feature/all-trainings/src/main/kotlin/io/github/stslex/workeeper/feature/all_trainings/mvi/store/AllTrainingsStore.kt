@@ -148,10 +148,9 @@ interface AllTrainingsStore : Store<State, Action, Event> {
             data object OpenCreate : Navigation
 
             /**
-             * A session with no training behind it. `Screen.LiveWorkout`'s KDoc claims at least one
-             * uuid must be non-null; that is stale — `blank-init adhoc entry leaves both uuids null
-             * for downstream session creation` is a shipped, tested path, and it is the destination
-             * the drawn «Начать пустую тренировку» asks for.
+             * A session with no training behind it — the blank-init ad-hoc path, which leaves both
+             * of `Screen.LiveWorkout`'s uuids null and creates the session downstream. It is the
+             * destination the drawn «Начать пустую тренировку» asks for.
              */
             data object OpenBlankSession : Navigation
         }

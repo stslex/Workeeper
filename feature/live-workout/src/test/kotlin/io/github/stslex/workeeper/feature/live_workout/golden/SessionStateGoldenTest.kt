@@ -2,6 +2,7 @@
 package io.github.stslex.workeeper.feature.live_workout.golden
 
 import io.github.stslex.workeeper.core.ui.kit.golden.GoldenTheme
+import io.github.stslex.workeeper.core.ui.kit.golden.LOCALE_RU
 import io.github.stslex.workeeper.core.ui.kit.golden.goldenSubject
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
@@ -70,6 +71,14 @@ internal class SessionStateGoldenTest {
         goldenSubject(testInfo, theme) {
             SetRow(set(isDone = true, isRecord = true, weight = 102.5))
         }
+    }
+
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun setTwoDigitReps(theme: GoldenTheme, testInfo: TestInfo) {
+        // Pins the weighted two-digit-reps cell — the tightest value the reps column
+        // carries (set-field-column-headers.md §8, fixture 1).
+        goldenSubject(testInfo, theme) { SetRow(set(isDone = false, reps = 12)) }
     }
 
     @ParameterizedTest
@@ -197,6 +206,39 @@ internal class SessionStateGoldenTest {
             Card(
                 exercise(ExerciseStatusUiModel.DONE, done = 3, isPlanAttached = false),
                 expanded = false,
+            )
+        }
+    }
+
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun exerciseTenSets(theme: GoldenTheme, testInfo: TestInfo) {
+        // The D3 canary (set-field-column-headers.md §8, fixture 3): at ten sets the index
+        // label "10" measures past the 12dp minimum, and the resolved width reaches the
+        // header AND every row from one place — this frame pins them aligned at the grown
+        // gutter. The past-session twin is `cardDoubleDigitIndex`.
+        goldenSubject(testInfo, theme) {
+            Card(exercise(ExerciseStatusUiModel.CURRENT, done = 4, sets = 10), expanded = true)
+        }
+    }
+
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun exerciseBodyweightRu(theme: GoldenTheme, testInfo: TestInfo) {
+        // Pins the ПОВТОРЕНИЙ header over the single bodyweight column in the shipped RU
+        // strings — the widest header label there is (set-field-column-headers.md §8,
+        // fixture 2). Two-digit reps on purpose: the tightest value under it.
+        val weighted = exercise(ExerciseStatusUiModel.CURRENT, done = 0)
+        goldenSubject(testInfo, theme, locale = LOCALE_RU) {
+            Card(
+                weighted.copy(
+                    exerciseType = ExerciseTypeUiModel.WEIGHTLESS,
+                    statusLabel = "12 · 12 · 12",
+                    visibleSets = weighted.visibleSets
+                        .map { it.copy(weight = null, reps = 12) }
+                        .toImmutableList(),
+                ),
+                expanded = true,
             )
         }
     }

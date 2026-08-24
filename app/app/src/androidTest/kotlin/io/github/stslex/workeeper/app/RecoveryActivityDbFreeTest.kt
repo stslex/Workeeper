@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.app
 
+import android.app.Application
 import androidx.lifecycle.Lifecycle
 import androidx.room3.Room
 import androidx.sqlite.SQLiteConnection
@@ -102,9 +103,8 @@ internal class RecoveryActivityDbFreeTest {
          * `driver.open()` and throws [TRIPWIRE_MESSAGE].
          */
         fun failFastDatabase(): AppDatabase = Room
-            .inMemoryDatabaseBuilder(
-                ApplicationProvider.getApplicationContext(),
-                AppDatabase::class.java,
+            .inMemoryDatabaseBuilder<AppDatabase>(
+                ApplicationProvider.getApplicationContext<Application>(),
             )
             .setDriver(ThrowingSQLiteDriver)
             .allowMainThreadQueries()

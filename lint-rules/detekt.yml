@@ -1,11 +1,13 @@
 # Test-source exclusion note (KMP).
 # Every `excludes` list below that enumerates test source sets also carries
-# '**/androidHostTest/**'. That is the AGP KMP android target's host (JVM) unit-test source
-# set — the KMP equivalent of src/test/kotlin — and it matches NONE of detekt's default
+# '**/androidHostTest/**' and '**/androidDeviceTest/**'. Those are the AGP KMP android
+# target's host (JVM) unit-test and device (instrumented) test source sets — the KMP
+# equivalents of src/test and src/androidTest — and they match NONE of detekt's default
 # test globs ('**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**',
 # '**/androidUnitTest/**', '**/androidInstrumentedTest/**', '**/jsTest/**', '**/iosTest/**').
-# KMP modules add it to their detekt `source.setFrom` explicitly (see core/core/build.gradle.kts),
-# so without the glob below those tests would be judged as production code.
+# The KMP convention derives detekt's sources from the live Kotlin source-set model
+# (KmpLibraryConventionPlugin.configureDetektSources), so without the globs below those
+# tests would be judged as production code.
 # Rules that inherit detekt's default `excludes` (no `excludes` key here) do NOT get the glob —
 # spell the list out locally when a rule must ignore host tests. Audited against detekt 1.23.8's
 # bundled default-detekt-config.yml: every rule detekt itself excludes from test code and that is
@@ -92,14 +94,14 @@ complexity:
     active: true
     threshold: 600
     excludes: [
-      '**/test/**', '**/androidTest/**', '**/androidHostTest/**',
+      '**/test/**', '**/androidTest/**', '**/androidHostTest/**', '**/androidDeviceTest/**',
       '**/commonTest/**', '**/jvmTest/**', '**/jsTest/**', '**/iosTest/**'
     ]
   LongMethod:
     active: true
     threshold: 120
     excludes: [
-      '**/test/**', '**/androidTest/**', '**/androidHostTest/**',
+      '**/test/**', '**/androidTest/**', '**/androidHostTest/**', '**/androidDeviceTest/**',
       '**/commonTest/**', '**/jvmTest/**', '**/jsTest/**', '**/iosTest/**'
     ]
     ignoreAnnotated:
@@ -147,6 +149,7 @@ complexity:
       - '**/test/**'
       - '**/androidTest/**'
       - '**/androidHostTest/**'
+      - '**/androidDeviceTest/**'
 
 coroutines:
   active: true
@@ -229,9 +232,9 @@ exceptions:
     # predates the AGP KMP android host-test source set. Every other entry reproduces detekt
     # 1.23.8's default list verbatim.
     excludes: [
-      '**/test/**', '**/androidTest/**', '**/androidHostTest/**', '**/commonTest/**',
-      '**/jvmTest/**', '**/androidUnitTest/**', '**/androidInstrumentedTest/**',
-      '**/jsTest/**', '**/iosTest/**'
+      '**/test/**', '**/androidTest/**', '**/androidHostTest/**', '**/androidDeviceTest/**',
+      '**/commonTest/**', '**/jvmTest/**', '**/androidUnitTest/**',
+      '**/androidInstrumentedTest/**', '**/jsTest/**', '**/iosTest/**'
     ]
     exceptionNames:
       - ArrayIndexOutOfBoundsException
@@ -277,9 +280,9 @@ naming:
     # default exclude list has no entry for the KMP android host-test source set. Every other
     # entry reproduces detekt's default list verbatim.
     excludes: [
-      '**/test/**', '**/androidTest/**', '**/androidHostTest/**', '**/commonTest/**',
-      '**/jvmTest/**', '**/androidUnitTest/**', '**/androidInstrumentedTest/**',
-      '**/jsTest/**', '**/iosTest/**'
+      '**/test/**', '**/androidTest/**', '**/androidHostTest/**', '**/androidDeviceTest/**',
+      '**/commonTest/**', '**/jvmTest/**', '**/androidUnitTest/**',
+      '**/androidInstrumentedTest/**', '**/jsTest/**', '**/iosTest/**'
     ]
     functionPattern: '[a-z][a-zA-Z0-9]*'
     excludeClassPattern: '$^'
@@ -334,13 +337,13 @@ performance:
   ForEachOnRange:
     active: true
     excludes: [
-      '**/test/**', '**/androidTest/**', '**/androidHostTest/**',
+      '**/test/**', '**/androidTest/**', '**/androidHostTest/**', '**/androidDeviceTest/**',
       '**/commonTest/**', '**/jvmTest/**', '**/jsTest/**', '**/iosTest/**'
     ]
   SpreadOperator:
     active: true
     excludes: [
-      '**/test/**', '**/androidTest/**', '**/androidHostTest/**',
+      '**/test/**', '**/androidTest/**', '**/androidHostTest/**', '**/androidDeviceTest/**',
       '**/commonTest/**', '**/jvmTest/**', '**/jsTest/**', '**/iosTest/**'
     ]
   UnnecessaryTemporaryInstantiation:
@@ -455,7 +458,7 @@ style:
   MagicNumber:
     active: true
     excludes: [
-      '**/test/**', '**/androidTest/**', '**/androidHostTest/**',
+      '**/test/**', '**/androidTest/**', '**/androidHostTest/**', '**/androidDeviceTest/**',
       '**/commonTest/**', '**/jvmTest/**', '**/jsTest/**', '**/iosTest/**'
     ]
     ignoreNumbers: [ '-1', '0', '1', '2' ]
@@ -578,7 +581,7 @@ style:
   WildcardImport:
     active: true
     excludes: [
-      '**/test/**', '**/androidTest/**', '**/androidHostTest/**',
+      '**/test/**', '**/androidTest/**', '**/androidHostTest/**', '**/androidDeviceTest/**',
       '**/commonTest/**', '**/jvmTest/**', '**/jsTest/**', '**/iosTest/**'
     ]
     excludeImports: [ 'java.util.*', 'kotlinx.android.synthetic.*' ]
@@ -724,6 +727,13 @@ mvi-architecture:
     active: true
   NoActualForExpectSuppressionRule:
     active: true
+  InstrumentedSuiteSelectorRule:
+    # Inactive HERE by design, active in detekt-androidtest-suite.yml. The rule polices
+    # instrumented tests only: `src/test` unit tests are not selected by an instrumentation
+    # annotation filter and must not carry @Smoke/@Regression. This config's task also cannot
+    # see src/androidTest at all (its source is src/main + src/test), so activating it here
+    # would fire on every unit test while remaining a no-op where it is aimed.
+    active: false
   NumericFontFamilyOnLocalizedTextRule:
     active: true
   ActiveSurfaceSingleReaderRule:

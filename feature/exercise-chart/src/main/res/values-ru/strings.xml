@@ -43,6 +43,9 @@
     <string name="feature_exercise_chart_empty_not_found_title">Упражнение недоступно</string>
     <string name="feature_exercise_chart_empty_not_found_subtitle">Возможно, оно архивировано или подходов не было. Выберите другое из списка.</string>
     <string name="feature_exercise_chart_empty_not_found_cta">Выберите упражнение</string>
+    <string name="feature_exercise_chart_error_load_title">Не удалось загрузить график</string>
+    <string name="feature_exercise_chart_error_load_subtitle">Что-то пошло не так при чтении истории. Попробуйте ещё раз.</string>
+    <string name="feature_exercise_chart_error_load_cta">Повторить</string>
 
     <string name="feature_exercise_chart_empty_no_data_title">Пока нечего показать</string>
     <string name="feature_exercise_chart_empty_no_data_subtitle">График появится после двух записанных сессий с этим упражнением.</string>

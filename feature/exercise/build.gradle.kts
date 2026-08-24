@@ -5,7 +5,7 @@ plugins {
     // (shape B), so the graph's root accessor is the Store itself and there is no assisted machinery.
     alias(libs.plugins.metro)
     // Goldens for the exercise-detail surface (extraction Part 3). The harness is NOT copied:
-    // it comes from core:ui:kit's testFixtures, so device config, tolerance and canvas width
+    // it comes from core:ui:golden-harness, so device config, tolerance and canvas width
     // cannot drift between modules.
     alias(libs.plugins.paparazzi)
 }
@@ -35,10 +35,10 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
 
     testImplementation(kotlin("test"))
-    testImplementation(testFixtures(project(":core:ui:kit")))
+    testImplementation(project(":core:ui:golden-harness"))
     // The deferred-delete witness (S7): a real in-memory Room DB — the row is the witness,
     // and only `RepositoryTestEnv` can show it surviving the window.
-    testImplementation(testFixtures(project(":core:data:database")))
+    testImplementation(project(":core:data:database-test"))
 
     androidTestImplementation(libs.bundles.android.test)
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)

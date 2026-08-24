@@ -159,7 +159,7 @@ class RestoreRecoveryCoordinator @Inject internal constructor(
      * Restarts the app after a recovery step by delegating to the platform-neutral
      * [AppReinitializer] seam. Callable from non-Composable code paths
      * (`Application.onCreate` pre-flight, the undo reactor). The Android actual is a
-     * process restart; the mechanism lives in one place (`AndroidAppReinitializer`),
+     * process restart; the mechanism lives in one place (the androidMain actual),
      * shared with the Settings post-restore restart path.
      */
     fun restartApp() {

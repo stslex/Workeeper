@@ -20,6 +20,10 @@ dependencies {
     implementation(project(":core:ui:kit"))
     implementation(project(":core:ui:mvi"))
     implementation(project(":core:data:backup:api"))
+    // DataStoreProviderFactory: AppDialogRepository mints app_dialogs_prefs through the
+    // process-lifetime memoizing DataStoreProvider instead of PreferenceDataStoreFactory, so a
+    // second AppGraph in one process resolves the same store.
+    implementation(project(":core:data:dataStore"))
     implementation(project(":feature:app-dialogs:api"))
 
     implementation(libs.androidx.datastore.preferences)
@@ -28,5 +32,10 @@ dependencies {
 
     androidTestImplementation(libs.bundles.android.test)
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    // Carries the @Smoke / @Regression suite annotations. Without this edge androidx.test
+    // cannot load the class named by ui_tests.yml's `-e annotation` filter and SILENTLY drops
+    // the filter, running this module's whole suite in both the smoke and the regression run.
+    // Enforced by `verifyInstrumentedSuiteClasspath`.
+    androidTestImplementation(project(":core:ui:test-utils"))
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 }

@@ -7,6 +7,9 @@ plugins {
     alias(libs.plugins.ksp) apply false
     alias(libs.plugins.room) apply false
     alias(libs.plugins.composeCompiler) apply false
+    // CMP plugin on the root classpath so KmpComposeLibraryConventionPlugin can apply it by
+    // id — same mechanism the other conventions rely on for AGP/KGP.
+    alias(libs.plugins.composeMultiplatform) apply false
     alias(libs.plugins.robolectric.junit5) apply false
     alias(libs.plugins.gms) apply false
     alias(libs.plugins.firebaseCrashlytics) apply false

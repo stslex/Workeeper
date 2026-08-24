@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
@@ -15,14 +16,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppCheckmarkButton
 import io.github.stslex.workeeper.core.ui.kit.components.input.AppNumberInput
 import io.github.stslex.workeeper.core.ui.kit.components.motion.rememberSetClosureVisuals
 import io.github.stslex.workeeper.core.ui.kit.components.pr.PersonalRecordTag
 import io.github.stslex.workeeper.core.ui.kit.components.setchip.AppSetTypeChip
+import io.github.stslex.workeeper.core.ui.kit.components.setrow.SetRowGeometry
 import io.github.stslex.workeeper.core.ui.kit.components.tooltip.AppTooltip
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
@@ -39,9 +44,6 @@ import io.github.stslex.workeeper.core.ui.kit.R as KitR
  */
 private const val FLASH_PEAK_ALPHA_DARK = 0.13f
 private const val FLASH_PEAK_ALPHA_LIGHT = 0.09f
-
-/** See the weighted branch below — decimals live in the weight field, never in reps. */
-private const val WEIGHT_FIELD_FLEX = 1.2f
 
 /**
  * `.set` (extraction §1.6): `set-i · field(s) · tchip-or-prtag · mark`, on a **transparent**
@@ -74,8 +76,12 @@ internal fun LiveSetRow(
     onUncheck: () -> Unit,
     editable: Boolean,
     modifier: Modifier = Modifier,
+    indexColumnWidth: Dp = SetRowGeometry.indexMinWidth,
     testTagPrefix: String? = null,
     flashAlphaOverride: Float? = null,
+    weightSlotProbe: ((slotWidthPx: Int, resolvedStyle: TextStyle) -> Unit)? = null,
+    repsSlotProbe: ((slotWidthPx: Int, resolvedStyle: TextStyle) -> Unit)? = null,
+    indexColumnProbe: ((widthPx: Int) -> Unit)? = null,
 ) {
     // §9's merged automaton, one instance for the whole row: the mark's morph, this row's
     // flash and the rail segment all resolve from the same closure, with `isRecord` selecting
@@ -107,27 +113,34 @@ internal fun LiveSetRow(
             // Min-width, not fixed, with `maxLines = 1`: at `mono.meta` a digit is ~7.5dp, so
             // a two-digit index needs ~15dp and a fixed 12dp box breaks it at a grapheme
             // boundary (1 over 0) instead of overflowing — silently, since the 48dp fields
-            // set the row height. Same correction as `PastSetEditRow.SetIndexWidth`; a
-            // session can exceed nine sets through the setbar.
-            modifier = Modifier.widthIn(min = AppDimension.Space.md),
+            // set the row height. The minimum arrives from the container
+            // (`SetRowGeometry.resolveIndexColumnWidth`) so the header above and every row
+            // grow together past nine sets; a bare row keeps the drawn 12dp default.
+            modifier = Modifier
+                .widthIn(min = indexColumnWidth)
+                // The alignment gate's row-side capture (test-only, never passed in
+                // production): the index column's LAID-OUT width, minimum and intrinsic
+                // growth included — what the header's gutter must equal.
+                .onSizeChanged { size -> indexColumnProbe?.invoke(size.width) },
             text = (set.position + 1).toString(),
             style = AppUi.typography.mono.meta,
             color = AppUi.colors.textDim,
             maxLines = 1,
         )
         if (isWeighted) {
-            // 1.2 vs 1: weights carry decimals ("102.5"), reps never do — the extra fifth
-            // softens B1's width budget. The mockup draws flex:1/1 and also never draws a
-            // decimal; deviation reported with the PR.
-            Box(modifier = Modifier.weight(WEIGHT_FIELD_FLEX)) {
+            Box(modifier = Modifier.weight(SetRowGeometry.WEIGHT_COLUMN_FLEX)) {
                 AppNumberInput(
                     value = set.weightLabel,
                     onValueChange = { input -> onWeightChange(input.toDoubleOrNull()) },
                     decimals = 2,
-                    suffix = stringResource(KitR.string.core_ui_kit_plan_editor_unit_kg),
                     enabled = editable && !set.isDone,
                     isRecord = set.isPersonalRecord,
                     isDone = set.isDone,
+                    fieldInset = SetRowGeometry.compactFieldInset,
+                    accessibilityLabel = stringResource(
+                        KitR.string.core_ui_kit_set_field_a11y_weight,
+                    ),
+                    valueSlotProbe = weightSlotProbe,
                 )
             }
             Box(modifier = Modifier.weight(1f)) {
@@ -135,43 +148,58 @@ internal fun LiveSetRow(
                     value = set.reps.takeIf { it > 0 }?.toString().orEmpty(),
                     onValueChange = { input -> onRepsChange(input.toIntOrNull()) },
                     decimals = 0,
-                    suffix = stringResource(KitR.string.core_ui_kit_plan_editor_unit_reps),
                     enabled = editable && !set.isDone,
                     isRecord = set.isPersonalRecord,
                     isDone = set.isDone,
+                    fieldInset = SetRowGeometry.compactFieldInset,
+                    accessibilityLabel = stringResource(
+                        KitR.string.core_ui_kit_set_field_a11y_reps,
+                    ),
+                    valueSlotProbe = repsSlotProbe,
                 )
             }
         } else {
-            // Bodyweight: ONE field, full width, the unit spelled out (`повторений`) —
-            // extraction §1.6.
+            // Bodyweight: ONE field, full width; the unit lives in the column header
+            // (`ПОВТОРЕНИЙ` — set-field-column-headers.md §2 decision 2).
             Box(modifier = Modifier.weight(1f)) {
                 AppNumberInput(
                     value = set.reps.takeIf { it > 0 }?.toString().orEmpty(),
                     onValueChange = { input -> onRepsChange(input.toIntOrNull()) },
                     decimals = 0,
-                    suffix = stringResource(KitR.string.core_ui_kit_plan_editor_unit_reps_full),
                     enabled = editable && !set.isDone,
                     isRecord = set.isPersonalRecord,
                     isDone = set.isDone,
+                    fieldInset = SetRowGeometry.compactFieldInset,
+                    accessibilityLabel = stringResource(
+                        KitR.string.core_ui_kit_set_field_a11y_reps,
+                    ),
+                    valueSlotProbe = repsSlotProbe,
                 )
             }
         }
+        // One slot width for the chip and the tag alike: the tag's label outgrows their
+        // shared minimum at large text scales, and a slot left to each component's own
+        // intrinsic width makes a record row's columns disagree with its siblings' and with
+        // the header's (set-field-column-headers.md §4 D3).
+        val trailingSlotWidth = SetRowGeometry.resolveTrailingSlotWidth()
         if (set.isPersonalRecord) {
             PersonalRecordTag(
-                modifier = if (testTagPrefix != null) {
-                    Modifier.testTag("${testTagPrefix}_PrTag")
-                } else {
-                    Modifier
-                },
+                modifier = Modifier
+                    .width(trailingSlotWidth)
+                    .let { base ->
+                        if (testTagPrefix != null) base.testTag("${testTagPrefix}_PrTag") else base
+                    },
             )
         } else {
             AppTooltip(text = stringResource(R.string.feature_live_workout_set_type_tooltip)) {
                 Box(
                     modifier = Modifier
+                        .width(trailingSlotWidth)
                         .let { base ->
                             if (testTagPrefix != null) base.testTag("${testTagPrefix}_TypeChip") else base
                         }
                         .clickable(enabled = editable) { onTypeChange(set.type) },
+                    contentAlignment = Alignment.Center,
                 ) {
                     AppSetTypeChip(type = set.type.toUiKitType())
                 }

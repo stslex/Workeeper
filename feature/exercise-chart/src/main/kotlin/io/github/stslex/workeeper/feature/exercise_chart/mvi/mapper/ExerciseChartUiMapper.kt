@@ -24,8 +24,10 @@ internal object ExerciseChartUiMapper {
     fun ChartPointDomain.toUi(): ChartPointUiModel = ChartPointUiModel(
         day = day,
         dayMillis = dayMillis,
+        sessionUuid = sessionUuid,
         value = value,
         setCount = setCount,
+        reps = reps,
     )
 
     fun ChartFoldDomain.toUiPoints(): ImmutableList<ChartPointUiModel> =

@@ -39,6 +39,9 @@
     <string name="feature_exercise_chart_empty_not_found_title">Exercise unavailable</string>
     <string name="feature_exercise_chart_empty_not_found_subtitle">It may be archived or have no logged sets. Pick another from the list.</string>
     <string name="feature_exercise_chart_empty_not_found_cta">Choose exercise</string>
+    <string name="feature_exercise_chart_error_load_title">Couldn’t load the chart</string>
+    <string name="feature_exercise_chart_error_load_subtitle">Something went wrong while reading your history. Try again.</string>
+    <string name="feature_exercise_chart_error_load_cta">Try again</string>
 
     <string name="feature_exercise_chart_empty_no_data_title">Nothing to show yet</string>
     <string name="feature_exercise_chart_empty_no_data_subtitle">The chart appears after two recorded sessions with this exercise.</string>

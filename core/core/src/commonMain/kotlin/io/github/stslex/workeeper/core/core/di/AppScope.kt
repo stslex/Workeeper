@@ -21,9 +21,11 @@ package io.github.stslex.workeeper.core.core.di
  * `AppScope`. (`core:core-android` still re-exposes it via `api(core:core)`, so existing consumers keep
  * the identical import path with no change.)
  *
- * Invariant (execution spec §D3b): the TOKEN lives in `commonMain`, but every
- * `@ContributesBinding(AppScope::class)` / `@ContributesTo(AppScope::class)` SITE must live in an
- * Android-compiled source set — never `commonMain`/`iosMain`. Those annotations require the Metro
- * compiler plugin, which `core:core` does not apply.
+ * Contribution SITES may live in `commonMain`. A `@ContributesBinding(AppScope::class)` /
+ * `@ContributesTo(AppScope::class)` there aggregates into `:app:app`'s `@DependencyGraph` provided
+ * the module applies the Metro compiler plugin — `commonMain` sources compile as part of the Android
+ * compilation, which is where that plugin runs. A site in `iosMain` is inert, not an error, while no
+ * iOS composition root exists. Derivation and the reddening mutation:
+ * `documentation/feature-specs/kmp-phase-6-data-layer.md` → §2.1 "What PR B settled".
  */
 abstract class AppScope private constructor()

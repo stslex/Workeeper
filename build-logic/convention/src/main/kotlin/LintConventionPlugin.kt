@@ -2,6 +2,8 @@ import AppExt.findPluginId
 import AppExt.libs
 import com.android.build.api.dsl.ApplicationExtension
 import com.android.build.api.dsl.CommonExtension
+import io.github.stslex.workeeper.configureInstrumentedSuiteGate
+import io.github.stslex.workeeper.configureLintOptions
 import io.gitlab.arturbosch.detekt.Detekt
 import io.gitlab.arturbosch.detekt.DetektCreateBaselineTask
 import org.gradle.api.Plugin
@@ -16,38 +18,12 @@ class LintConventionPlugin : Plugin<Project> {
                 apply(libs.findPluginId("detekt"))
             }
 
-            val commonExtension = extensions.findByType(CommonExtension::class.java)
-            commonExtension?.lint?.apply {
-                // Main lint configuration (includes centralized suppressions)
-                lintConfig = rootProject.file("lint-rules/lint.xml")
-
-                // Report configuration
-                htmlReport = true
-                xmlReport = true
-                sarifReport = true
-                textReport = false
-
-                // Analysis configuration
-                checkDependencies = true
-                abortOnError = true
-                ignoreWarnings = false
-                checkAllWarnings = true
-                warningsAsErrors = true
-                checkGeneratedSources = false
-                explainIssues = true
-                noLines = false
-                quiet = false
-                checkReleaseBuilds = true
-                ignoreTestSources = true
-
-                // Single centralized baseline file for all modules
-                baseline = rootProject.file("lint-rules/lint-baseline.xml")
-
-                // Output directories
-                htmlOutput = file("build/reports/lint-results.html")
-                xmlOutput = file("build/reports/lint-results.xml")
-                sarifOutput = file("build/reports/lint-results.sarif")
-            }
+            // The shared option block lives in configureLintOptions so the KMP convention
+            // (whose android DSL is not a CommonExtension and is invisible to this lookup)
+            // applies the identical configuration.
+            extensions.findByType(CommonExtension::class.java)
+                ?.lint
+                ?.let { lint -> configureLintOptions(lint) }
 
             // RemoveWorkManagerInitializer runs per application module and does
             // not see the directive when it is contributed via the shared
@@ -102,6 +78,12 @@ class LintConventionPlugin : Plugin<Project> {
                 "detektPlugins"(libs.findLibrary("detekt.formatting").get())
                 "detektPlugins"(project(":lint-rules"))
             }
+
+            // Every module gets the instrumented-suite gate, whether or not it has instrumented
+            // tests today. This plugin is the one hook every convention applies, which is what
+            // makes the gate unforgettable — see configureInstrumentedSuiteGate's KDoc for why
+            // an opt-in version would not have caught the defect that motivated it.
+            configureInstrumentedSuiteGate()
         }
     }
 }

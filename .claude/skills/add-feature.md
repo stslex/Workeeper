@@ -140,7 +140,7 @@ one extension.
        │       └── ui/
        │           ├── components/
        │           ├── <Name>Screen.kt
-       │           └── <Name>Graph.kt   # NavGraphBuilder.<feature>Graph extension
+       │           └── <Name>Graph.kt   # NavGraphScope.<feature>Graph extension
        ├── test/kotlin/...         # JUnit 5 unit tests (handlers, interactor)
        └── androidTest/kotlin/...  # @Smoke UI tests
    ```
@@ -213,8 +213,9 @@ one extension.
 
    Route arguments must be value-type fields (`String?`, `Long`, etc.) — never
    `NavController`, `NavBackStackEntry`, `SavedStateHandle`, or `Context`. Use the
-   companion object slot for navigation-result `SaveHandlerAttr` declarations
-   (`Screen.PlanEditor.Companion.planEditorSavedAttr`).
+   If the destination hands a value back, declare it on the type:
+   `data class <Name>(...) : Screen, ScreenWithResult<R>` — the result type lives on
+   the destination, not at the call site (`Screen.PlanEditor : ScreenWithResult<Boolean>`).
 
 6. Generate the Store contract under `mvi/store/<Name>Store.kt`. Conventions enforced
    by the custom Detekt rules in
@@ -273,7 +274,7 @@ one extension.
 
    The injected `Navigator` is the app-scoped `NavigatorEventBus`
    (`@SingleIn(AppScope) @ContributesBinding(AppScope, binding<Navigator>()) @Inject` in
-   `app/app/.../navigation/NavigatorEventBus.kt`) — the extension inherits it, nothing is
+   `app/common/.../navigation/NavigatorEventBus.kt`) — the extension inherits it, nothing is
    passed in. It is a controller-free command bus: the handler **never** holds a
    `NavController`, `NavBackStackEntry`, `SavedStateHandle`, `Activity`, or `Context`.
    Calling `navigator.navTo` / `popBack` / `replaceTo` is pure command dispatch; the App/UI
@@ -449,7 +450,9 @@ one extension.
     to reach the seam; never pass it into the graph.
 
 14. Generate `ui/<Name>Graph.kt` — a
-    `fun NavGraphBuilder.<feature>Graph(modifier: Modifier = Modifier, ...)` extension.
+    `fun NavGraphScope.<feature>Graph(modifier: Modifier = Modifier, ...)` extension.
+    **Never `NavGraphBuilder`**: no feature module imports `androidx.navigation`, and a
+    detekt gate plus stage 1.2's exit criterion both depend on that staying true.
 
     Inside, call `navComponentScreen(<Name>Feature) { processor -> ... }` and consume
     only **UI-side** events through `processor.Handle { event -> ... }` (haptics,
@@ -457,20 +460,29 @@ one extension.
     `processor.state.value` and `processor::consume` into your `<Name>Screen`.
 
     **If the feature reads a navigation result from a return-screen**, use
-    `navComponentScreenWithState(<Name>Feature) { stateHandle, processor -> ... }` and
-    collect via `stateHandle.getStateFlow(<SaveHandlerAttr>).collectAsState()`. Reset
-    the flag after consumption with
-    `stateHandle.setAttrDefaultValue(<SaveHandlerAttr>)` so re-entry does not
-    retrigger the consumer. Reference: `feature/exercise/.../ui/ExerciseGraph.kt`,
-    `feature/single-training/.../ui/SingleTrainingGraph.kt`. The `stateHandle` is the
-    current `NavBackStackEntry.savedStateHandle` — keep it scoped to the graph block;
-    do not pass it into Store, Handler, or any DI binding.
+    `navComponentScreenWithResults(<Name>Feature) { results, processor -> ... }`:
+
+    ```kotlin
+    results.OnResult(Screen.<X>::class) { value ->
+        processor.consume(Action.Common.<Something>(value))
+    }
+    ```
+
+    **Forward it; do not interpret it here.** Resolving what the result means is
+    state-shaped work and belongs in a Handler — see
+    `ExerciseStore.Action.Common.ImageRequestReceived` and its `CommonHandler` branch.
+    `OnResult` delivers once and clears, so there is no flag to reset; reading is
+    nullable and `null` means "no result". References:
+    `feature/live-workout/.../ui/LiveWorkoutGraph.kt`,
+    `feature/exercise/.../ui/ExerciseGraph.kt`. There is no `SavedStateHandle` to keep
+    scoped any more — `NavResults` holds it privately.
 
 15. Wire the navigation graph into the host. Edit
-    `app/app/src/main/java/io/github/stslex/workeeper/host/AppNavigationHost.kt` and
-    call your new `<feature>Graph(modifier = ...)`. Add
-    `sharedTransitionScope = this@SharedTransitionLayout` only for graphs that participate
-    in shared element transitions — see how `allTrainingsGraph` and `settingsGraph` differ.
+    `app/common/src/main/kotlin/io/github/stslex/workeeper/host/AppNavigationHost.kt` and
+    call your new `<feature>Graph(modifier = ...)` inside the `with(NavGraphScope(this))`
+    block, alongside its siblings. **Do not add a `sharedTransitionScope` parameter** — no
+    graph takes one, and nothing in the app performs a shared-element transition yet; the
+    first one to be written brings the accessor that reaches the scope with it.
 
     The `modifier` you pass into the graph **must** include
     `.reportScreenPlace<Screen.<X>>()` so the TTID / AppCreate / ActivityCreate Firebase
@@ -479,7 +491,7 @@ one extension.
     checklist](../../documentation/performance.md#new-screen-contributor-checklist).
 
 16. If the feature is bottom-bar visible, add an entry in
-    `app/app/src/main/java/io/github/stslex/workeeper/bottom_app_bar/BottomBarItem.kt`.
+    `app/common/src/main/kotlin/io/github/stslex/workeeper/bottom_app_bar/BottomBarItem.kt`.
 
 17. Generate the screen. `<Name>Screen.kt` is a `@Composable` ending in `Screen` and
     must take both a `*State` parameter and an action/event handler parameter —
@@ -552,7 +564,7 @@ interface <Name>Store : Store<State, Action, Event> {
 The graph composable (`<feature>Graph`) consumes **only** UI-side events:
 
 ```kotlin
-fun NavGraphBuilder.<feature>Graph(modifier: Modifier = Modifier) {
+fun NavGraphScope.<feature>Graph(modifier: Modifier = Modifier) {
     navComponentScreen(<Name>Feature) { processor ->
         val haptic = LocalHapticFeedback.current
 

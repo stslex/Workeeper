@@ -3,19 +3,19 @@ package io.github.stslex.workeeper.feature.single_training.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.ExperimentalSharedTransitionApi
-import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
-import androidx.navigation.NavGraphBuilder
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.ActiveSessionConflictDialog
+import io.github.stslex.workeeper.core.ui.kit.components.loading.AppLoadedContent
 import io.github.stslex.workeeper.core.ui.kit.components.sheet.AppBottomSheet
 import io.github.stslex.workeeper.core.ui.kit.components.sheet.AppConfirmSheet
 import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagPickerSheetContent
 import io.github.stslex.workeeper.core.ui.kit.snackbar.AppSnackbarModel
 import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
-import io.github.stslex.workeeper.core.ui.mvi.navComponentScreenWithState
+import io.github.stslex.workeeper.core.ui.mvi.navComponentScreen
+import io.github.stslex.workeeper.core.ui.navigation.NavGraphScope
 import io.github.stslex.workeeper.feature.single_training.di.SingleTrainingFeature
 import io.github.stslex.workeeper.feature.single_training.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.Action
@@ -28,12 +28,11 @@ import kotlinx.collections.immutable.toImmutableSet
 import io.github.stslex.workeeper.core.ui.kit.R as KitR
 
 @OptIn(ExperimentalSharedTransitionApi::class)
-@Suppress("UnusedParameter", "LongMethod", "CyclomaticComplexMethod")
-fun NavGraphBuilder.singleTrainingsGraph(
-    sharedTransitionScope: SharedTransitionScope,
+@Suppress("LongMethod", "CyclomaticComplexMethod")
+fun NavGraphScope.singleTrainingsGraph(
     modifier: Modifier = Modifier,
 ) {
-    navComponentScreenWithState(SingleTrainingFeature) { _, processor ->
+    navComponentScreen(SingleTrainingFeature) { processor ->
 
         val haptic = LocalHapticFeedback.current
         val undoToastLabel = stringResource(KitR.string.core_ui_kit_toast_undo)
@@ -108,21 +107,27 @@ fun NavGraphBuilder.singleTrainingsGraph(
         // as on success, because `HandlerStore.launch` defaults `onError` to `{}` (B17, B21).
         // A throw that leaves the flag set is a permanently empty screen — this gate is what
         // gives that failure a cost. `CommonHandler.loadTraining` closes its own.
-        if (state.isLoading) return@navComponentScreenWithState
+        // GUARD: this wrapper must sit ABOVE the early return. `AnimatedVisibility` does not
+        // animate a composable that enters composition already visible, so it has to be composed
+        // while the route is still loading or the fade silently disappears. The modal content
+        // below stays behind the return, withheld until the load lands.
+        AppLoadedContent(isLoaded = state.isLoading.not()) {
+            when (state.mode) {
+                Mode.Read -> TrainingDetailScreen(
+                    modifier = modifier,
+                    state = state,
+                    consume = processor::consume,
+                )
 
-        when (state.mode) {
-            Mode.Read -> TrainingDetailScreen(
-                modifier = modifier,
-                state = state,
-                consume = processor::consume,
-            )
-
-            is Mode.Edit -> TrainingEditScreen(
-                modifier = modifier,
-                state = state,
-                consume = processor::consume,
-            )
+                is Mode.Edit -> TrainingEditScreen(
+                    modifier = modifier,
+                    state = state,
+                    consume = processor::consume,
+                )
+            }
         }
+
+        if (state.isLoading) return@navComponentScreen
 
         (state.pickerState as? PickerState.Open)?.let { picker ->
             ExercisePickerSheet(

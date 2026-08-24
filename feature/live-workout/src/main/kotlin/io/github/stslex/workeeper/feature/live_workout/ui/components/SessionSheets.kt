@@ -17,6 +17,7 @@ import io.github.stslex.workeeper.core.ui.kit.icons.AppIcons
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.feature.live_workout.R
+import io.github.stslex.workeeper.feature.live_workout.mvi.model.DeleteExerciseCopyUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExerciseStatusUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveExerciseUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore
@@ -83,6 +84,7 @@ internal fun ExerciseMenuSheetContent(
         AppSheetItem(
             title = stringResource(R.string.feature_live_workout_action_edit_plan),
             onClick = { consume(LiveWorkoutStore.Action.Click.OnEditPlan(uuid)) },
+            modifier = Modifier.testTag("ExerciseMenu_EditPlan"),
         )
         AppSheetItem(
             title = stringResource(R.string.feature_live_workout_action_reset_sets),
@@ -108,26 +110,19 @@ internal fun ExerciseMenuSheetContent(
     }
 }
 
-/** `sh-del`: fixed title, adhoc/planned body, Ghost keep above DangerText confirm. */
+/** `sh-del`: context-correct removal copy, Ghost keep above DangerText confirm. */
 @Composable
 internal fun DeleteExerciseSheetContent(
     exercise: LiveExerciseUiModel,
-    isMidSessionAdded: Boolean,
+    copy: DeleteExerciseCopyUiModel,
     consume: (LiveWorkoutStore.Action) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
-        SheetTitle(stringResource(R.string.feature_live_workout_delete_plan_title))
+        SheetTitle(stringResource(copy.titleRes))
         Text(
             modifier = Modifier.padding(bottom = AppDimension.Space.lg),
-            text = stringResource(
-                if (isMidSessionAdded) {
-                    R.string.feature_live_workout_delete_plan_body_adhoc
-                } else {
-                    R.string.feature_live_workout_delete_plan_body_planned
-                },
-                exercise.exerciseName,
-            ),
+            text = stringResource(copy.bodyRes, exercise.exerciseName),
             style = AppUi.typography.text.body,
             color = AppUi.colors.textTertiary,
         )
@@ -143,7 +138,7 @@ internal fun DeleteExerciseSheetContent(
                 .fillMaxWidth()
                 .padding(top = AppDimension.Space.sm)
                 .testTag("DeleteExercise_Confirm"),
-            text = stringResource(R.string.feature_live_workout_delete_plan_confirm),
+            text = stringResource(copy.confirmRes),
             onClick = {
                 consume(
                     LiveWorkoutStore.Action.DialogClick.OnDeleteExerciseConfirm(

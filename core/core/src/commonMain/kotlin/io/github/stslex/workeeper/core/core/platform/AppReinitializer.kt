@@ -2,22 +2,28 @@
 package io.github.stslex.workeeper.core.core.platform
 
 /**
- * Platform-neutral seam for "reinitialize the app to a clean state" — invoked after a
- * live database-file swap (restore / rollback / undo) leaves the running process's
- * in-memory state inconsistent with the on-disk data.
+ * Platform seam for "reinitialize the app to a clean state" — invoked after a live
+ * database-file swap (restore / rollback / undo) leaves the running process's in-memory
+ * state inconsistent with the on-disk data. Callers express intent ("reinitialize after
+ * this recovery step"); the platform actual owns the mechanism. This is what keeps
+ * recovery/domain code free of `android.*`.
  *
- * The Android actual (`AndroidAppReinitializer`) is a full process restart (kill +
- * relaunch): the OS tears down every Activity and the next process rebuilds the DI
- * graph and reopens Room against the swapped file, resetting navigation and in-memory
- * state wholesale. iOS cannot restart its own process (no API; App Store rejects it),
- * so its future actual performs an in-place reinit (reopen Room → reset navigation to
- * root → invalidate in-memory state) — see the reinit-order + `AppDialogRepository`
- * preservation note in documentation/kmp-migration-assessment.md.
+ * The Android actual is a full process restart (relaunch the launcher activity, then
+ * `Runtime.getRuntime().exit(0)`), so the next process rebuilds the DI graph and reopens
+ * Room against the swapped file.
  *
- * Callers express intent ("reinitialize after this recovery step"); the platform owns
- * the mechanism. This is what keeps recovery/domain code free of `android.*`.
+ * The iOS actual throws. iOS cannot restart its own process, so the expected shape is an
+ * in-process rebuild (tear down the app graph, rebuild, reopen Room, reset navigation),
+ * which is Phase 5's deliverable.
+ *
+ * That rebuild puts a SECOND app graph in one process, which every app-scoped `DataStore`
+ * holder must survive: mint through `DataStoreProvider`'s process-lifetime memoization, never
+ * per-instance, or the second graph breaks silently rather than loudly. Adding a holder that
+ * mints its own store re-breaks the rebuild without failing any existing test but this one —
+ * pinned by `app/app` androidTest `AppScopeDataStoreSingletonTest`. Reinit-order and
+ * `AppDialogRepository` preservation notes: documentation/kmp-migration-assessment.md.
  */
-interface AppReinitializer {
+expect class AppReinitializer {
 
     fun reinitialize()
 }

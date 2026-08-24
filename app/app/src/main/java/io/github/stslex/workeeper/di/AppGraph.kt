@@ -5,6 +5,7 @@ import android.content.Context
 import dev.zacsweers.metro.DependencyGraph
 import dev.zacsweers.metro.Provides
 import dev.zacsweers.metro.SingleIn
+import io.github.stslex.workeeper.app.common.di.AppRootDeps
 import io.github.stslex.workeeper.core.core.di.AppScope
 import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
 import io.github.stslex.workeeper.core.core.di.DispatchersBindingContainer
@@ -16,6 +17,7 @@ import io.github.stslex.workeeper.core.data.backup.api.BackupStorage
 import io.github.stslex.workeeper.core.data.backup.api.RecoveryDiagnosticsExporter
 import io.github.stslex.workeeper.core.data.backup.api.SnapshotExportRunner
 import io.github.stslex.workeeper.core.data.backup.api.notification.BackupNotificationHelper
+import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreStateRepository
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.AutoBackupController
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupPreferencesRepository
 import io.github.stslex.workeeper.core.data.backup.worker.BackupWorkerDeps
@@ -62,7 +64,8 @@ import kotlinx.coroutines.CoroutineDispatcher
 @DependencyGraph(scope = AppScope::class)
 internal interface AppGraph :
     RecoveryDeps,
-    BackupWorkerDeps {
+    BackupWorkerDeps,
+    AppRootDeps {
 
     /**
      * Root accessor: the single app-scoped [AnalyticsHolder]. Read by the `:app` extension identity
@@ -113,12 +116,16 @@ internal interface AppGraph :
      * [Navigator] via `@ContributesBinding` AND is exposed here as its concrete type for `AppRootViewModel`
      * (which injects the concrete, then passes it as a `NavigatorReceiver`). One instance backs both.
      *
-     * [navigatorEventBus] is read by `App.kt`. [navigator] has NO READER — features inject `Navigator`
-     * as a constructor dep inside their own extension — and is kept as the compile-time assertion that
-     * the contributed supertype binding still resolves to that same instance.
+     * [navigatorEventBus] is declared by [AppRootDeps] and read by `App.kt` in `app:common` — which
+     * cannot see this graph, so it reads the contract instead. [NavigatorEventBus] itself lives in
+     * `app:common` under the `io.github.stslex.workeeper.navigation` package, which is why the
+     * import above names no module. [navigator] has NO READER — features
+     * inject `Navigator` as a constructor dep inside their own extension — and is kept as the
+     * compile-time assertion that the contributed supertype binding still resolves to that same
+     * instance.
      */
     val navigator: Navigator
-    val navigatorEventBus: NavigatorEventBus
+    override val navigatorEventBus: NavigatorEventBus
 
     /**
      * Metro-owned [ActivityHolderProducer] — `ActivityHolderImpl` (one `@SingleIn(AppScope)` retained
@@ -146,7 +153,7 @@ internal interface AppGraph :
      * a plain `Context` from the `create(applicationContext)` bound instance). Read by `App.kt`, which
      * hands it to `AppRootViewModel`; settings takes it as a constructor dep inside its own extension.
      */
-    val commonDataStore: CommonDataStore
+    override val commonDataStore: CommonDataStore
 
     /**
      * Three of the app-scoped singletons of feature/app-dialogs:impl, Metro-owned:
@@ -229,6 +236,16 @@ internal interface AppGraph :
     val restoreRecoveryCoordinator: RestoreRecoveryCoordinator
     val startupMigrationCoordinator: StartupMigrationCoordinator
     val recoveryBootstrap: RecoveryBootstrap
+
+    /**
+     * Metro-owned [RestoreStateRepository] — CONTRIBUTED by `@ContributesBinding(AppScope)` on the
+     * (public) `RestoreStateRepositoryImpl` in `core:data:backup:scheduling`. Production consumers
+     * take it as a constructor dep inside the recovery cluster above, so this accessor exists for
+     * one reason: `AppScopeDataStoreSingletonTest` must READ `restore_state_prefs` through the real
+     * app-scope binding from two graphs, and a read routed through a coordinator would assert the
+     * coordinator's behaviour instead of the store's identity.
+     */
+    val restoreStateRepository: RestoreStateRepository
 
     /**
      * The `AppDatabase`-derived DB-snapshot binding, Metro-owned via `@ContributesBinding(AppScope)` on

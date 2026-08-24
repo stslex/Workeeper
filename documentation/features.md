@@ -5,7 +5,7 @@ This document describes each user-facing feature module: what the user does, the
 limitations. For the architectural pattern these features share, see
 [architecture.md](architecture.md).
 
-The bottom navigation bar (`app/app/src/main/java/io/github/stslex/workeeper/bottom_app_bar/BottomBarItem.kt`)
+The bottom navigation bar (`app/common/src/main/kotlin/io/github/stslex/workeeper/bottom_app_bar/BottomBarItem.kt`)
 exposes three top-level entries that map to bottom-bar screens: `HOME` →
 `Screen.BottomBar.Home`, `TRAININGS` → `Screen.BottomBar.AllTrainings`, `EXERCISES` →
 `Screen.BottomBar.AllExercises`. Detail destinations such as `Screen.Training` and
@@ -218,8 +218,7 @@ single training.
   routes to `Screen.Exercise(uuid, trainingUuid)` (`feature/exercise`).
 - **All-exercises → exercise editor**: `Action.Navigation.OpenExercise` from
   `feature/all-exercises` routes to `Screen.Exercise(uuid, trainingUuid = null)`.
-- **Shared element transitions** are wired through the single `SharedTransitionLayout` in
-  `app/app/src/main/java/io/github/stslex/workeeper/host/AppNavigationHost.kt`. Each feature's
-  `<feature>Graph(...)` extension on `NavGraphBuilder` accepts the root
-  `SharedTransitionScope` so item-level transitions can be coordinated across the bottom-bar
-  graphs and the detail screens.
+- **Shared element transitions** have a single anchor, the `SharedTransitionLayout` in
+  `app/common/src/main/kotlin/io/github/stslex/workeeper/host/AppNavigationHost.kt`. None are
+  implemented yet, and no `<feature>Graph(...)` takes a `SharedTransitionScope` parameter —
+  the first transition to be written brings the accessor that reaches the scope with it.

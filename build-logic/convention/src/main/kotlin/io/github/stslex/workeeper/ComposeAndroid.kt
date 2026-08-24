@@ -23,7 +23,7 @@ internal fun Project.configureAndroidCompose(
         // uses `hiltViewModel()` anymore (the Metro `rememberMetroStoreProcessor` path replaced it). The
         // `viewModel<T>()` it provided arrives independently via `androidx.lifecycle:lifecycle-viewmodel-compose`,
         // already in the `lifecycle` bundle above.
-        implementationBundle("accompanist", "compose", "lifecycle")
-        implementation("appcompat", "material")
+        implementationBundle("compose", "lifecycle")
+        implementation("material")
     }
 }

@@ -6,7 +6,7 @@ plugins {
     // Goldens for the past-session surface. They live here rather than in core:ui:kit because
     // PastSetEditRow and PastExerciseCard are feature components and stay that way — extraction
     // §6.4 rank 8 settles the shared-row question as "deliberately separate" from LiveSetRow.
-    // The harness is NOT copied: it comes from core:ui:kit's testFixtures, so device config,
+    // The harness is NOT copied: it comes from core:ui:golden-harness, so device config,
     // tolerance and canvas width cannot drift between modules.
     alias(libs.plugins.paparazzi)
 }
@@ -29,7 +29,7 @@ dependencies {
     implementation(project(":core:data:exercise"))
 
     testImplementation(kotlin("test"))
-    testImplementation(testFixtures(project(":core:ui:kit")))
+    testImplementation(project(":core:ui:golden-harness"))
 
     androidTestImplementation(libs.bundles.android.test)
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)

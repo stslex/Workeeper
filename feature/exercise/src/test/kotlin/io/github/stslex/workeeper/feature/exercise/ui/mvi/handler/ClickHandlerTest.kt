@@ -13,8 +13,12 @@ import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
 import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor
+import io.github.stslex.workeeper.feature.exercise.domain.model.ActiveSessionDomain
+import io.github.stslex.workeeper.feature.exercise.domain.model.ExerciseChangeDomain
 import io.github.stslex.workeeper.feature.exercise.domain.model.SaveResult
 import io.github.stslex.workeeper.feature.exercise.domain.model.TagDomain
+import io.github.stslex.workeeper.feature.exercise.domain.model.TrackNowConflict
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ImageDisplay
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PendingImage
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.BottomSheetState
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.DialogState
@@ -25,6 +29,7 @@ import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.St
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State.Mode
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.coVerifyOrder
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
@@ -72,6 +77,24 @@ internal class ClickHandlerTest {
                 store = store,
             ),
         )
+    }
+
+    private fun wireSynchronousLaunch(
+        store: ExerciseHandlerStore,
+        stateFlow: MutableStateFlow<State>,
+    ) {
+        coEvery { store.updateStateImmediate(any<suspend (State) -> State>()) } coAnswers {
+            val update = firstArg<suspend (State) -> State>()
+            stateFlow.value = update(stateFlow.value)
+        }
+        every {
+            store.launch(any(), any(), any(), any(), any<suspend CoroutineScope.() -> Any?>())
+        } answers {
+            val onSuccess = arg<suspend CoroutineScope.(Any?) -> Unit>(1)
+            val action = arg<suspend CoroutineScope.() -> Any?>(4)
+            runBlocking { onSuccess(this, action()) }
+            mockk(relaxed = true)
+        }
     }
 
     /**
@@ -799,6 +822,45 @@ internal class ClickHandlerTest {
     }
 
     @Test
+    fun `OnTrackNowClick reports the persisted active session progress`() {
+        val (stateFlow, store, handler) = setup(State.create(uuid = "exercise-1"))
+        coEvery { store.updateStateImmediate(any<suspend (State) -> State>()) } coAnswers {
+            val update = firstArg<suspend (State) -> State>()
+            stateFlow.value = update(stateFlow.value)
+        }
+        every {
+            store.launch(any(), any(), any(), any(), any<suspend CoroutineScope.() -> Any?>())
+        } answers {
+            val action = arg<suspend CoroutineScope.() -> Any?>(4)
+            runBlocking { action() }
+            mockk(relaxed = true)
+        }
+        coEvery { interactor.resolveTrackNowConflict() } returns TrackNowConflict.NeedsUserChoice(
+            active = ActiveSessionDomain(
+                sessionUuid = "active-1",
+                trainingUuid = "training-1",
+                startedAt = 1L,
+            ),
+            trainingName = "Push Day",
+            doneCount = 1,
+            totalCount = 2,
+        )
+        every {
+            resourceWrapper.getString(
+                io.github.stslex.workeeper.feature.exercise.R.string
+                    .feature_exercise_track_now_conflict_progress_format,
+                1,
+                2,
+            )
+        } returns "1 of 2 exercises done"
+
+        handler.invoke(Action.Click.OnTrackNowClick)
+
+        val dialog = stateFlow.value.dialogState as DialogState.ActiveSessionConflict
+        assertEquals("1 of 2 exercises done", dialog.progressLabel)
+    }
+
+    @Test
     fun `OnTrackNowResumeConfirm with no pending conflict is a no-op`() {
         val (_, store, handler) = setup()
         handler.invoke(Action.Click.OnTrackNowResumeConfirm)
@@ -1012,6 +1074,105 @@ internal class ClickHandlerTest {
             PendingImage.RemoveExisting,
             stateFlow.value.pendingImage,
         )
+    }
+
+    @Test
+    fun `saving an image removal clears the persisted path before deleting the old file`() {
+        val uuid = "00000000-0000-0000-0000-000000000001"
+        val oldPath = "/files/old.jpg"
+        val (stateFlow, store, handler) = setup(
+            State.create(uuid = uuid).copy(
+                mode = Mode.Edit(isCreate = false),
+                name = "Bench",
+                imagePath = oldPath,
+                pendingImage = PendingImage.RemoveExisting,
+                originalSnapshot = State.Snapshot(
+                    name = "Bench",
+                    type = ExerciseTypeUiModel.WEIGHTED,
+                    description = "",
+                    tagUuids = emptyList(),
+                    adhocPlan = null,
+                ),
+            ),
+        )
+        wireSynchronousLaunch(store, stateFlow)
+        val saved = slot<ExerciseChangeDomain>()
+        coEvery { interactor.saveExercise(capture(saved)) } returns
+            SaveResult.Success(kotlin.uuid.Uuid.parse(uuid))
+
+        handler.invoke(Action.Click.OnSaveClick)
+
+        assertNull(saved.captured.imagePath)
+        coVerifyOrder {
+            interactor.saveExercise(any())
+            interactor.deleteImageFile(oldPath)
+        }
+        assertEquals(Mode.Read, stateFlow.value.mode)
+        assertNull(stateFlow.value.imagePath)
+        assertEquals(PendingImage.Unchanged, stateFlow.value.pendingImage)
+    }
+
+    @Test
+    fun `a rejected image removal keeps the attachment file and the staged draft`() {
+        val oldPath = "/files/old.jpg"
+        val (stateFlow, store, handler) = setup(
+            State.create(uuid = "00000000-0000-0000-0000-000000000001").copy(
+                mode = Mode.Edit(isCreate = false),
+                name = "Bench",
+                imagePath = oldPath,
+                pendingImage = PendingImage.RemoveExisting,
+                originalSnapshot = State.Snapshot(
+                    name = "Bench",
+                    type = ExerciseTypeUiModel.WEIGHTED,
+                    description = "",
+                    tagUuids = emptyList(),
+                    adhocPlan = null,
+                ),
+            ),
+        )
+        wireSynchronousLaunch(store, stateFlow)
+        coEvery { interactor.saveExercise(any()) } returns SaveResult.DuplicateName
+
+        handler.invoke(Action.Click.OnSaveClick)
+
+        assertTrue(stateFlow.value.mode is Mode.Edit)
+        assertEquals(PendingImage.RemoveExisting, stateFlow.value.pendingImage)
+        assertEquals(ImageDisplay.None, stateFlow.value.effectiveImageDisplay)
+        coVerify(exactly = 0) { interactor.deleteImageFile(any()) }
+    }
+
+    @Test
+    fun `cancelling an image removal restores the attachment without deleting its file`() {
+        val oldPath = "/files/old.jpg"
+        val (stateFlow, _, handler) = setup(
+            State.create(uuid = "uuid-1").copy(
+                mode = Mode.Edit(isCreate = false),
+                name = "Bench",
+                imagePath = oldPath,
+                imageLastModified = 100L,
+                pendingImage = PendingImage.RemoveExisting,
+                originalSnapshot = State.Snapshot(
+                    name = "Bench",
+                    type = ExerciseTypeUiModel.WEIGHTED,
+                    description = "",
+                    tagUuids = emptyList(),
+                    adhocPlan = null,
+                ),
+            ),
+        )
+
+        handler.invoke(Action.Click.OnCancelClick)
+        assertEquals(
+            DialogState.DiscardConfirm(DiscardTarget.FLIP_TO_READ),
+            stateFlow.value.dialogState,
+        )
+
+        handler.invoke(Action.Click.OnConfirmDiscard(DiscardTarget.FLIP_TO_READ))
+
+        assertEquals(Mode.Read, stateFlow.value.mode)
+        assertEquals(PendingImage.Unchanged, stateFlow.value.pendingImage)
+        assertEquals(ImageDisplay.FromPath(oldPath, 100L), stateFlow.value.effectiveImageDisplay)
+        coVerify(exactly = 0) { interactor.deleteImageFile(any()) }
     }
 
     @Test

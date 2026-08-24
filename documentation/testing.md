@@ -6,21 +6,24 @@ they run in CI. For the architectural patterns the tests target, see
 
 ## Test types
 
-Workeeper has two test source sets in every module that has tests:
+Workeeper uses two test tiers. Their source-set names depend on the module shape:
 
-- `src/test/...` — JVM unit tests. Run via `./gradlew testDebugUnitTest`. Use JUnit 5 (Jupiter)
+- `src/test/...` in classic Android modules and `src/androidHostTest/...` in KMP modules —
+  JVM host tests. Run via the repo-level `./gradlew testDebugUnitTest` alias. Use JUnit 5 (Jupiter)
   via the `junit-bom`, MockK for mocking, Robolectric for Android-class fakes, and the
   Kotlin coroutines test library. Bundles are declared in `gradle/libs.versions.toml` under
   `[bundles] test`.
-- `src/androidTest/...` — instrumented UI tests. Run via `./gradlew connectedDebugAndroidTest`.
-  Use the AndroidX Compose UI test runner (`androidx-compose-ui-test-junit4`),
-  `androidx.test:runner`, and Espresso. Bundles are declared under
-  `[bundles] android-test`. There are no Hilt testing artifacts — DI is Metro, and the
-  instrumented DI harness lives in `:app:app` (see [Integration tests](#integration-tests)).
+- `src/androidTest/...` in classic Android modules and `src/androidDeviceTest/...` in KMP
+  modules — instrumented device tests. Run via the repo-level
+  `./gradlew connectedDebugAndroidTest` alias.
+  Use `androidx.test:runner`; UI suites additionally use Espresso and the AndroidX Compose UI
+  test runner (`androidx-compose-ui-test-junit4`). Bundles are declared under `[bundles]
+  android-test`. There are no Hilt testing artifacts — DI is Metro, and the instrumented DI
+  harness lives in `:app:app` (see [Integration tests](#integration-tests)).
 
-Both source sets exist on a per-module basis. When a feature module needs the shared test
-utilities, it adds `androidTestImplementation(project(":core:ui:test-utils"))` to its
-`build.gradle.kts`.
+Source sets exist only where a module has tests of that tier. When a feature module needs the
+shared test utilities, it adds `androidTestImplementation(project(":core:ui:test-utils"))` to
+its `build.gradle.kts`.
 
 ## Unit tests
 
@@ -59,17 +62,20 @@ same code path.
 
 #### Test fixture
 
-The shared in-memory Room fixture lives in the database module's `testFixtures` source set:
+The shared in-memory Room fixture lives in the `core:data:database-test` module's `src/main`:
 
-- `core/data/database/src/testFixtures/kotlin/io/github/stslex/workeeper/core/data/database/testfixtures/RepositoryTestEnv.kt`
+- `core/data/database-test/src/main/kotlin/io/github/stslex/workeeper/core/data/database/testfixtures/RepositoryTestEnv.kt`
 
 It builds an `AppDatabase` via `Room.inMemoryDatabaseBuilder`, exposes every real DAO
 (`sessionDao`, `exerciseDao`, etc.), provides a real `DbTransitionRunner` backed by Room 3's
 `useWriterConnection { it.immediateTransaction { … } }`, and ships a `TestApplication` for the
 Robolectric `@Config`.
 
-Consumers depend on it via `testImplementation(testFixtures(project(":core:data:database")))`
-in their `build.gradle.kts` (already wired for `core/data/exercise`).
+Consumers depend on it from their host-test configuration: `testImplementation` for classic
+Android modules or `androidHostTestImplementation` for KMP modules. The KMP configuration is
+already wired for `core/data/exercise`. It is a normal module rather than a `testFixtures` source
+set because KMP has no such source set — see
+`documentation/feature-specs/kmp-phase-6-data-layer.md` -> §3.1.
 
 #### Boilerplate
 
@@ -104,18 +110,18 @@ return-value assertion or a mockk verification.
 #### Canonical examples
 
 - Multi-table transactional repository:
-  `core/data/exercise/src/test/kotlin/io/github/stslex/workeeper/core/data/exercise/session/SessionRepositoryImplFinishAtomicDbTest.kt`
+  `core/data/exercise/src/androidHostTest/kotlin/io/github/stslex/workeeper/core/data/exercise/session/SessionRepositoryImplFinishAtomicDbTest.kt`
   covers happy paths and a hybrid failure path that injects a throwing DAO via mockk while
   the rest of the in-memory DB rolls back the transaction. State is read back with the real
   DAOs.
 - Read-side repository:
-  `core/data/exercise/src/test/kotlin/io/github/stslex/workeeper/core/data/exercise/session/SessionRepositoryImplReadDbTest.kt`
+  `core/data/exercise/src/androidHostTest/kotlin/io/github/stslex/workeeper/core/data/exercise/session/SessionRepositoryImplReadDbTest.kt`
   seeds rows via DAO helpers, then asserts the repository's mapped output.
 - Single-table writer:
-  `core/data/exercise/src/test/kotlin/io/github/stslex/workeeper/core/data/exercise/tags/TagRepositoryImplDbTest.kt`
+  `core/data/exercise/src/androidHostTest/kotlin/io/github/stslex/workeeper/core/data/exercise/tags/TagRepositoryImplDbTest.kt`
   exercises every public method with a single round-trip per method.
 
-The DAO-test pattern (`core/data/database/src/test/.../BaseDatabaseTest.kt`) remains the
+The DAO-test pattern (`core/data/database/src/androidHostTest/.../BaseDatabaseTest.kt`) remains the
 right tool for DAO-only assertions that do not exercise repository code.
 
 ## UI tests
@@ -368,11 +374,7 @@ internal class MyFeaturePersistenceTest {
     fun scenario_does_thing() {
         composeRule.setContent {
             AppTheme(themeMode = ThemeMode.LIGHT) {
-                val navController = rememberNavController()
-                NavHost(
-                    navController = navController,
-                    startDestination = Screen.MyFeature(...),
-                ) {
+                TestSingleScreenHost(start = Screen.MyFeature(...)) {
                     myFeatureGraph()
                 }
             }
@@ -389,6 +391,10 @@ internal class MyFeaturePersistenceTest {
     }
 }
 ```
+
+`TestSingleScreenHost` (`core/ui/test-utils`) mounts the graph in a real `NavDisplay`
+with the production decorator pair, through the project DSL — the test names no
+`androidx.navigation*` type, which the androidTest import gate bans.
 
 The rule builds a fresh in-memory database per test, so there is no `clearAllTables()`
 step and no cross-test bleed to guard against.
@@ -434,7 +440,7 @@ Use `Modifier.testTag("...")` with these prefixes so finders are stable across P
 - List: `"<Feature>List"`. List item: `"<Feature>Item_${item.uuid}"`.
 - Dialog: `"<Feature>Dialog"`.
 
-`app/app/src/main/java/io/github/stslex/workeeper/host/AppNavigationHost.kt` uses graph-level
+`app/common/src/main/kotlin/io/github/stslex/workeeper/host/AppNavigationHost.kt` uses graph-level
 tags (`"HomeGraph"`, `"AllTrainingsGraph"`, etc.) for cross-feature tests.
 
 ### Existing UI tests
@@ -546,7 +552,9 @@ in [ci-cd.md](ci-cd.md).
 ## CI behavior
 
 - **Unit tests run on every PR and on pushes to `master`** as part of `android_build_unified.yml`.
-- **UI tests are optional and manual.** The `ui_tests.yml` workflow is `workflow_dispatch`-only
+- **UI tests do not gate PRs.** The `ui_tests.yml` workflow runs weekly (Mondays
+  05:00 UTC, against `dev`; the cron only evaluates from the default branch, so it
+  activates once the workflow reaches `master` with a release) and on manual dispatch
   with a `smoke` / `regression` / `all` selector. They do not block PR merges. Run them
   locally before opening a PR that touches Compose code.
 

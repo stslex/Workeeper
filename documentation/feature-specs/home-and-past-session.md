@@ -152,9 +152,9 @@ core/
 
 App-level wiring:
 
-- `app/app/.../navigation/NavigatorImpl.kt` — implement `replaceTo`.
-- `app/app/.../host/AppNavigationHost.kt` — register `pastSessionGraph(...)`.
-- `app/app/.../navigation/RootComponentImpl.kt` — produce `PastSessionComponent`.
+- `app/common/.../navigation/NavigatorImpl.kt` — implement `replaceTo`.
+- `app/common/.../host/AppNavigationHost.kt` — register `pastSessionGraph(...)`.
+- `app/common/.../navigation/RootComponentImpl.kt` — produce `PastSessionComponent`.
 
 ## Core flow
 

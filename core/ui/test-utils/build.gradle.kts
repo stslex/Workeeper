@@ -4,11 +4,17 @@ plugins {
 
 dependencies {
     // FakeImageStorage implements core:core's ImageStorage/ImageRef/ImageSaveResult; the real
-    // ImageStorageImpl (core:core-android) is never referenced here.
+    // ImageStorageImpl (core:core androidMain) is never referenced here.
     implementation(projects.core.core)
     implementation(projects.core.ui.kit)
     implementation(projects.core.ui.mvi)
     implementation(projects.core.ui.navigation)
+
+    // TestSingleScreenHost mounts a real NavDisplay so instrumented scaffolding tests can host a
+    // feature graph WITHOUT importing androidx.navigation3 themselves — the androidTest
+    // navigation-import gate stays clean and exclusion-free.
+    implementation(libs.androidx.navigation3.ui)
+    implementation(libs.androidx.lifecycle.viewmodel.navigation3)
 
     // Compose Testing
     api(libs.androidx.compose.ui.test.junit4)

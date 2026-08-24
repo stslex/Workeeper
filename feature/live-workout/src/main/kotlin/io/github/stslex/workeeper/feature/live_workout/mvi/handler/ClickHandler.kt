@@ -350,9 +350,8 @@ internal class ClickHandler @Inject constructor(
         updateState { it.copy(bottomSheetState = BottomSheetState.Hidden) }
         val current = state.value
         val exercise = setMutator.findExercise(current, action.performedExerciseUuid) ?: return
-        // Plan editor moved to a dedicated full-screen route in v2.4 (D1). The
-        // LiveWorkoutGraph observes a savedStateHandle flag on the previous backstack
-        // entry; on flip, it dispatches Action.Common.Reload to refresh planSets.
+        // The plan editor is a full-screen route that hands back a typed result; the graph
+        // forwards it as Action.Common.PlanResultReceived, and a save re-reads planSets.
         consume(
             Action.Navigation.OpenPlanEditor(
                 performedExerciseUuid = exercise.performedExerciseUuid,

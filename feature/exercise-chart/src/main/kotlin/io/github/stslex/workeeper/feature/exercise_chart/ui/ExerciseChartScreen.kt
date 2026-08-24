@@ -11,12 +11,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
-import io.github.stslex.workeeper.core.ui.kit.components.loading.AppLoadingIndicator
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppIconButton
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopBar
 import io.github.stslex.workeeper.core.ui.kit.icons.AppIcons
@@ -126,12 +124,12 @@ private fun ChartContent(
     // through Content.Plot, which State refuses to produce for an unplottable dataset —
     // there is no arrangement of fields here that can put an empty chart on screen.
     when (val content = state.content) {
-        Content.Loading -> Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center,
-        ) {
-            AppLoadingIndicator()
-        }
+        // Draws NOTHING, deliberately (§26, second amendment: no route draws a spinner while
+        // it waits), and the shell around this Box — top bar, exercise header —
+        // stays on screen, so the reader is never looking at a blank route. Reached on the cold
+        // open AND on a picker reload out of an empty chart, which is why the shell must not be
+        // withheld with it.
+        Content.Loading -> Unit
 
         is Content.Empty -> EmptyContent(
             reason = content.reason,
@@ -187,6 +185,17 @@ private fun EmptyContent(
                 testTag = "ExerciseChartNoDataForExercise",
             )
         }
+
+        EmptyReason.LOAD_FAILED -> ChartEmptyState(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = AppDimension.Space.xl),
+            title = stringResource(R.string.feature_exercise_chart_error_load_title),
+            subtitle = stringResource(R.string.feature_exercise_chart_error_load_subtitle),
+            ctaLabel = stringResource(R.string.feature_exercise_chart_error_load_cta),
+            onCta = { consume(Action.Click.OnRetryLoad) },
+            testTag = "ExerciseChartLoadFailed",
+        )
     }
 }
 
@@ -195,9 +204,11 @@ private fun ChartPopulated(
     state: State,
     consume: (Action) -> Unit,
 ) {
-    // The record marking is derived, not stored: one source (the mapper's argmax) feeds the
+    // The record marking is derived, not stored: one mapper selector feeds the
     // readout's flag and the canvas's molten point alike.
-    val recordIndex = remember(state.points) { ChartReadoutMapper.recordIndex(state.points) }
+    val recordIndex = remember(state.points, state.metric) {
+        ChartReadoutMapper.recordIndex(state.points, state.metric)
+    }
 
     // The mockup's vertical rhythm, spelled per element rather than one spacedBy: ranges
     // margin-bottom 14px + readout padding-top 18px = 32px → xxl (sum-of-parts, §0.2),
@@ -289,10 +300,10 @@ private fun ExerciseChartScreenPopulatedPreview() {
                     ExercisePickerItemUiModel("uuid-2", "Squat", ExerciseTypeUiModel.WEIGHTED),
                 ),
                 points = listOf(
-                    ChartPointUiModel(LocalDate.of(2026, 4, 5), 0L, 80.0, 1),
-                    ChartPointUiModel(LocalDate.of(2026, 4, 12), 0L, 90.0, 1),
-                    ChartPointUiModel(LocalDate.of(2026, 4, 19), 0L, 95.0, 1),
-                    ChartPointUiModel(LocalDate.of(2026, 4, 26), 0L, 105.0, 2),
+                    ChartPointUiModel(LocalDate.of(2026, 4, 5), 0L, "preview-1", 80.0, 1),
+                    ChartPointUiModel(LocalDate.of(2026, 4, 12), 0L, "preview-2", 90.0, 1),
+                    ChartPointUiModel(LocalDate.of(2026, 4, 19), 0L, "preview-3", 95.0, 1),
+                    ChartPointUiModel(LocalDate.of(2026, 4, 26), 0L, "preview-4", 105.0, 2),
                 ).toImmutableList(),
                 footerStats = ChartFooterStatsUiModel(
                     minTitle = "Minimum",

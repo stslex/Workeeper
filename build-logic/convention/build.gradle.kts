@@ -11,7 +11,7 @@ dependencies {
     implementation(libs.ksp.gradlePlugin)
     compileOnly(libs.room.gradlePlugin)
     compileOnly(libs.android.tools.common)
-    compileOnly(libs.composeCompiler.gradlePlugin)
+    compileOnly(libs.cmp.gradlePlugin)
     compileOnly(libs.fbCrashlytics.gradlePlugin)
     compileOnly(libs.detekt.gradle)
 }
@@ -44,6 +44,10 @@ gradlePlugin {
         register("kmpLibrary") {
             id = libs.plugins.convention.kmpLibrary.get().pluginId
             implementationClass = "KmpLibraryConventionPlugin"
+        }
+        register("kmpComposeLibrary") {
+            id = libs.plugins.convention.kmpComposeLibrary.get().pluginId
+            implementationClass = "KmpComposeLibraryConventionPlugin"
         }
         register("composeLibrary") {
             id = libs.plugins.convention.composeLibrary.get().pluginId

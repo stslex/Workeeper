@@ -120,7 +120,7 @@ fun AppCheckmarkButton(
 
     Box(
         modifier = modifier
-            .size(TOUCH_SIZE)
+            .size(AppCheckmarkButtonTouchSize)
             .clip(CircleShape)
             .clickable(
                 enabled = enabled,
@@ -229,8 +229,13 @@ private fun DrawScope.drawTick(progress: Float, color: Color) {
 private fun lerp(start: Float, stop: Float, fraction: Float): Float =
     start + (stop - start) * fraction
 
-/** The touch target. The mockup's `.mark` is 46px; 48dp is the rung and the minimum target. */
-private val TOUCH_SIZE: Dp = 48.dp
+/**
+ * The touch target. The mockup's `.mark` is 46px; 48dp is the rung and the minimum target.
+ * Public because it is also the mark's SLOT in the set row: `SetColumnHeader`'s trailing
+ * gutter must mirror the row's trailing cluster from the component's own number, not a copy
+ * (set-field-column-headers.md §4 D3).
+ */
+val AppCheckmarkButtonTouchSize: Dp = 48.dp
 
 /** `.mark{width:46px;height:46px}` — also the room `closedFraction`'s overshoot needs. */
 private val MARK_SIZE: Dp = 46.dp

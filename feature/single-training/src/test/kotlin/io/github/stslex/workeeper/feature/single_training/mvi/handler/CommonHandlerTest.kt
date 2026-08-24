@@ -31,7 +31,7 @@ import org.junit.jupiter.api.Test
  * green one is").
  *
  * The consumer, named per §27's discriminator: that graph's
- * `if (state.isLoading) return@navComponentScreenWithState`, which decides whether
+ * `if (state.isLoading) return@navComponentScreen`, which decides whether
  * `TrainingDetailScreen` / `TrainingEditScreen` is composed at all. Not a test that reads the field.
  */
 internal class CommonHandlerTest {

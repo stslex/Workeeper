@@ -13,8 +13,8 @@ import kotlinx.coroutines.launch
  * One drawn point. Its position and its presence are **animated state**, and they are the
  * only things the draw phase reads about it.
  *
- * [key] is the point's identity across datasets — the day. A metric flip preserves every
- * key (all three folds bucket by day); a preset or exercise change does not, which is what
+ * [key] is the point's identity across datasets — the completed session. A metric flip
+ * preserves every key; a preset or exercise change may not, which is what
  * the enter/exit policy in [ChartPointsAnimator] exists for.
  *
  * Coordinates are **normalised**: [x] and [y] run 0..1 across the plot band, y downward
@@ -24,7 +24,7 @@ import kotlinx.coroutines.launch
  */
 @Stable
 internal class AnimatedChartPoint(
-    val key: Long,
+    val key: String,
     x: Float,
     y: Float,
     presence: Float,
@@ -98,7 +98,7 @@ internal class ChartPointsAnimator(
      * left animating would be captured mid-flight.
      */
     fun retarget(targets: List<PointTarget>, animate: Boolean) {
-        val matched = LinkedHashMap<Long, AnimatedChartPoint>(targets.size)
+        val matched = LinkedHashMap<String, AnimatedChartPoint>(targets.size)
 
         targets.forEach { target ->
             val existing = entries.firstOrNull { it.key == target.key }
@@ -148,7 +148,7 @@ internal class ChartPointsAnimator(
 
 /** A point's resolved, normalised target. Pure data: no animation, no pixels. */
 internal data class PointTarget(
-    val key: Long,
+    val key: String,
     val x: Float,
     val y: Float,
 )
@@ -185,7 +185,7 @@ internal fun List<ChartPointUiModel>.toTargets(): List<PointTarget> {
     val range = (values.max() - min).takeIf { it > 0.0 } ?: 1.0
     return mapIndexed { index, point ->
         PointTarget(
-            key = point.dayMillis,
+            key = point.sessionUuid,
             x = index.toFloat() / (size - 1),
             y = (1.0 - (point.value - min) / range).toFloat(),
         )

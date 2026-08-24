@@ -6,6 +6,7 @@ import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagItem
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
+import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseScope
 import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor
@@ -38,6 +39,30 @@ internal class CommonHandler @Inject constructor(
             Action.Common.Init -> processInit()
             is Action.Common.ImagePicked -> processImagePicked(action)
             Action.Common.ImagePickCancelled -> processImagePickCancelled()
+            is Action.Common.ImageRequestReceived -> processImageRequest(action)
+        }
+    }
+
+    /**
+     * Resolve the viewer's request name and act on it.
+     *
+     * The `when` is exhaustive over [Screen.ExerciseImageRequest] on purpose — that is the
+     * reason the viewer hands back an enum's name rather than a bare string or a pair of
+     * booleans: a third verb cannot be added on one side only without this failing to
+     * compile.
+     *
+     * An unrecognised name resolves to `null` and is dropped. It means a viewer sent a verb
+     * this build does not have, which is not a state the user can be shown anything useful
+     * about.
+     */
+    private fun processImageRequest(action: Action.Common.ImageRequestReceived) {
+        val request = Screen.ExerciseImageRequest.entries
+            .firstOrNull { it.name == action.request }
+            ?: return
+
+        when (request) {
+            Screen.ExerciseImageRequest.REPLACE -> consume(Action.Click.OnEditImageClick)
+            Screen.ExerciseImageRequest.REMOVE -> consume(Action.Click.OnRemoveImageClick)
         }
     }
 
@@ -138,7 +163,7 @@ internal class CommonHandler @Inject constructor(
         // Capture the file's mtime so Coil can key by `?v=<mtime>` and avoid serving a
         // stale cache entry when the user replaces the image at the same path.
         val imageLastModified = imagePath?.let { File(it).lastModified() } ?: 0L
-        return copy(
+        val loaded = copy(
             name = exercise.name,
             type = exercise.type.toUi(),
             description = exercise.description.orEmpty(),
@@ -158,6 +183,24 @@ internal class CommonHandler @Inject constructor(
                 tagUuids = tags.map { it.uuid },
                 adhocPlan = adhocPlan,
             ),
+        )
+        return loaded.withDraftCarriedFrom(this)
+    }
+
+    /**
+     * A retained Store receives `Init` again after the image viewer leaves composition. Keep the
+     * editable values when that Store already owns a dirty draft; the freshly loaded snapshot and
+     * committed image path still become the baseline for Save or Cancel.
+     */
+    private fun State.withDraftCarriedFrom(previous: State): State {
+        if (previous.mode !is State.Mode.Edit || !previous.hasChanges) return this
+        return copy(
+            name = previous.name,
+            type = previous.type,
+            description = previous.description,
+            tags = previous.tags,
+            adhocPlan = previous.adhocPlan,
+            pendingImage = previous.pendingImage,
         )
     }
 

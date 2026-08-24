@@ -11,6 +11,7 @@ import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.stslex.workeeper.core.ui.test.TestActivity
+import io.github.stslex.workeeper.core.ui.test.annotations.Smoke
 import org.junit.Assert.assertSame
 import org.junit.Rule
 import org.junit.Test
@@ -30,7 +31,16 @@ import org.junit.runner.RunWith
  * test: at App-root depth `LocalViewModelStoreOwner` must be the host Activity, so the Store lands in the
  * Activity's `ViewModelStore` and a subsequent `ViewModelProvider(activity)` read returns the SAME
  * instance (proof the cache key is the Activity, not a `NavBackStackEntry`).
+ *
+ * `@Smoke` by the taxonomy: `TestActivity` with directly-constructed deps — no `MetroTestRule`,
+ * no `MainActivity`, no database (`documentation/testing.md` → "Categorization with `@Smoke` and
+ * `@Regression`"). The class-level annotation is load-bearing, not decoration: a `@Test` carrying
+ * neither `@Smoke` nor `@Regression` in a module that DOES resolve the annotation class is
+ * selected by neither suite, and both runs stay green because a selector that matches nothing
+ * reports nothing. `detektAndroidTestSuite` gates it
+ * (`documentation/feature-specs/kmp-phase-0-instrumented-filter.md` → "The gate").
  */
+@Smoke
 @RunWith(AndroidJUnit4::class)
 internal class AppFeatureScopeTest {
 

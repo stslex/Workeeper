@@ -14,8 +14,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.stslex.workeeper.core.ui.kit.components.setchip.CHIP_HEIGHT
@@ -53,15 +58,44 @@ fun PersonalRecordTag(
         contentAlignment = Alignment.Center,
     ) {
         Text(
-            text = "PR",
-            style = AppUi.typography.mono.caption.copy(
-                fontWeight = FontWeight.SemiBold,
-                letterSpacing = PR_TAG_TRACKING,
-            ),
+            text = PR_TAG_LABEL,
+            style = prTagTextStyle(),
             color = AppUi.colors.record.textPrimary,
         )
     }
 }
+
+/**
+ * The tag's own intrinsic width: its label at its own style, plus its own padding.
+ *
+ * `CHIP_MIN_WIDTH` is a MINIMUM, and this label outgrows it — at fontScale 2.0 the tag
+ * measures wider than the type chip it replaces. A trailing slot pinned to the minimum
+ * therefore leaves a record row's fields narrower than its siblings' and than the header's
+ * columns, which is why `SetRowGeometry.resolveTrailingSlotWidth` measures this rather than
+ * assuming the minimum. Measured here, beside the label and style it measures, so the two
+ * cannot drift.
+ */
+@Composable
+internal fun personalRecordTagIntrinsicWidth(): Dp {
+    val measurer = rememberTextMeasurer()
+    val label = measurer.measure(
+        text = AnnotatedString(PR_TAG_LABEL),
+        style = prTagTextStyle(),
+        maxLines = 1,
+        softWrap = false,
+    )
+    val labelWidth = with(LocalDensity.current) { label.size.width.toDp() }
+    return labelWidth + AppDimension.Space.xs * 2
+}
+
+@Composable
+private fun prTagTextStyle(): TextStyle = AppUi.typography.mono.caption.copy(
+    fontWeight = FontWeight.SemiBold,
+    letterSpacing = PR_TAG_TRACKING,
+)
+
+/** Latin in every locale, like the badge. */
+private const val PR_TAG_LABEL = "PR"
 
 /** `.prtag{letter-spacing:.1em}` at the 11sp caption rung. */
 private val PR_TAG_TRACKING = 1.1.sp

@@ -9,8 +9,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.ExperimentalSharedTransitionApi
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -20,18 +18,17 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.core.net.toUri
-import androidx.navigation.NavGraphBuilder
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.ActiveSessionConflictDialog
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppBlockedArchiveDialog
+import io.github.stslex.workeeper.core.ui.kit.components.loading.AppLoadedContent
 import io.github.stslex.workeeper.core.ui.kit.components.pr.PrExplainerDialog
 import io.github.stslex.workeeper.core.ui.kit.components.sheet.AppBottomSheet
 import io.github.stslex.workeeper.core.ui.kit.components.sheet.AppConfirmSheet
 import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagPickerSheetContent
 import io.github.stslex.workeeper.core.ui.kit.snackbar.AppSnackbarModel
 import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
-import io.github.stslex.workeeper.core.ui.mvi.getStateFlow
-import io.github.stslex.workeeper.core.ui.mvi.navComponentScreenWithState
-import io.github.stslex.workeeper.core.ui.mvi.setAttrDefaultValue
+import io.github.stslex.workeeper.core.ui.mvi.navComponentScreenWithResults
+import io.github.stslex.workeeper.core.ui.navigation.NavGraphScope
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.exercise.R
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseFeature
@@ -50,33 +47,20 @@ import io.github.stslex.workeeper.core.ui.kit.R as KitR
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Suppress("LongMethod", "CyclomaticComplexMethod")
-fun NavGraphBuilder.exerciseGraph(
+fun NavGraphScope.exerciseGraph(
     modifier: Modifier = Modifier,
 ) {
-    navComponentScreenWithState(ExerciseFeature) { stateHandle, processor ->
+    navComponentScreenWithResults(ExerciseFeature) { results, processor ->
 
         // Image-viewer return. The viewer carries the picture's two verbs now (§26, "The image
         // moves into the pushed top bar") and performs neither: it pops with a REQUEST, and the
         // machinery that can honour it — the source sheet, the camera permission, the temp URI,
-        // the uncommitted `PendingImage` — stays here, where it already was. Same shape as the
-        // plan editor's two returns above, including the reset: an attr left set would re-fire
-        // the request on the next resume.
-        val imageRequestAttr by stateHandle
-            .getStateFlow(Screen.ExerciseImage.exerciseImageRequestAttr)
-            .collectAsState()
-        LaunchedEffect(imageRequestAttr) {
-            val request = imageRequestAttr
-                ?.let { name -> Screen.ExerciseImageRequest.entries.firstOrNull { it.name == name } }
-            if (request != null) {
-                when (request) {
-                    Screen.ExerciseImageRequest.REPLACE ->
-                        processor.consume(Action.Click.OnEditImageClick)
-
-                    Screen.ExerciseImageRequest.REMOVE ->
-                        processor.consume(Action.Click.OnRemoveImageClick)
-                }
-                stateHandle.setAttrDefaultValue(Screen.ExerciseImage.exerciseImageRequestAttr)
-            }
+        // the uncommitted `PendingImage` — stays here, where it already was.
+        //
+        // What the request MEANS is not decided here. Resolving the name to a verb and choosing
+        // the action is state-shaped work, and it lives in the Store.
+        results.OnResult(Screen.ExerciseImage::class) { request ->
+            processor.consume(Action.Common.ImageRequestReceived(request))
         }
 
         val haptic = LocalHapticFeedback.current
@@ -203,7 +187,7 @@ fun NavGraphBuilder.exerciseGraph(
         val state = processor.state.value
 
         // §26 "A route does not compose until it has loaded". Everything above this line still
-        // runs while the load is in flight — the two `LaunchedEffect`s, the activity-result
+        // runs while the load is in flight — the image-result forward, the activity-result
         // launchers, the event `Handle`, the back interception — and only the screen waits.
         //
         // Nothing is drawn instead, deliberately: neither mockup draws a loading surface, and
@@ -219,21 +203,27 @@ fun NavGraphBuilder.exerciseGraph(
         // as on success, because `HandlerStore.launch` defaults `onError` to `{}` (B17, B21).
         // A throw that leaves the flag set is a permanently empty screen — this gate is what
         // gives that failure a cost. `CommonHandler.loadExercise` closes its own.
-        if (state.isLoading) return@navComponentScreenWithState
+        // GUARD: this wrapper must sit ABOVE the early return. `AnimatedVisibility` does not
+        // animate a composable that enters composition already visible, so it has to be composed
+        // while the route is still loading or the fade silently disappears. The modal content
+        // below stays behind the return, withheld until the load lands.
+        AppLoadedContent(isLoaded = state.isLoading.not()) {
+            when (state.mode) {
+                Mode.Read -> ExerciseDetailScreen(
+                    modifier = modifier,
+                    state = state,
+                    consume = processor::consume,
+                )
 
-        when (state.mode) {
-            Mode.Read -> ExerciseDetailScreen(
-                modifier = modifier,
-                state = state,
-                consume = processor::consume,
-            )
-
-            is Mode.Edit -> ExerciseEditScreen(
-                modifier = modifier,
-                state = state,
-                consume = processor::consume,
-            )
+                is Mode.Edit -> ExerciseEditScreen(
+                    modifier = modifier,
+                    state = state,
+                    consume = processor::consume,
+                )
+            }
         }
+
+        if (state.isLoading) return@navComponentScreenWithResults
 
         when (state.bottomSheetState) {
             BottomSheetState.Hidden -> Unit

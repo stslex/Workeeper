@@ -4,16 +4,16 @@ package io.github.stslex.workeeper.feature.archive.ui
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
-import androidx.navigation.NavGraphBuilder
 import io.github.stslex.workeeper.core.ui.kit.snackbar.AppSnackbarModel
 import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
 import io.github.stslex.workeeper.core.ui.mvi.navComponentScreen
+import io.github.stslex.workeeper.core.ui.navigation.NavGraphScope
 import io.github.stslex.workeeper.feature.archive.R
 import io.github.stslex.workeeper.feature.archive.di.ArchiveFeature
 import io.github.stslex.workeeper.feature.archive.mvi.store.ArchiveStore.Action
 import io.github.stslex.workeeper.feature.archive.mvi.store.ArchiveStore.Event
 
-fun NavGraphBuilder.archiveGraph(
+fun NavGraphScope.archiveGraph(
     modifier: Modifier = Modifier,
 ) {
     navComponentScreen(ArchiveFeature) { processor ->

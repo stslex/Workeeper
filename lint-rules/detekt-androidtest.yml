@@ -1,0 +1,33 @@
+# Narrow detekt config for ONE rule over ONE source set: the instrumented tests in
+# app/app/src/androidTest must not import the navigation library.
+#
+# Why a separate config and a separate task, rather than an entry in detekt.yml:
+# the plain `detekt` task's source resolves to src/main/{java,kotlin} and
+# src/test/{java,kotlin} only. Probed on :app:app it reports 0 files under
+# src/androidTest, so a ForbiddenImport entry in the shared config would be a
+# no-op exactly where it is aimed — while firing on every src/main file in the
+# repo that legitimately imports androidx.navigation. See
+# documentation/feature-specs/nav3-migration.md § 1.1.2.
+#
+# `buildUponDefaultConfig` is FALSE on the task that reads this file, so every
+# rule not named below is inactive. That is deliberate: this config is a
+# single-purpose gate, not a second opinion on style.
+
+build:
+  maxIssues: 0
+
+style:
+  active: true
+  ForbiddenImport:
+    active: true
+    imports:
+      # Both generations of the library, each named: glob dots are literal, so
+      # 'androidx.navigation.**' does NOT match androidx.navigation3.* (measured before the
+      # Nav3 swap relied on it). The oracle reaches the app through the semantics tree only —
+      # that is what let the same suite run unchanged across the swap, and what keeps it
+      # portable past it.
+      - 'androidx.navigation.**'
+      - 'androidx.navigation3.**'
+    # No exclusions. The two Nav2-era scaffolding violators (ExerciseCreatePersistenceTest,
+    # AllTrainingsExtensionDbVisibilityTest) now mount core:ui:test-utils' TestSingleScreenHost,
+    # which owns the NavDisplay import outside this source set.

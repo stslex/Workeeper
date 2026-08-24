@@ -16,7 +16,6 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import io.github.stslex.workeeper.core.ui.kit.components.empty.AppEmptyState
-import io.github.stslex.workeeper.core.ui.kit.components.loading.AppLoadingIndicator
 import io.github.stslex.workeeper.core.ui.kit.components.pr.PrExplainerDialog
 import io.github.stslex.workeeper.core.ui.kit.components.section.AppSectionHeader
 import io.github.stslex.workeeper.core.ui.kit.components.sheet.AppBottomSheet
@@ -60,9 +59,11 @@ internal fun PastSessionScreen(
     ) {
         TopBar(state = state, consume = consume)
         when (val phase = state.phase) {
-            State.Phase.Loading -> LoadingContent(
-                modifier = Modifier.fillMaxSize(),
-            )
+            // Unreachable through `PastSessionGraph`, which withholds the whole screen while
+            // loading — kept as an arm rather than a crash because the phase is legal state, and
+            // drawing NOTHING is the decision (§26, second amendment), and the top bar above
+            // would meanwhile be showing its fallback title.
+            State.Phase.Loading -> Unit
 
             is State.Phase.Error -> ErrorContent(
                 modifier = Modifier.fillMaxSize(),
@@ -117,6 +118,9 @@ internal fun TopBar(
     consume: (Action) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // GUARD: the fallback is the ERROR phase's title, not a placeholder for the way in — the route
+    // does not compose while loading (`PastSessionGraph`). Composing this before the load lands is
+    // what would put a heading on screen for the name to rewrite.
     val title = (state.phase as? State.Phase.Loaded)?.detail?.trainingName
         ?: stringResource(R.string.feature_past_session_loading_title)
     AppTopBar(
@@ -125,6 +129,7 @@ internal fun TopBar(
         smallTitle = true,
         navigation = {
             AppIconButton(
+                modifier = Modifier.testTag("PastSessionBackButton"),
                 icon = AppIcons.ChevronLeft,
                 contentDescription = stringResource(KitR.string.core_ui_kit_action_back),
                 onClick = { consume(Action.Click.OnBackClick) },
@@ -142,13 +147,6 @@ internal fun TopBar(
             }
         },
     )
-}
-
-@Composable
-private fun LoadingContent(modifier: Modifier = Modifier) {
-    Box(modifier = modifier, contentAlignment = Alignment.Center) {
-        AppLoadingIndicator()
-    }
 }
 
 @Composable
@@ -260,6 +258,7 @@ private fun PastSessionScreenLoadedLightPreview() {
             state = State(
                 sessionUuid = "stub",
                 phase = State.Phase.Loaded(detail = stubDetail()),
+                hasResolved = true,
                 expandedExerciseUuids = persistentSetOf("pe-1"),
                 dialogState = DialogState.Hidden,
                 bottomSheetState = BottomSheetState.Hidden,
@@ -277,6 +276,7 @@ private fun PastSessionScreenLoadedDarkPreview() {
             state = State(
                 sessionUuid = "stub",
                 phase = State.Phase.Loaded(detail = stubDetail()),
+                hasResolved = true,
                 expandedExerciseUuids = persistentSetOf("pe-1"),
                 dialogState = DialogState.Hidden,
                 bottomSheetState = BottomSheetState.Hidden,
@@ -294,6 +294,7 @@ private fun PastSessionScreenLoadingPreview() {
             state = State(
                 sessionUuid = "stub",
                 phase = State.Phase.Loading,
+                hasResolved = true,
                 expandedExerciseUuids = persistentSetOf(),
                 dialogState = DialogState.Hidden,
                 bottomSheetState = BottomSheetState.Hidden,
@@ -311,6 +312,7 @@ private fun PastSessionScreenErrorPreview() {
             state = State(
                 sessionUuid = "stub",
                 phase = State.Phase.Error(ErrorType.SessionNotFound),
+                hasResolved = true,
                 expandedExerciseUuids = persistentSetOf(),
                 dialogState = DialogState.Hidden,
                 bottomSheetState = BottomSheetState.Hidden,

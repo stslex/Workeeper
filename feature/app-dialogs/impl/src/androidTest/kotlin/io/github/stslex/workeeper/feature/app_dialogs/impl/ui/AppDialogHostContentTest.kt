@@ -11,6 +11,7 @@ import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupErrorCode
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
+import io.github.stslex.workeeper.core.ui.test.annotations.Smoke
 import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialog
 import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialogUserAction
 import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialogUserChoice
@@ -24,7 +25,17 @@ import org.junit.runner.RunWith
  * BLOCKER 2 transient-signal refactor the host content takes a single
  * `onChoice: (AppDialogUserChoice) -> Unit` lambda; tests assert that each
  * button on each variant dispatches the correct `(dialog, action)` pair.
+ *
+ * `@Smoke` by the taxonomy: `createComposeRule` with state passed straight into the content, no
+ * DI container, no database, no Activity (`documentation/testing.md` → "Categorization with
+ * `@Smoke` and `@Regression`"). Two things must hold together for this annotation to select
+ * anything: it is declared here, and `:core:ui:test-utils` stays on this module's androidTest
+ * classpath — androidx.test silently DROPS ui_tests.yml's filter when it cannot load the
+ * annotation class it names, which runs every test here in both suites. `detektAndroidTestSuite`
+ * and `verifyInstrumentedSuiteClasspath` gate the two halves
+ * (`documentation/feature-specs/kmp-phase-0-instrumented-filter.md` → "The gate").
  */
+@Smoke
 @RunWith(AndroidJUnit4::class)
 class AppDialogHostContentTest {
 

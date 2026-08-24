@@ -98,6 +98,7 @@ internal class ExerciseChartGoldenTest {
                 ChartPointUiModel(
                     day = day,
                     dayMillis = day.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli(),
+                    sessionUuid = "weightless-$index",
                     value = reps[index].toDouble(),
                     setCount = 3,
                 )
@@ -172,6 +173,20 @@ internal class ExerciseChartGoldenTest {
                 state = State.create(initialUuid = null).copy(
                     isLoading = false,
                     emptyReason = EmptyReason.NO_FINISHED_SESSIONS,
+                ),
+                consume = {},
+            )
+        }
+    }
+
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun screenLoadFailed(theme: GoldenTheme, testInfo: TestInfo) {
+        golden(testInfo, theme) {
+            ExerciseChartScreen(
+                state = State.create(initialUuid = null).copy(
+                    isLoading = false,
+                    emptyReason = EmptyReason.LOAD_FAILED,
                 ),
                 consume = {},
             )
@@ -317,6 +332,7 @@ private fun points(): List<ChartPointUiModel> = DAYS.mapIndexed { index, day ->
     ChartPointUiModel(
         day = day,
         dayMillis = day.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli(),
+        sessionUuid = "weighted-$index",
         value = WEIGHTS[index],
         setCount = 4,
     )

@@ -123,7 +123,12 @@
     <issue id="ServiceCast" severity="error" />
     <issue id="Recycle" severity="error" />
     <issue id="CommitTransaction" severity="error" />
-    <issue id="FragmentTagUsage" severity="warning" />
+    <!--
+      Do not add FragmentTagUsage (or any other issue id contributed by a library's own lint
+      registry rather than built into lint): a module without that library on its classpath fails
+      `lint` outright with `Unknown issue id ... [UnknownIssueId]`, and never suppress UnknownIssueId
+      to work around it. See documentation/feature-specs/kmp-phase-6-data-layer.md -> §4.
+    -->
     <issue id="ValidFragment" severity="error" />
     <issue id="CutPasteId" severity="error" />
     <issue id="UnprotectedSMSBroadcastReceiver" severity="error" />
@@ -179,4 +184,18 @@
          `disable` set) trips UnknownIssueId in library modules that don't
          depend on androidx.work. See documentation/feature-specs/backup.md →
          WorkManager setup. -->
+
+    <!-- ================================ -->
+    <!-- KSP-GENERATED CODE ON KMP MODULES -->
+    <!-- ================================ -->
+    <!-- On AGP-KMP, lint does not classify KSP output registered through Kotlin source sets as
+         generated. These IDs therefore ignore generated paths only; handwritten findings still
+         fire. See documentation/feature-specs/kmp-phase-6-data-layer.md → §9
+         "Lint does not classify KSP output as generated on KMP." -->
+    <issue id="RestrictedApi" severity="error">
+        <ignore path="**/build/generated/**" />
+    </issue>
+    <issue id="SyntheticAccessor" severity="error">
+        <ignore path="**/build/generated/**" />
+    </issue>
 </lint>

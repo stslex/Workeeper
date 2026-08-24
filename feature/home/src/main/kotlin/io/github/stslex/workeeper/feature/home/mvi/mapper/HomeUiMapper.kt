@@ -3,7 +3,6 @@ package io.github.stslex.workeeper.feature.home.mvi.mapper
 
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.core.time.formatElapsedDuration
-import io.github.stslex.workeeper.core.core.time.formatRelativeTime
 import io.github.stslex.workeeper.core.core.utils.DateTimeUtil
 import io.github.stslex.workeeper.feature.home.R
 import io.github.stslex.workeeper.feature.home.domain.model.ActiveSessionWithStatsDomain
@@ -178,7 +177,7 @@ internal object HomeUiMapper {
             sessionUuid = sessionUuid,
             trainingName = displayName,
             isAdhoc = isAdhoc,
-            finishedAtRelativeLabel = formatRelativeTime(nowMillis, finishedAt),
+            finishedAtRelativeLabel = resourceWrapper.getAbbreviatedRelativeTime(finishedAt, nowMillis),
             durationLabel = formatElapsedDuration(finishedAt - startedAt),
             statsLabel = statsLabel,
         )
@@ -197,7 +196,7 @@ internal object HomeUiMapper {
                 training.exerciseCount,
             ),
             lastSessionRelativeLabel = training.lastSessionAt?.let {
-                formatRelativeTime(nowMillis, it)
+                resourceWrapper.getAbbreviatedRelativeTime(it, nowMillis)
             },
         )
     }.toImmutableList()

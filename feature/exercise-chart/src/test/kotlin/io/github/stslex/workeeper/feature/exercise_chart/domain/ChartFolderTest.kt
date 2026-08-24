@@ -10,6 +10,8 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.EnumSource
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.ZoneOffset
@@ -64,7 +66,7 @@ internal class ChartFolderTest {
     }
 
     @Test
-    fun `multiple days are sorted ascending and use max-of-day`() {
+    fun `multiple sessions are sorted by completion time and use each session maximum`() {
         val result = bucketAndFold(
             history = listOf(
                 entry(
@@ -102,14 +104,15 @@ internal class ChartFolderTest {
             ),
             days,
         )
-        // Day 29 wins because 110 > both other sets that day.
+        // The Apr 29 session contributes its own best set.
         val day29 = result.points.first { it.day == LocalDate.of(2026, 4, 29) }
         assertEquals(110.0, day29.value)
         assertEquals(2, day29.setCount)
     }
 
-    @Test
-    fun `two sessions same day collapse to higher and setCount sums all`() {
+    @ParameterizedTest
+    @EnumSource(ChartMetricDomain::class)
+    fun `two same-day sessions remain separate for every metric`(metric: ChartMetricDomain) {
         val result = bucketAndFold(
             history = listOf(
                 entry(
@@ -117,7 +120,7 @@ internal class ChartFolderTest {
                     sessionUuid = "morning",
                     sets = listOf(
                         set(weight = 80.0, reps = 5),
-                        set(weight = 80.0, reps = 5),
+                        set(weight = 70.0, reps = 10),
                     ),
                 ),
                 entry(
@@ -127,21 +130,60 @@ internal class ChartFolderTest {
                 ),
             ),
             preset = ChartPresetDomain.MONTHS_3,
-            metric = ChartMetricDomain.HEAVIEST_WEIGHT,
+            metric = metric,
             exerciseType = ExerciseTypeDomain.WEIGHTED,
             now = utcMillis(2026, 5, 1),
             zoneId = zone,
         )
 
-        val point = result.points.single()
-        assertEquals(100.0, point.value)
-        assertEquals(3, point.setCount)
-        assertEquals("evening", point.sessionUuid)
+        assertEquals(listOf("morning", "evening"), result.points.map { it.sessionUuid })
+        assertEquals(listOf(2, 1), result.points.map { it.setCount })
+        assertEquals(1, result.points.map { it.day }.distinct().size)
+        assertEquals(
+            when (metric) {
+                ChartMetricDomain.HEAVIEST_WEIGHT -> listOf(80.0, 100.0)
+                ChartMetricDomain.VOLUME_PER_SET -> listOf(700.0, 300.0)
+                ChartMetricDomain.VOLUME_PER_SESSION -> listOf(1_100.0, 300.0)
+            },
+            result.points.map { it.value },
+        )
+    }
+
+    @ParameterizedTest
+    @EnumSource(ChartMetricDomain::class)
+    fun `two different-day sessions remain chronological for every metric`(
+        metric: ChartMetricDomain,
+    ) {
+        val result = bucketAndFold(
+            history = listOf(
+                entry(
+                    finishedAt = utcMillis(2026, 4, 29, hour = 18),
+                    sessionUuid = "later",
+                    sets = listOf(set(weight = 100.0, reps = 3)),
+                ),
+                entry(
+                    finishedAt = utcMillis(2026, 4, 28, hour = 9),
+                    sessionUuid = "earlier",
+                    sets = listOf(set(weight = 80.0, reps = 5)),
+                ),
+            ),
+            preset = ChartPresetDomain.MONTHS_3,
+            metric = metric,
+            exerciseType = ExerciseTypeDomain.WEIGHTED,
+            now = utcMillis(2026, 5, 1),
+            zoneId = zone,
+        )
+
+        assertEquals(listOf("earlier", "later"), result.points.map { it.sessionUuid })
+        assertEquals(
+            listOf(LocalDate.of(2026, 4, 28), LocalDate.of(2026, 4, 29)),
+            result.points.map { it.day },
+        )
     }
 
     @Test
     fun `setCount counts sets the chart cannot plot`() {
-        // Eligibility picks the day's winner; it must not shrink "N sets this day". A weighted
+        // Eligibility picks the session's winner; it must not shrink the set count. A weighted
         // set logged without a weight is unplottable but was still performed.
         val result = bucketAndFold(
             history = listOf(
@@ -169,9 +211,7 @@ internal class ChartFolderTest {
     }
 
     @Test
-    fun `setCount keeps the tooltip label when only one set of the day is plottable`() {
-        // `setCount == 1` is not just an off-by-one: the UI mapper gates the tooltip's
-        // "N sets this day" line on `setCount > 1`, so undercounting here erases the line.
+    fun `setCount keeps the readout accurate when only one set is plottable`() {
         val result = bucketAndFold(
             history = listOf(
                 entry(
@@ -196,7 +236,7 @@ internal class ChartFolderTest {
     }
 
     @Test
-    fun `tie on metric value selects earlier finishedAt session`() {
+    fun `equal same-day values keep both sessions in completion order`() {
         val result = bucketAndFold(
             history = listOf(
                 entry(
@@ -217,7 +257,7 @@ internal class ChartFolderTest {
             zoneId = zone,
         )
 
-        assertEquals("morning", result.points.single().sessionUuid)
+        assertEquals(listOf("morning", "evening"), result.points.map { it.sessionUuid })
     }
 
     @Test
@@ -386,10 +426,7 @@ internal class ChartFolderTest {
     }
 
     @Test
-    fun `volume tie across sessions keeps the earlier session`() {
-        // Under VOLUME_PER_SET a tie is a trade of weight against reps, so a reps tiebreak
-        // would mean "prefer the lighter set" — and would move the tooltip's navigation
-        // target to the later session. Volume is not a PR metric; earliest finishedAt wins.
+    fun `volume tie across sessions preserves both in completion order`() {
         val result = bucketAndFold(
             history = listOf(
                 entry(
@@ -410,11 +447,10 @@ internal class ChartFolderTest {
             zoneId = zone,
         )
 
-        val point = result.points.single()
-        assertEquals(200.0, point.value)
-        assertEquals("morning", point.sessionUuid)
-        assertEquals(100.0, point.weight)
-        assertEquals(2, point.reps)
+        assertEquals(listOf("morning", "evening"), result.points.map { it.sessionUuid })
+        assertEquals(listOf(200.0, 200.0), result.points.map { it.value })
+        assertEquals(listOf(100.0, 50.0), result.points.map { it.weight })
+        assertEquals(listOf(2, 4), result.points.map { it.reps })
     }
 
     @Test
@@ -504,10 +540,7 @@ internal class ChartFolderTest {
     }
 
     @Test
-    fun `two sessions same day collapse to higher session total not higher single set`() {
-        // The evening session holds the day's heaviest single set (100kg) but the morning
-        // session moved more total volume — under the session metric the morning wins. This
-        // is the case that separates the session fold from the per-set day-winner fold.
+    fun `same-day session volume retains each session total`() {
         val result = bucketAndFold(
             history = listOf(
                 entry(
@@ -531,16 +564,13 @@ internal class ChartFolderTest {
             zoneId = zone,
         )
 
-        val point = result.points.single()
-        assertEquals(800.0, point.value)
-        assertEquals("morning", point.sessionUuid)
-        assertEquals(3, point.setCount)
+        assertEquals(listOf("morning", "evening"), result.points.map { it.sessionUuid })
+        assertEquals(listOf(800.0, 300.0), result.points.map { it.value })
+        assertEquals(listOf(2, 1), result.points.map { it.setCount })
     }
 
     @Test
-    fun `session total tie keeps the earlier session`() {
-        // Same chain as the per-set volume metric: a total tie is a trade, nothing licenses
-        // a reps key, earliest finishedAt wins.
+    fun `session total tie preserves both sessions in completion order`() {
         val result = bucketAndFold(
             history = listOf(
                 entry(
@@ -561,7 +591,8 @@ internal class ChartFolderTest {
             zoneId = zone,
         )
 
-        assertEquals("morning", result.points.single().sessionUuid)
+        assertEquals(listOf("morning", "evening"), result.points.map { it.sessionUuid })
+        assertEquals(listOf(400.0, 400.0), result.points.map { it.value })
     }
 
     @Test

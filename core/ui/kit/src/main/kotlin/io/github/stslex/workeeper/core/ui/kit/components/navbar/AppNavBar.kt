@@ -8,7 +8,6 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.keyframes
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -22,6 +21,8 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -38,6 +39,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
@@ -157,7 +159,10 @@ fun AppNavBar(
                 barWidth = barWidth,
             )
 
-            Row(horizontalArrangement = Arrangement.spacedBy(ITEM_GAP)) {
+            Row(
+                modifier = Modifier.selectableGroup(),
+                horizontalArrangement = Arrangement.spacedBy(ITEM_GAP),
+            ) {
                 items.forEachIndexed { index, item ->
                     // ONE TIMELINE. The tint and the pill are two properties of a single state
                     // change, so they run for the same length: `NAV_PILL_TRAVEL`, not `base`. Give
@@ -179,7 +184,7 @@ fun AppNavBar(
                         ),
                         label = "nav-item-tint",
                     )
-                    // NO RIPPLE. `clickable` defaults to `LocalIndication`, which under a
+                    // NO RIPPLE. `selectable` defaults to `LocalIndication`, which under a
                     // Material theme is one — and no ripple is drawn anywhere in either mockup,
                     // whose only press affordance is `.btn:active{transform:scale(.985)}`. Six
                     // sites in this app already pass `indication = null`, so the default was the
@@ -196,9 +201,14 @@ fun AppNavBar(
                                 scaleY = pressScale
                             }
                             .clip(pillShape)
-                            .clickable(
+                            // `selectable`, not `clickable`: the pill draws selection but only
+                            // semantics announce it — TalkBack and the test tree read
+                            // `Selected`/`Role.Tab` from here, nowhere else.
+                            .selectable(
+                                selected = index == selected,
                                 interactionSource = interactionSource,
                                 indication = null,
+                                role = Role.Tab,
                             ) { onSelect(index) }
                             .testTag(item.testTag),
                         contentAlignment = Alignment.Center,

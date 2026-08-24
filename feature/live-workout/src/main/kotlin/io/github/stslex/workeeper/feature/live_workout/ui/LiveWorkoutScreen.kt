@@ -54,6 +54,7 @@ import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.live_workout.R
+import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.DeleteExerciseCopyMapper
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.RailMapper.toRailGroups
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExerciseStatusUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveExerciseUiModel
@@ -145,7 +146,11 @@ internal fun LiveWorkoutScreen(
                 ) {
                     DeleteExerciseSheetContent(
                         exercise = exercise,
-                        isMidSessionAdded = exercise.performedExerciseUuid in state.midSessionAddedUuids,
+                        copy = DeleteExerciseCopyMapper.map(
+                            isAdhocSession = state.isAdhoc,
+                            isMidSessionAdded = exercise.performedExerciseUuid in
+                                state.midSessionAddedUuids,
+                        ),
                         consume = consume,
                     )
                 }
@@ -239,6 +244,7 @@ internal fun TopBar(consume: (Action) -> Unit) {
     AppTopBar(
         navigation = {
             AppIconButton(
+                modifier = Modifier.testTag("LiveWorkoutBackButton"),
                 icon = AppIcons.ChevronLeft,
                 contentDescription = stringResource(R.string.feature_live_workout_back),
                 onClick = { consume(Action.Click.OnBackClick) },
@@ -246,6 +252,7 @@ internal fun TopBar(consume: (Action) -> Unit) {
         },
         actions = {
             AppIconButton(
+                modifier = Modifier.testTag("LiveWorkoutMenuButton"),
                 icon = AppIcons.MoreVertical,
                 contentDescription = stringResource(R.string.feature_live_workout_more),
                 onClick = { consume(Action.Click.OnSessionMenuClick) },
@@ -674,6 +681,7 @@ private fun stubState(): State = State(
     isAddExerciseInFlight = false,
     isFinishInFlight = false,
     isLoading = false,
+    loadFailed = false,
     dialogState = DialogState.Hidden,
     bottomSheetState = BottomSheetState.Hidden,
 )
