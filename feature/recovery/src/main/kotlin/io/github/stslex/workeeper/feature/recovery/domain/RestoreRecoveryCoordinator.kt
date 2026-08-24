@@ -124,9 +124,11 @@ class RestoreRecoveryCoordinator @Inject internal constructor(
         context: RestoreInProgressContext?,
         cause: Throwable?,
     ): PreflightOutcome {
-        if (cause != null && context != null) {
+        if (context != null) {
             reporter.recordRestoreTimeFailure(
-                exception = cause,
+                // A Prepared attempt has no throwable — nothing threw, the process died. Report
+                // it anyway: that IS the interrupted-restore case the journal exists to catch.
+                exception = cause ?: InterruptedRestoreException(attempt),
                 context = context,
                 appVersionName = platformInfo.appVersionName(),
             )
@@ -315,6 +317,12 @@ class RestoreRecoveryCoordinator @Inject internal constructor(
     fun restartApp() {
         appReinitializer.reinitialize()
     }
+
+    /** Stands in for the throwable an interrupted restore never produced. */
+    internal class InterruptedRestoreException(attempt: RestoreAttempt) : IllegalStateException(
+        "restore attempt ${attempt.id} (${attempt.kind}) was unresolved at launch " +
+            "in phase ${attempt.phase}",
+    )
 
     /** Discriminator for the post-restart pre-flight result. */
     enum class PreflightOutcome {

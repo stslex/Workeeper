@@ -6,6 +6,7 @@ import androidx.compose.runtime.Stable
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.yield
 
 /**
  * One transient message: text plus an optional action; the host owns the toast's lifetime.
@@ -47,6 +48,11 @@ suspend fun resolveSnackbarOutcomeOrRequeue(
     // Fence before routing so a quiescing transition cannot miss this callback.
     if (!SnackbarManager.beginResolve()) {
         SnackbarManager.requeue(delivered)
+        // GUARD: the requeued model is delivered again immediately, so this branch is a loop.
+        // Without a suspension point it is a HOT one that also swallows the collector's own
+        // cancellation — `yield` both yields the thread and observes cancellation. Do not
+        // replace it with a park: callers invoke this directly and rely on it returning.
+        yield()
         return
     }
     var routed = false

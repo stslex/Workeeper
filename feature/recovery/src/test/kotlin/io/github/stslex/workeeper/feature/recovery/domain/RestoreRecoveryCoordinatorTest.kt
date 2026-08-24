@@ -560,6 +560,22 @@ internal class RestoreRecoveryCoordinatorTest {
     }
 
     @Test
+    fun `an interrupted restore is reported even though nothing threw`() = runTest {
+        // The Prepared branch is the crash-mid-restore case the journal exists to catch, and it
+        // has no throwable by construction — the process died, it did not fail. Reporting only
+        // when a cause exists left exactly this case invisible in Crashlytics.
+        coEvery { restoreStateRepository.getAttempt() } returns
+            makeAttempt(phase = RestoreAttempt.Phase.Prepared)
+        stubRollbackCommitted()
+
+        coordinator.handlePostRestoreLaunch()
+
+        verify(exactly = 1) {
+            reporter.recordRestoreTimeFailure(any(), any(), any())
+        }
+    }
+
+    @Test
     fun `a RecoveryRequired verdict preserves the live db for the export button`() = runTest {
         // RecoveryActivity's "Export your data" shares cache/pre_migration_backup.db. The
         // Scenario-1 route never reaches StartupMigrationCoordinator.routeToRecovery, which is

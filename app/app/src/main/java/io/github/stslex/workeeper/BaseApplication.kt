@@ -17,6 +17,7 @@ import io.github.stslex.workeeper.core.data.backup.worker.BackupWorkLease
 import io.github.stslex.workeeper.core.data.backup.worker.BackupWorkerDepsHolder
 import io.github.stslex.workeeper.core.data.backup.worker.MetroWorkerFactory
 import io.github.stslex.workeeper.core.data.database.buildAppDatabase
+import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarGenerationTransition
 import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
 import io.github.stslex.workeeper.core.ui.mvi.di.AppDepsHolder
 import io.github.stslex.workeeper.core.ui.mvi.performance.PerformanceMetricsRecorder
@@ -50,6 +51,7 @@ abstract class BaseApplication :
     abstract val isDebugLoggingAllow: Boolean
 
     /** Process-owned runtime, built lazily at the startup boundary. */
+    @OptIn(SnackbarGenerationTransition::class)
     private val appRuntime: AppRuntime by lazy {
         AppRuntime(
             applicationContext = applicationContext,

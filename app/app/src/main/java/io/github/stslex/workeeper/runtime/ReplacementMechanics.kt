@@ -3,6 +3,7 @@ package io.github.stslex.workeeper.runtime
 
 import io.github.stslex.workeeper.app.common.di.AppUiAdmissionToken
 import io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetime
+import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.core.core.logger.Logger
 import io.github.stslex.workeeper.core.data.backup.api.DatabaseReplacementEffects
 import io.github.stslex.workeeper.core.data.backup.api.DatabaseReplacementResult
@@ -77,6 +78,23 @@ internal class InFlightReplacement(
     var reservation: File? = null
 }
 
+/** True inside either transaction machine, where a fresh submission would deadlock the mutex. */
+internal fun CoroutineContext.isInsideReplacementTransaction(): Boolean =
+    this[ReplacementTransaction] != null || this[GraphOnlyTransition.Key] != null
+
+/** Typed refusal for a restore submitted from inside a transaction — never a deadlock. */
+internal suspend fun rejectNestedRestore(
+    effects: DatabaseReplacementEffects,
+    logger: Logger,
+): DatabaseReplacementResult = runTerminalEffects(
+    effects = effects,
+    outcome = ReplacementOutcome.RejectedBeforeMutation(
+        BackupError.Io(IOException("restore is unavailable inside a replacement transaction")),
+    ),
+    ponrCrossed = false,
+    logger = logger,
+).toSeamResult()
+
 /** Marks a graph-only transition's preflight — a rollback inside it is rejected, not run. */
 internal object GraphOnlyTransition : CoroutineContext.Element {
 
@@ -112,7 +130,10 @@ internal fun stageRestoreSource(source: File, stagingDirectory: File, sequence: 
             staged.delete()
             throw error
         }
-        source.delete()
+        // The copy already succeeded, so a failed unlink leaks a file rather than losing data.
+        if (!source.delete()) {
+            Log.tag("stageRestoreSource").w { "staged by copy; the original could not be deleted" }
+        }
     }
     return staged
 }

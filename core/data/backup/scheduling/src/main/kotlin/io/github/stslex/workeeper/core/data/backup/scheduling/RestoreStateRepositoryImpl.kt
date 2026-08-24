@@ -188,8 +188,12 @@ class RestoreStateRepositoryImpl internal constructor(
         val KEY_RESTORE_STARTED_AT =
             longPreferencesKey("restore_in_progress_started_at_epoch_ms")
 
-        // Legacy flags remain readable until their owning attempt resolves.
+        // Read by getAttempt to synthesize the id-less legacy owner.
         val KEY_LEGACY_RESTORE_IN_PROGRESS = booleanPreferencesKey("restore_in_progress")
+
+        // Write-only ON PURPOSE: since R3 an unresolved attempt is conservatively Prepared, which
+        // is already the strongest verdict this flag could produce, so nothing reads it. The
+        // removes stay so a pre-R3 install does not carry the orphan key forever.
         val KEY_LEGACY_MUTATION_INTERRUPTED =
             booleanPreferencesKey("restore_mutation_interrupted")
 

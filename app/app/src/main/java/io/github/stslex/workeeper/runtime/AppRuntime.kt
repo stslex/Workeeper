@@ -315,8 +315,14 @@ internal class AppRuntime(
     override suspend fun restoreFromSnapshot(
         source: File,
         effects: DatabaseReplacementEffects,
-    ): DatabaseReplacementResult =
-        replace(ReplacementOperation.RestoreFromSnapshot(source), effects).toSeamResult()
+    ): DatabaseReplacementResult {
+        // Rollback has two inline escapes; restore has none by design, so a reentrant
+        // submission would block forever on the non-reentrant transition mutex.
+        if (coroutineContext.isInsideReplacementTransaction()) {
+            return rejectNestedRestore(effects, logger)
+        }
+        return replace(ReplacementOperation.RestoreFromSnapshot(source), effects).toSeamResult()
+    }
 
     override suspend fun rollbackToPreRestoreBackup(
         sourcePath: String?,

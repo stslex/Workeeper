@@ -71,10 +71,13 @@ internal object MetroTestGraphHolder {
 
     fun admitUiGeneration(id: Int): AppUiAdmissionToken? {
         if (retiredIds.contains(id)) return null
-        return runtimeDelegate?.admitUiGeneration(id)
-            ?: StaticToken(id).also {
-                staticAttachments.computeIfAbsent(id) { AtomicInteger() }.incrementAndGet()
-            }
+        // A real gate's REFUSAL is an answer, not an absence: returning a StaticToken here would
+        // manufacture the grant the invariant exists to withhold, and would also miscount the
+        // harness's own outstanding admissions.
+        runtimeDelegate?.let { delegate -> return delegate.admitUiGeneration(id) }
+        return StaticToken(id).also {
+            staticAttachments.computeIfAbsent(id) { AtomicInteger() }.incrementAndGet()
+        }
     }
 
     fun releaseUiGeneration(token: AppUiAdmissionToken) {

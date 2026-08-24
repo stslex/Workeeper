@@ -5,11 +5,13 @@ import androidx.compose.material3.SnackbarResult
 import io.github.stslex.workeeper.core.core.logger.Log
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -24,7 +26,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
-@OptIn(ExperimentalCoroutinesApi::class)
+@OptIn(ExperimentalCoroutinesApi::class, SnackbarGenerationTransition::class)
 internal class SnackbarManagerTest {
 
     /**
@@ -427,8 +429,44 @@ internal class SnackbarManagerTest {
         SnackbarManager.snackbar.first()
     }
 
+    /**
+     * The fenced-refusal branch of [resolveSnackbarOutcomeOrRequeue] requeues the model and
+     * returns with NO suspension point, so a collector that keeps looping there spins its
+     * thread. Real dispatchers on purpose: virtual time cannot observe a busy loop.
+     */
+    @Test
+    fun `a cancelled collector terminates on the fenced-refusal path`() {
+        val stoppedOnCancel = runBlocking {
+            SnackbarManager.showSnackbar("fenced")
+            SnackbarManager.fenceResolves()
+            val collector = launch(Dispatchers.Default) {
+                SnackbarManager.snackbar.collect { delivered ->
+                    resolveSnackbarOutcomeOrRequeue(delivered) { SnackbarResult.Dismissed }
+                }
+            }
+            delay(REFUSAL_SETTLE_MILLIS)
+            collector.cancel()
+            val joined = withTimeoutOrNull(SPIN_BUDGET_MILLIS) { collector.join() } != null
+            // Release the gate before leaving either way: a red case must not leak a hot thread
+            // into the sibling tests sharing this JVM-wide object.
+            SnackbarManager.unfenceResolves()
+            collector.join()
+            joined
+        }
+        assertTrue(
+            stoppedOnCancel,
+            "the collector kept spinning on the fenced-refusal path after cancellation",
+        )
+    }
+
     private companion object {
         const val SNACKBAR_VISIBLE_MILLIS = 1_000L
+
+        /** Real time: long enough for the collector to reach the refusal branch. */
+        const val REFUSAL_SETTLE_MILLIS = 200L
+
+        /** Real time: a cancelled collector that needs longer than this is spinning. */
+        const val SPIN_BUDGET_MILLIS = 5_000L
 
         /** One past the 16-slot buffer the queue must NOT have. */
         const val BURST_SIZE = 17

@@ -80,6 +80,7 @@ object SnackbarManager {
      * Atomically observes "no resolve in flight" and closes admission for new ones; the caller
      * bounds the suspend. GUARD: every path that does not commit MUST call [unfenceResolves].
      */
+    @SnackbarGenerationTransition
     suspend fun fenceResolves() {
         while (true) {
             resolveGate.first { gate -> gate.inFlight == 0 }
@@ -91,6 +92,7 @@ object SnackbarManager {
     }
 
     /** Reopens resolve admission — an ABORTED transition, or a completed handover. */
+    @SnackbarGenerationTransition
     fun unfenceResolves() {
         resolveGate.update { gate -> gate.copy(fenced = false) }
     }
@@ -114,6 +116,7 @@ object SnackbarManager {
      * Marks a COMMITTED generation handover; earlier-epoch models are discarded at delivery.
      * An aborted transition never advances the epoch, so its queued models still deliver.
      */
+    @SnackbarGenerationTransition
     fun advanceGenerationEpoch() {
         generationEpoch.incrementAndGet()
     }

@@ -237,6 +237,20 @@ internal class AppRuntimeReplacementTest {
     // Mandate 1 — staged source ownership at submission.
 
     @Test
+    fun `a restore submitted from inside a transaction is rejected, never deadlocked`() =
+        runtimeTest { runtime ->
+            // No caller does this today. The guard exists because `transitionMutex` is not
+            // reentrant, so without it the alternative to a typed rejection is a permanent hang:
+            // the nested submission waits on a lock its own caller is holding.
+            val result = withContext(ReplacementTransaction(nextDbGeneration = 2)) {
+                runtime.restoreFromSnapshot(File(tempDir, "nested.db"))
+            }
+
+            assertInstanceOf(DatabaseReplacementResult.RejectedBeforeMutation::class.java, result)
+            assertFalse(protocolLog.contains("swap"), "a rejected restore must not mutate")
+        }
+
+    @Test
     fun `restore stages the source at submission and cleans the staged copy on commit`() =
         runtimeTest { runtime ->
             runtime.currentGeneration

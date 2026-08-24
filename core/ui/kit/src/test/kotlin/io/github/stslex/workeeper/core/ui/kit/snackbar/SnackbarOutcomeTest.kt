@@ -23,7 +23,7 @@ import org.junit.jupiter.api.Test
  * ED11's window-close routing: «Отменить» never commits, a closed window always commits.
  * Each case asserts both lambdas, since the defect is delete-and-undo running together.
  */
-@OptIn(ExperimentalCoroutinesApi::class)
+@OptIn(ExperimentalCoroutinesApi::class, SnackbarGenerationTransition::class)
 internal class SnackbarOutcomeTest {
 
     /**
