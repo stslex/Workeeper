@@ -112,7 +112,7 @@ not a final-head label.
 
 | Gate | Forced execution | Test / artifact result | Raw device XML |
 |---|---:|---|---|
-| host build + unit + Paparazzi verify + lint + Android-test assembly | 3267/3267 tasks | 2301 `testDebugUnitTest` + 413 `testAndroidHostTest`, no skips/failures/errors; 456/456 PNGs in 13 modules; 0 movers | — |
+| host build + unit + Paparazzi verify + lint + Android-test assembly | 3267/3267 tasks | **2709 unit/host tests** — 2296 `testDebugUnitTest` + 413 `testAndroidHostTest`, no skips/failures/errors; 456/456 PNGs in 13 modules; 0 movers | — |
 | Detekt + custom rules | 59/59 tasks | 127/127 custom-rule tests; no added suppression, config or baseline | — |
 | iOS simulator compilation (`backup:api`, `core`, `database`) | 15/15 tasks | compile + Room KSP green; link/runtime remains outside Phase 5 | — |
 | API-34 Regression | 2076/2076 tasks | 81/81, no skips/failures/errors | `r5-final-regression-app-app.xml` (49), `r5-final-regression-core-data-database.xml` (30), `r5-final-regression-core-data-exercise.xml` (1), `r5-final-regression-feature-all-exercises.xml` (1) |
@@ -129,27 +129,48 @@ and task counts are the ones the run reported in the PR handoff.
 
 | Gate | Forced execution | Test / artifact result | Raw XML |
 |---|---:|---|---|
-| host build + unit + Paparazzi verify + lint + Android-test assembly | 3267/3267 tasks | **2723 unit/host tests** — 2310 `testDebugUnitTest` + 413 `testAndroidHostTest`, no skips/failures/errors; 456/456 PNGs in 13 modules; 0 movers | not retained (per-module Gradle build outputs) |
+| host build + unit + Paparazzi verify + lint + Android-test assembly | 3267/3267 tasks | **2718 unit/host tests** — 2305 `testDebugUnitTest` + 413 `testAndroidHostTest`, no skips/failures/errors; 456/456 PNGs in 13 modules; 0 movers | not retained (per-module Gradle build outputs) |
 | Detekt + custom rules | 59/59 tasks | 127/127 custom-rule tests; `53a49801..ba5d2f9a` adds no `@Suppress` and touches no detekt config or baseline | — |
 | iOS simulator compilation (`backup:api`, `core`, `database`) | 15/15 tasks | compile + Room KSP green; the three modules are byte-identical to the checkpoint at this head, and link/runtime remains outside Phase 5 | — |
 | API-34 Regression | 2076/2076 tasks | 81/81, no skips/failures/errors | not retained at this head: the emulator's per-module reports were overwritten in place by the Smoke and SameInstance runs that followed. The retained Regression XMLs are the `d869e113` checkpoint's. |
 | API-34 Smoke | 2076/2076 tasks | 44 discovered: 41 executed, 3 existing `pendingFeatureRewrite` skips, 0 failures/errors | `ba5d2f9a-smoke-*.xml` — the 11 nonzero module reports, which sum to the 44 |
 | API-34 SameInstance, two repetitions | 162/162 tasks each | 2/2 + 2/2, no skips/failures/errors | `ba5d2f9a-same-instance-core-data-database.xml` — one repetition; the emulator overwrites that report per run, so the other is not retained |
 
-The 2301 → 2310 `testDebugUnitTest` delta is the nine host tests `ba5d2f9a` adds with the closure
+The 2296 → 2305 `testDebugUnitTest` delta is the nine host tests `ba5d2f9a` adds with the closure
 itself — 6 in `RestoreRecoveryCoordinatorTest`, 2 in `StartupProcessorTest`, 1 in `AppRuntimeTest`;
 `testAndroidHostTest` stays at 413 because all nine live in an AGP module's `src/test`. The PR's
 `Unit Test Results` check reports the same +9 against `d869e113` under its own aggregation.
 
-One reconciliation on that 2310, so it is not read as a raw execution truth: summing the
-`testDebugUnitTest` reports on disk gives 2310 across 227 files, but one of those files —
-`core/core-android/build/test-results/testDebugUnitTest/…ImageStorageImplTest.xml`, 5 tests, dated
-eleven days before this head — is an orphaned build directory of a module `settings.gradle.kts` no
-longer includes (deleted in `d166da35`). This run cannot have executed it, and the same class does
-run inside the 413, as part of `core:core`'s `testAndroidHostTest`. The live-module sums are
-therefore **2718** (2305 + 413) here and **2709** (2296 + 413) at the checkpoint; both reported
-totals carry the same +5, so the +9 delta above is unaffected either way. The tables keep the
-figures the handoff reported; this note is the correction.
+Every unit/host figure in this file is a **live-module** total — modules
+`settings.gradle.kts` actually includes. That is lower than the raw on-disk arithmetic the PR
+handoff first reported, and the difference is one orphan.
+
+Summing the `testDebugUnitTest` reports on disk gives 2310 across 227 files, but one of those
+files — `core/core-android/build/test-results/testDebugUnitTest/…ImageStorageImplTest.xml`,
+5 tests, timestamped `2026-08-14T21:01:42Z`, eleven days before this head — is an orphaned build
+directory of a module `settings.gradle.kts` no longer includes (deleted in `d166da35`,
+2026-08-16). Neither run can have executed it. The same class does run inside the 413, as part of
+`core:core`'s `testAndroidHostTest` (`core/core/src/androidHostTest/…/ImageStorageImplTest.kt`,
+5 `@Test` methods). Live-module: 2310 − 5 = **2305**, so **2718** (2305 + 413) here and
+**2709** (2296 + 413) at the checkpoint.
+
+**Historical raw on-disk sums, retained for traceability only: 2723 (2310 + 413) at `ba5d2f9a`
+and 2714 (2301 + 413) at `d869e113`.** Those are what the handoff reported and what summing every
+directory on disk yields; they are NOT tests either run executed, because each carries the same
++5 orphan. That common +5 is also why the +9 delta above is identical under either reading.
+
+Measurement boundary. 2305 and 413 are summed from the XMLs the `ba5d2f9a` host run left on disk
+(226 live unit reports and 57 host reports, all timestamped 2026-08-25T14:35–14:38Z, i.e. after
+that commit). The `d869e113` figures are **not** independently re-measurable — that run's
+per-module reports were overwritten in place by the `ba5d2f9a` run — so 2296 is the handoff's
+2301 minus the same orphan. The corroboration is the **test-name** diff, not an `@Test`-annotation
+count: `git diff d869e113..ba5d2f9a -- '*Test.kt'` adds 10 `fun` names and removes 1 (a rename
+inside `RestoreRecoveryCoordinatorTest`), i.e. net +9 — an annotation-line grep would miss that
+rename entirely, because a renamed test keeps its `@Test` line as unchanged context. Neither
+`app/app` nor `feature/recovery` declares a `@ParameterizedTest` / `@RepeatedTest` / `@TestFactory`,
+so `@Test` methods map 1:1 to reported tests there, and all ten new names appear in the retained
+XMLs while the removed name appears in none — which also proves the retained run executed the
+`ba5d2f9a` tree.
 
 ## Device gates
 
@@ -172,7 +193,7 @@ checkpoint's — the final head's are in the `ba5d2f9a` section above.
 
 | Command | Exit | Executed | Tests |
 |---|---|---|---|
-| `./gradlew assembleDebug testDebugUnitTest verifyPaparazziDebug lintDebug assembleDebugAndroidTest --rerun-tasks --no-build-cache --no-configuration-cache` | 0 (`d869e113`: `BUILD SUCCESSFUL in 9m 42s`; older timings retained in git history) | `d869e113`: **3267/3267 executed**, 456/456 PNGs in 13 modules, zero movers | `d869e113`: **2714 unit/host tests** — 2301 `testDebugUnitTest` + 413 `testAndroidHostTest`, 0 skipped/failures/errors |
+| `./gradlew assembleDebug testDebugUnitTest verifyPaparazziDebug lintDebug assembleDebugAndroidTest --rerun-tasks --no-build-cache --no-configuration-cache` | 0 (`d869e113`: `BUILD SUCCESSFUL in 9m 42s`; older timings retained in git history) | `d869e113`: **3267/3267 executed**, 456/456 PNGs in 13 modules, zero movers | `d869e113`: **2709 unit/host tests** — 2296 `testDebugUnitTest` + 413 `testAndroidHostTest`, 0 skipped/failures/errors |
 | `./gradlew detekt :lint-rules:test --rerun-tasks --no-build-cache --no-configuration-cache` | 0 (`d869e113` forced rerun) | `d869e113`: **59/59 executed**; diff from `53a49801` adds no `@Suppress` and touches no detekt config or baseline | 127 custom-rule tests, 0 skipped/failures/errors |
 | `./gradlew :core:data:backup:api:compileKotlinIosSimulatorArm64 :core:core:compileKotlinIosSimulatorArm64 :core:data:database:compileKotlinIosSimulatorArm64 --rerun-tasks …` | 0 (`d869e113`: **15/15 executed**) | every affected KMP module, including Room KSP for `database` | — |
 

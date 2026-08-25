@@ -823,3 +823,11 @@ discarded: the Store scope's Job WAS the LifecycleOwner's `lifecycleScope` Job, 
 `lifecycleScope`. Behavior had been like this throughout Nav3 operation with every suite green
 against it, and Phase 5 first scoped it out as an unrelated bug. Recorded so the next Store-scope
 change starts from the measured fact, not the written intent.
+
+---
+
+## Dead restart surface in `feature/settings` — `Action.Navigation.RestartApp` has no emitter (KMP Phase 5, 2026-08-25)
+
+| Severity | Location | Description |
+|---|---|---|
+| 🟢 | [feature/settings/.../mvi/store/SettingsStore.kt](../feature/settings/src/main/kotlin/io/github/stslex/workeeper/feature/settings/mvi/store/SettingsStore.kt), [.../mvi/handler/SettingsNavigationHandler.kt](../feature/settings/src/main/kotlin/io/github/stslex/workeeper/feature/settings/mvi/handler/SettingsNavigationHandler.kt) | Phase 5 moved the post-restore restart into `AppRuntime` (`ReplacementPolicy.RestartProcess` → host-owned `AppReinitializer`), and deleted `BackupClickHandler.scheduleAppRestart` and its `RESTART_DELAY_MS` hop with it. Three Kotlin declarations survived the move with **no production emitter**: `SettingsStore.Action.Navigation.RestartApp`, the `Action.Navigation.RestartApp -> navigator.restartApp()` branch in `SettingsNavigationHandler`, and — transitively — `Navigator.restartApp()` / `NavigatorEventBus.restartApp()`, whose only caller was that branch. `grep -rn 'Navigation.RestartApp' --include='*.kt'` at `345cad31` returns exactly one hit: the handler branch that consumes it. **They are not the restore protocol** — see [architecture.md → Destructive app-restart through the `AppReinitializer` seam](architecture.md#destructive-app-restart-through-the-appreinitializer-seam). Left in place deliberately: the Phase 5 documentation-truth pass was Markdown-only, and removing them touches a Store contract, a `Handler` `when` exhaustiveness, the `Navigator` interface and the settings handler tests. **Trigger to act:** the next change that opens `SettingsStore.Action.Navigation` or the `Navigator` interface for another reason — drop the variant, the branch, and (if still callerless then) the two `restartApp()` members in the same commit. Recovery's own `RestoreRecoveryCoordinator.restartApp()` is a different, live call site and stays.

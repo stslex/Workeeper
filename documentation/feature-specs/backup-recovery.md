@@ -441,17 +441,34 @@ recovery-extracts itself from app/app).
 | `performUndoRestore()` | `feature/recovery/RestoreDialogChoiceObserver.handleUndoConfirmation` reacting to `AppDialogObserver` → `RestoreRecoveryCoordinator.performUndoRestore()` |
 | `publishUndoConfirmation()` | Already in `feature/settings/.../BackupClickHandler.requestRevertLastRestore` (the publishing producer is the click site; recovery does not need its own publish entry point) |
 | `exportRestoreDiagnostics()` | `feature/recovery/RestoreDialogChoiceObserver.exportRestoreDiagnostics` reacting to `AppDialogObserver` → `RecoveryDiagnosticsExporter.exportRestoreFailure(...)` → `RestoreDialogChoiceObserver.shareDiagnostics(uri)` |
-| `restartApp()` | Settings/Scenario-3 producer side dispatches `NavCommand.RestartApp` through `Navigator`. Bootstrap (`BaseApplication.onCreate` after Scenario 1 rollback) and consumer-side (`RestoreDialogChoiceObserver` after `UndoRestoreOutcome.Succeeded`) call `RestoreRecoveryCoordinator.restartApp()` directly — Option Y: the `MutableSharedFlow(replay = 0)` bus drops emissions with no live subscriber, so non-Composable call sites must go direct-Intent. |
+| `restartApp()` | `RestoreRecoveryCoordinator.restartApp()`, a one-line delegation to the injected `AppReinitializer` seam (`core/core/.../platform/`). Bootstrap (`BaseApplication.onCreateGraphBootstrap`, when `StartupProcessor.coldStart` returns `RestartRequired`) and consumer-side (`RestoreDialogChoiceObserver`, after an undo resolves `Succeeded` **or** `RecoveryRequired`) call it directly — Option Y: the `MutableSharedFlow(replay = 0)` bus drops emissions with no live subscriber, so non-Composable call sites must not route through it. The **Settings restore path does not call it at all**; that restart is runtime-owned (below). |
 | `openReportIssue(context)` free function in host | `feature/recovery/RestoreDialogChoiceObserver.openReportIssue` — wraps `Intent.ACTION_VIEW` with `@ApplicationContext` injected |
 | `shareDiagnostics(context, uri)` free function in host | `feature/recovery/RestoreDialogChoiceObserver.shareDiagnostics` — wraps `Intent.ACTION_SEND` chooser with `@ApplicationContext` injected |
 
-`feature/recovery`'s `RestoreDialogChoiceObserver` injects only
-`@ApplicationContext` for all side effects: restart goes through
-`RestoreRecoveryCoordinator.restartApp()` (in-class Intent-launch);
-issue tracker and share chooser are inline private methods. The
-`Navigator` interface stays UI-neutral — it does NOT learn about issue
-trackers or share chooser intents; those are recovery-specific and live
-inside the recovery feature.
+`feature/recovery`'s `RestoreDialogChoiceObserver` injects
+`@ApplicationContext` for its issue-tracker and share-chooser intents, which
+are inline private methods. Restart is **not** one of them: it goes through
+`RestoreRecoveryCoordinator.restartApp()`, which is exactly
+`appReinitializer.reinitialize()` — the coordinator builds no `Intent` and
+imports no `android.*`. The `Navigator` interface stays UI-neutral — it does
+NOT learn about issue trackers or share chooser intents; those are
+recovery-specific and live inside the recovery feature.
+
+**Runtime-owned restart (the Settings restore path).** Since Phase 5 the
+restore restart is not dispatched by any feature at all. `AppRuntime` runs the
+swap under `ReplacementPolicy.RestartProcess`: it publishes `Transitioning`,
+quiesces UI / worker / snackbar admission through `GenerationQuiescer.quiesce`
+(each wait bounded by a timeout, and a failure unwinds to `Serving` before the
+point of no return), claims the mutation durably, then closes and replaces the
+live file in `runRestartProcessSwap` without building a candidate generation.
+After **every** post-PONR outcome — `Completed` and `FailedAfterMutation`
+alike — `restartAfterPonr` invokes the host-owned
+`RuntimeTransitionPolicy.restartProcess`, wired in `BaseApplication` to
+`AppReinitializer(applicationContext).reinitialize()`. There is no delay hop
+and no feature coroutine to outlive the swap; a restart hook that throws makes
+the delivered outcome `Fatal`. See `architecture.md` → "Destructive app-restart
+through the `AppReinitializer` seam" and
+`kmp-phase-5-startup-processor.md` §8.4.
 
 The canonical project NavigationHandler pattern is Store-tied (consumes
 `Action.Navigation.*` from a feature's MVI Store flow). `feature/recovery`
@@ -472,16 +489,25 @@ sealed interface NavCommand {
     data class NavTo(val screen: Screen) : NavCommand
     data class ReplaceTo(val screen: Screen) : NavCommand
     data object PopBack : NavCommand
-    data object RestartApp : NavCommand
+    data class PopBackWithResult(val key: String, val result: Any) : NavCommand
     data object OpenRecovery : NavCommand        // new
 }
 
 interface Navigator {
-    fun navTo(screen: Screen); fun popBack(...); fun replaceTo(...)
+    fun navTo(screen: Screen); fun popBack(); fun replaceTo(...)
+    fun <S, R : Any> popBackWithResult(destination: KClass<S>, result: R)
     fun restartApp()
-    fun openRecovery()                            // new — symmetric with restartApp()
+    fun openRecovery()                            // symmetric with restartApp()
 }
 ```
+
+There is **no** `NavCommand.RestartApp`: restart never travels over the bus, so
+it has no command variant to drop. `Navigator.restartApp()` survives on the
+interface and still resolves the `AppReinitializer` seam directly, but nothing
+reaches it any more — its one call site, the `Action.Navigation.RestartApp`
+branch in `SettingsNavigationHandler`, is unreachable because no producer emits
+that action. The recovery paths call the coordinator; the restore path is
+runtime-owned.
 
 `NavigatorExt.processCommand` handles `OpenRecovery` by launching the
 RecoveryActivity FQCN; the FQCN lives in `feature/recovery` and is
@@ -1073,7 +1099,9 @@ independently when their typed state permits sharing.
 - [`.claude/skills/add-database-migration.md`](../../.claude/skills/add-database-migration.md)
   — the procedural recipe for writing a `Migration` object and its test.
   Recovery's CI-enforced migration test follows this pattern.
-- [architecture.md → Destructive app-restart through the bus](../architecture.md#destructive-app-restart-through-the-bus)
-  — the `navigator.restartApp()` mechanism used by Scenarios 1 and 3.
+- [architecture.md → Destructive app-restart through the `AppReinitializer` seam](../architecture.md#destructive-app-restart-through-the-appreinitializer-seam)
+  — the runtime-owned restart on the restore path, and the direct
+  `AppReinitializer` calls Scenarios 1 and 3 make through
+  `RestoreRecoveryCoordinator.restartApp()`.
 - [architecture.md → Room database](../architecture.md) — Migration policy
   background, schema snapshot location.

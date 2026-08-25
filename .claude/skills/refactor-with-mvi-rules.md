@@ -213,12 +213,18 @@ The rules:
 
 - **Navigation decisions belong to Store/Handler.** The Store dispatches
   `Action.Navigation.<X>`; the feature's `NavigationHandler` calls
-  `navigator.navTo(...)` / `navigator.replaceTo(...)` / `navigator.popBack(...)` /
-  `navigator.restartApp()`.
-- **Navigation execution belongs to the App/UI bridge.** The actual
-  `NavController.navigate(...)` / `popBackStack(...)` / process-restart calls live
-  ONLY in `app/common/.../navigation/NavigatorExt.kt::NavigationEventBusSetup`.
-  Nowhere else.
+  `navigator.navTo(...)` / `navigator.replaceTo(...)` / `navigator.popBack(...)`.
+  (`navigator.restartApp()` is on the interface but has no live producer — do not
+  add one; restart is runtime-owned.)
+- **Navigation execution belongs to the App/UI bridge.** The actual back-stack
+  operations live ONLY in
+  `app/common/.../navigation/NavigatorExt.kt::NavigationEventBusSetup`. Nowhere else.
+  **Process restart is the exception and is not a bridge concern:** `NavigatorExt`
+  contains no restart code at all. `NavigatorEventBus.restartApp()` invokes the
+  injected `AppReinitializer` seam directly, bypassing the `replay = 0` bus, and
+  since Phase 5 the restore restart is owned by `AppRuntime` — no production code
+  reaches `Navigator.restartApp()`. See
+  [architecture.md → Destructive app-restart](../../documentation/architecture.md#destructive-app-restart-through-the-appreinitializer-seam).
 - **`Navigator` is a command-bus abstraction.** The app-scoped implementation is
   `NavigatorEventBus` (`app/common/.../navigation/NavigatorEventBus.kt`), bound as
   `@SingleIn(AppScope) @ContributesBinding(AppScope, binding<Navigator>()) @Inject`.

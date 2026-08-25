@@ -1,7 +1,11 @@
 # Drive backup audit — basis for an "AI-readable Drive snapshot" enhancement
 
-**Status:** read-only audit. This document describes the *existing* Google Drive backup/restore
-implementation as of the current working tree. It designs nothing and changes no code.
+**Status:** read-only audit, **frozen at the tree it was taken against**. It designs nothing and
+changes no code, and it is NOT re-verified on every head — the backup/restore internals it
+describes predate the KMP Phase 5 runtime work (PR #252), so treat cited line numbers and the
+restore/restart mechanics as historical unless a bullet says otherwise. `architecture.md` and
+`feature-specs/backup-recovery.md` are the current truth for those. The three blockers this audit
+exists to establish (TL;DR below, evidence in §6) are unaffected.
 
 **Method:** every finding was read from source and is tagged `CONFIRMED` (read directly in source),
 `PARTIAL` (some evidence, gaps noted), or `NOT FOUND`. Symbol locations were found by searching the
@@ -210,10 +214,18 @@ deserialization and no text/JSON read path anywhere.
   restart.
 - **Scenario 3 undo (`performUndoRestore`, :104–121).** `rollbackToPreRestoreBackup()` →
   `AppDialog.UndoRestoreSuccess` → restart.
-- UI side: `BackupClickHandler.confirmRestore()` drives the restore then `scheduleAppRestart()` after a
-  2 s delay. `feature/settings/.../mvi/handler/BackupClickHandler.kt:322–401`.
-- `restartApp()` relaunches the package with `NEW_TASK|CLEAR_TASK` and `Runtime.exit(0)`.
-  `RestoreRecoveryCoordinator.kt:122–186`.
+- UI side: `BackupClickHandler.confirmRestore()` drives the restore and nothing else.
+  `feature/settings/.../mvi/handler/BackupClickHandler.kt:414–459`.
+  **Superseded (KMP Phase 5, PR #252):** this bullet previously read
+  "… then `scheduleAppRestart()` after a 2 s delay". `scheduleAppRestart` and its
+  `RESTART_DELAY_MS` hop are deleted; the restore restart is now owned by `AppRuntime`
+  under `ReplacementPolicy.RestartProcess`, which invokes the host-owned `AppReinitializer`
+  after the swap. See `architecture.md` → "Destructive app-restart through the
+  `AppReinitializer` seam".
+- `RestoreRecoveryCoordinator.restartApp()` is a one-line delegate to that same seam
+  (`RestoreRecoveryCoordinator.kt:606`); the `NEW_TASK|CLEAR_TASK` relaunch plus
+  `Runtime.getRuntime().exit(0)` lives in
+  `core/core/src/androidMain/.../platform/AppReinitializer.kt`, not in the coordinator.
 
 **Error taxonomy** (the typed contract both backup and restore speak):
 `NotAuthenticated`, `NetworkUnavailable`, `AuthRevoked`, `MissingRequiredScope`,

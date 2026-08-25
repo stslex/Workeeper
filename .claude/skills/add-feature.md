@@ -536,7 +536,8 @@ The shape:
 2. The `StoreImpl.handlerCreator` routes that action to the feature's
    `NavigationHandler` (typically `is Action.Navigation -> navigationHandler`).
 3. `NavigationHandler` calls `navigator.navTo(Screen.X)`, `navigator.replaceTo(Screen.X)`,
-   `navigator.popBack(...)`, or `navigator.restartApp()`.
+   or `navigator.popBack(...)`. (`navigator.restartApp()` also exists but is NOT part of
+   this flow — it bypasses the bus and has no live producer; restart is runtime-owned.)
 4. `NavigatorEventBus` (the app-scoped implementation of `Navigator`) emits a
    `NavCommand` on its internal `SharedFlow`.
 5. The App/UI bridge (`NavigatorExt.NavigationEventBusSetup`) collects the command

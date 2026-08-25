@@ -856,14 +856,21 @@ constructor-injects an `AppReinitializer` (an expect/actual class in
 cold-starts the app from a fresh process: it
 relaunches the launcher intent with
 `FLAG_ACTIVITY_NEW_TASK | FLAG_ACTIVITY_CLEAR_TASK` on the **application**
-`Context` and calls `Runtime.exit(0)`. It exists because some operations
-(e.g. a Room database file swap after a Drive backup restore) invalidate the
-in-process DAO graph and singletons, and the only safe recovery is a full
-process restart. Restart bypasses the bus on purpose: the bus is `replay = 0`,
-so a command emitted while no bridge subscriber is attached would be silently
-dropped — resolving the seam directly removes that hazard. Feature code never
-imports `Context` or `Intent` to do this — it just calls
-`navigator.restartApp()` like any other command.
+`Context` and calls `Runtime.exit(0)`. Restart bypasses the bus on purpose:
+the bus is `replay = 0`, so a command emitted while no bridge subscriber is
+attached would be silently dropped — resolving the seam directly removes that
+hazard. Feature code never imports `Context` or `Intent` to do this — it just
+calls `navigator.restartApp()` like any other command.
+
+The seam exists because a Room database-file swap after a Drive backup restore
+invalidates the in-process DAO graph and singletons, and on Android the only
+safe recovery is a full process restart. Since Phase 5 that restore restart is
+driven by `AppRuntime`, not by this `Navigator` method. The one production call
+site left — the `Action.Navigation.RestartApp` branch in
+`SettingsNavigationHandler` — is **unreachable**, because nothing emits that
+action. See
+[Destructive app-restart through the `AppReinitializer` seam](#destructive-app-restart-through-the-appreinitializer-seam)
+for the live path and for the dead Settings action still routed here.
 
 ### `NavigatorEventBus` (singleton command bus implementation)
 
@@ -1203,64 +1210,117 @@ restore that swaps the live database file via the runtime-owned
 every already-resolved DAO points at a terminal handle, so on Android
 production only a cold start recovers correctness (`RestartProcess` policy).
 
-The pattern still expresses restart as a `Navigator` call (not a feature-local
-helper), but — unlike the back-stack commands — it resolves to a direct seam
-invocation rather than a bus emission:
+**The restore restart is runtime-owned.** No MVI action, no `Navigator` call
+and no feature coroutine is on that path. What the code in `app/app/.../runtime/`
+actually does, under `ReplacementPolicy.RestartProcess`:
 
-1. The feature's domain/MVI layer (e.g. `BackupClickHandler` after a
-   successful restore) emits `Action.Navigation.RestartApp` via
-   `consume(Action.Navigation.RestartApp)` — typically wrapped in a
-   `delay(RESTART_DELAY_MS)` so the success snackbar / "Completed" UI state
-   has a chance to render.
-2. The feature's `NavigationHandler` adds a single `when` branch:
+1. `AppRuntime.executeRestartProcessTransaction` calls `publishTransitioning()`,
+   moving the published pair to `RuntimePhase.Transitioning` /
+   `AppUiPhase.Transitioning`.
+2. It calls `GenerationQuiescer.quiesce(outgoing)`: retire UI admission
+   atomically with the zero-token observation, close worker admission and await
+   the admitted leases, then drain and fence snackbar routing. Each step is
+   **bounded by a timeout** (`uiDisposalTimeoutMillis`, default 5 s;
+   `drainTimeoutMillis`, default 10 s) and each can fail. A failure is still
+   pre-PONR, so it unwinds through `quiescer.reopen` back to `Serving(genN)`
+   and returns `RejectedBeforeMutation`. Quiescence is a **reversible fence
+   with a bounded wait**, not a guarantee that the fence always closes.
+3. `claimMutationAfterQuiesce` persists the durable claim. That is the point of
+   no return; an ambiguous claim publishes `Fatal`.
+4. `runRestartProcessSwap` (`ReplacementMechanics.kt`) marks the tracker
+   crossed, closes the outgoing database, replaces the live file, and commits.
+   No candidate generation is built — success is
+   `ReplacementOutcome.Completed(generation = null)`. A close, replace or
+   commit failure is `FailedAfterMutation`, which preserves the journal and the
+   exact recovery assets.
+5. Back in `AppRuntime.replace`, terminal effects run under the transition
+   mutex and set `restartTerminal`. Then, for **every** post-PONR outcome under
+   this policy — success and `FailedAfterMutation` alike — `restartAfterPonr`
+   invokes `RuntimeTransitionPolicy.restartProcess`. `BaseApplication` wires
+   that seam to `AppReinitializer(applicationContext).reinitialize()`, so the
+   restart belongs to the host and not to a UI coroutine that can die with the
+   screen. In production it does not return; if it throws, the delivered
+   outcome becomes `Fatal` carrying the restart error and the runtime publishes
+   `Fatal`.
 
-   ```kotlin
-   Action.Navigation.RestartApp -> navigator.restartApp()
-   ```
+The Android `AppReinitializer` actual relaunches the package's launch intent
+(`FLAG_ACTIVITY_NEW_TASK | CLEAR_TASK`) on the application `Context` and calls
+`Runtime.getRuntime().exit(0)`. iOS has no self-restart API, so its actual
+delegates to the root-bound `AppReinitializationHost` — an in-process
+runtime-generation rebuild. That rebuild puts a SECOND generation in one
+process, which every app-scoped `DataStore` holder must survive: mint through
+`DataStoreProvider`'s process-lifetime memoization, never per-instance, or
+the second generation breaks silently rather than loudly. A holder that
+mints its own store re-breaks the rebuild without failing any existing test
+but `app/app` androidTest `AppScopeDataStoreSingletonTest`.
 
-3. `NavigatorEventBus.restartApp()` invokes the constructor-injected
-   `AppReinitializer` seam directly — `appReinitializer.reinitialize()` —
-   rather than emitting a `NavCommand`. Restart is terminal and
-   platform-owned, so it bypasses the `replay = 0` bus, which would silently
-   drop the command when no bridge subscriber is attached.
-4. The Android `AppReinitializer` actual relaunches the
-   package's launch intent (`FLAG_ACTIVITY_NEW_TASK | CLEAR_TASK`) on the
-   application `Context` and calls `Runtime.getRuntime().exit(0)`. iOS has no
-   self-restart API, so its actual delegates to the root-bound
-   `AppReinitializationHost` — an in-process runtime-generation rebuild.
-   That rebuild puts a SECOND generation in one process, which every
-   app-scoped `DataStore` holder must survive: mint through
-   `DataStoreProvider`'s process-lifetime memoization, never per-instance, or
-   the second generation breaks silently rather than loudly. A holder that
-   mints its own store re-breaks the rebuild without failing any existing test
-   but `app/app` androidTest `AppScopeDataStoreSingletonTest`.
+There is **no delay** anywhere on this path. `restartAfterPonr` runs *before*
+`inFlight.outcome.complete(deliveredOutcome)`, and `replace` returns that
+deferred's `await()` — so on a committed restore the submitting caller never
+observes a result at all. `BackupClickHandler`'s success branch still writes
+`RestoreProgressUi.Completed` into `State`, but on Android production
+`reinitialize()` does not return, so that branch is unreachable for a committed
+restore; it is reached only when a test seam's restart hook returns. Nothing in
+the runtime waits for a frame, and the code proves no window in which a success
+frame is rendered.
 
-What this pattern replaces — and why:
+Three recovery call sites invoke the seam directly, outside the replacement
+transaction:
 
-- An older revision shipped a feature-local `restartApp(context: Context)`
+- `BaseApplication.onCreateGraphBootstrap`, when `StartupProcessor.coldStart`
+  returns `StartupOutcome.RestartRequired`, calls
+  `appGraph.restoreRecoveryCoordinator.restartApp()`.
+- `feature/recovery`'s `RestoreDialogChoiceObserver` calls
+  `coordinator.restartApp()` after an undo resolves to `Succeeded` or
+  `RecoveryRequired`.
+- `RecoveryActivityState.confirmContinue()` calls the injected
+  `appReinitializer.reinitialize()` itself, as the last action inside
+  `withContext(NonCancellable)` after `abandonInterruptedAttempt` succeeds
+  (reached from `RecoveryActivity`'s `onConfirmContinue`).
+
+The first two land on `RestoreRecoveryCoordinator.restartApp() =
+appReinitializer.reinitialize()`; the coordinator holds no `Context` and
+imports no `android.*`. Together with the runtime's post-PONR
+`restartProcess` hook, these are the **only** four production paths into
+`reinitialize()` — none of them through `Navigator`.
+
+`Navigator.restartApp()` still exists and still bypasses the `replay = 0`
+command bus, invoking the injected `AppReinitializer` directly rather than
+emitting a `NavCommand` (see the `NavigatorEventBus` section above);
+`SettingsNavigationHandler` still routes
+`Action.Navigation.RestartApp -> navigator.restartApp()`. **Nothing emits that
+action.** `SettingsStore.Action.Navigation.RestartApp` and its handler branch
+are dead Kotlin surface the restore-path correction left behind — deliberately
+not removed in this documentation pass, tracked for cleanup in
+[tech-debt.md](tech-debt.md). They are **not** the restore protocol; treat the
+runtime sequence above as the only live restart path for restore.
+
+What this replaces — and why:
+
+- The revision before Phase 5 restarted from the feature side:
+  `BackupClickHandler` slept a `RESTART_DELAY_MS` hop after a successful
+  restore and then emitted `Action.Navigation.RestartApp`, so restart depended
+  on a Settings coroutine outliving the swap and on no admission being reopened
+  in between. Both the delay and its scheduler are deleted; the runtime
+  publishes `Transitioning` and quiesces before its swap instead. See
+  `feature-specs/kmp-phase-5-startup-processor.md` §18 for the measured record
+  of that window.
+- An older revision still shipped a feature-local `restartApp(context: Context)`
   helper invoked from `SettingsGraph.kt` in response to an
-  `Event.AppRestartRequested`. That pushed an `Activity`/`Context`
-  dependency into a feature module and forked the "execute a side effect
-  that touches the framework" surface in two: most navigation went through
-  the bus, restart went through an Event. Promoting restart into
-  `Navigator.restartApp()` re-unifies the surface: every navigation-shaped
-  side effect is expressed as a `Navigator` call, and no feature module
-  imports `Context` / `Runtime` / `Intent` for navigation purposes. The
-  back-stack commands are `NavCommand`s translated by `NavigatorExt`; process
-  restart resolves to the `AppReinitializer` seam (`reinitialize()`), keeping
-  both the framework `Context` and the process-kill primitive out of feature
-  and domain code.
-- `Event.AppRestartRequested` is intentionally not part of the contract —
-  app restart is a navigation **decision**, not a UI-side effect. Encoding it
-  as an `Action.Navigation` variant means the same MVI rules apply
-  (Handler-routed, JVM-unit-testable by mocking `Navigator`).
+  `Event.AppRestartRequested`. That pushed an `Activity`/`Context` dependency
+  into a feature module. The seam keeps both the framework `Context` and the
+  process-kill primitive out of feature and domain code, wherever the call
+  originates.
 
 Reference implementation:
-`feature/settings/.../mvi/handler/BackupClickHandler.kt::scheduleAppRestart`
-(producer), `feature/settings/.../mvi/handler/SettingsNavigationHandler.kt`
-(router), `app/common/.../navigation/NavigatorEventBus.kt::restartApp`
-(seam dispatch), and
-`core/core/src/androidMain/.../platform/AppReinitializer.kt::reinitialize` (executor).
+`app/app/.../runtime/AppRuntime.kt::executeRestartProcessTransaction` and
+`::replace` (policy, ordering, post-PONR restart),
+`app/app/.../runtime/ReplacementMechanics.kt::runRestartProcessSwap` /
+`::restartAfterPonr` (swap and restart invocation),
+`app/app/.../runtime/GenerationQuiescer.kt::quiesce` (admission fence),
+`app/app/.../BaseApplication.kt` (`restartProcess` wiring), and
+`core/core/src/androidMain/.../platform/AppReinitializer.kt::reinitialize`
+(executor).
 
 ### Navigation results
 
