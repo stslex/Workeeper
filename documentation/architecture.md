@@ -859,8 +859,12 @@ relaunches the launcher intent with
 `Context` and calls `Runtime.exit(0)`. Restart bypasses the bus on purpose:
 the bus is `replay = 0`, so a command emitted while no bridge subscriber is
 attached would be silently dropped — resolving the seam directly removes that
-hazard. Feature code never imports `Context` or `Intent` to do this — it just
-calls `navigator.restartApp()` like any other command.
+hazard. Feature code never imports `Context` or `Intent` to do this. It no
+longer calls `navigator.restartApp()` either: the one surviving branch that
+does, in `SettingsNavigationHandler`, is **dead surface** with no producer. Every
+live restart path goes elsewhere — `AppRuntime` for the restore swap,
+`RestoreRecoveryCoordinator` for cold-start rollback and undo, or
+`AppReinitializer` invoked directly from `RecoveryActivityState`.
 
 The seam exists because a Room database-file swap after a Drive backup restore
 invalidates the in-process DAO graph and singletons, and on Android the only

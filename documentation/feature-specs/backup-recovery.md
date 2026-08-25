@@ -442,12 +442,20 @@ recovery-extracts itself from app/app).
 | `publishUndoConfirmation()` | Already in `feature/settings/.../BackupClickHandler.requestRevertLastRestore` (the publishing producer is the click site; recovery does not need its own publish entry point) |
 | `exportRestoreDiagnostics()` | `feature/recovery/RestoreDialogChoiceObserver.exportRestoreDiagnostics` reacting to `AppDialogObserver` → `RecoveryDiagnosticsExporter.exportRestoreFailure(...)` → `RestoreDialogChoiceObserver.shareDiagnostics(uri)` |
 | `restartApp()` | `RestoreRecoveryCoordinator.restartApp()`, a one-line delegation to the injected `AppReinitializer` seam (`core/core/.../platform/`). Bootstrap (`BaseApplication.onCreateGraphBootstrap`, when `StartupProcessor.coldStart` returns `RestartRequired`) and consumer-side (`RestoreDialogChoiceObserver`, after an undo resolves `Succeeded` **or** `RecoveryRequired`) call it directly — Option Y: the `MutableSharedFlow(replay = 0)` bus drops emissions with no live subscriber, so non-Composable call sites must not route through it. The **Settings restore path does not call it at all**; that restart is runtime-owned (below). |
-| `openReportIssue(context)` free function in host | `feature/recovery/RestoreDialogChoiceObserver.openReportIssue` — wraps `Intent.ACTION_VIEW` with `@ApplicationContext` injected |
-| `shareDiagnostics(context, uri)` free function in host | `feature/recovery/RestoreDialogChoiceObserver.shareDiagnostics` — wraps `Intent.ACTION_SEND` chooser with `@ApplicationContext` injected |
+| `openReportIssue(context)` free function in host | `feature/recovery/RestoreDialogChoiceObserver.openReportIssue` — wraps `Intent.ACTION_VIEW` with the injected app-scoped `Context` |
+| `shareDiagnostics(context, uri)` free function in host | `feature/recovery/RestoreDialogChoiceObserver.shareDiagnostics` — wraps `Intent.ACTION_SEND` chooser with the same injected app-scoped `Context` |
 
-`feature/recovery`'s `RestoreDialogChoiceObserver` injects
-`@ApplicationContext` for its issue-tracker and share-chooser intents, which
-are inline private methods. Restart is **not** one of them: it goes through
+`feature/recovery`'s `RestoreDialogChoiceObserver` constructor-injects a plain,
+**unqualified** `Context`, used only by its issue-tracker and share-chooser
+intents, which are inline private methods. There is no `@ApplicationContext`
+qualifier — that annotation is a Hilt idiom and no production source names it
+(the historical DI sample later in this document still shows it). The
+application-lifetime guarantee comes from scope instead: the class is
+`@SingleIn(AppScope::class) @ContributesBinding(AppScope::class)`, and the
+app-scope graph supplies the application `Context`. It must stay that way — an
+`Activity` `Context` bound here would outlive its host and leak.
+
+Restart is **not** one of those side effects: it goes through
 `RestoreRecoveryCoordinator.restartApp()`, which is exactly
 `appReinitializer.reinitialize()` — the coordinator builds no `Intent` and
 imports no `android.*`. The `Navigator` interface stays UI-neutral — it does
@@ -474,8 +482,8 @@ The canonical project NavigationHandler pattern is Store-tied (consumes
 `Action.Navigation.*` from a feature's MVI Store flow). `feature/recovery`
 is intentionally Store-less per Phase 0 — there is no Store to dispatch
 through — so the consumer-side reactor is shaped as a SharedFlow Observer
-with `@ApplicationContext` injection instead. This is a deliberate
-divergence from the canonical pattern, not an oversight.
+holding the app-scoped `Context` instead. This is a deliberate divergence from
+the canonical pattern, not an oversight.
 
 ### NavCommand additions
 
