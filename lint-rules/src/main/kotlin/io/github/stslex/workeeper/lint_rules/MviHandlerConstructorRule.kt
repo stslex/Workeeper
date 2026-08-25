@@ -10,12 +10,8 @@ import io.gitlab.arturbosch.detekt.api.Severity
 import org.jetbrains.kotlin.psi.KtClass
 
 /**
- * Rule to ensure MVI Handlers use constructor injection
- *
- * Handlers should:
- * - Have @Inject annotation on primary constructor
- * - Implement Handler<ActionType> interface
- * - Not have empty constructors
+ * MVI Handlers use constructor injection: `@Inject` on a non-empty primary constructor of a
+ * `*Handler` implementing `Handler<A>`. See documentation/lint-rules.md.
  */
 class MviHandlerConstructorRule(
     config: Config = Config.empty,
@@ -33,17 +29,14 @@ class MviHandlerConstructorRule(
 
         val className = klass.name ?: return
 
-        // Skip test classes
         if (klass.containingKtFile.virtualFilePath.contains("/test/")) {
             return
         }
 
-        // Check if this is a Handler class
         if (!className.endsWith("Handler") || klass.isInterface()) {
             return
         }
 
-        // Check if it implements Handler interface
         val implementsHandler = klass.superTypeListEntries.any {
             it.text.contains("Handler")
         }
@@ -52,7 +45,6 @@ class MviHandlerConstructorRule(
             return
         }
 
-        // Check primary constructor
         val primaryConstructor = klass.primaryConstructor
         if (primaryConstructor == null) {
             report(
@@ -65,12 +57,10 @@ class MviHandlerConstructorRule(
             return
         }
 
-        // Check for @Inject annotation
         val hasInject = primaryConstructor.annotationEntries.any {
             it.shortName?.asString() == "Inject"
         }
 
-        // Skip @Inject requirement for NavigationHandler
         if (!hasInject && className != "NavigationHandler") {
             report(
                 CodeSmell(
@@ -81,7 +71,6 @@ class MviHandlerConstructorRule(
             )
         }
 
-        // Check if constructor has parameters
         val hasParameters = primaryConstructor.valueParameters.isNotEmpty()
         if (!hasParameters) {
             report(

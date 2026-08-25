@@ -63,14 +63,14 @@ class BackupScheduler(
             .build()
 
         workManager.enqueueUniquePeriodicWork(
-            UNIQUE_PERIODIC_NAME,
+            UNIQUE_PERIODIC_WORK_NAME,
             ExistingPeriodicWorkPolicy.UPDATE,
             request,
         )
     }
 
     override suspend fun cancelPeriodic() {
-        workManager.cancelUniqueWork(UNIQUE_PERIODIC_NAME)
+        workManager.cancelUniqueWork(UNIQUE_PERIODIC_WORK_NAME)
     }
 
     override suspend fun enqueueOneTime() {
@@ -89,26 +89,24 @@ class BackupScheduler(
             .setConstraints(constraints)
             .build()
         workManager.enqueueUniqueWork(
-            UNIQUE_ONE_TIME_NAME,
+            UNIQUE_ONE_TIME_WORK_NAME,
             ExistingWorkPolicy.KEEP,
             request,
         )
     }
 
     override fun observePeriodicStatus(): Flow<List<AutoBackupWorkInfo>> = workManager
-        .getWorkInfosForUniqueWorkFlow(UNIQUE_PERIODIC_NAME)
+        .getWorkInfosForUniqueWorkFlow(UNIQUE_PERIODIC_WORK_NAME)
         .map { infos -> infos.map(WorkInfo::toAutoBackupInfo) }
 
     override fun observeOneTimeStatus(): Flow<List<AutoBackupWorkInfo>> = workManager
-        .getWorkInfosForUniqueWorkFlow(UNIQUE_ONE_TIME_NAME)
+        .getWorkInfosForUniqueWorkFlow(UNIQUE_ONE_TIME_WORK_NAME)
         .map { infos -> infos.map(WorkInfo::toAutoBackupInfo) }
 
     private fun BackupPreferences.networkType(): NetworkType =
         if (allowOnMobileData) NetworkType.CONNECTED else NetworkType.UNMETERED
 
     private companion object {
-        const val UNIQUE_PERIODIC_NAME = "auto_backup"
-        const val UNIQUE_ONE_TIME_NAME = "one_time_backup"
         const val LEGACY_ONE_TIME_NAME = "manual_backup"
         const val DAILY_INTERVAL_DAYS = 1L
         const val WEEKLY_INTERVAL_DAYS = 7L

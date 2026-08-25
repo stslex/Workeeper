@@ -4,6 +4,7 @@ package io.github.stslex.workeeper.di
 import android.content.Context
 import dev.zacsweers.metro.asContribution
 import dev.zacsweers.metro.createGraphFactory
+import io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetime
 import io.github.stslex.workeeper.feature.settings.di.SettingsGraph
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
@@ -18,33 +19,12 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
 /**
- * Replaces the former feature-module `SettingsGraphBridgeTest` (a `@GraphExtension` cannot be created
- * standalone, so the assertion must run where the parent [AppGraph] is compiled — here, `:app`).
- *
- * settings is the arc's widest graph: 18 formerly hand-threaded `@Provides` bound instances, now all
- * inherited. The two properties the old bridge test pinned did not go away when the factory params did —
- * they got HARDER to verify, because inheritance across a graph boundary is implicit where a
- * `create(...)` argument list was explicit. Both are re-pinned here, against the real parent graph:
- *
- *  1. **Qualified-dispatcher pair.** settings reads `@DefaultDispatcher` AND `@IODispatcher` — two
- *     bindings of the SAME type separated only by qualifier. Each must inherit as the parent's own
- *     instance, and the two must stay distinct. A silent cross-wire (both resolving to one dispatcher)
- *     would still compile and would be invisible from the Store alone, which is why the graph exposes
- *     them as inert accessors.
- *  2. **Bare, unqualified `Context`.** Formerly a per-graph `create(context = ...)` argument; now
- *     inherited from the parent's `create(applicationContext = ...)` bound instance. Asserted against
- *     the very instance handed to the parent factory — identity end to end, not merely non-null.
- *
- * Plus aggregation into the real parent, shared with [ArchiveExtensionIdentityTest] and
- * [AllTrainingsExtensionIdentityTest]. Those siblings also assert `store.analyticsHolder === parent's`;
- * settings proves the same inheritance through the graph accessors above instead, because its Store can
- * no longer be constructed off-device — see the Play-Services test below for why that is a consequence
- * of the port rather than a gap in it.
+ * The settings extension inherits the parent graph's app-scoped bindings by identity: the qualified
+ * dispatcher pair distinctly, and the bare `Context` as the parent factory's own bound instance.
  */
 internal class SettingsExtensionIdentityTest {
 
-    // The real parent graph provides Dispatchers.Main.immediate (DispatchersBindingContainer); a plain
-    // JVM test must install a Main dispatcher before the store constructs.
+    // The parent graph binds Dispatchers.Main.immediate, so a JVM test must install a Main first.
     @BeforeEach
     fun setUp() {
         Dispatchers.setMain(Dispatchers.Unconfined)
@@ -62,6 +42,8 @@ internal class SettingsExtensionIdentityTest {
             applicationContext = appContextMock,
             appDatabase = mockk(relaxed = true),
             imageStorage = mockk(relaxed = true),
+            appScopeLifetime = AppScopeLifetime(),
+            databaseReplacement = mockk(relaxed = true),
         )
 
     private fun AppGraph.settingsExtension(): SettingsGraph = asContribution<SettingsGraph.Factory>()
@@ -78,19 +60,8 @@ internal class SettingsExtensionIdentityTest {
     }
 
     /**
-     * The sibling identity tests assert `!= null` on the Store. settings CANNOT, and the reason is the
-     * port itself: the old `SettingsGraphBridgeTest` handed the graph 18 **mocks**, so the Store built
-     * fine on plain JVM. The extension inherits the **real** app-scoped stack instead, so constructing
-     * the Store now reaches the real `DriveBackupAuth` → `Identity.getAuthorizationClient(context)`, and
-     * Google Play Services cannot static-init off-device. That is an environment limit, not a wiring gap:
-     * Metro validates bindings at COMPILE time, so a missing binding would have failed the build, never
-     * this test.
-     *
-     * So this asserts the boundary rather than pretending it away — and in doing so makes a STRONGER
-     * inheritance claim than `!= null` would: construction must reach the genuine
-     * `AuthProvidersBindingContainer` provider inherited from the parent. If settings ever stops pulling
-     * the real auth stack (a mock creeping back into app scope, the backup slice being re-threaded), the
-     * failure mode changes and this test says so.
+     * The Store cannot construct off-device: the inherited auth stack static-inits Play Services.
+     * The boundary is asserted instead — construction must reach the real inherited auth provider.
      */
     @Test
     fun `store construction reaches the real inherited auth stack and stops only at Play Services`() {
@@ -128,9 +99,7 @@ internal class SettingsExtensionIdentityTest {
             extension.ioDispatcher,
             "@IODispatcher must inherit as the parent's instance, not a fresh one",
         )
-        // The cross-wire this guards: two same-typed bindings separated only by qualifier, collapsing
-        // into one across the graph boundary. Both assertSame calls above would still pass if the
-        // parent itself held one instance for both keys, so the distinctness claim is made explicitly.
+        // Both assertSame calls above still pass if the parent holds one instance for both keys.
         assertNotSame(
             extension.defaultDispatcher,
             extension.ioDispatcher,

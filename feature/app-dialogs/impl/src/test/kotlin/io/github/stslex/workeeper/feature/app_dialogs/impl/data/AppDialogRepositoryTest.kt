@@ -1,7 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.app_dialogs.impl.data
 
+import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.edit
+import io.github.stslex.workeeper.core.data.backup.api.restore.InstallEpoch
+import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreOwnerId
+import io.github.stslex.workeeper.core.data.backup.api.restore.UndoRef
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupErrorCode
 import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialog
 import kotlinx.coroutines.CoroutineScope
@@ -13,7 +19,6 @@ import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
-import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import java.io.File
@@ -21,6 +26,7 @@ import java.io.File
 internal class AppDialogRepositoryTest {
 
     private lateinit var dataStoreScope: CoroutineScope
+    private lateinit var dataStore: DataStore<Preferences>
     private lateinit var tempFile: File
     private lateinit var repository: AppDialogRepository
 
@@ -28,8 +34,8 @@ internal class AppDialogRepositoryTest {
     fun setUp() {
         tempFile = File.createTempFile("app_dialogs_", ".preferences_pb").also { it.delete() }
         dataStoreScope = CoroutineScope(Dispatchers.IO + Job())
-        val dataStore = PreferenceDataStoreFactory.create(scope = dataStoreScope) { tempFile }
-        repository = AppDialogRepository(dataStore)
+        dataStore = PreferenceDataStoreFactory.create(scope = dataStoreScope) { tempFile }
+        repository = AppDialogRepository(dataStore) { EPOCH_A }
     }
 
     @AfterEach
@@ -62,33 +68,149 @@ internal class AppDialogRepositoryTest {
 
     @Test
     fun `publish UndoRestoreConfirmation surfaces with date`() = runTest {
-        val expected = AppDialog.UndoRestoreConfirmation(originalDataDateEpochMs = 1_650_000_000_000L)
+        val expected = AppDialog.UndoRestoreConfirmation(
+            undoRef = TEST_UNDO_REF,
+            originalDataDateEpochMs = 1_650_000_000_000L,
+        )
         repository.publish(expected)
         assertEquals(expected, repository.currentDialog.first())
     }
 
     @Test
-    fun `publish UndoRestoreSuccess surfaces the data object`() = runTest {
-        repository.publish(AppDialog.UndoRestoreSuccess)
-        assertSame(AppDialog.UndoRestoreSuccess, repository.currentDialog.first())
+    fun `missing confirmation owner does not block publishing a valid owner`() = runTest {
+        dataStore.edit { prefs ->
+            prefs[AppDialogKeys.PENDING_UNDO_RESTORE_CONFIRMATION] = true
+            prefs[AppDialogKeys.PENDING_UNDO_RESTORE_CONFIRMATION_ORIGINAL_AT_EPOCH_MS] = 1L
+        }
+        val expected = AppDialog.UndoRestoreConfirmation(
+            undoRef = TEST_UNDO_REF,
+            originalDataDateEpochMs = 2L,
+        )
+
+        repository.publish(expected)
+
+        assertEquals(expected, repository.currentDialog.first())
     }
 
     @Test
-    fun `publish RestoreSuccess twice keeps the first payload`() = runTest {
+    fun `invalid confirmation owner does not block publishing a valid owner`() = runTest {
+        dataStore.edit { prefs ->
+            prefs[AppDialogKeys.PENDING_UNDO_RESTORE_CONFIRMATION] = true
+            prefs[AppDialogKeys.PENDING_UNDO_RESTORE_CONFIRMATION_ORIGINAL_AT_EPOCH_MS] = 1L
+            prefs[AppDialogKeys.PENDING_UNDO_RESTORE_CONFIRMATION_OWNER] = "invalid-owner"
+        }
+        val expected = AppDialog.UndoRestoreConfirmation(
+            undoRef = TEST_UNDO_REF,
+            originalDataDateEpochMs = 2L,
+        )
+
+        repository.publish(expected)
+
+        assertEquals(expected, repository.currentDialog.first())
+    }
+
+    @Test
+    fun `different confirmation owner does not block publishing the current owner`() = runTest {
+        repository.publish(
+            AppDialog.UndoRestoreConfirmation(
+                undoRef = OTHER_UNDO_REF,
+                originalDataDateEpochMs = 1L,
+            ),
+        )
+        val expected = AppDialog.UndoRestoreConfirmation(
+            undoRef = TEST_UNDO_REF,
+            originalDataDateEpochMs = 2L,
+        )
+
+        repository.publish(expected)
+
+        assertEquals(expected, repository.currentDialog.first())
+    }
+
+    @Test
+    fun `old owner dismiss preserves the newer confirmation`() = runTest {
+        val oldDialog = AppDialog.UndoRestoreConfirmation(
+            undoRef = OTHER_UNDO_REF,
+            originalDataDateEpochMs = 1L,
+        )
+        val currentDialog = AppDialog.UndoRestoreConfirmation(
+            undoRef = TEST_UNDO_REF,
+            originalDataDateEpochMs = 2L,
+        )
+        repository.publish(oldDialog)
+        repository.publish(currentDialog)
+
+        repository.dismiss(oldDialog)
+
+        assertEquals(currentDialog, repository.currentDialog.first())
+    }
+
+    @Test
+    fun `publish UndoRestoreSuccess surfaces the data variant`() = runTest {
+        val dialog = AppDialog.UndoRestoreSuccess()
+        repository.publish(dialog)
+        assertEquals(dialog, repository.currentDialog.first())
+    }
+
+    @Test
+    fun `new terminal owner replaces identical payload and stale dismiss preserves it`() = runTest {
+        val stale = AppDialog.RestoreSuccess(
+            restoredAtEpochMs = 100L,
+            previousVersionAvailable = true,
+            terminalOwner = TERMINAL_OWNER_A,
+        )
+        val current = AppDialog.RestoreSuccess(
+            restoredAtEpochMs = 100L,
+            previousVersionAvailable = true,
+            terminalOwner = TERMINAL_OWNER_B,
+        )
+
+        repository.publish(stale)
+        repository.publish(current)
+
+        assertEquals(current, repository.currentDialog.first())
+
+        repository.dismiss(stale)
+
+        assertEquals(current, repository.currentDialog.first())
+    }
+
+    @Test
+    fun `new owned terminal payload replaces a stale pending payload`() = runTest {
         val first = AppDialog.RestoreSuccess(restoredAtEpochMs = 100L, previousVersionAvailable = true)
         val second = AppDialog.RestoreSuccess(restoredAtEpochMs = 200L, previousVersionAvailable = false)
         repository.publish(first)
         repository.publish(second)
-        // Dedup: first wins; second is silently dropped.
-        assertEquals(first, repository.currentDialog.first())
+        assertEquals(second, repository.currentDialog.first())
+
+        repository.dismiss(first)
+
+        assertEquals(second, repository.currentDialog.first())
+    }
+
+    @Test
+    fun `foreign install epoch clears transferred restore dialogs before resolution`() = runTest {
+        repository.publish(
+            AppDialog.UndoRestoreConfirmation(
+                undoRef = TEST_UNDO_REF,
+                originalDataDateEpochMs = 123L,
+            ),
+        )
+        val installB = AppDialogRepository(dataStore) { EPOCH_B }
+
+        assertNull(installB.currentDialog.first())
+
+        val prefs = dataStore.data.first()
+        assertEquals(EPOCH_B.toString(), prefs[AppDialogKeys.RESTORE_DIALOG_INSTALL_EPOCH])
+        assertNull(prefs[AppDialogKeys.PENDING_UNDO_RESTORE_CONFIRMATION])
+        assertNull(prefs[AppDialogKeys.PENDING_UNDO_RESTORE_CONFIRMATION_OWNER])
     }
 
     @Test
     fun `dismiss clears only the named variant's flags`() = runTest {
         val success = AppDialog.RestoreSuccess(restoredAtEpochMs = 100L, previousVersionAvailable = true)
         val failure = AppDialog.RestoreFailure(reason = BackupErrorCode.Unknown)
-        // Both pending — priority resolution is covered by AppDialogResolverTest.
-        // This test pins that dismiss(failure) does not also clear success's flags.
+        // Both pending: dismiss(failure) must not clear success's flags.
         repository.publish(success)
         repository.publish(failure)
         repository.dismiss(failure)
@@ -110,8 +232,7 @@ internal class AppDialogRepositoryTest {
             val success = AppDialog.RestoreSuccess(restoredAtEpochMs = 1L, previousVersionAvailable = false)
             repository.publish(failure)
             repository.publish(success)
-            // Failure still wins priority, but the success payload should be persisted
-            // (verifiable after dismissing failure).
+            // Failure still wins priority; the success payload is persisted underneath.
             repository.dismiss(failure)
             assertEquals(success, repository.currentDialog.first())
         }
@@ -127,9 +248,22 @@ internal class AppDialogRepositoryTest {
         assertEquals(second, repository.currentDialog.first())
     }
 
-    // Note: a "process restart" simulation test would require cancelling the
-    // DataStore's internal scope before recreating, because Preferences DataStore
-    // enforces singleton-per-file at runtime. Cross-restart persistence is the
-    // DataStore library's responsibility; the publish-then-read tests above
-    // exercise the same persistence path through the file storage layer.
+    // No process-restart test — DataStore is singleton-per-file; see documentation/testing.md.
+
+    private companion object {
+        val EPOCH_A = InstallEpoch(
+            RestoreOwnerId("00000000-0000-4000-8000-000000000101"),
+        )
+        val EPOCH_B = InstallEpoch(
+            RestoreOwnerId("00000000-0000-4000-8000-000000000102"),
+        )
+        val TEST_UNDO_REF = UndoRef(
+            RestoreOwnerId("00000000-0000-4000-8000-000000000011"),
+        )
+        val OTHER_UNDO_REF = UndoRef(
+            RestoreOwnerId("00000000-0000-4000-8000-000000000012"),
+        )
+        val TERMINAL_OWNER_A = RestoreOwnerId("00000000-0000-4000-8000-000000000021")
+        val TERMINAL_OWNER_B = RestoreOwnerId("00000000-0000-4000-8000-000000000022")
+    }
 }

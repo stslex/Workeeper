@@ -5,35 +5,16 @@ import androidx.compose.runtime.Stable
 import kotlinx.coroutines.flow.StateFlow
 
 /**
- * The result transport behind the typed contract — a keyed store of nullable flows inside the
- * Navigator implementation, because the navigation layer owns no per-entry transport of its own.
- *
- * Three lifecycle invariants, all load-bearing:
- * - the value is written by `popBackWithResult` BEFORE the pop — the consumer recomposes on
- *   return, and a write-after-pop loses the value;
- * - the consumer clears after delivery, so re-entry does not re-deliver;
- * - a pending value survives ONLY the pop that delivers it: any other navigation clears every
- *   channel. The store is process-wide and keyed by destination, not by entry, so this clearing
- *   is what prevents a value written over a non-consuming screen from leaking into a later,
- *   unrelated composition of the consumer.
- *
- * The consumer surface is `NavResults` (`core:ui:mvi`): nullable read, `null` means "no result".
- * Keys are [NavResultKey.of] strings.
- *
- * **Known limitation, accepted by design:** a result does NOT survive process death inside the
- * set→collect window. The window is one recomposition wide and no user journey holds a result
- * across process death. Derivation and the decision record:
- * `documentation/feature-specs/nav3-stage-1-3.md` §3.6.
+ * Keyed store of nullable result flows behind the typed contract. The value is written before the
+ * pop, cleared after delivery, and every other navigation clears every channel.
  */
 @Stable
 interface NavResultsSource {
 
-    /** The nullable stream for [key]; a flow exists from first observation, initial value `null`. */
+    /** The nullable stream for [key]; it exists from first observation, initial value `null`. */
     fun result(key: String): StateFlow<Any?>
 
-    /** Publish [result] under [key]. Called BEFORE the pop that reveals the consumer. */
     fun setResult(key: String, result: Any)
 
-    /** Reset [key] to `null` after delivery so re-entry does not re-deliver. */
     fun clearResult(key: String)
 }

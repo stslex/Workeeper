@@ -31,20 +31,8 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
 
 /**
- * The mockup's `.exhead` (extraction §4.2) — the exercise switcher, moved out of the topbar:
- * "заголовок крупный, стрелка ровно одна — назад". The whole row is one button opening the
- * picker sheet; the 26-rung title carries the exercise name and the trailing `.swap` tile
- * holds a chevron-down.
- *
- * Geometry, derived (§0.2): title 24px → `text.title` (26 rung; its declared −.02em tracking
- * resolved to the rung's −0.39sp by B4 — the mockup's value was chosen against a UA font).
- * Tile 34px → 32dp (`Icon.big`), radius 11px → 8dp — no 12 rung, rounded down exactly as
- * `AppIconButton` rounds the same mockup value (its KDoc carries the argument). Gap 11px →
- * 12dp (`Space.md`); row padding `0 gutter 4px` → horizontal `screenEdge`, bottom `xs`.
- *
- * The mockup's hover — `.exhead:hover .swap{background:var(--raise)}` — maps onto the
- * pressed state, animated on the `fast` token like `AppIconButton`'s: no hover on touch
- * hardware, and a Material ripple would be a different treatment than the one drawn.
+ * The mockup's `.exhead` (extraction §4.2): the exercise switcher, moved out of the topbar.
+ * The whole row is one button opening the picker; the `.swap` tile takes hover-on-press.
  */
 @Composable
 internal fun ExerciseHeader(
@@ -97,8 +85,7 @@ internal fun ExerciseHeader(
             Icon(
                 modifier = Modifier.size(AppDimension.Icon.small),
                 imageVector = AppIcons.ChevronDown,
-                // The row is one semantic button; the title is its label and this glyph is
-                // decoration — `.swap` draws no text and the mockup's hint names the intent.
+                // The row is one semantic button; the title is its label, this is decoration.
                 contentDescription = null,
                 tint = AppUi.colors.textSecondary,
             )

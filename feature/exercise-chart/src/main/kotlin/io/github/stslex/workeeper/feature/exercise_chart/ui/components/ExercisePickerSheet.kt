@@ -44,11 +44,7 @@ import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 
-/**
- * The mockup's `sh-pick` (extraction §4.9): the window — scrim, grab, dismissal — wrapped at
- * this level, the content split out so it stays goldenable (the window is outside the gate,
- * §10.4).
- */
+/** The mockup's `sh-pick` (§4.9): the sheet window; content is split out to stay goldenable. */
 @Composable
 internal fun ExercisePickerSheet(
     items: ImmutableList<ExercisePickerItemUiModel>,
@@ -58,17 +54,8 @@ internal fun ExercisePickerSheet(
     onDismiss: () -> Unit,
     onItemSelect: (String) -> Unit,
 ) {
-    // expandedOnly: the user opened this to search, not to peek — the field is on screen the
-    // moment the sheet is.
-    //
-    // NO AUTO-FOCUS, deliberately. Focus was briefly driven from `AppBottomSheet`'s
-    // `onSettled`, which is the only point where taking it does not race the enter animation
-    // (requesting earlier raises the IME into a sheet that is still translating, and the
-    // layout jitters). On device that correctness costs a multi-second wait before the
-    // keyboard appears, and every cheaper trigger reintroduces the race. So the keyboard is
-    // the user's to raise: one tap on a field that is already visible beats waiting for a
-    // sheet to finish settling. The occlusion this sheet was fixed for is handled by the
-    // height budget below, not by who raises the keyboard.
+    // expandedOnly: the search field is on screen the moment the sheet is.
+    // NO AUTO-FOCUS, deliberately — every trigger cheap enough races the enter animation.
     AppBottomSheet(
         onDismiss = onDismiss,
         expandedOnly = true,
@@ -83,12 +70,7 @@ internal fun ExercisePickerSheet(
     }
 }
 
-/**
- * `sh-pick`'s drawing: the h3 title, then `.mitem` rows — `--body` at the body rung, the
- * selected one `.mitem.on`: `--max` at 500 with the trailing `.chev`-weight check
- * (`M4 12.5l5 5L20 7`, `AppIcons.Check`). The old build put the exercise-type label under
- * the selected row instead; the mockup's selection mark is the check, and the check ships.
- */
+/** `sh-pick`'s drawing: h3 title then `.mitem` rows, the selected one with a check (§4.9). */
 @Composable
 internal fun ExercisePickerSheetContent(
     items: ImmutableList<ExercisePickerItemUiModel>,
@@ -98,11 +80,7 @@ internal fun ExercisePickerSheetContent(
     onItemSelect: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // The filter is derived, not stored: `items` is the whole picker set already in memory
-    // (the recents query carries no LIMIT), so a client-side match is the complete answer
-    // here — nothing can be typed that exists in the picker but not in this list. A
-    // library-wide search would be a different, larger set, and selecting from it would
-    // dead-tap: the handler resolves the chosen uuid against exactly this list.
+    // Filter derived, not stored: `items` is the whole picker set and the handler resolves in it.
     val visible = remember(items, query) {
         if (query.isBlank()) {
             items
@@ -111,17 +89,8 @@ internal fun ExercisePickerSheetContent(
                 .toImmutableList()
         }
     }
-    // THE HEIGHT BUDGET. The IME inset is delivered and it animates — measured on API 35,
-    // portrait: `ime` climbs 0 → 883px over the keyboard's rise, and this budget follows it
-    // 863dp → 473dp, frame by frame. What the inset CANNOT do is make oversized content fit:
-    // Material sets this window to SOFT_INPUT_ADJUST_NOTHING on API 30+, so the window is
-    // never resized, and content taller than the space left above the keyboard is not
-    // scrolled or panned — it is simply covered. Nothing bounded this content to that space,
-    // which is the bug. So it bounds itself, and the list below takes the remainder.
-    //
-    // Read in composition rather than taken from a padding modifier: this is the raw window
-    // inset, and reading it here is what makes the reflow track the keyboard's animation
-    // instead of jumping at the end of it.
+    // Height budget: the sheet window is never resized for the IME, so the content bounds
+    // itself to the space above the keyboard; reading the inset in composition tracks its rise.
     val density = LocalDensity.current
     val windowHeight = LocalWindowInfo.current.containerSize.height
     val available = with(density) {
@@ -140,9 +109,7 @@ internal fun ExercisePickerSheetContent(
                 .testTag("ExerciseChartPickerSearch"),
             value = query,
             onValueChange = onQueryChange,
-            // No leading magnifier: the mockup draws no search affordance on this sheet at
-            // all (§4.9), so inventing a glyph for it would be inventing design. The
-            // placeholder carries the meaning.
+            // No leading magnifier: the mockup draws no search affordance on this sheet (§4.9).
             placeholder = stringResource(R.string.feature_exercise_chart_picker_search),
         )
         if (visible.isEmpty()) {
@@ -160,11 +127,7 @@ internal fun ExercisePickerSheetContent(
             )
         }
         LazyColumn(
-            // `weight(fill = false)` is what makes the list the elastic element: it takes the
-            // space the title and the field leave inside the budget above, and no more, so a
-            // rising keyboard shrinks the list rather than pushing it under itself. The 360dp
-            // cap still applies when there is room to spare — the sheet is a picker, not a
-            // full-screen list.
+            // `weight(fill = false)` makes the list elastic, so a rising keyboard shrinks it.
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f, fill = false)
@@ -232,28 +195,10 @@ private fun PickerRow(
 /** The old build's cap, kept: the sheet lists recents, not the whole library. */
 private val PICKER_LIST_MAX_HEIGHT = 360.dp
 
-/**
- * A floor for the budget, so the cap can never go to zero or negative and collapse the layout.
- *
- * It is also the point where this sheet stops being solvable. Measured on API 35, landscape,
- * with the keyboard up: window 1080px, IME 662px, status bar 137px — 281px, i.e. **94dp for
- * everything**, against 60dp of chrome before this layout gets a pixel. A 56dp text field with
- * a title above it does not fit in what is left, at any cap, and no arithmetic here changes
- * that: the sheet would have to stop being a sheet. Reported rather than worked around.
- */
+/** Floor for the height budget; landscape with the keyboard up does not fit at any cap. */
 private val MIN_SHEET_CONTENT_HEIGHT = 160.dp
 
-/**
- * What the window spends before this layout gets a pixel, and therefore what the budget above
- * has to hand back: the grab handle block (8 + 4 + 16) and `AppBottomSheet`'s own bottom
- * padding (`xxl`, 32) — 60dp, all of it OUTSIDE the height cap applied here. `AppSheetLayout`'s
- * own 8/24 padding is inside the cap and is already accounted for by the cap itself.
- *
- * It is a constant rather than a measurement because the alternative — measuring the chrome and
- * feeding it back into the constraint that produced it — is a layout feedback loop. The error it
- * can carry is absorbed by the list's `weight`, which takes whatever is actually left rather
- * than what this arithmetic predicted.
- */
+/** Chrome the sheet window spends outside this height cap; a constant, not a measurement. */
 private val SHEET_CHROME = 60.dp
 
 @Preview

@@ -9,20 +9,8 @@ import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.ImmutableMap
 
 /**
- * One undoable step, mirroring the mockup's toast machinery (extraction §1.9 + audit):
- * **single-level and one-shot** — a new undoable action replaces (and commits) the previous
- * one, `Отменить` restores exactly the latest, and the 5s timeout commits it.
- *
- * The restore is a snapshot of the three set-carrying State fields taken BEFORE the action
- * (the mockup's `snap()` deep-copies its whole model; these three are the whole model here —
- * statuses and disclosure re-derive). Two optional DB halves:
- *
- * - [undoCompensation] — a write that must happen ON UNDO because the action already hit the
- *   DB (re-upsert a deleted set row; delete a just-added exercise).
- * - [deferredCommit] — a destructive write POSTPONED until the undo window closes (the §6.1
- *   exercise deletion). Deferring is what makes undo safe against process death: a kill
- *   mid-toast leaves the exercise in the DB and the reload shows it again — the conservative
- *   direction.
+ * One undoable step: single-level and one-shot — a new undoable action replaces and commits the
+ * previous one. See documentation/feature-specs/live-workout.md.
  */
 @Stable
 data class PendingUndo(

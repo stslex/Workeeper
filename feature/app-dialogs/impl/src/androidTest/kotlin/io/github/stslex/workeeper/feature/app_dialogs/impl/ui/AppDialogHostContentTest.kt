@@ -9,6 +9,8 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreOwnerId
+import io.github.stslex.workeeper.core.data.backup.api.restore.UndoRef
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupErrorCode
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.test.annotations.Smoke
@@ -21,19 +23,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * Pins the per-variant button → `AppDialogUserChoice` mapping. After the
- * BLOCKER 2 transient-signal refactor the host content takes a single
- * `onChoice: (AppDialogUserChoice) -> Unit` lambda; tests assert that each
- * button on each variant dispatches the correct `(dialog, action)` pair.
- *
- * `@Smoke` by the taxonomy: `createComposeRule` with state passed straight into the content, no
- * DI container, no database, no Activity (`documentation/testing.md` → "Categorization with
- * `@Smoke` and `@Regression`"). Two things must hold together for this annotation to select
- * anything: it is declared here, and `:core:ui:test-utils` stays on this module's androidTest
- * classpath — androidx.test silently DROPS ui_tests.yml's filter when it cannot load the
- * annotation class it names, which runs every test here in both suites. `detektAndroidTestSuite`
- * and `verifyInstrumentedSuiteClasspath` gate the two halves
- * (`documentation/feature-specs/kmp-phase-0-instrumented-filter.md` → "The gate").
+ * Pins the per-variant button → `AppDialogUserChoice` mapping. `@Smoke`: compose rule only, no DI
+ * and no Activity; `:core:ui:test-utils` must stay on androidTest or the suite filter is dropped.
  */
 @Smoke
 @RunWith(AndroidJUnit4::class)
@@ -163,7 +154,10 @@ class AppDialogHostContentTest {
     @Test
     fun undoRestoreConfirmationConfirmDispatchesConfirmUndo() {
         val captured = mutableStateOf<AppDialogUserChoice?>(null)
-        val variant = AppDialog.UndoRestoreConfirmation(originalDataDateEpochMs = 1_700_000_000_000L)
+        val variant = AppDialog.UndoRestoreConfirmation(
+            undoRef = TEST_UNDO_REF,
+            originalDataDateEpochMs = 1_700_000_000_000L,
+        )
         composeTestRule.setContent {
             AppTheme {
                 AppDialogHostContent(
@@ -181,7 +175,10 @@ class AppDialogHostContentTest {
     @Test
     fun undoRestoreConfirmationCancelDispatchesCancel() {
         val captured = mutableStateOf<AppDialogUserChoice?>(null)
-        val variant = AppDialog.UndoRestoreConfirmation(originalDataDateEpochMs = 1_700_000_000_000L)
+        val variant = AppDialog.UndoRestoreConfirmation(
+            undoRef = TEST_UNDO_REF,
+            originalDataDateEpochMs = 1_700_000_000_000L,
+        )
         composeTestRule.setContent {
             AppTheme {
                 AppDialogHostContent(
@@ -200,7 +197,7 @@ class AppDialogHostContentTest {
         composeTestRule.setContent {
             AppTheme {
                 AppDialogHostContent(
-                    current = AppDialog.UndoRestoreSuccess,
+                    current = AppDialog.UndoRestoreSuccess(),
                     onChoice = { captured.value = it },
                 )
             }
@@ -208,8 +205,14 @@ class AppDialogHostContentTest {
         composeTestRule.onNodeWithText("Reverted").assertIsDisplayed()
         composeTestRule.onNodeWithText("OK").assertIsDisplayed().performClick()
         assertEquals(
-            AppDialogUserChoice(AppDialog.UndoRestoreSuccess, AppDialogUserAction.Acknowledge),
+            AppDialogUserChoice(AppDialog.UndoRestoreSuccess(), AppDialogUserAction.Acknowledge),
             captured.value,
+        )
+    }
+
+    private companion object {
+        val TEST_UNDO_REF = UndoRef(
+            RestoreOwnerId("00000000-0000-4000-8000-000000000011"),
         )
     }
 }

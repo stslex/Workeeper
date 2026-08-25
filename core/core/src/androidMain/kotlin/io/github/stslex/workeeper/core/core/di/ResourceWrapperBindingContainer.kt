@@ -10,16 +10,8 @@ import io.github.stslex.workeeper.core.core.resources.AndroidResourceWrapper
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 
 /**
- * `ResourceWrapper` lives in a Metro provides-factory container — the same mechanic as
- * [DispatchersBindingContainer].
- *
- * `@BindingContainer @ContributesTo(AppScope)` makes it Metro-owned; the app graph auto-aggregates it
- * cross-module. The one factory dep is the app `Context`, resolved from the graph's
- * `create(applicationContext)` bound instance (it constructs the Android impl, so this lives in
- * core:core-android, never the KMP `commonMain` that compiles to iOS). PUBLIC container + func — an
- * `internal` container silently fails to aggregate cross-module (guarded by `ContributesToScopeRule`).
- *
- * `ResourceWrapper` is public in core:core `commonMain`, so no visibility widening is needed.
+ * Metro provides-factory container for `ResourceWrapper`, mirroring [DispatchersBindingContainer].
+ * GUARD: object and func stay public — an internal container silently fails to aggregate.
  */
 @BindingContainer
 @ContributesTo(AppScope::class)

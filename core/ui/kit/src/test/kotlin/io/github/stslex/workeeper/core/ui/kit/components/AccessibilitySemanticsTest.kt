@@ -32,43 +32,9 @@ import org.robolectric.annotation.Config
 import tech.apter.junit.jupiter.robolectric.RobolectricExtension
 
 /**
- * The accessibility properties this arc's rebuilds could drop without any other instrument
- * noticing, asserted where they can be read.
- *
- * **Why here and not in a golden or a handler test.** Both are semantics, not pixels and not state:
- * Paparazzi photographs a frame and never sees them, and a handler test never composes. §27's
- * standing rule is that anything whose evidence needs something other than one static frame owes a
- * direct assertion — this is that assertion for each of them.
- *
- * ## Why it is a JVM test and not an instrumented one
- *
- * **An assertion no job runs is not a weaker gate, it is not a gate**, and `src/androidTest/` is
- * where that happens in this repository. Nothing in the PR-gating workflow compiles instrumented
- * sources, and the only workflow that runs them (`ui_tests.yml`) is `workflow_dispatch`-only **and**
- * selects by the runner's `annotation` argument in both jobs — so an un-annotated device test is
- * skipped even on a manual dispatch of `all`. `core/data/database/build.gradle.kts` already says so.
- *
- * Nothing here needs a device: these read the semantics tree and touch no pixel, no gesture and no
- * frame timing. They run under Robolectric on the JUnit 5 platform — the
- * `@ExtendWith(RobolectricExtension::class)` shape `core/data/database`'s real-DB suites already
- * use — so `./gradlew testDebugUnitTest` executes them on every PR.
- *
- * **`runComposeUiTest` rather than `createComposeRule`, and that is not a style choice.**
- * `createComposeRule()` returns a JUnit 4 `TestRule`, and this repo's test tasks are
- * `useJUnitPlatform()` with `failOnNoDiscoveredTests.set(false)` (`KotlinAndroid.kt`), with no
- * vintage engine in the catalog. A JUnit 4-shaped class in `src/test` is therefore not discovered,
- * not run and **not reported** — the task goes green having executed zero of it, which is worse
- * than having no suite at all, because it looks like a gate.
- *
- * ## ONE `@Test`, ONE composition — do not split this up
- *
- * **A second `runComposeUiTest` in the same Robolectric sandbox never returns.** Measured, not
- * feared: each of these subjects passes alone in 4–12s, and any two in one class hang
- * indefinitely in `RobolectricIdlingStrategy.runUntilIdle` → `Espresso.onIdle()`, reached from
- * `AndroidComposeUiTestEnvironment.runTest` — the environment's own synchronisation, with the
- * previous environment's idling resource still registered. So every subject shares one composition
- * and one environment, and [assertAll] keeps them all reported rather than stopping at the first.
- * Splitting them back into a `@Test` each does not fail the build, it **hangs** it.
+ * Semantics that goldens and handler tests cannot see: error state, labels, roles, targets.
+ * GUARD: keep one `@Test` and one composition — a second `runComposeUiTest` in the same
+ * Robolectric sandbox hangs. See the v3 redesign spec §27.
  */
 @ExtendWith(RobolectricExtension::class)
 @Config(sdk = [33])
@@ -114,8 +80,7 @@ internal class AccessibilitySemanticsTest {
                         onAdd = {},
                         onRemove = {},
                     )
-                    // Three rows, so first / middle / last are all present in one frame — the
-                    // boundary claim cannot be made by a single row.
+                    // Three rows so first / middle / last are all present in one frame.
                     val reorderState = rememberReorderableColumnState { _, _ -> }
                     ROWS.forEachIndexed { index, tag ->
                         key(tag) {
@@ -137,10 +102,7 @@ internal class AccessibilitySemanticsTest {
         waitForIdle()
 
         assertAll(
-            // An outline is the sighted half of "this field is wrong". `OutlinedTextField` set the
-            // other half from `isError` itself; a field built on `BasicTextField` owes it
-            // explicitly, or TalkBack announces an invalid box as an ordinary one while the reason
-            // sits visibly underneath it.
+            // TalkBack needs the error property; BasicTextField does not set it from isError.
             {
                 onNodeWithTag(FIELD_ERRORED).assert(
                     SemanticsMatcher.keyIsDefined(SemanticsProperties.Error),
@@ -152,12 +114,7 @@ internal class AccessibilitySemanticsTest {
                     SemanticsMatcher.keyNotDefined(SemanticsProperties.Error),
                 )
             },
-            // The empty thumb is a 46dp box whose only child is a decorative mark.
-            // Without a click label it is a control a screen-reader
-            // user cannot discover, let alone identify — the mark says which TYPE the exercise is,
-            // which is not what the tap does.
-            // The drawn `.flabel` is a sibling node, so without this the field announces its
-            // value and role and never says WHICH field it is.
+            // The drawn label is a sibling node, so the field owes its own content description.
             {
                 onNodeWithTag(FIELD_LABELLED).assert(
                     SemanticsMatcher.expectValue(
@@ -173,8 +130,7 @@ internal class AccessibilitySemanticsTest {
                     },
                 )
             },
-            // A reorder action that cannot happen must not be offered, and must certainly not
-            // report success: a control that claims a move it did not make is worse than absent.
+            // A reorder action that cannot happen must not be offered.
             { onNodeWithTag(ROWS.first()).assert(hasCustomActions(MOVE_DOWN)) },
             { onNodeWithTag(ROWS.first()).assert(hasNoCustomAction(MOVE_UP)) },
             { onNodeWithTag(ROWS.last()).assert(hasCustomActions(MOVE_UP)) },
@@ -182,21 +138,14 @@ internal class AccessibilitySemanticsTest {
             // The middle row keeps both, so the filter is a boundary rule and not a blanket one.
             { onNodeWithTag(ROWS[1]).assert(hasCustomActions(MOVE_UP)) },
             { onNodeWithTag(ROWS[1]).assert(hasCustomActions(MOVE_DOWN)) },
-            // A foundation `clickable` carries an onClick and no control type, so each of these
-            // announces as a generic clickable view rather than a button. The loss is invisible
-            // in review: the tap still works and the picture is identical.
+            // A foundation `clickable` has no control type, so each owes an explicit Role.Button.
             { onNodeWithTag(DASHED_ADD).assert(hasRole(Role.Button)) },
             { onNodeWithTag(SET_BAR_ADD).assert(hasRole(Role.Button)) },
             { onNodeWithTag(SET_BAR_REMOVE).assert(hasRole(Role.Button)) },
             { onNodeWithTag(THUMB).assert(hasRole(Role.Button)) },
-            // The negative control, and it is what makes the four above a gate: a plain reorder
-            // Box is clickable-adjacent and is NOT a button, so a matcher that passed everything
-            // — or a fix that stamped Role.Button onto every clickable in the kit — fails here.
+            // Negative control: a plain reorder Box is clickable-adjacent and is NOT a button.
             { onNodeWithTag(ROWS.first()).assert(hasNoRole(Role.Button)) },
-            // A foundation `clickable` gets none of `IconButton`'s minimum-target expansion, so a
-            // control drawn smaller than 48dp ships a hit area the size of its drawing. The thumb
-            // is drawn at 46dp deliberately (`.thumb{width:46px}`), so the target has to come from
-            // the container — which a picture cannot see, because the drawn box is still 46dp.
+            // A foundation `clickable` gets no minimum-target expansion; the thumb draws at 46dp.
             {
                 val bounds = onNodeWithTag(THUMB).getUnclippedBoundsInRoot()
                 val w = bounds.right - bounds.left

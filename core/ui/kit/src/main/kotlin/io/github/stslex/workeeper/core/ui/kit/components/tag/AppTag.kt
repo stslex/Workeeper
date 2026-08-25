@@ -18,16 +18,8 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
 
 /**
- * The mockup's `.tag` (extraction §3.2 / §4.4) — a body-rung pill on the resting-card tier,
- * distinct from [AppTagChip]'s caption-rung chips (the edit-form vocabulary).
- *
- * Resting: `--sec` fill, `--meta` label, no border. Selected (`.tag.on`, the chart's range
- * chips): `--raise` fill, `--max` label, a 1dp `hair-s` ring — mapped to [AppUi]'s
- * `borderDefault`, the lifted hair-s that clears 3:1 the way every other control outline
- * does. Geometry: padding 8×13px → 8dp/12dp, radius 10px → the 8dp rung.
- *
- * [onClick] is optional because the exercise-detail row is display-only
- * (`cursor:default` in the mockup) while the chart's range chips are interactive.
+ * A body-rung pill, distinct from [AppTagChip]'s caption-rung edit-form chips. [onClick] is
+ * optional: the exercise-detail row is display-only, the chart's range chips are interactive.
  */
 @Composable
 fun AppTag(
@@ -57,11 +49,8 @@ fun AppTag(
             )
             .then(
                 if (onClick != null) {
-                    // `selectable`, not `clickable`: an interactive tag always renders its
-                    // `selected` state (the `.tag.on` ring), so the semantics tree must carry
-                    // it too — TalkBack and the retention oracle read `Selected` from here.
-                    // A single-choice row (the chart's range chips, the one production caller)
-                    // matches AppSegmentedControl's precedent: `Role.RadioButton`.
+                    // GUARD: `selectable`, not `clickable` — an interactive tag draws its
+                    // selected state, so the semantics tree must carry it for TalkBack.
                     Modifier.selectable(
                         selected = selected,
                         role = Role.RadioButton,

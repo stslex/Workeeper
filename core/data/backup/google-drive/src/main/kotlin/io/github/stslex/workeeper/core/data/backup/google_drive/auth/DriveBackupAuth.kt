@@ -11,6 +11,7 @@ import com.google.android.gms.common.api.Scope
 import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
+import io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetime
 import io.github.stslex.workeeper.core.core.di.AppScope
 import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.core.logger.Log
@@ -25,8 +26,6 @@ import io.github.stslex.workeeper.core.data.backup.api.result.BackupResult
 import io.github.stslex.workeeper.core.data.backup.google_drive.auth.DriveBackupAuth.Companion.PLACEHOLDER_EMAIL
 import io.github.stslex.workeeper.core.data.backup.google_drive.error.DriveErrorMapper
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -38,24 +37,8 @@ import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 
 /**
- * `BackupAuth` implementation backed by GMS Identity's `AuthorizationClient` for
- * the scopes declared in [DriveAuthScopes]. Local account + token state lives in
- * [AccountDataStore].
- *
- * The access token returned by `AuthorizationResult.accessToken` is captured at
- * sign-in time (silent `signIn` success path and `completeSignIn` after a
- * resolution flow) and persisted via [AccountDataStore.setToken] so
- * `DriveAuthTokenProvider` serves it on subsequent Drive HTTP calls without
- * issuing a fresh `authorize()`. The cached token is dropped explicitly on
- * `signOut`; revocation goes through `AuthorizationClient.revokeAccess` rather
- * than the OAuth2 revoke HTTP endpoint, because only the GMS path also clears
- * the GMS-local token cache — a server-side-only revoke leaves a stale cached
- * grant that the next silent `signIn` happily reuses and Drive then rejects.
- *
- * Identity (email + display name) comes from a follow-up call to the
- * `oauth2/v3/userinfo` endpoint via [UserInfoFetcher]; `AuthorizationResult`
- * itself only carries the token. Userinfo failures degrade to the
- * `GoogleSignInAccount`-derived email when present, then to a placeholder.
+ * `BackupAuth` backed by GMS Identity's `AuthorizationClient` for the [DriveAuthScopes]; account
+ * and token state live in [AccountDataStore]. See documentation/feature-specs/backup.md.
  */
 @ContributesBinding(AppScope::class)
 @SingleIn(AppScope::class)
@@ -63,11 +46,14 @@ class DriveBackupAuth @Inject internal constructor(
     private val authorizationClient: AuthorizationClient,
     private val accountStore: AccountDataStore,
     private val userInfoFetcher: UserInfoFetcher,
+    lifetime: AppScopeLifetime,
     @IODispatcher private val dispatcher: CoroutineDispatcher,
 ) : BackupAuth {
 
     private val logger = Log.tag(TAG)
-    private val authScope = CoroutineScope(SupervisorJob() + dispatcher)
+
+    // Generation-owned: the account-mirror collector dies with its generation, not the process.
+    private val authScope = lifetime.childScope(dispatcher)
     private val mutableState = MutableStateFlow<AuthState>(AuthState.SignedOut)
 
     override val state: StateFlow<AuthState> = mutableState.asStateFlow()
@@ -86,11 +72,7 @@ class DriveBackupAuth @Inject internal constructor(
 
     override fun observeDriveFileGranted(): Flow<Boolean> = accountStore.observeDriveFileGranted()
 
-    /**
-     * Shared interactive authorize. [signIn] requests the base [DriveAuthScopes.ALL];
-     * [requestDriveFileAccess] adds `drive.file`. Both resolve through [resolveSignIn], which
-     * re-derives the `drive.file` grant from the result.
-     */
+    /** Shared interactive authorize; [resolveSignIn] re-derives the `drive.file` grant. */
     private suspend fun authorizeWith(scopes: List<Scope>): SignInResult = withContext(dispatcher) {
         runCatching {
             val request = AuthorizationRequest.builder()
@@ -109,8 +91,7 @@ class DriveBackupAuth @Inject internal constructor(
 
     override suspend fun completeSignIn(outcome: AuthResolutionOutcome): BackupResult<Account> =
         withContext(dispatcher) {
-            // The mvi edge wraps the ActivityResult Intent (or null, on cancel) here. Downcast
-            // at the platform boundary; a null/non-Intent payload means a cancelled resolution.
+            // A null/non-Intent payload from the mvi edge means a cancelled resolution.
             val intentData = outcome.platform as? Intent
             if (intentData == null) {
                 return@withContext BackupResult.Failure(
@@ -144,11 +125,8 @@ class DriveBackupAuth @Inject internal constructor(
         }
 
     /**
-     * Revokes Google authorization via `AuthorizationClient.revokeAccess` (which
-     * ALSO clears the GMS-local token cache) and clears local account state.
-     * Local clear succeeds even if the remote revoke fails (network unavailable,
-     * grant already invalid, GMS unavailable). Always returns
-     * [BackupResult.Success].
+     * Revokes via `AuthorizationClient.revokeAccess`, which also clears the GMS token cache.
+     * Local clear succeeds even when the remote revoke fails; always returns success.
      */
     override suspend fun signOut(): BackupResult<Unit> = withContext(dispatcher) {
         val revokeRequest = RevokeAccessRequest.builder()
@@ -165,15 +143,8 @@ class DriveBackupAuth @Inject internal constructor(
     }
 
     /**
-     * Persists the authorize result's `drive.file` grant and access token consistently.
-     *
-     * A success result can carry a newly granted scope but no fresh access token (GMS returns a
-     * null token when it deems a cached credential sufficient). The grant is written FIRST, so a
-     * concurrent [DriveAuthTokenProvider] refresh that misses the token cache requests the correct
-     * scope set. Then: cache a fresh token if one came back; otherwise, if `drive.file` is now
-     * granted, drop any cached token — it predates the grant and may be appdata-only, so serving
-     * it would 403 the visible-Drive upload until its ~50-min TTL expires. Dropping it forces
-     * [DriveAuthTokenProvider] to refresh a `drive.file`-capable token on the next Drive call.
+     * Persists the `drive.file` grant first, then caches a fresh token or drops a pre-grant one
+     * that may be appdata-only. See documentation/feature-specs/backup.md.
      */
     private suspend fun persistTokenAndGrant(result: AuthorizationResult) {
         val driveFileGranted = result.isDriveFileGranted().also { granted ->
@@ -218,14 +189,8 @@ class DriveBackupAuth @Inject internal constructor(
     }
 
     /**
-     * Resolves the account to persist for a successful authorize result.
-     *
-     * A real identity (userinfo email, else the `GoogleSignInAccount` email) always wins. When the
-     * result carries neither — an incremental `drive.file` grant that GMS satisfies with a cached
-     * credential, so `accessToken` is null AND `toGoogleSignInAccount()` is null — falling back to
-     * [PLACEHOLDER_EMAIL] would clobber the already signed-in user's email/display name purely from
-     * enabling the toggle. So in that case the existing stored account is preserved. Only a truly
-     * first-time sign-in with no derivable identity and no prior account reaches the placeholder.
+     * Account for a successful authorize: real identity, else the stored account, else
+     * [PLACEHOLDER_EMAIL]. See documentation/feature-specs/backup.md.
      */
     private suspend fun resolveAccount(result: AuthorizationResult): Account =
         result.toAccountOrNull(fetchUserInfo(result.accessToken))
@@ -251,11 +216,7 @@ class DriveBackupAuth @Inject internal constructor(
         }
     }
 
-    /**
-     * Builds an [Account] from a real identity source, or `null` when none is available (no
-     * userinfo email and no `GoogleSignInAccount` email). The placeholder fallback lives in
-     * [resolveAccount] so callers can first preserve an existing stored identity.
-     */
+    /** Builds an [Account] from a real identity source, or `null` when none is available. */
     private fun AuthorizationResult.toAccountOrNull(userInfo: UserInfo?): Account? {
         val gsa = toGoogleSignInAccount()
         val email = userInfo?.email ?: gsa?.email ?: return null

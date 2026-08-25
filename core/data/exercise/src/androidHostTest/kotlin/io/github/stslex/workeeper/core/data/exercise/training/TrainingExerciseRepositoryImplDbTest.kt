@@ -39,9 +39,8 @@ internal class TrainingExerciseRepositoryImplDbTest {
 
     @BeforeEach
     fun setup() {
-        // `getPlan` / `getPlans` wrap their JSON deserialisation in `traceExecutionTime`,
-        // which fans out to `Log.i { ... }` and resolves the singleton `Firebase.crashlytics`.
-        // Stub the holder so the logging path is a no-op in tests.
+        // GUARD: plan reads log through `traceExecutionTime`; stub the holder or Firebase
+        // resolves. See documentation/testing.md.
         mockkObject(FirebaseCrashlyticsHolder)
         every { FirebaseCrashlyticsHolder.log(any()) } returns Unit
         env = RepositoryTestEnv()
@@ -199,9 +198,7 @@ internal class TrainingExerciseRepositoryImplDbTest {
                     archivedAt = null,
                 ),
             )
-            // Write the non-null row through `setPlan` so the JSON shape is the production
-            // path (not a hand-rolled string), which exercises serializer parity in the
-            // round-trip read.
+            // Write through `setPlan` so the JSON is the production shape.
             env.trainingExerciseDao.insert(
                 listOf(
                     TrainingExerciseEntity(
@@ -232,12 +229,9 @@ internal class TrainingExerciseRepositoryImplDbTest {
                 ),
             )
 
-            // Roundtrip: the plan written via `setPlan` reads back identically as a parsed list.
             assertEquals(plan, result[exerciseWithPlanUuid.toString()])
-            // Null preservation: row with null plan_sets surfaces as Map value = null.
             assertTrue(result.containsKey(exerciseWithNullPlanUuid.toString()))
             assertNull(result[exerciseWithNullPlanUuid.toString()])
-            // The non-existent (training, exercise) pair is silently absent.
             assertFalse(result.containsKey(exerciseNotAttachedUuid.toString()))
         }
 
@@ -286,9 +280,7 @@ internal class TrainingExerciseRepositoryImplDbTest {
                 ),
             )
 
-            // This distinction is load-bearing: the loadSession read-time fallback only
-            // resolves null entries. An empty-list plan must remain empty, not be
-            // replaced by an adhoc fallback. (See LiveWorkoutInteractor.loadSession.)
+            // Only null entries get the loadSession fallback; an empty-list plan stays empty.
             assertNull(result[nullPlanExercise.toString()])
             assertNotNull(result[emptyPlanExercise.toString()])
             assertEquals(emptyList<PlanSetDataModel>(), result[emptyPlanExercise.toString()])

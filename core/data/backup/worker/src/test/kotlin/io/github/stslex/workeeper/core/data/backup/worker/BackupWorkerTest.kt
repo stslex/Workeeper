@@ -2,8 +2,10 @@
 package io.github.stslex.workeeper.core.data.backup.worker
 
 import android.app.Application
+import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import androidx.work.ListenableWorker
+import androidx.work.WorkerParameters
 import androidx.work.testing.TestListenableWorkerBuilder
 import io.github.stslex.workeeper.core.data.backup.api.BackupStorage
 import io.github.stslex.workeeper.core.data.backup.api.SnapshotExportRunner
@@ -23,6 +25,8 @@ import io.mockk.mockk
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
@@ -30,11 +34,26 @@ import org.robolectric.annotation.Config
 import tech.apter.junit.jupiter.robolectric.RobolectricExtension
 import java.io.File
 
+/**
+ * [BackupWorker] under first-operation lease admission: constructed dep-free by the default
+ * factory, deps arriving via [BackupWorkerDepsHolder.awaitBackupWorkLease] inside `doWork`.
+ */
 @ExtendWith(RobolectricExtension::class)
 @Config(application = BackupWorkerTest.TestApplication::class, sdk = [33])
 internal class BackupWorkerTest {
 
-    class TestApplication : Application()
+    class TestApplication : Application(), BackupWorkerDepsHolder {
+
+        lateinit var deps: BackupWorkerDeps
+
+        val acquiredLeases = mutableListOf<RecordingBackupWorkLease>()
+
+        /** Mirrors a process that routed to recovery: admission is terminally refused. */
+        var sealed = false
+
+        override suspend fun awaitBackupWorkLease(): BackupWorkLease? =
+            if (sealed) null else RecordingBackupWorkLease(deps).also { acquiredLeases += it }
+    }
 
     private val backupStorage = mockk<BackupStorage>(relaxed = true)
     private val snapshotProvider = mockk<DatabaseSnapshotProvider>(relaxed = true)
@@ -46,26 +65,49 @@ internal class BackupWorkerTest {
     }
     private val snapshotExportRunner = mockk<SnapshotExportRunner>(relaxed = true)
 
+    private val application: TestApplication
+        get() = ApplicationProvider.getApplicationContext<Context>().applicationContext
+            as TestApplication
+
     private fun makeWorker(): BackupWorker = TestListenableWorkerBuilder<BackupWorker>(
         ApplicationProvider.getApplicationContext(),
-    ).setWorkerFactory(
-        WorkerTestFactory(
-            backupStorage = backupStorage,
-            snapshotProvider = snapshotProvider,
-            preferences = preferences,
-            autoBackupController = autoBackupController,
-            notificationHelper = notificationHelper,
-            snapshotExportRunner = snapshotExportRunner,
-        ),
     ).build()
 
     @BeforeEach
     fun setUp() {
+        application.deps = object : BackupWorkerDeps {
+            override val backupStorage: BackupStorage = this@BackupWorkerTest.backupStorage
+            override val databaseSnapshotProvider: DatabaseSnapshotProvider = snapshotProvider
+            override val backupPreferencesRepository: BackupPreferencesRepository = preferences
+            override val autoBackupController: AutoBackupController =
+                this@BackupWorkerTest.autoBackupController
+            override val backupNotificationHelper: BackupNotificationHelper = notificationHelper
+            override val snapshotExportRunner: SnapshotExportRunner =
+                this@BackupWorkerTest.snapshotExportRunner
+        }
+        application.acquiredLeases.clear()
+        application.sealed = false
         coEvery { snapshotProvider.captureSnapshot(any()) } answers {
             firstArg<File>().writeText("snapshot")
             BackupResult.Success(Unit)
         }
         coEvery { snapshotProvider.currentSchemaVersion() } returns 5
+    }
+
+    @Test
+    fun `a sealed admission refuses BEFORE any bookkeeping or upload`() = runBlocking {
+        // The recovery-routed process cannot prove what its database holds; uploading it would
+        // rotate one of the user's three Drive backups away and record a false success.
+        application.sealed = true
+
+        val result = makeWorker().doWork()
+
+        assertEquals(ListenableWorker.Result.failure(), result)
+        coVerify(exactly = 0) { preferences.setLastAttempt(any()) }
+        coVerify(exactly = 0) { preferences.setLastSuccess(any()) }
+        coVerify(exactly = 0) { snapshotProvider.captureSnapshot(any()) }
+        coVerify(exactly = 0) { backupStorage.uploadBackup(any(), any()) }
+        assertTrue(application.acquiredLeases.isEmpty())
     }
 
     @Test
@@ -106,8 +148,7 @@ internal class BackupWorkerTest {
 
         makeWorker().doWork()
 
-        // The worker holds a wakelock window, so it must AWAIT the snapshot (keeps the process
-        // alive for the upload) and never use the detached fire-and-forget path.
+        // The wakelock window means the worker must await the export, never fire-and-forget.
         coVerify(exactly = 1) { snapshotExportRunner.runIfEligibleAwaiting() }
         coVerify(exactly = 0) { snapshotExportRunner.runIfEligible() }
     }
@@ -199,5 +240,42 @@ internal class BackupWorkerTest {
         assertEquals(ListenableWorker.Result.retry(), result)
         coVerify(exactly = 0) { backupStorage.uploadBackup(any(), any()) }
         coVerify { preferences.setLastError(BackupErrorCode.Io) }
+    }
+
+    @Test
+    fun `admission lease is acquired as the FIRST operation and released exactly once`() =
+        runBlocking {
+            coEvery { backupStorage.uploadBackup(any(), any()) } returns
+                BackupResult.Failure(BackupError.NetworkUnavailable)
+
+            makeWorker().doWork()
+
+            // A transition's quiesce drain awaits this release: one lease, released once.
+            assertEquals(1, application.acquiredLeases.size)
+            assertEquals(1, application.acquiredLeases.single().releaseCount.get())
+        }
+
+    @Test
+    fun `admission lease released even when the work body throws`() = runBlocking {
+        coEvery { snapshotProvider.captureSnapshot(any()) } throws RuntimeException("body blew up")
+
+        val thrown = runCatching { makeWorker().doWork() }.exceptionOrNull()
+
+        assertNotNull(thrown, "the body's failure must propagate (no swallow)")
+        assertEquals(1, application.acquiredLeases.single().releaseCount.get())
+    }
+
+    @Test
+    fun `a worker constructed but never started acquires NO lease`() {
+        // Both construction paths: the default reflection factory and MetroWorkerFactory.
+        makeWorker()
+        MetroWorkerFactory().createWorker(
+            appContext = ApplicationProvider.getApplicationContext(),
+            workerClassName = BackupWorker::class.java.name,
+            workerParameters = mockk<WorkerParameters>(relaxed = true),
+        )
+
+        // A constructed-but-never-started worker must hold nothing a transition would await.
+        assertTrue(application.acquiredLeases.isEmpty())
     }
 }

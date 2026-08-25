@@ -7,17 +7,12 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 /**
- * v3 Step 2 coverage for [NumericFontFamilyOnLocalizedTextRule], the O2 guard.
- *
- * Archivo Expanded has no Cyrillic coverage, so a translatable string set in it renders tofu in
- * `values-ru`. Every known-NEGATIVE below compiles green today and renders fine in English —
- * that is the whole problem, and why the rule has to exist.
+ * Coverage for [NumericFontFamilyOnLocalizedTextRule]: Archivo Expanded has no Cyrillic, so a
+ * translatable string set in it renders tofu in `values-ru`.
  */
 internal class NumericFontFamilyOnLocalizedTextRuleTest {
 
     private val rule = NumericFontFamilyOnLocalizedTextRule()
-
-    // ---- known-NEGATIVE anchors: each compiles and looks right in en, and MUST flag ----
 
     @Test
     fun `stringResource rendered in a numeric style is flagged`() {
@@ -46,9 +41,7 @@ internal class NumericFontFamilyOnLocalizedTextRuleTest {
 
     @Test
     fun `stringResource in the timer alias is flagged`() {
-        // `AppUi.typography.timer` aliases `numeric.display`, so it is a third spelling of the
-        // Cyrillic-free family — and the one the session screen is told to call. A rule that
-        // matched only the first two would be blind to its most likely call site.
+        // `AppUi.typography.timer` aliases `numeric.display` — a third spelling of the family.
         val findings = rule.lint(
             """
             package io.github.stslex.workeeper.feature.live_workout.ui
@@ -130,8 +123,6 @@ internal class NumericFontFamilyOnLocalizedTextRuleTest {
 
         assertEquals(1, findings.size)
     }
-
-    // ---- known-POSITIVE anchors: the intended usage must not be flagged ----
 
     @Test
     fun `digits in a numeric style pass`() {

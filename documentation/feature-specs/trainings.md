@@ -810,6 +810,18 @@ suspend fun clearWeightsFromAllPlansForExercise(exerciseUuid: Uuid) {
 `clearWeights` is a pure helper in domain that maps each
 `PlanSetDataModel` to a copy with `weight = null`.
 
+Two rules the signatures do not show:
+
+- `setExerciseType` is the **one** write path to `exercise_table.type` that asks the
+  caller to run `clearWeightsFromAllPlansForExercise` itself on a flip to WEIGHTLESS.
+  `saveItem` derives the cascade from the row it writes instead, so a caller who does
+  not know about the obligation cannot strand weights on a weightless exercise.
+- Inside `saveItem` the cascade must run **after** the row write, not before it: the
+  row being written carries the weights itself, so a cascade ordered first is undone
+  by the write. Pinned by `saveItem as WEIGHTLESS clears the weights it would strand
+  in other trainings`, which saves `lastAdhoc = WEIGHTED_PLAN` together with
+  `type = WEIGHTLESS`.
+
 ## Localization
 
 Strings for `feature/all-trainings/src/main/res/values/strings.xml`:

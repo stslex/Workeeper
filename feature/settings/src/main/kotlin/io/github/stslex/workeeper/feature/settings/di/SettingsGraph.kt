@@ -16,30 +16,8 @@ import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStoreImpl
 import kotlinx.coroutines.CoroutineDispatcher
 
 /**
- * feature/settings' Metro graph as a CONTRIBUTED [GraphExtension] of [SettingsScope]. The factory
- * carries `@ContributesTo(AppScope::class)`, so the extension is merged into the app graph in `:app` and
- * inherits ALL of its app-scoped bindings — all **18** formerly hand-threaded bound-instance `@Provides`
- * are gone and `createSettingsGraph()` takes no arguments. The three `@Binds` (SettingsInteractor,
- * BackupInteractor, SettingsHandlerStore) stay. [settingsStore] is the root.
- *
- * This is the widest graph in the repo, and it is what makes the inheritance claim non-trivial — every
- * category the arc has to carry appears here at once:
- * - **two same-typed qualified dispatchers**, `@DefaultDispatcher` + `@IODispatcher`, which must inherit
- *   as two DISTINCT `(CoroutineDispatcher + qualifier)` keys and not cross-wire;
- * - a **bare, unqualified `Context`**, inherited from AppGraph's `create(applicationContext)` bound
- *   instance rather than passed per-graph;
- * - `appDialogPublisher`, which reaches the extension as an ordinary `@ContributesBinding(AppScope)`
- *   binding — under the old factory it was composition-sourced through the feature-api holder seam.
- *
- * The three accessors below keep that claim OBSERVABLE. They were bridge-observability roots for
- * `SettingsGraphBridgeTest`; they are retained deliberately because the property they expose got
- * HARDER to verify, not easier — the pair is now inherited across a graph boundary instead of handed
- * in explicitly, and a silent cross-wire would be invisible from the Store alone. Read by
- * `SettingsExtensionIdentityTest` in `:app`. They cost no forced-public surface: `CoroutineDispatcher`
- * and `Context` are external types.
- *
- * Interface + factory are `public` because `:app` generates the extension impl and references them;
- * [SettingsScope] stays `internal` (Metro reads the scope KClass at IR level).
+ * feature/settings' Metro graph, a contributed [GraphExtension] of [SettingsScope] merged into the
+ * app graph. See documentation/graph-extension-arc/HANDOFF.md.
  */
 @GraphExtension(SettingsScope::class)
 interface SettingsGraph {
@@ -47,6 +25,8 @@ interface SettingsGraph {
     /** Root accessor: the retained Store. Metro constructs [SettingsStoreImpl], wiring its deps. */
     val settingsStore: SettingsStoreImpl
 
+    // The three accessors below have no production consumer: SettingsExtensionIdentityTest in
+    // :app reads them to prove the extension inherits AppGraph's instances without cross-wiring.
     @DefaultDispatcher
     val defaultDispatcher: CoroutineDispatcher
 
@@ -65,10 +45,8 @@ interface SettingsGraph {
     val SettingsHandlerStoreImpl.bindHandlerStore: SettingsHandlerStore
 
     /**
-     * The creator method name must be UNIQUE across all contributed extension factories: every
-     * `@ContributesTo(AppScope::class)` factory is merged into `AppGraph`, so two factories both
-     * declaring `create()` collide ("return types are incompatible"). Binding rule for all 13 — see
-     * documentation/graph-extension-arc/HANDOFF.md.
+     * GUARD: the creator method name must be unique across all contributed extension factories —
+     * they all merge into `AppGraph`. See documentation/graph-extension-arc/HANDOFF.md.
      */
     @ContributesTo(AppScope::class)
     @GraphExtension.Factory

@@ -13,13 +13,8 @@ import io.github.stslex.workeeper.feature.past_session.R
 import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStore
 
 /**
- * The topbar `⋮` menu, as bare CONTENT — the window (`AppBottomSheet`: tier3, r32, grab)
- * wraps it at the call site, which keeps the drawing goldenable (§10.4 excludes the window,
- * not the content). Extraction §2.2 draws the glyph and no target; the session screen's
- * `sh-session` supplies the shape: bare items, no title, the destructive one in rust. The
- * only session-level action this screen has is deletion, so the menu holds one item — it
- * exists so the destructive action stops being a bare topbar icon, exactly the v2.4
- * treatment §2.8 flagged.
+ * The topbar `⋮` menu as bare CONTENT — `AppBottomSheet` wraps it at the call site, which keeps
+ * the drawing goldenable (§10.4 excludes the window, not the content).
  */
 @Composable
 internal fun PastSessionMenuSheetContent(

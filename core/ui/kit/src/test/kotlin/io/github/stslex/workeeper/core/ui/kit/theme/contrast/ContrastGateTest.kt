@@ -14,43 +14,10 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 
 /**
- * The contrast gate.
- *
- * Reads the contract in [ContrastContract] and enforces it against the live palette. The three
- * tests correspond to the three parts of the contract, and the third is the reason this is a
- * gate rather than a report:
- *
- *  1. [every_declared_pair_meets_its_threshold] — the measurements.
- *  2. [every_slot_has_a_declared_role] — a new slot cannot default into being ignored.
- *  3. [every_foreground_surface_pair_is_declared_or_excluded] — no combination of existing
- *     slots can sit unaccounted for. Without this the gate would only check what it already
- *     knew about.
- *  4. [no_pair_is_both_declared_and_excluded] — an exclusion that a declaration contradicts has
- *     a false premise, and would be silently masking its whole family.
- *
- * ## What this gate does not do
- *
- * It reads [ContrastContract] and the palette. It does **not** read production call sites. So:
- *
- *  - Adding a slot, or painting one existing slot on another in a way the contract has not
- *     accounted for, fails here. That is (2) and (3).
- *  - Adding a screen that paints an *already declared* pair is fine and stays green, correctly —
- *     the pair is measured.
- *  - Adding a screen that paints a pair currently covered by an **exclusion** stays green
- *     **wrongly**, because the exclusion's premise is a claim about layout ("molten never
- *     appears on `field`") that this test cannot re-verify. Each exclusion records the evidence
- *     it rested on so the claim can be re-checked by a human; (4) catches the case where the
- *     contract itself has already contradicted one.
- *
- * Closing that last gap needs call-site analysis — a detekt rule that resolves
- * `AppUi.colors.<slot>` against the enclosing surface — which is a bigger tool than this.
- * Until then: **an exclusion is an assertion about the UI, and it ages.**
+ * Enforces [ContrastContract] against the live palette: declared pairs measure up, every slot
+ * has a role, no pair is unaccounted for or both declared and excluded. See the v3 redesign spec.
  */
 internal class ContrastGateTest {
-
-    // ---------------------------------------------------------------------------------------
-    // Part (a) — the declared triples are measured and must pass.
-    // ---------------------------------------------------------------------------------------
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("declaredPairs")
@@ -68,10 +35,6 @@ internal class ContrastGateTest {
             """.trimMargin(),
         )
     }
-
-    // ---------------------------------------------------------------------------------------
-    // Part (b) — every slot is classified.
-    // ---------------------------------------------------------------------------------------
 
     @Test
     @DisplayName("every palette slot has a declared role, and no role names a slot that is gone")
@@ -93,10 +56,6 @@ internal class ContrastGateTest {
             "ContrastContract.ROLES names slot(s) that no longer exist: $stale.",
         )
     }
-
-    // ---------------------------------------------------------------------------------------
-    // Part (c) — the point. Enumerate the full product; nothing may be silently unaccounted for.
-    // ---------------------------------------------------------------------------------------
 
     @Test
     @DisplayName("every foreground x surface combination is either declared or excluded")
@@ -157,19 +116,13 @@ internal class ContrastGateTest {
         )
     }
 
-    // ---------------------------------------------------------------------------------------
-    // Reporting — distinct measurements, not row counts.
-    // ---------------------------------------------------------------------------------------
-
     @Test
     @DisplayName("report: distinct measurements and the worst pair per theme")
     fun report() {
         listOf("DARK" to provideDarkAppColors(), "LIGHT" to provideLightAppColors())
             .forEach { (theme, colors) ->
                 val cases = ContrastContract.DECLARED.map { it.toCase(theme, colors) }
-                // Role aliasing inflates row counts: `accent`, `textPrimary` and
-                // `accentTintedForeground` are all v3 `max`, so one fact can be printed three
-                // times. Distinct measurements are keyed by the colour VALUES, not the names.
+                // Role aliasing inflates row counts, so distinct measurements key on VALUES.
                 val distinct = cases
                     .map { it.foreground.toArgb() to it.background.toArgb() }
                     .toSet()
@@ -216,17 +169,8 @@ internal class ContrastGateTest {
     private companion object {
 
         /**
-         * Alpha is composited, never guessed.
-         *
-         * [WcagContrast] rejects a translucent colour outright, because a ratio for a
-         * see-through foreground is meaningless until it has been flattened onto a *known*
-         * backdrop — and flattening onto the wrong one yields a plausible, wrong number.
-         *
-         * Two slots are genuinely translucent: the molten wash (9% / 11%) and the destructive
-         * wash (12%). Both are painted directly on a card, so `surfaceTier1` is the backdrop
-         * the composite uses. A translucent *foreground* on a translucent *background* would be
-         * ambiguous and there is no such declared pair; if one ever appears, this resolves the
-         * background first and the foreground against the result.
+         * Flattens a translucent slot onto a known backdrop; [WcagContrast] rejects alpha.
+         * Background resolves first, then foreground against the result.
          */
         private fun Color.flatten(over: Color): Color =
             if (alpha == 1f) this else compositeOver(over)

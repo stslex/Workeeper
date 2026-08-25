@@ -101,8 +101,7 @@ internal object HomeUiMapper {
                 message = resourceWrapper.getString(R.string.feature_home_start_empty_tags),
             )
 
-            // The picker's copy is this state's copy — one string per fact, so the key is
-            // shared even though its name says picker.
+            // The picker's copy is this state's copy, so the key is shared despite its name.
             StartCardReadoutDomain.NoTemplates -> StartCardBodyUi.Empty(
                 message = resourceWrapper.getString(R.string.feature_home_picker_empty),
             )
@@ -140,17 +139,7 @@ internal object HomeUiMapper {
         elapsedDurationLabel = formatElapsedDuration(nowMillis - startedAt),
     )
 
-    /**
-     * One row, mapped per paged item.
-     *
-     * Was `List<RecentSessionDomain>.toRecentItems(…)`, mapping a whole ten-row snapshot at once.
-     * Under a `Pager` the unit of mapping is the item, so the list form is gone rather than kept
-     * beside this one — two mappers for one row is how the two drift.
-     *
-     * [nowMillis] is supplied by the caller rather than read here, and `PagingHandler` reads the
-     * clock once per `PagingData` generation: rows in one list must agree about what "yesterday"
-     * means.
-     */
+    /** One row per paged item; [nowMillis] comes from the caller so rows share one clock read. */
     fun RecentSessionDomain.toRecentItem(
         nowMillis: Long,
         resourceWrapper: ResourceWrapper,

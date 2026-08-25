@@ -6,34 +6,15 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 
 /**
- * DataStore Preferences keys for every pending dialog flag.
+ * DataStore Preferences keys for every pending dialog flag, named `pending_<dialog_id>[_<field>]`.
  *
- * Naming convention: `pending_<dialog_id>` for the primary boolean flag,
- * `pending_<dialog_id>_<field>` for each metadata field. Keys are grouped per
- * variant; the same group is written together inside the `dataStore.edit { }`
- * block in `AppDialogRepository.publish`, and cleared together in `dismiss`.
- *
- * Adding a new variant: append its primary boolean key + metadata keys here,
- * then add the new sealed-type branch to `AppDialogResolver` (the priority walk
- * mapping flags → the top-priority `AppDialog`) and to `AppDialogRepository`'s
- * `writeFlags` / `clearFlags` / `isAlreadyPending`.
- * See `.claude/skills/app-dialogs-pattern.md`.
- *
- * **Key names are WIRE FORMAT.** Never rename an existing key — users with
- * pending dialogs persisted on an old key would lose the dialog after the
- * app update. If a key MUST be renamed, follow the deprecation path:
- *
- * 1. Add the new key under the new name (don't touch the old key).
- * 2. Write to BOTH keys; read prefers the new key, falls back to the old.
- * 3. Ship one release.
- * 4. Remove the old key in the next release once telemetry confirms zero
- *    reads of the old name.
- *
- * Pure additions (a new dialog variant with new keys) need no migration —
- * existing users see no pending dialog for the new variant on first launch,
- * which is the correct default.
+ * GUARD: key names are wire format — never rename one. The deprecation path and the
+ * add-a-variant checklist are in the app-dialogs spec.
  */
 internal object AppDialogKeys {
+
+    val RESTORE_DIALOG_INSTALL_EPOCH =
+        stringPreferencesKey("restore_dialog_install_epoch")
 
     val PENDING_RESTORE_SUCCESS =
         booleanPreferencesKey("pending_restore_success")
@@ -41,17 +22,25 @@ internal object AppDialogKeys {
         longPreferencesKey("pending_restore_success_at_epoch_ms")
     val PENDING_RESTORE_SUCCESS_HAS_PREVIOUS =
         booleanPreferencesKey("pending_restore_success_has_previous")
+    val PENDING_RESTORE_SUCCESS_OWNER =
+        stringPreferencesKey("pending_restore_success_owner")
 
     val PENDING_RESTORE_FAILURE =
         booleanPreferencesKey("pending_restore_failure")
     val PENDING_RESTORE_FAILURE_REASON =
         stringPreferencesKey("pending_restore_failure_reason")
+    val PENDING_RESTORE_FAILURE_OWNER =
+        stringPreferencesKey("pending_restore_failure_owner")
 
     val PENDING_UNDO_RESTORE_CONFIRMATION =
         booleanPreferencesKey("pending_undo_restore_confirmation")
     val PENDING_UNDO_RESTORE_CONFIRMATION_ORIGINAL_AT_EPOCH_MS =
         longPreferencesKey("pending_undo_restore_confirmation_original_date_epoch_ms")
+    val PENDING_UNDO_RESTORE_CONFIRMATION_OWNER =
+        stringPreferencesKey("pending_undo_restore_confirmation_owner")
 
     val PENDING_UNDO_RESTORE_SUCCESS =
         booleanPreferencesKey("pending_undo_restore_success")
+    val PENDING_UNDO_RESTORE_SUCCESS_OWNER =
+        stringPreferencesKey("pending_undo_restore_success_owner")
 }

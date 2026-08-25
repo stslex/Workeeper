@@ -7,16 +7,8 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
 /**
- * The top bar's crossfade key — and the one assertion that gates §26's **exclusion**.
- *
- * The continuity-motion row admits motion whose job is that nothing teleports, and excludes
- * anything encoding a value. «Выбрано N» is a value. The bar therefore crossfades when the *mode*
- * flips and must sit perfectly still while the count changes underneath it.
- *
- * There is no picture that can check this. Both endpoint goldens are correct either way; the
- * defect is a transition firing on an input it should be blind to, which a single frame cannot
- * express. The "different selections are one mode" case below is the whole gate: it goes red the
- * moment the count re-enters the transition key.
+ * Gates §26's exclusion: the bar crossfades on the mode flip and must sit still while the count
+ * changes. No golden can see it — both endpoints are correct either way.
  */
 internal class TopBarModeTest {
 
@@ -42,9 +34,8 @@ internal class TopBarModeTest {
 
     @Test
     fun `an empty selection is still the selection bar`() {
-        // Deselecting the last row does not leave the mode — §26 "List states reached by an
-        // action": «Отметки останутся, пока не выйдешь из режима». So the bar must not flip back
-        // and cross-fade twice on a round trip through zero.
+        // Deselecting the last row does not leave the mode, so the bar must not flip back and
+        // cross-fade twice on a round trip through zero.
         assertEquals(
             TopBarMode.SELECTION,
             topBarMode(SelectionMode.On(persistentSetOf())),

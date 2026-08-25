@@ -9,7 +9,10 @@ import android.text.format.DateUtils
 import android.text.format.Formatter
 import io.github.stslex.workeeper.core.data.backup.api.error.BackupError
 import io.github.stslex.workeeper.core.data.backup.api.model.AuthResolution
+import io.github.stslex.workeeper.core.data.backup.api.restore.ActiveUndo
+import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreOwnerId
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreStateRepository
+import io.github.stslex.workeeper.core.data.backup.api.restore.UndoRef
 import io.github.stslex.workeeper.core.data.backup.api.result.BackupResult
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.AutoBackupController
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.AutoBackupWorkInfo
@@ -17,7 +20,6 @@ import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupErrorCod
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupPreferences
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupPreferencesRepository
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupSchedule
-import io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProvider
 import io.github.stslex.workeeper.feature.app_dialogs.api.publisher.AppDialogPublisher
 import io.github.stslex.workeeper.feature.settings.R
 import io.github.stslex.workeeper.feature.settings.domain.BackupInteractor
@@ -44,7 +46,6 @@ import io.mockk.unmockkStatic
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
-import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -99,9 +100,9 @@ internal class BackupClickHandlerTest {
         every { getString(R.string.feature_settings_backup_info_count_zero) } returns "No backups yet"
         every { getString(R.string.feature_settings_backup_info_last_backup_format, any()) } returns "Last backup: X"
     }
-    private val restoreStateRepository = mockk<RestoreStateRepository>(relaxed = true)
-    private val snapshotProvider = mockk<DatabaseSnapshotProvider>(relaxed = true).apply {
-        every { hasPreRestoreBackup() } returns true
+    private val activeUndoFlow = MutableStateFlow<ActiveUndo?>(null)
+    private val restoreStateRepository = mockk<RestoreStateRepository>(relaxed = true).apply {
+        every { observeActiveUndo() } returns activeUndoFlow
     }
     private val appDialogPublisher = mockk<AppDialogPublisher>(relaxed = true)
     private lateinit var store: FakeSettingsHandlerStore
@@ -121,7 +122,6 @@ internal class BackupClickHandlerTest {
             preferencesRepository = preferencesRepository,
             autoBackupController = autoBackupController,
             restoreStateRepository = restoreStateRepository,
-            snapshotProvider = snapshotProvider,
             appDialogPublisher = appDialogPublisher,
             context = context,
             store = store,
@@ -178,16 +178,14 @@ internal class BackupClickHandlerTest {
 
         authFlow.value = BackupAuthDomain.NotAuthenticated
 
-        // `Unknown`, not null. Signing out does not mean "this account has no backups" — it means
-        // we no longer know, which is exactly the distinction the sealed type exists to keep.
+        // `Unknown`: signing out means we no longer know, not that there are none.
         assertEquals(BackupInfoUi.Unknown, store.stateFlow.value.backupInfo)
     }
 
     @Test
     fun `SignIn Success flips operation to Idle and rehydrates auto-backup`() =
         runTest(testDispatcher) {
-            // Pin steady-state so the rehydrate branch (not bootstrap) is exercised; the
-            // bootstrap-from-SignIn scenario is covered by its own test below.
+            // Pin steady-state so the rehydrate branch, not bootstrap, is exercised.
             preferencesFlow.value = preferencesFlow.value.copy(
                 autoBackupBootstrapped = true,
                 schedule = BackupSchedule.Daily,
@@ -260,7 +258,7 @@ internal class BackupClickHandlerTest {
         runTest(testDispatcher) {
             handler.invoke(Action.Backup.ToggleAiExport(false))
 
-            // Flag off FIRST (so a racing worker won't re-upload), then delete the plaintext copies.
+            // Flag off first so a racing worker won't re-upload, then delete the copies.
             coVerifyOrder {
                 preferencesRepository.setAiExportEnabled(false)
                 interactor.deleteAiExportSnapshots()
@@ -605,7 +603,7 @@ internal class BackupClickHandlerTest {
     }
 
     @Test
-    fun `ConfirmRestore Success sets Completed then consumes RestartApp after delay`() =
+    fun `ConfirmRestore Success leaves process restart owned by the runtime`() =
         runTest(testDispatcher) {
             coEvery { interactor.restoreLatest() } returns BackupResult.Success(Unit)
             store.stateFlow.value = store.stateFlow.value.copy(
@@ -622,18 +620,12 @@ internal class BackupClickHandlerTest {
             assertEquals(
                 BackupOperationUi.Idle,
                 store.stateFlow.value.backupOperation,
-                "backupOperation must reset to Idle alongside restoreProgress so the UI " +
-                    "is not locked in the Restoring state if the restart is aborted",
+                "backupOperation must reset if a test restart seam returns",
             )
             assertTrue(
                 store.consumedActions.isEmpty(),
-                "RestartApp should not be consumed before delay completes",
+                "the Settings Store must not schedule a second process restart",
             )
-
-            advanceTimeBy(2_001L)
-            runCurrent()
-
-            assertEquals(Action.Navigation.RestartApp, store.consumedActions.single())
         }
 
     @Test
@@ -686,8 +678,7 @@ internal class BackupClickHandlerTest {
 
             handler.invoke(Action.Backup.LoadBackupList)
 
-            // A FAILED list call leaves the state where it was: `Unknown`. Reporting `Empty`
-            // here would turn a network failure into a claim about the account.
+            // `Empty` here would turn a network failure into a claim about the account.
             assertEquals(BackupInfoUi.Unknown, store.stateFlow.value.backupInfo)
             assertTrue(store.events.isEmpty(), "LoadBackupList failure must stay silent")
         }
@@ -770,9 +761,7 @@ internal class BackupClickHandlerTest {
                 ),
             )
 
-            // The snapshot handed to schedulePeriodic must carry the persisted
-            // non-sentinel fields; DEFAULT-based construction would have zeroed
-            // them out.
+            // The snapshot must carry the persisted non-sentinel fields; DEFAULT.copy zeroes them.
             coVerify {
                 autoBackupController.schedulePeriodic(
                     match { snapshot ->
@@ -926,48 +915,34 @@ internal class BackupClickHandlerTest {
     }
 
     @Test
-    fun `ObserveRestoreState pipes preserved-backup availability into canRevertLastRestore`() =
+    fun `ObserveRestoreState pipes the exact active undo into canRevertLastRestore`() =
         runTest(testDispatcher) {
-            val availabilityFlow = MutableStateFlow(false)
-            every {
-                restoreStateRepository.observePreRestoreBackupAvailable()
-            } returns availabilityFlow
-            every { snapshotProvider.hasPreRestoreBackup() } returns true
-
             handler.invoke(Action.Backup.ObserveRestoreState)
             runCurrent()
             assertEquals(false, store.stateFlow.value.canRevertLastRestore)
 
-            availabilityFlow.value = true
+            activeUndoFlow.value = TEST_ACTIVE_UNDO
             runCurrent()
             assertEquals(true, store.stateFlow.value.canRevertLastRestore)
 
-            availabilityFlow.value = false
+            activeUndoFlow.value = null
             runCurrent()
             assertEquals(false, store.stateFlow.value.canRevertLastRestore)
         }
 
     @Test
-    fun `ObserveRestoreState hides row and clears flag when cache evicted preserved file`() =
+    fun `ObserveRestoreState does not expose availability without an owned pointer`() =
         runTest(testDispatcher) {
-            val availabilityFlow = MutableStateFlow(true)
-            every {
-                restoreStateRepository.observePreRestoreBackupAvailable()
-            } returns availabilityFlow
-            // DataStore flag says available, but the file is gone (cache eviction).
-            every { snapshotProvider.hasPreRestoreBackup() } returns false
-
             handler.invoke(Action.Backup.ObserveRestoreState)
             runCurrent()
 
             assertEquals(false, store.stateFlow.value.canRevertLastRestore)
-            coVerify(exactly = 1) { restoreStateRepository.clearPreRestoreBackupAvailable() }
         }
 
     @Test
     fun `RequestRevertLastRestore publishes UndoRestoreConfirmation with persisted date`() =
         runTest(testDispatcher) {
-            coEvery { restoreStateRepository.getPreRestoreOriginalDate() } returns 1_700_000_000_000L
+            activeUndoFlow.value = TEST_ACTIVE_UNDO
 
             handler.invoke(Action.Backup.RequestRevertLastRestore)
             runCurrent()
@@ -975,7 +950,10 @@ internal class BackupClickHandlerTest {
             coVerify(exactly = 1) {
                 appDialogPublisher.publish(
                     io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialog
-                        .UndoRestoreConfirmation(originalDataDateEpochMs = 1_700_000_000_000L),
+                        .UndoRestoreConfirmation(
+                            undoRef = TEST_ACTIVE_UNDO.ref,
+                            originalDataDateEpochMs = TEST_ACTIVE_UNDO.originalDataDateEpochMs,
+                        ),
                 )
             }
         }
@@ -983,11 +961,20 @@ internal class BackupClickHandlerTest {
     @Test
     fun `RequestRevertLastRestore is a no-op when no original date is persisted`() =
         runTest(testDispatcher) {
-            coEvery { restoreStateRepository.getPreRestoreOriginalDate() } returns null
+            activeUndoFlow.value = null
 
             handler.invoke(Action.Backup.RequestRevertLastRestore)
             runCurrent()
 
             coVerify(exactly = 0) { appDialogPublisher.publish(any()) }
         }
+
+    private companion object {
+        val TEST_ACTIVE_UNDO = ActiveUndo(
+            ref = UndoRef(
+                RestoreOwnerId("11111111-1111-4111-8111-111111111111"),
+            ),
+            originalDataDateEpochMs = 1_700_000_000_000L,
+        )
+    }
 }

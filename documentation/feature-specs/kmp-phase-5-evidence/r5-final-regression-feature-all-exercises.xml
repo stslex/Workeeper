@@ -1,0 +1,11 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<testsuites tests="1" failures="0" errors="0" skipped="0" time="2.764" timestamp="2026-08-25T12:18:39" hostname="localhost">
+  <testsuite name="io.github.stslex.workeeper.feature.all_exercises.AllExercisesScreenTest" tests="1" failures="0" errors="0" skipped="0" time="1.895" timestamp="2026-08-25T12:18:39" hostname="localhost">
+    <properties>
+      <property name="device" value="Pixel_6_API_34(AVD) - 14" />
+      <property name="flavor" value="" />
+      <property name="project" value=":feature:all-exercises" />
+    </properties>
+    <testcase name="blockedArchiveDialogListsBlockingTrainings" classname="io.github.stslex.workeeper.feature.all_exercises.AllExercisesScreenTest" time="1.895" />
+  </testsuite>
+</testsuites>

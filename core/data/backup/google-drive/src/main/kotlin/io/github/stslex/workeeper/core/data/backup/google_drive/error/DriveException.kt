@@ -1,12 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.core.data.backup.google_drive.error
 
-/**
- * Internal exception types thrown by `DriveAuthInterceptor` / `DriveApiImpl` to
- * carry HTTP-level failure context up to `DriveErrorMapper`. Not exposed outside
- * the impl module — the public surface uses
- * [io.github.stslex.workeeper.core.data.backup.api.error.BackupError].
- */
+/** Internal HTTP-level failures carried up to `DriveErrorMapper`. */
 internal sealed class DriveException(message: String, cause: Throwable? = null) :
     RuntimeException(message, cause) {
 

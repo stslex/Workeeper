@@ -68,14 +68,7 @@ object AppTagChip {
         }
     }
 
-    /**
-     * The dashed «+ тег» chip (ED7): the form's whole add affordance, opening the picker
-     * sheet. The dash is `.addex`'s treatment at chip scale — drawn dashed as D-OPEN-5 keeps
-     * it (the label identifies the control; the dash owes no threshold), painted
-     * `borderDefault` because that is the control-outline slot the drawn `--hair-s` reroutes
-     * to (B19), exactly as `AppDashedAddButton` already paints it. No fill: the outline IS
-     * the chip.
-     */
+    /** The dashed add-tag chip: the form's whole add affordance, opening the picker sheet. */
     @Composable
     fun Add(
         onClick: () -> Unit,
@@ -102,10 +95,8 @@ object AppTagChip {
     }
 }
 
-/**
- * `AppUi.shapes.small`'s 6dp, as a `Dp` for [dashedBorder] — the CHIP small, not
- * `AppDimension.Radius.small`'s 8dp. Change `provideAppShapes` and this must follow.
- */
+// GUARD: mirrors AppUi.shapes.small's 6dp (dashedBorder takes a Dp, not a Shape); if
+// provideAppShapes changes, this must follow. Not AppDimension.Radius.small, which is 8dp.
 private val CHIP_CORNER = 6.dp
 
 @Composable

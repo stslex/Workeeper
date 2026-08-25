@@ -55,25 +55,8 @@ object AppDimension {
     object BottomNavBar {
 
         /**
-         * The v3 nav bar's own height, **derived rather than transcribed** (§0.2).
-         *
-         * `pass2d.html` `#s-nav` draws `.nb{height:60px;padding:5px 8px}` with the pill spanning
-         * `top:5px;bottom:5px` — so 60px decomposes as **pill 50 + 2×5 padding**, and on the
-         * ladder that is `heightMd` (48) + 2×`Space.xs` (4) = **56dp**.
-         *
-         * 60 is not a rung (32/40/48/56/64) and §0.2 rounds raw px onto the ladder. **Transcribing
-         * 60 here would put two different dp answers in the app for one drawn value**, on the two
-         * bars §26 pairs — the full derivation, including why `.topbar` already answered it, is
-         * §26 "Bottom navigation".
-         *
-         * Was **72dp** — a v2 rung with no drawn referent at all, which is what §24 flagged.
-         *
-         * Two consumers, and they are not independent: `AppNavBar` sizes itself off
-         * [heightWithInsets], and `AppNavigationHost` pads every bottom-bar destination by the
-         * bare [height] before applying `systemBarsPadding()`. The two are flush — measured as a
-         * controlled pair across both navigation modes, not reasoned about, because modifier-order
-         * claims are the class this arc has been wrong about seven for seven. Re-measure the pair
-         * after changing this number; do not re-derive it.
+         * The v3 nav bar's own height, derived onto the ladder rather than transcribed.
+         * GUARD: its two consumers must stay flush — re-measure the pair after changing it.
          */
         val height = 56.dp
 
@@ -117,28 +100,8 @@ object AppDimension {
     val phoneFrame: Dp = 24.dp
 
     /**
-     * The section row's resting height — **derived, not transcribed**.
-     *
-     * The mockup writes `--row-h:88px` (`pass2d.html:16`). That number is not copied here; it is
-     * re-derived from this project's own type scale and spacing ladder, and lands on the same
-     * value, which is the reason to trust it:
-     *
-     * ```
-     *   2 x LINE_BODY_SP   42   two lines of title — the row's worst case
-     *     + Space.xs        4   title-to-supporting gap
-     *     + LINE_META_SP   18   one line of supporting text
-     *   + 2 x Space.md     24   vertical padding, symmetric
-     *   ------------------------
-     *                      88
-     * ```
-     *
-     * So the height is what the content needs, not a box the content must fit into. It is applied
-     * as a **minimum** ([androidx.compose.foundation.layout.heightIn]), so a title that wraps past
-     * two lines, or a user at a larger font scale, grows the row instead of clipping it.
-     *
-     * A single-line row has no supporting text and therefore no reason to be this tall; it uses
-     * [heightXl] (64.dp), which is already on the ladder and is the mockup's `.srow` height
-     * (`pass2d.html:157`). Both clear the 48.dp minimum touch target with room to spare.
+     * The section row's resting height, derived from the type scale and applied as a minimum so
+     * a wrapped title or a larger font scale grows the row. Single-line rows use [heightXl].
      */
     val rowHeight: Dp = 88.dp
 }

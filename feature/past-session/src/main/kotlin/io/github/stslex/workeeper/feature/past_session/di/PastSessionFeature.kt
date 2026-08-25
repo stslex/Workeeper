@@ -16,19 +16,8 @@ import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStor
 internal typealias PastSessionStoreProcessor = StoreProcessor<State, Action, Event>
 
 /**
- * feature/past-session resolves its Store through the Metro **graph-extension** path.
- *
- * The app-scope graph (returned as `Any` by the `AppDepsHolder` seam) IS the parent graph and, once
- * `:app` is compiled, implements the contributed [PastSessionGraph.Factory]; `appDeps<T>()` re-narrows it
- * with its `as T` cast. All 9 formerly hand-threaded app-scoped deps are inherited from the parent, so
- * the three `appDeps` dep-interface lookups this file used to make, and the whole
- * `createGraphFactory(...).create(...)` argument list, are gone.
- *
- * The `Screen.PastSession` route arg is passed to the extension factory as a bound instance (shape B),
- * so the extension is built per navigation entry and carries that entry's arg — the Store needs no
- * assisted factory. The extension is created INSIDE the `rememberMetroStoreProcessor` lambda, so it is
- * built at most once per retained Store (per `NavBackStackEntry`), binding it and its
- * `@SingleIn(PastSessionScope)` nodes to exactly the Store's lifetime.
+ * Resolves the Store through the Metro graph-extension path. The extension is created inside the
+ * `rememberMetroStoreProcessor` lambda, so it lives exactly as long as the retained Store.
  */
 internal object PastSessionFeature : FeatureAssisted<
     PastSessionStoreProcessor,

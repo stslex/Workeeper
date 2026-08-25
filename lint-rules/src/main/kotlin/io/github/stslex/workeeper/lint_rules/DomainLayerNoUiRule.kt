@@ -10,17 +10,8 @@ import io.gitlab.arturbosch.detekt.api.Severity
 import org.jetbrains.kotlin.psi.KtImportDirective
 
 /**
- * Domain layer must not depend on UI / Compose / resource / mvi types.
- * The rule flags any import under `feature/<X>/domain/` (including
- * `domain/mapper/`, since UI dependencies are forbidden in mappers too)
- * that matches:
- *
- * - `*UiModel` — UI model types belong in mvi/.
- * - `androidx.compose.*` — Compose annotations / state types belong in UI.
- * - `*.R` and `*.R.*` — string/resource lookups go through the UI mapper
- *   via stringResource(R.string.*), not through the domain.
- * - imports whose package path contains `/ui/` or `/mvi/` — UI / mvi
- *   types must not flow back into domain.
+ * Domain layer must not import UI / Compose / `R` / mvi types; the flagged shapes are the `when`
+ * below. `domain/mapper/` is not exempt — display strings belong in the feature's mvi/mapper/.
  */
 class DomainLayerNoUiRule(
     config: Config = Config.empty,

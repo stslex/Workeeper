@@ -11,43 +11,8 @@ import io.gitlab.arturbosch.detekt.api.Severity
 import org.jetbrains.kotlin.psi.KtCallExpression
 
 /**
- * A colour animation must never use `Color.Transparent` as an endpoint.
- *
- * ## Why this is a rule and not a review note
- *
- * `Color.Transparent` is transparent **black**, and `animateColorAsState` interpolates in Oklab —
- * so a tween between a visible colour and `Color.Transparent` does not fade the colour *out*, it
- * travels toward black while the alpha drops. The mid-frames composite darker than **both**
- * endpoints.
- *
- * The failure is invisible to every gate this repo has. Both endpoints are correct, so a golden
- * pair photographs two correct pictures; Paparazzi renders one settled frame, so no golden can
- * reach the transit at all; and the excursion is large only in **light** theme, because on a dark
- * page the path to black stays inside the endpoints. Measured on the shipped palette, four sites
- * were flashing at once and had been through a full visual review:
- *
- * ```
- *   list row lift        #F6F7F9..#FFFFFF  ->  #ACADAE   (+0.290)
- *   top-bar icon press   #F6F7F9..#EFF1F4  ->  #A9AAAB   (+0.275)
- *   settings row press   #F6F7F9..#EFF1F4  ->  #A9AAAB   (+0.275)
- *   set-mark record fill #FFFFFF..#F97316  ->  #B09381   (+0.286)
- * ```
- *
- * The fix is one call: `theme.fadedOut()`, which is the same colour at zero alpha, so only alpha
- * moves and no mid-frame is a colour neither endpoint contains. It also needs no knowledge of what
- * is behind the surface, which "fade to the background colour" would.
- *
- * ## Scope, and what this deliberately does not catch
- *
- * PSI-only — this repo's custom rules run without type resolution, so a type-resolving rule finds
- * nothing in CI. It matches the literal text `Color.Transparent` inside a call whose callee is a
- * colour animation. Laundering the value through a local (`val gone = Color.Transparent` then
- * `animateColorAsState(gone)`) is not detected, and neither is a colour animation reached through
- * an alias. That residual is covered by `FadeOutTest`, which measures the excursion at every known
- * fade site — the two together are the guard, and neither is sufficient alone.
- *
- * A static, non-animated `Color.Transparent` is fine and is not matched: a surface that is simply
- * invisible never interpolates, so there is no mid-frame to be wrong.
+ * A colour animation must never end at `Color.Transparent` — it is transparent black, so Oklab
+ * mid-frames composite darker than both endpoints. Use `fadedOut()`. See lint-rules.md.
  */
 class FadeToTransparentRule(
     config: Config = Config.empty,

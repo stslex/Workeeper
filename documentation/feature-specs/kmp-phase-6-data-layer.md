@@ -141,7 +141,9 @@ annotations require the Metro compiler plugin, which `core:core` does not apply"
 `commonMain` and `:app:app:assembleDebug` resolves it; **mutation M-CM1** (delete the annotation)
 reds with `[Metro/MissingBinding] No binding found for CommonDataStore`, so the green is real rather
 than a pass over an unrequested binding. The mechanism is mundane — `commonMain` sources are part of
-the Android compilation, which is where the plugin runs. KDoc corrected in place.
+the Android compilation, which is where the plugin runs. KDoc corrected in place. The same
+mechanism makes a contribution SITE in `iosMain` **inert, not an error**, while no iOS composition
+root exists: no Android compilation sees it, so nothing aggregates it and nothing fails.
 
 **This is the single most load-bearing finding here for phase 7.** Had the recorded invariant been
 believed, every feature's `Store`/handler/mapper binding would have been forced into `androidMain`
@@ -173,6 +175,24 @@ green → red → green.
 **iOS:** `NSFileManager.URLForDirectory(…)` takes an `NSError` out-parameter whose `CPointer` type
 drags `@ExperimentalForeignApi` into the file. The list-returning
 `URLsForDirectory(directory, inDomains)` is pure Foundation and needs no opt-in.
+
+**A third trap, from the persistence gate: tear a DataStore generation down with `cancelAndJoin`,
+never a bare `cancel`.** DataStore drops the file from its process-global `activeFiles` set inside
+an `invokeOnCompletion` handler on that scope's `Job`
+(`SimpleActor.init` → `DataStoreImpl.onComplete` → `StorageConnection.close`), which runs when the
+job *completes*, not when `cancel` returns — its `Dispatchers.IO` children keep it Cancelling while they unwind. Opening the next
+generation over the same file without joining races that removal and trips
+`check(!activeFiles.contains(path))` (`FileStorage.kt:52`) — "There are multiple DataStores active
+for the same file". It made `CommonDataStorePersistenceTest` flake red on a loaded CI runner while
+staying green locally; the same join is required in `@AfterEach` before `file.delete()`.
+
+**`DataStoreProvider`'s `open` class and `open dataStore` property are that gate's test seam, not
+an extension point.** The companion's CAS memo is process-lifetime by design and so cannot express
+"a second process", so `CommonDataStorePersistenceTest` subclasses the provider
+(`GenerationProvider`) to substitute a generation-scoped `DataStore` over one file and simulate
+process death. Production code must not subclass it. The subclass's base constructor still
+memoizes a store under a throwaway name (`hs6_super_ignored`, via a `ThrowawayPathResolver`),
+which costs nothing — DataStore opens its file lazily and that base store is never read.
 
 ---
 
@@ -270,6 +290,12 @@ Android-only `androidx-paging-runtime` unconditionally.
 
 **Decided:** the convention gains a KMP branch rather than a forked plugin, so a single plugin id
 keeps describing "this module uses Room" — and `paging-runtime` becomes `paging-common`.
+
+Consequence for every consumer's `plugins { }` block: `alias(libs.plugins.convention.kmpLibrary)`
+MUST be declared BEFORE `alias(libs.plugins.convention.roomLibrary)`. The Room convention branches
+on which base convention is already applied to pick configuration names — `kspAndroid` /
+`kspIosSimulatorArm64` + `androidDeviceTestImplementation` on the KMP branch versus `ksp` +
+`androidTestImplementation` on the classic one — so reordering silently takes the wrong branch.
 
 ---
 
@@ -394,6 +420,27 @@ which is direct evidence that this codebase's SQL is written against the system 
 Fusing the flip into the port makes a SQLite-behaviour regression and a source-set regression
 indistinguishable under bisect, and makes the safe half unrevertable without the risky half.
 
+**Post-flip, on the shipped tree** — production `buildAppDatabase` calls
+`setDriver(BundledSQLiteDriver())`:
+
+- One SQLite build (**3.50.x**) on every device instead of the per-OEM, per-API-level system one.
+  The main-db and WAL file formats are frozen, so existing installations open unchanged.
+- The `snapshot/` package still opens the same file through framework SQLite
+  (`android.database.sqlite`) for its pre-migration peek and checkpoint. That cross-library interop
+  against one file is deliberate; its paths are exercised by the recovery flow, not by the builder.
+- **Dates the `ROW_NUMBER()` reason above.** A `ROW_NUMBER() OVER (PARTITION BY …)` rewrite of
+  `SessionDao`'s `PR_BATCH_SQL` (which returns every eligible candidate per exercise, grouped for
+  the consumer's `.first()`) IS available under the bundled driver; the remaining constraint is
+  that any such rewrite must retain device coverage, because Robolectric host tests run a different
+  SQLite engine. Not minSdk 28.
+- The driver is per source set: the Room convention adds `androidx-sqlite-bundled` to
+  `androidMainImplementation` only (`iosMain` gets a driver dependency the day an iOS composition
+  root builds a database, not before). Robolectric HOST tests cannot use bundled — its android
+  variant carries Android-ABI natives only and dies with `UnsatisfiedLinkError` on a desktop JVM
+  (measured) — so a module whose host tests build databases pins
+  `androidHostTestImplementation(libs.androidx.sqlite.framework)` itself and stays on
+  `AndroidSQLiteDriver`, as `core:data:database` does.
+
 **The migration suite is the gate for the flip**, per the phase brief, and Robolectric is not
 admissible as its oracle: `AtomicRollbackDeviceTest`'s class KDoc records Robolectric giving a false
 **negative** on transaction rollback *twice*. Evidence for the flip will be the instrumented
@@ -511,6 +558,20 @@ module conversions.
   production build can never silently rewrite `schemas/`. The §6 gate ran as prescribed:
   schemaInput redirected to an empty dir (out-of-tree init script overriding the KSP task's
   processorOptions), fresh 6.json exported, byte-identical, identityHash unchanged.
+- **`withTransaction {}` → `useWriterConnection { it.immediateTransaction {} }`** (the Room KMP
+  migration guide's documented equivalent) — and the nesting order is load-bearing.
+  `provideDbTransitionRunner` nests `coroutineScope` INSIDE `immediateTransaction`, so the receiver
+  `block` inherits the transaction context and any `async {}` children participate in the SAME
+  transaction, i.e. rollback semantics identical to the former `withTransaction`. Hoisting
+  `coroutineScope` outside the transaction silently breaks child-write rollback, and both orderings
+  compile. Verified by the atomicity probe in `AtomicRollbackDeviceTest`.
+- **room3-runtime 3.0.0's `useWriterConnection` already calls `invalidationTracker.refreshAsync()`
+  internally** (verified in its bytecode), so the port deliberately added NO manual refresh after a
+  write. `InvalidationDeviceTest` is the end-to-end oracle for that: androidDeviceTest, file-backed
+  `invalidation_probe.db`, `TIMEOUT_MS = 5_000`, one positive (a write through the ported
+  `DbTransitionRunner` re-emits a collected `tagDao.observeAll()` Flow) and one known-negative
+  (with no write the Flow must NOT re-emit). Robolectric is not a valid oracle for invalidation /
+  Flow re-emission, same as for transaction rollback.
 - **KSP2 KMP configuration names**: `kspAndroid` / `kspIosSimulatorArm64` feed tasks
   `kspAndroidMain` / `kspKotlinIosSimulatorArm64`; room3's KMP integration matches `KspAATask` by
   name and attaches its argument provider — KSP2-aware out of the box.
@@ -575,5 +636,7 @@ module conversions.
   makes the right shape observable; `android.net.Uri` still has no common analogue.
 - **The §7 visual-gate side-track was deliberately not taken**: no KMP module applies paparazzi
   until phase 7 converts the first golden module, so the `verifyPaparazzi*` alias cannot be proven
-  in either direction yet — and the convention's own KDoc already pins that alias to that
-  conversion. An alias that cannot red is a comment; it stays with the conversion that needs it.
+  in either direction yet. `KmpComposeLibraryConventionPlugin` therefore wires neither the
+  Paparazzi plugin nor the golden gate: the KMP-aware gate variant and the `verifyPaparazziDebug`
+  alias land with the first golden-module conversion, which is the change that can red them. An
+  alias that cannot red is a comment; it stays with the conversion that needs it.

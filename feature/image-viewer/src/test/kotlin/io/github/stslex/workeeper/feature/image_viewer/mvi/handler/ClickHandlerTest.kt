@@ -39,14 +39,8 @@ internal class ClickHandlerTest {
     )
 
     /**
-     * The verbs the viewer carries are a REQUEST to the caller, and only a caller that can honour
-     * one may be offered it. The exercise DETAIL screen opens this same route and has no Save and
-     * no dirty interception, so a replace staged from there would look applied and be lost on the
-     * way out — worse than no affordance, because it reads as having worked.
-     *
-     * The `⋮` is hidden on a non-editable route, so this branch is unreachable through the UI; it
-     * is guarded anyway because the alternative is a representable state (`Menu` on a route whose
-     * caller cannot save) defended only by a composable remembering to check a flag.
+     * The viewer's verbs are a REQUEST, so only a caller that can honour one may be offered it —
+     * guarded in the handler even though the `⋮` is already hidden on a non-editable route.
      */
     @Test
     fun `a non-editable route cannot open the verbs sheet`() {

@@ -8,13 +8,8 @@ import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 
 /**
- * Pure transformer that applies a [PlanEditorBodyAction] to a plan draft. Shared between
- * the full-screen plan editor (`feature/plan-editor`) and the inline plan editor surfaced
- * by the exercise create-flow (`feature/exercise`) so the two paths cannot drift in their
- * set-list semantics.
- *
- * No coroutines, IO, or resource access. Lifecycle actions (`OnSave`, `OnDismiss`) and
- * actions never emitted by the body in mutation contexts return the draft unchanged.
+ * Pure transformer applying a [PlanEditorBodyAction] to a plan draft, shared by the full-screen
+ * plan editor and the exercise create-flow so the two cannot drift. Lifecycle actions are no-ops.
  */
 object PlanDraftReducer {
 
@@ -47,8 +42,7 @@ object PlanDraftReducer {
 
     private fun ImmutableList<PlanSetUiModel>.appendDefault(): ImmutableList<PlanSetUiModel> {
         val previous = lastOrNull()
-        // New set always cycles back to WORK regardless of previous type — workout pattern:
-        // warmups precede work sets, so the next add is a work set by default.
+        // A new set is always WORK: warmups precede work sets.
         val nextSet = previous?.copy(type = SetTypeUiModel.WORK) ?: PlanSetUiModel(
             weight = null,
             reps = DEFAULT_NEW_REPS,

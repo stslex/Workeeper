@@ -16,17 +16,8 @@ import io.github.stslex.workeeper.feature.image_viewer.mvi.store.ImageViewerStor
 internal typealias ImageViewerStoreProcessor = StoreProcessor<State, Action, Event>
 
 /**
- * feature/image-viewer resolves its Store through the Metro **graph-extension** path.
- *
- * The app-scope graph (returned as `Any` by the `AppDepsHolder` seam) IS the parent graph and, once
- * `:app` is compiled, implements the contributed [ImageViewerGraph.Factory]; `appDeps<T>()` re-narrows it
- * with its `as T` cast. All 4 formerly hand-threaded app-scoped deps are inherited from the parent.
- *
- * The `Screen.ExerciseImage` route arg is passed to the extension factory as a bound instance (shape B),
- * so the extension is built per navigation entry and carries that entry's arg — the Store needs no
- * assisted factory. The extension is created INSIDE the `rememberMetroStoreProcessor` lambda, so it is
- * built at most once per retained Store (per `NavBackStackEntry`), binding it and its
- * `@SingleIn(ImageViewerScope)` nodes to exactly the Store's lifetime.
+ * Resolves the Store through the Metro graph-extension path. The extension is created inside the
+ * `rememberMetroStoreProcessor` lambda, so its scope is exactly the retained Store's lifetime.
  */
 internal object ImageViewerFeature : FeatureAssisted<
     ImageViewerStoreProcessor,

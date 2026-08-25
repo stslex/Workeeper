@@ -3,18 +3,15 @@ package io.github.stslex.workeeper.feature.recovery
 
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageInfo
-import android.content.pm.PackageManager
 import android.net.Uri
-import android.os.Build
 import androidx.core.net.toUri
 import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
+import io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetime
 import io.github.stslex.workeeper.core.core.di.AppScope
 import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
 import io.github.stslex.workeeper.core.core.logger.Log
-import io.github.stslex.workeeper.core.data.backup.api.RecoveryDiagnosticsExporter
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreStateRepository
 import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialog
 import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialogUserAction
@@ -22,73 +19,34 @@ import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialogUserCho
 import io.github.stslex.workeeper.feature.app_dialogs.api.observer.AppDialogObserver
 import io.github.stslex.workeeper.feature.app_dialogs.api.publisher.AppDialogPublisher
 import io.github.stslex.workeeper.feature.recovery.boot.RecoveryBootstrap
+import io.github.stslex.workeeper.feature.recovery.diagnostics.RestoreDiagnosticsExport
 import io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinator
 import io.github.stslex.workeeper.feature.recovery.domain.UndoRestoreOutcome
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import io.github.stslex.workeeper.feature.recovery.R as RecoveryR
 
-/**
- * Consumer-side reactor for the cross-feature `AppDialog` choices. Replaces
- * the deleted `AppDialogActions` interface + `AppDialogActionsImpl`; reads
- * choices from [AppDialogObserver.observeUserActions] and performs the
- * undo / report / export side-effects, then calls
- * [AppDialogObserver.acknowledgeReaction] to clear the dialog.
- *
- * **Bootstrap (BLOCKER 1).** This `@SingleIn(AppScope)` observer is
- * `@ContributesBinding(AppScope)`-bound to [RecoveryBootstrap] and constructed at
- * `BaseApplication.onCreate` by eagerly reading the `recoveryBootstrap` accessor on
- * the app graph (`appGraph.recoveryBootstrap`).
- * Construction triggers the `init { ... launchIn(scope) }` block below,
- * registering a subscriber on the observer's `SharedFlow` BEFORE any
- * `MainActivity.onCreate` runs. The first user dispatch lands on a live
- * collector; no lost signal.
- *
- * **Dismiss-after, uniform (BLOCKER 2).** For EVERY variant — including
- * the destructive `UndoRestoreConfirmation` + `ConfirmUndo` path — the
- * side-effect runs FIRST and [AppDialogObserver.acknowledgeReaction] runs
- * AFTER. Crash-mid-reaction leaves the dialog flag set; the dialog re-shows
- * on next launch; the user re-taps; the side-effect runs again
- * (idempotent — `coordinator.performUndoRestore()` no-ops when the
- * pre-restore backup file is already consumed). This invariant must NOT
- * be reversed for the `ConfirmUndo` path: dismiss-first would create a
- * silent-failure window where the dialog disappears, the user perceives
- * the success path, but the rollback did not happen.
- *
- * For `performUndoRestore` specifically, the outcome is a three-way
- * [UndoRestoreOutcome]:
- *
- *  - [UndoRestoreOutcome.Succeeded] → acknowledge + restart.
- *  - [UndoRestoreOutcome.FileMissing] → acknowledge (no further user-driven
- *    action can succeed; safe to dismiss).
- *  - [UndoRestoreOutcome.IoFailure] → do NOT acknowledge (the dialog stays
- *    visible so the user sees the reaction did not complete and can re-tap;
- *    `pre_restore_backup.db` is still on disk and Settings → "Revert last
- *    restore" remains available as a parallel retry path).
- *
- * The gate (`outcome != IoFailure`) is what closes the case-b silent-
- * failure window — without it, an IO-error rollback would dismiss the
- * dialog while the user's data was never actually rolled back.
- */
+/** App-scoped dialog-choice reactor; it acknowledges only after its effect succeeds. */
 @SingleIn(AppScope::class)
 @ContributesBinding(AppScope::class)
-// Public for cross-module @ContributesBinding aggregation into the app graph (D1; never hand-construct
-// — resolve via DI). Metro-owned via @ContributesBinding(AppScope) bound to RecoveryBootstrap.
+// Public for cross-module Metro aggregation; obtain through DI.
 class RestoreDialogChoiceObserver @Inject constructor(
     private val context: Context,
     private val observer: AppDialogObserver,
     private val coordinator: RestoreRecoveryCoordinator,
     private val restoreStateRepository: RestoreStateRepository,
     private val appDialogPublisher: AppDialogPublisher,
-    private val diagnosticsExporter: RecoveryDiagnosticsExporter,
+    private val restoreDiagnosticsExport: RestoreDiagnosticsExport,
+    lifetime: AppScopeLifetime,
     @DefaultDispatcher private val dispatcher: CoroutineDispatcher,
 ) : RecoveryBootstrap {
 
     private val logger = Log.tag(TAG)
-    private val scope = CoroutineScope(SupervisorJob() + dispatcher)
+
+    // Generation lifetime owns the collector, preventing duplicate observers after replacement.
+    private val scope = lifetime.childScope(dispatcher)
 
     init {
         observer.observeUserActions()
@@ -106,7 +64,7 @@ class RestoreDialogChoiceObserver @Inject constructor(
             is AppDialog.RestoreSuccess -> handleRestoreSuccess(dialog, choice.action)
             is AppDialog.RestoreFailure -> handleRestoreFailure(dialog, choice.action)
             is AppDialog.UndoRestoreConfirmation -> handleUndoConfirmation(dialog, choice.action)
-            AppDialog.UndoRestoreSuccess -> if (choice.action == AppDialogUserAction.Acknowledge) {
+            is AppDialog.UndoRestoreSuccess -> if (choice.action == AppDialogUserAction.Acknowledge) {
                 observer.acknowledgeReaction(dialog)
             }
         }
@@ -155,17 +113,15 @@ class RestoreDialogChoiceObserver @Inject constructor(
     ) {
         when (action) {
             AppDialogUserAction.ConfirmUndo -> {
-                // Dismiss-AFTER (uniform). Side-effect first; acknowledge only
-                // when the outcome is one we can dismiss the dialog on. IoFailure
-                // keeps the dialog visible so the user sees the reaction did NOT
-                // complete and can re-tap — anything else (success OR the file
-                // already being gone) means no further user-driven action could
-                // accomplish anything new, so the dialog is safe to dismiss.
-                val outcome = coordinator.performUndoRestore()
-                if (outcome != UndoRestoreOutcome.IoFailure) {
+                val outcome = coordinator.performUndoRestore(dialog.undoRef)
+                if (outcome == UndoRestoreOutcome.NotCurrent) {
                     observer.acknowledgeReaction(dialog)
                 }
-                if (outcome == UndoRestoreOutcome.Succeeded) coordinator.restartApp()
+                if (outcome == UndoRestoreOutcome.Succeeded ||
+                    outcome == UndoRestoreOutcome.RecoveryRequired
+                ) {
+                    coordinator.restartApp()
+                }
             }
 
             AppDialogUserAction.Cancel -> observer.acknowledgeReaction(dialog)
@@ -175,35 +131,25 @@ class RestoreDialogChoiceObserver @Inject constructor(
     }
 
     /**
-     * Publishes [AppDialog.UndoRestoreConfirmation] and returns whether it was
-     * published. Returns `false` without publishing when the preserved backup
-     * was evicted between [AppDialog.RestoreSuccess] being shown and the user
-     * tapping "Undo restore" (`getPreRestoreOriginalDate()` is `null`). In that
-     * case the caller must NOT acknowledge `RestoreSuccess`: dismissing it would
-     * silently destroy the user's only undo entry point. Keeping `RestoreSuccess`
-     * visible is the same choice already made for [UndoRestoreOutcome.IoFailure].
+     * Publishes the undo confirmation; `false` when the preserved backup was already evicted, in
+     * which case the caller must keep `RestoreSuccess` visible as the only undo entry point.
      */
     private suspend fun publishUndoConfirmation(): Boolean {
-        val originalDate = restoreStateRepository.getPreRestoreOriginalDate()
-        if (originalDate == null) {
-            logger.w { "Undo confirmation not published: pre-restore original date is missing" }
+        val activeUndo = restoreStateRepository.observeActiveUndo().first()
+        if (activeUndo == null) {
+            logger.w { "Undo confirmation not published: active undo is missing" }
             return false
         }
         appDialogPublisher.publish(
-            AppDialog.UndoRestoreConfirmation(originalDataDateEpochMs = originalDate),
+            AppDialog.UndoRestoreConfirmation(
+                undoRef = activeUndo.ref,
+                originalDataDateEpochMs = activeUndo.originalDataDateEpochMs,
+            ),
         )
         return true
     }
 
-    private suspend fun exportRestoreDiagnostics(): Uri? {
-        val info = readPackageInfo()
-        return diagnosticsExporter.exportRestoreFailure(
-            exception = null,
-            context = restoreStateRepository.getRestoreInProgressContext(),
-            appVersionName = info.versionName.orEmpty(),
-            appVersionCode = info.longVersionCode,
-        )
-    }
+    private suspend fun exportRestoreDiagnostics(): Uri? = restoreDiagnosticsExport.export()
 
     private fun openReportIssue() {
         val title = Uri.encode(context.getString(RecoveryR.string.recovery_restore_failure_report_title))
@@ -229,17 +175,6 @@ class RestoreDialogChoiceObserver @Inject constructor(
         ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         runCatching { context.startActivity(chooser) }
     }
-
-    private fun readPackageInfo(): PackageInfo =
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            context.packageManager.getPackageInfo(
-                context.packageName,
-                PackageManager.PackageInfoFlags.of(0),
-            )
-        } else {
-            @Suppress("DEPRECATION")
-            context.packageManager.getPackageInfo(context.packageName, 0)
-        }
 
     private companion object {
         const val TAG = "RestoreDialogChoiceObserver"

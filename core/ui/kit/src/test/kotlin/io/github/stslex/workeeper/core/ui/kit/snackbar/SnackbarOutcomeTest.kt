@@ -2,6 +2,7 @@
 package io.github.stslex.workeeper.core.ui.kit.snackbar
 
 import androidx.compose.material3.SnackbarResult
+import io.github.stslex.workeeper.core.core.logger.Log
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.NonCancellable
@@ -12,21 +13,41 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeoutOrNull
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
 /**
- * ED11's window-close signal at its selector. The consumer, named per §27's discriminator:
- * `App.kt`'s snackbar collector calls [resolveSnackbarOutcome] on every toast, and the
- * exercise feature's deferred permanent delete rides `onDismissed` — so «`Отменить` never
- * commits» and «a closed window always commits» are exactly the two branches here.
- *
- * Each case asserts BOTH lambdas — the fired one fired once and the other not at all —
- * because the defect this routing exists to prevent is delete-AND-undo running together.
+ * ED11's window-close routing: «Отменить» never commits, a closed window always commits.
+ * Each case asserts both lambdas, since the defect is delete-and-undo running together.
  */
-@OptIn(ExperimentalCoroutinesApi::class)
+@OptIn(ExperimentalCoroutinesApi::class, SnackbarGenerationTransition::class)
 internal class SnackbarOutcomeTest {
+
+    /**
+     * GUARD: kermit's Logcat writer throws off-device, and the drain can reach a discard log.
+     * Flip the call-time gate, not the captured logger. Same as [SnackbarManagerTest].
+     */
+    private var wasLogging = true
+
+    @BeforeEach
+    fun silenceLogSink() {
+        wasLogging = Log.isLogging
+        Log.isLogging = false
+    }
+
+    @AfterEach
+    fun restoreLogSink() {
+        Log.isLogging = wasLogging
+    }
+
+    /** [SnackbarManager]'s resolve gate is process-wide; a fenced leftover misroutes later. */
+    @AfterEach
+    fun reopenResolveGate() {
+        SnackbarManager.unfenceResolves()
+    }
 
     private class Recorder {
         var actions = 0
@@ -64,13 +85,7 @@ internal class SnackbarOutcomeTest {
         assertEquals(1, recorder.dismissals)
     }
 
-    /**
-     * The containment half of the routing's contract: both callbacks run inside the
-     * app-level collector, which outlives every screen — a throwing commit (B-E7's RESTRICT
-     * gap can reach one until its arc widens the eligibility predicate) must degrade to
-     * B17/B21's silent class, not cancel the one collector every toast shares. These two
-     * pass exactly when [resolveSnackbarOutcome] returns instead of rethrowing.
-     */
+    /** Both callbacks run in the app-level collector, so a throwing one must not cancel it. */
     @Test
     fun `a throwing commit is contained — the collector outlives it`() = runTest {
         val model = AppSnackbarModel(
@@ -106,59 +121,53 @@ internal class SnackbarOutcomeTest {
         assertTrue(escaped)
     }
 
-    /**
-     * The requeue half ([resolveSnackbarOutcomeOrRequeue]): the queue delivers once and the
-     * collector dies with its composition, so a model the host holds when recreation
-     * cancels it must go BACK — dropped, a deferred delete's confirmed commit silently
-     * never runs while the process is alive. Each case drains what it queues: the manager
-     * is a singleton and a leftover would leak into a sibling test.
-     */
+    /** The requeue half; each case drains what it queues, the manager being a singleton. */
     @Test
     fun `a show cancelled mid-flight requeues the model`() = runTest {
-        val model = AppSnackbarModel(message = "requeue-show")
+        val delivered = deliverOnce(AppSnackbarModel(message = "requeue-show"))
         var escaped = false
         try {
-            resolveSnackbarOutcomeOrRequeue(model) {
+            resolveSnackbarOutcomeOrRequeue(delivered) {
                 throw CancellationException("host recreating")
             }
         } catch (expected: CancellationException) {
             escaped = true
         }
         assertTrue(escaped)
-        assertEquals("requeue-show", SnackbarManager.snackbar.first().message)
+        assertEquals("requeue-show", SnackbarManager.snackbar.first().model.message)
     }
 
     @Test
     fun `cancellation inside the commit requeues the model`() = runTest {
-        val model = AppSnackbarModel(
-            message = "requeue-commit",
-            onDismissed = { throw CancellationException("host recreating mid-commit") },
+        val delivered = deliverOnce(
+            AppSnackbarModel(
+                message = "requeue-commit",
+                onDismissed = { throw CancellationException("host recreating mid-commit") },
+            ),
         )
         var escaped = false
         try {
-            resolveSnackbarOutcomeOrRequeue(model) { null }
+            resolveSnackbarOutcomeOrRequeue(delivered) { null }
         } catch (expected: CancellationException) {
             escaped = true
         }
         assertTrue(escaped)
-        assertEquals("requeue-commit", SnackbarManager.snackbar.first().message)
+        assertEquals("requeue-commit", SnackbarManager.snackbar.first().model.message)
     }
 
     @Test
     fun `a routed outcome does not requeue`() = runTest {
         val recorder = Recorder()
-        resolveSnackbarOutcomeOrRequeue(recorder.model()) { SnackbarResult.Dismissed }
+        val delivered = deliverOnce(recorder.model())
+        resolveSnackbarOutcomeOrRequeue(delivered) { SnackbarResult.Dismissed }
         assertEquals(1, recorder.dismissals)
         // Nothing queued: an immediate poll of the singleton queue must come up empty.
         assertTrue(withTimeoutOrNull(POLL_MILLIS) { SnackbarManager.snackbar.first() } == null)
     }
 
     /**
-     * The window has CLOSED once [AppSnackbarModel.onDismissed] is entered, so the commit
-     * it carries runs [NonCancellable]: the host dying mid-transaction must not tear it in
-     * half — and must not requeue a model whose delete already landed, which would re-show
-     * an «Отменить» that can no longer undo anything. A commit either never starts (the
-     * requeue's case) or finishes.
+     * The window has CLOSED once [AppSnackbarModel.onDismissed] is entered, so its commit runs
+     * [NonCancellable]: a commit either never starts or finishes.
      */
     @Test
     fun `the host dying cannot tear a commit that began`() = runTest {
@@ -175,6 +184,22 @@ internal class SnackbarOutcomeTest {
         job.cancel()
         advanceUntilIdle()
         assertTrue(committed)
+    }
+
+    /** Enqueues [model] through the real path so the [DeliveredSnackbar] carries the live epoch. */
+    private suspend fun deliverOnce(model: AppSnackbarModel): DeliveredSnackbar {
+        drainLeftovers()
+        SnackbarManager.showSnackbar(model)
+        val delivered = SnackbarManager.snackbar.first()
+        assertEquals(model, delivered.model)
+        return delivered
+    }
+
+    /** Drains the process-wide queue; the poll's null, not the approximate count, terminates. */
+    private suspend fun drainLeftovers() {
+        while (SnackbarManager.pendingModelCount > 0) {
+            withTimeoutOrNull(POLL_MILLIS) { SnackbarManager.snackbar.first() } ?: return
+        }
     }
 
     private companion object {

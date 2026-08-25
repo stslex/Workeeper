@@ -70,15 +70,7 @@ internal class ClickHandlerTest {
 
     private val handler = ClickHandler(interactor, resourceWrapper, Dispatchers.Unconfined, store)
 
-    /**
-     * **These two are only meaningful while Save is never disabled (§26).**
-     *
-     * A save predicate on this screen would be `name.isNotBlank() && exercises.isNotEmpty()`, and
-     * it hides **two** branches, not one: the first conjunct is the exact condition that produces
-     * `nameError`, the second is the one that emits `ShowSaveError`. Gate the button on either and
-     * the matching case here stays green while measuring a state no user can reach — B23's shape,
-     * twice. The discriminator is "ask what *reaches* the state the test builds".
-     */
+    /** Meaningful only while Save is never disabled (§26): a predicate would hide both. */
     @Test
     fun `OnSaveClick with blank name flips nameError — reachable`() {
         stateFlow.value = stateFlow.value.copy(name = "")
@@ -95,10 +87,7 @@ internal class ClickHandlerTest {
         assertTrue(captured.captured is Event.ShowSaveError)
     }
 
-    /**
-     * The other direction, so both branches are shown to be gates rather than unconditional
-     * flags: a named training with an exercise in it sets no error and emits no save error.
-     */
+    /** The other direction: both branches are gates, not unconditional flags. */
     @Test
     fun `OnSaveClick with a name and exercises raises neither error`() {
         stateFlow.value = stateFlow.value.copy(
@@ -129,11 +118,7 @@ internal class ClickHandlerTest {
         assertTrue(stateFlow.value.mode is State.Mode.Edit)
     }
 
-    /**
-     * D-OPEN-8: an insert is an addressed gesture whose next step is the plan, so the inserted
-     * card opens — and a multi-insert opens the FIRST only. The `launch` mock executes the
-     * action and its onSuccess synchronously, because the ruling lives inside them.
-     */
+    /** D-OPEN-8: a multi-insert opens the first card only. */
     @Test
     fun `OnPickerConfirm opens the first inserted card only`() {
         every {
@@ -190,10 +175,7 @@ internal class ClickHandlerTest {
         assertTrue(stateFlow.value.expandedExerciseUuids.isEmpty())
     }
 
-    /**
-     * ED14's amendment: expansion is PER CARD, never an accordion — opening the second
-     * card must not collapse the first, or the page shifts under the finger mid-edit.
-     */
+    /** ED14: expansion is per card, never an accordion. */
     @Test
     fun `cards expand independently`() {
         stateFlow.value = stateFlow.value.copy(
@@ -220,11 +202,7 @@ internal class ClickHandlerTest {
         assertEquals(null, second.planSets)
     }
 
-    /**
-     * Removing the last set normalizes the plan back to NULL, not an empty list —
-     * `plan_sets IS NULL` is attached-with-no-plan, the persisted shape, and the dirty
-     * signature compares this value (a lingering `[]` would read dirty forever).
-     */
+    /** Removing the last set normalizes the plan to null — `plan_sets IS NULL` is the shape. */
     @Test
     fun `OnExercisePlanAction removing the last set normalizes to null`() {
         stateFlow.value = stateFlow.value.copy(
@@ -438,12 +416,7 @@ internal class ClickHandlerTest {
         verify(exactly = 0) { store.consume(any<Action.Navigation.Back>()) }
     }
 
-    /**
-     * ED14 governs ENTERING the editor, and a save is not the only way back to Read — so the
-     * whole reported path is walked here rather than the one exit: expand, save, tap Edit. Between
-     * the save and the tap the set is invisible (Read renders `TrainingExerciseRow`, not the
-     * card), which is why nothing catches this without re-entering.
-     */
+    /** ED14 governs entering: the leak only shows on the expand → save → Edit path. */
     @Test
     fun `entering the editor after a save collapses every card`() {
         every {
@@ -472,11 +445,7 @@ internal class ClickHandlerTest {
         assertTrue(stateFlow.value.expandedExerciseUuids.isEmpty())
     }
 
-    /**
-     * The snapshot stores whole items; the comparison is narrower than the storage, over
-     * uuid + position + plan. An exercise renamed on its own screen and refreshed into this list
-     * is not an unsaved edit to THIS training, and must not raise the discard sheet.
-     */
+    /** The dirty signature is narrower than the snapshot: a refreshed name is not an edit. */
     @Test
     fun `a refreshed exercise name is not an unsaved change`() {
         stateFlow.value = stateFlow.value.copy(
@@ -494,11 +463,7 @@ internal class ClickHandlerTest {
         assertFalse(stateFlow.value.hasChanges)
     }
 
-    /**
-     * Three things the snapshot has to be able to put back. They are one test each because they
-     * fail separately: rebuilding the list from the current one restores an order and nothing
-     * else, and only the whole-list restore satisfies all three at once.
-     */
+    /** Three things the snapshot must put back; one test each, because they fail separately. */
     @Test
     fun `OnConfirmDiscard restores an exercise the edit removed`() {
         stateFlow.value = stateFlow.value.copy(
@@ -552,11 +517,7 @@ internal class ClickHandlerTest {
         assertFalse(stateFlow.value.hasChanges)
     }
 
-    /**
-     * §4's table, row 2: `✕` is a DRAFT edit — unconfirmed (D-OPEN-11), nothing persisted —
-     * and its toast's «Отменить» restores the item where it stood, position and expansion
-     * included. Item-wise, so a queued sibling toast composes.
-     */
+    /** §4 row 2: `✕` is a draft edit; its undo restores the item where it stood. */
     @Test
     fun `remove emits the undo toast and the undo restores item, position and expansion`() {
         stateFlow.value = stateFlow.value.copy(
@@ -619,12 +580,7 @@ internal class ClickHandlerTest {
         assertEquals("60×10", stateFlow.value.exercises.single().planSummary)
     }
 
-    /**
-     * The toast is app-level and outlives the draft (5s, accessibility-stretched), so its
-     * «Отменить» can land after Save flipped to Read. The removal is persisted by then — a
-     * reinserted row would sit on the Read screen with no saved row behind it. The epoch
-     * guard makes the stale tap edit nothing ([State.draftEpoch]).
-     */
+    /** The toast outlives the draft: after Save's flip to Read the guard makes it inert. */
     @Test
     fun `a stale set undo after save flipped to read edits nothing`() {
         val set = PlanSetUiModel(weight = 60.0, reps = 10, type = SetTypeUiModel.WORK)
@@ -657,11 +613,8 @@ internal class ClickHandlerTest {
     }
 
     /**
-     * The guard is a disjunction and each handler carries its own copy, so each clause gets
-     * the case that ONLY it blocks, per handler: flipped-to-Read leaves the epoch matching
-     * (mode clause alone), a re-entered draft is Edit again (epoch clause alone). This is
-     * the set undo's epoch-clause case and the pair below is the exercise undo's mode-clause
-     * case — without them, deleting either clause leaves the suite green.
+     * The guard is a disjunction, so each clause gets the case only it blocks: this is the set
+     * undo's epoch clause, the pair below is the exercise undo's mode clause.
      */
     @Test
     fun `a stale set undo does not edit a re-entered draft`() {
@@ -720,12 +673,7 @@ internal class ClickHandlerTest {
         assertEquals(listOf("ex-2"), stateFlow.value.exercises.map { it.exerciseUuid })
     }
 
-    /**
-     * Save → Edit again, all inside the toast's window: the re-entered draft is a NEW one,
-     * not the one the toast edited, and OnEditClick's epoch bump is what makes the stale
-     * «Отменить» miss it — here it would re-insert an exercise the saved training no longer
-     * holds.
-     */
+    /** Save → Edit again inside the toast's window: the epoch bump makes the stale undo miss. */
     @Test
     fun `a stale exercise undo does not edit a re-entered draft`() {
         stateFlow.value = stateFlow.value.copy(
@@ -753,10 +701,8 @@ internal class ClickHandlerTest {
     }
 
     /**
-     * The in-flight interval: Save has captured its snapshot but the write has
-     * not landed — mode is still Edit and the epoch still matches, so [State.isSaving] is
-     * the only clause standing between «Отменить» and a row the database will never hold.
-     * The inert `launch` mock IS the in-flight simulation: dispatched, never completed.
+     * The in-flight interval: mode and epoch both still match, so [State.isSaving] is the only
+     * clause left. The inert `launch` mock is the simulation — dispatched, never completed.
      */
     @Test
     fun `an undo during the save's write edits nothing`() {
@@ -830,12 +776,7 @@ internal class ClickHandlerTest {
         assertEquals(listOf(set), stateFlow.value.exercises.single().planSets)
     }
 
-    /**
-     * The same in-flight interval, the other direction: with the write dispatched, Отмена
-     * may not raise the discard sheet — a rollback landing before the save's flip to Read
-     * would be snapshotted as the original ([State.isSaving]'s KDoc). The inert `launch`
-     * mock IS the in-flight simulation: dispatched, never completed.
-     */
+    /** The same interval, other direction: a dispatched write blocks the discard sheet. */
     @Test
     fun `a cancel during the save's write raises nothing and reverts nothing`() {
         stateFlow.value = stateFlow.value.copy(
@@ -859,10 +800,7 @@ internal class ClickHandlerTest {
         assertEquals("Push Day v2", stateFlow.value.name)
     }
 
-    /**
-     * The confirm is a second action after the sheet was raised, so it carries its own
-     * guard: a save dispatched between the two must not land on the rollback.
-     */
+    /** The confirm is a second action after the sheet was raised, so it carries its own guard. */
     @Test
     fun `a confirmed discard during the save's write reverts nothing`() {
         stateFlow.value = stateFlow.value.copy(
@@ -893,11 +831,7 @@ internal class ClickHandlerTest {
         assertFalse(stateFlow.value.isSaving)
     }
 
-    /**
-     * The repository returns the EXISTING row for a name that already exists, so a create
-     * reached with a padded already-selected name must not chip it twice — the persisted
-     * links dedup on Save, and the draft must agree with them.
-     */
+    /** The repository returns the EXISTING row for a known name, so a create cannot chip twice. */
     @Test
     fun `createTag resolving to an already-selected tag does not duplicate the chip`() {
         stateFlow.value = stateFlow.value.copy(
@@ -920,11 +854,7 @@ internal class ClickHandlerTest {
         assertEquals("", stateFlow.value.tagSearchQuery)
     }
 
-    /**
-     * Both removals queue toasts, so the set toast's «Отменить» can land while
-     * its card is absent. The restore stashes ([State.pendingSetRestores]) and the exercise
-     * undo applies it — tapping Undo on BOTH operations loses nothing.
-     */
+    /** Both removals queue toasts: a set undo landing while its card is absent stashes. */
     @Test
     fun `a set undo whose card was already removed waits for the card`() {
         val set = PlanSetUiModel(weight = 60.0, reps = 10, type = SetTypeUiModel.WORK)
@@ -1002,12 +932,7 @@ internal class ClickHandlerTest {
         assertTrue(stateFlow.value.pendingSetRestores.isEmpty())
     }
 
-    /**
-     * The stash's card can return by the PICKER, not only by its undo — the
-     * exercise toast expired and the user re-added the same exercise. The fresh card owes
-     * the dead removal chain nothing: the stash discards on insert, so a later
-     * remove-and-undo of the NEW card cannot resurrect the old set.
-     */
+    /** The card can return by the picker: the fresh card discards the dead chain's stash. */
     @Test
     fun `a picker re-add discards the stash for the returned card`() {
         val set = PlanSetUiModel(weight = 60.0, reps = 10, type = SetTypeUiModel.WORK)
@@ -1115,12 +1040,7 @@ internal class ClickHandlerTest {
         assertEquals(null, stateFlow.value.exercises.single().planSets)
     }
 
-    /**
-     * The opposite ordering of the picker re-add: the resolution is ASYNC, and the
-     * removed card's «Отменить» can restore it while the query is in flight. The completion
-     * must dedup against the state it lands on — a blind append seats the same uuid twice,
-     * and Save cannot write a duplicate (training_uuid, exercise_uuid) key.
-     */
+    /** The resolution is async: the completion must dedup against the state it lands on. */
     @Test
     fun `a late picker resolution does not duplicate a card the undo restored`() {
         stateFlow.value = stateFlow.value.copy(
@@ -1132,8 +1052,7 @@ internal class ClickHandlerTest {
         handler.invoke(Action.Click.OnExerciseRemove("ex-1"))
         val undo = events.filterIsInstance<Event.ShowExerciseRemovedUndo>().single()
 
-        // The picker's query dispatches but does NOT complete: the mock captures both
-        // lambdas so the resolution can land after the undo, the filed ordering.
+        // The picker's query dispatches but does NOT complete; both lambdas are captured.
         var pendingOnSuccess: (suspend CoroutineScope.(Any?) -> Unit)? = null
         var pendingAction: (suspend CoroutineScope.() -> Any?)? = null
         every {
@@ -1219,12 +1138,7 @@ internal class ClickHandlerTest {
         assertEquals(DialogState.Hidden, stateFlow.value.dialogState)
     }
 
-    /**
-     * One sealed field means the menu and the confirm cannot be open at once: the confirm's
-     * write REPLACES the menu variant in the same transition (Rule 4 of
-     * compose-state-discipline; the exercise feature carries the same property across two
-     * fields, this one carries it by construction).
-     */
+    /** One sealed field: the confirm's write replaces the menu variant in the same transition. */
     @Test
     fun `permanent delete replaces the menu with its confirm in one write`() {
         stateFlow.value = stateFlow.value.copy(

@@ -1,0 +1,13 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<testsuites tests="3" failures="0" errors="0" skipped="0" time="5.399" timestamp="2026-08-25T12:28:59" hostname="localhost">
+  <testsuite name="io.github.stslex.workeeper.feature.single_training.SingleTrainingScreenTest" tests="3" failures="0" errors="0" skipped="0" time="3.656" timestamp="2026-08-25T12:28:59" hostname="localhost">
+    <properties>
+      <property name="device" value="Pixel_6_API_34(AVD) - 14" />
+      <property name="flavor" value="" />
+      <property name="project" value=":feature:single-training" />
+    </properties>
+    <testcase name="expandedCard_showsThePlanBodyWithItsSetbar" classname="io.github.stslex.workeeper.feature.single_training.SingleTrainingScreenTest" time="1.591" />
+    <testcase name="cardHead_removeIsNotSwallowedByTheHeadTap" classname="io.github.stslex.workeeper.feature.single_training.SingleTrainingScreenTest" time="1.126" />
+    <testcase name="cardHead_tapTogglesExpansion" classname="io.github.stslex.workeeper.feature.single_training.SingleTrainingScreenTest" time="0.939" />
+  </testsuite>
+</testsuites>

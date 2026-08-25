@@ -8,16 +8,8 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 
 /**
- * The gel peak on **both** tracks, asserted against the device measurement rather than against
- * the formula's own output.
- *
- * §10.4 territory: a golden photographs the indicator at rest, where `scaleX` is exactly 1 at both
- * ends, so the peak is invisible to every image in the repository. The formula is pure precisely
- * so this is reachable.
- *
- * **The numbers here are the drawn ones, transcribed from the measurement, not recomputed.** An
- * expectation derived from [INDICATOR_STRETCH] would move with any mutation of it and assert
- * arithmetic instead of a value — the failure `NavPillTest` already had once.
+ * GUARD: these peaks are transcribed from the device measurement, never derived from
+ * [INDICATOR_STRETCH] — a derived expectation asserts arithmetic instead of a value.
  */
 internal class IndicatorGelTest {
 
@@ -32,9 +24,7 @@ internal class IndicatorGelTest {
     @Test
     @DisplayName("chart tabs: the SAME coefficient, and it does not land in the same place")
     fun chartTabPeaks() {
-        // The point of the case. Both tracks are three equal stops, so `k` is close -- but the
-        // tabs' track is 32dp narrower, so the peaks are 0.18pp HIGHER, not equal. "Transferable"
-        // was the claim; "identical" would have been wrong and this is what discriminates them.
+        // Same coefficient, narrower track: the tabs' peaks are higher, not equal.
         assertEquals(1.0989f, indicatorStretchPeak(TAB_PITCH, TAB_TRACK), TOLERANCE)
         assertEquals(1.1979f, indicatorStretchPeak(TAB_PITCH * 2, TAB_TRACK), TOLERANCE)
         assertTrue(
@@ -46,8 +36,7 @@ internal class IndicatorGelTest {
     @Test
     @DisplayName("k is clamped, so a jump wider than the track cannot run the stretch away")
     fun clampsAtFullTrack() {
-        // A four- or five-stop track would push |delta| past the width. Without the clamp the peak
-        // grows without bound and the indicator inverts; this is the guard, not decoration.
+        // Without the clamp a jump wider than the track grows unbounded and inverts the indicator.
         assertEquals(1f + INDICATOR_STRETCH, indicatorStretchPeak(1000.dp, 100.dp), TOLERANCE)
         assertEquals(1f + INDICATOR_STRETCH, indicatorStretchPeak((-1000).dp, 100.dp), TOLERANCE)
     }

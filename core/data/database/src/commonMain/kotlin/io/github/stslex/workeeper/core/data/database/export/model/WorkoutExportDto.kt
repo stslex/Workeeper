@@ -4,18 +4,8 @@ package io.github.stslex.workeeper.core.data.database.export.model
 import kotlinx.serialization.Serializable
 
 /**
- * Root envelope of the AI-readable snapshot (spec `drive-ai-export.md` §3). A nested,
- * denormalized projection of the workout graph: a flat [exercises] library plus
- * [trainings], each carrying its plan and session history. Timestamps are UTC
- * ISO-8601 strings; nullable fields are omitted when null (the producer's `Json` sets
- * `explicitNulls = false`).
- *
- * [schemaVersion] is the export contract's own version (independent of the Room
- * `APP_DATABASE_VERSION`); bump it only when this JSON shape changes.
- *
- * All types here are `internal`: the snapshot's public surface is the encoded bytes,
- * not the Kotlin types. They are `@Serializable`, so the repo-wide
- * `proguard/kotlinx-serialization.pro` keeps cover them (incl. the enums).
+ * Root envelope of the AI-readable snapshot: a nested projection of the workout graph,
+ * with UTC ISO-8601 timestamps. See documentation/feature-specs/drive-ai-export.md.
  */
 @Serializable
 internal data class WorkoutExportDto(
@@ -108,11 +98,6 @@ internal enum class ExerciseTypeExportDto { WEIGHTED, WEIGHTLESS }
 @Serializable
 internal enum class SessionStateExportDto { IN_PROGRESS, FINISHED }
 
-/**
- * Single canonical set-type vocabulary for the export. Performed sets map 1:1 from
- * `SetTypeEntity`; plan sets (stored with the `SetTypeDataModel` `WARMUP`/`FAILURE`
- * vocabulary) are normalized into this one via the existing `SetTypeDataModel.toEntity()`
- * bridge, so the snapshot speaks one set-type language.
- */
+/** The export's single set-type vocabulary; plan and performed sets both normalize into it. */
 @Serializable
 internal enum class SetTypeExportDto { WARM, WORK, FAIL, DROP }

@@ -9,15 +9,8 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 
 /**
- * The four app `CoroutineDispatcher`s as a Metro provides-factory container.
- *
- * `@BindingContainer @ContributesTo(AppScope)` makes these Metro-owned: the app `@DependencyGraph(AppScope)`
- * (`AppGraph`) auto-aggregates them cross-module, so `StoreDispatchers` (and every other Metro consumer)
- * resolves its qualified `CoroutineDispatcher` deps directly from the graph.
- *
- * PUBLIC (object + funcs): `@ContributesTo` on an `internal` container silently fails to aggregate
- * cross-Gradle-module (`nonPublicContributionSeverity` default NONE) — the same visibility rule
- * as `@ContributesBinding`.
+ * The four app `CoroutineDispatcher`s as a Metro provides-factory container, auto-aggregated by the
+ * app graph. GUARD: object and funcs stay public — an internal container silently drops out.
  */
 @BindingContainer
 @ContributesTo(AppScope::class)

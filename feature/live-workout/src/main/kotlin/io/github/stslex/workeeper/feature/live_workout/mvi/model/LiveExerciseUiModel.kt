@@ -18,21 +18,9 @@ data class LiveExerciseUiModel(
     val statusLabel: String,
     val planSets: ImmutableList<PlanSetUiModel>,
     val performedSets: ImmutableList<LiveSetUiModel>,
-    /**
-     * Resolved visible-row list with priority `performed > draft > plan > fallback`.
-     * Computed by `LiveSetRowsResolver` and refreshed on every state mutation that
-     * touches `performedSets`, `planSets`, or `State.setDrafts`. UI components render
-     * this list directly and must never merge sources themselves.
-     */
+    /** Resolved visible rows, priority `performed > draft > plan > fallback`; UI never merges. */
     val visibleSets: ImmutableList<LiveSetUiModel> = persistentListOf(),
-    /**
-     * Whether this exercise is in the saved training plan (§6.2). `false` marks a **one-off**:
-     * real work that counts toward progress, deliberately absent from the template.
-     *
-     * Not `is_adhoc` — see `LiveExerciseDomain.isPlanAttached` for the two axes and the
-     * breaking case that separates them. Defaults to `true` so a fixture that does not care
-     * about the axis reads as an ordinary plan exercise.
-     */
+    /** In the saved training plan (§6.2); not `is_adhoc` — see `LiveExerciseDomain`. */
     val isPlanAttached: Boolean = true,
     /** Template description; gates the `.mini.info` button and fills `sh-desc` (§1.5/§1.9). */
     val description: String? = null,

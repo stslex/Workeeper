@@ -27,10 +27,7 @@ interface SingleTrainingInteractor {
 
     fun observeAvailableTags(): Flow<List<TagDomain>>
 
-    /**
-     * The training row and every listed exercise's plan, persisted as ONE transaction — a
-     * failure anywhere leaves nothing behind one «Сохранено».
-     */
+    /** The training row and every listed exercise's plan, persisted as one transaction. */
     suspend fun saveTraining(
         snapshot: TrainingChangeDomain,
         plans: List<ExercisePlanDomain>,
@@ -53,11 +50,7 @@ interface SingleTrainingInteractor {
 
     suspend fun resolveExercises(uuids: List<String>): List<PickerExercise>
 
-    /**
-     * Resolves the at-most-one-active-session invariant for the Start session button. A
-     * conflict only arises when an active session belongs to a *different* training; the
-     * same-training case silently resumes (the user implicitly chose to continue).
-     */
+    /** Only a session belonging to a different training is a conflict; same-training resumes. */
     suspend fun resolveStartSessionConflict(
         requestedTrainingUuid: String,
     ): StartSessionConflict

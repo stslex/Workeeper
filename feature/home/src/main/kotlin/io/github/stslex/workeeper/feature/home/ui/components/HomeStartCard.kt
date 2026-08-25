@@ -54,22 +54,8 @@ import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 
 /**
- * The start card — a readout plus an action (home-start-card.md §2), replacing the centred
- * icon-over-title-over-subtitle column whose four defects §0 lists: accent tint on a routine
- * action, a filled Material glyph, centring, and a subtitle describing the mechanism.
- *
- * Shell (HS1): **head** — the mode's label in the `.label` treatment plus a caret, one
- * target; **body** — the mode's readout; **action** — the primary button right of the body,
- * compact, never full-bleed. The mode changes the body only; the head, the button and the
- * card's geometry hold across all four modes and their empty states. Surface `--slab` +
- * `--slabtop` via [liftedSurface].
- *
- * **[mode] is null until the persisted preference arrives (HS6), and the card says so by
- * naming nothing**: no label, no readout, just the shell and its action. The alternative is
- * to seed WEEK, which announces a mode the user may never have chosen — on every cold start,
- * in the screen's most prominent element — and reads exactly like a real reading of WEEK.
- * The head stays a target throughout: the sheet opens, and with nothing yet known it checks
- * nothing (`StartCardModeSheet`), which is the same answer given twice rather than a guess.
+ * The start card: a mode head, the mode's readout and a primary action (home-start-card.md §2).
+ * A null [mode] means the persisted preference has not arrived yet, and the card names nothing.
  */
 @Composable
 internal fun HomeStartCard(
@@ -80,9 +66,8 @@ internal fun HomeStartCard(
     onModeClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // No mode, no readout — structurally, not by trust. `CommonHandler` writes the pair in one
-    // `copy`, so a body without a mode cannot occur today; that is an invariant of a handler,
-    // not of this signature, and the card is the thing that would render the mismatch.
+    // No mode, no readout: `CommonHandler` writes the pair in one `copy`, so the mismatch this
+    // guards cannot occur today — but this card is what would render it.
     val reading = if (mode == null) null else body
     val shape = RoundedCornerShape(AppDimension.Radius.medium)
     Column(
@@ -146,34 +131,8 @@ internal fun HomeStartCard(
 }
 
 /**
- * HS4 — the head is the switcher: the mode's label (`.label` treatment, [AppLabel])
- * carrying a caret, ONE target opening the mode sheet — not a `⋮` at the right edge. Hit
- * area holds the platform minimum height regardless of the 11sp type; width stays on the
- * label so the target is the label, not the whole card width. No ripple, like the `.exhead`
- * referent (`ExerciseHeader`): a Material ripple would be a different treatment than drawn.
- *
- * «Забытая тренировка»'s head reads «Дольше всего не делали» (the arc's RU copy) — the one
- * mode whose card label is not the mode's name; the sheet still names it «Забытая
- * тренировка».
- *
- * A null [mode] draws the **caret alone**. The label is the one thing here that asserts
- * something, so it is the one thing withheld; the caret and the row's `heightMd` are the
- * control, and dropping them too would leave the tap target the width of nothing — a head
- * that cannot be pressed for the frames before the preference lands, which is the "reads as
- * broken" failure in a second costume.
- *
- * Withholding the label must not cost the control, and it costs it twice over if unguarded:
- *
- * - a lone caret is `Icon.small` wide — 16dp, a third of the platform minimum — so the head
- *   takes a **minimum width** while it has no label, making the target the 48dp square its
- *   height already implies;
- * - the label was also the head's accessible **name** (`clickable` merges descendants, and
- *   the caret is decorative), so a `contentDescription` stands in while it is absent.
- *
- * Both are *values* toggled on a stable `Modifier` chain rather than a chain toggled by
- * condition (compose-state-discipline, Rule 2), and both are inert once a label exists —
- * `0.dp` and an unset description — so no drawn head moves by a pixel or changes what it
- * announces.
+ * The switcher head: the mode's label plus a caret, one target, no ripple. With no label the head
+ * keeps a minimum width and borrows the switch string as its accessible name.
  */
 @Composable
 private fun StartCardHead(
@@ -181,10 +140,7 @@ private fun StartCardHead(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // `?.let` rather than a `null ->` arm on the `when`: the arm would leave the other
-    // branches leaning on a smart cast of the subject through a multi-condition entry, which
-    // is a frontend detail to be relying on for a label. This way the `when` stays exhaustive
-    // over the enum and never sees a null.
+    // `?.let` rather than a `null ->` arm, so the `when` stays exhaustive over the enum.
     val label = mode?.let { current ->
         when (current) {
             StartCardModeUi.FORGOTTEN_TRAINING ->
@@ -208,12 +164,8 @@ private fun StartCardHead(
                 onClickLabel = switchLabel,
                 onClick = onClick,
             )
-            // `clickable` merges descendants, so the head's accessible NAME was the label —
-            // the one thing withheld here. `onClickLabel` does not stand in for it: it names
-            // the ACTION («double tap to …»), which leaves an unnamed control behind. The one
-            // string that fits is the switch's own, so a screen reader hears it as name and
-            // hint both for as long as the mode is unknown; saying it twice is a smaller cost
-            // than a button with no name, and it costs nothing once a label exists.
+            // GUARD: `onClickLabel` names the ACTION, not the control, and `clickable` merges
+            // descendants — with no label the head is unnamed, so the switch string stands in.
             .semantics { if (label == null) contentDescription = switchLabel }
             .testTag("HomeStartModeHead"),
         verticalAlignment = Alignment.CenterVertically,
@@ -287,11 +239,7 @@ private fun DaysSinceReading(daysSince: StartCardBodyUi.DaysSince) {
     )
 }
 
-/**
- * §3.3 — up to three tags, longest idle first: name, a monochrome bar proportional to days
- * idle (the `.rail` fill treatment stretched to a bar), and the bare count at the right
- * edge — «дней» appears once, in the footnote under the group.
- */
+/** §3.3 — up to three tags, longest idle first: name, proportional bar, bare count. */
 @Composable
 private fun TagIdleRows(rows: ImmutableList<TagIdleRowUi>) {
     Column(verticalArrangement = Arrangement.spacedBy(AppDimension.Space.sm)) {
@@ -365,11 +313,7 @@ private fun EmptyReading(message: String) {
     )
 }
 
-/**
- * Seven pills, one per weekday, filled where a session finished, labels beneath — the
- * `.rail` form (`pass2d.html` L87–90: 9px track, 4px radius, 3px gaps; track `--raise`,
- * fill `--max`) with the unit changed from set to day, exactly as §3.1 describes it.
- */
+/** §3.1 — seven pills, one per weekday, filled where a session finished, labels beneath. */
 @Composable
 private fun WeekRail(
     days: ImmutableList<WeekDayUi>,
@@ -420,9 +364,8 @@ private fun WeekRail(
 }
 
 /**
- * `.setbar` (session-v3f L137–141, the same foot the session card wears): a hairline, then
- * one full-width mono uppercase button — press promotes `textTertiary` → `textPrimary`, no
- * ripple, exactly the `SetBarButton` treatment in `LiveExerciseCard`.
+ * `.setbar`: a hairline, then one full-width mono uppercase button. Press promotes
+ * `textTertiary` → `textPrimary`, no ripple — `LiveExerciseCard`'s `SetBarButton` treatment.
  */
 @Composable
 private fun OtherTrainingBar(onClick: () -> Unit) {

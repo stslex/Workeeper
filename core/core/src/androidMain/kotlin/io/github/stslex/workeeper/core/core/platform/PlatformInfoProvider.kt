@@ -10,12 +10,8 @@ import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.di.AppScope
 
 /**
- * Android [PlatformInfoProvider]: reads `PackageManager` + `Build`.
- *
- * DI: consumers inject the class itself (no interface, no `@ContributesBinding`).
- * `@SingleIn(AppScope)` = process-lifetime single-owner; `public` because the merged
- * AppGraph in :app:app constructs it cross-module (never hand-construct, resolve via
- * DI). Context is PLAIN: Metro resolves it from the graph's create(applicationContext).
+ * Android [PlatformInfoProvider]: reads `PackageManager` + `Build`. Consumers inject the class
+ * itself; Metro resolves `Context` from the graph's `create(applicationContext)`.
  */
 @SingleIn(AppScope::class)
 @Inject

@@ -301,7 +301,6 @@ internal class DialogClickHandlerTest {
 
         handler.invoke(Action.DialogClick.OnEmptyFinishDiscard)
 
-        // Optimistic update lands first: dialog hidden + finish-in-flight set.
         assertEquals(DialogState.Hidden, store.state.value.dialogState)
         assertEquals(true, store.state.value.isFinishInFlight)
         store.runLatestLaunch(this)
@@ -406,7 +405,6 @@ internal class DialogClickHandlerTest {
         handler.invoke(Action.DialogClick.OnResetSetsConfirm("pe-1"))
         store.runLatestLaunch(this)
 
-        // Mutator clears performedSets and hides the dialog as part of the optimistic update.
         assertTrue(store.state.value.exercises.first().performedSets.isEmpty())
         assertEquals(DialogState.Hidden, store.state.value.dialogState)
         coVerify(exactly = 1) { interactor.resetExerciseSets("pe-1") }
@@ -525,8 +523,7 @@ internal class DialogClickHandlerTest {
         handler.invoke(Action.DialogClick.OnFinishConfirm)
         store.runLatestLaunch(this)
 
-        // Standalone updateTrainingName must NOT fire — the rename is folded into
-        // finishSession's transaction.
+        // The rename is folded into finishSession's transaction, so it must not fire alone.
         coVerify(exactly = 0) { interactor.updateTrainingName(any(), any()) }
         coVerify(exactly = 1) {
             interactor.finishSession(
@@ -571,7 +568,6 @@ internal class DialogClickHandlerTest {
         handler.invoke(Action.DialogClick.OnFinishConfirm)
         store.runLatestLaunch(this)
 
-        // No rename needed → newTrainingName is null so the transaction skips the rename branch.
         coVerify(exactly = 1) {
             interactor.finishSession(
                 sessionUuid = "session-1",
@@ -729,7 +725,6 @@ internal class DialogClickHandlerTest {
 
         handler(stateFlow).invoke(Action.DialogClick.OnFinishNameChange("Push Day"))
 
-        // Dialog stays hidden — no FinishSession to mutate.
         assertEquals(DialogState.Hidden, stateFlow.value.dialogState)
     }
 
@@ -841,11 +836,7 @@ internal class DialogClickHandlerTest {
         confirmEnabled = confirmEnabled,
     )
 
-    /**
-     * Test double for the handler store. Captures the latest [launch] block and the
-     * `consume`/`consumeOnMain` invocations so tests can assert on both the optimistic
-     * state changes and the post-coroutine effects.
-     */
+    /** Test double capturing the latest [launch] block and the `consume` invocations. */
     private class FakeLiveWorkoutHandlerStore(
         initialState: State,
     ) : LiveWorkoutHandlerStore {
@@ -921,9 +912,7 @@ internal class DialogClickHandlerTest {
         ): Job = Job()
 
         suspend fun runLatestLaunch(scope: CoroutineScope) {
-            // Mirror production: a thrown action routes through onError; otherwise the
-            // result feeds onSuccess so tests can observe both the success and error
-            // branches the real Handler would take.
+            // Mirror production: a throw routes through onError, a result through onSuccess.
             try {
                 val result = latestLaunch?.invoke(scope)
                 latestOnSuccess?.invoke(scope, result)

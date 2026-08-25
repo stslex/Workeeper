@@ -7,16 +7,10 @@ import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
-/**
- * B25 branch B, gated — **the two things a golden and a device pass both miss.**
- *
- * A screenshot of a toast is identical at t=0 whatever its timeout is, and a device pass sees the
- * toast go away without being able to say *why* it went away or whether anyone's accessibility
- * preference was consulted on the way. Both facts live only here.
- */
+/** The toast's timeout and its accessibility consultation — invisible to a golden or a device. */
 internal class ToastDurationTest {
 
-    /** Records a call so the test can assert the manager was consulted at all, and with what. */
+    /** Records the call so the test can assert the manager was consulted, and with what. */
     private class RecordingManager(private val answer: Long) : AccessibilityManager {
         var calls = 0
         var lastOriginal: Long? = null
@@ -35,8 +29,6 @@ internal class ToastDurationTest {
         }
     }
 
-    // ---- the drawn number ------------------------------------------------------------------------
-
     @Test
     fun `with no accessibility manager the toast lasts exactly the drawn 5000ms`() {
         assertEquals(TOAST_VISIBLE_MS, toastTimeoutMillis(null, hasAction = true))
@@ -45,20 +37,16 @@ internal class ToastDurationTest {
 
     @Test
     fun `5000 is on neither M3 rung, which is why the host times this`() {
-        // The recorded divergence, asserted so it cannot be quietly rounded back onto a rung.
-        // SnackbarDuration.Short = 4000, Long = 10000 (material3 SnackbarHost.toMillis).
+        // Asserted so the drawn number cannot be quietly rounded back onto an M3 rung.
         assertNotEquals(M3_SHORT_MS, TOAST_VISIBLE_MS)
         assertNotEquals(M3_LONG_MS, TOAST_VISIBLE_MS)
         assertTrue(TOAST_VISIBLE_MS in (M3_SHORT_MS + 1) until M3_LONG_MS)
     }
 
-    // ---- the accessibility half ------------------------------------------------------------------
-
     @Test
     fun `the accessibility manager is consulted, and on the drawn number`() {
-        // The whole point of a finite base. Under `Indefinite` this call never happened:
-        // AndroidAccessibilityManager short-circuits at `originalTimeoutMillis >= Int.MAX_VALUE`,
-        // so an indefinite toast silently ignores a display-timeout preference.
+        // GUARD: the base must stay finite — an indefinite timeout short-circuits the manager
+        // and silently ignores the user's display-timeout preference.
         val manager = RecordingManager(answer = 30_000L)
 
         val timeout = toastTimeoutMillis(manager, hasAction = true)
@@ -79,8 +67,7 @@ internal class ToastDurationTest {
 
     @Test
     fun `containsControls tracks whether the toast carries an action`() {
-        // The platform reads this to decide the user needs time to *reach* a control rather than
-        // only to read text — so an undo toast and a bare message toast are different questions.
+        // The platform grants more time to reach a control than to only read text.
         val withAction = RecordingManager(answer = TOAST_VISIBLE_MS)
         toastTimeoutMillis(withAction, hasAction = true)
         assertEquals(true, withAction.lastContainsControls)

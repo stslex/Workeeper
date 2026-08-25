@@ -15,20 +15,8 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.EnumSource
 
 /**
- * The type toggle under ED5 — the one instrument that can say there is no accent here.
- *
- * The ruling is entirely colour and geometry, so a picture is the whole gate: track
- * `surfaceTier1`, the selected half lifted onto `surfaceTier2` + `slabtop`, labels `textPrimary`
- * on the selection and `textTertiary` beside it. Four claims, each a single static frame, and no
- * accent among them — which is what the ruling is for.
- *
- * **Two selections, not one.** A single image cannot distinguish "the selected half is lifted"
- * from "the left half is lifted": both are true of the weighted picture. Moving the selection is
- * what makes the lift a function of the argument rather than of position, and it is the same
- * reason `SegmentedControlGoldenTest` photographs a middle segment.
- *
- * Rendered in **Russian**, where «С весом» / «Без веса» are what the drawing writes and what a
- * user reads; the `en` frame cannot fail on a string it never shows.
+ * The type toggle under ED5 — a picture is the whole gate: track `surfaceTier1`, selected half on
+ * `surfaceTier2` + `slabtop`, no accent. Both selections, so the lift is not read as position.
  */
 internal class TypeToggleGoldenTest {
 

@@ -18,11 +18,8 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 
 /**
- * Home's recent-session list, paged.
- *
- * Modelled on `all-trainings`' handler of the same name — the fourth paged list in the app and the
- * first on Home. It carries no `Handler<Action>` implementation because Home has no paging *action*:
- * `all-trainings` needs one to re-key its flow on the tag filter, and there is no filter here.
+ * Home's recent-session list, paged. No `Handler<Action>` implementation: Home has no tag filter,
+ * so there is no paging action to re-key the flow on.
  */
 @SingleIn(HomeScope::class)
 internal class PagingHandler @Inject constructor(
@@ -35,18 +32,8 @@ internal class PagingHandler @Inject constructor(
     val pagingUiState: PagingUiState<PagingData<RecentSessionItem>> = PagingUiState {
         interactor.pagedRecent()
             .map { pagingData ->
-                // ONE clock read per PagingData generation, not one per item.
-                //
-                // The relative label («вчера», «2 дня назад») is computed against a `now`, and rows
-                // in one list must agree about what that is: reading the clock inside
-                // `pagingData.map` reads it once per *item*, lazily, as pages load — so two rows a
-                // second either side of a day boundary would print labels that contradict each
-                // other in the same list.
-                //
-                // It is also a strict improvement on what it replaces. The unpaged path took
-                // `nowMillis` off `State`, which was set on the first emission and then never
-                // updated for this list, so the labels aged in place for as long as the screen
-                // lived. This one refreshes whenever the pager invalidates.
+                // GUARD: one clock read per PagingData generation. `pagingData.map` is lazy and
+                // per-item, so a clock read inside it would give rows disagreeing relative labels.
                 val now = System.currentTimeMillis()
                 pagingData.map { session -> session.toRecentItem(now, resourceWrapper) }
             }

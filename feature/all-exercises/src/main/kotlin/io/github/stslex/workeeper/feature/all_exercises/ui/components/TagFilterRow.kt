@@ -22,19 +22,8 @@ import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.persistentSetOf
 
 /**
- * The tag filter band — `pass2d.html` `#s-list` `.tagrow`, above the list.
- *
- * §26 "Tag filter band". The band is what lets the row stop enumerating tags and start confirming
- * them: the full set lives here, so the meta line can carry the tail and truncate it.
- *
- * The band's own measures (padding, spacing and the closing rule) are feature-owned and match the
- * sibling exactly — the two screens draw one band. The **chip** inside it is `AppTagChip`'s, and its
- * treatment is not this screen's to change: B20 records that its selected and unselected states
- * resolve to the same fill in both themes, which is every `AppTagChip.Selectable` in the app and a
- * kit pass.
- *
- * Multi-select is deliberate and diverges from the drawing's grammar: `.tag` is drawn single-select
- * (`pickTag` is a radio group in the chart) and that grammar does **not** transfer — D1 (a).
+ * The tag filter band (`pass2d.html` `#s-list` `.tagrow`, spec §26). Multi-select, which diverges
+ * from the drawing's single-select `.tag` grammar by ruling D1 (a).
  */
 @Composable
 internal fun TagFilterRow(
@@ -61,9 +50,7 @@ internal fun TagFilterRow(
                 )
             }
         }
-        // The drawn band closes with a rule — the same hairline grammar `.bulk`, `.perr` and
-        // `.nb.track` use to separate one band from the next. Without it the chips and the first
-        // row read as one block.
+        // The drawn band closes with a rule, or the chips and the first row read as one block.
         HorizontalDivider(
             thickness = AppDimension.borderHairline,
             color = AppUi.colors.borderSubtle,

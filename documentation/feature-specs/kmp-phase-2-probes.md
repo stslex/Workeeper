@@ -174,8 +174,9 @@ of Phase 2's scope.
   dispatcher-qualifier inheritance assertions (`the extension inherits the Default
   dispatcher key and not the IO one`).
 - **Red direction:** deleting the moved container fails `:app:app` compile loudly.
-  (`AppGraph`'s import of the container is KDoc-linking only; `@DependencyGraph(scope =
-  AppScope::class)` carries no explicit container list — consumption is pure aggregation.)
+  (`AppGraph` carries no import of the container — the one it had was KDoc-linking only and
+  went with the KDoc in the comment trim; `@DependencyGraph(scope = AppScope::class)` carries
+  no explicit container list either, so consumption is pure aggregation.)
 - **Phase-3 consequence:** the `core:core-android` sibling exists *only* because core:core
   predates Metro-on-KMP. Aggregation from androidMain works, so the collapse
   (`ResourceWrapper` impls, platform providers, both binding containers moving into
@@ -239,6 +240,12 @@ Phase 7, so the go/no-go signal arrived last. It is now measured, early, green:
 4. **`androidResources.enable = true`** belongs in the Compose convention (two measured
    failure modes without it), NOT in the base convention (pure-logic KMP modules keep the
    AGP default off).
+5. **The JVM_21 pin in `KmpLibraryConventionPlugin` is load-bearing, not cosmetic.**
+   `tasks.withType<KotlinJvmCompile>().configureEach { compilerOptions.jvmTarget.set(JvmTarget.JVM_21) }`
+   — without it a KMP module inherits the Gradle daemon's JDK as its jvmTarget, and on any JDK
+   newer than 21 every Android consumer fails with "Cannot inline bytecode built with JVM target
+   <N>" the moment it calls an inline helper from the module. Keep in sync with
+   `KotlinAndroid.configureKotlin`.
 
 ## Corrections of record
 

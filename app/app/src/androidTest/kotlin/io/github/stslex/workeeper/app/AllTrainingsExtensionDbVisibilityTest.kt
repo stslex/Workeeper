@@ -25,15 +25,8 @@ import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
 /**
- * Phase 3.3 — proves the in-memory `AppDatabase` swapped at the PARENT ([MetroTestRule]'s 3-root
- * `create(applicationContext, appDatabase, imageStorage)`) is visible INSIDE the contributed
- * `@GraphExtension` for feature/all-trainings.
- *
- * A row seeded straight into the parent's in-memory `training_table` renders on the AllTrainings screen,
- * whose Store is resolved through the extension (`AllTrainingsFeature` → `appDeps<AllTrainingsGraph
- * .Factory>()` → the extension merged into the parent AppGraph). The Store → interactor →
- * `TrainingRepository` → Room read therefore runs against the parent's in-memory DB — the binding the
- * extension inherits, never a fresh one. Mirrors [ExerciseCreatePersistenceTest]'s real-graph seam.
+ * Proves the in-memory `AppDatabase` swapped at the parent graph is visible inside the contributed
+ * all-trainings `@GraphExtension`, by seeding a row and reading it off the screen.
  */
 @OptIn(ExperimentalSharedTransitionApi::class, ExperimentalUuidApi::class)
 @Regression
@@ -75,8 +68,7 @@ internal class AllTrainingsExtensionDbVisibilityTest {
             }
         }
 
-        // The row is produced by the extension's Store→interactor→repository→Room read against the
-        // parent's in-memory DB. If the extension saw a different (empty) DB, this never appears.
+        // If the extension saw a different (empty) DB, this row never appears.
         composeRule.waitUntil(timeoutMillis = 5_000) {
             composeRule.onAllNodesWithText(name).fetchSemanticsNodes().isNotEmpty()
         }

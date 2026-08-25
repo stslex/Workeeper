@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinatorTest" tests="29" skipped="0" failures="1" errors="0" timestamp="2026-08-23T14:43:19.884Z" hostname="stslexs-MacBook-Pro.local" time="0.506">
+  <properties/>
+  <testcase name="performUndoRestore RejectedBeforeMutation maps to IoFailure and keeps the retry slot()" classname="io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinatorTest" time="0.101"/>
+  <testcase name="a committed RESERVATION-sourced rollback keeps the previous restore's still-valid undo()" classname="io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinatorTest" time="0.007"/>
+  <testcase name="recovery path survives a process restart after FailedAfterMutation()" classname="io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinatorTest" time="0.016"/>
+  <testcase name="the undo claims the journal as its own Rollback attempt before mutating()" classname="io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinatorTest" time="0.007"/>
+  <testcase name="[1] RejectedBeforeMutation(error=CorruptedBackup(reason=journal-named rollback source is missing), effectsError=null)" classname="io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinatorTest" time="0.02">
+    <failure message="org.opentest4j.AssertionFailedError: expected: &lt;RecoveryRequired&gt; but was: &lt;RecoveryCompleted&gt;" type="org.opentest4j.AssertionFailedError">org.opentest4j.AssertionFailedError: expected: &lt;RecoveryRequired&gt; but was: &lt;RecoveryCompleted&gt;
+	at org.junit.jupiter.api.Assertions.assertEquals(Assertions.java:1199)
+	at io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinatorTest$every non-commit rollback outcome requires terminal recovery$1.invokeSuspend(RestoreRecoveryCoordinatorTest.kt:452)
+	at io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinatorTest$every non-commit rollback outcome requires terminal recovery$1.invoke(RestoreRecoveryCoordinatorTest.kt)
+	at io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinatorTest$every non-commit rollback outcome requires terminal recovery$1.invoke(RestoreRecoveryCoordinatorTest.kt)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt$runTest$2$1$1.invokeSuspend(TestBuilders.kt:317)
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)
+	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:100)
+	at kotlinx.coroutines.test.TestDispatcher.processEvent$kotlinx_coroutines_test(TestDispatcher.kt:24)
+	at kotlinx.coroutines.test.TestCoroutineScheduler.tryRunNextTaskUnless$kotlinx_coroutines_test(TestCoroutineScheduler.kt:98)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt$runTest$2$1$workRunner$1.invokeSuspend(TestBuilders.kt:326)
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)
+	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:100)
+	at kotlinx.coroutines.EventLoopImplBase.processNextEvent(EventLoop.common.kt:256)
+	at kotlinx.coroutines.BlockingCoroutine.joinBlocking(Builders.kt:54)
+	at kotlinx.coroutines.BuildersKt__BuildersKt.runBlockingImpl(Builders.kt:30)
+	at kotlinx.coroutines.BuildersKt.runBlockingImpl(Unknown Source)
+	at kotlinx.coroutines.BuildersKt__Builders_concurrentKt.runBlockingK(Builders.concurrent.kt:172)
+	at kotlinx.coroutines.BuildersKt.runBlockingK(Unknown Source)
+	at kotlinx.coroutines.BuildersKt__Builders_concurrentKt.runBlockingK$default(Builders.concurrent.kt:157)
+	at kotlinx.coroutines.BuildersKt.runBlockingK$default(Unknown Source)
+	at kotlinx.coroutines.test.TestBuildersJvmKt.createTestResult(TestBuildersJvm.kt:10)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:309)
+	at kotlinx.coroutines.test.TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:1)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:167)
+	at kotlinx.coroutines.test.TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:1)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt.runTest-8Mi8wO0$default(TestBuilders.kt:159)
+	at kotlinx.coroutines.test.TestBuildersKt.runTest-8Mi8wO0$default(TestBuilders.kt:1)
+	at io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinatorTest.every non-commit rollback outcome requires terminal recovery(RestoreRecoveryCoordinatorTest.kt:438)
+</failure>
+  </testcase>
+  <testcase name="[2] FailedAfterMutation(error=Io(cause=java.io.IOException: disk full), effectsError=null)" classname="io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinatorTest" time="0.007"/>
+  <testcase name="[3] RecoveredByRollback(error=Io(cause=java.io.IOException: swap failed post-PONR), effectsError=null)" classname="io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinatorTest" time="0.004"/>
+  <testcase name="[4] FatalNoGeneration(effectsError=null)" classname="io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinatorTest" time="0.004"/>
+  <testcase name="a COMMITTED attempt whose peek fails recovers()" classname="io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinatorTest" time="0.014"/>
+  <testcase name="restartApp delegates to the AppReinitializer seam()" classname="io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinatorTest" time="0.003"/>
+  <testcase name="success finalization cleans up the RETAINED reservation copy idempotently()" classname="io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinatorTest" time="0.006"/>
+  <testcase name="an interrupted but COMMITTED rollback is finished, never re-driven()" classname="io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinatorTest" time="0.01"/>
+  <testcase name="scenario-1 compensation is PACKAGED in the effects object - nothing runs post-await()" classname="io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinatorTest" time="0.011"/>
+  <testcase name="a COMMITTED attempt recovers from the CANONICAL slot - its promotion is durably done()" classname="io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinatorTest" time="0.007"/>
+  <testcase name="a COMMITTED attempt with no context cannot be verified and recovers()" classname="io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinatorTest" time="0.005"/>
+  <testcase name="the rollback uses the attempt's reserved snapshot path()" classname="io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinatorTest" time="0.005"/>
+  <testcase name="performUndoRestore returns FileMissing when no preserved backup exists()" classname="io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinatorTest" time="0.005"/>
+  <testcase name="a COMMITTED attempt verifies by peek and succeeds()" classname="io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinatorTest" time="0.007"/>
+  <testcase name="undo compensation is PACKAGED in the effects object - nothing runs post-await()" classname="io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinatorTest" time="0.007"/>
+  <testcase name="the recovery re-claim CHECKS ownership - a foreign-owned slot rejects before mutating()" classname="io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinatorTest" time="0.005"/>
+  <testcase name="success finalization is data-bearing-first - the attempt resolves LAST()" classname="io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinatorTest" time="0.006"/>
+  <testcase name="handlePostRestoreLaunch with no unresolved attempt is a no-op()" classname="io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinatorTest" time="0.005"/>
+  <testcase name="the LEGACY marker's recovery completes end-to-end under the synthetic owner id()" classname="io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinatorTest" time="0.003"/>
+  <testcase name="a PREPARED attempt never peeks the schema and never claims success()" classname="io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinatorTest" time="0.005"/>
+  <testcase name="performUndoRestore FailedAfterMutation maps to IoFailure and deletes nothing()" classname="io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinatorTest" time="0.005"/>
+  <testcase name="a finalization failure never leaves the journal resolved with the undo hidden()" classname="io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinatorTest" time="0.007"/>
+  <testcase name="performUndoRestore happy path - clear, publish, resolve LAST, THEN acknowledge()" classname="io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinatorTest" time="0.005"/>
+  <testcase name="a rollback that commits without a durable record requires recovery()" classname="io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinatorTest" time="0.004"/>
+  <testcase name="the recovery rollback CARRIES the journal's reservation path through its re-claim()" classname="io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinatorTest" time="0.005"/>
+  <system-out><![CDATA[stripped]]></system-out>
+  <system-err/>
+</testsuite>

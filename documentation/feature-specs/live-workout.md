@@ -161,6 +161,12 @@ Each exercise is rendered as a `LiveExerciseCard`. Four states based on user act
 
 4. **SKIPPED** — user explicitly skipped via overflow → "Skip exercise". Visual: opacity 0.4, collapsed. Status line: italic accent-warning "Skipped".
 
+The "Plan: ..." line is built by `LiveWorkoutMapper.toPlanSubLabel`. Its WEIGHTED branch falls
+back to reps-only (`set.reps.toString()`) when `set.weight == null`, because a WEIGHTED
+exercise can still carry reps-only plan sets — `PlanDraftReducer` writes `weight = null` and a
+cleared weight field parses to null. Matches `PlanEditorUIMapper.formatPlanSummary`;
+substituting `0.0` would print a 0 kg target the user never set.
+
 #### State derivation
 
 **There is no explicit "this is current" field in DB.** Current state is derived in the UI mapper:
@@ -211,6 +217,11 @@ Position is read from the row itself — `SetDomain.position` and
 state (e.g. only the 5th set of a 5-set plan checked) round-trips through
 reload without collapsing onto position 0.
 
+Ordering: every `LiveSetMutator.apply*` that changes rows calls `.withVisibleSets()`
+**before** `statusMapper.recomputeStatuses(...)`, because `isDoneLive` reads `visibleSets`.
+In `applyAddSet` the swap is silent — the DONE derivation would run against the old row set,
+so "adding a set to a completed exercise returns it to incomplete" would quietly stop firing.
+
 #### `LiveExerciseCard` header layout
 
 Same row layout invariant from Stage 5.3 — 3 lines max:
@@ -234,6 +245,12 @@ The pre-session snapshot is one-shot: `LiveWorkoutInteractor.loadSession` collec
 `personalRecordRepository.observePersonalRecords(uuidsByType)` exactly once via
 `firstOrNull()` and discards the flow. This is intentional (Q6 lock — pre-session snapshot
 scope); mid-session emissions from elsewhere must not flip in-moment highlights.
+
+`loadSession` seeds `preSessionPrsDeferred` (`observePersonalRecordsBatch`) from *every*
+performed row, but the later `exerciseTemplates[row.exerciseUuid] ?: return@mapNotNull null`
+step drops rows whose template is missing.
+`preSessionPrsDeferred.await().filterKeys { it in exerciseUuids }` narrows the snapshot back
+to exactly the exercises the session shows.
 
 When the user finishes the session, `LiveWorkoutMapper.toFinishStats` walks `state.exercises`,
 picks the best logged set per exercise via `PrComparator.bestOf`, and adds a `NewPrEntry` to
@@ -259,6 +276,15 @@ For every position, the visible row is selected with priority:
 
 The list length is `max(planSets.size, performedSets.size, 1 + maxDraftPosition)`, so
 drafts beyond plan / performed grow the list but do not erase plan rows beneath them.
+
+`State.rowCountOverrides: ImmutableMap<String, Int>` overrides that length per exercise — it
+is the setbar's visible-row count (the setbar's add-set / remove-set actions, screen-extraction.md §1.7). Key
+**absent** = derive as above; key **present** = exactly that many rows, floored by
+`rowCountOverride?.coerceAtLeast(performedTotal)` so a logged row can never be hidden — which
+is why deletion removes the performed row *before* lowering the count. An override may sit
+**below** `planSets.size` (that is how remove-set truncates without touching the plan), and
+drafts past it stay shadowed until add-set raises it again. Like `setDrafts` it is
+ephemeral: a reload re-derives rows from the plan and the override is gone.
 
 #### Where the merge runs
 
@@ -395,6 +421,27 @@ On Confirm:
 
 The whole finish operation is a single transaction. If any step fails, rollback session state to IN_PROGRESS, surface error snackbar.
 
+Shipped finish path:
+
+- **Write target.** `writesToExercise = !isPlanAttached || isAdhoc` routes the plan write. A
+  one-off has no `training_exercise_table` row, so a template write would match ZERO rows
+  silently and the sets just logged would be persisted nowhere; it is routed to the
+  exercise's own `last_adhoc_sets` instead — which is also where `loadSession`'s read-time
+  fallback looks next session. `PlanUpdate.isAdhoc` already means "write to the exercise, not
+  the training", so the one-off case needs no new field, only the right value.
+- **Unfilled sets.** `partition { it.reps > 0 }` discards unfilled sets. It is
+  defence-in-depth and normally finds nothing: measured on this tree, no production writer
+  can persist `reps <= 0` — `SetRepository.upsert` is reached only through
+  `ClickHandler.processSetMarkDone` (rejects `reps <= 0`) and `SetRepository.update` only
+  through past-session's `InputHandler` (requires `parsed > 0`). It stands in for legacy or
+  imported rows; nothing at the data layer enforces the invariant, only those two UI
+  validators agreeing.
+- **Where the discard runs.** The unfilled sets are only collected into `discardedSetUuids`
+  and handed to `sessionRepository.finishSessionAtomic(discardedSetUuids = ...)`; the delete
+  happens inside that transaction so a failed finish rolls it back. Deleting at collection
+  time would destroy the rows even when the finish reports `applied == false` and the session
+  stays active.
+
 ### Back gesture / exit without finishing
 
 Per architecture.md "Back gesture handling":
@@ -414,6 +461,83 @@ Session-level actions:
 - **Edit training** (read-only convenience) — navigate to Training detail in edit mode. Session continues in background. **Defer to v2** — too tangential for v1 implementation.
 
 For Stage 5.4: only "Cancel session" in header overflow.
+
+### Session sheets
+
+The four session sheets (`SessionSheets.kt`, screen-extraction.md §1.9) are written as bare
+CONTENT composables — the window (`AppBottomSheet`: tier3, r32, grab) wraps them at the call
+site, which is what keeps each of them goldenable, since screen-extraction.md §10.4 puts the
+window outside the gate, not the drawing.
+
+Two deliberate deltas against the drawn sheet inventory:
+
+- `sh-session` **omits** the reorder item — the item is a no-op in the mockup and reorder has
+  no mechanics anywhere, so a dead menu row would be worse than an absent one.
+- `sh-ex` **adds** the edit-plan and reset-sets items above the drawn three — both are real
+  mechanics the extraction says to keep.
+
+The `sh-ex` one-off row renders on
+`showOneOffRow = !state.isAdhoc && (exercise.performedExerciseUuid in state.midSessionAddedUuids || !exercise.isPlanAttached)`.
+`midSessionAddedUuids` is ephemeral — it does not survive a reload or process restore — so the
+second disjunct `!isPlanAttached` is what keeps the toggle on an already-toggled one-off after
+the session is reloaded. `!state.isAdhoc` because an ad-hoc session has no plan to be excluded
+from.
+
+### Mid-session add and the one-off toggle
+
+`addExerciseToActiveSession(..., attachToPlan: Boolean = true)` seeds the `plan_sets` baseline
+from `exercise.last_adhoc_sets` on **both** branches, so picking a library row with history
+surfaces the user's last-logged sets whether or not a `training_exercise_table` row is written.
+`attachToPlan = true` keeps the historical H1 behaviour (the plan row survives session finish
+even with no sets logged); `attachToPlan = false` makes it a one-off — fully part of this
+session and counted toward progress, with the saved training template untouched so the next
+session does not inherit it.
+
+### Deleting an exercise from a session
+
+`DialogClickHandler.processDeleteExerciseConfirm` sets `removeFromPlan = exercise.isPlanAttached`.
+Plan attachment is the only question and **an ad-hoc session is NOT exempt**: an ad-hoc training
+carries real `training_exercise_table` rows (both `createAdhocSession` and every mid-session add
+write one), so skipping the pair delete left a row pointing at an exercise the orphan cleanup
+then tried to delete, and the exercise FK's `onDelete = RESTRICT` rolled the entire removal back.
+The ad-hoc row is bookkeeping for a template the user never sees; it leaves with the exercise.
+
+`SessionRepositoryImpl.removeExerciseFromSession` must delete in exactly this order:
+`setDao.deleteAllForPerformedExercise` → `performedExerciseDao.deleteByUuid` → (optional)
+`trainingExerciseDao.deleteByTrainingAndExercise` → `exerciseDao.deleteIfAdhocOrphan`. The
+orphan predicate reads `performed_exercise_table`, so the performed row must already be gone
+when it runs; otherwise an inline-created exercise whose only session membership this was
+survives as a stranded `is_adhoc = 1` row, invisible to every user-facing list.
+
+The trailing orphan cleanup can therefore meet a surviving plan row: the exercise is then not an
+orphan and must survive, and the cleanup may never take the whole removal transaction down with
+it — a failed removal silently resurrects the exercise the user deleted, once the undo window
+closes. With `removeFromPlan = true` the pair row is deleted first, so the cleanup finds nothing
+referencing the exercise and completes. An inline exercise still planned by a *different*
+training is likewise not an orphan and survives. Pinned by
+`SessionRepositoryImplRemoveExerciseDbTest`.
+
+### Undo toast — `PendingUndo`
+
+`PendingUndo` is single-level and one-shot: a new undoable action replaces **and commits** the
+previous one, the undo action restores exactly the latest, and the 5s timeout commits it. The restore
+is a snapshot of the three set-carrying State fields taken BEFORE the action —
+`restoreExercises`, `restoreDrafts`, `restoreOverrides`; statuses and disclosure re-derive. Two
+optional DB halves:
+
+- `undoCompensation` — a write that must happen ON UNDO because the action already hit the DB
+  (re-upsert a deleted set row; delete a just-added exercise).
+- `deferredCommit` — a destructive write POSTPONED until the undo window closes (the exercise
+  deletion of v3-redesign-spec.md §6.1). Deferring is what makes undo safe against process
+  death: a kill mid-toast leaves the exercise in the DB and the reload shows it again — the
+  conservative direction.
+
+Because the deferred delete is not yet on disk while the toast is up, every path that ends the
+undo window early calls `flushPendingUndo(interactor)`: `processBackClick` (leaving the screen —
+the delete commits now rather than dying with the Store), `processEditPlan` (navigating to the
+full-screen plan editor) and `processFinishClick`. `processUndoTimeout` flushes only when
+`state.value.pendingUndo?.id == action.id`, so a replacement toast cannot commit the previous
+one. A new screen-exit path without a flush loses a user-confirmed deletion with no error.
 
 ## Home shortcut
 
@@ -780,6 +904,16 @@ fun observeActiveSessionWithStats(): Flow<ActiveSessionWithStatsRow?>
 ```
 
 `done_count` heuristic: an exercise is "done" if it has at least one set logged. This is the cheapest correct query — perfect plan-tracking would require joining plan_sets and set_table, which is overkill for a banner.
+
+The active session therefore exposes **two non-equal done counts**, sharing a field name and a
+shape but answering different questions — they are not interchangeable.
+`observeActiveSessionWithStats().doneCount` (Home banner) is the heuristic above.
+`getActiveSessionProgress().doneCount` is strict: an exercise is done only when every planned
+or performed set position is present, which is what the Live Workout load path reproduces
+after process restoration. Skipped performed rows count in neither. The strict path resolves
+the plan per exercise as `training_exercise.plan_sets`, falling back to
+`exercise.last_adhoc_sets` when that is null — and using the fallback exclusively for an
+ad-hoc training.
 
 ### `PerformedExerciseRepository` — extend
 

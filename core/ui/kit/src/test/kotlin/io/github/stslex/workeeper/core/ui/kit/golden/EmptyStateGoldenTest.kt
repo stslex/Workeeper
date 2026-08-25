@@ -10,15 +10,7 @@ import org.junit.jupiter.api.TestInfo
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.EnumSource
 
-/**
- * The empty-state pattern in its three applications — zero, one and two actions.
- *
- * The button count is the whole variable: glyph, title and sentence are constant across all three,
- * so any difference between the images is the action stack and nothing else. The repo has no
- * two-button empty state today (all eleven callers pass zero or one), which is exactly why
- * [twoActions] is recorded here — it is the case with no production reader to catch a regression
- * in it, so the golden is the only thing that will.
- */
+/** Zero, one and two actions. [twoActions] has no production caller; only this golden guards it. */
 internal class EmptyStateGoldenTest {
 
     @ParameterizedTest

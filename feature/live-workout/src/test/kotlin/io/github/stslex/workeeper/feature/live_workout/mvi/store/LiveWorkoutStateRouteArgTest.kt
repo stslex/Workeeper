@@ -8,17 +8,8 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 
 /**
- * Verifies that `Screen.LiveWorkout(sessionUuid, trainingUuid)` route arguments flow
- * through `State.create(...)` into the Store's initial state. The Store's
- * `@Assisted screen: Screen.LiveWorkout` constructor parameter (see
- * `LiveWorkoutStoreImpl`) calls
- * `State.create(sessionUuid = screen.sessionUuid, trainingUuid = screen.trainingUuid)`.
- *
- * Both arguments are nullable on `Screen.LiveWorkout` because the screen has three
- * entry modes:
- *   - sessionUuid != null              → resume existing session
- *   - sessionUuid == null && training != null → start fresh session for training
- *   - sessionUuid == null && training == null → blank-init adhoc session
+ * Verifies `Screen.LiveWorkout` route arguments flow through `State.create(...)`; both are
+ * nullable because the screen has three entry modes (resume, start, blank-init).
  */
 internal class LiveWorkoutStateRouteArgTest {
 

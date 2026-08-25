@@ -233,6 +233,8 @@ def case(name: str, rel: str, old: str, new: str, task: str) -> str:
     print(f"\n=== {name} -> {verdict}")
     for d in detail:
         print("     ", d)
+    for summary in [line.strip() for line in out.splitlines() if " actionable task" in line][-1:]:
+        print("     ", summary)
     sys.stdout.flush()
     return verdict
 

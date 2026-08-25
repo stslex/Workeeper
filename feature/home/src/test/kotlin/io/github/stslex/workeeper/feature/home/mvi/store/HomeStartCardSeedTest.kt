@@ -9,22 +9,8 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 
 /**
- * The seed itself, asserted where no composition, no clock and no test harness can get
- * between the claim and the answer.
- *
- * `State.init` used to hand the card `StartCardModeUi.WEEK`. That is not a default, it is an
- * announcement: the mode is persisted (HS6), so on every cold start the card's head named a
- * mode nobody had read yet — the same defect the Settings sheet had, on a more prominent
- * surface and on every launch rather than in a window after a tap.
- *
- * `HomeStartCardModeLabelTest` makes the rendering half of this claim and needs a Compose
- * environment to do it. This one needs nothing, and that is the point: if that suite ever has
- * to be quarantined, the invariant still has a witness — one that cannot pass for a reason
- * nobody can name.
- *
- * `State.init` is called directly rather than through `emptyPagingState()`: the subject is the
- * production factory, and a test helper is exactly the kind of thing that could grow a `copy`
- * and answer for it.
+ * `State.init` seeds no start-card mode and no body, asserted with no composition in the way.
+ * The production factory is called directly, never through `emptyPagingState()`.
  */
 internal class HomeStartCardSeedTest {
 

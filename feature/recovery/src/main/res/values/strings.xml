@@ -8,7 +8,7 @@
     -->
 
     <string name="recovery_title">App update needed</string>
-    <string name="recovery_body">Your data file is from a version this app build cannot read. Your data is safe on this device. Please update the app, or export your raw data to back it up.</string>
+    <string name="recovery_body">Your data file is from a version this app build cannot read. Workeeper has not opened it in this launch. Please update the app, or try to export a raw recovery copy.</string>
     <string name="recovery_update_app">Update app</string>
     <string name="recovery_export_data">Export raw data</string>
     <string name="recovery_report_issue">Report issue</string>
@@ -16,6 +16,26 @@
     <string name="recovery_export_data_chooser">Share raw data</string>
     <string name="recovery_export_diagnostics_chooser" tools:ignore="DuplicateStrings">Share diagnostics</string>
     <string name="recovery_report_title">Startup migration failure</string>
+    <string name="recovery_export_data_unavailable">A raw recovery copy is not available. You can still report the issue or, for an interrupted restore, check whether it is safe to continue.</string>
+    <string name="recovery_export_data_failed">The raw recovery copy could not be prepared for sharing. Free some storage and try again.</string>
+    <string name="recovery_diagnostics_failed">The diagnostic file could not be prepared or shared. You can retry without leaving this screen.</string>
+
+    <!-- Scenario 1 surface: an interrupted restore. No app update exists for this failure. -->
+    <string name="recovery_restore_title">Restore was interrupted</string>
+    <string name="recovery_restore_body">A backup restore was interrupted, so Workeeper cannot determine whether this device contains your earlier data or the restored data. You can export a raw copy, report the issue, or check the current database and choose whether to continue.</string>
+    <string name="recovery_restore_report_title" tools:ignore="DuplicateStrings">Restore failed</string>
+    <string name="recovery_continue">Check and continue</string>
+    <string name="recovery_continue_checking">Checking database…</string>
+    <string name="recovery_continue_confirmation_title">Use the current data?</string>
+    <string name="recovery_continue_confirmation_body">The database passed integrity and version checks, but Workeeper still cannot determine whether the interrupted restore completed. Continuing accepts the data currently on this device and discards the interrupted restore record. The app will restart.</string>
+    <string name="recovery_continue_confirmation_confirm">Accept and restart</string>
+    <string name="recovery_continue_confirmation_cancel">Go back</string>
+    <string name="recovery_continue_unavailable">This interrupted restore is no longer owned by this recovery screen. Restart Workeeper and try again.</string>
+    <string name="recovery_continue_database_missing">The current database file is missing. Continuing is unavailable.</string>
+    <string name="recovery_continue_integrity_failed">The current database did not pass the full integrity check. Continuing is unavailable; keep the recovery record and report the issue.</string>
+    <string name="recovery_continue_schema_unsupported">This Workeeper version cannot safely open the database schema currently on the device.</string>
+    <string name="recovery_continue_check_failed">The database could not be checked. Free some storage if needed, then try again or report the issue.</string>
+    <string name="recovery_continue_abandon_failed">The recovery record could not be updated, so Workeeper did not continue. Try again.</string>
 
     <!--
         Scenario 1 intent-side strings (relocated from feature/app-dialogs/impl

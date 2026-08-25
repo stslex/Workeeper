@@ -59,34 +59,8 @@ import io.github.stslex.workeeper.feature.home.ui.components.pagingTailKind
 import kotlinx.coroutines.flow.flowOf
 
 /**
- * Home, extracted against the drawn shell — and the extraction stops in four places.
- *
- * **Home has no drawing.** `pass2d.html` carries eleven `.screen` sections (`#s-live`, `#s-chart`,
- * `#s-ex`, `#s-past`, `#s-set`, `#s-empty`, `#s-list`, `#s-nav`, `#s-topbar`, `#s-arch`, `#s-band`) and not
- * one of them is this
- * screen; `#s-empty`'s three glyph-tile blocks are all-trainings', the chart's and all-exercises'.
- * So Home is a **derived** screen in §24's sense — it composes the shell drawn once in `#s-list`
- * and `#s-nav` — and everything outside that shell is undrawn and left alone.
- *
- * ## What the shell reaches, and is therefore rebuilt here
- *
- * - the recent-session **row** — `#s-list` `.row`, the skeleton's third payload (`RecentSessionRow`);
- * - the **paging tails** — `.pfoot` and `.perr`, via `pagingTailKind` and the kit's footers;
- * - the **cold-open** states — `#s-empty`'s last two frames, the spinner and the unruled `.perr`
- *   where row 1 will land, via `homeListSurface`.
- *
- * ## What is undrawn, and stops here rather than being invented past
- *
- * Four regions keep their v2.4 treatment and are photographed rather than derived: the
- * **active-session banner**, the **start card**, the **top bar's contents** (both Material
- * glyphs included — a deliberate non-fix) and the **empty state's copy**. The one thing
- * changed is the empty state's glyph, `Icons.Filled.FitnessCenter` → `AppIcons.Trainings`,
- * because a filled Material glyph in a system that has none is the defect this arc removes;
- * recorded as a derivation the pass may overrule.
- *
- * **Why each is undrawn, and what the mockup pass owes on them, is §26's "THE MOCKUP PASS"
- * row** — including that `#s-list`'s `.row.live` is a *row* treatment and cannot yield a
- * banner. Do not re-derive it here; do not invent past it.
+ * Home: top bar, active-session banner or start card, and the paged recent-session list.
+ * See documentation/feature-specs/home-and-past-session.md.
  */
 @Composable
 internal fun HomeScreen(
@@ -126,10 +100,7 @@ internal fun HomeScreen(
             },
         )
         if (state.isLoading) {
-            // The ACTIVE-SESSION flow only. It is one emission away and decides whether a banner or
-            // a start card sits above the list, so drawing the list under an unknown answer would
-            // move it a frame later. The list's own loading is `HomeListSurface.LOADING` and is
-            // drawn in place, not here.
+            // Gates on the ACTIVE-SESSION flow only; the list's own loading is drawn in place.
             Box(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center,
@@ -154,10 +125,8 @@ private fun HomeBody(
     modifier: Modifier = Modifier,
     activeSessionModifier: Modifier = Modifier,
 ) {
-    // Computed HERE rather than inside `emptyRegion`: the deferral holds by staying in
-    // composition after loading ends, and the empty region's item is removed the instant the list
-    // has rows — so a call sited inside it would leave composition exactly when the hold was meant
-    // to begin. See `rememberDeferredSurface`.
+    // GUARD: compute here, never inside `emptyRegion` — the deferral holds only by staying in
+    // composition, and that item is removed the instant the list has rows.
     val surface = rememberDeferredSurface(
         surface = homeListSurface(itemCount = recent.itemCount, loadState = recent.loadState),
         loadingSurface = HomeListSurface.LOADING,
@@ -165,11 +134,7 @@ private fun HomeBody(
 
     LazyColumn(
         modifier = modifier.testTag("HomeList"),
-        // The rows are full-bleed and rule themselves (`#s-list` `.row`), so the list adds no
-        // horizontal padding and no inter-item spacing. The banner and the start card are cards
-        // and pad themselves. Home draws no FAB, so there is no 88dp clearance here — §24 measured
-        // that already: only all-trainings and all-exercises draw one, and they are the same two.
-        // The nav bar's inset is the host's, globally.
+        // Rows are full-bleed and rule themselves; the banner and start card pad themselves.
         contentPadding = PaddingValues(bottom = AppDimension.Space.md),
     ) {
         state.activeSession?.let { session ->
@@ -193,26 +158,16 @@ private fun HomeBody(
                         horizontal = AppDimension.screenEdge,
                         vertical = AppDimension.Space.md,
                     ),
-                    // One action, carrying nothing. Which training the primary button starts
-                    // is §3.4's rule, and it is decided in `ClickHandler` off the body in
-                    // state — the branch used to sit here, which put a decision in the graph
-                    // and made a fifth mode a two-site change.
+                    // Which training this starts is decided in `ClickHandler` off the body.
                     onStartClick = { consume(Action.Click.OnStartActionClick) },
-                    // The `.setbar` way out is NOT that decision: it opens the picker
-                    // whatever the mode is, which is why it keeps its own action.
+                    // Opens the picker whatever the mode is, so it keeps its own action.
                     onOtherTrainingClick = { consume(Action.Click.OnStartTrainingClick) },
                     onModeClick = { consume(Action.Click.OnModeLabelClick) },
                 )
             }
         }
-        // Gated on the DEFERRED verdict, not on `itemCount`: during the minimum hold the verdict is
-        // still LOADING while the rows have already arrived, and a list that emits them anyway
-        // draws them under the footer for the rest of the hold. The banner and the start card are
-        // not part of this — they are not the list.
-        // Gated on the DEFERRED verdict, not on `itemCount`: during the minimum hold the verdict
-        // is still LOADING while the rows have already arrived, and a list that emits them anyway
-        // draws them under the footer for the rest of the hold. The banner and the start card are
-        // not part of this — they are not the list.
+        // GUARD: gate on the DEFERRED verdict, not `itemCount` — during the minimum hold the rows
+        // have arrived but would draw under the footer. The banner and start card are not the list.
         if (listBody(surface, HomeListSurface.CONTENT) == ListBody.ROWS) {
             items(
                 count = recent.itemCount,
@@ -220,19 +175,14 @@ private fun HomeBody(
             ) { index ->
                 recent[index]?.let { item ->
                     RecentSessionRow(
-                        // §26, continuity motion. A finished session arrives at the head of this
-                        // list the moment a workout ends, while the banner above it disappears — so
-                        // every row below moves in the same frame. Pure transit, no character: the
-                        // placement spec is positional and both fades are alpha, which is the split
-                        // stated as plainly as one call can state it.
+                        // Continuity motion: positional placement spec, alpha fades.
                         modifier = Modifier.animateItem(
                             fadeInSpec = continuityAlphaSpec(),
                             placementSpec = continuityPositionalSpec(),
                             fadeOutSpec = continuityAlphaSpec(),
                         ),
                         item = item,
-                        // The drawing removes the last row's rule (`.frame .row:last-of-type`), so
-                        // the list does not end on a hairline into empty space.
+                        // The last row drops its rule so the list does not end on a hairline.
                         showDivider = index < recent.itemCount - 1,
                         onClick = {
                             consume(
@@ -249,11 +199,8 @@ private fun HomeBody(
 }
 
 /**
- * The append tail — §26 "Paging tails", three states and two drawings.
- *
- * Dispatch only. Which tail is drawn is [pagingTailKind]'s decision and is asserted directly,
- * because a golden cannot reach an append state: Paparazzi renders one frame of a source that
- * never appends (§27).
+ * The append tail. Which tail is drawn is [pagingTailKind]'s decision, asserted directly because
+ * a golden cannot reach an append state.
  */
 private fun LazyListScope.pagingTail(
     items: LazyPagingItems<RecentSessionItem>,
@@ -267,35 +214,19 @@ private fun LazyListScope.pagingTail(
 }
 
 /**
- * What the recent band draws when it has no rows — [homeListSurface]'s four verdicts.
- *
- * It is an **item inside the list**, not a `Box` behind it, and that is the drawing's own answer:
- * `#s-empty`'s cold-open frame puts the spinner "на месте первой строки" — where row 1 will land —
- * precisely so nothing moves when the page arrives. On Home that position is below the banner and
- * the start card rather than at the top of the screen, which is the same rule applied to a body
- * that has content above its list.
- *
- * **The crossfade excludes CONTENT and LOADING**, exactly as `ListSurface.crossfades` does and for
- * the measured reason recorded there: `collectAsLazyPagingItems()` always begins at `itemCount = 0`
- * with `refresh = Loading`, so every whole-screen golden composes `LOADING` first and reaches its
- * real verdict a frame later — and a single-frame harness photographs the transient. Keying the
- * `AnimatedContent` only on the drawn blocks makes it mount fresh at its real verdict, with current
- * and target equal and no transition to catch.
+ * What the recent band draws with no rows — [homeListSurface]'s verdicts, as an item inside the
+ * list so nothing moves when row 1 lands. The crossfade excludes CONTENT and LOADING.
  */
 private fun LazyListScope.emptyRegion(
     items: LazyPagingItems<RecentSessionItem>,
     surface: HomeListSurface?,
 ) {
-    // The verdict is passed in, not recomputed: `rememberDeferredSurface` reports LOADING for as
-    // long as the spinner must stay up, which is AFTER the data has stopped loading, and `null`
-    // while the deferral window is open. Re-deriving it here would take the raw verdict and drop
-    // both — the item leaves the list the moment the rows arrive.
+    // GUARD: take the verdict as a parameter; re-deriving it drops both the post-load LOADING
+    // report and the `null` returned while the deferral window is open.
     if (surface == null || surface == HomeListSurface.CONTENT) return
     item(key = "empty_region") {
         if (surface == HomeListSurface.LOADING) {
-            // A load under 140ms draws nothing at all and the outgoing frame persists, which is
-            // what stops the flash; one that gets past 140ms stays up for at least 260ms, which is
-            // what stops a 141ms load flashing the spinner for 1ms instead.
+            // Under 140ms nothing is drawn; past 140ms the spinner stays up for at least 260ms.
             PagingLoadingFooter(modifier = Modifier.fillMaxWidth())
             return@item
         }
@@ -323,11 +254,7 @@ private fun LazyListScope.emptyRegion(
                     headline = stringResource(R.string.feature_home_empty_headline),
                     supportingText = stringResource(R.string.feature_home_empty_supporting),
                     icon = AppIcons.Trainings,
-                    // No action, deliberately. The start card directly above carries the same CTA,
-                    // and `AppEmptyState` draws a button only when label AND handler are non-null —
-                    // the mechanism §26's own empty-state row cites as load-bearing. Two identical
-                    // buttons one above the other is the redundancy the count-bearing FAB was
-                    // rejected for.
+                    // No action: the start card directly above carries the same CTA.
                     actionLabel = null,
                     onAction = null,
                 )
@@ -337,12 +264,8 @@ private fun LazyListScope.emptyRegion(
 }
 
 /**
- * Preview state. `State.INITIAL` is gone — the state carries a `PagingUiState`, which is a flow
- * factory and cannot be a constant — so previews build one over a fixed [PagingData].
- *
- * `startCardMode` is set explicitly rather than inherited: `State.init` leaves it null (the
- * frame before DataStore answers), and a preview of the screen wants the settled card. The
- * unresolved head has its own preview, on the card itself.
+ * Preview state over a fixed [PagingData]; `startCardMode` is set explicitly because `State.init`
+ * leaves it null until DataStore answers.
  */
 private fun previewState(
     activeSession: State.ActiveSessionInfo? = null,

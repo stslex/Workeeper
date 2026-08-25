@@ -16,14 +16,8 @@ import io.github.stslex.workeeper.feature.single_training.R
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.Action
 
 /**
- * Content of the topbar `⋮` sheet — bare `.mitem` rows, `AppBottomSheet` wraps at the call
- * site so the drawing stays goldenable (the `ModalBottomSheet` window is out of Paparazzi's
- * one-window model, §10.4).
- *
- * ED10: `Изменить` is NOT here — it moved to the dock. The menu keeps «В архив» and, when
- * the training is deletable, «Удалить навсегда». Archive carries no leading icon for the
- * same reason the exercise menu's rows don't: [AppIcons] ships only glyphs transcribed
- * verbatim from the mockups, and no target is drawn for this menu.
+ * Content of the topbar `⋮` sheet — bare `.mitem` rows, wrapped by `AppBottomSheet` at the call
+ * site so the drawing stays goldenable. ED10: `Изменить` is on the dock, not here.
  */
 @Composable
 internal fun TrainingDetailMenuSheetContent(

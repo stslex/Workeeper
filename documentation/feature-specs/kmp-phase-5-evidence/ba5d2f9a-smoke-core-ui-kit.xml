@@ -1,0 +1,15 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<testsuites tests="5" failures="0" errors="0" skipped="0" time="6.404" timestamp="2026-08-25T14:57:55" hostname="localhost">
+  <testsuite name="io.github.stslex.workeeper.core.ui.kit.components.dialog.AppConfirmationDialogTest" tests="5" failures="0" errors="0" skipped="0" time="4.822" timestamp="2026-08-25T14:57:55" hostname="localhost">
+    <properties>
+      <property name="device" value="Pixel_6_API_34(AVD) - 14" />
+      <property name="flavor" value="" />
+      <property name="project" value=":core:ui:kit" />
+    </properties>
+    <testcase name="dismissLabelRendersWhenProvided" classname="io.github.stslex.workeeper.core.ui.kit.components.dialog.AppConfirmationDialogTest" time="1.344" />
+    <testcase name="rendersTitleBodyAndConfirmLabel" classname="io.github.stslex.workeeper.core.ui.kit.components.dialog.AppConfirmationDialogTest" time="1.216" />
+    <testcase name="dismissLabelHiddenWhenNull" classname="io.github.stslex.workeeper.core.ui.kit.components.dialog.AppConfirmationDialogTest" time="0.713" />
+    <testcase name="strictDismissPropertiesAreRespectedByConstruction" classname="io.github.stslex.workeeper.core.ui.kit.components.dialog.AppConfirmationDialogTest" time="0.743" />
+    <testcase name="confirmClickInvokesOnConfirm" classname="io.github.stslex.workeeper.core.ui.kit.components.dialog.AppConfirmationDialogTest" time="0.806" />
+  </testsuite>
+</testsuites>

@@ -44,10 +44,8 @@ fun NavGraphScope.singleTrainingsGraph(
                 is Event.ShowArchiveBlocked -> SnackbarManager.showSnackbar(message = event.message)
                 is Event.ShowSaveError -> SnackbarManager.showSnackbar(message = event.message)
 
-                // §4's table, rows 1 and 2: DRAFT edits with an undo toast — the undo
-                // re-inserts the removed thing, and nothing is persisted or deferred. The
-                // toast is app-level and can outlive the draft, so the action carries the
-                // event's draftEpoch back and the handler decides whether it still applies.
+                // §4 rows 1 and 2: draft edits with an undo toast. The toast can outlive the
+                // draft, so the action carries the event's draftEpoch back for the handler.
                 is Event.ShowSetRemovedUndo -> SnackbarManager.showSnackbar(
                     AppSnackbarModel(
                         message = event.message,
@@ -83,34 +81,17 @@ fun NavGraphScope.singleTrainingsGraph(
             }
         }
 
-        // Intercept back for unsaved edits — a card's plan edit included, through the
-        // snapshot signature — or to dismiss the topmost dialog.
+        // Intercept back for unsaved edits, or to dismiss the topmost dialog.
         BackHandler(enabled = processor.state.value.interceptBack) {
             processor.consume(Action.Click.OnBackClick)
         }
 
         val state = processor.state.value
 
-        // §26 "A route does not compose until it has loaded". Everything above this line still
-        // runs while the load is in flight — the `LaunchedEffect` that picks up the plan
-        // editor's saved flag, the event `Handle`, the back interception — and only the screen
-        // waits.
-        //
-        // Nothing is drawn instead, deliberately: neither mockup draws a loading surface, and
-        // `AppNavigationHost` paints the background under every destination, so an unloaded
-        // route is an empty frame in the app's own colour rather than a hole.
-        //
-        // `isLoading` is `uuid != null`, so a create flow is never withheld — `processInit`
-        // clears it synchronously on that branch.
-        //
-        // LOAD-BEARING PRECONDITION: `loadTraining` must clear `isLoading` on FAILURE as well
-        // as on success, because `HandlerStore.launch` defaults `onError` to `{}` (B17, B21).
-        // A throw that leaves the flag set is a permanently empty screen — this gate is what
-        // gives that failure a cost. `CommonHandler.loadTraining` closes its own.
-        // GUARD: this wrapper must sit ABOVE the early return. `AnimatedVisibility` does not
-        // animate a composable that enters composition already visible, so it has to be composed
-        // while the route is still loading or the fade silently disappears. The modal content
-        // below stays behind the return, withheld until the load lands.
+        // §26 "A route does not compose until it has loaded"; `loadTraining` must clear
+        // `isLoading` on failure too, or the screen is empty forever.
+        // GUARD: this wrapper must sit ABOVE the early return — `AnimatedVisibility` does not
+        // animate a composable that enters composition already visible.
         AppLoadedContent(isLoaded = state.isLoading.not()) {
             when (state.mode) {
                 Mode.Read -> TrainingDetailScreen(
@@ -144,9 +125,7 @@ fun NavGraphScope.singleTrainingsGraph(
         when (val dialog = state.dialogState) {
             DialogState.Hidden -> Unit
 
-            // ED7: search · the dictionary as chips, a tap toggles live · «+ Создать «X»» ·
-            // «Готово». Dismissal by any route lands on the same action — the selection is
-            // already applied, so there is nothing to confirm or roll back.
+            // ED7: every dismissal route lands on the same action — selection applies live.
             DialogState.TagPicker -> AppBottomSheet(
                 onDismiss = { processor.consume(Action.Click.OnTagPickerDismiss) },
             ) {
@@ -173,9 +152,7 @@ fun NavGraphScope.singleTrainingsGraph(
                 )
             }
 
-            // §26 "Every modal on the three editors is a SHEET". Strings from the kit: one
-            // component, one table, three editors — three copies is how a renamed label survives
-            // on one screen after being corrected on another.
+            // §26 "Every modal on the three editors is a SHEET"; strings come from the kit.
             DialogState.DiscardConfirm -> AppConfirmSheet(
                 title = stringResource(KitR.string.core_ui_kit_discard_sheet_title),
                 body = stringResource(KitR.string.core_ui_kit_discard_sheet_body),
@@ -186,9 +163,7 @@ fun NavGraphScope.singleTrainingsGraph(
                 onDismiss = { processor.consume(Action.Click.OnDismissDiscard) },
             )
 
-            // `#sh-del`'s form: the one true confirmation is a SHEET (D-OPEN-1 — §7.4 stands,
-            // no dialog primitive in this language). The impact line rides `emphasis`, the
-            // sheet's role-based rendering of what `AppConfirmDialog` drew as a panel.
+            // `#sh-del`: the one true confirmation is a sheet (D-OPEN-1), impact on `emphasis`.
             is DialogState.PermanentDeleteConfirm -> AppConfirmSheet(
                 title = dialog.title,
                 body = dialog.body,

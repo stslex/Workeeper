@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.stslex.workeeper.runtime.UiAdmissionGateTest" tests="6" skipped="0" failures="1" errors="0" timestamp="2026-08-23T11:23:39.572Z" hostname="stslexs-MacBook-Pro.local" time="1.039">
+  <properties/>
+  <testcase name="awaitRetired times out while a region still holds its token()" classname="io.github.stslex.workeeper.runtime.UiAdmissionGateTest" time="0.091"/>
+  <testcase name="retire is ATOMIC with the zero observation - a grant and a clear verdict are exclusive()" classname="io.github.stslex.workeeper.runtime.UiAdmissionGateTest" time="0.861">
+    <failure message="org.opentest4j.AssertionFailedError: iteration 29: a token was granted for a generation the gate reported clear — the retire is not atomic with the zero observation ==&gt; expected: &lt;null&gt; but was: &lt;io.github.stslex.workeeper.runtime.UiAdmissionGate$Token@6569dded&gt;" type="org.opentest4j.AssertionFailedError">org.opentest4j.AssertionFailedError: iteration 29: a token was granted for a generation the gate reported clear — the retire is not atomic with the zero observation ==&gt; expected: &lt;null&gt; but was: &lt;io.github.stslex.workeeper.runtime.UiAdmissionGate$Token@6569dded&gt;
+	at org.junit.jupiter.api.Assertions.assertNull(Assertions.java:317)
+	at io.github.stslex.workeeper.runtime.UiAdmissionGateTest.retire is ATOMIC with the zero observation - a grant and a clear verdict are exclusive(UiAdmissionGateTest.kt:121)
+</failure>
+  </testcase>
+  <testcase name="release is idempotent and releases exactly its own token()" classname="io.github.stslex.workeeper.runtime.UiAdmissionGateTest" time="0.002"/>
+  <testcase name="reopen re-admits - the id grants tokens again()" classname="io.github.stslex.workeeper.runtime.UiAdmissionGateTest" time="0.001"/>
+  <testcase name="a token released after retirement and reopen cannot cancel a LATER admission (ABA)()" classname="io.github.stslex.workeeper.runtime.UiAdmissionGateTest" time="0.057"/>
+  <testcase name="a retired generation refuses admission outright()" classname="io.github.stslex.workeeper.runtime.UiAdmissionGateTest" time="0.012"/>
+  <system-out><![CDATA[Warn: (UiAdmissionGateTest) ui admission REFUSED for retired generation 1 — the region renders nothing
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

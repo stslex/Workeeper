@@ -58,6 +58,25 @@ That extraction is Android-only work, executable today.
   kit:main is configuration-level acyclic (test classpath vs apiElements), the
   standard back-dependency shape.
 
+## Harness internals that move with the files
+
+- `SUBJECT_WIDTH = 392.dp`: the golden device is 1080 px at 440 dpi = 2.75 px/dp = 392.7 dp
+  wide, and 392.dp is the nearest value landing on a **whole physical pixel** (1078 px) —
+  within half a dp of the device and free of the sub-pixel right-edge column a fractional
+  width would introduce. At `maxPercentDifference = 0.0` that column is a permanent flake
+  risk for no benefit.
+- `toTestName()` reads the package via `Class.getPackage()`, not `Class.getPackageName()`:
+  the latter is API 31 and Android Lint scopes this source set at the module's minSdk of 28,
+  even though the code only ever runs on the host JVM under Paparazzi. The API-1 call is a
+  fix rather than a suppression; the two return the same string for any class loaded from a
+  named package. Swapping it back reintroduces a Lint error.
+- One consumer carries a golden-only flag: `LiveWorkoutHeader.requestFocusWhenEditing` →
+  `EditableTrainingNameField.requestFocusOnAppear`. `focusRequester.requestFocus()` pulls in
+  the IME path, and layoutlib's `HandlerThread_Delegate` then dies on the host JVM with
+  `NoSuchMethodError: Thread.setPosixNicenessInternal` — racily, which is worse than
+  reliably. Production always passes `true`; the flag changes no pixels, only the side
+  effect, and `SessionHeaderGoldenTest`'s `sheadEditing` is the one caller passing `false`.
+
 ## Constraint
 
 **Goldens are never re-recorded.** No golden path changes in this extraction (measured

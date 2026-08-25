@@ -61,13 +61,8 @@ internal fun PlanEditorScreen(
             .fillMaxSize()
             .testTag("PlanEditorScreen"),
         topBar = {
-            // §26 "The editors' six code-diverges": the bar is the extracted `.topbar`, the same
-            // component as on the other two editors — not a raw M3 `TopAppBar` with its own
-            // colours and its own title rung. It does not collapse on scroll either: nothing in
-            // either mockup draws a bar that collapses, and `AppTopBar` is a 56dp row on
-            // `surfaceTier0` with no surface of its own to collapse into.
-            // The back mark is the kit's `AppIcons.ChevronLeft`, not a filled Material import
-            // (B34).
+            // The kit's `AppTopBar`, shared with the other two editors; it does not collapse
+            // on scroll. See the v3 redesign spec §26.
             AppTopBar(
                 title = title,
                 smallTitle = true,
@@ -103,11 +98,8 @@ internal fun PlanEditorScreen(
         ) {
             PlanEditorHeader(exerciseName = state.exerciseName)
             Spacer(Modifier.height(AppDimension.Space.lg))
-            // THIS SCREEN NO LONGER DRAWS THE TOGGLE — `PlanEditorBody` does, so the toggle and
-            // the rows whose shape it decides are one instance rather than a copy per host.
-            // What this screen still owns is the RULE: `Mode.PerformedExercise` passes null and
-            // gets no toggle, because type lives on the parent exercise and is not editable
-            // through a training-scoped editor.
+            // `PlanEditorBody` draws the toggle. `Mode.PerformedExercise` passes null and gets
+            // none: type lives on the parent exercise, not on a training-scoped editor.
             PlanEditorBody(
                 draft = state.draft,
                 isWeighted = state.isWeighted,
@@ -123,14 +115,12 @@ internal fun PlanEditorScreen(
                     { type -> consume(Action.Click.OnTypeToggle(type)) }
                 },
             )
-            // NO ADD BUTTON HERE, and none in the exercise create-flow either: add and remove
-            // live in the card's foot (§26, "Sets: add and remove move to the card's foot").
-            // `PlanEditorBody` owns both, so the two hosts cannot drift on where a set comes
-            // from.
+            // No add button here: add and remove live in the card's foot, owned by
+            // `PlanEditorBody`, so the two hosts cannot drift.
         }
 
-        // ONE sealed channel, and there must not be a second — a `Boolean` beside `dialogState`
-        // lets this screen open two modals at once (§26; `mvi-dialog-state`).
+        // GUARD: one sealed channel — a `Boolean` beside `dialogState` would let two modals
+        // open at once.
         when (val dialog = state.dialogState) {
             DialogState.Hidden -> Unit
 
@@ -144,8 +134,7 @@ internal fun PlanEditorScreen(
                 onDismiss = { consume(Action.Click.OnDismissDiscard) },
             )
 
-            // The impact summary rides as `emphasis` — a brighter paragraph, not the dialog's
-            // `failureBackground` panel, because the drawn sheet has no panel (see the component).
+            // The impact summary rides as `emphasis`: the drawn sheet has no panel.
             is DialogState.TypeChangeConfirm -> AppConfirmSheet(
                 title = dialog.title,
                 body = dialog.body,

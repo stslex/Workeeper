@@ -46,42 +46,8 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.kit.theme.fadedOut
 
 /**
- * The set's done-marker — the mockup's `.mark` (`session-v3f.html`), specified exactly.
- *
- * |            | resting                          | done                                    |
- * |------------|----------------------------------|-----------------------------------------|
- * | shape      | circle, 38dp (`inset: 4px`)      | squircle **radius 13dp**, 42dp (`inset: 2px`) |
- * | fill       | transparent                      | `max` — or `molten.solid` when it is a record |
- * | ring       | 2dp, the `hair-s` tier           | 2dp, the same colour as the fill        |
- * | tick       | present but **fully undrawn**    | **strokes itself in** over 260ms, 60ms delay |
- * | tick hue   | —                                | `base` — the page colour, on the filled plate |
- * | pressed    | `scale(.9)`                      | `scale(.9)`                             |
- *
- * **The morph is circle to rounded-square with the checkmark drawing in.** Not a checkbox, not a
- * colour swap. The previous implementation kept `CircleShape` in both states, drew a static
- * `Icons.Filled.Check`, and ringed the resting state in `accent` — every part of which was wrong,
- * and the accent ring in particular said "actionable chip" where the mockup says "quiet outline
- * waiting to be filled".
- *
- * ## Two deliberate deviations from the drawing, both measured
- *
- * 1. **The resting ring is [AppColors.borderStrong], not literal `hair-s`.** `hair-s` (#2B333B /
- *    #D2D7DD) measures 1.12–1.52:1 against every surface in this palette, and an unchecked mark's
- *    ring carries the entire affordance — there is no fill and no label inside it — so WCAG 1.4.11
- *    applies at 3:1. `borderStrong` *is* `hair-s` moved by the smallest step that clears 3:1
- *    everywhere, and its KDoc names "the unchecked set-mark ring" as the case that forced it. This
- *    is that call site.
- * 2. **A record's tick is `molten.onSolid`, not `onAccent`.** The mockup paints the tick `--base`
- *    unconditionally, which is right in dark, where `molten.onSolid` *is* `base`. In light it is
- *    not: `base` on `molten.solid` #F97316 measures 2.61:1, which is the exact trap `onSolid`
- *    exists to close — see [io.github.stslex.workeeper.core.ui.kit.theme.MoltenAccent.onSolid].
- *
- * ## Where the curves split
- *
- * Geometry — the size and corner radius — rides `closedFraction`, which is `spring` and
- * legitimately overshoots past 1.0; the canvas is sized to 46dp so the overshoot has room rather
- * than clipping. Every colour and the tick's own progress ride `out`. The press scale is `spring`
- * too: it is geometry.
+ * The set's done-marker (`.mark`): a circle morphing to a squircle as the tick strokes itself in.
+ * Geometry rides `spring`, colours and the tick `out`. See documentation/design-system.md.
  */
 @Composable
 fun AppCheckmarkButton(
@@ -91,8 +57,7 @@ fun AppCheckmarkButton(
     modifier: Modifier = Modifier,
     isRecord: Boolean = false,
 ) {
-    // §9's merged automaton. `isRecord` is a parameter to the same motion, never a second
-    // path: the morph and its timing are identical, and only the accent resolves differently.
+    // §9's merged automaton: `isRecord` parameterises the same motion, never a second path.
     val closure = rememberSetClosureVisuals(isDone = isDone, isRecord = isRecord)
     val interactionSource = remember { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
@@ -146,14 +111,7 @@ fun AppCheckmarkButton(
     }
 }
 
-/**
- * The mark's pixels, as a **pure function of its progress values**.
- *
- * Stateless on purpose. A transient captured as a static frame is unfalsifiable by eye (§10.2), so
- * the golden has to be able to ask for a specific frame — and it can only do that if the frame is
- * an argument rather than something a frame clock decides. `SetDoneMarkGoldenTest` drives this
- * directly at rest, mid-transition and done; `AppCheckmarkButton` drives it from the automaton.
- */
+/** The mark's pixels as a pure function of its progress values, so a golden can ask for a frame. */
 @Composable
 internal fun SetDoneMark(
     closedFraction: Float,
@@ -183,8 +141,7 @@ internal fun SetDoneMark(
             size = Size(side, side),
             cornerRadius = CornerRadius(radius, radius),
         )
-        // Inset by half the stroke so the ring sits INSIDE the shape, as a CSS `border` does,
-        // rather than straddling its edge the way a centred stroke would.
+        // Inset by half the stroke so the ring sits INSIDE the shape, as a CSS `border` does.
         drawRoundRect(
             color = ring,
             topLeft = Offset(origin + strokeWidth / 2f, origin + strokeWidth / 2f),
@@ -197,10 +154,8 @@ internal fun SetDoneMark(
 }
 
 /**
- * `stroke-dasharray: 26; stroke-dashoffset: 26 -> 0`, reproduced with [PathMeasure] rather than a
- * dash effect: measuring the real path and drawing the first [progress] of it is what
- * `stroke-dashoffset` means, and it does not depend on the mockup's `26` happening to exceed the
- * path's actual length (it does — the path measures ~22.3 viewBox units).
+ * `stroke-dashoffset` via [PathMeasure]: the mockup's dasharray 26 exceeds the path's real length
+ * (~22.3 viewBox units), so a dash effect would not map onto it.
  */
 private fun DrawScope.drawTick(progress: Float, color: Color) {
     if (progress <= 0f) return
@@ -230,10 +185,8 @@ private fun lerp(start: Float, stop: Float, fraction: Float): Float =
     start + (stop - start) * fraction
 
 /**
- * The touch target. The mockup's `.mark` is 46px; 48dp is the rung and the minimum target.
- * Public because it is also the mark's SLOT in the set row: `SetColumnHeader`'s trailing
- * gutter must mirror the row's trailing cluster from the component's own number, not a copy
- * (set-field-column-headers.md §4 D3).
+ * The touch target, and the mark's SLOT in the set row: `SetColumnHeader`'s trailing gutter
+ * mirrors this number rather than a copy of it.
  */
 val AppCheckmarkButtonTouchSize: Dp = 48.dp
 
@@ -260,12 +213,6 @@ private val TICK_SIZE: Dp = 19.dp
 
 /** The SVG's coordinate system; the path is authored in it and scaled to [TICK_SIZE]. */
 private const val TICK_VIEWBOX = 24f
-
-/*
- * The mockup's tick path, verbatim: `M4 12.5 l5 5 L20 7`, in [TICK_VIEWBOX] units.
- * Named rather than inlined because these are three points of one glyph, not three magic
- * numbers — moving any of them changes the shape of the checkmark.
- */
 
 /** `M4 12.5` — where the short descending stroke starts. */
 private const val TICK_START_X = 4f

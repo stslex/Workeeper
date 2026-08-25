@@ -72,6 +72,14 @@ weekday, filled where a session finished, with weekday labels beneath.
 
 Query: finished sessions in the current week. Trivial.
 
+Shipped as `SessionDao.observeFinishedTimesBetween(startInclusive, endExclusive)` over the half-open
+window `[startInclusive, endExclusive)`. Its `finished_at IS NOT NULL` carries the **projection**,
+not only the filter: without it a FINISHED row with no timestamp would surface as a null inside a
+non-null `List<Long>`. `ObserveWeekReadoutUseCase` evaluates `weekWindowOf(nowMillis, timeZone)`
+once, before the flow is built, so the window is fixed for the lifetime of the collection — Room
+re-emits on table change only, so a Home left open across midnight keeps the window it opened with.
+Accepted deliberately: the card is a log, and Home re-collects on every screen entry.
+
 The pill-per-unit form is drawn — the session rail lays one pill per set and fills what is done;
 here the unit is a day.
 
@@ -93,6 +101,14 @@ proportional to days idle, and the day count at the right edge. The word «дн�
 under the group, not three times.
 
 Query: `performed_exercise → exercise → exercise_tag → tag`, max finished date per tag.
+
+Shipped as `TagDao.observeTagIdleStats(limit)`. The join goes `performed_exercise → exercise_tag`
+directly — `exercise_table` contributes no predicate and both link FKs already guarantee its row —
+and filters `pe.skipped = 0` on the same reading of the flag as `pagedRecentWithStats`: a skipped
+exercise was not performed, so its session finishing says nothing about when that group last
+trained. The joins are INNER on purpose, so a **never-trained tag produces no row at all** — it has
+no day count for the bar or the right-edge number to show. Replacing them with a LEFT JOIN would
+change shipped behaviour.
 
 This is the only mode that depends on tags. Tags live on **exercises**, not trainings, so it needs
 no global change — but where exercises are untagged it has nothing to show, and that is an empty
@@ -127,6 +143,18 @@ Also excluded: `archived` trainings.
 | **HD4** | **Дни без тренировки / Неделя on a fresh install** — no sessions at all. One empty state serving every mode, or per-mode copy? | |
 | **HD5** | **Settings entry (HS5)** — its own row, or inside an existing group? Needs a look at the settings screen as it stands. | |
 
+**HD1–HD4, resolved in code** (`StartCardReadoutDomain` / `StartCardBodyUi`):
+
+- **HD1** — a never-run template ranks **first**: `Forgotten.daysIdle == null`, drawn with the never-run label.
+- **HD2 / HD3 / HD4** — no mode ever falls back to a sibling's readout. A mode with nothing to show
+  emits its own empty state (`NoTemplates`, `NoTaggedHistory`, `NoSessions`) and stays selected, with
+  per-mode copy. `NoSessions` serves both the week mode and the days-idle mode because their empty
+  condition is one fact — no session has ever finished — while the copy stays per-mode.
+- Consequence for `ClickHandler.processStartActionClick`: the discriminator is the **body**, never
+  the mode. FORGOTTEN_TRAINING degrades to `Empty` when no template is left, and that tap must open
+  the picker exactly as an `Empty` under any other mode does; an arm keyed on the mode would send it
+  to a uuid it does not have.
+
 ---
 
 ## 5. What changes in the tree
@@ -154,3 +182,81 @@ Goldens: four modes × 2 themes, the empty state of each mode that has one, and 
 
 The persistence rule (HS6) is a **behavioural** gate, not a golden: the mode survives process death.
 Test it as such.
+
+---
+
+## 7. As shipped
+
+### 7.1 The persisted mode (HS3, HS6)
+
+- `StartCardModeDomain(val value: String)` — the four strings `"WEEK"`, `"DAYS_SINCE_LAST"`,
+  `"LAGGING_GROUPS"`, `"FORGOTTEN_TRAINING"` are the DataStore encoding and a persistence contract
+  pinned by test: renaming an entry without keeping its `value` silently resets every affected user.
+  `fromValue(raw)` returns `WEEK` for any unknown or absent stored value (HS3), so a broken encoding
+  fails silently rather than loudly.
+- `feature/settings` carries its own enum of the same name and the same four strings; both features
+  read and write the one `CommonDataStore.homeStartCardMode` preference, nothing in either module
+  references the other, and renaming one side compiles. Pinned on the settings side by
+  `SettingsInteractorImplTest`'s `the storage encoding and the WEEK default are pinned`.
+- HS3's default lives in the **read**, not in State: `CommonDataStoreImpl.DEFAULT_START_CARD_MODE =
+  "WEEK"` (key `home_start_card_mode`) must stay equal to `StartCardModeDomain.WEEK.value`. The two
+  constants sit in different modules with no compile-time link;
+  `CommonDataStorePersistenceTest`'s `an absent key reads as the WEEK default on first launch` is
+  the only thing preventing silent drift.
+- `State.init` therefore seeds `startCardMode = null` and `startCardBody = null` on purpose — a cold
+  start does not know the persisted mode, and a null head renders no label at all. Pinned by
+  `HomeStartCardSeedTest` (no composition; asserts both nulls straight out of `State.init` rather
+  than through `emptyPagingState()`) and `HomeStartCardModeLabelTest` (the rendering half).
+- `StartCardModeSheet` / `StartCardModeSheetContent` take `selected: StartCardModeUi?` where **null
+  means nothing is checked**, not "check the default": a substituted `WEEK` is indistinguishable
+  from a real reading of WEEK and wrong for every user persisted on one of the other three. Both
+  hosts must pass their state through unaltered — `SettingsScreen`'s
+  `DialogState.StartCardModePicker` branch and `HomeGraph`'s `BottomSheetState.StartModePicker`
+  branch. Only the Settings one is pinned, by
+  `SettingsStartCardModeSheetTest.theSheetChecksNothingUntilThePreferenceIsKnown` (no
+  `StartCardModeCheck_<mode>` node while `startCardMode` is null, then only
+  `StartCardModeCheck_LAGGING_GROUPS` once it lands — deliberately not WEEK, which would be
+  pixel-identical to the guess); its subject is `SettingsScreen`, not the sheet, because the sheet's
+  own contract is honest and the defect would live in the wiring. An `?: WEEK` reintroduced at the
+  Home call site currently reds nothing.
+
+### 7.2 Mode and body land in one `copy`
+
+`CommonHandler.observeStartCard` writes `State.startCardMode` and `State.startCardBody` in a single
+`copy`, so head and readout are never a frame apart. Three consumers rest on that:
+
+1. `ClickHandler.processStartActionClick` reads `state.value.startCardBody` at click time, so the
+   uuid started is always the one the card was showing when tapped.
+2. `ClickHandler.processModeSelected` is persist-only — it calls `interactor.setStartCardMode` and
+   never writes `startCardMode`, letting the DataStore round trip own it.
+3. `HomeStartCard`'s `val reading = if (mode == null) null else body` guards a mismatch this
+   invariant makes unreachable. Its only witness in the repository is phase 2 of
+   `HomeStartCardModeLabelTest.theHeadNamesNoModeUntilOneIsKnown` (a body present while the mode is
+   still null): delete the guard and every other suite stays green. Phase 3 resolves both and
+   asserts the readout does draw, which is what gives phase 2's absence meaning.
+
+### 7.3 The head with no label
+
+`StartCardHead` withholds only the label when `mode == null`, and that costs the control twice:
+
+- A lone caret is `AppDimension.Icon.small` = 16dp, a third of the platform minimum, so the head
+  takes `widthIn(min = if (label == null) AppDimension.heightMd else 0.dp)` — 48dp.
+- The label was also the head's accessible **name** (`clickable` merges descendants and the caret is
+  decorative), and `onClickLabel` does not stand in for it: it names the *action* («double tap to
+  …»), leaving an unnamed control. So `feature_home_start_mode_switch` is used as both
+  `onClickLabel` and a stand-in `contentDescription` while the mode is unknown.
+
+Both are values toggled on a stable Modifier chain (compose-state-discipline Rule 2) and both are
+inert once a label exists (`0.dp`, unset description), so no drawn head moves or changes what it
+announces.
+
+### 7.4 Three constants off the AppDimension ladder
+
+v3's standing rule is to round raw px onto the ladder; these three are deliberate exceptions, named
+rather than rounded onto the nearest rung.
+
+| Constant | Value | Origin |
+|---|---|---|
+| `WEEK_PILL_HEIGHT` | `9.dp` | `pass2d.html` L87-90 `.rail{height:9px}` (4px radius, track `--raise`, fill `--max`), unit changed from set to day; reused as the lagging-groups bar height |
+| `WEEK_PILL_GAP` | `3.dp` | `.rail .grp{gap:3px}` |
+| `SETBAR_TRACKING` | `0.75.sp` | `.setbar{letter-spacing:.06em}` evaluated at the 12.5sp `mono.meta` rung (0.06 × 12.5 = 0.75) — the same number `LiveExerciseCard` uses |

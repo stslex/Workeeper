@@ -14,69 +14,36 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 
 /**
- * The single source of the set-row column geometry shared by `LiveSetRow`,
- * `PastSetEditRow` and [SetColumnHeader] (set-field-column-headers.md §4 D3).
- *
- * Every consumer reads these values from here: a header laid out from its own copies of
- * these numbers drifts silently the day either row changes.
+ * Single source of the set-row column geometry shared by both set rows and [SetColumnHeader].
+ * See documentation/feature-specs/set-field-column-headers.md.
  */
 object SetRowGeometry {
 
-    /**
-     * `.set-i { width: 13px }` → 12dp, as a **minimum** — the drawn column for a
-     * single-digit index. Rows keep `widthIn(min = …)` semantics with this default, so a
-     * bare row (previews, direct-row goldens) lays out from this value alone.
-     */
+    /** Minimum index-column width; rows keep `widthIn(min = …)` semantics with this default. */
     val indexMinWidth: Dp = AppDimension.Space.md
 
-    /**
-     * Weights carry decimals ("102.5"), reps never do — the extra fifth softens the width
-     * budget (set-field-column-headers.md §5). The 1.2 deviates from the mockup's
-     * `flex: 1/1` deliberately.
-     */
+    /** Weight-column flex; weights carry decimals and reps never do. */
     const val WEIGHT_COLUMN_FLEX: Float = 1.2f
 
-    /**
-     * The chip-or-PR-tag slot both rows draw after the fields — an alias of the chip's own
-     * `CHIP_MIN_WIDTH` (which `PersonalRecordTag` shares), so the trailing gutter the
-     * features hand `SetColumnHeader` is built from the component's number, never a copy.
-     */
+    /** The chip-or-PR-tag slot both rows draw after the fields; alias of the chip's minimum. */
     val setTypeSlotWidth: Dp = CHIP_MIN_WIDTH
 
     /**
-     * The width of the trailing chip-or-tag slot, resolved by MEASUREMENT: the type chip and
-     * the record tag share a 34dp *minimum*, and the tag's label outgrows it above roughly
-     * fontScale 1.6. A slot pinned to the minimum makes a record row's fields narrower than
-     * its non-record siblings' and than the header's columns — the same drift class
-     * [resolveIndexColumnWidth] closes on the leading side, on the axis that is easy to miss
-     * because every fixture at fontScale 1.0 sees both components at exactly the minimum.
-     *
-     * Both rows and `SetColumnHeader` size this slot from here, so the columns cannot
-     * disagree about it.
+     * Trailing chip-or-tag slot width, measured rather than pinned: the record tag outgrows
+     * the shared minimum at large font scales. Rows and the header both size it from here.
      */
     @Composable
     fun resolveTrailingSlotWidth(): Dp = max(setTypeSlotWidth, personalRecordTagIntrinsicWidth())
 
     /**
-     * The horizontal inset a SET-ROW field passes to `AppNumberInput.fieldInset`
-     * (set-field-column-headers.md §7a): the dense weighted split earns back 8dp of value
-     * budget per field over the drawn `Space.md`, by explicit consumer choice. One source
-     * for the rows AND the header's label inset, so the label sits exactly over the value
-     * it names; `PlanSetCard` never reads it and keeps the default.
+     * Horizontal inset set-row fields pass to `AppNumberInput.fieldInset`, and the header's
+     * label inset, so each label sits exactly over the value it names.
      */
     val compactFieldInset: Dp = AppDimension.Space.sm
 
     /**
-     * The index column width for a card with [setCount] visible rows, resolved by
-     * **measurement** rather than by a table: the widest index label is `setCount` itself
-     * (`mono.meta` digits are tabular), measured through the same text stack `Text` uses,
-     * at the current density and font scale — a fixed 12dp box clips a single digit at
-     * fontScale ~1.6.
-     *
-     * Containers (`SetsColumn`, the past card body) resolve once and pass the same value
-     * to the header and to every row; at 1-9 sets this is exactly [indexMinWidth], and at
-     * 10+ the header and the rows must grow **together** or the rows shift ~3dp out from
-     * under a static header.
+     * Index-column width for a card with [setCount] rows, measured because a fixed box clips
+     * at large font scales. Containers resolve once and pass one value to header and rows.
      */
     @Composable
     fun resolveIndexColumnWidth(setCount: Int): Dp {

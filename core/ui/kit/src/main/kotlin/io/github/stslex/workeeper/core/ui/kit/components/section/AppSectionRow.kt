@@ -20,30 +20,8 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 
 /**
- * One row inside an [AppSection].
- *
- * ## Composition, which is what produces the height
- *
- * Left to right: an optional [leading] slot, then the text column ([title] over an optional
- * [supporting]), then an optional [trailing] slot. The text column takes the remaining width; both
- * slots are intrinsically sized.
- *
- * Top to bottom, the text column is one or two lines of `text.body` over one line of `mono.meta`.
- * That, plus symmetric [AppDimension.Space.md] padding, is where
- * [AppDimension.rowHeight] comes from — see its KDoc for the arithmetic. The height is a
- * **minimum**, so the row grows rather than clips when a title wraps to three lines or the user
- * raises the font scale.
- *
- * A row with no [supporting] text has nothing to be 88.dp tall for, so it settles at
- * [AppDimension.heightXl] (64.dp) instead — the mockup draws exactly this split, `.row` at 88 for
- * the two-line list rows and `.srow` at 64 for the single-line settings rows
- * (`pass2d.html:70,157`). Both clear the 48.dp touch-target minimum.
- *
- * ## What this row does not draw
- *
- * It draws no separator. Hairlines belong to [AppSection], which is the only place that knows
- * which rows have a neighbour — a row that drew its own divider would put one under the last row
- * of every section, which is the line the v3 structure deliberately does not have.
+ * One row inside an [AppSection]: optional leading slot, a title over optional supporting text,
+ * optional trailing slot. The height is a minimum, and separators belong to [AppSection].
  */
 @Composable
 fun AppSectionRow(

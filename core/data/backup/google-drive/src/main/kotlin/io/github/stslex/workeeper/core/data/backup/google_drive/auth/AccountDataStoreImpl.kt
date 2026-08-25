@@ -18,17 +18,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
 /**
- * Metro-owned. `@ContributesBinding(AppScope)` binds it to [AccountDataStore] for the gd readers.
- * Public because `@ContributesBinding` on an `internal` class does not aggregate across Gradle
- * modules.
- *
- * The store is minted through [DataStoreProviderFactory] (same pattern as `CommonDataStoreImpl`),
- * never with a per-instance `PreferenceDataStoreFactory.create` — a `DataStore` is a per-file
- * singleton and `DataStoreProvider`'s memoization is static (process-lifetime), while this class is
- * `@SingleIn(AppScope)` (graph-lifetime). A second `AppGraph` in one process — which is what the
- * instrumented harness's per-test graph rebuild does — must resolve the SAME store, or DataStore
- * 1.1+ throws `IllegalStateException: multiple DataStores active` on the second collection.
- * Invariant pinned by `app/app` androidTest `AccountDataStoreSingletonTest`.
+ * DataStore-backed [AccountDataStore]. GUARD: mint the store through [DataStoreProviderFactory],
+ * never per instance — a second graph in one process trips "multiple DataStores active".
  */
 @ContributesBinding(AppScope::class)
 @SingleIn(AppScope::class)

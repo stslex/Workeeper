@@ -32,14 +32,7 @@ import kotlinx.collections.immutable.toImmutableList
 import kotlinx.collections.immutable.toImmutableMap
 import kotlinx.collections.immutable.toImmutableSet
 
-/**
- * Sub-handler isolated from `ClickHandler` to keep the v2.7 decomposition concern from
- * landing in this PR. Owns every transition of [State.exercisePickerSheet] and the
- * downstream "add the exercise to the active session + lazy PR fetch" flow.
- *
- * Routed via `Action.Click.PickerAction` from the parent click handler — see
- * [ClickHandler] delegation.
- */
+/** Owns the picker sheet's transitions and the add-to-session + lazy PR-fetch flow. */
 @SingleIn(LiveWorkoutScope::class)
 internal class ExercisePickerHandler @Inject constructor(
     private val interactor: LiveWorkoutInteractor,
@@ -48,13 +41,7 @@ internal class ExercisePickerHandler @Inject constructor(
     store: LiveWorkoutHandlerStore,
 ) : LiveWorkoutHandlerStore by store {
 
-    /**
-     * Routed from `ClickHandler` when `Action.Click.PickerAction(action)` fires. Not a
-     * [io.github.stslex.workeeper.core.ui.mvi.handler.Handler] subtype because
-     * [ExercisePickerAction] lives in `core/ui/plan-editor` (kit-local) and does not
-     * extend `Store.Action` — the parent click handler unwraps the Store-side wrapper
-     * before invoking us.
-     */
+    /** Routed from `ClickHandler`; [ExercisePickerAction] is kit-local, not a `Store.Action`. */
     operator fun invoke(action: ExercisePickerAction) {
         when (action) {
             is ExercisePickerAction.OnQueryChange -> processQueryChange(action.query)
@@ -64,17 +51,12 @@ internal class ExercisePickerHandler @Inject constructor(
         }
     }
 
-    /**
-     * Opens the picker with the full library list (filtered to exclude exercises already
-     * in the active session). Called from the parent `ClickHandler` when
-     * `Action.Click.OnAddExerciseClick` fires.
-     */
+    /** Opens the picker with the library list, minus exercises already in the session. */
     fun open() {
         val current = state.value
         val excludedUuids = current.exerciseUuidsInSession()
         val excludedNames = current.exerciseNamesInSession()
-        // Optimistic show with empty results; the search lands a tick later. Keeps the
-        // sheet animation snappy.
+        // Optimistic show with empty results; the search lands a tick later.
         updateState { current ->
             current.copy(
                 bottomSheetState = BottomSheetState.ExercisePicker(
@@ -94,8 +76,7 @@ internal class ExercisePickerHandler @Inject constructor(
         val visible = current.bottomSheetState as? BottomSheetState.ExercisePicker
             ?: return
 
-        // Optimistic UI: surface the new query immediately so the keyboard input feels
-        // immediate. Results are recomputed off-Main and merged when ready.
+        // Optimistic UI: surface the query now; results are recomputed off-Main and merged.
         updateState { latest ->
             latest.copy(
                 bottomSheetState = visible.copy(query = query),
@@ -134,10 +115,8 @@ internal class ExercisePickerHandler @Inject constructor(
         updateState { it.copy(isAddExerciseInFlight = true) }
         launch(
             onSuccess = { result ->
-                // `reusedExisting = true` means the typed name collided with a library or
-                // orphan row — that exercise has potential history, so the PR baseline is
-                // fetched. A fresh inline-created (`is_adhoc = true`) row has no history,
-                // so the snapshot is skipped.
+                // `reusedExisting = true` means the name collided with an existing row, which
+                // may have history; a fresh inline row has none, so the fetch is skipped.
                 addExerciseFlow(
                     picked = PickedExercise(
                         exerciseUuid = result.exerciseUuid,
@@ -189,9 +168,7 @@ internal class ExercisePickerHandler @Inject constructor(
                 trainingUuid = trainingUuid,
                 exerciseUuid = picked.exerciseUuid,
             )
-            // Q6 + C1 lock: snapshot fetch only for library exercises with potential
-            // history. Inline-created (`is_adhoc = true`) entries have no baseline so the
-            // map-plus update is skipped, which keeps the in-moment PR badge suppressed.
+            // Snapshot fetch only for exercises with potential history; inline rows have none.
             val pr: PersonalRecordDomain? = if (picked.fetchPr) {
                 runCatching {
                     interactor.fetchPrSnapshotForExercise(exerciseUuid = picked.exerciseUuid)
@@ -199,9 +176,7 @@ internal class ExercisePickerHandler @Inject constructor(
             } else {
                 null
             }
-            // Convert the seeded plan from the insert into the UI shape outside the
-            // updateState lambda — keeps the lambda pure state transformation per project
-            // convention.
+            // Convert outside `updateState` so the lambda stays a pure state transformation.
             val planUi: ImmutableList<PlanSetUiModel> =
                 addResult.planSets?.toUi() ?: persistentListOf()
             updateState { latest ->
@@ -223,8 +198,7 @@ internal class ExercisePickerHandler @Inject constructor(
                     exercises = nextExercises,
                     activeExerciseUuids = activeNext,
                     expandedExerciseUuids = expandedNext,
-                    // §6.1: the one-off toggle appears only on mid-session additions —
-                    // this set is that gate.
+                    // The one-off toggle appears only on mid-session additions.
                     midSessionAddedUuids = (
                         latest.midSessionAddedUuids + addResult.performedExerciseUuid
                         ).toImmutableSet(),
@@ -273,8 +247,7 @@ internal class ExercisePickerHandler @Inject constructor(
         exerciseName = picked.name,
         exerciseType = picked.type,
         position = position,
-        // Newly added exercises start as PENDING; the auto-default in the next status
-        // recompute pass will promote one to CURRENT if no explicit active set exists.
+        // New exercises start PENDING; the next status recompute may promote one to CURRENT.
         status = ExerciseStatusUiModel.PENDING,
         statusLabel = "",
         planSets = planSets,
@@ -300,8 +273,7 @@ internal class ExercisePickerHandler @Inject constructor(
             updateState { latest ->
                 val visible = latest.bottomSheetState as? BottomSheetState.ExercisePicker
                     ?: return@updateState latest
-                // Discard stale results when the user has typed a different query in the
-                // meantime — the latest in-flight load wins.
+                // Discard stale results — the latest in-flight load wins.
                 if (visible.query != query) return@updateState latest
                 latest.copy(
                     bottomSheetState = visible.copy(
@@ -329,15 +301,12 @@ internal class ExercisePickerHandler @Inject constructor(
     ): Pair<String?, String?> {
         val trimmed = query.trim()
         if (trimmed.isBlank()) return null to null
-        // An exact case-insensitive match in the active session means the user already has
-        // this exercise — DB-level dedupe would surface that row instead of inserting, so
-        // both the no-match indicator and the Create CTA are suppressed.
+        // On an exact case-insensitive match the DB dedupes instead of inserting, so both
+        // the no-match indicator and the Create CTA are suppressed.
         val exactMatchInExcluded = excludedNames.any { it.equals(trimmed, ignoreCase = true) }
         if (exactMatchInExcluded) return null to null
         val exactMatchInResults = results.any { it.name.equals(trimmed, ignoreCase = true) }
-        // CTA visibility mirrors the DB-side dedupe in `createInlineAdhocExercise`: hide
-        // the Create CTA only when an exact case-insensitive name exists. Partial matches
-        // (e.g., query "жим груди" with a result "жим груди под наклоном") still allow
+        // Hide the Create CTA only on an exact name match; partial matches still allow
         // creating the distinct typed name.
         val createCta = if (!exactMatchInResults) {
             resourceWrapper.getString(
@@ -347,8 +316,7 @@ internal class ExercisePickerHandler @Inject constructor(
         } else {
             null
         }
-        // The no-match headline only applies when the result list is genuinely empty;
-        // showing it alongside partial matches would lie about what is on screen.
+        // The no-match headline applies only when the result list is genuinely empty.
         val headline = if (results.isEmpty()) {
             resourceWrapper.getString(
                 R.string.feature_live_workout_picker_no_match_format,
@@ -377,8 +345,7 @@ internal class ExercisePickerHandler @Inject constructor(
             reps = pr.reps,
             type = type,
         )
-        // Map-plus, never replace — parallel fetches converge correctly regardless of
-        // resolve order (per spec section 6 concurrency contract).
+        // Map-plus, never replace — parallel fetches converge regardless of resolve order.
         return (this + (exerciseUuid to item)).toImmutableMap()
     }
 

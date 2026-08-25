@@ -141,12 +141,29 @@ Contract rules:
 - **`DatabaseJsonExporter` / `…Impl`** (`@SingleIn(AppScope::class)`), package `…/export/`: reads all 9 DAOs, assembles
   the nested DTO graph, encodes via `kotlinx.serialization.json`. Returns the JSON as `String`/bytes;
   it does **not** know about Drive.
+- **One read transaction (as built).** Every table read plus the in-memory index build runs inside a
+  single Room read transaction — `database.useReaderConnection { transactor.deferredTransaction {
+  coroutineScope { … } } }`, with `coroutineScope` nested INSIDE so the `async {}` children reuse the
+  transaction connection. The export is fire-and-forget (D2) and so can overlap live workout edits:
+  without the transaction each DAO call would observe its own snapshot and an interleaved insert could
+  surface a child row whose parent/name row was not read — e.g. `exerciseNameByUuid` falling back to
+  `""`. The failure mode is silent artifact corruption, not an exception. `PRAGMA user_version`
+  (`dbSchemaVersion`) is read separately through a reader connection OUTSIDE the transaction — Room 3
+  removed `openHelper` and the value is process-stable (it only changes on migration at open) — and
+  JSON encoding also stays outside to keep the transaction short.
 - **Mapper** object(s), package `…/export/mapper/`: entity/DataModel → export DTO. No inline mapping
   (repo convention). Timestamp epochMs→UTC ISO conversion lives here.
 - **Unfiltered reads — CORRECTNESS TRAP (hard requirement).** Existing exercise list queries filter
   `is_adhoc = 0`. Reusing them would silently drop adhoc rows, violating D6. The exporter MUST use
   unfiltered `SELECT *` reads per entity (add new DAO methods if absent). A unit test must assert
   adhoc + archived rows are present in the output.
+- **The DAO `ORDER BY` is the export's ordering contract.** The exporter never re-sorts; it only
+  `groupBy`s, which preserves encounter order. `PerformedExerciseDao.getAll()` orders
+  `session_uuid, position ASC`, `SetDao.getAll()` orders `performed_exercise_uuid, position ASC`,
+  `TrainingExerciseDao.getAll()` orders `training_uuid, position ASC`, `TrainingDao.getAll()` orders
+  `created_at ASC, uuid ASC`. Changing any of these silently reorders the exported JSON. All of them
+  are unfiltered by design (they include `is_adhoc = 1` and `archived = 1` rows) and must never back a
+  user-facing list.
 
 ### 4.2 `core/data/backup/google-drive` — visible-folder upload
 - **`DriveApi` made space-aware:** list takes a `spaces` arg; upload takes a `parents` arg. Binary
@@ -177,6 +194,14 @@ Contract rules:
     next silent refresh requests `drive.file` once, gets no token (resolution — never surfaced to the UI
     on this background path), re-derives the flag to `false`, and silently retries with base scopes so
     the binary token survives. `BackupAuth.observeDriveFileGranted()` exposes the flag to the toggle/runner.
+  - **A granted incremental result can carry neither a token nor an identity.** GMS can return
+    `hasResolution() == false` granting `DRIVE_FILE` while `accessToken == null` **and**
+    `toGoogleSignInAccount() == null` — it deems a cached credential sufficient. Two guards follow:
+    the cached token is dropped (`accountStore.clearToken()`, not `setToken`) because it predates the
+    grant and may be appdata-only, and the stored `Account(email, displayName)` is preserved instead of
+    being overwritten with the `drive_account` placeholder. Both pinned by the `requestDriveFileAccess`
+    tests in `DriveBackupAuthTest`; mechanics in
+    [backup.md → Token caching](backup.md#token-caching).
 
 ### 4.3 `core/data/backup/api` — contracts & constants
 - New constants: folder name `"Workeeper"`, snapshot prefix `"workeeper_export_"`, suffix `".json"`,
@@ -186,8 +211,13 @@ Contract rules:
   the Drive impl (api/impl split per project convention).
 
 ### 4.4 Orchestration seam — `SnapshotExportRunner`
-- **`SnapshotExportRunner` / `…Impl`** (`@SingleIn(AppScope::class)`, data layer), one suspend method
-  `runIfEligible()`:
+- **`SnapshotExportRunner` / `…Impl`** (`@SingleIn(AppScope::class)`, data layer). Two export entry
+  points exist on purpose (as built): `runIfEligible()` launches on an app-scoped coroutine and returns
+  immediately — correct for the FOREGROUND manual path (`BackupInteractorImpl.createBackup`), whose UI
+  must not wait on visible-Drive latency; `runIfEligibleAwaiting()` SUSPENDS until the export completes
+  and is required for the auto-backup WORKER, because a detached launch would forfeit the worker's
+  wakelock/execution window (once `doWork()` returns the process becomes reclaim-eligible) and the
+  snapshot would race process death on every periodic run. Both run the same body:
   1. toggle on? else no-op.
   2. `drive.file` granted? else no-op (and, if toggle is on but grant missing, set a one-time
      "grant needed" signal — see §5 decline handling).
@@ -195,10 +225,20 @@ Contract rules:
   4. `DriveSnapshotStorage` → upload → rotate.
   - **Entire body wrapped so it never throws to the caller.** Failures → log + Crashlytics non-fatal,
     return `Unit` (D2).
-- **Wiring (D10):** both `BackupInteractorImpl` (manual) and `BackupWorker` (auto) call
-  `snapshotExportRunner.runIfEligible()` **after** the binary backup step. Invocation is independent of
-  binary outcome but internally no-ops without auth/toggle. The binary `Result`/error path is
+- **Wiring (D10):** both `BackupInteractorImpl` (manual) and `BackupWorker` (auto) call the runner
+  **after** the binary backup step — manual via `runIfEligible()`, the worker via
+  `runIfEligibleAwaiting()` (runCatching-wrapped, and only AFTER the binary-backup `Result` is
+  computed, so D2 still holds: the binary upload is already done and only the worker's `Result`
+  reporting is held longer). `BackupWorkerTest` pins it with `coVerify(exactly = 1) {
+  runIfEligibleAwaiting() }` and `coVerify(exactly = 0) { runIfEligible() }`. Invocation is independent
+  of binary outcome but internally no-ops without auth/toggle. The binary `Result`/error path is
   unaffected regardless of what the runner does.
+- **What the export `Mutex` prevents:** `SnapshotExportRunnerImpl.exportMutex` serializes the export's
+  Drive mutation across the manual and worker triggers (both funnel through the one
+  `@SingleIn(AppScope)` instance) and is also taken by `clearSnapshots()`. Without it two overlapping
+  runs could create duplicate `Workeeper/` folders — `DriveSnapshotStorage.resolveFolderId` is
+  check-then-act — or violate the `BackupConstants.MAX_BACKUPS` rotation cap, which is list-then-delete.
+  An in-process `Mutex` is sufficient because WorkManager runs the worker in the app process.
 
 ### 4.5 Metro & Detekt compliance
 - All new data-layer app-scoped bindings `@SingleIn(AppScope::class)` (+ `@ContributesBinding(AppScope)`),
@@ -233,6 +273,14 @@ navigation.
 - **Decline handling:** if the incremental grant is declined → revert the toggle to **off** and show a
   snackbar ("Google Drive access is needed for AI export"). Never leave a toggle that reads "on" but
   does nothing.
+- **The switch dispatch is deliberately UNGATED.** Unlike the four sibling rows (`enabled =
+  !operation.isInProgress`), `AiExportRow`'s `AppSwitch.onCheckedChange` dispatches
+  `Action.Backup.ToggleAiExport(enabled)` with no `isInProgress` gate — only a `RowSpinner` replaces the
+  control while `BackupOperationUi.TogglingAiExport`. `BackupClickHandler.toggleAiExport` honours
+  `ToggleAiExport(false)` — consent withdrawal, which deletes the exported plaintext Drive snapshots —
+  unconditionally and BEFORE its own re-entrancy check; only the enable direction is gated, and only
+  inside the handler. A UI-side gate here would silently swallow a consent withdrawal while any backup
+  operation is in flight.
 - **Withdrawal cleanup (D11):** turning the toggle **off** persists `aiExportEnabled = false` *then*
   deletes the already-exported snapshots from the visible folder (`interactor.deleteAiExportSnapshots()`);
   sign-out deletes them **before** revoking `drive.file`. So "off" / signed-out leaves no plaintext

@@ -10,15 +10,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 
-/**
- *  A generic interface for managing state, actions, and events within a component or module.
- *  It provides a central point for handling state updates,
- *  dispatching actions and events, logging, and launching coroutines.
- *
- *  @param S The type of the state managed by the store. Must implement [State].
- *  @param A The type of actions that can be dispatched to the store. Must implement [Store.Action].
- *  @param E The type of events that the store can emit. Must implement [Event].
- */
+/** The Store surface handlers see: read state, dispatch actions and events, launch coroutines. */
 interface HandlerStore<S : State, A : Store.Action, in E : Event> {
 
     val state: StateFlow<S>
@@ -39,14 +31,7 @@ interface HandlerStore<S : State, A : Store.Action, in E : Event> {
 
     suspend fun updateStateImmediate(state: S)
 
-    /**
-     * Launches a coroutine and catches exceptions. The coroutine is launched on the default dispatcher.
-     * @param onError - error handler
-     * @param onSuccess - success handler
-     * @param action - action to be executed
-     * @return Job
-     * @see Job
-     * */
+    /** Launches a coroutine on the Store scope, routing throwables to [onError]. */
     fun <T> launch(
         onError: suspend (Throwable) -> Unit = {},
         onSuccess: suspend CoroutineScope.(T) -> Unit = {},
@@ -55,28 +40,14 @@ interface HandlerStore<S : State, A : Store.Action, in E : Event> {
         action: suspend CoroutineScope.() -> T,
     ): Job
 
-    /**
-     * Launches a coroutine and catches exceptions. The coroutine is launched on the default dispatcher.
-     * @param onError - error handler
-     * @param onSuccess - success handler
-     * @param action - action to be executed
-     * @return Job
-     * @see Job
-     */
+    /** Launches a coroutine on the default dispatcher, routing throwables to [onError]. */
     fun <T> launchDefault(
         onError: suspend (Throwable) -> Unit = {},
         onSuccess: suspend CoroutineScope.(T) -> Unit = {},
         action: suspend CoroutineScope.() -> T,
     ): Job
 
-    /**
-     * Launches a flow and collects it in the screenModelScope. The flow is collected on the default dispatcher.
-     * @param onError - error handler
-     * @param each - action for each element of the flow
-     * @return Job
-     * @see Flow
-     * @see Job
-     * */
+    /** Collects this flow on the Store scope, routing throwables to [onError]. */
     fun <T> Flow<T>.launch(
         onError: suspend (cause: Throwable) -> Unit = {},
         workDispatcher: CoroutineDispatcher? = null,

@@ -22,30 +22,8 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 
 /**
- * The paging tails — `pass2d.html` `#s-list`'s loading and error frames.
- *
- * §26 "Paging tails": three states, **two drawings**. Loading is a footer spinner; error is the
- * reason plus a retry, because a silently truncated list is indistinguishable from a finished one;
- * and **exhausted is no footer at all** — "end of list" states only what is already visible, so the
- * absence is the drawing and there is deliberately nothing here for it.
- *
- * ## Why these are in the kit rather than copied a third time
- *
- * They were duplicated in `all-trainings` and `all-exercises`, which was defensible at two: the
- * copies were identical, and the alternative was a shared component before its shape was known.
- * `feature/archive` is the third consumer — the navnote names all three ("Пагинация уже есть в
- * тренировках, упражнениях и архиве") — and a third copy is where "not yet" stops being a judgement
- * and starts being drift. Three consumers of one drawn treatment is the forcing case.
- *
- * Strings stay with the caller. They are per-feature resources today, and hoisting them would make
- * this component own copy for screens it knows nothing about; taking them as parameters is what
- * lets one drawing serve three vocabularies.
- *
- * ## One treatment, two positions
- *
- * [AppPagingErrorFooter] is also `#s-empty`'s refresh-error block: the same `.perr` moved to where
- * row 1 would be. Only [reason] and [ruled] vary, and both follow from the position — see their
- * docs.
+ * The paging tails: a loading footer and an error footer with a retry; exhausted draws no footer
+ * at all. Strings stay with the caller so one drawing serves three vocabularies.
  */
 @Composable
 fun AppPagingLoadingFooter(
@@ -72,13 +50,8 @@ fun AppPagingLoadingFooter(
 }
 
 /**
- * The reason truncates rather than wrapping: it inherits the drawn `.frame .meta` rule, which is
- * one line with an ellipsis at the tail.
- *
- * @param reason why the load failed. The append tail's «дальше» is a lie at the top of an empty
- *  list — there is no *further* to have failed — so the cold-open caller passes its own.
- * @param ruled the drawn `border-top` separates the footer from the **last row**. At the top of an
- *  empty list there is no row above it to separate from, so the drawing omits it there.
+ * The reason truncates rather than wrapping. GUARD: pass `ruled = false` at the top of an empty
+ * list — the rule separates the footer from the row above, and there is none there.
  */
 @Composable
 fun AppPagingErrorFooter(

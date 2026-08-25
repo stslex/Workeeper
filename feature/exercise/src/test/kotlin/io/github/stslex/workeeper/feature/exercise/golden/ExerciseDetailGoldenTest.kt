@@ -24,24 +24,10 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.EnumSource
 
 /**
- * The exercise-detail golden suite. The BASELINE commit (C0) records the pre-rebuild
- * surface — Scaffold + M3 `DetailTopbar`, `AppCard` sections, card-shaped history rows —
- * so each Part-3 rebuild commit reads as an image diff against the skin it replaces.
- *
- * Fixture data deliberately mirrors `pass2d.html` §`s-ex` («Отведение гантелей через
- * стороны», type «С весом» + tag «верх», plan 4 × 7×12, record 9×12, history
- * 22 июля / 12 июля (PR) / 23 июня) so the final element-by-element pass can hold the
- * golden beside the mockup with no mental renaming. Data strings are fixture-side, so the
- * Cyrillic names render regardless of the harness's `en` resource locale.
- *
- * Out of model, per the harness KDoc: the topbar `DropdownMenu`, every dialog
- * (`AppBlockedArchiveDialog`, `AppConfirmDialog`, `ActiveSessionConflictDialog`,
- * `PrExplainerDialog`) and the snackbars render in their own windows and stay on manual
- * verification (§10.4).
+ * The exercise-detail golden suite. Fixture data mirrors `pass2d.html` §`s-ex`; the dialogs,
+ * sheets and snackbars render in their own windows and stay on manual verification (§10.4).
  */
 internal class ExerciseDetailGoldenTest {
-
-    // --- Whole frame -----------------------------------------------------------------------
 
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
@@ -51,11 +37,7 @@ internal class ExerciseDetailGoldenTest {
         }
     }
 
-    /**
-     * Every optional section absent at once (S8): no tags, no record, no plan, no
-     * description, no history — the read frame reduces to the top bar and the dock,
-     * because a section with nothing in it does not render.
-     */
+    /** Every optional section absent at once (S8): the frame reduces to the top bar and dock. */
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
     fun screenEmpty(theme: GoldenTheme, testInfo: TestInfo) {
@@ -64,12 +46,7 @@ internal class ExerciseDetailGoldenTest {
         }
     }
 
-    /**
-     * S8(a): `personalRecord == null` — the `.prhero` block is ABSENT and the screen opens
-     * on the tags line and then the plan section. No placeholder, no empty hero: a record
-     * that does not exist has nothing to display. The record session's history row loses
-     * its PR tag with it (the tag keys on the record's session uuid).
-     */
+    /** S8(a): `personalRecord == null` — the `.prhero` block is absent, with no placeholder. */
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
     fun screenNoRecord(theme: GoldenTheme, testInfo: TestInfo) {
@@ -81,13 +58,7 @@ internal class ExerciseDetailGoldenTest {
         }
     }
 
-    /**
-     * S8(b): zero sessions — the ИСТОРИЯ section is ABSENT, head and all; the description
-     * is the frame's last block. Difference partner of [screenLoaded], which carries the
-     * ruled list this frame drops. The record is held constant on purpose — a differential
-     * fixture, not a reachable state: a real record derives from logged sessions, and
-     * [screenEmpty] holds the every-section-absent frame.
-     */
+    /** S8(b): zero sessions — the ИСТОРИЯ section is absent, head and all. Differential. */
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
     fun screenEmptyHistory(theme: GoldenTheme, testInfo: TestInfo) {
@@ -102,12 +73,7 @@ internal class ExerciseDetailGoldenTest {
         }
     }
 
-    /**
-     * S8(d): no sets at all — the ПЛАН ПО УМОЛЧАНИЮ section is ABSENT, and the type
-     * declaration on its head (ED12) leaves with it. The editor's empty card (head plus
-     * setbar with a disabled «− подход») belongs to the editor, where the setbar is a
-     * target; read has no target.
-     */
+    /** S8(d): no sets — the ПЛАН ПО УМОЛЧАНИЮ section and its type declaration (ED12) both go. */
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
     fun screenEmptyPlan(theme: GoldenTheme, testInfo: TestInfo) {
@@ -119,13 +85,7 @@ internal class ExerciseDetailGoldenTest {
         }
     }
 
-    /**
-     * The `ОПИСАНИЕ` section's condition is a **disjunction**, and this is the arm the other
-     * goldens do not hold: a picture and no description. [screenLoaded] carries the
-     * description-with-no-picture arm and [screenEmpty] the neither case, so the three together
-     * are what separates `||` from `&&` — with `&&` this frame would lose its section and that
-     * one difference is the whole ruling.
-     */
+    /** The `ОПИСАНИЕ` condition is a disjunction; this is the picture-and-no-description arm. */
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
     fun screenImageNoDescription(theme: GoldenTheme, testInfo: TestInfo) {
@@ -140,12 +100,7 @@ internal class ExerciseDetailGoldenTest {
         }
     }
 
-    /**
-     * B11 coverage and S8(c): the weightless read — plan rows carry ONE value box, reps
-     * only, exactly as the editor and the session draw a weightless set; the section head's
-     * trailing label declares the weightless type (БЕЗ ВЕСА in the shipped locale; this
-     * harness renders its EN resource); the record label is reps-only.
-     */
+    /** B11 and S8(c): the weightless read — one value box, reps only, weightless on the head. */
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
     fun screenWeightless(theme: GoldenTheme, testInfo: TestInfo) {
@@ -170,8 +125,6 @@ internal class ExerciseDetailGoldenTest {
         }
     }
 
-    // --- Topbar ----------------------------------------------------------------------------
-
     /** `.topbar` (§1.2 on §3.1's frame): back chevron · `h1.sm` exercise name · `⋮`. */
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
@@ -181,12 +134,7 @@ internal class ExerciseDetailGoldenTest {
         }
     }
 
-    // --- Sheets ----------------------------------------------------------------------------
-
-    /**
-     * The `⋮` menu's CONTENT on the sheet tier — the `ModalBottomSheet` window itself is out
-     * of Paparazzi's one-window model and stays on the device checklist (§10.4).
-     */
+    /** The `⋮` menu's CONTENT only — the sheet window is out of Paparazzi's model (§10.4). */
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
     fun sheetDetailMenu(theme: GoldenTheme, testInfo: TestInfo) {
@@ -195,11 +143,7 @@ internal class ExerciseDetailGoldenTest {
         }
     }
 
-    /**
-     * Difference partner of [sheetDetailMenu]: the destructive permanent-delete row appears
-     * exactly when deletion is allowed. Carries the regression the retired
-     * `exerciseDetailActions` unit test pinned (the discarded `apply { plus(...) }` result).
-     */
+    /** Partner of [sheetDetailMenu]: the destructive row appears exactly when deletion is on. */
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
     fun sheetDetailMenuDeletable(theme: GoldenTheme, testInfo: TestInfo) {
@@ -207,8 +151,6 @@ internal class ExerciseDetailGoldenTest {
             ExerciseDetailMenuSheetContent(canPermanentlyDelete = true, consume = {})
         }
     }
-
-    // --- Record block ----------------------------------------------------------------------
 
     /** §3.3 fixture: mdot + Рекорд label, meta date line, 9×12 at dataValue — all molten. */
     @ParameterizedTest
@@ -237,11 +179,7 @@ internal class ExerciseDetailGoldenTest {
         }
     }
 
-    /**
-     * S8(e), B-E4: the meta line clamps to ONE line with an ellipsis instead of growing the
-     * hero — the fixture is the drawn `date · training` form with a training name long
-     * enough that the line must truncate at this width.
-     */
+    /** S8(e), B-E4: the meta line clamps to ONE line with an ellipsis rather than grow the hero. */
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
     fun recordHeroMetaClamped(theme: GoldenTheme, testInfo: TestInfo) {
@@ -254,8 +192,6 @@ internal class ExerciseDetailGoldenTest {
             )
         }
     }
-
-    // --- History row -----------------------------------------------------------------------
 
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)

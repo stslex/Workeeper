@@ -1,7 +1,6 @@
 plugins {
     alias(libs.plugins.convention.kmpLibrary)
-    // The exercise repositories are Metro-owned via @ContributesBinding(AppScope); their Room-DAO deps
-    // resolve from the app graph's DbCascadeBindingContainer (core:data:database).
+    // Metro-owned repositories; their Room-DAO deps resolve from the app graph.
     alias(libs.plugins.metro)
 }
 
@@ -11,25 +10,22 @@ metro {
     }
 }
 
-// Every production file is commonMain; this module intentionally has no androidMain source set.
-// Platform-driver selection stays in core:data:database. See kmp-phase-6-data-layer.md → §10
-// "core:data:exercise is the repo's first zero-androidMain KMP module."
+// Production code is commonMain only; no androidMain source set. Platform-driver selection
+// stays in core:data:database. See kmp-phase-6-data-layer.md.
 kotlin {
     sourceSets {
         commonMain.dependencies {
             implementation(project(":core:core"))
             implementation(project(":core:data:database"))
             implementation(libs.androidx.paging.common)
-            // The duplicate-name catch names androidx.sqlite.SQLiteException; the database
-            // module's room/sqlite deps are `implementation` and do not leak here.
+            // Needed for the duplicate-name catch on androidx.sqlite.SQLiteException.
             implementation(libs.androidx.sqlite)
         }
     }
 }
 
 dependencies {
-    // Robolectric under JUnit 5 for androidHostTest — the KMP convention keeps Robolectric a
-    // module concern (the core:core / core:data:dataStore / core:data:database shape).
+    // Robolectric under JUnit 5 for androidHostTest; the convention keeps it a module concern.
     "androidHostTestImplementation"(libs.robolectric)
     "androidHostTestImplementation"(libs.robolectric.junit5.extension)
     "androidHostTestImplementation"(libs.androidx.test)
@@ -41,15 +37,12 @@ dependencies {
     "androidDeviceTestImplementation"(libs.bundles.android.test)
     // InMemoryDatabaseProvider — the on-device AppDatabase under the production (bundled) driver.
     "androidDeviceTestImplementation"(project(":core:data:database-test"))
-    // Supplies io.github.stslex.workeeper.core.ui.test.annotations.Regression — the ui_tests.yml
-    // runner filter; an un-annotated device test can never be selected by any CI job.
+    // GUARD: supplies @Regression; an un-annotated device test is never selected by any CI job.
     "androidDeviceTestImplementation"(project(":core:ui:test-utils"))
 }
 
-// The robolectric-junit5 bridge sandboxes each test class through a JUnit Platform
-// LauncherInterceptor, and interceptors are OFF by default — without this property the extension
-// runs but never installs Robolectric's classloader, and every test dies with "No instrumentation
-// registered". The KMP convention keeps Robolectric a module concern, so the module sets it.
+// The robolectric-junit5 bridge needs JUnit Platform interceptors on, or every test dies with
+// "No instrumentation registered". See kmp-phase-6-data-layer.md.
 tasks.withType<Test>().configureEach {
     systemProperty("junit.platform.launcher.interceptors.enabled", true)
 }

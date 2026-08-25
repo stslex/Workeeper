@@ -16,19 +16,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
 /**
- * A real Nav3 host around a single feature graph, for instrumented scaffolding tests.
- *
- * Exists so that the two `:app:app` tests which mount a graph as DI/persistence scaffolding
- * (`ExerciseCreatePersistenceTest`, `AllTrainingsExtensionDbVisibilityTest`) can do it WITHOUT
- * importing `androidx.navigation3` — the androidTest navigation-import gate bans the library
- * wholesale and, since the Nav3 swap, carries no per-file exclusions. Under Nav2 those tests
- * mounted their own `NavHost` and were the gate's two named exceptions; this helper is what
- * deleted them.
- *
- * The decorator pair matches production (`AppNavigationHost`): per-entry saveable state plus
- * per-entry `ViewModelStore`, so a Store resolved through `rememberMetroStoreProcessor` scopes
- * exactly as it does in the app. The stack is a plain in-memory list — scaffolding needs no
- * process-death persistence.
+ * A real Nav3 host around a single feature graph, so scaffolding tests can mount one without
+ * importing `androidx.navigation3` past the androidTest import gate. See documentation/testing.md.
  */
 @Composable
 fun TestSingleScreenHost(

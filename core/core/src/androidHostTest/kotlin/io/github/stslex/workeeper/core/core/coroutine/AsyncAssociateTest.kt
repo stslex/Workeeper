@@ -36,12 +36,6 @@ internal class AsyncAssociateTest {
 
     @Test
     fun `duplicate keys are resolved by last-write-wins via mutableMap put`() = runTest {
-        // Document the chosen semantics. The implementation uses
-        // `mutableMap[key] = value` inside a coroutineScope; after `awaitAll()`
-        // returns the Map, the resolved value for any duplicate key is whichever
-        // async transform happened to write last. Tests assert that each key
-        // is present and that the value is *one of* the candidates — order is
-        // not guaranteed across runs because async children execute in parallel.
         val pairs = listOf(
             "a" to 1,
             "a" to 2,
@@ -58,18 +52,13 @@ internal class AsyncAssociateTest {
 
     @Test
     fun `transforms run concurrently rather than sequentially`() = runTest {
-        // If the implementation ran transforms sequentially, the test would deadlock:
-        // each transform suspends on a Deferred that is only completed after a higher-
-        // numbered transform has started. Concurrent execution unblocks the chain.
+        // Sequential execution would deadlock: each transform waits on a gate a later one sets.
         val gates = (0..3).map { CompletableDeferred<Unit>() }
 
-        // Launch the transformer chain on a background coroutine so we can observe
-        // completion ordering from the test scope.
         val coroutineScope = this
         val deferred = coroutineScope.async {
             (0..3).asyncAssociate { idx ->
                 if (idx > 0) {
-                    // Wait for the previous gate before completing the current one.
                     gates[idx - 1].await()
                 }
                 gates[idx].complete(Unit)
@@ -77,7 +66,6 @@ internal class AsyncAssociateTest {
             }
         }
 
-        // Kick off the chain by completing the first gate from outside.
         gates[0].complete(Unit)
 
         val result = deferred.await()
@@ -92,21 +80,14 @@ internal class AsyncAssociateTest {
 
     @Test
     fun `asyncAll returns false when any predicate fails`() = runTest {
-        // Regression for the loadSession-refactor `asyncAll` bug where the early
-        // `return@asyncMap false` only short-circuited the inner map-lambda — the
-        // outer function ignored the result and always returned `true`, which made
-        // `ExerciseRepositoryImpl.canBulkPermanentDelete` greenlight deletion of
-        // exercises that still had finished-session history.
+        // Regression: a wrong `true` here lets canBulkPermanentDelete drop exercises with history.
         assertEquals(false, (1..5).asyncAll { it < 4 })
         assertEquals(false, listOf(true, false, true).asyncAll { it })
     }
 
     @Test
     fun `cancellation of parent scope cancels in-flight transforms`() = runTest {
-        // Track how many transforms were observably running when the parent was
-        // cancelled. Each transform increments a counter, then suspends on a
-        // never-completing Deferred. When the parent scope is cancelled, the suspend
-        // points throw CancellationException — assert via the awaitsCancelled flag.
+        // Each transform suspends on a never-completing Deferred; the flag counts cancellations.
         val started = mutableListOf<Int>()
         var awaitsCancelled = 0
         val neverComplete = CompletableDeferred<Unit>()
@@ -127,16 +108,11 @@ internal class AsyncAssociateTest {
                 // Expected — cancellation propagates out.
             }
         }
-        // Let the children start.
         runCurrent()
         assertEquals(setOf(0, 1, 2), started.toSet())
 
         parent.cancel()
-        // Drain cancellation. CancellationException propagates through await(),
-        // awaitAll(), and out of asyncAssociate's coroutineScope so no leak remains.
         runCurrent()
-        // The job is cancelled — by the time we read this assertion, every started
-        // transform has had its `neverComplete.await()` cancelled.
         assertEquals(3, awaitsCancelled)
     }
 }

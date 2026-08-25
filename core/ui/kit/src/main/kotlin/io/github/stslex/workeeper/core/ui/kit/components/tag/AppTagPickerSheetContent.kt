@@ -36,23 +36,7 @@ import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.collections.immutable.toImmutableList
 
-/**
- * The tag picker's sheet (ED7): search field · the dictionary as selectable chips, a tap
- * toggles immediately · «+ Создать «X»» only when no exact match exists · «Готово».
- *
- * The window is `AppBottomSheet` at the call site so this drawing stays goldenable —
- * `ModalBottomSheet` composes into its own window, outside Paparazzi's one-window model
- * (`AppConfirmSheetContent`'s own split, for the same reason).
- *
- * Selection applies LIVE — a toggle lands in the caller's draft the moment it is tapped — so
- * «Готово» only closes the sheet, and the scrim and drag reach the same place. The dictionary
- * write behind «Создать» is also immediate (the repository's own contract); what stays
- * uncommitted until Save is only the LINK to the record being edited.
- *
- * The counter «N из 10» is deliberately NOT here: the limit belongs to `feature/exercise`
- * alone, and its head renders it (`v3-editors.md` §3.2 — a counter where no limit exists
- * is a lie).
- */
+/** The tag picker's sheet: search, dictionary chips, create row, done. Selection is live. */
 @Composable
 fun AppTagPickerSheetContent(
     selectedTagUuids: ImmutableSet<String>,
@@ -90,9 +74,7 @@ fun AppTagPickerSheetContent(
         )
         Spacer(Modifier.height(AppDimension.Space.md))
         if (filtered.isNotEmpty()) {
-            // Bounded and scrollable, or a tall dictionary walks the create row and «Готово»
-            // out of the window (landscape, keyboard open). 360dp is the exercise picker's
-            // own bound for the same seat in the same sheet family (`ExercisePickerSheet`).
+            // Bounded and scrollable, or a tall dictionary walks the create row out of view.
             FlowRow(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -129,10 +111,7 @@ fun AppTagPickerSheetContent(
     }
 }
 
-/**
- * The dictionary filter, trimmed before matching so the same normalization backs both
- * predicates. Named so it is directly assertable (§27's discipline).
- */
+/** The dictionary filter, trimmed before matching so both predicates share one normalization. */
 internal fun tagPickerFiltered(
     query: String,
     availableTags: ImmutableList<AppTagItem>,
@@ -146,12 +125,7 @@ internal fun tagPickerFiltered(
     }
 }
 
-/**
- * «+ Создать «X»» appears exactly when the TRIMMED query has no exact match. The trim is
- * load-bearing: the feature handlers trim before `createTag`, and the repository returns
- * the EXISTING row for a name that already exists — so an untrimmed « Push » here would
- * offer a create that resolves to the already-selected `Push` and duplicate its chip.
- */
+/** «+ Создать «X»» appears exactly when the TRIMMED query has no exact match. */
 internal fun tagPickerCanCreate(
     query: String,
     availableTags: ImmutableList<AppTagItem>,

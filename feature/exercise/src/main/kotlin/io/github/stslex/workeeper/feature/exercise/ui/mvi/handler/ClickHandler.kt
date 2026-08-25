@@ -55,8 +55,7 @@ import io.github.stslex.workeeper.core.ui.plan_editor.R as CoreEditorR
 internal class ClickHandler @Inject constructor(
     private val interactor: ExerciseInteractor,
     private val resourceWrapper: ResourceWrapper,
-    // Plain Context: the app Context is a create() bound-instance root on the app graph
-    // and bound bare into this graph — one Context per graph.
+    // Plain Context: the app graph binds it bare — one Context per graph.
     private val context: Context,
     @MainImmediateDispatcher
     private val mainDispatcher: CoroutineDispatcher,
@@ -137,8 +136,7 @@ internal class ClickHandler @Inject constructor(
             consume(Action.Navigation.Back)
             return
         }
-        // The write is in flight — nothing may roll the draft back now, and a create's
-        // POP_SCREEN would double-pop under the save's own Back ([State.isSaving]'s KDoc).
+        // The write is in flight: no rollback now, and a create's POP_SCREEN would double-pop.
         if (current.isSaving) return
         val target = if (mode.isCreate) DiscardTarget.POP_SCREEN else DiscardTarget.FLIP_TO_READ
         if (current.hasChanges) {
@@ -153,12 +151,9 @@ internal class ClickHandler @Inject constructor(
         updateState { current ->
             current.copy(
                 mode = Mode.Edit(isCreate = false),
-                // A new draft: undo toasts of the previous one must not edit this one, and
-                // a stuck flag from an orphaned save must not gag its undos.
+                // A new draft: the previous draft's undo toasts must not edit this one.
                 draftEpoch = current.draftEpoch + 1,
                 isSaving = false,
-                // Reachable from the dock and the overflow sheet alike — the flip to Edit
-                // closes the sheet in the same transition either way.
                 bottomSheetState = BottomSheetState.Hidden,
                 originalSnapshot = State.Snapshot(
                     name = current.name,
@@ -175,8 +170,7 @@ internal class ClickHandler @Inject constructor(
         val uuid = state.value.uuid ?: return
         val name = state.value.name
         sendEvent(Event.Haptic(HapticFeedbackType.LongPress))
-        // The action lives in the overflow sheet; close it before the result lands so a
-        // Blocked dialog never stacks on the open sheet.
+        // Close the sheet before the result lands so a Blocked dialog never stacks on it.
         updateState { it.copy(bottomSheetState = BottomSheetState.Hidden) }
         launch {
             when (val result = interactor.archive(uuid)) {
@@ -190,7 +184,6 @@ internal class ClickHandler @Inject constructor(
                             ),
                         ),
                     )
-                    // launch defaults to defaultDispatcher; navigator must be touched on Main.
                     withContext(mainDispatcher) {
                         consume(Action.Navigation.Back)
                     }
@@ -289,13 +282,9 @@ internal class ClickHandler @Inject constructor(
         sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
         val mode = current.mode
         val isCreate = mode is Mode.Edit && mode.isCreate
-        // HandlerStore.launch defaults eachDispatcher to defaultDispatcher, so onSuccess runs
-        // on a background thread. Switch to mainDispatcher before consume(Action.Navigation.*)
-        // so navigator.popBack() lands on the UI thread.
 
         val resolvedUuid = Uuid.parseOrRandom(current.uuid)
-        // The snapshot above is captured: from here until an outcome lands, an undo would
-        // reach the screen and miss the write ([State.isSaving]'s KDoc).
+        // Snapshot captured: until an outcome lands an undo would miss the write.
         updateState { it.copy(isSaving = true) }
         launch(
             onError = {
@@ -322,8 +311,7 @@ internal class ClickHandler @Inject constructor(
                 }
             },
         ) {
-            // Commit pending image first; if it fails, abort the DB write so we never
-            // end up with a half-applied save (image referenced from DB but missing on disk).
+            // Commit the image first; a failure aborts the DB write, so no half-applied save.
             val imageOutcome = commitPendingImage(current, resolvedUuid)
             if (imageOutcome is ImageCommitOutcome.Failed) {
                 sendEvent(Event.ShowImageError(ImageErrorType.SaveFailed))
@@ -348,9 +336,7 @@ internal class ClickHandler @Inject constructor(
             )
             when (interactor.saveExercise(snapshot)) {
                 is SaveResult.Success -> {
-                    // Only after the DB row is updated do we delete the previous file —
-                    // a process kill between write and DB update leaves an orphaned new file
-                    // (better than the reverse, which would leave the DB pointing at nothing).
+                    // Delete the previous file only after the DB row is updated.
                     if (imageOutcome is ImageCommitOutcome.Stored) {
                         imageOutcome.previousPath
                             ?.takeIf { it.isNotBlank() && it != imageOutcome.newPath }
@@ -465,22 +451,14 @@ internal class ClickHandler @Inject constructor(
     private fun processConfirmDiscard(target: DiscardTarget) {
         sendEvent(Event.Haptic(HapticFeedbackType.LongPress))
         updateState { it.copy(dialogState = DialogState.Hidden) }
-        // Guarded on its own, not only at the entries that raise the sheet: the confirm
-        // is a second action, and a save dispatched between the two would land on the
-        // rollback below ([State.isSaving]'s KDoc).
+        // Guarded here too: a save dispatched after the sheet rose would land on the rollback.
         if (state.value.isSaving) return
         applyDiscardTarget(target)
     }
 
-    /**
-     * Every field the snapshot carries is restored here — and the plan is one of them. It has to
-     * be: `Snapshot.matches` counts `adhocPlan` when deciding `hasChanges`, so a plan edit is what
-     * RAISES the discard sheet. Restoring everything except the plan would answer «Отменить» by
-     * keeping the exact edit the sheet was asking about.
-     */
+    /** Restores every snapshot field, plan included — a plan edit is what raises the sheet. */
     private fun processFlipToReadMode() {
-        // The choke point for every route back to Read that bypasses the save's own
-        // outcome — refused while the write is in flight ([State.isSaving]'s KDoc).
+        // Choke point for every route back to Read that bypasses the save's own outcome.
         if (state.value.isSaving) return
         updateState { current ->
             val snapshot = current.originalSnapshot
@@ -516,8 +494,7 @@ internal class ClickHandler @Inject constructor(
         val current = state.value
         if (!current.canPermanentlyDelete) return
         sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
-        // Pre-resolve display strings outside the updateState lambda — Rule 1 of
-        // compose-state-discipline.
+        // Strings resolved outside `updateState` — Rule 1 of compose-state-discipline.
         val title = resourceWrapper.getString(
             R.string.feature_exercise_detail_permanent_delete_confirm_title,
             current.name,
@@ -544,18 +521,7 @@ internal class ClickHandler @Inject constructor(
         }
     }
 
-    /**
-     * The DEFERRED delete (ED11's strict order): nothing is deleted here. The confirm hands
-     * the APP-LEVEL queue a model whose [AppSnackbarModel.onDismissed] is the commit and
-     * pops the screen; the snackbar host — the one thing that owns the toast's lifetime
-     * (B25) — runs it only when the undo window closes. Straight onto [SnackbarManager],
-     * never through the screen's event flow: the pop is the next line, a screen-scoped
-     * event dies with its collector (buffered or subscriber-less, either way silently),
-     * and this one carries a COMMIT that must outlive the screen. «Отменить» means the
-     * delete simply never runs; there is no re-insert path to get wrong. GUARD: no
-     * `interactor.permanentlyDelete` call may appear in this method outside `onDismissed`
-     * — a delete before the window closes is the inversion ED11 forbids.
-     */
+    /** The deferred delete (ED11): the commit is the snackbar's `onDismissed`, run on dismiss. */
     private fun processConfirmPermanentDelete() {
         val uuid = state.value.uuid ?: return
         sendEvent(Event.Haptic(HapticFeedbackType.LongPress))
@@ -568,8 +534,8 @@ internal class ClickHandler @Inject constructor(
                 actionLabel = resourceWrapper.getString(KitR.string.core_ui_kit_toast_undo),
                 // «Отменить» declines a delete that has not run — declining is doing nothing.
                 action = { },
-                // Captures the interactor — app-scoped repositories underneath — never the
-                // Store, whose scope dies with the pop below.
+                // GUARD: the delete runs only here, never before the undo window closes; the
+                // closure captures the interactor, never the Store, whose scope dies on the pop.
                 onDismissed = { interactor.permanentlyDelete(uuid) },
             ),
         )
@@ -585,16 +551,7 @@ internal class ClickHandler @Inject constructor(
         updateState { it.copy(bottomSheetState = BottomSheetState.PlanInfo) }
     }
 
-    /**
-     * Switching WEIGHTED -> WEIGHTLESS while weighted rows exist would silently strand the weights
-     * the user typed, so it asks first.
-     *
-     * **The wipe here is LOCAL — the draft only — and that is not the whole cascade.** An existing
-     * exercise's weights also live on every `training_exercise.plan_sets` row that references it,
-     * and nothing on this screen can reach those. `ExerciseRepositoryImpl.saveItem` clears them
-     * from the row it writes whenever the saved type is WEIGHTLESS, in the same transaction as the
-     * save; the confirm below only decides whether the user accepts losing them.
-     */
+    /** Asks before a WEIGHTED -> WEIGHTLESS switch strands typed weights; the wipe is local. */
     private fun processTypeToggle(target: ExerciseTypeUiModel) {
         val current = state.value
         if (current.type == target) return
@@ -659,14 +616,11 @@ internal class ClickHandler @Inject constructor(
             action = action.action,
             isWeighted = isWeighted,
         )
-        // Empty draft normalizes back to null so `state.adhocPlan == null` continues to
-        // mean "no default plan attached" (the persisted shape on `last_adhoc_sets`).
+        // An empty draft normalizes back to null — the persisted shape of `last_adhoc_sets`.
         val nextPlan = nextDraft.takeIf { it.isNotEmpty() }
         sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
         updateState { latest -> latest.copy(adhocPlan = nextPlan) }
-        // `− подход` gets its undo toast (§4's table): a DRAFT edit, so the undo re-inserts
-        // the removed row and nothing waits on a timer — the deferred machinery is the
-        // permanent delete's alone.
+        // `− подход` is a draft edit: the undo re-inserts the row, nothing waits on a timer.
         val bodyAction = action.action
         if (bodyAction is PlanEditorBodyAction.OnSetRemove && nextDraft.size < draft.size) {
             sendEvent(
@@ -682,26 +636,17 @@ internal class ClickHandler @Inject constructor(
         }
     }
 
-    /**
-     * The set-removed toast's «Отменить»: the draft takes the row back where it was.
-     * Two stacked removals can restore out of order — B-E8 records why exact composition
-     * needs row identity the plan rows do not carry.
-     */
+    /** The set-removed toast's «Отменить»: the draft takes the row back where it was. */
     private fun processUndoSetRemove(action: Action.Click.OnUndoSetRemove) {
         updateState { latest ->
-            // The toast can outlive the draft (Save/Cancel ended it, Edit may have begun a
-            // new one) or land while a save's captured snapshot is in flight — a stale
-            // «Отменить» edits nothing. [State.draftEpoch] and [State.isSaving], both KDocs.
+            // A stale «Отменить» — wrong draft, or a save in flight — edits nothing.
             if (latest.isSaving ||
                 latest.mode !is Mode.Edit ||
                 action.draftEpoch != latest.draftEpoch
             ) {
                 return@updateState latest
             }
-            // The type-change wipe runs over rows PRESENT in the draft, and this row was
-            // out riding its toast — it re-enters through the same invariant: a WEIGHTLESS
-            // exercise's rows carry no weights (`saveItem` strips them in the DB, and a
-            // weight the snapshot keeps but the DB strips diverges on the next reload).
+            // The row was out riding its toast, so it re-enters the weightless invariant here.
             val restored = if (latest.type == ExerciseTypeUiModel.WEIGHTLESS) {
                 action.set.copy(weight = null)
             } else {
@@ -782,13 +727,9 @@ internal class ClickHandler @Inject constructor(
         launch(
             onSuccess = { tag ->
                 updateStateImmediate { state ->
-                    // The repository returns the EXISTING row for a name that already
-                    // exists, so «Создать» over an already-selected name must not chip it
-                    // twice — the persisted links dedup on Save, the draft must agree.
+                    // createTag returns the EXISTING row for a known name — chip it once.
                     val alreadySelected = state.tags.any { it.uuid == tag.uuid }
-                    // The cap check above runs at dispatch, and two rapid creates both
-                    // pass it while the first write is in flight — the append re-checks
-                    // where the chip actually lands.
+                    // The cap check above ran at dispatch; re-check where the chip lands.
                     val overCap = state.tags.size >= State.MAX_TAGS_PER_EXERCISE
                     state.copy(
                         tags = if (alreadySelected || overCap) {
@@ -816,18 +757,14 @@ internal class ClickHandler @Inject constructor(
     }
 
     private fun processImageThumbnailClick() {
-        // Derive the viewer's model arg from whatever is currently displayed — committed
-        // file path OR the freshly-picked content URI. ImageDisplay.None means the
-        // thumbnail isn't visible anyway, so the click can't physically happen.
+        // Whatever is displayed: the committed file path or the freshly-picked content URI.
         val model = when (val display = state.value.effectiveImageDisplay) {
             is ImageDisplay.FromPath -> display.path
             is ImageDisplay.FromUri -> display.uri.toString()
             ImageDisplay.None -> return
         }
         sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
-        // Only Edit mode can honour a replace/remove request: Read has no Save and its
-        // `interceptBack` is false, so a staged `pendingImage` there would look applied and
-        // vanish on the way out. The viewer hides the two verbs when this is false.
+        // Only Edit can honour replace/remove; the viewer hides both verbs when this is false.
         consume(
             Action.Navigation.OpenImageViewer(
                 model = model,

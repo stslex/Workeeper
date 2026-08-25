@@ -40,35 +40,12 @@ import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import kotlinx.collections.immutable.ImmutableList
 import io.github.stslex.workeeper.core.ui.kit.R as KitR
 
-// Weight column gets a slightly wider weight so the kg input stays legible at small
-// widths; reps stays at flex 1 so the row balances at typical phone sizes.
+// Wider than the reps column so the kg input stays legible at small widths.
 private const val WEIGHT_COLUMN_FLEX = 1.2f
 
 /**
- * The set list, as a card — `#s-past`'s `.card` with `.set` rows and, when it can be edited, the
- * `.setbar` foot (extraction §7.5).
- *
- * ## One component, two hosts (`v3-editors.md` ED2, D-OPEN-6)
- *
- * [PlanEditorBody] draws it to be typed into; the exercise read screen draws it to be read. They
- * are the **same card**, not two that resemble each other: D-OPEN-6 ruled read and edit identical
- * — no chip removal, no tier change — because you read the plan in the shape you will perform it.
- * A second copy in the feature is precisely the drift this arc exists to remove, which is why the
- * component is here and public rather than duplicated there.
- *
- * ## `onAction == null` is the read-only host
- *
- * The same grammar [PlanEditorBody]'s `onTypeChange` already uses: **the null is the exclusion.** A
- * host that may not edit supplies no handler, and gets
- *
- *  - fields that display but do not accept a caret ([AppNumberInput]'s own `enabled`, so the box,
- *    its tier and its value colour are the editable one's and cannot drift from it),
- *  - a `.tchip` with no picker behind it,
- *  - and **no `.setbar`** — add and remove are edits, and a foot with nothing to do is a rule
- *    with nothing above it.
- *
- * The empty label follows the same flag, because the editor's hint names a control the read-only
- * host does not have.
+ * The plan's set list as a card, shared by the plan editor and the exercise read screen.
+ * `onAction == null` is the read-only host: no caret, no picker, no `.setbar` (ED2, D-OPEN-6).
  */
 @Composable
 fun PlanSetCard(
@@ -128,9 +105,7 @@ fun PlanSetCard(
                 addLabel = stringResource(KitR.string.core_ui_kit_setbar_add),
                 removeLabel = stringResource(KitR.string.core_ui_kit_setbar_remove),
                 onAdd = { onAction(PlanEditorBodyAction.OnAddSet) },
-                // The foot removes the LAST set. The action keeps its row index because the
-                // reducer is shared with paths that address a row directly — what this drops is
-                // the per-row control, not the ability to address a row.
+                // The foot removes the last set; the shared reducer still addresses a row.
                 onRemove = { onAction(PlanEditorBodyAction.OnSetRemove(plan.lastIndex)) },
                 removeEnabled = plan.isNotEmpty(),
             )
@@ -198,10 +173,7 @@ private fun PlanSetRow(
 
 /**
  * The row's trailing `.tchip`, and the picker behind it when there is one.
- *
- * The padding box is drawn in both modes and not only in the editable one: it is what puts the
- * chip where it is, so dropping it on read would move the trailing column by 2dp on one screen of
- * the two — which is exactly the "identical" D-OPEN-6 rules out.
+ * GUARD: the padding box is drawn in read-only mode too — dropping it shifts the column by 2dp.
  */
 @Composable
 private fun SetTypeSlot(

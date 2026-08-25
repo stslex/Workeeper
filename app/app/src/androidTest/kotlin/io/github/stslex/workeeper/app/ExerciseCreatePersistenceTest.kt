@@ -23,24 +23,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * F-02 — the create-form persistence seam, end to end: type a name into the Exercise create form, tap
- * Save, and assert the exercise lands in `exercise_table` with the expected default fields.
- *
- * App-Scope Collapse Step 6 (Phase 3.6): the real-graph half of the F-02 scenario, RELOCATED from
- * `feature/exercise` androidTest into the consolidated `:app:app` suite — the only source set that can
- * build the app graph (`buildAppGraph`/`AppGraph` are `:app:app`-internal). This mirrors the
- * [RecoveryActivityDbFreeTest] relocation: [MetroTestRule] installs a per-test app graph over an
- * in-memory `AppDatabase` root, and `exerciseGraph()` resolves `ExerciseFeature`'s Store through
- * `context.appDeps<T>()` — so the Store→interactor→repository→Room write path runs against that
- * in-memory DB. The assertions are the SAME ones the pre-cut Hilt version asserted (commit `88031508`),
- * restored verbatim; [ExerciseFormBasicsTest] in `feature/exercise` keeps the lighter render+dispatch
- * coverage.
- *
- * Hosted by the empty [TestActivity] (not `MainActivity`, which sets its own content in `onCreate`) so
- * `composeRule.setContent { ... }` mounts the feature graph in [TestSingleScreenHost] — a real
- * NavDisplay with the production decorator pair, and the reason this file no longer needs (or is
- * allowed) an `androidx.navigation*` import: the gate's two named exclusions were deleted with the
- * Nav2 host.
+ * F-02 create-form persistence seam over the real app graph and an in-memory Room DB. Hosted by the
+ * empty [TestActivity], since `MainActivity` sets its own content in `onCreate`.
  */
 @Regression
 @RunWith(AndroidJUnit4::class)
@@ -54,16 +38,10 @@ internal class ExerciseCreatePersistenceTest {
 
     private val exerciseDao get() = metroRule.appDatabase.exerciseDao
 
-    /**
-     * F-02 — minimal happy path: type a name, tap Save, exercise lands in DB with the create-mode
-     * defaults. Exercises the full stack: MainActivity host, the per-test Metro app graph, in-memory Room,
-     * real coroutine dispatchers.
-     */
     @Test
     fun f02_create_with_name_only_persists() {
         composeRule.setContent {
-            // ExerciseEditScreen reads `LocalAppColors` (AppUi.colors), so the mount must live inside
-            // `AppTheme` exactly like the production hierarchy — same wrap the pre-cut version used.
+            // ExerciseEditScreen reads `LocalAppColors`, so the mount must live inside `AppTheme`.
             AppTheme(themeMode = ThemeMode.LIGHT) {
                 TestSingleScreenHost(start = Screen.Exercise(uuid = null)) {
                     exerciseGraph()

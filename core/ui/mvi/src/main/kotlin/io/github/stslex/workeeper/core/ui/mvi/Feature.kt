@@ -7,21 +7,9 @@ import io.github.stslex.workeeper.core.ui.mvi.processor.StoreProcessor
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 
 /**
- * `Feature` is the composition-time entry point for a feature whose Store does NOT need
- * route arguments at construction (e.g. bottom-bar destinations or single-instance
- * screens). Subclasses override [processor] to return a [StoreProcessor] (resolved via
- * `rememberMetroStoreProcessor` over a Metro-constructed Store).
- *
- * Use [FeatureAssisted] when the screen carries a `data class Screen.<X>(...)` whose
- * fields seed the initial Store state.
- *
- * Navigation is never executed here: the Store/Handler layer dispatches navigation
- * decisions through `Navigator` (the command-bus contract), and the App/UI bridge
- * (`NavigatorExt.NavigationEventBusSetup`) executes them on the current `NavController`.
- *
- * @see [StoreProcessor]
- * @see [FeatureAssisted]
- * */
+ * Composition entry for a feature whose Store needs no route arguments. Use [FeatureAssisted]
+ * when the destination carries a `Screen` payload that seeds the initial state.
+ */
 @Immutable
 abstract class Feature<TProcessor : StoreProcessor<*, *, *>, TScreen : Screen> {
 

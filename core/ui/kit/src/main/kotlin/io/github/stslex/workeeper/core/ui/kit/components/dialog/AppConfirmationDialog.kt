@@ -22,21 +22,8 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 
 /**
- * Generic title-body-buttons dialog. Distinct from
- * [AppConfirmDialog]: this variant has no `impactSummary` block and a
- * single-button (`dismissLabel = null`) mode, intended as the rendering
- * primitive for the cross-feature `AppDialog` catalog
- * (see `documentation/feature-specs/app-dialogs.md` →
- * "AppConfirmationDialog (generic)").
- *
- * Stateless: takes labels as strings (caller resolves from `stringResource`),
- * surfaces no internal state. The host (`AppDialogHost`) maps the variant's
- * dismiss policy to [properties] (`dismissOnBackPress`, `dismissOnClickOutside`).
- *
- * @param dismissLabel `null` → single-button confirm-only dialog (e.g.
- *   `RestoreSuccess` acknowledge); non-null → two-button confirm + dismiss.
- * @param isDestructive when `true`, renders the confirm button in
- *   destructive (red) chrome; otherwise primary chrome.
+ * Generic title-body-buttons dialog, the rendering primitive for the `AppDialog` catalog.
+ * `dismissLabel = null` makes it single-button. See documentation/feature-specs/app-dialogs.md.
  */
 @Composable
 fun AppConfirmationDialog(

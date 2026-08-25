@@ -34,40 +34,8 @@ import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 
 /**
- * The mockup's `.mseg` (`pass2d.html:165`), and — via `MetricToggle` — its `.tabs .ind` too. The
- * two agree on structure and differ on magnitude (`.mseg button` 32px inside 3px of track padding,
- * `pass2d.html:166`; `.tabs button` 44px inside 5px, `pass2d.html:138`/`:135`) — the numbers here
- * are `.mseg`'s.
- *
- * The selected segment is a **lifted surface**: `--slab` plus `--slabtop`
- * (`.mseg button.on{background:var(--slab);color:var(--max);box-shadow:var(--slabtop)}`). It is
- * one of the four things in the mockups that carry that signature, and it reads it through
- * [liftedSurface] rather than reimplementing it — see that modifier for why the mechanism
- * inverts by theme.
- *
- * Two consequences of the lift, both of them the mockup's own geometry rather than taste:
- *
- * - The track carries `padding: 3px` (`.mseg`), so the thumb is inset. Without it the thumb is
- *   flush with the track's clipped edge and the light theme's cast shadow has nowhere to fall —
- *   the lift would be invisible in exactly one theme, which is the failure mode this whole role
- *   exists to fix. That padding sits **outside** the segment's height, not inside it — the track
- *   grows to carry it, see [TRACK_HEIGHT].
- * - The segments are separated by `gap: 3px` and **no rule**. The hairline dividers this
- *   component used to draw are siblings of the thumb, so a lifted thumb would have a seam
- *   running down its edge. The mockup draws air instead.
- *
- * ## The label pair, and its three witnesses
- *
- * Selected [io.github.stslex.workeeper.core.ui.kit.theme.AppColors.textPrimary] (`--max`), resting
- * [io.github.stslex.workeeper.core.ui.kit.theme.AppColors.textTertiary] (`--meta`). Three
- * independent sources agree and none dissents: `.tabs button` (`pass2d.html:142`), `.mseg button`
- * (`pass2d.html:170`), and the shipped `.tabs` — `MetricTabs` in `feature/exercise-chart`, which
- * animates between exactly this pair. **A fourth reading of this control must move all three or
- * none.**
- *
- * **The accent trio has no reader here** — a monochrome control is the point of `v3-editors.md`
- * ED5, and `accentTintedForeground` resolves to `--max` anyway, so reaching for it would change
- * the role this site declares without changing a pixel.
+ * The mockup's `.mseg`: a track whose selected segment is a [liftedSurface] thumb.
+ * GUARD: keep the track padding and draw no dividers — either one kills the lift.
  */
 @Composable
 fun AppSegmentedControl(
@@ -83,8 +51,7 @@ fun AppSegmentedControl(
             .clip(SEGMENT_SHAPE)
             .background(AppUi.colors.surfaceTier1)
             .padding(TRACK_PADDING)
-            // One choice among N, as the icon form already announces it. Without this the halves
-            // read to TalkBack as unrelated clickable boxes and the selected one says nothing.
+            // One choice among N; without this the halves read to TalkBack as unrelated boxes.
             .selectableGroup(),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(TRACK_PADDING),
@@ -120,37 +87,12 @@ fun AppSegmentedControl(
 /** `.mseg{padding:3px}` and `.mseg{gap:3px}` — 3px, one rung, one value. */
 private val TRACK_PADDING = AppDimension.Space.xs
 
-/**
- * `.mseg button{border-radius:8px}` — a rung that exists ([AppDimension.Radius.small]), and the
- * round-down `AppIconButton` documents for the track's missing 12 lands on the same 8.
- *
- * **NOT the theme's `shapes.small` (6dp)**: that value is D3's false citation. One `val` for both
- * forms, for the reason [TRACK_PADDING] and [TRACK_HEIGHT] are one — a per-form copy is how the
- * two drift.
- */
+/** `.mseg button{border-radius:8px}` — Radius.small, NOT the theme's `shapes.small` (6dp). */
 private val SEGMENT_SHAPE = RoundedCornerShape(AppDimension.Radius.small)
 
 /**
- * The track's outer height — **derived, not transcribed**, in the shape of [AppDimension.rowHeight].
- *
- * The mockup states the *button's* height and pads the track around it: `.mseg button{height:32px}`
- * (`pass2d.html:166`) inside `.mseg{padding:3px}` (`:165`), and neither box declares a height of
- * its own, so the track measures 32 + 2 x 3 = 38px. Here the padding is already rung-snapped
- * 3px -> 4dp ([TRACK_PADDING]), so the same sum lands one rung further along:
- *
- * ```
- *   AppDimension.heightXs   32   the segment — the mockup's own number
- *   + 2 x TRACK_PADDING      8   track padding, outside the segment rather than inside it
- *   --------------------------
- *                           40   = AppDimension.heightSm
- * ```
- *
- * Written as the sum and not as `heightSm` so that the derivation survives the next reader. Fix
- * the track at `heightXs` instead and the padding is taken *from* the segments: each
- * `fillMaxHeight` box measures 32 - 2 x 4 = 24dp, so the thumb, the label's font-scale headroom
- * and the clickable hit area all lose a quarter, and nothing in the file says why.
- *
- * Declared after [TRACK_PADDING] because a top-level `val` may not read one declared below it.
+ * The track's outer height: the mockup's 32dp segment plus [TRACK_PADDING] on both sides, so the
+ * padding sits outside the segment rather than eating into it.
  */
 private val TRACK_HEIGHT = AppDimension.heightXs + TRACK_PADDING * 2
 
@@ -161,14 +103,8 @@ data class SegmentedIcon(
 )
 
 /**
- * The `.mseg` in its **icon form** — the settings theme control (extraction §5.4): the same
- * track, padding and lifted `.on` thumb as [AppSegmentedControl], but fixed 38×32 icon
- * buttons (`.mseg button{width:38px;height:32px}`) instead of flex-1 text segments, so the
- * control sits compact at a row's trailing edge (`flex:none`). Glyphs are 16dp
- * `currentColor` — `--meta` resting, `--max` on the thumb.
- *
- * Same file as the text form so the two cannot drift: they share [TRACK_PADDING] and
- * [TRACK_HEIGHT], which are the mockup's own numbers.
+ * The `.mseg` in icon form (settings theme control): same track and lifted thumb as
+ * [AppSegmentedControl], with fixed-width icon buttons instead of flexed text segments.
  */
 @Composable
 fun AppSegmentedIconControl(
@@ -184,8 +120,7 @@ fun AppSegmentedIconControl(
             .clip(SEGMENT_SHAPE)
             .background(AppUi.colors.surfaceTier1)
             .padding(TRACK_PADDING)
-            // One choice among three: a radio group to TalkBack, as the ThemeSelector this
-            // control replaced was (selectableGroup + Role.RadioButton + selected state).
+            // One choice among three: a radio group to TalkBack.
             .selectableGroup(),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(TRACK_PADDING),

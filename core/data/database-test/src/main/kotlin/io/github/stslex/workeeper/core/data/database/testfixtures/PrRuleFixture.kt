@@ -4,28 +4,13 @@ package io.github.stslex.workeeper.core.data.database.testfixtures
 import org.jetbrains.annotations.TestOnly
 
 /**
- * The one description of "which set holds the record", as data.
- *
- * The DAO queries and `PrComparator` decide the global record. `ChartFolder` uses the same
- * eligibility and ordering when choosing each session's representative set. They cannot share
- * an implementation across modules, so they share this fixture.
- *
- * Deliberately plain data — no Room, no Android — so a module that has no database on its
- * test classpath can still be held to the same answers.
- *
- * The fixture that matters most is [WEIGHTLESS_WITH_RESIDUAL_WEIGHTS]. Every pre-existing
- * weightless test seeds `set_table.weight = null`, which is precisely the input on which the
- * batch query and the single-exercise query happened to agree — so the disagreement survived
- * for as long as it did. Residual weights on weightless rows exist in the wild (`set_table`
- * carries no type-conditional constraint) and there is no migration scrubbing them.
+ * The one description of "which set holds the record", as plain data — shared by the DAO queries,
+ * `PrComparator` and `ChartFolder`, which cannot share code. See documentation/testing.md.
  */
 @TestOnly
 object PrRuleFixture {
 
-    /**
-     * One candidate set. [finishedAt] doubles as the session key: candidates sharing a value
-     * belong to the same session, which is how [position] becomes reachable as a tiebreak.
-     */
+    /** One candidate set; [finishedAt] is the session key, which makes [position] a tiebreak. */
     data class PrCandidate(
         val label: String,
         val weight: Double?,
@@ -34,11 +19,7 @@ object PrRuleFixture {
         val finishedAt: Long,
     )
 
-    /**
-     * [candidates] are listed in canonical comparison order — `finishedAt` ascending, then
-     * `position` ascending. Sites that cannot see a timestamp (`PrComparator`) resolve ties
-     * by list order, so the list order has to be the order the rule would impose.
-     */
+    /** [candidates] are in canonical comparison order: `finishedAt`, then `position`. */
     data class PrScenario(
         val name: String,
         val isWeightless: Boolean,

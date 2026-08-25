@@ -9,21 +9,8 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 
 /**
- * The type scale asserted as *numbers*, not as pixels.
- *
- * `TypeSpecimenGoldenTest` renders the whole scale and catches any change to it. What it cannot
- * do is say what the change was *supposed* to be: a golden locks in what **is**, so a wrong
- * baseline is green forever (v3 spec §10.2, and it has shipped twice). Re-recording a specimen
- * is one command, which makes an accidental weight or tracking edit exactly as easy to bless as
- * an intended one.
- *
- * So the values that carry design decisions are stated here as well. The two gates fail
- * differently and that is the point: the golden says "the picture moved", this says "it moved
- * away from the declared value". Both must be updated deliberately.
- *
- * Only decision-bearing values are pinned. The six sizes and line heights are not — they are
- * already one list of named constants in [AppTypography]'s own file, and duplicating them here
- * would assert that a constant equals itself.
+ * The type scale asserted as numbers, not pixels: a golden locks in what is, so a wrong baseline
+ * stays green forever. Only decision-bearing values are pinned; the sizes are constants already.
  */
 internal class AppTypographyContractTest {
 
@@ -141,13 +128,13 @@ internal class AppTypographyContractTest {
         /** `-.015em` at 26sp. The mockups' screen-title tracking, converted. */
         val TITLE_TRACKING = (-0.39).sp
 
-        /** Predates B4 and applies to all three families. */
+        /** The pre-existing caption tracking, applied to all three families. */
         val CAPTION_TRACKING = 0.5.sp
 
         /** The mockups draw the timer at 32px; the ladder rounds it onto the 34 rung. */
         val TIMER_SIZE = 34.sp
 
-        /** The mockups draw `.data-l` at 25px; the ladder rounds it onto the 26 rung — B1. */
+        /** The mockups draw `.data-l` at 25px; the ladder rounds it onto the 26 rung. */
         val DATA_VALUE_SIZE = 26.sp
 
         fun AppTypeStyles.rungs(): List<Pair<String, TextStyle>> = listOf(

@@ -4,6 +4,7 @@ package io.github.stslex.workeeper.di
 import android.content.Context
 import dev.zacsweers.metro.asContribution
 import dev.zacsweers.metro.createGraphFactory
+import io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetime
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.single_training.di.SingleTrainingGraph
 import io.mockk.mockk
@@ -20,23 +21,12 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
 /**
- * Replaces the former feature-module `SingleTrainingGraphBridgeTest` (a `@GraphExtension` cannot be
- * created standalone, so the assertion must run where the parent [AppGraph] is compiled — here, `:app`).
- *
- * single-training is port 4 of the assisted batch, the sixth shape-B port, and the WIDEST port of the
- * arc at 23 forced-public. It reaches the deepest app-scoped stack any extension inherits —
- * `SessionRepository` plus `SessionConflictResolver` — which made it a STANDING RULE 4 boundary
- * candidate. Construction is asserted directly below because it does in fact succeed off-device; if
- * that ever changes, the claim becomes the BOUNDARY form (fail at platform static-init HAVING PASSED
- * THROUGH the real binding container, both halves) rather than being dropped.
- *
- * Like `exercise`, this feature consumes BOTH dispatchers, so the qualifier-distinctness claim is made
- * within the extension rather than cross-checked against the parent's other key.
+ * Identity claims for the single-training `@GraphExtension`: the inherited session subsystem, both
+ * qualified dispatchers and the route arg. See documentation/graph-extension-arc/HANDOFF.md.
  */
 internal class SingleTrainingExtensionIdentityTest {
 
-    // The real parent graph provides Dispatchers.Main.immediate (DispatchersBindingContainer); a plain
-    // JVM test must install a Main dispatcher before the store constructs.
+    // GUARD: Store construction reads the parent graph's Main.immediate binding.
     @BeforeEach
     fun setUp() {
         Dispatchers.setMain(Dispatchers.Unconfined)
@@ -52,6 +42,8 @@ internal class SingleTrainingExtensionIdentityTest {
             applicationContext = mockk<Context>(relaxed = true),
             appDatabase = mockk(relaxed = true),
             imageStorage = mockk(relaxed = true),
+            appScopeLifetime = AppScopeLifetime(),
+            databaseReplacement = mockk(relaxed = true),
         )
 
     private fun AppGraph.singleTraining(uuid: String?): SingleTrainingGraph =
@@ -86,11 +78,6 @@ internal class SingleTrainingExtensionIdentityTest {
         )
     }
 
-    /**
-     * The session subsystem is the deepest thing this extension inherits and the reason it was a
-     * boundary candidate. Asserting the SAME instance — not merely non-null — is what distinguishes
-     * "the extension resolved the app's real session stack" from "the extension built its own double".
-     */
     @Test
     fun `the session subsystem is inherited from the parent, not rebuilt`() {
         val appGraph = buildAppGraph()
@@ -121,8 +108,7 @@ internal class SingleTrainingExtensionIdentityTest {
             extension.mainImmediateDispatcher,
             "@MainImmediateDispatcher in the extension must be the parent graph's instance",
         )
-        // Both assertSame calls above would still pass if the parent held one instance for both keys,
-        // so distinctness is asserted explicitly.
+        // assertSame alone would still pass if the parent held one instance for both keys.
         assertNotSame(
             extension.defaultDispatcher,
             extension.mainImmediateDispatcher,
@@ -130,7 +116,6 @@ internal class SingleTrainingExtensionIdentityTest {
         )
     }
 
-    /** Shape B's defining property: the route arg is per-extension, never shared or stale. */
     @Test
     fun `each extension carries its own route arg into the store state`() {
         val appGraph = buildAppGraph()

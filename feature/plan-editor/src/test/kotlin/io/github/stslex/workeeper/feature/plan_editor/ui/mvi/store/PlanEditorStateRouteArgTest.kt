@@ -8,17 +8,8 @@ import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 
 /**
- * Verifies the `Screen.PlanEditor` route → `State.Mode` mapping that
- * `PlanEditorStoreImpl` uses to seed initial state. The Store calls
- * `screen.toInitialState()` with the assisted-injected screen, so this test pins the
- * routing branches:
- *
- *   - [Screen.PlanEditor.Existing] with `performedExerciseUuid != null` OR `trainingUuid`
- *     non-blank → `Mode.PerformedExercise`.
- *   - Otherwise (`exerciseUuid` only) → `Mode.Exercise`.
- *   - `exerciseUuid == null` is invalid input — the helper throws `IllegalStateException`.
- *   - [Screen.PlanEditor.Draft] → `Mode.Draft`; the seed `(initialType, initialPlanJson)`
- *     hydrates the working draft so the editor renders without a DB load.
+ * Pins the [Screen.PlanEditor.Existing] → `State.Mode` branches that `PlanEditorStoreImpl` uses
+ * to seed its initial state.
  */
 internal class PlanEditorStateRouteArgTest {
 

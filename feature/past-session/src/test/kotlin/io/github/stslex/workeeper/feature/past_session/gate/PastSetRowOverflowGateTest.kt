@@ -20,9 +20,8 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertAll
 
 /**
- * The set-field overflow gate for the past-session weighted edit row
- * (set-field-column-headers.md §6). Same design as `LiveSetRowOverflowGateTest`:
- * closed-loop slot capture, measurement-only harness.
+ * Set-field overflow gate for the past-session weighted edit row
+ * (set-field-column-headers.md §6): closed-loop slot capture, measurement-only harness.
  */
 internal class PastSetRowOverflowGateTest {
 
@@ -103,11 +102,7 @@ internal class PastSetRowOverflowGateTest {
         )
     }
 
-    /**
-     * The production row at the in-app content width — the card body shares the live
-     * screen's edge and card paddings (`PastSessionScreen.kt` screenEdge,
-     * `PastExerciseCard.kt` CardBody `Space.md`), so the context arithmetic is identical.
-     */
+    /** The production row at the in-app content width; paddings match the live screen. */
     @Composable
     private fun RowAtInAppWidth(
         set: PastSetUiModel,
@@ -139,9 +134,8 @@ internal class PastSetRowOverflowGateTest {
         val REPS_INPUTS = mapOf(1 to "5", 2 to "12", 3 to "555", 5 to "55555")
 
         /**
-         * The spec §7 ledger — the past row's slice. An entry means the cell overflows by
-         * design; the assertion is inverted, so a cell that starts fitting fails the gate
-         * until its entry and the spec §7 row are dropped together.
+         * The spec §7 ledger — the past row's slice. The assertion is INVERTED: a ledgered
+         * cell that starts fitting fails until its entry and the spec row drop together.
          */
         val KNOWN_LIMITS = mapOf(
             "reps/5@1.6" to "DEFERRED to domain cap (B-8), follow-up PR",

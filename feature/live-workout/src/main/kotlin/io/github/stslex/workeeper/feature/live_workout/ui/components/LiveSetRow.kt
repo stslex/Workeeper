@@ -37,32 +37,13 @@ import io.github.stslex.workeeper.feature.live_workout.R
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveSetUiModel
 import io.github.stslex.workeeper.core.ui.kit.R as KitR
 
-/**
- * `.set.flash` peaks: dark `rgba(241,245,249,.13)`, light `rgba(13,17,20,.09)` — the wash is
- * `max` at these alphas (`--flash`, session-v3f.html:22,30), scaled by the automaton's
- * decaying `flashAlpha` envelope. Step 5 used 0.13 in both themes; light is 9% as drawn.
- */
+/** `.set.flash` peaks: 13% dark, 9% light, scaled by the decaying flash envelope. */
 private const val FLASH_PEAK_ALPHA_DARK = 0.13f
 private const val FLASH_PEAK_ALPHA_LIGHT = 0.09f
 
 /**
- * `.set` (extraction §1.6): `set-i · field(s) · tchip-or-prtag · mark`, on a **transparent**
- * row — blocker B7's fix. Step 5 washed the whole row `surfaceTier4` when done, which is what
- * pushed the unit label under its threshold; the done wash now lives on the *field*
- * (`AppNumberInput.isDone` → `donefill`) and the row paints nothing.
- *
- * Geometry per the mockup: 8dp vertical / 4dp horizontal padding, 8dp gaps, an 8dp radius
- * (the flash wash rounds to it), content-driven height (48dp fields; the old fixed 56dp row
- * is gone). The hairline between rows belongs to the card body, not the row.
- *
- * The trailing slot is the type chip **or** the PR tag — never both (`drawSets`,
- * session-v3f.html:386-390). The old 3dp record stripe and the 18dp PR pill are retired: the
- * record row's signal is the molten wash on its fields, the molten value (B1, 26sp — the size
- * that makes the tint legal), and the tag.
- *
- * [flashAlphaOverride] exists for the golden pair (§10.2): the flash is an animation the
- * gate cannot reach mid-flight, so the golden freezes its peak through this parameter.
- * Production never passes it.
+ * `.set`: `set-i · field(s) · tchip-or-prtag · mark` on a transparent row — the done wash
+ * lives on the field, not the row. [flashAlphaOverride] is golden-only, never set in prod.
  */
 @Suppress("LongParameterList")
 @Composable
@@ -83,18 +64,15 @@ internal fun LiveSetRow(
     repsSlotProbe: ((slotWidthPx: Int, resolvedStyle: TextStyle) -> Unit)? = null,
     indexColumnProbe: ((widthPx: Int) -> Unit)? = null,
 ) {
-    // §9's merged automaton, one instance for the whole row: the mark's morph, this row's
-    // flash and the rail segment all resolve from the same closure, with `isRecord` selecting
-    // `molten` over `max` rather than selecting a second animation.
+    // One automaton for the whole row: mark morph, flash and rail segment share one closure.
     val closure = rememberSetClosureVisuals(isDone = set.isDone, isRecord = set.isPersonalRecord)
     val flashPeak = if (AppUi.colors.isDark) FLASH_PEAK_ALPHA_DARK else FLASH_PEAK_ALPHA_LIGHT
     Row(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(AppDimension.Radius.small))
-            // The flash. A COLOUR value, so it is driven by `out` and never by the
-            // overshooting `spring` — an alpha lerped past 1.0 clamps, and the wash would
-            // read as a hard cut.
+            // GUARD: the flash is a COLOUR, so drive it with `out`, never the overshooting
+            // `spring` — an alpha lerped past 1.0 clamps and the wash reads as a hard cut.
             .drawWithContent {
                 drawContent()
                 val alpha = flashAlphaOverride ?: closure.flashAlpha
@@ -110,17 +88,11 @@ internal fun LiveSetRow(
         horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
     ) {
         Text(
-            // Min-width, not fixed, with `maxLines = 1`: at `mono.meta` a digit is ~7.5dp, so
-            // a two-digit index needs ~15dp and a fixed 12dp box breaks it at a grapheme
-            // boundary (1 over 0) instead of overflowing — silently, since the 48dp fields
-            // set the row height. The minimum arrives from the container
-            // (`SetRowGeometry.resolveIndexColumnWidth`) so the header above and every row
-            // grow together past nine sets; a bare row keeps the drawn 12dp default.
+            // Min-width, not fixed: a two-digit index needs ~15dp and a fixed 12dp box breaks
+            // mid-grapheme. The minimum arrives from `SetRowGeometry.resolveIndexColumnWidth`.
             modifier = Modifier
                 .widthIn(min = indexColumnWidth)
-                // The alignment gate's row-side capture (test-only, never passed in
-                // production): the index column's LAID-OUT width, minimum and intrinsic
-                // growth included — what the header's gutter must equal.
+                // Test-only capture of the index column's laid-out width.
                 .onSizeChanged { size -> indexColumnProbe?.invoke(size.width) },
             text = (set.position + 1).toString(),
             style = AppUi.typography.mono.meta,
@@ -159,8 +131,7 @@ internal fun LiveSetRow(
                 )
             }
         } else {
-            // Bodyweight: ONE field, full width; the unit lives in the column header
-            // (`ПОВТОРЕНИЙ` — set-field-column-headers.md §2 decision 2).
+            // Bodyweight: ONE field, full width; the unit lives in the column header.
             Box(modifier = Modifier.weight(1f)) {
                 AppNumberInput(
                     value = set.reps.takeIf { it > 0 }?.toString().orEmpty(),
@@ -177,10 +148,8 @@ internal fun LiveSetRow(
                 )
             }
         }
-        // One slot width for the chip and the tag alike: the tag's label outgrows their
-        // shared minimum at large text scales, and a slot left to each component's own
-        // intrinsic width makes a record row's columns disagree with its siblings' and with
-        // the header's (set-field-column-headers.md §4 D3).
+        // GUARD: one slot width for chip and tag alike — the tag outgrows their shared
+        // minimum at large text scales and per-component widths break column alignment.
         val trailingSlotWidth = SetRowGeometry.resolveTrailingSlotWidth()
         if (set.isPersonalRecord) {
             PersonalRecordTag(

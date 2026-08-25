@@ -1,0 +1,12 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<testsuites tests="2" failures="0" errors="0" skipped="0" time="0.798" timestamp="2026-08-25T12:33:38" hostname="localhost">
+  <testsuite name="io.github.stslex.workeeper.core.data.database.SameInstanceReopenAfterSwapDeviceTest" tests="2" failures="0" errors="0" skipped="0" time="0.322" timestamp="2026-08-25T12:33:38" hostname="localhost">
+    <properties>
+      <property name="device" value="Pixel_6_API_34(AVD) - 14" />
+      <property name="flavor" value="" />
+      <property name="project" value=":core:data:database" />
+    </properties>
+    <testcase name="gate_rollbackSwap_retainedHandlesFailLoud_neverStale" classname="io.github.stslex.workeeper.core.data.database.SameInstanceReopenAfterSwapDeviceTest" time="0.265" />
+    <testcase name="gate_restoreSwap_retainedHandlesFailLoud_neverStale" classname="io.github.stslex.workeeper.core.data.database.SameInstanceReopenAfterSwapDeviceTest" time="0.057" />
+  </testsuite>
+</testsuites>

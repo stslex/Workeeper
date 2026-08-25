@@ -119,10 +119,7 @@ object AppButton {
         }
     }
 
-    /**
-     * The mockup's `.btn.ghost` — `field` fill, `body` text (extraction §1.8). The quiet
-     * companion action: sheet Close buttons, `Оставить` in the plan-removal sheet.
-     */
+    /** Quiet companion action: sheet Close buttons, keep-the-plan in the plan-removal sheet. */
     @Composable
     fun Ghost(
         text: String,
@@ -150,11 +147,7 @@ object AppButton {
         )
     }
 
-    /**
-     * The mockup's `.btn.danger` — a TEXT button in `rust` at weight 500, no fill
-     * (extraction §1.8). Distinct from [Destructive], the filled variant other screens use:
-     * the v3 sheets draw their destructive confirm as text.
-     */
+    /** Text-only destructive action; [Destructive] is the filled variant. */
     @Composable
     fun DangerText(
         text: String,
@@ -241,10 +234,7 @@ internal fun BaseFilledButton(
     }
 }
 
-/**
- * The mockup's `.btn{border-radius:16px}` (extraction §1.8) — `Radius.medium`, replacing the
- * v2.4 `shapes.medium` (10dp). One shape for every variant and size.
- */
+/** One shape for every button variant and size. */
 @Composable
 internal fun buttonShape(): RoundedCornerShape = RoundedCornerShape(AppDimension.Radius.medium)
 

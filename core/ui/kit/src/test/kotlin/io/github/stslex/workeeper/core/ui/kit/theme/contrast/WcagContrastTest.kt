@@ -14,16 +14,7 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.CsvSource
 import org.junit.jupiter.params.provider.ValueSource
 
-/**
- * Proves [WcagContrast] before it is pointed at an unknown palette. An unproven calculator
- * measuring an unknown palette tells you nothing: every number in the contrast report is only
- * as trustworthy as this file.
- *
- * Expected values are independently computed from the WCAG 2.1 formula (not from this
- * implementation) and asserted to 1e-9, so a wrong exponent, a wrong coefficient, a wrong
- * piecewise threshold or a missing linearisation all fail here rather than silently shifting
- * the report.
- */
+/** Proves [WcagContrast] against values computed independently from the WCAG 2.1 formula. */
 internal class WcagContrastTest {
 
     @Nested
@@ -36,11 +27,7 @@ internal class WcagContrastTest {
             assertEquals(0.0, WcagContrast.relativeLuminance(Color.Black), TOLERANCE)
         }
 
-        /**
-         * At full saturation the linearised channel is exactly 1.0, so each primary's luminance
-         * *is* its coefficient. This pins all three coefficients independently — a swapped
-         * red/blue weight cannot survive it.
-         */
+        /** At full saturation each primary's luminance *is* its WCAG coefficient. */
         @ParameterizedTest(name = "L(#{0}) = {1}")
         @CsvSource(
             "FF0000, 0.2126",
@@ -81,8 +68,7 @@ internal class WcagContrastTest {
 
         @Test
         fun `channel extraction matches the declared hex bytes`() {
-            // Guards the byte extraction itself: a swapped red/blue shift produces a plausible
-            // luminance for greys and a silently wrong one for everything else.
+            // A swapped red/blue shift stays plausible for greys and is silently wrong elsewhere.
             val argb = Color(0xFF6EB7AB).toArgb()
             assertEquals(0x6E / 255.0, WcagContrast.channel(argb, WcagContrast.RED_SHIFT), TOLERANCE)
             assertEquals(
@@ -100,8 +86,7 @@ internal class WcagContrastTest {
 
         @Test
         fun `the whole declared palette round-trips through the 8 bit extraction`() {
-            // Every colour in AppColors is declared as an opaque 8-bit hex literal, so byte
-            // extraction must be lossless for all of them — not just for the sample above.
+            // Every AppColors literal is an opaque 8-bit hex, so extraction must be lossless.
             listOf(0xFF0E0F0E, 0xFF6EB7AB, 0xFFE8E8E5, 0xFFDEAA62, 0xFF4F5052, 0xFFFAFAF8)
                 .forEach { literal ->
                     val argb = Color(literal).toArgb()
@@ -130,11 +115,7 @@ internal class WcagContrastTest {
             assertEquals(1.0, WcagContrast.contrastRatio(color, color), TOLERANCE)
         }
 
-        /**
-         * Published boundary anchors. #767676 and #777777 straddle the 4.5:1 line by one byte —
-         * they are the sharpest available check that the curve, not just the endpoints, is right.
-         * #595959 straddles 7:1 the same way.
-         */
+        /** Published boundary anchors; #767676 and #777777 straddle 4.5:1 by a single byte. */
         @ParameterizedTest(name = "#{0} on #{1} = {2}")
         @CsvSource(
             "767676, FFFFFF, 4.542224959605",
@@ -185,12 +166,7 @@ internal class WcagContrastTest {
             }
         }
 
-        /**
-         * Negative control. The anchors above are only meaningful if they can *discriminate* —
-         * a green test against a broken implementation is worthless. Skipping linearisation is
-         * the single most common way this formula is got wrong, and it must move the number a
-         * long way, not a rounding-error's worth.
-         */
+        /** Negative control: skipping linearisation must move the number far, not by a rounding. */
         @Test
         fun `the anchors discriminate against a non-linearised implementation`() {
             val naive = naiveContrastWithoutLinearisation("767676".toColor(), Color.White)

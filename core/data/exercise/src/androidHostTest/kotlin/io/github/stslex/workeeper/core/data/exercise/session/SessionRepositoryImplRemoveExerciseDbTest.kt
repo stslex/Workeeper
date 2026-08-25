@@ -16,10 +16,8 @@ import org.robolectric.annotation.Config
 import tech.apter.junit.jupiter.robolectric.RobolectricExtension
 
 /**
- * `removeExerciseFromSession` (v3 §6.1 "deleted: excluded, plan cleaned") against a real DB.
- * The predicates under test are the adhoc-lifecycle rules from `CLAUDE.md`: session
- * membership via `performed_exercise_table` decides the inline-exercise cleanup, and the
- * `is_adhoc` flag alone protects every library exercise.
+ * `removeExerciseFromSession` against a real DB: session membership decides the inline-exercise
+ * cleanup, and `is_adhoc` alone protects every library exercise.
  */
 @ExtendWith(RobolectricExtension::class)
 @Config(application = RepositoryTestEnv.TestApplication::class, sdk = [33])
@@ -121,8 +119,7 @@ internal class SessionRepositoryImplRemoveExerciseDbTest {
             removeFromPlan = false,
         )
 
-        // Stranded `is_adhoc = 1` rows are invisible to every list — the cleanup is the
-        // per-exercise sibling of the cancel cascade.
+        // A stranded `is_adhoc = 1` row would be invisible to every user-facing list.
         assertNull(env.exerciseDao.getById(inline.uuid))
     }
 
@@ -147,9 +144,7 @@ internal class SessionRepositoryImplRemoveExerciseDbTest {
 
     @Test
     fun `REPRO an adhoc-session inline exercise whose plan row survives the removal`() = runTest {
-        // The ad-hoc shape, exactly as production builds it: `createAdhocSession` and
-        // `addExerciseToActiveSession` BOTH insert `training_exercise_table` rows even for
-        // an ad-hoc training, and that table holds `onDelete = RESTRICT` on exercise_uuid.
+        // Both ad-hoc write paths insert plan rows, and that table is `onDelete = RESTRICT`.
         val training = env.seedTraining(isAdhoc = true)
         val inline = env.seedExercise(isAdhoc = true)
         env.seedTrainingExercise(trainingUuid = training.uuid, exerciseUuid = inline.uuid)
@@ -164,20 +159,15 @@ internal class SessionRepositoryImplRemoveExerciseDbTest {
             removeFromPlan = false,
         )
 
-        // The removal must SUCCEED regardless: the orphan cleanup may never take the whole
-        // transaction down with it, because that silently resurrects the exercise the user
-        // deleted once the undo window closes.
+        // GUARD: the orphan cleanup may never fail the removal — that resurrects the exercise.
         assertTrue(env.performedExerciseDao.getBySession(session.uuid).isEmpty())
         assertTrue(env.setDao.getByPerformedExercise(performed.uuid).isEmpty())
-        // Still referenced by a plan row, so it is NOT an orphan and must survive.
         assertNotNull(env.exerciseDao.getById(inline.uuid))
     }
 
     @Test
     fun `an adhoc session cleans the plan row and then the inline exercise`() = runTest {
-        // The production path after the handler stopped exempting ad-hoc sessions: the pair
-        // row goes first, so the orphan cleanup finds nothing referencing the exercise and
-        // completes instead of tripping the FK.
+        // The pair row goes first, so the orphan cleanup finds no reference and never trips the FK.
         val training = env.seedTraining(isAdhoc = true)
         val inline = env.seedExercise(isAdhoc = true)
         env.seedTrainingExercise(trainingUuid = training.uuid, exerciseUuid = inline.uuid)
@@ -198,8 +188,7 @@ internal class SessionRepositoryImplRemoveExerciseDbTest {
 
     @Test
     fun `an inline exercise planned by another training is not an orphan`() = runTest {
-        // The hardened predicate's own case: session membership gone, but a DIFFERENT
-        // training still plans it, so it survives (and the FK is never provoked).
+        // Session membership gone, but a different training still plans it, so it survives.
         val training = env.seedTraining()
         val otherTraining = env.seedTraining(name = "Other")
         val inline = env.seedExercise(isAdhoc = true)

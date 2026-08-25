@@ -14,14 +14,8 @@ import org.jetbrains.annotations.TestOnly
 import kotlin.uuid.Uuid
 
 /**
- * Writes a [PrScenario] into a [RepositoryTestEnv] as real rows, and hands back the set UUID
- * each candidate label was given so assertions can name a winner rather than compare
- * weight/reps tuples (two candidates in the tie scenarios are identical on those).
- *
- * Sessions are seeded [SessionStateEntity.IN_PROGRESS] by default so a test can assert the
- * two-phase contract: while the session is unfinished the SQL sites see nothing and only
- * `PrComparator` can answer; [finishAllSessions] then flips them and the SQL sites must
- * arrive at the same answer.
+ * Writes a [PrScenario] into a [RepositoryTestEnv] as real rows and returns each candidate's set
+ * UUID. Sessions seed as IN_PROGRESS so tests can assert the two-phase contract.
  */
 @TestOnly
 class PrRuleDbSeeder(private val env: RepositoryTestEnv) {
@@ -77,8 +71,7 @@ class PrRuleDbSeeder(private val env: RepositoryTestEnv) {
         val setUuidByLabel = mutableMapOf<String, Uuid>()
         val sessionUuidByFinishedAt = mutableMapOf<Long, Uuid>()
 
-        // Candidates sharing a finishedAt share a session — that is what makes `position`
-        // reachable as a tiebreak instead of being masked by finished_at.
+        // Candidates sharing a finishedAt share a session, so position stays a reachable tiebreak.
         scenario.candidates.groupBy { it.finishedAt }.forEach { (finishedAt, candidates) ->
             val sessionUuid = Uuid.random()
             sessionUuidByFinishedAt[finishedAt] = sessionUuid

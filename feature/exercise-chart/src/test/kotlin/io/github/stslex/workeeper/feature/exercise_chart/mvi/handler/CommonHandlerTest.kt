@@ -119,10 +119,8 @@ internal class CommonHandlerTest {
     }
 
     /**
-     * The coherence guard, from the user's side: they tap a second metric before the first
-     * load answers. The first response must not be applied — a chart that settles on the
-     * losing request's data while the tab strip highlights the winner is wrong for as long
-     * as the screen lives, since nothing rewrites `metric` afterwards.
+     * The coherence guard from the user's side: a second metric tapped before the first load
+     * answers. The losing response must not be applied.
      */
     @Test
     fun `a response whose metric no longer matches the live state is dropped`() {
@@ -287,11 +285,6 @@ internal class CommonHandlerTest {
         )
     }
 
-    /**
-     * Build a [ExerciseChartHandlerStore] mock that runs `launch { ... }` synchronously and
-     * applies `updateState` / `updateStateImmediate` directly to the captured `MutableStateFlow`.
-     * This lets tests assert the post-launch state without spinning up a real coroutine.
-     */
     @Test
     fun `a throwing recents read resolves to LOAD_FAILED instead of loading forever`() {
         val flow = MutableStateFlow(State.create(initialUuid = null))
@@ -304,8 +297,7 @@ internal class CommonHandlerTest {
 
         assertEquals(EmptyReason.LOAD_FAILED, flow.value.emptyReason)
         assertEquals(false, flow.value.isLoading)
-        // The point of the reason: `content` is what the screen renders from, and an unresolved
-        // failure leaves it Loading — which draws nothing, with no retry.
+        // `content` is what the screen renders from; an unresolved failure leaves it Loading.
         assertEquals(Content.Empty(EmptyReason.LOAD_FAILED), flow.value.content)
     }
 
@@ -352,14 +344,8 @@ internal class CommonHandlerTest {
                 val action = arg<suspend CoroutineScope.() -> Any?>(4)
                 runBlocking {
                     try {
-                        // `supervisorScope`, not a bare `action()`: `processInit` fans out through
-                        // two `async` children, and in a plain scope the first failure cancels the
-                        // parent before this catch can run the handler. Production survives that
-                        // through `AppCoroutineScopeImpl`'s `CoroutineExceptionHandler` backstop —
-                        // its scope root is a `SupervisorJob`, so the handler is invoked and
-                        // re-launches `onError` on a live scope. The supervisor reproduces the same
-                        // observable — the action throws, `onError` runs — without modelling the
-                        // backstop's plumbing.
+                        // `supervisorScope`, not a bare `action()`: `processInit` fans out
+                        // through two `async` children whose first failure would cancel this.
                         val result = supervisorScope { action() }
                         onSuccess(result)
                     } catch (t: Throwable) {

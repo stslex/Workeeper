@@ -13,7 +13,6 @@ import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupErrorCod
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupPreferences
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupPreferencesRepository
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupSchedule
-import io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProvider
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialog
 import io.github.stslex.workeeper.feature.app_dialogs.api.publisher.AppDialogPublisher
@@ -35,10 +34,8 @@ import io.github.stslex.workeeper.feature.settings.mvi.model.RestoreProgressUi
 import io.github.stslex.workeeper.feature.settings.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStore.Action
 import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStore.Event
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 
 @SingleIn(SettingsScope::class)
@@ -47,10 +44,7 @@ internal class BackupClickHandler @Inject constructor(
     private val preferencesRepository: BackupPreferencesRepository,
     private val autoBackupController: AutoBackupController,
     private val restoreStateRepository: RestoreStateRepository,
-    private val snapshotProvider: DatabaseSnapshotProvider,
     private val appDialogPublisher: AppDialogPublisher,
-    // Plain Context: the application Context is bound bare into the graph as a
-    // create() bound-instance — one Context per graph.
     private val context: Context,
     store: SettingsHandlerStore,
 ) : Handler<Action.Backup>, SettingsHandlerStore by store {
@@ -87,29 +81,11 @@ internal class BackupClickHandler @Inject constructor(
         }
     }
 
-    /**
-     * Visibility for the "Revert last restore" row needs **both** the
-     * `pre_restore_backup_available` DataStore flag (intent: undo slot was set
-     * by the last successful Restore) and the actual `cache/pre_restore_backup.db`
-     * file. The file lives in `cacheDir`, which Android can reclaim under
-     * storage pressure — the flag would survive while the file is gone, and a
-     * row tap would land in a silent-failure path inside the coordinator.
-     *
-     * Combining both signals here hides the row immediately when the file is
-     * evicted, and self-heals the DataStore flag to keep the two sources in
-     * sync. Defence-in-depth still lives in
-     * `RestoreRecoveryCoordinator.performUndoRestore` for the race window
-     * between observation and tap.
-     */
     private fun observeRestoreState() {
-        restoreStateRepository.observePreRestoreBackupAvailable()
-            .launch { flagged ->
-                val fileExists = snapshotProvider.hasPreRestoreBackup()
-                if (flagged && !fileExists) {
-                    restoreStateRepository.clearPreRestoreBackupAvailable()
-                }
+        restoreStateRepository.observeActiveUndo()
+            .launch { activeUndo ->
                 updateState { current ->
-                    current.copy(canRevertLastRestore = flagged && fileExists)
+                    current.copy(canRevertLastRestore = activeUndo != null)
                 }
             }
     }
@@ -119,10 +95,13 @@ internal class BackupClickHandler @Inject constructor(
             onError = { e -> logger.e(e, "Failed to publish UndoRestoreConfirmation") },
             onSuccess = { },
         ) {
-            val originalDate = restoreStateRepository.getPreRestoreOriginalDate()
+            val activeUndo = restoreStateRepository.observeActiveUndo().first()
                 ?: return@launchDefault
             appDialogPublisher.publish(
-                AppDialog.UndoRestoreConfirmation(originalDataDateEpochMs = originalDate),
+                AppDialog.UndoRestoreConfirmation(
+                    undoRef = activeUndo.ref,
+                    originalDataDateEpochMs = activeUndo.originalDataDateEpochMs,
+                ),
             )
         }
     }
@@ -203,8 +182,8 @@ internal class BackupClickHandler @Inject constructor(
                         updateStateImmediate { current ->
                             current.copy(backupOperation = BackupOperationUi.Idle)
                         }
-                        // Downcast the opaque resolution to the Android launch handle at the mvi
-                        // edge (android.* is allowed here; the domain never unpacks .platform).
+                        // Downcast the opaque resolution to the Android launch handle at the
+                        // mvi edge; the domain never unpacks .platform.
                         sendEvent(
                             Event.AuthResolutionRequested(result.resolution.platform as IntentSender),
                         )
@@ -235,9 +214,8 @@ internal class BackupClickHandler @Inject constructor(
         launchDefault(
             onError = { e -> emitUnknownErrorAndIdle(e) },
             onSuccess = { result ->
-                // The in-flight operation is the single source of truth for whether this
-                // resolution was driving an AI-export grant (vs a plain sign-in) — no
-                // cross-coroutine var. Read it before resetting to Idle.
+                // The in-flight operation tells an AI-export grant apart from a plain
+                // sign-in; read it before resetting to Idle.
                 val wasAiExportGrant =
                     state.value.backupOperation == BackupOperationUi.TogglingAiExport
                 updateStateImmediate { current ->
@@ -251,8 +229,7 @@ internal class BackupClickHandler @Inject constructor(
                     }
 
                     is BackupResult.Failure -> {
-                        // A cancelled/failed resolution that was driving an AI-export grant
-                        // surfaces the access-needed snackbar, not a generic backup error.
+                        // An AI-export grant surfaces the access-needed snackbar instead.
                         if (wasAiExportGrant) {
                             sendEvent(Event.ShowAiExportAccessNeeded)
                         } else {
@@ -262,30 +239,25 @@ internal class BackupClickHandler @Inject constructor(
                 }
             },
         ) {
-            // Wrap the Android ActivityResult Intent (or null on cancel) into the neutral
-            // outcome handle before crossing back into the domain.
+            // Wrap the ActivityResult Intent into the neutral handle before re-entering domain.
             interactor.completeSignIn(AuthResolutionOutcome(resultIntent))
         }
     }
 
     private fun toggleAiExport(enabled: Boolean) {
         if (!enabled) {
-            // Withdraw consent: stop future exports (flag off so a racing worker won't re-upload),
-            // then best-effort delete the already-exported plaintext snapshots from visible Drive.
+            // Withdraw consent: flag off first so a racing worker won't re-upload, then
+            // best-effort delete the exported plaintext snapshots. See the drive-ai-export spec.
             launchDefault {
                 preferencesRepository.setAiExportEnabled(false)
                 interactor.deleteAiExportSnapshots()
             }
             return
         }
-        // Ignore a re-entrant enable while a grant is already in flight (the switch is also
-        // disabled in the UI while TogglingAiExport) — prevents launching a second
-        // requestDriveFileAccess() and a second resolution intent.
+        // GUARD: gate only the enable direction — a withdrawal above must never be swallowed.
         if (state.value.backupOperation.isInProgress) return
-        // Mark in flight and keep it set THROUGH the resolution round-trip so handleAuthResult can
-        // tell this resolution apart from a plain sign-in. Pessimistic: never persist enabled=true
-        // before the drive.file grant is confirmed. (`updateState` — non-suspend entry point, as
-        // in `signIn`.)
+        // Kept set through the resolution round-trip so handleAuthResult can identify it; never
+        // persist enabled=true before the drive.file grant is confirmed.
         updateState { current ->
             current.copy(backupOperation = BackupOperationUi.TogglingAiExport)
         }
@@ -327,10 +299,7 @@ internal class BackupClickHandler @Inject constructor(
     }
 
     /**
-     * Post-resolution reconciliation (called from [handleAuthResult] success only when the
-     * in-flight op was [BackupOperationUi.TogglingAiExport]). Persist the toggle ON only when
-     * `drive.file` is now actually granted; otherwise the user declined the scope — surface the
-     * access-needed snackbar and leave the toggle off.
+     * Post-resolution reconciliation: persist the toggle ON only once `drive.file` is granted.
      */
     private suspend fun reconcileAiExportGrant() {
         if (interactor.isDriveFileGranted()) {
@@ -366,8 +335,7 @@ internal class BackupClickHandler @Inject constructor(
             },
         ) {
             autoBackupController.cancelPeriodic()
-            // Delete the visible-Drive snapshots BEFORE signOut revokes drive.file — once revoked,
-            // drive.file can no longer see the app's own files, stranding them permanently.
+            // GUARD: delete the snapshots before signOut revokes drive.file, or they strand.
             interactor.deleteAiExportSnapshots()
             interactor.signOut()
         }
@@ -465,17 +433,12 @@ internal class BackupClickHandler @Inject constructor(
             onSuccess = { result ->
                 when (result) {
                     is BackupResult.Success -> {
-                        // Reset backupOperation alongside restoreProgress so the
-                        // UI isn't locked in the Restoring state if scheduleAppRestart
-                        // is aborted or delayed — e.g. process held in background,
-                        // navigation pushes a different screen, debugger pauses.
                         updateStateImmediate { current ->
                             current.copy(
                                 backupOperation = BackupOperationUi.Idle,
                                 restoreProgress = RestoreProgressUi.Completed,
                             )
                         }
-                        scheduleAppRestart()
                     }
 
                     is BackupResult.Failure -> {
@@ -492,13 +455,6 @@ internal class BackupClickHandler @Inject constructor(
             },
         ) {
             interactor.restoreLatest()
-        }
-    }
-
-    private fun scheduleAppRestart() {
-        flowOf(Unit).launch {
-            delay(RESTART_DELAY_MS)
-            consume(Action.Navigation.RestartApp)
         }
     }
 
@@ -566,14 +522,8 @@ internal class BackupClickHandler @Inject constructor(
             onError = { e -> logger.e(e, "Failed to save frequency") },
             onSuccess = { },
         ) {
-            // Read the current preferences before overlaying the two settings the
-            // user just edited. `BackupPreferences.DEFAULT.copy(...)` would have
-            // silently passed sentinel values for the other fields
-            // (lastAttempt/lastSuccess/lastError/autoBackupBootstrapped) into
-            // schedulePeriodic. It only consumes schedule + allowOnMobileData
-            // today, but the snapshot it receives should reflect persisted state
-            // either way — otherwise future readers of the snapshot field will
-            // hit the same hazard.
+            // GUARD: overlay onto persisted preferences — DEFAULT.copy(...) would hand
+            // schedulePeriodic sentinel values for every field the user did not edit.
             val current = preferencesRepository.observe().first()
             val updated = current.copy(
                 schedule = domainSchedule,
@@ -593,9 +543,5 @@ internal class BackupClickHandler @Inject constructor(
         logger.e(e, "Unknown error during backup operation")
         updateStateImmediate { current -> current.copy(backupOperation = BackupOperationUi.Idle) }
         sendEvent(Event.ShowBackupError(BackupErrorUi.UNKNOWN))
-    }
-
-    private companion object {
-        const val RESTART_DELAY_MS = 2_000L
     }
 }

@@ -9,21 +9,8 @@ import io.github.stslex.workeeper.core.ui.kit.icons.AppIcons
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 
 /**
- * The bottom bar's destinations — **routing, and it stays in the app tier (`app:common`, with the
- * composition root it feeds) for a reason the compiler
- * enforces rather than a preference.**
- *
- * It carries [Screen.BottomBar] and [getByScreen] — routing, not chrome. The *treatment* is
- * `core:ui:kit`'s `AppNavBar`, and the destinations deliberately did not follow it there: the kit
- * depends on neither `core:ui:navigation` (so it cannot name [Screen.BottomBar]) nor this module's
- * resources (so it cannot resolve `R.string.bottom_bar_label_*`). The deleted
- * `AppBottomBarDestination` is what happens when they do — it hardcoded `label = "Home"`, English
- * literals in a Russian-language app, because nothing else compiled.
- *
- * [titleRes] stays a `@StringRes` and is resolved by the caller with `stringResource`. The icons
- * are now `AppIcons` vectors rather than `@DrawableRes` XML: §26 takes trainings and exercises
- * from the drawn empty-state marks verbatim and gives home the one new mark, so the three
- * `ic_bottom_app_bar_*.xml` drawables — v2 filled Material glyphs — go with the old bar.
+ * The bottom bar's destinations: routing, not chrome — the treatment is the kit's `AppNavBar`.
+ * They stay here because the kit can name neither [Screen.BottomBar] nor this module's resources.
  */
 @Stable
 enum class BottomBarItem(
@@ -49,22 +36,16 @@ enum class BottomBarItem(
     ;
 
     /**
-     * The tag `ApplicationBottomBarTest` and `NavigationLifecycleRegressionTest` look this item up
-     * by — **nine lookups across the two files, kept verbatim through the rebuild.** Those tests
-     * are about navigation lifecycle; renaming their tags would mix a chrome change and a test
-     * change into one PR (§24). The string is built here rather than at the call site so it sits
-     * next to the enum whose `name` it is built from.
+     * The tag `ApplicationBottomBarTest` and `NavigationLifecycleRegressionTest` look items up
+     * by; renaming it mixes a chrome change into a test change.
      */
     val testTag: String get() = "BottomAppBarItem_$name"
 
     companion object {
 
         /**
-         * Resolve the visible [Screen] to its bar item, by value identity — the three roots are
-         * `data object`s, so `==` IS type identity. Replaces the Nav2-era `getByRoute`, which
-         * compared a kotlinx `serialName` against the route string under an
-         * `InternalSerializationApi` opt-in; under Nav3 the back stack holds the typed key, and
-         * there is no route string to parse.
+         * Resolve the visible [Screen] to its bar item by value identity — the three roots are
+         * `data object`s, so `==` is type identity.
          */
         fun getByScreen(
             screen: Screen,

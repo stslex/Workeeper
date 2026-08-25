@@ -25,16 +25,8 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 
 /**
- * Locks the draft seed/update invariant: every draft mutation must keep all unrelated
- * fields from the visible row (performed > draft > plan > fallback). Type changes must
- * not reset weight/reps; weight/reps changes must not reset type.
- *
- * Note on `Action.Click.OnSetTypeSelect.type` semantics: the action carries the **next**
- * type that should be applied (i.e. the UI pre-advances with `SetTypeUiModel.next()` before
- * dispatching). The handler stores this value directly without further transformation.
- * So to advance from WORK to FAILURE, dispatch `type = FAILURE`; to advance from DROP to
- * WARMUP, dispatch `type = WARMUP`. These tests use that production semantics verbatim and
- * assert on the resulting field combination, not on the cycling rule itself.
+ * Locks the draft seed/update invariant: every draft mutation keeps all unrelated fields from
+ * the visible row (performed > draft > plan > fallback).
  */
 internal class LiveSetDraftBehaviorTest {
 
@@ -46,9 +38,7 @@ internal class LiveSetDraftBehaviorTest {
 
     @Test
     fun `OnSetTypeSelect with no draft seeds from plan and preserves weight and reps`() {
-        // Plan: weight=100.0, reps=5, type=WORK. The UI pre-advances the chip to FAILURE
-        // before dispatching, so the action carries FAILURE; handler stores it directly.
-        // Weight + reps must be kept.
+        // Plan is weight=100.0, reps=5; a type chip click must keep both.
         val stateFlow = stateWithPlan(SetTypeUiModel.WORK)
         val handler = clickHandler(stateFlow)
 
@@ -64,8 +54,6 @@ internal class LiveSetDraftBehaviorTest {
 
     @Test
     fun `OnSetWeightChange with no draft seeds from plan and preserves type and reps`() {
-        // Plan: weight=100.0, reps=5, type=WARMUP. Weight change to 120 must keep
-        // reps and type.
         val stateFlow = stateWithPlan(SetTypeUiModel.WARMUP)
         val handler = inputHandler(stateFlow)
 
@@ -85,9 +73,8 @@ internal class LiveSetDraftBehaviorTest {
         val click = clickHandler(stateFlow)
         val input = inputHandler(stateFlow)
 
-        // Type chip click: WORK -> FAILURE. UI dispatches the next type (FAILURE) directly.
         click.invoke(Action.Click.OnSetTypeSelect(PE_UUID, position = 0, type = SetTypeUiModel.FAILURE))
-        // Then change reps. Must not lose the FAILURE we just set.
+        // The following reps change must not lose the type the chip click just set.
         input.invoke(Action.Input.OnSetRepsChange(PE_UUID, position = 0, value = 8))
 
         val draft = stateFlow.value.setDrafts[State.DraftKey(PE_UUID, 0)]
@@ -105,7 +92,6 @@ internal class LiveSetDraftBehaviorTest {
         val input = inputHandler(stateFlow)
 
         input.invoke(Action.Input.OnSetWeightChange(PE_UUID, position = 0, value = 120.0))
-        // Existing draft has type=WORK; UI pre-advances to FAILURE before dispatching.
         click.invoke(Action.Click.OnSetTypeSelect(PE_UUID, position = 0, type = SetTypeUiModel.FAILURE))
 
         val draft = stateFlow.value.setDrafts[State.DraftKey(PE_UUID, 0)]
@@ -134,9 +120,7 @@ internal class LiveSetDraftBehaviorTest {
 
     @Test
     fun `OnSetTypeSelect with existing draft preserves draft weight and reps when chip cycles`() {
-        // Defence-in-depth: if a draft already exists with edited fields, a chip click
-        // must preserve them and only advance the type. This is the regression the
-        // manual fix addressed.
+        // A chip click on an existing edited draft preserves its fields and only advances type.
         val stateFlow = stateWithPlan(SetTypeUiModel.WORK)
         val input = inputHandler(stateFlow)
         val click = clickHandler(stateFlow)
@@ -201,7 +185,6 @@ internal class LiveSetDraftBehaviorTest {
         val click = clickHandler(stateFlow)
         val input = inputHandler(stateFlow)
 
-        // Build a draft via input handler so we can verify it is cleared on mark-done.
         input.invoke(Action.Input.OnSetWeightChange(PE_UUID, position = 0, value = 110.0))
         input.invoke(Action.Input.OnSetRepsChange(PE_UUID, position = 0, value = 6))
         click.invoke(Action.Click.OnSetMarkDone(PE_UUID, position = 0))

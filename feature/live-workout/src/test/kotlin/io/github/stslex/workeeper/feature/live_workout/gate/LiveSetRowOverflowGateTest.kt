@@ -20,14 +20,8 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertAll
 
 /**
- * The set-field overflow gate for the live weighted row (set-field-column-headers.md §6).
- *
- * Closed-loop: the slot widths are CAPTURED from a rendered production [LiveSetRow] via
- * `valueSlotProbe`, never recomputed from row-budget constants — a recomputed slot width
- * makes the gate answer with its own arithmetic instead of the layout's. Only the context
- * above the row (screen edge, sets-column padding) is reproduced, from the same
- * `AppDimension` tokens the screen reads. A measurement test, not a snapshot one: no
- * snapshot handler, no PNGs, not a `*.golden.*` package (see `OverflowGateSdk`).
+ * Set-field overflow gate for the live weighted row. GUARD: slot widths are captured from a
+ * rendered [LiveSetRow], never recomputed. See the set-field-column-headers spec.
  */
 internal class LiveSetRowOverflowGateTest {
 
@@ -92,8 +86,7 @@ internal class LiveSetRowOverflowGateTest {
                 {
                     val limit = KNOWN_LIMITS["${cell.column}/${cell.glyphs}@${cell.fontScale}"]
                     if (limit != null) {
-                        // Ledger cells are asserted OVERFLOWING: one that starts fitting
-                        // is a finding, and a silent ledger is how ledgers rot.
+                        // Ledger cells are asserted OVERFLOWING; a fitting one is a finding.
                         assertTrue(
                             cell.overflows,
                             "ledgered cell fits now ($limit) — update spec §7: ${cell.describe()}",
@@ -106,12 +99,7 @@ internal class LiveSetRowOverflowGateTest {
         )
     }
 
-    /**
-     * The production row at the in-app content width: device width minus the screen edge
-     * and the sets-column padding on both sides — context tokens only; everything inside
-     * the row (gaps, index, chip, checkmark, flex split, field padding, suffix) is the
-     * production layout, measured through the probes.
-     */
+    /** The production row at the in-app content width: device minus edge and column padding. */
     @Composable
     private fun RowAtInAppWidth(
         set: LiveSetUiModel,
@@ -139,21 +127,13 @@ internal class LiveSetRowOverflowGateTest {
     }
 
     private companion object {
-        // The full matrix, asserted. Non-ledger cells must fit; KNOWN_LIMITS cells must
-        // overflow (spec §7 ledger).
+        // Non-ledger cells must fit; KNOWN_LIMITS cells must overflow (spec §7 ledger).
         val ASSERTED_FONT_SCALES = listOf(1.0f, 1.3f, 1.6f, 2.0f)
         val GLYPH_CLASSES = listOf(1, 2, 3, 5)
         val WEIGHT_VALUES = mapOf(1 to 5.0, 2 to 55.0, 3 to 555.0, 5 to 102.5)
         val REPS_VALUES = mapOf(1 to 5, 2 to 12, 3 to 555, 5 to 55555)
 
-        /**
-         * The spec §7 ledger. Every reps×5 entry is a five-digit rep count — typeable
-         * garbage the domain cap eliminates. These are DEBT, not resolution: red in
-         * production until B-8 ships, and their entries are void the moment it does (the
-         * inverted assertion fails on a fitting ledger cell and demands their removal).
-         * weight×5 at 2.0 is the contrast-pinned 19sp floor against the non-linear
-         * converter — a sanctioned limit (spec §4 D5).
-         */
+        /** The spec §7 ledger: known-overflowing cells, debt rather than resolution. */
         val KNOWN_LIMITS = mapOf(
             "reps/5@1.3" to "DEFERRED to domain cap (B-8), follow-up PR",
             "reps/5@1.6" to "DEFERRED to domain cap (B-8), follow-up PR",

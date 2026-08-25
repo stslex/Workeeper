@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.stslex.workeeper.app.RecoveryBackupRulesTest" tests="2" skipped="0" failures="2" errors="0" timestamp="2026-08-25T09:06:12.462Z" hostname="stslexs-MacBook-Pro.local" time="0.057">
+  <properties/>
+  <testcase name="FileProvider exposes only exercise images and narrow recovery share()" classname="io.github.stslex.workeeper.app.RecoveryBackupRulesTest" time="0.045">
+    <failure message="org.opentest4j.AssertionFailedError: expected: &lt;[(recovery_share, recovery_share/)]&gt; but was: &lt;[(recovery_diagnostics, recovery_diagnostics/), (pre_migration_backup, pre_migration_backup.db)]&gt;" type="org.opentest4j.AssertionFailedError">org.opentest4j.AssertionFailedError: expected: &lt;[(recovery_share, recovery_share/)]&gt; but was: &lt;[(recovery_diagnostics, recovery_diagnostics/), (pre_migration_backup, pre_migration_backup.db)]&gt;
+	at org.junit.jupiter.api.Assertions.assertEquals(Assertions.java:1199)
+	at io.github.stslex.workeeper.app.RecoveryBackupRulesTest.FileProvider exposes only exercise images and narrow recovery share(RecoveryBackupRulesTest.kt:39)
+</failure>
+  </testcase>
+  <testcase name="restore protocol DataStore is excluded from legacy cloud and device transfer()" classname="io.github.stslex.workeeper.app.RecoveryBackupRulesTest" time="0.005">
+    <failure message="org.opentest4j.AssertionFailedError: expected: &lt;[(file, datastore/restore_state_prefs.preferences_pb)]&gt; but was: &lt;[]&gt;" type="org.opentest4j.AssertionFailedError">org.opentest4j.AssertionFailedError: expected: &lt;[(file, datastore/restore_state_prefs.preferences_pb)]&gt; but was: &lt;[]&gt;
+	at org.junit.jupiter.api.Assertions.assertEquals(Assertions.java:1199)
+	at io.github.stslex.workeeper.app.RecoveryBackupRulesTest.assertExactRestoreStateExclude(RecoveryBackupRulesTest.kt:52)
+	at io.github.stslex.workeeper.app.RecoveryBackupRulesTest.restore protocol DataStore is excluded from legacy cloud and device transfer(RecoveryBackupRulesTest.kt:17)
+</failure>
+  </testcase>
+</testsuite>

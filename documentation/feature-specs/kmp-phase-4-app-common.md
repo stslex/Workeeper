@@ -159,6 +159,11 @@ than carried from prose:
 
 1. `FirebaseCrashlyticsHolder.initialize()`
 2. `Log.isLogging` / `CommonExt.isTraceExecutionEnabled` from `isDebugLoggingAllow`
+   - `isTraceExecutionEnabled` is a settable `var`, not an `expect val` / BuildConfig read: the
+     KMP `android` library target (AGP 9.x) exposes no `buildConfig`, and the var keeps the gate
+     identical across android + ios with no generated-source plumbing. It defaults to `false` —
+     unlike `Log.isLogging`, which defaults to `true` — so any target that never runs this
+     bootstrap (iOS, JVM unit tests) does not trace.
 3. `onCreateGraphBootstrap()` — the overridable seam the androidTest `TestApplication` no-ops
    - `handleRecoveryPreflightChain()` — two `runBlocking`s
    - `cleanupOrphanedImageTempFiles()` — fire-and-forget on `CoroutineScope(SupervisorJob() + Dispatchers.IO)`, an unowned scope
@@ -169,7 +174,7 @@ Both ordering invariants survive the move untouched, because everything they inv
 `:app:app`:
 
 - **Scenario 1 before Scenario 2** is enforced by control flow inside `handleRecoveryPreflightChain`
-  (early `return`s), not only by the KDoc that describes it.
+  (early `return`s), not by convention or commentary.
 - **`bootstrapAppDialogObserver` completes before `MainActivity.onCreate`** holds because it runs in
   `Application.onCreate`, which the platform guarantees precedes any Activity's. The reason it
   matters is that the observer subscribes to a `replay = 0` `SharedFlow`, so a dispatch arriving with
@@ -181,6 +186,14 @@ out of the module does not move it across that boundary.
 ---
 
 ## 6. Notes for phase 5 (the startup processor)
+
+> **SUPERSEDED (2026-08-22): Phase 5 landed.** This section's stage inventory predates
+> `warmQueryPlanner()` and is no longer the source of truth — the measured Phase 5 inventory
+> (including the planner stage) and the shipped design live in
+> `kmp-phase-5-startup-processor.md` (§2 startup-stage matrix, §8 architecture). The latent
+> unowned-scope defect flagged below is fixed: every startup chore and app-scoped collector now
+> derives from the generation's `AppScopeLifetime`. The `onCreateGraphBootstrap` skip-the-whole
+> -half capability this section demanded is preserved verbatim.
 
 Written for the reader whose question is "what is the startup stage inventory, now that the
 composition root has moved".
@@ -207,9 +220,9 @@ composition root has moved".
   the `by lazy` graph to build with production roots. Graph construction is therefore *implicitly*
   stage 3.0. A stage inventory that lists the pre-flight without listing graph construction has
   hidden the most expensive startup step.
-- **The two `runBlocking`s are load-bearing, not laziness.** The KDoc's reason checks out: dispatching
-  them after `setContent` would briefly show `MainActivity` content before recovery routing decides.
-  Any processor that makes stages suspend must keep the main thread blocked across these two.
+- **The two `runBlocking`s are load-bearing, not laziness.** Dispatching them onto a background
+  coroutine would briefly show `MainActivity` content before recovery routing decides. Any processor
+  that makes stages suspend must keep the main thread blocked across these two.
 
 ---
 

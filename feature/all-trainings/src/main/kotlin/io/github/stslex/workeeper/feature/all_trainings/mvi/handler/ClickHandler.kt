@@ -52,9 +52,8 @@ internal class ClickHandler @Inject constructor(
     }
 
     private fun processTrainingLongPress(action: Action.Click.OnTrainingLongPress) {
-        // §26 "Haptics": LongPress is for ENTERING selection. A long press while already in
-        // selection is a toggle and gets ContextClick from `processSelectionToggle` — firing
-        // LongPress first would put two in a row, which reads as a fault.
+        // §26 "Haptics": LongPress is for ENTERING selection; a toggle gets ContextClick instead,
+        // and two haptics in a row read as a fault.
         if (state.value.selectionMode is SelectionMode.On) {
             processSelectionToggle(Action.Click.OnSelectionToggle(action.uuid))
             return
@@ -76,8 +75,7 @@ internal class ClickHandler @Inject constructor(
             sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
             consume(Action.Navigation.OpenCreate)
         } else {
-            // §26 "Haptics": the FAB morph fires NOTHING. It follows the long press that already
-            // fired, and two in a row read as a fault.
+            // §26 "Haptics": the FAB morph fires nothing; the long press already did.
             updateState { current ->
                 current.copy(pendingBulkDelete = PendingBulkDelete(count = selectedUuid.size))
             }
@@ -85,9 +83,7 @@ internal class ClickHandler @Inject constructor(
     }
 
     private fun processTagFilterToggle(action: Action.Click.OnTagFilterToggle) {
-        // No haptic. §26 "Haptics" names four constants and gives SegmentTick to the nav bar's tab
-        // change; this screen borrowed it for a filter chip, which is a different gesture on a
-        // different surface. The vocabulary is not extended here.
+        // No haptic: §26's vocabulary is four constants and none of them is "a filter changed".
         updateState { current ->
             val next = if (action.tagUuid in current.activeTagFilter) {
                 current.activeTagFilter - action.tagUuid
@@ -99,13 +95,8 @@ internal class ClickHandler @Inject constructor(
     }
 
     /**
-     * Clears the tag filter whole. No haptic, for the same reason [processTagFilterToggle] fires
-     * none: the vocabulary is four constants and none of them is "a filter changed".
-     *
-     * Guarded on an already-empty filter so a redundant emit cannot restart the paging flow the
-     * filter feeds. `PagingHandler` flat-maps `activeTagFilter` through `distinctUntilChanged`,
-     * which absorbs it today — the guard states the intent where the emit is, rather than resting
-     * on a downstream operator staying where it is.
+     * Clears the tag filter whole. No haptic, as with [processTagFilterToggle]. The early return
+     * keeps a redundant emit from restarting the paging flow the filter feeds.
      */
     private fun processClearTagFilter() {
         if (state.value.activeTagFilter.isEmpty()) return
@@ -139,8 +130,7 @@ internal class ClickHandler @Inject constructor(
 
     private fun processBulkDeleteConfirm() {
         val mode = state.value.selectionMode as? SelectionMode.On ?: return
-        // §26 "Haptics": Confirm, after a CONFIRMED destructive action — after the dialog, not on
-        // the button that opens it.
+        // §26 "Haptics": Confirm fires after the dialog, not on the button that opens it.
         sendEvent(Event.HapticClick(HapticFeedbackType.Confirm))
         val targets = mode.selectedUuids.toSet()
         launch(

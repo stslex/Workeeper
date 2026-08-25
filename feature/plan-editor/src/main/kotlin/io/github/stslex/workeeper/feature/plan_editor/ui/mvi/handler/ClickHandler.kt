@@ -87,15 +87,13 @@ internal class ClickHandler @Inject constructor(
     private fun processTypeToggle(target: ExerciseTypeUiModel) {
         val current = state.value
         if (current.type == target) return
-        // Switching from WEIGHTED to WEIGHTLESS while weighted draft rows exist would
-        // silently strand weight data. Surface a confirm so the user opts in to the wipe.
+        // Weighted rows would be silently stranded by the switch — confirm the wipe first.
         val needsWeightWipe = target == ExerciseTypeUiModel.WEIGHTLESS &&
             current.type == ExerciseTypeUiModel.WEIGHTED &&
             current.draft.any { it.weight != null }
         if (needsWeightWipe) {
             sendEvent(Event.HapticClick(HapticFeedbackType.LongPress))
-            // Pre-resolve display strings outside the updateState lambda — Rule 1 of
-            // compose-state-discipline.
+            // Strings resolved outside the updateState lambda — compose-state-discipline Rule 1.
             val title = resourceWrapper.getString(
                 CoreEditorR.string.core_ui_plan_editor_type_change_weightless_title,
             )
@@ -149,12 +147,8 @@ internal class ClickHandler @Inject constructor(
     }
 
     private fun processBack() {
-        // ONE RULE FOR EVERY MODAL: back dismisses the topmost one, and no variant is exempt.
-        // In practice this arm is a fallback rather than the live path — each modal here is an
-        // `AppConfirmSheet`, which owns back inside its own window and routes it to
-        // `onDismissRequest` before the route sees anything. It must stay non-destructive for
-        // exactly that reason: a variant that navigated away instead would turn a stray back
-        // press into a silent discard.
+        // Back dismisses the topmost modal, no variant exempt. GUARD: this arm must stay
+        // non-destructive — a variant that navigated would silently discard the draft.
         val dialog = state.value.dialogState
         if (dialog !is DialogState.Hidden) {
             updateState { it.copy(dialogState = DialogState.Hidden, pendingTypeChange = null) }
@@ -176,10 +170,6 @@ internal class ClickHandler @Inject constructor(
         updateState { it.copy(dialogState = DialogState.Hidden) }
         consume(Action.Navigation.Back)
     }
-
-    // NO SAVE ACTION ON THE DISCARD SHEET: it appears only when there is something to lose and
-    // saving already lives on the form, so a third action would be a second door to a room the
-    // user is standing in (§26, "Every modal on the three editors is a SHEET").
 
     private fun processSave() {
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
@@ -216,9 +206,7 @@ internal class ClickHandler @Inject constructor(
                     initialType = current.type,
                 )
             }
-            // BackAfterSave pops AND writes the saved-flag to the caller's backstack
-            // entry savedStateHandle so the consumer reloads its plan + type-driven
-            // state on resume.
+            // Pops and flags the caller's backstack entry so it reloads on resume.
             consumeOnMain(Action.Navigation.BackAfterSave)
         }
     }

@@ -33,32 +33,8 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.kit.theme.fadedOut
 
 /**
- * The v3 `.topbar` (extraction §1.2): a 48dp-rung row of hanging icon buttons with an
- * optional title, sitting directly on `surfaceTier0` — no surface of its own, no elevation.
- *
- * Geometry, derived rather than transcribed (§0.2):
- * - `.icon-btn` is 44×44 in the mockup → the 48dp rung.
- * - `.lead{margin-left:-12px}` hangs the touch target into the gutter so the **glyph**, not
- *   the button, aligns with the 16dp content edge. With a 21dp glyph centred in 48dp the
- *   inset is 13.5dp, so the row's own edge padding is `xxs` (2dp): glyph lands at 15.5dp —
- *   within half a dp of the gutter, on-ladder. The mockup's arithmetic is the same trick at
- *   its own sizes (20px gutter − 12px hang + 11.5px inset = 19.5px).
- * - `min-height:60px` resolves as 48dp button + 2×4dp vertical padding = 56dp (`heightLg`).
- *
- * The session screen passes no [title]; per §1.2 its centre is an empty spacer. Screens that
- * do title themselves get the `.topbar h1` treatment in one of the mockup's two sizes:
- * - default — `h1` 20px → `text.section` (19 rung) at heading weight (settings);
- * - [smallTitle] — `h1.sm` 17px → the 15 rung (extraction §2.2: "17 is nearer 15 than 19"),
- *   SemiBold at the component like every other 600-declaring non-heading selector (spec §26,
- *   "Scope of 600": `.ctitle`/`.btn`/`.prtag` carry their weight themselves). Past-session
- *   and exercise detail draw this variant.
- * The h1's declared −.015em tracking is deliberately not reproduced either way (spec B4:
- * `text.title` is the only tracked rung).
- *
- * [titleDimmed] is the `h1.sm` placeholder treatment — `v3-editors.md` §3.2's
- * «Новое упражнение» dim, for a bar whose title is standing in for a name the record does not
- * have yet. It moves colour only (`textDim`), never the rung or the weight: a placeholder title
- * is the same title, quieter.
+ * The v3 `.topbar`: a 48dp-rung row of hanging icon buttons and an optional title in one of two
+ * sizes ([smallTitle]), dimmed for placeholders. See the screen-extraction spec §1.2.
  */
 @Composable
 fun AppTopBar(
@@ -103,16 +79,8 @@ fun AppTopBar(
 }
 
 /**
- * The v3 `.icon-btn` (extraction §1.2): 48dp touch target, 21dp stroked glyph, resting tint
- * `textTertiary` (`--meta`). The mockup's hover state — `background:--sec; color:--max` —
- * maps onto the **pressed** state here, animated on the `fast` token like the CSS's 140ms
- * transitions; there is no hover on touch hardware, and a Material ripple would be a
- * different treatment than the one drawn.
- *
- * Radius: the mockup draws 12px, a value the `Radius` ladder does not have (extraction §0.5
- * reports the missing rung). Rounded **down** to `Radius.small` (8dp): every small control
- * on this screen (`.ordchip` 8px, `.mini` 9px, `.tchip` 9px) lands on the 8dp rung, and an
- * inner radius should stay tighter than the 16dp cards it sits amongst.
+ * The v3 `.icon-btn`: 48dp target, 21dp glyph, `textTertiary` at rest, the mockup's hover mapped
+ * onto the pressed state. Its drawn 12px radius rounds DOWN to `Radius.small`.
  */
 @Composable
 fun AppIconButton(

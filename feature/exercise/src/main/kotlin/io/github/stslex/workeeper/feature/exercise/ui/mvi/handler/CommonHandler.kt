@@ -44,16 +44,8 @@ internal class CommonHandler @Inject constructor(
     }
 
     /**
-     * Resolve the viewer's request name and act on it.
-     *
-     * The `when` is exhaustive over [Screen.ExerciseImageRequest] on purpose — that is the
-     * reason the viewer hands back an enum's name rather than a bare string or a pair of
-     * booleans: a third verb cannot be added on one side only without this failing to
-     * compile.
-     *
-     * An unrecognised name resolves to `null` and is dropped. It means a viewer sent a verb
-     * this build does not have, which is not a state the user can be shown anything useful
-     * about.
+     * Resolve the viewer's request name and act on it. An unrecognised name is dropped: it means
+     * a verb this build does not have.
      */
     private fun processImageRequest(action: Action.Common.ImageRequestReceived) {
         val request = Screen.ExerciseImageRequest.entries
@@ -98,11 +90,8 @@ internal class CommonHandler @Inject constructor(
                 updateStateImmediate { current -> current.applyLoaded(result) }
                 if (result.exercise != null) observePersonalRecord(uuid)
             },
-            // Clearing `isLoading` here is load-bearing, not tidiness. The route does not
-            // compose until the load lands (§26; `ExerciseGraph`), so a throw that left the
-            // flag latched would leave the user on a permanently empty frame with no way back
-            // into the screen. `launch` defaults `onError` to `{}` (B17, B21), so this arm must
-            // be written out — an empty one is the latched flag.
+            // Clearing `isLoading` here is load-bearing: the route does not compose until the
+            // load lands, and `launch` defaults `onError` to `{}`, so an empty arm latches it.
             onError = { updateStateImmediate { it.copy(isLoading = false) } },
         ) {
             val exercise = async { interactor.getExercise(uuid) }
@@ -123,11 +112,8 @@ internal class CommonHandler @Inject constructor(
     }
 
     /**
-     * The query no longer takes a type — it reads `exercise_table.type` itself — so the
-     * subscription cannot go stale on the *query* side. The restart is still needed on the
-     * *rendering* side: the PR card formats weight-bearing and rep-only records differently,
-     * so switching WEIGHTED ↔ WEIGHTLESS in edit mode must re-map the latest record through
-     * the new type rather than leave the old label on screen.
+     * GUARD: keep the type-keyed `flatMapLatest`. The restart is a rendering concern — the PR card
+     * formats weighted and rep-only records differently, so a type switch must re-map the record.
      */
     @OptIn(ExperimentalCoroutinesApi::class)
     private fun observePersonalRecord(uuid: String) {
@@ -160,8 +146,7 @@ internal class CommonHandler @Inject constructor(
             }
             .toImmutableList()
         val imagePath = exercise.imagePath
-        // Capture the file's mtime so Coil can key by `?v=<mtime>` and avoid serving a
-        // stale cache entry when the user replaces the image at the same path.
+        // Capture mtime so Coil can key by `?v=<mtime>` and not serve a stale cache entry.
         val imageLastModified = imagePath?.let { File(it).lastModified() } ?: 0L
         val loaded = copy(
             name = exercise.name,
@@ -188,9 +173,8 @@ internal class CommonHandler @Inject constructor(
     }
 
     /**
-     * A retained Store receives `Init` again after the image viewer leaves composition. Keep the
-     * editable values when that Store already owns a dirty draft; the freshly loaded snapshot and
-     * committed image path still become the baseline for Save or Cancel.
+     * A retained Store receives `Init` again after the image viewer leaves composition; keep the
+     * dirty draft while the freshly loaded snapshot becomes the baseline for Save or Cancel.
      */
     private fun State.withDraftCarriedFrom(previous: State): State {
         if (previous.mode !is State.Mode.Edit || !previous.hasChanges) return this

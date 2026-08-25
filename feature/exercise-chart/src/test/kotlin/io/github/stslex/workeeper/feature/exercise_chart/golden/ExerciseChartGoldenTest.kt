@@ -28,22 +28,8 @@ import org.junit.jupiter.params.provider.EnumSource
 import java.time.LocalDate
 import java.time.ZoneOffset
 
-/**
- * The chart golden suite. The BASELINE commit (C0) recorded the pre-rebuild surface; each
- * Part-4 rebuild commit reads as an image diff against the previous one. The tooltip
- * scenario retired with its surface — the readout + scrub replaced it (§4.5/§4.6).
- *
- * Fixture data mirrors `pass2d.html` §`s-chart` (`разведение ног`, seven sessions
- * 2 мая → 23 июля 2026, weights 49/49/56/63/63/63/77 with the record last, demo scrub at
- * index 4) so the final element-by-element pass holds golden beside mockup with no renaming.
- *
- * Out of model, per the harness KDoc: `ExercisePickerSheet`'s `ModalBottomSheet` window —
- * device checklist (§10.4). Both canvas animations (scrub travel, metric morph) are
- * time-based and outside the gate; the goldens pin their endpoints.
- */
+/** The chart golden suite; fixture data mirrors `pass2d.html` §`s-chart` (§10.4 out of model). */
 internal class ExerciseChartGoldenTest {
-
-    // --- Whole frame -----------------------------------------------------------------------
 
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
@@ -53,11 +39,7 @@ internal class ExerciseChartGoldenTest {
         }
     }
 
-    /**
-     * The record point under the scrub: the disc stays molten (`.pt.pr.act`), the readout
-     * takes the `.mdot` + `· рекорд` treatment. Replaces the retired tooltip scenario as
-     * the "inspecting the record" frame.
-     */
+    /** The record point under the scrub: the disc stays molten, the readout takes `· рекорд`. */
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
     fun screenRecordActive(theme: GoldenTheme, testInfo: TestInfo) {
@@ -78,12 +60,7 @@ internal class ExerciseChartGoldenTest {
         }
     }
 
-    /**
-     * The weightless render AS IT STANDS — coverage, not endorsement (B11's arc): the tabs
-     * are gated away, the series plots reps, yet the readout label still says «Максимальный
-     * вес» and the unit line reads in reps. Golden'd so B11's eventual fix reads as a diff;
-     * never "fixed" here.
-     */
+    /** The weightless render AS IT STANDS — coverage, not endorsement (B11); never fixed here. */
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
     fun screenWeightless(theme: GoldenTheme, testInfo: TestInfo) {
@@ -193,12 +170,7 @@ internal class ExerciseChartGoldenTest {
         }
     }
 
-    // --- Canvas ----------------------------------------------------------------------------
-
-    /**
-     * The canvas point pair. Mid-scrub: plain donuts, the solid `--max` active disc at
-     * r5.5 with the dashed scrub under the series, the molten record at the end.
-     */
+    /** Mid-scrub: plain donuts, the solid active disc, the molten record at the end. */
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
     fun canvasMidScrub(theme: GoldenTheme, testInfo: TestInfo) {
@@ -226,19 +198,11 @@ internal class ExerciseChartGoldenTest {
         }
     }
 
-    // --- Picker sheet ----------------------------------------------------------------------
-
-    /**
-     * `sh-pick`'s CONTENT — the window (scrim, grab, entry) is a `ModalBottomSheet` and
-     * stays on the device checklist (§10.4); the drawing is what the gate can hold. The
-     * mockup's four items, the selected one `.on` with its check.
-     */
+    /** `sh-pick`'s CONTENT; the `ModalBottomSheet` window stays on the device checklist (§10.4). */
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
     fun pickerSheetContent(theme: GoldenTheme, testInfo: TestInfo) {
-        // The content never sits on tier0 in production: AppBottomSheet's containerColor
-        // is surfaceTier3 and AppSheetLayout paints no background of its own — same
-        // surface every sibling sheet-content golden pins (SessionSheetsGoldenTest).
+        // Sheet content sits on surfaceTier3 in production, as every sibling sheet golden pins.
         goldenSubject(testInfo, theme, surface = { AppUi.colors.surfaceTier3 }) {
             ExercisePickerSheetContent(
                 items = persistentListOf(
@@ -254,8 +218,6 @@ internal class ExerciseChartGoldenTest {
             )
         }
     }
-
-    // --- Readout ---------------------------------------------------------------------------
 
     /** The `.readout` pair: plain, and the record variant with the `.mdot` + `рекорд` suffix. */
     @ParameterizedTest
@@ -282,13 +244,7 @@ internal class ExerciseChartGoldenTest {
         }
     }
 
-    // --- Tabs ------------------------------------------------------------------------------
-
-    /**
-     * The sliding indicator's transient pair (§10.2): both travel endpoints. The tween's
-     * midpoint is time-based and outside the gate — the pair pins where the thumb *rests*
-     * at each stop, which is what a wrong offset computation would corrupt.
-     */
+    /** The indicator's travel endpoints (§10.2); the tween's midpoint is outside the gate. */
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
     fun tabsIndicatorFirst(theme: GoldenTheme, testInfo: TestInfo) {
@@ -304,8 +260,6 @@ internal class ExerciseChartGoldenTest {
             MetricTabs(selected = ChartMetricUiModel.VOLUME_PER_SESSION, onSelect = {})
         }
     }
-
-    // --- Footer ----------------------------------------------------------------------------
 
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
@@ -371,8 +325,7 @@ private fun populatedState(): State = State.create(initialUuid = "ex-1").copy(
     metric = ChartMetricUiModel.HEAVIEST_WEIGHT,
     points = points().toImmutableList(),
     footerStats = footer(),
-    // The mockup demo's initial state: active mid-series, so the frame golden holds beside
-    // pass2d with the scrub story visible (readout on `11 июля`, record elsewhere).
+    // The mockup demo's initial state: active mid-series, so the scrub story is visible.
     activeIndex = 4,
     readout = readoutAt4(),
 )

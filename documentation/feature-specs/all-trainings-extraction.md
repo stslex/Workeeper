@@ -120,7 +120,7 @@ These are **findings to decide**, not obstacles to route around. Nothing below i
 |---|---|---|---|
 | ~~G1~~ | **`TagFilterRow`** | — | **CLOSED — drawn.** `.tagrow` is in `#s-list` above the list, with its own §26 row. It stopped being a gap the moment it was drawn; the deltas against the code are M39 |
 | ~~G2~~ | Chip selected-vs-unselected is one colour | — | **Recategorised → [B20](v3-redesign-spec.md#25-blocker-registry--append-only).** Not an undrawn region: a live defect, and not screen-local — every `AppTagChip.Selectable` in the app has it. Evidence moved to the registry with it |
-| **G3** | Host settings gear | `#s-list` topbar; §26 "Drawn rejections"'s audit of the undrawn topbar `+` | Drawn nowhere. `App.kt:172-192` overlays an `IconButton` at `TopEnd` on every bottom-bar destination, i.e. over this screen's app bar. §26 "Drawn rejections" audits what the topbar may carry and never mentions it |
+| **G3** | Host settings gear | `#s-list` topbar; §26 "Drawn rejections"'s audit of the undrawn topbar `+` | Drawn nowhere. `App.kt:135-149` overlays an `IconButton` at `TopEnd` on every bottom-bar destination, i.e. over this screen's app bar. §26 "Drawn rejections" audits what the topbar may carry and never mentions it |
 | **G4** | Confirm dialog treatment | all three sections; every modal primitive in the file (`.sheet`/`.grab`/`.mitem` are session/chart/settings) | **No dialog is drawn anywhere in the shell.** §26 "Haptics" nonetheless *presupposes* one ("`Confirm` after a **confirmed** destructive action"). The screen ships `AppConfirmDialog` with four strings; its treatment has no referent |
 | **G5** | Snackbar / result surface | all three sections | Not drawn. `.toast` is a session element only. The screen emits `ShowBulkDeleteSuccess` into the host `SnackbarHost` |
 | ~~G6~~ | Non-paging error surface | — | **Recategorised → B21.** Not an undrawn region: a live defect, and the **second instance of B17's class** (a `launch` with no `onError`) rather than a screen quirk. The genuinely undrawn half — the shell draws no general error surface, `.perr` is a paging tail only — is recorded in the B21 entry |
@@ -130,7 +130,7 @@ These are **findings to decide**, not obstacles to route around. Nothing below i
 | **G10** | Normal-mode top app bar **contents** | `#s-list` vs the five screen sections | The section's `.topbar` is the catalogue page heading. The screen's own title, its size and any actions are **undrawn**; only the `.topbar` *treatment* has a referent (M3) |
 | **G11** | Screen title string | — | undrawn (see G10) |
 | **G12** | Fixed sort order | — | `ORDER BY (last_session_at IS NULL), last_session_at DESC, created_at DESC`, no affordance either side. Absent from both, but **no ledger row records that the fixed order is a decision** |
-| **G13** | `BackHandler` exits selection | — | Its KDoc cites `Spec §"Multi-select mode"`, which **does not exist** in this document. Dangling citation |
+| **G13** | `BackHandler` exits selection | — | Undrawn, and **no row in this document governs it**. The requirement is [`trainings.md` → "Multi-select mode"](trainings.md): "BackHandler is enabled in selection mode → back exits selection, not the screen." `State.interceptBack` is `isSelecting`, so selection mode is the only state that intercepts the gesture and the Android 13+ predictive-back preview keeps running for normal tab navigation |
 
 **Closed by absence, on record** (listed so the next reader does not re-open them): search — `#s-list`'s no-search navnote "Поиска нет ни в одном из четырёх экранов, поэтому в shell он не входит"; pull-to-refresh; scrollbar; per-row archive (swipe-to-archive deleted in v2.4).
 
@@ -170,7 +170,7 @@ The contract has a drawn answer here, so this is not a gap. It is a **conflict b
 a deliberate prior decision that left a comment behind**, and it gets its own row so that whoever wrote
 the comment is not overruled silently.
 
-**The code's argument** — `TrainingRow.kt:99`:
+**The code's argument** — `TrainingRow.kt:76`:
 
 > `// Chevron always visible — selection state is conveyed by the filled card.`
 
@@ -208,7 +208,7 @@ about redundancy: in selection mode a tap toggles, it does not navigate, and a c
 
 **The v2.4 decision is superseded, not wrong.** It answered "is the chevron ambiguous next to a filled
 card" (no). §26 "Selection mode" answers a different question — "does a row in selection mode promise navigation"
-(also no, and the chevron says otherwise). The comment at `TrainingRow.kt:99` should be replaced by a
+(also no, and the chevron says otherwise). The comment at `TrainingRow.kt:76` should be replaced by a
 citation to §26 "Selection mode" rather than deleted, so the next reader finds the reason and not a silence.
 
 ---
@@ -258,7 +258,7 @@ Recorded, and explicitly **not applied**, at §24 "Carried to the code PR":
 > `screenEdge + heightLg + screenEdge` = **88** (§26, "Add action"). Two call sites, +16dp each, no
 > other screen affected. Recorded here rather than applied: this PR ships no code.
 
-All-trainings' half is **one call site**: `AllTrainingsScreen.kt:171-176`, `bottom = heightLg +
+All-trainings' half is **one call site**: `AllTrainingsScreen.kt:161`, `bottom = heightLg +
 screenEdge` → `screenEdge + heightLg + screenEdge`. Verified still 72dp at `dev` = `1a486a13`; the §24
 line numbers have not drifted. The sibling screen's identical edit is **not** in this screen's scope.
 
@@ -284,6 +284,12 @@ selection mode (topbar + selected + unselected row together), the FAB in both st
 the confirm dialog, and the tag filter row — in **both themes**. Transient states go in as **pairs**
 (at rest and mid-transient); a lone transient golden asserts nothing about *when* it fires (§10.2).
 The FAB morph and the pill are the two transients here.
+
+**One of the recorded goldens is deliberately blank.** `AllTrainingsGoldenTest.screenColdOpen`
+photographs NOTHING by construction, and the emptiness is what it gates: the loading deferral withholds
+the spinner for 140 ms and Paparazzi renders one frame with no clock, so t = 0 is empty. Delete the
+deferral and the spinner returns at t = 0 and this golden reddens — it is the only picture-shaped gate
+on a value no picture can otherwise see. Do not "fix" it as a blank recording.
 
 **Liveness is counted from the XML, not from the word green.** `assertGoldenLiveness` counts
 `<testcase>` minus `<skipped>` in suites whose name contains `.golden.`, and fails when
@@ -429,6 +435,38 @@ All-trainings against a contract that answers, with the deltas this mapping alre
 treatment and its check glyph, the FAB's shape morph and archive glyph, all three paging tails, the
 empty state's strings and both CTAs, the four haptics, and the +16dp clearance. Plus
 `Icons.Filled.Delete` → the archive mark on **both** screens.
+
+### Load-bearing details the code PR left behind
+
+Five places in the shipped screen where the obvious simplification is a regression. Each looks like
+removable machinery at its call site.
+
+- **`AllTrainingsScreen`'s list Box is `Modifier.weight(1f).fillMaxSize()`, not `weight(1f)` alone.**
+  `EmptyRegion` measures itself with `matchParentSize`, so the Box's own width comes from its other
+  children — and the list child is conditional. Without `fillMaxSize` the empty region collapses to zero
+  width in exactly the states where the list is absent, which is every state it draws.
+- **One `rememberDeferredSurface` reading drives both list bodies.** The rows come from
+  `listBody(surface, ListSurface.CONTENT) == ListBody.ROWS` and `EmptyRegion` from the same value; they
+  are alternatives, not layers. During the minimum hold the deferred verdict is still LOADING while the
+  data already says CONTENT, so a list composed from the raw `listSurface` verdict instead draws its rows
+  UNDER the spinner for the rest of the hold — the flash the appear delay and hold exist to remove,
+  wearing an overlay.
+- **`ScreenTopBar`'s `lastSelectionCount` exists only for the exit transition.** `selectionMode` is
+  already `Off` while the outgoing selection bar is still fading, so the count that bar needs no longer
+  exists in state. The plain `remember { intArrayOf(0) }` rather than a `MutableState` is deliberate: it
+  is a cache read during composition, not state, and making it observable would invalidate this bar on
+  every toggle for no rendered difference.
+- **`ClickHandler.processClearTagFilter` returns early when `activeTagFilter` is already empty**, so a
+  redundant emit cannot restart the paging flow the filter feeds. `PagingHandler` runs
+  `state.map { it.activeTagFilter }.distinctUntilChanged().flatMapLatest { … }`, which absorbs a
+  redundant emit today — the guard states the intent where the emit is rather than resting on that
+  downstream operator staying where it is.
+- **`TrainingRow`'s trailing-slot `AnimatedContent` passes `using null` to suppress the size
+  transform.** The slot is already fixed at `SLOT` (= `AppDimension.iconSm`) inside `AppListRowSlot`, and
+  an animated container would put back exactly the per-row reflow that keeping the slot — rather than
+  collapsing it — in selection mode removed. The transition is a pure alpha crossfade on one shared spec
+  so no colour is interpolated: the two glyphs carry different tints (`textPrimary` for CHECK,
+  `textTertiary` for CHEVRON) and lerping between them is the Oklab path.
 
 ### Deferred — logged, not chased
 

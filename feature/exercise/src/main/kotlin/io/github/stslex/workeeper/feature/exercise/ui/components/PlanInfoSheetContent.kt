@@ -20,12 +20,8 @@ import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Ac
 import io.github.stslex.workeeper.core.ui.kit.R as KitR
 
 /**
- * The plan head's `(i)` sheet (ED8): what a default plan is for, and where the per-training
- * plans live instead. Same anatomy as the session's `#sh-desc` — `.sheet h3` title, `.desc`
- * body, a Ghost close — because ED8 names that sheet as the referent.
- *
- * The title is the head's own string: the sheet answers "what is this section?", so it must be
- * titled what the section is titled, and one string cannot drift from itself.
+ * The plan head's `(i)` sheet (ED8): what a default plan is for and where per-training plans live.
+ * The title reuses the section head's own string so the two cannot drift.
  */
 @Composable
 internal fun PlanInfoSheetContent(

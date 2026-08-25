@@ -797,6 +797,14 @@ internal fun ZoomableImage(
 
 Two `pointerInput` blocks because `detectTransformGestures` and `detectTapGestures` can't compose in a single block — Compose runs the first matching detector and ignores others within the same `pointerInput`. Splitting them lets both run.
 
+`Modifier.pointerInput`'s coroutine is launched once and captures the values that existed at
+launch time, so reading `scale` / `offsetX` / `offsetY` / `onTransform` / `onDoubleTap` directly
+inside the gesture lambda always sees the launch-time snapshot — every pinch frame computes
+`newScale = STALE_scale * zoom` and accumulation breaks. `rememberUpdatedState` gives the
+long-lived coroutine a stable holder it can re-read each frame without restarting: that is why
+`currentScale`, `currentOffsetX`, `currentOffsetY`, `currentOnTransform` and `currentOnDoubleTap`
+exist. The un-wrapped version compiles and looks correct.
+
 Note: `detectTapGestures(onDoubleTap = ...)` consumes single taps too — but here that's fine because there's no single-tap action. If a single-tap-to-toggle-bars feature were added later, the second `pointerInput` would need restructuring.
 
 ### Edge cases

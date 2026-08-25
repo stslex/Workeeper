@@ -75,7 +75,10 @@ the first user-visible screen.
 #### AppCreate
 
 - **Trace name.** `AppCreate_App`.
-- **Starts at.** `BaseApplication.onCreate` via `RecordAction.AppCreated`.
+- **Starts at.** The END of `BaseApplication.onCreate` via `RecordAction.AppCreated` — the
+  record fires AFTER the graph bootstrap, so the trace's start timestamp already includes the
+  blocking recovery pre-flight (the two `runBlocking` boundaries) in the elapsed process time
+  BEFORE it, not inside the trace. Measured boundary, KMP Phase 5 discovery (spec §2 stage 6).
 - **Stops at.** The first `RecordAction.OnScreenPlaced<*>` of any screen. This is also
   what stops ActivityCreate and TTID — one `onPlaced` event drains all three pending
   recorders.
@@ -280,6 +283,14 @@ before the AppCreated start). If a regression were to appear, it would show up
 in `AppCreate_App` — which already paginates by per-cold-start row in the Firebase
 console — and the next step would be either to add a dedicated trace then, or to
 move the blocks behind a deferred initializer.
+
+## Measured list-load durations
+
+Device-instrumented, and the sizing evidence for the paging spinner's appear delay: a **cold**
+all-trainings entry resolved Paging `refresh` in **61 ms**; Home's **warm** path in **23 ms**.
+The appear delay (`motion.fast` = 140 ms) has to exceed the slower of the two or the spinner
+still flashes on a normal load, which is the complaint the deferral exists for.
+`LoadingVisibilityTest.appearDelayClearsMeasuredLoads` pins `motion.fast > 61`.
 
 ## Tech debt
 

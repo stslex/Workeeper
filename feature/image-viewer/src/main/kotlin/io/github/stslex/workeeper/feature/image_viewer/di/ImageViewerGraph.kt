@@ -10,23 +10,8 @@ import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.image_viewer.mvi.store.ImageViewerStoreImpl
 
 /**
- * feature/image-viewer's Metro graph as a CONTRIBUTED [GraphExtension] of [ImageViewerScope]. The factory
- * carries `@ContributesTo(AppScope::class)`, so the extension is merged into the app graph in `:app` and
- * inherits ALL of its app-scoped bindings — the 4 formerly hand-threaded bound-instance `@Provides` are
- * gone. The sole `@Binds` maps `ImageViewerHandlerStoreImpl` to `ImageViewerHandlerStore`.
- *
- * ROUTE ARG (shape B, chosen for all assisted features): the `Screen.ExerciseImage` route arg enters as a
- * `@Provides` bound instance on the extension factory rather than as an `@Assisted` store param, so the
- * accessor is the Store itself and the feature carries no assisted machinery at all. One extension is
- * built per navigation entry, parameterised by that entry's arg — see the arc HANDOFF for the measured
- * lifecycle.
- *
- * The route arg is an ordinary binding in this scope, so it COULD be injected anywhere in the extension;
- * `ScreenInjectionRule` (detekt) forbids that outside the Store's primary constructor — state must flow
- * through the Store, not be read from DI.
- *
- * Interface + factory are `public` because `:app` generates the extension impl and references them;
- * [ImageViewerScope] stays `internal` (Metro reads the scope KClass at IR level).
+ * feature/image-viewer's Metro graph: a contributed [GraphExtension] built per navigation entry,
+ * with that entry's route arg as a bound instance. See the graph-extension arc HANDOFF.
  */
 @GraphExtension(ImageViewerScope::class)
 interface ImageViewerGraph {
@@ -38,9 +23,8 @@ interface ImageViewerGraph {
     val ImageViewerHandlerStoreImpl.bindHandlerStore: ImageViewerHandlerStore
 
     /**
-     * The creator method name must be UNIQUE across all contributed extension factories (all are merged
-     * into `AppGraph`; two bare `create()` declarations collide). Binding rule for all 13 — see
-     * documentation/graph-extension-arc/HANDOFF.md.
+     * GUARD: the creator method name must be unique across all contributed extension factories —
+     * they all merge into `AppGraph` and two bare `create()` declarations collide.
      */
     @ContributesTo(AppScope::class)
     @GraphExtension.Factory

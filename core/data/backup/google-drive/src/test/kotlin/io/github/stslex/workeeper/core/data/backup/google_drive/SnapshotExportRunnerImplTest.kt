@@ -3,6 +3,7 @@ package io.github.stslex.workeeper.core.data.backup.google_drive
 
 import android.app.Application
 import android.content.Context
+import io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetime
 import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.core.core.logger.Logger
 import io.github.stslex.workeeper.core.data.backup.api.BackupAuth
@@ -65,6 +66,7 @@ internal class SnapshotExportRunnerImplTest {
         exporter = exporter,
         snapshotStorage = snapshotStorage,
         context = context,
+        lifetime = AppScopeLifetime(),
         dispatcher = UnconfinedTestDispatcher(),
     )
 

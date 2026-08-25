@@ -7,22 +7,12 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 /**
- * Coverage for [NoActualForExpectSuppressionRule].
- *
- * The positive-control tests are load-bearing: they PROVE the detector actually fires on a
- * known-bad input, so a green detekt run over the real repo means "clean", not "the rule
- * never ran". (Probe-2 lesson: a green result is worthless until the detector is shown to
- * fire on a negative control.)
- *
- * The `does not flag ... as plain string content` test pins the AST-based nature of the
- * rule — it is why THIS very test file (which embeds `@Suppress("NO_ACTUAL_FOR_EXPECT")`
- * inside triple-quoted fixtures) is not itself flagged when detekt scans the repo.
+ * Coverage for [NoActualForExpectSuppressionRule]. GUARD: the rule matches only `@Suppress`
+ * arguments in the AST, which is why this file's own triple-quoted fixtures are not flagged.
  */
 internal class NoActualForExpectSuppressionRuleTest {
 
     private val rule = NoActualForExpectSuppressionRule()
-
-    // ---------------------------- positive controls (must fire) ----------------------------
 
     @Test
     fun `flags @Suppress NO_ACTUAL_FOR_EXPECT on a declaration`() {
@@ -78,8 +68,6 @@ internal class NoActualForExpectSuppressionRuleTest {
         assertEquals(1, findings.size, "Array-form suppression must be flagged, got: $findings")
     }
 
-    // ---------------------------- negative controls (must NOT fire) ----------------------------
-
     @Test
     fun `does not flag an unrelated suppression`() {
         val findings = rule.lint(
@@ -107,8 +95,7 @@ internal class NoActualForExpectSuppressionRuleTest {
 
     @Test
     fun `does not flag the diagnostic name as plain string content`() {
-        // The string appears as a value, NOT inside a @Suppress annotation — must not fire.
-        // This is exactly why this test file's own fixtures are safe when detekt scans the repo.
+        // The string is a value, not a `@Suppress` argument — the rule must not fire.
         val findings = rule.lint(
             """
             package io.github.stslex.workeeper.feature.example

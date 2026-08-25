@@ -50,29 +50,8 @@ import io.github.stslex.workeeper.feature.past_session.mvi.model.PastSetUiModel
 import kotlinx.collections.immutable.persistentListOf
 
 /**
- * `.card` / `.card.open` (extraction §2.5) — the past-session exercise card, two states only.
- *
- * ## The open card lifts — B8's second half, and §2.8's first defect closed
- *
- * `sec → slab` plus `--slabtop` is the mockup's whole disclosure signal, applied through
- * `Modifier.liftedSurface` directly: `AppActiveSurface` is capped at one call site app-wide
- * (`ActiveSurfaceSingleReaderRule` names `LiveExerciseCard`), while the lift *mechanism*
- * legitimately has four consumers and `LiftedSurface`'s KDoc names this card as one.
- * There is no border in either state.
- *
- * ## Collapsed vs open anatomy — §2.8's second defect closed twice
- *
- * Collapsed: bare `.ord` · title + `.plan-line` summary · a **static** 18dp `.chev` glyph —
- * not a button, not rotating. Open: the summary and the chevron are both **absent**; the
- * rows are the content and the affordance disappears. The whole `.chead` stays the tap
- * target either way.
- *
- * ## Skipped
- *
- * The past mockup does not draw a skipped card; the session screen's treatment is the
- * sibling (extraction §1.5): 0.5 alpha, title struck through in `textTertiary`, and the
- * plan-line replaced by the literal `пропущено`. The v2.4 warning-tinted "Skipped" chip is
- * retired with it.
+ * `.card` / `.card.open` (extraction §2.5) — the past-session exercise card. Collapsed draws the
+ * summary and a static chevron; open lifts the surface and drops both. The header is the target.
  */
 @Composable
 internal fun PastExerciseCard(
@@ -86,10 +65,7 @@ internal fun PastExerciseCard(
     onSetReorder: (performedExerciseUuid: String, from: Int, to: Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // ReorderableColumnState rather than ReorderableLazyColumn — the parent screen is
-    // already a LazyColumn, so nesting another lazy scroller would break layout. The
-    // non-lazy variant registers each row's measured Y bounds via onGloballyPositioned
-    // and resolves the drop target against those bounds.
+    // Non-lazy reorderable column: the parent screen is already a LazyColumn.
     val reorderState = rememberReorderableColumnState(
         onDragStarted = { onDragStarted() },
     ) { from, to ->
@@ -160,8 +136,7 @@ private fun CardHeader(
                 text = exercise.exerciseName,
                 style = AppUi.typography.text.body.copy(
                     fontWeight = FontWeight.SemiBold,
-                    // Strikethrough shares the text colour; the mockup's separate
-                    // `text-decoration-color: --dim` has no Compose equivalent on one Text.
+                    // Compose cannot colour the strike apart from the text; the mockup can.
                     textDecoration = if (exercise.skipped) {
                         TextDecoration.LineThrough
                     } else {
@@ -176,8 +151,7 @@ private fun CardHeader(
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
-            // `.plan-line` exists only on the collapsed card (§2.5): open, the rows below say
-            // the same thing in full. A skipped card states the fact instead of a summary.
+            // `.plan-line` is collapsed-only (§2.5); a skipped card states the fact instead.
             val planLine = when {
                 expanded -> null
                 exercise.skipped -> stringResource(R.string.feature_past_session_skipped_line)
@@ -196,9 +170,7 @@ private fun CardHeader(
             }
         }
         if (!expanded) {
-            // `.chev` — a bare 18dp glyph in `textDim`, `margin-top:4px`. Not a button and it
-            // never rotates; the open card simply does not draw it. Decorative: the whole
-            // header is the toggle target, so the glyph carries no semantics of its own.
+            // `.chev` — a decorative static glyph; the whole header is the toggle target.
             Icon(
                 modifier = Modifier
                     .padding(top = AppDimension.Space.xs)
@@ -212,13 +184,8 @@ private fun CardHeader(
 }
 
 /**
- * `.cbody > .sets{padding:0 12px 8px}`, rows split by `--hair` rules drawn by the container.
- *
- * The column header is the live `SetsColumn`'s twin: index width resolved once for header
- * and rows (set-field-column-headers.md §4 D3), trailing gutter = chip slot + gap + the
- * drag handle this row draws instead of the checkmark. The header is a static child above
- * the loop — it does not participate in the reorderable machinery, whose modifiers are
- * per-row.
+ * `.cbody > .sets`, rows split by hairline rules. The column header is the live `SetsColumn`'s
+ * twin: index and trailing widths resolved once for header and rows (§4 D3).
  */
 @Composable
 private fun CardBody(
@@ -277,10 +244,7 @@ private fun CardBody(
                             index = index,
                             lastIndex = exercise.sets.lastIndex,
                         ),
-                        // Long-press the trailing drag-handle icon to start a drag.
-                        // Skipped exercises stay read-only — handle is rendered for
-                        // visual consistency but the gesture detector is disabled so a
-                        // mis-targeted long-press cannot rewrite the historical record.
+                        // Skipped exercises stay read-only: the handle draws, the gesture is off.
                         dragHandleModifier = Modifier.reorderableColumnDragHandle(
                             state = reorderState,
                             key = set.setUuid,
@@ -297,10 +261,8 @@ private fun CardBody(
 private const val SKIPPED_ALPHA = 0.5f
 
 /**
- * `.chead .ord { width: 16px }`, as a **minimum** with `maxLines = 1` — the same correction
- * `PastSetEditRow.SetIndexWidth` carries, for the same reason. 16dp fits a two-digit ordinal
- * only at fontScale 1.0; above that a fixed box wraps the number at a grapheme boundary
- * instead of overflowing, and the wrap is silent because the title column sets the row height.
+ * `.chead .ord { width: 16px }` as a MINIMUM with `maxLines = 1`: a fixed box silently wraps a
+ * two-digit ordinal at a grapheme boundary above fontScale 1.0.
  */
 private val OrdinalWidth: Dp = 16.dp
 

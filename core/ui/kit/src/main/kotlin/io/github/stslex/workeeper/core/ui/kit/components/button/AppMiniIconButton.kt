@@ -26,20 +26,8 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.kit.theme.fadedOut
 
 /**
- * The card header's `.mini` icon button (extraction §1.5): **34×34**, an 8dp radius (mockup
- * 9px, rounded onto the ladder), resting tint `dim`, 17dp stroked glyph. The mockup's hover —
- * `color:--body; background:--hair` — maps onto the pressed state, on the `fast` token like
- * the CSS's 140ms transitions. The pressed wash literally *is* `--hair` in the mockup, so it
- * reads [io.github.stslex.workeeper.core.ui.kit.theme.AppColors.borderSubtle] — a border slot
- * used as a wash by the contract's own drawing, noted rather than laundered through a new
- * token.
- *
- * 34dp undershoots the 48dp touch-target guidance; it is the drawn size, three-in-a-row in a
- * card header where 48dp targets would not fit. Same deliberate trade the mockup makes.
- *
- * [glyphRotationDegrees] exists for `.mini.rot` — the expand chevron rotates 90° over
- * `base`/`out` when the card opens; the caller animates the value so the button itself stays
- * stateless.
+ * The card header's small icon button. [glyphRotationDegrees] is animated by the caller (the
+ * expand chevron) so the button itself stays stateless.
  */
 @Composable
 fun AppMiniIconButton(
@@ -84,8 +72,7 @@ fun AppMiniIconButton(
     }
 }
 
-/** The mockup's 34×34 — drawn size, deliberately below the 48dp guidance (see KDoc). */
+/** Deliberately below the 48dp touch-target guidance: three of these fit a card header. */
 private val MINI_SIZE: Dp = 34.dp
 
-/** 17×17 glyphs at 1.8 stroke (session-v3f L103). */
 private val MINI_GLYPH_SIZE: Dp = 17.dp

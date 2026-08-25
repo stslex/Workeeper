@@ -109,6 +109,12 @@ row — and it cannot be until this is ruled. The goldens recorded in §4 photog
 arrangement deliberately: per §10.2 a golden locks in what **is**, so when §2.1 is ruled these
 images are expected to move, and that movement is the reason for recording them now.
 
+Concretely, `ArchivedItemRow` is the one consumer of `AppListRow` that does not use
+`AppListRowSlot` — home's `RecentSessionRow`, all-trainings' `TrainingRow` and all-exercises'
+`ExerciseRow` all do. It stays un-slotted **by schedule, not by exception**: do not wrap its
+`TrailingAffordances` in `AppListRowSlot` piecemeal — the slot arrives together with the row
+click and its destination, or not at all.
+
 **`DropdownMenu` is out of Paparazzi's model** (its own window, §10.4), so whatever survives here is
 partly ungated by construction — which is an argument against reading 2 that is worth weighing
 alongside the drawing.

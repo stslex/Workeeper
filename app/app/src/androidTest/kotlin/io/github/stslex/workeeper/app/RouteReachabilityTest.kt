@@ -15,38 +15,11 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * Nav3 migration, stage 1.1: every destination is reachable through the UI and dismissible back to
- * where it came from.
+ * Every destination is reachable through the UI and dismissible back to its origin. A differential
+ * oracle for the navigation backend: editing a test here during a swap is itself the bug.
  *
- * One test per destination, each: seed -> open the way a user would -> assert the destination's
- * graph tag -> dismiss -> assert the origin returned. Parameterised destinations are opened by
- * clicking a seeded row, never by constructing a `Screen` — a test that builds its own route asserts
- * that the navigation library works, which is not what is at risk here.
- *
- * **This suite is a differential oracle.** It runs unchanged across stages 1.2 and 1.3; only the
- * implementation beneath it changes. If a test here needs editing during either, it was describing
- * the implementation rather than the behaviour, and the edit is the bug.
- *
- * All twelve destinations are covered, including the three bottom-bar roots that
- * `ApplicationBottomBarTest` nominally covers. That class asserts bottom-bar *selection* state and
- * is red on `dev` for a real production defect (`AppNavBar` builds its items with
- * `Modifier.clickable`, so no `Selected` semantics is published at all). Arrival is asserted here on
- * the graph tag, which is independent of that defect — so the oracle stands on its own rather than
- * leaning on a class that does not pass. See `documentation/tech-debt.md`.
- *
- * ## Expectation: 15/15
- *
- * A red here throwing `IllegalStateException: There are multiple DataStores active for the same
- * file` is a DataStore singleton-bypass collision: a `@SingleIn(AppScope)` holder minting its own
- * store instead of resolving it through `DataStoreProviderFactory` collides the moment
- * [MetroTestRule] rebuilds the graph for the next test. Triage by the file name in the message:
- * `backup_account_prefs` is a regression — that invariant is pinned by
- * [AccountDataStoreSingletonTest] — while `backup_scheduling_prefs`, `restore_state_prefs` and
- * `app_dialogs_prefs` are the three known bypasses filed in `documentation/tech-debt.md`
- * surfacing, not a navigation regression. Nothing in this class trips those three today.
- *
- * @see NavPaths for the journeys, and for why arrival waits on an explicit timeout.
- * @see NavSeed for the rows, and for the two schema rules a call site cannot see.
+ * @see NavPaths for the journeys.
+ * @see NavSeed for the rows.
  */
 @OptIn(ExperimentalUuidApi::class)
 @Regression
@@ -68,7 +41,7 @@ internal class RouteReachabilityTest {
         seed = NavSeed(metroRule.appDatabase)
     }
 
-    // ----- bottom-bar roots: no seed, one click -------------------------------------------------
+    // Bottom-bar roots: no seed, one click.
 
     @Test
     fun homeIsTheColdStartDestination() {
@@ -98,7 +71,7 @@ internal class RouteReachabilityTest {
         paths.awaitTag(HOME_GRAPH)
     }
 
-    // ----- reachable with no seeded rows --------------------------------------------------------
+    // Reachable with no seeded rows.
 
     @Test
     fun settingsOpensFromHomeAndHomeReturns() {
@@ -126,11 +99,7 @@ internal class RouteReachabilityTest {
         paths.awaitTag(SETTINGS_GRAPH)
     }
 
-    /**
-     * The blank-start path needs no seeded rows: the session and the training row behind it are
-     * created on arrival. Plain back does not discard the session — discard is only reachable
-     * through the explicit confirm dialog — so Home returns with the session still running.
-     */
+    /** Blank start needs no seed; back leaves the session running — discard needs the dialog. */
     @Test
     fun liveWorkoutOpensBlankFromHomeAndHomeReturns() {
         paths.awaitTag(HOME_GRAPH)
@@ -184,16 +153,8 @@ internal class RouteReachabilityTest {
     }
 
     /**
-     * The deepest route in the app, and the only one that reaches the plan editor:
-     * Home -> blank session -> add an exercise inline -> its kebab -> Edit plan.
-     *
-     * Still seed-free. The picker offers to create whatever name has no exact match, which on an
-     * empty database is every name.
-     *
-     * If this ever fails with the plan editor's load error rather than a missing tag, suspect the
-     * uuid: `PlanEditor.Existing` carries three, and the editor's load reads `exerciseUuid` — never
-     * `performedExerciseUuid`. A wrong one resolves to `NotFound` and surfaces as an error event, not
-     * as a screen stuck loading.
+     * The only route to the plan editor. A red with the editor's load error rather than a missing
+     * tag is a wrong-uuid bug — see documentation/architecture.md.
      */
     @Test
     fun planEditorOpensFromALiveSessionExerciseAndTheSessionReturns() {
@@ -210,7 +171,7 @@ internal class RouteReachabilityTest {
         paths.awaitTag(LIVE_WORKOUT_GRAPH)
     }
 
-    // ----- reachable only with seeded rows ------------------------------------------------------
+    // Reachable only with seeded rows.
 
     @Test
     fun singleTrainingOpensFromASeededRowAndTheListReturns() {
@@ -256,10 +217,7 @@ internal class RouteReachabilityTest {
         paths.awaitTag(HOME_GRAPH)
     }
 
-    /**
-     * The chart resolves to the most recently trained exercise when opened with no uuid, so it needs
-     * finished-session history to render as anything but an empty state.
-     */
+    /** With no uuid the chart resolves to the most recent exercise, so it needs history. */
     @Test
     fun exerciseChartOpensFromHomeAndHomeReturns() {
         seed.finishedSession(
@@ -276,11 +234,7 @@ internal class RouteReachabilityTest {
         paths.awaitTag(HOME_GRAPH)
     }
 
-    /**
-     * The image viewer is reached from inside an exercise, and only when the exercise already has an
-     * image: the thumbnail's click handler returns early on `ImageDisplay.None`, so on an image-less
-     * exercise the same tag is inert in detail mode and opens the source picker in edit mode.
-     */
+    /** The thumbnail opens the viewer only when the exercise has an image, else it is inert. */
     @Test
     fun imageViewerOpensFromASeededExerciseImageAndTheExerciseReturns() {
         val exerciseUuid = seed.exercise(

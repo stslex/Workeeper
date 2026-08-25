@@ -16,24 +16,8 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.EnumSource
 
 /**
- * The done-marker, as a §10.2 transient **pair** plus the gate that a pair alone cannot carry.
- *
- * ## Why three cases and not two
- *
- * `markRest` and `markMidTransition` are the pair: at rest a 2dp-ringed circle with no tick, and
- * part-way through, a part-grown squircle with a *partly stroked* tick. A lone mid-transition
- * golden would assert nothing — the frame of a morph that plays correctly and the frame of one
- * that plays always are the same frame.
- *
- * `markDone` and `markDoneRecord` are the other half, and they are deliberately driven through
- * the REAL [AppCheckmarkButton] rather than the stateless mark. Paparazzi renders a single frame
- * of a fresh composition, so a component whose tick animation fired on first composition would be
- * caught here mid-stroke or undrawn. A fully drawn tick in this image is the assertion that the
- * stroke is gated to the false->true transition — the §10.2 defect that already shipped once in
- * this arc, stated as a picture rather than as a comment.
- *
- * The stateless [SetDoneMark] exists precisely so the middle frame is reachable: a transient can
- * only be captured deterministically if the frame is an argument.
+ * The done-marker as a transient pair (rest, mid-morph) plus two done frames driven through the
+ * real [AppCheckmarkButton], which asserts the tick stroke is gated to the false->true edge.
  */
 internal class SetDoneMarkGoldenTest {
 
@@ -61,8 +45,7 @@ internal class SetDoneMarkGoldenTest {
                 val plate = AppUi.colors.accent
                 SetDoneMark(
                     closedFraction = MID_GEOMETRY,
-                    // Behind the geometry by the mockup's own 60ms delay: at this point in the
-                    // morph the plate is filling and the tick has only started.
+                    // Behind the geometry by the mockup's 60ms delay: the tick has only started.
                     tickProgress = MID_TICK,
                     fill = lerp(Color.Transparent, plate, MID_GEOMETRY),
                     ring = lerp(AppUi.colors.borderStrong, plate, MID_GEOMETRY),

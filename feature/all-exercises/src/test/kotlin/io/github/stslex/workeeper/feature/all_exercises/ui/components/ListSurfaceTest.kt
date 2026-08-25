@@ -8,17 +8,8 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
 /**
- * The selector, which no golden can see.
- *
- * Paparazzi renders one settled frame of a `PagingData.from` source: it never appends, never
- * fails, and never leaves refresh unsettled — so a whole-screen golden cannot enter [LOADING],
- * [REFRESH_ERROR] or (without a store fixture) [SELECTION_EMPTY]. The screen-level "empty" golden
- * was a picture of B22 for exactly that reason. §27's class, and its remedy: assert the value.
- *
- * Every verdict is covered, **including the ones that render nothing**. [CONTENT] and
- * [REFRESH_ERROR] draw no empty-region treatment today, and "draws nothing" is the outcome a
- * missing branch also produces — so they are the cases where a green test proves least unless it
- * is written deliberately.
+ * The selector, which no golden can see: Paparazzi renders one settled frame, so three of the five
+ * verdicts are unreachable from a whole-screen picture. Every verdict is covered here.
  */
 internal class ListSurfaceTest {
 
@@ -48,10 +39,7 @@ internal class ListSurfaceTest {
         )
     }
 
-    /**
-     * B22's fix. Before it, an unsettled refresh with no rows drew **nothing at all** — the list
-     * had no rows and the empty state was suppressed by the same predicate.
-     */
+    /** B22's fix: an unsettled refresh with no rows used to draw nothing at all. */
     @Test
     fun `an unsettled refresh with no rows is loading, not empty`() {
         assertEquals(ListSurface.LOADING, surface(refresh = LoadState.Loading))
@@ -66,7 +54,7 @@ internal class ListSurfaceTest {
         )
     }
 
-    /** B22's fourth region: a failed FIRST page is not a failed append, and is still undrawn. */
+    /** B22's fourth region: a failed first page is its own verdict, not a failed append. */
     @Test
     fun `a failed first page is its own verdict`() {
         assertEquals(
@@ -98,16 +86,8 @@ internal class ListSurfaceTest {
         )
     }
     /**
-     * §26 continuity motion — the empty region's crossfade key.
-     *
-     * `crossfades` decides whether a verdict change is a transit or a cut, and **no golden can see
-     * that decision without being wrong**: the first cut returned `true` for every verdict, and the
-     * way that surfaced was ten whole-screen goldens photographing a mid-transition frame instead of
-     * their own named state. So the property is asserted here, directly, on both halves.
-     *
-     * [ListSurface.LOADING] is the load-bearing `false`. Every screen composes it first —
-     * `collectAsLazyPagingItems()` begins empty with `refresh = Loading` — so a key spanning it puts
-     * an `AnimatedContent` transition inside the one frame Paparazzi renders.
+     * The empty region's crossfade key, which no golden can see without being wrong. GUARD:
+     * [ListSurface.LOADING] must stay `false` — every screen composes it first.
      */
     @Test
     fun `the crossfade covers the drawn blocks and neither non-block verdict`() {

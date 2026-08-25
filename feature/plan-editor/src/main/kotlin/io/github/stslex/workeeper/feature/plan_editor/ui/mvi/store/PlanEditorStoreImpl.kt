@@ -20,12 +20,8 @@ import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorSto
 import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorStore.State
 import kotlinx.collections.immutable.persistentListOf
 
-// Metro constructs this Store (class-level @Inject). The Screen.PlanEditor route arg is a bound
-// instance on the extension factory (shape B), so it is an ordinary ctor param — no assisted machinery.
-// Retention is owned by the Android ViewModelStore via rememberMetroStoreProcessor — no @SingleIn.
-// The class is `public` (its accessor is on the public extension) but the primary constructor is
-// `internal`, so the handler ctor params stay internal — :app calls the ctor at the IR level.
-// NOTE: the route arg must be read HERE only; ScreenInjectionRule forbids injecting Screen elsewhere.
+// The Screen.PlanEditor route arg is a bound instance on the extension factory (shape B).
+// GUARD: read the route arg HERE only — ScreenInjectionRule forbids injecting Screen elsewhere.
 @Inject
 class PlanEditorStoreImpl internal constructor(
     screen: Screen.PlanEditor,
@@ -73,18 +69,13 @@ internal fun Screen.PlanEditor.toMode(): State.Mode = when (this) {
             exercise == null -> error(
                 "Screen.PlanEditor.Existing must carry exerciseUuid (got performed=$performed, exercise=$exercise)",
             )
-            // Live workout (performed != null) or single-training (training != null) →
-            // backing store is `training_exercise_table.plan_sets` keyed by
-            // (trainingUuid, exerciseUuid). Live-workout's adhoc branch passes
-            // performed != null with training == null, in which case the editor falls
-            // back to `last_adhoc_sets`.
+            // Live workout or single-training; a null trainingUuid uses `last_adhoc_sets`.
             performed != null || !training.isNullOrBlank() -> State.Mode.PerformedExercise(
                 performedExerciseUuid = performed,
                 exerciseUuid = exercise,
                 trainingUuid = training,
             )
-            // Exercise-detail Edit plan: no live session, no training association — saves
-            // to the exercise's own `last_adhoc_sets` row plus `exercise_table.type`.
+            // Exercise-detail Edit plan: the exercise's own `last_adhoc_sets` plus its `type`.
             else -> State.Mode.Exercise(exerciseUuid = exercise)
         }
     }
@@ -92,10 +83,8 @@ internal fun Screen.PlanEditor.toMode(): State.Mode = when (this) {
 
 internal fun Screen.PlanEditor.toInitialState(): State = State.init(
     mode = toMode(),
-    // The type seeds as WEIGHTED until CommonHandler.Init loads the real value from disk. The
-    // seed is never seen: `PlanEditorGraph` withholds the whole screen while `state.isLoading`
-    // is true (§26, "A route does not compose until it has loaded"). The gate is in the GRAPH —
-    // do not restate it as a property of this composable.
+    // Seeded until CommonHandler.Init loads the real value; never seen, because the graph
+    // withholds the screen while `isLoading` is true.
     seedType = ExerciseTypeUiModel.WEIGHTED,
     seedPlan = persistentListOf(),
 )

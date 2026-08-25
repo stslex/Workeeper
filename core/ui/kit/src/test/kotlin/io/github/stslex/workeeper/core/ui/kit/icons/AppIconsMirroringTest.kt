@@ -9,21 +9,8 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.function.Executable
 
 /**
- * Which marks flip under an RTL layout direction, asserted directly.
- *
- * The manifest sets `android:supportsRtl="true"`, so a *directional* glyph built from a fixed path
- * points the wrong way in an RTL locale unless its [ImageVector] carries `autoMirror`. Nothing else
- * in the tree can see this: `autoMirror` is a property of the vector, not a pixel, so the goldens —
- * which render LTR — are byte-identical whichever way it is set, and a semantics test never reads
- * it. §27's standing rule is that anything whose evidence needs more than one static LTR frame owes
- * a direct assertion.
- *
- * **The negative control is half the suite and is the reason it is a gate.** Asserting only that
- * the directional marks mirror would pass just as happily if `strokeIcon` set `autoMirror = true`
- * for every glyph in the file — which would flip the check, the bin and the overflow dots as well,
- * a worse defect than the one being fixed and one this file would not have noticed. So the
- * non-directional marks are asserted to stay put, and the two halves together say *the flag
- * discriminates* rather than *the flag is on*.
+ * Which marks flip under an RTL layout direction, asserted directly - `autoMirror` is a property
+ * of the vector, so LTR goldens cannot see it. The non-directional half is the negative control.
  */
 internal class AppIconsMirroringTest {
 
@@ -57,11 +44,7 @@ internal class AppIconsMirroringTest {
             "ChevronRight" to AppIcons.ChevronRight,
         )
 
-        /**
-         * Everything whose meaning survives a mirror. [AppIcons.Skip] is deliberately here rather
-         * than above: it is a media-transport glyph, and a transport timeline reads left-to-right
-         * in every locale, so mirroring it would point the control at the wrong end of the track.
-         */
+        /** Everything whose meaning survives a mirror, [AppIcons.Skip] included. */
         val NON_DIRECTIONAL: List<Pair<String, ImageVector>> = listOf(
             "ChevronDown" to AppIcons.ChevronDown,
             "Skip" to AppIcons.Skip,

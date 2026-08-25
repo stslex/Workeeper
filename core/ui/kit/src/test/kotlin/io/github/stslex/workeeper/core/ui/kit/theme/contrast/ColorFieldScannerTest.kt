@@ -6,11 +6,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
-/**
- * Proves [ColorFieldScanner] against a fixture whose contents are known, before it is trusted to
- * say what a palette contains. A scanner that quietly returned an empty set would make every
- * completeness assertion in the report pass vacuously.
- */
+/** A scanner that silently returned an empty set would pass every completeness assertion. */
 internal class ColorFieldScannerTest {
 
     private data class Fixture(
@@ -58,11 +54,7 @@ internal class ColorFieldScannerTest {
         assertEquals(mapOf("charlie" to Color(0xFF778899)), ColorFieldScanner.colorMap(fixture.nested))
     }
 
-    /**
-     * The detector must be able to *fail*. If a colour is added to a type, the scanner has to
-     * report it — otherwise the report's "nothing hides" guarantee is a green light with no
-     * bulb behind it.
-     */
+    /** The detector must be able to fail: a colour added to a type has to show up in the scan. */
     @Test
     fun `adding a Color to a type changes the scan result`() {
         val extended = ColorFieldScanner.colorFieldNames(FixtureWithExtraColor::class.java)

@@ -20,11 +20,8 @@ data class WeekWindow(
 )
 
 /**
- * The calendar week containing [nowMillis], Monday-first (ISO 8601, which is also the Russian
- * convention this app's copy is written in).
- *
- * Both bounds are midnights computed date-side (`atStartOfDayIn`), not `start + 7 * 24h` —
- * a DST transition inside the week makes those two different instants.
+ * The calendar week containing [nowMillis], Monday-first (ISO 8601).
+ * GUARD: both bounds are computed date-side — `start + 7 * 24h` drifts across a DST transition.
  */
 @OptIn(ExperimentalTime::class)
 fun weekWindowOf(

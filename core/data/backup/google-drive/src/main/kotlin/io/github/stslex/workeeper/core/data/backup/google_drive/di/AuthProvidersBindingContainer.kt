@@ -11,18 +11,8 @@ import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.di.AppScope
 
 /**
- * App-Scope Collapse Step 3 (Phase PF.3). `AuthorizationClient` (Google Play Services) moved out of Hilt's
- * `AuthProvidersModule` into a Metro provides-factory container — the `DispatchersBindingContainer` /
- * `ResourceWrapperBindingContainer` template.
- *
- * HOME-A: the GMS type stays inside google-drive's compilation unit. A public `@BindingContainer`
- * `@ContributesTo(AppScope)` aggregates this into app/app's `AppGraph` by scope hint WITHOUT app/app ever
- * naming `AuthorizationClient` — proven by the PF.3 spike (an app-graph-owned impl with a GMS ctor param
- * compiles + seals with no GMS on app/app's classpath). The three gd-internal consumers
- * (`DriveAuthTokenProvider` / `DriveBackupAuth` / `DriveTokenInvalidator`) resolve it via graph aggregation.
- *
- * PUBLIC container + func (an `internal` container silently fails cross-module aggregation, guarded by
- * `ContributesToScopeRule`); the `Context` dep resolves from the graph's `create(applicationContext)`.
+ * Provides the GMS `AuthorizationClient` into the app graph without app/app naming the GMS type.
+ * GUARD: an `internal` container silently fails cross-module aggregation — keep it public.
  */
 @BindingContainer
 @ContributesTo(AppScope::class)

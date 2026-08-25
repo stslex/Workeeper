@@ -13,15 +13,8 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.EnumSource
 
 /**
- * The mockup's `.mseg`, and the second consumer of the lifted surface.
- *
- * The lifted/unlifted pair §10.2 asks for is *inside* one image here rather than across two: a
- * segmented control always shows exactly one lifted thumb next to at least one resting segment,
- * so the discriminating picture is the control itself. A golden of a control with everything
- * lifted, or nothing lifted, would be a different image — which is the assertion.
- *
- * Three segments, not two, so the middle one pins that a resting segment between two others is
- * air and not a rule: the hairline dividers this component used to draw would show here.
+ * The segmented control: one lifted thumb beside resting segments, so the lifted/resting pair
+ * is inside one image. Three segments, so a divider between two resting ones would show.
  */
 internal class SegmentedControlGoldenTest {
 

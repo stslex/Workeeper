@@ -24,29 +24,8 @@ import java.util.Locale
 import java.util.TimeZone
 
 /**
- * Writes plain-text diagnostic files for either recovery flow and returns
- * a [Uri] grantable via `Intent.FLAG_GRANT_READ_URI_PERMISSION` for the
- * share-chooser. Both flows share the same chrome (header, app/device,
- * migrations) and diverge on the scenario-specific section.
- *
- * Format follows `documentation/feature-specs/backup-recovery.md` →
- * "Diagnostic file contents".
- *
- * Renamed from `RestoreDiagnosticsExporter` when Scenario 2 added a
- * second use case — same class, same FileProvider authority, same
- * `cache/recovery_diagnostics/` output directory, just two entry points.
- *
- * DB-safety: this class is constructor-injected with
- * [DatabaseSnapshotProvider], but only calls
- * [DatabaseSnapshotProvider.availableMigrationsLabel] — a pure-Kotlin
- * read of the registered MIGRATIONS array. No Room access; safe to
- * inject into `RecoveryActivity`'s graph.
- *
- * Metro-owned via `@ContributesBinding(AppScope)`, bound to the
- * [RecoveryDiagnosticsExporter] api interface (in `core:data:backup:api`). Public for cross-module
- * aggregation (D1; never hand-construct — resolve via DI). Its `Context` is the graph's
- * `create(applicationContext)` root (plain param); `@IODispatcher` resolves
- * from `DispatchersBindingContainer`.
+ * Writes plain-text diagnostic files for both recovery flows and returns a shareable [Uri].
+ * Format: documentation/feature-specs/backup-recovery.md → "Diagnostic file contents".
  */
 @SingleIn(AppScope::class)
 @ContributesBinding(AppScope::class)
@@ -56,11 +35,7 @@ public class RecoveryDiagnosticsExporterImpl @Inject constructor(
     @IODispatcher private val dispatcher: CoroutineDispatcher,
 ) : RecoveryDiagnosticsExporter {
 
-    /**
-     * Scenario 1 (restore-time) variant. Writes `cache/recovery_diagnostics/
-     * workeeper_restore_diagnostic_<stamp>.txt` and returns its content URI.
-     * Returns `null` if the write failed (caller hides the share action).
-     */
+    /** Scenario 1 (restore-time) variant; `null` when the write failed. */
     override suspend fun exportRestoreFailure(
         exception: Throwable?,
         context: RestoreInProgressContext?,
@@ -82,13 +57,7 @@ public class RecoveryDiagnosticsExporterImpl @Inject constructor(
         }.getOrNull()
     }
 
-    /**
-     * Scenario 2 (startup-time) variant. Writes
-     * `cache/recovery_diagnostics/workeeper_startup_diagnostic_<stamp>.txt`
-     * and returns its content URI. Reads version + install-source info
-     * from the app context directly so `RecoveryActivity` does not need to
-     * plumb them in.
-     */
+    /** Scenario 2 (startup-time) variant; reads version + install source from the app context. */
     override suspend fun exportStartupMigrationFailure(): Uri? = withContext(dispatcher) {
         runCatching {
             val outFile = newFile(prefix = "workeeper_startup_diagnostic")
@@ -118,7 +87,7 @@ public class RecoveryDiagnosticsExporterImpl @Inject constructor(
                 "restoreStartedAt: ${formatIsoUtc(inProgressContext.startedAtEpochMs)}",
             )
         } else {
-            appendLine("(no in-progress context — flag was set but payload missing)")
+            appendLine("(no restore manifest context journalled for this attempt)")
         }
         appendLine()
         appendExceptionSection(exception)
@@ -226,7 +195,7 @@ public class RecoveryDiagnosticsExporterImpl @Inject constructor(
     }.getOrElse { INSTALL_SOURCE_UNKNOWN }
 
     private companion object {
-        const val DIR_NAME = "recovery_diagnostics"
+        const val DIR_NAME = "recovery_share"
         const val ISO_8601_PATTERN = "yyyy-MM-dd'T'HH:mm:ss'Z'"
         const val FILE_TIMESTAMP_PATTERN = "yyyyMMdd_HHmmss"
         const val STACKTRACE_FRAME_LIMIT = 50

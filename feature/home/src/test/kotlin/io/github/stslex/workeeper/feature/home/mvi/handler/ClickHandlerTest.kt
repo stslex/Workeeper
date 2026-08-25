@@ -141,18 +141,16 @@ internal class ClickHandlerTest {
     @Test
     fun `OnModeSelected hides the sheet and persists the MAPPED mode through the interactor`() {
         val flow = MutableStateFlow(baseState.copy(bottomSheet = BottomSheetState.StartModePicker))
-        // A store whose launch actually RUNS its body: the persistence call and the UI→domain
-        // mapping live inside that coroutine, and a stubbed no-op launch would wave a swapped
-        // mapper arm straight through.
+        // A store whose launch actually RUNS its body; the persist call and the UI→domain
+        // mapping live inside that coroutine.
         val store = newStoreWithFlow(flow, executeLaunch = true)
         val handler = ClickHandler(interactor = interactor, resourceWrapper = resources, store = store)
 
         handler.invoke(Action.Click.OnModeSelected(StartCardModeUi.LAGGING_GROUPS))
 
         assertEquals(BottomSheetState.Hidden, flow.value.bottomSheet)
-        // startCardMode is NOT written here — the DataStore round trip owns it, so head and
-        // body swap together when the new mode's first readout lands. Still null, because
-        // `State.init` seeds no mode: selecting a mode does not make the card claim one.
+        // startCardMode is NOT written here — the DataStore round trip owns it, and `State.init`
+        // seeds no mode.
         assertEquals(null, flow.value.startCardMode)
         coVerify(exactly = 1) {
             interactor.setStartCardMode(StartCardModeDomain.LAGGING_GROUPS)
@@ -220,12 +218,7 @@ internal class ClickHandlerTest {
         assertEquals("1 of 2 exercises done", flow.value.pendingConflict?.progressLabel)
     }
 
-    /**
-     * §3.4's branch, where it now lives. The card sends ONE action carrying nothing, so the
-     * uuid this asserts can only have come from the body in state at click time — which is
-     * also the point of moving it: `CommonHandler` swaps mode and body in one `copy`, so the
-     * pair cannot be read half-updated the way a Composable-captured `body` could.
-     */
+    /** The card sends one action carrying nothing, so this uuid came from the body in state. */
     @Test
     fun `OnStartActionClick under a Forgotten body starts THAT training, no picker`() {
         val flow = MutableStateFlow(
@@ -257,11 +250,8 @@ internal class ClickHandlerTest {
     }
 
     /**
-     * The other arm, on the mode that can produce a `Forgotten` body but currently does not
-     * (HD2: «Забытая тренировка» with no template left to start degrades to `Empty`). The
-     * mode being FORGOTTEN_TRAINING is deliberate — it pins that the discriminator is the
-     * BODY, so an arm keyed on the mode instead would send this tap to a uuid it does not
-     * have.
+     * FORGOTTEN_TRAINING degraded to `Empty` (HD2). The mode is deliberate: it pins that the
+     * discriminator is the BODY, not the mode.
      */
     @Test
     fun `OnStartActionClick under an Empty body opens the picker instead`() {

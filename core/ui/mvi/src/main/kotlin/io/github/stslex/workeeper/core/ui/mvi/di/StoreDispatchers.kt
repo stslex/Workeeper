@@ -9,14 +9,8 @@ import io.github.stslex.workeeper.core.core.di.MainImmediateDispatcher
 import kotlinx.coroutines.CoroutineDispatcher
 
 /**
- * Metro-owned, `@SingleIn(AppScope)` for the process-lifetime single-owner. Concrete self-bound data
- * class (no interface) → the app-scope `AppGraph` exposes a `val storeDispatchers` accessor rather than
- * `@ContributesBinding`.
- *
- * COLLIDER ctor deps: the two `CoroutineDispatcher`s are distinguished only by their qualifiers
- * (`@DefaultDispatcher` / `@MainImmediateDispatcher`). The dispatchers are Metro-owned
- * (`DispatchersBindingContainer`, a `@BindingContainer @ContributesTo(AppScope)` in core:core-android),
- * so the graph resolves these qualified deps from its own aggregated bindings.
+ * Metro-owned `@SingleIn(AppScope)` dispatcher pair; the two `CoroutineDispatcher` deps are
+ * distinguished only by their `@DefaultDispatcher` / `@MainImmediateDispatcher` qualifiers.
  */
 @SingleIn(AppScope::class)
 @Inject

@@ -1,17 +1,12 @@
 plugins {
     alias(libs.plugins.convention.composeLibrary)
-    // The largest feature graph — it inherits the most app-scoped bindings, including two qualified
-    // dispatchers and the application Context.
+    // The largest feature graph — it inherits the most app-scoped bindings.
     alias(libs.plugins.metro)
-    // Goldens for the settings surface (extraction Part 5). The harness is NOT copied: it
-    // comes from core:ui:golden-harness, so device config, tolerance and canvas width
-    // cannot drift between modules.
+    // Goldens for the settings surface; the harness comes from core:ui:golden-harness.
     alias(libs.plugins.paparazzi)
 }
 
-// Metro reads javax.inject qualifiers so the inherited app-scoped bindings keep them — settings resolves
-// @DefaultDispatcher AND @IODispatcher (both CoroutineDispatcher): (type + qualifier) is the Metro
-// binding key, so the two resolve distinctly, never merge.
+// includeJavax keeps @DefaultDispatcher and @IODispatcher distinct as binding keys.
 metro {
     interop {
         includeJavax()
@@ -35,11 +30,7 @@ dependencies {
     testImplementation(kotlin("test"))
     testImplementation(libs.androidx.paging.testing)
     testImplementation(project(":core:ui:golden-harness"))
-    // Compose's semantics-tree surface on the JVM side, for SettingsStartCardModeSheetTest:
-    // the mode sheet is a window, so Paparazzi cannot photograph it through SettingsScreen,
-    // and `src/androidTest` is dispatch-only and therefore not a gate. Robolectric and the
-    // Jupiter RobolectricExtension already come from the convention plugin; this line adds
-    // the missing `runComposeUiTest`. Same reasoning as core:ui:kit's copy of it.
+    // `runComposeUiTest` for SettingsStartCardModeSheetTest — the sheet is a window, not a golden.
     testImplementation(libs.androidx.compose.ui.test.junit4)
 
     androidTestImplementation(libs.bundles.android.test)

@@ -93,12 +93,8 @@ interface TrainingDao {
     fun observeRecentTemplates(limit: Int): Flow<List<TrainingListItemRow>>
 
     /**
-     * «Забытая тренировка» (home-start-card.md §3.4): the template whose last run is
-     * furthest in the past. Inverts [pagedActiveWithStats]' sort — and per HD1 a template
-     * NEVER run ranks first: by the metric it is the most forgotten thing there is, so
-     * `(last_session_at IS NULL) DESC` leads. Among never-run templates the oldest-created
-     * wins (forgotten longest), `uuid` as the deterministic tail. `is_adhoc = 1` rows are
-     * sessions, not templates, and archived rows are excluded — both per the spec.
+     * «Забытая тренировка»: the template whose last run is furthest in the past, with a
+     * never-run template ranking first. See home-start-card.md §3.4.
      */
     @Query(
         """
@@ -130,13 +126,7 @@ interface TrainingDao {
     @Query("SELECT * FROM training_table WHERE uuid = :uuid")
     fun observeById(uuid: Uuid): Flow<TrainingEntity?>
 
-    /**
-     * Every training row, unfiltered — includes `is_adhoc = 1` and `archived = 1`.
-     * Intentionally bypasses the `is_adhoc = 0` / `archived = 0` list invariant: the
-     * only caller is the AI-readable snapshot export, which dumps the full graph at
-     * full fidelity (adhoc trainings are also needed for referential integrity with
-     * their sessions). Never use this for a user-facing list.
-     */
+    /** Unfiltered full-graph read; its ORDER BY is the export contract. Not for user lists. */
     @Query("SELECT * FROM training_table ORDER BY created_at ASC, uuid ASC")
     suspend fun getAll(): List<TrainingEntity>
 

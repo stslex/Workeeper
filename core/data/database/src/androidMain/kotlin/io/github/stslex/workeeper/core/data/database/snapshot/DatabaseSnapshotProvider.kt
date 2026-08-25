@@ -1,178 +1,107 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.core.data.database.snapshot
 
+import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreGarbageCollectionReport
+import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreProtocolState
+import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreSourceRef
+import io.github.stslex.workeeper.core.data.backup.api.restore.UndoRef
 import io.github.stslex.workeeper.core.data.backup.api.result.BackupResult
 import java.io.File
 
 /**
- * File-level access to the Room-backed SQLite database for backup/restore.
- *
- * The provider exposes the four operations the backup feature needs without leaking
- * Room internals to callers:
- *
- *  - [captureSnapshot] produces a portable `.db` copy.
- *  - [restoreFromSnapshot] replaces the live db file with a previously captured copy.
- *  - [currentSchemaVersion] reports the schema version of the live database.
- *  - [peekSnapshotSchemaVersion] inspects a `.db` file's schema version without
- *    opening it through Room.
+ * Exact-reference database replacement mechanics. Protocol paths never cross this boundary: a
+ * caller supplies an opaque owner and this module derives the file below the no-backup root.
  */
-interface DatabaseSnapshotProvider {
+interface DatabaseSnapshotProvider :
+    DatabaseBackupSnapshotProvider,
+    RestoreDatabaseMechanics,
+    RecoveryDatabaseFiles
 
-    /**
-     * Issues `PRAGMA wal_checkpoint(TRUNCATE)` against the live database to flush any
-     * pending WAL pages into the main `.db` file, then file-copies the `.db` to
-     * [target]. Briefly blocks writes for the duration of the checkpoint.
-     *
-     * Overwrites [target] when it already exists. Does not delete [target] on failure
-     * — partial writes may remain; the caller owns cleanup.
-     *
-     * Returns [BackupResult.Failure] with [io.github.stslex.workeeper.core.data.backup.api.error.BackupError.Io]
-     * when the checkpoint or the file copy fails.
-     */
+interface DatabaseBackupSnapshotProvider {
+
+    /** Checkpoints the WAL, then copies the live database to a caller-owned backup file. */
     suspend fun captureSnapshot(target: File): BackupResult<Unit>
 
-    /**
-     * Destructively replaces the live database file with the contents of [source].
-     *
-     * The call (1) validates the SQLite magic header on [source], (2) compares its
-     * schema version against the running app's via [peekSnapshotSchemaVersion] —
-     * returning [io.github.stslex.workeeper.core.data.backup.api.error.BackupError.BackupTooNew]
-     * if [source] is newer — (3) closes the live `AppDatabase`, (4) deletes the
-     * `-wal` and `-shm` sidecars, and (5) atomically replaces the main `.db` via a
-     * same-directory temp file + rename.
-     *
-     * The caller MUST tear down every consumer of the in-process Room reference
-     * (DAOs, repositories, observers) before invoking — the reference is stale after
-     * success. The app must restart to rebuild the Room graph; this provider does
-     * not perform that restart.
-     */
-    suspend fun restoreFromSnapshot(source: File): BackupResult<Unit>
-
-    /**
-     * Schema version of the live database, read from the SQLite `PRAGMA user_version`
-     * via Room's open helper. Matches the `@Database(version = N)` declaration.
-     */
+    /** Schema version of the serving live database through Room. */
     suspend fun currentSchemaVersion(): Int
 
-    /**
-     * Whether the registered Room migration graph contains a sequence of edges
-     * that can migrate a database from [from] to [to]. Reads from the same
-     * `MIGRATIONS` array that the live `Room.databaseBuilder` is wired with, so
-     * pre-restore checks and the runtime behavior agree by construction.
-     *
-     * Returns `true` for the trivial case `from == to`; returns `false` for
-     * downgrades (`from > to`) and for forward gaps with no chain.
-     */
-    fun hasMigrationPath(from: Int, to: Int): Boolean
-
-    /**
-     * Reads `PRAGMA user_version` from [source] without going through Room.
-     *
-     * Returns [BackupResult.Failure] with
-     * [io.github.stslex.workeeper.core.data.backup.api.error.BackupError.CorruptedBackup]
-     * when [source] cannot be opened or queried as SQLite.
-     */
+    /** Direct schema peek for startup migration preflight; the path is not persisted. */
     suspend fun peekSnapshotSchemaVersion(source: File): BackupResult<Int>
 
-    /**
-     * Copies the live database to `cache/pre_restore_backup.db` before a Restore
-     * replaces it. Used both as the automatic rollback target if the post-restart
-     * Room migration fails (Scenario 1) and as the source for user-initiated
-     * undo (Scenario 3). Overwrites any previously preserved snapshot — only
-     * one slot is kept at a time.
-     *
-     * Issues `PRAGMA wal_checkpoint(TRUNCATE)` first so the preserved file is
-     * self-contained; the WAL/SHM sidecars on the live database are unaffected.
-     *
-     * Returns the preserved [File] on success, or [BackupResult.Failure] with
-     * [io.github.stslex.workeeper.core.data.backup.api.error.BackupError.Io]
-     * when the checkpoint or file copy fails. The caller treats failure as
-     * "do not proceed with the restore" — there is no point swapping in a new
-     * database we cannot roll back from.
-     *
-     * Spec: `documentation/feature-specs/backup-recovery.md` →
-     * "Storage lifecycle of preserved DB files".
-     */
-    suspend fun preserveCurrentDb(): BackupResult<File>
+    fun hasMigrationPath(from: Int, to: Int): Boolean
 
-    /**
-     * Atomically replaces the live database with the contents of the most
-     * recently preserved `pre_restore_backup.db`. Cleans up `-wal` / `-shm`
-     * sidecars, closes the in-process Room handle, and renames the preserved
-     * file into the live database slot. Used by both the Scenario 1 automatic
-     * rollback (migration failure after restore) and the Scenario 3
-     * user-initiated undo.
-     *
-     * After success, the preserved file no longer exists (it was renamed
-     * into the live slot). The caller MUST restart the app — the Room graph
-     * is stale.
-     *
-     * Returns [BackupResult.Failure] with
-     * [io.github.stslex.workeeper.core.data.backup.api.error.BackupError.CorruptedBackup]
-     * if no preserved file exists, or `.Io` if the swap fails.
-     */
-    suspend fun rollbackToPreRestoreBackup(): BackupResult<Unit>
-
-    /**
-     * Whether a `cache/pre_restore_backup.db` exists. Cheap file-existence
-     * check used by Settings to decide whether to render the
-     * "Revert last restore" row.
-     */
-    fun hasPreRestoreBackup(): Boolean
-
-    /**
-     * Formatted "from→to" pairs of every registered migration, joined with
-     * commas (e.g. `"5→6,6→7"`). Used by Crashlytics non-fatals and the
-     * diagnostic export to record the available migration set without
-     * exposing the internal MIGRATIONS array outside the database module.
-     */
     fun availableMigrationsLabel(): String
+}
 
-    /**
-     * Deletes the preserved `cache/pre_restore_backup.db` without applying
-     * it. Used after Scenario 1 failure-path rollback consumes the file
-     * (rollback already moved it; this just guarantees the slot is empty
-     * even on partial failure) and as a defensive cleanup on app updates.
-     *
-     * No-op when the file does not exist.
-     */
-    suspend fun deletePreRestoreBackup()
+interface RestoreDatabaseMechanics {
 
-    /**
-     * Copies the live database file to `cache/pre_migration_backup.db`
-     * directly via `File.copyTo`, without going through Room. This is the
-     * Scenario 2 safety net: when `Application.onCreate` decides to route
-     * the user to `RecoveryActivity` (developer-error migration path), the
-     * live `.db` is still pristine because Room was never opened — the
-     * direct copy captures that state for the user to export.
-     *
-     * Distinct from [preserveCurrentDb] (Scenario 1):
-     * - Runs **before** Room init, so it cannot WAL-checkpoint (would force
-     *   Room to open the database and migrate). Any unflushed WAL pages
-     *   from the previous app run are not in the snapshot; this is
-     *   acceptable because the realistic Scenario 2 case is "app updated
-     *   without registering a migration" — the previous launch closed
-     *   cleanly, WAL is already merged.
-     * - Lives at a different cache path (`pre_migration_backup.db`) with an
-     *   independent lifecycle (consumed by `RecoveryActivity` export, not
-     *   by automatic rollback).
-     *
-     * Returns the preserved file on success, `null` if the live database
-     * file does not exist (fresh install, no Scenario 2 to recover from)
-     * or the copy fails (logged best-effort; the caller still routes to
-     * recovery without the snapshot).
-     */
-    suspend fun preserveDbBeforeMigration(): File?
+    /** Transfers the downloaded source into non-evictable runtime ownership. */
+    suspend fun stageRestoreSource(source: File, ref: RestoreSourceRef): BackupResult<File>
 
-    /** Whether `cache/pre_migration_backup.db` exists on disk. */
-    fun hasPreMigrationBackup(): Boolean
+    /** Exact staged restore source, or null when the same-install asset is missing. */
+    fun getRestoreSourceFile(ref: RestoreSourceRef): File?
 
-    /**
-     * Returns the preserved `cache/pre_migration_backup.db` File for
-     * `RecoveryActivity`'s "Export raw data" action, or `null` if absent.
-     */
-    fun getPreMigrationBackupFile(): File?
+    /** Checkpoints the live WAL and atomically publishes this attempt's immutable undo. */
+    suspend fun createUndo(ref: UndoRef): BackupResult<File>
 
-    /** Deletes `cache/pre_migration_backup.db`. No-op when absent. */
-    suspend fun deletePreMigrationBackup()
+    /** Exact immutable undo, or null when the same-install asset is missing. */
+    fun getUndoFile(ref: UndoRef): File?
+
+    /** Validates the exact runtime-owned restore source while Room is still serving. */
+    suspend fun validateRestoreSource(ref: RestoreSourceRef): BackupResult<Unit>
+
+    /** Validates the exact immutable undo without opening Room. */
+    suspend fun validateUndo(ref: UndoRef): BackupResult<Unit>
+
+    /** Validates released `cache/pre_restore_backup.db` only for rollout migration. */
+    suspend fun validateLegacyUndo(): BackupResult<Unit>
+
+    /** Advisory five-file-peak admission check. Equality is sufficient; no bytes are allocated. */
+    suspend fun checkRestoreCapacity(ref: RestoreSourceRef): BackupResult<Unit>
+
+    /** Advisory rollback admission check. Equality is sufficient; no bytes are allocated. */
+    suspend fun checkRollbackCapacity(ref: UndoRef): BackupResult<Unit>
+
+    /** Replaces the closed live database from this exact staged source. */
+    suspend fun replaceLiveDatabaseFromRestore(ref: RestoreSourceRef): BackupResult<Unit>
+
+    /** Replaces the closed live database from this exact immutable undo. */
+    suspend fun replaceLiveDatabaseFromUndo(ref: UndoRef): BackupResult<Unit>
+
+    /** Best-effort exact deletion; false means retryable garbage. */
+    suspend fun deleteUndo(ref: UndoRef): Boolean
+
+    /** Best-effort exact deletion; false means retryable garbage. */
+    suspend fun deleteRestoreSource(ref: RestoreSourceRef): Boolean
+}
+
+interface RecoveryDatabaseFiles {
+
+    /** Released positional C, used only by the explicit rollout table. */
+    fun legacyPreRestoreFile(): File?
+
+    /** Copies released C immutably, or re-syncs its replay target, without consuming C. */
+    suspend fun migrateLegacyUndo(ref: UndoRef): BackupResult<File>
+
+    /** Consumes only released C after the migrated protocol state is durable. */
+    suspend fun deleteLegacyPreRestore(): Boolean
+
+    /** Header-only inspection used before any Room or framework SQLite handle may be opened. */
+    suspend fun inspectLiveDatabaseWithoutRoom(): BackupResult<Int>
+
+    /** Publishes the raw pre-migration image durably below the no-backup recovery root. */
+    suspend fun preserveDbBeforeMigration(): BackupResult<File>
+
+    fun getRecoveryExportFile(): File?
+
+    /** Creates an on-demand copy in the narrowly exposed cache share directory. */
+    suspend fun createRecoveryExportShareCopy(fileName: String): BackupResult<File>
+
+    /** Removes the durable export after recovery state no longer needs it. */
+    suspend fun deleteRecoveryExport(): Boolean
+
+    /** Owner-aware cleanup based only on decoded same-install protocol state. */
+    suspend fun sweepRecoveryFiles(
+        state: RestoreProtocolState,
+    ): RestoreGarbageCollectionReport
 }

@@ -13,33 +13,15 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlin.reflect.KClass
 
 /**
- * The read side of [ScreenWithResult] — what a destination gets back from a destination it
- * opened.
- *
- * Handed to a graph's content lambda by `navComponentScreenWithResults`. It exists so that
- * no feature names the transport: there is no string key to get wrong, no `Any?` to cast,
- * and no transport type in a feature's imports. The type comes off the destination. Under Nav2
- * the transport was the entry's `SavedStateHandle`; it is now the app-owned [NavResultsSource] —
- * this class's surface did not move.
- *
- * **What a graph is allowed to do with a result: forward it.** Reading a result is state,
- * and state belongs in the Store — so the shape at every call site is
- * [OnResult] → `processor.consume(Action…)`, with the parsing and the decision on the far
- * side of that call. A graph that branches on a result has taken on the Store's job.
- *
- * The handle is deliberately private and not exposed: the point of this type is that it is
- * the *only* thing the graph gets, so the transport cannot leak back out through it.
+ * The read side of [ScreenWithResult]: what a destination gets back from one it opened. A graph
+ * forwards a result to the Store ([OnResult] → `processor.consume(...)`), never branches on it.
  */
 @Stable
 class NavResults @PublishedApi internal constructor(
     private val source: NavResultsSource,
 ) {
 
-    /**
-     * The live result from [destination], or `null` for "no result" — never opened, or
-     * opened and dismissed without producing one. See [ScreenWithResult] for why absence is
-     * `null` rather than a `Cancelled` case.
-     */
+    /** The live result from [destination], or `null` when there is none. */
     fun <S, R : Any> result(
         destination: KClass<S>,
     ): StateFlow<R?> where S : ScreenWithResult<R> {
@@ -48,10 +30,8 @@ class NavResults @PublishedApi internal constructor(
     }
 
     /**
-     * Drop the result from [destination] so re-entry does not re-deliver it.
-     *
-     * Callers should prefer [OnResult], which does this as part of delivery. A result left
-     * in place re-fires on the next resume — the bug this clear exists to prevent.
+     * Drop the result from [destination] so re-entry does not re-deliver it. Prefer [OnResult],
+     * which clears as part of delivery.
      */
     fun <S, R : Any> clear(
         destination: KClass<S>,
@@ -60,23 +40,8 @@ class NavResults @PublishedApi internal constructor(
     }
 
     /**
-     * Run [onResult] once per result produced by [destination], then clear it.
-     *
-     * Fires only on a real result: `null` — the state on arrival, and again after the
-     * clear — is not delivered, so the callback does not run once on entry the way a raw
-     * flow collection would.
-     *
-     * ```
-     * results.OnResult(Screen.PlanEditor::class) { saved ->
-     *     processor.consume(Action.Common.PlanResultReceived(saved))
-     * }
-     * ```
-     *
-     * **Note for anyone writing a test against this.** `AppCoroutineScopeImpl.launch(flow, …)`
-     * applies `.catch { onError(it) }`, so a flow error inside a Store is swallowed: a
-     * result that stops arriving shows up as a screen quietly holding default state, not as
-     * a throw. Assert the observable effect — the originating screen reflecting the save —
-     * never the absence of an exception, or the test passes vacuously.
+     * Run [onResult] once per result produced by [destination], then clear it. `null` is never
+     * delivered, so the callback does not fire on entry the way a raw flow collection would.
      */
     @Composable
     fun <S, R : Any> OnResult(

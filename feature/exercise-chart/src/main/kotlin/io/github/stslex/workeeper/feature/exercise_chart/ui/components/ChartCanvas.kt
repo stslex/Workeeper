@@ -43,29 +43,8 @@ import java.time.LocalDate
 import kotlin.math.roundToInt
 
 /**
- * The mockup's `.chartwrap` — extraction §4.6, normative, transcribed from `draw()`:
- *
- * - geometry: fixed height 212, PADT 16 / PADB 24, `xs(i) = (i/(n-1))*(W-10)+5` —
- *   **index-spaced, not date-spaced** (the render window is the point list itself);
- *   `ys` normalises to the visible min/max, `(mx-mn)||1` guarding the all-equal case
- *   at the mockup's own answer (a flat run on the bottom line);
- * - exactly four horizontal gridlines in `--grid`, full width, no axes;
- * - one series: `--max`, 2.2 → 2dp, round caps and joins, no fill;
- * - points: plain r4 donut (fill `--base`, stroke `--max` 2dp); record fill
- *   `--molten-solid` / stroke `--base` at 2.5 — the roles invert; active r5.5 fills
- *   `--max`; a record that is active stays molten;
- * - scrub line: vertical at the active x, `--dim`, 1px, dash `3 4`, running past the
- *   plot band (PADT−8 → H−PADB+6), drawn UNDER the series (grid → scrub → series → pts);
- * - interaction: pointer capture on down, scrub while pressed, snapping to the NEAREST
- *   index — the haptic tick per crossed point lives in the handler (dedup on index);
- * - dataset changes: the drawn dataset is never swapped. Every point is a member of
- *   [ChartPointsAnimator], whose normalised x/y are animated state, and a new dataset
- *   RETARGETS them — see that class for the enter/exit policy and for why the old
- *   value-space morph cancelled itself. One path, three triggers: the metric tabs, the
- *   preset chips and the exercise picker all reach it through `State.points`.
- * - motion: `out` at `base` for the data, because overshoot on value-encoding geometry
- *   would draw a reading the data never contained. The mockup's 420ms and the previous
- *   `slow` (520ms) both go; the scale's own default carries it.
+ * The mockup's `.chartwrap` (extraction §4.6, normative): index-spaced series, four
+ * gridlines, a dashed scrub line under it. A new dataset retargets [ChartPointsAnimator].
  */
 @Composable
 internal fun ChartCanvas(
@@ -87,19 +66,15 @@ internal fun ChartCanvas(
         durationMillis = AppUi.motion.base,
         easing = AppUi.motion.out,
     )
-    // Seeded at rest by its constructor, then only ever retargeted. `remember` without keys
-    // is deliberate: this object outlives every dataset, which is the point of it.
+    // Seeded at rest, then only retargeted; `remember` without keys so it outlives datasets.
     val animator = remember { ChartPointsAnimator(scope, dataSpec, targets) }
     LaunchedEffect(points) { animator.retarget(targets, animate = true) }
 
-    // Identity, not position: duplicate-day sessions need independent keys, and the flags
-    // must survive a retarget without sliding onto a sibling point.
+    // Identity, not position: duplicate-day sessions need keys that survive a retarget.
     val activeKey = activeIndex?.let { points.getOrNull(it)?.sessionUuid }
     val recordKey = recordIndex?.let { points.getOrNull(it)?.sessionUuid }
 
-    // The scrub bar encodes no value — it marks which point is being read — so it may glide
-    // on its own clock (`fast`, and `spring` would be legal here too). It first glides to a
-    // newly selected point, then tracks that point exactly while the data retargets under it.
+    // The scrub bar encodes no value, so it may glide on its own clock.
     val scrubX = remember { Animatable(targets.firstOrNull { it.key == activeKey }?.x ?: 0f) }
     val scrubSpec: AnimationSpec<Float> = tween(
         durationMillis = AppUi.motion.fast,
@@ -107,8 +82,7 @@ internal fun ChartCanvas(
     )
     LaunchedEffect(activeKey, animator) {
         val point = animator.series.firstOrNull { it.key == activeKey } ?: return@LaunchedEffect
-        // Glide to the newly selected point (a no-op on first composition, where the bar is
-        // already seeded there), then follow that point exactly while the data retargets.
+        // Glide to the newly selected point, then follow it while the data retargets.
         scrubX.animateTo(point.x.value, scrubSpec)
         snapshotFlow { point.x.value }.collect { x -> scrubX.snapTo(x) }
     }
@@ -137,13 +111,11 @@ internal fun ChartCanvas(
         val series = animator.series
         if (series.size < 2) return@Canvas
 
-        // The ONLY arithmetic left in the draw phase: normalised → pixels. No domain, no
-        // interpolation, no dataset — every position below is read from animated state.
+        // The only arithmetic left in the draw phase: normalised → pixels.
         val xPx = { x: Float -> x * (size.width - 2 * X_INSET.toPx()) + X_INSET.toPx() }
         val yPx = { y: Float -> PAD_TOP.toPx() + (y.toDouble() * plotBandPx()).toFloat() }
 
-        // Draw order is the mockup's: grid → scrub → series → points. The scrub sits UNDER
-        // the series.
+        // Draw order is the mockup's: grid → scrub → series → points.
         if (activeKey != null && series.any { it.key == activeKey }) {
             val x = xPx(scrubX.value)
             drawLine(
@@ -184,8 +156,7 @@ internal fun ChartCanvas(
             val radius =
                 (if (isActive) ACTIVE_POINT_RADIUS.toPx() else POINT_RADIUS.toPx()) * presence
             when {
-                // The record's roles invert: solid molten disc ringed by the page colour —
-                // and it STAYS molten when active (`.pt.pr.act` keeps the molten fill).
+                // The record's roles invert, and it stays molten when active.
                 isRecord -> {
                     drawCircle(
                         color = recordColor,
@@ -247,9 +218,8 @@ private fun DrawScope.plotBandPx(): Double =
     (size.height - PAD_TOP.toPx() - PAD_BOTTOM.toPx()).toDouble()
 
 /**
- * The mockup's `scrub()`: normalise x over the full inner width and snap to the NEAREST
- * index (`Math.round`). The 5-unit series inset is deliberately ignored, as the mockup's
- * own scrub ignores it.
+ * The mockup's `scrub()`: normalise x over the full inner width and snap to the nearest
+ * index; the 5-unit series inset is ignored, as the mockup's own scrub ignores it.
  */
 private fun scrubIndexAt(x: Float, width: Float, pointCount: Int): Int? {
     if (pointCount < 2 || width <= 0f) return null
@@ -257,8 +227,7 @@ private fun scrubIndexAt(x: Float, width: Float, pointCount: Int): Int? {
     return (fraction * (pointCount - 1)).roundToInt()
 }
 
-// `draw()` geometry, kept literal like stroke widths — these are the mockup's own numbers,
-// not ladder values (extraction §4.6): H=212, PADT=16, PADB=24, xs inset 5.
+// `draw()` geometry, kept literal — the mockup's own numbers, not ladder values (§4.6).
 private val CANVAS_HEIGHT: Dp = 212.dp
 private val PAD_TOP: Dp = 16.dp
 private val PAD_BOTTOM: Dp = 24.dp

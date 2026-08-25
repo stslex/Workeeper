@@ -48,8 +48,7 @@ class LiveWorkoutInteractorImpl internal constructor(
     override suspend fun startSession(
         trainingUuid: String,
     ): String = withContext(defaultDispatcher) {
-        // Reuse any in-progress session for this training so re-entry from the Trainings
-        // tab does not orphan an active session by spawning a parallel one.
+        // Reuse any in-progress session for this training so re-entry cannot spawn a second.
         val existing = sessionRepository.getAnyActiveSession()
         if (existing != null && existing.trainingUuid == trainingUuid) {
             return@withContext existing.sessionUuid
@@ -83,9 +82,7 @@ class LiveWorkoutInteractorImpl internal constructor(
         val planByExerciseDeferred = async {
             val exerciseUuids = performedRows.map { it.exerciseUuid }
             if (trainingDeferred.await()?.isAdhoc == true) {
-                // An ad-hoc training has no template to attach to, so every exercise in it
-                // is plan-attached by convention — there is nothing a one-off could differ
-                // from. The plan lives on the exercise itself.
+                // An ad-hoc training has no template; the plan lives on the exercise itself.
                 PlanLookup(
                     plansByExercise = exerciseRepository.getAdhocPlans(exerciseUuids)
                         .mapValues { (_, plan) -> plan?.map { it.toDomain() } },
@@ -96,17 +93,12 @@ class LiveWorkoutInteractorImpl internal constructor(
                     trainingUuid = session.trainingUuid,
                     exerciseUuids = exerciseUuids,
                 )
-                // Key presence is the plan-attached flag (v3 §6.2) — absence of the
-                // `training_exercise_table` row is the whole encoding. This must be read with
-                // `containsKey`, never with a null check: `map[k] == null` is also true for a
-                // row that exists with `plan_sets IS NULL`, which is attached-with-no-plan and
-                // a different state. See TrainingExerciseRepository.getPlans.
+                // GUARD: read plan attachment with `containsKey`, never `map[k] == null` —
+                // a row with `plan_sets IS NULL` is attached-with-no-plan, a different state.
                 val planAttachedUuids = exerciseUuids.filterTo(mutableSetOf()) { uuid ->
                     trainingPlans.containsKey(uuid)
                 }
-                // Read-time fallback for legacy null planSets. Resolve only for attached rows
-                // whose plan is null (empty list = deliberately cleared by the user, preserved
-                // as empty) and for one-offs, which have no plan row to read at all.
+                // Read-time fallback for legacy null planSets; an empty list is a real clear.
                 val nullExerciseUuids = exerciseUuids.filter { trainingPlans[it] == null }
                 val fallbacks = if (nullExerciseUuids.isNotEmpty()) {
                     exerciseRepository.getAdhocPlans(nullExerciseUuids)
@@ -132,10 +124,8 @@ class LiveWorkoutInteractorImpl internal constructor(
             setRepository.getByPerformedExercises(performedRows.map { it.uuid })
         }
 
-        // GUARD: keep this in the parallel block. It is the one read here that scales with the
-        // user's whole HISTORY rather than with the session, so serialising it puts all of its
-        // latency on the critical path. The profile that measured it is in
-        // `documentation/feature-specs/v3-redesign-spec.md` §27, "PROFILE BEFORE OPTIMISING".
+        // GUARD: keep this in the parallel block — it is the one read that scales with the
+        // user's whole history, so serialising it puts its latency on the critical path.
         val preSessionPrsDeferred = async {
             personalRecordRepository
                 .observePersonalRecordsBatch(performedRows.mapTo(mutableSetOf()) { it.exerciseUuid })
@@ -162,16 +152,11 @@ class LiveWorkoutInteractorImpl internal constructor(
                     description = template.description?.takeIf { it.isNotBlank() },
                 )
             }
-        // Q6 lock — pre-session snapshot scope. We collect the PR map exactly once here and
-        // then drop the underlying flow; the snapshot lives in State for the session's
-        // lifetime, immune to mid-session emissions from other places (Exercise detail edit,
-        // a finished session on another screen).
+        // Collected once and the flow dropped: the snapshot is frozen for the whole session.
         val exerciseUuids = exerciseSnapshots
             .mapTo(mutableSetOf()) { snap -> snap.performed.exerciseUuid }
-        // GUARD: the deferred above asks for every performed row's exercise; the template lookup
-        // then drops rows, so the snapshot set is narrower. This filter brings the map back to
-        // exactly the exercises the session shows — without it the snapshot carries PRs for
-        // exercises that are not in `exercises`.
+        // GUARD: the deferred asks for every performed row; the template lookup then drops
+        // rows, so narrow the map back to exactly the exercises the session shows.
         val preSessionPrs = preSessionPrsDeferred.await().filterKeys { it in exerciseUuids }
         val training = trainingDeferred.await()
         SessionSnapshotDomain(
@@ -207,10 +192,7 @@ class LiveWorkoutInteractorImpl internal constructor(
 
     override suspend fun setSkipped(performedExerciseUuid: String, skipped: Boolean) {
         withContext(defaultDispatcher) {
-            // Flag only — no set wipe. §6.1: skip is reversible in place, and reversal is
-            // only lossless if the logged rows survive. The finish path already treats a
-            // skipped row as `continue` (no plan update; its logged sets persist as
-            // history), so preserved sets change nothing there.
+            // Flag only — no set wipe; skip is reversible in place only if the rows survive.
             performedExerciseRepository.setSkipped(performedExerciseUuid, skipped)
         }
     }
@@ -274,9 +256,7 @@ class LiveWorkoutInteractorImpl internal constructor(
         var skippedCount = 0
         val discardedSetUuids = mutableListOf<String>()
 
-        // Key presence is the plan-attached flag — see TrainingExerciseRepository.getPlans.
-        // Read once for the whole session rather than per row. Empty for an ad-hoc training,
-        // where the plan lives on the exercise and the axis does not apply.
+        // Key presence is the plan-attached flag; empty for an ad-hoc training.
         val planAttachedUuids = if (isAdhoc) {
             emptySet()
         } else {
@@ -293,32 +273,20 @@ class LiveWorkoutInteractorImpl internal constructor(
                 skippedCount++
                 continue
             }
-            // Unfilled sets are discarded at finish (§6.1). Measured on this tree: no
-            // production writer can persist `reps <= 0` — `SetRepository.upsert` is reached
-            // only through `ClickHandler.processSetMarkDone`, which rejects `reps <= 0`, and
-            // `SetRepository.update` only through past-session's `InputHandler`, which
-            // requires `parsed > 0`. So this partition is defence-in-depth over legacy or
-            // imported rows and normally finds nothing. It is here because the invariant is
-            // otherwise enforced only by two UI validators agreeing, with nothing at the data
-            // layer to stop a third writer from breaking it silently.
+            // Unfilled sets are discarded at finish. Defence-in-depth: no production writer
+            // can persist `reps <= 0`, but nothing at the data layer enforces it.
             val (filledSets, unfilledSets) = setRepository
                 .getByPerformedExercise(row.uuid)
                 .map { it.toDomain() }
                 .partition { it.reps > 0 }
-            // Collected, NOT deleted here: the deletion happens inside `finishSessionAtomic`
-            // so a failed finish rolls it back with everything else. Deleting at this point
-            // would destroy the rows even when the finish is reported as failed and the
-            // session stays active.
+            // Collected, NOT deleted here: `finishSessionAtomic` deletes them, so a failed
+            // finish rolls the deletion back with everything else.
             discardedSetUuids += unfilledSets.map { it.uuid }
             val performedSets = filledSets.map { it.toPlanSet() }
             setsLogged += performedSets.size
             if (performedSets.isNotEmpty()) doneCount += 1
-            // A one-off has no plan row, so a template write would silently match zero rows
-            // and the sets the user just logged would be persisted nowhere. Route it to the
-            // exercise's own `last_adhoc_sets` instead — which is also where the read-time
-            // fallback in `loadSession` will look for it next time. `PlanUpdate.isAdhoc`
-            // already means "write to the exercise, not the training", so the one-off case
-            // needs no new field, only the right value.
+            // A one-off has no plan row, so a template write would match zero rows. Route it
+            // to the exercise's own `last_adhoc_sets`, where `loadSession` looks next time.
             val isPlanAttached = isAdhoc || row.exerciseUuid in planAttachedUuids
             val writesToExercise = !isPlanAttached || isAdhoc
             val existingPlan = if (writesToExercise) {
@@ -365,9 +333,7 @@ class LiveWorkoutInteractorImpl internal constructor(
             val session = sessionRepository.getById(sessionUuid) ?: return@withContext
             val training = trainingRepository.getTraining(session.trainingUuid)
             if (training?.isAdhoc == true) {
-                // Cancel of an ad-hoc session must cascade to the training row + inline
-                // exercises. Without this, Track Now / Quick start cancel paths leak orphan
-                // training rows — the v5 → v6 migration sweeps existing leakers.
+                // Cancel must cascade to the training row + inline exercises, or they leak.
                 sessionRepository.discardAdhocSession(
                     sessionUuid = sessionUuid,
                     trainingUuid = session.trainingUuid,
@@ -453,9 +419,7 @@ class LiveWorkoutInteractorImpl internal constructor(
     override suspend fun fetchPrSnapshotForExercise(
         exerciseUuid: String,
     ): PersonalRecordDomain? = withContext(defaultDispatcher) {
-        // C1 lock — single-exercise lazy fetch. PersonalRecordRepository.getPersonalRecord is
-        // a suspend hit on the same DAO query observePersonalRecord wraps, so we get the
-        // freshest baseline without holding a Flow open mid-session.
+        // Suspend hit on the same DAO query, so no Flow stays open mid-session.
         personalRecordRepository.getPersonalRecord(exerciseUuid)?.toDomain()
     }
 
@@ -489,12 +453,7 @@ class LiveWorkoutInteractorImpl internal constructor(
             type = type,
         )
 
-    /**
-     * The two things a plan read yields, kept together so the plan-attached flag cannot drift
-     * from the plans it was derived alongside. [planAttachedUuids] is derived from key
-     * presence in the repository map, not from plan nullability — see
-     * `LiveExerciseDomain.isPlanAttached`.
-     */
+    /** Plans plus the plan-attached set, kept together so the flag cannot drift from them. */
     private data class PlanLookup(
         val plansByExercise: Map<String, List<PlanSetDomain>?>,
         val planAttachedUuids: Set<String>,

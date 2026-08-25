@@ -4,6 +4,7 @@ package io.github.stslex.workeeper.di
 import android.content.Context
 import dev.zacsweers.metro.asContribution
 import dev.zacsweers.metro.createGraphFactory
+import io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetime
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.exercise_chart.di.ExerciseChartGraph
 import io.mockk.mockk
@@ -20,23 +21,12 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
 /**
- * Replaces the former feature-module `ExerciseChartGraphBridgeTest` (a `@GraphExtension` cannot be
- * created standalone, so the assertion must run where the parent [AppGraph] is compiled — here, `:app`).
- *
- * exercise-chart is port 2 of the assisted batch and the fourth shape-B port. Its route arg
- * (`Screen.ExerciseChart`) is a flat 2-level data class — the shape already proven for
- * `ScreenInjectionRule` on image-viewer — so this test's job is the binding claims.
- *
- * One thing here that no earlier shape-B port had: the route arg is **nullable**
- * (`exerciseUuid: String?`), and "open the chart with nothing pre-selected" is a real destination, not
- * a degenerate case. A bound instance of a nullable type is exactly where a graph could quietly
- * substitute a non-null default, so the null case is asserted explicitly rather than assumed to follow
- * from the non-null one.
+ * Identity claims for the exercise-chart `@GraphExtension`, whose route arg is nullable.
+ * See documentation/graph-extension-arc/HANDOFF.md.
  */
 internal class ExerciseChartExtensionIdentityTest {
 
-    // The real parent graph provides Dispatchers.Main.immediate (DispatchersBindingContainer); a plain
-    // JVM test must install a Main dispatcher before the store constructs.
+    // GUARD: Store construction reads the parent graph's Main.immediate binding.
     @BeforeEach
     fun setUp() {
         Dispatchers.setMain(Dispatchers.Unconfined)
@@ -52,6 +42,8 @@ internal class ExerciseChartExtensionIdentityTest {
             applicationContext = mockk<Context>(relaxed = true),
             appDatabase = mockk(relaxed = true),
             imageStorage = mockk(relaxed = true),
+            appScopeLifetime = AppScopeLifetime(),
+            databaseReplacement = mockk(relaxed = true),
         )
 
     private fun AppGraph.exerciseChart(exerciseUuid: String?): ExerciseChartGraph =
@@ -71,7 +63,6 @@ internal class ExerciseChartExtensionIdentityTest {
 
         val store = appGraph.exerciseChart("ex-1").exerciseChartStore
 
-        // Identity, not just non-null: the extension inherits the parent's app-scoped singletons.
         assertSame(
             appGraph.analyticsHolder,
             store.analyticsHolder,
@@ -95,9 +86,7 @@ internal class ExerciseChartExtensionIdentityTest {
             extension.defaultDispatcher,
             "@DefaultDispatcher in the extension must be the parent graph's instance",
         )
-        // Both halves are needed. The assertSame above would ALSO pass if the parent held one instance
-        // for both dispatcher keys — exercise-chart reads only @DefaultDispatcher, so a collapse would
-        // be invisible from the store alone.
+        // Only @DefaultDispatcher is consumed, so a parent-side collapse escapes assertSame.
         assertNotSame(
             appGraph.ioDispatcher,
             extension.defaultDispatcher,
@@ -105,7 +94,6 @@ internal class ExerciseChartExtensionIdentityTest {
         )
     }
 
-    /** Shape B's defining property: the route arg is per-extension, never shared or stale. */
     @Test
     fun `each extension carries its own route arg into the store state`() {
         val appGraph = buildAppGraph()
@@ -126,11 +114,7 @@ internal class ExerciseChartExtensionIdentityTest {
         )
     }
 
-    /**
-     * The NULL arg is a real destination ("open the chart, pick an exercise"), not an edge case. A
-     * bound instance of a nullable type is where a graph could silently supply a non-null default, so
-     * this is asserted rather than inferred from the non-null case above.
-     */
+    /** A null arg is a real destination, and a nullable bound instance may be defaulted. */
     @Test
     fun `a null route arg survives the binding and reaches the store as null`() {
         val appGraph = buildAppGraph()

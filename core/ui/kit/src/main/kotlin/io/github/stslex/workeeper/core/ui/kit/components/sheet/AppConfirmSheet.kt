@@ -17,46 +17,8 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 
 /**
- * The v3 confirmation **sheet** — `pass2d.html` `#s-editor` form 3, `.shx` (extraction §7.4).
- *
- * ```html
- * <div class="sheet shx">
- *   <div class="grab"></div><h3>Выйти без сохранения?</h3>
- *   <div class="desc">Несохранённые правки будут потеряны.</div>
- *   <button class="mitem dang">Выйти без сохранения</button>
- *   <button class="mitem">Продолжить правку</button>
- * </div>
- * ```
- *
- * **The drawing has no dialog primitive at all.** It draws sheets twice (`#sh-del`, `#sh-pick`) and
- * a dialog zero times, so §26 turns every modal on the three editors into one of these. This is
- * the form all of them take.
- *
- * ## Two actions, and the second one is the ruling
- *
- * **A discard sheet carries exactly two: «Выйти без сохранения» and «Продолжить правку».** No save
- * action — the sheet appears only when there is something to lose, and saving already lives on the
- * form, so a third row would offer a second door to a room the user is standing in. A discard that
- * needs a bespoke `Dialog` to render three is a discard with one too many. The dismiss label is
- * «Продолжить правку» rather than «Отмена», which reads as closing the window rather than as
- * declining to discard.
- *
- * Actions are `.mitem`s ([AppSheetItem]) rather than buttons — a full-width row you tap, which is
- * what the drawing draws and what a sheet's bottom edge affords. The scrim and the drag both route
- * to [onDismiss], so the gentle exit is the one you get by not deciding.
- *
- * ## [emphasis], and why it is a line and not a panel
- *
- * `AppConfirmDialog` puts its impact summary on a `failureBackground` panel. **The drawn sheet has
- * no panel**, so the type-change confirmation — the one caller that carries an impact — renders it
- * as a second paragraph one tier brighter than the body. Emphasis by role rather than by a
- * treatment the drawing does not have, which keeps the information and invents nothing.
- *
- * ## Why the content is split out
- *
- * `ModalBottomSheet` composes into its own window and Paparazzi models one, so a sheet drawn only
- * inside [AppConfirmSheet] has no visual gate at all. [AppConfirmSheetContent] is the same pixels
- * without the window — the `AppConfirmDialogContent` precedent, for the same reason.
+ * The v3 confirmation sheet: the drawing has no dialog primitive, so every editor modal takes
+ * this form. See documentation/feature-specs/screen-extraction.md §7.4.
  */
 @Composable
 fun AppConfirmSheet(

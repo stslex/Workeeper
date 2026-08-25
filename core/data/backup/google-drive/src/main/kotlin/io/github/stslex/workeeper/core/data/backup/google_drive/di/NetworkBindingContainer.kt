@@ -19,14 +19,8 @@ import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 
 /**
- * App-Scope Collapse Step 3 (Phase PF.3). The Drive `HttpClient` moved out of Hilt's `NetworkModule` into a
- * Metro provides-factory container (same mechanic as [AuthProvidersBindingContainer]).
- *
- * HOME-A: the ktor type stays inside google-drive's compilation unit — a public `@BindingContainer`
- * `@ContributesTo(AppScope)` aggregates it into app/app's `AppGraph` by scope hint without app/app naming
- * `HttpClient` (app/app has no ktor dep). Its one dep `AuthTokenProvider` is Metro-owned in-graph
- * (`@ContributesBinding` on `DriveAuthTokenProvider`). The two consumers (`DriveApiImpl` /
- * `UserInfoFetcherImpl`) resolve `HttpClient` via aggregation. PUBLIC container + func.
+ * Provides the Drive `HttpClient` into the app graph without app/app naming the ktor type.
+ * GUARD: an `internal` container silently fails cross-module aggregation — keep it public.
  */
 @BindingContainer
 @ContributesTo(AppScope::class)

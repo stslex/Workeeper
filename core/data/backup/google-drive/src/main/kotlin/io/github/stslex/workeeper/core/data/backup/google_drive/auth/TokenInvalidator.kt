@@ -2,22 +2,8 @@
 package io.github.stslex.workeeper.core.data.backup.google_drive.auth
 
 /**
- * Drops the bearer token from BOTH the local DataStore cache and the GMS
- * `AuthorizationClient` local cache. Used by `DriveBackupStorage` on a 401
- * response to force the next request to round-trip through `authorize()` and
- * pick up a freshly issued token from Google's OAuth server.
- *
- * Clearing only the DataStore is not enough: GMS holds its own per-account token
- * cache that the next silent `authorize()` will hit, returning the same stale
- * value. See `AuthorizationClient.clearToken(ClearTokenRequest)`.
- *
- * Implementations are best-effort — failures during invalidation are logged but
- * not propagated, since the caller (a retry path) cannot do better than to
- * attempt the refresh anyway.
- *
- * Public solely for cross-module Metro aggregation (App-Scope Collapse Step 3, PF.3): its impl carries
- * `@ContributesBinding(AppScope)`, which requires the bound interface be visible to app/app's `AppGraph`.
- * Not for external use — the only consumers are gd-internal (`DriveBackupStorage` / `DriveSnapshotStorage`).
+ * Drops the bearer token from BOTH the DataStore cache and the GMS `AuthorizationClient` cache
+ * on a 401 — clearing only DataStore leaves the next silent `authorize()` on the stale token.
  */
 interface TokenInvalidator {
 

@@ -69,9 +69,7 @@ internal object LiveWorkoutMapper {
             exercises = ui,
             setDrafts = emptyMap<State.DraftKey, LiveSetUiModel>().toImmutableMap(),
             activeExerciseUuids = activeExerciseUuids,
-            // First entry: the FIRST card in the list is expanded — the whole initialisation
-            // rule of the amended disclosure model (spec §7 superseded). Status plays no
-            // part in it.
+            // First entry expands the FIRST card, whatever its status (amended §7).
             expandedExerciseUuids = ui.firstOrNull()
                 ?.let { persistentSetOf(it.performedExerciseUuid) }
                 ?: persistentSetOf(),
@@ -79,7 +77,6 @@ internal object LiveWorkoutMapper {
             isAddExerciseInFlight = false,
             isFinishInFlight = false,
             isLoading = false,
-            // A mapped snapshot IS the load landing, so the failure flag can only be false here.
             loadFailed = false,
             dialogState = DialogState.Hidden,
             bottomSheetState = BottomSheetState.Hidden,
@@ -182,9 +179,7 @@ internal object LiveWorkoutMapper {
         .toImmutableMap()
 
     fun State.withPresentation(resourceWrapper: ResourceWrapper): State {
-        // Recompute visible-row resolution alongside the rest of presentation. Every
-        // `withPresentation` call now lands a fresh `visibleSets` list on each
-        // exercise so handlers don't have to remember to refresh it independently.
+        // Refreshes `visibleSets` here so handlers never have to do it themselves.
         val withVisible = withVisibleSets()
         val presentedExercises = withVisible.exercises.map { exercise ->
             exercise.copy(statusLabel = exercise.toStatusLabel(resourceWrapper))
@@ -209,12 +204,8 @@ internal object LiveWorkoutMapper {
     }
 
     /**
-     * The `.shead` meta line, built exactly as the mockup's JS builds it (extraction §1.3):
-     * `{fin} из {act} упражнений · {d} из {t} подходов`, plus ` · пропущено {sk}` only when
-     * skipped > 0. `fin` counts exercises where every set is done (= status DONE), `act`
-     * excludes skipped, `d`/`t` count sets over non-skipped exercises only — the same
-     * denominator discipline as the rail. Blank for an empty session; a "0 из 0" line would
-     * describe nothing.
+     * The `.shead` meta line; every denominator excludes skipped exercises, and an empty
+     * session gets a blank line. See the screen-extraction spec §1.3.
      */
     private fun List<LiveExerciseUiModel>.toHeaderMetaLabel(
         resourceWrapper: ResourceWrapper,
@@ -241,14 +232,8 @@ internal object LiveWorkoutMapper {
     }
 
     /**
-     * Carries the open set across a wholesale State replacement.
-     *
-     * `Action.Common.Init` and `.Reload` both rebuild State from a fresh snapshot, and
-     * re-entering composition re-fires `Init` — so a round-trip to the full-screen plan
-     * editor would otherwise reset expansion. That fix stays under the amended disclosure
-     * model: if the previous State had a loaded session, its open set wins (pruned to
-     * exercises that still exist); only a genuinely fresh Store keeps the first-card
-     * initialisation this snapshot arrived with.
+     * Carries the open set across a wholesale State replacement, so a re-fired `Init` does not
+     * reset expansion. Only a genuinely fresh Store keeps first-card initialisation.
      */
     fun State.withExpansionCarriedFrom(previous: State): State {
         if (previous.exercises.isEmpty()) return this
@@ -398,11 +383,8 @@ internal object LiveWorkoutMapper {
     }
 
     /**
-     * The card's `.sub` line — **always the plan**, never a status readout (extraction §1.5,
-     * quoting the mockup's own comment: "подстрочник всегда план — длина стабильна, карточка
-     * не едет"). The only substitution is `пропущено` on a skipped card. Format per the
-     * mockup's `planText`: weighted `{w}×{r} · {w}×{r}`, bodyweight `{r} повт · {r} повт`;
-     * one line, ellipsised by the composable.
+     * The card's `.sub` line — always the plan, never a status readout, so the card's height
+     * stays stable; only a skipped card substitutes `пропущено`. See extraction §1.5.
      */
     private fun LiveExerciseUiModel.toStatusLabel(resourceWrapper: ResourceWrapper): String =
         when {
@@ -419,10 +401,8 @@ internal object LiveWorkoutMapper {
         resourceWrapper: ResourceWrapper,
         exerciseType: ExerciseTypeUiModel,
     ): String = when (exerciseType) {
-        // A WEIGHTED exercise can still carry reps-only plan sets — `PlanDraftReducer`
-        // writes `weight = null` and a cleared weight field parses to null — so the null
-        // branch stays reps-only, matching `PlanEditorUIMapper.formatPlanSummary`.
-        // Substituting 0.0 would print a 0 kg target the user never set.
+        // A WEIGHTED exercise can carry reps-only plan sets; substituting 0.0 would print a
+        // 0 kg target the user never set.
         ExerciseTypeUiModel.WEIGHTED -> joinToString(SUB_SEPARATOR) { set ->
             set.weight
                 ?.let { weight -> "${weight.formatPrWeight()}×${set.reps}" }

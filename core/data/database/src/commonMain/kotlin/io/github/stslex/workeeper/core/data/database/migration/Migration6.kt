@@ -6,20 +6,8 @@ import androidx.sqlite.SQLiteConnection
 import androidx.sqlite.execSQL
 
 /**
- * v5 → v6 — Quick start workout (v2.3) groundwork.
- *
- * Two changes, both non-destructive:
- *   1. `exercise_table` gains `is_adhoc INTEGER NOT NULL DEFAULT 0`. Inline-created
- *      exercises (Quick start picker, Track Now) carry `is_adhoc = 1` until the parent
- *      session is finished; library queries filter on `is_adhoc = 0` so they stay hidden
- *      from the picker / All Exercises until they graduate.
- *   2. Retroactive sweep of orphan ad-hoc training rows left over from prior Track Now
- *      cancel flows that deleted the session but not the parent training. Only ad-hoc
- *      rows with no surviving session reference are deleted; library trainings and
- *      ad-hoc rows still tied to a session are preserved.
- *
- * `training_exercise_table` rows attached to deleted training rows cascade via the
- * existing FK on `training_uuid`; no explicit cleanup is required there.
+ * v5 → v6: adds `exercise_table.is_adhoc` and sweeps orphan ad-hoc training rows left by
+ * older Track Now cancel flows. Both changes are non-destructive.
  */
 private const val FROM_VERSION = 5
 private const val TO_VERSION = 6

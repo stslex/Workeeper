@@ -27,27 +27,8 @@ import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
 import io.github.stslex.workeeper.core.ui.start_mode.model.StartCardModeUi
 
 /**
- * The start card's mode picker (home-start-card.md HS4/HS5): four rows, each the mode's
- * name over one line saying what is counted, the current one checked. The row is its own
- * explanation — there is deliberately no info button and no second sheet behind one.
- *
- * One sheet, two entry points: the card's head on Home and the Settings entry both open
- * exactly this window, which is why it lives in this shared module rather than in either
- * feature.
- *
- * **[selected] is nullable, and null means NOTHING is checked** — not "check the default".
- * The mode is persisted (HS6), so a host that opens this sheet before the preference's first
- * emission does not know the answer yet, and this sheet is a readout of that answer. Showing
- * WEEK checked there is a guess the user can neither see through nor trust: it is
- * indistinguishable from a real reading of WEEK, and it is wrong whenever the persisted mode
- * is one of the other three. No selection says the same thing the Settings row's blank
- * sub-line says — we do not know yet — and the tap that opened the sheet still did something.
- *
- * **Both hosts must pass their state through unaltered** — `SettingsScreen`'s
- * `DialogState.StartCardModePicker` branch and `HomeGraph`'s `BottomSheetState.StartModePicker`
- * branch. Only the first has a test pinning it (`SettingsStartCardModeSheetTest`); an elvis
- * reintroduced at the Home call site would currently red nothing, so it is named here, on the
- * component both of them call, rather than left to be rediscovered.
+ * The start card's mode picker (home-start-card.md HS4/HS5), shared by Home and Settings. GUARD:
+ * [selected] null means nothing is checked — both hosts pass their state through unaltered.
  */
 @Composable
 fun StartCardModeSheet(
@@ -65,10 +46,8 @@ fun StartCardModeSheet(
 }
 
 /**
- * The sheet's body, separate from the window so Paparazzi can photograph it —
- * `ModalBottomSheet` renders in its own window, outside the golden harness's model.
- *
- * [selected] carries the same contract as the window's: null checks nothing.
+ * The sheet's body, separate from the window so Paparazzi can photograph it. [selected] carries
+ * the same contract as the window's: null checks nothing.
  */
 @Composable
 fun StartCardModeSheetContent(
@@ -124,9 +103,7 @@ private fun ModeRow(
         }
         if (isSelected) {
             Icon(
-                // The check is the whole readout, and it is a glyph with no content
-                // description — so nothing but a tag makes "this row is checked" assertable.
-                // Read with `useUnmergedTree`: the row's `clickable` merges its descendants.
+                // The check has no content description; read the tag with `useUnmergedTree`.
                 modifier = Modifier
                     .padding(start = AppDimension.Space.sm)
                     .size(AppDimension.Icon.small)

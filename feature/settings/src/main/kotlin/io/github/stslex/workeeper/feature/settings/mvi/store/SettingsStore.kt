@@ -27,8 +27,8 @@ interface SettingsStore : Store<State, Action, Event> {
         val themeMode: ThemeMode,
 
         /**
-         * The Home start card's readout mode (HS5), or null until the preference's first
-         * emission — the row shows no sub-line rather than flashing a guessed default.
+         * The Home start card's readout mode, or null until the preference's first emission.
+         * GUARD: never substitute a default — a guess is indistinguishable from a real reading.
          */
         val startCardMode: StartCardModeUi?,
         val appVersion: String,
@@ -41,12 +41,7 @@ interface SettingsStore : Store<State, Action, Event> {
         val restoreProgress: RestoreProgressUi,
         val canRevertLastRestore: Boolean,
 
-        /**
-         * The Archive row's drawn sub-line, or null until the counts arrive.
-         *
-         * §26 draws it («4 упражнения · 1 тренировка»). B15 held it open on the premise that no data
-         * source existed; both counts have been `Flow<Int>` since the archive screen was built.
-         */
+        /** The Archive row's drawn sub-line, or null until the counts arrive. */
         val archivedCounts: ArchivedCountsUi?,
     ) : Store.State {
 
@@ -82,7 +77,6 @@ interface SettingsStore : Store<State, Action, Event> {
 
         sealed interface Click : Action {
 
-            /** The Appearance row for the Home start card — opens the shared mode sheet. */
             data object OnStartCardModeClick : Click
 
             /** Sheet dismissal — no haptic, per the cancel/dismiss convention. */

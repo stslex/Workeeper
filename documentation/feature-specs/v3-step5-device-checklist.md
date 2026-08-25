@@ -34,6 +34,15 @@ phone:
 | 16 × 5 | 80 | exercises |
 | 16 × 5, narrow rail | 80 | overall |
 
+Cross-checked at the mockup's **own** rail width — 412px, its 452 frame less two 20px gutters —
+where the four presets land on the same levels, so the table is not an artefact of the golden
+canvas. At 392dp the `exercises → overall` boundary sits at **24 exercises** (23 → exercises,
+24 → overall), far past any real session: overall is a **narrow-width** state, which is why the
+fifth row constrains the rail to 120dp instead of inflating the data. That 120dp is written
+twice with no shared symbol — `RailDetailTest.NARROW_WIDTH` and
+`RailGoldenTest.NARROW_RAIL_WIDTH` — and the two must move together, or the golden stops
+photographing the level `RailDetailTest` pins.
+
 - [ ] **A1 — sets level, few exercises.** Start a session with **2 exercises × 4 sets**.
       *Correct:* one segment per set, 8 in total, in 2 visibly separate groups. The gap between
       groups is clearly wider than the gap between sets inside a group. Every segment reads as
@@ -260,6 +269,8 @@ testable is stickiness across real lifecycle events.
 ## Recording the outcome
 
 For **A2, A3, A5 and A6** write down the verdict and any width at which a level flipped, even
-when nothing looked wrong. Those four are the evidence `MIN_SEGMENT_WIDTH`, `MIN_GROUP_WIDTH`
-and `RAIL_HEIGHT` are waiting on, and their KDoc points here by name. A pass with no number
-recorded leaves them exactly as unverified as they are today.
+when nothing looked wrong. Those four are the evidence `MIN_SEGMENT_WIDTH` (9dp),
+`MIN_GROUP_WIDTH` (11dp) and `RAIL_HEIGHT` (9dp) in `AppProgressRail.kt` are waiting on — all
+three were chosen by eye in a desktop browser, from the mockup's `railMode()`, on a frame that
+is a viewport cap rather than a device width. This file is their only evidence trail. A pass
+with no number recorded leaves them exactly as unverified as they are today.

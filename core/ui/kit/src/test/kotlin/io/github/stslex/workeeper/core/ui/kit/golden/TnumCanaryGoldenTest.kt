@@ -15,28 +15,8 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.EnumSource
 
 /**
- * Synthetic canary for O1 — deliberately not a design component.
- *
- * Archivo's digits are proportional at every width. In the bundled `wdth 116` cut `0` is 706
- * units wide and `1` is 652 — a 54-unit spread, where the `wdth 125` cut this scale used to
- * ship measured 769 and 683. A live timer set in it therefore *wobbles*: the whole string
- * re-flows every time a `1` ticks over to a `0` or back. That happens to sit exactly where the
- * redesign puts a locked wow-moment, so it is the last place a shifting baseline is
- * acceptable.
- *
- * `fontFeatureSettings = "tnum"` fixes it. The feature makes 20 substitutions — the ten
- * lining digits to their `.tf` forms and the ten oldstyle digits to `.tosf` — after which
- * every digit advances by the same amount — 700 units at `wdth 116`, 758 at 125. The trouble
- * with that fix is that it is invisible in review: a dropped `tnum` compiles, renders, and
- * looks fine on any string whose digits happen not to change.
- *
- * So this test renders `00:00` above `11:11` in the numeric family at the largest rung. With
- * tabular figures the two lines have identical advances and **the colons align vertically**.
- * Without them the `1`s are narrower, the second line contracts, and the colons visibly
- * separate — a pixel difference the gate cannot miss.
- *
- * Digits and a colon only: this is the numeric family, and O2 applies (see
- * `AppTypography.numericFontFamily`).
+ * Synthetic canary, not a design component: `00:00` over `11:11` in the numeric family, whose
+ * colons align only while `tnum` is applied. A dropped `tnum` is otherwise invisible in review.
  */
 internal class TnumCanaryGoldenTest {
 
@@ -55,13 +35,11 @@ private fun TabularFigureLadder() {
             .padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(0.dp),
     ) {
-        // The widest and the narrowest digit the family has, stacked. Any advance-width
-        // difference shows up as horizontal drift between the two colons.
+        // The widest and narrowest digits stacked; any advance difference drifts the colons.
         NUMERIC_LADDER.forEach { line ->
             Text(
                 text = line,
-                // Through `timer`, not through `numeric.display` directly: the alias is the
-                // name the session screen calls, so this is what has to stay tabular.
+                // Through `timer`, the alias the session screen calls, so it must stay tabular.
                 style = AppUi.typography.timer,
                 color = AppUi.colors.textPrimary,
             )

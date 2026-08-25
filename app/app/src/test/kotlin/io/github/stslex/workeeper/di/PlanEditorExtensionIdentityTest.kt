@@ -4,6 +4,7 @@ package io.github.stslex.workeeper.di
 import android.content.Context
 import dev.zacsweers.metro.asContribution
 import dev.zacsweers.metro.createGraphFactory
+import io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetime
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.plan_editor.di.PlanEditorGraph
 import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorStore.State
@@ -19,26 +20,12 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
 /**
- * Replaces the former feature-module `PlanEditorGraphBridgeTest` (a `@GraphExtension` cannot be created
- * standalone, so the assertion must run where the parent [AppGraph] is compiled — here, `:app`).
- *
- * plan-editor is the SECOND shape-B port and the first whose route arg is a **sealed parent**
- * (`Screen.PlanEditor`, with `Existing` / `Draft` subtypes) rather than a flat data class. Beyond the
- * standard claims it therefore pins shape B's defining property against a sealed arg: each extension
- * carries its OWN route arg into the Store's initial state, and two extensions built from the same
- * parent do not share it. The arg is asserted through `State.mode`, which is where
- * `Screen.PlanEditor.toInitialState()` lands it.
- *
- * NOT covered here, deliberately: two extensions built from DIFFERENT subtypes of the sealed parent.
- * `Screen.PlanEditor.Draft` takes an `ExerciseTypeUiModel`, which `core:ui:navigation` exposes only as
- * an `implementation` dep, so `:app`'s test source cannot construct one. Adding a module dependency to
- * reach it would change the build graph for a test — the two-`Existing` case below already pins
- * per-extension independence, and the subtype dimension adds no binding-resolution risk beyond it.
+ * Identity claims for the plan-editor `@GraphExtension`, whose route arg is a sealed parent read
+ * back through `State.mode`. See documentation/graph-extension-arc/HANDOFF.md.
  */
 internal class PlanEditorExtensionIdentityTest {
 
-    // The real parent graph provides Dispatchers.Main.immediate (DispatchersBindingContainer); a plain
-    // JVM test must install a Main dispatcher before the store constructs.
+    // GUARD: Store construction reads the parent graph's Main.immediate binding.
     @BeforeEach
     fun setUp() {
         Dispatchers.setMain(Dispatchers.Unconfined)
@@ -54,6 +41,8 @@ internal class PlanEditorExtensionIdentityTest {
             applicationContext = mockk<Context>(relaxed = true),
             appDatabase = mockk(relaxed = true),
             imageStorage = mockk(relaxed = true),
+            appScopeLifetime = AppScopeLifetime(),
+            databaseReplacement = mockk(relaxed = true),
         )
 
     private fun AppGraph.planEditor(screen: Screen.PlanEditor) =
@@ -78,7 +67,6 @@ internal class PlanEditorExtensionIdentityTest {
 
         val store = appGraph.planEditor(existing("ex-1")).planEditorStore
 
-        // Identity, not just non-null: the extension inherits the parent's app-scoped singletons.
         assertSame(
             appGraph.analyticsHolder,
             store.analyticsHolder,

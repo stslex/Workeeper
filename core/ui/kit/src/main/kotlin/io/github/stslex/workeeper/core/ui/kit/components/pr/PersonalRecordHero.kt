@@ -36,21 +36,8 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
 
 /**
- * `.prhero` (extraction §3.3) — the exercise-detail record block. Molten wash + 1dp molten
- * border on a 16dp shape; left column is the `.mdot` + `Рекорд` label over a meta line,
- * right side is the record value at [io.github.stslex.workeeper.core.ui.kit.theme.AppTypography.dataValue]
- * (26sp — the B1 rung), all in the record accent.
- *
- * The value renders `{weight}×{reps}` with the `×` in a **mono SemiBold span**, not in
- * Archivo: `numericFontFamily` takes digits and `: . , - + / %` only (spec §4 C2 — the cut
- * carries no `×` glyph), so the multiplication sign is painted by the family that has it.
- * The mockup draws the whole run in one face; the substitution is invisible at 26sp and is
- * the charset rule's cost. Weightless records render `{reps}` plus the reps unit in
- * `mono.caption` — the same value/unit split `AppNumberInput` uses.
- *
- * The meta line is [io.github.stslex.workeeper.core.ui.kit.theme.AppColors.textTertiary]
- * on the wash, exactly as drawn (`.meta` is not colour-overridden in the mockup) — the
- * pair is declared in the contrast map with this composable as evidence.
+ * Exercise-detail record block: record label over a meta line, record value in the accent.
+ * The `×` is drawn in a mono span because `numericFontFamily` carries no `×` glyph.
  */
 @Composable
 fun PersonalRecordHero(
@@ -150,10 +137,8 @@ private fun RecordValue(
     }
 }
 
-/** `.mdot` — 9px → the 8dp rung, filled `--molten-solid`. */
 private val MDOT_SIZE = 8.dp
 
-/** `U+00D7`, painted by the mono span — see the class KDoc for why not Archivo. */
 private const val MULTIPLY_SIGN = "×"
 
 @Preview

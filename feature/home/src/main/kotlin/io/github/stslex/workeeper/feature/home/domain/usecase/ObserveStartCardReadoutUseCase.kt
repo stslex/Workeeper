@@ -22,13 +22,8 @@ import kotlinx.datetime.TimeZone
 private const val TAG_IDLE_LIMIT = 3
 
 /**
- * Observes the selected mode's readout (home-start-card.md §3) — the mode's data, or the
- * mode's OWN empty state; never a fallback onto a sibling mode (HD2–HD4).
- *
- * «Неделя» combines two streams because its empty condition is not derivable from its
- * window: a week with zero sessions is still a readout («0», seven unfilled pills) when
- * history exists, and the empty state only when nothing has EVER finished — which is the
- * last-finished stream's null.
+ * Observes the selected mode's readout (home-start-card.md §3) — the mode's data or its own
+ * empty state, never a fallback onto a sibling mode (HD2–HD4).
  */
 @Inject
 @SingleIn(HomeScope::class)

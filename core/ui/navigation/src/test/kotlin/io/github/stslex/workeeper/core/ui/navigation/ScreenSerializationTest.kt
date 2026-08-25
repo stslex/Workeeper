@@ -12,17 +12,8 @@ import kotlin.reflect.KType
 import kotlin.reflect.full.primaryConstructor
 
 /**
- * Every concrete [Screen] leaf must be registered in [screenSerializersModule], or process death
- * crashes in production only — the back stack encodes through the module's `NavKey` open
- * polymorphism at SAVE time, and an unregistered leaf throws there and nowhere earlier. This test
- * turns that into a red unit test on every PR.
- *
- * The hierarchy is enumerated by reflection (`sealedSubclasses`, recursively), so a destination
- * added tomorrow is covered without this file changing. The vehicle is JSON rather than
- * `encodeToSavedState`: the SavedState encoder is `Bundle`-backed and needs a device or
- * Robolectric, while the defect this guards — a leaf missing from the module — throws in the
- * polymorphic serializer lookup, which is format-independent. The module under test is read off
- * [screenSavedStateConfiguration], the exact object production hands to `rememberNavBackStack`.
+ * Every concrete [Screen] leaf must be registered in [screenSerializersModule]; an unregistered
+ * one fails only at process-death save time. JSON stands in for the `Bundle`-backed encoder.
  */
 internal class ScreenSerializationTest {
 
@@ -34,8 +25,7 @@ internal class ScreenSerializationTest {
     fun `every concrete Screen leaf round-trips through the production registry`() {
         val leaves = sealedLeaves(Screen::class)
 
-        // Guard the discovery itself: an empty or shrunken enumeration would pass vacuously.
-        // 12 concrete destinations at the time of the Nav3 swap; growth is expected, loss is not.
+        // Guard the discovery itself: an empty enumeration would pass vacuously.
         assertTrue(leaves.size >= 12) { "Expected >= 12 Screen leaves, found ${leaves.size}: $leaves" }
 
         leaves.forEach { leaf ->
@@ -53,9 +43,7 @@ internal class ScreenSerializationTest {
             val screenSub = sub as KClass<out Screen>
             when {
                 screenSub.isSealed -> sealedLeaves(screenSub)
-                // Non-sealed marker interfaces (ScreenWithResult) sit inside the sealed tree;
-                // their concrete implementors are still sealed subtypes elsewhere in it, so
-                // skipping the marker loses nothing — every instantiable leaf is reached.
+                // Marker interfaces are reached as concrete leaves elsewhere in the tree.
                 screenSub.java.isInterface || screenSub.isAbstract -> emptyList()
                 else -> listOf(screenSub)
             }
@@ -70,10 +58,7 @@ internal class ScreenSerializationTest {
             ctor.callBy(args)
         }
 
-    /**
-     * Non-null samples even for nullable parameters — a `null` field encodes as an absent key
-     * in most formats and would let an asymmetric field slip through the round trip.
-     */
+    /** Non-null samples even for nullable params: a `null` field encodes as an absent key. */
     private fun sampleValue(type: KType): Any = when (type.classifier) {
         String::class -> "sample"
         Boolean::class -> true

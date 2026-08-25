@@ -14,20 +14,8 @@ import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import kotlinx.collections.immutable.toImmutableList
 
 /**
- * WEIGHTED / WEIGHTLESS, as one instance beside the rows whose shape it decides.
- *
- * **It lives here, with [PlanEditorBody], because the type and the sets are one edit.** The toggle
- * decides whether a row has a weight column at all, so a host that draws the rows and cannot reach
- * the toggle has to send the user somewhere else to change what those rows mean — which is the
- * split this placement closes. [PlanEditorBody] renders it; no host renders it directly, so there
- * is one instance and not a copy per host.
- *
- * **The control is [AppSegmentedControl] and this is the adapter onto it** (`v3-editors.md` ED5).
- * One of two things chosen from a track is what that component already is, so what is left here is
- * the enum ↔ index mapping and nothing about appearance: no fill, no outline, no colour. The
- * monochrome `.tabs` grammar the ruling names — track `surfaceTier1`, selected on `surfaceTier2` +
- * `slabtop`, labels `--max` / `--meta` — is the kit component's, so a second host of that grammar
- * cannot drift from this one.
+ * WEIGHTED / WEIGHTLESS, beside the rows whose shape it decides — the enum ↔ index adapter onto
+ * [AppSegmentedControl], which owns the appearance (`v3-editors.md` ED5).
  */
 @Composable
 internal fun TypeToggle(

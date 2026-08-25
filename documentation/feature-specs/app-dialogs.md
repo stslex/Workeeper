@@ -117,9 +117,18 @@ The reasoning is:
   Activity's `ViewModelStore`, the Repository replays from DataStore, and
   the user sees the `RestoreFailure` dialog. An in-memory queue would be
   wiped; a DataStore-backed flag survives.
-- **One writer.** `AppDialogRepositoryImpl` is the only writer for
-  `pending_*` keys. Dismiss is the only consumer-driven write; it goes
-  through the repository via `Action.RepoAction.Dismiss` → `AppDialogRepoHandler`.
+- **One writer, reached without the Store.** `AppDialogRepositoryImpl` is the
+  only writer for `pending_*` keys. Producers reach it through the
+  `@SingleIn(AppScope)` `AppDialogPublisher` facade (`AppDialogPublisherImpl` →
+  `repository.publish`); dismissal is the only consumer-driven write and goes
+  through `AppDialogObserver.acknowledgeReaction()` (`AppDialogObserverImpl` →
+  `repository.dismiss`). Both bypass the Store, so `Action.RepoAction.Publish`
+  and `Action.RepoAction.Dismiss` have **no production dispatcher** — only
+  `Observe` does, from `AppDialogStoreImpl`'s `initialActions`. The two
+  variants are kept as surface points for a future caller that needs the write
+  observable in `State` or routed through the Store's instrumentation, and
+  `AppDialogRepoHandlerTest` pins their routing so that path cannot regress
+  silently.
 - **Reactive view.** `repository.observe(): Flow<AppDialog?>` combines flag
   reads through `AppDialogResolver` and emits the single highest-priority
   variant. `AppDialogStore` collects this flow inside `Action.RepoAction.Observe` and
@@ -129,6 +138,31 @@ The reasoning is:
 Dismiss = clear flags in DataStore → repository flow re-emits → Store updates
 State → Host re-renders without the dialog (or with the next-priority dialog
 if multiple are pending).
+
+Restore terminals have one additional durable handoff. The verified restore
+finalizer cannot atomically edit restore-state DataStore and app-dialog
+DataStore, so it first performs one owner-checked restore-state edit that
+transitions `activeUndo`, writes `RestoreTerminal` to `terminalOutbox`, and
+removes the committed attempt. For an in-process rebuild, the new success
+outbox remains pending until the candidate completes fallible arming;
+`RestoreRecoveryCoordinator` then idempotently calls
+`AppDialogPublisher.publish(terminal.toDialog())` and acknowledges the outbox
+only after publication returns successfully. A crash before
+publication leaves the outbox; a crash after publication but before
+acknowledgement replays a deduplicated publish. No clean restore/rollback
+success is reported before the owner/pointer/outbox transition is durable.
+Failure of the app-dialog DataStore write remains `FinalizationPending` and
+keeps UI/worker admission closed. Failure of restore-state acknowledgement
+after a successful app-dialog write does not close admission again: the user
+terminal is already durable and the retained outbox is replay cleanup. Applied
+rollback-source collection remains authorized by the durable rollback finalizer
+and performed by best-effort deletion or the owner-aware sweep, not by this UI
+handoff.
+Every production terminal dialog carries that terminal owner. The app-dialog
+DataStore also records the no-backup installation epoch: a missing or mismatched
+epoch atomically clears all restore-related dialog keys before any pending
+restore dialog is decoded, so transferred or legacy tokenless UI cannot appear
+on another installation.
 
 ## Layering — data / domain / presentation
 
@@ -166,7 +200,7 @@ if multiple are pending).
 |     observe(): Flow<AppDialog?>   — repository.data.map(resolver)  |
 |     publish(dialog)                — atomic DataStore.edit write   |
 |     dismiss(dialog)                — atomic DataStore.edit clear   |
-|     recordUserChoice(choice)       — atomic edit, fed to observer  |
+|     (no user-choice record — the choice transport is transient)    |
 |                                                                    |
 |   AppDialogObserver (@SingleIn(AppScope))                          |
 |     observeUserActions(): Flow<AppDialogUserChoice>                |
@@ -194,11 +228,17 @@ Initial catalog (backup-recovery v1):
 |---|---|---|
 | `pending_restore_success` | `Boolean` | Primary flag for `RestoreSuccess`. |
 | `pending_restore_success_at_epoch_ms` | `Long` | Time of restore completion (for "Restored on …" body line). |
+| `pending_restore_success_has_previous` | `Boolean` | Whether the verified restore finalized with an active undo. |
+| `pending_restore_success_owner` | `String` | Terminal owner for replay deduplication and ABA-safe dismissal. |
 | `pending_restore_failure` | `Boolean` | Primary flag for `RestoreFailure`. |
 | `pending_restore_failure_reason` | `String` | `BackupErrorCode.name`. |
+| `pending_restore_failure_owner` | `String` | Terminal owner for replay deduplication and ABA-safe dismissal. |
 | `pending_undo_restore_confirmation` | `Boolean` | Primary flag for `UndoRestoreConfirmation` (user-initiated). |
 | `pending_undo_restore_confirmation_original_date_epoch_ms` | `Long` | Date of the data that will be restored on confirm. |
+| `pending_undo_restore_confirmation_owner` | `String` | Validated `UndoRef.owner`; required to resolve, deduplicate, or dismiss the confirmation. |
 | `pending_undo_restore_success` | `Boolean` | Primary flag for `UndoRestoreSuccess`. |
+| `pending_undo_restore_success_owner` | `String` | Terminal owner for replay deduplication and ABA-safe dismissal. |
+| `restore_dialog_install_epoch` | `String` | Epoch copied from the no-backup installation token; mismatch clears restore dialog state. |
 
 Each `AppDialog` variant maps to one boolean primary key plus zero or more
 typed metadata keys. Adding a new dialog type =
@@ -223,9 +263,14 @@ The pattern is documented in
 `app_dialogs_prefs.preferences_pb` and survive every app update. Adding new
 keys for new variants is safe (existing users simply have no value for the
 new key, which decodes as `null`/`false` — the correct "no pending dialog"
-default). **Renaming an existing key requires the deprecation path
-described in `AppDialogKeys.kt`'s class KDoc** — drop a rename and any user
-mid-flow loses their pending dialog on update.
+default). **Never rename an existing key** — drop a rename and any user
+mid-flow loses their pending dialog on update. If a key MUST be renamed:
+
+1. Add the new key under the new name; do not touch the old key.
+2. Write to BOTH keys; read prefers the new key and falls back to the old.
+3. Ship one release.
+4. Remove the old key in the next release, once telemetry confirms zero
+   reads of the old name.
 
 ## Priority ordering
 
@@ -262,7 +307,7 @@ dismissOnClickOutside)` to match:
 | `RestoreFailure` | blocked | blocked | clears flag | none — must tap OK |
 | `RestoreSuccess` | clears flag | blocked | clears flag | back = OK |
 | `UndoRestoreSuccess` | clears flag | blocked | clears flag | back = OK |
-| `UndoRestoreConfirmation` | clears flag | blocked | confirm clears flag and sets next-step flag / cancel clears flag | back = Cancel |
+| `UndoRestoreConfirmation` | clears matching owner | blocked | confirm keeps it pending until durable rollback finalization/outbox handoff; cancel clears only the matching owner | back = Cancel for that owner |
 
 `dismissOnClickOutside = false` everywhere is intentional: these dialogs are
 load-bearing, not casual. A taps-outside dismiss would invite the user to
@@ -272,6 +317,11 @@ persistent app-level dialog.
 Failure variants block back-press to force explicit acknowledgement. The
 trade-off is acceptable because there is exactly one button and the dialog
 is bounded — the user is one tap away from continuing.
+
+Undo confirmation dismissal is ABA-safe. The UI passes the exact dialog it
+rendered; the repository clears its keys only when the currently persisted
+owner equals `dialog.undoRef.owner`. A stale back/cancel reaction cannot erase
+a newer confirmation.
 
 ## AppDialog catalog (initial)
 
@@ -294,6 +344,7 @@ sealed interface AppDialog {
     }
 
     data class UndoRestoreConfirmation(
+        val undoRef: UndoRef,
         val originalDataDateEpochMs: Long,
     ) : AppDialog {
         override val id: String = "undo_restore_confirmation"
@@ -318,11 +369,9 @@ interface AppDialogPublisher {
      * Persist the dialog to DataStore so it surfaces on the next composition
      * of `AppDialogHost` (which may be after process restart).
      *
-     * `publish()` is **dedup-aware**: if the variant's primary flag is
-     * already set in DataStore, the call is a no-op. The implementation
-     * reads the current state inside the same `edit { ... }` transaction it
-     * would otherwise use to write, so the check-then-write is atomic
-     * against concurrent producers. Dialogs do not stack.
+     * `publish()` is **dedup-aware**: an already-pending logical dialog is a
+     * no-op. Undo confirmation identity includes its exact UndoRef owner.
+     * Check and write occur in the same `edit { ... }` transaction.
      */
     suspend fun publish(dialog: AppDialog)
 }
@@ -355,25 +404,31 @@ code paths. Concrete failure modes that the dedup guarantee catches:
 
 The implementation:
 
-1. Inside `dataStore.edit { prefs -> ... }`, reads the variant's primary
-   flag (`prefs[AppDialogKeys.pending<Name>Flag]`).
-2. If the flag is already `true` → returns without modifying any key in
-   the same `edit` block.
-3. If the flag is `false` → writes the primary flag and every metadata
-   key in the same `edit` block (atomic write-set).
+1. Inside one `dataStore.edit { prefs -> ... }`, reconcile the install epoch,
+   then compare the complete persisted identity of that variant.
+2. Restore success compares timestamp, previous-version availability and
+   terminal owner; restore failure compares reason and terminal owner;
+   undo-success compares terminal owner; undo confirmation compares exact
+   `UndoRef` owner.
+3. An exact match is an idempotent no-op. A changed payload or owner is a new
+   logical terminal and atomically replaces that variant's old fields.
+4. A missing, invalid or different persisted owner never blocks a valid owned
+   publish. The same edit repairs legacy/partial metadata without exposing an
+   ownerless confirmation.
+5. `dismiss(oldDialog)` clears only when the currently persisted complete
+   identity still matches. A stale rendered terminal therefore cannot erase a
+   newer same-variant terminal (the owner-aware ABA case).
 
-The trade-off this locks in: if two different producers publish the same
-variant with different payloads, the **first** payload wins and the
-second is silently dropped. This is intentional. The realistic failure
-mode for repeat publishes is "same upstream cause, same payload"; the
-alternative (overwrite-on-write) would let a second call mutate the
-dialog body under a user mid-read, which is worse UX than dropping the
-duplicate.
+Production terminal variants are full-payload-and-owner last-write-wins, with
+exact replay deduplication. Undo confirmation follows the same owner identity
+rule. This lets a later genuine terminal replace an older one without allowing
+the older rendered dialog to dismiss it.
 
 Dedup is **per-variant**, not global. `RestoreFailure` already pending
-does **not** block a `RestoreSuccess` publish; only the same variant's
-primary flag short-circuits. Across-variant prioritization is handled by
-the [priority ordering](#priority-ordering) read path, not by publish.
+does **not** block a `RestoreSuccess` publish; only an exact same-variant
+payload-and-owner replay short-circuits. Across-variant prioritization is
+handled by the [priority ordering](#priority-ordering) read path, not by
+publish.
 
 `AppDialogPublisher` is `@SingleIn(AppScope)`; the impl binding inside
 `feature/app-dialogs/impl` binds it to `AppDialogPublisherImpl`, which
@@ -393,13 +448,39 @@ interface AppDialogObserver {
     /**
      * Stream of user-action choices emitted by `ChooseHandler`. Each
      * emission carries the variant the user was looking at and the action
-     * they tapped. Backed by a DataStore-persisted "last choice" record
-     * that the host clears after the consumer has had a chance to react,
-     * so re-subscribing observers do not replay stale choices.
+     * they tapped. Hot, no replay.
      */
     fun observeUserActions(): Flow<AppDialogUserChoice>
+
+    /** Clears the dialog's `pending_*` flag. Called AFTER the side-effect. */
+    suspend fun acknowledgeReaction(dialog: AppDialog)
 }
 ```
+
+**The choice is a transient signal, not a persisted record.** It is never
+written to DataStore, so there is no replay-on-restart of a reaction: a
+crash mid-reaction leaves the `pending_*` flag set, the dialog re-shows on
+next launch and the user re-taps — idempotent by construction.
+
+**Acknowledgement is dismiss-after, with terminal handoff owning destructive
+success.** `acknowledgeReaction(dialog)` clears through the repository's
+owner-aware `dismiss`; consumers must never clear before their effect.
+
+For `UndoRestoreConfirmation` specifically:
+
+- Cancel and `UndoRestoreOutcome.NotCurrent` acknowledge the exact rendered
+  owner. An old reaction cannot clear a newer owner.
+- `IoFailure` keeps the confirmation pending for retry.
+- `Succeeded` does **not** acknowledge directly. The exact-ref rollback is
+  first committed and verified; atomic restore-state finalization writes the
+  `UndoSucceeded` outbox and clears only the matching active ref. Publishing
+  that terminal writes `pending_undo_restore_success` and clears the initiating
+  confirmation keys in the same app-dialog DataStore edit.
+- `RecoveryRequired` restarts into the sealed recovery surface without
+  claiming a clean success or dismissing the unresolved truth.
+
+This ordering forbids a success dialog followed by compensation and makes a
+publication/acknowledgement tear replayable.
 
 `AppDialogUserChoice(dialog: AppDialog, action: AppDialogUserAction)` is a
 data class in the api module. `AppDialogUserAction` enumerates the buttons
@@ -412,12 +493,13 @@ that any variant can present:
 | `UndoRestoreConfirmation` | Confirm → `ConfirmUndo`; Cancel → `Cancel` |
 | `UndoRestoreSuccess` | OK → `Acknowledge` |
 
-`AppDialogObserverImpl` is `@SingleIn(AppScope)` and is **backed by the repository**,
-not by the Activity-scoped Store. The rationale is scope: a `@SingleIn(AppScope)`
-in another feature (`feature/recovery`'s `RestoreDialogChoiceObserver`, for example) cannot
-inject the Activity-scoped Metro Store. The observer reads from
-the repository's persisted user-choice record, which is the same source
-the Store's `ChooseHandler` writes to. Single source of truth holds.
+`AppDialogObserverImpl` is `@SingleIn(AppScope)` and is **not** the Activity-scoped
+Store. The rationale is scope: a `@SingleIn(AppScope)` in another feature
+(`feature/recovery`'s `RestoreDialogChoiceObserver`, for example) cannot inject the
+Activity-scoped Metro Store. It owns the choice transport itself — a `replay = 0`
+`MutableSharedFlow` the Store's `ChooseHandler` emits into — and delegates
+`acknowledgeReaction` to the repository, the same `pending_*` writer everything
+else uses. Single source of truth holds.
 
 Consumers (one per producing feature) inject `AppDialogObserver` and
 launch a long-lived collector. They are responsible for branching on

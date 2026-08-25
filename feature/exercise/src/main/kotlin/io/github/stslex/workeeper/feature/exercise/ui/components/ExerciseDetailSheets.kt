@@ -16,15 +16,8 @@ import io.github.stslex.workeeper.feature.exercise.R
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
 
 /**
- * Content of the topbar `⋮` sheet — bare `.mitem` rows, `AppBottomSheet` wraps at the call
- * site so the drawing stays goldenable (the `ModalBottomSheet` window is out of Paparazzi's
- * one-window model, §10.4).
- *
- * The permanent-delete row renders only when [canPermanentlyDelete] — same condition the
- * v2.4 `DropdownMenu` applied. Edit and Archive carry no leading icon: [AppIcons] ships
- * only glyphs transcribed verbatim from the mockups, and the mockup draws no target for
- * this menu — inventing a pencil or box glyph would break that provenance rule. The
- * destructive row reuses the transcribed Trash.
+ * Content of the topbar `⋮` sheet; `AppBottomSheet` wraps at the call site so it stays goldenable.
+ * Edit and Archive carry no icon — [AppIcons] ships only glyphs transcribed from the mockups.
  */
 @Composable
 internal fun ExerciseDetailMenuSheetContent(

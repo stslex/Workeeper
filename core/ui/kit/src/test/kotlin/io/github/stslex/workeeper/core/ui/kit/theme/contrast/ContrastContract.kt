@@ -9,29 +9,17 @@ import io.github.stslex.workeeper.core.ui.kit.theme.contrast.SlotRole.FOREGROUND
 import io.github.stslex.workeeper.core.ui.kit.theme.contrast.SlotRole.SURFACE
 
 /**
- * The contrast contract: what each slot is, which pairs are real, and what each real pair owes.
- *
- * Three parts, and the third is the one that matters:
- *
- *  a. [ROLES] and [DECLARED] — the pairs that co-occur on screen, each with the type slot it is
- *     painted at and therefore the threshold it must meet.
- *  b. [EXCLUSIONS] — pairs that provably never co-occur, each with a reason.
- *  c. `ContrastGateTest.every_foreground_surface_pair_is_declared_or_excluded` — enumerates the
- *     **full cartesian product** and fails on anything that is in neither list.
- *
- * Without (c) this file is a comment: a new screen could introduce an unverified pairing and
- * nothing would notice. With it, adding a slot or painting an existing colour somewhere new
- * forces a decision here.
+ * The contrast contract: [ROLES] and [DECLARED] are the pairs that co-occur and what each owes,
+ * [EXCLUSIONS] the pairs that never do; `ContrastGateTest` fails on any pair in neither list.
  */
 internal object ContrastContract {
 
     /**
-     * Role per slot, derived from call sites. Every slot the reflection scanner finds must
-     * appear here — `ContrastGateTest` asserts the two sets match exactly, so a new slot cannot
-     * default into being ignored.
+     * Role per slot, derived from call sites. `ContrastGateTest` asserts this matches the slots
+     * the reflection scanner finds, so a new slot cannot default into being ignored.
      */
     val ROLES: Map<String, SlotRole> = rolesOf(
-        // -- surfaces ---------------------------------------------------------------------
+        // surfaces
         "surfaceTier0" to SURFACE,
         "surfaceTier1" to SURFACE,
         "surfaceTier2" to SURFACE,
@@ -47,19 +35,15 @@ internal object ContrastContract {
         "record.background" to SURFACE,
         "record.solid" to SURFACE,
         "inverseSurface" to SURFACE,
-        // v3 `--donefill` — the completed-content wash (session rebuild). Translucent, so its
-        // declared rows name explicit `over` backdrops like the molten wash does.
+        // v3 `--donefill` wash; translucent, so its declared rows name explicit `over` backdrops.
         "donefill" to SURFACE,
 
-        // -- foregrounds ------------------------------------------------------------------
+        // foregrounds
         "textPrimary" to FOREGROUND,
         "textSecondary" to FOREGROUND,
         "textTertiary" to FOREGROUND,
-        // v3 `dim`, aliased onto `meta` (AppColors.textDim). Same value as `textTertiary`, so
-        // it adds rows and no distinct measurements — the report's distinct-measurement counter
-        // keys on colour VALUES precisely so an alias cannot read as extra coverage. It is
-        // declared as its own slot rather than folded into `textTertiary` so that reinstating a
-        // real fourth tier fails here loudly instead of shipping unmeasured.
+        // v3 `dim`, aliased onto `meta`: its own slot rather than folded into `textTertiary` so
+        // that reinstating a real fourth tier fails here loudly instead of shipping unmeasured.
         "textDim" to FOREGROUND,
         "onAccent" to FOREGROUND,
         "inverseOnSurface" to FOREGROUND,
@@ -76,35 +60,18 @@ internal object ContrastContract {
         "record.textSecondary" to FOREGROUND,
         "record.onSolid" to FOREGROUND,
 
-        // `accent` is the primary-button fill *and* the link colour; `accentTintedForeground`
-        // paints the checkmark circle *and* the text on it. Both sides get enumerated.
+        // `accent` is a fill and a text colour; `accentTintedForeground` likewise. Both sides run.
         "accent" to BOTH,
         "accentTintedForeground" to BOTH,
 
-        // Not decoration: these outlines ARE the control when it is off/unfocused, so WCAG
-        // 1.4.11 non-text contrast applies at 3:1.
-        //
-        // Call sites RE-VERIFIED at this commit (the previous list had gone stale — it cited
-        // `ThemeSelector.kt:84` and `ExercisePickerSheet.kt:170`, and neither paints this slot
-        // any more). What is actually live:
-        //   - AppTextField.kt:57  unfocusedBorderColor — an enabled, operable field's boundary
-        //   - AppProgressRail.kt:201 the skipped-segment outline, which is the ONLY thing
-        //     distinguishing a skipped exercise from an unfilled one — informational, not trim
-        //   - AppCheckmarkButton.kt:51 the DISABLED branch (`if (enabled) accent else this`),
-        //     which 1.4.3/1.4.11 both carve out; it does not lower the requirement for the
-        //     three enabled sites above
-        //
-        // The dividing line against `borderSubtle` is not thickness, it is whether the stroke
-        // carries state. `borderSubtle` is the divider/trim slot (AppSection's rule, the bottom
-        // bar, AppTextField.kt:58's *disabled* border) and is decorative under §3.1. This one
-        // is never a divider.
+        // Not decoration: these outlines ARE the control when it is off/unfocused, so WCAG 1.4.11
+        // applies at 3:1. A stroke that carries no state is `borderSubtle` instead.
         "borderDefault" to FOREGROUND,
         "borderStrong" to FOREGROUND,
 
-        // -- not scored -------------------------------------------------------------------
+        // not scored
         "borderSubtle" to DECORATIVE,
-        // v3 `--grid` — the chart's gridlines, the mockup's own token (chart rebuild). Same
-        // class as `borderSubtle`: separates nothing, carries no state, §3.1 decorative.
+        // v3 `--grid` — chart gridlines. Same class as `borderSubtle`: §3.1 decorative.
         "grid" to DECORATIVE,
         "molten.border" to DECORATIVE,
         "record.border" to DECORATIVE,
@@ -113,18 +80,8 @@ internal object ContrastContract {
     )
 
     /**
-     * Builds [ROLES] from a list of entries and **fails at construction on a duplicate key**.
-     *
-     * `mapOf` resolves a repeated key last-write-wins, silently, so the map's behaviour is
-     * decided by declaration order and neither line reads like what actually happens. That is
-     * not hypothetical here: this file shipped `"borderDefault" to FOREGROUND` (with a reasoned
-     * 3:1 justification) above `"borderDefault" to DECORATIVE` (with none), and the net effect
-     * matched neither — the slot resolved to DECORATIVE and dropped out of the part-(c)
-     * enumeration entirely, while its five DECLARED rows went on being measured at 3:1. Both
-     * halves of the gate were green and the coverage was wrong.
-     *
-     * §3.3 requires the construction itself to reject this, not the two offending lines to be
-     * edited: "the next duplicate would arrive just as quietly".
+     * Builds [ROLES] and fails at construction on a duplicate key — `mapOf` would resolve one
+     * last-write-wins and silently drop the slot out of the gate's enumeration (§3.3).
      */
     private fun rolesOf(vararg entries: Pair<String, SlotRole>): Map<String, SlotRole> {
         val duplicates = entries
@@ -146,22 +103,12 @@ internal object ContrastContract {
         return entries.toMap()
     }
 
-    // Deliberately NOT applied to [DECLARED] or [EXCLUSIONS]. Checked, not assumed:
-    //
-    //  - [DECLARED] is keyed by the (foreground, background, typeSlot) TRIPLE, not the pair.
-    //    Several rows per pair is the design — "the type slot, not the pair, carries the
-    //    threshold" — and `textPrimary on surfaceTier0` is legitimately declared at both BODY
-    //    and TITLE. A pair-keyed guard rejects 14 correct rows; measured, by writing one.
-    //  - [EXCLUSIONS] is a list of (reason, predicate) with no key at all, so the last-write-
-    //    wins hazard cannot arise. Overlapping predicates are additive, not substitutive.
+    // Deliberately not applied to DECLARED (keyed by the fg/bg/slot TRIPLE, several rows per pair
+    // are the design) or EXCLUSIONS (a keyless list, so the last-write-wins hazard cannot arise).
 
     /**
-     * A foreground/surface pair that really co-occurs, and the type slot it is painted at.
-     *
-     * The type slot — not the pair — carries the threshold. `molten.text` on `surfaceTier1`
-     * measures 8.58 in dark either way, but the same number is a pass at [TypeSlot.TITLE] and
-     * would be a fail at [TypeSlot.CAPTION] if the ratio were 4.2. Declaring the slot is what
-     * makes the verdict meaningful.
+     * A foreground/surface pair that really co-occurs, and the type slot it is painted at — the
+     * slot, not the pair, carries the threshold.
      */
     data class Declared(
         val foreground: String,
@@ -169,17 +116,8 @@ internal object ContrastContract {
         val typeSlot: TypeSlot,
         val evidence: String,
         /**
-         * What a **translucent** [background] is composited over, named explicitly because
-         * guessing it is how a wash gets waved through.
-         *
-         * Measured: the molten wash over a dialog gives molten text 4.64:1 and over the page
-         * 4.33:1. Same wash, same text, one passes and one does not — and `PersonalRecordCard`
-         * is the page case. Assuming a single backdrop for every wash would have certified the
-         * failing site using the passing site's number.
-         *
-         * [PAGE] and [DIALOG] name the two real hosts; [DIALOG] is theme-dependent because
-         * production is (`val dialogBg = if (isDark) surfaceTier1 else surfaceTier2`, nine
-         * sites). Ignored when [background] is opaque.
+         * What a translucent [background] composites over, named explicitly because the same
+         * wash passes over a dialog and fails over the page. Ignored when [background] is opaque.
          */
         val over: String = PAGE,
     )
@@ -191,16 +129,11 @@ internal object ContrastContract {
     const val DIALOG: String = "@dialog"
 
     /**
-     * Everything the app actually paints, with the call site that proves it.
-     *
-     * Evidence is a real file, because "these two probably appear together" is how an
-     * accessibility gate turns into a fiction. Where a component is used on several surfaces
-     * (`AppButton.Tertiary` has ~28 call sites across four tiers) each tier gets its own row.
+     * Everything the app actually paints, with the call site that proves it. A component used on
+     * several surfaces gets one row per tier.
      */
     val DECLARED: List<Declared> = buildList {
-        // Body text on every surface it can land on. textPrimary/Secondary/Tertiary are read
-        // 95 / 45 / 55 times across every screen; treating them as universal is not laziness,
-        // it is what the call sites show.
+        // Body text on every surface it can land on — the call sites show it is universal.
         val everySurface = listOf(
             "surfaceTier0",
             "surfaceTier1",
@@ -212,42 +145,27 @@ internal object ContrastContract {
             add(Declared("textPrimary", surface, TypeSlot.BODY, "95 reads; row/card titles"))
             add(Declared("textSecondary", surface, TypeSlot.BODY, "45 reads; supporting text"))
             add(Declared("textTertiary", surface, TypeSlot.META, "55 reads; captions, meta"))
-            // The v3 `.tag` label is the one textTertiary read at the BODY rung (15sp) —
-            // same 4.5:1 the META row already pays, named so the slot reads truthfully.
+            // The v3 `.tag` label is the one textTertiary read at the BODY rung; same 4.5:1.
             add(Declared("textTertiary", surface, TypeSlot.BODY, "AppTag resting label"))
-            // v3 `dim`. Declared at CAPTION, not META: the mockups' smallest `dim` element is
-            // the 11px uppercase `.label`, and 11sp is the tightest rung this role reaches.
-            // Same threshold as META numerically (4.5:1), but the slot names what is actually
-            // painted, which is what makes the verdict re-checkable if the alias is ever undone.
+            // v3 `dim` at CAPTION, not META: its smallest element is the 11px uppercase label.
             add(Declared("textDim", surface, TypeSlot.CAPTION, "AppSectionHeader label, AppNumberInput unit"))
-            // The v3 editors put `dim` on two larger rungs, and they get their own rows for the
-            // same reason the `textTertiary` BODY row above has one: all three thresholds are
-            // 4.5:1, so nothing about the verdict changes, but the slot naming what is painted is
-            // what keeps the row re-checkable if the `dim`/`meta` alias is ever undone (§2.5).
+            // The v3 editors put `dim` on two larger rungs; same 4.5:1, named for what is painted.
             add(Declared("textDim", surface, TypeSlot.META, "AppFieldLabel — the drawn `.flabel`"))
             add(Declared("textDim", surface, TypeSlot.BODY, "AppTextField placeholder — `.tf.ghosty`"))
-            // The screen-title rung. Same colour, larger type, weaker obligation — declared so
-            // the distinction is visible rather than implied.
+            // The screen-title rung: same colour, larger type, weaker obligation.
             add(Declared("textPrimary", surface, TypeSlot.TITLE, "PastSessionHeader"))
         }
 
         // accent is v3 `max`: links, timers, chart strokes, selected icons.
         add(Declared("accent", "surfaceTier0", TypeSlot.BODY, "AboutBlock links, ChartCanvas"))
         add(Declared("accent", "surfaceTier1", TypeSlot.BODY, "HomeStartCard, ActiveSessionBanner"))
-        // Live sites: `RestoreProgressOverlay`'s accent label (a card that is `surfaceTier2` in
-        // light) and `ExercisePickerSheet`'s Checkbox `checkedColor` on a `surfaceTier2` sheet.
         add(Declared("accent", "surfaceTier2", TypeSlot.BODY, "RestoreProgressOverlay label, light theme"))
         add(Declared("accent", "surfaceTier3", TypeSlot.BODY, "ChartTooltipPopup value; AppNumberInput cursor"))
         add(Declared("accent", "surfaceTier4", TypeSlot.BODY, "TrainingRow active glyph"))
-        // RE-TARGETED (session rebuild C1): the timer left its tier1 header card — `.shead`
-        // is three texts directly on the page — and reads `textPrimary` through
-        // `AppTypography.timer` now, not `accent`. Same colour value in this palette; the row
-        // follows the slot the call site actually names.
+        // The timer reads `textPrimary` through `AppTypography.timer`, not `accent`.
         add(Declared("textPrimary", "surfaceTier0", TypeSlot.DISPLAY, "LiveWorkoutHeader timer (AppTypography.timer)"))
 
-        // The completed-content wash (v3 `--donefill`). Hosts the fin ordinal chip's
-        // checkmark — a state glyph, so 1.4.11's 3:1 — composited over the two card tiers a
-        // finished card can sit on: `sec` collapsed, `slab` when manually opened (lifted).
+        // The `--donefill` wash hosting the fin ordinal chip's checkmark, over both card tiers.
         add(
             Declared(
                 "textTertiary",
@@ -274,13 +192,8 @@ internal object ContrastContract {
         add(Declared("onAccent", "accent", TypeSlot.UI_COMPONENT, "AppFAB icon"))
         add(Declared("accent", "surfaceTier3", TypeSlot.UI_COMPONENT, "progress fill on track"))
 
-        // Selected states.
-        //
-        // Live consumer is `AppTagChip`, which drives this pair off one flag: `ChipShell` fills
-        // with `accentTintedBackground` when selected, `ChipLabel` paints the label
-        // `accentTintedForeground`. The nav bar adds no row — its two pairs are already declared
-        // at stricter slots in the every-surface loop above (`textPrimary` on `surfaceTier2`,
-        // `textTertiary` on `surfaceTier1`). Full derivation: §24, deletion perimeter.
+        // Selected states. `AppTagChip` drives both slots off one flag; the nav bar adds no row,
+        // its pairs are already declared at stricter slots above (§24).
         add(
             Declared(
                 "accentTintedForeground",
@@ -319,14 +232,9 @@ internal object ContrastContract {
 
         // Set-type chips. 11sp labels inside an 18dp chip — the smallest text in the app.
         add(Declared("setType.warmupForeground", "setType.warmupBackground", TypeSlot.CAPTION, "AppSetTypeChip W"))
-        // The WORK chip renders the mockup's `.tchip` treatment since the session rebuild —
-        // `textDim` on a transparent chip with a `borderDefault` ring — so the
-        // workForeground/workBackground pair has no call site any more; excluded below.
         add(Declared("setType.failureForeground", "setType.failureBackground", TypeSlot.CAPTION, "AppSetTypeChip F"))
         add(Declared("setType.dropForeground", "setType.dropBackground", TypeSlot.CAPTION, "AppSetTypeChip D"))
 
-        // warmupForeground drifted off its name: four of its five call sites are the amber
-        // "attention" tint on ordinary cards, not the chip.
         add(
             Declared(
                 "setType.warmupForeground",
@@ -336,8 +244,7 @@ internal object ContrastContract {
             ),
         )
 
-        // Destructive. Every site is body-size — a sheet menu item, a settings row, a dialog
-        // button label. This is the set of pairs that forced the dark rust value to move.
+        // Destructive. Every site is body-size, and this is the set that moved the dark rust value.
         listOf("surfaceTier0", "surfaceTier1", "surfaceTier2", "surfaceTier3", "surfaceTier4")
             .forEach { surface ->
                 add(
@@ -393,26 +300,18 @@ internal object ContrastContract {
                 "RestoreProgressOverlay, light theme",
             ),
         )
-        // `status.warning` has NO declared pair on purpose — it has no production reader at
-        // all. Its only one was the past-session skipped chip, retired by the v3 rebuild in
-        // favour of the session screen's alpha + strikethrough treatment. Declaring a pair
-        // for a slot nothing paints would be exactly the fiction this file warns against
-        // above ("these two probably appear together"). The slot is covered by an exclusion
-        // instead, which carries the obligation on whoever reintroduces it.
+        // `status.warning` has no declared pair because it has no production reader; the
+        // exclusion below carries the obligation on whoever reintroduces one.
 
-        // Molten — the PR accent. Its text only ever sits inside a card (`sec` inactive, `slab`
-        // active) or on the toast, which is also `slab`. That is why `field` and `raise` are
-        // excluded below rather than declared: it is a fact about the layout, not a hope.
+        // Molten — the PR accent. Its text only ever sits on a card tier or the toast, so `field`
+        // and `raise` are excluded below rather than declared.
         add(Declared("molten.text", "surfaceTier1", TypeSlot.CAPTION, "PR tag, 11sp"))
         add(Declared("molten.text", "surfaceTier2", TypeSlot.CAPTION, "PR tag on active card"))
         add(Declared("molten.text", "surfaceTier2", TypeSlot.BODY, "toast action button"))
         add(Declared("molten.onSolid", "molten.solid", TypeSlot.CAPTION, "PR pill label"))
         add(Declared("record.onSolid", "record.solid", TypeSlot.CAPTION, "PersonalRecordBadge"))
-        // PersonalRecordHero paints the wash and sits directly on the page (ExerciseDetailScreen
-        // is surfaceTier0), so PAGE — not a dialog — is the backdrop. This is the pair that
-        // moved the light molten text value. Three rungs on the same pair: the 26sp dataValue
-        // (TITLE, 3:1 — B1's rung), the 11sp uppercase `Рекорд` label (CAPTION, 4.5:1), and
-        // the historical BODY row kept as the strictest general declaration.
+        // PersonalRecordHero paints the wash directly on the page, so PAGE is the backdrop. This
+        // is the pair that moved the light molten text value; three rungs share it.
         add(
             Declared(
                 foreground = "record.textPrimary",
@@ -440,8 +339,7 @@ internal object ContrastContract {
                 over = PAGE,
             ),
         )
-        // The hero's meta line is plain `--meta` on the wash — the mockup does not override
-        // its colour (§3.3), and the wash is translucent enough that the page pair carries.
+        // The hero's meta line is plain `--meta` on the wash — the mockup does not override it.
         add(
             Declared(
                 foreground = "textTertiary",
@@ -470,16 +368,13 @@ internal object ContrastContract {
                 over = DIALOG,
             ),
         )
-        // FinishConfirmDialog's own surface: tier1 in dark, tier2 in light. Both declared,
-        // because the dialog idiom picks by theme and the gate measures both themes.
+        // FinishConfirmDialog's own surface: tier1 in dark, tier2 in light. The gate runs both.
         add(Declared("record.textPrimary", "surfaceTier1", TypeSlot.BODY, "FinishConfirmDialog heading, dark"))
         add(Declared("record.textSecondary", "surfaceTier1", TypeSlot.META, "FinishConfirmDialog rows, dark"))
         add(Declared("record.textPrimary", "surfaceTier2", TypeSlot.BODY, "FinishConfirmDialog heading, light"))
         add(Declared("record.textSecondary", "surfaceTier2", TypeSlot.META, "FinishConfirmDialog rows, light"))
 
-        // Control outlines. Declared on every tier: the theme selector sits on the settings
-        // page, the exercise picker checkbox on a sheet row, and a control can be dropped on
-        // any surface without anyone thinking to revisit this file.
+        // Control outlines, declared on every tier: a control can be dropped on any surface.
         everySurface.forEach { surface ->
             add(
                 Declared(
@@ -499,10 +394,8 @@ internal object ContrastContract {
             )
         }
 
-        // `accentTintedForeground` is v3 `max` — the same colour as textPrimary and accent.
-        // Nine of its thirteen reads are ordinary foreground text/icons on ordinary surfaces,
-        // so it is declared across the tiers rather than excluded. The report counts distinct
-        // measurements precisely so this aliasing does not read as extra coverage.
+        // `accentTintedForeground` is v3 `max`, the same value as textPrimary; most of its reads
+        // are ordinary foreground text, so it is declared across the tiers rather than excluded.
         everySurface.forEach { surface ->
             add(
                 Declared(
@@ -515,18 +408,8 @@ internal object ContrastContract {
         }
         add(Declared("molten.text", "molten.background", TypeSlot.CAPTION, "PR tag inside its own wash", over = PAGE))
 
-        // The PR set row: `.set.pr .field{background:var(--molten-bg)}` washes BOTH fields —
-        // and, since the session rebuild, the wash SUBSTITUTES the field tier the way the CSS
-        // draws it. The stacked-over-tier3 compromise this block used to record existed
-        // because the done ROW washed `surfaceTier4` behind the field and the CSS-faithful
-        // composite failed on that backdrop (3.99 dark). B7 removed the row wash; the real
-        // backdrops are now the card tiers — `sec`, and `slab` when the card is lifted.
-        //
-        // The value is `record.textPrimary` — the mockup's `.set.pr .data-l{color:molten}`,
-        // which B1 makes legal: at `dataValue` (26sp bold) the slot is TITLE and owes 3:1,
-        // not the 4.5:1 the old 19sp value could not pay in light. The unit stays `textDim`
-        // (CAPTION, 4.5) — record content painted outside the molten namespace, which the
-        // narrowed wash exclusion below carves out.
+        // The PR set row: the molten wash SUBSTITUTES the field tier, so the real backdrops are
+        // the card tiers. The value is `record.textPrimary` at TITLE (3:1); the unit stays dim.
         listOf("surfaceTier1" to "resting card", "surfaceTier2" to "lifted card").forEach { (tier, host) ->
             add(
                 Declared(
@@ -547,8 +430,7 @@ internal object ContrastContract {
                     over = tier,
                 ),
             )
-            // The done field (B7): `.set.done .field{background:var(--donefill)}`, value
-            // promoted to max, unit still dim — same two backdrops as the record wash.
+            // The done field: value promoted to max, unit still dim — same two backdrops.
             add(
                 Declared(
                     foreground = "textPrimary",
@@ -570,17 +452,14 @@ internal object ContrastContract {
             )
         }
 
-        // The resting value: the mockup paints `--idle`, whose light value sits at 3.11:1 on
-        // the field — quantisation-noise distance from the TITLE line — and whose dark value
-        // is `meta`'s hex. Deviation of the §2.4 kind: the pending value reads the meta value
-        // in both themes. Declared at TITLE for the evidence trail; the pair was already
-        // covered at META.
+        // The resting value deviates from the drawn `--idle`: it reads the meta value in both
+        // themes, declared at TITLE for the evidence trail.
         add(Declared("textTertiary", "surfaceTier3", TypeSlot.TITLE, "AppNumberInput resting value (dataValue)"))
     }
 
     /**
-     * Pairs that never co-occur, each with the reason. Rules cover families; a rule that stops
-     * being true shows up as a *declared* pair failing, not as a silent pass.
+     * Pairs that never co-occur, each with the reason. A rule that stops being true shows up as
+     * a declared pair failing, not as a silent pass.
      */
     data class Exclusion(val reason: String, val matches: (fg: String, bg: String) -> Boolean)
 

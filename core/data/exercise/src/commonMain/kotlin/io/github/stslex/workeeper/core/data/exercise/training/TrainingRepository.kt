@@ -12,24 +12,15 @@ interface TrainingRepository {
     suspend fun updateTraining(training: TrainingChangeDataModel)
 
     /**
-     * [updateTraining] plus every listed exercise's `plan_sets`, as **one transaction** —
-     * one Save on the training editor is one act, so a failure anywhere leaves nothing:
-     * no training row without its plans, no first plan without the second.
-     *
-     * The plan writes land AFTER the exercise sync inside the same transaction, because the
-     * sync truncates and re-inserts the `training_exercise_table` rows the plan update needs.
-     * The ordering is the implementation's to hold, not the caller's to remember.
+     * [updateTraining] plus every listed exercise's `plan_sets`, as one transaction.
+     * Plan writes land after the exercise sync, which truncates and re-inserts the plan rows.
      */
     suspend fun updateTrainingWithPlans(
         training: TrainingChangeDataModel,
         plans: List<ExercisePlanWrite>,
     )
 
-    /**
-     * Lightweight name-only update used by the v2.3 Live workout editable header. Side-steps
-     * [updateTraining]'s exercise/label sync so a header tap does not retouch
-     * `training_exercise_table` or `training_tag_table` rows for the active session's plan.
-     */
+    /** Name-only update; skips [updateTraining]'s exercise/label sync for the active plan. */
     suspend fun updateName(uuid: String, name: String)
 
     suspend fun removeTraining(uuid: String)
@@ -52,46 +43,24 @@ interface TrainingRepository {
 
     suspend fun countSessionsUsing(trainingUuid: String): Int
 
-    /**
-     * Paged stream of active (non-archived, non-adhoc) trainings with derived stats:
-     * exercise count, last finished session, current in-progress session for that
-     * training. Used by the Trainings tab.
-     */
+    /** Paged active (non-archived, non-adhoc) trainings with derived stats. Trainings tab. */
     fun pagedActiveWithStats(
         filterTagUuids: Set<String>,
     ): Flow<PagingData<TrainingListItem>>
 
-    /**
-     * Hot stream of recent template trainings, ordered by `lastSessionAt DESC` (trainings
-     * never used come last, sorted by name). Powers the Home training-picker bottom sheet.
-     */
+    /** Recent templates by `lastSessionAt DESC`, never-used last by name. Home picker sheet. */
     fun observeRecentTemplates(limit: Int): Flow<List<TrainingListItem>>
 
-    /**
-     * Hot stream of the single most forgotten template — «Забытая тренировка»: the
-     * non-adhoc, non-archived training whose last finished session is furthest in the past,
-     * with never-run templates ranking first (HD1). Null when no template exists at all.
-     */
+    /** Most forgotten template — oldest last session, never-run first; null when none exists. */
     fun observeMostForgottenTemplate(): Flow<TrainingListItem?>
 
-    /**
-     * Bulk-archive a batch of trainings in a single transaction. Trainings with an active
-     * (in-progress) session are excluded; the returned [BulkArchiveOutcome] reports how
-     * many were archived and which got skipped.
-     */
+    /** Bulk-archive in one transaction; trainings with an in-progress session are skipped. */
     suspend fun bulkArchive(uuids: Set<String>): BulkArchiveOutcome
 
-    /**
-     * Bulk-permanent-delete trainings. The caller is expected to pre-validate that none
-     * of the trainings have any session history (active or finished) — the DAO will
-     * raise if a foreign key violation surfaces.
-     */
+    /** Bulk-permanent-delete; caller must pre-validate — the DAO raises on an FK violation. */
     suspend fun bulkPermanentDelete(uuids: Set<String>)
 
-    /**
-     * True when every training in [uuids] has zero finished sessions and no in-progress
-     * session. Drives the enabled/disabled state of the bulk-delete action.
-     */
+    /** True when every training in [uuids] has no finished and no in-progress session. */
     suspend fun canBulkPermanentDelete(uuids: Set<String>): Boolean
 
     /** One exercise's plan, addressed by uuid — [updateTrainingWithPlans]'s unit of write. */

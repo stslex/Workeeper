@@ -30,14 +30,7 @@ interface StoreConsumer<S : State, A : Store.Action, in E : Event> {
 
     suspend fun updateStateImmediate(state: S)
 
-    /**
-     * Launches a coroutine and catches exceptions. The coroutine is launched on the default dispatcher..
-     * @param onError - error handler
-     * @param onSuccess - success handler
-     * @param action - action to be executed
-     * @return Job
-     * @see Job
-     * */
+    /** Launches a coroutine on the Store scope, routing throwables to [onError]. */
     fun <T> launch(
         onError: suspend (Throwable) -> Unit = {},
         onSuccess: suspend CoroutineScope.(T) -> Unit = {},
@@ -46,28 +39,14 @@ interface StoreConsumer<S : State, A : Store.Action, in E : Event> {
         action: suspend CoroutineScope.() -> T,
     ): Job
 
-    /**
-     * Launches a coroutine and catches exceptions. The coroutine is launched on the default dispatcher..
-     * @param onError - error handler
-     * @param onSuccess - success handler
-     * @param action - action to be executed
-     * @return Job
-     * @see Job
-     * */
+    /** Launches a coroutine on the default dispatcher, routing throwables to [onError]. */
     fun <T> launchDefault(
         onError: suspend (Throwable) -> Unit = {},
         onSuccess: suspend CoroutineScope.(T) -> Unit = {},
         action: suspend CoroutineScope.() -> T,
     ): Job
 
-    /**
-     * Launches a flow and collects it in the screenModelScope. The flow is collected on the default dispatcher.
-     * @param onError - error handler
-     * @param each - action for each element of the flow
-     * @return Job
-     * @see Flow
-     * @see Job
-     * */
+    /** Collects [flow] on the Store scope, routing throwables to [onError]. */
     fun <T> launch(
         flow: Flow<T>,
         onError: suspend (cause: Throwable) -> Unit = {},

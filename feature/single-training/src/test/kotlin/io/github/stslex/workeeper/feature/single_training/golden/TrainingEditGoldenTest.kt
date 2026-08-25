@@ -18,33 +18,8 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.EnumSource
 
 /**
- * The training editor's frame — this module's first golden.
- *
- * The rulings that land on a static frame of this screen and have no other instrument:
- *
- *  - **Each exercise is a card, COLLAPSED by default (ED14)** — ordinal, type glyph, name,
- *    `.plan-line` summary, drag handle, `✕`, and **no plan rows** until a card is opened.
- *    [editCollapsed] holds both collapsed states at once: one card with a summary, one with
- *    the italic «плана пока нет».
- *  - **The expanded card carries the plan body and NO TYPE TOGGLE** ([editExpanded]) — the
- *    rows, the `.setbar` foot and the lifted `.card.open` surface, with `onTypeChange = null`
- *    keeping the toggle out: type belongs to the exercise, not to a training-scoped editor.
- *  - **`.addex` is the add action, and it is not in the section header** (§26; extraction §7.6).
- *  - **One drag handle, not two arrows** (§26, "Reorder is long-press drag").
- *  - **Save is enabled with an empty name** (§26, "Save is never disabled") — and on THIS screen
- *    a save predicate would hide a second branch too, the empty-exercise-list snackbar.
- *
- * [editEmpty] is not a decoration: it is the only frame in which `.addex` stands alone, which is
- * the state a user starting a training is actually in, and it is the frame that shows Save enabled
- * with a blank name and an empty list at once — both of a save predicate's conjuncts false.
- *
- * Russian, deliberately. The strings this screen carries — the `.addex` label, the section
- * count, the row's «Изменить план» — are ones the shipped app renders in Russian, and the
- * harness's default `en` frame cannot fail on a Russian-only defect. The set-type marks are the
- * standing witness for why that matters (`SetTypeMarkGoldenTest`).
- *
- * Out of model, per the harness KDoc: the exercise-picker sheet and every dialog this screen opens
- * render in their own windows and stay on manual verification.
+ * The training editor's frame — ED14's collapsed cards, the expanded card with no type toggle,
+ * `.addex`, and Save enabled on an empty form. Russian; sheets and dialogs are out of model.
  */
 internal class TrainingEditGoldenTest {
 

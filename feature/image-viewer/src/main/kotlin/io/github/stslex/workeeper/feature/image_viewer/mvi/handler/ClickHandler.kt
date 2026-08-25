@@ -29,11 +29,8 @@ internal class ClickHandler @Inject constructor(
     }
 
     /**
-     * Guarded as well as hidden. `editable` already decides whether the `⋮` is drawn, so this
-     * branch is unreachable through the UI — and that is exactly the shape B23 records as a state
-     * a test can build and production cannot. It is here because the alternative is a
-     * representable state (`Menu` on a non-editable route) whose only defence is a composable
-     * remembering to check a flag, and the sheet it opens stages edits the caller cannot save.
+     * GUARD: keep this check even though `editable` already hides the `⋮` — a `Menu` sheet on a
+     * non-editable route stages edits the caller cannot save.
      */
     private fun processMenuClick() {
         if (state.value.editable.not()) return
@@ -46,13 +43,8 @@ internal class ClickHandler @Inject constructor(
     }
 
     /**
-     * Both verbs pop with a REQUEST and perform nothing (§26, "The image moves into the pushed
-     * top bar"). The editor owns the source sheet, the camera permission, the temp URI and the
-     * uncommitted `PendingImage`; moving any of that here to save one hop would put the picture's
-     * lifecycle in two places.
-     *
-     * The sheet is closed in the SAME transition as the pop, not left for the dismiss to catch —
-     * a sheet that outlives its screen is what `bottomSheetState` fields are for.
+     * Both verbs pop with a REQUEST and perform nothing; the editor owns the image lifecycle. The
+     * sheet closes in the same transition as the pop, never left for the dismiss to catch.
      */
     private fun processRequest(request: ExerciseImageRequest) {
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
@@ -68,9 +60,6 @@ internal class ClickHandler @Inject constructor(
     private fun processDoubleTap() {
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
         updateState { current ->
-            // Toggle: any zoomed-in scale collapses to MIN_SCALE; otherwise jump to the
-            // double-tap target. Pan resets only when collapsing — otherwise the target
-            // stays centered (offset 0,0) so the user can pan from a known origin.
             if (current.scale > State.MIN_SCALE) {
                 current.copy(
                     scale = State.MIN_SCALE,

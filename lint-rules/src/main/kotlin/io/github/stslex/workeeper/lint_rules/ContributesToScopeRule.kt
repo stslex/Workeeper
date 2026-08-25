@@ -12,33 +12,8 @@ import org.jetbrains.kotlin.psi.KtAnnotationEntry
 import org.jetbrains.kotlin.psi.KtClassOrObject
 
 /**
- * App-Scope Collapse Step 3 (Phase PF commit 0) false-green guard for Metro `@BindingContainer`
- * contributions — the provides-factory twin of [ContributesBindingScopeRule].
- *
- * The provides-factory mechanic (`@Provides` inside a public `@BindingContainer @ContributesTo(scope)`)
- * lets Metro own factory bindings cross-module. Aggregation is decided ENTIRELY by the container's
- * `@ContributesTo` scope argument — and, like `@ContributesBinding`, Metro validates nothing at the call
- * site: `@ContributesTo(KClass<*>)` accepts ANY class. A container contributed to the WRONG scope compiles
- * GREEN and silently fails to aggregate into the app-scope `AppGraph`
- * (`@DependencyGraph(scope = AppScope::class)`); its `@Provides` bindings are simply absent at runtime.
- *
- * This was verified empirically on Metro 1.1.1 (PF.0 gate): a `@BindingContainer @ContributesTo` to a
- * feature scope OR to Metro's built-in `dev.zacsweers.metro.AppScope` (a DIFFERENT class from the project
- * token, same simple name) both compile with zero diagnostic when no reader forces resolution — a
- * silent-absence false-green. (The duplicate-binding failure mode IS compile-caught — `[Metro/DuplicateBinding]`
- * — so it needs no rule; only the scope-aggregation modes are silent.)
- *
- * This rule fails any `@BindingContainer` whose `@ContributesTo` scope argument is not the project `AppScope`
- * (`io.github.stslex.workeeper.core.core.di.AppScope`). Three failure modes are caught:
- *  - a `@BindingContainer` with NO `@ContributesTo` at all (orphan — never aggregated, silently inert);
- *  - a `@ContributesTo` whose scope simple-name is not `AppScope` (a feature scope, a typo, another marker); and
- *  - `AppScope` imported from `dev.zacsweers.metro` — Metro's built-in app scope (wrong class, same simple
- *    name). PSI has no type resolution, so the import origin is the discriminator.
- *
- * The rule only applies to `@BindingContainer`; every other declaration is ignored. It deliberately does
- * NOT check `@SingleIn` placement on the inner `@Provides` — lifetime (scoped vs factory-per-request) is a
- * separate, non-aggregation concern; only the container's `@ContributesTo` decides whether the app graph
- * ever sees the bindings.
+ * Fails any `@BindingContainer` not `@ContributesTo` the PROJECT `AppScope` (orphan included) — a
+ * wrong scope compiles green and never aggregates. See app-scope-collapse-execution-spec.md.
  */
 class ContributesToScopeRule(
     config: Config = Config.empty,
@@ -103,8 +78,7 @@ class ContributesToScopeRule(
             return
         }
 
-        // Simple name is AppScope — but reject Metro's BUILT-IN AppScope (a different class from the
-        // project token the AppGraph is scoped to). PSI can't resolve the type, so check the import.
+        // Reject Metro's built-in AppScope: same simple name, different class from the project.
         if (classOrObject.importsMetroAppScope()) {
             report(
                 CodeSmell(
@@ -118,10 +92,7 @@ class ContributesToScopeRule(
         }
     }
 
-    /**
-     * Simple name of the first scope class-literal argument (`@ContributesTo(AppScope::class)` →
-     * `"AppScope"`; `some.pkg.WrongScope::class` → `"WrongScope"`), or null if no argument is present.
-     */
+    /** Simple name of the first scope class-literal argument, or null when absent. */
     private fun KtAnnotationEntry.firstScopeArgumentSimpleName(): String? {
         val argument = valueArguments.firstOrNull()?.getArgumentExpression() ?: return null
         return argument.text
@@ -131,7 +102,7 @@ class ContributesToScopeRule(
             .takeIf { it.isNotEmpty() }
     }
 
-    /** True when this declaration's file explicitly imports Metro's built-in `dev.zacsweers.metro.AppScope`. */
+    /** True when this file imports Metro's built-in `dev.zacsweers.metro.AppScope`. */
     private fun KtClassOrObject.importsMetroAppScope(): Boolean =
         containingKtFile.importDirectives.any {
             it.importedFqName?.asString() == METRO_APP_SCOPE_FQN
