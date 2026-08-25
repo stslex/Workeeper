@@ -12,6 +12,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.stslex.workeeper.core.data.database.AppDatabase
 import io.github.stslex.workeeper.core.ui.test.annotations.Regression
 import io.github.stslex.workeeper.feature.recovery.RecoveryActivity
+import io.github.stslex.workeeper.feature.recovery.RecoveryScenario
 import io.github.stslex.workeeper.harness.MetroTestRule
 import org.junit.Rule
 import org.junit.Test
@@ -31,12 +32,24 @@ internal class RecoveryActivityDbFreeTest {
     )
 
     @Test
-    fun recoveryActivityLaunchesWithoutOpeningTheDatabase() {
-        ActivityScenario.launch(RecoveryActivity::class.java).use { scenario ->
-            scenario.moveToState(Lifecycle.State.RESUMED)
-            // GUARD: the lifecycle walk never reads the `by lazy` deps — warmDeps is what
-            // forces both collaborators through their constructors inside the tripwire window.
-            scenario.onActivity { activity -> activity.warmDeps() }
+    fun recoveryActivityScenariosLaunchWithoutOpeningTheDatabase() {
+        val application = ApplicationProvider.getApplicationContext<Application>()
+        val intents = listOf(
+            RecoveryScenario.intent(application, RecoveryScenario.StartupMigration),
+            RecoveryScenario.intent(application, RecoveryScenario.InterruptedRestore),
+            RecoveryScenario.intent(
+                context = application,
+                scenario = RecoveryScenario.InterruptedRestore,
+                allowContinue = true,
+            ),
+        )
+        intents.forEach { recoveryIntent ->
+            ActivityScenario.launch<RecoveryActivity>(
+                recoveryIntent,
+            ).use { activityScenario ->
+                activityScenario.moveToState(Lifecycle.State.RESUMED)
+                activityScenario.onActivity { activity -> activity.warmDeps() }
+            }
         }
     }
 

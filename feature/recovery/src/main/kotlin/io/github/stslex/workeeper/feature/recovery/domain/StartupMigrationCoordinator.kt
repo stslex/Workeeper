@@ -53,6 +53,10 @@ class StartupMigrationCoordinator @Inject internal constructor(
     var lastDecision: StartupCheck? = null
         private set
 
+    @Volatile
+    var lastRecoveryExportOutcome: RecoveryExportOutcome? = null
+        private set
+
     suspend fun checkAndRouteOrProceed(): StartupCheck {
         val decision = computeDecision()
         lastDecision = decision
@@ -63,7 +67,8 @@ class StartupMigrationCoordinator @Inject internal constructor(
         val liveDb = liveDatabaseLocator.liveDatabaseFile()
         if (!liveDb.exists()) {
             // Fresh install — Room creates the db at the current schema on first DAO call.
-            snapshotProvider.deletePreMigrationBackup()
+            lastRecoveryExportOutcome = null
+            snapshotProvider.deleteRecoveryExport()
             return StartupCheck.Proceed
         }
 
@@ -81,7 +86,8 @@ class StartupMigrationCoordinator @Inject internal constructor(
 
         return when {
             detectedVersion == APP_DATABASE_VERSION -> {
-                snapshotProvider.deletePreMigrationBackup()
+                lastRecoveryExportOutcome = null
+                snapshotProvider.deleteRecoveryExport()
                 StartupCheck.Proceed
             }
 
@@ -93,7 +99,8 @@ class StartupMigrationCoordinator @Inject internal constructor(
 
             snapshotProvider.hasMigrationPath(detectedVersion, APP_DATABASE_VERSION) -> {
                 // Migration is registered; drop any stale Scenario-2 snapshot from a prior run.
-                snapshotProvider.deletePreMigrationBackup()
+                lastRecoveryExportOutcome = null
+                snapshotProvider.deleteRecoveryExport()
                 StartupCheck.Proceed
             }
 
@@ -111,9 +118,21 @@ class StartupMigrationCoordinator @Inject internal constructor(
         @Suppress("UnusedParameter") liveDb: File,
     ): StartupCheck.RouteToRecovery {
         // Best-effort preserve of the live db before anything can mutate it (WAL recovery).
-        val preserved = snapshotProvider.preserveDbBeforeMigration()
-        if (preserved == null) {
-            logger.w { "preserveDbBeforeMigration returned null; recovery export will be empty" }
+        val preserved = runCatching { snapshotProvider.preserveDbBeforeMigration() }
+        lastRecoveryExportOutcome = when (val result = preserved.getOrNull()) {
+            is BackupResult.Success -> RecoveryExportOutcome.Available
+            is BackupResult.Failure -> {
+                logger.w { "recovery export unavailable: ${result.error}" }
+                RecoveryExportOutcome.Failed
+            }
+
+            null -> {
+                logger.e(
+                    preserved.exceptionOrNull() ?: IllegalStateException("unknown export failure"),
+                    "recovery export creation failed",
+                )
+                RecoveryExportOutcome.Failed
+            }
         }
         reporter.recordStartupMigrationFailure(
             exception = null,

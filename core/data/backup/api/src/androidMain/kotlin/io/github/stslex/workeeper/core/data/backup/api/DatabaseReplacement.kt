@@ -2,90 +2,84 @@
 package io.github.stslex.workeeper.core.data.backup.api
 
 import io.github.stslex.workeeper.core.data.backup.api.error.BackupError
+import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreOwnerId
+import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreSourceRef
+import io.github.stslex.workeeper.core.data.backup.api.restore.UndoRef
 import java.io.File
 
-/**
- * Runtime-owned live-database replacement transaction. Restore source ownership transfers at
- * submission; [DatabaseReplacementEffects.None] is valid, so do not assume caller cleanup.
- */
+/** Runtime-owned live-database replacement transaction. Every operation has one unique owner. */
 interface DatabaseReplacement {
 
-    /** Validates and stages [source], then replaces the live database through the runtime. */
+    /** Ownership transfers into no-backup storage before the first suspension. */
     suspend fun restoreFromSnapshot(
         source: File,
-        effects: DatabaseReplacementEffects = DatabaseReplacementEffects.None,
+        effects: DatabaseReplacementEffects,
     ): DatabaseReplacementResult
 
-    /** Replaces the live database from the selected rollback source. */
-    suspend fun rollbackToPreRestoreBackup(
-        /** `null` selects the canonical undo slot; otherwise the exact journal source is used. */
-        sourcePath: String? = null,
-        effects: DatabaseReplacementEffects = DatabaseReplacementEffects.None,
+    /** Applies exactly [sourceRef]; positional or arbitrary-path rollback is not representable. */
+    suspend fun rollbackFromUndo(
+        sourceRef: UndoRef,
+        effects: DatabaseReplacementEffects,
     ): DatabaseReplacementResult
 }
 
-/**
- * Caller effects for one transaction. The runtime invokes `onBeforeMutation` and exactly one
- * terminal method under serialization. Effects are idempotent and may be [None].
- */
+/** Caller bookkeeping invoked under runtime serialization. No production no-op owner exists. */
 interface DatabaseReplacementEffects {
 
-    /** Caller-defined attempt identity for any durable bookkeeping. */
-    val attemptId: String
+    val attemptId: RestoreOwnerId
 
-    /** Pre-mutation preparation; [rollbackSnapshotPath] identifies the reserved snapshot. */
-    suspend fun onBeforeMutation(rollbackSnapshotPath: String) {}
+    /** After reversible quiescence, Restore receives undo/source; rollback receives its exact ref. */
+    suspend fun onBeforeMutation(
+        undoRef: UndoRef,
+        restoreSourceRef: RestoreSourceRef?,
+    )
 
-    /** Records durable commit bookkeeping before rollback-source consumption. */
-    suspend fun onMutationCommitted() {}
+    /** Records durable commit bookkeeping before any best-effort file deletion. */
+    suspend fun onMutationCommitted()
+
+    /** Re-journals an in-process restore compensation under its own exact rollback owner. */
+    suspend fun onBeforeCompensation(
+        rollbackOwner: RestoreOwnerId,
+        appliedRef: UndoRef,
+    )
+
+    /** Records the exact compensation rollback as committed. */
+    suspend fun onCompensationCommitted(rollbackOwner: RestoreOwnerId)
 
     suspend fun onRejectedBeforeMutation(error: BackupError) {}
 
-    /** Terminal: the REQUESTED operation committed. */
+    /** Terminal: the requested operation committed and mandatory state is durable. */
     suspend fun onCommitted() {}
 
-    /** Terminal recovery onto pre-operation data; availability must use actual canonical state. */
     suspend fun onRecoveredByRollback(error: BackupError) {}
 
-    /** Terminal post-PONR failure; preserve recovery assets. */
     suspend fun onFailedAfterMutation(error: BackupError) {}
 
-    /** Terminal runtime failure; preserve assets. */
     suspend fun onFatal() {}
-
-    object None : DatabaseReplacementEffects {
-        override val attemptId: String = "no-effects"
-    }
 }
 
 /** Phase-aware replacement outcome. */
 sealed interface DatabaseReplacementResult {
 
-    /** Non-null when the matching caller effect failed. */
     val effectsError: BackupError?
 
-    /** Requested operation committed; non-null [effectsError] means bookkeeping still failed. */
     data class Committed(override val effectsError: BackupError? = null) : DatabaseReplacementResult
 
-    /** No irreversible mutation occurred. */
     data class RejectedBeforeMutation(
         val error: BackupError,
         override val effectsError: BackupError? = null,
     ) : DatabaseReplacementResult
 
-    /** Restore rolled back to pre-operation data; callers must report restore failure. */
     data class RecoveredByRollback(
         val error: BackupError,
         override val effectsError: BackupError? = null,
     ) : DatabaseReplacementResult
 
-    /** Post-PONR failure with preserved runtime-owned recovery assets. */
     data class FailedAfterMutation(
         val error: BackupError,
         override val effectsError: BackupError? = null,
     ) : DatabaseReplacementResult
 
-    /** No generation is serving; the runtime is terminal and recovery must be surfaced. */
     data class FatalNoGeneration(
         override val effectsError: BackupError? = null,
     ) : DatabaseReplacementResult

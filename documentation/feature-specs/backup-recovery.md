@@ -1,10 +1,10 @@
 # Feature spec — Backup Recovery
 
-**Status:** Planned. Depends on the [app-dialogs.md](app-dialogs.md)
-infrastructure landing first (or in the same PR series). Builds on top of
-the shipped Drive backup feature documented in [backup.md](backup.md); does
-not change the upload / list / scheduling surface, only the restore path
-and the schema-migration safety net.
+**Status:** Implemented. Builds on the shipped Drive backup feature documented
+in [backup.md](backup.md); the upload, list, and scheduling surfaces are
+unchanged. The current restore protocol is installation-scoped and
+attempt-owned; released positional state is supported only by the explicit
+rollout table below.
 
 Backup Recovery adds three independent recovery flows on top of the v1
 Drive backup feature:
@@ -26,36 +26,39 @@ wipes the user's data" failure mode that exists in the current build.
 
 ## Status
 
-**Shipped end-to-end.** The pre-restore compatibility checks (PR-B), the
-`feature/app-dialogs` infrastructure (PR-C), the restore-time recovery +
-user-initiated undo flows (PR-D), and the startup migration failure
-recovery (PR-E) are all live. Every migration failure now routes to one of
-three deterministic recovery paths — silent data wipe is no longer reachable
-in any code path.
+The pre-restore compatibility checks, `feature/app-dialogs` infrastructure,
+restore-time recovery, user undo, and startup-migration recovery are wired
+end-to-end. The durability correction replaces the released positional
+`C/R/S` protocol with `RestoreProtocolState(installEpoch, attempt,
+activeUndo, terminalOutbox)` and exact opaque references.
 
 - **Scenario 1** (restore-time) — pre-flight in
   [`RestoreRecoveryCoordinator`](../../feature/recovery/src/main/kotlin/io/github/stslex/workeeper/feature/recovery/domain/RestoreRecoveryCoordinator.kt),
   triggered from
   [`BaseApplication.onCreate`](../../app/app/src/main/java/io/github/stslex/workeeper/BaseApplication.kt).
-  Automatic rollback to `cache/pre_restore_backup.db` on Room migration
-  failure; `AppDialog.RestoreSuccess` / `RestoreFailure` published via
-  DataStore so it surfaces after restart on any destination.
+  Every restore owns an immutable `UndoRef` below
+  `noBackupFilesDir/restore-recovery`. A failed restore compensates from that
+  exact ref; verified finalization publishes `RestoreSuccess` / `RestoreFailure`
+  through a replayable terminal outbox.
 - **Scenario 2** (startup) — pre-flight in `StartupMigrationCoordinator`
   (in `feature/recovery`), triggered from
   [`BaseApplication.onCreate`](../../app/app/src/main/java/io/github/stslex/workeeper/BaseApplication.kt)
-  when `restore_in_progress` is false. Routes to the Room-free
-  `RecoveryActivity` (also in `feature/recovery`) via
-  `NavCommand.OpenRecovery` on `APP_DOWNGRADE` / `NO_MIGRATION_PATH` /
-  `CANNOT_PEEK_LIVE_DB`.
+  after restore-state epoch reconciliation finds no unresolved restore
+  attempt. It routes `APP_DOWNGRADE` / `NO_MIGRATION_PATH` /
+  `CANNOT_PEEK_LIVE_DB` to the Room-free `RecoveryActivity`.
 - **Scenario 3** (user-initiated undo) — the Settings "Revert last restore"
   row in
   [`BackupSection`](../../feature/settings/src/main/kotlin/io/github/stslex/workeeper/feature/settings/ui/components/BackupSection.kt)
   publishes `AppDialog.UndoRestoreConfirmation`. `feature/recovery`'s
-  `RestoreDialogChoiceObserver` (`@Singleton`, observes
+  `RestoreDialogChoiceObserver` (`@SingleIn(AppScope)`, observes
   `AppDialogObserver.observeUserActions()`) reacts to the user's
-  ConfirmUndo choice by calling `RestoreRecoveryCoordinator.performUndoRestore`
-  (file swap) and then `RestoreRecoveryCoordinator.restartApp()` directly
-  (non-Composable call site — see "Restart contract / OpenRecovery contract").
+  ConfirmUndo choice by applying the dialog's exact `UndoRef`. The rollback
+  is journalled under its own owner and clears the active pointer only if it
+  still names the applied ref.
+- Android backup rules exclude
+  `datastore/restore_state_prefs.preferences_pb` from legacy backup, API 31+
+  cloud backup, and API 31+ device transfer. Runtime epoch reconciliation is
+  still mandatory defence in depth.
 - The four `AppDialog` variants and the cross-feature publisher live in
   [`feature/app-dialogs`](../../feature/app-dialogs/) — see
   [app-dialogs.md](app-dialogs.md).
@@ -69,7 +72,7 @@ in any code path.
    the backup cannot be migrated under the current code's MIGRATIONS).
 2. Scenario 1 — restore-time migration failure rollback.
 3. Scenario 3 — user-initiated undo of the last successful restore via the
-   preserved `pre_restore_backup.db`.
+   exact immutable `activeUndo.ref`.
 4. Scenario 2 — startup migration failure recovery via a dedicated
    `RecoveryActivity` (Room-free, exposes export / report).
 5. Removal of `fallbackToDestructiveMigration*` from the Room builder.
@@ -79,10 +82,10 @@ in any code path.
 
 ## Out of scope
 
-- **Backup history beyond the single preserved slot.** Only one
-  `pre_restore_backup.db` exists at a time. Each new Restore overwrites
-  the previous preserved file, consuming the undo opportunity. A multi-slot
-  history is a v1.x+ follow-up if user demand surfaces.
+- **Backup history beyond one advertised undo.** Each attempt has a unique
+  immutable file, but only `activeUndo` is user-visible. A verified new
+  restore atomically replaces or clears that pointer; older unreferenced files
+  are garbage-collected rather than exposed as history.
 - **Manual user-initiated DB export under normal conditions.** Scenario 2's
   RecoveryActivity has Export raw data because the user has no other way
   out; a feature for "export the live DB whenever" is deferred.
@@ -92,14 +95,17 @@ in any code path.
   [tech-debt.md → Backup integrations](../tech-debt.md#backup-integrations).
   Recovery work neither blocks nor enables encryption — both can ship
   independently.
-- **Cross-device restore conflicts** (user has restored on device A, then
-  triggers undo on device B). Undo is local-only: it consumes the
-  on-device `pre_restore_backup.db`. A device with no preserved file shows
-  no "Revert last restore" row, regardless of cloud state.
+- **Cross-device undo.** An `UndoRef` is local to its installation epoch and
+  never transferred as an arbitrary path. A device with no same-install
+  active ref shows no "Revert last restore" row, regardless of cloud state.
 - **A "Restore from older backup" picker.** Latest-only restore unchanged
   from v1 (see [backup.md → Out of scope](backup.md#out-of-scope-and-decisions)).
   The undo flow is a single-step "reverse the most recent restore", not a
   picker over arbitrary backups.
+- **Changing Android backup eligibility for Room or disabling platform
+  backup.** This correction excludes only restore protocol metadata.
+  `allowBackup` and the Room database's backup policy remain unchanged; any
+  change to either is a separate maintainer/product decision.
 
 ## Two scenarios — distinct flows
 
@@ -111,82 +117,96 @@ the failure mode this spec exists to avoid.
 | Discriminator | Scenario 1 (restore-time) | Scenario 2 (startup-time) |
 |---|---|---|
 | What user did just before | Tapped Restore in Settings | Updated the app (Play, sideload) |
-| Was a restore in progress? | Yes (`restore_in_progress = true`) | No (`restore_in_progress = false`) |
+| Persisted discriminator | Same-epoch `RestoreAttempt.Restore` is unresolved | Epoch-reconciled protocol has no unresolved restore attempt |
 | Why migration failed | Backup schema needs a migration that this code lacks (rare — pre-restore check should have caught it) OR a previously-untriggered bug in an existing migration | Developer shipped a code-side schema bump without a registered migration |
-| Recovery shape | Automatic rollback to pre-restore data, restart, show `RestoreFailure` dialog | RecoveryActivity (DB-free) with Update / Export / Report buttons |
+| Recovery shape | Exact-ref compensation where possible; otherwise DB-free recovery. Only the integrity-gated legacy missing-ref case offers Continue | RecoveryActivity (DB-free) with Update / Export / Report; no Continue |
 | User-visible side effect | Two restarts in quick succession (acceptable edge case), data intact afterwards | App does not reach main UI until update or remediation |
 
-The `restore_in_progress` DataStore flag is the discriminator. It is set
-**only** by the Restore happy path and cleared in both success and rollback
-branches.
+The released `restore_in_progress` flag is read only by the rollout table.
+After migration, the sealed attempt type, owner, phase, and installation epoch
+are the discriminator. A foreign epoch is cleared before any callback, file
+lookup, live swap, pointer observation, or recovery-surface decision.
 
 ### Scenario 1 — restore-time migration failure
 
 Trigger: user explicitly tapped Restore, backup file was atomically swapped
 in, app restarted, Room migration crashes during subsequent open.
 
-**Implementation status:** shipped. Live in
-[`BackupInteractorImpl.restoreLatest`](../../feature/settings/src/main/kotlin/io/github/stslex/workeeper/feature/settings/domain/BackupInteractorImpl.kt)
-(pre-restore save + flag) and
-`RestoreRecoveryCoordinator.handlePostRestoreLaunch` in `feature/recovery`
-(post-restart pre-flight + rollback + publish; restart is dispatched by the
-caller via `NavCommand.RestartApp`, not by the coordinator).
-[`BaseApplication.onCreate`](../../app/app/src/main/java/io/github/stslex/workeeper/BaseApplication.kt)
-invokes the coordinator via a Hilt `EntryPoint` exposed by the
-`feature/recovery` graph.
+**Implementation status:** current. `RestoreLatestBackupUseCase` submits a
+uniquely owned transaction to `DatabaseReplacement`;
+`RestoreRecoveryCoordinator` performs verified finalization from cold-start or
+candidate preflight. The runtime, not a positional filename, owns mutation
+ordering and source lifetime.
 
 Flow:
 
-1. **Pre-restore** (before file replace).
-   [`BackupInteractorImpl.restoreLatest`](../../feature/settings/src/main/kotlin/io/github/stslex/workeeper/feature/settings/domain/BackupInteractorImpl.kt):
-   1. Save current `<db>` → `cache/pre_restore_backup.db` via
-      [`DatabaseSnapshotProvider.preserveCurrentDb`](../../core/data/database/src/main/kotlin/io/github/stslex/workeeper/core/data/database/snapshot/DatabaseSnapshotProvider.kt).
-   2. The database replacement transaction (KMP Phase 5 R2 round-2: the
-      swap is runtime-owned — callers go through the `DatabaseReplacement`
-      seam with a typed `DatabaseReplacementEffects` object; the
-      `restore_in_progress` flag + manifest context
-      (`backupSchemaVersion`, `backupCreatedAtEpochMs`,
-      `backupAppVersion`, `startedAtEpochMs`) are written INSIDE the
-      transaction via the effects' `onBeforeMutation`
-      ([`RestoreStateRepository.markRestoreInProgress`](../../core/data/backup/api/src/commonMain/kotlin/io/github/stslex/workeeper/core/data/backup/api/restore/RestoreStateRepository.kt));
-      the source file is staged runtime-owned at submission; the
-      provider's split `validateSnapshotForRestore` +
-      `replaceLiveDatabaseFile` carry the same gates and the same delete
-      WAL/SHM sidecars + atomic rename mechanics; on Android production
-      the `RestartProcess` policy keeps the shipped success behavior
-      (result, then restart), with post-mutation failures preserving
-      every recovery asset and journaling `restore_mutation_interrupted`
-      — see `kmp-phase-5-startup-processor.md` §8.4/§8.5/§8.5a and
-      [backup.md → Restore flow](backup.md#restore-flow)).
-2. **App restart** via the existing
-   `navigator.restartApp()` command (see
-   [architecture.md → Destructive app-restart through the bus](../architecture.md#destructive-app-restart-through-the-bus)).
-3. **Application.onCreate** reads `restore_in_progress` flag:
-   - `false` (normal launch) → fall through to Scenario 2 pre-flight (next
-     section).
-   - `true` → enter Scenario 1 pre-flight (this section).
-4. **Pre-flight Room open attempt.** Open the database read-only behind a
-   `runCatching {}`:
-   - **Success.** Clear `restore_in_progress` flag, **keep**
-     `pre_restore_backup.db` for Scenario 3 (see below),
-     `AppDialogPublisher.publish(RestoreSuccess(restoredAtEpochMs,
-     previousVersionAvailable = true))`.
-   - **Failure.** Atomic rollback: `<db>` ← `pre_restore_backup.db`. Delete
-     the preserved file (consumed). Clear `restore_in_progress` flag.
-     `AppDialogPublisher.publish(RestoreFailure(reason =
-     BackupErrorCode.<derived>))`. Send Crashlytics non-fatal (see
-     [Crashlytics non-fatals](#crashlytics-non-fatals)). Trigger a second
-     restart via the single Navigator path —
-     `BaseApplication.onCreate` reads the coordinator's
-     `PreflightOutcome.RestoreRolledBack` return and dispatches
-     `NavCommand.RestartApp` through the navigator (the same path Settings
-     uses for `Action.Navigation.RestartApp`). The coordinator does NOT
-     restart inline.
-5. **Next startup** (after rollback). Normal launch — `restore_in_progress`
-   is false, pre-flight passes against the now-rolled-back database. The
-   `AppDialogHost` observes its Store's `State.current = RestoreFailure(...)`
-   (projected from the repository's persisted flag) and renders the dialog
-   on whatever destination the user lands on.
+1. **Download and transfer ownership.** The caller may download into cache,
+   but submission mints a unique `RestoreOwnerId` and publishes
+   `staged_restore_<owner>.db` below
+   `noBackupFilesDir/restore-recovery` before suspension, journal claim, or
+   PONR. Publication copies into a unique `<final>.<nonce>.creating` file,
+   syncs it and the root, then holds the permanent cross-process publication
+   lock across a no-follow absence check and same-directory atomic move.
+   Failure to create or write the recovery root rejects while the existing
+   generation is still serving.
+2. **Validate and admit capacity.** While Room and the outgoing generation
+   still serve, validate the staged source, checkpoint the live WAL, and query
+   `StorageManager.getAllocatableBytes()`. The restore requires the
+   post-checkpoint live size for its undo, the staged-source size for
+   `<db>.tmp`, and a 16 MiB margin. Equality passes. Query failure, negative
+   values, arithmetic overflow, or insufficient bytes returns a typed
+   `RejectedBeforeMutation`; it creates no undo, claims no journal, closes no
+   database, and swaps no file. The check is advisory and does not call
+   `allocateBytes()`; later writes must still handle ENOSPC.
+3. **Prepare N.** Publish immutable `undo_<owner>.db` through a unique
+   `undo_<owner>.db.<nonce>.creating` partial and the same locked atomic move;
+   never overwrite an existing immutable undo. Reversibly quiesce UI and
+   DB-bound work, then atomically persist `Restore(N, Prepared, context,
+   undoRef=N, sourceRef=N)` while leaving the previous active pointer P
+   unchanged. Prepared is never claimed for a quiesce rejection.
+4. **Commit the live file.** Close only after the pre-PONR gates, replace the
+   live file through `<db>.tmp`, then owner-check the transition to
+   `Committed(N)`. `Committed(N), active=P` is an internal recovery state;
+   UI and DB-bound admission stay closed while it exists.
+5. **Verify and finalize once.** `RestartProcess` invokes the shared finalizer
+   from cold-start preflight; `RebuildInProcess` invokes it from candidate
+   preflight before publication. A successful verification performs one
+   owner-checked restore-state edit that replaces `activeUndo` with N, writes
+   `RestoreTerminal.RestoreSucceeded`, and removes N's attempt. If verified N
+   is missing, the restored generation is still proven: the same edit clears
+   `activeUndo` and records `previousVersionAvailable=false`. P is never
+   advertised as undo of N.
+6. **Replay the terminal handoff.** Publish the terminal through
+   `AppDialogPublisher`, then clear the outbox only after publication returns
+   successfully. A failure before the atomic finalization leaves
+   `Committed(N)`, P, and N intact and returns `FinalizationPending`; it cannot
+   report clean restore success or publish a success dialog. Replaying after a
+   publication/acknowledgement tear is idempotent. For `RebuildInProcess`, a
+   newly finalized success stays in the outbox until candidate chores and the
+   dialog observer arm. If arming throws, the runtime owner-checks the exact
+   persisted success owner and N-or-null pointer, releases the candidate, and
+   retries once without compensation. An unreadable or mismatched proof is
+   Fatal; it cannot authorize rolling a verified restore back.
+7. **Collect only unowned files.** After state is durable, sweep strict
+   protocol filenames from persisted ownership. P becomes collectible only
+   after N is active or the pointer is cleared. Delete failure is retryable
+   garbage, never permission to resolve protocol state.
+
+The Prepared claim attempt is the PONR boundary and is marked before the
+DataStore call, because persistence may succeed before the call throws. An
+ambiguous claim therefore seals the runtime; `RestartProcess` restarts into
+cold recovery. Validation, capacity and reversible-quiesce rejection remain
+before that boundary and keep the old generation serving. Restart-terminal
+state is set under transition serialization, so a queued second transaction
+cannot run against or republish the outgoing generation. Restart callback
+failure is a `Fatal` result, not a completed restore.
+
+If verification fails, compensation applies N's exact `UndoRef` and journals a
+separate `Rollback` owner with `origin=ScenarioOneRecovery`. Rollback
+finalization uses `clearActiveUndoIf(N)`, so compensation from N cannot clear
+an unrelated P. The source is deleted only after durable committed-rollback
+finalization and terminal handoff. A same-epoch missing or corrupt exact ref is
+`RecoveryRequired`; it is never treated as foreign or silently ignored.
 
 UX consequence on failure: user sees **two** restarts in quick succession.
 This is acceptable because (a) it is rare — the pre-restore compatibility
@@ -235,16 +255,19 @@ task replaces the current one via `FLAG_ACTIVITY_NEW_TASK`.
 
 Flow:
 
-1. **Application.onCreate** reads `restore_in_progress` flag → `false`
-   (the Scenario 1 path runs first and short-circuits here when
-   it returns `NoOp`).
+1. **Application startup reconciles restore ownership first.** A matching
+   installation epoch is required before decoding any attempt, pointer,
+   outbox, or ref. A foreign new-format epoch atomically clears all protocol
+   keys without callbacks, path dereference, file deletion by persisted path,
+   or live swap; startup then continues through this ordinary schema preflight.
+   Same-epoch unresolved state short-circuits into Scenario 1 instead.
 2. **Schema peek.** `peekSnapshotSchemaVersion` reads the live db's
    `user_version` via `SQLiteDatabase.openDatabase` — no Room init, no
    migration trigger.
 3. **Decide.** Four branches, exhaustive over
    `StartupMigrationFailureReason`:
-   - `db == code` → `Proceed`. Delete any stale `pre_migration_backup.db`
-     from a previous launch.
+   - `db == code` → `Proceed`. Delete any stale durable recovery export from
+     a previous resolved recovery route.
    - `db > code` → `RouteToRecovery(APP_DOWNGRADE)`. Preserve snapshot,
      record Crashlytics non-fatal.
    - `db < code` + `hasMigrationPath = true` → `Proceed`. Room handles the
@@ -253,18 +276,13 @@ Flow:
      Preserve snapshot, record Crashlytics non-fatal.
    - Peek throws → `RouteToRecovery(CANNOT_PEEK_LIVE_DB)`. Preserve
      snapshot best-effort, record Crashlytics non-fatal.
-4. **MainActivity.onCreate** reads `coordinator.lastDecision`. On
-   `RouteToRecovery`, launches `RecoveryActivity` directly via Intent
-   (bootstrap-context — see "Implementation status" above) and finishes
-   itself. The brief MainActivity frame is acceptable for a rare
-   developer-error path; explicitly chosen over
-   `PackageManager.setComponentEnabledSetting` launcher swaps because the
-   latter has known OEM-ROM flakiness.
-5. **RecoveryActivity** is Room-free — it injects `DatabaseSnapshotProvider`
-   and `RecoveryDiagnosticsExporter` but only calls Room-free methods
-   (`getPreMigrationBackupFile`, `availableMigrationsLabel`,
-   `exportStartupMigrationFailure`). `Room.databaseBuilder.build()` is
-   lazy, so this is safe — no migration fires until a DAO call happens.
+4. **Preserve the raw export durably.** A recovery route checkpoints the live
+   file directly and publishes `recovery_export.db` below the no-backup root
+   through `recovery_export.db.creating`. Export failure is visible but does
+   not change the recovery decision.
+5. **MainActivity launches the DB-free surface.** `RecoveryActivity` is opened
+   directly by Intent and MainActivity finishes. The Intent's Continue flag
+   defaults to false; startup-migration routes never opt in.
 
 ### RecoveryActivity location and DB-free invariant
 
@@ -275,133 +293,116 @@ the recovery-boundary refactor). The `<activity>` manifest entry stays in
 the standard AGP pattern: manifest entries in the app module may reference
 classes in any depended module.
 
-The DB-free invariant — RecoveryActivity must not initialize Room — is a
-**must-survive** property of the move. Verification:
+The DB-free invariant — launching and composing RecoveryActivity must not open
+Room or framework SQLite — is a **must-survive** property. Verification:
 
-- `feature/recovery` declares `:core:data:database` as a dependency for
-  `DatabaseSnapshotProvider` + `APP_DATABASE_VERSION`. The `AppDatabase`
-  Hilt module that constructs Room lives elsewhere; adding the project
-  dependency does NOT auto-instantiate Room.
-- `RecoveryActivity` injects only `DatabaseSnapshotProvider` (which itself
-  accepts a Room instance lazily — only file-path / `PRAGMA` helpers are
-  called here) and `RecoveryDiagnosticsExporter`.
-- Phase 1 (recovery module creation) adds an explicit test asserting that
-  resolving the Hilt graph for `RecoveryActivity` does not call any DAO,
-  to prevent regression if a future contributor wires a Room-dependent
-  collaborator into the activity.
+- Composition reads only Intent values, retained UI state, file-presence
+  helpers, restore protocol state, reinitialization, and diagnostics/export
+  collaborators. It performs no integrity query on launch.
+- The fail-fast `RecoveryActivityDbFreeTest` launches startup migration,
+  interrupted restore without Continue, and interrupted restore with Continue
+  enabled, then resolves every lazy dependency while any SQLite connection is
+  configured to fail.
+- Framework `SQLiteDatabase` is confined to the explicit Continue checker on
+  IO after the user taps Continue. It is never reached by activity launch,
+  composition, raw-export lookup, or dependency warm-up.
 
-As shipped, that tripwire is
-`app/app/src/androidTest/kotlin/io/github/stslex/workeeper/app/RecoveryActivityDbFreeTest.kt`,
-and a lifecycle walk alone would be vacuous: `deps` is a `by lazy` behind `get()`
-accessors that only the four button handlers read, and `onCreate` merely binds
-callable references (`::exportRawData`, …) into `setContent`. So CREATED →
-STARTED → RESUMED never resolves any collaborator. `RecoveryActivity.warmDeps()`
-exists solely for this test — it has no production caller; the test calls it from
-`scenario.onActivity { }` to force resolution **and** construction of every
-`RecoveryDeps` member inside the window where the fail-fast `SQLiteDriver` is
-installed. It returns them as a `List` rather than reading them as bare
-statements so the reads stay observable and un-elidable.
-
-Still uncovered: the four button callbacks are never invoked, so
-`getPreMigrationBackupFile()` / `exportStartupMigrationFailure()` are proven
-Room-free at resolution time only, not at call time.
-
-It is a single Compose-rendered activity with four actions:
+It is a single Compose-rendered activity with scenario-gated actions:
 
 | Action | Behavior |
 |---|---|
-| Update app | Launches `Intent(ACTION_VIEW, market://details?id=<packageName>)` with a play.google.com fallback. The expected fix path: the developer ships a follow-up release with the missing migration. |
-| Export raw data | Shares `cache/pre_migration_backup.db` via `FileProvider`. The user can keep this file and re-import on a working app version. |
+| Update app | Startup-migration only. Launches `Intent(ACTION_VIEW, market://details?id=<packageName>)` with a play.google.com fallback. |
+| Continue | Genuine `InterruptedRestore` only. Runs the two-step integrity and owner flow below; hidden for `RecoveryRequired`, `FinalizationPending`, and startup migration. |
+| Export raw data | Looks up durable `recovery_export.db`. On explicit share, copies it to `cache/recovery_share/workeeper_recovery_export.db` and exposes only that copy through `FileProvider`. |
 | Report issue | Opens `GitHub issue URL` (see below) pre-filled with title and labels. The user attaches the diagnostic export. |
 | Export diagnostics | Shares a generated `.txt` file with the diagnostic contents (see [Diagnostic file contents](#diagnostic-file-contents)). |
 
-Strings are localized EN + RU (see [Strings](#strings-en--ru-required)).
-RecoveryActivity must not depend on any string resource that lives in a
-Room-dependent module — keep its strings either in `app/app/.../res/` or
-in a Room-free shared module.
+Raw export is typed UI state: `Available`, `Unavailable(reason)`, or
+`Failed(reason)`. Missing durable data, root lookup failure, share-copy
+failure, and share-Intent failure are not silent. Export success is never a
+prerequisite for Continue. `file_provider_paths.xml` exposes
+`cache/recovery_share/` (and the unrelated existing `exercise_images/` root),
+not `noBackupFilesDir` or a broad files root.
+
+#### InterruptedRestore Continue escape
+
+Continue exists only for the synthetic same-install rollout attempt shaped as
+`Restore(Prepared, undoRef=null, sourceRef=null)` after released
+`restore_in_progress=true`, missing/unusable C, and a header-compatible live
+database. `MainActivity` opts the Intent in only when the coordinator's exact
+outcome is `PreflightOutcome.InterruptedRestore`; the default-false Intent and
+the model both enforce that boundary.
+
+1. The user explicitly taps Continue.
+2. On IO, framework `SQLiteDatabase` opens the live file read-only, consumes
+   every row of `PRAGMA integrity_check`, and accepts only a non-empty result
+   where every row is exactly `ok`. It then reads `PRAGMA user_version` and
+   requires the current schema or a registered migration path.
+3. A second State-backed confirmation explains that the app cannot know
+   whether the interrupted restore completed.
+4. Confirmation rereads the epoch-reconciled protocol, requires the same
+   owner and eligible shape, atomically calls
+   `abandonInterruptedAttempt(owner)`, updates UI state, then restarts last.
+   Worker admission remains sealed until that restart.
+
+No other same-install missing ref is accepted: Prepared attempts with owned
+refs, committed restores, and rollbacks route to `RecoveryRequired` when their
+exact required file is absent or unusable.
 
 ### Scenario 3 — user-initiated undo of last successful restore
 
-**Implementation status:** shipped. The Settings "Revert last restore" row
-is rendered in
-[`BackupSection.AuthenticatedBlock`](../../feature/settings/src/main/kotlin/io/github/stslex/workeeper/feature/settings/ui/components/BackupSection.kt)
-when `state.canRevertLastRestore` is true.
-[`BackupClickHandler.observeRestoreState`](../../feature/settings/src/main/kotlin/io/github/stslex/workeeper/feature/settings/mvi/handler/BackupClickHandler.kt)
-subscribes to `RestoreStateRepository.observePreRestoreBackupAvailable()`
-and pushes the result into state. `canRevertLastRestore` is gated on **both**
-that `pre_restore_backup_available` flag and
-`snapshotProvider.getPreRestoreBackupFile() != null`: the file lives in
-`cacheDir`, which Android can reclaim under storage pressure, so the flag can
-survive while the file is gone, and a row tap in that state lands in a
-silent-failure path inside `RestoreRecoveryCoordinator.performUndoRestore`. On
-`flagged && !fileExists` the handler calls
-`restoreStateRepository.clearPreRestoreBackupAvailable()` to self-heal the flag
-back into sync; defence-in-depth for the observation-to-tap race window stays in
-`performUndoRestore`. The tap publishes
-`AppDialog.UndoRestoreConfirmation` via `AppDialogPublisher`. When the
-user confirms, `AppDialogHost` dispatches `Action.UserAction(dialog,
-AppDialogUserAction.ConfirmUndo)` to the Store, which records the choice.
-`feature/recovery`'s `RestoreDialogChoiceObserver` (`@Singleton`, observes
-`AppDialogObserver.observeUserActions()`) reacts: calls
-`RestoreRecoveryCoordinator.performUndoRestore` for the file swap, then
-calls `RestoreRecoveryCoordinator.restartApp()` directly (in-class
-Intent-launch path; non-Composable call site, same Option Y as the
-bootstrap restart in Scenario 1). The post-restart `UndoRestoreSuccess`
-dialog survives via DataStore. No code path inside `AppDialogHost` calls
-the coordinator directly — the host is generic and the reaction is owned
-by `feature/recovery`.
-
-After a successful Scenario 1 happy path, `pre_restore_backup.db` is
-preserved. Settings exposes a new row "Revert last restore" while the file
-exists. The user can choose to roll back their most recent restore once.
+**Implementation status:** current. Settings observes the epoch-filtered
+`RestoreStateRepository.observeActiveUndo()`. A row is visible only when a
+same-install `ActiveUndo(ref, originalDataDateEpochMs)` exists; the UI never
+derives availability from a positional filename.
 
 Flow:
 
-1. **Settings load.** `BackupClickHandler` (or a sibling handler) checks for
-   the existence of `cache/pre_restore_backup.db` and sets
-   `state.canRevertLastRestore: Boolean` on the Settings state. The row
-   renders only when this is `true`.
-2. **User taps "Revert last restore".** Handler dispatches
-   `AppDialogPublisher.publish(UndoRestoreConfirmation(originalDataDateEpochMs))`
-   where `originalDataDateEpochMs` is the modification time of the
-   preserved `.db` file (the moment of the most recent restore).
-3. **`AppDialogHost`** renders the confirmation dialog with the formatted
-   original-data date in the body.
+1. **Settings observes the pointer.** Epoch reconciliation happens before the
+   flow emits. Foreign or absent state emits no active undo; a same-epoch
+   missing file remains a protocol failure if the exact ref is later applied.
+2. **User taps "Revert last restore".** The producer publishes
+   `UndoRestoreConfirmation(undoRef=active.ref,
+   originalDataDateEpochMs=active.originalDataDateEpochMs)`. App-dialog
+   persistence stores the validated owner with the date. Dedup and dismiss are
+   owner-aware, so an old dialog cannot block or dismiss a newer owned
+   confirmation.
+3. **`AppDialogHost` renders generic State.** It has no recovery coordinator
+   dependency and emits the exact dialog/ref in the transient user choice.
 4. **User confirms.** The dialog dispatches `Action.UserAction(
    UndoRestoreConfirmation, AppDialogUserAction.ConfirmUndo)` to
-   `AppDialogStore`. The Store records the choice via `recordUserChoice`
-   on the repository. `feature/recovery`'s `RestoreDialogChoiceObserver`
-   (`@Singleton`, observes
-   `AppDialogObserver.observeUserActions()`) sees the choice and:
-   1. Calls `RestoreRecoveryCoordinator.performUndoRestore()`, which:
-      - Swaps `<db>` ← `pre_restore_backup.db`.
-      - Deletes the preserved file (consumed).
-      - Clears the preserved-backup-available marker.
-      - `AppDialogPublisher.publish(UndoRestoreSuccess)`.
-   2. On `UndoRestoreOutcome.Succeeded`, calls
-      `RestoreRecoveryCoordinator.restartApp()` directly (in-class
-      Intent-launch path; non-Composable call site, same Option Y as the
-      bootstrap restart in Scenario 1).
-5. **Next startup.** Normal launch (Scenario 1 flag was already false; no
-   migration drama because we are swapping back to the user's pre-restore
-   schema which is by definition the same one we successfully migrated
-   from earlier in the original Restore). `AppDialogHost` renders
-   `UndoRestoreSuccess` on whatever destination the user lands on.
+   `AppDialogStore`. `RestoreDialogChoiceObserver` passes
+   `dialog.undoRef` unchanged to `performUndoRestore(ref)`.
+5. **Rollback admits before mutation.** It validates that the current pointer
+   still equals the requested ref, validates that exact immutable source, and
+   checks allocatable capacity for the source-sized `<db>.tmp` plus the 16 MiB
+   margin. A rejection leaves the generation, journal, pointer, source, and
+   dialog intact. `NotCurrent` acknowledges only the obsolete owner.
+6. **Rollback commits under a new owner.** Persist
+   `Rollback(id, Prepared, sourceRef=appliedRef, origin=UserUndo)`, swap from
+   that exact ref, then record `Committed`. Startup/candidate verification
+   atomically applies `ClearIf(appliedRef)`, writes `UndoSucceeded` to the
+   terminal outbox, and removes the rollback attempt. Therefore user undo
+   clears its own pointer, while compensation from N cannot clear unrelated P.
+7. **Handoff and cleanup.** Outbox publication produces
+   `UndoRestoreSuccess`; only then is the terminal acknowledged. The source is
+   deleted after durable rollback finalization. A committed rollback can still
+   finalize from descriptor identity if best-effort source deletion already
+   occurred. Delete failure remains retryable garbage.
 
-After undo: `pre_restore_backup.db` is consumed, `canRevertLastRestore`
-flips to `false`, the "Revert last restore" row disappears from Settings.
+After the next successful restore, active undo changes only during the atomic
+verified finalization: P remains protected while `Committed(N), active=P` is
+internal, then the pointer becomes N or absent before UI admission reopens.
+There is no overwriteable slot and no window where P is advertised as undo of
+the newly visible generation.
 
-After **next** Restore: previous `pre_restore_backup.db` is overwritten by
-the new one. Only one slot at a time — bounded storage cost.
-
-The dismiss/confirm split goes through DataStore-persisted user choices
-rather than direct callbacks because the App Dialog mechanism has no typed
-return channel by design (see
+The dismiss/confirm split goes through transient user choices while the dialog
+itself remains DataStore-persisted because App Dialogs has no typed return
+channel by design (see
 [app-dialogs.md → Cross-feature observation](app-dialogs.md#cross-feature-observation)).
-The producer (Settings click on "Revert last restore") publishes the
-confirmation; `feature/recovery`'s `RestoreDialogChoiceObserver` observes
-`AppDialogObserver.observeUserActions()` and continues the flow when it
-sees `AppDialogUserChoice(dialog = UndoRestoreConfirmation, action = ConfirmUndo)`.
+The confirmation is not cleared before a destructive reaction. Durable
+rollback finalization and terminal-outbox publication own the success handoff;
+`NotCurrent` and Cancel dismiss only the matching confirmation owner.
 
 ## Recovery feature integration
 
@@ -476,75 +477,111 @@ interface Navigator {
 RecoveryActivity FQCN; the FQCN lives in `feature/recovery` and is
 referenced from `app/app/src/main/AndroidManifest.xml`.
 
-## Storage lifecycle of preserved DB files
+## Storage lifecycle of recovery assets
 
-| File | Created by | Used by | Deleted by |
-|---|---|---|---|
-| `cache/pre_restore_backup.db` | `BackupClickHandler.confirmRestore` (before file replace) | Scenario 1 rollback **or** Scenario 3 undo | Next Restore (overwritten) OR Scenario 1 failure path (consumed) OR Scenario 3 undo (consumed) |
-| `cache/pre_migration_backup.db` | `Application.onCreate` before Room init (when `restore_in_progress` is false) | Scenario 2 RecoveryActivity export | Successful Room open (the same `Application.onCreate` deletes after success) |
+Every authoritative asset lives below
+`context.noBackupFilesDir/restore-recovery`. The downloaded caller temp may
+start in cache, but it is consumed after the runtime publishes the staged
+source; cache deletion cannot remove same-install protocol truth.
 
-Maximum two extra DB files ever exist simultaneously. At the current
-schema each file is ~170 KB; users with heavy histories trend toward a
-few MB. Cache cost is acceptable.
+| Name | Role | Lifetime owner |
+|---|---|---|
+| `install_epoch` | Stable random installation identity, atomically published from `install_epoch.<nonce>.creating`. | Always preserved. |
+| `.publication.lock` | Permanent cross-process serialization inode for immutable final-name publication; process death releases its kernel lock. | Always preserved; never swept. |
+| `staged_restore_<owner>.db` | Runtime-owned restore source after caller ownership transfer. | Unresolved Restore attempt. |
+| `undo_<owner>.db` | Immutable pre-image for that exact restore or rollback source. | Unresolved attempt, `activeUndo`, or pending terminal that still requires it. |
+| `recovery_export.db` | Durable raw/pre-migration recovery export. | Recovery UI until explicitly resolved/removed. |
+| `<final>.<nonce>.creating` | Unique partial publication; the final name is visible only after a complete synced copy and locked atomic move. | In-flight serialized publication; orphaned partials are sweepable after a crash. |
+| `cache/recovery_share/<name>` | On-demand share copy exposed through the narrow FileProvider root. | Non-authoritative cache only. |
+| `cache/pre_restore_backup.db` | Released positional C. | Rollout migration only; never selected by the new protocol. |
 
-> **Note on size growth.** Sizes grow with DB schema complexity and user
-> data. The ~170 KB figure reflects v6 schema with light usage; heavy-use
-> profiles already trend toward a few MB, and future schema additions
-> (exercise-image metadata, multi-set history aggregates, telemetry-side
-> tables) will lift the floor. Android's cache eviction policy reclaims
-> `cacheDir` when storage pressure warrants, and the recovery flow fails
-> closed (the "Revert last restore" row disappears) rather than crashing.
-> **Revisit retention or compression if files routinely exceed 10 MB** —
-> the cost-benefit of preserving an undo slot drops sharply at that scale,
-> and at ~10 MB the cache eviction probability under typical phone storage
-> pressure becomes high enough to make the slot unreliable for its primary
-> purpose.
+Immutable undo and staged-source creation never overwrite a final file. Each
+publication gets a unique nonce so two processes never copy into the same
+partial inode. The root rejects symlinks/non-directories and derives every
+filename from validated lower-case UUIDs; no absolute path is persisted or
+followed. Complete immutable files and their parent directory entries are
+synced before success. Mutable export/share/live replacement syncs its
+temporary and parent directory around atomic rename.
 
-The choice of `cacheDir` over `filesDir` is deliberate: the system may
-reclaim `cacheDir` under storage pressure, but in practice this only
-happens when storage is critically low. If reclaimed, the
-`canRevertLastRestore` check fails closed and the row disappears — no
-crash, no data loss. The alternative (`filesDir`) would keep the file
-through reclaim, but at the cost of pushing the file into the user's
-uninstall-survives-backup quota.
+The successful restore peak remains approximately five DB-sized files because
+live replacement still copies through `<db>.tmp`. Attempt-owned immutable undo
+reduces overwrite/full-file-write crash states; it does not reduce the
+worst-case peak from five to four. The capacity gate accounts conservatively
+for the additional undo and temp writes and remains advisory.
 
-WAL flush mechanics, both in `DatabaseSnapshotProviderImpl`:
+Owner-aware garbage collection runs under startup/transition serialization.
+It preserves the install token, all refs from the unresolved attempt, active
+undo, durable export, and files required by pending finalization/outbox. It
+deletes only unreferenced strict names (`undo_<uuid>.db`,
+`staged_restore_<uuid>.db`, their legacy exact `.creating` partials, and their
+unique `.<nonce>.creating` partials) below the root.
+Deletion failure is reported for retry and never changes attempt, pointer, or
+terminal truth.
 
-- `preserveDbBeforeMigration()` checkpoints through a direct
-  `SQLiteDatabase.openDatabase(path, null, OPEN_READWRITE)`, **not** through
-  `appDatabase` / `openHelper` — opening via Room would trigger Room's migration
-  path, which is exactly what the caller is avoiding. The raw open runs no
-  migrations, it just flushes the WAL. A checkpoint that throws is logged and the
-  copy proceeds anyway: a stale snapshot is strictly better than no snapshot for
-  the recovery export.
-- On the Room-owned paths, `PRAGMA wal_checkpoint(TRUNCATE)` **returns a row**
-  (busy, log, checkpointed), so `stmt.step()` is what actually executes it — a
-  prepared-but-unstepped statement silently no-ops and leaves the WAL beside the
-  snapshot. Room 3 removed `openHelper.writableDatabase.query(...)`, so
-  `checkpointWal()` runs it as
-  `appDatabase.useWriterConnection { connection.usePrepared("PRAGMA wal_checkpoint(TRUNCATE)") { stmt -> stmt.step() } }`;
-  `readUserVersion()` is the same shape over a reader connection
-  (`PRAGMA user_version`, the Room 3 replacement for `openHelper.*.version`).
+WAL flush mechanics in `DatabaseSnapshotProviderImpl` remain load-bearing:
 
-### Restore-journal DataStore keys
+- `preserveDbBeforeMigration()` checkpoints through direct framework
+  `SQLiteDatabase` without Room, then publishes the complete raw file durably.
+  A checkpoint or copy failure produces a typed unavailable/failed export; it
+  is not silently treated as success.
+- Room-owned create-undo/capture paths execute
+  `PRAGMA wal_checkpoint(TRUNCATE)`, consume its result row, and require
+  `busy == 0` with all reported log frames checkpointed before copying. A
+  missing row, busy reader, incomplete frame count, or prepared-but-unstepped
+  statement cannot publish an immutable image.
+- Live replacement removes old `-wal` and `-shm` sidecars before publishing
+  `<db>.tmp`. A failed sidecar deletion is a typed failure and preserves the old
+  main file; it is never ignored while replacement continues.
 
-Written by `RestoreStateRepositoryImpl` into `restore_state_prefs`. These names
-are wire format on user devices — preserve them or add a migration path:
-`restore_attempt_id`, `restore_attempt_kind`, `restore_attempt_phase`,
-`restore_attempt_rollback_snapshot_path`,
-`restore_in_progress_backup_schema_version`,
-`restore_in_progress_backup_created_at_epoch_ms`,
-`restore_in_progress_backup_app_version`,
-`restore_in_progress_started_at_epoch_ms`, plus the legacy
-`restore_in_progress` / `restore_mutation_interrupted` booleans and
-`LEGACY_ATTEMPT_ID = "legacy-restore-in-progress"`.
+### Installation epoch and restore-state DataStore
 
-`RestoreStateRepositoryImplTest` duplicates these literals instead of sharing
-constants **on purpose**: the duplication is the assertion, so a silent rename
-inside the impl fails a test rather than stranding a user mid-restore. Do not
-"fix" it by extracting shared constants. The test writes raw keys only for
-scenarios unreachable through the public API — a pre-R3 install's legacy marker
-and a torn/partial record.
+`RestoreStateRepositoryImpl` stores the protocol in
+`files/datastore/restore_state_prefs.preferences_pb`. New-format keys are
+grouped under `restore_protocol_*`: installation epoch; attempt epoch/id/type/
+phase and Restore/Rollback refs; attempt context; active-undo epoch/ref/date;
+and terminal-outbox epoch/owner/type/payload. `UndoRef` and
+`RestoreSourceRef` persist only validated owner IDs, never paths.
+
+Before reading or mutating an attempt, pointer, availability flow, source ref,
+or terminal, the repository compares the stored protocol and record epochs
+with the stable no-backup `install_epoch`:
+
+- Match: decode same-install state. A missing required exact file is a local
+  recovery failure, never an ignore rule.
+- New-format mismatch: atomically clear attempt, pointer, outbox, released and
+  obsolete protocol keys, install the local epoch, invoke no owner callback,
+  dereference no persisted path, and leave the live database untouched.
+- Missing protocol epoch plus released keys: enter the explicit rollout table;
+  absence alone is not proof of foreign state.
+- Same-install malformed protocol: return `RestoreProtocolRead.Corrupt` and
+  route conservatively without path dereference.
+
+Static Android backup rules also exclude the exact DataStore file from legacy
+`backup_rules.xml`, API 31+ `<cloud-backup>`, and API 31+
+`<device-transfer>`. `noBackupFilesDir` is already platform-ineligible. This
+does not set `allowBackup=false` and does not change Room database eligibility.
+
+### Released-state rollout table
+
+The released wire inputs are `restore_in_progress` plus its context,
+`pre_restore_backup_available`, its original date, and positional
+`cache/pre_restore_backup.db` (C). Every boundary is replay-safe:
+
+| Released state | Migration/result |
+|---|---|
+| In progress + valid C | Copy C immutably to the synthetic interrupted-attempt ref, persist `Restore(Prepared, undoRef=<synthetic>, sourceRef=null, activeUndo=null)`, then delete C. Stale availability is not interpreted separately. |
+| In progress + missing/unusable C + healthy compatible live DB | Persist the synthetic `Restore(Prepared, undoRef=null, sourceRef=null)` and route to the integrity-gated `InterruptedRestore` Continue flow. |
+| In progress + invalid live DB + valid C | Persist the owned attempt and recover from the migrated exact C ref. |
+| In progress + neither live DB nor C usable | Persist the synthetic missing-ref attempt and route to `RecoveryRequired`. |
+| No in-progress marker + availability/date + valid C | Copy C to the synthetic active-undo ref, persist the pointer with the original date, then delete C. |
+| Availability + missing/unusable C | Install empty current state and clear stale availability; no undo is advertised. |
+
+If a crash occurs after immutable copy but before state installation, replay
+syncs the existing synthetic final file and recovery-root directory before
+validating and reusing it. A failed copy or sync installs no new protocol state
+and preserves C, even when the same process can still read the unsynced final.
+C is deleted only after the new attempt or pointer is durable. Obsolete
+path-bearing intermediate keys are cleared without interpreting their values.
 
 ## Pre-restore compatibility checks
 
@@ -690,7 +727,9 @@ There is no silent data-wipe path anymore.
 The pre-Room snapshot in `Application.onCreate` (see Scenario 2 step 2) is
 the safety net that lets us remove destructive fallback without risk: even
 if Room blows up at first open, the user's data is in
-`cache/pre_migration_backup.db` waiting to be exported.
+`noBackupFilesDir/restore-recovery/recovery_export.db` waiting for an
+explicit on-demand share copy. Export creation failure is visible in the
+RecoveryActivity and never weakens the database-admission decision.
 
 ## Diagnostic file contents
 
@@ -774,14 +813,11 @@ Issue title template (RU): `Ошибка миграции в версии X.Y.Z`
 
 `feature/settings`:
 
-- New state field `canRevertLastRestore: Boolean` on `SettingsStore.State`.
-  Computed from `cache/pre_restore_backup.db` existence at Authenticated
-  state load. Populated by a new handler call (or extended within
-  `BackupClickHandler.bootstrapOrRehydrate`).
-- New row "Revert last restore" inside `BackupSection`, visible only when
-  `canRevertLastRestore && backupAuth is Authenticated`. Tap dispatches
-  `Action.Backup.RequestRevertLastRestore`, which goes through to
-  `AppDialogPublisher.publish(UndoRestoreConfirmation(...))`.
+- `canRevertLastRestore` and its original-data date are projected from the
+  epoch-filtered `ActiveUndo?` flow, not file existence.
+- "Revert last restore" is visible only for authenticated state with an
+  active pointer. Tap publishes `UndoRestoreConfirmation` with that exact
+  `UndoRef` and date.
 - Existing `RestoreConfirmationDialog` and `SignOutConfirmationDialog` stay
   in `feature/settings` for this PR. Migration to `AppConfirmationDialog`
   generic is deferred — see [tech-debt.md](../tech-debt.md) (new entry to
@@ -794,29 +830,28 @@ Issue title template (RU): `Ошибка миграции в версии X.Y.Z`
   The "sibling" placement is load-bearing: it scopes the
   `@HiltViewModel AppDialogStore` to the host Activity rather than to a
   navigation destination.
-- Manifest `<activity>` entry for `RecoveryActivity` stays in
+- The manifest `<activity>` entry for `RecoveryActivity` stays in
   `app/app/src/main/AndroidManifest.xml` referencing the FQCN
-  `io.github.stslex.workeeper.feature.recovery.RecoveryActivity`. Launched
-  directly via Intent from `MainActivity.onCreate` when the Scenario 2 path
-  triggers (bootstrap-context — see "NavCommand additions" above).
+  `io.github.stslex.workeeper.feature.recovery.RecoveryActivity`.
+- `MainActivity` launches it for startup-migration recovery and restore
+  outcomes requiring a sealed recovery surface. It sets a non-DB Intent
+  boolean true only for exact `InterruptedRestore`; the default is false.
 
 `feature/recovery`:
 
-- New `RecoveryActivity` class in
-  `feature/recovery/src/main/kotlin/io/github/stslex/workeeper/feature/recovery/RecoveryActivity.kt`.
+- `RecoveryActivity` owns typed export/Continue State and the two-step
+  confirmation. Its framework SQLite checker is invoked only by explicit
+  Continue.
 
-`core/data/database` (or wherever `DatabaseSnapshotProvider` lives):
+`core/data/database`:
 
-- Extend `DatabaseSnapshotProvider` (or add a sibling helper) with
-  pre-flight file-copy operations: `copyToPreRestoreSlot()`,
-  `copyToPreMigrationSlot()`, `swapWithPreRestoreSlot()`. Mirror the
-  existing `restoreFromSnapshot` shape: WAL/SHM sidecar cleanup, atomic
-  rename. Tests live in `DatabaseSnapshotProviderImplTest`.
+- `DatabaseSnapshotProvider` exposes only exact-ref restore/rollback methods,
+  durable recovery export, capacity admission, and owner-aware sweep.
+  `RestoreRecoveryFiles` alone derives protocol paths below the no-backup root.
 
 ## Strings (EN + RU required)
 
-Localization keys for the new copy. Russian translations are deferred to
-the translator pass — mark "RU pending" if uncertain.
+All recovery copy is localized in EN + RU.
 
 App dialog strings (live in `feature/app-dialogs/impl/src/main/res/`):
 
@@ -837,10 +872,11 @@ RecoveryActivity strings (live in `feature/recovery/src/main/res/`):
   `recovery_report_title`
 - Scenario 1: `recovery_restore_title`, `recovery_restore_body`,
   `recovery_restore_report_title` — selected by the `RecoveryScenario` extra the
-  launcher stamps on the Intent. "Update app" is not rendered on this route: no
-  update exists for an interrupted restore and the Play Store is a dead end for it.
+  launcher stamps on the Intent. "Update app" is not rendered on this route.
 - Shared: `recovery_export_data`, `recovery_report_issue`,
-  `recovery_export_diagnostics`
+  `recovery_export_diagnostics`, typed export failure/unavailable copy, and
+  Continue checking, integrity/schema failures, second confirmation, and
+  abandon-failure copy.
 
 Settings backup additions (live in `feature/settings/src/main/res/`):
 
@@ -932,10 +968,9 @@ existing `SchemaTooNew` row to `BackupTooNew` and adds the new
 
 Decisions locked for this spec, with rationale.
 
-- **One preserved slot at a time.** Multi-slot history multiplies cache
-  cost linearly and forces a picker UI that the v1 surface explicitly
-  defers. Single slot covers the load-bearing case ("oops, I just restored
-  the wrong backup, undo it") and bounds storage.
+- **One advertised undo at a time.** Immutable attempt files may briefly
+  coexist, but `activeUndo` is a single pointer and no history picker exists.
+  Persisted ownership bounds retention and makes old files collectible.
 - **Two-restart UX on Scenario 1 failure.** Acceptable because (a) it is
   rare given the pre-restore check, (b) a single-restart "try to rollback
   in the same process" path is fragile — the in-process DAO graph after a
@@ -945,16 +980,19 @@ Decisions locked for this spec, with rationale.
   it. The CI-enforced migration test catches the omission before merge;
   RecoveryActivity is the safety net for the case where review and tests
   both miss a bump.
-- **`cacheDir` not `filesDir` for preserved files.** System reclaim under
-  storage pressure is acceptable — the row disappears, no crash. Storage
-  cost survives uninstall otherwise.
+- **`noBackupFilesDir` for authoritative recovery files.** Cache eviction is
+  not an acceptable durability event. Uninstall removes the no-backup root;
+  Android backup/transfer does not recreate it.
 - **No cross-device undo.** Undo consumes the local preserved file. There
   is no server-side "last-restore breadcrumb" to coordinate across devices,
   and adding one would push this into a multi-device sync problem.
 - **No callback into producer from `UndoRestoreConfirmation`.** Per
-  [app-dialogs.md](app-dialogs.md), the dialog publishes a sibling
-  flag and the Scenario-3 handler observes it. This trade keeps the
-  cross-feature dialog surface decoupled from the producer.
+  [app-dialogs.md](app-dialogs.md), the exact owned dialog emits a transient
+  choice and the Scenario-3 observer reacts. Durable finalization/outbox owns
+  the terminal handoff, keeping the generic dialog host decoupled.
+- **Room and platform backup policy unchanged.** Only restore protocol
+  metadata is explicitly excluded. Changing Room eligibility or
+  `allowBackup` is a separate maintainer/product decision.
 - **Diagnostic file format is plain text, not JSON.** The user is the
   primary consumer (attaching to a GitHub issue). Plain text reads in any
   viewer; JSON is fragile for human consumption.
@@ -976,39 +1014,38 @@ the automatic rollback. After the second restart, the user sees a
 and their data is intact. The double-restart is bounded — the user does
 not see further restarts.
 
-If the user sees more than two restarts in a row, that is a bug — likely
-the rollback path failed to delete `pre_restore_backup.db` or to clear
-the `restore_in_progress` flag, so the next launch enters the recovery
-flow again with no rollback target.
+If the user sees more than two restarts in a row, inspect the same-install
+attempt and terminal outbox. A committed rollback whose atomic finalization or
+terminal publication cannot complete must stay unresolved; deleting its source
+or clearing a legacy flag is not a valid repair.
 
 ### "Revert last restore" row appears in Settings
 
-Indicates a prior restore succeeded and `cache/pre_restore_backup.db` is
-preserved for one undo opportunity. Tapping a new Restore overwrites the
-preserved file — the undo opportunity is consumed by the new Restore.
+Indicates a same-install `activeUndo` pointer exists for one exact immutable
+file. A new restore does not overwrite it: P stays protected until N verifies,
+then atomic finalization replaces P with N or clears the pointer if N's undo is
+unavailable. User undo clears only the matching applied ref.
 
-The row disappears in three cases:
-
-- The user tapped Revert and the undo completed.
-- The user triggered a new Restore (preserved slot was overwritten).
-- The system reclaimed `cacheDir` under storage pressure.
-
-The third case is acceptable — no data loss, just the loss of the undo
-option, which is by definition a non-essential safety net.
+Cache deletion must not affect this row. If the exact same-install file is
+missing or corrupt, the pointer is not silently healed away; applying or
+recovering it routes to `RecoveryRequired`.
 
 ### `RecoveryActivity` launches instead of `MainActivity`
 
-Indicates Scenario 2 — Room migration failed at app startup, not during a
-restore. Possible causes:
+The title/body identify whether this is startup migration or restore recovery.
+Possible causes include:
 
 - The developer shipped a schema bump without a registered migration. The
   CI-enforced migration test should have caught this before merge.
 - A registered migration crashed at runtime due to user-data shape (e.g.
   a runtime assertion failed on a corner case).
+- A same-install restore/rollback attempt is unresolved, an exact required ref
+  is missing/corrupt, or verified finalization is still pending.
 
-The user remediation is one of: update the app (most cases — the developer
-ships a follow-up release), export raw data and re-import on a working
-build, or file an issue with the diagnostic export attached.
+Update is shown only for startup migration. Continue is shown only for the
+genuine integrity-gated legacy `InterruptedRestore` outcome and still requires
+two explicit user actions. Raw export and diagnostics remain available
+independently when their typed state permits sharing.
 
 ## Related
 

@@ -3,7 +3,10 @@ package io.github.stslex.workeeper.feature.recovery
 
 import android.content.Context
 import io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetime
+import io.github.stslex.workeeper.core.data.backup.api.restore.ActiveUndo
+import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreOwnerId
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreStateRepository
+import io.github.stslex.workeeper.core.data.backup.api.restore.UndoRef
 import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialog
 import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialogUserAction
 import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialogUserChoice
@@ -55,26 +58,28 @@ internal class RestoreDialogChoiceObserverTest {
     }
 
     @Test
-    fun `an unusable undo source acknowledges the confirmation instead of wedging it`() = runTest {
-        // Another tap cannot help: the image exists but is not a database. Leaving the dialog
-        // visible would offer a retry that fails identically forever.
-        val dialog = AppDialog.UndoRestoreConfirmation(originalDataDateEpochMs = 0L)
+    fun `a stale undo owner acknowledges the obsolete confirmation`() = runTest {
+        val dialog = AppDialog.UndoRestoreConfirmation(
+            undoRef = TEST_UNDO_REF,
+            originalDataDateEpochMs = 0L,
+        )
         stubChoice(dialog, AppDialogUserAction.ConfirmUndo)
-        coEvery { coordinator.performUndoRestore(any()) } returns
-            UndoRestoreOutcome.SourceUnusable
+        coEvery { coordinator.performUndoRestore(TEST_UNDO_REF) } returns
+            UndoRestoreOutcome.NotCurrent
 
         createObserver()
         advanceUntilIdle()
 
+        coVerify(exactly = 1) { coordinator.performUndoRestore(TEST_UNDO_REF) }
         coVerify(exactly = 1) { observer.acknowledgeReaction(dialog) }
         verify(exactly = 0) { coordinator.restartApp() }
     }
 
     @Test
-    fun `RequestUndo with no preserved date neither publishes nor acknowledges`() = runTest {
+    fun `RequestUndo with no active undo neither publishes nor acknowledges`() = runTest {
         val dialog = AppDialog.RestoreSuccess(restoredAtEpochMs = 0L, previousVersionAvailable = true)
         stubChoice(dialog, AppDialogUserAction.RequestUndo)
-        coEvery { restoreStateRepository.getPreRestoreOriginalDate() } returns null
+        every { restoreStateRepository.observeActiveUndo() } returns flowOf(null)
 
         createObserver()
         advanceUntilIdle()
@@ -84,17 +89,25 @@ internal class RestoreDialogChoiceObserverTest {
     }
 
     @Test
-    fun `RequestUndo with preserved date publishes confirmation then acknowledges success`() = runTest {
+    fun `RequestUndo publishes the exact active ref then acknowledges success`() = runTest {
         val dialog = AppDialog.RestoreSuccess(restoredAtEpochMs = 0L, previousVersionAvailable = true)
         stubChoice(dialog, AppDialogUserAction.RequestUndo)
-        coEvery { restoreStateRepository.getPreRestoreOriginalDate() } returns 123L
+        every { restoreStateRepository.observeActiveUndo() } returns flowOf(
+            ActiveUndo(
+                ref = TEST_UNDO_REF,
+                originalDataDateEpochMs = 123L,
+            ),
+        )
 
         createObserver()
         advanceUntilIdle()
 
         coVerify(exactly = 1) {
             appDialogPublisher.publish(
-                AppDialog.UndoRestoreConfirmation(originalDataDateEpochMs = 123L),
+                AppDialog.UndoRestoreConfirmation(
+                    undoRef = TEST_UNDO_REF,
+                    originalDataDateEpochMs = 123L,
+                ),
             )
         }
         coVerify(exactly = 1) { observer.acknowledgeReaction(dialog) }
@@ -113,54 +126,65 @@ internal class RestoreDialogChoiceObserverTest {
     }
 
     @Test
-    fun `ConfirmUndo Succeeded acknowledges through the onCommitted hook and restarts`() = runTest {
-        val dialog = AppDialog.UndoRestoreConfirmation(originalDataDateEpochMs = 123L)
+    fun `ConfirmUndo Succeeded restarts without directly acknowledging`() = runTest {
+        val dialog = AppDialog.UndoRestoreConfirmation(
+            undoRef = TEST_UNDO_REF,
+            originalDataDateEpochMs = 123L,
+        )
         stubChoice(dialog, AppDialogUserAction.ConfirmUndo)
-        // Invoking the hook proves the acknowledge is passed as the transaction's onCommitted.
-        coEvery { coordinator.performUndoRestore(any()) } coAnswers {
-            firstArg<suspend () -> Unit>().invoke()
+        coEvery { coordinator.performUndoRestore(TEST_UNDO_REF) } returns
             UndoRestoreOutcome.Succeeded
-        }
 
         createObserver()
         advanceUntilIdle()
 
-        coVerify(exactly = 1) { coordinator.performUndoRestore(any()) }
-        coVerify(exactly = 1) { observer.acknowledgeReaction(dialog) }
+        coVerify(exactly = 1) { coordinator.performUndoRestore(TEST_UNDO_REF) }
+        coVerify(exactly = 0) { observer.acknowledgeReaction(any()) }
         verify(exactly = 1) { coordinator.restartApp() }
     }
 
     @Test
     fun `ConfirmUndo IoFailure keeps dialog visible and does not restart`() = runTest {
-        val dialog = AppDialog.UndoRestoreConfirmation(originalDataDateEpochMs = 123L)
+        val dialog = AppDialog.UndoRestoreConfirmation(
+            undoRef = TEST_UNDO_REF,
+            originalDataDateEpochMs = 123L,
+        )
         stubChoice(dialog, AppDialogUserAction.ConfirmUndo)
-        // Non-commit: the seam never runs the hook, so the observer must not acknowledge.
-        coEvery { coordinator.performUndoRestore(any()) } returns UndoRestoreOutcome.IoFailure
+        coEvery { coordinator.performUndoRestore(TEST_UNDO_REF) } returns
+            UndoRestoreOutcome.IoFailure
 
         createObserver()
         advanceUntilIdle()
 
-        coVerify(exactly = 1) { coordinator.performUndoRestore(any()) }
+        coVerify(exactly = 1) { coordinator.performUndoRestore(TEST_UNDO_REF) }
         coVerify(exactly = 0) { observer.acknowledgeReaction(any()) }
         verify(exactly = 0) { coordinator.restartApp() }
     }
 
     @Test
-    fun `ConfirmUndo FileMissing acknowledges directly but does not restart`() = runTest {
-        val dialog = AppDialog.UndoRestoreConfirmation(originalDataDateEpochMs = 123L)
+    fun `ConfirmUndo RecoveryRequired restarts without directly acknowledging`() = runTest {
+        val dialog = AppDialog.UndoRestoreConfirmation(
+            undoRef = TEST_UNDO_REF,
+            originalDataDateEpochMs = 123L,
+        )
         stubChoice(dialog, AppDialogUserAction.ConfirmUndo)
-        coEvery { coordinator.performUndoRestore(any()) } returns UndoRestoreOutcome.FileMissing
+        coEvery { coordinator.performUndoRestore(TEST_UNDO_REF) } returns
+            UndoRestoreOutcome.RecoveryRequired
 
         createObserver()
         advanceUntilIdle()
 
-        coVerify(exactly = 1) { observer.acknowledgeReaction(dialog) }
-        verify(exactly = 0) { coordinator.restartApp() }
+        coVerify(exactly = 1) { coordinator.performUndoRestore(TEST_UNDO_REF) }
+        coVerify(exactly = 0) { observer.acknowledgeReaction(any()) }
+        verify(exactly = 1) { coordinator.restartApp() }
     }
 
     @Test
     fun `Cancel acknowledges without performing undo`() = runTest {
-        val dialog = AppDialog.UndoRestoreConfirmation(originalDataDateEpochMs = 123L)
+        val dialog = AppDialog.UndoRestoreConfirmation(
+            undoRef = TEST_UNDO_REF,
+            originalDataDateEpochMs = 123L,
+        )
         stubChoice(dialog, AppDialogUserAction.Cancel)
 
         createObserver()
@@ -172,11 +196,18 @@ internal class RestoreDialogChoiceObserverTest {
 
     @Test
     fun `UndoRestoreSuccess Acknowledge acknowledges the data object`() = runTest {
-        stubChoice(AppDialog.UndoRestoreSuccess, AppDialogUserAction.Acknowledge)
+        val dialog = AppDialog.UndoRestoreSuccess()
+        stubChoice(dialog, AppDialogUserAction.Acknowledge)
 
         createObserver()
         advanceUntilIdle()
 
-        coVerify(exactly = 1) { observer.acknowledgeReaction(AppDialog.UndoRestoreSuccess) }
+        coVerify(exactly = 1) { observer.acknowledgeReaction(dialog) }
+    }
+
+    private companion object {
+        val TEST_UNDO_REF = UndoRef(
+            RestoreOwnerId("00000000-0000-4000-8000-000000000011"),
+        )
     }
 }

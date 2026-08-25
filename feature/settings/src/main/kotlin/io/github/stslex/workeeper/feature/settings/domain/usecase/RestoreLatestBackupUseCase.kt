@@ -12,7 +12,10 @@ import io.github.stslex.workeeper.core.data.backup.api.DatabaseReplacementResult
 import io.github.stslex.workeeper.core.data.backup.api.error.BackupError
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreAttempt
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreInProgressContext
+import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreOwnerId
+import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreSourceRef
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreStateRepository
+import io.github.stslex.workeeper.core.data.backup.api.restore.UndoRef
 import io.github.stslex.workeeper.core.data.backup.api.result.BackupResult
 import io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProvider
 import kotlinx.coroutines.CoroutineDispatcher
@@ -77,7 +80,7 @@ class RestoreLatestBackupUseCase(
             val snapshotResult = databaseReplacement.restoreFromSnapshot(
                 source = tempFile,
                 effects = RestoreTransactionEffects(
-                    attemptId = UUID.randomUUID().toString(),
+                    attemptId = RestoreOwnerId(UUID.randomUUID().toString()),
                     context = RestoreInProgressContext(
                         backupSchemaVersion = backupSchemaVersion,
                         backupCreatedAtEpochMs = ref.manifest.createdAtEpochMs,
@@ -118,21 +121,24 @@ class RestoreLatestBackupUseCase(
 
     /** Idempotent DataStore effects run on the runtime transaction coroutine. */
     private inner class RestoreTransactionEffects(
-        override val attemptId: String,
+        override val attemptId: RestoreOwnerId,
         private val context: RestoreInProgressContext,
     ) : DatabaseReplacementEffects {
 
-        // Claims this attempt's `Prepared` journal slot. A refusal throws, which the runtime
-        // maps to `RejectedBeforeMutation`. See the Phase-5 startup-processor spec.
-        override suspend fun onBeforeMutation(rollbackSnapshotPath: String) {
+        // Claims this attempt's `Prepared` journal slot. A refusal leaves ownership unprovable,
+        // so the runtime stops fatally after quiescence. See the Phase-5 startup-processor spec.
+        override suspend fun onBeforeMutation(
+            undoRef: UndoRef,
+            restoreSourceRef: RestoreSourceRef?,
+        ) {
+            checkNotNull(restoreSourceRef) { "restore source ownership is required" }
             val claimed = restoreStateRepository.beginAttempt(
-                RestoreAttempt(
+                RestoreAttempt.Restore(
                     id = attemptId,
-                    kind = RestoreAttempt.Kind.Restore,
                     phase = RestoreAttempt.Phase.Prepared,
                     context = context,
-                    rollbackSnapshotPath = rollbackSnapshotPath.takeIf { it.isNotEmpty() },
-                    rollbackOrigin = null,
+                    undoRef = undoRef,
+                    sourceRef = restoreSourceRef,
                 ),
             )
             check(claimed) {
@@ -145,17 +151,34 @@ class RestoreLatestBackupUseCase(
             check(recorded) { "the journal slot is no longer owned by attempt $attemptId" }
         }
 
-        override suspend fun onRejectedBeforeMutation(error: BackupError) {
-            restoreStateRepository.resolveAttempt(attemptId)
+        override suspend fun onBeforeCompensation(
+            rollbackOwner: RestoreOwnerId,
+            appliedRef: UndoRef,
+        ) {
+            check(
+                restoreStateRepository.beginCompensation(
+                    restoreAttemptId = attemptId,
+                    rollback = RestoreAttempt.Rollback(
+                        id = rollbackOwner,
+                        phase = RestoreAttempt.Phase.Prepared,
+                        sourceRef = appliedRef,
+                        origin = RestoreAttempt.RollbackOrigin.ScenarioOneRecovery,
+                    ),
+                ),
+            ) { "restore attempt $attemptId no longer owns compensation" }
         }
 
-        /** Resolve after state writes; canonical-file existence decides undo availability. */
-        override suspend fun onRecoveredByRollback(error: BackupError) {
-            if (snapshotProvider.getPreRestoreBackupFile() == null) {
-                restoreStateRepository.clearPreRestoreBackupAvailable()
+        override suspend fun onCompensationCommitted(rollbackOwner: RestoreOwnerId) {
+            check(restoreStateRepository.recordAttemptCommitted(rollbackOwner)) {
+                "compensation journal is no longer owned by $rollbackOwner"
             }
-            restoreStateRepository.resolveAttempt(attemptId)
         }
+
+        override suspend fun onRejectedBeforeMutation(error: BackupError) {
+            restoreStateRepository.discardPreparedAttempt(attemptId)
+        }
+
+        override suspend fun onRecoveredByRollback(error: BackupError) = Unit
 
         /** Preserve Prepared state so the next launch recovers conservatively. */
         override suspend fun onFailedAfterMutation(error: BackupError) = Unit

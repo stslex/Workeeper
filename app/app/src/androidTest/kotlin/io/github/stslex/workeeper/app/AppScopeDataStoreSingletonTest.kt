@@ -36,7 +36,7 @@ internal class AppScopeDataStoreSingletonTest {
     @Test
     fun twoAppGraphsInOneProcessShareTheRestoreStateDataStore() {
         assertReadableFromTwoGraphs { graph ->
-            graph.restoreStateRepository.observePreRestoreBackupAvailable().first()
+            graph.restoreStateRepository.observeActiveUndo().first()
         }
     }
 

@@ -35,17 +35,24 @@ internal class StartupProcessor(
         lifetime: AppScopeLifetime,
     ): StartupOutcome {
         val restoreOutcome = runBlocking {
-            graph.restoreRecoveryCoordinator.handlePostRestoreLaunch()
+            graph.restoreRecoveryCoordinator.handlePostRestoreLaunch().also {
+                graph.restoreRecoveryCoordinator.sweepRecoveryGarbage()
+            }
         }
         val outcome = when (nextStep(restoreOutcome)) {
             PostPreflightStep.Restart -> StartupOutcome.RestartRequired
             PostPreflightStep.TerminalRecovery -> StartupOutcome.RouteToRecovery
+            PostPreflightStep.FinalizationPending -> StartupOutcome.RouteToRecovery
             PostPreflightStep.PeekThenArm -> {
-                runBlocking { graph.startupMigrationCoordinator.checkAndRouteOrProceed() }
-                armAndClassify(graph, appDatabase, lifetime)
+                runBlocking {
+                    graph.startupMigrationCoordinator.checkAndRouteOrProceed()
+                    armAndClassify(graph, appDatabase, lifetime)
+                }
             }
 
-            PostPreflightStep.ArmOnly -> armAndClassify(graph, appDatabase, lifetime)
+            PostPreflightStep.ArmOnly -> runBlocking {
+                armAndClassify(graph, appDatabase, lifetime)
+            }
         }
         // A recovery-routed process keeps running; without this a persisted BackupWorker would
         // still bind a lease over the file this launch declared unprovable. See spec §8.5b.
@@ -69,6 +76,7 @@ internal class StartupProcessor(
         return when (nextStep(restoreOutcome)) {
             PostPreflightStep.Restart -> StartupOutcome.RestartRequired
             PostPreflightStep.TerminalRecovery -> StartupOutcome.RouteToRecovery
+            PostPreflightStep.FinalizationPending -> StartupOutcome.FinalizationPending
             PostPreflightStep.PeekThenArm -> {
                 graph.startupMigrationCoordinator.checkAndRouteOrProceed()
                 armAndClassify(graph, appDatabase, lifetime)
@@ -80,11 +88,15 @@ internal class StartupProcessor(
 
     /**
      * Skip the schema peek only when THIS launch already proved the live file openable.
-     * Exhaustive by construction: a sixth [PreflightOutcome] must pick a step. See spec §8.5b.
+     * Exhaustive by construction: every [PreflightOutcome] must pick a step. See spec §8.5b.
      */
     private fun nextStep(outcome: PreflightOutcome): PostPreflightStep = when (outcome) {
         PreflightOutcome.RestoreRolledBack -> PostPreflightStep.Restart
-        PreflightOutcome.RecoveryRequired -> PostPreflightStep.TerminalRecovery
+        PreflightOutcome.InterruptedRestore,
+        PreflightOutcome.RecoveryRequired,
+        -> PostPreflightStep.TerminalRecovery
+
+        PreflightOutcome.FinalizationPending -> PostPreflightStep.FinalizationPending
 
         // RecoveryCompleted inherits a live file a rollback replaced in an EARLIER process.
         PreflightOutcome.NoOp,
@@ -95,17 +107,23 @@ internal class StartupProcessor(
         PreflightOutcome.RestoreSucceeded -> PostPreflightStep.ArmOnly
     }
 
-    private fun armAndClassify(
+    private suspend fun armAndClassify(
         graph: AppGraph,
         appDatabase: AppDatabase,
         lifetime: AppScopeLifetime,
     ): StartupOutcome {
         armPostPreflight(graph, appDatabase, lifetime)
-        return if (graph.startupMigrationCoordinator.lastDecision is StartupCheck.RouteToRecovery) {
+        val outcome = if (
+            graph.startupMigrationCoordinator.lastDecision is StartupCheck.RouteToRecovery
+        ) {
             StartupOutcome.RouteToRecovery
         } else {
             StartupOutcome.Proceed
         }
+        if (outcome == StartupOutcome.Proceed) {
+            graph.restoreRecoveryCoordinator.publishPendingTerminalOutbox()
+        }
+        return outcome
     }
 
     /**
@@ -157,6 +175,9 @@ internal class StartupProcessor(
 
         /** GUARD: terminal recovery arms nothing DB-bound and shows no main UI. */
         TerminalRecovery,
+
+        /** Candidate publication is forbidden until the owner/pointer edit becomes durable. */
+        FinalizationPending,
 
         /** Unproven live file: peek its schema, then arm. */
         PeekThenArm,

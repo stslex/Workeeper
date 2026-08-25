@@ -21,4 +21,11 @@ dependencies {
     implementation(project(":core:data:database"))
     implementation(project(":core:data:backup:api"))
     implementation(project(":feature:app-dialogs:api"))
+
+    // ForeignInstallTransferIntegrationTest joins the real scheduling DataStore implementation
+    // to the real noBackup recovery-file implementation; both edges are test-only.
+    testImplementation(project(":core:data:backup:scheduling"))
+    testImplementation(project(":core:data:dataStore"))
+    testImplementation(project(":feature:app-dialogs:impl"))
+    testImplementation(libs.androidx.datastore.preferences)
 }

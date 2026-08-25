@@ -1,0 +1,17 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<testsuites tests="7" failures="0" errors="0" skipped="0" time="12.846" timestamp="2026-08-25T12:27:36" hostname="localhost">
+  <testsuite name="io.github.stslex.workeeper.feature.exercise_chart.ExerciseChartScreenTest" tests="7" failures="0" errors="0" skipped="0" time="10.541" timestamp="2026-08-25T12:27:36" hostname="localhost">
+    <properties>
+      <property name="device" value="Pixel_6_API_34(AVD) - 14" />
+      <property name="flavor" value="" />
+      <property name="project" value=":feature:exercise-chart" />
+    </properties>
+    <testcase name="chart_rendersReadout_whenReadoutIsPresent" classname="io.github.stslex.workeeper.feature.exercise_chart.ExerciseChartScreenTest" time="2.107" />
+    <testcase name="chart_pressNearRightEdge_dispatchesOnScrubToLastIndex" classname="io.github.stslex.workeeper.feature.exercise_chart.ExerciseChartScreenTest" time="1.121" />
+    <testcase name="chart_sameDaySessions_dispatchesBothScrubIndices" classname="io.github.stslex.workeeper.feature.exercise_chart.ExerciseChartScreenTest" time="1.287" />
+    <testcase name="chart_singlePoint_neverReachesTheCanvas" classname="io.github.stslex.workeeper.feature.exercise_chart.ExerciseChartScreenTest" time="0.89" />
+    <testcase name="chart_rendersRecordDot_whenReadoutIsRecord" classname="io.github.stslex.workeeper.feature.exercise_chart.ExerciseChartScreenTest" time="2.172" />
+    <testcase name="chart_tappingExerciseHeader_dispatchesOnPickerOpen" classname="io.github.stslex.workeeper.feature.exercise_chart.ExerciseChartScreenTest" time="1.169" />
+    <testcase name="chart_pressNearLeftEdge_dispatchesOnScrubToFirstIndex" classname="io.github.stslex.workeeper.feature.exercise_chart.ExerciseChartScreenTest" time="1.795" />
+  </testsuite>
+</testsuites>

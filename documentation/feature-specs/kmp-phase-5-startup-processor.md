@@ -295,29 +295,30 @@ Running → Quiescing(abortable) →‖PONR‖→ Teardown → Close → Replaci
                                    ↘ ladder: RecoveredByRollback | Fatal
 ```
 
-All transitions run under the runtime `Mutex` (single-flight). **Same-operation registration is
-ATOMIC under the submission lock: a concurrent request for the SAME operation joins the
-in-flight transaction's result; a different operation registers its own transaction, serializes
-behind the mutex, and never receives another operation's result. Runtime liveness is RECHECKED
-inside the mutex: a transaction queued behind one that reached Fatal performs no validation, no
-close, no swap, and no publication — it completes with Fatal.**
+All transitions run under the runtime `Mutex`. Every database mutation has one validated,
+runtime-owned `RestoreOwnerId`; callers never share a transaction or callbacks across owners.
+The former same-operation coalescing is removed because its key did not include the second
+caller's owner or effects. Concurrent calls serialize, but each keeps its own source ref, undo
+ref, journal owner and terminal callback. Runtime liveness is rechecked inside the mutex: a
+transaction queued behind one that reached Fatal performs no validation, close, swap or
+publication and completes with Fatal.
 
 **Submission, source ownership, effects.** Callers submit and await; the body runs on the
-runtime's never-cancelled host scope. A restore's source file is STAGED into a runtime-owned
-copy inside the non-suspending submission frame (ownership transfer — a cancelled caller's
-temp-file cleanup can never mutate a file the transaction needs), and the runtime deletes the
-staged copy on every terminal outcome. All caller compensation is ONE typed
-`DatabaseReplacementEffects` object: `onBeforeMutation` runs inside the mutex after validation
+runtime's never-cancelled host scope. The downloaded caller temp may start in `cacheDir`, but the
+runtime copies it to the dedicated `noBackupFilesDir/restore-recovery` root under its opaque
+`RestoreSourceRef` before the first caller-cancellable suspension, journal claim or PONR. The
+handoff and host-transaction submission run together under `NonCancellable`, so caller cleanup
+cannot remove the source between ownership transfer and submission. Persisted-state garbage
+collection, not a terminal-frame path guess, owns final deletion. All caller bookkeeping is one
+typed `DatabaseReplacementEffects` object: `onBeforeMutation` runs inside the mutex after validation
 and before anything irreversible; exactly one terminal method
 (`onRejectedBeforeMutation` / `onCommitted` / `onRecoveredByRollback` / `onFailedAfterMutation`
 / `onFatal`) runs per transaction, on the transaction's coroutine, for every outcome including
-internal escapes. Terminal selection is DURABLE-PHASE-AWARE (R4.2): `onCommitted` is legal only
-once the durable `Committed` transition actually landed — a failure that PREVENTED it
-(the promotion STAGING or the record, `CommitResult.NotDurable`) is never dispatched as a committed
-terminal, because the production committed effects resolve the still-`Prepared` attempt, clear
-availability and acknowledge the initiating action — erasing exactly the state conservative
-recovery needs. A failure OF the `onCommitted` callback itself, after a durable commit, is a
-different origin: it folds onto `Committed(effectsError)` — never a silently clean commit.
+internal escapes. Terminal selection is durable-phase-aware: `onCommitted` is legal only after
+the `Committed` journal exists and the shared verified-attempt finalizer has made the pointer and
+terminal outbox durable. A failure before that atomic transition preserves the `Committed`
+attempt and its exact files and cannot report a clean success. Publication of the outbox is
+idempotent; its owner-checked acknowledgement clears it only after dialog publication succeeds.
 
 **The point of no return is the START of the first irreversible action** — the outgoing
 teardown, the `close()` INVOCATION, or the file mutation — never its completion. Before it,
@@ -326,17 +327,15 @@ N is never republished.
 
 Two policies select the ending:
 
-- **`RestartProcess` (Android production)** — preserves shipped behavior exactly: no Quiescing
-  (process death is the quiescence, as today), the runtime executes close + file replacement and
-  marks the published generation terminal; the caller's existing restart flow
-  (`AppReinitializer`) follows. Observable production behavior is unchanged, including the brief
-  closed-DB window before exit that exists today. **Scoping rules (review v2 condition 5, updated
-  round-2): the recovery ladder applies to `RebuildInProcess` ONLY — a production post-mutation
-  failure returns `FailedAfterMutation` with every recovery asset preserved and the interrupted
-  mutation journaled (§8.5a), no restart, the closed DB fails loud until the user acts; a
-  `RestartProcess` transaction is startable from an already-terminal generation (the failure
-  re-tap re-runs the idempotent close + rename); and a `RestartProcess` close-throw is
-  post-PONR (`FailedAfterMutation`), never a cleanup-safe rejection.**
+- **`RestartProcess` (Android production)** — uses the reversible Quiescing admission fence, then
+  closes and replaces the live file without building a candidate generation. After every
+  post-PONR outcome, the runtime invokes its host-owned `AppReinitializer` before completing the
+  submitting deferred; restart no longer depends on a Settings/UI coroutine surviving the
+  transition. The recovery ladder still applies to `RebuildInProcess` only. A restart-policy
+  close or replacement failure is `FailedAfterMutation`, preserves the journal and exact recovery
+  assets, keeps UI and DB-bound admission closed, and restarts into cold-start recovery. A restart
+  hook that returns is a test seam; a hook failure is surfaced as `effectsError`, never clean
+  success.
 - **`RebuildInProcess` (Android instrumentation now; iOS Phase 7)** — the full machine:
 
 **Quiescing** (ABORTABLE: every step is reversible; nothing of generation N is torn down):
@@ -392,9 +391,11 @@ admission is closed (leases drained), snackbar resolves drained, lifetime joined
 itself is the only actor. No DAO/repository proxying, no graph-wide gate.
 
 **ReplacingFile**: generation N is terminal — never republished, never a fallback. The provider's
-pure file mechanics run (§8.5): delete sidecars → copy source → `.tmp` → atomic rename
-(+ consume source for rollback ops). Validation (magic/version reads) ran in Running, through
-the still-open DB, against the runtime's STAGED copy.
+pure file mechanics run (§8.5): delete sidecars → copy the exact restore or undo ref to
+`${AppDatabase.NAME}.tmp` → atomic rename. Source deletion is deferred until durable
+finalization and owner-aware sweeping. Validation ran in Running against the exact
+runtime-owned file. The `.tmp` copy means the successful restore peak remains approximately five
+DB-sized files; immutable undo removes positional rewrites and crash states, not that peak.
 
 **BuildingGeneration**: `dbFactory()` — the **complete production factory** (`buildAppDatabase`:
 driver + full `MIGRATIONS` chain, cold) — then a fresh `AppScopeLifetime`, fresh `ViewModelStore`,
@@ -404,9 +405,11 @@ database closes; a candidate/orphan close that itself throws STOPS the ladder (F
 rename). Nothing published yet.
 
 **Preflight**: the candidate's own coordinator verifies (Scenario-1 semantics:
-`currentSchemaVersion()` through the candidate — the open IS the verification, migrations run
-here) and applies success side-effects (DataStore writes, process-lifetime, exactly-once by flag
-semantics).
+`currentSchemaVersion()` through the candidate — the open is the verification and migrations run
+here), then invokes the same atomic attempt finalizer used by cold-start preflight. A finalizer
+write or outbox-publication failure returns `FinalizationPending`; the candidate is torn down and
+must not publish. Pointer activation is therefore not a policy callback and cannot be skipped by
+`RebuildInProcess`.
 
 **Publishing**: single atomic `Serving(genN+1)` write (one immutable value behind both phase
 faces); the snackbar epoch advances (commit only); worker admission reopens; UI re-keys onto the
@@ -473,241 +476,164 @@ caller's own result is `Committed` (it requested the rollback); the outer restor
 
 `DatabaseSnapshotProviderImpl` **stops closing or swapping the published database independently**:
 
-- Its swap methods (`restoreFromSnapshot`, `rollbackToPreRestoreBackup`) are decomposed:
-  validation stays (`verifySqliteMagic`, version peeks, existence checks — read-only), and the
-  pure file mechanics move to a method that performs sidecar-delete + copy + rename **without any
-  `close()`** — invoked only by the runtime inside ReplacingFile.
-- Non-swap surface unchanged: `captureSnapshot`, `preserveCurrentDb`, `preserveDbBeforeMigration`,
-  peeks, `hasPreRestoreBackup`, `delete*` — these never close the DB.
+- Restore mechanics accept only `RestoreSourceRef`; rollback mechanics accept only `UndoRef`.
+  Paths are derived below `noBackupFilesDir/restore-recovery`, never persisted or accepted from a
+  caller. `createUndo(ref)` copies into a unique same-directory
+  `undo_<owner>.db.<nonce>.creating` file, syncs it, then atomically publishes the final name with
+  a permanent cross-process file lock, no-follow absence check and same-directory atomic move. An
+  existing immutable final is never overwritten.
+- Validation, advisory capacity checks and immutable undo creation run while the existing
+  generation is still serving. Only the runtime invokes the pure sidecar-delete + copy-to-live
+  `.tmp` + rename mechanics after close.
+- `preserveDbBeforeMigration`, staged restore sources and recovery exports are durable no-backup
+  assets. Sharing creates a copy in one narrowly exposed cache share directory on demand; the
+  no-backup root is not a `FileProvider` root.
 - Callers reroute to a narrow seam, `DatabaseReplacement` (interface in `core:data:backup:api`
   **androidMain** — the module is KMP and the signature uses `java.io.File`; precedent:
   `BackupStorage` sits there for the same reason):
-  `suspend fun restoreFromSnapshot(source: File, effects: DatabaseReplacementEffects = None):
-  DatabaseReplacementResult` and `suspend fun rollbackToPreRestoreBackup(effects: … = None):
-  DatabaseReplacementResult`, where `DatabaseReplacementResult` is the phase-aware sealed type
+  `suspend fun restoreFromSnapshot(source: File, effects: DatabaseReplacementEffects)` and
+  `suspend fun rollbackFromUndo(sourceRef: UndoRef, effects: DatabaseReplacementEffects)`.
+  There is no production default effects owner. `DatabaseReplacementResult` is the phase-aware
+  sealed type
   `Committed(effectsError?)` / `RejectedBeforeMutation(error)` / `RecoveredByRollback(error)` /
   `FailedAfterMutation(error)` / `FatalNoGeneration`, and `DatabaseReplacementEffects` is the
-  typed per-phase compensation contract (§8.4). The runtime implements the seam and enters the
-  graph as a `create()` bound instance (5th root). Rerouted callers:
+  typed per-phase contract, including exact-ref compensation ownership (§8.4). The runtime
+  implements the seam and enters the graph as a `create()` bound instance (5th root). Rerouted callers:
   `RestoreLatestBackupUseCase` (feature/settings), `RestoreRecoveryCoordinator
   .handleRestoreFailure` and `performUndoRestore` (feature/recovery) — each supplies its
   effects object; caller code after the await only MAPS results, it never compensates.
-  Recovery layering is preserved: coordinators keep owning *semantics* (outcome mapping,
-  dialogs, restart calls) while their flag/dialog WRITES ride the effects on the transaction's
+  Recovery layering is preserved: coordinators keep owning *semantics* (outcome mapping and
+  dialogs) while their flag/dialog WRITES ride the effects on the transaction's
   coroutine; the runtime owns *mechanics* (staging, quiesce, teardown, close, file swap,
-  generation build, terminal cleanup). On Android production the seam runs the `RestartProcess`
-  policy — caller-visible success behavior (result, then restart) is unchanged.
+  generation build, durable finalization, owner-aware cleanup and post-PONR restart). On Android
+  production the `RestartProcess` policy invokes restart before the caller can observe a result.
 
-### 8.5a The attempt journal — one serialized attempt, crash-durable (R3)
+### 8.5a Installation-scoped attempt journal and immutable assets
 
-The two independent booleans (`restore_in_progress` + `restore_mutation_interrupted`) had a gap
-that produced a FALSE success: the interrupted flag was written only by the TERMINAL effects, so
-a process death after the close began but before those effects left the OLD, still-valid
-database on disk with `restore_in_progress` set and no interruption recorded — and the cold-start
-schema peek, run against that healthy old file, published `RestoreSuccess` for a restore that
-never happened.
+The current persisted model is one installation-scoped envelope:
 
-R3 replaces them with an attempt-scoped persisted state machine. At most ONE unresolved attempt
-exists at a time, and everything belonging to it — identity, kind, manifest context, the path
-of the rollback snapshot reserved for it, and (for a `Kind.Rollback`) its ORIGIN — is one atomic
-DataStore edit.
+```kotlin
+RestoreProtocolState(
+    installEpoch: InstallEpoch,
+    attempt: RestoreAttempt?,
+    activeUndo: ActiveUndo?,
+    terminalOutbox: RestoreTerminal?,
+)
+```
 
-**Rollback origin (R5).** `Kind` says WHAT the attempt does; it cannot say WHY a rollback runs,
-and the two producers write an identical journal shape: a user undo claims
-`(Kind.Rollback, Prepared, context=null, path=null)`, and a scenario-1 recovery of a `Committed`
-restore re-claims exactly the same tuple. `RollbackOrigin = {UserUndo, ScenarioOneRecovery}` is
-the durable discriminator, written under `restore_attempt_rollback_origin` in the same atomic
-claim, carried unchanged through every same-id re-claim, and cleared with the rest of the slot on
-resolve. `beginAttempt` REFUSES a `Kind.Rollback` with no origin, so the invariant cannot be
-forgotten by a future caller. The read is normalized at the repository, like phase and kind: a
-`Kind.Restore` entry carries no origin (a stray value is dropped); an absent or unparsable origin
-on a `Kind.Rollback` entry reads as `ScenarioOneRecovery` — the terminal the pre-origin build
-produced, never a false undo success. The enum NAMES are wire format.
+`RestoreAttempt` is sealed: `Restore(id, phase, context, undoRef, sourceRef)` or
+`Rollback(id, phase, sourceRef, origin)`. Refs are opaque owner identities, not paths. The
+repository stores the epoch with the envelope and separately with every attempt, pointer and
+outbox record, then reconciles ownership before decoding any one of them. At most one unresolved
+attempt exists. `Prepared` means the live-file outcome is unknown; `Committed` proves only that
+the exact mutation returned success and still requires verified finalization.
 
-| Phase | Written when | What a cold start may conclude |
-|---|---|---|
-| *(no attempt)* | slot free | normal launch (`NoOp`) |
-| `Prepared` | atomically BEFORE anything irreversible (validation passed, rollback snapshot reserved) | **outcome UNKNOWN** — the live file may be old, new, or partially replaced. Recovery path, never a peek-driven success |
-| `Committed` | after the live-file rename returned success AND this attempt's pre-image was STAGED beside the undo slot | the mutation is durably known to have happened; the schema peek is now a genuine verification of the NEW file, so success is legal |
-| *(resolved)* | one atomic clear by the OWNING attempt | nothing outstanding |
+An epoch mismatch is foreign transferred state. One atomic edit clears the foreign attempt,
+pointer, outbox and protocol keys without invoking owner callbacks, dereferencing a persisted
+path, deleting a same-named local file or touching the live database. Startup then continues
+through ordinary schema and migration preflight. Same epoch plus a missing referenced file is a
+real local recovery failure and must never be downgraded to "ignore".
 
-Ownership rules, all enforced by the repository rather than by convention:
+All authoritative files live under `noBackupFilesDir/restore-recovery`: the stable random install
+epoch, immutable undo files, staged restore sources, durable raw recovery export and protocol
+partials. Each immutable publication uses a unique `<final>.<nonce>.creating` file so concurrent
+processes never write the same inode. The complete synced partial is exposed under the final name
+by a same-directory atomic move while `.publication.lock` is held across a no-follow absence
+check; an existing final name is never overwritten. The permanent lock inode is never swept, and
+process death releases its kernel lock. Protocol state persists only owner and ref values. It
+never persists an arbitrary absolute path.
 
-- `beginAttempt` REFUSES when a different unresolved attempt owns the slot (same-id re-claim is
-  idempotent) — a new restore can never inherit or overwrite another attempt's bookkeeping, and
-  the refusal is what rejects the second of two rapid restores before anything irreversible. The
-  refusal reaches the runtime as a THROW: `RestoreTransactionEffects.onBeforeMutation` wraps the
-  claim in `check(claimed)`, and the runtime maps that escape to
-  `DatabaseReplacementResult.RejectedBeforeMutation` — nothing irreversible runs and
-  `recordAttemptCommitted` never fires against the other attempt's bookkeeping (pinned by
-  `a second restore is refused while an attempt is unresolved`).
-- `recordAttemptCommitted` and `resolveAttempt` are no-ops for a non-owner, so a late terminal
-  effect from a superseded attempt cannot erase the live one's state.
-- An unparsable/legacy state reads as `Prepared`. A pre-R3 install's `restore_in_progress` marker
-  carries no phase, so its outcome is unknown by construction: the conservative reading routes
-  that one launch through recovery rather than letting a peek claim a success the old flags
-  cannot prove. The synthetic owner it converts to is the persisted wire-format literal
-  `"legacy-restore-in-progress"` (`RestoreStateRepositoryImpl.LEGACY_ATTEMPT_ID`, private to that
-  module and therefore hand-duplicated in `RestoreStateRepositoryImplTest` and
-  `RestoreRecoveryCoordinatorTest`): changing it in one place alone silently breaks
-  `the LEGACY marker's recovery completes end-to-end under the synthetic owner id`.
+**Exact ownership.** A restore owner N creates immutable `UndoRef(N)` while any previously active
+pointer P remains untouched. The journal records both `UndoRef(N)` and `RestoreSourceRef(N)` in
+its `Prepared` claim. A user undo applies `activeUndo.ref`; compensation applies the failed
+restore's `UndoRef(N)`. Each rollback receives a fresh owner and persists the exact applied ref
+plus `UserUndo` or `ScenarioOneRecovery`. Compensation N clears only N if N is active; it cannot
+clear unrelated P. A source is deleted only after its rollback finalization is durable.
 
-**Rollback-slot reservation.** The rollback snapshot is no longer taken by the caller before
-submission (where two concurrent restores would race over one canonical path). The runtime takes
-it INSIDE the serialized transaction, after validation and before the point of no return, into a
-per-attempt reservation file whose path goes into the journal entry. Consequences:
+**Restore ordering.** While the old generation still serves:
 
-- a rejected attempt discards only its OWN reservation — the previous undo slot survives intact —
-  UNLESS its terminal compensation failed: any outcome whose `effectsError` is non-null may have
-  left the journal unresolved and still naming the reservation, so the file is KEPT (R4
-  invariant 8), exactly as on `FailedAfterMutation`/Fatal;
-- a committed attempt promotes its reservation onto the canonical `pre_restore_backup.db` in TWO
-  phases, so no attempt can invalidate the PREVIOUS one's undo image before becoming durable
-  (R5): the pre-image is STAGED — copied to the attempt-named `pre_restore_backup.db.<id>.promoting`,
-  canonical untouched — before the `Committed` record, and INSTALLED by an atomic rename after it.
-  The staging COPIES (R4): the reservation — the file the still-`Prepared` journal names —
-  survives every crash point, and the runtime deletes it only once the install landed. Two
-  defects are recorded here. The pre-R4 move-based promotion left the journal pointing at a
-  missing file. The pre-R5 order wrote the canonical BEFORE the record, so an attempt that never
-  committed had already destroyed the previous restore's undo image while
-  `pre_restore_backup_available` and its date still advertised it — a single-fault, always-armed
-  destruction on every `ENOSPC` or process death at `recordAttemptCommitted`. Staging debris is
-  attempt-named, discarded deterministically by the same attempt's next staging and by its own
-  pre-durable failure path, and is never read by recovery (the canonical lookup is an exact-name
-  match, and no attempt installs another's staging);
-- **the journal-named source is AUTHORITATIVE for a `Prepared` attempt** (R4 invariant 2): when
-  that file is missing, the canonical slot — which belongs to ANOTHER attempt — is never
-  substituted for it; the seam rejects with a typed error and the launch classifies as terminal
-  recovery. For a `Committed` attempt the proof runs through the RESERVATION'S LIFETIME (R5): the
-  reservation is deleted only after the install landed, so a surviving reservation means the
-  install may still be OWED and the canonical may still be the PREVIOUS attempt's image. The
-  cold-start committed branch therefore completes the install idempotently — pending staging →
-  install; else re-stage from the reservation → install; else an existing canonical is provably
-  this attempt's — BEFORE anything reads the canonical, and a completion that cannot produce an
-  undo image makes the launch recover from the reservation instead, never a cross-owner
-  substitution. A `Committed` attempt that owes its install and names no reservation classifies
-  as terminal recovery rather than substituting;
+```text
+validate exact staged source
+→ advisory capacity check
+→ create immutable UndoRef(N)
+→ persist Prepared(N), active=P
+→ close and swap live DB
+→ persist Committed(N), active=P
+→ verify candidate/cold-start generation
+→ atomically finalize active=N-or-null + terminal outbox + remove N
+→ publish/ack outbox
+→ sweep unreferenced P and protocol debris
+```
 
-- **a rollback VALIDATES its source** (R5): SQLite magic plus an in-header page-count check
-  against the file length, applied to the journal-named file and to the canonical slot alike.
-  The restore direction always validated; the rollback direction did not, so a canonical left
-  partially written by a crashed promotion was renamed over the live database and reported as a
-  clean undo — the outcome §25.4 explicitly excluded. A magic/completeness failure is a typed
-  `CorruptedBackup` rejection BEFORE the point of no return: nothing is closed, nothing is
-  renamed, and the file is KEPT (a validator false negative must never destroy a real undo
-  image). A user undo maps that rejection to `UndoRestoreOutcome.SourceUnusable`, which clears
-  the availability flag and dismisses the confirmation instead of offering a retry that fails
-  identically forever. The same completeness check now guards the restore direction too;
-- **a rollback consumes EXACTLY the file it applied** (R4 invariant 3, the typed
-  `SourceConsumption` in `MutationPlan`): a reservation-sourced recovery consumes only its
-  reservation and leaves the previous restore's canonical undo — and its availability flag —
-  valid; a canonical-sourced rollback consumes the slot. Any canonical invalidation beyond the
-  exact applied file is a separate owner-side decision, never an implicit side effect.
+`Committed(N), active=P` is valid only while UI and DB-bound admission remain closed. If the live
+database verifies but N is missing, the restore is proven and its undo is unavailable: the
+atomic finalizer writes `activeUndo=null` and `previousVersionAvailable=false`. It must never
+advertise P as undo of N. Before the finalizer's atomic edit fails, the `Committed` attempt, P and
+N stay intact and no clean success or candidate publication is legal.
 
-**Durable commit ordering** (the one order that keeps every crash window truthful):
-`rename` → `stage the promotion (copy the reservation beside the canonical)` → `record Committed`
-→ `install the undo slot (atomic rename over the canonical)` → *only then* delete the retained
-reservation → consume the exact rollback source a rollback op applied. A crash before the
-`Committed` record recovers via the journal's reservation, which the copy-based staging
-guarantees still exists, and the canonical still holds the PREVIOUS attempt's valid undo, still
-truthfully advertised; a crash between the record and the install is finished idempotently by the
-committed cold-start completion (§8.5b); a crash after the install but before the reservation
-delete re-installs the same bytes. Only the STAGING and the record are pre-durable: a failure of
-either leaves the mutation standing but unprovable, so recovery proceeds conservatively — which
-the invariant explicitly permits, while claiming success does not. A failure of the INSTALL is
-POST-durable and is never re-opened as a commit failure: the mutation is committed and verified,
-the reservation is retained for a later launch, and the restore simply claims no new undo image
-(no availability mark, `previousVersionAvailable = false`). That PRE-DURABLE failure is typed
-`CommitResult.NotDurable` (R4.2) and is **never dispatched as a
-committed terminal**: under `RestartProcess` it maps to `FailedAfterMutation` (journal
-`Prepared`, reservation retained, the next launch recovers); under `RebuildInProcess` the
-transaction diverts straight into the bounded recovery ladder (a restore rolls back onto its
-kept reservation; a requested rollback retries its own source and its durable record once, and
-a persistent record failure ends Fatal with everything preserved) — a candidate is never
-published over the unprovable file. Pre-R4.2 this failure surfaced as `Completed(effectsError)`
-and the committed terminal ran anyway, letting the production `onCommitted` effects resolve the
-still-`Prepared` attempt, clear availability, publish success and acknowledge — erasing exactly
-the state conservative recovery needed. The only `effectsError` a `Completed` can carry now
-originates from a failure OF the terminal `onCommitted` callback after a DURABLE commit — a
-different origin, still folded onto the result, never swallowed. The in-process ladder obeys
-the same owner rule:
-a pre-commit recovery applies the attempt's reservation WITHOUT consuming it (the journal still
-names it until the terminal effects resolve; the submission frame discards it after), a
-post-clean-commit recovery applies its SURVIVING reservation, or the canonical once the install
-landed (the proof above), and it re-journals the exact file it applies through its durable
-un-commit — a null path there would let the next launch substitute the previous attempt's
-canonical. A vanished reservation or a failed explicit-source rollback stops the ladder Fatal —
-never a cross-owner substitution.
+**Capacity admission.** After restore-source ownership transfer and validation, but before undo
+creation, journal claim, generation teardown, close or swap, query injectable
+`StorageManager.getAllocatableBytes()` without allocating. Restore requires the post-checkpoint
+live size for N, staged-source size for the live `.tmp`, and an explicit margin; rollback requires
+the exact source size for `.tmp` plus margin. Arithmetic is overflow-safe, equality passes, and
+one byte short, overflow or query failure returns typed `RejectedBeforeMutation` with the serving
+generation untouched. This is advisory: all writes must still map ENOSPC conservatively.
 
-### 8.5b Terminal recovery classification (R3, corrected R4)
+**Validation boundary.** `SqliteHeaderCheck` proves only header-format and file-length
+consistency. Its SQLite change-counter/version-valid-for mismatch behavior follows file-format
+semantics and must be characterized on matching, mismatched, zero-page-count and tail-truncated
+real snapshots. Recovery Continue separately consumes every row of framework SQLite
+`PRAGMA integrity_check` and accepts only `ok`.
+
+**Owner-aware sweeping.** Cleanup is derived only from the epoch-reconciled persisted state under
+startup/transition serialization. It preserves the install token, unresolved attempts, active
+undo, staged restore refs and outbox/finalization assets. It deletes only strict protocol-owned
+names beneath the dedicated recovery root, including orphan `.creating` files, staged sources
+and obsolete undo files. It never follows a persisted path. Delete failure is retryable garbage,
+not permission to resolve state or drop an owner. Cache deletion therefore cannot remove an
+authoritative same-install recovery asset.
+
+### 8.5b Terminal recovery classification and shared finalization
 
 `PreflightOutcome` distinguishes what the launch may still do:
 
 | Outcome | Condition | What the launch does |
 |---|---|---|
-| `RestoreSucceeded` | `Committed` attempt + successful peek | continue normally; the finalization is replay-safe (below) |
-| `RestoreRolledBack` | recovery rollback COMMITTED durably with clean bookkeeping | restart (the in-process Room handle is stale) |
-| `RecoveryCompleted` | an interrupted rollback found already durably `Committed` | finish its bookkeeping idempotently (ground-truth availability, the ORIGIN's dialog, resolve LAST), then continue THROUGH the scenario-2 schema peek |
-| `RecoveryRequired` | **every other rollback outcome** — rejected pre-PONR, post-PONR, fatal runtime, or a commit whose durable record failed | **arm ZERO DB-bound work** — no query-planner warm-up, no repositories, no dialog observer, no main UI — and hand off to the DB-free recovery surface with every asset preserved |
+| `RestoreSucceeded` | exact `Restore/Committed` + verified live generation + atomic pointer/outbox finalization | publish/ack the outbox, then continue; an outbox retry is idempotent |
+| `RestoreRolledBack` | exact compensation rollback committed and finalized | restart last; the in-process Room handle may be stale |
+| `RecoveryCompleted` | an interrupted rollback is already `Committed` and finalizes by descriptor identity | publish/ack its origin-aware outbox, then continue through ordinary schema preflight |
+| `FinalizationPending` | verification succeeded but the atomic state transition or outbox publication did not complete | keep UI/DB-bound admission closed; preserve the attempt and exact files; never publish the candidate or report clean success |
+| `InterruptedRestore` | same-install outcome-unknown restore with a healthy compatible live file, including the explicit legacy missing-C case | route to the DB-free recovery surface; automatic acceptance is forbidden, but user Continue is available (§27) |
+| `RecoveryRequired` | same-install referenced asset missing/unusable, live DB unusable, or rollback cannot become durably provable | arm zero DB-bound work and route to the DB-free recovery surface with assets preserved |
 
-The R3 `RetrySafe` outcome is REMOVED (R4 blocker B). Its premise — "a rejection proves the
-live database is intact" — confused the two transactions: a pre-PONR rejection of the RECOVERY
-rollback proves only that the rollback did not mutate, never what the ORIGINAL `Prepared`
-attempt did to the live file before dying, so nothing short of a clean durable rollback commit
-can license Main UI or DB-bound arming over that file. The one in-process consequence is
-deliberate and pinned: a graph-only reinitialize whose candidate preflight finds an unresolved
-`Prepared` attempt now aborts (the outgoing generation keeps serving on its already-open handle,
-journal and assets intact for a cold start or replacement transaction to complete) instead of
-publishing a fresh generation — arming its chores — over unproven data, which is what locked
-invariant 4 requires.
+Foreign-epoch state is reconciled before this classification and therefore never reaches
+`RecoveryActivity`. A missing same-install ref does reach `RecoveryRequired`; file absence is not
+evidence of transfer or foreign ownership.
 
-**Replay-safe finalization** (R4 invariant 7). Every finalization writes data-bearing state
-BEFORE resolving the attempt, so a death anywhere in the sequence leaves the replay token:
+**Replay-safe finalization.** Cold-start `RestartProcess` preflight and candidate
+`RebuildInProcess` preflight call one finalizer after the same verification boundary. It performs
+one owner-checked DataStore edit that changes or clears `activeUndo`, writes the terminal outbox
+and removes the owned attempt. The pointer transition and terminal must agree with the attempt:
 
-- committed restore: finish any OWED undo-slot install (idempotent, R5) → mark undo availability
-  ONLY when it landed → publish the success dialog, carrying `previousVersionAvailable` from that
-  same verdict → delete the retained reservation copy only when the install landed → resolve
-  LAST. When the install cannot complete, the PREVIOUS restore's availability record is left
-  alone: it still truthfully describes the file that is actually in the slot. A death replays the whole method next launch; a
-  same-process finalization failure is logged and the launch still proceeds as a success — the
-  restore IS durably committed and verified, and the unresolved journal makes the NEXT launch
-  retry (a new restore/undo in the meantime is honestly refused by `beginAttempt`).
-- committed rollback (undo and scenario-1): data-bearing writes (availability per the flag
-  policy, the persisted dialog) → resolve LAST → the caller's acknowledge after everything.
-- the `RecoveryCompleted` replay branch is SOURCE-AWARE (R4.1) and ORIGIN-AWARE (R5):
-  `rollbackSnapshotPath` is the durable discriminator of which file the committed rollback
-  applied, and `rollbackOrigin` is the durable discriminator of which dialog it owes the user. Null (the canonical was
-  the source) finishes the canonical's consumption idempotently and clears availability — a
-  death between the commit record and the consume must never leave the same undo offered
-  again, because replaying it after later writes would erase them. Non-null (an exact named
-  source) consumes that file idempotently, preserves the canonical — the PREVIOUS restore's
-  undo — and clears availability only when the canonical is actually absent. Never inferred
-  from file existence alone; the attempt resolves LAST and the branch replays idempotently.
+- verified restore N: `Replace(ActiveUndo(N, date))`, or `Replace(null)` when N is missing after
+  the restore itself was proven; the outbox carries the same `previousVersionAvailable` verdict;
+- user rollback of A: `ClearIf(A)` plus `UndoSucceeded`;
+- compensation rollback of N: `ClearIf(N)` plus `RestoreFailed`; unrelated active P survives.
 
-**Origin-aware replay (R5, closing the R3 residual).** Both rollback replays re-publish the
-interrupted rollback's dialog from the journal's own `rollbackOrigin`: `UserUndo` →
-`AppDialog.UndoRestoreSuccess`, `ScenarioOneRecovery` → `AppDialog.RestoreFailure`. Nothing is
-invented — the origin is written in the same atomic edit that claims the slot, before anything
-irreversible. This covers both replay shapes: a `Committed` rollback whose terminal effects never
-ran (the R3 residual), and a `Prepared` rollback re-driven to a durable commit by `recoverFrom`,
-which previously drove EVERY prepared attempt through the scenario-1 effects and therefore
-reported a user undo that had in fact succeeded as "Restore failed". A rollback that does NOT
-commit publishes only for `ScenarioOneRecovery`: a failed undo replay stays silent, its canonical
-file and availability flag preserved for a retry, matching the in-process
-`UndoRestoreOutcome.IoFailure` policy.
+The outbox is published idempotently through `AppDialogPublisher` and acknowledged only after
+publication returns successfully. Asset deletion follows durable finalization. A committed
+rollback may finalize from descriptor identity even if an earlier best-effort deletion already
+removed its source. Forbidden states include a resolved attempt with an old pointer, a success
+dialog before compensation, and candidate publication while mandatory restore state is pending.
 
-**Residual (narrowed, deliberate):** an entry written before R5 — or a torn write, or an unknown
-origin name — carries no origin and reads as `ScenarioOneRecovery`. An undo interrupted by
-process death AND an app upgrade before the next launch therefore still replays as
-`RestoreFailure`. Reading an unknown origin as `UserUndo` instead would announce a successful undo
-for an interrupted restore recovery and suppress a genuine failure report, which is the worse
-error. The publisher has no cancel/clear by contract, so a pending `UndoRestoreConfirmation`
-still has to be dismissed by the user — after the success dialog it now correctly follows in the
-priority walk.
+**Origin-aware replay.** Both rollback descriptors carry their origin in the same atomic claim:
+`UserUndo` owes `UndoRestoreSuccess`; `ScenarioOneRecovery` owes `RestoreFailure`. Unknown or
+unparsable new-format owner/origin state is corrupt same-install state, not permission to invent
+a success terminal. Legacy interpretation is handled only by the explicit rollout table in §27.
 
-`RecoveryRequired` is cached on the coordinator (`recoverySurfaceRequired`) exactly as the
-migration decision is, and `MainActivity` routes on either. There is no automatic restart loop
-anywhere on these paths.
+`InterruptedRestore` and `RecoveryRequired` are cached on the coordinator exactly as the
+migration decision is, and `MainActivity` routes on either. There is no automatic restart loop.
+Worker admission remains sealed until an explicit recovery action completes and restart occurs.
 
 ### 8.6 `MetroWorkerFactory` — no generation capture; first-operation admission
 
@@ -815,16 +741,16 @@ behavior, composition root, and binding the iOS runtime host.
 
 - Publication: one atomic write of an immutable `RuntimePhase` — no mixed-generation reads; one
   immutable value backs both the runtime and UI phase faces.
-- Single-flight: one `Mutex` over all transitions; same-operation registration is atomic under
-  the submission lock; re-entrant rollback inlines into the running transaction (§8.4). Fatal is
-  rechecked INSIDE the mutex — queued transactions behind a Fatal one do nothing.
+- Serialization: one `Mutex` over all transitions; each caller retains a distinct validated owner
+  and transaction; re-entrant exact-ref rollback inlines into the running transaction (§8.4).
+  Fatal is rechecked inside the mutex — queued transactions behind a Fatal one do nothing.
 - Failure ordering: every fallible caller-visible step (UI retire, lease drain, resolve drain,
   validation, beforeMutation) precedes PONR; aborts republish `Serving(genN)` with saved state
   AND ViewModelStore intact — unless the last Android host was permanently destroyed during the
   transition, in which case §8.7's host-teardown clear has already emptied it and there is no UI
   left to observe the loss. PONR = the START of the first irreversible action (teardown / close
   invocation / rename); post-PONR failures end in the requested commit, `RecoveredByRollback`,
-  `FailedAfterMutation` (RestartProcess, assets preserved + journaled), or the explicit `Fatal`
+  `FailedAfterMutation` (assets preserved + journaled), or the explicit `Fatal`
   — a throwing close is Fatal, never a republished generation, never a rename.
 - Terminal generations: closed ⇒ never republished, never a fallback.
 - Worker admission (round-2 supersession of the round-1 factory-lease model): a run binds
@@ -844,7 +770,7 @@ behavior, composition root, and binding the iOS runtime host.
 | **R2 replacement invariant** (§0) | `RuntimeGeneration` is the single published unit; DB-bound objects are graph-owned and die with their generation (teardown) or are lease-admitted at their first operation and awaited (workers); DB generation increments only on file swaps |
 | Graph-only work reuses the live `AppDatabase` | graph-only reinit hands the same `database` object into the next generation |
 | No DAO/repository proxies, no graph-wide swappable indirection | replacement rebuilds the graph; nothing is proxied — the only new indirection is the narrow `DatabaseReplacement` caller seam |
-| DataStore state (5 files) + dialog exactly-once | process-lifetime memoization untouched; flags persisted; dismiss-after discipline untouched; verified across replacement |
+| Restore state + dialog exactly-once | installation-scoped attempt/pointer/outbox live in one owner-checked edit domain; outbox publication is replayable and acknowledged only after publication; process-lifetime memoization for unrelated DataStores is unchanged |
 | Recovery ordering (S1→S2, short-circuits, blocking boundaries, no Room on `RouteToRecovery`, observer-before-Activity, TestApplication bypass) | `StartupProcessor` is an order-preserving extraction; coordinators keep semantics; `TestApplication.onCreateGraphBootstrap` no-op seam retained; harness publishes phases explicitly |
 | Startup jobs owned; planner semantics | §8.2/§8.3 |
 | Nav3 canonical; root reset; no resurrection; restoration oracle unchanged; no graph/navigator CompositionLocals | §8.7 (measured: `NavCommand` has 5 variants, no `ResetToRoot`) |
@@ -882,18 +808,19 @@ not DAO proxies). Each point: inject → assert the locked outcome.
 |---|---|
 | Quiesce (UI await / lease drain / resolve drain timeout) | abort pre-PONR; gen N serving; saved state AND ViewModelStore intact (§8.7 host-teardown caveat); admission gates reopen; `onRejectedBeforeMutation` compensates |
 | Concurrent request for a DIFFERENT operation mid-transaction | its own serialized transaction — never the in-flight operation's result |
-| Concurrent request for the SAME operation | joins atomically (submission-lock registration); one staging, one transaction, one outcome |
+| Concurrent requests, including byte-identical sources | serialize as distinct owners; each has its own staged source, immutable undo, journal and callbacks; no transaction coalescing |
 | Worker admission during the closed window | the run SUSPENDS at its first-op lease acquisition and binds to the published successor; a worker constructed but never started holds no lease |
 | Late UI attach after the zero observation | refused by the atomic retire CAS — never passes, never blocks the machine; attach BEFORE zero blocks the machine until disposed |
 | Snackbar deferred-commit in flight at quiesce | awaited before PONR; queued models generation-tagged — discarded at delivery on commit, preserved on abort; a gen-N callback never executes in gen N+1 |
-| Restore source staging failure / caller cancellation | staging is submission-frame-atomic; a cancelled caller's temp cleanup is a no-op; staging failure → `RejectedBeforeMutation` before validation; the runtime deletes the staged copy on every terminal outcome |
+| Restore source ownership-transfer failure / caller cancellation | no-backup staging plus host submission completes under the non-cancellable handoff; a cancelled caller's cache cleanup is a no-op; staging failure → `RejectedBeforeMutation` before validation; persisted-state sweep owns final deletion |
 | Unjoinable outgoing job after teardown began | Fatal WITHOUT closing — never a close under an unjoined job, never a republish |
 | Outgoing DB `close()` throw | **Fatal** (post-PONR unknown state); no rename; never `RejectedBeforeMutation` (RestartProcess: `FailedAfterMutation`, assets preserved + journaled) |
 | Candidate/orphan `close()` throw (dispose, orphan, inline rollback) | ladder STOPS: Fatal, no further rename |
 | File replacement (rename fails) | rollback mechanics + fresh generation → **`RecoveredByRollback`** (restore-failure semantics), else Fatal |
 | New DB construction / graphFactory throw | staged unwind (jobs joined, orphan closed) then rollback recovery → `RecoveredByRollback`, else Fatal |
 | Migration/preflight failure (incl. inline S1 rollback) | outer restore → `RecoveredByRollback` after the bounded retry over the rolled-back file; the inline caller's own result is `Committed`; exactly one bounded recovery |
-| Committed-effects failure | `Committed(effectsError)` — surfaced, never a silently clean commit |
+| Verified finalization/outbox failure | `FinalizationPending`; keep attempt and exact assets; no old pointer advertised, clean success, outbox acknowledgement or candidate publication |
+| Capacity query insufficient/throws/overflows | typed pre-PONR rejection; zero undo creation, journal, close or swap; equality passes |
 | Rollback mechanics failure | `ReplacementOutcome.Fatal`; no closed generation serving; `onFatal` effects journal durably |
 | Post-rollback generation construction failure | `Fatal`, same |
 | Transaction escape / internal `CancellationException` | the deferred completes exactly once: pre-PONR → `Serving(genN)` + rejection; post-PONR → Fatal; on a Fatal runtime → Fatal with no published-state touch |
@@ -913,8 +840,8 @@ Task-execution counts reported; UP-TO-DATE/FROM-CACHE runs are not evidence.
 
 JVM (`app/app` test): runtime generation identity (two generations, same-DB handover for
 graph-only; distinct DB for replacement via fake factories), distinct graph/navigator identities,
-teardown-before-close and teardown-before-publish ordering, concurrent transitions
-serialized+coalesced, candidate-not-published-before-preflight, state-machine ordering + the
+teardown-before-close and teardown-before-publish ordering, concurrent transitions serialized
+with distinct owners, candidate-not-published-before-preflight/finalization, state-machine ordering + the
 FULL §11.3 matrix, PLUS the composed seam gate (`RestoreTransactionIntegrationTest`): the REAL
 `RestoreLatestBackupUseCase` driving the REAL `AppRuntime` over actual temp files (staged
 ownership vs the caller's genuine finally-delete, marker-inside-txn, dead-initiator
@@ -1049,10 +976,9 @@ under the §8.7 wrapper. Binding conditions, all folded into §4/§8/§9/§11 ab
    around Preflight, and the `DatabaseReplacement` impl inlines the rollback branch only when the
    marker matches the current transaction.
 5. **`RestartProcess` scoping** (§8.4): the post-close recovery ladder applies to
-   `RebuildInProcess` only — production's post-close failure behavior (return `Io`, no restart,
-   loud-failing closed DB until the user acts) is preserved verbatim; and a `RestartProcess`
-   transaction MUST be startable from an already-terminal generation (the undo `IoFailure` re-tap
-   re-runs close+rename today; close is idempotent).
+   `RebuildInProcess` only. Production uses the reversible admission fence, performs close and
+   replace once, preserves any post-PONR failure journal/assets, and invokes the runtime-owned
+   restart for every post-PONR outcome so cold-start recovery decides the next step.
 6. **Cold-start mutex rule** (§8.3): generation 1's build+publish completes and releases the
    transition mutex BEFORE the startup preflight runs; a cold-start Scenario-1 rollback takes the
    plain `RestartProcess` path, never the full machine — otherwise the first cold-start rollback
@@ -1799,6 +1725,9 @@ source is validated for magic and page-count completeness before the point of no
 
 ## 26. R5 correction record (2026-08-24) — the PR #252 review findings
 
+This is a historical correction record. §27 supersedes its positional undo, cache and
+policy-specific finalization mechanics; the findings remain here to preserve the review trail.
+
 An independent six-lens review of the branch (`phase5-review.md`, since consumed) raised 19
 findings and confirmed 6 after two-verifier adversarial refutation, plus two unverified notes.
 All eight are closed here. §8.5a, §8.5b, §8.7, §9, §11.3, §23.2 and §23.4 were rewritten IN
@@ -1825,3 +1754,246 @@ zero-added-suppressions claim is strengthened rather than merely preserved; and
 suites. What ran green here is `detekt`, the full `testDebugUnitTest` suite and
 `assembleDebugAndroidTest`. The instrumented suites do not gate PRs (weekly), and the §18 battery
 counts predate seven commits; both are stated as superseded in the PR body rather than reasserted.
+
+## 27. Immutable restore ownership correction (2026-08-25)
+
+This round replaces the positional C/R/S protocol recorded in §§22–26. It is a bounded
+restore/undo durability correction; it does not redesign the general runtime-generation machine.
+The sections below are normative. Evidence named here is an obligation until the final forced host,
+device, iOS and mutation runs are recorded on the pushed SHA.
+
+### 27.1 State, storage and installation ownership
+
+The authoritative state is the §8.5a `RestoreProtocolState` envelope. Every new-format attempt,
+active pointer and terminal outbox carries the installation epoch in addition to the envelope's
+epoch. The stable random epoch is atomically published in
+`noBackupFilesDir/restore-recovery`; process-like reconstruction reads the same token.
+
+Before reading any attempt, pointer, availability, outbox or persisted source ref:
+
+- epoch match permits owner/ref decoding;
+- epoch mismatch atomically clears all foreign protocol records, runs no owner callback, follows
+  no stored path, deletes no same-named local file and leaves the live database byte-identical;
+- same epoch plus a missing ref remains genuine local recovery failure;
+- missing protocol epoch invokes the explicit legacy table below, never a blanket foreign-state
+  rule.
+
+The no-backup root owns the epoch, immutable undo files, runtime-staged restore sources, durable
+raw recovery export and protocol partials. A caller download may begin in cache, but ownership
+transfer must finish before suspension, journal claim or PONR. Root creation/write failure rejects
+before mutation. Sharing copies the durable export into a narrow cache share directory only on an
+explicit request; the durable root is never broadly exposed through `FileProvider`.
+
+Immutable epoch, undo and staged-source publication uses a unique same-directory
+`<final>.<nonce>.creating` file and a complete synced copy. The permanent `.publication.lock`
+serializes app processes across the no-follow final-name absence check and same-directory atomic
+move. Unique partials prevent two processes from writing the same publication inode; a final name
+already owned by another process is a failure, not an overwrite. Publication returns only after
+syncing the complete file and the parent directory entry. Mutable export/share/live-DB
+replacement similarly syncs its complete temporary and the containing directory around atomic
+rename. Live replacement treats failure to remove either stale `-wal` or `-shm` sidecar as a typed
+pre-publication failure, leaving the old main file intact; publishing under an unremoved sidecar
+would make the installed generation unprovable. A readable same-process filename after a
+directory-sync failure is not durable evidence.
+
+Static Android backup policy independently excludes
+`datastore/restore_state_prefs.preferences_pb` from legacy rules and API-31+ cloud-backup and
+device-transfer rules. This correction does not disable Android backup and does not change the
+Room database backup policy; that remains a separate maintainer/product decision.
+
+### 27.2 Explicit released-state rollout table
+
+Released installs have `restore_in_progress`, its context,
+`pre_restore_backup_available`, its original date and optional
+`cache/pre_restore_backup.db`. Each boundary is replay-safe: publish a complete immutable copy,
+persist its owner/ref state, then consume the released file only after the new state is durable.
+
+| Released state | New state / action |
+|---|---|
+| in-progress + valid released file | copy to the immutable ref of the stable synthetic interrupted-restore owner; persist that one `Restore/Prepared` attempt before deleting the released file; ignore stale availability as a second pointer |
+| in-progress + released file missing/unusable + healthy compatible live DB | preserve the synthetic owned attempt and route to integrity-gated `InterruptedRestore`; never classify it as foreign |
+| in-progress + invalid live DB + valid released file | recover from the migrated exact immutable ref |
+| in-progress + neither live nor released file usable | route to `RecoveryRequired` |
+| no in-progress + availability/date + valid released file | migrate to the stable synthetic active-undo ref and preserve the original date |
+| no in-progress + availability + missing/unusable released file | clear stale released availability |
+| no released markers | install the epoch envelope and continue normal preflight |
+
+Synthetic legacy owners are stable wire-format values, distinct for an interrupted attempt and an
+active pointer. A replay after copy, state write or released-file deletion must converge on the
+same descriptor and never create a second undo interpretation. When the immutable final already
+exists, replay explicitly syncs that file and the recovery-root directory before trusting it. A
+copy or sync failure installs no new state and does not delete C, even if the unsynced final is
+readable in the current process.
+
+### 27.3 Restore transaction and finalization
+
+For restore N while P is the previously active undo:
+
+```text
+validate and no-backup-stage source N
+→ capacity admission
+→ atomically publish immutable undo N
+→ reversibly quiesce UI and DB-bound work
+→ persist Restore/Prepared(N), active=P
+→ swap live database
+→ persist Restore/Committed(N), active=P
+→ verify the new generation
+→ atomically write active=N-or-null + terminal outbox and remove N attempt
+→ publish and acknowledge outbox
+→ sweep unreferenced P and debris
+```
+
+UI and DB-bound admission stay closed while `Committed(N), active=P` exists. Once the restore is
+visible, P is never advertised as undo of N. If the new live database verifies and N is missing,
+the restore is proven but undo is unavailable; finalization atomically writes no active pointer
+and `previousVersionAvailable=false`. A verified committed N also replaces a missing/unusable old
+P; P is not a prerequisite for activating exact N.
+
+The Prepared claim occurs only after reversible quiescence succeeds. The claim attempt itself is
+the PONR boundary: the tracker crosses before the owner write because DataStore may persist and
+then throw. Therefore validation, capacity and quiesce rejection resume the old generation with
+no journal claim, while any ambiguous claim result seals the runtime. Under `RestartProcess`, the
+runtime owns the recovery restart. It seals restart-terminal admission before releasing the
+transition mutex, rejects queued transactions, and reports a failed restart callback as `Fatal`.
+
+Cold-start preflight and in-process candidate preflight use the same finalizer. Pointer activation
+does not live in a restart or rebuild callback. Before the atomic finalization transition, a write
+failure preserves `Committed(N)`, P and N and reports neither clean success nor
+`RecoveryCompleted`. A candidate cannot publish while finalization is pending. After the atomic
+transition, terminal publication is replayed from the outbox; acknowledgement follows successful
+publication. A success terminal can never be followed by compensation in the same transaction.
+
+For `RebuildInProcess`, the atomic finalizer leaves a newly written success outbox pending until
+the candidate completes all fallible arming. If arming escapes after finalization, the runtime
+rereads epoch-reconciled state and accepts only the exact proof `attempt=null`, success owner=N,
+and `activeUndo=N-or-null` consistent with the terminal payload. It then releases the failed
+candidate and retries arming once over the restored live database; it never compensates N. A
+missing, mismatched or unreadable proof is terminally unprovable, not permission to roll back.
+
+### 27.4 Exact rollback ownership
+
+Every rollback applies one `UndoRef`:
+
+- user undo selects the current `activeUndo.ref` and journals a fresh rollback owner with
+  `UserUndo` origin;
+- restore compensation selects the failed restore's immutable ref and atomically replaces that
+  restore descriptor with a fresh rollback owner carrying `ScenarioOneRecovery`;
+- committed bookkeeping records that exact rollback owner and ref;
+- finalization executes `ClearIf(appliedRef)`; user undo clears its own pointer, while compensation
+  N cannot clear unrelated P;
+- source deletion happens after durable finalization and is best-effort; a committed rollback can
+  finalize from descriptor identity when the file is already absent.
+
+An operation never selects a source from `null`, a slot position or an arbitrary path. Runtime
+owner creation and callbacks are one-to-one. Production has no mutation default and cannot create
+`undo_no-effects.db`. Concurrent callers serialize as separate transactions even when their source
+bytes match.
+
+### 27.5 Owner-aware garbage collection
+
+Sweeping runs under startup/transition serialization and derives its protection set from
+epoch-reconciled state. Preserve:
+
+- the install token;
+- refs held by any unresolved restore or rollback;
+- active undo;
+- staged source and other assets needed by finalization or a pending outbox.
+
+Delete only strict protocol-owned filename patterns under the dedicated root. Eligible garbage
+includes orphan legacy `<final>.creating` files, orphan unique
+`<final>.<nonce>.creating` files, unowned staged sources and obsolete undo files. Never follow a
+persisted path or delete outside the root. A failed delete remains retryable garbage; it never
+changes attempt, pointer or outbox truth.
+
+### 27.6 Advisory capacity gate
+
+Use injectable `StorageManager.getAllocatableBytes()`; do not reserve with `allocateBytes()`.
+Run the gate after source validation and no-backup ownership transfer, but before immutable undo
+creation, journal claim, generation teardown, database close or live swap.
+
+- restore requirement: post-checkpoint live size for immutable N + staged-source size for the live
+  `${AppDatabase.NAME}.tmp` + explicit margin;
+- rollback requirement: exact source size for live `.tmp` + margin;
+- calculate overflow-safely; available bytes equal to required bytes pass;
+- insufficient bytes, overflow or query failure returns a typed pre-mutation rejection with the
+  serving generation unchanged and zero protocol mutation.
+
+The check is advisory. Copy, checkpoint and rename paths still handle ENOSPC conservatively. The
+immutable protocol reduces repeated full-file writes and crash states; it does not reduce the
+approximately five-file successful restore peak to four.
+
+### 27.7 Recovery surface, Continue and export truth
+
+`RecoveryActivity` remains DB-free during launch and composition. It opens neither Room nor
+framework SQLite until the user explicitly requests Continue for `InterruptedRestore`.
+Continue is unavailable for startup-migration recovery.
+
+The Continue sequence is:
+
+1. User explicitly requests Continue.
+2. On IO, open the live file directly with framework `SQLiteDatabase`.
+3. Consume every `PRAGMA integrity_check` row and accept only a healthy `ok` result.
+4. Read `user_version` and require the current schema or a supported migration path.
+5. Show a second explicit confirmation stating that the app cannot determine whether the restore
+   completed.
+6. After confirmation, atomically abandon only the owned interrupted attempt and clear pointer,
+   outbox and protocol state that can no longer truthfully describe the accepted live DB.
+7. Restart last; worker admission stays sealed until restart.
+
+Export success is not a prerequisite for Continue because ENOSPC is a primary recovery scenario.
+Export UI state is typed as `Available`, `Unavailable(reason)` or `Failed(reason)`; copy,
+checkpoint and capacity errors are visible rather than silent. Recovery copy must not claim that
+nothing was deleted or preserved when that cannot be proven, in either English or Russian.
+
+### 27.8 SQLite header and integrity proof boundaries
+
+`SqliteHeaderCheck` is a structural preflight, not an integrity proof. Characterization must use
+real Workeeper snapshots and execute all combinations required to distinguish:
+
+- matching change counter and version-valid-for;
+- mismatched counters under SQLite file-format semantics;
+- page count zero;
+- tail truncation under each counter/page-count case.
+
+The validator documentation must state exactly which header and length relationships it proves.
+Negative coverage is required before changing mismatch behavior. Continue always requires the
+full framework-SQLite integrity check described in §27.7.
+
+WAL-backed copies have a separate proof boundary: both Room and framework-SQLite checkpoint paths
+consume the actual `PRAGMA wal_checkpoint(TRUNCATE)` result row and require `busy == 0` plus
+`logFrames == checkpointedFrames`. A missing row or busy/incomplete checkpoint fails before an
+undo/export filename can be published.
+
+### 27.9 Verification and mutation obligations
+
+No new evidence result is asserted by this section. Final evidence must include real files and
+persisted DataStore where practical, exact host/device testcase and Gradle task counts, Paparazzi
+mover count, final SHA and remaining unverified boundaries. Required behavioral coverage includes:
+
+- cache deletion versus authoritative recovery assets;
+- disjoint install roots and backup-only transfer, same-epoch missing refs, epoch stability and
+  epoch mismatch despite a same-named local file;
+- every §27.2 rollout row and replay boundary;
+- pointer activation under both replacement policies through the shared finalizer;
+- injected finalization writes, exact N-versus-P rollback discrimination and GC retry behavior;
+- capacity equality, one-byte-short, overflow, query exception and post-admission ENOSPC;
+- real healthy/corrupt SQLite, visible export failure and two-confirmation Continue;
+- all three backup XML exclusions, absence of a production constant owner and concurrent-owner
+  callback isolation.
+
+Behavior pins compatible with the reviewed starting SHA must be shown red there. New-API-only
+claims require discriminating mutants through `documentation/mockups/mutation_harness.py`, not a
+compile failure. Required mutants redirect the recovery root to cache, remove epoch comparison or
+ignore a missing ref, omit rebuild finalization, resolve without the correct pointer transition,
+delete an attempt-owned file during sweep, bypass capacity, ignore integrity failure, and allow
+the constant `"no-effects"` owner. Raw JUnit XML is committed only after those runs execute with
+non-zero inputs.
+
+### 27.10 Separate unimplemented follow-ups
+
+These remain outside this bounded correction and must not be inferred as completed:
+
+- encode `AppRuntime` phases and admissible operations as compile-time typestate;
+- replace any process-lifetime strong Activity ownership with audited weak-reference handling;
+- define and prove multi-instance `ViewModelStore` ownership rather than extending the current
+  single-host lifecycle correction.

@@ -8,9 +8,12 @@ import java.io.IOException
 import java.nio.ByteBuffer
 
 /**
- * O(1) truncation check over the 100-byte SQLite header. Magic and a `PRAGMA user_version` peek
- * both read page 1 only, so both pass on a file truncated in its TAIL; the in-header page count
- * against the file length is what catches it.
+ * O(1) SQLite file-length characterization over the 100-byte header. This validator proves a legal
+ * page size and at least one complete page. When change-counter and version-valid-for match and the
+ * page count is nonzero, it additionally proves the file reaches the header-declared last page.
+ * SQLite defines a mismatched counter or zero page count as non-authoritative, so those cases prove
+ * no tail length beyond page one. It does not check magic, page contents, or integrity; recovery
+ * acceptance separately consumes every row from framework SQLite's `PRAGMA integrity_check`.
  */
 internal object SqliteHeaderCheck {
 
@@ -27,7 +30,27 @@ internal object SqliteHeaderCheck {
         )
     }
 
-    /** Fills the header or answers null: a short read on a healthy file is not corruption. */
+    /** Header-only `user_version`; callers validate magic and structural completeness first. */
+    fun readUserVersion(source: File): BackupResult<Int> = try {
+        val header = readHeader(source)
+            ?: return BackupResult.Failure(
+                BackupError.CorruptedBackup(reason = "truncated SQLite header"),
+            )
+        val version = ByteBuffer.wrap(header).getInt(USER_VERSION_OFFSET)
+        if (version >= 0) {
+            BackupResult.Success(version)
+        } else {
+            BackupResult.Failure(
+                BackupError.CorruptedBackup(reason = "unsupported unsigned SQLite user_version"),
+            )
+        }
+    } catch (e: IOException) {
+        BackupResult.Failure(
+            BackupError.CorruptedBackup(reason = e.message ?: "header read failed"),
+        )
+    }
+
+    /** Fills the header or answers null on a short read. */
     private fun readHeader(source: File): ByteArray? {
         val header = ByteArray(HEADER_BYTES)
         var filled = 0
@@ -74,6 +97,7 @@ internal object SqliteHeaderCheck {
     private const val CHANGE_COUNTER_OFFSET = 24
     private const val PAGE_COUNT_OFFSET = 28
     private const val VALID_FOR_OFFSET = 92
+    private const val USER_VERSION_OFFSET = 60
     private const val UNSIGNED_SHORT = 0xFFFF
     private const val LARGE_PAGE_MARKER = 1
     private const val LARGE_PAGE_SIZE = 65_536L

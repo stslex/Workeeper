@@ -3,9 +3,45 @@
 First measured 2026-08-22; re-measured after each rework — round 2 (spec §20/§21), round 3
 (spec §22, the attempt journal + admission/snackbar linearization), and round 4 (spec §23, the
 maintainer correction: crash-safe promotion/consumption, terminal classification, legacy owner
-isolation, graph-only teardown terminality, replay-safe finalization). The tables below carry
-the CURRENT (R4.2) numbers, with earlier figures noted where they differ.
+isolation, graph-only teardown terminality, replay-safe finalization). The current §27 correction
+adds installation-owned immutable recovery assets and owner-aware finalization without assigning
+a new architecture-decision ordinal. Historical tables keep their measured round labels; the §27
+tables below carry the current correction evidence.
 Branch `feature/kmp-phase-5-startup-processor` (PR #252).
+
+## §27 reviewed-head and mutant evidence
+
+At reviewed head `53a49801cd3e862854228983bd682a773cb88dba`, four executed suites produced
+82 inputs and 7 behavioral failures. No failure was a compilation substitute.
+
+| Raw XML | Inputs | Failures |
+|---|---:|---:|
+| `r5-red-on-reviewed-head-backup-rules.xml` | 2 | 2 |
+| `r5-red-on-reviewed-head-coordinator.xml` | 50 | 2 |
+| `r5-red-on-reviewed-head-runtime.xml` | 1 | 1 |
+| `r5-red-on-reviewed-head-snapshot-provider.xml` | 29 | 2 |
+| **Total** | **82** | **7** |
+
+Every required mutation ran through `documentation/mockups/mutation_harness.py`, returned the
+expected RED verdict, and restored the source bytes.
+
+| Mutation | Inputs | Failures | Raw XML |
+|---|---:|---:|---|
+| recovery root redirected to cache | 3 | 2 | `r5-mutant-recovery-root-cache.xml` |
+| same-install missing ref ignored | 2 | 1 | `r5-mutant-missing-ref-ignore.xml` |
+| Rebuild finalizer omitted | 1 | 1 | `r5-mutant-rebuild-finalizer-omitted.xml` |
+| attempt resolved with wrong pointer | 1 | 1 | `r5-mutant-wrong-pointer-resolution.xml` |
+| sweep deletes attempt-owned file | 1 | 1 | `r5-mutant-sweep-attempt-file.xml` |
+| capacity admission bypassed | 1 | 1 | `r5-mutant-capacity-bypass.xml` |
+| integrity failure ignored | 1 | 1 | `r5-mutant-integrity-ignore.xml` |
+| constant `"no-effects"` owner accepted | 1 | 1 | `r5-mutant-no-effects-owner.xml` |
+| **Total** | **11** | **9** | — |
+
+The post-review Rebuild ordering pin is behavioral on the current API: injected candidate arming
+failure after an exact durable success transition failed 1/1 before the correction
+(`r5-review-red-post-finalization-arm.xml`, 515/515 tasks executed). After deferring new success
+publication and owner-checking the persisted transition, the complete affected runtime/startup/
+coordinator suites passed 145/145 (`r5-review-green-post-finalization-*.xml`, 529/529 executed).
 
 **Round-4 red-on-base evidence.** Every mandated round-4 test was proven to FAIL at the
 pre-correction head `936ab699`: the new test files were copied onto a worktree at that commit
@@ -36,9 +72,32 @@ re-running the suites over the new tests — 6 tests red (`r4-review-red-prefix-
 `r4-review-red-prefix-settings.xml`), green after the stash pop.
 Device for every connected run: `sdk_gphone64_arm64` emulator (Pixel 6 AVD), API 34, arm64-v8a,
 `ANDROID_SERIAL=emulator-5554`. Host: macOS (Darwin 25.6), JDK 21, Room 3.0.0,
-`BundledSQLiteDriver`. The `.xml` files beside this README are the raw AGP instrumentation
-results of the final Regression run, copied verbatim from
-`build/outputs/androidTest-results/connected/`.
+`BundledSQLiteDriver`. Files named `connected-*.xml` are retained AGP instrumentation results.
+
+The first API-34 checkpoint predates the final correction tree and is retained only as preliminary
+evidence, not final-SHA evidence: `r5-api34-immutable-publication-same-instance.xml` is the 2/2
+immutable-publication SameInstance run; `r5-preliminary-regression-app-app.xml`,
+`r5-preliminary-regression-core-data-database.xml`,
+`r5-preliminary-regression-core-data-exercise.xml`, and
+`r5-preliminary-regression-feature-all-exercises.xml` are the four nonzero module reports whose
+counts sum to the preliminary 81/81 Regression run.
+
+## §27 correction-tree gates
+
+These raw captures were taken from the complete correction tree immediately before its evidence
+commit. The later exact-commit rerun is reported against the pushed SHA in the PR handoff; adding
+this ledger and its XMLs is the only change between the captured production/test tree and that
+commit.
+
+| Gate | Forced execution | Test / artifact result | Raw device XML |
+|---|---:|---|---|
+| host build + unit + Paparazzi verify + lint + Android-test assembly | 3267/3267 tasks | 2301 `testDebugUnitTest` + 413 `testAndroidHostTest`, no skips/failures/errors; 456/456 PNGs in 13 modules; 0 movers | — |
+| Detekt + custom rules | 59/59 tasks | 127/127 custom-rule tests; no added suppression, config or baseline | — |
+| iOS simulator compilation (`backup:api`, `core`, `database`) | 15/15 tasks | compile + Room KSP green; link/runtime remains outside Phase 5 | — |
+| API-34 Regression | 2076/2076 tasks | 81/81, no skips/failures/errors | `r5-final-regression-app-app.xml` (49), `r5-final-regression-core-data-database.xml` (30), `r5-final-regression-core-data-exercise.xml` (1), `r5-final-regression-feature-all-exercises.xml` (1) |
+| API-34 Smoke | 2076/2076 tasks | 44 discovered: 41 executed, 3 existing `pendingFeatureRewrite` skips, 0 failures/errors | `r5-final-smoke-core-ui-kit.xml`, `r5-final-smoke-core-ui-mvi.xml`, `r5-final-smoke-feature-settings.xml`, `r5-final-smoke-feature-live-workout.xml`, `r5-final-smoke-feature-archive.xml`, `r5-final-smoke-feature-all-trainings.xml`, `r5-final-smoke-feature-single-training.xml`, `r5-final-smoke-feature-app-dialogs-impl.xml`, `r5-final-smoke-feature-exercise.xml`, `r5-final-smoke-feature-exercise-chart.xml`, `r5-final-smoke-feature-all-exercises.xml` |
+| API-34 SameInstance repetition 1 | 162/162 tasks | 2/2, no skips/failures/errors | `r5-final-same-instance-run-1.xml` |
+| API-34 SameInstance repetition 2 | 162/162 tasks | 2/2, no skips/failures/errors | `r5-final-same-instance-run-2.xml` |
 
 ## Device gates
 
@@ -53,9 +112,9 @@ results of the final Regression run, copied verbatim from
 
 | Command | Exit | Executed | Tests |
 |---|---|---|---|
-| `./gradlew assembleDebug testDebugUnitTest verifyPaparazziDebug lintDebug assembleDebugAndroidTest --rerun-tasks --no-build-cache --no-configuration-cache` | 0 (`BUILD SUCCESSFUL in 9m 37s`, R4.2 final; R4.1 32m50s/2720; round-4 15m31s/2712; round-3 8m29s/2688; round-2 9m10s/2648; round-1 9m06s/2609; pre-rework 7m48s/2461) | 3265/3265 tasks executed; `verifyPaparazziDebug` in the graph with zero movers (goldens untouched by every round; 13 golden-holding modules) | **2725 unit/host tests, 0 failures, 0 errors** (2209 `testDebugUnitTest` + 389 `testAndroidHostTest` + 127 `test`, counted from the raw JUnit XMLs across all three host scopes) |
-| `./gradlew detekt :lint-rules:test --rerun-tasks --no-build-cache --no-configuration-cache` | 0 (R4.2 forced re-run) | **zero new suppressions** — the full diff (`git diff 936ab699..HEAD`) adds no `@Suppress`, and no detekt config or baseline file is touched (verified by grep, not just the exit code) | 127 custom-rule tests, 0 failures |
-| `./gradlew :core:data:backup:api:compileKotlinIosSimulatorArm64 :core:core:compileKotlinIosSimulatorArm64 --rerun-tasks …` | 0 (10/10 executed, R4.2 re-forced) | the KMP modules the reworks touched. The full five-module + Room-KSP sweep stands from round 2 | — |
+| `./gradlew assembleDebug testDebugUnitTest verifyPaparazziDebug lintDebug assembleDebugAndroidTest --rerun-tasks --no-build-cache --no-configuration-cache` | 0 (§27: `BUILD SUCCESSFUL in 9m 42s`; older timings retained in git history) | §27: **3267/3267 executed**, 456/456 PNGs in 13 modules, zero movers | §27: **2714 unit/host tests** — 2301 `testDebugUnitTest` + 413 `testAndroidHostTest`, 0 skipped/failures/errors |
+| `./gradlew detekt :lint-rules:test --rerun-tasks --no-build-cache --no-configuration-cache` | 0 (§27 forced rerun) | §27: **59/59 executed**; diff from `53a49801` adds no `@Suppress` and touches no detekt config or baseline | 127 custom-rule tests, 0 skipped/failures/errors |
+| `./gradlew :core:data:backup:api:compileKotlinIosSimulatorArm64 :core:core:compileKotlinIosSimulatorArm64 :core:data:database:compileKotlinIosSimulatorArm64 --rerun-tasks …` | 0 (§27: **15/15 executed**) | every affected KMP module, including Room KSP for `database` | — |
 
 iOS **link/runtime**: UNVERIFIED — no iOS host exists before Phase 7; compile+KSP evidence only.
 
@@ -63,9 +122,9 @@ iOS **link/runtime**: UNVERIFIED — no iOS host exists before Phase 7; compile+
 
 | Command | Exit | Tests |
 |---|---|---|
-| `ANDROID_SERIAL=emulator-5554 ./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.annotation=io.github.stslex.workeeper.core.ui.test.annotations.Smoke --max-workers=2 --continue` | 0 (R4.2 final 44/0; R4.1 44/0; round-4 3m02s/44; round-3 2m39s/44; round-2 2m41s/43) | **44** started, 0 failures (+1 over round 2: the generation-deps seam pin). Its FIRST round-3 run was RED and load-bearing — see §22.3b: `:core:ui:mvi`'s probe builds a Store with no app graph, and the processor now requires one app-scope binding, so the probe's plain `Application` failed the `appDeps` cast. Fixed by supplying the binding as production does, never by softening the seam |
-| same with `…annotations.Regression` | 0 (R4.2 final 81/0; R4.1 81/0; round-4 4m06s/81; round-3 3m21s/81; round-2 3m19s/78) | **81** started, 0 failures (49 `app:app` — the composed handshake test plus round-3's three device pins — + 30 `core:data:database` + 2 others; raw XMLs beside this file) |
-| `:core:data:database:connectedDebugAndroidTest -P…class=…SameInstanceReopenAfterSwapDeviceTest` | 0 (R4.2 re-run) | **2/2** — the Room same-instance characterization is UNCHANGED in what it proves |
+| `ANDROID_SERIAL=emulator-5554 ./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.annotation=io.github.stslex.workeeper.core.ui.test.annotations.Smoke --max-workers=2 --continue` | 0 (§27: 6m57s, **2076/2076 executed**; historical results remain in git history) | §27: **44 discovered, 41 executed, 3 existing skips, 0 failures/errors**. Its first round-3 run was RED and load-bearing — see §22.3b. |
+| same with `…annotations.Regression` | 0 (§27: 7m39s, **2076/2076 executed**) | §27: **81/81**, 0 skipped/failures/errors; every nonzero module XML is retained independently. |
+| `:core:data:database:connectedDebugAndroidTest -P…class=…SameInstanceReopenAfterSwapDeviceTest` | 0 (§27: two forced **162/162** runs) | §27: **2/2 + 2/2**, no skips/failures/errors — the Room same-instance characterization is unchanged in what it proves. |
 
 Standalone runs (same emulator): full unfiltered `:app:app:connectedDebugAndroidTest` 49/0 and
 `:core:data:database:connectedDebugAndroidTest` 30/0 (round 3);
@@ -83,7 +142,7 @@ R3-C, and the abandoned-composition half of the leak-freedom is covered by const
 
 | Mutation | Red pins | Raw XML |
 |---|---|---|
-| N1 — `completedOrRecovered` forced to always return `Completed` (result-truth lie) | 4 tests: both `RecoveredByRollback, never Completed` pins, the inline-S1-rollback outer-result pin, and the composed integration gate's "no success lie" | `known-negative-n1-result-truth.xml` |
+| N1 — `completedOrRecovered` forced to always return `Completed` (result-truth lie) | 3 retained failures: both `RecoveredByRollback, never Completed` pins and the inline-S1-rollback outer-result pin | `known-negative-n1-result-truth.xml` |
 | N2 — outgoing close-throw handled as round-1 `RejectedBeforeMutation` (cleanup-safe rejection) instead of Fatal | 5 tests: the close-throw-Fatal pin plus every downstream Fatal-terminality pin (A-Fatal-while-B-queued, replace-after-Fatal, reinitialize-after-Fatal, Fatal-holder rejection) | `known-negative-n2-close-throw-fatal.xml` |
 | N3 — the snackbar delivery epoch filter disabled (stale callbacks delivered into N+1) | 2 kit tests: discarded-at-delivery and exactly-once re-enqueue | `known-negative-n3-epoch-filter.xml` |
 

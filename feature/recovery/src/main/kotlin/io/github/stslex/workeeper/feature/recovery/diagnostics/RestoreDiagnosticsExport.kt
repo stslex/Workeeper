@@ -8,6 +8,8 @@ import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.di.AppScope
 import io.github.stslex.workeeper.core.core.platform.PlatformInfoProvider
 import io.github.stslex.workeeper.core.data.backup.api.RecoveryDiagnosticsExporter
+import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreAttempt
+import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreProtocolRead
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreStateRepository
 
 /**
@@ -30,12 +32,19 @@ class RestoreDiagnosticsExportImpl @Inject constructor(
     private val platformInfo: PlatformInfoProvider,
 ) : RestoreDiagnosticsExport {
 
-    override suspend fun export(): Uri? = exporter.exportRestoreFailure(
-        exception = null,
-        // The journal is unresolved on every route that reaches this call, so the interrupted
-        // restore's manifest context is still there to attach.
-        context = restoreStateRepository.getAttempt()?.context,
-        appVersionName = platformInfo.appVersionName(),
-        appVersionCode = platformInfo.appVersionCode(),
-    )
+    override suspend fun export(): Uri? {
+        val context = when (val protocol = restoreStateRepository.readProtocol()) {
+            is RestoreProtocolRead.Current ->
+                (protocol.state.attempt as? RestoreAttempt.Restore)?.context
+
+            is RestoreProtocolRead.Legacy -> protocol.state.context
+            is RestoreProtocolRead.Corrupt -> null
+        }
+        return exporter.exportRestoreFailure(
+            exception = null,
+            context = context,
+            appVersionName = platformInfo.appVersionName(),
+            appVersionCode = platformInfo.appVersionCode(),
+        )
+    }
 }

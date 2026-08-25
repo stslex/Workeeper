@@ -37,6 +37,6 @@ interface BackupInteractor {
 
     suspend fun listBackups(): BackupResult<List<BackupSummaryDomain>>
 
-    /** Restores the most recent backup. GUARD: the caller MUST restart the app on Success. */
+    /** Restores the most recent backup; the replacement runtime owns every post-PONR restart. */
     suspend fun restoreLatest(): BackupResult<Unit>
 }

@@ -13,6 +13,9 @@ import io.github.stslex.workeeper.core.data.backup.api.DatabaseReplacement
 import io.github.stslex.workeeper.core.data.backup.api.DatabaseReplacementEffects
 import io.github.stslex.workeeper.core.data.backup.api.DatabaseReplacementResult
 import io.github.stslex.workeeper.core.data.backup.api.error.BackupError
+import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreOwnerId
+import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreSourceRef
+import io.github.stslex.workeeper.core.data.backup.api.restore.UndoRef
 import io.github.stslex.workeeper.core.data.backup.api.result.BackupResult
 import io.github.stslex.workeeper.core.data.backup.worker.BackupWorkLease
 import io.github.stslex.workeeper.core.data.database.AppDatabase
@@ -56,22 +59,23 @@ internal class AppRuntime(
 ) : AppReinitializationHost,
     DatabaseReplacement {
 
-    private val logger = Log.tag(TAG)
+    private val logger = Log.tag(APP_RUNTIME_TAG)
 
     private val hostScope = CoroutineScope(
         SupervisorJob() +
             policy.hostDispatcher +
             CoroutineExceptionHandler { _, error ->
-                Log.tag(TAG).e(error, "runtime host coroutine failed unexpectedly")
+                Log.tag(APP_RUNTIME_TAG).e(error, "runtime host coroutine failed unexpectedly")
             },
     )
 
     /** Serializes transitions; generation 1 is built outside this mutex. */
     private val transitionMutex = Mutex()
 
-    private val buildLock = Any()
+    /** Prevents a sweep from crossing a staged caller queued before its journal claim. */
+    private val submissionGuard = ReplacementSubmissionGuard()
 
-    private val submissionLock = Any()
+    private val buildLock = Any()
 
     private val uiGate = UiAdmissionGate(logger)
 
@@ -104,8 +108,13 @@ internal class AppRuntime(
     @Volatile
     private var isFatal = false
 
+    @Volatile
+    private var restartTerminal = false
+
+    private val isTerminal: Boolean get() = isFatal || restartTerminal
+
     private fun publishServing(generation: RuntimeGeneration) {
-        check(!isFatal) { "a Fatal runtime must never publish Serving again" }
+        check(!isTerminal) { "a terminal runtime must never publish Serving again" }
         currentOrNull = generation
         publishedFlow.value = Published(
             phase = RuntimePhase.Serving(generation),
@@ -114,11 +123,11 @@ internal class AppRuntime(
     }
 
     private fun publishTransitioning() {
-        check(!isFatal) { "a Fatal runtime must never publish Transitioning" }
+        check(!isTerminal) { "a terminal runtime must never publish Transitioning again" }
         publishedFlow.value = Published(RuntimePhase.Transitioning, AppUiPhase.Transitioning)
     }
 
-    private fun publishFatal(reason: String): ReplacementOutcome {
+    internal fun publishFatal(reason: String): ReplacementOutcome {
         logger.e(IllegalStateException(reason), "replacement FATAL")
         isFatal = true
         // The host chooses how an in-process Fatal reaches recovery UI.
@@ -129,7 +138,7 @@ internal class AppRuntime(
     }
 
     // Generation 1 mints under buildLock; later generations mint under the mutex.
-    private val nextGenerationId = AtomicInteger(FIRST_GENERATION_ID)
+    private val nextGenerationId = AtomicInteger(APP_RUNTIME_FIRST_GENERATION_ID)
 
     /**
      * The one published generation; builds and publishes generation 1 on first read. Reads during
@@ -137,11 +146,11 @@ internal class AppRuntime(
      */
     val currentGeneration: RuntimeGeneration
         get() {
-            check(!isFatal) { "runtime is Fatal — no generation is serving; recovery required" }
+            check(!isTerminal) { "runtime is terminal — no generation is serving; restart required" }
             return currentOrNull ?: synchronized(buildLock) {
                 currentOrNull ?: buildGeneration(
                     database = dbFactory(applicationContext),
-                    dbGeneration = FIRST_GENERATION_ID,
+                    dbGeneration = APP_RUNTIME_FIRST_GENERATION_ID,
                     ownsDatabase = true,
                 ).also { first ->
                     publishServing(first)
@@ -178,7 +187,7 @@ internal class AppRuntime(
      * answers `null` once admission is sealed — the caller must touch no database.
      */
     suspend fun awaitBackupWorkLease(): BackupWorkLease? = workerGate.awaitLease {
-        check(!isFatal) { "runtime is Fatal — no generation may admit new work" }
+        check(!isTerminal) { "runtime is terminal — no generation may admit new work" }
         currentGeneration.graph
     }
 
@@ -199,7 +208,7 @@ internal class AppRuntime(
                     val outgoing = currentOrNull
                     when {
                         // Fatal is terminal: a queued reinitialize performs NOTHING.
-                        isFatal || outgoing == null -> ReinitializeOutcome.Fatal
+                        isTerminal || outgoing == null -> ReinitializeOutcome.Fatal
 
                         expected != null && outgoing.id != expected.id ->
                             ReinitializeOutcome.AlreadyReplaced(outgoing)
@@ -211,7 +220,7 @@ internal class AppRuntime(
             }.getOrElse { error ->
                 logger.e(error, "reinitialize failed outside the transition body")
                 when {
-                    isFatal -> ReinitializeOutcome.Fatal
+                    isTerminal -> ReinitializeOutcome.Fatal
 
                     // A failed release leaves an unknown-state handle or live job: Fatal.
                     error is OrphanCloseException || error is PartialCandidateUnwindException -> {
@@ -234,7 +243,7 @@ internal class AppRuntime(
         tracker: PonrTracker,
     ): ReinitializeOutcome {
         logger.e(error, "graph-only transition threw")
-        if (isFatal) return ReinitializeOutcome.Fatal
+        if (isTerminal) return ReinitializeOutcome.Fatal
         return if (tracker.crossed) {
             // Teardown of N began — a partially-disposed generation is NEVER resurrected.
             publishFatal("graph-only transition escaped after teardown began: $error")
@@ -321,8 +330,6 @@ internal class AppRuntime(
         return ReinitializeOutcome.Aborted(reason = reason, serving = outgoing)
     }
 
-    private val inFlightReplacements = HashMap<ReplacementOperation, InFlightReplacement>()
-
     override suspend fun restoreFromSnapshot(
         source: File,
         effects: DatabaseReplacementEffects,
@@ -332,11 +339,14 @@ internal class AppRuntime(
         if (coroutineContext.isInsideReplacementTransaction()) {
             return rejectNestedRestore(effects, logger)
         }
-        return replace(ReplacementOperation.RestoreFromSnapshot(source), effects).toSeamResult()
+        return replace(
+            ReplacementOperation.RestoreFromSnapshot(source, effects.attemptId),
+            effects,
+        ).toSeamResult()
     }
 
-    override suspend fun rollbackToPreRestoreBackup(
-        sourcePath: String?,
+    override suspend fun rollbackFromUndo(
+        sourceRef: UndoRef,
         effects: DatabaseReplacementEffects,
     ): DatabaseReplacementResult {
         // A matching marker makes preflight rollback part of this transaction, never nested.
@@ -344,7 +354,7 @@ internal class AppRuntime(
             val outcome = runInlineRollback(
                 transaction = transaction,
                 effects = effects,
-                sourcePath = sourcePath,
+                sourceRef = sourceRef,
                 disposeCandidate = { candidate ->
                     quiescer.tearDownCandidate(candidate, closeCandidateDatabase = true)
                 },
@@ -362,49 +372,38 @@ internal class AppRuntime(
                 .toSeamResult()
         }
         return replace(
-            ReplacementOperation.RollbackToPreRestoreBackup(sourcePath),
+            ReplacementOperation.RollbackFromUndo(sourceRef, effects.attemptId),
             effects,
         ).toSeamResult()
     }
 
-    /** Same operations coalesce atomically; different operations serialize independently. */
+    /** Every caller owns one serialized transaction; no callbacks are coalesced across owners. */
     suspend fun replace(
         operation: ReplacementOperation,
-        effects: DatabaseReplacementEffects = DatabaseReplacementEffects.None,
-    ): ReplacementOutcome = submitReplacement(operation, effects).outcome.await()
+        effects: DatabaseReplacementEffects,
+    ): ReplacementOutcome {
+        val inFlight = submissionGuard.begin {
+            val stagingFailure = stageRestoreSourceForSubmission(operation) {
+                currentGeneration.graph.databaseSnapshotProvider
+            }
+            // Submission happens before caller cancellation can delete its cache file.
+            submitReplacement(operation, effects, stagingFailure)
+        }
+        return inFlight.outcome.await()
+    }
 
     private fun submitReplacement(
         operation: ReplacementOperation,
         effects: DatabaseReplacementEffects,
+        stagingFailure: Throwable?,
     ): InFlightReplacement {
-        val inFlight = synchronized(submissionLock) {
-            inFlightReplacements[operation]?.let { return it }
-            InFlightReplacement(operation, CompletableDeferred()).also {
-                inFlightReplacements[operation] = it
-            }
-        }
-        // Stage before suspension so the runtime owns the source despite caller cancellation.
-        if (operation is ReplacementOperation.RestoreFromSnapshot) {
-            runCatching {
-                stageRestoreSource(
-                    source = File(operation.sourcePath),
-                    stagingDirectory = policy.stagingDirectory(applicationContext),
-                    sequence = stagedSourceSequence.incrementAndGet(),
-                )
-            }.fold(
-                onSuccess = { staged -> inFlight.stagedSource = staged },
-                onFailure = { error -> inFlight.stagingFailure = error },
-            )
-        }
+        val inFlight = InFlightReplacement(operation, CompletableDeferred())
         hostScope.launch {
             val tracker = PonrTracker()
-            // Terminal effects remain under the mutex so a successor cannot interleave them.
-            val finalOutcome = inFlight.stagingFailure?.let { stagingError ->
-                val rejected = ReplacementOutcome.RejectedBeforeMutation(
-                    BackupError.Io(IOException("restore source staging failed: $stagingError")),
-                )
+            val finalOutcome = stagingFailure?.let { stagingError ->
                 transitionMutex.withLock {
-                    runTerminalEffects(effects, rejected, tracker.crossed, logger)
+                    val escaped = resolveTransactionEscape(stagingError, tracker)
+                    runTerminalEffectsAndSealRestart(effects, escaped, tracker)
                 }
             } ?: runCatching {
                 currentGeneration
@@ -414,8 +413,6 @@ internal class AppRuntime(
                             operation = operation,
                             effects = effects,
                             tracker = tracker,
-                            stagedSource = inFlight.stagedSource,
-                            reservationSlot = { inFlight.reservation = it },
                         )
                     }.getOrElse { error ->
                         if (error is CancellationException) {
@@ -424,36 +421,55 @@ internal class AppRuntime(
                         }
                         resolveTransactionEscape(error, tracker)
                     }
-                    runTerminalEffects(effects, outcome, tracker.crossed, logger)
+                    runTerminalEffectsAndSealRestart(effects, outcome, tracker)
                 }
             }.getOrElse { error ->
                 // Escapes OUTSIDE the mutex (gen-1 build): nothing was mutated.
                 val escaped = resolveTransactionEscape(error, tracker)
                 transitionMutex.withLock {
-                    runTerminalEffects(effects, escaped, tracker.crossed, logger)
+                    runTerminalEffectsAndSealRestart(effects, escaped, tracker)
                 }
             }
-            inFlight.stagedSource?.let { staged -> runCatching { staged.delete() } }
-            // Keep a journal-named reservation until a clean terminal outcome resolves it. A
-            // Completed transaction's reservation belongs to the commit protocol, which deleted it
-            // when the undo slot landed and deliberately kept it when the install failed.
-            val keepReservation = finalOutcome is ReplacementOutcome.Completed ||
-                finalOutcome is ReplacementOutcome.FailedAfterMutation ||
-                finalOutcome is ReplacementOutcome.Fatal ||
-                finalOutcome.effectsError() != null
-            if (!keepReservation) {
-                inFlight.reservation?.let { reserved -> runCatching { reserved.delete() } }
+            submissionGuard.finish {
+                sweepPersistedRecoveryAssets(currentOrNull, logger)
             }
-            synchronized(submissionLock) { inFlightReplacements.remove(operation) }
-            inFlight.outcome.complete(finalOutcome)
+            val restartWasRequired =
+                replacementPolicy == ReplacementPolicy.RestartProcess && tracker.crossed
+            val deliveredOutcome = if (restartWasRequired) {
+                restartAfterPonr(finalOutcome, policy, logger)
+            } else {
+                finalOutcome
+            }
+            val restartFailed = deliveredOutcome is ReplacementOutcome.Fatal &&
+                finalOutcome !is ReplacementOutcome.Fatal
+            if (restartWasRequired && restartFailed && !isFatal) {
+                publishFatal("process restart failed after point of no return")
+            }
+            inFlight.outcome.complete(deliveredOutcome)
         }
         return inFlight
+    }
+
+    /** Runs under [transitionMutex]; a restart-policy PONR is terminal before the lock opens. */
+    private suspend fun runTerminalEffectsAndSealRestart(
+        effects: DatabaseReplacementEffects,
+        outcome: ReplacementOutcome,
+        tracker: PonrTracker,
+    ): ReplacementOutcome = runTerminalEffects(
+        effects = effects,
+        outcome = outcome,
+        ponrCrossed = tracker.crossed,
+        logger = logger,
+    ).also {
+        if (replacementPolicy == ReplacementPolicy.RestartProcess && tracker.crossed) {
+            restartTerminal = true
+        }
     }
 
     /** Resolves escapes to an intact outgoing generation before PONR, otherwise Fatal. */
     private fun resolveTransactionEscape(error: Throwable, tracker: PonrTracker): ReplacementOutcome {
         logger.e(error, "replacement transaction threw unexpectedly")
-        if (isFatal) return ReplacementOutcome.Fatal()
+        if (isTerminal) return ReplacementOutcome.Fatal()
         // An unreleased candidate may still hold the live file, even before PONR.
         if (error is OrphanCloseException || error is PartialCandidateUnwindException) {
             return publishFatal("generation resources could not be released: $error")
@@ -475,58 +491,52 @@ internal class AppRuntime(
         operation: ReplacementOperation,
         effects: DatabaseReplacementEffects,
         tracker: PonrTracker,
-        stagedSource: File?,
-        reservationSlot: (File) -> Unit,
     ): ReplacementOutcome {
-        if (isFatal) return ReplacementOutcome.Fatal()
+        if (isTerminal) return ReplacementOutcome.Fatal()
         val outgoing = requireNotNull(currentOrNull) { "generation must exist before replacement" }
         val provider = outgoing.graph.databaseSnapshotProvider
         // Validate while the live database remains open.
-        val plan = when (val selected = selectOperationSource(operation, provider, stagedSource)) {
+        val plan = when (val selected = selectOperationSource(operation, provider)) {
             is OperationSourcePlan.Reject ->
                 return ReplacementOutcome.RejectedBeforeMutation(selected.error)
 
             is OperationSourcePlan.Proceed -> selected
         }
-        val source = plan.source
-        val consume = plan.consume
-        // Reserve after validation and before PONR; each attempt owns only its own snapshot.
-        var reservation: File? = null
-        if (operation is ReplacementOperation.RestoreFromSnapshot) {
-            when (val reserved = provider.reserveRollbackSnapshot(effects.attemptId)) {
-                is BackupResult.Success -> {
-                    reservation = reserved.data
-                    reservationSlot(reserved.data)
-                }
-
-                is BackupResult.Failure -> return ReplacementOutcome.RejectedBeforeMutation(
-                    reserved.error,
-                )
-            }
-        }
-        // Claim the journal atomically before mutation.
-        runCatching { effects.onBeforeMutation(reservation?.absolutePath.orEmpty()) }
-            .onFailure { error ->
-                return ReplacementOutcome.RejectedBeforeMutation(
-                    BackupError.Io(IOException("pre-mutation persistence failed: $error")),
-                )
-            }
-        val requestedRollback = operation is ReplacementOperation.RollbackToPreRestoreBackup
+        val requestedRollback = operation is ReplacementOperation.RollbackFromUndo
+        val mutation = MutationPlan(provider, plan.source, effects, plan.undoRef)
         return when (replacementPolicy) {
-            ReplacementPolicy.RestartProcess -> runRestartProcessSwap(
-                closeDatabase = closeDatabase,
+            ReplacementPolicy.RestartProcess -> executeRestartProcessTransaction(
                 outgoing = outgoing,
-                mutation = MutationPlan(provider, source, consume, effects, reservation),
+                mutation = mutation,
                 tracker = tracker,
             )
 
             ReplacementPolicy.RebuildInProcess -> executeRebuildTransaction(
                 outgoing = outgoing,
-                mutation = MutationPlan(provider, source, consume, effects, reservation),
+                mutation = mutation,
                 tracker = tracker,
                 requestedRollback = requestedRollback,
             )
         }
+    }
+
+    /** Keeps UI and DB-bound admission closed from pre-swap quiescence until process restart. */
+    private suspend fun executeRestartProcessTransaction(
+        outgoing: RuntimeGeneration,
+        mutation: MutationPlan,
+        tracker: PonrTracker,
+    ): ReplacementOutcome {
+        publishTransitioning()
+        quiescer.quiesce(outgoing)?.let { reason ->
+            return unwindQuiesce(outgoing, reason, logger, quiescer::reopen, ::publishServing)
+        }
+        claimMutationAfterQuiesce(mutation, tracker, logger, ::publishFatal)?.let { return it }
+        return runRestartProcessSwap(
+            closeDatabase = closeDatabase,
+            outgoing = outgoing,
+            mutation = mutation,
+            tracker = tracker,
+        )
     }
 
     /** Runs the in-process replacement machine; PONR failures publish a successor or Fatal. */
@@ -536,12 +546,13 @@ internal class AppRuntime(
         tracker: PonrTracker,
         requestedRollback: Boolean,
     ): ReplacementOutcome {
-        val effects = mutation.effects
         publishTransitioning()
-        quiescer.quiesce(outgoing)?.let { reason -> return unwindQuiesce(outgoing, reason) }
+        quiescer.quiesce(outgoing)?.let { reason ->
+            return unwindQuiesce(outgoing, reason, logger, quiescer::reopen, ::publishServing)
+        }
+        claimMutationAfterQuiesce(mutation, tracker, logger, ::publishFatal)?.let { return it }
 
-        // PONR: teardown has begun and the outgoing generation cannot be republished.
-        tracker.crossed = true
+        // PONR was crossed by the durable claim; the outgoing generation cannot be republished.
         quiescer.tearDown(outgoing)?.let { failure ->
             return publishFatal("outgoing teardown failed after PONR: $failure")
         }
@@ -552,7 +563,7 @@ internal class AppRuntime(
         }
 
         val transaction = ReplacementTransaction(nextDbGeneration = outgoing.dbGeneration + 1)
-        val replaced = mutation.provider.replaceLiveDatabaseFile(mutation.source)
+        val replaced = mutation.replaceLiveDatabase()
         if (replaced is BackupResult.Failure) {
             return recoverViaRollback(mutation, transaction, replaced.error, requestedRollback)
         }
@@ -564,40 +575,47 @@ internal class AppRuntime(
                 transaction = transaction,
                 cause = committed.error,
                 requestedRollback = requestedRollback,
-                afterCleanCommit = false,
             )
         }
-        if (requestedRollback) {
-            // The primary rollback may retry generation construction once.
-            transaction.rolledBack = true
-        }
+        // The primary rollback may retry generation construction once.
+        if (requestedRollback) transaction.rolledBack = true
 
-        return when (val attempt = attemptGeneration(transaction)) {
+        return when (val attempt = attemptGeneration(transaction, mutation)) {
             is AttemptResult.Published ->
                 completedOrRecovered(transaction, attempt.generation, requestedRollback)
 
             AttemptResult.LadderFatal ->
                 publishFatal("candidate resources could not be released — ladder stopped")
 
+            AttemptResult.ProtocolFatal ->
+                publishFatal("candidate finalization is not durable — publication refused")
+
+            AttemptResult.RestoreFinalizedRetryable ->
+                retryFinalizedRestoreGeneration(
+                    transaction,
+                    mutation,
+                    requestedRollback,
+                    ::attemptGeneration,
+                    ::publishFatal,
+                )
+
             AttemptResult.Retryable ->
                 if (transaction.rolledBack) {
-                    when (val retry = attemptGeneration(transaction)) {
-                        is AttemptResult.Published -> completedOrRecovered(
-                            transaction,
-                            retry.generation,
-                            requestedRollback,
-                        )
-
-                        else -> publishFatal("post-rollback generation attempt failed")
-                    }
+                    retryAfterRollbackGeneration(
+                        transaction,
+                        mutation,
+                        requestedRollback,
+                        "candidate finalization is not durable — publication refused",
+                        "post-rollback generation attempt failed",
+                        ::attemptGeneration,
+                        ::publishFatal,
+                    )
                 } else {
                     recoverViaRollback(
                         mutation = mutation,
                         transaction = transaction,
                         cause = null,
                         requestedRollback = requestedRollback,
-                        // A durable commit makes the canonical slot this attempt's source.
-                        afterCleanCommit = true,
                     )
                 }
         }
@@ -612,33 +630,31 @@ internal class AppRuntime(
         transaction: ReplacementTransaction,
         cause: BackupError?,
         requestedRollback: Boolean,
-        afterCleanCommit: Boolean = false,
     ): ReplacementOutcome {
         val provider = mutation.provider
-        val rollbackSource: File
-        val rollbackConsume: SourceConsumption
-        when (val plan = selectRecoverySource(mutation, cause, afterCleanCommit)) {
-            is RecoverySourcePlan.Stop -> return publishFatal(plan.reason)
-            is RecoverySourcePlan.Apply -> {
-                rollbackSource = plan.source
-                rollbackConsume = plan.consume
-            }
+        val rollbackRef = mutation.undoRef
+        val validated = provider.validateUndo(rollbackRef)
+        if (validated is BackupResult.Failure) {
+            return publishFatal(
+                "replacement failed ($cause) and owned undo is unusable (${validated.error})",
+            )
         }
-        if (afterCleanCommit) {
-            // Re-journal the exact source this recovery applies: a null path would let the next
-            // launch substitute a canonical that may still be the PREVIOUS attempt's image.
-            val rejournalled = rollbackSource.takeIf { it == mutation.reservation }
-            val unCommitted = runCatching {
-                mutation.effects.onBeforeMutation(rejournalled?.absolutePath.orEmpty())
-            }
-            if (unCommitted.isFailure) {
-                return publishFatal(
-                    "could not durably un-commit before the recovery rollback: " +
-                        "${unCommitted.exceptionOrNull()}",
-                )
-            }
+        val capacity = provider.checkRollbackCapacity(rollbackRef)
+        if (capacity is BackupResult.Failure) {
+            return publishFatal(
+                "replacement failed ($cause) and rollback capacity is unavailable " +
+                    "(${capacity.error})",
+            )
         }
-        val rolledBack = provider.replaceLiveDatabaseFile(rollbackSource)
+
+        val compensationOwner = prepareCompensationOwner(
+            mutation = mutation,
+            rollbackRef = rollbackRef,
+            requestedRollback = requestedRollback,
+        ).getOrElse { error ->
+            return publishFatal("could not journal exact compensation owner before rollback: $error")
+        }
+        val rolledBack = provider.replaceLiveDatabaseFromUndo(rollbackRef)
         if (rolledBack is BackupResult.Failure) {
             return publishFatal("replacement failed ($cause) and rollback failed (${rolledBack.error})")
         }
@@ -646,17 +662,7 @@ internal class AppRuntime(
         transaction.rolledBack = true
         transaction.rollbackCause = cause
             ?: BackupError.Io(IOException("restore could not complete; rolled back"))
-        // Consume exactly the applied source after its durable commit.
-        val commitEffects = if (requestedRollback) mutation.effects else DatabaseReplacementEffects.None
-        val committed = commitMutation(
-            mutation = MutationPlan(
-                provider = provider,
-                source = rollbackSource,
-                consume = rollbackConsume,
-                effects = commitEffects,
-                reservation = null,
-            ),
-        )
+        val committed = commitRecoveryRollback(mutation, compensationOwner)
         if (committed is CommitResult.NotDurable) {
             // Keep the Prepared journal and source; do not publish an unprovable rollback.
             return publishFatal(
@@ -664,27 +670,32 @@ internal class AppRuntime(
                     "(${committed.error}) — journal and assets preserved",
             )
         }
-        return when (val attempt = attemptGeneration(transaction)) {
+        return when (val attempt = attemptGeneration(transaction, mutation)) {
             is AttemptResult.Published ->
                 completedOrRecovered(transaction, attempt.generation, requestedRollback)
 
             AttemptResult.LadderFatal ->
                 publishFatal("candidate resources could not be released after rollback")
 
+            AttemptResult.ProtocolFatal ->
+                publishFatal("rollback finalization is not durable — publication refused")
+
+            AttemptResult.RestoreFinalizedRetryable -> publishFatal(
+                "restore finalized during rollback recovery — compensation refused",
+            )
+
             AttemptResult.Retryable ->
                 // Inline recovery resolved its journal; one clean preflight retry is allowed.
                 if (transaction.candidateInvalidated) {
-                    when (val retry = attemptGeneration(transaction)) {
-                        is AttemptResult.Published -> completedOrRecovered(
-                            transaction,
-                            retry.generation,
-                            requestedRollback,
-                        )
-
-                        else -> publishFatal(
-                            "post-rollback generation attempt failed (original cause: $cause)",
-                        )
-                    }
+                    retryAfterRollbackGeneration(
+                        transaction,
+                        mutation,
+                        requestedRollback,
+                        "rollback finalization is not durable — publication refused",
+                        "post-rollback generation attempt failed (original cause: $cause)",
+                        ::attemptGeneration,
+                        ::publishFatal,
+                    )
                 } else {
                     publishFatal("post-rollback generation attempt failed (original cause: $cause)")
                 }
@@ -692,7 +703,10 @@ internal class AppRuntime(
     }
 
     /** Builds, preflights, and publishes one candidate over the current live file. */
-    private suspend fun attemptGeneration(transaction: ReplacementTransaction): AttemptResult {
+    private suspend fun attemptGeneration(
+        transaction: ReplacementTransaction,
+        mutation: MutationPlan,
+    ): AttemptResult {
         val candidate = runCatching {
             buildGeneration(
                 database = dbFactory(applicationContext),
@@ -711,29 +725,29 @@ internal class AppRuntime(
             // Failed inline teardown leaves the candidate handle unknown.
             return AttemptResult.LadderFatal
         }
+        if (outcome.getOrNull() == StartupOutcome.FinalizationPending) {
+            val released = quiescer.tearDownCandidate(candidate, closeCandidateDatabase = true)
+            return if (released) AttemptResult.ProtocolFatal else AttemptResult.LadderFatal
+        }
         val proceed = outcome.getOrNull() == StartupOutcome.Proceed && !transaction.candidateInvalidated
         if (!proceed) {
             logger.w { "candidate preflight did not proceed: $outcome" }
             // Inline rollback already disposed this candidate.
             val released = transaction.candidateDisposed ||
                 quiescer.tearDownCandidate(candidate, closeCandidateDatabase = true)
-            return if (released) AttemptResult.Retryable else AttemptResult.LadderFatal
+            if (!released) return AttemptResult.LadderFatal
+            return classifyReleasedCandidateFailure(
+                transaction,
+                mutation,
+                candidate,
+                outcome.isFailure,
+            )
         }
         policy.advanceSnackbarGeneration()
         publishServing(candidate)
         workerGate.reopen()
         policy.unfenceSnackbarResolves()
         return AttemptResult.Published(candidate)
-    }
-
-    private fun unwindQuiesce(
-        outgoing: RuntimeGeneration,
-        reason: String,
-    ): ReplacementOutcome {
-        logger.w { "replacement aborted during quiesce: $reason — generation ${outgoing.id} keeps serving" }
-        quiescer.reopen(outgoing.id)
-        publishServing(outgoing)
-        return ReplacementOutcome.RejectedBeforeMutation(BackupError.Io(IOException(reason)))
     }
 
     /** Builds a staged generation and safely releases an orphan if graph creation fails. */
@@ -766,12 +780,10 @@ internal class AppRuntime(
             viewModelStore = ViewModelStore(),
         )
     }
-
-    private companion object {
-        const val TAG = "AppRuntime"
-        const val FIRST_GENERATION_ID = 1
-    }
 }
+
+internal const val APP_RUNTIME_TAG = "AppRuntime"
+internal const val APP_RUNTIME_FIRST_GENERATION_ID = 1
 
 /** Result of a graph-only reinitialization. */
 internal sealed interface ReinitializeOutcome {
@@ -794,11 +806,11 @@ internal data class RuntimeTransitionPolicy(
     val pendingSnackbarCount: () -> Int = { 0 },
     /** Advances the snackbar epoch before a committed successor is published. */
     val advanceSnackbarGeneration: () -> Unit = {},
+    /** Invoked by the host after every restart-policy PONR outcome; production never returns. */
+    val restartProcess: () -> Unit = {},
     val mainDispatcher: CoroutineDispatcher = Dispatchers.Main.immediate,
     // Host dispatcher is virtual-time schedulable in JVM tests.
     val hostDispatcher: CoroutineDispatcher = Dispatchers.Default,
-    /** Where staged restore sources live — runtime-owned files, deleted on every outcome. */
-    val stagingDirectory: (Context) -> File = { context -> context.cacheDir },
     val uiDisposalTimeoutMillis: Long = DEFAULT_UI_DISPOSAL_TIMEOUT_MILLIS,
     val drainTimeoutMillis: Long = DEFAULT_DRAIN_TIMEOUT_MILLIS,
 ) {
@@ -811,17 +823,21 @@ internal data class RuntimeTransitionPolicy(
 /** Replacement ending; Android production uses [RestartProcess]. */
 internal enum class ReplacementPolicy { RestartProcess, RebuildInProcess }
 
-/** File-swap operations, identity-compared for same-operation coalescing. */
+/** File-swap operations; each caller receives an independently owned transaction. */
 internal sealed interface ReplacementOperation {
 
-    /** Identity uses the original source path; staging follows coalescing. */
-    data class RestoreFromSnapshot(val sourcePath: String) : ReplacementOperation {
-        constructor(source: File) : this(source.absolutePath)
+    data class RestoreFromSnapshot(
+        val sourcePath: String,
+        val owner: RestoreOwnerId,
+    ) : ReplacementOperation {
+        val sourceRef: RestoreSourceRef = RestoreSourceRef(owner)
+
+        constructor(source: File, owner: RestoreOwnerId) : this(source.absolutePath, owner)
     }
 
-    /** `null` [sourcePath] selects the canonical undo slot; otherwise it is exact and owned. */
-    data class RollbackToPreRestoreBackup(
-        val sourcePath: String? = null,
+    data class RollbackFromUndo(
+        val sourceRef: UndoRef,
+        val owner: RestoreOwnerId,
     ) : ReplacementOperation
 }
 

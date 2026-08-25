@@ -2,23 +2,19 @@
 package io.github.stslex.workeeper.feature.recovery.domain
 
 /**
- * Outcome of [RestoreRecoveryCoordinator.performUndoRestore]: the consumer acknowledges the
- * dialog on `Succeeded || FileMissing || SourceUnusable`, and leaves it visible on [IoFailure].
+ * Outcome of [RestoreRecoveryCoordinator.performUndoRestore].
  */
 internal sealed interface UndoRestoreOutcome {
 
-    /** Atomic rename succeeded; `UndoRestoreSuccess` published; restart the app. */
+    /** Exact rollback commit bookkeeping is durable; verified finalization follows on restart. */
     data object Succeeded : UndoRestoreOutcome
 
-    /** `pre_restore_backup.db` was absent; no swap happened and further taps cannot help. */
-    data object FileMissing : UndoRestoreOutcome
+    /** The confirmation named an older pointer; no current owner state was changed. */
+    data object NotCurrent : UndoRestoreOutcome
 
-    /**
-     * The undo image exists but is not a usable database, so nothing was swapped and availability
-     * was cleared. The file is kept: a validator false negative must not destroy a real image.
-     */
-    data object SourceUnusable : UndoRestoreOutcome
+    /** Same-install pointer/source truth is broken; restart must route to recovery. */
+    data object RecoveryRequired : UndoRestoreOutcome
 
-    /** The atomic rename failed; availability stays set so the user can retry from Settings. */
+    /** The mutation failed without a durable terminal; persisted ownership remains authoritative. */
     data object IoFailure : UndoRestoreOutcome
 }

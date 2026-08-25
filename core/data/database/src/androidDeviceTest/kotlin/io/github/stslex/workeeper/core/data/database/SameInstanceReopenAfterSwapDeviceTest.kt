@@ -9,8 +9,13 @@ import androidx.room3.Room
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreOwnerId
+import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreSourceRef
+import io.github.stslex.workeeper.core.data.backup.api.restore.UndoRef
 import io.github.stslex.workeeper.core.data.backup.api.result.BackupResult
+import io.github.stslex.workeeper.core.data.database.snapshot.AndroidRestoreStorageCapacity
 import io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProviderImpl
+import io.github.stslex.workeeper.core.data.database.snapshot.RestoreRecoveryFilesImpl
 import io.github.stslex.workeeper.core.data.database.tag.TagDao
 import io.github.stslex.workeeper.core.data.database.tag.TagEntity
 import io.github.stslex.workeeper.core.ui.test.annotations.Regression
@@ -52,9 +57,12 @@ internal class SameInstanceReopenAfterSwapDeviceTest {
             .setDriver(BundledSQLiteDriver())
             .build()
         retainedDao = database.tagDao
+        val recoveryFiles = RestoreRecoveryFilesImpl(context, Dispatchers.IO)
         provider = DatabaseSnapshotProviderImpl(
             appDatabase = database,
             context = context,
+            recoveryFiles = recoveryFiles,
+            storageCapacity = AndroidRestoreStorageCapacity(context),
             dispatcher = Dispatchers.IO,
         )
     }
@@ -69,6 +77,8 @@ internal class SameInstanceReopenAfterSwapDeviceTest {
     fun gate_restoreSwap_retainedHandlesFailLoud_neverStale() = runBlocking {
         retainedDao.insert(TagEntity(name = SNAPSHOT_SENTINEL))
         assertSuccess("captureSnapshot", provider.captureSnapshot(snapshotFile()))
+        val sourceRef = RestoreSourceRef(RESTORE_OWNER)
+        assertSuccess("stageRestoreSource", provider.stageRestoreSource(snapshotFile(), sourceRef))
         retainedDao.insert(TagEntity(name = LIVE_ONLY_SENTINEL))
         assertEquals(
             "pre-swap: the retained DAO must see both sentinels (handle-works precondition)",
@@ -78,9 +88,13 @@ internal class SameInstanceReopenAfterSwapDeviceTest {
         val inodeBeforeSwap = liveDbInode()
 
         // The production RestartProcess sequence (spec §8.5): validate → close → file mechanics.
-        assertSuccess("validateSnapshotForRestore", provider.validateSnapshotForRestore(snapshotFile()))
+        assertSuccess("validateRestoreSource", provider.validateRestoreSource(sourceRef))
+        assertSuccess("checkRestoreCapacity", provider.checkRestoreCapacity(sourceRef))
         closeAppDatabase(database)
-        assertSuccess("replaceLiveDatabaseFile", provider.replaceLiveDatabaseFile(snapshotFile()))
+        assertSuccess(
+            "replaceLiveDatabaseFromRestore",
+            provider.replaceLiveDatabaseFromRestore(sourceRef),
+        )
 
         assertSwapRealOnDisk(inodeBeforeSwap)
         assertGateOutcome()
@@ -89,13 +103,8 @@ internal class SameInstanceReopenAfterSwapDeviceTest {
     @Test
     fun gate_rollbackSwap_retainedHandlesFailLoud_neverStale() = runBlocking {
         retainedDao.insert(TagEntity(name = SNAPSHOT_SENTINEL))
-        // Stage the canonical undo slot through the production reserve+stage+install sequence.
-        val reserved = assertSuccess("reserveRollbackSnapshot", provider.reserveRollbackSnapshot("gate"))
-        assertSuccess("stagePromotedRollback", provider.stagePromotedRollback(reserved, "gate"))
-        assertSuccess(
-            "completePromotedRollback",
-            provider.completePromotedRollback(reserved, "gate"),
-        )
+        val undoRef = UndoRef(ROLLBACK_OWNER)
+        assertSuccess("createUndo", provider.createUndo(undoRef))
         retainedDao.insert(TagEntity(name = LIVE_ONLY_SENTINEL))
         assertEquals(
             "pre-swap: the retained DAO must see both sentinels (handle-works precondition)",
@@ -104,13 +113,12 @@ internal class SameInstanceReopenAfterSwapDeviceTest {
         )
         val inodeBeforeSwap = liveDbInode()
 
-        // The production rollback sequence: resolve source → close (terminal) → replace → consume.
-        val rollbackSource = requireNotNull(provider.getPreRestoreBackupFile()) {
-            "reserve+promote must have staged the pre-restore slot"
-        }
+        // The production rollback sequence: validate and admit before close, then replace exact N.
+        assertSuccess("validateUndo", provider.validateUndo(undoRef))
+        assertSuccess("checkRollbackCapacity", provider.checkRollbackCapacity(undoRef))
         closeAppDatabase(database)
-        assertSuccess("replaceLiveDatabaseFile", provider.replaceLiveDatabaseFile(rollbackSource))
-        provider.deletePreRestoreBackup()
+        assertSuccess("replaceLiveDatabaseFromUndo", provider.replaceLiveDatabaseFromUndo(undoRef))
+        assertTrue("exact undo must be consumed after the swap", provider.deleteUndo(undoRef))
 
         assertSwapRealOnDisk(inodeBeforeSwap)
         assertGateOutcome()
@@ -216,8 +224,8 @@ internal class SameInstanceReopenAfterSwapDeviceTest {
 
     private fun wipeFiles() {
         context.deleteDatabase(AppDatabase.NAME)
-        File(context.cacheDir, "pre_restore_backup.db").delete()
         snapshotFile().delete()
+        File(context.noBackupFilesDir, "restore-recovery").deleteRecursively()
     }
 
     private companion object {
@@ -225,5 +233,7 @@ internal class SameInstanceReopenAfterSwapDeviceTest {
         const val SENTINEL_PREFIX = "reopen-gate-"
         const val SNAPSHOT_SENTINEL = "${SENTINEL_PREFIX}a-snapshot"
         const val LIVE_ONLY_SENTINEL = "${SENTINEL_PREFIX}b-live-only"
+        val RESTORE_OWNER = RestoreOwnerId("20000000-0000-4000-8000-000000000001")
+        val ROLLBACK_OWNER = RestoreOwnerId("20000000-0000-4000-8000-000000000002")
     }
 }

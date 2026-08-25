@@ -11,24 +11,29 @@ import io.github.stslex.workeeper.core.data.backup.api.DatabaseReplacement
 import io.github.stslex.workeeper.core.data.backup.api.DatabaseReplacementEffects
 import io.github.stslex.workeeper.core.data.backup.api.DatabaseReplacementResult
 import io.github.stslex.workeeper.core.data.backup.api.error.BackupError
+import io.github.stslex.workeeper.core.data.backup.api.restore.ActiveUndo
+import io.github.stslex.workeeper.core.data.backup.api.restore.ActiveUndoTransition
+import io.github.stslex.workeeper.core.data.backup.api.restore.InstallEpoch
+import io.github.stslex.workeeper.core.data.backup.api.restore.LegacyRestoreOwners
+import io.github.stslex.workeeper.core.data.backup.api.restore.LegacyRestoreState
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreAttempt
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreInProgressContext
+import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreOwnerId
+import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreProtocolRead
+import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreProtocolState
+import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreSourceRef
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreStateRepository
+import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreTerminal
+import io.github.stslex.workeeper.core.data.backup.api.restore.UndoRef
 import io.github.stslex.workeeper.core.data.backup.api.result.BackupResult
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupErrorCode
 import io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProvider
 import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialog
 import io.github.stslex.workeeper.feature.app_dialogs.api.publisher.AppDialogPublisher
 import io.github.stslex.workeeper.feature.recovery.diagnostics.RestoreRecoveryReporter
-import java.io.File
 import java.util.UUID
 
-/**
- * App-scoped coordinator for attempt-journal preflight recovery and user-requested undo.
- *
- * A `Prepared` attempt is unknown and never produces success; only a durable `Committed` restore
- * can be verified by a schema peek. See the Phase-5 startup-processor spec for crash recovery.
- */
+/** Installation-owned restore/undo recovery and verified-attempt finalization. */
 @SingleIn(AppScope::class)
 class RestoreRecoveryCoordinator @Inject internal constructor(
     private val appReinitializer: AppReinitializer,
@@ -42,373 +47,575 @@ class RestoreRecoveryCoordinator @Inject internal constructor(
 
     private val logger = Log.tag("RestoreRecoveryCoordinator")
 
-    /** Cached preflight verdict read by the Activity layer. */
     @Volatile
     var lastPreflightOutcome: PreflightOutcome? = null
         private set
 
-    /** True when this launch must route to the recovery surface instead of the main UI. */
+    @Volatile
+    var lastRecoveryExportOutcome: RecoveryExportOutcome? = null
+        private set
+
     val recoverySurfaceRequired: Boolean
-        get() = lastPreflightOutcome == PreflightOutcome.RecoveryRequired
+        get() = lastPreflightOutcome in setOf(
+            PreflightOutcome.InterruptedRestore,
+            PreflightOutcome.RecoveryRequired,
+            PreflightOutcome.FinalizationPending,
+        )
 
-    suspend fun handlePostRestoreLaunch(): PreflightOutcome =
-        runPostRestoreLaunch().also { outcome ->
-            // Preserve BEFORE publishing the verdict: `recoverySurfaceRequired` is what routes
-            // MainActivity to the surface that shares this file.
-            if (outcome == PreflightOutcome.RecoveryRequired) preserveDbForRecoveryExport()
-            lastPreflightOutcome = outcome
+    suspend fun handlePostRestoreLaunch(): PreflightOutcome = runPostRestoreLaunch().also { outcome ->
+        lastRecoveryExportOutcome = if (outcome in setOf(
+                PreflightOutcome.InterruptedRestore,
+                PreflightOutcome.RecoveryRequired,
+                PreflightOutcome.FinalizationPending,
+            )
+        ) {
+            preserveDbForRecoveryExport()
+        } else {
+            null
         }
-
-    /**
-     * Scenario-1 recovery never reaches [StartupMigrationCoordinator]'s route — `StartupProcessor`
-     * returns `RouteToRecovery` above the branch that runs it — so the live database is preserved
-     * here, or `RecoveryActivity`'s export button has nothing to share.
-     */
-    private suspend fun preserveDbForRecoveryExport() {
-        // GUARD: recovery is the last line of defence; a preserve failure must never crash the
-        // launch that routes to it.
-        val preserved = runCatching { snapshotProvider.preserveDbBeforeMigration() }
-            .onFailure { error -> logger.e(error, "preserving the live db for recovery failed") }
-            .getOrNull()
-        if (preserved == null) {
-            logger.w { "recovery export will be empty: no live database was preserved" }
-        }
+        lastPreflightOutcome = outcome
     }
 
-    private suspend fun runPostRestoreLaunch(): PreflightOutcome {
-        val attempt = restoreStateRepository.getAttempt() ?: return PreflightOutcome.NoOp
-        val context = attempt.context
-        val committedRestore = attempt.phase == RestoreAttempt.Phase.Committed &&
-            attempt.kind == RestoreAttempt.Kind.Restore
-        // The undo slot is installed only AFTER the durable record, so a committed restore may
-        // still owe its install. Finish it before anything reads the canonical (spec §8.5a).
-        val undoSlotReady = committedRestore && completeOwedPromotion(attempt)
-
-        // Only a durable Committed restore may be verified as success.
-        if (committedRestore && context != null) {
-            val peekResult = runCatching { snapshotProvider.currentSchemaVersion() }
-            if (peekResult.isSuccess) {
-                handleRestoreSuccess(attempt, context, undoSlotReady)
-                return PreflightOutcome.RestoreSucceeded
-            }
-            return recoverFrom(attempt, context, peekResult.exceptionOrNull(), undoSlotReady)
-        }
-
-        // Replay committed rollback finalization from its durable source discriminator.
-        if (attempt.phase == RestoreAttempt.Phase.Committed &&
-            attempt.kind == RestoreAttempt.Kind.Rollback
-        ) {
-            runCatching {
-                val explicitPath = attempt.rollbackSnapshotPath
-                if (explicitPath == null) {
-                    snapshotProvider.deletePreRestoreBackup()
-                    restoreStateRepository.clearPreRestoreBackupAvailable()
-                } else {
-                    runCatching { File(explicitPath).delete() }
-                    if (snapshotProvider.getPreRestoreBackupFile() == null) {
-                        restoreStateRepository.clearPreRestoreBackupAvailable()
+    private suspend fun preserveDbForRecoveryExport(): RecoveryExportOutcome =
+        runCatching { snapshotProvider.preserveDbBeforeMigration() }.fold(
+            onSuccess = { result ->
+                when (result) {
+                    is BackupResult.Success -> RecoveryExportOutcome.Available
+                    is BackupResult.Failure -> {
+                        logger.w { "durable recovery export unavailable: ${result.error}" }
+                        RecoveryExportOutcome.Failed
                     }
                 }
-                appDialogPublisher.publish(committedRollbackDialog(rollbackOrigin(attempt)))
-                restoreStateRepository.resolveAttempt(attempt.id)
-            }.onFailure { error ->
-                logger.e(error, "committed-rollback finalization failed — it will replay")
-            }
-            logger.w { "an interrupted rollback was already committed — bookkeeping finished" }
-            return PreflightOutcome.RecoveryCompleted
-        }
+            },
+            onFailure = { error ->
+                logger.e(error, "preserving the live db for recovery failed")
+                RecoveryExportOutcome.Failed
+            },
+        )
 
-        // Prepared, legacy, and unparsable attempts are unknown and recover conservatively.
-        return recoverFrom(attempt, context, cause = null, canonicalIsOurs = undoSlotReady)
-    }
-
-    /** Idempotently finishes a durably committed attempt's owed undo-slot install (§8.5a). */
-    private suspend fun completeOwedPromotion(attempt: RestoreAttempt): Boolean {
-        val reservation = attempt.rollbackSnapshotPath?.let(::File)
-        val result = runCatching {
-            snapshotProvider.completePromotedRollback(reservation, attempt.id)
-        }.getOrElse { error ->
-            logger.e(error, "installing the undo image failed")
-            return false
-        }
-        if (result is BackupResult.Failure) {
-            logger.w { "no undo image for this restore: ${result.error}" }
-            return false
-        }
-        return true
-    }
-
-    /** A rollback's terminal follows its journaled origin; anything unknown reads as recovery. */
-    private fun rollbackOrigin(attempt: RestoreAttempt): RestoreAttempt.RollbackOrigin =
-        attempt.rollbackOrigin.takeIf { attempt.kind == RestoreAttempt.Kind.Rollback }
-            ?: RestoreAttempt.RollbackOrigin.ScenarioOneRecovery
-
-    /** Rolls back from the attempt-owned source; only a clean commit proves recovery. */
-    private suspend fun recoverFrom(
-        attempt: RestoreAttempt,
-        context: RestoreInProgressContext?,
-        cause: Throwable?,
-        canonicalIsOurs: Boolean,
-    ): PreflightOutcome {
-        if (context != null) {
-            reporter.recordRestoreTimeFailure(
-                // A Prepared attempt has no throwable — nothing threw, the process died. Report
-                // it anyway: that IS the interrupted-restore case the journal exists to catch.
-                exception = cause ?: InterruptedRestoreException(attempt),
-                context = context,
-                appVersionName = platformInfo.appVersionName(),
-            )
-        }
-        // Only a landed install makes the canonical THIS attempt's pre-image; while the install
-        // is still owed, the journal-named reservation is the one owner-correct source.
-        val installOwed = attempt.phase == RestoreAttempt.Phase.Committed && !canonicalIsOurs
-        if (installOwed && attempt.rollbackSnapshotPath == null) {
-            logger.w { "a committed attempt owes its undo install and names no reservation" }
+    private suspend fun runPostRestoreLaunch(): PreflightOutcome {
+        val protocol = runCatching { restoreStateRepository.readProtocol() }.getOrElse { error ->
+            logger.e(error, "reading restore protocol failed")
             return PreflightOutcome.RecoveryRequired
         }
-        val sourcePath = attempt.rollbackSnapshotPath
-            .takeIf { attempt.phase == RestoreAttempt.Phase.Prepared || installOwed }
-        val origin = rollbackOrigin(attempt)
-        val rollback = databaseReplacement.rollbackToPreRestoreBackup(
-            sourcePath = sourcePath,
-            effects = RecoveryRollbackEffects(attempt.id, sourcePath, origin),
-        )
-        return when (rollback) {
-            is DatabaseReplacementResult.Committed -> {
-                val effectsError = rollback.effectsError
-                if (effectsError == null) {
-                    PreflightOutcome.RestoreRolledBack
-                } else {
-                    // The journal remains unresolved, so recovery is still required.
-                    logger.w { "scenario-1 rollback committed without a durable record: $effectsError" }
-                    PreflightOutcome.RecoveryRequired
+        val state = when (protocol) {
+            is RestoreProtocolRead.Current -> protocol.state
+            is RestoreProtocolRead.Corrupt -> {
+                logger.e(IllegalStateException(protocol.reason), "same-install restore state corrupt")
+                return PreflightOutcome.RecoveryRequired
+            }
+
+            is RestoreProtocolRead.Legacy -> return migrateAndReplayLegacy(
+                epoch = protocol.epoch,
+                legacy = protocol.state,
+            )
+        }
+
+        if (state.attempt != null && state.terminalOutbox != null) {
+            return PreflightOutcome.RecoveryRequired
+        }
+        if (!terminalOutboxMatchesPointer(state)) {
+            return PreflightOutcome.RecoveryRequired
+        }
+        val activeUndo = state.activeUndo
+        if (activeUndo != null && activeUndoMustRemainUsable(state) &&
+            !activeUndoIsUsable(activeUndo)
+        ) {
+            return PreflightOutcome.RecoveryRequired
+        }
+        publishTerminalOutbox(state.terminalOutbox)
+        return handleCurrentState(state)
+    }
+
+    /** Explicit replay-safe table for the released marker, availability flag, and positional C. */
+    private suspend fun migrateAndReplayLegacy(
+        epoch: InstallEpoch,
+        legacy: LegacyRestoreState,
+    ): PreflightOutcome {
+        if (legacy.restoreInProgress) {
+            val undoRef = UndoRef(LegacyRestoreOwners.InterruptedAttempt)
+            val attempt = when (ensureLegacyUndoPublished(undoRef)) {
+                LegacyUndoPublication.Available -> RestoreAttempt.Restore(
+                    id = LegacyRestoreOwners.InterruptedAttempt,
+                    phase = RestoreAttempt.Phase.Prepared,
+                    context = legacy.context,
+                    undoRef = undoRef,
+                    sourceRef = null,
+                )
+
+                LegacyUndoPublication.Unavailable -> RestoreAttempt.Restore(
+                    id = LegacyRestoreOwners.InterruptedAttempt,
+                    phase = RestoreAttempt.Phase.Prepared,
+                    context = legacy.context,
+                    undoRef = null,
+                    sourceRef = null,
+                )
+
+                LegacyUndoPublication.Failed -> return PreflightOutcome.RecoveryRequired
+            }
+            if (!installLegacyState(epoch, attempt, activeUndo = null)) {
+                return PreflightOutcome.RecoveryRequired
+            }
+            if (attempt.undoRef != null) deleteLegacyUndoBestEffort()
+            return handleCurrentState(
+                RestoreProtocolState(epoch, attempt, activeUndo = null, terminalOutbox = null),
+            )
+        }
+
+        val legacyOriginalDate = legacy.preRestoreOriginalDateEpochMs
+        if (legacy.preRestoreBackupAvailable && legacyOriginalDate != null) {
+            val ref = UndoRef(LegacyRestoreOwners.ActiveUndo)
+            when (ensureLegacyUndoPublished(ref)) {
+                LegacyUndoPublication.Available -> {
+                    val active = ActiveUndo(
+                        ref = ref,
+                        originalDataDateEpochMs = legacyOriginalDate,
+                    )
+                    if (!installLegacyState(
+                            epoch,
+                            attempt = null,
+                            activeUndo = active,
+                        )
+                    ) {
+                        return PreflightOutcome.RecoveryRequired
+                    }
+                    deleteLegacyUndoBestEffort()
+                    return PreflightOutcome.NoOp
                 }
+
+                LegacyUndoPublication.Failed -> return PreflightOutcome.RecoveryRequired
+                LegacyUndoPublication.Unavailable -> Unit
+            }
+        }
+
+        // Missing or unusable C makes released availability stale; installing empty state clears it.
+        if (!installLegacyState(epoch, attempt = null, activeUndo = null)) {
+            return PreflightOutcome.RecoveryRequired
+        }
+        deleteLegacyUndoBestEffort()
+        return PreflightOutcome.NoOp
+    }
+
+    private suspend fun installLegacyState(
+        epoch: InstallEpoch,
+        attempt: RestoreAttempt?,
+        activeUndo: ActiveUndo?,
+    ): Boolean = runCatching {
+        restoreStateRepository.installLegacyState(epoch, attempt, activeUndo)
+    }.getOrElse { error ->
+        logger.e(error, "installing replay-safe legacy restore state failed")
+        false
+    }
+
+    private suspend fun ensureLegacyUndoPublished(ref: UndoRef): LegacyUndoPublication {
+        if (snapshotProvider.getUndoFile(ref) != null) {
+            if (snapshotProvider.migrateLegacyUndo(ref) is BackupResult.Failure) {
+                return LegacyUndoPublication.Failed
+            }
+            return if (snapshotProvider.validateUndo(ref) is BackupResult.Success) {
+                LegacyUndoPublication.Available
+            } else {
+                LegacyUndoPublication.Failed
+            }
+        }
+        if (snapshotProvider.validateLegacyUndo() is BackupResult.Failure) {
+            return LegacyUndoPublication.Unavailable
+        }
+        if (snapshotProvider.migrateLegacyUndo(ref) is BackupResult.Failure) {
+            return LegacyUndoPublication.Failed
+        }
+        return if (snapshotProvider.validateUndo(ref) is BackupResult.Success) {
+            LegacyUndoPublication.Available
+        } else {
+            LegacyUndoPublication.Failed
+        }
+    }
+
+    private enum class LegacyUndoPublication {
+        Available,
+        Unavailable,
+        Failed,
+    }
+
+    private suspend fun handleCurrentState(state: RestoreProtocolState): PreflightOutcome =
+        when (val attempt = state.attempt) {
+            null -> {
+                deleteLegacyUndoBestEffort()
+                PreflightOutcome.NoOp
+            }
+
+            is RestoreAttempt.Restore -> handleRestoreAttempt(attempt)
+            is RestoreAttempt.Rollback -> handleRollbackAttempt(attempt)
+        }
+
+    private suspend fun handleRestoreAttempt(
+        attempt: RestoreAttempt.Restore,
+    ): PreflightOutcome {
+        if (attempt.phase == RestoreAttempt.Phase.Prepared && attempt.undoRef == null) {
+            return if (liveDatabaseIsHealthyAndSupported()) {
+                PreflightOutcome.InterruptedRestore
+            } else {
+                PreflightOutcome.RecoveryRequired
+            }
+        }
+
+        val context = attempt.context
+        if (attempt.phase == RestoreAttempt.Phase.Committed && context != null) {
+            val sourceRef = attempt.sourceRef ?: return PreflightOutcome.RecoveryRequired
+            if (snapshotProvider.getRestoreSourceFile(sourceRef) == null) {
+                return PreflightOutcome.RecoveryRequired
+            }
+            val verified = runCatching { snapshotProvider.currentSchemaVersion() }
+            if (verified.isSuccess) {
+                return finalizeVerifiedRestore(attempt, context)
+            }
+            recordRestoreFailure(attempt, context, verified.exceptionOrNull())
+        } else if (context != null) {
+            recordRestoreFailure(attempt, context, cause = null)
+        }
+
+        val undoRef = attempt.undoRef ?: return PreflightOutcome.RecoveryRequired
+        return applyRestoreCompensation(attempt, undoRef)
+    }
+
+    private suspend fun finalizeVerifiedRestore(
+        attempt: RestoreAttempt.Restore,
+        context: RestoreInProgressContext,
+    ): PreflightOutcome {
+        val undoRef = attempt.undoRef ?: return PreflightOutcome.RecoveryRequired
+        val active = if (snapshotProvider.getUndoFile(undoRef) == null) {
+            // A verified N remains valid even when its undo disappeared; P must not be advertised.
+            null
+        } else {
+            if (snapshotProvider.validateUndo(undoRef) is BackupResult.Failure) {
+                return PreflightOutcome.RecoveryRequired
+            }
+            ActiveUndo(ref = undoRef, originalDataDateEpochMs = context.startedAtEpochMs)
+        }
+        val terminal = RestoreTerminal.RestoreSucceeded(
+            owner = attempt.id,
+            restoredAtEpochMs = System.currentTimeMillis(),
+            previousVersionAvailable = active != null,
+        )
+        val finalized = runCatching {
+            restoreStateRepository.finalizeAttempt(
+                attemptId = attempt.id,
+                activeUndoTransition = ActiveUndoTransition.Replace(active),
+                terminal = terminal,
+            )
+        }.getOrElse { error ->
+            logger.e(error, "verified restore finalization write failed")
+            false
+        }
+        if (!finalized) return PreflightOutcome.FinalizationPending
+
+        // GUARD: Rebuild publishes this only after fallible candidate arming; see Phase 5 §27.
+        return PreflightOutcome.RestoreSucceeded
+    }
+
+    private suspend fun handleRollbackAttempt(
+        attempt: RestoreAttempt.Rollback,
+    ): PreflightOutcome {
+        if (attempt.phase == RestoreAttempt.Phase.Prepared) {
+            return applyPreparedRollback(attempt)
+        }
+        if (runCatching { snapshotProvider.currentSchemaVersion() }.isFailure) {
+            return PreflightOutcome.RecoveryRequired
+        }
+
+        val terminal = when (attempt.origin) {
+            RestoreAttempt.RollbackOrigin.UserUndo ->
+                RestoreTerminal.UndoSucceeded(attempt.id)
+
+            RestoreAttempt.RollbackOrigin.ScenarioOneRecovery ->
+                RestoreTerminal.RestoreFailed(attempt.id, BackupErrorCode.Unknown)
+        }
+        val finalized = runCatching {
+            restoreStateRepository.finalizeAttempt(
+                attemptId = attempt.id,
+                activeUndoTransition = ActiveUndoTransition.ClearIf(attempt.sourceRef),
+                terminal = terminal,
+            )
+        }.getOrElse { error ->
+            logger.e(error, "committed rollback finalization write failed")
+            false
+        }
+        if (!finalized) return PreflightOutcome.FinalizationPending
+
+        publishTerminalOutbox(terminal)
+        runCatching { snapshotProvider.deleteUndo(attempt.sourceRef) }
+            .onFailure { error -> logger.w { "owned undo deletion deferred: $error" } }
+        return PreflightOutcome.RecoveryCompleted
+    }
+
+    private suspend fun applyRestoreCompensation(
+        restore: RestoreAttempt.Restore,
+        sourceRef: UndoRef,
+    ): PreflightOutcome {
+        val owner = newOwner()
+        val rollback = RestoreAttempt.Rollback(
+            id = owner,
+            phase = RestoreAttempt.Phase.Prepared,
+            sourceRef = sourceRef,
+            origin = RestoreAttempt.RollbackOrigin.ScenarioOneRecovery,
+        )
+        val result = databaseReplacement.rollbackFromUndo(
+            sourceRef = sourceRef,
+            effects = RecoveryRollbackEffects(
+                rollback = rollback,
+                restoreOwner = restore.id,
+            ),
+        )
+        return rollbackSubmissionOutcome(result)
+    }
+
+    private suspend fun applyPreparedRollback(
+        rollback: RestoreAttempt.Rollback,
+    ): PreflightOutcome {
+        val result = databaseReplacement.rollbackFromUndo(
+            sourceRef = rollback.sourceRef,
+            effects = RecoveryRollbackEffects(rollback = rollback, restoreOwner = null),
+        )
+        return rollbackSubmissionOutcome(result)
+    }
+
+    private fun rollbackSubmissionOutcome(result: DatabaseReplacementResult): PreflightOutcome =
+        when (result) {
+            is DatabaseReplacementResult.Committed -> if (result.effectsError == null) {
+                PreflightOutcome.RestoreRolledBack
+            } else {
+                PreflightOutcome.RecoveryRequired
             }
 
             is DatabaseReplacementResult.RejectedBeforeMutation,
             is DatabaseReplacementResult.RecoveredByRollback,
             is DatabaseReplacementResult.FailedAfterMutation,
             is DatabaseReplacementResult.FatalNoGeneration,
-            -> {
-                logger.w { "scenario-1 rollback did not commit ($rollback) — recovery required" }
-                PreflightOutcome.RecoveryRequired
-            }
+            -> PreflightOutcome.RecoveryRequired
         }
-    }
 
-    /** Runs undo; callers acknowledge only [UndoRestoreOutcome.Succeeded] or FileMissing. */
-    internal suspend fun performUndoRestore(
-        onCommitted: suspend () -> Unit = {},
-    ): UndoRestoreOutcome {
-        if (snapshotProvider.getPreRestoreBackupFile() == null) {
-            // The cached availability flag may outlive the file.
-            restoreStateRepository.clearPreRestoreBackupAvailable()
-            return UndoRestoreOutcome.FileMissing
+    internal suspend fun performUndoRestore(sourceRef: UndoRef): UndoRestoreOutcome {
+        val current = restoreStateRepository.readProtocol() as? RestoreProtocolRead.Current
+            ?: return UndoRestoreOutcome.RecoveryRequired
+        if (current.state.activeUndo?.ref != sourceRef) return UndoRestoreOutcome.NotCurrent
+        if (snapshotProvider.getUndoFile(sourceRef) == null) {
+            return UndoRestoreOutcome.RecoveryRequired
         }
-        // Runtime-owned effects survive an initiator cancelled with the outgoing generation.
-        val attemptId = UUID.randomUUID().toString()
-        val result = databaseReplacement.rollbackToPreRestoreBackup(
-            effects = UndoRollbackEffects(attemptId, onCommitted),
+
+        val rollback = RestoreAttempt.Rollback(
+            id = newOwner(),
+            phase = RestoreAttempt.Phase.Prepared,
+            sourceRef = sourceRef,
+            origin = RestoreAttempt.RollbackOrigin.UserUndo,
+        )
+        val result = databaseReplacement.rollbackFromUndo(
+            sourceRef = sourceRef,
+            effects = UserRollbackEffects(rollback),
         )
         return when (result) {
-            is DatabaseReplacementResult.Committed -> {
-                result.effectsError?.let { effectsError ->
-                    // Surface post-commit effect failure rather than reporting clean success.
-                    logger.w { "undo rollback committed with failed effects: $effectsError" }
-                }
+            is DatabaseReplacementResult.Committed -> if (result.effectsError == null) {
                 UndoRestoreOutcome.Succeeded
+            } else {
+                UndoRestoreOutcome.IoFailure
             }
 
-            is DatabaseReplacementResult.RejectedBeforeMutation ->
-                if (result.error is BackupError.CorruptedBackup) {
-                    // The undo image is not a usable database. Stop offering it rather than
-                    // failing the same way on every retry; the file itself is kept, never
-                    // deleted, so a validator false negative cannot destroy a real image.
-                    logger.w { "the undo source is unusable: ${result.error}" }
-                    restoreStateRepository.clearPreRestoreBackupAvailable()
-                    UndoRestoreOutcome.SourceUnusable
-                } else {
-                    logger.w { "Undo restore rollback did not commit: $result" }
-                    UndoRestoreOutcome.IoFailure
-                }
+            is DatabaseReplacementResult.RejectedBeforeMutation -> when (result.error) {
+                is BackupError.CorruptedBackup -> UndoRestoreOutcome.RecoveryRequired
+                else -> UndoRestoreOutcome.IoFailure
+            }
 
             is DatabaseReplacementResult.RecoveredByRollback,
             is DatabaseReplacementResult.FailedAfterMutation,
             is DatabaseReplacementResult.FatalNoGeneration,
-            -> {
-                logger.w { "Undo restore rollback did not commit: $result" }
-                UndoRestoreOutcome.IoFailure
-            }
+            -> UndoRestoreOutcome.IoFailure
         }
     }
 
-    /** The undo transaction's typed compensation — runs on the transaction's coroutine. */
-    private inner class UndoRollbackEffects(
-        override val attemptId: String,
-        private val acknowledge: suspend () -> Unit,
+    private inner class UserRollbackEffects(
+        private val rollback: RestoreAttempt.Rollback,
     ) : DatabaseReplacementEffects {
 
-        override suspend fun onBeforeMutation(rollbackSnapshotPath: String) {
-            val claimed = restoreStateRepository.beginAttempt(
-                RestoreAttempt(
-                    id = attemptId,
-                    kind = RestoreAttempt.Kind.Rollback,
-                    phase = RestoreAttempt.Phase.Prepared,
-                    context = null,
-                    rollbackSnapshotPath = null,
-                    rollbackOrigin = RestoreAttempt.RollbackOrigin.UserUndo,
-                ),
-            )
-            check(claimed) { "another unresolved attempt owns the journal slot; refusing to undo" }
-        }
+        override val attemptId: RestoreOwnerId = rollback.id
 
-        override suspend fun onMutationCommitted() {
-            check(restoreStateRepository.recordAttemptCommitted(attemptId)) {
-                "the journal slot is no longer owned by attempt $attemptId"
+        override suspend fun onBeforeMutation(
+            undoRef: UndoRef,
+            restoreSourceRef: RestoreSourceRef?,
+        ) {
+            check(undoRef == rollback.sourceRef && restoreSourceRef == null)
+            check(restoreStateRepository.beginAttempt(rollback)) {
+                "another unresolved attempt owns the journal slot"
             }
         }
 
-        /** Persist state and dialog before resolving; caller acknowledgement remains last. */
-        override suspend fun onCommitted() {
-            restoreStateRepository.clearPreRestoreBackupAvailable()
-            appDialogPublisher.publish(AppDialog.UndoRestoreSuccess)
-            restoreStateRepository.resolveAttempt(attemptId)
-            acknowledge()
-        }
+        override suspend fun onMutationCommitted() = recordCommitted(rollback.id)
+
+        override suspend fun onBeforeCompensation(
+            rollbackOwner: RestoreOwnerId,
+            appliedRef: UndoRef,
+        ) = error("a requested rollback is never reclassified as restore compensation")
+
+        override suspend fun onCompensationCommitted(rollbackOwner: RestoreOwnerId) =
+            error("a requested rollback has no compensation commit")
 
         override suspend fun onRejectedBeforeMutation(error: BackupError) {
-            restoreStateRepository.resolveAttempt(attemptId)
-        }
-
-        /** Post-PONR: leave the attempt unresolved so the next launch completes the recovery. */
-        override suspend fun onFailedAfterMutation(error: BackupError) = Unit
-
-        override suspend fun onFatal() = Unit
-    }
-
-    /** Finalizes a verified restore in replay-safe, data-bearing-first order. */
-    private suspend fun handleRestoreSuccess(
-        attempt: RestoreAttempt,
-        context: RestoreInProgressContext,
-        undoSlotReady: Boolean,
-    ) {
-        runCatching {
-            // No install, no new undo claim: the PREVIOUS restore's record still truthfully
-            // describes the file that is actually in the slot.
-            if (undoSlotReady) {
-                restoreStateRepository.markPreRestoreBackupAvailable(context.startedAtEpochMs)
-            }
-            appDialogPublisher.publish(
-                AppDialog.RestoreSuccess(
-                    restoredAtEpochMs = System.currentTimeMillis(),
-                    previousVersionAvailable = undoSlotReady,
-                ),
-            )
-            if (undoSlotReady) {
-                attempt.rollbackSnapshotPath?.let { path -> runCatching { File(path).delete() } }
-            }
-            restoreStateRepository.resolveAttempt(attempt.id)
-        }.onFailure { error ->
-            logger.e(error, "restore-success finalization failed — it will replay next launch")
+            restoreStateRepository.discardPreparedAttempt(rollback.id)
         }
     }
 
-    /**
-     * The recovery rollback's typed compensation — runs on the transaction's coroutine. Its
-     * user-facing terminal follows the journaled [origin], never the shape of the attempt.
-     */
     private inner class RecoveryRollbackEffects(
-        /** Reuses the recovered attempt's id rather than creating a second owner. */
-        override val attemptId: String,
-        /** `null` means this rollback uses and consumes the canonical undo slot. */
-        private val sourcePath: String?,
-        private val origin: RestoreAttempt.RollbackOrigin,
+        private val rollback: RestoreAttempt.Rollback,
+        private val restoreOwner: RestoreOwnerId?,
     ) : DatabaseReplacementEffects {
 
-        /** Reclaim must succeed: only the journal owner may mutate or resolve its attempt. */
-        override suspend fun onBeforeMutation(rollbackSnapshotPath: String) {
-            val claimed = restoreStateRepository.beginAttempt(
-                RestoreAttempt(
-                    id = attemptId,
-                    kind = RestoreAttempt.Kind.Rollback,
-                    phase = RestoreAttempt.Phase.Prepared,
-                    context = null,
-                    rollbackSnapshotPath = sourcePath,
-                    // Carried through the re-claim, or the NEXT replay reads it as unknown.
-                    rollbackOrigin = origin,
-                ),
-            )
-            check(claimed) {
-                "the journal slot is not owned by recovered attempt $attemptId; refusing to roll back"
+        override val attemptId: RestoreOwnerId = rollback.id
+
+        override suspend fun onBeforeMutation(
+            undoRef: UndoRef,
+            restoreSourceRef: RestoreSourceRef?,
+        ) {
+            check(undoRef == rollback.sourceRef && restoreSourceRef == null)
+            val claimed = if (restoreOwner == null) {
+                restoreStateRepository.beginAttempt(rollback)
+            } else {
+                restoreStateRepository.beginCompensation(restoreOwner, rollback)
             }
+            check(claimed) { "recovery rollback no longer owns the journal transition" }
         }
 
-        override suspend fun onMutationCommitted() {
-            check(restoreStateRepository.recordAttemptCommitted(attemptId)) {
-                "the journal slot is no longer owned by attempt $attemptId"
-            }
-        }
+        override suspend fun onMutationCommitted() = recordCommitted(rollback.id)
 
-        /** Clear availability only when canonical source was consumed; resolve after state writes. */
-        override suspend fun onCommitted() {
-            if (sourcePath == null) {
-                restoreStateRepository.clearPreRestoreBackupAvailable()
-            }
-            appDialogPublisher.publish(committedRollbackDialog(origin))
-            restoreStateRepository.resolveAttempt(attemptId)
-        }
+        override suspend fun onBeforeCompensation(
+            rollbackOwner: RestoreOwnerId,
+            appliedRef: UndoRef,
+        ) = error("a recovery rollback is never a restore compensation")
 
-        /** Non-commit outcomes preserve the unresolved attempt and its assets. */
-        override suspend fun onRejectedBeforeMutation(error: BackupError) = publishFailureDialog()
+        override suspend fun onCompensationCommitted(rollbackOwner: RestoreOwnerId) =
+            error("a recovery rollback has no compensation commit")
+    }
 
-        override suspend fun onFailedAfterMutation(error: BackupError) = publishFailureDialog()
-
-        override suspend fun onFatal() = publishFailureDialog()
-
-        /** A failed undo replay stays silent: its file and availability survive for a retry. */
-        private suspend fun publishFailureDialog() {
-            if (origin == RestoreAttempt.RollbackOrigin.ScenarioOneRecovery) {
-                appDialogPublisher.publish(recoveryFailureDialog())
-            }
+    internal suspend fun recordCommitted(owner: RestoreOwnerId) {
+        check(restoreStateRepository.recordAttemptCommitted(owner)) {
+            "the journal slot is no longer owned by $owner"
         }
     }
 
-    fun restartApp() {
-        appReinitializer.reinitialize()
+    private suspend fun publishTerminalOutbox(terminal: RestoreTerminal?) {
+        terminal ?: return
+        val published = runCatching { appDialogPublisher.publish(terminal.toDialog()) }
+            .onFailure { error -> logger.e(error, "terminal outbox publication deferred") }
+            .isSuccess
+        if (published) {
+            runCatching { restoreStateRepository.acknowledgeTerminal(terminal.owner) }
+                .onFailure { error -> logger.e(error, "terminal outbox acknowledgement deferred") }
+        }
     }
 
-    /** Stands in for the throwable an interrupted restore never produced. */
-    internal class InterruptedRestoreException(attempt: RestoreAttempt) : IllegalStateException(
-        "restore attempt ${attempt.id} (${attempt.kind}) was unresolved at launch " +
-            "in phase ${attempt.phase}",
-    )
+    /** Publishes newly finalized restore success only after candidate arming has completed. */
+    suspend fun publishPendingTerminalOutbox() {
+        val state = runCatching { restoreStateRepository.readProtocol() }
+            .getOrElse { error ->
+                logger.w { "terminal outbox read deferred: $error" }
+                return
+            } as? RestoreProtocolRead.Current ?: return
+        if (state.state.attempt != null || !terminalOutboxMatchesPointer(state.state)) return
+        publishTerminalOutbox(state.state.terminalOutbox)
+    }
 
-    /** Discriminator for the post-restart pre-flight result. */
+    /** Cold-start-only sweep; runtime transitions sweep at their serialized submission boundary. */
+    suspend fun sweepRecoveryGarbage() {
+        val state = runCatching { restoreStateRepository.readProtocol() }
+            .getOrElse { error ->
+                logger.w { "recovery garbage sweep state read deferred: $error" }
+                return
+            } as? RestoreProtocolRead.Current ?: return
+        runCatching { snapshotProvider.sweepRecoveryFiles(state.state) }
+            .onFailure { error -> logger.w { "recovery garbage sweep deferred: $error" } }
+    }
+
+    private suspend fun deleteLegacyUndoBestEffort() {
+        runCatching { snapshotProvider.deleteLegacyPreRestore() }
+            .onFailure { error -> logger.w { "legacy undo deletion deferred: $error" } }
+    }
+
+    private suspend fun liveDatabaseIsHealthyAndSupported(): Boolean {
+        return snapshotProvider.inspectLiveDatabaseWithoutRoom() is BackupResult.Success
+    }
+
+    private suspend fun activeUndoIsUsable(activeUndo: ActiveUndo): Boolean =
+        snapshotProvider.getUndoFile(activeUndo.ref) != null &&
+            snapshotProvider.validateUndo(activeUndo.ref) is BackupResult.Success
+
+    /** A committed rollback may finalize by descriptor after consuming its own exact source. */
+    private fun activeUndoMustRemainUsable(state: RestoreProtocolState): Boolean {
+        val activeRef = state.activeUndo?.ref ?: return false
+        return when (val attempt = state.attempt) {
+            is RestoreAttempt.Restore -> attempt.phase != RestoreAttempt.Phase.Committed
+            is RestoreAttempt.Rollback ->
+                attempt.phase != RestoreAttempt.Phase.Committed || attempt.sourceRef != activeRef
+
+            null -> true
+        }
+    }
+
+    private fun terminalOutboxMatchesPointer(state: RestoreProtocolState): Boolean =
+        when (val terminal = state.terminalOutbox) {
+            null -> true
+            is RestoreTerminal.RestoreSucceeded -> {
+                val active = state.activeUndo
+                terminal.previousVersionAvailable == (active != null) &&
+                    (active == null || active.ref.owner == terminal.owner)
+            }
+
+            is RestoreTerminal.UndoSucceeded -> state.activeUndo == null
+            is RestoreTerminal.RestoreFailed -> true
+        }
+
+    private fun recordRestoreFailure(
+        attempt: RestoreAttempt.Restore,
+        context: RestoreInProgressContext,
+        cause: Throwable?,
+    ) {
+        reporter.recordRestoreTimeFailure(
+            exception = cause ?: InterruptedRestoreException(attempt),
+            context = context,
+            appVersionName = platformInfo.appVersionName(),
+        )
+    }
+
+    fun restartApp() = appReinitializer.reinitialize()
+
+    internal class InterruptedRestoreException(attempt: RestoreAttempt.Restore) :
+        IllegalStateException(
+            "restore attempt ${attempt.id} was unresolved at launch in phase ${attempt.phase}",
+        )
+
     enum class PreflightOutcome {
-        /** No unresolved attempt — this was a normal launch. */
         NoOp,
-
-        /** A durable restore verified successfully. */
         RestoreSucceeded,
-
-        /** A rollback committed; the caller must rebuild or restart its stale DB handle. */
         RestoreRolledBack,
-
-        /** Unproven DB provenance: arm no DB-bound work and route to recovery. */
+        InterruptedRestore,
         RecoveryRequired,
-
-        /** A previously committed rollback finished replay-safe bookkeeping. */
+        FinalizationPending,
         RecoveryCompleted,
+    }
+
+    private companion object {
+        fun newOwner(): RestoreOwnerId = RestoreOwnerId(UUID.randomUUID().toString())
     }
 }
 
-/** The dialog a durably committed rollback owes the user, from its journaled origin. */
-internal fun committedRollbackDialog(origin: RestoreAttempt.RollbackOrigin): AppDialog =
-    when (origin) {
-        RestoreAttempt.RollbackOrigin.UserUndo -> AppDialog.UndoRestoreSuccess
-        RestoreAttempt.RollbackOrigin.ScenarioOneRecovery -> recoveryFailureDialog()
-    }
+sealed interface RecoveryExportOutcome {
+    data object Available : RecoveryExportOutcome
+    data object Failed : RecoveryExportOutcome
+}
 
-/** Recovery exceptions have no public error-code mapping. */
-internal fun recoveryFailureDialog(): AppDialog =
-    AppDialog.RestoreFailure(reason = BackupErrorCode.Unknown)
+internal fun RestoreTerminal.toDialog(): AppDialog = when (this) {
+    is RestoreTerminal.RestoreSucceeded -> AppDialog.RestoreSuccess(
+        restoredAtEpochMs = restoredAtEpochMs,
+        previousVersionAvailable = previousVersionAvailable,
+        terminalOwner = owner,
+    )
+
+    is RestoreTerminal.RestoreFailed -> AppDialog.RestoreFailure(reason, terminalOwner = owner)
+    is RestoreTerminal.UndoSucceeded -> AppDialog.UndoRestoreSuccess(terminalOwner = owner)
+}

@@ -1,0 +1,75 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<testsuites tests="30" failures="0" errors="0" skipped="0" time="7.098" timestamp="2026-08-25T11:27:17" hostname="localhost">
+  <testsuite name="io.github.stslex.workeeper.core.data.database.AppDatabaseMigrationTest" tests="7" failures="0" errors="0" skipped="0" time="0.686" timestamp="2026-08-25T11:27:17" hostname="localhost">
+    <properties>
+      <property name="device" value="Pixel_6_API_34(AVD) - 14" />
+      <property name="flavor" value="" />
+      <property name="project" value=":core:data:database" />
+    </properties>
+    <testcase name="migrate5to6_preservesLibraryTrainingEvenWithoutSession" classname="io.github.stslex.workeeper.core.data.database.AppDatabaseMigrationTest" time="0.347" />
+    <testcase name="migrate5to6_validatesNoUnregisteredTablesSurvive" classname="io.github.stslex.workeeper.core.data.database.AppDatabaseMigrationTest" time="0.027" />
+    <testcase name="migrate5to6_preservesAdhocTrainingWithLiveSession" classname="io.github.stslex.workeeper.core.data.database.AppDatabaseMigrationTest" time="0.084" />
+    <testcase name="migrate5to6_addsIsAdhocColumnDefaultZero" classname="io.github.stslex.workeeper.core.data.database.AppDatabaseMigrationTest" time="0.086" />
+    <testcase name="migrate5to6_pickerCanFilterIsAdhoc" classname="io.github.stslex.workeeper.core.data.database.AppDatabaseMigrationTest" time="0.029" />
+    <testcase name="migrate5to6_deletesOrphanAdhocTrainingRow" classname="io.github.stslex.workeeper.core.data.database.AppDatabaseMigrationTest" time="0.055" />
+    <testcase name="migrate5to6_existingExerciseDataIsPreserved" classname="io.github.stslex.workeeper.core.data.database.AppDatabaseMigrationTest" time="0.058" />
+  </testsuite>
+  <testsuite name="io.github.stslex.workeeper.core.data.database.AtomicRollbackDeviceTest" tests="4" failures="0" errors="0" skipped="0" time="0.146" timestamp="2026-08-25T11:27:17" hostname="localhost">
+    <properties>
+      <property name="device" value="Pixel_6_API_34(AVD) - 14" />
+      <property name="flavor" value="" />
+      <property name="project" value=":core:data:database" />
+    </properties>
+    <testcase name="shapeA_asyncScopeSequentialWritersRollBackOnThrow" classname="io.github.stslex.workeeper.core.data.database.AtomicRollbackDeviceTest" time="0.057" />
+    <testcase name="control_sequentialWritesRollBackOnThrow" classname="io.github.stslex.workeeper.core.data.database.AtomicRollbackDeviceTest" time="0.031" />
+    <testcase name="knownNegative_outsideWriteSurvivesUnrelatedRollback" classname="io.github.stslex.workeeper.core.data.database.AtomicRollbackDeviceTest" time="0.03" />
+    <testcase name="shapeB_concurrentAsyncWritersRollBackOnThrow" classname="io.github.stslex.workeeper.core.data.database.AtomicRollbackDeviceTest" time="0.028" />
+  </testsuite>
+  <testsuite name="io.github.stslex.workeeper.core.data.database.InvalidationDeviceTest" tests="2" failures="0" errors="0" skipped="0" time="5.06" timestamp="2026-08-25T11:27:17" hostname="localhost">
+    <properties>
+      <property name="device" value="Pixel_6_API_34(AVD) - 14" />
+      <property name="flavor" value="" />
+      <property name="project" value=":core:data:database" />
+    </properties>
+    <testcase name="knownNegative_flowDoesNotReEmitWithoutAWrite" classname="io.github.stslex.workeeper.core.data.database.InvalidationDeviceTest" time="5.032" />
+    <testcase name="flowReEmitsAfterWriteThroughPortedTransaction" classname="io.github.stslex.workeeper.core.data.database.InvalidationDeviceTest" time="0.028" />
+  </testsuite>
+  <testsuite name="io.github.stslex.workeeper.core.data.database.Room3RoundTripDeviceTest" tests="4" failures="0" errors="0" skipped="0" time="0.113" timestamp="2026-08-25T11:27:17" hostname="localhost">
+    <properties>
+      <property name="device" value="Pixel_6_API_34(AVD) - 14" />
+      <property name="flavor" value="" />
+      <property name="project" value=":core:data:database" />
+    </properties>
+    <testcase name="room3WritesClosesReopensAndReadsExactValues" classname="io.github.stslex.workeeper.core.data.database.Room3RoundTripDeviceTest" time="0.027" />
+    <testcase name="room3WriteThroughTransactionPrimitivePersists" classname="io.github.stslex.workeeper.core.data.database.Room3RoundTripDeviceTest" time="0.028" />
+    <testcase name="room3PagingSourceReturnsThePersistedRow" classname="io.github.stslex.workeeper.core.data.database.Room3RoundTripDeviceTest" time="0.027" />
+    <testcase name="knownNegative_neverWrittenValueIsAbsent" classname="io.github.stslex.workeeper.core.data.database.Room3RoundTripDeviceTest" time="0.031" />
+  </testsuite>
+  <testsuite name="io.github.stslex.workeeper.core.data.database.SameInstanceReopenAfterSwapDeviceTest" tests="2" failures="0" errors="0" skipped="0" time="0.301" timestamp="2026-08-25T11:27:17" hostname="localhost">
+    <properties>
+      <property name="device" value="Pixel_6_API_34(AVD) - 14" />
+      <property name="flavor" value="" />
+      <property name="project" value=":core:data:database" />
+    </properties>
+    <testcase name="gate_rollbackSwap_retainedHandlesFailLoud_neverStale" classname="io.github.stslex.workeeper.core.data.database.SameInstanceReopenAfterSwapDeviceTest" time="0.214" />
+    <testcase name="gate_restoreSwap_retainedHandlesFailLoud_neverStale" classname="io.github.stslex.workeeper.core.data.database.SameInstanceReopenAfterSwapDeviceTest" time="0.087" />
+  </testsuite>
+  <testsuite name="io.github.stslex.workeeper.core.data.database.exercise.ExerciseDaoRecentlyTrainedTest" tests="11" failures="0" errors="0" skipped="0" time="0.124" timestamp="2026-08-25T11:27:17" hostname="localhost">
+    <properties>
+      <property name="device" value="Pixel_6_API_34(AVD) - 14" />
+      <property name="flavor" value="" />
+      <property name="project" value=":core:data:database" />
+    </properties>
+    <testcase name="finishedSessionWithNullFinishedAt_isExcluded" classname="io.github.stslex.workeeper.core.data.database.exercise.ExerciseDaoRecentlyTrainedTest" time="0.001" />
+    <testcase name="mixedPerformedRows_validRowMoreRecent_includesOnceWithValidFinishedAt" classname="io.github.stslex.workeeper.core.data.database.exercise.ExerciseDaoRecentlyTrainedTest" time="0.028" />
+    <testcase name="inProgressSessionOnly_isExcluded" classname="io.github.stslex.workeeper.core.data.database.exercise.ExerciseDaoRecentlyTrainedTest" time="0.031" />
+    <testcase name="unskippedPerformedRowWithoutSets_isExcluded" classname="io.github.stslex.workeeper.core.data.database.exercise.ExerciseDaoRecentlyTrainedTest" time="0.001" />
+    <testcase name="skippedPerformedRowWithSets_isExcluded" classname="io.github.stslex.workeeper.core.data.database.exercise.ExerciseDaoRecentlyTrainedTest" time="0.001" />
+    <testcase name="mixedPerformedRows_invalidRowMoreRecent_lastFinishedAtMatchesValidRow" classname="io.github.stslex.workeeper.core.data.database.exercise.ExerciseDaoRecentlyTrainedTest" time="0.001" />
+    <testcase name="multipleValidExercises_orderedByLastFinishedAtDesc" classname="io.github.stslex.workeeper.core.data.database.exercise.ExerciseDaoRecentlyTrainedTest" time="0.031" />
+    <testcase name="archivedExercise_isExcluded_evenWhenSetsAreLogged" classname="io.github.stslex.workeeper.core.data.database.exercise.ExerciseDaoRecentlyTrainedTest" time="0.0" />
+    <testcase name="adhocAndRegularTrainings_bothContribute" classname="io.github.stslex.workeeper.core.data.database.exercise.ExerciseDaoRecentlyTrainedTest" time="0.028" />
+    <testcase name="finishedSessionWithLoggedSets_isIncluded" classname="io.github.stslex.workeeper.core.data.database.exercise.ExerciseDaoRecentlyTrainedTest" time="0.001" />
+    <testcase name="emptyDb_returnsEmptyList" classname="io.github.stslex.workeeper.core.data.database.exercise.ExerciseDaoRecentlyTrainedTest" time="0.001" />
+  </testsuite>
+</testsuites>

@@ -12,6 +12,7 @@ import io.github.stslex.workeeper.core.ui.mvi.performance.PerformanceMetricsReco
 import io.github.stslex.workeeper.core.ui.mvi.performance.RecordAction
 import io.github.stslex.workeeper.di.AppGraphOwner
 import io.github.stslex.workeeper.feature.recovery.RecoveryScenario
+import io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinator
 import io.github.stslex.workeeper.feature.recovery.domain.StartupCheck
 
 // Reads its app-scope deps from the internal AppGraph through AppGraphOwner, never a concrete cast.
@@ -28,11 +29,9 @@ class MainActivity : ComponentActivity() {
         )
         super.onCreate(savedInstanceState)
 
-        // Hand off to the DB-free recovery surface, stamped with WHICH failure routed us: a
-        // Scenario-2 migration decision, or a Scenario-1 attempt with no provable outcome. The
-        // two need different copy and different diagnostics. See feature-specs/backup-recovery.md.
+        val restoreCoordinator = appGraph.restoreRecoveryCoordinator
         val recoveryScenario = when {
-            appGraph.restoreRecoveryCoordinator.recoverySurfaceRequired ->
+            restoreCoordinator.recoverySurfaceRequired ->
                 RecoveryScenario.InterruptedRestore
 
             startupMigrationCoordinator.lastDecision is StartupCheck.RouteToRecovery ->
@@ -41,7 +40,16 @@ class MainActivity : ComponentActivity() {
             else -> null
         }
         if (recoveryScenario != null) {
-            startActivity(RecoveryScenario.intent(this, recoveryScenario))
+            // Only the integrity-gated interrupted-restore outcome has an acceptance escape.
+            val allowContinue = restoreCoordinator.lastPreflightOutcome ==
+                RestoreRecoveryCoordinator.PreflightOutcome.InterruptedRestore
+            startActivity(
+                RecoveryScenario.intent(
+                    context = this,
+                    scenario = recoveryScenario,
+                    allowContinue = allowContinue,
+                ),
+            )
             finish()
             return
         }

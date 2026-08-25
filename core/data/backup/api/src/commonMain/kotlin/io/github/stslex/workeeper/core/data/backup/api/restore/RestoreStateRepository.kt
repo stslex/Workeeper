@@ -3,30 +3,50 @@ package io.github.stslex.workeeper.core.data.backup.api.restore
 
 import kotlinx.coroutines.flow.Flow
 
-/** Persistent attempt journal and canonical-undo availability state. */
+/** Epoch-reconciled restore state and replay-safe terminal-outbox transaction owner. */
 interface RestoreStateRepository {
 
-    /** Atomically claims the slot; `false` when a DIFFERENT unresolved attempt owns it. */
+    /** Reconciles installation ownership before decoding any attempt, ref, pointer or outbox. */
+    suspend fun readProtocol(): RestoreProtocolRead
+
+    /** Installs the explicit released-state migration result in one edit. */
+    suspend fun installLegacyState(
+        epoch: InstallEpoch,
+        attempt: RestoreAttempt?,
+        activeUndo: ActiveUndo?,
+    ): Boolean
+
+    /** Atomically claims the attempt slot; false when another unresolved owner holds it. */
     suspend fun beginAttempt(attempt: RestoreAttempt): Boolean
 
-    /** Advances the slot to [RestoreAttempt.Phase.Committed]; `false` unless [attemptId] owns. */
-    suspend fun recordAttemptCommitted(attemptId: String): Boolean
+    /** Advances the owned attempt to Committed; false unless [attemptId] owns the slot. */
+    suspend fun recordAttemptCommitted(attemptId: RestoreOwnerId): Boolean
 
-    /** Clears the slot and the legacy flags iff [attemptId] owns it, never for a superseded one. */
-    suspend fun resolveAttempt(attemptId: String): Boolean
+    /** Atomically replaces one owned restore journal with its exact compensation rollback. */
+    suspend fun beginCompensation(
+        restoreAttemptId: RestoreOwnerId,
+        rollback: RestoreAttempt.Rollback,
+    ): Boolean
 
-    /** The unresolved attempt, or `null` when the slot is free. */
-    suspend fun getAttempt(): RestoreAttempt?
+    /** Drops only an owned Prepared attempt after a proven pre-PONR rejection. */
+    suspend fun discardPreparedAttempt(attemptId: RestoreOwnerId): Boolean
 
-    /** Record that `cache/pre_restore_backup.db` is preserved and available for undo. */
-    suspend fun markPreRestoreBackupAvailable(originalDataDateEpochMs: Long)
+    /**
+     * One owner-checked edit: transition the pointer, write terminal outbox, remove attempt.
+     * This is the shared finalizer for cold-start and in-process candidate preflight.
+     */
+    suspend fun finalizeAttempt(
+        attemptId: RestoreOwnerId,
+        activeUndoTransition: ActiveUndoTransition,
+        terminal: RestoreTerminal,
+    ): Boolean
 
-    /** Clear the preserved-backup marker (file deletion is a separate concern). */
-    suspend fun clearPreRestoreBackupAvailable()
+    /** Clears the matching outbox only after its AppDialog publication returned successfully. */
+    suspend fun acknowledgeTerminal(owner: RestoreOwnerId): Boolean
 
-    /** Reactive view used by Settings to toggle the "Revert last restore" row. */
-    fun observePreRestoreBackupAvailable(): Flow<Boolean>
+    /** Explicit user escape: atomically abandon only [attemptId] and all now-untruthful state. */
+    suspend fun abandonInterruptedAttempt(attemptId: RestoreOwnerId): Boolean
 
-    /** Original-data date for `AppDialog.UndoRestoreConfirmation`; `null` when none preserved. */
-    suspend fun getPreRestoreOriginalDate(): Long?
+    /** Epoch-filtered reactive pointer used by Settings. Foreign state never emits as available. */
+    fun observeActiveUndo(): Flow<ActiveUndo?>
 }

@@ -195,7 +195,7 @@ public class RecoveryDiagnosticsExporterImpl @Inject constructor(
     }.getOrElse { INSTALL_SOURCE_UNKNOWN }
 
     private companion object {
-        const val DIR_NAME = "recovery_diagnostics"
+        const val DIR_NAME = "recovery_share"
         const val ISO_8601_PATTERN = "yyyy-MM-dd'T'HH:mm:ss'Z'"
         const val FILE_TIMESTAMP_PATTERN = "yyyyMMdd_HHmmss"
         const val STACKTRACE_FRAME_LIMIT = 50

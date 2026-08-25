@@ -102,6 +102,9 @@ private fun BackupErrorCode.toReasonStringRes(): Int = when (this) {
         R.string.app_dialog_restore_failure_reason_missing_required_scope
     BackupErrorCode.StorageQuotaExceeded ->
         R.string.app_dialog_restore_failure_reason_storage_quota_exceeded
+    BackupErrorCode.InsufficientLocalStorage,
+    BackupErrorCode.StorageCapacityUnavailable,
+    -> R.string.app_dialog_restore_failure_reason_io
     BackupErrorCode.CorruptedBackup -> R.string.app_dialog_restore_failure_reason_corrupted_backup
     BackupErrorCode.SchemaTooNew -> R.string.app_dialog_restore_failure_reason_schema_too_new
     BackupErrorCode.MissingMigrationPath ->

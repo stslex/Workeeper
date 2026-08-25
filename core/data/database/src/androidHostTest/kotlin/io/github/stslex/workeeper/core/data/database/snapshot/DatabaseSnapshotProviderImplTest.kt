@@ -3,15 +3,24 @@ package io.github.stslex.workeeper.core.data.database.snapshot
 
 import android.content.Context
 import androidx.room3.Room
+import androidx.room3.deferredTransaction
+import androidx.room3.useReaderConnection
 import androidx.sqlite.driver.AndroidSQLiteDriver
 import androidx.test.core.app.ApplicationProvider
 import io.github.stslex.workeeper.core.data.backup.api.error.BackupError
+import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreOwnerId
+import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreSourceRef
+import io.github.stslex.workeeper.core.data.backup.api.restore.UndoRef
 import io.github.stslex.workeeper.core.data.backup.api.result.BackupResult
 import io.github.stslex.workeeper.core.data.database.AppDatabase
 import io.github.stslex.workeeper.core.data.database.BaseDatabaseTest
 import io.github.stslex.workeeper.core.data.database.closeAppDatabase
+import io.github.stslex.workeeper.core.data.database.migration.APP_DATABASE_VERSION
 import io.github.stslex.workeeper.core.data.database.tag.TagEntity
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
@@ -26,6 +35,7 @@ import org.junit.jupiter.api.extension.ExtendWith
 import org.robolectric.annotation.Config
 import tech.apter.junit.jupiter.robolectric.RobolectricExtension
 import java.io.File
+import java.io.IOException
 import kotlin.uuid.Uuid
 
 @ExtendWith(RobolectricExtension::class)
@@ -34,569 +44,409 @@ internal class DatabaseSnapshotProviderImplTest {
 
     private lateinit var context: Context
     private lateinit var database: AppDatabase
+    private lateinit var recoveryFiles: RestoreRecoveryFilesImpl
+    private lateinit var capacity: FakeStorageCapacity
     private lateinit var provider: DatabaseSnapshotProviderImpl
 
     @BeforeEach
     fun setup() {
         context = ApplicationProvider.getApplicationContext()
         context.deleteDatabase(AppDatabase.NAME)
-        database = Room
-            .databaseBuilder<AppDatabase>(context, AppDatabase.NAME)
-            .allowMainThreadQueries()
-            .build()
-        provider = DatabaseSnapshotProviderImpl(
-            appDatabase = database,
-            context = context,
-            dispatcher = UnconfinedTestDispatcher(),
-        )
+        recoveryRoot().deleteRecursively()
+        context.cacheDir.listFiles().orEmpty().forEach { it.deleteRecursively() }
+        database = createDatabase()
+        recoveryFiles = RestoreRecoveryFilesImpl(context, UnconfinedTestDispatcher())
+        capacity = FakeStorageCapacity()
+        provider = createProvider(recoveryFiles, capacity)
     }
 
     @AfterEach
     fun teardown() {
-        // Room 3 removed the public `isOpen`; close() is idempotent on a closed/never-opened DB.
         database.close()
         context.deleteDatabase(AppDatabase.NAME)
-        val dbDir = context.getDatabasePath(AppDatabase.NAME).parentFile
-        dbDir?.listFiles()?.forEach { it.delete() }
-        context.cacheDir.listFiles()?.forEach { it.delete() }
+        recoveryRoot().deleteRecursively()
+        context.cacheDir.listFiles().orEmpty().forEach { it.deleteRecursively() }
+        context.getDatabasePath(AppDatabase.NAME).parentFile
+            ?.listFiles()
+            .orEmpty()
+            .filter { it.name != AppDatabase.NAME }
+            .forEach { it.deleteRecursively() }
     }
 
     @Test
-    fun `liveDatabaseFile resolves to the app database path`() {
-        assertEquals(
-            context.getDatabasePath(AppDatabase.NAME).absolutePath,
-            provider.liveDatabaseFile().absolutePath,
-        )
-    }
+    fun `captureSnapshot checkpoints WAL and opens with persisted Workeeper data`() = runTest {
+        insertTag("captured")
+        val wal = File(requireNotNull(provider.liveDatabaseFile().parentFile), "${AppDatabase.NAME}-wal")
+        assertTrue(wal.length() > 0L, "fixture must exercise the WAL checkpoint")
+        val target = File(context.cacheDir, "backup.db")
 
-    @Test
-    fun `captureSnapshot truncates WAL sidecar and snapshot opens with persisted data`() =
-        runTest {
-            // Pre-insert so the WAL has unsynced bytes; without it a broken checkpoint passes.
-            database.tagDao.insertAll(
-                listOf(
-                    TagEntity(uuid = Uuid.random(), name = "Push"),
-                    TagEntity(uuid = Uuid.random(), name = "Pull"),
-                    TagEntity(uuid = Uuid.random(), name = "Legs"),
-                ),
-            )
-
-            val dbDir = requireNotNull(context.getDatabasePath(AppDatabase.NAME).parentFile)
-            val walFile = File(dbDir, "${AppDatabase.NAME}-wal")
-            assertTrue(walFile.exists(), "WAL sidecar must exist after DAO write")
-            assertTrue(
-                walFile.length() > 0L,
-                "WAL must contain unsynced bytes pre-capture; was ${walFile.length()}",
-            )
-
-            val target = File(dbDir, "snapshot_target.db")
-            target.delete()
-
-            val result = provider.captureSnapshot(target)
-            assertEquals(BackupResult.Success(Unit), result)
-
-            assertEquals(
-                0L,
-                walFile.length(),
-                "WAL sidecar must be truncated by wal_checkpoint(TRUNCATE)",
-            )
-            assertTrue(target.exists(), "Snapshot file must exist post-capture")
-            assertTrue(target.length() > 0L, "Snapshot file must be non-empty")
-
-            database.close()
-            val snapshotDb = Room
-                .databaseBuilder<AppDatabase>(context, target.name)
-                .allowMainThreadQueries()
-                .build()
-            val tagsFromSnapshot = snapshotDb.tagDao.observeAll().first()
-            assertEquals(
-                setOf("Push", "Pull", "Legs"),
-                tagsFromSnapshot.map { it.name }.toSet(),
-            )
-            snapshotDb.close()
-        }
-
-    @Test
-    fun `second captureSnapshot reflects only entities present at second capture`() =
-        runTest {
-            val dbDir = requireNotNull(context.getDatabasePath(AppDatabase.NAME).parentFile)
-            database.tagDao.insert(TagEntity(uuid = Uuid.random(), name = "First"))
-
-            val firstTarget = File(dbDir, "snapshot_first.db")
-            assertEquals(BackupResult.Success(Unit), provider.captureSnapshot(firstTarget))
-
-            database.tagDao.insertAll(
-                listOf(
-                    TagEntity(uuid = Uuid.random(), name = "Second"),
-                    TagEntity(uuid = Uuid.random(), name = "Third"),
-                ),
-            )
-
-            val secondTarget = File(dbDir, "snapshot_second.db")
-            assertEquals(BackupResult.Success(Unit), provider.captureSnapshot(secondTarget))
-
-            database.close()
-
-            val firstSnapshot = Room
-                .databaseBuilder<AppDatabase>(context, firstTarget.name)
-                .allowMainThreadQueries()
-                .build()
-            assertEquals(
-                setOf("First"),
-                firstSnapshot.tagDao.observeAll().first().map { it.name }.toSet(),
-            )
-            firstSnapshot.close()
-
-            val secondSnapshot = Room
-                .databaseBuilder<AppDatabase>(context, secondTarget.name)
-                .allowMainThreadQueries()
-                .build()
-            assertEquals(
-                setOf("First", "Second", "Third"),
-                secondSnapshot.tagDao.observeAll().first().map { it.name }.toSet(),
-            )
-            secondSnapshot.close()
-        }
-
-    @Test
-    fun `peekSnapshotSchemaVersion matches currentSchemaVersion for fresh capture`() = runTest {
-        val dbDir = requireNotNull(context.getDatabasePath(AppDatabase.NAME).parentFile)
-        val target = File(dbDir, "snapshot_peek.db")
-
-        // Touch the writable database so Room writes user_version, then capture.
-        database.tagDao.insert(TagEntity(uuid = Uuid.random(), name = "Anything"))
         assertEquals(BackupResult.Success(Unit), provider.captureSnapshot(target))
 
-        val current = provider.currentSchemaVersion()
-        val peeked = provider.peekSnapshotSchemaVersion(target)
-        assertTrue(peeked is BackupResult.Success, "peek must succeed, was $peeked")
-        assertEquals(current, (peeked as BackupResult.Success).data)
+        assertEquals(0L, wal.length())
+        val snapshot = android.database.sqlite.SQLiteDatabase.openDatabase(
+            target.absolutePath,
+            null,
+            android.database.sqlite.SQLiteDatabase.OPEN_READONLY,
+        )
+        snapshot.use {
+            assertEquals(
+                1,
+                it.rawQuery("SELECT COUNT(*) FROM tag_table", null).use { cursor ->
+                    cursor.moveToFirst()
+                    cursor.getInt(0)
+                },
+            )
+        }
     }
 
     @Test
-    fun `validateSnapshotForRestore with non-SQLite source returns CorruptedBackup`() = runTest {
-        val dbDir = requireNotNull(context.getDatabasePath(AppDatabase.NAME).parentFile)
-        val bogus = File(dbDir, "bogus.db")
-        bogus.writeText("this is definitely not a sqlite file")
+    fun `createUndo publishes an exact immutable file below noBackup`() = runTest {
+        insertTag("before")
+        val ref = undoRef(1)
 
-        val result = provider.validateSnapshotForRestore(bogus)
+        val created = assertFileSuccess(provider.createUndo(ref))
+
+        assertEquals("undo_${ref.owner}.db", created.name)
+        assertEquals(recoveryRoot().canonicalFile, created.parentFile!!.canonicalFile)
+        assertEquals(created.canonicalFile, provider.getUndoFile(ref)!!.canonicalFile)
+        assertEquals(BackupResult.Success(Unit), provider.validateUndo(ref))
+    }
+
+    @Test
+    fun `createUndo rejects a busy checkpoint without publishing an immutable undo`() = runTest {
+        val ref = undoRef(12)
+        withBusyWalReader("undo") {
+            val result = provider.createUndo(ref)
+
+            assertCheckpointFailure(result)
+            assertNull(provider.getUndoFile(ref))
+            assertTrue(
+                recoveryRoot().listFiles().orEmpty().none { ref.owner.toString() in it.name },
+                "a failed checkpoint must not publish either a final or partial undo",
+            )
+        }
+    }
+
+    @Test
+    fun `missing exact refs are corruption and never select another owner`() = runTest {
+        val present = undoRef(2)
+        val missing = undoRef(3)
+        insertTag("before")
+        assertFileSuccess(provider.createUndo(present))
+
+        val result = provider.validateUndo(missing)
+
         assertTrue(result is BackupResult.Failure)
-        assertTrue(
-            (result as BackupResult.Failure).error is BackupError.CorruptedBackup,
-            "expected CorruptedBackup, got ${result.error}",
-        )
+        assertTrue((result as BackupResult.Failure).error is BackupError.CorruptedBackup)
+        assertNull(provider.getUndoFile(missing))
+        assertNotNull(provider.getUndoFile(present))
     }
 
     @Test
-    fun `validateSnapshotForRestore returns BackupTooNew when source schema is newer`() = runTest {
-        val dbDir = requireNotNull(context.getDatabasePath(AppDatabase.NAME).parentFile)
-        database.tagDao.insert(TagEntity(uuid = Uuid.random(), name = "anything"))
-        val source = File(dbDir, "snapshot_future.db")
-        assertEquals(BackupResult.Success(Unit), provider.captureSnapshot(source))
+    fun `staged restore validates and exact replacement installs its bytes`() = runTest {
+        insertTag("snapshot")
+        val ref = stageCurrentSnapshot(4)
+        insertTag("drift")
+        assertEquals(BackupResult.Success(Unit), provider.validateRestoreSource(ref))
 
-        val futureVersion = provider.currentSchemaVersion() + 100
-        android.database.sqlite.SQLiteDatabase
-            .openDatabase(source.absolutePath, null, android.database.sqlite.SQLiteDatabase.OPEN_READWRITE)
-            .use { it.version = futureVersion }
-
-        val result = provider.validateSnapshotForRestore(source)
-        assertTrue(result is BackupResult.Failure)
-        val error = (result as BackupResult.Failure).error
-        assertTrue(
-            error is BackupError.BackupTooNew,
-            "expected BackupTooNew, got $error",
-        )
-        assertEquals(futureVersion, (error as BackupError.BackupTooNew).backupSchemaVersion)
-    }
-
-    @Test
-    fun `restore transaction sequence replaces live db with snapshot contents`() = runTest {
-        val dbDir = requireNotNull(context.getDatabasePath(AppDatabase.NAME).parentFile)
-        database.tagDao.insert(TagEntity(uuid = Uuid.random(), name = "Original"))
-        val source = File(dbDir, "snapshot_restore.db")
-        assertEquals(BackupResult.Success(Unit), provider.captureSnapshot(source))
-
-        // Mutate live DB after capture so we can verify the restore reverts it.
-        database.tagDao.insert(TagEntity(uuid = Uuid.random(), name = "Drift"))
-        assertEquals(
-            setOf("Original", "Drift"),
-            database.tagDao.observeAll().first().map { it.name }.toSet(),
-        )
-
-        // The runtime-owned transaction sequence (spec §8.5): validate → close → file mechanics.
-        assertEquals(BackupResult.Success(Unit), provider.validateSnapshotForRestore(source))
         closeAppDatabase(database)
-        val result = provider.replaceLiveDatabaseFile(source)
-        assertEquals(BackupResult.Success(Unit), result)
+        assertEquals(BackupResult.Success(Unit), provider.replaceLiveDatabaseFromRestore(ref))
 
-        // Rebuild Room — the previous handle is terminal after the close.
-        val restored = Room
-            .databaseBuilder<AppDatabase>(context, AppDatabase.NAME)
-            .setDriver(AndroidSQLiteDriver())
-            .allowMainThreadQueries()
-            .build()
+        val restored = createDatabase()
         try {
             val names = restored.tagDao.observeAll().first().map { it.name }.toSet()
-            assertEquals(setOf("Original"), names)
+            assertEquals(setOf("snapshot"), names)
         } finally {
             restored.close()
         }
     }
 
     @Test
-    fun `a reserved snapshot promoted onto the undo slot is detected by getPreRestoreBackupFile`() =
-        runTest {
-            database.tagDao.insert(TagEntity(uuid = Uuid.random(), name = "PreserveMe"))
-
-            val result = stageCanonicalSnapshot(provider)
-            assertTrue(result is BackupResult.Success, "expected Success, got $result")
-            val preservedFile = (result as BackupResult.Success).data
-
-            assertTrue(preservedFile.exists(), "preserved file should exist on disk")
-            assertEquals(context.cacheDir, preservedFile.parentFile)
-            assertTrue(provider.getPreRestoreBackupFile() != null)
-        }
-
-    @Test
-    fun `a reserved snapshot is a self-contained SQLite copy at the live schema`() =
-        runTest {
-            database.tagDao.insert(TagEntity(uuid = Uuid.random(), name = "PreservedRow"))
-            val result = stageCanonicalSnapshot(provider)
-            assertTrue(result is BackupResult.Success)
-            val preserved = (result as BackupResult.Success).data
-
-            // A valid SQLite database at the live schema version: checkpointed, no missing pages.
-            val peek = provider.peekSnapshotSchemaVersion(preserved)
-            assertTrue(peek is BackupResult.Success, "peek should succeed on preserved file")
-            assertEquals(provider.currentSchemaVersion(), (peek as BackupResult.Success).data)
-        }
-
-    @Test
-    fun `staging a promotion never touches the canonical slot`() = runTest {
-        // Review finding 1: the pre-durable promotion overwrote the PREVIOUS restore's undo
-        // image on behalf of an attempt that may never commit. Staging must be inert.
-        val reservationA = File(context.cacheDir, "rollback_reservation_r5.db")
-            .apply { writeText("SENTINEL-A-TRUE-PRE-ATTEMPT") }
-        File(context.cacheDir, "pre_restore_backup.db").writeText("SENTINEL-B-OLDER")
-
-        val staged = provider.stagePromotedRollback(reservationA, "r5")
-
-        assertEquals(BackupResult.Success(Unit), staged)
-        assertEquals(
-            "SENTINEL-B-OLDER",
-            File(context.cacheDir, "pre_restore_backup.db").readText(),
-            "the previous restore's undo image must survive an attempt that is not yet durable",
+    fun `restore capacity accepts exactly the conservative required bytes`() = runTest {
+        insertTag("capacity")
+        val ref = stageCurrentSnapshot(5)
+        val liveSize = provider.liveDatabaseFile().length()
+        val stagedSize = provider.getRestoreSourceFile(ref)!!.length()
+        capacity.available = Math.addExact(
+            Math.addExact(liveSize, stagedSize),
+            DatabaseSnapshotProviderImpl.CAPACITY_MARGIN_BYTES,
         )
-        assertEquals("SENTINEL-A-TRUE-PRE-ATTEMPT", reservationA.readText())
-        assertEquals(
-            "SENTINEL-A-TRUE-PRE-ATTEMPT",
-            File(context.cacheDir, "pre_restore_backup.db.r5.promoting").readText(),
-        )
+
+        assertEquals(BackupResult.Success(Unit), provider.checkRestoreCapacity(ref))
+        assertEquals(1, capacity.queryCount)
     }
 
     @Test
-    fun `a pre-durable staging is discarded without disturbing the slot`() = runTest {
-        File(context.cacheDir, "pre_restore_backup.db").writeText("SENTINEL-B-OLDER")
-        val reservationA = File(context.cacheDir, "rollback_reservation_r5.db")
-            .apply { writeText("SENTINEL-A") }
-        provider.stagePromotedRollback(reservationA, "r5")
-
-        provider.discardStagedPromotion("r5")
-
-        assertFalse(File(context.cacheDir, "pre_restore_backup.db.r5.promoting").exists())
-        assertEquals(
-            "SENTINEL-B-OLDER",
-            File(context.cacheDir, "pre_restore_backup.db").readText(),
-        )
-    }
-
-    @Test
-    fun `completing a pending promotion installs the staged image and keeps the reservation`() =
+    fun `restore capacity rejects one byte short without creating undo or stopping Room`() =
         runTest {
-            val reservationA = File(context.cacheDir, "rollback_reservation_r5.db")
-                .apply { writeText("SENTINEL-A-TRUE-PRE-ATTEMPT") }
-            File(context.cacheDir, "pre_restore_backup.db").writeText("SENTINEL-B-OLDER")
-            provider.stagePromotedRollback(reservationA, "r5")
-
-            val installed = provider.completePromotedRollback(reservationA, "r5")
-
-            assertEquals(BackupResult.Success(Unit), installed)
-            assertEquals(
-                "SENTINEL-A-TRUE-PRE-ATTEMPT",
-                File(context.cacheDir, "pre_restore_backup.db").readText(),
+            insertTag("still-serving")
+            val ref = stageCurrentSnapshot(6)
+            val liveSize = provider.liveDatabaseFile().length()
+            val stagedSize = provider.getRestoreSourceFile(ref)!!.length()
+            val required = Math.addExact(
+                Math.addExact(liveSize, stagedSize),
+                DatabaseSnapshotProviderImpl.CAPACITY_MARGIN_BYTES,
             )
-            assertTrue(
-                reservationA.exists(),
-                "the reservation goes only after the install lands — the runtime deletes it",
-            )
-            assertFalse(File(context.cacheDir, "pre_restore_backup.db.r5.promoting").exists())
-        }
+            capacity.available = required - 1L
+            val undoRef = undoRef(6)
 
-    @Test
-    fun `a completion with no staging re-promotes from the surviving reservation`() = runTest {
-        // The crash window between the durable record and the install: the next launch finishes
-        // it from the reservation, which is exactly why the reservation outlives the record.
-        val reservationA = File(context.cacheDir, "rollback_reservation_r5.db")
-            .apply { writeText("SENTINEL-A-TRUE-PRE-ATTEMPT") }
-        File(context.cacheDir, "pre_restore_backup.db").writeText("SENTINEL-B-OLDER")
-
-        val installed = provider.completePromotedRollback(reservationA, "r5")
-
-        assertEquals(BackupResult.Success(Unit), installed)
-        assertEquals(
-            "SENTINEL-A-TRUE-PRE-ATTEMPT",
-            File(context.cacheDir, "pre_restore_backup.db").readText(),
-        )
-    }
-
-    @Test
-    fun `a completion with neither staging nor reservation fails rather than claiming success`() =
-        runTest {
-            val absent = File(context.cacheDir, "rollback_reservation_gone.db")
-
-            val installed = provider.completePromotedRollback(absent, "r5")
+            val result = provider.checkRestoreCapacity(ref)
 
             assertTrue(
-                installed is BackupResult.Failure,
-                "no image, no undo slot — never a silent success: $installed",
+                result is BackupResult.Failure &&
+                    result.error == BackupError.InsufficientLocalStorage(required, required - 1L),
+                "expected one-byte-short rejection, got $result",
             )
-        }
-
-    @Test
-    fun `a staging from ANOTHER attempt is never installed by this one`() = runTest {
-        File(context.cacheDir, "pre_restore_backup.db").writeText("SENTINEL-B-OLDER")
-        File(context.cacheDir, "pre_restore_backup.db.foreign.promoting")
-            .writeText("FOREIGN-ATTEMPT-IMAGE")
-        val mine = File(context.cacheDir, "rollback_reservation_mine.db")
-            .apply { writeText("MY-PRE-IMAGE") }
-
-        provider.completePromotedRollback(mine, "mine")
-
-        assertEquals(
-            "MY-PRE-IMAGE",
-            File(context.cacheDir, "pre_restore_backup.db").readText(),
-            "the staging is attempt-named; positional debris is never an ownership claim",
-        )
-    }
-
-    @Test
-    fun `a TRUNCATED rollback source fails validation`() = runTest {
-        // Review finding 6: a partially written canonical was renamed over the live database and
-        // reported as a clean undo. Magic alone passes on a tail truncation; the page count does not.
-        database.tagDao.insert(TagEntity(uuid = Uuid.random(), name = "Row"))
-        val reserved = provider.reserveRollbackSnapshot("truncate")
-        val source = (reserved as BackupResult.Success).data
-        val full = source.readBytes()
-        source.writeBytes(full.copyOfRange(0, full.size / 2))
-
-        val validated = provider.validateRollbackSource(source)
-
-        assertTrue(
-            validated is BackupResult.Failure &&
-                validated.error is BackupError.CorruptedBackup,
-            "a truncated database must never be applied over the live file: $validated",
-        )
-    }
-
-    @Test
-    fun `a valid rollback source passes validation`() = runTest {
-        // Anti-vacuity partner: the validator must not simply reject everything.
-        database.tagDao.insert(TagEntity(uuid = Uuid.random(), name = "Row"))
-        val reserved = provider.reserveRollbackSnapshot("intact")
-
-        val validated = provider.validateRollbackSource((reserved as BackupResult.Success).data)
-
-        assertEquals(BackupResult.Success(Unit), validated)
-    }
-
-    @Test
-    fun `getPreRestoreBackupFile returns null when no file was preserved`() = runTest {
-        // The CorruptedBackup mapping for this case lives in the runtime transaction.
-        assertFalse(provider.getPreRestoreBackupFile() != null)
-        assertEquals(null, provider.getPreRestoreBackupFile())
-    }
-
-    @Test
-    fun `rollback transaction sequence swaps live db with preserved contents and consumes file`() =
-        runTest {
-            database.tagDao.insert(TagEntity(uuid = Uuid.random(), name = "BeforeRestore"))
-            assertTrue(stageCanonicalSnapshot(provider) is BackupResult.Success)
-
-            // Simulate a restore: mutate the live db so it differs from the preserved snapshot.
-            database.tagDao.insert(TagEntity(uuid = Uuid.random(), name = "AfterRestore"))
+            assertNull(provider.getUndoFile(undoRef))
             assertEquals(
-                setOf("BeforeRestore", "AfterRestore"),
+                setOf("still-serving"),
                 database.tagDao.observeAll().first().map { it.name }.toSet(),
             )
+            assertNotNull(provider.getRestoreSourceFile(ref))
+        }
 
-            // The runtime-owned rollback sequence: resolve source, close, replace, consume.
-            val rollbackSource = requireNotNull(provider.getPreRestoreBackupFile())
-            closeAppDatabase(database)
-            assertEquals(BackupResult.Success(Unit), provider.replaceLiveDatabaseFile(rollbackSource))
-            provider.deletePreRestoreBackup()
+    @Test
+    fun `capacity arithmetic overflow rejects conservatively`() = runTest {
+        insertTag("overflow")
+        val ref = stageCurrentSnapshot(7)
+        capacity.available = Long.MAX_VALUE
+        capacity.sizeOverride = { Long.MAX_VALUE }
 
-            assertFalse(provider.getPreRestoreBackupFile() != null)
+        val result = provider.checkRestoreCapacity(ref)
 
-            val restored = Room
-                .databaseBuilder<AppDatabase>(context, AppDatabase.NAME)
-                .allowMainThreadQueries()
-                .build()
-            try {
-                assertEquals(
-                    setOf("BeforeRestore"),
-                    restored.tagDao.observeAll().first().map { it.name }.toSet(),
+        assertTrue(result is BackupResult.Failure)
+        assertEquals(
+            BackupError.InsufficientLocalStorage(Long.MAX_VALUE, Long.MAX_VALUE),
+            (result as BackupResult.Failure).error,
+        )
+    }
+
+    @Test
+    fun `capacity query exception is typed and leaves serving generation untouched`() = runTest {
+        insertTag("query-failure")
+        val ref = stageCurrentSnapshot(8)
+        val cause = IOException("capacity unavailable")
+        capacity.queryFailure = cause
+
+        val result = provider.checkRestoreCapacity(ref)
+
+        assertTrue(result is BackupResult.Failure)
+        assertEquals(BackupError.StorageCapacityUnavailable(cause), (result as BackupResult.Failure).error)
+        assertEquals(
+            setOf("query-failure"),
+            database.tagDao.observeAll().first().map { it.name }.toSet(),
+        )
+    }
+
+    @Test
+    fun `rollback capacity uses source tmp plus margin and accepts equality`() = runTest {
+        insertTag("rollback")
+        val ref = undoRef(9)
+        val undo = assertFileSuccess(provider.createUndo(ref))
+        capacity.available = Math.addExact(
+            undo.length(),
+            DatabaseSnapshotProviderImpl.CAPACITY_MARGIN_BYTES,
+        )
+
+        assertEquals(BackupResult.Success(Unit), provider.checkRollbackCapacity(ref))
+    }
+
+    @Test
+    fun `sufficient admission followed by ENOSPC undo write fails without live mutation`() =
+        runTest {
+            insertTag("survives-enospc")
+            val sourceRef = stageCurrentSnapshot(10)
+            capacity.available = Long.MAX_VALUE
+            assertEquals(BackupResult.Success(Unit), provider.checkRestoreCapacity(sourceRef))
+            val cause = IOException("ENOSPC")
+            val failedStore = object : RestoreRecoveryFileStore by recoveryFiles {
+                override suspend fun publishUndo(
+                    source: File,
+                    ref: UndoRef,
+                ): BackupResult<File> = BackupResult.Failure(BackupError.Io(cause))
+            }
+            val failingProvider = createProvider(failedStore, capacity)
+            val undoRef = undoRef(10)
+
+            val result = failingProvider.createUndo(undoRef)
+
+            assertEquals(BackupResult.Failure(BackupError.Io(cause)), result)
+            assertNull(failingProvider.getUndoFile(undoRef))
+            assertEquals(
+                setOf("survives-enospc"),
+                database.tagDao.observeAll().first().map { it.name }.toSet(),
+            )
+        }
+
+    @Test
+    fun `legacy C validates migrates exactly and is consumed only explicitly`() = runTest {
+        insertTag("legacy")
+        val legacy = File(context.cacheDir, "legacy-build.db")
+        assertEquals(BackupResult.Success(Unit), provider.captureSnapshot(legacy))
+        legacy.renameTo(File(context.cacheDir, "pre_restore_backup.db"))
+        val ref = undoRef(11)
+
+        assertEquals(BackupResult.Success(Unit), provider.validateLegacyUndo())
+        val migrated = assertFileSuccess(provider.migrateLegacyUndo(ref))
+
+        assertTrue(File(context.cacheDir, "pre_restore_backup.db").exists())
+        assertEquals(BackupResult.Success(Unit), provider.validateUndo(ref))
+        assertEquals(migrated, provider.getUndoFile(ref))
+        assertTrue(provider.deleteLegacyPreRestore())
+    }
+
+    @Test
+    fun `pre-migration export is durable and reports missing live file as typed failure`() =
+        runTest {
+            insertTag("export")
+            database.close()
+
+            val exported = assertFileSuccess(provider.preserveDbBeforeMigration())
+
+            assertEquals(recoveryRoot().canonicalFile, exported.parentFile!!.canonicalFile)
+            assertEquals(exported, provider.getRecoveryExportFile())
+            assertTrue(context.deleteDatabase(AppDatabase.NAME))
+            val missing = provider.preserveDbBeforeMigration()
+            assertTrue(
+                missing is BackupResult.Failure &&
+                    missing.error is BackupError.CorruptedBackup,
+            )
+        }
+
+    @Test
+    fun `pre-migration export rejects a busy checkpoint without publishing an export`() =
+        runTest {
+            withBusyWalReader("export") {
+                val result = provider.preserveDbBeforeMigration()
+
+                assertCheckpointFailure(result)
+                assertNull(provider.getRecoveryExportFile())
+                assertFalse(
+                    recoveryRoot().exists(),
+                    "a failed checkpoint must not create an authoritative recovery root",
                 )
-            } finally {
-                restored.close()
             }
         }
 
     @Test
-    fun `deletePreRestoreBackup removes the file when present`() = runTest {
-        assertTrue(stageCanonicalSnapshot(provider) is BackupResult.Success)
-        assertTrue(provider.getPreRestoreBackupFile() != null)
-
-        provider.deletePreRestoreBackup()
-        assertFalse(provider.getPreRestoreBackupFile() != null)
-    }
-
-    @Test
-    fun `deletePreRestoreBackup is a no-op when no file exists`() = runTest {
-        assertFalse(provider.getPreRestoreBackupFile() != null)
-        provider.deletePreRestoreBackup()
-        assertFalse(provider.getPreRestoreBackupFile() != null)
-    }
-
-    @Test
-    fun `preserveDbBeforeMigration copies the live db file into cacheDir without Room`() =
+    fun `header-only live inspection accepts current Workeeper data without SQLite sidecars`() =
         runTest {
-            // Seed a row via Room so the live .db file has content on disk.
-            database.tagDao.insert(TagEntity(uuid = Uuid.random(), name = "PreMigration"))
-            // Close Room, mirroring Scenario 2 pre-flight: Room is not open on that launch.
+            insertTag("inspect")
             database.close()
+            val parent = requireNotNull(provider.liveDatabaseFile().parentFile)
+            val sidecarsBefore = parent.listFiles().orEmpty()
+                .filter { it.name.startsWith(AppDatabase.NAME) && it.name != AppDatabase.NAME }
+                .map { it.name to it.length() }
 
-            val preserved = provider.preserveDbBeforeMigration()
-            assertNotNull(preserved)
-            assertTrue(preserved!!.exists())
-            assertEquals(context.cacheDir, preserved.parentFile)
-            assertNotNull(provider.getPreMigrationBackupFile())
-            // The preserved file is valid SQLite — peek opens it standalone, without Room.
-            val peek = provider.peekSnapshotSchemaVersion(preserved)
-            assertTrue(peek is BackupResult.Success, "preserved file must be valid SQLite")
+            val inspected = provider.inspectLiveDatabaseWithoutRoom()
+
+            assertEquals(
+                BackupResult.Success(APP_DATABASE_VERSION),
+                inspected,
+            )
+            assertEquals(
+                sidecarsBefore,
+                parent.listFiles().orEmpty()
+                    .filter { it.name.startsWith(AppDatabase.NAME) && it.name != AppDatabase.NAME }
+                    .map { it.name to it.length() },
+                "header inspection must not open framework SQLite or create sidecars",
+            )
         }
 
-    @Test
-    fun `preserveDbBeforeMigration returns null when no live db file exists`() = runTest {
-        database.close()
-        context.deleteDatabase(AppDatabase.NAME)
-        assertEquals(null, provider.preserveDbBeforeMigration())
-        assertNull(provider.getPreMigrationBackupFile())
+    private suspend fun stageCurrentSnapshot(suffix: Int): RestoreSourceRef {
+        val caller = File(context.cacheDir, "download-$suffix.db")
+        assertEquals(BackupResult.Success(Unit), provider.captureSnapshot(caller))
+        val ref = RestoreSourceRef(owner(suffix))
+        assertFileSuccess(provider.stageRestoreSource(caller, ref))
+        assertFalse(caller.exists(), "cache caller is consumed only after durable publish")
+        return ref
     }
 
-    @Test
-    fun `preserveDbBeforeMigration runs wal_checkpoint via direct SQLite`() = runTest {
-        // Pre-condition for the checkpoint path to do work: the WAL must carry unsynced bytes.
-        database.tagDao.insert(TagEntity(uuid = Uuid.random(), name = "PreCheckpoint"))
-        val dbDir = requireNotNull(context.getDatabasePath(AppDatabase.NAME).parentFile)
-        val walFile = File(dbDir, "${AppDatabase.NAME}-wal")
-        assertTrue(walFile.exists(), "WAL sidecar must exist after DAO write")
+    private suspend fun insertTag(name: String) {
+        database.tagDao.insert(TagEntity(uuid = Uuid.random(), name = name))
+    }
+
+    private suspend fun <T> withBusyWalReader(
+        suffix: String,
+        block: suspend () -> T,
+    ): T = coroutineScope {
+        insertTag("before-$suffix-reader")
+        val readerReady = CompletableDeferred<Unit>()
+        val releaseReader = CompletableDeferred<Unit>()
+        val reader = launch {
+            database.useReaderConnection { connection ->
+                connection.deferredTransaction {
+                    usePrepared("SELECT COUNT(*) FROM tag_table") { statement ->
+                        assertTrue(statement.step())
+                        assertTrue(statement.getLong(0) > 0L)
+                    }
+                    readerReady.complete(Unit)
+                    releaseReader.await()
+                }
+            }
+        }
+        readerReady.await()
+        insertTag("after-$suffix-reader")
+        try {
+            block()
+        } finally {
+            releaseReader.complete(Unit)
+            reader.join()
+        }
+    }
+
+    private fun assertCheckpointFailure(result: BackupResult<*>) {
+        assertTrue(result is BackupResult.Failure, "expected checkpoint failure, got $result")
+        val error = (result as BackupResult.Failure).error
+        assertTrue(error is BackupError.Io, "expected typed IO failure, got $error")
         assertTrue(
-            walFile.length() > 0L,
-            "WAL must contain unsynced bytes pre-snapshot; was ${walFile.length()}",
+            (error as BackupError.Io).cause.message.orEmpty().contains("checkpoint"),
+            "checkpoint failure must remain visible to recovery UI/logging",
         )
-        // Close Room — the checkpoint must run through a direct SQLite open, not the Room helper.
-        database.close()
-
-        val preserved = provider.preserveDbBeforeMigration()
-        assertNotNull(preserved)
-
-        // Read via direct SQLite: `Room.databaseBuilder` resolves names against the databases dir,
-        // not the cacheDir where the snapshot lives.
-        val snapshotDb = android.database.sqlite.SQLiteDatabase.openDatabase(
-            preserved!!.absolutePath,
-            null,
-            android.database.sqlite.SQLiteDatabase.OPEN_READONLY,
-        )
-        val names = snapshotDb.rawQuery("SELECT name FROM tag_table", null).use { cursor ->
-            buildSet { while (cursor.moveToNext()) add(cursor.getString(0)) }
-        }
-        snapshotDb.close()
-        assertEquals(setOf("PreCheckpoint"), names)
     }
 
-    @Test
-    fun `getPreMigrationBackupFile returns the file when present and null when absent`() =
-        runTest {
-            assertEquals(null, provider.getPreMigrationBackupFile())
+    private fun createDatabase(): AppDatabase = Room
+        .databaseBuilder<AppDatabase>(context, AppDatabase.NAME)
+        .setDriver(AndroidSQLiteDriver())
+        .allowMainThreadQueries()
+        .build()
 
-            database.tagDao.insert(TagEntity(uuid = Uuid.random(), name = "ForExport"))
-            database.close()
-            assertNotNull(provider.preserveDbBeforeMigration())
+    private fun createProvider(
+        store: RestoreRecoveryFileStore,
+        storage: RestoreStorageCapacity,
+    ): DatabaseSnapshotProviderImpl = DatabaseSnapshotProviderImpl(
+        appDatabase = database,
+        context = context,
+        recoveryFiles = store,
+        storageCapacity = storage,
+        dispatcher = UnconfinedTestDispatcher(),
+    )
 
-            val file = provider.getPreMigrationBackupFile()
-            assertNotNull(file)
-            assertTrue(file!!.exists())
-        }
+    private fun recoveryRoot(): File = File(context.noBackupFilesDir, "restore-recovery")
 
-    @Test
-    fun `deletePreMigrationBackup removes the file and is idempotent`() = runTest {
-        // Force the .db file onto disk via an insert before closing Room.
-        database.tagDao.insert(TagEntity(uuid = Uuid.random(), name = "ToDelete"))
-        database.close()
-        assertNotNull(provider.preserveDbBeforeMigration())
-        assertNotNull(provider.getPreMigrationBackupFile())
+    private fun undoRef(suffix: Int): UndoRef = UndoRef(owner(suffix))
 
-        provider.deletePreMigrationBackup()
-        assertNull(provider.getPreMigrationBackupFile())
+    private fun owner(suffix: Int): RestoreOwnerId = RestoreOwnerId(
+        "10000000-0000-4000-8000-${suffix.toString().padStart(12, '0')}",
+    )
 
-        provider.deletePreMigrationBackup()
-        assertNull(provider.getPreMigrationBackupFile())
+    private fun assertFileSuccess(result: BackupResult<File>): File {
+        assertTrue(result is BackupResult.Success, "expected Success, got $result")
+        return (result as BackupResult.Success).data
     }
 
-    @Test
-    fun `pre_migration and pre_restore slots have independent lifecycles`() = runTest {
-        database.tagDao.insert(TagEntity(uuid = Uuid.random(), name = "Independence"))
-        // Scenario 1: preserve pre-restore while Room is open — it WAL-checkpoints the live db.
-        assertTrue(stageCanonicalSnapshot(provider) is BackupResult.Success)
-        // Scenario 2: preserve pre-migration via direct copy (close Room first).
-        database.close()
-        assertNotNull(provider.preserveDbBeforeMigration())
+    private class FakeStorageCapacity : RestoreStorageCapacity {
+        var available: Long = Long.MAX_VALUE
+        var queryFailure: Throwable? = null
+        var sizeOverride: ((File) -> Long)? = null
+        var queryCount: Int = 0
 
-        assertTrue(provider.getPreRestoreBackupFile() != null)
-        assertNotNull(provider.getPreMigrationBackupFile())
-
-        provider.deletePreMigrationBackup()
-        assertNull(provider.getPreMigrationBackupFile())
-        assertTrue(provider.getPreRestoreBackupFile() != null)
-
-        // Inverse direction: re-create pre-migration, then delete pre-restore.
-        assertNotNull(provider.preserveDbBeforeMigration())
-        provider.deletePreRestoreBackup()
-        assertFalse(provider.getPreRestoreBackupFile() != null)
-        assertNotNull(provider.getPreMigrationBackupFile())
-    }
-
-    /**
-     * Stages the canonical undo slot the way the runtime does: reserve a per-attempt snapshot,
-     * then promote it (spec §8.5a).
-     */
-    private suspend fun stageCanonicalSnapshot(
-        provider: DatabaseSnapshotProvider,
-    ): BackupResult<File> {
-        val reserved = provider.reserveRollbackSnapshot("test-attempt")
-        if (reserved is BackupResult.Failure) return reserved
-        val file = (reserved as BackupResult.Success).data
-        val staged = provider.stagePromotedRollback(file, "test-attempt")
-        if (staged is BackupResult.Failure) return staged
-        return when (val promoted = provider.completePromotedRollback(file, "test-attempt")) {
-            is BackupResult.Success -> {
-                // Mirrors the runtime's step 4: the reservation goes only after Committed is
-                // durable, so the helper leaves the same end state the real transaction does.
-                file.delete()
-                BackupResult.Success(requireNotNull(provider.getPreRestoreBackupFile()))
-            }
-
-            is BackupResult.Failure -> promoted
+        override fun getAllocatableBytes(path: File): Long {
+            queryCount += 1
+            queryFailure?.let { throw it }
+            return available
         }
+
+        override fun sizeBytes(file: File): Long = sizeOverride?.invoke(file) ?: file.length()
     }
 }

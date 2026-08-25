@@ -26,7 +26,10 @@ import org.junit.jupiter.api.Test
  */
 internal class StartupProcessorTest {
 
-    private val restoreCoordinator = mockk<RestoreRecoveryCoordinator>()
+    private val restoreCoordinator = mockk<RestoreRecoveryCoordinator> {
+        coEvery { sweepRecoveryGarbage() } returns Unit
+        coEvery { publishPendingTerminalOutbox() } returns Unit
+    }
 
     private var peeks = 0
     private var peekDecision: StartupCheck = StartupCheck.Proceed
@@ -111,8 +114,10 @@ internal class StartupProcessorTest {
         assertEquals(StartupOutcome.Proceed, outcome)
         coVerifyOrder {
             restoreCoordinator.handlePostRestoreLaunch()
+            restoreCoordinator.sweepRecoveryGarbage()
             migrationCoordinator.checkAndRouteOrProceed()
         }
+        coVerify(exactly = 1) { restoreCoordinator.sweepRecoveryGarbage() }
     }
 
     @Test
@@ -180,6 +185,7 @@ internal class StartupProcessorTest {
             assertEquals(StartupOutcome.Proceed, outcome)
             coVerify(exactly = 0) { migrationCoordinator.checkAndRouteOrProceed() }
             coVerify(exactly = 1) { graph.recoveryBootstrap }
+            coVerify(exactly = 1) { restoreCoordinator.publishPendingTerminalOutbox() }
         }
 
     @Test

@@ -23,6 +23,7 @@ import io.github.stslex.workeeper.feature.recovery.diagnostics.RestoreDiagnostic
 import io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinator
 import io.github.stslex.workeeper.feature.recovery.domain.UndoRestoreOutcome
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import io.github.stslex.workeeper.feature.recovery.R as RecoveryR
@@ -63,7 +64,7 @@ class RestoreDialogChoiceObserver @Inject constructor(
             is AppDialog.RestoreSuccess -> handleRestoreSuccess(dialog, choice.action)
             is AppDialog.RestoreFailure -> handleRestoreFailure(dialog, choice.action)
             is AppDialog.UndoRestoreConfirmation -> handleUndoConfirmation(dialog, choice.action)
-            AppDialog.UndoRestoreSuccess -> if (choice.action == AppDialogUserAction.Acknowledge) {
+            is AppDialog.UndoRestoreSuccess -> if (choice.action == AppDialogUserAction.Acknowledge) {
                 observer.acknowledgeReaction(dialog)
             }
         }
@@ -112,17 +113,15 @@ class RestoreDialogChoiceObserver @Inject constructor(
     ) {
         when (action) {
             AppDialogUserAction.ConfirmUndo -> {
-                // Transaction-owned commit effect acknowledges after undo state and dialog persist.
-                val outcome = coordinator.performUndoRestore(onCommitted = {
-                    observer.acknowledgeReaction(dialog)
-                })
-                // Both terminal refusals: another tap cannot help, so dismiss rather than wedge.
-                if (outcome == UndoRestoreOutcome.FileMissing ||
-                    outcome == UndoRestoreOutcome.SourceUnusable
-                ) {
+                val outcome = coordinator.performUndoRestore(dialog.undoRef)
+                if (outcome == UndoRestoreOutcome.NotCurrent) {
                     observer.acknowledgeReaction(dialog)
                 }
-                if (outcome == UndoRestoreOutcome.Succeeded) coordinator.restartApp()
+                if (outcome == UndoRestoreOutcome.Succeeded ||
+                    outcome == UndoRestoreOutcome.RecoveryRequired
+                ) {
+                    coordinator.restartApp()
+                }
             }
 
             AppDialogUserAction.Cancel -> observer.acknowledgeReaction(dialog)
@@ -136,13 +135,16 @@ class RestoreDialogChoiceObserver @Inject constructor(
      * which case the caller must keep `RestoreSuccess` visible as the only undo entry point.
      */
     private suspend fun publishUndoConfirmation(): Boolean {
-        val originalDate = restoreStateRepository.getPreRestoreOriginalDate()
-        if (originalDate == null) {
-            logger.w { "Undo confirmation not published: pre-restore original date is missing" }
+        val activeUndo = restoreStateRepository.observeActiveUndo().first()
+        if (activeUndo == null) {
+            logger.w { "Undo confirmation not published: active undo is missing" }
             return false
         }
         appDialogPublisher.publish(
-            AppDialog.UndoRestoreConfirmation(originalDataDateEpochMs = originalDate),
+            AppDialog.UndoRestoreConfirmation(
+                undoRef = activeUndo.ref,
+                originalDataDateEpochMs = activeUndo.originalDataDateEpochMs,
+            ),
         )
         return true
     }

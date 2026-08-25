@@ -12,6 +12,7 @@ import io.github.stslex.workeeper.app.common.di.AppUiPhase
 import io.github.stslex.workeeper.core.core.images.buildImageStorage
 import io.github.stslex.workeeper.core.core.logger.FirebaseCrashlyticsHolder
 import io.github.stslex.workeeper.core.core.logger.Log
+import io.github.stslex.workeeper.core.core.platform.AppReinitializer
 import io.github.stslex.workeeper.core.core.utils.CommonExt
 import io.github.stslex.workeeper.core.data.backup.worker.BackupWorkLease
 import io.github.stslex.workeeper.core.data.backup.worker.BackupWorkerDepsHolder
@@ -73,6 +74,8 @@ abstract class BaseApplication :
                 pendingSnackbarCount = { SnackbarManager.pendingModelCount },
                 // Runtime advances this only for committed handovers.
                 advanceSnackbarGeneration = { SnackbarManager.advanceGenerationEpoch() },
+                // A post-PONR restart belongs to the host, not to a UI coroutine that can die.
+                restartProcess = { AppReinitializer(applicationContext).reinitialize() },
             ),
         )
     }

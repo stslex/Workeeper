@@ -89,7 +89,7 @@ internal class AppDialogRepoHandlerTest {
 
     @Test
     fun `Dismiss forwards dialog to repository`() = runTest {
-        val dialog = AppDialog.UndoRestoreSuccess
+        val dialog = AppDialog.UndoRestoreSuccess()
         val repository = mockk<AppDialogRepository>(relaxed = true)
         val dispatcher = StandardTestDispatcher(testScheduler)
         val store = TestStore(this, dispatcher)

@@ -78,7 +78,7 @@ internal class RecoveryDiagnosticsExporterImplTest {
         assertEquals(DIAGNOSTIC_URI, exporter.exportStartupMigrationFailure())
 
         val diagnostic = cacheDir
-            .resolve("recovery_diagnostics")
+            .resolve("recovery_share")
             .toFile()
             .listFiles()
             .orEmpty()

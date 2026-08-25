@@ -1,0 +1,16 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<testsuites tests="6" failures="0" errors="0" skipped="0" time="13.363" timestamp="2026-08-25T12:28:13" hostname="localhost">
+  <testsuite name="io.github.stslex.workeeper.feature.live_workout.LiveWorkoutScreenTest" tests="6" failures="0" errors="0" skipped="0" time="10.764" timestamp="2026-08-25T12:28:13" hostname="localhost">
+    <properties>
+      <property name="device" value="Pixel_6_API_34(AVD) - 14" />
+      <property name="flavor" value="" />
+      <property name="project" value=":feature:live-workout" />
+    </properties>
+    <testcase name="type_chip_click_dispatches_OnSetTypeSelect_with_current_chip_type" classname="io.github.stslex.workeeper.feature.live_workout.LiveWorkoutScreenTest" time="2.237" />
+    <testcase name="screen_renders_with_expected_root_test_tag" classname="io.github.stslex.workeeper.feature.live_workout.LiveWorkoutScreenTest" time="1.658" />
+    <testcase name="finish_button_dispatches_OnFinishClick" classname="io.github.stslex.workeeper.feature.live_workout.LiveWorkoutScreenTest" time="1.549" />
+    <testcase name="checkbox_click_on_done_row_dispatches_OnSetUncheck" classname="io.github.stslex.workeeper.feature.live_workout.LiveWorkoutScreenTest" time="1.666" />
+    <testcase name="add_set_button_dispatches_OnAddSet_with_exercise_uuid" classname="io.github.stslex.workeeper.feature.live_workout.LiveWorkoutScreenTest" time="2.17" />
+    <testcase name="checkbox_click_on_undone_row_dispatches_OnSetMarkDone" classname="io.github.stslex.workeeper.feature.live_workout.LiveWorkoutScreenTest" time="1.484" />
+  </testsuite>
+</testsuites>

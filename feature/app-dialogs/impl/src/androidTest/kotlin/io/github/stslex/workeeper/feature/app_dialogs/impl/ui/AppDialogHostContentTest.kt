@@ -9,6 +9,8 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreOwnerId
+import io.github.stslex.workeeper.core.data.backup.api.restore.UndoRef
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupErrorCode
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.test.annotations.Smoke
@@ -152,7 +154,10 @@ class AppDialogHostContentTest {
     @Test
     fun undoRestoreConfirmationConfirmDispatchesConfirmUndo() {
         val captured = mutableStateOf<AppDialogUserChoice?>(null)
-        val variant = AppDialog.UndoRestoreConfirmation(originalDataDateEpochMs = 1_700_000_000_000L)
+        val variant = AppDialog.UndoRestoreConfirmation(
+            undoRef = TEST_UNDO_REF,
+            originalDataDateEpochMs = 1_700_000_000_000L,
+        )
         composeTestRule.setContent {
             AppTheme {
                 AppDialogHostContent(
@@ -170,7 +175,10 @@ class AppDialogHostContentTest {
     @Test
     fun undoRestoreConfirmationCancelDispatchesCancel() {
         val captured = mutableStateOf<AppDialogUserChoice?>(null)
-        val variant = AppDialog.UndoRestoreConfirmation(originalDataDateEpochMs = 1_700_000_000_000L)
+        val variant = AppDialog.UndoRestoreConfirmation(
+            undoRef = TEST_UNDO_REF,
+            originalDataDateEpochMs = 1_700_000_000_000L,
+        )
         composeTestRule.setContent {
             AppTheme {
                 AppDialogHostContent(
@@ -189,7 +197,7 @@ class AppDialogHostContentTest {
         composeTestRule.setContent {
             AppTheme {
                 AppDialogHostContent(
-                    current = AppDialog.UndoRestoreSuccess,
+                    current = AppDialog.UndoRestoreSuccess(),
                     onChoice = { captured.value = it },
                 )
             }
@@ -197,8 +205,14 @@ class AppDialogHostContentTest {
         composeTestRule.onNodeWithText("Reverted").assertIsDisplayed()
         composeTestRule.onNodeWithText("OK").assertIsDisplayed().performClick()
         assertEquals(
-            AppDialogUserChoice(AppDialog.UndoRestoreSuccess, AppDialogUserAction.Acknowledge),
+            AppDialogUserChoice(AppDialog.UndoRestoreSuccess(), AppDialogUserAction.Acknowledge),
             captured.value,
+        )
+    }
+
+    private companion object {
+        val TEST_UNDO_REF = UndoRef(
+            RestoreOwnerId("00000000-0000-4000-8000-000000000011"),
         )
     }
 }

@@ -6,7 +6,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import io.github.stslex.workeeper.app.common.di.AppUiPhase
 import io.github.stslex.workeeper.core.core.images.ImageStorage
+import io.github.stslex.workeeper.core.data.backup.api.DatabaseReplacementEffects
 import io.github.stslex.workeeper.core.data.backup.api.DatabaseReplacementResult
+import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreOwnerId
+import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreSourceRef
+import io.github.stslex.workeeper.core.data.backup.api.restore.UndoRef
 import io.github.stslex.workeeper.core.data.database.AppDatabase
 import io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProvider
 import io.github.stslex.workeeper.di.AppGraph
@@ -34,8 +38,6 @@ import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import org.junit.jupiter.api.io.TempDir
-import java.io.File
 
 /**
  * Graph-only transition pins: same-database handover, aborts leaving the outgoing generation
@@ -43,12 +45,27 @@ import java.io.File
  */
 internal class AppRuntimeTest {
 
+    private class NoOpEffects(
+        override val attemptId: RestoreOwnerId,
+    ) : DatabaseReplacementEffects {
+        override suspend fun onBeforeMutation(
+            undoRef: UndoRef,
+            restoreSourceRef: RestoreSourceRef?,
+        ) = Unit
+
+        override suspend fun onMutationCommitted() = Unit
+
+        override suspend fun onBeforeCompensation(
+            rollbackOwner: RestoreOwnerId,
+            appliedRef: UndoRef,
+        ) = Unit
+
+        override suspend fun onCompensationCommitted(rollbackOwner: RestoreOwnerId) = Unit
+    }
+
     private class ProbeViewModel(val onClear: () -> Unit = {}) : ViewModel() {
         override fun onCleared() = onClear()
     }
-
-    @TempDir
-    lateinit var tempDir: File
 
     private val context = mockk<Context>(relaxed = true)
     private val database = mockk<AppDatabase>(relaxed = true)
@@ -109,7 +126,6 @@ internal class AppRuntimeTest {
                 },
                 mainDispatcher = dispatcher,
                 hostDispatcher = dispatcher,
-                stagingDirectory = { tempDir },
                 uiDisposalTimeoutMillis = 1_000,
                 drainTimeoutMillis = 1_000,
             ),
@@ -284,7 +300,10 @@ internal class AppRuntimeTest {
             val genOne = runtime.currentGeneration
             var nestedResult: DatabaseReplacementResult? = null
             preflightAction = { _ ->
-                nestedResult = runtime.rollbackToPreRestoreBackup()
+                nestedResult = runtime.rollbackFromUndo(
+                    sourceRef = NESTED_UNDO_REF,
+                    effects = NoOpEffects(NESTED_ROLLBACK_OWNER),
+                )
             }
             preflightOutcome = StartupOutcome.RestartRequired
 
@@ -296,8 +315,8 @@ internal class AppRuntimeTest {
             )
             assertInstanceOf(ReinitializeOutcome.Aborted::class.java, outcome)
             assertSame(genOne, runtime.currentGeneration)
-            coVerify(exactly = 0) { provider.replaceLiveDatabaseFile(any()) }
-            coVerify(exactly = 0) { provider.deletePreRestoreBackup() }
+            coVerify(exactly = 0) { provider.replaceLiveDatabaseFromUndo(any()) }
+            coVerify(exactly = 0) { provider.deleteUndo(any()) }
             assertTrue(closedDatabases.isEmpty())
         }
 
@@ -517,4 +536,13 @@ internal class AppRuntimeTest {
             assertInstanceOf(ReinitializeOutcome.Published::class.java, runtime.reinitialize())
             assertEquals(1, epochAdvances, "the commit discards the outgoing generation's queue")
         }
+
+    private companion object {
+        val NESTED_UNDO_REF = UndoRef(
+            RestoreOwnerId("00000000-0000-4000-8000-000000000021"),
+        )
+        val NESTED_ROLLBACK_OWNER = RestoreOwnerId(
+            "00000000-0000-4000-8000-000000000022",
+        )
+    }
 }

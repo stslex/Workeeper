@@ -34,6 +34,15 @@ sealed interface BackupError {
         val appSchemaVersion: Int,
     ) : BackupError
 
+    /** Local allocation is below the conservative restore/rollback admission estimate. */
+    data class InsufficientLocalStorage(
+        val requiredBytes: Long,
+        val availableBytes: Long,
+    ) : BackupError
+
+    /** Android could not answer the advisory allocatable-bytes query. */
+    data class StorageCapacityUnavailable(val cause: Throwable) : BackupError
+
     /** Generic IO failure that does not match any more-specific variant. */
     data class Io(val cause: Throwable) : BackupError
 

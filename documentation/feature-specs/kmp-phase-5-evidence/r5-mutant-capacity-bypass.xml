@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest" tests="1" skipped="0" failures="1" errors="0" timestamp="2026-08-25T09:51:23.471Z" hostname="stslexs-MacBook-Pro.local" time="1.329">
+  <properties/>
+  <testcase name="capacity rejection creates no undo journal close or swap and keeps generation serving()" classname="io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest" time="0.457">
+    <failure message="org.opentest4j.AssertionFailedError: Unexpected type, expected: &lt;io.github.stslex.workeeper.runtime.ReplacementOutcome.RejectedBeforeMutation&gt; but was: &lt;io.github.stslex.workeeper.runtime.ReplacementOutcome.Completed&gt;" type="org.opentest4j.AssertionFailedError">org.opentest4j.AssertionFailedError: Unexpected type, expected: &lt;io.github.stslex.workeeper.runtime.ReplacementOutcome.RejectedBeforeMutation&gt; but was: &lt;io.github.stslex.workeeper.runtime.ReplacementOutcome.Completed&gt;
+	at org.junit.jupiter.api.Assertions.assertInstanceOf(Assertions.java:3699)
+	at io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest$capacity rejection creates no undo journal close or swap and keeps generation serving$1.invokeSuspend(AppRuntimeReplacementTest.kt:489)
+	at io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest$capacity rejection creates no undo journal close or swap and keeps generation serving$1.invoke(AppRuntimeReplacementTest.kt)
+	at io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest$capacity rejection creates no undo journal close or swap and keeps generation serving$1.invoke(AppRuntimeReplacementTest.kt)
+	at io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest$runtimeTest$1.invokeSuspend(AppRuntimeReplacementTest.kt:335)
+	at io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest$runtimeTest$1.invoke(AppRuntimeReplacementTest.kt)
+	at io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest$runtimeTest$1.invoke(AppRuntimeReplacementTest.kt)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt$runTest$2$1$1.invokeSuspend(TestBuilders.kt:317)
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)
+	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:100)
+	at kotlinx.coroutines.test.TestDispatcher.processEvent$kotlinx_coroutines_test(TestDispatcher.kt:24)
+	at kotlinx.coroutines.test.TestCoroutineScheduler.tryRunNextTaskUnless$kotlinx_coroutines_test(TestCoroutineScheduler.kt:98)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt$runTest$2$1$workRunner$1.invokeSuspend(TestBuilders.kt:326)
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)
+	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:100)
+	at kotlinx.coroutines.EventLoopImplBase.processNextEvent(EventLoop.common.kt:256)
+	at kotlinx.coroutines.BlockingCoroutine.joinBlocking(Builders.kt:54)
+	at kotlinx.coroutines.BuildersKt__BuildersKt.runBlockingImpl(Builders.kt:30)
+	at kotlinx.coroutines.BuildersKt.runBlockingImpl(Unknown Source)
+	at kotlinx.coroutines.BuildersKt__Builders_concurrentKt.runBlockingK(Builders.concurrent.kt:172)
+	at kotlinx.coroutines.BuildersKt.runBlockingK(Unknown Source)
+	at kotlinx.coroutines.BuildersKt__Builders_concurrentKt.runBlockingK$default(Builders.concurrent.kt:157)
+	at kotlinx.coroutines.BuildersKt.runBlockingK$default(Unknown Source)
+	at kotlinx.coroutines.test.TestBuildersJvmKt.createTestResult(TestBuildersJvm.kt:10)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:309)
+	at kotlinx.coroutines.test.TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:1)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:167)
+	at kotlinx.coroutines.test.TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:1)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt.runTest-8Mi8wO0$default(TestBuilders.kt:159)
+	at kotlinx.coroutines.test.TestBuildersKt.runTest-8Mi8wO0$default(TestBuilders.kt:1)
+	at io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest.runtimeTest(AppRuntimeReplacementTest.kt:233)
+	at io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest.runtimeTest$default(AppRuntimeReplacementTest.kt:227)
+	at io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest.capacity rejection creates no undo journal close or swap and keeps generation serving(AppRuntimeReplacementTest.kt:471)
+</failure>
+  </testcase>
+  <system-err><![CDATA[SLF4J(W): No SLF4J providers were found.
+SLF4J(W): Defaulting to no-operation (NOP) logger implementation
+SLF4J(W): See https://www.slf4j.org/codes.html#noProviders for further details.
+WARNING: A Java agent has been loaded dynamically (/Users/stslex/.gradle/caches/modules-2/files-2.1/net.bytebuddy/byte-buddy-agent/1.18.2/62f38a6faf7f069d661b79a07d566f504b0b20c4/byte-buddy-agent-1.18.2.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+]]></system-err>
+</testsuite>

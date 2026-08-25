@@ -3,12 +3,13 @@ package io.github.stslex.workeeper.feature.app_dialogs.impl.domain
 
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.preferencesOf
+import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreOwnerId
+import io.github.stslex.workeeper.core.data.backup.api.restore.UndoRef
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupErrorCode
 import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialog
 import io.github.stslex.workeeper.feature.app_dialogs.impl.data.AppDialogKeys
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
-import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
 
 /** Pins the priority walk in [AppDialogResolver] against hand-built [Preferences] snapshots. */
@@ -78,10 +79,10 @@ internal class AppDialogResolverTest {
     }
 
     @Test
-    fun `UndoRestoreSuccess resolves to the data object`() {
+    fun `UndoRestoreSuccess resolves to the data variant`() {
         val prefs = preferencesOf(AppDialogKeys.PENDING_UNDO_RESTORE_SUCCESS to true)
 
-        assertSame(AppDialog.UndoRestoreSuccess, AppDialogResolver(prefs))
+        assertEquals(AppDialog.UndoRestoreSuccess(), AppDialogResolver(prefs))
     }
 
     @Test
@@ -89,11 +90,13 @@ internal class AppDialogResolverTest {
         val prefs = preferencesOf(
             AppDialogKeys.PENDING_UNDO_RESTORE_CONFIRMATION to true,
             AppDialogKeys.PENDING_UNDO_RESTORE_CONFIRMATION_ORIGINAL_AT_EPOCH_MS to 1_650_000_000L,
+            AppDialogKeys.PENDING_UNDO_RESTORE_CONFIRMATION_OWNER to TEST_UNDO_REF.owner.value,
         )
 
         val resolved = AppDialogResolver(prefs) as AppDialog.UndoRestoreConfirmation
 
         assertEquals(1_650_000_000L, resolved.originalDataDateEpochMs)
+        assertEquals(TEST_UNDO_REF, resolved.undoRef)
     }
 
     @Test
@@ -116,7 +119,7 @@ internal class AppDialogResolverTest {
     fun `UndoRestoreSuccess wins over UndoRestoreConfirmation`() {
         val prefs = allFlagsSet(restoreFailure = false, restoreSuccess = false)
 
-        assertSame(AppDialog.UndoRestoreSuccess, AppDialogResolver(prefs))
+        assertEquals(AppDialog.UndoRestoreSuccess(), AppDialogResolver(prefs))
     }
 
     @Test
@@ -130,6 +133,7 @@ internal class AppDialogResolverTest {
         val resolved = AppDialogResolver(prefs) as AppDialog.UndoRestoreConfirmation
 
         assertEquals(0L, resolved.originalDataDateEpochMs)
+        assertEquals(TEST_UNDO_REF, resolved.undoRef)
     }
 
     private fun allFlagsSet(
@@ -142,8 +146,20 @@ internal class AppDialogResolverTest {
             if (restoreFailure) add(AppDialogKeys.PENDING_RESTORE_FAILURE to true)
             if (restoreSuccess) add(AppDialogKeys.PENDING_RESTORE_SUCCESS to true)
             if (undoSuccess) add(AppDialogKeys.PENDING_UNDO_RESTORE_SUCCESS to true)
-            if (undoConfirmation) add(AppDialogKeys.PENDING_UNDO_RESTORE_CONFIRMATION to true)
+            if (undoConfirmation) {
+                add(AppDialogKeys.PENDING_UNDO_RESTORE_CONFIRMATION to true)
+                add(
+                    AppDialogKeys.PENDING_UNDO_RESTORE_CONFIRMATION_OWNER to
+                        TEST_UNDO_REF.owner.value,
+                )
+            }
         }
         return preferencesOf(*entries.toTypedArray())
+    }
+
+    private companion object {
+        val TEST_UNDO_REF = UndoRef(
+            RestoreOwnerId("00000000-0000-4000-8000-000000000011"),
+        )
     }
 }

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.app_dialogs.api.model
 
+import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreOwnerId
+import io.github.stslex.workeeper.core.data.backup.api.restore.UndoRef
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupErrorCode
 
 /**
@@ -16,6 +18,7 @@ sealed interface AppDialog {
     data class RestoreSuccess(
         val restoredAtEpochMs: Long,
         val previousVersionAvailable: Boolean,
+        val terminalOwner: RestoreOwnerId? = null,
     ) : AppDialog {
         override val id: String = ID
 
@@ -27,6 +30,7 @@ sealed interface AppDialog {
     /** Post-restore failure acknowledgement, published after Scenario 1 rollback. */
     data class RestoreFailure(
         val reason: BackupErrorCode,
+        val terminalOwner: RestoreOwnerId? = null,
     ) : AppDialog {
         override val id: String = ID
 
@@ -37,6 +41,7 @@ sealed interface AppDialog {
 
     /** Revert-last-restore confirmation from the Settings row; the body shows the data's date. */
     data class UndoRestoreConfirmation(
+        val undoRef: UndoRef,
         val originalDataDateEpochMs: Long,
     ) : AppDialog {
         override val id: String = ID
@@ -47,7 +52,9 @@ sealed interface AppDialog {
     }
 
     /** Post-undo-restore happy path acknowledgement. */
-    data object UndoRestoreSuccess : AppDialog {
+    data class UndoRestoreSuccess(
+        val terminalOwner: RestoreOwnerId? = null,
+    ) : AppDialog {
         override val id: String = "undo_restore_success"
     }
 }

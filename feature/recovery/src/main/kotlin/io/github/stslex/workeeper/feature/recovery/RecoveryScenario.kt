@@ -23,17 +23,28 @@ enum class RecoveryScenario {
     companion object {
 
         private const val EXTRA_SCENARIO = "io.github.stslex.workeeper.recovery.SCENARIO"
+        private const val EXTRA_ALLOW_CONTINUE =
+            "io.github.stslex.workeeper.recovery.ALLOW_CONTINUE"
 
         /** The only way to launch the surface: an unstamped Intent has no defensible copy. */
-        fun intent(context: Context, scenario: RecoveryScenario): Intent =
+        fun intent(
+            context: Context,
+            scenario: RecoveryScenario,
+            allowContinue: Boolean = false,
+        ): Intent =
             Intent(context, RecoveryActivity::class.java)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 .putExtra(EXTRA_SCENARIO, scenario.name)
+                .putExtra(EXTRA_ALLOW_CONTINUE, allowContinue)
 
         /** An absent or unknown value reads as [StartupMigration] — the shipped default. */
         fun fromIntent(intent: Intent?): RecoveryScenario {
             val name = intent?.getStringExtra(EXTRA_SCENARIO) ?: return StartupMigration
             return entries.firstOrNull { it.name == name } ?: StartupMigration
         }
+
+        /** Continue is denied unless the startup preflight explicitly opted this launch in. */
+        fun allowsContinue(intent: Intent?): Boolean =
+            intent?.getBooleanExtra(EXTRA_ALLOW_CONTINUE, false) == true
     }
 }

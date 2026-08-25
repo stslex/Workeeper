@@ -1,0 +1,12 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<testsuites tests="2" failures="0" errors="0" skipped="0" time="3.993" timestamp="2026-08-25T12:28:45" hostname="localhost">
+  <testsuite name="io.github.stslex.workeeper.feature.settings.SettingsScreenTest" tests="2" failures="0" errors="0" skipped="0" time="3.384" timestamp="2026-08-25T12:28:45" hostname="localhost">
+    <properties>
+      <property name="device" value="Pixel_6_API_34(AVD) - 14" />
+      <property name="flavor" value="" />
+      <property name="project" value=":feature:settings" />
+    </properties>
+    <testcase name="backButtonEmitsBackNavigation" classname="io.github.stslex.workeeper.feature.settings.SettingsScreenTest" time="2.395" />
+    <testcase name="rendersScreenRootAndArchiveRow" classname="io.github.stslex.workeeper.feature.settings.SettingsScreenTest" time="0.989" />
+  </testsuite>
+</testsuites>

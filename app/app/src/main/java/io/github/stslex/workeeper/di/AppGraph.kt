@@ -121,15 +121,15 @@ internal interface AppGraph :
     override val appScopeLifetime: AppScopeLifetime
 
     /** Recovery graph nodes. Resolving [recoveryBootstrap] eagerly arms its subscriber. */
-    val restoreRecoveryCoordinator: RestoreRecoveryCoordinator
-    val startupMigrationCoordinator: StartupMigrationCoordinator
+    override val restoreRecoveryCoordinator: RestoreRecoveryCoordinator
+    override val startupMigrationCoordinator: StartupMigrationCoordinator
     val recoveryBootstrap: RecoveryBootstrap
 
     /**
      * Metro-owned [RestoreStateRepository]. No production reader: it exists so that
      * `AppScopeDataStoreSingletonTest` reads `restore_state_prefs` through the real binding.
      */
-    val restoreStateRepository: RestoreStateRepository
+    override val restoreStateRepository: RestoreStateRepository
 
     override val databaseSnapshotProvider: DatabaseSnapshotProvider
 

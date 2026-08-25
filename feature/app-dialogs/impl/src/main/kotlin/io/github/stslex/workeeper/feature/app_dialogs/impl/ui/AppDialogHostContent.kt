@@ -38,7 +38,7 @@ internal fun AppDialogHostContent(
             onCancel = { onChoice(AppDialogUserChoice(dialog, AppDialogUserAction.Cancel)) },
         )
 
-        AppDialog.UndoRestoreSuccess -> UndoRestoreSuccessDialog(
+        is AppDialog.UndoRestoreSuccess -> UndoRestoreSuccessDialog(
             onAcknowledge = { onChoice(AppDialogUserChoice(dialog, AppDialogUserAction.Acknowledge)) },
         )
     }

@@ -13,7 +13,6 @@ import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupErrorCod
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupPreferences
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupPreferencesRepository
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupSchedule
-import io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProvider
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialog
 import io.github.stslex.workeeper.feature.app_dialogs.api.publisher.AppDialogPublisher
@@ -35,10 +34,8 @@ import io.github.stslex.workeeper.feature.settings.mvi.model.RestoreProgressUi
 import io.github.stslex.workeeper.feature.settings.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStore.Action
 import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStore.Event
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 
 @SingleIn(SettingsScope::class)
@@ -47,7 +44,6 @@ internal class BackupClickHandler @Inject constructor(
     private val preferencesRepository: BackupPreferencesRepository,
     private val autoBackupController: AutoBackupController,
     private val restoreStateRepository: RestoreStateRepository,
-    private val snapshotProvider: DatabaseSnapshotProvider,
     private val appDialogPublisher: AppDialogPublisher,
     private val context: Context,
     store: SettingsHandlerStore,
@@ -85,19 +81,11 @@ internal class BackupClickHandler @Inject constructor(
         }
     }
 
-    /**
-     * GUARD: the undo row needs both the DataStore flag and the cache file — cacheDir eviction
-     * can drop the file while the flag survives. See the backup-recovery spec.
-     */
     private fun observeRestoreState() {
-        restoreStateRepository.observePreRestoreBackupAvailable()
-            .launch { flagged ->
-                val fileExists = snapshotProvider.getPreRestoreBackupFile() != null
-                if (flagged && !fileExists) {
-                    restoreStateRepository.clearPreRestoreBackupAvailable()
-                }
+        restoreStateRepository.observeActiveUndo()
+            .launch { activeUndo ->
                 updateState { current ->
-                    current.copy(canRevertLastRestore = flagged && fileExists)
+                    current.copy(canRevertLastRestore = activeUndo != null)
                 }
             }
     }
@@ -107,10 +95,13 @@ internal class BackupClickHandler @Inject constructor(
             onError = { e -> logger.e(e, "Failed to publish UndoRestoreConfirmation") },
             onSuccess = { },
         ) {
-            val originalDate = restoreStateRepository.getPreRestoreOriginalDate()
+            val activeUndo = restoreStateRepository.observeActiveUndo().first()
                 ?: return@launchDefault
             appDialogPublisher.publish(
-                AppDialog.UndoRestoreConfirmation(originalDataDateEpochMs = originalDate),
+                AppDialog.UndoRestoreConfirmation(
+                    undoRef = activeUndo.ref,
+                    originalDataDateEpochMs = activeUndo.originalDataDateEpochMs,
+                ),
             )
         }
     }
@@ -442,15 +433,12 @@ internal class BackupClickHandler @Inject constructor(
             onSuccess = { result ->
                 when (result) {
                     is BackupResult.Success -> {
-                        // GUARD: reset backupOperation too — scheduleAppRestart may be
-                        // aborted or delayed, and Restoring would lock every backup row.
                         updateStateImmediate { current ->
                             current.copy(
                                 backupOperation = BackupOperationUi.Idle,
                                 restoreProgress = RestoreProgressUi.Completed,
                             )
                         }
-                        scheduleAppRestart()
                     }
 
                     is BackupResult.Failure -> {
@@ -467,13 +455,6 @@ internal class BackupClickHandler @Inject constructor(
             },
         ) {
             interactor.restoreLatest()
-        }
-    }
-
-    private fun scheduleAppRestart() {
-        flowOf(Unit).launch {
-            delay(RESTART_DELAY_MS)
-            consume(Action.Navigation.RestartApp)
         }
     }
 
@@ -562,9 +543,5 @@ internal class BackupClickHandler @Inject constructor(
         logger.e(e, "Unknown error during backup operation")
         updateStateImmediate { current -> current.copy(backupOperation = BackupOperationUi.Idle) }
         sendEvent(Event.ShowBackupError(BackupErrorUi.UNKNOWN))
-    }
-
-    private companion object {
-        const val RESTART_DELAY_MS = 2_000L
     }
 }

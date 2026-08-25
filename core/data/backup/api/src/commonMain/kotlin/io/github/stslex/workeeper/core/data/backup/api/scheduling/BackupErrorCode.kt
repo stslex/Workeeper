@@ -12,6 +12,8 @@ enum class BackupErrorCode {
     NetworkUnavailable,
     AuthRevoked,
     StorageQuotaExceeded,
+    InsufficientLocalStorage,
+    StorageCapacityUnavailable,
     CorruptedBackup,
     SchemaTooNew,
     MissingMigrationPath,
@@ -28,6 +30,8 @@ enum class BackupErrorCode {
             BackupError.AuthRevoked -> AuthRevoked
             BackupError.MissingRequiredScope -> MissingRequiredScope
             BackupError.StorageQuotaExceeded -> StorageQuotaExceeded
+            is BackupError.InsufficientLocalStorage -> InsufficientLocalStorage
+            is BackupError.StorageCapacityUnavailable -> StorageCapacityUnavailable
             is BackupError.CorruptedBackup -> CorruptedBackup
             is BackupError.BackupTooNew -> SchemaTooNew
             is BackupError.MissingMigrationPath -> MissingMigrationPath

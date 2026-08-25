@@ -2,6 +2,8 @@
 package io.github.stslex.workeeper.feature.app_dialogs.impl.mvi.handler
 
 import io.github.stslex.workeeper.core.core.logger.Logger
+import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreOwnerId
+import io.github.stslex.workeeper.core.data.backup.api.restore.UndoRef
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupErrorCode
 import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialog
 import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialogUserAction
@@ -44,9 +46,18 @@ internal class ChooseHandlerTest {
 
     @Test
     fun `Choose does NOT dismiss the dialog — the consumer is responsible`() = runTest {
-        val dialog = AppDialog.UndoRestoreConfirmation(originalDataDateEpochMs = 1_000L)
+        val dialog = AppDialog.UndoRestoreConfirmation(
+            undoRef = TEST_UNDO_REF,
+            originalDataDateEpochMs = 1_000L,
+        )
         handler.invoke(Action.Choose(dialog = dialog, action = AppDialogUserAction.ConfirmUndo))
 
         coVerify(exactly = 0) { observer.acknowledgeReaction(any()) }
+    }
+
+    private companion object {
+        val TEST_UNDO_REF = UndoRef(
+            RestoreOwnerId("00000000-0000-4000-8000-000000000011"),
+        )
     }
 }

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.app_dialogs.impl.observer
 
+import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreOwnerId
+import io.github.stslex.workeeper.core.data.backup.api.restore.UndoRef
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupErrorCode
 import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialog
 import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialogUserAction
@@ -64,7 +66,7 @@ internal class AppDialogObserverImplTest {
                 }
             }
             val second = AppDialogUserChoice(
-                dialog = AppDialog.UndoRestoreSuccess,
+                dialog = AppDialog.UndoRestoreSuccess(),
                 action = AppDialogUserAction.Acknowledge,
             )
             observer.emit(second)
@@ -75,7 +77,10 @@ internal class AppDialogObserverImplTest {
 
     @Test
     fun `acknowledgeReaction delegates to repository dismiss`() = runTest {
-        val dialog = AppDialog.UndoRestoreConfirmation(originalDataDateEpochMs = 100L)
+        val dialog = AppDialog.UndoRestoreConfirmation(
+            undoRef = TEST_UNDO_REF,
+            originalDataDateEpochMs = 100L,
+        )
 
         observer.acknowledgeReaction(dialog)
 
@@ -88,7 +93,7 @@ internal class AppDialogObserverImplTest {
         val a = async(dispatcher) { observer.observeUserActions().first() }
         val b = async(dispatcher) { observer.observeUserActions().first() }
         val choice = AppDialogUserChoice(
-            dialog = AppDialog.UndoRestoreSuccess,
+            dialog = AppDialog.UndoRestoreSuccess(),
             action = AppDialogUserAction.Acknowledge,
         )
 
@@ -106,7 +111,7 @@ internal class AppDialogObserverImplTest {
         val emitJob = launch(dispatcher) {
             observer.emit(
                 AppDialogUserChoice(
-                    dialog = AppDialog.UndoRestoreSuccess,
+                    dialog = AppDialog.UndoRestoreSuccess(),
                     action = AppDialogUserAction.Acknowledge,
                 ),
             )
@@ -116,5 +121,11 @@ internal class AppDialogObserverImplTest {
         assert(emitJob.isCompleted) {
             "emit must not suspend when buffer capacity is available even with no subscribers"
         }
+    }
+
+    private companion object {
+        val TEST_UNDO_REF = UndoRef(
+            RestoreOwnerId("00000000-0000-4000-8000-000000000011"),
+        )
     }
 }
