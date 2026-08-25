@@ -46,18 +46,37 @@ internal class StartupProcessor(
             PostPreflightStep.PeekThenArm -> {
                 runBlocking {
                     graph.startupMigrationCoordinator.checkAndRouteOrProceed()
-                    armAndClassify(graph, appDatabase, lifetime)
+                    armAndClassify(
+                        graph = graph,
+                        appDatabase = appDatabase,
+                        lifetime = lifetime,
+                        publishTerminalAfterArming = false,
+                    )
                 }
             }
 
             PostPreflightStep.ArmOnly -> runBlocking {
-                armAndClassify(graph, appDatabase, lifetime)
+                if (!graph.restoreRecoveryCoordinator.publishPendingTerminalOutbox()) {
+                    StartupOutcome.FinalizationPending
+                } else {
+                    armAndClassify(
+                        graph = graph,
+                        appDatabase = appDatabase,
+                        lifetime = lifetime,
+                        publishTerminalAfterArming = false,
+                    )
+                }
             }
         }
         // A recovery-routed process keeps running; without this a persisted BackupWorker would
         // still bind a lease over the file this launch declared unprovable. See spec §8.5b.
-        if (outcome == StartupOutcome.RouteToRecovery) sealWorkerAdmission()
-        return outcome
+        val deliveredOutcome = if (outcome == StartupOutcome.FinalizationPending) {
+            StartupOutcome.RouteToRecovery
+        } else {
+            outcome
+        }
+        if (deliveredOutcome == StartupOutcome.RouteToRecovery) sealWorkerAdmission()
+        return deliveredOutcome
     }
 
     /**
@@ -79,10 +98,20 @@ internal class StartupProcessor(
             PostPreflightStep.FinalizationPending -> StartupOutcome.FinalizationPending
             PostPreflightStep.PeekThenArm -> {
                 graph.startupMigrationCoordinator.checkAndRouteOrProceed()
-                armAndClassify(graph, appDatabase, lifetime)
+                armAndClassify(
+                    graph = graph,
+                    appDatabase = appDatabase,
+                    lifetime = lifetime,
+                    publishTerminalAfterArming = false,
+                )
             }
 
-            PostPreflightStep.ArmOnly -> armAndClassify(graph, appDatabase, lifetime)
+            PostPreflightStep.ArmOnly -> armAndClassify(
+                graph = graph,
+                appDatabase = appDatabase,
+                lifetime = lifetime,
+                publishTerminalAfterArming = true,
+            )
         }
     }
 
@@ -111,6 +140,7 @@ internal class StartupProcessor(
         graph: AppGraph,
         appDatabase: AppDatabase,
         lifetime: AppScopeLifetime,
+        publishTerminalAfterArming: Boolean,
     ): StartupOutcome {
         armPostPreflight(graph, appDatabase, lifetime)
         val outcome = if (
@@ -120,8 +150,10 @@ internal class StartupProcessor(
         } else {
             StartupOutcome.Proceed
         }
-        if (outcome == StartupOutcome.Proceed) {
-            graph.restoreRecoveryCoordinator.publishPendingTerminalOutbox()
+        if (outcome == StartupOutcome.Proceed && publishTerminalAfterArming &&
+            !graph.restoreRecoveryCoordinator.publishPendingTerminalOutbox()
+        ) {
+            return StartupOutcome.FinalizationPending
         }
         return outcome
     }

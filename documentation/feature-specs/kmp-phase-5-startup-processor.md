@@ -267,13 +267,17 @@ sealed interface StartupOutcome {
     data object Proceed : StartupOutcome
     data object RouteToRecovery : StartupOutcome     // decision cached on the coordinator, as today
     data object RestartRequired : StartupOutcome     // Scenario-1 RestoreRolledBack (cold start)
+    data object FinalizationPending : StartupOutcome // mandatory state/UI handoff incomplete
 }
 ```
 
 Stages, order-preserving: Scenario 1 → (short-circuits) → Scenario 2 → chores (image cleanup;
 planner warm-up guarded by `RouteToRecovery` + injected `isLowRamDevice`) → dialog-observer arming
 (eager `recoveryBootstrap` read). Chores launch on the **generation lifetime**, fire-and-forget,
-no reader waits.
+no reader waits. A newly finalized restore adds a policy-specific terminal barrier: cold start
+publishes the outbox before chores, while an in-process candidate arms chores and the observer
+before publication. App-dialog write failure routes cold start to sealed recovery or returns
+candidate `FinalizationPending`; acknowledgement failure after that durable write is replay cleanup.
 
 - **Cold start**: generation 1 published on build (the graph exists before preflight because
   preflight *uses* it; no UI can observe it before `onCreate` returns — manifest has no
@@ -317,8 +321,10 @@ and before anything irreversible; exactly one terminal method
 internal escapes. Terminal selection is durable-phase-aware: `onCommitted` is legal only after
 the `Committed` journal exists and the shared verified-attempt finalizer has made the pointer and
 terminal outbox durable. A failure before that atomic transition preserves the `Committed`
-attempt and its exact files and cannot report a clean success. Publication of the outbox is
-idempotent; its owner-checked acknowledgement clears it only after dialog publication succeeds.
+attempt and its exact files and cannot report a clean success. Failure of the later app-dialog
+write keeps the finalized pointer/outbox and also cannot report clean success. Publication is
+idempotent; its owner-checked acknowledgement clears the outbox only after dialog publication
+succeeds, but acknowledgement failure does not revoke that already-durable dialog.
 
 **The point of no return is the START of the first irreversible action** — the outgoing
 teardown, the `close()` INVOCATION, or the file mutation — never its completion. Before it,
@@ -406,15 +412,16 @@ rename). Nothing published yet.
 
 **Preflight**: the candidate's own coordinator verifies (Scenario-1 semantics:
 `currentSchemaVersion()` through the candidate — the open is the verification and migrations run
-here), then invokes the same atomic attempt finalizer used by cold-start preflight. A finalizer
-write or outbox-publication failure returns `FinalizationPending`; the candidate is torn down and
-must not publish. Pointer activation is therefore not a policy callback and cannot be skipped by
-`RebuildInProcess`.
+here), then invokes the same atomic attempt finalizer used by cold-start preflight. The candidate
+then completes chores and dialog-observer arming before mandatory outbox publication. A finalizer
+write or app-dialog publication failure returns `FinalizationPending`; the candidate is torn down
+and must not publish. Pointer activation is therefore not a policy callback and cannot be skipped
+by `RebuildInProcess`.
 
 **Publishing**: single atomic `Serving(genN+1)` write (one immutable value behind both phase
 faces); the snackbar epoch advances (commit only); worker admission reopens; UI re-keys onto the
-new generation; old saved-state slot dropped (`SaveableStateHolder.removeState(oldId)`); startup
-chores + observer arming run on the new lifetime.
+new generation; old saved-state slot dropped (`SaveableStateHolder.removeState(oldId)`). Candidate
+chores and observer arming have already crossed the Preflight barrier before this state.
 
 **Failure semantics + result truth** (locked):
 - Pre-PONR: abort → generation N keeps serving, fully intact (ViewModelStore included);
@@ -441,6 +448,10 @@ N's teardown — VM store clear + lifetime cancel-and-join — COMPLETES before 
 Post-PONR failures never resurrect the partially disposed N: an escape after teardown began
 goes Fatal. Publication order at the boundary is fixed (R3): advance the snackbar epoch →
 publish the successor → reopen worker admission → lift the snackbar fence.
+
+`FinalizationPending` is the one pre-PONR preflight verdict that cannot abort back to N: mandatory
+restore terminal publication is still missing. The candidate is torn down without closing the
+shared database, the runtime goes Fatal, and N is not republished or re-admitted.
 
 An incomplete teardown is TERMINAL, never publish-anyway (R4): a post-PONR teardown failure
 (VM-clear throw, or an unjoinable N job) best-efforts the candidate's own release, aggregates,
@@ -561,15 +572,15 @@ validate exact staged source
 → persist Committed(N), active=P
 → verify candidate/cold-start generation
 → atomically finalize active=N-or-null + terminal outbox + remove N
-→ publish/ack outbox
+→ mandatory publish; owner-check acknowledgement as replay cleanup
 → sweep unreferenced P and protocol debris
 ```
 
 `Committed(N), active=P` is valid only while UI and DB-bound admission remain closed. If the live
 database verifies but N is missing, the restore is proven and its undo is unavailable: the
 atomic finalizer writes `activeUndo=null` and `previousVersionAvailable=false`. It must never
-advertise P as undo of N. Before the finalizer's atomic edit fails, the `Committed` attempt, P and
-N stay intact and no clean success or candidate publication is legal.
+advertise P as undo of N. If the finalizer's atomic edit fails, the `Committed` attempt, P and N
+stay intact and no clean success or candidate publication is legal.
 
 **Capacity admission.** After restore-source ownership transfer and validation, but before undo
 creation, journal claim, generation teardown, close or swap, query injectable
@@ -599,10 +610,10 @@ authoritative same-install recovery asset.
 
 | Outcome | Condition | What the launch does |
 |---|---|---|
-| `RestoreSucceeded` | exact `Restore/Committed` + verified live generation + atomic pointer/outbox finalization | publish/ack the outbox, then continue; an outbox retry is idempotent |
+| `RestoreSucceeded` | exact `Restore/Committed` + verified live generation + atomic pointer/outbox finalization | cold: publish before chores; candidate: arm then publish; continue only after the app-dialog write succeeds; acknowledgement retry is idempotent cleanup |
 | `RestoreRolledBack` | exact compensation rollback committed and finalized | restart last; the in-process Room handle may be stale |
-| `RecoveryCompleted` | an interrupted rollback is already `Committed` and finalizes by descriptor identity | publish/ack its origin-aware outbox, then continue through ordinary schema preflight |
-| `FinalizationPending` | verification succeeded but the atomic state transition or outbox publication did not complete | keep UI/DB-bound admission closed; preserve the attempt and exact files; never publish the candidate or report clean success |
+| `RecoveryCompleted` | an interrupted rollback is already `Committed`, finalizes by descriptor identity, and its origin-aware terminal is durably published | continue through ordinary schema preflight; retained outbox acknowledgement is replay cleanup |
+| `FinalizationPending` | verification succeeded but the atomic state transition, exact post-arming proof, or app-dialog publication did not complete | keep UI/DB-bound admission closed and never publish the candidate or report clean success; pre-edit failure preserves the attempt/assets, post-edit failure preserves the finalized pointer/outbox |
 | `InterruptedRestore` | same-install outcome-unknown restore with a healthy compatible live file, including the explicit legacy missing-C case | route to the DB-free recovery surface; automatic acceptance is forbidden, but user Continue is available (§27) |
 | `RecoveryRequired` | same-install referenced asset missing/unusable, live DB unusable, or rollback cannot become durably provable | arm zero DB-bound work and route to the DB-free recovery surface with assets preserved |
 
@@ -621,10 +632,12 @@ and removes the owned attempt. The pointer transition and terminal must agree wi
 - compensation rollback of N: `ClearIf(N)` plus `RestoreFailed`; unrelated active P survives.
 
 The outbox is published idempotently through `AppDialogPublisher` and acknowledged only after
-publication returns successfully. Asset deletion follows durable finalization. A committed
-rollback may finalize from descriptor identity even if an earlier best-effort deletion already
-removed its source. Forbidden states include a resolved attempt with an old pointer, a success
-dialog before compensation, and candidate publication while mandatory restore state is pending.
+publication returns successfully. App-dialog write failure remains `FinalizationPending`;
+restore-state acknowledgement failure after that write is replay cleanup. Asset deletion follows
+durable finalization, not UI acknowledgement. A committed rollback may finalize from descriptor
+identity even if an earlier best-effort deletion already removed its source. Forbidden states
+include a resolved attempt with an old pointer, a success dialog before compensation, and candidate
+publication while mandatory restore state is pending.
 
 **Origin-aware replay.** Both rollback descriptors carry their origin in the same atomic claim:
 `UserUndo` owes `UndoRestoreSuccess`; `ScenarioOneRecovery` owes `RestoreFailure`. Unknown or
@@ -819,7 +832,9 @@ not DAO proxies). Each point: inject → assert the locked outcome.
 | File replacement (rename fails) | rollback mechanics + fresh generation → **`RecoveredByRollback`** (restore-failure semantics), else Fatal |
 | New DB construction / graphFactory throw | staged unwind (jobs joined, orphan closed) then rollback recovery → `RecoveredByRollback`, else Fatal |
 | Migration/preflight failure (incl. inline S1 rollback) | outer restore → `RecoveredByRollback` after the bounded retry over the rolled-back file; the inline caller's own result is `Committed`; exactly one bounded recovery |
-| Verified finalization/outbox failure | `FinalizationPending`; keep attempt and exact assets; no old pointer advertised, clean success, outbox acknowledgement or candidate publication |
+| Atomic verified-finalizer write failure | `FinalizationPending`; keep `Committed` attempt and exact assets; no clean success, outbox or candidate publication |
+| Mandatory app-dialog publication/read/proof failure after finalization | `FinalizationPending`; finalized pointer/outbox remain durable; no clean success or candidate publication; rollback source may be collected because rollback finalization is already durable |
+| Restore-state acknowledgement failure after durable app-dialog publication | proceed; retained outbox is replay cleanup and deduplicated publication is safe |
 | Capacity query insufficient/throws/overflows | typed pre-PONR rejection; zero undo creation, journal, close or swap; equality passes |
 | Rollback mechanics failure | `ReplacementOutcome.Fatal`; no closed generation serving; `onFatal` effects journal durably |
 | Post-rollback generation construction failure | `Fatal`, same |
@@ -1839,7 +1854,7 @@ validate and no-backup-stage source N
 → persist Restore/Committed(N), active=P
 → verify the new generation
 → atomically write active=N-or-null + terminal outbox and remove N attempt
-→ publish and acknowledge outbox
+→ publish outbox; owner-check acknowledgement as replay cleanup
 → sweep unreferenced P and debris
 ```
 
@@ -1861,7 +1876,13 @@ does not live in a restart or rebuild callback. Before the atomic finalization t
 failure preserves `Committed(N)`, P and N and reports neither clean success nor
 `RecoveryCompleted`. A candidate cannot publish while finalization is pending. After the atomic
 transition, terminal publication is replayed from the outbox; acknowledgement follows successful
-publication. A success terminal can never be followed by compensation in the same transaction.
+publication. Failure to write the terminal into the app-dialog DataStore is still
+`FinalizationPending`: cold start routes to recovery and seals worker admission before chores,
+while `RebuildInProcess` arms the candidate first and refuses candidate publication if the handoff
+then fails. A graph-only transition terminalizes instead of republishing the outgoing generation.
+Once the app-dialog write succeeds, failure to acknowledge the restore-state outbox is replay
+cleanup rather than an unsurfaced terminal: deduplicated publication is already durable. A success
+terminal can never be followed by compensation in the same transaction.
 
 For `RebuildInProcess`, the atomic finalizer leaves a newly written success outbox pending until
 the candidate completes all fallible arming. If arming escapes after finalization, the runtime
@@ -1997,3 +2018,24 @@ These remain outside this bounded correction and must not be inferred as complet
 - replace any process-lifetime strong Activity ownership with audited weak-reference handling;
 - define and prove multi-instance `ViewModelStore` ownership rather than extending the current
   single-host lifecycle correction.
+
+### 27.11 Post-review terminal-publication closure
+
+The exact-SHA review of `d869e11393c5741c404e9e62936dd581815cb96a` found that the owner/pointer
+transition was durable but `AppDialogPublisher.publish` failure was swallowed. Cold startup could
+therefore arm workers and UI after an unpublished restore terminal, and a committed rollback could
+return `RecoveryCompleted` without surfacing its terminal. The finding was classified
+`correct-and-new` before the fix was pushed.
+
+The corrected gate distinguishes the two sides of the cross-DataStore tear:
+
+- failure of the app-dialog write keeps the outbox pending, returns `FinalizationPending`, and
+  refuses UI/worker admission;
+- failure of restore-state acknowledgement after a successful app-dialog write is replayable
+  cleanup and does not revoke the already-durable terminal;
+- cold restore success publishes before chores; an in-process candidate arms before publishing so
+  the observer exists, then remains unpublished if the handoff fails;
+- graph-only `FinalizationPending` is Fatal and cannot republish the outgoing generation.
+
+Behavioral RED, the executed-and-restored post-arming bypass mutant, and focused green XMLs are
+recorded under `kmp-phase-5-evidence/` and indexed by its README.

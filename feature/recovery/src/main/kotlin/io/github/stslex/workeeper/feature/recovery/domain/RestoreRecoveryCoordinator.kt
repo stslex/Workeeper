@@ -123,7 +123,9 @@ class RestoreRecoveryCoordinator @Inject internal constructor(
         ) {
             return PreflightOutcome.RecoveryRequired
         }
-        publishTerminalOutbox(state.terminalOutbox)
+        if (!publishTerminalOutbox(state.terminalOutbox)) {
+            return PreflightOutcome.FinalizationPending
+        }
         return handleCurrentState(state)
     }
 
@@ -342,10 +344,14 @@ class RestoreRecoveryCoordinator @Inject internal constructor(
         }
         if (!finalized) return PreflightOutcome.FinalizationPending
 
-        publishTerminalOutbox(terminal)
+        val published = publishTerminalOutbox(terminal)
         runCatching { snapshotProvider.deleteUndo(attempt.sourceRef) }
             .onFailure { error -> logger.w { "owned undo deletion deferred: $error" } }
-        return PreflightOutcome.RecoveryCompleted
+        return if (published) {
+            PreflightOutcome.RecoveryCompleted
+        } else {
+            PreflightOutcome.FinalizationPending
+        }
     }
 
     private suspend fun applyRestoreCompensation(
@@ -499,26 +505,41 @@ class RestoreRecoveryCoordinator @Inject internal constructor(
         }
     }
 
-    private suspend fun publishTerminalOutbox(terminal: RestoreTerminal?) {
-        terminal ?: return
+    private suspend fun publishTerminalOutbox(terminal: RestoreTerminal?): Boolean {
+        terminal ?: return true
         val published = runCatching { appDialogPublisher.publish(terminal.toDialog()) }
             .onFailure { error -> logger.e(error, "terminal outbox publication deferred") }
             .isSuccess
-        if (published) {
-            runCatching { restoreStateRepository.acknowledgeTerminal(terminal.owner) }
-                .onFailure { error -> logger.e(error, "terminal outbox acknowledgement deferred") }
-        }
+        if (!published) return false
+
+        // The dialog write is mandatory; acknowledgement is replay cleanup. See Phase 5 §8.5b.
+        runCatching { restoreStateRepository.acknowledgeTerminal(terminal.owner) }
+            .onFailure { error -> logger.e(error, "terminal outbox acknowledgement deferred") }
+        return true
     }
 
-    /** Publishes newly finalized restore success only after candidate arming has completed. */
-    suspend fun publishPendingTerminalOutbox() {
+    /** Returns false while the policy-ordered mandatory terminal publication is still pending. */
+    suspend fun publishPendingTerminalOutbox(): Boolean {
         val state = runCatching { restoreStateRepository.readProtocol() }
             .getOrElse { error ->
                 logger.w { "terminal outbox read deferred: $error" }
-                return
-            } as? RestoreProtocolRead.Current ?: return
-        if (state.state.attempt != null || !terminalOutboxMatchesPointer(state.state)) return
-        publishTerminalOutbox(state.state.terminalOutbox)
+                return recordTerminalPublicationPending()
+            } as? RestoreProtocolRead.Current ?: return recordTerminalPublicationPending()
+        if (state.state.attempt != null || !terminalOutboxMatchesPointer(state.state)) {
+            return recordTerminalPublicationPending()
+        }
+        val terminal = state.state.terminalOutbox as? RestoreTerminal.RestoreSucceeded
+            ?: return recordTerminalPublicationPending()
+        if (!publishTerminalOutbox(terminal)) {
+            return recordTerminalPublicationPending()
+        }
+        return true
+    }
+
+    private suspend fun recordTerminalPublicationPending(): Boolean {
+        lastRecoveryExportOutcome = preserveDbForRecoveryExport()
+        lastPreflightOutcome = PreflightOutcome.FinalizationPending
+        return false
     }
 
     /** Cold-start-only sweep; runtime transitions sweep at their serialized submission boundary. */

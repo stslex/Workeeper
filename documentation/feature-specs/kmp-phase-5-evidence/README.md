@@ -43,6 +43,16 @@ failure after an exact durable success transition failed 1/1 before the correcti
 publication and owner-checking the persisted transition, the complete affected runtime/startup/
 coordinator suites passed 145/145 (`r5-review-green-post-finalization-*.xml`, 529/529 executed).
 
+The fresh Codex review of exact SHA `d869e11393c5741c404e9e62936dd581815cb96a` found that a failed
+app-dialog terminal write was retained for replay but still reported clean startup/rollback
+outcomes. The compatible behavioral pin failed 1/1 (`r5-bot-red-terminal-publication.xml`,
+183/183 tasks executed). The new-API post-arming verdict-bypass mutant executed 19 inputs and failed 1,
+with 511/511 tasks executed; then the harness restored the source byte-exact
+(`r5-bot-mutant-post-arm-publication-bypass.xml`). Focused corrected coverage passed 66/66:
+59 coordinator, 5 startup, 1 graph-only runtime and 1 replacement-runtime test, with 529/529 tasks
+executed (`r5-bot-green-terminal-publication-*.xml`). The wider affected module suites also passed with
+562/562 tasks executed before the exact-commit battery.
+
 **Round-4 red-on-base evidence.** Every mandated round-4 test was proven to FAIL at the
 pre-correction head `936ab699`: the new test files were copied onto a worktree at that commit
 and the four suites run — **21 failures total (20 named tests + 1 parameterized invocation)**,
@@ -82,12 +92,11 @@ immutable-publication SameInstance run; `r5-preliminary-regression-app-app.xml`,
 `r5-preliminary-regression-feature-all-exercises.xml` are the four nonzero module reports whose
 counts sum to the preliminary 81/81 Regression run.
 
-## §27 correction-tree gates
+## §27 `d869e113` correction-tree checkpoint
 
-These raw captures were taken from the complete correction tree immediately before its evidence
-commit. The later exact-commit rerun is reported against the pushed SHA in the PR handoff; adding
-this ledger and its XMLs is the only change between the captured production/test tree and that
-commit.
+These raw captures were taken immediately before the `d869e113` evidence commit. They remain a
+prior exact-commit checkpoint; the post-review terminal-publication closure changes production and
+tests, so its final-SHA rerun supersedes these task/test totals in the final handoff.
 
 | Gate | Forced execution | Test / artifact result | Raw device XML |
 |---|---:|---|---|

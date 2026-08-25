@@ -277,9 +277,7 @@ internal class AppRuntime(
         }
 
         // Reject nested rollback here: Mutex is non-reentrant and no mutation has started.
-        val preflightOutcome = runCatching {
-            withContext(GraphOnlyTransition) { preflight(candidate) }
-        }
+        val preflightOutcome = runCatching { withContext(GraphOnlyTransition) { preflight(candidate) } }
         if (preflightOutcome.getOrNull() != StartupOutcome.Proceed) {
             // Republish only after candidate jobs have stopped using the shared database.
             if (!quiescer.tearDownCandidate(candidate, closeCandidateDatabase = false)) {
@@ -289,14 +287,15 @@ internal class AppRuntime(
                 )
                 return ReinitializeOutcome.Fatal
             }
-            return abortToServing(
-                outgoing,
-                reason = "candidate preflight failed: " +
-                    (
-                        preflightOutcome.exceptionOrNull()?.toString()
-                            ?: "${preflightOutcome.getOrNull()}"
-                        ),
-            )
+            return when (preflightOutcome.getOrNull()) {
+                StartupOutcome.FinalizationPending ->
+                    ReinitializeOutcome.Fatal.also { publishFatal("terminal publication pending") }
+                else -> abortToServing(
+                    outgoing,
+                    reason = "candidate preflight failed: " +
+                        "${preflightOutcome.exceptionOrNull() ?: preflightOutcome.getOrNull()}",
+                )
+            }
         }
 
         // PONR: fully tear down N before exposing N+1; failures are terminal.

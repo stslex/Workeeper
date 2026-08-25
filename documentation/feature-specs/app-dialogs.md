@@ -151,6 +151,13 @@ only after publication returns successfully. A crash before
 publication leaves the outbox; a crash after publication but before
 acknowledgement replays a deduplicated publish. No clean restore/rollback
 success is reported before the owner/pointer/outbox transition is durable.
+Failure of the app-dialog DataStore write remains `FinalizationPending` and
+keeps UI/worker admission closed. Failure of restore-state acknowledgement
+after a successful app-dialog write does not close admission again: the user
+terminal is already durable and the retained outbox is replay cleanup. Applied
+rollback-source collection remains authorized by the durable rollback finalizer
+and performed by best-effort deletion or the owner-aware sweep, not by this UI
+handoff.
 Every production terminal dialog carries that terminal owner. The app-dialog
 DataStore also records the no-backup installation epoch: a missing or mismatched
 epoch atomically clears all restore-related dialog keys before any pending

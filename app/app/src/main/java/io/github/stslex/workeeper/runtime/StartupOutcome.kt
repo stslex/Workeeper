@@ -13,6 +13,6 @@ internal sealed interface StartupOutcome {
     /** A rollback replaced the live file; the caller must rebuild or restart. */
     data object RestartRequired : StartupOutcome
 
-    /** Candidate DB verified, but mandatory owner/pointer finalization is not durable. */
+    /** Candidate DB verified, but mandatory owner/pointer or terminal publication is incomplete. */
     data object FinalizationPending : StartupOutcome
 }

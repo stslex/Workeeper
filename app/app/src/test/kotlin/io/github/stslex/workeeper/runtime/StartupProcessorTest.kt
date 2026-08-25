@@ -28,7 +28,7 @@ internal class StartupProcessorTest {
 
     private val restoreCoordinator = mockk<RestoreRecoveryCoordinator> {
         coEvery { sweepRecoveryGarbage() } returns Unit
-        coEvery { publishPendingTerminalOutbox() } returns Unit
+        coEvery { publishPendingTerminalOutbox() } returns true
     }
 
     private var peeks = 0
@@ -99,6 +99,7 @@ internal class StartupProcessorTest {
 
         assertEquals(StartupOutcome.Proceed, outcome)
         coVerify(exactly = 0) { migrationCoordinator.checkAndRouteOrProceed() }
+        coVerify(exactly = 1) { restoreCoordinator.publishPendingTerminalOutbox() }
         coVerify(exactly = 1) { imageStorage.cleanupTempFiles() }
         // lastDecision is null on this path, so the planner guard passes (spec §2).
         assertEquals(1, plannerRuns)
@@ -118,6 +119,7 @@ internal class StartupProcessorTest {
             migrationCoordinator.checkAndRouteOrProceed()
         }
         coVerify(exactly = 1) { restoreCoordinator.sweepRecoveryGarbage() }
+        coVerify(exactly = 0) { restoreCoordinator.publishPendingTerminalOutbox() }
     }
 
     @Test
@@ -171,6 +173,7 @@ internal class StartupProcessorTest {
                 restoreCoordinator.handlePostRestoreLaunch()
                 migrationCoordinator.checkAndRouteOrProceed()
             }
+            coVerify(exactly = 0) { restoreCoordinator.publishPendingTerminalOutbox() }
             coVerify(exactly = 1) { imageStorage.cleanupTempFiles() }
             coVerify(exactly = 1) { graph.recoveryBootstrap }
         }
@@ -184,8 +187,41 @@ internal class StartupProcessorTest {
 
             assertEquals(StartupOutcome.Proceed, outcome)
             coVerify(exactly = 0) { migrationCoordinator.checkAndRouteOrProceed() }
-            coVerify(exactly = 1) { graph.recoveryBootstrap }
-            coVerify(exactly = 1) { restoreCoordinator.publishPendingTerminalOutbox() }
+            coVerifyOrder {
+                graph.recoveryBootstrap
+                restoreCoordinator.publishPendingTerminalOutbox()
+            }
+        }
+
+    @Test
+    fun `post-arming terminal failure routes cold start to recovery and seals workers`() {
+        coEvery { restoreCoordinator.handlePostRestoreLaunch() } returns
+            PreflightOutcome.RestoreSucceeded
+        coEvery { restoreCoordinator.publishPendingTerminalOutbox() } returns false
+
+        val outcome = coldStart()
+
+        assertEquals(StartupOutcome.RouteToRecovery, outcome)
+        assertEquals(1, seals)
+        coVerify(exactly = 0) { graph.recoveryBootstrap }
+        coVerify(exactly = 0) { imageStorage.cleanupTempFiles() }
+        assertEquals(0, plannerRuns)
+    }
+
+    @Test
+    fun `post-arming terminal failure refuses in-process candidate publication`() =
+        kotlinx.coroutines.test.runTest {
+            coEvery { restoreCoordinator.handlePostRestoreLaunch() } returns
+                PreflightOutcome.RestoreSucceeded
+            coEvery { restoreCoordinator.publishPendingTerminalOutbox() } returns false
+
+            val outcome = processor().preflightAndArm(graph, appDatabase, lifetime)
+
+            assertEquals(StartupOutcome.FinalizationPending, outcome)
+            coVerifyOrder {
+                graph.recoveryBootstrap
+                restoreCoordinator.publishPendingTerminalOutbox()
+            }
         }
 
     @Test

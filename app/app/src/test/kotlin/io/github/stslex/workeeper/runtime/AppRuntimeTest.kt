@@ -268,6 +268,20 @@ internal class AppRuntimeTest {
         }
 
     @Test
+    fun `pending terminal publication terminalizes graph-only transition`() = runtimeTest { runtime ->
+        val genOne = runtime.currentGeneration
+        preflightOutcome = StartupOutcome.FinalizationPending
+
+        val outcome = runtime.reinitialize()
+
+        assertEquals(ReinitializeOutcome.Fatal, outcome)
+        assertEquals(RuntimePhase.Fatal, runtime.phases.value)
+        assertEquals(0, epochAdvances)
+        assertFalse(builtLifetimes.last().isActive)
+        assertNull(runtime.admitUiGeneration(genOne.id))
+    }
+
+    @Test
     fun `preflight throw unwinds deterministically to Serving`() = runtimeTest { runtime ->
         val genOne = runtime.currentGeneration
         preflightError = IllegalStateException("injected preflight failure")

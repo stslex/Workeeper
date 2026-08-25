@@ -393,15 +393,21 @@ because a rotation cleanup failed.
    `activeUndo`, writes the terminal outbox, and removes the owned attempt. A
    verified restore whose N undo is missing succeeds with
    `previousVersionAvailable=false`; P is never advertised as undo of N.
-   Finalization failure keeps `Committed`, P, and N and cannot report clean
-   success or publish a success dialog.
+   Atomic finalization-write failure keeps `Committed`, P, and N and cannot
+   report clean success or publish a success dialog.
 8. The coordinator idempotently publishes the terminal through
    `AppDialogPublisher` and acknowledges the outbox only after publication. For
    `RebuildInProcess`, a newly finalized success remains pending through every
    fallible candidate-arming step. If arming escapes, exact persisted proof of
    the resolved owner, terminal and N-or-null pointer permits one arming retry
    without compensation; unreadable or mismatched proof is `Fatal`. Only after
-   arming succeeds is the pending success published and acknowledged.
+   arming succeeds is the pending success published, then acknowledgement is
+   attempted. A failed app-dialog write remains `FinalizationPending`: cold startup seals admission
+   before chores, an in-process candidate is not published, and a committed
+   rollback is not reported complete. Its applied source becomes collectible
+   after the rollback finalizer is durable. Once the app-dialog write succeeds,
+   a restore-state acknowledgement failure is replay cleanup because the
+   terminal is already durable.
    Owner-aware sweep then deletes only strict unreferenced recovery names;
    deletion failure remains retryable garbage.
 

@@ -178,15 +178,22 @@ Flow:
    advertised as undo of N.
 6. **Replay the terminal handoff.** Publish the terminal through
    `AppDialogPublisher`, then clear the outbox only after publication returns
-   successfully. A failure before the atomic finalization leaves
-   `Committed(N)`, P, and N intact and returns `FinalizationPending`; it cannot
-   report clean restore success or publish a success dialog. Replaying after a
-   publication/acknowledgement tear is idempotent. For `RebuildInProcess`, a
-   newly finalized success stays in the outbox until candidate chores and the
-   dialog observer arm. If arming throws, the runtime owner-checks the exact
-   persisted success owner and N-or-null pointer, releases the candidate, and
-   retries once without compensation. An unreadable or mismatched proof is
-   Fatal; it cannot authorize rolling a verified restore back.
+   successfully. A finalization-write failure leaves `Committed(N)`, P, and N
+   intact. A later app-dialog write failure leaves the finalized outbox
+   pending and also returns `FinalizationPending`; cold startup routes to the
+   sealed recovery surface before chores, and a candidate is not published.
+   A committed rollback does not report `RecoveryCompleted` until that
+   mandatory publication succeeds. Its exact source becomes collectible after
+   durable rollback finalization, independently of terminal publication. Once
+   the app-dialog write is durable, restore-state acknowledgement failure is
+   replay cleanup: the outbox remains and deduplicated publication repeats on
+   the next launch.
+   For `RebuildInProcess`, a newly finalized success stays in the outbox until
+   candidate chores and the dialog observer arm. If arming throws, the runtime
+   owner-checks the exact persisted success owner and N-or-null pointer,
+   releases the candidate, and retries once without compensation. An
+   unreadable or mismatched proof is Fatal; it cannot authorize rolling a
+   verified restore back.
 7. **Collect only unowned files.** After state is durable, sweep strict
    protocol filenames from persisted ownership. P becomes collectible only
    after N is active or the pointer is cleared. Delete failure is retryable
@@ -385,10 +392,13 @@ Flow:
    terminal outbox, and removes the rollback attempt. Therefore user undo
    clears its own pointer, while compensation from N cannot clear unrelated P.
 7. **Handoff and cleanup.** Outbox publication produces
-   `UndoRestoreSuccess`; only then is the terminal acknowledged. The source is
-   deleted after durable rollback finalization. A committed rollback can still
-   finalize from descriptor identity if best-effort source deletion already
-   occurred. Delete failure remains retryable garbage.
+   `UndoRestoreSuccess`; only then is the terminal acknowledged, and
+   `RecoveryCompleted` requires that publication to have succeeded. A later
+   acknowledgement failure retains replay cleanup but does not retract the
+   durable dialog. The source is deleted after durable rollback finalization,
+   independently of this UI handoff. A committed rollback can still finalize
+   from descriptor identity if best-effort source deletion already occurred.
+   Delete failure remains retryable garbage.
 
 After the next successful restore, active undo changes only during the atomic
 verified finalization: P remains protected while `Committed(N), active=P` is
@@ -1015,9 +1025,11 @@ and their data is intact. The double-restart is bounded — the user does
 not see further restarts.
 
 If the user sees more than two restarts in a row, inspect the same-install
-attempt and terminal outbox. A committed rollback whose atomic finalization or
-terminal publication cannot complete must stay unresolved; deleting its source
-or clearing a legacy flag is not a valid repair.
+attempt and terminal outbox. Atomic rollback-finalizer failure keeps the
+committed attempt unresolved. Later terminal-publication failure instead keeps
+the finalized pointer/outbox recovery-routed; it must not be reported
+`RecoveryCompleted`. Source collection after durable rollback finalization is
+valid, but clearing the outbox or a legacy flag is not a repair.
 
 ### "Revert last restore" row appears in Settings
 

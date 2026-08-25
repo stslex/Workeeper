@@ -188,7 +188,7 @@ internal class RestoreRecoveryCoordinatorTest {
     }
 
     @Test
-    fun `terminal publication failure leaves the outbox unacknowledged for replay`() = runTest {
+    fun `terminal publication failure remains pending with admission closed`() = runTest {
         val terminal = RestoreTerminal.UndoSucceeded(ROLLBACK_OWNER)
         coEvery { restoreStateRepository.readProtocol() } returns
             current(terminalOutbox = terminal)
@@ -196,9 +196,33 @@ internal class RestoreRecoveryCoordinatorTest {
 
         val outcome = coordinator.handlePostRestoreLaunch()
 
-        assertEquals(RestoreRecoveryCoordinator.PreflightOutcome.NoOp, outcome)
+        assertEquals(RestoreRecoveryCoordinator.PreflightOutcome.FinalizationPending, outcome)
+        assertTrue(coordinator.recoverySurfaceRequired)
         coVerify(exactly = 0) { restoreStateRepository.acknowledgeTerminal(any()) }
     }
+
+    @Test
+    fun `terminal acknowledgement failure remains replayable after durable dialog publish`() =
+        runTest {
+            val terminal = RestoreTerminal.UndoSucceeded(ROLLBACK_OWNER)
+            coEvery { restoreStateRepository.readProtocol() } returns
+                current(terminalOutbox = terminal)
+            coEvery { restoreStateRepository.acknowledgeTerminal(ROLLBACK_OWNER) } throws
+                IOException("restore-state acknowledgement failed")
+
+            val outcome = coordinator.handlePostRestoreLaunch()
+
+            assertEquals(RestoreRecoveryCoordinator.PreflightOutcome.NoOp, outcome)
+            coVerify(exactly = 1) {
+                appDialogPublisher.publish(
+                    AppDialog.UndoRestoreSuccess(terminalOwner = ROLLBACK_OWNER),
+                )
+            }
+            coVerify(exactly = 1) {
+                restoreStateRepository.acknowledgeTerminal(ROLLBACK_OWNER)
+            }
+            assertFalse(coordinator.recoverySurfaceRequired)
+        }
 
     @Test
     fun `post-arming handoff publishes and acknowledges the persisted success outbox`() = runTest {
@@ -212,7 +236,7 @@ internal class RestoreRecoveryCoordinatorTest {
             terminalOutbox = terminal,
         )
 
-        coordinator.publishPendingTerminalOutbox()
+        assertTrue(coordinator.publishPendingTerminalOutbox())
 
         coVerify(exactly = 1) {
             appDialogPublisher.publish(
@@ -224,6 +248,79 @@ internal class RestoreRecoveryCoordinatorTest {
             )
         }
         coVerify(exactly = 1) { restoreStateRepository.acknowledgeTerminal(RESTORE_OWNER) }
+    }
+
+    @Test
+    fun `post-arming publication failure caches pending recovery state`() = runTest {
+        val terminal = RestoreTerminal.RestoreSucceeded(
+            owner = RESTORE_OWNER,
+            restoredAtEpochMs = 99L,
+            previousVersionAvailable = true,
+        )
+        coEvery { restoreStateRepository.readProtocol() } returns current(
+            activeUndo = ActiveUndo(UNDO_N, originalDataDateEpochMs = 1L),
+            terminalOutbox = terminal,
+        )
+        coEvery { appDialogPublisher.publish(any()) } throws IOException("dialog store failed")
+
+        assertFalse(coordinator.publishPendingTerminalOutbox())
+
+        assertEquals(
+            RestoreRecoveryCoordinator.PreflightOutcome.FinalizationPending,
+            coordinator.lastPreflightOutcome,
+        )
+        assertTrue(coordinator.recoverySurfaceRequired)
+        coVerify(exactly = 1) { snapshotProvider.preserveDbBeforeMigration() }
+        coVerify(exactly = 0) { restoreStateRepository.acknowledgeTerminal(any()) }
+    }
+
+    @Test
+    fun `post-arming handoff refuses missing finalized success terminal`() = runTest {
+        coEvery { restoreStateRepository.readProtocol() } returns current(
+            activeUndo = ActiveUndo(UNDO_N, originalDataDateEpochMs = 1L),
+        )
+
+        assertFalse(coordinator.publishPendingTerminalOutbox())
+
+        assertEquals(
+            RestoreRecoveryCoordinator.PreflightOutcome.FinalizationPending,
+            coordinator.lastPreflightOutcome,
+        )
+        coVerify(exactly = 0) { appDialogPublisher.publish(any()) }
+    }
+
+    @Test
+    fun `post-arming protocol read failure remains pending without publication`() = runTest {
+        coEvery { restoreStateRepository.readProtocol() } throws IOException("state read failed")
+
+        assertFalse(coordinator.publishPendingTerminalOutbox())
+
+        assertEquals(
+            RestoreRecoveryCoordinator.PreflightOutcome.FinalizationPending,
+            coordinator.lastPreflightOutcome,
+        )
+        coVerify(exactly = 0) { appDialogPublisher.publish(any()) }
+    }
+
+    @Test
+    fun `post-arming owner mismatch remains pending without publication`() = runTest {
+        val terminal = RestoreTerminal.RestoreSucceeded(
+            owner = RESTORE_OWNER,
+            restoredAtEpochMs = 99L,
+            previousVersionAvailable = true,
+        )
+        coEvery { restoreStateRepository.readProtocol() } returns current(
+            activeUndo = ActiveUndo(UNDO_P, originalDataDateEpochMs = 1L),
+            terminalOutbox = terminal,
+        )
+
+        assertFalse(coordinator.publishPendingTerminalOutbox())
+
+        assertEquals(
+            RestoreRecoveryCoordinator.PreflightOutcome.FinalizationPending,
+            coordinator.lastPreflightOutcome,
+        )
+        coVerify(exactly = 0) { appDialogPublisher.publish(any()) }
     }
 
     @Test
@@ -651,6 +748,23 @@ internal class RestoreRecoveryCoordinatorTest {
         coVerify(exactly = 0) { snapshotProvider.deleteUndo(UNDO_N) }
         coVerify(exactly = 0) { appDialogPublisher.publish(any()) }
     }
+
+    @Test
+    fun `committed rollback publication failure stays pending after durable finalization`() =
+        runTest {
+            val attempt = rollbackAttempt(phase = RestoreAttempt.Phase.Committed)
+            coEvery { restoreStateRepository.readProtocol() } returns current(attempt = attempt)
+            coEvery { appDialogPublisher.publish(any()) } throws IOException("dialog store failed")
+
+            val outcome = coordinator.handlePostRestoreLaunch()
+
+            assertEquals(RestoreRecoveryCoordinator.PreflightOutcome.FinalizationPending, outcome)
+            coVerify(exactly = 1) {
+                restoreStateRepository.finalizeAttempt(ROLLBACK_OWNER, any(), any())
+            }
+            coVerify(exactly = 1) { snapshotProvider.deleteUndo(UNDO_N) }
+            assertTrue(coordinator.recoverySurfaceRequired)
+        }
 
     @Test
     fun `committed rollback whose live generation cannot verify remains unresolved`() = runTest {
