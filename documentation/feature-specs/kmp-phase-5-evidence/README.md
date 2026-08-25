@@ -5,9 +5,15 @@ First measured 2026-08-22; re-measured after each rework — round 2 (spec §20/
 maintainer correction: crash-safe promotion/consumption, terminal classification, legacy owner
 isolation, graph-only teardown terminality, replay-safe finalization). The current §27 correction
 adds installation-owned immutable recovery assets and owner-aware finalization without assigning
-a new architecture-decision ordinal. Historical tables keep their measured round labels; the §27
-tables below carry the current correction evidence.
+a new architecture-decision ordinal. Historical tables keep their measured round labels.
 Branch `feature/kmp-phase-5-startup-processor` (PR #252).
+
+Two heads carry §27 evidence and they are not interchangeable:
+
+| Head | What it is | The evidence it owns |
+|---|---|---|
+| `d869e11393c5741c404e9e62936dd581815cb96a` | the correction-tree checkpoint (spec §27.1–§27.10) | the `r5-preliminary-*`, `r5-review-*` and `r5-final-*` XMLs, and the checkpoint table below. The `r5-final-` prefix is historical: it names this checkpoint, not the final head. |
+| `ba5d2f9ac25b7deb305896895852d886cdeed962` | the final head — the post-review terminal-publication closure (spec §27.11) | the `r5-bot-*` XMLs committed in that commit, and the `ba5d2f9a-*` device XMLs beside this file |
 
 ## §27 reviewed-head and mutant evidence
 
@@ -22,8 +28,9 @@ At reviewed head `53a49801cd3e862854228983bd682a773cb88dba`, four executed suite
 | `r5-red-on-reviewed-head-snapshot-provider.xml` | 29 | 2 |
 | **Total** | **82** | **7** |
 
-Every required mutation ran through `documentation/mockups/mutation_harness.py`, returned the
-expected RED verdict, and restored the source bytes.
+Every required mutation ran on the `d869e113` correction tree through
+`documentation/mockups/mutation_harness.py`, returned the expected RED verdict, and restored the
+source bytes.
 
 | Mutation | Inputs | Failures | Raw XML |
 |---|---:|---:|---|
@@ -37,7 +44,7 @@ expected RED verdict, and restored the source bytes.
 | constant `"no-effects"` owner accepted | 1 | 1 | `r5-mutant-no-effects-owner.xml` |
 | **Total** | **11** | **9** | — |
 
-The post-review Rebuild ordering pin is behavioral on the current API: injected candidate arming
+The post-review Rebuild ordering pin is behavioral on the `d869e113` API: injected candidate arming
 failure after an exact durable success transition failed 1/1 before the correction
 (`r5-review-red-post-finalization-arm.xml`, 515/515 tasks executed). After deferring new success
 publication and owner-checking the persisted transition, the complete affected runtime/startup/
@@ -45,18 +52,20 @@ coordinator suites passed 145/145 (`r5-review-green-post-finalization-*.xml`, 52
 
 The fresh Codex review of exact SHA `d869e11393c5741c404e9e62936dd581815cb96a` found that a failed
 app-dialog terminal write was retained for replay but still reported clean startup/rollback
-outcomes. The compatible behavioral pin failed 1/1 (`r5-bot-red-terminal-publication.xml`,
-183/183 tasks executed). The new-API post-arming verdict-bypass mutant executed 19 inputs and failed 1,
-with 511/511 tasks executed; then the harness restored the source byte-exact
-(`r5-bot-mutant-post-arm-publication-bypass.xml`). Focused corrected coverage passed 66/66:
-59 coordinator, 5 startup, 1 graph-only runtime and 1 replacement-runtime test, with 529/529 tasks
-executed (`r5-bot-green-terminal-publication-*.xml`). The wider affected module suites also passed with
-562/562 tasks executed before the exact-commit battery.
+outcomes. The compatible behavioral pin failed 1/1 against `d869e113` production
+(`r5-bot-red-terminal-publication.xml`, 183/183 tasks executed). Everything after it was measured
+on the corrected tree that became `ba5d2f9a`: the new-API post-arming verdict-bypass mutant
+executed 19 inputs and failed 1, with 511/511 tasks executed, and the harness then restored the
+source byte-exact (`r5-bot-mutant-post-arm-publication-bypass.xml`); focused corrected coverage
+passed 66/66 — 59 coordinator, 5 startup, 1 graph-only runtime and 1 replacement-runtime test,
+with 529/529 tasks executed (`r5-bot-green-terminal-publication-*.xml`); and the wider affected
+module suites passed with 562/562 tasks executed. The exact-head battery they precede is the
+`ba5d2f9a` section below.
 
 **Round-4 red-on-base evidence.** Every mandated round-4 test was proven to FAIL at the
 pre-correction head `936ab699`: the new test files were copied onto a worktree at that commit
 and the four suites run — **21 failures total (20 named tests + 1 parameterized invocation)**,
-all green at the current head. Raw JUnit XMLs: `r4-red-on-base-*.xml` beside this file
+all green at `ba5d2f9a`. Raw JUnit XMLs: `r4-red-on-base-*.xml` beside this file
 (`<system-out>` stripped; testcases and failures verbatim).
 
 **R4.2 red-on-base evidence.** All EIGHT production-shaped pins for the durable-phase
@@ -67,8 +76,9 @@ restored on the retry path kills the production-shaped pin
 (`known-negative-r42-predurable-dispatch.xml`); the unbounded-clear mutant re-executed against
 the rewritten QUEUEING liveness test hangs it
 (`known-negative-r42-unbounded-clear-queued.xml`). Both reverted with clean diffs. The
-zero-suppression claim is verified against the FULL range: `git diff -U0 936ab699..HEAD --
-'*.kt'` adds no `@Suppress`.
+zero-suppression claim is verified against the FULL range: `git diff -U0 936ab699..ba5d2f9a --
+'*.kt'` adds no `@Suppress` annotation (its only `+` hits are the `lint-rules` KDoc that names the
+banned annotation).
 
 **R4.1 red-on-base evidence.** The six R4.1 pins (spec §24) were proven to FAIL at `7c82c368`
 the same way (`r41-red-on-base-runtime.xml` + `r41-red-on-base-coordinator.xml`); the
@@ -84,10 +94,10 @@ Device for every connected run: `sdk_gphone64_arm64` emulator (Pixel 6 AVD), API
 `ANDROID_SERIAL=emulator-5554`. Host: macOS (Darwin 25.6), JDK 21, Room 3.0.0,
 `BundledSQLiteDriver`. Files named `connected-*.xml` are retained AGP instrumentation results.
 
-The first API-34 checkpoint predates the final correction tree and is retained only as preliminary
-evidence, not final-SHA evidence: `r5-api34-immutable-publication-same-instance.xml` is the 2/2
-immutable-publication SameInstance run; `r5-preliminary-regression-app-app.xml`,
-`r5-preliminary-regression-core-data-database.xml`,
+The first API-34 checkpoint predates the `d869e113` correction tree and is retained only as
+preliminary evidence, not exact-commit evidence for either head:
+`r5-api34-immutable-publication-same-instance.xml` is the 2/2 immutable-publication SameInstance
+run; `r5-preliminary-regression-app-app.xml`, `r5-preliminary-regression-core-data-database.xml`,
 `r5-preliminary-regression-core-data-exercise.xml`, and
 `r5-preliminary-regression-feature-all-exercises.xml` are the four nonzero module reports whose
 counts sum to the preliminary 81/81 Regression run.
@@ -96,7 +106,9 @@ counts sum to the preliminary 81/81 Regression run.
 
 These raw captures were taken immediately before the `d869e113` evidence commit. They remain a
 prior exact-commit checkpoint; the post-review terminal-publication closure changes production and
-tests, so its final-SHA rerun supersedes these task/test totals in the final handoff.
+tests, so the `ba5d2f9a` reruns in the next section supersede these task/test totals. Every
+`r5-final-*.xml` named below belongs to THIS checkpoint — the prefix predates the closure and is
+not a final-head label.
 
 | Gate | Forced execution | Test / artifact result | Raw device XML |
 |---|---:|---|---|
@@ -108,7 +120,32 @@ tests, so its final-SHA rerun supersedes these task/test totals in the final han
 | API-34 SameInstance repetition 1 | 162/162 tasks | 2/2, no skips/failures/errors | `r5-final-same-instance-run-1.xml` |
 | API-34 SameInstance repetition 2 | 162/162 tasks | 2/2, no skips/failures/errors | `r5-final-same-instance-run-2.xml` |
 
+## `ba5d2f9a` final-head reruns
+
+Measured on the pushed final head `ba5d2f9ac25b7deb305896895852d886cdeed962` (spec §27.11), after
+the `d869e113` checkpoint above. Test counts are what the retained XMLs sum to; where a gate's
+per-module reports are ordinary Gradle build outputs that this directory does not retain, the test
+and task counts are the ones the run reported in the PR handoff.
+
+| Gate | Forced execution | Test / artifact result | Raw XML |
+|---|---:|---|---|
+| host build + unit + Paparazzi verify + lint + Android-test assembly | 3267/3267 tasks | **2723 unit/host tests** — 2310 `testDebugUnitTest` + 413 `testAndroidHostTest`, no skips/failures/errors; 456/456 PNGs in 13 modules; 0 movers | not retained (per-module Gradle build outputs) |
+| Detekt + custom rules | 59/59 tasks | 127/127 custom-rule tests; `53a49801..ba5d2f9a` adds no `@Suppress` and touches no detekt config or baseline | — |
+| iOS simulator compilation (`backup:api`, `core`, `database`) | 15/15 tasks | compile + Room KSP green; the three modules are byte-identical to the checkpoint at this head, and link/runtime remains outside Phase 5 | — |
+| API-34 Regression | 2076/2076 tasks | 81/81, no skips/failures/errors | not retained at this head: the emulator's per-module reports were overwritten in place by the Smoke and SameInstance runs that followed. The retained Regression XMLs are the `d869e113` checkpoint's. |
+| API-34 Smoke | 2076/2076 tasks | 44 discovered: 41 executed, 3 existing `pendingFeatureRewrite` skips, 0 failures/errors | `ba5d2f9a-smoke-*.xml` — the 11 nonzero module reports, which sum to the 44 |
+| API-34 SameInstance, two repetitions | 162/162 tasks each | 2/2 + 2/2, no skips/failures/errors | `ba5d2f9a-same-instance-core-data-database.xml` — one repetition; the emulator overwrites that report per run, so the other is not retained |
+
+The 2301 → 2310 `testDebugUnitTest` delta is the nine host tests `ba5d2f9a` adds with the closure
+itself — 6 in `RestoreRecoveryCoordinatorTest`, 2 in `StartupProcessorTest`, 1 in `AppRuntimeTest`;
+`testAndroidHostTest` stays at 413 because all nine live in an AGP module's `src/test`. The PR's
+`Unit Test Results` check reports the same +9 against `d869e113` under its own aggregation.
+
 ## Device gates
+
+Measured at the round-2/round-3 heads that added them (`58bde10f`, `52429c8c`, `936ab699`), not at
+`d869e113` or `ba5d2f9a`; the §7.1 and §11.2 rows predate the rewrites those two heads carry for
+`SameInstanceReopenAfterSwapDeviceTest` and `RuntimeGenerationSwapDeviceTest`.
 
 | Gate | Command | Result |
 |---|---|---|
@@ -119,21 +156,27 @@ tests, so its final-SHA rerun supersedes these task/test totals in the final han
 
 ## Forced host battery (`--rerun-tasks --no-build-cache --no-configuration-cache`)
 
+The commands are the reference invocations; the counts in this table are the `d869e113`
+checkpoint's — the final head's are in the `ba5d2f9a` section above.
+
 | Command | Exit | Executed | Tests |
 |---|---|---|---|
-| `./gradlew assembleDebug testDebugUnitTest verifyPaparazziDebug lintDebug assembleDebugAndroidTest --rerun-tasks --no-build-cache --no-configuration-cache` | 0 (§27: `BUILD SUCCESSFUL in 9m 42s`; older timings retained in git history) | §27: **3267/3267 executed**, 456/456 PNGs in 13 modules, zero movers | §27: **2714 unit/host tests** — 2301 `testDebugUnitTest` + 413 `testAndroidHostTest`, 0 skipped/failures/errors |
-| `./gradlew detekt :lint-rules:test --rerun-tasks --no-build-cache --no-configuration-cache` | 0 (§27 forced rerun) | §27: **59/59 executed**; diff from `53a49801` adds no `@Suppress` and touches no detekt config or baseline | 127 custom-rule tests, 0 skipped/failures/errors |
-| `./gradlew :core:data:backup:api:compileKotlinIosSimulatorArm64 :core:core:compileKotlinIosSimulatorArm64 :core:data:database:compileKotlinIosSimulatorArm64 --rerun-tasks …` | 0 (§27: **15/15 executed**) | every affected KMP module, including Room KSP for `database` | — |
+| `./gradlew assembleDebug testDebugUnitTest verifyPaparazziDebug lintDebug assembleDebugAndroidTest --rerun-tasks --no-build-cache --no-configuration-cache` | 0 (`d869e113`: `BUILD SUCCESSFUL in 9m 42s`; older timings retained in git history) | `d869e113`: **3267/3267 executed**, 456/456 PNGs in 13 modules, zero movers | `d869e113`: **2714 unit/host tests** — 2301 `testDebugUnitTest` + 413 `testAndroidHostTest`, 0 skipped/failures/errors |
+| `./gradlew detekt :lint-rules:test --rerun-tasks --no-build-cache --no-configuration-cache` | 0 (`d869e113` forced rerun) | `d869e113`: **59/59 executed**; diff from `53a49801` adds no `@Suppress` and touches no detekt config or baseline | 127 custom-rule tests, 0 skipped/failures/errors |
+| `./gradlew :core:data:backup:api:compileKotlinIosSimulatorArm64 :core:core:compileKotlinIosSimulatorArm64 :core:data:database:compileKotlinIosSimulatorArm64 --rerun-tasks …` | 0 (`d869e113`: **15/15 executed**) | every affected KMP module, including Room KSP for `database` | — |
 
 iOS **link/runtime**: UNVERIFIED — no iOS host exists before Phase 7; compile+KSP evidence only.
 
 ## Connected suites (the `ui_tests.yml` invocations)
 
+The commands are the reference invocations; the counts in this table are the `d869e113`
+checkpoint's — the final head's are in the `ba5d2f9a` section above.
+
 | Command | Exit | Tests |
 |---|---|---|
-| `ANDROID_SERIAL=emulator-5554 ./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.annotation=io.github.stslex.workeeper.core.ui.test.annotations.Smoke --max-workers=2 --continue` | 0 (§27: 6m57s, **2076/2076 executed**; historical results remain in git history) | §27: **44 discovered, 41 executed, 3 existing skips, 0 failures/errors**. Its first round-3 run was RED and load-bearing — see §22.3b. |
-| same with `…annotations.Regression` | 0 (§27: 7m39s, **2076/2076 executed**) | §27: **81/81**, 0 skipped/failures/errors; every nonzero module XML is retained independently. |
-| `:core:data:database:connectedDebugAndroidTest -P…class=…SameInstanceReopenAfterSwapDeviceTest` | 0 (§27: two forced **162/162** runs) | §27: **2/2 + 2/2**, no skips/failures/errors — the Room same-instance characterization is unchanged in what it proves. |
+| `ANDROID_SERIAL=emulator-5554 ./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.annotation=io.github.stslex.workeeper.core.ui.test.annotations.Smoke --max-workers=2 --continue` | 0 (`d869e113`: 6m57s, **2076/2076 executed**; historical results remain in git history) | `d869e113`: **44 discovered, 41 executed, 3 existing skips, 0 failures/errors**. Its first round-3 run was RED and load-bearing — see §22.3b. |
+| same with `…annotations.Regression` | 0 (`d869e113`: 7m39s, **2076/2076 executed**) | `d869e113`: **81/81**, 0 skipped/failures/errors; every nonzero module XML is retained independently. |
+| `:core:data:database:connectedDebugAndroidTest -P…class=…SameInstanceReopenAfterSwapDeviceTest` | 0 (`d869e113`: two forced **162/162** runs) | `d869e113`: **2/2 + 2/2**, no skips/failures/errors — the Room same-instance characterization is unchanged in what it proves. |
 
 Standalone runs (same emulator): full unfiltered `:app:app:connectedDebugAndroidTest` 49/0 and
 `:core:data:database:connectedDebugAndroidTest` 30/0 (round 3);

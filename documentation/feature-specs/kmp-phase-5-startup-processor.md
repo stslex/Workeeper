@@ -1056,6 +1056,24 @@ instrumentation XMLs beside it). Summary — every gate GREEN:
   irreversible action, §8.4). (d) On the cold-start S1 rollback path the terminal `close()` now
   runs on the (already-blocked) main thread instead of the provider's IO hop — functionally
   identical under `runBlocking`, recorded as the one byte-equivalence residue.
+  (e) ACCEPTED (recorded 2026-08-25, from the PR #252 bot review): a graph-holder read that passes
+  through NEITHER admission gate — `BaseApplication.appGraph` → `AppRuntime.currentGeneration` —
+  still answers with the OUTGOING generation between that generation's database close and the
+  transition's terminal publication, so such a reader could resolve repositories over a closed Room
+  handle. The accessor's own KDoc states the behaviour ("Reads during a transition answer with the
+  outgoing generation"). The window is bounded by construction on BOTH policies: it lies inside one
+  `transitionMutex` hold, the phase is already `Transitioning` (`GenerationQuiescer.quiesce` has
+  retired UI admission and closed and drained worker admission first, and the UI region renders an
+  empty box), and `currentGeneration` THROWS the moment the same hold sets a terminal flag —
+  `restartTerminal` for `RestartProcess`, `isFatal` for a `Fatal`. No reader in the tree is inside
+  it: UI and workers are gated, and `servingViewModelStore` deliberately reads `currentOrNull`
+  precisely so a terminal runtime's store stays releasable. Recorded, not closed — closing it means
+  making the accessor phase-aware, which is the compile-time typestate item in §27.10, and the
+  design's protection is the gates rather than the accessor. Round-4's wider claim about this
+  window (a ~2 s live-UI exposure under `RestartProcess`, from a `RESTART_DELAY_MS` restart hop
+  and a never-quiescing restart path) does NOT describe the code from `d869e113` onward: it now
+  publishes `Transitioning` and quiesces before its swap, and the delay and its scheduler were
+  deleted.
 
 ## 19. Independent review artifact (2026-08-22): CONFIRM — superseded in part by §20
 
@@ -1765,6 +1783,33 @@ lost its duplicate `PackageManager` read and with it one `@Suppress("DEPRECATION
 zero-added-suppressions claim is strengthened rather than merely preserved; and
 `selectOperationSource` moved to `ReplacementMechanics` to keep `AppRuntime` under `LargeClass`.
 
+**Also closed on the branch in `205bcbf88`, from the PR #252 review threads rather than the
+six-lens review** — recorded here in the merge-hygiene pass, having lived only in the commit
+message until then:
+
+- **the fenced-refusal requeue spun a cancelled collector.** `resolveSnackbarOutcomeOrRequeue`
+  requeued the model and returned with no suspension point on the refusal branch, so a collector
+  cancelled while `fenceResolves` was up received the same buffered model again before it could
+  observe cancellation — the channel fast path returns a buffered element without a cancellation
+  check. The fix is a `yield()` on that branch, deliberately not a park: callers invoke the
+  function directly and rely on it returning. Pin: `a cancelled collector terminates on the
+  fenced-refusal path` in `SnackbarManagerTest`, on REAL dispatchers because virtual time cannot
+  observe a busy loop; it is red with the `yield()` removed. `fenceResolves`, `unfenceResolves` and
+  `advanceGenerationEpoch` also became opt-in-only behind `@SnackbarGenerationTransition`. The
+  finding was filed as unreachable in Android production on the grounds that
+  `fenceSnackbarResolves` had no production call site; that is not the state of the tree — it is
+  wired at `BaseApplication` into `RuntimeTransitionPolicy` and invoked by
+  `GenerationQuiescer.quiesce`, which the production `RestartProcess` path runs before its swap.
+- **the androidTest harness manufactured admission grants.**
+  `MetroTestGraphHolder.admitUiGeneration` read
+  `runtimeDelegate?.admitUiGeneration(id) ?: StaticToken(id)`, so a real gate's REFUSAL (null) was
+  indistinguishable from "no delegate installed" and became a grant: mutating
+  `UiAdmissionGate.admit` to always refuse left `AppRuntimeUiHandshakeDeviceTest` — the branch's
+  one test that puts a real runtime behind the real shell — green, while the same mutant blanks
+  the app in production. The delegate's answer is now returned verbatim, refusal included, and
+  the static fallback with its `staticAttachments` bookkeeping is reached only when no delegate is
+  installed, so `outstandingAdmissions` no longer counts a grant the real gate never issued.
+
 **Not re-measured at this head:** the forced full host battery and the device Regression/Smoke
 suites. What ran green here is `detekt`, the full `testDebugUnitTest` suite and
 `assembleDebugAndroidTest`. The instrumented suites do not gate PRs (weekly), and the §18 battery
@@ -2016,6 +2061,13 @@ These remain outside this bounded correction and must not be inferred as complet
 
 - encode `AppRuntime` phases and admissible operations as compile-time typestate;
 - replace any process-lifetime strong Activity ownership with audited weak-reference handling;
+- decide at protocol level whether a REQUESTED rollback that has already applied its exact source
+  but cannot make the outcome durably provable may take a further bounded record retry, instead of
+  the terminal recovery §27.4 and §8.4 specify today; the machine is deliberately fail-closed there
+  — one bounded rollback recovery per transaction, then `Fatal` with journal and assets preserved —
+  and widening it changes when a requested rollback goes terminal, which is a protocol change, not
+  a local edit. `RebuildInProcess` only: production is `RestartProcess`, whose swap path has no
+  rollback ladder at all;
 - define and prove multi-instance `ViewModelStore` ownership rather than extending the current
   single-host lifecycle correction.
 
