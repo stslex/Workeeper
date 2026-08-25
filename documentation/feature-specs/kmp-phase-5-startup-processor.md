@@ -1059,21 +1059,29 @@ instrumentation XMLs beside it). Summary — every gate GREEN:
   (e) ACCEPTED (recorded 2026-08-25, from the PR #252 bot review): a graph-holder read that passes
   through NEITHER admission gate — `BaseApplication.appGraph` → `AppRuntime.currentGeneration` —
   still answers with the OUTGOING generation between that generation's database close and the
-  transition's terminal publication, so such a reader could resolve repositories over a closed Room
-  handle. The accessor's own KDoc states the behaviour ("Reads during a transition answer with the
-  outgoing generation"). The window is bounded by construction on BOTH policies: it lies inside one
-  `transitionMutex` hold, the phase is already `Transitioning` (`GenerationQuiescer.quiesce` has
-  retired UI admission and closed and drained worker admission first, and the UI region renders an
-  empty box), and `currentGeneration` THROWS the moment the same hold sets a terminal flag —
-  `restartTerminal` for `RestartProcess`, `isFatal` for a `Fatal`. No reader in the tree is inside
-  it: UI and workers are gated, and `servingViewModelStore` deliberately reads `currentOrNull`
-  precisely so a terminal runtime's store stays releasable. Recorded, not closed — closing it means
-  making the accessor phase-aware, which is the compile-time typestate item in §27.10, and the
-  design's protection is the gates rather than the accessor. Round-4's wider claim about this
-  window (a ~2 s live-UI exposure under `RestartProcess`, from a `RESTART_DELAY_MS` restart hop
-  and a never-quiescing restart path) does NOT describe the code from `d869e113` onward: it now
-  publishes `Transitioning` and quiesces before its swap, and the delay and its scheduler were
-  deleted.
+  transition's terminal publication, so such a reader could resolve repositories over a closed
+  Room handle. The accessor's own KDoc states the behaviour ("Reads during a transition answer
+  with the outgoing generation"). The window is bounded by construction on BOTH policies: it lies
+  inside one `transitionMutex` hold, the phase is already `Transitioning`
+  (`GenerationQuiescer.quiesce` has retired UI admission and closed and drained worker admission
+  first, and the UI region renders an empty box), and `currentGeneration` THROWS the moment the
+  same hold sets a terminal flag — `restartTerminal` for `RestartProcess`, `isFatal` for a `Fatal`
+  — while on an ordinary `RebuildInProcess` success the window simply ends at the successor's
+  publication, with no flag and no throw. The composition-side readers and the worker lease are
+  gated, and `servingViewModelStore` reads `currentOrNull` so a terminal runtime's store stays
+  releasable. What is NOT gated, and is therefore the honest boundary of this residual: the
+  Activity-lifecycle reads — `MainActivity` dereferences `appGraph` in `onCreate` before
+  `setContent`, and `RecoveryActivity`'s `recoveryDeps()` resolves the same graph — plus the
+  runtime's own pre-mutex reads in `replace`. Those resolve graph objects during creation rather
+  than issuing queries there, and §4's reader inventory already lists them as publication seams,
+  but nothing stops them landing in the window; past the terminal flag they throw rather than hand
+  back a stale handle, which on the Activity path is a fail-fast, not a handled outcome. Recorded,
+  not closed — closing it means making the accessor phase-aware, which is the compile-time
+  typestate item in §27.10, and today's protection is the gates plus that audit, not the accessor.
+  Round-4's wider claim about this window (a ~2 s live-UI exposure under `RestartProcess`, from a
+  `RESTART_DELAY_MS` restart hop and a never-quiescing restart path) does NOT describe the code
+  from `d869e113` onward: it now publishes `Transitioning` and quiesces before its swap, and the
+  delay and its scheduler were deleted.
 
 ## 19. Independent review artifact (2026-08-22): CONFIRM — superseded in part by §20
 
@@ -2061,13 +2069,15 @@ These remain outside this bounded correction and must not be inferred as complet
 
 - encode `AppRuntime` phases and admissible operations as compile-time typestate;
 - replace any process-lifetime strong Activity ownership with audited weak-reference handling;
-- decide at protocol level whether a REQUESTED rollback that has already applied its exact source
-  but cannot make the outcome durably provable may take a further bounded record retry, instead of
-  the terminal recovery §27.4 and §8.4 specify today; the machine is deliberately fail-closed there
-  — one bounded rollback recovery per transaction, then `Fatal` with journal and assets preserved —
-  and widening it changes when a requested rollback goes terminal, which is a protocol change, not
-  a local edit. `RebuildInProcess` only: production is `RestartProcess`, whose swap path has no
-  rollback ladder at all;
+- decide whether the requested-rollback record ladder's two-attempt bound is final. A requested
+  rollback whose durable record fails ONCE already heals: the recovery re-applies the same exact
+  `UndoRef` — idempotent, since the immutable undo file is copied and not consumed — re-runs the
+  record, and commits clean (`one-shot requested rollback record failure commits once without stale
+  terminal`). A SECOND consecutive record failure is the terminal `Fatal`, with the journal, the
+  owner and the undo bytes preserved (`a requested rollback whose record persistently fails ends
+  FATAL - every asset preserved`). Whether two attempts is the right bound is a protocol question
+  about when a requested rollback goes terminal, not a local edit; `RebuildInProcess` only, since
+  production is `RestartProcess`, whose swap path carries no rollback ladder at all;
 - define and prove multi-instance `ViewModelStore` ownership rather than extending the current
   single-host lifecycle correction.
 

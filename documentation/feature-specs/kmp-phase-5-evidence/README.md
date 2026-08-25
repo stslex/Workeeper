@@ -77,8 +77,8 @@ restored on the retry path kills the production-shaped pin
 the rewritten QUEUEING liveness test hangs it
 (`known-negative-r42-unbounded-clear-queued.xml`). Both reverted with clean diffs. The
 zero-suppression claim is verified against the FULL range: `git diff -U0 936ab699..ba5d2f9a --
-'*.kt'` adds no `@Suppress` annotation (its only `+` hits are the `lint-rules` KDoc that names the
-banned annotation).
+'*.kt'` adds no `@Suppress` annotation (its only three `+` hits are `lint-rules` comments that
+name the banned annotation).
 
 **R4.1 red-on-base evidence.** The six R4.1 pins (spec §24) were proven to FAIL at `7c82c368`
 the same way (`r41-red-on-base-runtime.xml` + `r41-red-on-base-coordinator.xml`); the
@@ -141,11 +141,22 @@ itself — 6 in `RestoreRecoveryCoordinatorTest`, 2 in `StartupProcessorTest`, 1
 `testAndroidHostTest` stays at 413 because all nine live in an AGP module's `src/test`. The PR's
 `Unit Test Results` check reports the same +9 against `d869e113` under its own aggregation.
 
+One reconciliation on that 2310, so it is not read as a raw execution truth: summing the
+`testDebugUnitTest` reports on disk gives 2310 across 227 files, but one of those files —
+`core/core-android/build/test-results/testDebugUnitTest/…ImageStorageImplTest.xml`, 5 tests, dated
+eleven days before this head — is an orphaned build directory of a module `settings.gradle.kts` no
+longer includes (deleted in `d166da35`). This run cannot have executed it, and the same class does
+run inside the 413, as part of `core:core`'s `testAndroidHostTest`. The live-module sums are
+therefore **2718** (2305 + 413) here and **2709** (2296 + 413) at the checkpoint; both reported
+totals carry the same +5, so the +9 delta above is unaffected either way. The tables keep the
+figures the handoff reported; this note is the correction.
+
 ## Device gates
 
-Measured at the round-2/round-3 heads that added them (`58bde10f`, `52429c8c`, `936ab699`), not at
-`d869e113` or `ba5d2f9a`; the §7.1 and §11.2 rows predate the rewrites those two heads carry for
-`SameInstanceReopenAfterSwapDeviceTest` and `RuntimeGenerationSwapDeviceTest`.
+Measured at the heads that added them — `58bde10f` for the §7.1 and §11.2 rows, `52429c8c` for
+§20.2, `936ab699` for §22.3b — not at `d869e113` or `ba5d2f9a`; and the §7.1 and §11.2 rows predate
+`d869e113`, which rewrote both `SameInstanceReopenAfterSwapDeviceTest` and
+`RuntimeGenerationSwapDeviceTest`.
 
 | Gate | Command | Result |
 |---|---|---|
