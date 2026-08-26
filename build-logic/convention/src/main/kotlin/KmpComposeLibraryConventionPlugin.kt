@@ -9,7 +9,7 @@ import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 
 /**
  * KMP + Compose Multiplatform library convention: [KmpLibraryConventionPlugin] plus the CMP
- * stack. Paparazzi and the golden gate land with Phase 7. See kmp-phase-2-probes.md.
+ * stack, and the Paparazzi task aliases for golden-holding modules. See kmp-phase-2-probes.md.
  */
 class KmpComposeLibraryConventionPlugin : Plugin<Project> {
 
@@ -33,6 +33,31 @@ class KmpComposeLibraryConventionPlugin : Plugin<Project> {
                 add("commonMainImplementation", libs.findLibrary("cmp-ui").get())
                 add("commonMainImplementation", libs.findLibrary("cmp-uiToolingPreview").get())
                 add("commonMainImplementation", libs.findLibrary("cmp-components-resources").get())
+            }
+
+            registerPaparazziAliases()
+        }
+    }
+
+    /**
+     * CI and testing.md invoke the Android-library spellings `verifyPaparazziDebug` /
+     * `recordPaparazziDebug`; on a KMP module Paparazzi registers only `*AndroidMain` tasks plus
+     * the variantless aggregates. GUARD: without both aliases a converted golden module silently
+     * vanishes from the repo-wide command (probe P1). Plain lifecycle tasks — never `Test`-typed.
+     */
+    private fun Project.registerPaparazziAliases() {
+        pluginManager.withPlugin("app.cash.paparazzi") {
+            tasks.register("verifyPaparazziDebug") {
+                group = "verification"
+                description =
+                    "Alias: verifies this KMP module's Paparazzi goldens under the repo-wide task name."
+                dependsOn("verifyPaparazzi")
+            }
+            tasks.register("recordPaparazziDebug") {
+                group = "verification"
+                description =
+                    "Alias: records this KMP module's Paparazzi goldens under the repo-wide task name."
+                dependsOn("recordPaparazzi")
             }
         }
     }
