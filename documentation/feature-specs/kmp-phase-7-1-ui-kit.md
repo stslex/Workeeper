@@ -1,9 +1,9 @@
 # KMP Phase 7.1 — `core:ui:kit` becomes the shared CMP foundation
 
-**Status:** SPEC v1 — discovery complete; implementation has not started  
+**Status:** COMPLETE — PR #256 merged; required ruleset gate closed post-merge on 2026-08-27  
 **Target branch:** `dev`  
 **Code baseline:** `0638fc7402627bbc78c5ce7a8a2a7c858f23fe24` (PR #252 merge)  
-**Delivery:** one implementation PR to `dev`; no direct push
+**Delivery:** PR #256 merged as `ba367fe96ac3cf96ccc58a2f419e11b684df27e2`; no direct push
 
 ## 0. Authority and entry condition
 
@@ -772,7 +772,14 @@ the smoke assertion step printing "native gate live: 1 executed Compose-scene te
 0 failed". The final head of that arc, `04efb61eb` (a documentation-only addendum on top of
 `811ade13c`), was then tested by its own green runs — `Android CI/CD - Unified Build and Tests`
 run 32972840396 and `v3 Mockup Appearance Gate` run 32972840400. The `KMP iOS kit smoke` check
-context is now exposed; the ruleset addition remains the owner's step.
+context was exposed, but the ruleset addition was still outstanding when PR #256 merged.
+
+**Post-merge ruleset closeout (2026-08-27).** The ruleset API was re-read after the owner update.
+The active repository-wide `all` ruleset (id 8116593, `updated_at`
+`2026-08-27T01:06:29.887+03:00`) matches `~ALL`, therefore covers `dev`, and requires the
+GitHub Actions contexts `KMP iOS kit smoke` and `Build and Unit Tests` (integration id 15368).
+The dedicated `dev` ruleset (id 18553518) remains disabled. This closes the §9/§14 exit
+condition; no source or CI-workflow change was required. Phase 7.1 is complete.
 
 ## 19. Review-correction record (follow-up, 2026-08-26)
 
