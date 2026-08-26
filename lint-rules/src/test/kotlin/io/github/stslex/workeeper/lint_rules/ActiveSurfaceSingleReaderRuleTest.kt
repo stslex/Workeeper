@@ -44,7 +44,7 @@ internal class ActiveSurfaceSingleReaderRuleTest {
     @Test
     fun `a call site inside the kit but outside the surface package is flagged`() {
         val findings = rule.lintAt(
-            path = "core/ui/kit/src/main/kotlin/io/github/stslex/workeeper/core/ui/kit/" +
+            path = "core/ui/kit/src/commonMain/kotlin/io/github/stslex/workeeper/core/ui/kit/" +
                 "components/card/AppCard.kt",
             content = """
             package io.github.stslex.workeeper.core.ui.kit.components.card
@@ -133,7 +133,7 @@ internal class ActiveSurfaceSingleReaderRuleTest {
     @Test
     fun `a new file dropped into the surface package is flagged`() {
         val findings = rule.lintAt(
-            path = "core/ui/kit/src/main/kotlin/io/github/stslex/workeeper/core/ui/kit/" +
+            path = "core/ui/kit/src/commonMain/kotlin/io/github/stslex/workeeper/core/ui/kit/" +
                 "components/surface/AnotherRaisedThing.kt",
             content = """
             package io.github.stslex.workeeper.core.ui.kit.components.surface
@@ -177,7 +177,7 @@ internal class ActiveSurfaceSingleReaderRuleTest {
     @Test
     fun `the declaring file may preview itself`() {
         val findings = rule.lintAt(
-            path = "core/ui/kit/src/main/kotlin/io/github/stslex/workeeper/core/ui/kit/" +
+            path = "core/ui/kit/src/commonMain/kotlin/io/github/stslex/workeeper/core/ui/kit/" +
                 "components/surface/AppActiveSurface.kt",
             content = """
             package io.github.stslex.workeeper.core.ui.kit.components.surface
@@ -200,7 +200,7 @@ internal class ActiveSurfaceSingleReaderRuleTest {
     @Test
     fun `the kit goldens may render it`() {
         val findings = rule.lintAt(
-            path = "core/ui/kit/src/test/kotlin/io/github/stslex/workeeper/core/ui/kit/golden/" +
+            path = "core/ui/kit/src/androidHostTest/kotlin/io/github/stslex/workeeper/core/ui/kit/golden/" +
                 "ActiveSurfaceGoldenTest.kt",
             content = """
             package io.github.stslex.workeeper.core.ui.kit.golden

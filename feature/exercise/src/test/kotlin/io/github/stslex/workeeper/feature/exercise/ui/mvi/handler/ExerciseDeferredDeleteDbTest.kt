@@ -17,12 +17,17 @@ import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.St
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -74,6 +79,9 @@ internal class ExerciseDeferredDeleteDbTest {
         env.close()
     }
 
+    /** Every consumed action, paired with whether the undo snackbar was already queued. */
+    private val consumedActions = mutableListOf<Pair<Action, Boolean>>()
+
     private fun handlerFor(state: State): Triple<MutableStateFlow<State>, MutableList<Event>, ClickHandler> {
         val stateFlow = MutableStateFlow(state)
         val events = mutableListOf<Event>()
@@ -84,6 +92,20 @@ internal class ExerciseDeferredDeleteDbTest {
                 stateFlow.value = update(stateFlow.value)
             }
             every { sendEvent(any()) } answers { events.add(firstArg()) }
+            every { consume(any()) } answers {
+                consumedActions.add(firstArg<Action>() to (SnackbarManager.pendingModelCount > 0))
+            }
+            every { launch<Any?>(any(), any(), any(), any(), any()) } answers {
+                val onError = firstArg<suspend (Throwable) -> Unit>()
+                val onSuccess = secondArg<suspend CoroutineScope.(Any?) -> Unit>()
+                val action = arg<suspend CoroutineScope.() -> Any?>(4)
+                runBlocking {
+                    runCatching { supervisorScope { action() } }
+                        .onSuccess { onSuccess(this, it) }
+                        .onFailure { onError(it) }
+                }
+                mockk<Job>(relaxed = true)
+            }
         }
         val handler = ClickHandler(
             interactor = interactor,
@@ -130,6 +152,20 @@ internal class ExerciseDeferredDeleteDbTest {
 
         // The strict order (ED11): the confirm opened the window; the DB is untouched.
         assertNotNull(env.exerciseDao.getById(uuid))
+    }
+
+    /** The real catalog resolves the label — no static mock — and Back rides after the queue. */
+    @Test
+    fun `back is consumed only after the snackbar is queued, with the real undo label`() = runTest {
+        val uuid = seedExercise()
+
+        val pending = confirmDelete(uuid)
+
+        assertEquals("Undo", pending.actionLabel)
+        assertEquals(listOf<Action>(Action.Navigation.Back), consumedActions.map { it.first })
+        assertTrue(consumedActions.single().second) {
+            "Back must land only after the undo snackbar is queued"
+        }
     }
 
     @Test

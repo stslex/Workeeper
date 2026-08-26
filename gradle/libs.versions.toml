@@ -26,6 +26,9 @@ composeGradle = "1.11.1"
 # pair in step when bumping CMP — the pairing for a given plugin version is what the plugin's
 # own accessors resolve (documentation/feature-specs/kmp-phase-2-probes.md, "Findings" §3).
 cmpMaterial3 = "1.9.0"
+# GUARD: the CMP material-icons line froze at 1.7.3 — it does not release at the plugin
+# version, so never point it at composeGradle.
+cmpMaterialIcons = "1.7.3"
 navigation3 = "1.1.6"
 composeJunit = "1.11.4"
 coil = "3.5.0"
@@ -98,6 +101,13 @@ cmp-ui = { group = "org.jetbrains.compose.ui", name = "ui", version.ref = "compo
 cmp-uiToolingPreview = { group = "org.jetbrains.compose.ui", name = "ui-tooling-preview", version.ref = "composeGradle" }
 cmp-material3 = { group = "org.jetbrains.compose.material3", name = "material3", version.ref = "cmpMaterial3" }
 cmp-components-resources = { group = "org.jetbrains.compose.components", name = "components-resources", version.ref = "composeGradle" }
+# The KMP compose convention does not supply Animation; modules importing androidx.compose.animation
+# on a KMP module declare this directly (it also carries animation-core).
+cmp-animation = { group = "org.jetbrains.compose.animation", name = "animation", version.ref = "composeGradle" }
+cmp-material-icons-core = { group = "org.jetbrains.compose.material", name = "material-icons-core", version.ref = "cmpMaterialIcons" }
+cmp-material-icons-extended = { group = "org.jetbrains.compose.material", name = "material-icons-extended", version.ref = "cmpMaterialIcons" }
+# CMP UI test runner (v2 API) for native-target tests; host tests keep the pinned JUnit4 bundle.
+cmp-ui-test = { group = "org.jetbrains.compose.ui", name = "ui-test", version.ref = "composeGradle" }
 fbCrashlytics-gradlePlugin = { module = "com.google.firebase:firebase-crashlytics-gradle", version.ref = "fbCrashlytics" }
 
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "ktx" }

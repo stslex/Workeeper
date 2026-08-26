@@ -12,6 +12,13 @@ import io.github.stslex.workeeper.core.ui.kit.components.loading.AppLoadedConten
 import io.github.stslex.workeeper.core.ui.kit.components.sheet.AppBottomSheet
 import io.github.stslex.workeeper.core.ui.kit.components.sheet.AppConfirmSheet
 import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagPickerSheetContent
+import io.github.stslex.workeeper.core.ui.kit.resources.Res
+import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_action_cancel
+import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_discard_sheet_body
+import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_discard_sheet_confirm
+import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_discard_sheet_dismiss
+import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_discard_sheet_title
+import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_toast_undo
 import io.github.stslex.workeeper.core.ui.kit.snackbar.AppSnackbarModel
 import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
 import io.github.stslex.workeeper.core.ui.mvi.navComponentScreen
@@ -25,7 +32,7 @@ import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTraini
 import io.github.stslex.workeeper.feature.single_training.ui.components.ExercisePickerSheet
 import io.github.stslex.workeeper.feature.single_training.ui.components.TrainingDetailMenuSheetContent
 import kotlinx.collections.immutable.toImmutableSet
-import io.github.stslex.workeeper.core.ui.kit.R as KitR
+import org.jetbrains.compose.resources.stringResource
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Suppress("LongMethod", "CyclomaticComplexMethod")
@@ -35,7 +42,7 @@ fun NavGraphScope.singleTrainingsGraph(
     navComponentScreen(SingleTrainingFeature) { processor ->
 
         val haptic = LocalHapticFeedback.current
-        val undoToastLabel = stringResource(KitR.string.core_ui_kit_toast_undo)
+        val undoToastLabel = stringResource(Res.string.core_ui_kit_toast_undo)
 
         processor.Handle { event ->
             when (event) {
@@ -154,10 +161,10 @@ fun NavGraphScope.singleTrainingsGraph(
 
             // §26 "Every modal on the three editors is a SHEET"; strings come from the kit.
             DialogState.DiscardConfirm -> AppConfirmSheet(
-                title = stringResource(KitR.string.core_ui_kit_discard_sheet_title),
-                body = stringResource(KitR.string.core_ui_kit_discard_sheet_body),
-                confirmLabel = stringResource(KitR.string.core_ui_kit_discard_sheet_confirm),
-                dismissLabel = stringResource(KitR.string.core_ui_kit_discard_sheet_dismiss),
+                title = stringResource(Res.string.core_ui_kit_discard_sheet_title),
+                body = stringResource(Res.string.core_ui_kit_discard_sheet_body),
+                confirmLabel = stringResource(Res.string.core_ui_kit_discard_sheet_confirm),
+                dismissLabel = stringResource(Res.string.core_ui_kit_discard_sheet_dismiss),
                 confirmDestructive = true,
                 onConfirm = { processor.consume(Action.Click.OnConfirmDiscard) },
                 onDismiss = { processor.consume(Action.Click.OnDismissDiscard) },
@@ -169,7 +176,7 @@ fun NavGraphScope.singleTrainingsGraph(
                 body = dialog.body,
                 emphasis = dialog.impactSummary,
                 confirmLabel = dialog.confirmLabel,
-                dismissLabel = stringResource(KitR.string.core_ui_kit_action_cancel),
+                dismissLabel = stringResource(Res.string.core_ui_kit_action_cancel),
                 confirmDestructive = true,
                 onConfirm = { processor.consume(Action.Click.OnPermanentDeleteConfirm) },
                 onDismiss = { processor.consume(Action.Click.OnPermanentDeleteDismiss) },

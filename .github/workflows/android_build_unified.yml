@@ -251,3 +251,119 @@ jobs:
         uses: yutailang0119/action-android-lint@v4
         with:
           report-path: "**/build/reports/lint-results-*.xml"
+
+  # Phase 7.1's native gate: the converted core:ui:kit must not merely compile an iOS klib —
+  # one real resource-backed composition must execute on the simulator. Narrow on purpose: no
+  # Xcode app, no Apple signing, no XCFramework, no App Store Connect secrets.
+  # See documentation/feature-specs/kmp-phase-7-1-ui-kit.md §9.
+  kmp-ios-kit-smoke:
+    name: KMP iOS kit smoke
+    runs-on: macos-26
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - name: Select Xcode 26.6 and assert the simulator runtime
+        run: |
+          sudo xcode-select -s /Applications/Xcode_26.6.app/Contents/Developer
+          xcodebuild -version
+          xcodebuild -version | grep -q "Xcode 26.6"
+          # The Kotlin/Native test task boots an iOS simulator; fail here, not mid-Gradle.
+          xcrun simctl list runtimes | tee /dev/stderr | grep -q "iOS"
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Use CI-optimized Gradle properties
+        run: cp .github/properties/gradle-ci.properties gradle.properties
+
+      - name: Use CI-optimized Convention Gradle properties
+        run: cp .github/properties/gradle-convention-ci.properties build-logic/gradle.properties
+
+      # Same rationale as the Linux job's ~/.konan cache; macOS downloads its own K/N toolchain.
+      - name: Restore Kotlin/Native toolchain
+        uses: actions/cache@v4
+        with:
+          path: ~/.konan
+          key: konan-${{ runner.os }}-${{ hashFiles('gradle/libs.versions.toml') }}
+          restore-keys: |
+            konan-${{ runner.os }}-
+
+      # Repository configuration reads a signing keystore at configuration time. This job holds
+      # no production secret by design: an ephemeral throwaway JKS satisfies configuration and
+      # signs nothing that leaves the runner. GUARD: the convention resolves storeFile against
+      # the repository root even for absolute paths (java.io.File(parent, "/abs") concatenates),
+      # so the keystore must sit in the workspace and be referenced relatively.
+      - name: Configure ephemeral signing material
+        run: |
+          keytool -genkeypair -alias ci-smoke -keyalg RSA -keysize 2048 -validity 1 \
+            -storepass ci-smoke-pass -keypass ci-smoke-pass \
+            -dname "CN=kmp-ios-kit-smoke" -keystore "$RUNNER_TEMP/ci-smoke.jks"
+          cp "$RUNNER_TEMP/ci-smoke.jks" ci-smoke.jks
+          {
+            echo "storeFile=ci-smoke.jks"
+            echo "keyAlias=ci-smoke"
+            echo "storePassword=ci-smoke-pass"
+            echo "keyPassword=ci-smoke-pass"
+          } > keystore.properties
+
+      - name: Run the native Compose-scene smoke test
+        run: >
+          ./gradlew :core:ui:kit:iosSimulatorArm64Test
+          --rerun-tasks --no-build-cache --no-configuration-cache
+          --full-stacktrace --console=plain
+
+      # An exit code is not evidence: require exactly one executed, non-skipped, passing case
+      # and require it to be the real scene test, not a planted sentinel.
+      - name: Assert exactly 1 executed native test
+        run: |
+          python3 - <<'PY'
+          import glob, re, sys
+
+          files = glob.glob(
+              "core/ui/kit/build/test-results/iosSimulatorArm64Test/TEST-*.xml"
+          )
+          if not files:
+              sys.exit("no native test XML produced")
+          tests = skipped = failures = errors = 0
+          body = ""
+          for path in files:
+              text = open(path).read()
+              body += text
+              suite = re.search(r"<testsuite\b[^>]*", text)
+              if not suite:
+                  sys.exit(f"{path}: no <testsuite> element")
+              attrs = dict(re.findall(r'(\w+)="([^"]*)"', suite.group(0)))
+              tests += int(attrs.get("tests", 0))
+              skipped += int(attrs.get("skipped", 0))
+              failures += int(attrs.get("failures", 0))
+              errors += int(attrs.get("errors", 0))
+          if (tests, skipped, failures, errors) != (1, 0, 0, 0):
+              sys.exit(
+                  "expected exactly 1 executed / 0 skipped / 0 failed native test, got "
+                  f"tests={tests} skipped={skipped} failures={failures} errors={errors}"
+              )
+          if "IosKitSceneSmokeTest" not in body or \
+                  "sheetLayoutRendersMigratedStringFontAndIcon" not in body:
+              sys.exit("the executed test is not the native Compose-scene smoke test")
+          print("native gate live: 1 executed Compose-scene test, 0 skipped, 0 failed")
+          PY
+
+      - name: Upload native test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: kmp-ios-kit-smoke-results
+          path: core/ui/kit/build/test-results/iosSimulatorArm64Test/
+          retention-days: 30

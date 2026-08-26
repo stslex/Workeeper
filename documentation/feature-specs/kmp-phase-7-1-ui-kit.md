@@ -70,7 +70,7 @@ At the code baseline, `core:ui:kit` contains:
 | Android resource files | 9: 7 TTF fonts + default/Russian `strings.xml` |
 | String resources | 54 default / 53 Russian; the non-translatable work mark inherits default |
 | Android host-test Kotlin files | 45 under `src/test` |
-| Source-level host test functions | 196: 151 `@Test` + 45 `@ParameterizedTest` |
+| Source-level host test functions | 195: 145 `@Test` + 50 `@ParameterizedTest` |
 | Golden test classes/functions | 20 classes / 43 parameterized functions |
 | Kit golden PNGs | 86 |
 | Device-test files/functions | 1 file / 5 `@Test` methods; `@Smoke` is class-level |
@@ -619,3 +619,264 @@ Use this exact scope after the docs-only PR is merged:
 > golden bytes, execute every required positive and negative gate, append the verification record,
 > and open one PR to `dev`. Do not implement `iosApp`, `app:common`, navigation, features or runtime
 > parity. Stop and report if the baseline or a locked invariant has drifted.
+
+## 18. Final verification record (implementation, 2026-08-26)
+
+Implemented on `feature/kmp-phase-7-1-ui-kit`, forked from `dev` at
+`500b4efb243633917aa841207d877fa607ba57b3` (docs-only delta from the code baseline
+`0638fc7402627bbc78c5ce7a8a2a7c858f23fe24`, verified before editing). All Gradle evidence below
+ran with `--rerun-tasks --no-build-cache --no-configuration-cache --full-stacktrace
+--console=plain`; every quoted summary line reads `N actionable tasks: N executed` (no
+`from cache`, no `up-to-date`), and every count was read from the produced JUnit XML, never from
+an exit code.
+
+### 18.1 Pre-edit characterization (§11.1, at 500b4efb2)
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| `:core:ui:kit:testDebugUnitTest` | green | 23 XML files, 411 test cases, 0 skipped; golden classes excluded |
+| `:core:ui:kit:verifyPaparazziDebug` | green | "Visual gate live: 86 golden test case(s) executed for 86 golden image(s)"; 497 total cases in XML |
+| `:core:ui:kit:assembleDebugAndroidTest` | green | exit 0 |
+| `:core:ui:kit:connectedDebugAndroidTest` (@Smoke, API-34 emulator) | green | `tests="5" failures="0" errors="0" skipped="0"` |
+| Golden manifests | recorded | 86 kit PNG SHA-256s; 456 repo-wide PNG SHA-256s |
+
+### 18.2 Post-conversion focused gates (§11.2, HEAD^ of the record commit)
+
+| Gate | Summary line | Counts |
+| --- | --- | --- |
+| `:core:ui:kit:assembleDebug` | 63 actionable tasks: 63 executed | common+android+iosSimulatorArm64 compile |
+| `:core:ui:kit:testDebugUnitTest` | 67 actionable tasks: 67 executed | 23 XML files, 412 cases, 0 skipped (411 baseline + the named §6.4 epoch-concurrency test), goldens excluded |
+| `:core:ui:kit:verifyPaparazziDebug` | 68 actionable tasks: 68 executed | 43 XML files, 498 cases; 20 golden suites, 86 executed golden cases; "Visual gate live: 86 golden test case(s) executed for 86 golden image(s)" |
+| `:core:ui:kit:lintDebug` | 46 actionable tasks: 46 executed | green |
+| `:core:ui:kit:assembleDebugAndroidTest` | 136 actionable tasks: 136 executed | device-test APK assembles via alias → `assembleAndroidDeviceTest` |
+| `detekt` (separate run) | 57 actionable tasks: 57 executed | green |
+| `:core:ui:kit:iosSimulatorArm64Test` | 38 actionable tasks: 38 executed | XML: `tests="1" skipped="0" failures="0" errors="0"`, case `sheetLayoutRendersMigratedStringFontAndIcon[iosSimulatorArm64]` (Xcode 26.6 local) |
+
+Golden byte identity: the post-move sorted `filename + SHA-256` manifest of
+`src/androidHostTest/snapshots/images` is identical to the pre-move manifest of
+`src/test/snapshots/images` (86/86), and the repository still holds exactly 456 committed golden
+PNGs — zero movers, zero re-records, `git mv` throughout.
+
+### 18.3 Repository gates (§11.3)
+
+All eight §11.3 gates green with forced flags on the same tree as §18.2:
+
+| Gate | Summary line |
+| --- | --- |
+| `assembleDebug` | 1102 actionable tasks: 1102 executed |
+| `assembleDebugAndroidTest` | 1983 actionable tasks: 1983 executed |
+| `verifyPaparazziDebug` | 617 actionable tasks: 617 executed — 13 "Visual gate live" lines (12 classic modules + kit's 86), summing to 456 |
+| `lintDebug` | 1097 actionable tasks: 1097 executed |
+| `testDebugUnitTest` | 1129 actionable tasks: 1129 executed |
+| `:lint-rules:test` | 9 actionable tasks: 9 executed |
+| `detekt` | 57 actionable tasks: 57 executed |
+| `python3 documentation/personal_data_gate.py -v` | exit 0 (only the two pre-excused entries) |
+
+The root `verifyPaparazziDebug` line set proves the repo-wide command reaches the converted KMP
+module: kit's alias chain (`verifyPaparazziDebug` → `verifyPaparazzi` →
+`verifyPaparazziAndroidMain`) executed 86 golden cases against 86 committed images inside the
+same invocation that verified the 12 classic modules.
+
+### 18.4 Known-negative controls (§11.4)
+
+Each mutation ran only after its green baseline above, then the exact bytes/code were restored
+and green re-proven. Golden PNG SHA-256s re-checked against the baseline manifest after the
+last control: identical, no mutation artifacts in the worktree.
+
+1. **Corrupt pixel.** One pixel byte flipped (XOR 0x80 mid-raster) in
+   `…AppButtonGoldenTest_primaryButton_light.png`, still a structurally valid PNG (all chunk
+   CRCs recomputed). Forced `:core:ui:kit:verifyPaparazziDebug`: exit 1 — exactly
+   `AppButtonGoldenTest > primaryButton [1] LIGHT FAILED` with a delta written under
+   `build/paparazzi/failures/`; its DARK sibling passed. Restored bytes
+   (`1242c592…` re-verified), re-run green: "Visual gate live: 86 … for 86".
+2. **Phantom PNG.** An 87th image (`…PhantomGoldenTest_phantom_light.png`) beside the 86:
+   forced verify failed with "Visual gate did not run: 86 golden test case(s) executed but 87
+   golden image(s) are committed." Removed; re-run green 86/86.
+3. **Dry-run alias graphs.** `:core:ui:kit:verifyPaparazziDebug --dry-run` lists
+   `:core:ui:kit:testAndroidHostTest`, `:core:ui:kit:verifyPaparazziAndroidMain`,
+   `:core:ui:kit:verifyPaparazzi`, `:core:ui:kit:verifyPaparazziDebug`;
+   `:core:ui:kit:recordPaparazziDebug --dry-run` lists
+   `:core:ui:kit:recordPaparazziAndroidMain`, `:core:ui:kit:recordPaparazzi`,
+   `:core:ui:kit:recordPaparazziDebug`. All SKIPPED — no record task ever executed.
+4. **Blank native scene.** Mutation harness (`--expect RED`): subject wrapped in `if (false)`,
+   forced `iosSimulatorArm64Test` → `sheetLayoutRendersMigratedStringFontAndIcon FAILED`
+   (semantics assertion), "38 actionable tasks: 38 executed". Harness restored the file;
+   re-run green with XML `tests="1" skipped="0" failures="0" errors="0"`.
+5. **`android.os.Build` in commonMain.** Mutation harness (`--expect INVALID`, the harness's
+   verdict for a mutant the compiler kills — which is this control's expected outcome):
+   `compileKotlinIosSimulatorArm64` failed with `Unresolved reference 'android'` at the mutated
+   line. Restored; native smoke re-proven green 1/0/0.
+6. **Dropped `:core:ui:test-utils` device edge.** Mutation harness (`--expect RED`): forced
+   `:core:ui:kit:assembleDebugAndroidTest` → `Task :core:ui:kit:verifyInstrumentedSuiteClasspath
+   FAILED` while device sources are non-zero. Restored; re-run green
+   ("136 actionable tasks: 136 executed").
+
+### 18.5 Notes a reviewer should not have to rediscover
+
+- Paparazzi 2.0.0-alpha05's `PrepareResourcesTask` cannot serialize its KMP asset-dir providers
+  into the configuration cache and the store failure fails the whole build; the KMP compose
+  convention marks `preparePaparazzi*` `notCompatibleWithConfigurationCache`, which degrades
+  those invocations to a no-cc run instead.
+- Compose-resource strings under Paparazzi need an Android `Context` handed to
+  `setResourceReaderAndroidContext` (the app wires it through a content provider that Paparazzi
+  never runs); the golden harness now does this after every `Paparazzi`/`PaparazziSdk` setup.
+  Fonts loaded without it (they resolve through composition-local context), which is why only
+  string-bearing goldens exposed the hole.
+- The host-side `runComposeUiTest` needs `ui-test-manifest` on `androidHostTest` (the classic
+  module got it from `debugImplementation`, which AGP-KMP lacks); the device-test copy plus the
+  compose BOM platform pins the same artifact for the device APK.
+- detekt caches rule-plugin classloaders per daemon keyed by jar path: after editing
+  `lint-rules` path anchors, a warm daemon still reports with the old rules — `./gradlew --stop`
+  first (the repo's known detekt classloader trap, re-measured on this arc).
+- The two non-composable kit-string call sites (`LiveWorkoutMapper`, exercise `ClickHandler`)
+  read the suspend CMP accessor behind `runBlocking`; CMP caches the parsed string table after
+  the first read. `ClickHandlerTest` stubs that accessor (`mockkStatic`) because the plain-JVM
+  suite deliberately has no Android environment.
+
+### 18.6 Device suites (§11.3, API-34 emulator)
+
+API-34 emulator (`Pixel_6_API_34`, animations off), forced flags, `--continue`:
+
+| Suite | Result |
+| --- | --- |
+| `:core:ui:kit:connectedDebugAndroidTest` `@Smoke` (pre-edit, §11.1) | `tests="5" failures="0" errors="0" skipped="0"` |
+| `:core:ui:kit:connectedDebugAndroidTest` `@Smoke` (post-conversion) | "Starting 5 tests … Finished 5 tests", BUILD SUCCESSFUL, 137 actionable tasks: 137 executed — via the alias onto `connectedAndroidDeviceTest` |
+| Repository `@Smoke` | 14 module XMLs: **44 discovered / 41 executed / 3 skipped / 0 failures** — the canonical baseline re-established, kit's five among them |
+| Repository `@Regression` | 14 module XMLs: **81 discovered / 81 executed / 0 skipped / 0 failures** |
+
+### 18.7 CI / ruleset
+
+The `KMP iOS kit smoke` job is added to `android_build_unified.yml` (`runs-on: macos-26`,
+explicit `Xcode_26.6` selection, runtime assertion, ephemeral `keytool` JKS, forced-flag
+`:core:ui:kit:iosSimulatorArm64Test`, and a step that fails unless the produced XML shows
+exactly 1 executed / 0 skipped / 0 failed and names the scene test). Ruleset state measured at
+implementation time via the ruleset API: the active repository-wide ruleset (`all`, id 8116593)
+requires only the external `Build project` context; the `dev` ruleset (id 18553518) is disabled
+with no checks. **Owner action before merge:** once this PR's first run exposes the
+`KMP iOS kit smoke` context, add it to an active ruleset covering `dev`; until the setting is
+visible through the ruleset API, Phase 7.1 is not complete (§9, §14).
+
+**First CI runs (PR #256).** Three PR-iteration fixes surfaced by CI, each a stale anchor or a
+measured resolver behaviour, none a gate weakening: the mockup gate's check 9 reads
+`AppColors.kt` by repository path (moved to `commonMain`; the gate failed file-not-found and
+went green on the fix — its known negative still red); the mutation harness's registered kit
+case moved to the `commonMain` path and the real `testAndroidHostTest` task (the KMP
+`testDebugUnitTest` alias cannot accept `--tests`), re-proven red/restore one-shot; and the
+ephemeral smoke keystore is copied into the workspace because the application convention
+resolves `storeFile` against the repository root even for absolute paths
+(`java.io.File(parent, "/abs")` concatenates). Runs recorded with the exact
+SHA each one tested: on `811ade13c` both workflows are green — `v3 Mockup Appearance Gate`
+(run 32971371393) and `Android CI/CD - Unified Build and Tests` (run 32971371429), the latter's
+`Build and Unit Tests` and `KMP iOS kit smoke` jobs both succeeding on `macos-26`/Xcode 26.6,
+the smoke assertion step printing "native gate live: 1 executed Compose-scene test, 0 skipped,
+0 failed". The final head of that arc, `04efb61eb` (a documentation-only addendum on top of
+`811ade13c`), was then tested by its own green runs — `Android CI/CD - Unified Build and Tests`
+run 32972840396 and `v3 Mockup Appearance Gate` run 32972840400. The `KMP iOS kit smoke` check
+context is now exposed; the ruleset addition remains the owner's step.
+
+## 19. Review-correction record (follow-up, 2026-08-26)
+
+The first implementation arc left two production `runBlocking { getString(Res.string…) }`
+bridges, a public `expect/actual` where §6.2 requires a common public wrapper over an internal
+hook, and two record inaccuracies. This follow-up closes all four without widening the phase.
+
+### 19.1 The blocking CMP-resource bridges are gone
+
+- **`feature:exercise` `ClickHandler.processConfirmPermanentDelete`** — the undo label now
+  resolves through the handler's own Store-scoped `launch` (the existing owner-scoped coroutine
+  boundary): the dialog still closes synchronously, the coroutine starts inside the click's
+  call stack (`workDispatcher = mainDispatcher`, main-immediate needs no dispatch from main),
+  the snackbar registration — the suspend `getString` plus the enqueue — rides
+  `withContext(NonCancellable)` so the pop this flow itself triggers cannot separate the closed
+  dialog from the queued undo window, and `Action.Navigation.Back` is consumed only from
+  `onSuccess`, strictly after registration. The delete still runs only from the model's
+  `onDismissed`, capturing the interactor and never the Store.
+- **`feature:live-workout` `LiveWorkoutMapper`** — the mapper no longer performs any resource
+  lookup. The localized reps unit resolves at the smallest existing suspend boundary owned by
+  the Store — `CommonHandler`'s init/reload `launch` blocks, the same coroutine that loads the
+  session — into the new `State.repsUnitLabel`, and `withPresentation`/`toPlanSubLabel` are
+  pure synchronous functions over that already-resolved immutable value. This matches the
+  established State-carried presentation-string discipline exactly: like `trainingNameLabel`,
+  `headerMetaLabel` and every `statusLabel` branch, the unit refreshes on the next mapper pass
+  (store re-init / reload); `MainActivity` declares `locale` in `configChanges`, so no
+  State-carried string refreshes mid-composition today, and none does after this change.
+- No production `runBlocking` remains in either path (repo-wide grep: the only production
+  `runBlocking` sites are the pre-existing `app:app` startup/runtime ones, untouched); the only
+  production `getString(Res…)` calls sit inside true suspend `launch` blocks.
+
+### 19.2 The Noise seam matches §6.2
+
+`Modifier.drawNoiseOrFallback` is again a public `commonMain` implementation (defaults intact,
+Android call sites untouched) delegating to `internal expect fun
+Modifier.drawPlatformNoiseOrFallback(…)`; the Android actual keeps the API-33 check, feature
+flag, AGSL shader and base-colour fallback, the iOS actual keeps the base-colour fallback, and
+the shader-only helpers stay `androidMain`. The wrapper's body uses an explicit `this.`
+receiver — the measured shape both androidx Modifier lint rules accept
+(`ModifierFactoryExtensionFunction` wants the hook to be an extension;
+`ModifierFactoryUnreferencedReceiver` cannot see a receiver through an implicit call to an
+`expect` callee).
+
+### 19.3 Focused tests added (no static mock of `getString` anywhere)
+
+- `CommonHandlerComposeResourceTest` / `…RuTest` (live-workout, Robolectric): `Action.Common.Init`
+  over a WEIGHTLESS session resolves the unit from the REAL catalog — `"reps"` -> `"12 reps"`
+  under the default locale, and the shipped `values-ru` value of
+  `core_ui_kit_plan_editor_unit_reps` with its sublabel under `qualifiers = "ru"` — into
+  `State.repsUnitLabel` and the rendered sublabel. (Two classes: the Robolectric JUnit5
+  extension forbids method-level `@Config`.)
+- `LiveWorkoutMapperTest`: new WEIGHTLESS case proves the mapper is a pure synchronous
+  transformation over the resolved value (the default and the Russian unit as inputs), plus the eight
+  existing `toState` fixtures now pass the resolved unit explicitly.
+- `ExerciseDeferredDeleteDbTest` (Robolectric + real in-memory Room): the store mock now runs
+  the registration coroutine inline, so all four ED11 cases exercise the real
+  `getString`-then-enqueue path, and the new case `back is consumed only after the snackbar is
+  queued, with the real undo label` pins the ordering (Back recorded with the queue non-empty)
+  and the real `"Undo"` label. `PermanentDeleteUndoLabelRuTest` pins the shipped `values-ru`
+  value of `core_ui_kit_toast_undo` under `ru`.
+- `ClickHandlerTest`: the `mockkStatic("…StringResourcesKt")` stub is deleted; the plain-JVM
+  `confirm permanent delete defers` case now pins the sync half — dialog closed, no delete, and
+  `Back` NOT consumed synchronously (a scope cancelled before the coroutine starts deletes
+  nothing and pops nothing — cancellation cannot turn the deferred delete into an early one).
+
+### 19.4 Record corrections
+
+- §2's source inventory row misread the baseline: the true counts at `0638fc740`/`500b4efb2`
+  are **145 `@Test` + 50 `@ParameterizedTest` = 195** annotated host-test functions (the
+  earlier 151/45/196 figure counted a KDoc mention); with the §6.4 epoch-concurrency test the
+  kit carried 146 + 50 = 196 before this follow-up. Executed-XML case counts (411 → 412) were
+  and remain a separate metric and were correct.
+- §18.7 previously attributed run 32971371429 to the arc's final head; it tested `811ade13c`.
+  The paragraph now records every run against the exact SHA it tested.
+
+### 19.5 Verification (forced flags, detekt separate)
+
+Every Gradle line below ran with `--rerun-tasks --no-build-cache --no-configuration-cache
+--full-stacktrace --console=plain` and reports full execution; counts are from the produced XML.
+
+| Gate | Summary line | Counts |
+| --- | --- | --- |
+| `:feature:live-workout:testDebugUnitTest` | 171 actionable tasks: 171 executed | 22 XML files, 191 cases, 0 failed — three named new tests (the two real-catalog resource classes and the WEIGHTLESS mapper case) |
+| `:feature:exercise:testDebugUnitTest` | 189 actionable tasks: 189 executed | 10 XML files, 120 cases, 0 failed — two named new tests (the ordering/real-label DB case and the Russian undo-label case) |
+| `:core:ui:kit:testDebugUnitTest` | 67 actionable tasks: 67 executed | 23 XML files, 412 cases, 0 skipped, goldens excluded — unchanged |
+| `verifyPaparazziDebug` (root) | 617 actionable tasks: 617 executed | 13 "Visual gate live" lines summing to 456; kit "86 golden test case(s) executed for 86 golden image(s)" |
+| `:core:ui:kit:iosSimulatorArm64Test` | 38 actionable tasks: 38 executed | XML `tests="1" skipped="0" failures="0" errors="0"` |
+| `assembleDebug` (root) | 1102 actionable tasks: 1102 executed | every consumer compiles |
+| `detekt` (separate run) | 57 actionable tasks: 57 executed | green |
+| `:core:ui:kit:connectedDebugAndroidTest` `@Smoke` (API-34 emulator) | 137 actionable tasks: 137 executed | "Starting 5 tests … Finished 5 tests", green |
+
+Golden integrity re-proven after the edits: the 86 kit PNG SHA-256s are identical to the
+pre-conversion baseline manifest and the repository still holds exactly 456 committed golden
+PNGs; the worktree contains only the intended source/test/doc changes — no mutation artifacts
+and no generated credentials. `git grep`-level audit: no production `runBlocking` outside the
+pre-existing `app:app` runtime files, and no `getString(Res…)` outside suspend `launch` blocks.
+
+### 19.6 CI on this follow-up
+
+Both workflows are green on `87ad233fc` — the record commit that carries the corrected code
+(`666bd3c02`'s tree plus this record): `v3 Mockup Appearance Gate` run 32997144341 and
+`Android CI/CD - Unified Build and Tests` run 32997144443, the latter's `Build and Unit Tests`
+and `KMP iOS kit smoke` jobs both succeeding. (The first synchronize/edited events for this
+head were swallowed by the 2026-08-26 GitHub partial outage; a close/reopen of the draft PR
+after recovery re-delivered them.) The commit that writes these IDs down is documentation-only:
+the runs above tested `87ad233fc`, not this commit — its own CI re-verifies the same code
+unchanged and is deliberately not recorded here.

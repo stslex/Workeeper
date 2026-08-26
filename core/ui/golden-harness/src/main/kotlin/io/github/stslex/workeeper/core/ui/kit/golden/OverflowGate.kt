@@ -34,6 +34,7 @@ class OverflowGateSdk(private val theme: GoldenTheme = GoldenTheme.LIGHT) {
     fun setup() {
         sdk.setup()
         sdk.prepare()
+        registerComposeResourcesContext(sdk.context)
     }
 
     fun teardown() {

@@ -21,6 +21,8 @@ import io.github.stslex.workeeper.core.ui.kit.components.segmented.SegmentedIcon
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppIconButton
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopBar
 import io.github.stslex.workeeper.core.ui.kit.icons.AppIcons
+import io.github.stslex.workeeper.core.ui.kit.resources.Res
+import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_action_back
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
@@ -45,7 +47,7 @@ import io.github.stslex.workeeper.feature.settings.ui.components.SettingsGroup
 import io.github.stslex.workeeper.feature.settings.ui.components.SettingsGroupRow
 import io.github.stslex.workeeper.feature.settings.ui.components.SignOutConfirmationDialog
 import kotlinx.collections.immutable.persistentListOf
-import io.github.stslex.workeeper.core.ui.kit.R as KitR
+import org.jetbrains.compose.resources.stringResource
 
 @Composable
 internal fun SettingsScreen(
@@ -66,7 +68,7 @@ internal fun SettingsScreen(
                     AppIconButton(
                         modifier = Modifier.testTag("SettingsBackButton"),
                         icon = AppIcons.ChevronLeft,
-                        contentDescription = stringResource(KitR.string.core_ui_kit_action_back),
+                        contentDescription = stringResource(Res.string.core_ui_kit_action_back),
                         onClick = { consume(Action.Navigation.Back) },
                     )
                 },

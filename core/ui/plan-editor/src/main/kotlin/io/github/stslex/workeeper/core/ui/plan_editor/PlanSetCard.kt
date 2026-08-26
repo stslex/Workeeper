@@ -32,13 +32,19 @@ import io.github.stslex.workeeper.core.ui.kit.components.input.AppNumberInput
 import io.github.stslex.workeeper.core.ui.kit.components.setbar.AppSetBar
 import io.github.stslex.workeeper.core.ui.kit.components.setchip.AppSetTypeChip
 import io.github.stslex.workeeper.core.ui.kit.components.tooltip.AppTooltip
+import io.github.stslex.workeeper.core.ui.kit.resources.Res
+import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_plan_editor_empty_hint
+import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_plan_editor_unit_kg
+import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_plan_editor_unit_reps
+import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_setbar_add
+import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_setbar_remove
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanEditorBodyAction
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import kotlinx.collections.immutable.ImmutableList
-import io.github.stslex.workeeper.core.ui.kit.R as KitR
+import org.jetbrains.compose.resources.stringResource
 
 // Wider than the reps column so the kg input stays legible at small widths.
 private const val WEIGHT_COLUMN_FLEX = 1.2f
@@ -79,7 +85,7 @@ fun PlanSetCard(
                 text = if (onAction == null) {
                     stringResource(R.string.core_ui_plan_editor_read_plan_empty)
                 } else {
-                    stringResource(KitR.string.core_ui_kit_plan_editor_empty_hint)
+                    stringResource(Res.string.core_ui_kit_plan_editor_empty_hint)
                 },
                 style = AppUi.typography.text.body,
                 color = AppUi.colors.textSecondary,
@@ -102,8 +108,8 @@ fun PlanSetCard(
         }
         if (onAction != null) {
             AppSetBar(
-                addLabel = stringResource(KitR.string.core_ui_kit_setbar_add),
-                removeLabel = stringResource(KitR.string.core_ui_kit_setbar_remove),
+                addLabel = stringResource(Res.string.core_ui_kit_setbar_add),
+                removeLabel = stringResource(Res.string.core_ui_kit_setbar_remove),
                 onAdd = { onAction(PlanEditorBodyAction.OnAddSet) },
                 // The foot removes the last set; the shared reducer still addresses a row.
                 onRemove = { onAction(PlanEditorBodyAction.OnSetRemove(plan.lastIndex)) },
@@ -144,7 +150,7 @@ private fun PlanSetRow(
                     onAction?.invoke(PlanEditorBodyAction.OnSetWeightChange(index, raw.toDoubleOrNull()))
                 },
                 decimals = 2,
-                suffix = stringResource(KitR.string.core_ui_kit_plan_editor_unit_kg),
+                suffix = stringResource(Res.string.core_ui_kit_plan_editor_unit_kg),
                 enabled = onAction != null,
                 isLogged = true,
             )
@@ -158,7 +164,7 @@ private fun PlanSetRow(
                 onAction?.invoke(PlanEditorBodyAction.OnSetRepsChange(index, raw.toIntOrNull() ?: 0))
             },
             decimals = 0,
-            suffix = stringResource(KitR.string.core_ui_kit_plan_editor_unit_reps),
+            suffix = stringResource(Res.string.core_ui_kit_plan_editor_unit_reps),
             enabled = onAction != null,
             isLogged = true,
         )

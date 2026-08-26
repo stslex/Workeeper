@@ -78,7 +78,7 @@ class ActiveSurfaceSingleReaderRule(config: Config = Config.empty) : Rule(config
 
         /** The declaring file, which previews itself. An exact file, never its package. */
         val EXEMPT_FILES = listOf(
-            "core/ui/kit/src/main/kotlin/io/github/stslex/workeeper/core/ui/kit/components/" +
+            "core/ui/kit/src/commonMain/kotlin/io/github/stslex/workeeper/core/ui/kit/components/" +
                 "surface/AppActiveSurface.kt",
         )
 
@@ -87,7 +87,7 @@ class ActiveSurfaceSingleReaderRule(config: Config = Config.empty) : Rule(config
          * so a feature module's test raising a second surface is still flagged.
          */
         val EXEMPT_DIRECTORIES = listOf(
-            "core/ui/kit/src/test/kotlin/io/github/stslex/workeeper/core/ui/kit/golden/",
+            "core/ui/kit/src/androidHostTest/kotlin/io/github/stslex/workeeper/core/ui/kit/golden/",
         )
     }
 }

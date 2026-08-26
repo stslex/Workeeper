@@ -27,6 +27,15 @@ import io.github.stslex.workeeper.core.ui.kit.components.sheet.AppConfirmSheet
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppIconButton
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopBar
 import io.github.stslex.workeeper.core.ui.kit.icons.AppIcons
+import io.github.stslex.workeeper.core.ui.kit.resources.Res
+import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_action_cancel
+import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_discard_sheet_body
+import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_discard_sheet_confirm
+import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_discard_sheet_dismiss
+import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_discard_sheet_title
+import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_plan_editor_subtitle
+import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_plan_editor_title_default
+import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_plan_editor_title_format
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
@@ -41,7 +50,7 @@ import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorSto
 import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorStore.State.Mode
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
-import io.github.stslex.workeeper.core.ui.kit.R as KitR
+import org.jetbrains.compose.resources.stringResource
 import io.github.stslex.workeeper.core.ui.plan_editor.R as CoreEditorR
 
 @Composable
@@ -125,10 +134,10 @@ internal fun PlanEditorScreen(
             DialogState.Hidden -> Unit
 
             DialogState.DiscardConfirm -> AppConfirmSheet(
-                title = stringResource(KitR.string.core_ui_kit_discard_sheet_title),
-                body = stringResource(KitR.string.core_ui_kit_discard_sheet_body),
-                confirmLabel = stringResource(KitR.string.core_ui_kit_discard_sheet_confirm),
-                dismissLabel = stringResource(KitR.string.core_ui_kit_discard_sheet_dismiss),
+                title = stringResource(Res.string.core_ui_kit_discard_sheet_title),
+                body = stringResource(Res.string.core_ui_kit_discard_sheet_body),
+                confirmLabel = stringResource(Res.string.core_ui_kit_discard_sheet_confirm),
+                dismissLabel = stringResource(Res.string.core_ui_kit_discard_sheet_dismiss),
                 confirmDestructive = true,
                 onConfirm = { consume(Action.Click.OnConfirmDiscard) },
                 onDismiss = { consume(Action.Click.OnDismissDiscard) },
@@ -140,7 +149,7 @@ internal fun PlanEditorScreen(
                 body = dialog.body,
                 emphasis = dialog.impactSummary,
                 confirmLabel = dialog.confirmLabel,
-                dismissLabel = stringResource(KitR.string.core_ui_kit_action_cancel),
+                dismissLabel = stringResource(Res.string.core_ui_kit_action_cancel),
                 onConfirm = { consume(Action.Click.OnTypeChangeConfirm) },
                 onDismiss = { consume(Action.Click.OnTypeChangeDismiss) },
             )
@@ -188,9 +197,9 @@ private fun PlanEditorActionBar(
 @Composable
 internal fun PlanEditorHeader(exerciseName: String) {
     val title = if (exerciseName.isBlank()) {
-        stringResource(KitR.string.core_ui_kit_plan_editor_title_default)
+        stringResource(Res.string.core_ui_kit_plan_editor_title_default)
     } else {
-        stringResource(KitR.string.core_ui_kit_plan_editor_title_format, exerciseName)
+        stringResource(Res.string.core_ui_kit_plan_editor_title_format, exerciseName)
     }
     Text(
         text = title,
@@ -199,7 +208,7 @@ internal fun PlanEditorHeader(exerciseName: String) {
     )
     Text(
         modifier = Modifier.padding(top = AppDimension.Space.xs),
-        text = stringResource(KitR.string.core_ui_kit_plan_editor_subtitle),
+        text = stringResource(Res.string.core_ui_kit_plan_editor_subtitle),
         style = AppUi.typography.bodySmall,
         color = AppUi.colors.textTertiary,
     )

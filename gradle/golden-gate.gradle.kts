@@ -3,12 +3,21 @@
 // The visual gate's liveness assertion, shared by every module that records Paparazzi goldens.
 // Applied with `apply(from = "$rootDir/gradle/golden-gate.gradle.kts")`. See testing.md.
 
+// Module kind decides the golden/XML locations and which task renders the goldens: classic
+// Android modules keep `src/test` + `testDebugUnitTest`; AGP-KMP modules use `src/androidHostTest`
+// + `testAndroidHostTest`. See kmp-phase-7-1-ui-kit.md.
+val isKmpModule = pluginManager.hasPlugin("com.android.kotlin.multiplatform.library")
+
 /**
  * Liveness assertion: every committed golden PNG must match a golden test case that actually
  * executed, since a `Test` task discovering none of them still exits 0. See testing.md.
  */
-val goldenImagesDir = layout.projectDirectory.dir("src/test/snapshots/images")
-val unitTestResultsDir = layout.buildDirectory.dir("test-results/testDebugUnitTest")
+val goldenImagesDir = layout.projectDirectory.dir(
+    if (isKmpModule) "src/androidHostTest/snapshots/images" else "src/test/snapshots/images",
+)
+val unitTestResultsDir = layout.buildDirectory.dir(
+    if (isKmpModule) "test-results/testAndroidHostTest" else "test-results/testDebugUnitTest",
+)
 
 val assertGoldenLiveness = tasks.register("assertGoldenLiveness") {
     group = "verification"
@@ -59,7 +68,9 @@ val assertGoldenLiveness = tasks.register("assertGoldenLiveness") {
 }
 
 // The Paparazzi tasks are registered per-variant after this script is evaluated, so they
-// cannot be reached with tasks.named(...) here.
+// cannot be reached with tasks.named(...) here. On a KMP module the prefix also matches the
+// verify/recordPaparazziDebug compatibility aliases; finalizedBy is idempotent, so the
+// assertion still runs once.
 tasks.matching { task ->
     task.name.startsWith("verifyPaparazzi") || task.name.startsWith("recordPaparazzi")
 }.configureEach {
@@ -67,20 +78,40 @@ tasks.matching { task ->
 }
 
 /**
- * A bare `testDebugUnitTest` renders the goldens but compares nothing, so they are excluded from
- * it. The mode guess is start-parameter based; `assertGoldenLiveness` catches a wrong guess.
+ * A bare unit-test run renders the goldens but compares nothing, so they are excluded from it.
+ * The mode guess is start-parameter based; `assertGoldenLiveness` catches a wrong guess.
  */
 val paparazziModeRequested = gradle.startParameter.taskNames.any { name -> "Paparazzi" in name }
 
-tasks.matching { task -> task.name == "testDebugUnitTest" }.configureEach {
-    if (paparazziModeRequested) {
-        // GUARD: a gate whose result can be replayed from the cache is not a gate — the liveness
-        // assertion reads this task's cached XML output. See documentation/testing.md.
-        outputs.doNotCacheIf("a visual gate must execute, not be restored from cache") { true }
-        outputs.upToDateWhen { false }
-    } else {
-        (this as Test).filter {
-            excludeTestsMatching("*.golden.*")
+if (isKmpModule) {
+    // GUARD: the KMP module's `testDebugUnitTest` is a plain lifecycle alias — casting it to
+    // `Test` is a measured ClassCastException (probe P3). Configure the real host `Test` tasks.
+    tasks.withType<Test>().configureEach {
+        if (paparazziModeRequested) {
+            // GUARD: a gate whose result can be replayed from the cache is not a gate — the
+            // liveness assertion reads this task's cached XML output. See documentation/testing.md.
+            outputs.doNotCacheIf("a visual gate must execute, not be restored from cache") { true }
+            outputs.upToDateWhen { false }
+        } else {
+            filter {
+                excludeTestsMatching("*.golden.*")
+                // Filtered-to-zero is a legal state for a golden-only module's plain run; the
+                // filter's own fail-on-no-match fires independently of failOnNoDiscoveredTests.
+                isFailOnNoMatchingTests = false
+            }
+        }
+    }
+} else {
+    tasks.matching { task -> task.name == "testDebugUnitTest" }.configureEach {
+        if (paparazziModeRequested) {
+            // GUARD: a gate whose result can be replayed from the cache is not a gate — the
+            // liveness assertion reads this task's cached XML output. See documentation/testing.md.
+            outputs.doNotCacheIf("a visual gate must execute, not be restored from cache") { true }
+            outputs.upToDateWhen { false }
+        } else {
+            (this as Test).filter {
+                excludeTestsMatching("*.golden.*")
+            }
         }
     }
 }

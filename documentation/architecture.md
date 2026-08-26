@@ -1967,7 +1967,7 @@ Russian-language app, which is what the deleted `AppBottomBarDestination` did (`
 
 ### Snackbars
 
-`core/ui/kit/src/main/kotlin/io/github/stslex/workeeper/core/ui/kit/snackbar/SnackbarManager.kt`
+`core/ui/kit/src/commonMain/kotlin/io/github/stslex/workeeper/core/ui/kit/snackbar/SnackbarManager.kt`
 is a singleton object exposing `snackbar: SharedFlow<AppSnackbarModel>` and a `showSnackbar(...)`
 emitter. Any layer can call `SnackbarManager.showSnackbar(...)` to surface a message;
 `App.kt` collects the flow and forwards each `AppSnackbarModel` to a `SnackbarHostState` that
@@ -1986,7 +1986,7 @@ calling `LocalHapticFeedback.current.performHapticFeedback(...)` — see
 `app/common/.../bottom_app_bar/BottomAppBar.kt` for a non-event-driven example using
 `HapticFeedbackType.SegmentTick`. The `Haptic` token is in `MviEventNamingRule.validPatterns`.
 
-Every haptic in this app is fired at a feature/graph level: `core/ui/kit/src/main` contains no
+Every haptic in this app is fired at a feature/graph level: `core/ui/kit/src/commonMain` contains no
 haptic call at all (measured), which is why the nav-tab `SegmentTick` is fired in `App.kt`'s
 `onSelect` rather than inside the kit's `AppNavBar`. A kit component must not acquire one.
 

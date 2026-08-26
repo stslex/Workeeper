@@ -22,6 +22,8 @@ import io.github.stslex.workeeper.core.ui.kit.components.sheet.AppBottomSheet
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppIconButton
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopBar
 import io.github.stslex.workeeper.core.ui.kit.icons.AppIcons
+import io.github.stslex.workeeper.core.ui.kit.resources.Res
+import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_action_back
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
@@ -43,7 +45,7 @@ import io.github.stslex.workeeper.feature.past_session.ui.components.PastSession
 import kotlinx.collections.immutable.ImmutableSet
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.persistentSetOf
-import io.github.stslex.workeeper.core.ui.kit.R as KitR
+import org.jetbrains.compose.resources.stringResource
 
 @Composable
 internal fun PastSessionScreen(
@@ -120,7 +122,7 @@ internal fun TopBar(
             AppIconButton(
                 modifier = Modifier.testTag("PastSessionBackButton"),
                 icon = AppIcons.ChevronLeft,
-                contentDescription = stringResource(KitR.string.core_ui_kit_action_back),
+                contentDescription = stringResource(Res.string.core_ui_kit_action_back),
                 onClick = { consume(Action.Click.OnBackClick) },
             )
         },

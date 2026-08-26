@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.plan_editor.model
 
-import io.github.stslex.workeeper.core.ui.kit.R
 import io.github.stslex.workeeper.core.ui.kit.components.setchip.SetType
+import io.github.stslex.workeeper.core.ui.kit.resources.Res
+import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_plan_editor_set_type_drop
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotEquals
@@ -21,7 +22,7 @@ internal class SetTypeUiModelTest {
 
     @Test
     fun `DROP labelRes resolves to drop string and not failure`() {
-        assertEquals(R.string.core_ui_kit_plan_editor_set_type_drop, SetTypeUiModel.DROP.labelRes)
+        assertEquals(Res.string.core_ui_kit_plan_editor_set_type_drop, SetTypeUiModel.DROP.labelRes)
         assertNotEquals(SetTypeUiModel.FAILURE.labelRes, SetTypeUiModel.DROP.labelRes)
     }
 

@@ -25,6 +25,13 @@ import io.github.stslex.workeeper.core.ui.kit.components.pr.PrExplainerDialog
 import io.github.stslex.workeeper.core.ui.kit.components.sheet.AppBottomSheet
 import io.github.stslex.workeeper.core.ui.kit.components.sheet.AppConfirmSheet
 import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagPickerSheetContent
+import io.github.stslex.workeeper.core.ui.kit.resources.Res
+import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_action_cancel
+import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_discard_sheet_body
+import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_discard_sheet_confirm
+import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_discard_sheet_dismiss
+import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_discard_sheet_title
+import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_toast_undo
 import io.github.stslex.workeeper.core.ui.kit.snackbar.AppSnackbarModel
 import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
 import io.github.stslex.workeeper.core.ui.mvi.navComponentScreenWithResults
@@ -43,7 +50,7 @@ import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Ev
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State.Mode
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableSet
-import io.github.stslex.workeeper.core.ui.kit.R as KitR
+import org.jetbrains.compose.resources.stringResource
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Suppress("LongMethod", "CyclomaticComplexMethod")
@@ -60,7 +67,7 @@ fun NavGraphScope.exerciseGraph(
         val haptic = LocalHapticFeedback.current
         val context = LocalContext.current
         val undoLabel = stringResource(R.string.feature_exercise_detail_archive_undo)
-        val undoToastLabel = stringResource(KitR.string.core_ui_kit_toast_undo)
+        val undoToastLabel = stringResource(Res.string.core_ui_kit_toast_undo)
         val imageSaveFailed = stringResource(R.string.feature_exercise_image_error_save_failed)
         val imageLoadFailed = stringResource(R.string.feature_exercise_image_error_load_failed)
         val imageDecodeFailed =
@@ -234,10 +241,10 @@ fun NavGraphScope.exerciseGraph(
 
             // §26: every modal on the three editors is a sheet; the strings come from the kit.
             is DialogState.DiscardConfirm -> AppConfirmSheet(
-                title = stringResource(KitR.string.core_ui_kit_discard_sheet_title),
-                body = stringResource(KitR.string.core_ui_kit_discard_sheet_body),
-                confirmLabel = stringResource(KitR.string.core_ui_kit_discard_sheet_confirm),
-                dismissLabel = stringResource(KitR.string.core_ui_kit_discard_sheet_dismiss),
+                title = stringResource(Res.string.core_ui_kit_discard_sheet_title),
+                body = stringResource(Res.string.core_ui_kit_discard_sheet_body),
+                confirmLabel = stringResource(Res.string.core_ui_kit_discard_sheet_confirm),
+                dismissLabel = stringResource(Res.string.core_ui_kit_discard_sheet_dismiss),
                 confirmDestructive = true,
                 onConfirm = { processor.consume(Action.Click.OnConfirmDiscard(dialog.target)) },
                 onDismiss = { processor.consume(Action.Click.OnDismissDiscard) },
@@ -249,7 +256,7 @@ fun NavGraphScope.exerciseGraph(
                 body = dialog.body,
                 emphasis = dialog.impactSummary,
                 confirmLabel = dialog.confirmLabel,
-                dismissLabel = stringResource(KitR.string.core_ui_kit_discard_sheet_dismiss),
+                dismissLabel = stringResource(Res.string.core_ui_kit_discard_sheet_dismiss),
                 confirmDestructive = true,
                 onConfirm = { processor.consume(Action.Click.OnTypeChangeConfirm) },
                 onDismiss = { processor.consume(Action.Click.OnTypeChangeDismiss) },
@@ -269,7 +276,7 @@ fun NavGraphScope.exerciseGraph(
                 body = dialog.body,
                 emphasis = dialog.impactSummary,
                 confirmLabel = dialog.confirmLabel,
-                dismissLabel = stringResource(KitR.string.core_ui_kit_action_cancel),
+                dismissLabel = stringResource(Res.string.core_ui_kit_action_cancel),
                 confirmDestructive = true,
                 onConfirm = { processor.consume(Action.Click.OnConfirmPermanentDelete) },
                 onDismiss = { processor.consume(Action.Click.OnDismissPermanentDelete) },
@@ -296,7 +303,7 @@ fun NavGraphScope.exerciseGraph(
                 confirmLabel = stringResource(
                     R.string.feature_exercise_image_permission_denied_action_settings,
                 ),
-                dismissLabel = stringResource(KitR.string.core_ui_kit_action_cancel),
+                dismissLabel = stringResource(Res.string.core_ui_kit_action_cancel),
                 onConfirm = {
                     processor.consume(Action.Click.OnPermissionDeniedSettingsClick)
                 },

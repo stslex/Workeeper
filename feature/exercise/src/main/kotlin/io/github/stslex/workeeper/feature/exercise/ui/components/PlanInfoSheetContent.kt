@@ -11,13 +11,15 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButton
+import io.github.stslex.workeeper.core.ui.kit.resources.Res
+import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_sheet_close
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
 import io.github.stslex.workeeper.feature.exercise.R
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
-import io.github.stslex.workeeper.core.ui.kit.R as KitR
+import org.jetbrains.compose.resources.stringResource
 
 /**
  * The plan head's `(i)` sheet (ED8): what a default plan is for and where per-training plans live.
@@ -49,7 +51,7 @@ internal fun PlanInfoSheetContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .testTag("ExercisePlanInfoSheetClose"),
-            text = stringResource(KitR.string.core_ui_kit_sheet_close),
+            text = stringResource(Res.string.core_ui_kit_sheet_close),
             onClick = { consume(Action.Click.OnSheetDismiss) },
         )
     }

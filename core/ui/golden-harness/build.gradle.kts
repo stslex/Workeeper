@@ -18,4 +18,8 @@ dependencies {
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.foundation)
+
+    // AndroidContextProvider: hands the layoutlib Context to CMP resources for KMP modules'
+    // string renders under Paparazzi. See registerComposeResourcesContext in GoldenHarness.kt.
+    implementation(libs.cmp.components.resources)
 }

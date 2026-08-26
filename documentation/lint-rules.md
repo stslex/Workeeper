@@ -768,7 +768,7 @@ and the tidier-looking edit reddens the CI-gated `lintDebug`:
   `super.onCleared()` is flagged.
 - **`ComposableLambdaParameterNaming`** — a composable's sole composable slot must be named `content`.
   It binds on `SettingsGroupRow`'s trailing control slot and on
-  `core/ui/kit/src/main/kotlin/io/github/stslex/workeeper/core/ui/kit/components/list/AppListRow.kt`;
+  `core/ui/kit/src/commonMain/kotlin/io/github/stslex/workeeper/core/ui/kit/components/list/AppListRow.kt`;
   a more descriptive name (e.g. `trailing`) fails lint.
 - **`LocalContextGetResourceValueCall`** — error copy must be resolved with `stringResource(...)` in
   composable scope and passed in. `PlanEditorContent` hoists `loadFailedMessage` / `saveFailedMessage`

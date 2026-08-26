@@ -17,6 +17,8 @@ import app.cash.paparazzi.TestName
 import com.android.ide.common.rendering.api.SessionParams
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
+import org.jetbrains.compose.resources.ExperimentalResourceApi
+import org.jetbrains.compose.resources.setResourceReaderAndroidContext
 import org.junit.jupiter.api.TestInfo
 
 /*
@@ -58,6 +60,7 @@ fun golden(
         useDeviceResolution = true,
     )
     paparazzi.setup(testInfo.toTestName())
+    registerComposeResourcesContext(paparazzi.context)
     try {
         // The theme rides in the snapshot name, so one @ParameterizedTest covers both.
         paparazzi.snapshot(name = theme.suffix) {
@@ -96,6 +99,7 @@ fun goldenSubject(
         useDeviceResolution = true,
     )
     paparazzi.setup(testInfo.toTestName())
+    registerComposeResourcesContext(paparazzi.context)
     try {
         paparazzi.snapshot(name = theme.suffix) {
             AppTheme(themeMode = theme.themeMode) {
@@ -112,6 +116,18 @@ fun goldenSubject(
     } finally {
         paparazzi.teardown()
     }
+}
+
+/**
+ * Hands the layoutlib `Context` to Compose Multiplatform resources. GUARD: without it a KMP
+ * module's `Res.string` read falls through to the instrumented-test reader and dies with
+ * "No instrumentation registered" — the app wires this through a content provider, which
+ * Paparazzi never runs. Idempotent; harmless for classic modules, whose Android `R` strings
+ * do not consult it. Call after every Paparazzi/PaparazziSdk setup.
+ */
+@OptIn(ExperimentalResourceApi::class)
+internal fun registerComposeResourcesContext(context: android.content.Context) {
+    setResourceReaderAndroidContext(context)
 }
 
 /**

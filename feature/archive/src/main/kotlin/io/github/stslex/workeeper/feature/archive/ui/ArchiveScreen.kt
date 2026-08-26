@@ -32,6 +32,8 @@ import io.github.stslex.workeeper.core.ui.kit.components.paging.ListBody
 import io.github.stslex.workeeper.core.ui.kit.components.paging.listBody
 import io.github.stslex.workeeper.core.ui.kit.components.segmented.AppSegmentedControl
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopAppBar
+import io.github.stslex.workeeper.core.ui.kit.resources.Res
+import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_action_back
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
@@ -52,7 +54,7 @@ import io.github.stslex.workeeper.feature.archive.ui.components.pagingTailKind
 import io.github.stslex.workeeper.feature.archive.ui.components.rememberArchiveSurface
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.flow.flowOf
-import io.github.stslex.workeeper.core.ui.kit.R as KitR
+import org.jetbrains.compose.resources.stringResource
 
 @Composable
 internal fun ArchiveScreen(
@@ -80,7 +82,7 @@ internal fun ArchiveScreen(
                     Icon(
                         modifier = Modifier.size(AppDimension.iconMd),
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = stringResource(KitR.string.core_ui_kit_action_back),
+                        contentDescription = stringResource(Res.string.core_ui_kit_action_back),
                     )
                 }
             },

@@ -18,6 +18,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppIconButton
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopBar
 import io.github.stslex.workeeper.core.ui.kit.icons.AppIcons
+import io.github.stslex.workeeper.core.ui.kit.resources.Res
+import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_action_back
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
@@ -42,6 +44,7 @@ import io.github.stslex.workeeper.feature.exercise_chart.ui.components.MetricTab
 import io.github.stslex.workeeper.feature.exercise_chart.ui.components.PresetChipsRow
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
+import org.jetbrains.compose.resources.stringResource
 import java.time.LocalDate
 
 @Composable
@@ -103,7 +106,7 @@ private fun ChartTopBar(
             AppIconButton(
                 icon = AppIcons.ChevronLeft,
                 contentDescription = stringResource(
-                    io.github.stslex.workeeper.core.ui.kit.R.string.core_ui_kit_action_back,
+                    Res.string.core_ui_kit_action_back,
                 ),
                 onClick = { consume(Action.Click.OnBack) },
                 modifier = Modifier.testTag("ExerciseChartBack"),

@@ -39,6 +39,13 @@ interface LiveWorkoutStore :
         val progress: Float,
         /** The `.shead` meta line, built in the presentation mapper. Blank when no exercises. */
         val headerMetaLabel: String,
+        /**
+         * kit's localized reps unit for WEIGHTLESS sublabels, resolved once per session load at
+         * the handler's suspend boundary — the same refresh boundary as every other
+         * State-carried presentation string. Blank only before the first load, which is also
+         * the only time no exercise sublabel can render.
+         */
+        val repsUnitLabel: String = "",
         val exercises: ImmutableList<LiveExerciseUiModel>,
         val setDrafts: ImmutableMap<DraftKey, LiveSetUiModel>,
         /**

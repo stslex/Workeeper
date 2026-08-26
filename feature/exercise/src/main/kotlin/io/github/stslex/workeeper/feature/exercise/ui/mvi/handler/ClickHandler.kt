@@ -16,6 +16,8 @@ import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.core.utils.CommonExt.parseOrRandom
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.BlockedArchiveItem
 import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagItem
+import io.github.stslex.workeeper.core.ui.kit.resources.Res
+import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_toast_undo
 import io.github.stslex.workeeper.core.ui.kit.snackbar.AppSnackbarModel
 import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
@@ -45,9 +47,10 @@ import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.St
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
+import org.jetbrains.compose.resources.getString
 import kotlin.uuid.Uuid
-import io.github.stslex.workeeper.core.ui.kit.R as KitR
 import io.github.stslex.workeeper.core.ui.plan_editor.R as CoreEditorR
 
 @Suppress("TooManyFunctions", "LargeClass")
@@ -526,20 +529,31 @@ internal class ClickHandler @Inject constructor(
         val uuid = state.value.uuid ?: return
         sendEvent(Event.Haptic(HapticFeedbackType.LongPress))
         updateState { it.copy(dialogState = DialogState.Hidden) }
-        SnackbarManager.showSnackbar(
-            AppSnackbarModel(
-                message = resourceWrapper.getString(
-                    R.string.feature_exercise_detail_permanent_delete_success,
-                ),
-                actionLabel = resourceWrapper.getString(KitR.string.core_ui_kit_toast_undo),
-                // «Отменить» declines a delete that has not run — declining is doing nothing.
-                action = { },
-                // GUARD: the delete runs only here, never before the undo window closes; the
-                // closure captures the interactor, never the Store, whose scope dies on the pop.
-                onDismissed = { interactor.permanentlyDelete(uuid) },
-            ),
+        val message = resourceWrapper.getString(
+            R.string.feature_exercise_detail_permanent_delete_success,
         )
-        consume(Action.Navigation.Back)
+        // GUARD: main-immediate work dispatcher, so the coroutine starts inside this click's
+        // call stack, and NonCancellable around the registration, so the pop this flow itself
+        // triggers cannot separate the already-closed dialog from the queued undo window.
+        // Back is consumed only after the snackbar is queued.
+        launch(
+            workDispatcher = mainDispatcher,
+            onSuccess = { consume(Action.Navigation.Back) },
+        ) {
+            withContext(NonCancellable) {
+                SnackbarManager.showSnackbar(
+                    AppSnackbarModel(
+                        message = message,
+                        actionLabel = getString(Res.string.core_ui_kit_toast_undo),
+                        // «Отменить» declines a delete that has not run — declining is doing nothing.
+                        action = { },
+                        // GUARD: the delete runs only here, never before the undo window closes; the
+                        // closure captures the interactor, never the Store, whose scope dies on the pop.
+                        onDismissed = { interactor.permanentlyDelete(uuid) },
+                    ),
+                )
+            }
+        }
     }
 
     private fun processUndoArchive(action: Action.Click.OnUndoArchive) {

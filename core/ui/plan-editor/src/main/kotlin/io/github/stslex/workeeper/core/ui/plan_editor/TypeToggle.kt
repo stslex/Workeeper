@@ -5,13 +5,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import io.github.stslex.workeeper.core.ui.kit.components.segmented.AppSegmentedControl
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import kotlinx.collections.immutable.toImmutableList
+import org.jetbrains.compose.resources.stringResource
 
 /**
  * WEIGHTED / WEIGHTLESS, beside the rows whose shape it decides — the enum ↔ index adapter onto
