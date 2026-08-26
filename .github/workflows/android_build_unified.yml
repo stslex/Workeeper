@@ -302,14 +302,17 @@ jobs:
 
       # Repository configuration reads a signing keystore at configuration time. This job holds
       # no production secret by design: an ephemeral throwaway JKS satisfies configuration and
-      # signs nothing that leaves the runner.
+      # signs nothing that leaves the runner. GUARD: the convention resolves storeFile against
+      # the repository root even for absolute paths (java.io.File(parent, "/abs") concatenates),
+      # so the keystore must sit in the workspace and be referenced relatively.
       - name: Configure ephemeral signing material
         run: |
           keytool -genkeypair -alias ci-smoke -keyalg RSA -keysize 2048 -validity 1 \
             -storepass ci-smoke-pass -keypass ci-smoke-pass \
             -dname "CN=kmp-ios-kit-smoke" -keystore "$RUNNER_TEMP/ci-smoke.jks"
+          cp "$RUNNER_TEMP/ci-smoke.jks" ci-smoke.jks
           {
-            echo "storeFile=$RUNNER_TEMP/ci-smoke.jks"
+            echo "storeFile=ci-smoke.jks"
             echo "keyAlias=ci-smoke"
             echo "storePassword=ci-smoke-pass"
             echo "keyPassword=ci-smoke-pass"
