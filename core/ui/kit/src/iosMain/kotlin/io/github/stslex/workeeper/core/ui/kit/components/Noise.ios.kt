@@ -7,7 +7,7 @@ import androidx.compose.ui.graphics.Color
 
 /** The base-colour fallback IS the iOS behaviour — there is no AGSL runtime to pretend at. */
 @Composable
-actual fun Modifier.drawNoiseOrFallback(
+internal actual fun Modifier.drawPlatformNoiseOrFallback(
     noiseIntensity: Float,
     grainSize: Float,
     baseColor: Color,

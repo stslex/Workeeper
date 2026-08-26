@@ -58,15 +58,30 @@ fun NoiseColumn(
     }
 }
 
-/**
- * The platform choice for the noise treatment, hidden behind expect/actual: Android keeps the
- * API-level check, feature flag and AGSL shader; iOS draws the base-colour fallback and does
- * not pretend to implement the shader.
- */
+// GUARD: the body's explicit `this.` is what ModifierFactoryUnreferencedReceiver can see
+// through an expect callee — an implicit-receiver call here reds the lint gate.
 @Composable
-expect fun Modifier.drawNoiseOrFallback(
+fun Modifier.drawNoiseOrFallback(
     noiseIntensity: Float = 0.05f,
     grainSize: Float = 400f,
     baseColor: Color = Color.Transparent,
     animated: Boolean = false,
+): Modifier = this.drawPlatformNoiseOrFallback(
+    noiseIntensity = noiseIntensity,
+    grainSize = grainSize,
+    baseColor = baseColor,
+    animated = animated,
+)
+
+/**
+ * The platform choice for the noise treatment: Android keeps the API-level check, feature flag
+ * and AGSL shader; iOS draws the base-colour fallback and does not pretend to implement the
+ * shader. GUARD: internal — the shared contract is [drawNoiseOrFallback], never this hook.
+ */
+@Composable
+internal expect fun Modifier.drawPlatformNoiseOrFallback(
+    noiseIntensity: Float,
+    grainSize: Float,
+    baseColor: Color,
+    animated: Boolean,
 ): Modifier

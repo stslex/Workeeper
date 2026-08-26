@@ -6,9 +6,6 @@ import android.content.pm.PackageManager
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagItem
-import io.github.stslex.workeeper.core.ui.kit.resources.Res
-import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_toast_undo
-import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanEditorBodyAction
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
@@ -34,9 +31,7 @@ import io.mockk.coVerify
 import io.mockk.coVerifyOrder
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.mockkStatic
 import io.mockk.slot
-import io.mockk.unmockkStatic
 import io.mockk.verify
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
@@ -47,30 +42,13 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.jetbrains.compose.resources.getString
-import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertNull
 
 internal class ClickHandlerTest {
-
-    /**
-     * kit's undo label is a Compose-resource read, which needs a real Android environment this
-     * plain-JVM suite deliberately does not have — stub the one suspend accessor instead.
-     */
-    @BeforeEach
-    fun stubComposeResourceStrings() {
-        mockkStatic("org.jetbrains.compose.resources.StringResourcesKt")
-        coEvery { getString(Res.string.core_ui_kit_toast_undo) } returns "Undo"
-    }
-
-    @AfterEach
-    fun unstubComposeResourceStrings() {
-        unmockkStatic("org.jetbrains.compose.resources.StringResourcesKt")
-    }
 
     private val interactor = mockk<ExerciseInteractor>(relaxed = true)
     private val resourceWrapper = mockk<ResourceWrapper>(relaxed = true)
@@ -299,22 +277,28 @@ internal class ClickHandlerTest {
         assertEquals(BottomSheetState.Hidden, stateFlow.value.bottomSheetState)
     }
 
-    /** ED11's strict order: confirming deletes nothing until the snackbar's `onDismissed` runs. */
+    /**
+     * ED11's sync half on the plain JVM: confirming closes the dialog and schedules the
+     * registration coroutine — nothing deletes, and Back is NOT consumed synchronously (it
+     * rides the coroutine only after the snackbar is queued, so a scope cancelled before the
+     * coroutine starts deletes nothing and pops nothing). The full registration order, the
+     * real undo label and the commit run against real resources in ExerciseDeferredDeleteDbTest.
+     */
     @Test
     fun `confirm permanent delete defers - nothing runs until the commit`() = runTest {
-        val (_, store, handler) = setup(
+        val (stateFlow, store, handler) = setup(
             State.create(uuid = "uuid-1").copy(canPermanentlyDelete = true),
         )
 
         handler.invoke(Action.Click.OnPermanentDeleteMenuClick)
         handler.invoke(Action.Click.OnConfirmPermanentDelete)
 
+        assertEquals(DialogState.Hidden, stateFlow.value.dialogState)
         coVerify(exactly = 0) { interactor.permanentlyDelete(any()) }
-        verify { store.consume(Action.Navigation.Back) }
-
-        val pending = SnackbarManager.snackbar.first().model
-        pending.onDismissed()
-        coVerify(exactly = 1) { interactor.permanentlyDelete("uuid-1") }
+        verify(exactly = 0) { store.consume(Action.Navigation.Back) }
+        verify {
+            store.launch(any(), any(), any(), any(), any<suspend CoroutineScope.() -> Any?>())
+        }
     }
 
     @Test

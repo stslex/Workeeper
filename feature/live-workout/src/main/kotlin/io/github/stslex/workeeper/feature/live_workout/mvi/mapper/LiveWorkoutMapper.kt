@@ -3,8 +3,6 @@ package io.github.stslex.workeeper.feature.live_workout.mvi.mapper
 
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.core.time.formatElapsedDuration
-import io.github.stslex.workeeper.core.ui.kit.resources.Res
-import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_plan_editor_unit_reps
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
@@ -31,8 +29,6 @@ import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.collections.immutable.toImmutableMap
 import kotlinx.collections.immutable.toImmutableSet
-import kotlinx.coroutines.runBlocking
-import org.jetbrains.compose.resources.getString
 
 @Suppress("TooManyFunctions")
 internal object LiveWorkoutMapper {
@@ -43,6 +39,7 @@ internal object LiveWorkoutMapper {
     fun SessionSnapshotDomain.toState(
         nowMillis: Long,
         resourceWrapper: ResourceWrapper,
+        repsUnitLabel: String,
     ): State {
         val typeByUuid = exercises.associate {
             it.performed.exerciseUuid to it.exerciseType
@@ -69,6 +66,7 @@ internal object LiveWorkoutMapper {
             setsLogged = 0,
             progress = 0f,
             headerMetaLabel = "",
+            repsUnitLabel = repsUnitLabel,
             exercises = ui,
             setDrafts = emptyMap<State.DraftKey, LiveSetUiModel>().toImmutableMap(),
             activeExerciseUuids = activeExerciseUuids,
@@ -185,7 +183,9 @@ internal object LiveWorkoutMapper {
         // Refreshes `visibleSets` here so handlers never have to do it themselves.
         val withVisible = withVisibleSets()
         val presentedExercises = withVisible.exercises.map { exercise ->
-            exercise.copy(statusLabel = exercise.toStatusLabel(resourceWrapper))
+            exercise.copy(
+                statusLabel = exercise.toStatusLabel(resourceWrapper, withVisible.repsUnitLabel),
+            )
         }.toImmutableList()
         val doneCount = presentedExercises.count { it.status == ExerciseStatusUiModel.DONE }
         val totalCount = presentedExercises.size
@@ -389,7 +389,10 @@ internal object LiveWorkoutMapper {
      * The card's `.sub` line — always the plan, never a status readout, so the card's height
      * stays stable; only a skipped card substitutes `пропущено`. See extraction §1.5.
      */
-    private fun LiveExerciseUiModel.toStatusLabel(resourceWrapper: ResourceWrapper): String =
+    private fun LiveExerciseUiModel.toStatusLabel(
+        resourceWrapper: ResourceWrapper,
+        repsUnitLabel: String,
+    ): String =
         when {
             status == ExerciseStatusUiModel.SKIPPED ->
                 resourceWrapper.getString(R.string.feature_live_workout_status_skipped)
@@ -397,11 +400,12 @@ internal object LiveWorkoutMapper {
             planSets.isEmpty() ->
                 resourceWrapper.getString(R.string.feature_live_workout_status_no_plan)
 
-            else -> planSets.toPlanSubLabel(exerciseType)
+            else -> planSets.toPlanSubLabel(exerciseType, repsUnitLabel)
         }
 
     private fun List<PlanSetUiModel>.toPlanSubLabel(
         exerciseType: ExerciseTypeUiModel,
+        repsUnitLabel: String,
     ): String = when (exerciseType) {
         // A WEIGHTED exercise can carry reps-only plan sets; substituting 0.0 would print a
         // 0 kg target the user never set.
@@ -411,13 +415,8 @@ internal object LiveWorkoutMapper {
                 ?: set.reps.toString()
         }
 
-        ExerciseTypeUiModel.WEIGHTLESS -> {
-            // GUARD: kit's catalog is Compose-resource-backed and its non-composable read is
-            // suspend-only; the value is cached by CMP after the first read, so this block is
-            // a one-off table load, not per-frame I/O.
-            val unit = runBlocking { getString(Res.string.core_ui_kit_plan_editor_unit_reps) }
-            joinToString(SUB_SEPARATOR) { set -> "${set.reps} $unit" }
-        }
+        ExerciseTypeUiModel.WEIGHTLESS ->
+            joinToString(SUB_SEPARATOR) { set -> "${set.reps} $repsUnitLabel" }
     }
 
     private fun formatExerciseSummary(

@@ -5,6 +5,8 @@ import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.core.time.formatElapsedDuration
+import io.github.stslex.workeeper.core.ui.kit.resources.Res
+import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_plan_editor_unit_reps
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutHandlerStore
 import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutScope
@@ -15,6 +17,7 @@ import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStor
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import org.jetbrains.compose.resources.getString
 
 @SingleIn(LiveWorkoutScope::class)
 internal class CommonHandler @Inject constructor(
@@ -55,6 +58,9 @@ internal class CommonHandler @Inject constructor(
                 ?.toState(
                     nowMillis = now,
                     resourceWrapper = resourceWrapper,
+                    // kit's unit is a suspend-only CMP read: resolved here, at the load
+                    // boundary, so the mapper stays a pure synchronous transformation.
+                    repsUnitLabel = getString(Res.string.core_ui_kit_plan_editor_unit_reps),
                 )
         }
     }
@@ -92,6 +98,7 @@ internal class CommonHandler @Inject constructor(
                 ?.toState(
                     nowMillis = System.currentTimeMillis(),
                     resourceWrapper = resourceWrapper,
+                    repsUnitLabel = getString(Res.string.core_ui_kit_plan_editor_unit_reps),
                 )
         }
     }

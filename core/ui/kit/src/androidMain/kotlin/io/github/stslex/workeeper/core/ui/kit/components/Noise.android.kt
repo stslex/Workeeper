@@ -17,7 +17,7 @@ import org.intellij.lang.annotations.Language
 import kotlin.random.Random
 
 @Composable
-actual fun Modifier.drawNoiseOrFallback(
+internal actual fun Modifier.drawPlatformNoiseOrFallback(
     noiseIntensity: Float,
     grainSize: Float,
     baseColor: Color,
