@@ -36,6 +36,8 @@ import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagItem
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppIconButton
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopBar
 import io.github.stslex.workeeper.core.ui.kit.icons.AppIcons
+import io.github.stslex.workeeper.core.ui.kit.resources.Res
+import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_action_back
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
@@ -55,6 +57,7 @@ import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.St
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
+import org.jetbrains.compose.resources.stringResource
 
 @Composable
 internal fun ExerciseDetailScreen(
@@ -89,7 +92,7 @@ internal fun TopBar(
                 modifier = Modifier.testTag("ExerciseDetailBackButton"),
                 icon = AppIcons.ChevronLeft,
                 contentDescription = stringResource(
-                    io.github.stslex.workeeper.core.ui.kit.R.string.core_ui_kit_action_back,
+                    Res.string.core_ui_kit_action_back,
                 ),
                 onClick = { consume(Action.Click.OnBackClick) },
             )

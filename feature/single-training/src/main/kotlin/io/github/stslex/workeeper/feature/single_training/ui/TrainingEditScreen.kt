@@ -32,6 +32,9 @@ import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagFormRow
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppIconButton
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopBar
 import io.github.stslex.workeeper.core.ui.kit.icons.AppIcons
+import io.github.stslex.workeeper.core.ui.kit.resources.Res
+import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_action_cancel
+import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_action_save
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.feature.single_training.R
@@ -39,7 +42,7 @@ import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTraini
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.State
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.State.Mode
 import io.github.stslex.workeeper.feature.single_training.ui.components.TrainingExerciseCard
-import io.github.stslex.workeeper.core.ui.kit.R as KitR
+import org.jetbrains.compose.resources.stringResource
 
 @Composable
 internal fun TrainingEditScreen(
@@ -234,14 +237,14 @@ private fun EditActionBar(
     ) {
         AppButton.Tertiary(
             modifier = Modifier.testTag("TrainingEditCancelButton"),
-            text = stringResource(KitR.string.core_ui_kit_action_cancel),
+            text = stringResource(Res.string.core_ui_kit_action_cancel),
             onClick = { consume(Action.Click.OnCancelClick) },
         )
         AppButton.Primary(
             modifier = Modifier
                 .weight(1f)
                 .testTag("TrainingEditSaveButton"),
-            text = stringResource(KitR.string.core_ui_kit_action_save),
+            text = stringResource(Res.string.core_ui_kit_action_save),
             onClick = { consume(Action.Click.OnSaveClick) },
             // No `enabled` — §26 "Save is never disabled" (a predicate would hide two branches).
         )

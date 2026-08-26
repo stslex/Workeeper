@@ -29,13 +29,16 @@ import io.github.stslex.workeeper.core.ui.kit.components.pr.PersonalRecordTag
 import io.github.stslex.workeeper.core.ui.kit.components.setchip.AppSetTypeChip
 import io.github.stslex.workeeper.core.ui.kit.components.setrow.SetRowGeometry
 import io.github.stslex.workeeper.core.ui.kit.components.tooltip.AppTooltip
+import io.github.stslex.workeeper.core.ui.kit.resources.Res
+import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_set_field_a11y_reps
+import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_set_field_a11y_weight
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.live_workout.R
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveSetUiModel
-import io.github.stslex.workeeper.core.ui.kit.R as KitR
+import org.jetbrains.compose.resources.stringResource
 
 /** `.set.flash` peaks: 13% dark, 9% light, scaled by the decaying flash envelope. */
 private const val FLASH_PEAK_ALPHA_DARK = 0.13f
@@ -110,7 +113,7 @@ internal fun LiveSetRow(
                     isDone = set.isDone,
                     fieldInset = SetRowGeometry.compactFieldInset,
                     accessibilityLabel = stringResource(
-                        KitR.string.core_ui_kit_set_field_a11y_weight,
+                        Res.string.core_ui_kit_set_field_a11y_weight,
                     ),
                     valueSlotProbe = weightSlotProbe,
                 )
@@ -125,7 +128,7 @@ internal fun LiveSetRow(
                     isDone = set.isDone,
                     fieldInset = SetRowGeometry.compactFieldInset,
                     accessibilityLabel = stringResource(
-                        KitR.string.core_ui_kit_set_field_a11y_reps,
+                        Res.string.core_ui_kit_set_field_a11y_reps,
                     ),
                     valueSlotProbe = repsSlotProbe,
                 )
@@ -142,7 +145,7 @@ internal fun LiveSetRow(
                     isDone = set.isDone,
                     fieldInset = SetRowGeometry.compactFieldInset,
                     accessibilityLabel = stringResource(
-                        KitR.string.core_ui_kit_set_field_a11y_reps,
+                        Res.string.core_ui_kit_set_field_a11y_reps,
                     ),
                     valueSlotProbe = repsSlotProbe,
                 )

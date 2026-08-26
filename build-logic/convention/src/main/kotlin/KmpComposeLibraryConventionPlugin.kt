@@ -47,6 +47,15 @@ class KmpComposeLibraryConventionPlugin : Plugin<Project> {
      */
     private fun Project.registerPaparazziAliases() {
         pluginManager.withPlugin("app.cash.paparazzi") {
+            // GUARD: on a KMP module Paparazzi's PrepareResourcesTask cannot serialize its
+            // asset-dir provider into the configuration cache — storing fails the whole build.
+            // Marking it incompatible degrades that invocation to a no-cc run instead.
+            tasks.matching { task -> task.name.startsWith("preparePaparazzi") }.configureEach {
+                notCompatibleWithConfigurationCache(
+                    "Paparazzi 2.0.0-alpha05 PrepareResourcesTask cannot serialize its " +
+                        "KMP asset-dir providers",
+                )
+            }
             tasks.register("verifyPaparazziDebug") {
                 group = "verification"
                 description =

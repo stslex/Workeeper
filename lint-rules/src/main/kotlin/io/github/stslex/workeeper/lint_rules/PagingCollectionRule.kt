@@ -55,7 +55,7 @@ class PagingCollectionRule(
 
         /** The kit's own wrapper — the single legitimate caller, matched on `virtualFilePath`. */
         const val KIT_HELPER_FILE =
-            "core/ui/kit/src/main/kotlin/io/github/stslex/workeeper/core/ui/kit/" +
+            "core/ui/kit/src/commonMain/kotlin/io/github/stslex/workeeper/core/ui/kit/" +
                 "components/CollectPagingItems.kt"
     }
 }

@@ -3,6 +3,8 @@ package io.github.stslex.workeeper.feature.live_workout.mvi.mapper
 
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.core.time.formatElapsedDuration
+import io.github.stslex.workeeper.core.ui.kit.resources.Res
+import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_plan_editor_unit_reps
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
@@ -29,7 +31,8 @@ import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.collections.immutable.toImmutableMap
 import kotlinx.collections.immutable.toImmutableSet
-import io.github.stslex.workeeper.core.ui.kit.R as KitR
+import kotlinx.coroutines.runBlocking
+import org.jetbrains.compose.resources.getString
 
 @Suppress("TooManyFunctions")
 internal object LiveWorkoutMapper {
@@ -394,11 +397,10 @@ internal object LiveWorkoutMapper {
             planSets.isEmpty() ->
                 resourceWrapper.getString(R.string.feature_live_workout_status_no_plan)
 
-            else -> planSets.toPlanSubLabel(resourceWrapper, exerciseType)
+            else -> planSets.toPlanSubLabel(exerciseType)
         }
 
     private fun List<PlanSetUiModel>.toPlanSubLabel(
-        resourceWrapper: ResourceWrapper,
         exerciseType: ExerciseTypeUiModel,
     ): String = when (exerciseType) {
         // A WEIGHTED exercise can carry reps-only plan sets; substituting 0.0 would print a
@@ -410,7 +412,10 @@ internal object LiveWorkoutMapper {
         }
 
         ExerciseTypeUiModel.WEIGHTLESS -> {
-            val unit = resourceWrapper.getString(KitR.string.core_ui_kit_plan_editor_unit_reps)
+            // GUARD: kit's catalog is Compose-resource-backed and its non-composable read is
+            // suspend-only; the value is cached by CMP after the first read, so this block is
+            // a one-off table load, not per-frame I/O.
+            val unit = runBlocking { getString(Res.string.core_ui_kit_plan_editor_unit_reps) }
             joinToString(SUB_SEPARATOR) { set -> "${set.reps} $unit" }
         }
     }

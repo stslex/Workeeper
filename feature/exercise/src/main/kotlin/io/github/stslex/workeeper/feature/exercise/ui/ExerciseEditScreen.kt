@@ -36,6 +36,9 @@ import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagItem
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppIconButton
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopBar
 import io.github.stslex.workeeper.core.ui.kit.icons.AppIcons
+import io.github.stslex.workeeper.core.ui.kit.resources.Res
+import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_action_cancel
+import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_action_save
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
@@ -51,7 +54,7 @@ import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.St
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State.Mode
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
-import io.github.stslex.workeeper.core.ui.kit.R as KitR
+import org.jetbrains.compose.resources.stringResource
 import io.github.stslex.workeeper.core.ui.plan_editor.R as CoreEditorR
 
 /** `v3-editors.md` §3.2's frame: name field · plan · tags · description · dock (ED1, ED3). */
@@ -305,14 +308,14 @@ private fun Dock(
             modifier = Modifier
                 .weight(1f)
                 .testTag("ExerciseEditCancelButton"),
-            text = stringResource(KitR.string.core_ui_kit_action_cancel),
+            text = stringResource(Res.string.core_ui_kit_action_cancel),
             onClick = { consume(Action.Click.OnCancelClick) },
         )
         AppButton.Primary(
             modifier = Modifier
                 .weight(1f)
                 .testTag("ExerciseEditSaveButton"),
-            text = stringResource(KitR.string.core_ui_kit_action_save),
+            text = stringResource(Res.string.core_ui_kit_action_save),
             onClick = { consume(Action.Click.OnSaveClick) },
         )
     }

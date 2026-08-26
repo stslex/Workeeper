@@ -18,18 +18,26 @@ import io.github.stslex.workeeper.core.ui.kit.components.setrow.SetColumnHeader
 import io.github.stslex.workeeper.core.ui.kit.components.setrow.SetRowGeometry
 import io.github.stslex.workeeper.core.ui.kit.golden.GOLDEN_DEVICE
 import io.github.stslex.workeeper.core.ui.kit.golden.OverflowGateSdk
+import io.github.stslex.workeeper.core.ui.kit.resources.Res
+import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_plan_editor_unit_kg
+import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_set_field_a11y_reps
+import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_set_field_a11y_weight
+import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_set_header_reps
+import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_set_header_weight
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveSetUiModel
 import io.github.stslex.workeeper.feature.live_workout.ui.components.LiveSetRow
+import kotlinx.coroutines.runBlocking
+import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.getString
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertAll
 import kotlin.math.abs
-import io.github.stslex.workeeper.core.ui.kit.R as KitR
 
 /**
  * Header/row column-alignment gate (set-field-column-headers.md §7a) on layoutlib, not
@@ -44,17 +52,13 @@ internal class SetColumnAlignmentGateTest {
         gate.setup()
         val samples = mutableListOf<Sample>()
         try {
-            val weightHeaderText = gate.context
-                .getString(KitR.string.core_ui_kit_set_header_weight).uppercase() +
+            val weightHeaderText = cmpString(Res.string.core_ui_kit_set_header_weight).uppercase() +
                 " (" +
-                gate.context.getString(KitR.string.core_ui_kit_plan_editor_unit_kg).uppercase() +
+                cmpString(Res.string.core_ui_kit_plan_editor_unit_kg).uppercase() +
                 ")"
-            val repsHeaderText = gate.context
-                .getString(KitR.string.core_ui_kit_set_header_reps).uppercase()
-            val weightFieldLabel = gate.context
-                .getString(KitR.string.core_ui_kit_set_field_a11y_weight)
-            val repsFieldLabel = gate.context
-                .getString(KitR.string.core_ui_kit_set_field_a11y_reps)
+            val repsHeaderText = cmpString(Res.string.core_ui_kit_set_header_reps).uppercase()
+            val weightFieldLabel = cmpString(Res.string.core_ui_kit_set_field_a11y_weight)
+            val repsFieldLabel = cmpString(Res.string.core_ui_kit_set_field_a11y_reps)
 
             for (case in CASES) {
                 gate.setFontScale(case.fontScale)
@@ -236,4 +240,7 @@ internal class SetColumnAlignmentGateTest {
         /** Two independent Rows accumulate px rounding; beyond one step is a drift. */
         const val EDGE_TOLERANCE_PX = 1.5f
     }
+
+    /** kit's strings are Compose-resource-backed; suspend-only outside composition. */
+    private fun cmpString(resource: StringResource): String = runBlocking { getString(resource) }
 }

@@ -24,17 +24,21 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import io.github.stslex.workeeper.core.ui.kit.R
 import io.github.stslex.workeeper.core.ui.kit.components.input.AppNumberInput
 import io.github.stslex.workeeper.core.ui.kit.components.pr.PersonalRecordTag
 import io.github.stslex.workeeper.core.ui.kit.components.setchip.AppSetTypeChip
 import io.github.stslex.workeeper.core.ui.kit.components.setrow.SetRowGeometry
+import io.github.stslex.workeeper.core.ui.kit.resources.Res
+import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_reorderable_drag_handle
+import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_set_field_a11y_reps
+import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_set_field_a11y_weight
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.past_session.mvi.model.PastSetUiModel
+import org.jetbrains.compose.resources.stringResource
 
 /**
  * `.set` — one logged, editable set (extraction §2.6): `set-i · field(s) · tchip-or-prtag ·
@@ -80,7 +84,7 @@ internal fun PastSetEditRow(
                 isRecord = set.isPersonalRecord,
                 isLogged = true,
                 fieldInset = SetRowGeometry.compactFieldInset,
-                accessibilityLabel = stringResource(R.string.core_ui_kit_set_field_a11y_weight),
+                accessibilityLabel = stringResource(Res.string.core_ui_kit_set_field_a11y_weight),
                 valueSlotProbe = weightSlotProbe,
             )
             AppNumberInput(
@@ -92,7 +96,7 @@ internal fun PastSetEditRow(
                 isRecord = set.isPersonalRecord,
                 isLogged = true,
                 fieldInset = SetRowGeometry.compactFieldInset,
-                accessibilityLabel = stringResource(R.string.core_ui_kit_set_field_a11y_reps),
+                accessibilityLabel = stringResource(Res.string.core_ui_kit_set_field_a11y_reps),
                 valueSlotProbe = repsSlotProbe,
             )
         } else {
@@ -106,7 +110,7 @@ internal fun PastSetEditRow(
                 isRecord = set.isPersonalRecord,
                 isLogged = true,
                 fieldInset = SetRowGeometry.compactFieldInset,
-                accessibilityLabel = stringResource(R.string.core_ui_kit_set_field_a11y_reps),
+                accessibilityLabel = stringResource(Res.string.core_ui_kit_set_field_a11y_reps),
                 valueSlotProbe = repsSlotProbe,
             )
         }
@@ -131,7 +135,7 @@ internal fun PastSetEditRow(
         Icon(
             modifier = dragHandleModifier.size(DragHandleSize),
             imageVector = Icons.Filled.DragHandle,
-            contentDescription = stringResource(R.string.core_ui_kit_reorderable_drag_handle),
+            contentDescription = stringResource(Res.string.core_ui_kit_reorderable_drag_handle),
             tint = AppUi.colors.textDim,
         )
     }
