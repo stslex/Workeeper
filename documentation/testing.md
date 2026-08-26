@@ -760,10 +760,11 @@ tags (`"HomeGraph"`, `"AllTrainingsGraph"`, etc.) for cross-feature tests.
 
 ## Visual gate — Paparazzi screenshot goldens
 
-Applies to every module that records goldens: `:core:ui:kit`, `:core:ui:plan-editor`,
+Applies to every module that records goldens: `:core:ui:kit` (KMP), `:core:ui:plan-editor`,
 `:core:ui:start-mode`, and `feature/`{`all-exercises`, `all-trainings`, `archive`, `exercise`,
 `exercise-chart`, `home`, `live-workout`, `past-session`, `settings`, `single-training`}. Goldens
-live in each module's `src/test/snapshots/images/` and are committed. The shared harness
+live in `src/test/snapshots/images/` in classic Android modules and in
+`src/androidHostTest/snapshots/images/` in KMP modules (`:core:ui:kit`), and are committed. The shared harness
 (`golden`, `goldenSubject`, `GOLDEN_DEVICE`, `GoldenTheme`) is `core:ui:golden-harness`; the
 shared liveness gate is `gradle/golden-gate.gradle.kts`, applied with
 `apply(from = "$rootDir/gradle/golden-gate.gradle.kts")`.
@@ -776,14 +777,20 @@ shared liveness gate is `gradle/golden-gate.gradle.kts`, applied with
 ./gradlew :core:ui:kit:recordPaparazziDebug
 ```
 
+Both spellings cover the KMP-shaped `:core:ui:kit` too: on a KMP module Paparazzi registers
+`verifyPaparazziAndroidMain` / `recordPaparazziAndroidMain`, and the KMP compose convention
+registers `verifyPaparazziDebug` / `recordPaparazziDebug` as lifecycle aliases onto them, so the
+repo-wide commands above keep reaching every golden module.
+
 **Re-record workflow.** `recordPaparazziDebug` regenerates every golden, the PNGs are
 committed alongside the code change, and the reviewer reads the image diff. During the v3
 redesign the goldens are re-recorded at every visual step — they are the *before* picture for
 the next one, and are disposable by design.
 
 **Rule for the redesign branch: a golden change must be intentional and explained in the
-commit body. An unexplained golden delta is a review stop.** A commit that touches
-`src/test/snapshots/` without saying why in its message should not be approved.
+commit body. An unexplained golden delta is a review stop.** A commit that touches a module's
+`snapshots/` directory (`src/test/snapshots/` or `src/androidHostTest/snapshots/`) without
+saying why in its message should not be approved.
 
 **Pinned rendering inputs** (change these and every golden moves): `DeviceConfig.PIXEL_5` —
 1080×2340 at 440 dpi, `fontScale = 1.0`, `softButtons = false`, locale `en` (`ru` for the
@@ -807,8 +814,10 @@ cache warm it would read restored XML and vouch for a run that never happened: m
 wiped `core/ui/kit/build` plus a warm cache printed *"Visual gate live: 10 golden test case(s)
 executed"* in a 565 ms build that executed none. The goldens themselves are declared inputs, so
 a *changed* golden always misses the cache and is still caught — only the liveness claim was
-hollow. `testDebugUnitTest` is therefore marked `doNotCacheIf` + `upToDateWhen { false }` when a
-Paparazzi task was requested, so the gate executes on every invocation, CI or local.
+hollow. The host test task (`testDebugUnitTest` on classic modules, `testAndroidHostTest` on KMP
+modules — the KMP `testDebugUnitTest` is a plain lifecycle alias, never cast to `Test`) is
+therefore marked `doNotCacheIf` + `upToDateWhen { false }` when a Paparazzi task was requested,
+so the gate executes on every invocation, CI or local.
 
 **The subject-sized canvas crops what leaves the bounds.** `goldenSubject` renders with
 `SessionParams.RenderingMode.SHRINK`, which sizes the image to the content, so anything drawn
@@ -897,18 +906,24 @@ the `paparazzi.test.verify` system property, and the plugin injects it at *execu
 own tasks only — it is absent from the test task's configured `systemProperties` under either
 invocation. So under a plain `testDebugUnitTest` the goldens render into the build-dir report and
 always pass, costing ~6 s per CI build for something that only looked like a second safety net.
-Hence `excludeTestsMatching("*.golden.*")` when no Paparazzi task was requested. "Paparazzi mode"
-is guessed from `gradle.startParameter.taskNames.any { "Paparazzi" in it }`, which could in
-principle be wrong for a lifecycle task that pulls in `verifyPaparazziDebug` without naming it;
-`assertGoldenLiveness` is what catches that case.
+Hence `excludeTestsMatching("*.golden.*")` when no Paparazzi task was requested — applied to the
+classic `testDebugUnitTest` or, on a KMP module, to the real host `Test` tasks, where the filter
+also sets `isFailOnNoMatchingTests = false` so a golden-only KMP module's plain run cannot die on
+its own filter. "Paparazzi mode" is guessed from
+`gradle.startParameter.taskNames.any { "Paparazzi" in it }` — true for both the classic and the
+`*AndroidMain` spellings — which could in principle be wrong for a lifecycle task that pulls in a
+verify task without naming it; `assertGoldenLiveness` is what catches that case.
 
 ## Running tests
 
 From the project root:
 
 ```bash
-# Unit tests (JVM, fast)
+# Unit tests (JVM, fast; on KMP modules the alias fans out to testAndroidHostTest)
 ./gradlew testDebugUnitTest
+
+# The kit's native Compose-scene smoke (macOS + Xcode; CI runs it in "KMP iOS kit smoke")
+./gradlew :core:ui:kit:iosSimulatorArm64Test
 
 # Every UI test in every module (slow; emulator required)
 ./gradlew connectedDebugAndroidTest

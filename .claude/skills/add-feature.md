@@ -619,7 +619,7 @@ the directory itself is the authority on what exists today.
   `.heightXs`, `.Radius.medium`, etc.
 
 **Components** — every shared UI primitive lives under
-`core/ui/kit/src/main/kotlin/io/github/stslex/workeeper/core/ui/kit/components/`:
+`core/ui/kit/src/commonMain/kotlin/io/github/stslex/workeeper/core/ui/kit/components/`:
 
 | Component | File |
 |---|---|

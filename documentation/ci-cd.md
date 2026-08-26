@@ -10,7 +10,7 @@ All workflow files live under `.github/workflows/`.
 
 | File | Trigger | Purpose |
 |---|---|---|
-| `android_build_unified.yml` | push to `master`, every `pull_request`, `workflow_dispatch` | detekt, Android Lint, build, unit tests, test reporting. Gates PRs. |
+| `android_build_unified.yml` | push to `master`, every `pull_request`, `workflow_dispatch` | Two jobs: `Build and Unit Tests` (detekt, Android Lint, build, unit tests, test reporting; Linux) and `KMP iOS kit smoke` (the kit's native Compose-scene test on `macos-26`). Gates PRs. |
 | `ui_tests.yml` | weekly `schedule` (Mondays 05:00 UTC, against `dev`), `workflow_dispatch`, `workflow_call` | Smoke / regression UI tests on an emulator. Does not gate PRs; called by `android_deploy_prod.yml` with `test_suite=smoke`. |
 | `mockup_gate.yml` | every `pull_request` **except** into `master`, `workflow_dispatch`, `workflow_call` | Runs `documentation/mockups/shell_gate.py` against the v3 shell mockup, plus its permanent known negative. Seconds; no emulator, no JDK, no secrets. |
 | `pr_guard.yml` | `pull_request` into `master` only | Fails any PR into `master` whose head branch is not `release/release-v.X.Y.Z`. |
@@ -65,6 +65,12 @@ python3 documentation/personal_data_gate.py -v     # no real names/emails in tra
 Order is load-bearing twice over. `verifyPaparazziDebug` runs first so the goldens are compared
 against the tree as checked out, before any step could rewrite it. `:lint-rules:test` runs before
 `detekt`, since detekt is what consumes the jar those tests cover.
+
+Every repo-wide spelling above also covers the KMP-shaped `:core:ui:kit`: the KMP conventions
+register `assembleDebug`, `testDebugUnitTest`, `lintDebug`, `assembleDebugAndroidTest` and
+`verifyPaparazziDebug` as lifecycle aliases onto the real KMP tasks (`assemble`,
+`testAndroidHostTest`, `lint`, `assembleAndroidDeviceTest`, `verifyPaparazziAndroidMain`), so a
+converted module cannot silently vanish from these steps.
 
 `lintDebug` is run with `--no-configuration-cache` because the lint integration is not
 configuration-cache compatible at the pinned Android Gradle Plugin version. That flag is about the
@@ -151,6 +157,20 @@ python3 documentation/mockups/shell_gate.py --target f52462c7   # must exit 1
 
 Whether `Mockup Appearance Gate` is required to merge is a branch-protection setting, not a
 property of the workflow.
+
+## KMP iOS kit smoke job
+
+The unified workflow's second job (`KMP iOS kit smoke`, `runs-on: macos-26`) executes
+`:core:ui:kit:iosSimulatorArm64Test` — one non-vacuous Kotlin/Native Compose-scene test that
+renders a resource-backed kit composition on the iOS simulator. It selects
+`/Applications/Xcode_26.6.app` explicitly, asserts `xcodebuild -version` and the presence of an
+iOS simulator runtime before Gradle, provisions an ephemeral throwaway JKS with `keytool` (the
+repository configuration reads signing material at configuration time; no production secret is
+used), and then requires the produced JUnit XML to contain exactly 1 executed / 0 skipped /
+0 failed case identifying the native scene test by name. It builds no Xcode app, signs no Apple
+bundle and uploads no framework. See
+[kmp-phase-7-1-ui-kit.md](feature-specs/kmp-phase-7-1-ui-kit.md) §9, including the ruleset
+step that makes the context required on `dev`.
 
 ## UI test workflow
 
@@ -322,6 +342,7 @@ without overwriting each other.
 | Workflow | Action | `check_name` |
 |---|---|---|
 | `android_build_unified.yml` | `EnricoMi/publish-unit-test-result-action@v2` | `Unit Test Results` |
+| `android_build_unified.yml` | job check run (no reporting action) | `KMP iOS kit smoke` |
 | `android_build_unified.yml` | `mikepenz/action-junit-report@v4` | `Detailed Unit Test Report` |
 | `ui_tests.yml` (smoke job) | EnricoMi | `Smoke UI Test Results (API 34)` |
 | `ui_tests.yml` (smoke job) | mikepenz | `Detailed Smoke Test Report (API 34)` |

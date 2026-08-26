@@ -1359,7 +1359,7 @@ Goal: get the full token system in place and AppTheme composable working. No com
 PASS 2 — COMPONENTS
 Goal: implement the 20 shared components.
 
-1. Create one file per component under core/ui/kit/src/main/kotlin/.../components/<package>/<Name>.kt.
+1. Create one file per component under core/ui/kit/src/commonMain/kotlin/.../components/<package>/<Name>.kt.
 2. Each component must:
    - Use only tokens from AppColors / AppTypography / AppDimension / AppShapes / AppMotion. No hardcoded colors, sizes, or font sizes.
    - Have a Compose Preview function below the implementation showing both light and dark mode.
