@@ -755,3 +755,18 @@ requires only the external `Build project` context; the `dev` ruleset (id 185535
 with no checks. **Owner action before merge:** once this PR's first run exposes the
 `KMP iOS kit smoke` context, add it to an active ruleset covering `dev`; until the setting is
 visible through the ruleset API, Phase 7.1 is not complete (§9, §14).
+
+**First CI runs (PR #256).** Three PR-iteration fixes surfaced by CI, each a stale anchor or a
+measured resolver behaviour, none a gate weakening: the mockup gate's check 9 reads
+`AppColors.kt` by repository path (moved to `commonMain`; the gate failed file-not-found and
+went green on the fix — its known negative still red); the mutation harness's registered kit
+case moved to the `commonMain` path and the real `testAndroidHostTest` task (the KMP
+`testDebugUnitTest` alias cannot accept `--tests`), re-proven red/restore one-shot; and the
+ephemeral smoke keystore is copied into the workspace because the application convention
+resolves `storeFile` against the repository root even for absolute paths
+(`java.io.File(parent, "/abs")` concatenates). On the final head both workflows are green —
+`v3 Mockup Appearance Gate` and `Android CI/CD - Unified Build and Tests` (run 32971371429):
+`Build and Unit Tests` success and `KMP iOS kit smoke` success on `macos-26`/Xcode 26.6, its
+assertion step printing "native gate live: 1 executed Compose-scene test, 0 skipped, 0 failed".
+The `KMP iOS kit smoke` check context is now exposed; the ruleset addition remains the owner's
+step.
