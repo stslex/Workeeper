@@ -872,6 +872,11 @@ pre-existing `app:app` runtime files, and no `getString(Res…)` outside suspend
 
 ### 19.6 CI on this follow-up
 
-Recorded after this correction's CI completes, in a follow-up commit that is explicitly
-documentation-only: the run IDs below (once filled in) tested the SHA of the record commit that
-carries the corrected code, not the documentation-only commit that writes them down.
+Both workflows are green on `87ad233fc` — the record commit that carries the corrected code
+(`666bd3c02`'s tree plus this record): `v3 Mockup Appearance Gate` run 32997144341 and
+`Android CI/CD - Unified Build and Tests` run 32997144443, the latter's `Build and Unit Tests`
+and `KMP iOS kit smoke` jobs both succeeding. (The first synchronize/edited events for this
+head were swallowed by the 2026-08-26 GitHub partial outage; a close/reopen of the draft PR
+after recovery re-delivered them.) The commit that writes these IDs down is documentation-only:
+the runs above tested `87ad233fc`, not this commit — its own CI re-verifies the same code
+unchanged and is deliberately not recorded here.
