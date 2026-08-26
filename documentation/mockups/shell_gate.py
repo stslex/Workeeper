@@ -125,7 +125,7 @@ MOCKUP = "documentation/mockups/pass2d.html"
 # right now", not "what did the mockup match as of some historical ref". A historical TARGET is
 # expected to disagree (that disagreement is what B19 found), and check 9 is allowed to fail there.
 APP_COLORS = (
-    "core/ui/kit/src/main/kotlin/io/github/stslex/workeeper/core/ui/kit/theme/AppColors.kt"
+    "core/ui/kit/src/commonMain/kotlin/io/github/stslex/workeeper/core/ui/kit/theme/AppColors.kt"
 )
 
 # Tokens with no corresponding AppColors.kt constant, by design — not drift. Each carries the
