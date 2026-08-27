@@ -48,8 +48,9 @@ internal class ScreenSerializationTest {
             "screenSampleCatalog does not match the reflected sealed-leaf set — " +
                 "missing ${leaves.toSet() - catalogClasses}, unexpected ${catalogClasses - leaves.toSet()}"
         }
-        // Reached only when the class sets already match, so this names the remaining way 12
-        // samples can cover 12 classes wrongly: one route sampled twice, another not at all.
+        // Defence in depth: redundant while the set equality above holds (a duplicated sample
+        // shrinks the class set and fails there first), but it keeps uniqueness asserted in its
+        // own right if that assertion is ever relaxed.
         assertEquals(screenSampleCatalog.size, catalogClasses.size) {
             "screenSampleCatalog must sample each concrete route exactly once; " +
                 "${screenSampleCatalog.size} samples cover only ${catalogClasses.size} classes"

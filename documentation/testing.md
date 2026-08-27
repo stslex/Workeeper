@@ -407,7 +407,8 @@ hierarchy. Left alone that catalog would be a second hand-maintained list free t
 routes that actually exist, so the host test asserts `sealedLeaves(Screen::class).toSet()` equals
 `screenSampleCatalog.map { it::class }.toSet()`, plus both sizes against the shared baseline and
 one sample per class. A route added to `Screen.kt` but missing from the catalog — or a catalog
-entry duplicated — reds the host test naming the missing class.
+entry duplicated — reds the host test: a duplicated or swapped entry is reported by name, a count
+drift by count.
 
 The host test deliberately keeps constructing its round-trip subjects **by reflection** from the
 discovered hierarchy rather than from the catalog. Round-tripping the catalog on both platforms

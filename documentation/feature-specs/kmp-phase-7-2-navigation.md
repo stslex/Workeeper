@@ -226,16 +226,24 @@ record must state the discovered count. A future route-set change must deliberat
 assertion and its reviewed baseline; the `ScreenWithResult` escape hatch documented in §2 must not
 be used to bypass it.
 
-The native oracle uses a fixed test-side list of one non-default sample of every current concrete
-route. Since the review hardening (§19.1) that list is not native-local: it lives in `commonTest`
-as `screenSampleCatalog` / `SCREEN_ROUTE_BASELINE`, shared with the JVM oracle, which asserts the
-catalog's class set equals its reflected sealed-leaf set. That equality is what stops the Native
-catalog drifting away from the hierarchy on the one platform that cannot enumerate it. For nullable constructor parameters, use non-null samples so every field is encoded rather
-than omitted. The test must:
+Since the review hardening (§19.1) the host oracle also owns the **catalog↔hierarchy equality**:
+it must assert that `sealedLeaves(Screen::class).toSet()` equals
+`screenSampleCatalog.map { it::class }.toSet()`, that both the reflected leaf count and the catalog
+size equal the shared `SCREEN_ROUTE_BASELINE`, and that each catalog entry has a unique concrete
+class. That equality is what stops the shared catalog drifting away from the hierarchy on behalf of
+the one platform that cannot enumerate it. It lives on the JVM side precisely because Kotlin/Native
+has no sealed-subclass reflection to check it with.
 
-- assert that the catalog contains exactly 12 instances and that
-  `catalog.map { it::class }.toSet()` equals the exact 12-class set listed in §2; instance equality
-  or a class-count alone is insufficient;
+The native oracle uses a fixed test-side list of one non-default sample of every current concrete
+route. Since the review hardening that list is no longer native-local: it lives in `commonTest` as
+`screenSampleCatalog` / `SCREEN_ROUTE_BASELINE`, shared with the JVM oracle. For nullable
+constructor parameters, use non-null samples so every field is encoded rather than omitted. The
+test must:
+
+- assert `screenSampleCatalog.size == SCREEN_ROUTE_BASELINE`, so a truncated or empty catalog
+  cannot round-trip vacuously. It must **not** carry its own hardcoded class set: a second
+  hand-maintained list is exactly the drift this hardening removed, and the class-set equality is
+  asserted once, on the host side, above;
 - create `Json` from `screenSavedStateConfiguration.serializersModule`;
 - encode and decode each route through `PolymorphicSerializer(NavKey::class)`;
 - assert equality after every round-trip;
@@ -407,11 +415,13 @@ admissible. §18.2 records the raw Kotlin/Native XML shape that makes this norma
 
 The assertion step carries the Gradle step's id and the condition
 `!cancelled() && steps.native_tests.outcome != 'skipped'`, so it runs whenever the Native Gradle
-step actually **started** — red or green. A red native run is precisely when the per-module XML is
-worth reading; reporting only Gradle's exit code there names neither the module nor the tuple that
-broke. The assertion is skipped on job cancellation and when the Gradle step never started because
-an earlier setup step failed, since there is then no fresh XML to judge — only a previous run's
-leftovers. The uploads stay `if: always()`.
+step actually **started** — red or green. A red native run from a *test* failure is the case where
+the per-module XML matters most: reporting only Gradle's exit code names neither the module nor the
+tuple that broke. (A red run from a compile or simulator-boot failure produces no XML at all, and
+the script then fails with its own missing-directory message, which is still the truth.) The
+assertion is skipped on job cancellation, and when the Gradle step never started because an earlier
+setup step failed — asserting there would replace the real setup failure with a misleading
+`result directory … does not exist`. The uploads stay `if: always()`.
 
 Fresh checkout plus exact per-module paths and identities are load-bearing. A total of two tests
 without per-module checks is insufficient: two kit tests and zero navigation tests would pass it.
@@ -962,3 +972,45 @@ in its `finally`; each gate was re-proven green afterwards.
    green.
 
 No mutation artifact, temporary fixture or ephemeral tool remains in the worktree.
+
+### 19.6 Second review round, and what it corrected
+
+The three commits above were themselves reviewed before merge. No blocker and no gate weakness was
+found; every confirmed finding was a truthfulness or diagnostic-quality defect, and all are closed
+here.
+
+- **§6.2 bound the Native test to an assertion this hardening deleted.** Its bullet still required
+  the native oracle to assert `catalog.map { it::class }.toSet()` against a hardcoded 12-class set,
+  and §8.2 makes §6.2 binding — so the specification told the next reader to re-add exactly the
+  second hand-maintained list §19.1 removed. The bullet now states what the native test really
+  does (a size guard against the shared baseline, and explicitly *no* own class set), and the
+  class-set equality is stated once, as a host-oracle requirement.
+- **A kit failure could hide the navigation verdict.** `check_module` exited on the first failing
+  module, so the workflow's `--continue` rationale was only half delivered. Failures are now raised
+  and collected: every module is checked, verified modules print as `ok:`, and the failure block
+  lists each module's own verdict. Re-proven directly — with the kit result directory absent *and*
+  the navigation XML carrying a failure, the output names both, where it previously named only the
+  kit.
+- **The skip rationale was wrong for this runner.** Both `ci-cd.md` and §9 justified skipping the
+  assertion after a failed setup step by "only a previous run's leftovers". The smoke job runs on
+  an ephemeral GitHub-hosted `macos-26` runner that caches only `~/.konan` and the Gradle home, so
+  no `build/` output survives between runs and such leftovers cannot arise. The real reason — that
+  asserting there would replace the true setup failure with a misleading
+  `result directory … does not exist` — now stands in its place, and the claim that a red native
+  run is "exactly when" the XML is worth reading is narrowed to a red *test* run.
+- **`testing.md` overstated the host diagnostic.** Only the duplicate/swap case reports a missing
+  class by name; a route added without a baseline bump reports a count. Reworded.
+- **The uniqueness assertion's comment overstated its role.** It is redundant while the set
+  equality above it holds — a duplicated sample shrinks the class set and fails there first, which
+  is precisely what §19.5's first control observed. It stays as required defence in depth, now
+  described as such rather than as the tripwire for that mutation.
+
+One consequence worth flagging for anyone re-reading §18.5's control 3: the identity-mismatch
+message was reworded by §19.3's rewrite, so that transcript is a faithful record of what the
+*then-current* script printed and will not reproduce verbatim against the script in this tree. The
+tuple it proves is unchanged.
+
+Re-verification after these edits: fixture matrix 18/18 as expected against the changed parser;
+`python3 -m py_compile` clean; the real script green on live XML printing both identities; host and
+Native tests green (XML 1/0/0 each); `:core:ui:navigation:lintDebug` and root `detekt` green; root
+`lintDebug` green with "1094 actionable tasks: 1094 executed".

@@ -185,12 +185,14 @@ from another cannot forge an identity.
 
 The assertion step is bound to the Gradle step's id (`native_tests`) and runs on
 `!cancelled() && steps.native_tests.outcome != 'skipped'` — that is, whenever the Native Gradle
-step actually **started**, red or green. A red native run is exactly when the per-module XML is
-worth reading, and reporting only Gradle's exit code there would not say which module or which
-tuple broke. It is skipped when the job is cancelled, and when the Gradle step never ran because
-an earlier setup step (checkout, Xcode selection, JDK, signing material) failed — there is no
-fresh XML to judge then, only a previous run's leftovers. Both result directories upload under
-`if: always()` regardless.
+step actually **started**, red or green. A red native run from a *test* failure is the case where
+the per-module XML matters most, and reporting only Gradle's exit code there would not say which
+module or which tuple broke; a red run from a compile or simulator-boot failure produces no XML,
+and the script says so plainly. It is skipped when the job is cancelled, and when the Gradle step
+never ran because an earlier setup step (checkout, Xcode selection, JDK, signing material) failed —
+asserting there would bury the real setup failure under a misleading `result directory … does not
+exist`. Every module is checked even when an earlier one fails, so a kit-side problem cannot hide
+the navigation verdict. Both result directories upload under `if: always()` regardless.
 
 The job builds no Xcode app, signs no Apple bundle and uploads no framework. See
 [kmp-phase-7-1-ui-kit.md](feature-specs/kmp-phase-7-1-ui-kit.md) §9 for the context's origin and

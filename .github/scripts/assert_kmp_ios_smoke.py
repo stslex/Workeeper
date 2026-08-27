@@ -20,6 +20,10 @@ Additional *successful* testcases are allowed, so a module may grow a second
 native test without touching this file; none of the guarantees above weaken,
 because every extra case still has to pass and still has to be counted.
 
+Every configured module is checked even when an earlier one fails, so a
+kit-side problem cannot hide the navigation verdict — the same reason the
+Gradle invocation uses `--continue`.
+
 Run from the repository root, after the forced Native Gradle invocation:
 
     python3 .github/scripts/assert_kmp_ios_smoke.py
@@ -43,6 +47,11 @@ KNOWN_SUITE_PREFIX = "iosSimulatorArm64Test."
 COUNT_ATTRIBUTES = ("tests", "skipped", "failures", "errors")
 
 NON_SUCCESS_TAGS = ("failure", "error", "skipped")
+
+
+class ModuleError(Exception):
+    """One module failed its contract. Raised, not exited, so every module is reported."""
+
 
 EXPECTED = [
     {
@@ -74,7 +83,7 @@ def count_attribute(suite: ET.Element, key: str, module: str, xml_file: Path) ->
     try:
         return int(raw)
     except ValueError:
-        sys.exit(f"{module}: {xml_file} has non-numeric {key}={raw!r} on <testsuite>")
+        raise ModuleError(f"{module}: {xml_file} has non-numeric {key}={raw!r} on <testsuite>")
 
 
 def identify(case: ET.Element) -> str:
@@ -87,10 +96,10 @@ def check_module(expected: dict) -> str:
     results_dir = expected["results_dir"]
 
     if not results_dir.is_dir():
-        sys.exit(f"{module}: result directory {results_dir} does not exist")
+        raise ModuleError(f"{module}: result directory {results_dir} does not exist")
     xml_files = sorted(results_dir.glob("TEST-*.xml"))
     if not xml_files:
-        sys.exit(f"{module}: no TEST-*.xml under {results_dir}")
+        raise ModuleError(f"{module}: no TEST-*.xml under {results_dir}")
 
     testcases = []
     totals = dict.fromkeys(COUNT_ATTRIBUTES, 0)
@@ -99,10 +108,10 @@ def check_module(expected: dict) -> str:
         try:
             root = ET.parse(xml_file).getroot()
         except ET.ParseError as error:
-            sys.exit(f"{module}: {xml_file} is not parseable XML: {error}")
+            raise ModuleError(f"{module}: {xml_file} is not parseable XML: {error}")
         suites = [root] if root.tag == "testsuite" else list(root.iter("testsuite"))
         if not suites:
-            sys.exit(f"{module}: {xml_file} contains no <testsuite> element")
+            raise ModuleError(f"{module}: {xml_file} contains no <testsuite> element")
         for suite in suites:
             suites_seen += 1
             for key in COUNT_ATTRIBUTES:
@@ -110,23 +119,23 @@ def check_module(expected: dict) -> str:
         testcases.extend(root.iter("testcase"))
 
     if suites_seen < 1:
-        sys.exit(f"{module}: no <testsuite> parsed under {results_dir}")
+        raise ModuleError(f"{module}: no <testsuite> parsed under {results_dir}")
 
     executed = len(testcases)
     if executed < 1:
-        sys.exit(f"{module}: no <testcase> parsed under {results_dir}")
+        raise ModuleError(f"{module}: no <testcase> parsed under {results_dir}")
     if totals["tests"] != executed:
-        sys.exit(
+        raise ModuleError(
             f"{module}: inconsistent XML — <testsuite> declares tests={totals['tests']} "
             f"but {executed} <testcase> element(s) were parsed"
         )
     for key in ("skipped", "failures", "errors"):
         if totals[key] != 0:
-            sys.exit(f"{module}: expected 0 {key}, got {totals[key]} across {executed} testcase(s)")
+            raise ModuleError(f"{module}: expected 0 {key}, got {totals[key]} across {executed} testcase(s)")
     for case in testcases:
         for child in case:
             if child.tag in NON_SUCCESS_TAGS:
-                sys.exit(f"{module}: testcase {identify(case)} carries a <{child.tag}> element")
+                raise ModuleError(f"{module}: testcase {identify(case)} carries a <{child.tag}> element")
 
     matches = [
         case
@@ -136,7 +145,7 @@ def check_module(expected: dict) -> str:
     ]
     if len(matches) != 1:
         found = sorted(identify(case) for case in testcases)
-        sys.exit(
+        raise ModuleError(
             f"{module}: expected exactly one testcase with classname="
             f"{expected['classname']!r} name={expected['name']!r}, found {len(matches)}; "
             f"parsed {executed} testcase(s): {found}"
@@ -150,7 +159,22 @@ def check_module(expected: dict) -> str:
 
 
 def main() -> None:
-    verified = [check_module(expected) for expected in EXPECTED]
+    verified: list[str] = []
+    failures: list[str] = []
+    for expected in EXPECTED:
+        try:
+            verified.append(check_module(expected))
+        except ModuleError as error:
+            failures.append(str(error))
+
+    if failures:
+        for line in verified:
+            print(f"  ok: {line}")
+        raise SystemExit(
+            "native gate FAILED (every module was checked, so no verdict is hidden):\n"
+            + "\n".join(f"  {message}" for message in failures)
+        )
+
     print("native gate live:")
     for line in verified:
         print(f"  {line}")
