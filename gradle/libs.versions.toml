@@ -30,6 +30,9 @@ cmpMaterial3 = "1.9.0"
 # version, so never point it at composeGradle.
 cmpMaterialIcons = "1.7.3"
 navigation3 = "1.1.6"
+# The version Navigation 3 1.1.6 already resolves; the explicit alias exists because
+# SavedStateConfiguration is public API of core:ui:navigation. Not an upgrade lever.
+savedstate = "1.4.0"
 composeJunit = "1.11.4"
 coil = "3.5.0"
 composeActivity = "1.13.0"
@@ -139,6 +142,7 @@ androidx-compose-runtime = { group = "androidx.compose.runtime", name = "runtime
 
 androidx-navigation3-runtime = { group = "androidx.navigation3", name = "navigation3-runtime", version.ref = "navigation3" }
 androidx-navigation3-ui = { group = "androidx.navigation3", name = "navigation3-ui", version.ref = "navigation3" }
+androidx-savedstate = { group = "androidx.savedstate", name = "savedstate", version.ref = "savedstate" }
 androidx-lifecycle-viewmodel-navigation3 = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-navigation3", version.ref = "lifecycle" }
 
 androidx-compose-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
@@ -158,6 +162,7 @@ androidx-paging-runtime = { group = "androidx.paging", name = "paging-runtime-kt
 androidx-paging-common = { group = "androidx.paging", name = "paging-common", version.ref = "paging" }
 androidx-paging-testing = { group = "androidx.paging", name = "paging-testing", version.ref = "paging" }
 
+kotlinx-serialization-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-core", version.ref = "serialization" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "serialization" }
 kotlinx-datetime = { group = "org.jetbrains.kotlinx", name = "kotlinx-datetime", version.ref = "datetime" }
 kotlinx-collections-immutable = { group = "org.jetbrains.kotlinx", name = "kotlinx-collections-immutable", version.ref = "immutableCollection" }

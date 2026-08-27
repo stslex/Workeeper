@@ -252,10 +252,12 @@ jobs:
         with:
           report-path: "**/build/reports/lint-results-*.xml"
 
-  # Phase 7.1's native gate: the converted core:ui:kit must not merely compile an iOS klib —
-  # one real resource-backed composition must execute on the simulator. Narrow on purpose: no
-  # Xcode app, no Apple signing, no XCFramework, no App Store Connect secrets.
-  # See documentation/feature-specs/kmp-phase-7-1-ui-kit.md §9.
+  # The Phase-7 native gate behind the stable required context `KMP iOS kit smoke`: one forced
+  # Gradle invocation executes the kit's Compose-scene test (Phase 7.1) and the navigation
+  # serializer-registry test (Phase 7.2) on the iOS simulator, then a checked-in script requires
+  # both exact per-module XML identities. Narrow on purpose: no Xcode app, no Apple signing, no
+  # XCFramework, no App Store Connect secrets. See
+  # documentation/feature-specs/kmp-phase-7-1-ui-kit.md §9 and kmp-phase-7-2-navigation.md §9.
   kmp-ios-kit-smoke:
     name: KMP iOS kit smoke
     runs-on: macos-26
@@ -318,52 +320,42 @@ jobs:
             echo "keyPassword=ci-smoke-pass"
           } > keystore.properties
 
-      - name: Run the native Compose-scene smoke test
+      # --continue so a kit failure cannot mask whether navigation ran (and vice versa): the
+      # identity script needs both modules' XML to say which tuple broke.
+      - name: Run the native kit and navigation tests
+        id: native_tests
         run: >
-          ./gradlew :core:ui:kit:iosSimulatorArm64Test
+          ./gradlew
+          :core:ui:kit:iosSimulatorArm64Test
+          :core:ui:navigation:iosSimulatorArm64Test
           --rerun-tasks --no-build-cache --no-configuration-cache
-          --full-stacktrace --console=plain
+          --continue --full-stacktrace --console=plain
 
-      # An exit code is not evidence: require exactly one executed, non-skipped, passing case
-      # and require it to be the real scene test, not a planted sentinel.
-      - name: Assert exactly 1 executed native test
-        run: |
-          python3 - <<'PY'
-          import glob, re, sys
-
-          files = glob.glob(
-              "core/ui/kit/build/test-results/iosSimulatorArm64Test/TEST-*.xml"
-          )
-          if not files:
-              sys.exit("no native test XML produced")
-          tests = skipped = failures = errors = 0
-          body = ""
-          for path in files:
-              text = open(path).read()
-              body += text
-              suite = re.search(r"<testsuite\b[^>]*", text)
-              if not suite:
-                  sys.exit(f"{path}: no <testsuite> element")
-              attrs = dict(re.findall(r'(\w+)="([^"]*)"', suite.group(0)))
-              tests += int(attrs.get("tests", 0))
-              skipped += int(attrs.get("skipped", 0))
-              failures += int(attrs.get("failures", 0))
-              errors += int(attrs.get("errors", 0))
-          if (tests, skipped, failures, errors) != (1, 0, 0, 0):
-              sys.exit(
-                  "expected exactly 1 executed / 0 skipped / 0 failed native test, got "
-                  f"tests={tests} skipped={skipped} failures={failures} errors={errors}"
-              )
-          if "IosKitSceneSmokeTest" not in body or \
-                  "sheetLayoutRendersMigratedStringFontAndIcon" not in body:
-              sys.exit("the executed test is not the native Compose-scene smoke test")
-          print("native gate live: 1 executed Compose-scene test, 0 skipped, 0 failed")
-          PY
+      # An exit code is not evidence: the checked-in script structurally parses each module's
+      # JUnit XML and independently requires one exact (classname, name) tuple per module —
+      # a repo-wide total or substring match would accept two kit tests and zero navigation
+      # tests, or a classname from one case paired with a method name from another. Counts are
+      # validated PER <testsuite> before any module total is formed, so two malformed suites
+      # cannot cancel out into a consistent-looking aggregate. It allows additional PASSING
+      # cases, so a module can grow a second native test without edits here.
+      #
+      # The condition runs it whenever the Gradle step actually STARTED, which covers three
+      # outcomes: a red TEST run leaves XML and the script names the module and tuple that
+      # broke, which Gradle's exit code cannot; a compile or simulator-boot failure leaves no
+      # XML and the script says the results are missing, which is the honest answer; and a
+      # setup failure (checkout, Xcode selection, JDK, signing material) skips the Gradle step,
+      # so this step stays skipped too rather than masking that failure behind a
+      # missing-results error. Cancellation also skips it.
+      - name: Assert exact native test identities
+        if: ${{ !cancelled() && steps.native_tests.outcome != 'skipped' }}
+        run: python3 .github/scripts/assert_kmp_ios_smoke.py
 
       - name: Upload native test results
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: kmp-ios-kit-smoke-results
-          path: core/ui/kit/build/test-results/iosSimulatorArm64Test/
+          path: |
+            core/ui/kit/build/test-results/iosSimulatorArm64Test/
+            core/ui/navigation/build/test-results/iosSimulatorArm64Test/
           retention-days: 30

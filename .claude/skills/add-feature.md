@@ -16,7 +16,7 @@ description: Scaffold a new `feature/<name>` Gradle module that follows the proj
 
 - The feature has a name in kebab-case (e.g. `workout-history`).
 - The corresponding `Screen` route does not yet exist in
-  `core/ui/navigation/src/main/kotlin/io.github/stslex/workeeper/core/ui/navigation/Screen.kt`.
+  `core/ui/navigation/src/commonMain/kotlin/io/github/stslex/workeeper/core/ui/navigation/Screen.kt`.
 - These docs are the source of truth for everything below — read them before scaffolding:
   - [documentation/architecture.md](../../documentation/architecture.md) — module map, MVI
     contract, [Dependency injection (Metro)](../../documentation/architecture.md#dependency-injection-metro),
@@ -203,7 +203,7 @@ one extension.
    only when something actually reads it (see the accessor policy in its KDoc).
 
 5. Add the route. Edit
-   `core/ui/navigation/src/main/kotlin/io.github/stslex/workeeper/core/ui/navigation/Screen.kt`
+   `core/ui/navigation/src/commonMain/kotlin/io/github/stslex/workeeper/core/ui/navigation/Screen.kt`
    and add a `@Serializable` entry. Bottom-bar destinations go under `Screen.BottomBar`;
    detail destinations are top-level `data class` types that carry route arguments;
    single-instance destinations are `data object`. Existing examples: `Screen.Settings`
@@ -216,6 +216,28 @@ one extension.
    If the destination hands a value back, declare it on the type:
    `data class <Name>(...) : Screen, ScreenWithResult<R>` — the result type lives on
    the destination, not at the call site (`Screen.PlanEditor : ScreenWithResult<Boolean>`).
+   Keep `Screen` in that explicit supertype list even though `ScreenWithResult<R> : Screen`
+   already implies it: the JVM oracle discovers routes by walking `Screen`'s sealed
+   hierarchy, and a route reachable only through the non-sealed `ScreenWithResult` marker
+   would escape discovery.
+
+   **Every new route costs four edits, and the gates fail until all four land:**
+
+   1. register the leaf in `screenSerializersModule`
+      (`ScreenSerialization.kt`) — an unregistered leaf fails only at
+      process-death save time in production;
+   2. add exactly one non-default, non-null sample to `screenSampleCatalog`
+      (`core/ui/navigation/src/commonTest/.../ScreenSampleCatalog.kt`);
+   3. increment `SCREEN_ROUTE_BASELINE` in the same file by one;
+   4. re-run both registry gates —
+      `./gradlew :core:ui:navigation:testDebugUnitTest` (JVM: reflected leaf count,
+      catalog/hierarchy set equality, round trip, ABI) and
+      `./gradlew :core:ui:navigation:iosSimulatorArm64Test` (Kotlin/Native: catalog
+      round trip through the production registry).
+
+   The host oracle asserts the catalog's class set equals the reflected sealed-leaf set,
+   so steps 2 and 3 cannot be skipped or half-done: a registered route missing from the
+   catalog reds the host test, and a stale baseline reds it too.
 
 6. Generate the Store contract under `mvi/store/<Name>Store.kt`. Conventions enforced
    by the custom Detekt rules in

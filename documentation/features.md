@@ -212,7 +212,7 @@ single training.
 
 - **Bottom-bar tabs** are the three `Screen.BottomBar` destinations (`Home`, `AllExercises`,
   `AllTrainings`) declared in
-  `core/ui/navigation/src/main/kotlin/io.github.stslex.workeeper/core/ui/navigation/Screen.kt`.
+  `core/ui/navigation/src/commonMain/kotlin/io/github/stslex/workeeper/core/ui/navigation/Screen.kt`.
 - **Training → exercise drill-down**: from `feature/all-trainings` the user opens
   `Screen.Training` (`feature/single-training`); from there `Action.Navigation.OpenExercise`
   routes to `Screen.Exercise(uuid, trainingUuid)` (`feature/exercise`).

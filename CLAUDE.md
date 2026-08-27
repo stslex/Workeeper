@@ -34,6 +34,19 @@ the classification before pushing fixes. Waiting on review does not block the ne
 state the stack in both PR descriptions, and re-run every gate after a rebase.
 Full rule, with the stacking costs it comes with: [AGENTS.md](AGENTS.md) § "Merge flow".
 
+## Signed commits
+
+The ruleset requires **verified signatures**, so an unsigned commit cannot merge — it costs a
+maintainer bypass or a history rewrite to undo.
+
+**Before any commit-producing or history-rewriting Git operation** — `commit`, `merge`,
+`rebase`, `cherry-pick`, `revert`, `am`, a non-fast-forward `pull`, or a push that carries new
+commits — **invoke the [`signed-commits`](.claude/skills/signed-commits/SKILL.md) skill**, even
+when the user never mentioned signing. The procedure lives in the skill; do not duplicate it
+here. A `PreToolUse` hook (`.claude/hooks/require-signed-commits.py`, registered in
+`.claude/settings.json`) blocks the unsigned cases, but it is a local backstop — GitHub's
+`verification.verified` is the authority.
+
 ## Canonical project knowledge
 
 - [documentation/architecture.md](documentation/architecture.md) — modules, MVI, DI, data flow.
@@ -71,6 +84,10 @@ Full rule, with the stacking costs it comes with: [AGENTS.md](AGENTS.md) § "Mer
 Project-specific skills live under [`.claude/skills/`](.claude/skills/). Invoke the matching
 skill when the user asks for one of these tasks:
 
+- [`signed-commits`](.claude/skills/signed-commits/SKILL.md) — sign and verify every commit this
+  repository gains. **Always applies**, whether or not the user mentions signing: invoke it
+  before any commit, amend, merge, rebase, cherry-pick, revert, am, pull, or push that can
+  introduce commits.
 - [`add-feature`](.claude/skills/add-feature.md) — scaffold a new `feature/<name>` module
   (build script, MVI contract, handlers, DI graph, navigation entry, smoke test stub).
 - [`write-handler-test`](.claude/skills/write-handler-test.md) — write a JUnit 5 unit test for
