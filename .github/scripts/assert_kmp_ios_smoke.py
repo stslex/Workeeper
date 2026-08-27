@@ -9,12 +9,19 @@ Per configured module this script therefore requires, structurally parsed:
 
 * the result directory exists and holds at least one parseable `TEST-*.xml`;
 * at least one `<testsuite>` and at least one `<testcase>`;
-* the declared aggregate `tests` equals the number of parsed `<testcase>`
-  elements — a suite that claims more cases than it emitted is inconsistent
-  XML, not evidence;
-* aggregate `skipped` / `failures` / `errors` are zero, and no testcase
-  carries a `<failure>`, `<error>` or `<skipped>` child;
+* **per `<testsuite>`**, every count attribute is a non-negative integer, the
+  declared `tests` equals that suite's own `<testcase>` children, and its
+  `skipped` / `failures` / `errors` are each zero;
+* no testcase carries a `<failure>`, `<error>` or `<skipped>` child;
 * the expected normalized (classname, name) tuple occurs exactly once.
+
+The per-suite checks are the point. A module-level sum alone lets malformed
+suites cancel each other out: one file declaring `tests=2` with a single
+testcase and another declaring `tests=0` with a single testcase sums to
+`2 == 2` and would pass, while both files are lying about what ran. Validating
+each suite before it contributes to any total closes that, and requiring each
+suite's status counters to be zero means a negative counter can never offset a
+positive one.
 
 Additional *successful* testcases are allowed, so a module may grow a second
 native test without touching this file; none of the guarantees above weaken,
@@ -28,9 +35,17 @@ Run from the repository root, after the forced Native Gradle invocation:
 
     python3 .github/scripts/assert_kmp_ios_smoke.py
 
-The workflow runs it even when that Gradle step went red (as long as the step
-actually started), so a native failure is diagnosed from the XML it produced
-rather than reported only as an exit code.
+The workflow runs it whenever the Gradle step actually started, which covers
+three distinct outcomes:
+
+* **a red test run** — XML exists, and this script names the module and the
+  tuple that broke, which a Gradle exit code cannot;
+* **a compile or simulator-boot failure** — Gradle died before producing XML,
+  so the script reports the missing result directory. That is the honest
+  answer, not a false pass;
+* **a setup failure that skipped Gradle entirely** — the workflow condition
+  keeps this script skipped too, so a missing-results error cannot mask the
+  real failure upstream.
 """
 
 import sys
@@ -79,11 +94,48 @@ def normalize_classname(raw: str) -> str:
 
 
 def count_attribute(suite: ET.Element, key: str, module: str, xml_file: Path) -> int:
+    """Parse one count attribute, rejecting non-integers and negatives.
+
+    A negative counter is not merely odd: summed across suites it would subtract from a real
+    failure elsewhere, which is exactly the compensation this parser must not allow.
+    """
     raw = suite.get(key, "0")
     try:
-        return int(raw)
+        value = int(raw)
     except ValueError:
-        raise ModuleError(f"{module}: {xml_file} has non-numeric {key}={raw!r} on <testsuite>")
+        raise ModuleError(f"{module}: {xml_file.name} has non-numeric {key}={raw!r} on <testsuite>")
+    if value < 0:
+        raise ModuleError(f"{module}: {xml_file.name} has negative {key}={value} on <testsuite>")
+    return value
+
+
+def suites_of(root: ET.Element, module: str, xml_file: Path) -> list[ET.Element]:
+    """Return the <testsuite> elements to validate, handling a <testsuites> wrapper explicitly.
+
+    Only one level is modelled. A nested <testsuite> would make "which cases belong to which
+    declaration" ambiguous, and guessing is how a miscount becomes a green gate — so it is
+    refused with a precise diagnostic instead.
+    """
+    if root.tag == "testsuite":
+        suites = [root]
+    elif root.tag == "testsuites":
+        suites = root.findall("testsuite")
+        if not suites:
+            raise ModuleError(
+                f"{module}: {xml_file.name} <testsuites> wrapper contains no <testsuite> element"
+            )
+    else:
+        raise ModuleError(
+            f"{module}: {xml_file.name} root element is <{root.tag}>, "
+            "expected <testsuite> or <testsuites>"
+        )
+    for suite in suites:
+        if suite.find("testsuite") is not None:
+            raise ModuleError(
+                f"{module}: {xml_file.name} nests <testsuite> inside <testsuite>; this parser "
+                "does not model that structure and refuses to guess which cases each declares"
+            )
+    return suites
 
 
 def identify(case: ET.Element) -> str:
@@ -108,15 +160,28 @@ def check_module(expected: dict) -> str:
         try:
             root = ET.parse(xml_file).getroot()
         except ET.ParseError as error:
-            raise ModuleError(f"{module}: {xml_file} is not parseable XML: {error}")
-        suites = [root] if root.tag == "testsuite" else list(root.iter("testsuite"))
-        if not suites:
-            raise ModuleError(f"{module}: {xml_file} contains no <testsuite> element")
-        for suite in suites:
+            raise ModuleError(f"{module}: {xml_file.name} is not parseable XML: {error}")
+        for suite in suites_of(root, module, xml_file):
             suites_seen += 1
+            # Only this suite's OWN testcase children, so a wrapper cannot double-count.
+            suite_cases = suite.findall("testcase")
+            declared = {
+                key: count_attribute(suite, key, module, xml_file) for key in COUNT_ATTRIBUTES
+            }
+            label = f"<testsuite name={suite.get('name', '?')!r}> in {xml_file.name}"
+            # Validated BEFORE contributing to any total: this is what stops two malformed
+            # suites cancelling out into a module aggregate that looks consistent.
+            if declared["tests"] != len(suite_cases):
+                raise ModuleError(
+                    f"{module}: inconsistent XML — {label} declares tests={declared['tests']} "
+                    f"but contains {len(suite_cases)} <testcase> element(s)"
+                )
+            for key in ("skipped", "failures", "errors"):
+                if declared[key] != 0:
+                    raise ModuleError(f"{module}: {label} reports {key}={declared[key]}, expected 0")
             for key in COUNT_ATTRIBUTES:
-                totals[key] += count_attribute(suite, key, module, xml_file)
-        testcases.extend(root.iter("testcase"))
+                totals[key] += declared[key]
+            testcases.extend(suite_cases)
 
     if suites_seen < 1:
         raise ModuleError(f"{module}: no <testsuite> parsed under {results_dir}")
@@ -124,14 +189,12 @@ def check_module(expected: dict) -> str:
     executed = len(testcases)
     if executed < 1:
         raise ModuleError(f"{module}: no <testcase> parsed under {results_dir}")
+    # Defence in depth: every suite was already validated individually above.
     if totals["tests"] != executed:
         raise ModuleError(
-            f"{module}: inconsistent XML — <testsuite> declares tests={totals['tests']} "
+            f"{module}: inconsistent XML — suites declare tests={totals['tests']} "
             f"but {executed} <testcase> element(s) were parsed"
         )
-    for key in ("skipped", "failures", "errors"):
-        if totals[key] != 0:
-            raise ModuleError(f"{module}: expected 0 {key}, got {totals[key]} across {executed} testcase(s)")
     for case in testcases:
         for child in case:
             if child.tag in NON_SUCCESS_TAGS:

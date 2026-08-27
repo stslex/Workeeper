@@ -334,15 +334,18 @@ jobs:
       # An exit code is not evidence: the checked-in script structurally parses each module's
       # JUnit XML and independently requires one exact (classname, name) tuple per module —
       # a repo-wide total or substring match would accept two kit tests and zero navigation
-      # tests, or a classname from one case paired with a method name from another. It allows
-      # additional PASSING cases, so a module can grow a second native test without edits here.
+      # tests, or a classname from one case paired with a method name from another. Counts are
+      # validated PER <testsuite> before any module total is formed, so two malformed suites
+      # cannot cancel out into a consistent-looking aggregate. It allows additional PASSING
+      # cases, so a module can grow a second native test without edits here.
       #
-      # The condition runs it whenever the Gradle step actually STARTED, red or green: a red
-      # native run is exactly when the per-module XML is worth reading, and reporting only
-      # Gradle's exit code there would say nothing about which module or tuple broke. It is
-      # skipped when the job is cancelled, and when the Gradle step itself was skipped because
-      # an earlier setup step (checkout, Xcode selection, JDK, signing material) failed — there
-      # is no fresh XML to judge in that case, only a previous run's leftovers.
+      # The condition runs it whenever the Gradle step actually STARTED, which covers three
+      # outcomes: a red TEST run leaves XML and the script names the module and tuple that
+      # broke, which Gradle's exit code cannot; a compile or simulator-boot failure leaves no
+      # XML and the script says the results are missing, which is the honest answer; and a
+      # setup failure (checkout, Xcode selection, JDK, signing material) skips the Gradle step,
+      # so this step stays skipped too rather than masking that failure behind a
+      # missing-results error. Cancellation also skips it.
       - name: Assert exact native test identities
         if: ${{ !cancelled() && steps.native_tests.outcome != 'skipped' }}
         run: python3 .github/scripts/assert_kmp_ios_smoke.py
