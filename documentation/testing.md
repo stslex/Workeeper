@@ -394,9 +394,32 @@ leaf count exactly (12 at the current baseline — a route-set change must delib
 it), and additionally pins the module's no-compatibility JVM interface ABI: both `isSingleTop`
 getters are Java default methods and no `DefaultImpls` bridge class is loadable. Its
 Kotlin/Native sibling, `ScreenSerializationIosTest.allCurrentRoutesRoundTripThroughProductionRegistry`
-(`src/iosTest`), round-trips a fixed catalog of the same 12 routes through the production
-registry and pins the exact `nav-result` key strings; it proves the registry executes under
-Kotlin/Native, while the JVM test stays the hierarchy-change detector.
+(`src/iosTest`), round-trips the same routes through the production registry and pins the exact
+`nav-result` key strings; it proves the registry executes under Kotlin/Native, while the JVM test
+stays the hierarchy-change detector.
+
+**The two oracles share one fixture, and the JVM one pins it to the hierarchy.** Kotlin/Native
+has no sealed-subclass reflection, so the Native test cannot discover routes — it reads
+`screenSampleCatalog` and `SCREEN_ROUTE_BASELINE` from
+`core/ui/navigation/src/commonTest/.../ScreenSampleCatalog.kt`, a plain fixture with no test-framework
+dependency, visible to both `androidHostTest` and `iosTest` through the default KMP source-set
+hierarchy. Left alone that catalog would be a second hand-maintained list free to drift from the
+routes that actually exist, so the host test asserts `sealedLeaves(Screen::class).toSet()` equals
+`screenSampleCatalog.map { it::class }.toSet()`, plus both sizes against the shared baseline and
+one sample per class. A route added to `Screen.kt` but missing from the catalog — or a catalog
+entry duplicated — reds the host test naming the missing class.
+
+The host test deliberately keeps constructing its round-trip subjects **by reflection** from the
+discovered hierarchy rather than from the catalog. Round-tripping the catalog on both platforms
+would only re-read the same list twice; generating subjects from the hierarchy is what makes the
+JVM run a hierarchy-change detector. Exhaustiveness remains limited to the current direct and
+sealed-reachable hierarchy — a route implementing only the non-sealed `ScreenWithResult` marker
+would escape discovery, which is why new result routes keep the explicit
+`: Screen, ScreenWithResult<R>` shape. There is no classpath scanning.
+
+Adding a route therefore costs four edits — register the serializer, add one non-default sample,
+increment the baseline, re-run both gates — as listed in the
+[`add-feature`](../.claude/skills/add-feature.md) route step.
 
 
 ## UI tests

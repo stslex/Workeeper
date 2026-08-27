@@ -172,14 +172,31 @@ an ephemeral throwaway JKS with `keytool` (the repository configuration reads si
 at configuration time; no production secret is used).
 
 After Gradle, `.github/scripts/assert_kmp_ios_smoke.py` parses each module's JUnit XML
-structurally and independently requires one exact 1 executed / 0 skipped / 0 failed
-`<testcase>` tuple per module — classname and method name both, per result directory — so a
-repo-wide total or a substring match cannot vouch for a test that vanished. Both result
-directories upload under `if: always()`. The job builds no Xcode app, signs no Apple bundle and
-uploads no framework. See [kmp-phase-7-1-ui-kit.md](feature-specs/kmp-phase-7-1-ui-kit.md) §9
-for the context's origin and required-ruleset status, and
+structurally. Per module it requires: the result directory exists with at least one parseable
+`TEST-*.xml` and at least one `<testsuite>`; the declared aggregate `tests` equals the number of
+parsed `<testcase>` elements and is at least one; aggregate `skipped` / `failures` / `errors` are
+zero and no case carries a `<failure>`, `<error>` or `<skipped>` child; and the expected
+normalized `(classname, name)` tuple occurs **exactly once**. Additional *passing* cases are
+allowed, so a module can grow a second native test without editing the script — nothing weakens,
+because every extra case must still pass and still be counted, and a suite declaring more cases
+than it emitted is inconsistent XML rather than evidence. A repo-wide total or a substring match
+could not vouch for a test that vanished; a classname from one case paired with a method name
+from another cannot forge an identity.
+
+The assertion step is bound to the Gradle step's id (`native_tests`) and runs on
+`!cancelled() && steps.native_tests.outcome != 'skipped'` — that is, whenever the Native Gradle
+step actually **started**, red or green. A red native run is exactly when the per-module XML is
+worth reading, and reporting only Gradle's exit code there would not say which module or which
+tuple broke. It is skipped when the job is cancelled, and when the Gradle step never ran because
+an earlier setup step (checkout, Xcode selection, JDK, signing material) failed — there is no
+fresh XML to judge then, only a previous run's leftovers. Both result directories upload under
+`if: always()` regardless.
+
+The job builds no Xcode app, signs no Apple bundle and uploads no framework. See
+[kmp-phase-7-1-ui-kit.md](feature-specs/kmp-phase-7-1-ui-kit.md) §9 for the context's origin and
+required-ruleset status, and
 [kmp-phase-7-2-navigation.md](feature-specs/kmp-phase-7-2-navigation.md) §9 for the expanded
-payload.
+payload and §19 for the hardening evidence.
 
 ## UI test workflow
 

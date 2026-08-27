@@ -227,7 +227,10 @@ assertion and its reviewed baseline; the `ScreenWithResult` escape hatch documen
 be used to bypass it.
 
 The native oracle uses a fixed test-side list of one non-default sample of every current concrete
-route. For nullable constructor parameters, use non-null samples so every field is encoded rather
+route. Since the review hardening (§19.1) that list is not native-local: it lives in `commonTest`
+as `screenSampleCatalog` / `SCREEN_ROUTE_BASELINE`, shared with the JVM oracle, which asserts the
+catalog's class set equals its reflected sealed-leaf set. That equality is what stops the Native
+catalog drifting away from the hierarchy on the one platform that cannot enumerate it. For nullable constructor parameters, use non-null samples so every field is encoded rather
 than omitted. The test must:
 
 - assert that the catalog contains exactly 12 instances and that
@@ -375,15 +378,40 @@ script from the workflow after Gradle. Parse XML structurally; concatenated subs
 admissible. The script must independently require one exact `<testcase>` tuple from each exact
 module result directory:
 
-| Module | Exact result | Required identity |
+| Module | Result at this baseline | Required identity |
 | --- | --- | --- |
 | `core:ui:kit` | 1 executed / 0 skipped / 0 failed | classname `io.github.stslex.workeeper.core.ui.kit.IosKitSceneSmokeTest`; name `sheetLayoutRendersMigratedStringFontAndIcon[iosSimulatorArm64]` |
 | `core:ui:navigation` | 1 executed / 0 skipped / 0 failed | classname `io.github.stslex.workeeper.core.ui.navigation.ScreenSerializationIosTest`; name `allCurrentRoutesRoundTripThroughProductionRegistry[iosSimulatorArm64]` |
+
+The middle column is the **observed result at this baseline, not the enforced cardinality**. The
+enforced contract, per module, is:
+
+- the result directory exists and holds at least one parseable `TEST-*.xml` and at least one
+  `<testsuite>`;
+- the declared aggregate `tests` equals the number of structurally parsed `<testcase>` elements,
+  and that number is at least one — a suite claiming more cases than it emitted is inconsistent
+  XML, not evidence;
+- aggregate `skipped` / `failures` / `errors` are zero, and no testcase carries a `<failure>`,
+  `<error>` or `<skipped>` child;
+- the expected normalized `(classname, name)` tuple occurs **exactly once**.
+
+Additional **passing** testcases are therefore admissible: a module may grow a second native test
+without editing the script, and no guarantee weakens, because every extra case must still pass and
+still be counted. Hardcoding "exactly one testcase" would instead red the gate for a *passing*
+addition, which is a gate that punishes coverage.
 
 The required identities above are **normalized** identities: the parser removes exactly one
 leading `iosSimulatorArm64Test.` prefix from the raw classname and then requires full equality of
 both classname and test name. Suffix, substring, cross-testcase, or repeated-prefix matching is not
 admissible. §18.2 records the raw Kotlin/Native XML shape that makes this normalization necessary.
+
+The assertion step carries the Gradle step's id and the condition
+`!cancelled() && steps.native_tests.outcome != 'skipped'`, so it runs whenever the Native Gradle
+step actually **started** — red or green. A red native run is precisely when the per-module XML is
+worth reading; reporting only Gradle's exit code there names neither the module nor the tuple that
+broke. The assertion is skipped on job cancellation and when the Gradle step never started because
+an earlier setup step failed, since there is then no fresh XML to judge — only a previous run's
+leftovers. The uploads stay `if: always()`.
 
 Fresh checkout plus exact per-module paths and identities are load-bearing. A total of two tests
 without per-module checks is insufficient: two kit tests and zero navigation tests would pass it.
@@ -809,3 +837,128 @@ Recorded at PR-open time in the pull-request thread; the active repository-wide 
 re-read via the ruleset API before merge. The `KMP iOS kit smoke` payload change (two forced
 native tasks + the checked-in identity script) preserves both stable context names; no
 repository-settings change was made.
+
+## 19. Review-hardening record (pre-merge, 2026-08-27)
+
+Three findings raised in review of PR #259 and closed on top of the §18 tree. §18 is left exactly
+as measured; nothing below rewrites it. No production file changed — the diff is test fixtures,
+CI parsing and documentation only, and the device suites and golden gate were deliberately not
+re-run because nothing they observe was touched.
+
+### 19.1 The Native catalog is pinned to the JVM-discovered hierarchy
+
+**Finding.** Kotlin/Native has no sealed-subclass reflection, so the native oracle carried its own
+hardcoded 12-route list *and* its own hardcoded 12-class set. Two hand-maintained lists, free to
+drift from the hierarchy and from each other, with no gate able to notice.
+
+**Change.** Both oracles now read one `commonTest` fixture —
+`core/ui/navigation/src/commonTest/.../ScreenSampleCatalog.kt`, holding `SCREEN_ROUTE_BASELINE`
+and `screenSampleCatalog` with the same non-null, non-default samples as before. It is a plain
+fixture needing no test framework, and the default KMP source-set hierarchy makes it visible from
+both `androidHostTest` and `iosTest`; no build-script or convention change was required, which was
+the stop condition attached to this finding. The JVM oracle gained the coupling assertions:
+reflected leaf count and catalog size both equal the shared baseline, the reflected sealed-leaf set
+equals the catalog's class set, and each catalog entry has a unique concrete class. The Native
+oracle keeps its production-registry round trip, its exact `NavResultKey` assertions, and a size
+guard so a truncated catalog cannot pass vacuously; its hardcoded class set is gone.
+
+The JVM round trip still builds its subjects **by reflection** from the discovered hierarchy, not
+from the catalog. Round-tripping the catalog on both platforms would merely re-read one list twice;
+generating subjects from the hierarchy is what makes the JVM run a hierarchy-change detector. The
+exhaustiveness claim is unchanged and still bounded: direct and sealed-reachable routes only, no
+classpath scanning, `ScreenWithResult` deliberately left non-sealed, and new result routes keeping
+the explicit `: Screen, ScreenWithResult<R>` shape so they stay reachable from `Screen`.
+
+### 19.2 The identity assertion runs after a started-but-red Native Gradle step
+
+**Finding.** The assertion step ran only when Gradle was green, so the one case where per-module
+XML is most informative — a red native run — produced nothing but an exit code.
+
+**Change.** The Gradle step carries `id: native_tests`, and the assertion runs on
+`${{ !cancelled() && steps.native_tests.outcome != 'skipped' }}`. Started-and-green → asserts;
+started-and-red → still asserts, against the XML that run produced; Gradle step skipped because an
+earlier setup step failed → skipped, because the only XML present would be a previous run's
+leftovers; job cancelled → skipped. Uploads remain `if: always()`.
+
+**Evidence boundary.** §19.4's control proves the *script* diagnoses XML after a red Gradle
+invocation. The step condition itself rests on GitHub Actions status semantics and is **not**
+claimed to have been exercised by a real post-failure GitHub run; no such run exists on this PR.
+
+### 19.3 The XML oracle is extensible without weakening
+
+**Finding.** The parser required exactly one testcase per module, so adding a second *passing*
+native test would have reddened the required context.
+
+**Change.** Per module the script now requires: directory present with at least one parseable
+`TEST-*.xml` and at least one `<testsuite>`; declared aggregate `tests` equal to the number of
+parsed `<testcase>` elements and at least one; zero aggregate `skipped`/`failures`/`errors` and no
+per-case `<failure>`/`<error>`/`<skipped>` child; and the expected normalized `(classname, name)`
+tuple exactly once. Additional passing cases are admissible. Exactly one leading
+`iosSimulatorArm64Test.` prefix is stripped, so a doubled prefix stays a mismatch, and
+suffix/substring/cross-testcase matching remains impossible. The success line prints each module's
+real executed count instead of asserting a hardcoded "1 executed".
+
+### 19.4 Verification
+
+Positive gates, forced flags where applicable
+(`--rerun-tasks --no-build-cache --no-configuration-cache --full-stacktrace --console=plain`):
+
+| Gate | Summary line | Evidence |
+| --- | --- | --- |
+| `:core:ui:navigation:testDebugUnitTest` | 35 actionable tasks: 35 executed | XML 1/0/0, the single testcase now also asserting catalog↔hierarchy equality |
+| `:core:ui:navigation:iosSimulatorArm64Test` | 31 actionable tasks: 31 executed | XML 1/0/0, identity unchanged |
+| two-module Native command with `--continue` | 59 actionable tasks: 59 executed | both modules green |
+| `.github/scripts/assert_kmp_ios_smoke.py` | exit 0 | prints `core:ui:kit: 1 executed …` and `core:ui:navigation: 1 executed …`, counts now derived from the XML |
+| `:core:ui:navigation:lintDebug` | 23 actionable tasks: 23 executed | green |
+| `detekt` (root, separate) | 57 actionable tasks: 57 executed | green |
+| `python3 -m py_compile` on the script | exit 0 | — |
+| workflow YAML | parsed | no YAML linter is installed in this repo, so all 11 workflow files were parsed with an ephemeral out-of-tree PyYAML: `KMP iOS kit smoke` and `Build and Unit Tests` names intact, `id: native_tests`, the assertion's `if:`, and the upload's `always()` all as intended |
+| `git diff --check` | exit 0 | — |
+
+Both oracles consume the shared fixture (the host test fails to compile without it, and §19.5's
+first control shows the host test reading it at runtime). No production, build-logic, dependency,
+generated, device-test or golden file is in the diff; the two pre-existing unrelated untracked
+files stayed byte-identical and unstaged throughout.
+
+### 19.5 Known-negative controls
+
+All mutations ran through `documentation/mockups/mutation_harness.py`, which restores exact bytes
+in its `finally`; each gate was re-proven green afterwards.
+
+1. **Catalog drift.** One catalog entry (`Screen.Archive`) replaced by a duplicate of another
+   (`Screen.Settings`), list size still 12 → host test `RED (1 test(s))`, and the failure message
+   read from the produced XML is exactly the coupling assertion:
+   `screenSampleCatalog does not match the reflected sealed-leaf set — missing
+   [class …Screen$Archive], unexpected []`. Restored; host and Native both re-run green
+   ("59 actionable tasks: 59 executed", XML 1/0/0 each). This is why the set-equality assertion is
+   ordered ahead of the uniqueness refinement: for a duplicated entry the drift message is the
+   useful one, and the uniqueness check remains as the named second tripwire.
+2. **Red Native Gradle, diagnosed from XML.** The native `nav-result` prefix assertion was mutated
+   so the navigation test fails, then the exact two-task `--continue` command ran: Gradle
+   `RED (1 test(s))` naming
+   `…ScreenSerializationIosTest.allCurrentRoutesRoundTripThroughProductionRegistry[iosSimulatorArm64]`,
+   "59 actionable tasks: 59 executed" — both module task graphs attempted, and both result
+   directories held XML written after the run started (kit `tests=1 failures=0`, navigation
+   `tests=1 failures=1`). The checked-in script, invoked separately against that XML with **no**
+   Gradle rerun, exited 1 with `core:ui:navigation: expected 0 failures, got 1 across 1
+   testcase(s)` — the navigation failure, with no missing-or-stale kit complaint. Restored; the
+   two-task command and the script both re-run green. This exercises the script's behaviour after
+   a red Gradle step; it does **not** execute the GitHub `if:` expression.
+3. **XML fixture matrix.** Eighteen synthetic fixtures in a temp directory outside the tracked
+   worktree, each run through the **real** imported `check_module()` (never a reimplementation).
+   All eighteen matched their expected verdict: expected tuple alone → PASS; expected tuple plus
+   one additional successful testcase → PASS (2 executed); renamed method → FAIL; foreign package
+   → FAIL; duplicated expected tuple → FAIL; declared `tests` greater than parsed → FAIL; declared
+   `tests` less than parsed → FAIL; additional failed / errored / skipped case → FAIL; a lying
+   aggregate (`failures="0"` beside a `<failure>` child) → FAIL on the per-case check; repeated
+   `iosSimulatorArm64Test.` prefix → FAIL; zero testcases → FAIL; no `<testsuite>` → FAIL;
+   malformed XML → FAIL; non-numeric `tests` attribute → FAIL; directory without `TEST-*.xml` →
+   FAIL; missing directory → FAIL. All fixtures were deleted with their temp directories.
+4. **New source set is gate-covered.** Phase 6 recorded that `src/testFixtures` was never
+   detekt-analyzed for its entire existence — a source set no convention names is a source set no
+   gate covers — so the new `commonTest` was checked rather than assumed: an over-long line in
+   `ScreenSampleCatalog.kt` reds `:core:ui:navigation:detekt`
+   ("8 actionable tasks: 8 executed", `Task :core:ui:navigation:detekt FAILED`). Restored; detekt
+   green.
+
+No mutation artifact, temporary fixture or ephemeral tool remains in the worktree.

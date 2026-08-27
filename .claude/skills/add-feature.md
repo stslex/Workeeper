@@ -216,6 +216,28 @@ one extension.
    If the destination hands a value back, declare it on the type:
    `data class <Name>(...) : Screen, ScreenWithResult<R>` — the result type lives on
    the destination, not at the call site (`Screen.PlanEditor : ScreenWithResult<Boolean>`).
+   Keep `Screen` in that explicit supertype list even though `ScreenWithResult<R> : Screen`
+   already implies it: the JVM oracle discovers routes by walking `Screen`'s sealed
+   hierarchy, and a route reachable only through the non-sealed `ScreenWithResult` marker
+   would escape discovery.
+
+   **Every new route costs four edits, and the gates fail until all four land:**
+
+   1. register the leaf in `screenSerializersModule`
+      (`ScreenSerialization.kt`) — an unregistered leaf fails only at
+      process-death save time in production;
+   2. add exactly one non-default, non-null sample to `screenSampleCatalog`
+      (`core/ui/navigation/src/commonTest/.../ScreenSampleCatalog.kt`);
+   3. increment `SCREEN_ROUTE_BASELINE` in the same file by one;
+   4. re-run both registry gates —
+      `./gradlew :core:ui:navigation:testDebugUnitTest` (JVM: reflected leaf count,
+      catalog/hierarchy set equality, round trip, ABI) and
+      `./gradlew :core:ui:navigation:iosSimulatorArm64Test` (Kotlin/Native: catalog
+      round trip through the production registry).
+
+   The host oracle asserts the catalog's class set equals the reflected sealed-leaf set,
+   so steps 2 and 3 cannot be skipped or half-done: a registered route missing from the
+   catalog reds the host test, and a stale baseline reds it too.
 
 6. Generate the Store contract under `mvi/store/<Name>Store.kt`. Conventions enforced
    by the custom Detekt rules in
