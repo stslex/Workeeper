@@ -10,7 +10,7 @@ All workflow files live under `.github/workflows/`.
 
 | File | Trigger | Purpose |
 |---|---|---|
-| `android_build_unified.yml` | push to `master`, every `pull_request`, `workflow_dispatch` | Two jobs: `Build and Unit Tests` (detekt, Android Lint, build, unit tests, test reporting; Linux) and `KMP iOS kit smoke` (the kit Compose-scene and navigation serializer-registry native tests on `macos-26`). Gates PRs. |
+| `android_build_unified.yml` | push to `master`, every `pull_request`, `workflow_dispatch` | Two jobs: `Build and Unit Tests` (including MVI topology, forced Android-host tests and exact identities; Linux) and `KMP iOS kit smoke` (kit, navigation and MVI Native tests plus exact identities on `macos-26`). Gates PRs. |
 | `ui_tests.yml` | weekly `schedule` (Mondays 05:00 UTC, against `dev`), `workflow_dispatch`, `workflow_call` | Smoke / regression UI tests on an emulator. Does not gate PRs; called by `android_deploy_prod.yml` with `test_suite=smoke`. |
 | `mockup_gate.yml` | every `pull_request` **except** into `master`, `workflow_dispatch`, `workflow_call` | Runs `documentation/mockups/shell_gate.py` against the v3 shell mockup, plus its permanent known negative. Seconds; no emulator, no JDK, no secrets. |
 | `pr_guard.yml` | `pull_request` into `master` only | Fails any PR into `master` whose head branch is not `release/release-v.X.Y.Z`. |
@@ -54,11 +54,14 @@ manual dispatch, or inside the production deploy — never on a PR.
 ```bash
 ./gradlew assembleDebug --full-stacktrace
 ./gradlew assembleDebugAndroidTest --full-stacktrace   # compiles the instrumented tests; running them still needs a device
+python3 .github/scripts/assert_mvi_source_topology.py
 ./gradlew verifyPaparazziDebug --full-stacktrace   # visual gate, before anything can rewrite the tree
 ./gradlew :lint-rules:test --full-stacktrace       # the custom detekt rules, before detekt consumes them
 ./gradlew detekt --full-stacktrace
 python3 documentation/personal_data_gate.py -v     # no real names/emails in tracked files
 ./gradlew lintDebug --no-configuration-cache --full-stacktrace
+./gradlew :core:ui:mvi:testAndroidHostTest --rerun-tasks --no-build-cache --no-configuration-cache --full-stacktrace --console=plain
+python3 .github/scripts/assert_mvi_host_identities.py
 ./gradlew testDebugUnitTest --full-stacktrace
 ```
 
@@ -66,7 +69,8 @@ Order is load-bearing twice over. `verifyPaparazziDebug` runs first so the golde
 against the tree as checked out, before any step could rewrite it. `:lint-rules:test` runs before
 `detekt`, since detekt is what consumes the jar those tests cover.
 
-Every repo-wide spelling above also covers the KMP-shaped `:core:ui:kit`: the KMP conventions
+Every repo-wide spelling above also covers the KMP-shaped `:core:ui:kit`, `:core:ui:navigation`
+and `:core:ui:mvi`: the KMP conventions
 register `assembleDebug`, `testDebugUnitTest`, `lintDebug`, `assembleDebugAndroidTest` and
 `verifyPaparazziDebug` as lifecycle aliases onto the real KMP tasks (`assemble`,
 `testAndroidHostTest`, `lint`, `assembleAndroidDeviceTest`, `verifyPaparazziAndroidMain`), so a
@@ -237,6 +241,10 @@ Two parallel jobs (`smoke-tests` and `regression-tests`) gate their own executio
    annotation (see [testing.md](testing.md#running-tests) for the exact `-P` argument),
    with a small heap for the connected phase
    (`-Dorg.gradle.jvmargs=-Xmx3g --max-workers=2`) so the emulator keeps its headroom.
+
+The Smoke job then runs `assert_mvi_device_identities.py` even when the Gradle command failed, so
+the two required MVI cases cannot disappear behind another module's failure or a green zero-test
+task. The original Gradle failure still takes precedence after the identity verdict is captured.
 
 ### Reporting
 

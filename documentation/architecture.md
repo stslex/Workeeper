@@ -89,7 +89,9 @@ Custom Detekt rule set, centralized `detekt.yml` and `lint.xml`, single baseline
 
 ## MVI contract
 
-The MVI contract lives in `core/ui/mvi`. Three roles cooperate:
+The MVI contract lives in the KMP module `core/ui/mvi`. Its Store runtime and processor are in
+`commonMain`; Android and `iosSimulatorArm64` supply only the platform telemetry and host seams.
+Three roles cooperate:
 
 1. UI dispatches an `Action` via the store's `consume` callback.
 2. A `Handler` matches the action type and updates `State` and/or emits an `Event`.
@@ -97,7 +99,8 @@ The MVI contract lives in `core/ui/mvi`. Three roles cooperate:
 
 ### `Store`
 
-Defined in `core/ui/mvi/src/main/kotlin/io/github/stslex/workeeper/core/ui/mvi/Store.kt`:
+Defined in
+`core/ui/mvi/src/commonMain/kotlin/io/github/stslex/workeeper/core/ui/mvi/Store.kt`:
 
 ```kotlin
 interface Store<out S : State, in A : Action, out E : Event> {
@@ -118,7 +121,7 @@ interface Store<out S : State, in A : Action, out E : Event> {
 
 ### `BaseStore`
 
-`core/ui/mvi/src/main/kotlin/io/github/stslex/workeeper/core/ui/mvi/BaseStore.kt` is a
+`core/ui/mvi/src/commonMain/kotlin/io/github/stslex/workeeper/core/ui/mvi/BaseStore.kt` is a
 `ViewModel` that implements `Store` and `StoreConsumer`. Concrete feature stores subclass it.
 Constructor parameters:
 
@@ -129,6 +132,9 @@ Constructor parameters:
 - `handlerCreator` — a `HandlerCreator<A>` lambda that maps an action to the right `Handler`.
 - `initialActions` — actions consumed once `init()` is called (typically `Common.Init`).
 - `disposeActions` — actions consumed when the ViewModel is cleared.
+- `appScopeLifetime` — the exact non-null generation lifetime injected directly into the
+  concrete Store; Store jobs are descendants of that generation and cannot fall back to an
+  autonomous parent.
 - `storeDispatchers`, `analyticsHolder`, `loggerHolder` — injected singletons.
 
 `BaseStore` deduplicates consecutive identical actions unless they implement `Action.RepeatLast`,
@@ -140,7 +146,7 @@ the main thread. A Store may not be disposed off main.
 
 ### `Handler`
 
-`core/ui/mvi/src/main/kotlin/io/github/stslex/workeeper/core/ui/mvi/handler/Handler.kt` is a
+`core/ui/mvi/src/commonMain/kotlin/io/github/stslex/workeeper/core/ui/mvi/handler/Handler.kt` is a
 single-method functional interface:
 
 ```kotlin
@@ -158,7 +164,7 @@ for the canonical pattern.
 ### `HandlerStore` and `BaseHandlerStore`
 
 Handlers receive a `HandlerStore<S, A, E>` (see
-`core/ui/mvi/src/main/kotlin/io/github/stslex/workeeper/core/ui/mvi/handler/HandlerStore.kt`)
+`core/ui/mvi/src/commonMain/kotlin/io/github/stslex/workeeper/core/ui/mvi/handler/HandlerStore.kt`)
 that exposes `state`, `lastAction`, `consume(action)`, `updateState`, `sendEvent`, and `launch`
 helpers. The feature owns a `<Name>HandlerStoreImpl` annotated
 `@SingleIn(<Name>Scope::class)` that extends
@@ -174,7 +180,7 @@ from background coroutines](#dispatching-navigation-from-background-coroutines).
 ### `StoreProcessor`
 
 Compose talks to MVI through `StoreProcessor` (see
-`core/ui/mvi/src/main/kotlin/io/github/stslex/workeeper/core/ui/mvi/processor/StoreProcessor.kt`).
+`core/ui/mvi/src/commonMain/kotlin/io/github/stslex/workeeper/core/ui/mvi/processor/StoreProcessor.kt`).
 There is ONE backend-agnostic `rememberStoreProcessor(StoreCreator)` overload; features reach
 it through `rememberMetroStoreProcessor` (`.../processor/MetroStoreProcessor.kt`), which
 retains the Metro-constructed Store directly in the `ViewModelStore` of the current
@@ -203,8 +209,9 @@ In both cases the helper:
 
 - Wires `init()` / `dispose()` to a `DisposableEffect` keyed on the Store and the
   current `LifecycleOwner` so the Store's `AppCoroutineScope` follows screen lifecycle.
-- Reports the Store's screen name to `FirebaseCrashlyticsHolder`,
-  `FirebaseAnalyticsHolder`, and `FirebaseScreenRenderRecorder`.
+- Reports the Store's screen name to `FirebaseCrashlyticsHolder`, `FirebaseAnalyticsHolder`, and
+  the common `ScreenRenderRecorder` seam. Android supplies the real Firebase frame recorder; the
+  iOS simulator target supplies an explicit no-op recorder.
 - Returns a `StoreProcessor` exposing `state: ComposeState<S>`, `consume(action)`, and a
   `Handle { event -> ... }` composable for one-shot UI side effects.
 

@@ -4,7 +4,10 @@ This document is the canonical reference for the Firebase Performance Monitoring
 how the three pipelines fit together, what they emit, where to read them in the Firebase
 console, and the obligations a feature author must meet to keep the metrics correct.
 
-The implementation lives in `core/ui/mvi/.../performance/`. Bootstrap call sites live in
+The common façade and action model live in `core/ui/mvi/src/commonMain/.../performance/`.
+Android owns the Firebase implementation in `androidMain`; iOS owns explicit no-op backends in
+`iosMain`, so no Firebase dependency or Android type enters common/native code. Bootstrap call
+sites live in
 [`BaseApplication`](../app/app/src/main/java/io/github/stslex/workeeper/BaseApplication.kt),
 [`MainActivity`](../app/app/src/main/java/io/github/stslex/workeeper/MainActivity.kt),
 [`NavigatorExt`](../app/common/src/main/kotlin/io/github/stslex/workeeper/navigation/NavigatorExt.kt)
@@ -12,7 +15,13 @@ The implementation lives in `core/ui/mvi/.../performance/`. Bootstrap call sites
 current `NavController`),
 and [`AppNavigationHost`](../app/common/src/main/kotlin/io/github/stslex/workeeper/host/AppNavigationHost.kt).
 The screen-rendering pipeline is wired automatically inside
-[`StoreProcessor.rememberStoreProcessor`](../core/ui/mvi/src/main/kotlin/io/github/stslex/workeeper/core/ui/mvi/processor/StoreProcessor.kt).
+[`StoreProcessor.rememberStoreProcessor`](../core/ui/mvi/src/commonMain/kotlin/io/github/stslex/workeeper/core/ui/mvi/processor/StoreProcessor.kt).
+
+`PerformanceMetricsRecorder` always retains common logging and delegates to an internal
+`PerformanceBackend`. The Android actual is the serialized Firebase backend described below. The
+iOS actual deliberately records nothing until a native telemetry provider is selected. The same
+boundary applies to screen rendering: common processor code calls `ScreenRenderRecorder`, Android
+adapts it to `FirebaseScreenRenderRecorder`, and iOS returns `NoOpScreenRenderRecorder`.
 
 ## Pipelines
 
@@ -141,16 +150,17 @@ PerformanceMetricsRecorder.process(action: RecordAction)
 | `OnScreenPlaced<S>(screen)`          | `Modifier.reportScreenPlace<S>()` in `AppNavigationHost` |
 | `ClearTraces`                        | `MainActivity.onDestroy`                       |
 
-`process(action)` is `@Synchronized` — there is no internal queueing or coroutine
-machinery. The recorder dispatches each action to the right `PerformanceRecorder`
-instance(s) directly. `OnScreenPlaced` is the only fan-out: it stops TTID, AppCreate, and
-ActivityCreate together, because the first user-visible frame after navigation /
-activity-create / app-create is the natural terminator for all three.
+There is no internal queueing or coroutine machinery. The common façade logs and delegates each
+action; the Android `FirebasePerformanceBackend.process(action)` method is `@Synchronized` because
+it owns the three mutable `PerformanceRecorder` instances. `OnScreenPlaced` is the only fan-out:
+it stops TTID, AppCreate, and ActivityCreate together, because the first user-visible frame after
+navigation / activity-create / app-create is the natural terminator for all three.
 
-The screen-rendering pipeline does **not** flow through `RecordAction`. It is owned by
-`FirebaseScreenRenderRecorder` and driven directly from `rememberStoreProcessor`'s
-`DisposableEffect`. The two pipelines are disjoint by design — screen rendering needs an
-`Activity` to seed `FrameMetricsRecorder` and is per-composition, not per-navigation.
+The screen-rendering pipeline does **not** flow through `RecordAction`. Common
+`rememberStoreProcessor` drives the `ScreenRenderRecorder` seam directly from its
+`DisposableEffect`; Android's adapter owns the `Activity` lookup and Firebase recorder. The two
+pipelines are disjoint by design — Android screen rendering needs an `Activity` to seed
+`FrameMetricsRecorder` and is per-composition, not per-navigation.
 
 ## Aborted traces
 

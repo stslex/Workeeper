@@ -1,7 +1,6 @@
 # KMP Phase 7.3 — `core:ui:mvi` becomes the shared Store runtime
 
-**Status:** SPECIFICATION — implementation has not started; a separate explicit GO is required
-after this specification PR is reviewed and merged
+**Status:** IMPLEMENTATION VERIFIED LOCALLY — GitHub CI pending; Phase 7.3 is not complete
 
 **Target branch:** `dev`
 
@@ -896,3 +895,91 @@ The next instruction must be an explicit GO for implementation against the merge
 specification PR. The implementation agent must first re-pin `dev`, repeat the drift and
 variant/ABI preflight, then either execute this contract or stop on §15. It must open a PR and
 must not merge it.
+
+## 20. Implementation and verification record — 2026-08-27
+
+The implementation GO was executed on `feature/kmp-phase-7-3-mvi` from
+`6e746bd0abc7eb81a8e6c6847ed26be2717bbf83`. A fresh fetch confirmed `origin/dev` still named
+that exact commit before work resumed. The local implementation and every locally available gate
+below are green. GitHub required-context evidence is pending, so this record makes no completion
+claim.
+
+### 20.1 Positive evidence
+
+All Gradle verification commands used `--rerun-tasks --no-build-cache`; focused KMP commands also
+used `--no-configuration-cache`. The quoted summaries are the Gradle evidence lines.
+
+| Surface | Fresh result |
+| --- | --- |
+| MVI Android compile | `:core:ui:mvi:compileAndroidMain` — `43 actionable tasks: 43 executed` |
+| MVI Android host | `:core:ui:mvi:testAndroidHostTest` — `83 actionable tasks: 83 executed`; 24 executed, 7 exact identities |
+| Three-module Native | kit + navigation + MVI `iosSimulatorArm64Test --continue` — `86 actionable tasks: 86 executed`; XML totals 1 / 1 / 14 and exact identities 1 / 1 / 5 |
+| MVI device assembly | `:core:ui:mvi:assembleAndroidDeviceTest` — `136 actionable tasks: 136 executed` |
+| Focused MVI device | Smoke-filtered `:core:ui:mvi:connectedAndroidDeviceTest` — `137 actionable tasks: 137 executed`; 2 executed and 2 exact identities under `connected/androidMain` |
+| Android consumers | all 15 direct consumer compile tasks plus `:app:app:assembleDebug` — `325 actionable tasks: 325 executed` |
+| MVI analysis | module Detekt + lint — `103 actionable tasks: 103 executed` |
+| Repository build / analysis / host tests | `assembleDebug detekt lintDebug testDebugUnitTest` — `2072 actionable tasks: 2072 executed` |
+| Instrumented assembly | `assembleDebugAndroidTest` — `1936 actionable tasks: 1936 executed` |
+| Screenshot goldens | `verifyPaparazziDebug` — `617 actionable tasks: 617 executed`; 456 committed golden PNGs unchanged |
+| Custom Detekt rules | `:lint-rules:test` — `9 actionable tasks: 9 executed` |
+| Personal-data gate | exit 0; one detector pattern, one literal and the three documented named exceptions |
+| Smoke device suite | `2009 actionable tasks: 2009 executed`; 14 current-run XML files, 44 discovered / 41 executed / 3 named skips / 0 failures / 0 errors |
+| Regression device suite | `2009 actionable tasks: 2009 executed`; 81 discovered / 81 executed / 0 skipped / 0 failures / 0 errors |
+| Static CI artifacts | Python compile green; both edited workflow YAML files parse with Ruby Psych; `git diff --check` green |
+
+The three Smoke skips remain exactly
+`AllExercisesScreenTest.pendingFeatureRewrite`,
+`AllTrainingsScreenTest.pendingFeatureRewrite`, and
+`ArchiveScreenTest.pendingFeatureRewrite`. Regression membership remains 49 `app:app`, 30
+`core:data:database`, one `core:data:exercise`, and one `feature:all-exercises` case.
+
+### 20.2 Known-negative controls
+
+Every repository-file mutation used `documentation/mockups/mutation_harness.py`, which restored
+the exact pre-mutation bytes in `finally`; the legacy-directory negative used an isolated
+temporary source-tree copy because no legacy repository file exists to mutate. Each accepted
+control established fresh green first and fresh green again after restoration.
+
+| Mutation | Required red observed |
+| --- | --- |
+| autonomous Store parent | host generation ancestry/join tests and device descendant identity |
+| `SupervisorJob(generationJob)` moved left | both host generation ancestry/join tests |
+| remove `onCleared() -> dispose()` | host and Native disposal identities plus the production Native processor scene |
+| remove consume guard | `actionsAfterDisposalAreRejected` |
+| remove suspended event fallback | `everyEventSubmittedUnderBufferPressureIsObservedExactlyOnce` |
+| add Android import to common | source-topology gate |
+| set `JvmDefaultMode.ENABLE` | clean `MviJvmAbiTest.noMviInterfaceCarriesADefaultImplsHolder` |
+| rename required Native method, then parse without another Gradle run | stale XML identity rejection |
+| place device test in legacy `src/androidTest` | source-topology rejection on isolated copied tree |
+| replace Android performance provider with no-op | `theAndroidPlatformBackendIsTheFirebaseOneAndNotANoOp` |
+| bypass processor recorder seam | Native production processor scene |
+| add Detekt violation to new common test | `:core:ui:mvi:detekt` |
+
+The shared XML validator fixture matrix matched all 35 expected verdicts: the historical 29 cases
+plus multi-identity, Android-host prefix, Android-device identity and compensating-suite cases.
+The compensating-suite fixture remained red per suite.
+
+Two early harness launches blocked before their child Gradle process ran and produced no named
+test; they are rejected and are not counted above. An initial clean-ABI mutation command was also
+rejected because its summary contained one `UP-TO-DATE` task; the accepted replacement used the
+clean Android compile/host-test outputs and produced the named ABI red. A guessed non-existent
+common dependency configuration and a Gradle `resolvableConfigurations` reporting failure were
+diagnostic probes only; the accepted dependency proof uses
+`commonMainResolvableDependenciesMetadata`, `iosMainResolvableDependenciesMetadata`, and
+`iosSimulatorArm64CompileKlibraries`, all with no Firebase resolution.
+
+### 20.3 Final structural proof and pending evidence
+
+- All 13 concrete production Stores receive `AppScopeLifetime` directly; `StoreGenerationDeps`
+  and processor `Context` lookup are absent.
+- The exact 15 classic Android consumers still depend directly on `core:ui:mvi`; no consumer was
+  converted to KMP.
+- Source topology is commonMain 27, androidMain 6, iosMain 2, commonTest 3, androidHostTest 2,
+  androidDeviceTest 2 and iosTest 1; legacy directories contain no Kotlin.
+- Common/iOS production contains no Android, Java, `javax` or Firebase import. Firebase does not
+  resolve into common or iOS; Android host tests prove the platform provider is the real serialized
+  Firebase backend and the screen adapter retains its Firebase sink.
+- The clean Android ABI oracle is green, the 456 golden paths and bytes are unchanged, and no
+  dependency version, ruleset or required-context name changed.
+- GitHub CI and required contexts are still pending. Phase 7.3 remains incomplete until that
+  external evidence is green under the unchanged names.
