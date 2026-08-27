@@ -1,6 +1,6 @@
 # KMP Phase 7.2 — `core:ui:navigation` becomes the shared native navigation contract
 
-**Status:** SPEC v1 — discovery complete; implementation has not started
+**Status:** IMPLEMENTED — verification record in §18; delivered by the Phase-7.2 PR into `dev`
 
 **Target branch:** `dev`
 
@@ -666,3 +666,139 @@ Use this exact scope only after the docs-only specification PR merges:
 > `dev`. Preserve the required `Build and Unit Tests` and `KMP iOS kit smoke` context names. Do not
 > implement MVI, features, `app:common`, `iosApp`, UIKit, Navigation 3 UI or Phase-5 runtime work.
 > Stop and report if the baseline or a locked invariant has drifted.
+
+## 18. Final verification record (implementation, 2026-08-27)
+
+Implemented on `feature/kmp-phase-7-2-navigation`, forked from `dev` at
+`8b7cfea4729a140199cdde3a38f436e9482092d5` (PR #258 merge; verified
+`git diff --stat ba367fe96..origin/dev` shows only the two Phase-7 documentation files, so
+production/test/build-logic/catalog/workflow state is exactly the code baseline). Commit
+decomposition per §12: `612cb1e7e` (atomic module conversion), `db3b77c5e` (native required
+gate), plus the evidence/documentation commit that carries this record. Every Gradle
+verification below ran with `--rerun-tasks --no-build-cache --no-configuration-cache
+--full-stacktrace --console=plain` (dependency reports and `--dry-run` graphs per the §11
+exemption); every quoted summary line reads `N actionable tasks: N executed`, and every count
+was read from produced JUnit XML, never from an exit code.
+
+### 18.1 Pre-edit characterization (§11.1, at 8b7cfea47)
+
+- Source inventory matches §2 exactly: 9 production Kotlin files / 289 physical lines under
+  `src/main/kotlin/io.github/…`, 1 host-test file, 12 concrete routes, 12 `subclass(...)`
+  registrations, 15 `@Serializable`, 0 `android.*`/`java.*` imports, 16 direct Gradle consumers.
+- `:core:ui:navigation:testDebugUnitTest` (forced): "36 actionable tasks: 36 executed"; XML
+  `tests="1" skipped="0" failures="0" errors="0"`, testcase
+  `every concrete Screen leaf round-trips through the production registry()` in
+  `io.github.stslex.workeeper.core.ui.navigation.ScreenSerializationTest`. (The pre-edit source
+  guards only `>= 12`; the exact pre-edit count is the static §2 inventory, per §11.1.)
+- Golden baseline: sorted path + SHA-256 manifest of all 456 committed PNGs recorded; 13
+  modules apply `golden-gate.gradle.kts` (kit + plan-editor + start-mode + the ten feature
+  modules).
+- Effective versions before the conversion (`:app:dev` `debugRuntimeClasspath`
+  `dependencyInsight`): `kotlinx-serialization-core:1.11.0`,
+  `androidx.savedstate:savedstate:1.4.0`; the module's own classpath already resolves
+  SavedState `1.4.0` through Navigation 3 `1.1.6`.
+- Environment: Xcode 26.6 (17F113) with the iOS 26.5 simulator runtime; `Pixel_6_API_34` AVD.
+
+### 18.2 Focused post-conversion gates (§11.2)
+
+| Gate | Summary line | Evidence |
+| --- | --- | --- |
+| `:core:ui:navigation:dependencies --configuration iosSimulatorArm64CompileKlibraries` | BUILD SUCCESSFUL | nav3-runtime 1.1.6, savedstate 1.4.0, serialization-core 1.11.0, coroutines-core 1.11.0, Compose runtime 1.11.1 — every selected artifact resolves an `iosSimulatorArm64` variant |
+| `…iosSimulatorArm64TestCompileKlibraries` | BUILD SUCCESSFUL | kotlin-test 2.4.10; `kotlinx-serialization-json-iossimulatorarm64:1.11.0` listed |
+| `compileKotlinIosSimulatorArm64` | 11 actionable tasks: 11 executed | green |
+| `assembleDebug` (module) | 45 actionable tasks: 45 executed | green |
+| `testDebugUnitTest` (module) | 35 actionable tasks: 35 executed | XML 1/0/0; the one testcase carries the exact-12 assertion and the ABI assertions (both `isSingleTop` getters `Method.isDefault`, both `DefaultImpls` binary names throw `ClassNotFoundException`) |
+| `iosSimulatorArm64Test` (module) | 31 actionable tasks: 31 executed | XML 1/0/0, testcase `allCurrentRoutesRoundTripThroughProductionRegistry[iosSimulatorArm64]` |
+| `lintDebug` (module) | 23 actionable tasks: 23 executed | green |
+| `detekt` (root, separate run) | 57 actionable tasks: 57 executed | green |
+| `--dry-run` alias graphs | — | `assembleDebug` reaches `compileKotlinIosSimulatorArm64`; `testDebugUnitTest` reaches `testAndroidHostTest`; `lintDebug` reaches `lint` |
+
+Encoding note a reviewer should not rediscover: the Kotlin/Native Gradle test task prefixes
+every XML classname with its own name — the produced attribute is
+`iosSimulatorArm64Test.io.github.stslex.workeeper.core.ui.navigation.ScreenSerializationIosTest`,
+and the kit's Phase-7.1 XML has the same shape. `.github/scripts/assert_kmp_ios_smoke.py`
+therefore strips exactly that one known prefix and then requires full equality; an `endswith`
+would accept a foreign package.
+
+### 18.3 Repository gates (§11.3)
+
+| Gate | Summary line |
+| --- | --- |
+| `assembleDebug` | 1116 actionable tasks: 1116 executed |
+| `assembleDebugAndroidTest` | 1960 actionable tasks: 1960 executed |
+| `verifyPaparazziDebug` | 617 actionable tasks: 617 executed — 13 "Visual gate live" lines summing to 456 executed golden cases |
+| `:lint-rules:test` | 9 actionable tasks: 9 executed |
+| `detekt` | 57 actionable tasks: 57 executed |
+| `python3 documentation/personal_data_gate.py -v` | exit 0 |
+| `lintDebug` | 1094 actionable tasks: 1094 executed |
+| `testDebugUnitTest` | 1128 actionable tasks: 1128 executed |
+
+Golden identity: the post-battery sorted path + SHA-256 manifest of all 456 committed PNGs is
+byte-identical to the pre-edit manifest; the diff contains no PNG and no nested snapshot file.
+Effective versions after the conversion are unchanged
+(`kotlinx-serialization-core:1.11.0`, `androidx.savedstate:savedstate:1.4.0` at `:app:dev`).
+
+### 18.4 Device suites (§11.3, API-34 emulator `Pixel_6_API_34`, animations off, forced flags, `--continue`)
+
+| Suite | Result |
+| --- | --- |
+| `@Smoke` | "2033 actionable tasks: 2033 executed" — fresh connected XML sums to **44 discovered / 41 executed / 3 skipped / 0 failures** (the three pre-existing named skips in all-exercises, all-trainings, archive) |
+| `@Regression` | "2033 actionable tasks: 2033 executed" — fresh connected XML sums to **81 discovered / 81 executed / 0 skipped / 0 failures** |
+
+Counting note: connected XMLs are per-module disk files and a prior day's leftover under a
+different variant directory (`connected/debug/` beside the current `connected/androidMain/`)
+inflates a naive recursive sum — the Smoke total was read from the current run's files only,
+after deleting the one stale kit XML. Same false-total family as the Phase-5 evidence-count
+correction.
+
+### 18.5 Known-negative controls (§11.4)
+
+All source mutations ran through `documentation/mockups/mutation_harness.py` (one-shot mode,
+which restores exact bytes in its `finally`); every `--task` carried the full §11 flag set on
+top of the harness's own `--rerun-tasks --no-build-cache`. Each control ran only after its
+green baseline, and each corresponding gate was re-proven green after restoration.
+
+1. **Missing registration, two separate invocations.** Deleting
+   `subclass(Screen.ExerciseImage::class)` from the production registry: the host oracle
+   invocation → `RED (1 test(s))`, `ScreenSerializationTest > every concrete Screen leaf
+   round-trips through the production registry() FAILED`, "35 actionable tasks: 35 executed"
+   (a runtime serializer-lookup failure, not a compile failure); the independent native
+   invocation → `RED (1 test(s))`,
+   `…ScreenSerializationIosTest.allCurrentRoutesRoundTripThroughProductionRegistry[iosSimulatorArm64] FAILED`,
+   "31 actionable tasks: 31 executed". Both restored gates re-proven green (59/59 executed,
+   XML 1/0/0 each).
+2. **`android.os.Build` in `commonMain`.** A fully-qualified `android.os.Build.VERSION.SDK_INT`
+   reference in `NavCommand.kt`: `compileKotlinIosSimulatorArm64` failed with
+   `Unresolved reference 'android'` at the mutated line — harness verdict
+   `INVALID — DID NOT COMPILE` with `--expect INVALID: OK`, as §11.4.2 prescribes. Restored
+   compile green (11/11 executed).
+3. **Native XML identity.** The exact §9 two-task command plus
+   `.github/scripts/assert_kmp_ios_smoke.py` ran green first (59 actionable tasks: 59
+   executed; both identities printed). The harness then renamed only the native navigation
+   test method (`…Renamed`): its Gradle task stayed green ("31 actionable tasks: 31
+   executed", staging verdict GREEN as intended). With the source restored and **no Gradle
+   rerun**, the script failed exactly on the navigation tuple —
+   `core:ui:navigation: testcase identity mismatch — … got
+   name='allCurrentRoutesRoundTripThroughProductionRegistryRenamed[iosSimulatorArm64]'` —
+   not on missing/stale kit XML. The two-task command and script then re-ran green. The
+   required context checks identity, not the exit code.
+4. **`NavResultKey.PREFIX` mutation.** `"nav-result"` → `"mutated-prefix"`: the native oracle
+   alone went `RED (1 test(s))` on the exact-key assertion ("31 actionable tasks: 31
+   executed"); restored and re-proven green with fresh 1/0/0 XML.
+5. **`JvmDefaultMode.NO_COMPATIBILITY` → `ENABLE`.** The host oracle alone went
+   `RED (1 test(s))` — the forbidden `DefaultImpls` class became loadable, failing the
+   `ClassNotFoundException` assertion ("35 actionable tasks: 35 executed", not a compile
+   failure). After restoration the module output was cleaned
+   (`:core:ui:navigation:clean`) so no mutation-generated bytecode could survive, then the
+   host test re-ran green (35/35 executed, PASSED).
+
+The final worktree contains no mutation artifact: after all controls, `git status` shows only
+the intended documentation edits and the golden manifest re-check stayed byte-identical.
+
+### 18.6 CI / ruleset
+
+Recorded at PR-open time in the pull-request thread; the active repository-wide ruleset `all`
+(id `8116593`, matching `~ALL`) requires `Build and Unit Tests` and `KMP iOS kit smoke`, as
+re-read via the ruleset API before merge. The `KMP iOS kit smoke` payload change (two forced
+native tasks + the checked-in identity script) preserves both stable context names; no
+repository-settings change was made.

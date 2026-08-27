@@ -10,7 +10,7 @@ All workflow files live under `.github/workflows/`.
 
 | File | Trigger | Purpose |
 |---|---|---|
-| `android_build_unified.yml` | push to `master`, every `pull_request`, `workflow_dispatch` | Two jobs: `Build and Unit Tests` (detekt, Android Lint, build, unit tests, test reporting; Linux) and `KMP iOS kit smoke` (the kit's native Compose-scene test on `macos-26`). Gates PRs. |
+| `android_build_unified.yml` | push to `master`, every `pull_request`, `workflow_dispatch` | Two jobs: `Build and Unit Tests` (detekt, Android Lint, build, unit tests, test reporting; Linux) and `KMP iOS kit smoke` (the kit Compose-scene and navigation serializer-registry native tests on `macos-26`). Gates PRs. |
 | `ui_tests.yml` | weekly `schedule` (Mondays 05:00 UTC, against `dev`), `workflow_dispatch`, `workflow_call` | Smoke / regression UI tests on an emulator. Does not gate PRs; called by `android_deploy_prod.yml` with `test_suite=smoke`. |
 | `mockup_gate.yml` | every `pull_request` **except** into `master`, `workflow_dispatch`, `workflow_call` | Runs `documentation/mockups/shell_gate.py` against the v3 shell mockup, plus its permanent known negative. Seconds; no emulator, no JDK, no secrets. |
 | `pr_guard.yml` | `pull_request` into `master` only | Fails any PR into `master` whose head branch is not `release/release-v.X.Y.Z`. |
@@ -160,17 +160,26 @@ property of the workflow.
 
 ## KMP iOS kit smoke job
 
-The unified workflow's second job (`KMP iOS kit smoke`, `runs-on: macos-26`) executes
-`:core:ui:kit:iosSimulatorArm64Test` — one non-vacuous Kotlin/Native Compose-scene test that
-renders a resource-backed kit composition on the iOS simulator. It selects
-`/Applications/Xcode_26.6.app` explicitly, asserts `xcodebuild -version` and the presence of an
-iOS simulator runtime before Gradle, provisions an ephemeral throwaway JKS with `keytool` (the
-repository configuration reads signing material at configuration time; no production secret is
-used), and then requires the produced JUnit XML to contain exactly 1 executed / 0 skipped /
-0 failed case identifying the native scene test by name. It builds no Xcode app, signs no Apple
-bundle and uploads no framework. See
-[kmp-phase-7-1-ui-kit.md](feature-specs/kmp-phase-7-1-ui-kit.md) §9, including the ruleset
-step that makes the context required on `dev`.
+The unified workflow's second job (`KMP iOS kit smoke`, `runs-on: macos-26`) is the stable
+required context for the Phase-7 native tests. One forced Gradle invocation executes
+`:core:ui:kit:iosSimulatorArm64Test` (the non-vacuous Kotlin/Native Compose-scene test that
+renders a resource-backed kit composition) and `:core:ui:navigation:iosSimulatorArm64Test`
+(the fixed-catalog round trip of all 12 routes through the production
+`screenSavedStateConfiguration` registry), with `--continue` so one module's failure cannot
+mask whether the other ran. The job selects `/Applications/Xcode_26.6.app` explicitly, asserts
+`xcodebuild -version` and the presence of an iOS simulator runtime before Gradle, and provisions
+an ephemeral throwaway JKS with `keytool` (the repository configuration reads signing material
+at configuration time; no production secret is used).
+
+After Gradle, `.github/scripts/assert_kmp_ios_smoke.py` parses each module's JUnit XML
+structurally and independently requires one exact 1 executed / 0 skipped / 0 failed
+`<testcase>` tuple per module — classname and method name both, per result directory — so a
+repo-wide total or a substring match cannot vouch for a test that vanished. Both result
+directories upload under `if: always()`. The job builds no Xcode app, signs no Apple bundle and
+uploads no framework. See [kmp-phase-7-1-ui-kit.md](feature-specs/kmp-phase-7-1-ui-kit.md) §9
+for the context's origin and required-ruleset status, and
+[kmp-phase-7-2-navigation.md](feature-specs/kmp-phase-7-2-navigation.md) §9 for the expanded
+payload.
 
 ## UI test workflow
 

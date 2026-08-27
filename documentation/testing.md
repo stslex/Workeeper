@@ -389,6 +389,15 @@ nullable uuid params — `Screen.Training.uuid`, `Screen.Exercise.uuid`, `Screen
 `Screen.ExerciseChart.exerciseUuid`, `Screen.PlanEditor.Existing`'s three — would weaken the test
 rather than broaden it.
 
+Since the module's KMP conversion the reflection test lives in `androidHostTest`, guards the
+leaf count exactly (12 at the current baseline — a route-set change must deliberately update
+it), and additionally pins the module's no-compatibility JVM interface ABI: both `isSingleTop`
+getters are Java default methods and no `DefaultImpls` bridge class is loadable. Its
+Kotlin/Native sibling, `ScreenSerializationIosTest.allCurrentRoutesRoundTripThroughProductionRegistry`
+(`src/iosTest`), round-trips a fixed catalog of the same 12 routes through the production
+registry and pins the exact `nav-result` key strings; it proves the registry executes under
+Kotlin/Native, while the JVM test stays the hierarchy-change detector.
+
 
 ## UI tests
 
@@ -922,8 +931,10 @@ From the project root:
 # Unit tests (JVM, fast; on KMP modules the alias fans out to testAndroidHostTest)
 ./gradlew testDebugUnitTest
 
-# The kit's native Compose-scene smoke (macOS + Xcode; CI runs it in "KMP iOS kit smoke")
+# The native Phase-7 tests (macOS + Xcode; CI runs both in "KMP iOS kit smoke"):
+# the kit's Compose-scene smoke and the navigation serializer-registry round trip
 ./gradlew :core:ui:kit:iosSimulatorArm64Test
+./gradlew :core:ui:navigation:iosSimulatorArm64Test
 
 # Every UI test in every module (slow; emulator required)
 ./gradlew connectedDebugAndroidTest

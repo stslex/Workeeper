@@ -16,7 +16,7 @@ description: Scaffold a new `feature/<name>` Gradle module that follows the proj
 
 - The feature has a name in kebab-case (e.g. `workout-history`).
 - The corresponding `Screen` route does not yet exist in
-  `core/ui/navigation/src/main/kotlin/io.github/stslex/workeeper/core/ui/navigation/Screen.kt`.
+  `core/ui/navigation/src/commonMain/kotlin/io/github/stslex/workeeper/core/ui/navigation/Screen.kt`.
 - These docs are the source of truth for everything below — read them before scaffolding:
   - [documentation/architecture.md](../../documentation/architecture.md) — module map, MVI
     contract, [Dependency injection (Metro)](../../documentation/architecture.md#dependency-injection-metro),
@@ -203,7 +203,7 @@ one extension.
    only when something actually reads it (see the accessor policy in its KDoc).
 
 5. Add the route. Edit
-   `core/ui/navigation/src/main/kotlin/io.github/stslex/workeeper/core/ui/navigation/Screen.kt`
+   `core/ui/navigation/src/commonMain/kotlin/io/github/stslex/workeeper/core/ui/navigation/Screen.kt`
    and add a `@Serializable` entry. Bottom-bar destinations go under `Screen.BottomBar`;
    detail destinations are top-level `data class` types that carry route arguments;
    single-instance destinations are `data object`. Existing examples: `Screen.Settings`
