@@ -15,6 +15,9 @@ import kotlin.reflect.full.primaryConstructor
 /**
  * Every concrete [Screen] leaf must be registered in [screenSerializersModule]; an unregistered
  * one fails only at process-death save time. JSON stands in for the `Bundle`-backed encoder.
+ *
+ * Exhaustive only for the current direct/sealed-reachable hierarchy: a route implementing solely
+ * [ScreenWithResult] would escape [sealedLeaves]. This is not a classpath scan.
  */
 internal class ScreenSerializationTest {
 
@@ -28,8 +31,28 @@ internal class ScreenSerializationTest {
 
         // Exact, not >=: a route-set change must deliberately update this reviewed baseline
         // (kmp-phase-7-2-navigation.md §6.2). An empty enumeration would pass vacuously.
-        assertEquals(12, leaves.size) {
-            "Expected exactly 12 Screen leaves at this baseline, found ${leaves.size}: $leaves"
+        assertEquals(SCREEN_ROUTE_BASELINE, leaves.size) {
+            "Expected exactly $SCREEN_ROUTE_BASELINE Screen leaves at this baseline, " +
+                "found ${leaves.size}: $leaves"
+        }
+
+        // The shared Native catalog is pinned to the hierarchy here, on the only platform that
+        // can enumerate it: Kotlin/Native has no sealed-subclass reflection, so without this
+        // equality the catalog could silently drift from the routes that actually exist.
+        val catalogClasses = screenSampleCatalog.map { sample -> sample::class }.toSet()
+        assertEquals(SCREEN_ROUTE_BASELINE, screenSampleCatalog.size) {
+            "screenSampleCatalog must hold exactly $SCREEN_ROUTE_BASELINE samples, " +
+                "found ${screenSampleCatalog.size}"
+        }
+        assertEquals(leaves.toSet(), catalogClasses) {
+            "screenSampleCatalog does not match the reflected sealed-leaf set — " +
+                "missing ${leaves.toSet() - catalogClasses}, unexpected ${catalogClasses - leaves.toSet()}"
+        }
+        // Reached only when the class sets already match, so this names the remaining way 12
+        // samples can cover 12 classes wrongly: one route sampled twice, another not at all.
+        assertEquals(screenSampleCatalog.size, catalogClasses.size) {
+            "screenSampleCatalog must sample each concrete route exactly once; " +
+                "${screenSampleCatalog.size} samples cover only ${catalogClasses.size} classes"
         }
 
         leaves.forEach { leaf ->
