@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| Status | SPEC v2 (R2) — maintainer decision **R2** recorded 2026-08-22; §7.1 gate evidence stands; implementation proceeds on this branch under §17's review |
+| Status | COMPLETE — PR #252 merged into `dev` on 2026-08-25; implementation and verification records remain below |
 | Baseline | `dev` @ `c935227df22020f394f1ea0748fdeba7b7a67fd5` (2026-08-22, "Fix ad-hoc exercise removal copy (#250)") |
-| Branch | `feature/kmp-phase-5-startup-processor`, draft PR #252 |
+| Delivery | PR #252 · head `66f02097779902660445634364183eb2f9121282` · merge `0638fc7402627bbc78c5ce7a8a2a7c858f23fe24` |
 | Upstream phases | 0–4 complete; Phase 6 data layer complete (#239/#240/#241 merged); Phase 7 (CMP UI, `iosApp`, iOS composition root) strictly downstream |
 | Supersedes | the Phase-4 startup inventory (predates `warmQueryPlanner()`); `kmp-migration-assessment.md` §"restart-free actual" reinit order (Nav2-era, Room 2.8.4-era — §7.1 measured it false); **spec v1's same-database architecture and its §16 review (see §16)** |
 
@@ -872,10 +872,10 @@ Store disposal + no resurrection after Activity recreation; abort-path saved-sta
 existing `BackStackStateRestorationTest` untouched as the restoration oracle. Instrumented
 (`core:data:database`): §11.1 characterization (already committed).
 
-## 13. Commit decomposition (single draft PR #252, continuing)
+## 13. Commit decomposition (historical delivery record from PR #252)
 
-Landed: 1. spec v1 · 2. characterization gate (RED evidence) · 3. review v1 record.
-Next: 4. `docs(kmp): revise phase 5 spec for the R2 db-generation decision` (this file) ·
+Initial sequence already landed when R2 was recorded: 1. spec v1 · 2. characterization gate (RED evidence) · 3. review v1 record.
+R2 sequence subsequently delivered: 4. `docs(kmp): revise phase 5 spec for the R2 db-generation decision` (this file) ·
 5. `refactor(runtime): introduce app-scope lifetimes as a graph root` ·
 6. `refactor(startup): extract the startup processor` ·
 7. `refactor(runtime): introduce the runtime host and generation-aware ui` ·
