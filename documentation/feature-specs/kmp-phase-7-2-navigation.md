@@ -1,7 +1,7 @@
 # KMP Phase 7.2 — `core:ui:navigation` becomes the shared native navigation contract
 
-**Status:** IMPLEMENTED — verification record in §18; PR #259 open into `dev` and awaiting
-maintainer review
+**Status:** COMPLETE — PR #259 merged into `dev` on 2026-08-27; the implementation verification
+record remains in §18
 
 **Target branch:** `dev`
 
@@ -9,7 +9,9 @@ maintainer review
 
 **Code baseline:** `ba367fe96ac3cf96ccc58a2f419e11b684df27e2` (PR #256 merge)
 
-**Delivery:** one implementation PR to `dev`; no direct push
+**Delivery:** PR #259 · head `931fc26ffa1dda69a1f6d32c3482e4f3ae7d5e9a` · merge
+`19c2d2cc5f2156ff4c6e86ca23029c20b3d08e2b`; all five PR-head checks passed and the
+active `~ALL` ruleset remained unchanged
 
 ## 0. Authority and entry condition
 
