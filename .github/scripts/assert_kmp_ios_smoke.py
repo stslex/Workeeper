@@ -4,17 +4,29 @@
 An exit code is not evidence and neither is a total: two kit tests and zero
 navigation tests would satisfy any repo-wide count, and a classname from one
 case plus a method name from another can forge an identity out of substrings.
-This script therefore requires, per module and structurally parsed, exactly one
-executed `<testcase>` whose (classname, name) tuple matches the expected
-identity — no skips, no failures, no errors, no duplicates, no missing XML.
 
-Run from the repository root, after the forced two-task Gradle invocation:
+Per configured module this script therefore requires, structurally parsed:
+
+* the result directory exists and holds at least one parseable `TEST-*.xml`;
+* at least one `<testsuite>` and at least one `<testcase>`;
+* the declared aggregate `tests` equals the number of parsed `<testcase>`
+  elements — a suite that claims more cases than it emitted is inconsistent
+  XML, not evidence;
+* aggregate `skipped` / `failures` / `errors` are zero, and no testcase
+  carries a `<failure>`, `<error>` or `<skipped>` child;
+* the expected normalized (classname, name) tuple occurs exactly once.
+
+Additional *successful* testcases are allowed, so a module may grow a second
+native test without touching this file; none of the guarantees above weaken,
+because every extra case still has to pass and still has to be counted.
+
+Run from the repository root, after the forced Native Gradle invocation:
 
     python3 .github/scripts/assert_kmp_ios_smoke.py
 
-The same file is the known-negative vehicle: pointed at XML produced by a
-renamed navigation test method it must fail on the navigation tuple mismatch
-while the kit tuple still verifies (kmp-phase-7-2-navigation.md §11.4.3).
+The workflow runs it even when that Gradle step went red (as long as the step
+actually started), so a native failure is diagnosed from the XML it produced
+rather than reported only as an exit code.
 """
 
 import sys
@@ -24,8 +36,13 @@ from pathlib import Path
 # The Kotlin/Native Gradle test task prefixes every suite/testcase classname
 # with its own name ("iosSimulatorArm64Test.<fqcn>"). Strip exactly that one
 # known prefix before comparing, then require full equality — an endswith()
-# would accept a foreign package that merely ends in the expected name.
+# would accept a foreign package, and stripping repeatedly would accept a
+# doubled prefix.
 KNOWN_SUITE_PREFIX = "iosSimulatorArm64Test."
+
+COUNT_ATTRIBUTES = ("tests", "skipped", "failures", "errors")
+
+NON_SUCCESS_TAGS = ("failure", "error", "skipped")
 
 EXPECTED = [
     {
@@ -46,13 +63,26 @@ EXPECTED = [
 
 
 def normalize_classname(raw: str) -> str:
+    """Remove exactly one leading task prefix. A doubled prefix stays a mismatch."""
     if raw.startswith(KNOWN_SUITE_PREFIX):
         return raw[len(KNOWN_SUITE_PREFIX):]
     return raw
 
 
+def count_attribute(suite: ET.Element, key: str, module: str, xml_file: Path) -> int:
+    raw = suite.get(key, "0")
+    try:
+        return int(raw)
+    except ValueError:
+        sys.exit(f"{module}: {xml_file} has non-numeric {key}={raw!r} on <testsuite>")
+
+
+def identify(case: ET.Element) -> str:
+    return f"{normalize_classname(case.get('classname', ''))}.{case.get('name', '')}"
+
+
 def check_module(expected: dict) -> str:
-    """Verify one module's result directory; return the verified identity line."""
+    """Verify one module's result directory; return the verified summary line."""
     module = expected["module"]
     results_dir = expected["results_dir"]
 
@@ -63,52 +93,60 @@ def check_module(expected: dict) -> str:
         sys.exit(f"{module}: no TEST-*.xml under {results_dir}")
 
     testcases = []
-    totals = {"tests": 0, "skipped": 0, "failures": 0, "errors": 0}
+    totals = dict.fromkeys(COUNT_ATTRIBUTES, 0)
+    suites_seen = 0
     for xml_file in xml_files:
         try:
             root = ET.parse(xml_file).getroot()
         except ET.ParseError as error:
             sys.exit(f"{module}: {xml_file} is not parseable XML: {error}")
-        suites = [root] if root.tag == "testsuite" else root.iter("testsuite")
-        parsed_any = False
-        for suite in suites:
-            parsed_any = True
-            for key in totals:
-                totals[key] += int(suite.get(key, 0))
-        if not parsed_any:
+        suites = [root] if root.tag == "testsuite" else list(root.iter("testsuite"))
+        if not suites:
             sys.exit(f"{module}: {xml_file} contains no <testsuite> element")
+        for suite in suites:
+            suites_seen += 1
+            for key in COUNT_ATTRIBUTES:
+                totals[key] += count_attribute(suite, key, module, xml_file)
         testcases.extend(root.iter("testcase"))
 
-    if (totals["tests"], totals["skipped"], totals["failures"], totals["errors"]) != (
-        1,
-        0,
-        0,
-        0,
-    ):
-        sys.exit(
-            f"{module}: expected exactly 1 executed / 0 skipped / 0 failed / 0 errored, "
-            f"got {totals}"
-        )
-    if len(testcases) != 1:
-        names = [
-            (case.get("classname", "?"), case.get("name", "?")) for case in testcases
-        ]
-        sys.exit(f"{module}: expected exactly one <testcase>, found {len(testcases)}: {names}")
+    if suites_seen < 1:
+        sys.exit(f"{module}: no <testsuite> parsed under {results_dir}")
 
-    case = testcases[0]
-    classname = normalize_classname(case.get("classname", ""))
-    name = case.get("name", "")
-    if classname != expected["classname"] or name != expected["name"]:
+    executed = len(testcases)
+    if executed < 1:
+        sys.exit(f"{module}: no <testcase> parsed under {results_dir}")
+    if totals["tests"] != executed:
         sys.exit(
-            f"{module}: testcase identity mismatch — "
-            f"expected classname={expected['classname']!r} name={expected['name']!r}, "
-            f"got classname={classname!r} name={name!r}"
+            f"{module}: inconsistent XML — <testsuite> declares tests={totals['tests']} "
+            f"but {executed} <testcase> element(s) were parsed"
         )
-    for child in case:
-        if child.tag in ("failure", "error", "skipped"):
-            sys.exit(f"{module}: the testcase carries a <{child.tag}> element")
+    for key in ("skipped", "failures", "errors"):
+        if totals[key] != 0:
+            sys.exit(f"{module}: expected 0 {key}, got {totals[key]} across {executed} testcase(s)")
+    for case in testcases:
+        for child in case:
+            if child.tag in NON_SUCCESS_TAGS:
+                sys.exit(f"{module}: testcase {identify(case)} carries a <{child.tag}> element")
 
-    return f"{module}: 1 executed / 0 skipped / 0 failed — {classname}.{name}"
+    matches = [
+        case
+        for case in testcases
+        if normalize_classname(case.get("classname", "")) == expected["classname"]
+        and case.get("name", "") == expected["name"]
+    ]
+    if len(matches) != 1:
+        found = sorted(identify(case) for case in testcases)
+        sys.exit(
+            f"{module}: expected exactly one testcase with classname="
+            f"{expected['classname']!r} name={expected['name']!r}, found {len(matches)}; "
+            f"parsed {executed} testcase(s): {found}"
+        )
+
+    return (
+        f"{module}: {executed} executed / {totals['skipped']} skipped / "
+        f"{totals['failures']} failed / {totals['errors']} errored — verified "
+        f"{expected['classname']}.{expected['name']}"
+    )
 
 
 def main() -> None:

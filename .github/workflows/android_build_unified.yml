@@ -323,6 +323,7 @@ jobs:
       # --continue so a kit failure cannot mask whether navigation ran (and vice versa): the
       # identity script needs both modules' XML to say which tuple broke.
       - name: Run the native kit and navigation tests
+        id: native_tests
         run: >
           ./gradlew
           :core:ui:kit:iosSimulatorArm64Test
@@ -333,8 +334,17 @@ jobs:
       # An exit code is not evidence: the checked-in script structurally parses each module's
       # JUnit XML and independently requires one exact (classname, name) tuple per module —
       # a repo-wide total or substring match would accept two kit tests and zero navigation
-      # tests, or a classname from one case paired with a method name from another.
+      # tests, or a classname from one case paired with a method name from another. It allows
+      # additional PASSING cases, so a module can grow a second native test without edits here.
+      #
+      # The condition runs it whenever the Gradle step actually STARTED, red or green: a red
+      # native run is exactly when the per-module XML is worth reading, and reporting only
+      # Gradle's exit code there would say nothing about which module or tuple broke. It is
+      # skipped when the job is cancelled, and when the Gradle step itself was skipped because
+      # an earlier setup step (checkout, Xcode selection, JDK, signing material) failed — there
+      # is no fresh XML to judge in that case, only a previous run's leftovers.
       - name: Assert exact native test identities
+        if: ${{ !cancelled() && steps.native_tests.outcome != 'skipped' }}
         run: python3 .github/scripts/assert_kmp_ios_smoke.py
 
       - name: Upload native test results
