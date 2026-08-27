@@ -133,6 +133,9 @@ jobs:
       - name: Assemble instrumented tests
         run: ./gradlew assembleDebugAndroidTest --full-stacktrace
 
+      - name: Assert MVI source-set topology
+        run: python3 .github/scripts/assert_mvi_source_topology.py
+
       # Visual gate for the v3 redesign. Deliberately placed BEFORE detekt.
       #
       # detekt cannot currently corrupt this: LintConventionPlugin sets
@@ -190,6 +193,22 @@ jobs:
 
       - name: Run Android Lint
         run: ./gradlew lintDebug --no-configuration-cache --full-stacktrace
+
+      - name: Run forced MVI Android-host tests
+        id: mvi_host_tests
+        continue-on-error: true
+        run: >
+          ./gradlew :core:ui:mvi:testAndroidHostTest
+          --rerun-tasks --no-build-cache --no-configuration-cache
+          --full-stacktrace --console=plain
+
+      - name: Assert exact MVI Android-host identities
+        if: ${{ !cancelled() && steps.mvi_host_tests.outcome != 'skipped' }}
+        run: python3 .github/scripts/assert_mvi_host_identities.py
+
+      - name: Propagate forced MVI Android-host Gradle failure
+        if: ${{ !cancelled() && steps.mvi_host_tests.outcome == 'failure' }}
+        run: exit 1
 
       - name: Run Unit Tests
         run: ./gradlew testDebugUnitTest --full-stacktrace
@@ -322,12 +341,13 @@ jobs:
 
       # --continue so a kit failure cannot mask whether navigation ran (and vice versa): the
       # identity script needs both modules' XML to say which tuple broke.
-      - name: Run the native kit and navigation tests
+      - name: Run the native kit navigation and MVI tests
         id: native_tests
         run: >
           ./gradlew
           :core:ui:kit:iosSimulatorArm64Test
           :core:ui:navigation:iosSimulatorArm64Test
+          :core:ui:mvi:iosSimulatorArm64Test
           --rerun-tasks --no-build-cache --no-configuration-cache
           --continue --full-stacktrace --console=plain
 
@@ -358,4 +378,5 @@ jobs:
           path: |
             core/ui/kit/build/test-results/iosSimulatorArm64Test/
             core/ui/navigation/build/test-results/iosSimulatorArm64Test/
+            core/ui/mvi/build/test-results/iosSimulatorArm64Test/
           retention-days: 30
