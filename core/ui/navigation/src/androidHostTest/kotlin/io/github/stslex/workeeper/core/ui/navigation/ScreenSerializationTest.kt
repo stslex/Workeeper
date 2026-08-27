@@ -5,6 +5,7 @@ import androidx.navigation3.runtime.NavKey
 import kotlinx.serialization.PolymorphicSerializer
 import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import kotlin.reflect.KClass
@@ -25,8 +26,11 @@ internal class ScreenSerializationTest {
     fun `every concrete Screen leaf round-trips through the production registry`() {
         val leaves = sealedLeaves(Screen::class)
 
-        // Guard the discovery itself: an empty enumeration would pass vacuously.
-        assertTrue(leaves.size >= 12) { "Expected >= 12 Screen leaves, found ${leaves.size}: $leaves" }
+        // Exact, not >=: a route-set change must deliberately update this reviewed baseline
+        // (kmp-phase-7-2-navigation.md §6.2). An empty enumeration would pass vacuously.
+        assertEquals(12, leaves.size) {
+            "Expected exactly 12 Screen leaves at this baseline, found ${leaves.size}: $leaves"
+        }
 
         leaves.forEach { leaf ->
             val instance = sampleOf(leaf)
@@ -34,6 +38,26 @@ internal class ScreenSerializationTest {
             val encoded = json.encodeToString(serializer, instance)
             val decoded = json.decodeFromString(serializer, encoded)
             assertEquals(instance, decoded) { "Round trip failed for ${leaf.qualifiedName}" }
+        }
+
+        // The module pins JvmDefaultMode.NO_COMPATIBILITY (the classic -Xjvm-default=all ABI):
+        // both getters stay Java default methods and no DefaultImpls bridge may exist —
+        // Kotlin 2.4's ENABLE default would generate both bridges without failing a compile.
+        assertTrue(Screen::class.java.getMethod("isSingleTop").isDefault) {
+            "Screen.isSingleTop must compile as a Java interface default method"
+        }
+        assertTrue(Screen.BottomBar::class.java.getMethod("isSingleTop").isDefault) {
+            "Screen.BottomBar.isSingleTop must compile as a Java interface default method"
+        }
+        listOf(
+            "io.github.stslex.workeeper.core.ui.navigation.Screen\$DefaultImpls",
+            "io.github.stslex.workeeper.core.ui.navigation.Screen\$BottomBar\$DefaultImpls",
+        ).forEach { binaryName ->
+            assertThrows(
+                ClassNotFoundException::class.java,
+                { Class.forName(binaryName) },
+                "$binaryName must not exist under the no-compatibility JVM default ABI",
+            )
         }
     }
 
