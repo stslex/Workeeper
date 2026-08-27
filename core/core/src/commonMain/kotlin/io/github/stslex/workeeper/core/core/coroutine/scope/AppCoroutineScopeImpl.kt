@@ -24,8 +24,8 @@ class AppCoroutineScopeImpl(
     private val lifecycleOwner: LifecycleOwner,
     override val defaultDispatcher: CoroutineDispatcher,
     override val immediateDispatcher: CoroutineDispatcher,
-    /** Generation parent for joinable Store jobs; null is for previews and tests. */
-    generationJob: Job? = null,
+    /** GUARD: required generation parent; an autonomous Store scope could outlive its database. */
+    generationJob: Job,
 ) : AppCoroutineScope, CoroutineScope {
 
     // Right-side Job wins CoroutineContext.plus key conflicts, retaining the generation parent.

@@ -2,6 +2,7 @@
 package io.github.stslex.workeeper.feature.app_dialogs.impl.mvi.store
 
 import dev.zacsweers.metro.Inject
+import io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetime
 import io.github.stslex.workeeper.core.ui.mvi.BaseStore
 import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
 import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
@@ -26,6 +27,7 @@ class AppDialogStoreImpl internal constructor(
     storeDispatchers: StoreDispatchers,
     analyticsHolder: AnalyticsHolder,
     loggerHolder: LoggerHolder,
+    appScopeLifetime: AppScopeLifetime,
 ) : BaseStore<State, Action, Event>(
     name = NAME,
     initialState = State.EMPTY,
@@ -40,6 +42,7 @@ class AppDialogStoreImpl internal constructor(
     storeDispatchers = storeDispatchers,
     analyticsHolder = analyticsHolder,
     loggerHolder = loggerHolder,
+    appScopeLifetime = appScopeLifetime,
 ),
     AppDialogStore {
 

@@ -3,6 +3,7 @@ package io.github.stslex.workeeper.feature.all_trainings.mvi.store
 
 import androidx.annotation.VisibleForTesting
 import dev.zacsweers.metro.Inject
+import io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetime
 import io.github.stslex.workeeper.core.ui.mvi.BaseStore
 import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
 import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
@@ -30,6 +31,7 @@ class AllTrainingsStoreImpl internal constructor(
     handlerStore: AllTrainingsHandlerStoreImpl,
     analyticsHolder: AnalyticsHolder,
     loggerHolder: LoggerHolder,
+    appScopeLifetime: AppScopeLifetime,
 ) : BaseStore<State, Action, Event>(
     name = NAME,
     initialState = State.init(pagingUiState = pagingHandler.pagingUiState),
@@ -45,6 +47,7 @@ class AllTrainingsStoreImpl internal constructor(
     initialActions = listOf(Action.Paging.Init),
     analyticsHolder = analyticsHolder,
     loggerHolder = loggerHolder,
+    appScopeLifetime = appScopeLifetime,
 ) {
 
     companion object {
