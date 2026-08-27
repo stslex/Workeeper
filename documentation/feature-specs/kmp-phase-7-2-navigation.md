@@ -334,13 +334,26 @@ device-test source set is not evidence and must not be reported as a navigation 
 ### 8.1 Android host
 
 Move `ScreenSerializationTest` to `androidHostTest`. Keep JUnit 5, JVM reflection and its production
-registry round-trip. Change only the leaf-count guard as required by §6.2. The focused
-post-conversion run must produce current JUnit XML with exactly one executed, zero skipped and zero
-failed test named
+registry round-trip, whose subjects are constructed **from the discovered hierarchy** rather than
+from the shared catalog — that is what makes this run a hierarchy-change detector instead of a
+second reading of the same list. The focused post-conversion run must produce current JUnit XML
+with exactly one executed, zero skipped and zero failed test named
 `every concrete Screen leaf round-trips through the production registry`.
 
-Inside that one test, the discovered concrete-leaf count must be exactly 12 at this baseline. A
-future route addition is allowed only by a separately reviewed route change that updates this
+Inside that one test, the host oracle must assert, in addition to the round trip:
+
+- the discovered concrete-leaf count equals the shared `SCREEN_ROUTE_BASELINE` (12 at this
+  baseline);
+- `screenSampleCatalog.size` equals that same shared baseline;
+- `sealedLeaves(Screen::class).toSet()` equals `screenSampleCatalog.map { it::class }.toSet()` —
+  the catalog↔hierarchy equality, which is the assertion that stops the shared catalog drifting on
+  behalf of the platform that cannot enumerate it;
+- each catalog entry has a unique concrete class. This is defence in depth: while the set equality
+  above holds, a duplicated sample already shrinks the class set and fails there first, so this
+  assertion is not the tripwire for that mutation — it keeps uniqueness asserted in its own right
+  if the equality is ever relaxed.
+
+A future route addition is allowed only by a separately reviewed route change that updates this
 specification's recorded baseline; Phase 7.2 adds none.
 
 The same test method must prove the retained JVM interface ABI: both `isSingleTop` getters are Java
@@ -353,13 +366,25 @@ remains exactly one executed case.
 ### 8.2 iOS simulator
 
 Add exactly one test method under `iosTest`, named
-`allCurrentRoutesRoundTripThroughProductionRegistry`. It must perform every assertion in §6.2 and
-produce exactly one executed / zero skipped / zero failed case in
-`iosSimulatorArm64Test` XML.
+`allCurrentRoutesRoundTripThroughProductionRegistry`, producing exactly one executed / zero skipped
+/ zero failed case in `iosSimulatorArm64Test` XML. It must perform the Native-oracle assertions
+assigned to it in §6.2, and only those:
+
+- `screenSampleCatalog.size` equals the shared `SCREEN_ROUTE_BASELINE`, so a truncated or empty
+  catalog cannot round-trip vacuously;
+- every shared sample round-trips through the production
+  `screenSavedStateConfiguration.serializersModule` under `PolymorphicSerializer(NavKey::class)`,
+  asserting equality each time;
+- the exact `NavResultKey` assertions: both literal keys, and that they differ.
+
+It must **not** carry an independent hardcoded class set, and it must not attempt reflection-based
+leaf discovery — Kotlin/Native has no sealed-subclass reflection, and a second hand-maintained list
+is precisely the drift the shared catalog removed. The catalog↔hierarchy equality is asserted once,
+on the host side (§8.1).
 
 Do not use a sentinel assertion, an independently constructed serializers module, an Android
-Bundle, reflection-based leaf discovery or a Compose scene. The existing kit test already proves a
-native Compose scene; this test proves the distinct Navigation 3 serialization contract.
+Bundle or a Compose scene. The existing kit test already proves a native Compose scene; this test
+proves the distinct Navigation 3 serialization contract.
 
 This is a Kotlin/Native simulator test. It does not prove a framework link, Xcode embedding,
 `ComposeUIViewController`, `NavDisplay`, UIKit attachment, application launch or state restoration
@@ -886,9 +911,11 @@ XML is most informative — a red native run — produced nothing but an exit co
 
 **Change.** The Gradle step carries `id: native_tests`, and the assertion runs on
 `${{ !cancelled() && steps.native_tests.outcome != 'skipped' }}`. Started-and-green → asserts;
-started-and-red → still asserts, against the XML that run produced; Gradle step skipped because an
-earlier setup step failed → skipped, because the only XML present would be a previous run's
-leftovers; job cancelled → skipped. Uploads remain `if: always()`.
+started-and-red → still asserts, against whatever that run produced (a red *test* run leaves XML
+and gets a per-module diagnosis; a compile or simulator-boot failure leaves none, and the script
+reports the missing results, which is the honest answer); Gradle step skipped because an earlier
+setup step failed → skipped, because asserting there would replace the real setup failure with a
+misleading missing-results error; job cancelled → skipped. Uploads remain `if: always()`.
 
 **Evidence boundary.** §19.4's control proves the *script* diagnoses XML after a red Gradle
 invocation. The step condition itself rests on GitHub Actions status semantics and is **not**
@@ -941,8 +968,11 @@ in its `finally`; each gate was re-proven green afterwards.
    `screenSampleCatalog does not match the reflected sealed-leaf set — missing
    [class …Screen$Archive], unexpected []`. Restored; host and Native both re-run green
    ("59 actionable tasks: 59 executed", XML 1/0/0 each). This is why the set-equality assertion is
-   ordered ahead of the uniqueness refinement: for a duplicated entry the drift message is the
-   useful one, and the uniqueness check remains as the named second tripwire.
+   ordered ahead of the uniqueness one: for a duplicated entry the drift message is the useful
+   one. The uniqueness assertion is **defence in depth, not a second tripwire for this mutation** —
+   a duplicate shrinks the class set, so set equality always fails first and uniqueness is never
+   reached here. It earns its place by keeping uniqueness asserted in its own right should that
+   equality ever be relaxed.
 2. **Red Native Gradle, diagnosed from XML.** The native `nav-result` prefix assertion was mutated
    so the navigation test fails, then the exact two-task `--continue` command ran: Gradle
    `RED (1 test(s))` naming
@@ -1014,3 +1044,48 @@ Re-verification after these edits: fixture matrix 18/18 as expected against the 
 `python3 -m py_compile` clean; the real script green on live XML printing both identities; host and
 Native tests green (XML 1/0/0 each); `:core:ui:navigation:lintDebug` and root `detekt` green; root
 `lintDebug` green with "1094 actionable tasks: 1094 executed".
+
+### 19.7 Final review round: a counted hole, and the contract it exposed
+
+A third review of the hardening found one real gate weakness and a matching specification defect.
+Both are closed here, in signed commits (the repository now requires verified signatures; see
+`.claude/skills/signed-commits/SKILL.md`).
+
+**The aggregate comparison could be satisfied by two lies.** The parser compared a module-level
+`tests` sum against a module-level testcase count, so malformed suites could compensate for each
+other. Measured against the then-committed parser, not argued: one result file declaring `tests=2`
+while containing one testcase, beside another declaring `tests=0` while containing one testcase,
+summed to `2 == 2` and **passed**. Counts are now validated **per `<testsuite>`** before that suite
+contributes to any total — non-negative integers only, declared `tests` equal to that suite's own
+testcase children, and its `skipped`/`failures`/`errors` each zero, which is what makes counter
+cancellation impossible rather than merely unlikely. A `<testsuites>` wrapper is handled
+explicitly, only a suite's own testcase children are counted so a wrapper cannot double-count, and
+a nested `<testsuite>` is refused with a precise diagnostic instead of guessed at. Every prior
+guarantee is preserved: extra passing cases allowed, the expected tuple exactly once, non-success
+caught by both counters and child tags, and every module checked even when an earlier one fails.
+
+The fixture matrix grew from 18 to 29 cases against the real imported `check_module()`, all
+matching expectation, including: compensating per-suite `tests` mismatch across two files; negative
+`tests`; negative `skipped`; compensating negative/positive `failures`, `skipped` and `errors`; a
+valid `<testsuites>` wrapper; an empty wrapper; a nested suite; two clean suites across two files
+(passing, 2 executed); and the expected tuple duplicated across two files. The old parser was
+re-run against the compensating fixture to confirm the hole was real before claiming it closed.
+All fixtures live in temporary directories outside the tracked worktree and were deleted.
+
+**§8.1 and §8.2 had drifted from the tests they govern.** §8.1 still said "change only the
+leaf-count guard", omitting the catalog-size, hierarchy-set-equality and uniqueness assertions the
+host oracle actually carries; §8.2 still required the Native test to perform *every* assertion in
+§6.2, which would drag back the hardcoded class set §19.1 deliberately removed. §8.1 now lists the
+host assertions including the equality that pins the shared catalog to the hierarchy, and §8.2
+requires only the Native-oracle assertions — baseline size, round trip of every shared sample, and
+the exact `NavResultKey` keys — while stating explicitly that Native carries no independent class
+set and attempts no reflection.
+
+Two wording corrections completed the pass: §19.2's skip rationale no longer cites "a previous
+run's leftovers" (impossible on an ephemeral runner that keeps no `build/` output; the real reason
+is that asserting after a failed setup step would mask it behind a missing-results error), and
+§19.5's first control no longer calls uniqueness "the named second tripwire" — a duplicate shrinks
+the class set, so set equality always fails first and uniqueness is never reached for that
+mutation. It is defence in depth.
+
+§18 remains the historical verification record and was not rewritten.
