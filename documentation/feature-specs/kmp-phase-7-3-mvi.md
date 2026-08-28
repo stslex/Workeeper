@@ -1,6 +1,7 @@
 # KMP Phase 7.3 — `core:ui:mvi` becomes the shared Store runtime
 
-**Status:** IMPLEMENTATION VERIFIED LOCALLY — GitHub CI pending; Phase 7.3 is not complete
+**Status:** COMPLETE — PR #262 merged into `dev` on 2026-08-28; implementation and verification
+records remain in §20
 
 **Target branch:** `dev`
 
@@ -11,8 +12,9 @@ test, build and workflow tree is byte-identical to
 `19c2d2cc5f2156ff4c6e86ca23029c20b3d08e2b` because the intervening PR #260 changed
 only the Phase-5 and Phase-7.2 delivery records
 
-**Delivery:** this PR adds only this specification. Implementation belongs to a later PR and must
-not begin without the explicit GO above.
+**Delivery:** PR #262 · head `8469ae5f2f9da761f771ffd00132ed3d910f848c` · merge
+`8eacd149085db44aa297961bb19e9e563daea274`; all five PR-head checks passed, all ten review
+threads were resolved, and the active `~ALL` ruleset remained unchanged
 
 ## 0. Authority and entry condition
 
@@ -1055,3 +1057,23 @@ rules `9 actionable tasks: 9 executed`; Smoke `2009 actionable tasks: 2009 execu
 44 / 41 / 3 membership; Regression `2009 actionable tasks: 2009 executed` with exact 81 / 81
 membership. The 35-case XML fixture matrix, topology, three dependency reports, personal-data
 gate, Python compilation, all workflow YAML parsing and `git diff --check` are green.
+
+### 20.6 GitHub delivery closeout — 2026-08-28
+
+PR #262 merged into `dev` at `2026-08-28T11:31:28Z` from final head
+`8469ae5f2f9da761f771ffd00132ed3d910f848c`; GitHub created merge commit
+`8eacd149085db44aa297961bb19e9e563daea274`.
+
+Both workflow runs at the final PR head completed successfully:
+
+- `Android CI/CD - Unified Build and Tests` run `33165327733`: `KMP iOS kit smoke` and
+  `Build and Unit Tests` succeeded;
+- `v3 Mockup Appearance Gate` run `33165327732`: `Mockup Appearance Gate`,
+  `Unit Test Results`, and `Detailed Unit Test Report` succeeded.
+
+All 10 review threads are resolved (0 unresolved). The active repository-wide `all` ruleset
+(id `8116593`, `~ALL`) remains unchanged and continues to require signed commits plus
+`KMP iOS kit smoke` and `Build and Unit Tests`. No check name or repository setting changed.
+
+With the local evidence in §§20.1–20.5, the final-head GitHub evidence above, and the maintainer
+merge, every §18 exit criterion is closed. Phase 7.3 is complete.
