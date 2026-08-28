@@ -100,6 +100,17 @@ EXPECTED = [
             ),
         ],
     },
+    {
+        "module": "core:ui:start-mode",
+        "results_dir": "core/ui/start-mode/build/test-results/iosSimulatorArm64Test",
+        "classname_prefix": KNOWN_SUITE_PREFIX,
+        "identities": [
+            native(
+                "io.github.stslex.workeeper.core.ui.start_mode.StartModeSceneIosTest",
+                "sheetRendersMigratedCatalogAndDispatchesSelection",
+            ),
+        ],
+    },
 ]
 
 
