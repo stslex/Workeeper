@@ -398,9 +398,13 @@ At implementation PR head, prove:
 
 ## 12. Mandatory known-negative controls
 
-Use the repository mutation harness: establish fresh GREEN, mutate one thing, require the named
-RED, restore exact bytes in `finally`, and re-run fresh GREEN. Never hand-revert or retain mutation
-artifacts.
+Use the repository mutation harness for UTF-8 in-place anchor replacements. It is not byte-safe
+and cannot create/delete paths: for PNG or topology create/delete controls, copy every existing
+affected file to a scratchpad first and restore it with `cp` in `finally`. For a deliberately new
+phantom path, prove it was absent, create it with `cp`, and remove that exact path in `finally`.
+Never use `git checkout` for recovery. In every case, establish fresh GREEN, mutate one thing,
+require the named RED, restore exact bytes/tree shape, and re-run fresh GREEN. Do not retain
+mutation artifacts.
 
 | Mutation | Required RED oracle |
 | --- | --- |
