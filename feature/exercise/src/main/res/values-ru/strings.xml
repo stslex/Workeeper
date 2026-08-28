@@ -38,6 +38,12 @@
 
     <string name="feature_exercise_edit_plan_info_body">Это план на случай, когда упражнение выполняется само по себе — из его карточки, кнопкой «Записать сейчас», без тренировки.\n\nВнутри тренировки план у каждого упражнения свой: он задаётся в редакторе тренировки и этот план не трогает. Если планов нет ни там, ни тут, подходы добавляются прямо в сессии.</string>
     <string name="feature_exercise_edit_plan_info_description">Что такое план по умолчанию</string>
+    <string name="feature_exercise_edit_plan_set_type_tooltip">Нажмите, чтобы переключить: разминка → рабочий → отказ → дроп</string>
+    <string name="feature_exercise_edit_plan_type_change_weightless_title">Переключить на без веса?</string>
+    <string name="feature_exercise_edit_plan_type_change_weightless_body">Значения веса из планов этого упражнения будут очищены. Это нельзя отменить.</string>
+    <string name="feature_exercise_edit_plan_type_change_weightless_impact">Все веса в планах очищены</string>
+    <string name="feature_exercise_edit_plan_type_change_weightless_confirm">Переключить</string>
+    <string name="feature_exercise_edit_plan_set_removed">Подход удалён</string>
     <string name="feature_exercise_edit_tags_counter">%1$d из %2$d</string>
 
     <!-- Edit exercise — image -->

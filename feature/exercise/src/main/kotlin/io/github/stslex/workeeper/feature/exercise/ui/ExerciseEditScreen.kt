@@ -55,7 +55,6 @@ import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.St
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 import org.jetbrains.compose.resources.stringResource
-import io.github.stslex.workeeper.core.ui.plan_editor.R as CoreEditorR
 
 /** `v3-editors.md` §3.2's frame: name field · plan · tags · description · dock (ED1, ED3). */
 @Composable
@@ -184,7 +183,7 @@ private fun PlanSection(
                     consume(Action.Click.OnAdhocPlanEditorAction(bodyAction))
                 },
                 setTypeTooltipText = stringResource(
-                    CoreEditorR.string.core_ui_plan_editor_set_type_tooltip,
+                    R.string.feature_exercise_edit_plan_set_type_tooltip,
                 ),
                 scrollable = false,
                 onTypeChange = { type -> consume(Action.Click.OnTypeToggle(type)) },

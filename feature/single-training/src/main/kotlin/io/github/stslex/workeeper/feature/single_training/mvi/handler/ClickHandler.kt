@@ -37,7 +37,6 @@ import kotlinx.collections.immutable.toImmutableSet
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import kotlin.uuid.Uuid
-import io.github.stslex.workeeper.core.ui.plan_editor.R as CoreEditorR
 
 @Suppress("TooManyFunctions", "LongMethod", "LargeClass")
 @SingleIn(SingleTrainingScope::class)
@@ -528,7 +527,7 @@ internal class ClickHandler @Inject constructor(
             sendEvent(
                 Event.ShowSetRemovedUndo(
                     message = resourceWrapper.getString(
-                        CoreEditorR.string.core_ui_plan_editor_toast_set_removed,
+                        R.string.feature_training_edit_plan_set_removed,
                     ),
                     exerciseUuid = action.exerciseUuid,
                     set = priorDraft[bodyAction.index],

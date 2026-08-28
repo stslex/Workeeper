@@ -51,7 +51,6 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 import org.jetbrains.compose.resources.getString
 import kotlin.uuid.Uuid
-import io.github.stslex.workeeper.core.ui.plan_editor.R as CoreEditorR
 
 @Suppress("TooManyFunctions", "LargeClass")
 @SingleIn(ExerciseScope::class)
@@ -576,16 +575,16 @@ internal class ClickHandler @Inject constructor(
             sendEvent(Event.Haptic(HapticFeedbackType.LongPress))
             // Strings resolved outside `updateState` — Rule 1 of compose-state-discipline.
             val title = resourceWrapper.getString(
-                CoreEditorR.string.core_ui_plan_editor_type_change_weightless_title,
+                R.string.feature_exercise_edit_plan_type_change_weightless_title,
             )
             val body = resourceWrapper.getString(
-                CoreEditorR.string.core_ui_plan_editor_type_change_weightless_body,
+                R.string.feature_exercise_edit_plan_type_change_weightless_body,
             )
             val impact = resourceWrapper.getString(
-                CoreEditorR.string.core_ui_plan_editor_type_change_weightless_impact,
+                R.string.feature_exercise_edit_plan_type_change_weightless_impact,
             )
             val confirmLabel = resourceWrapper.getString(
-                CoreEditorR.string.core_ui_plan_editor_type_change_weightless_confirm,
+                R.string.feature_exercise_edit_plan_type_change_weightless_confirm,
             )
             updateState {
                 it.copy(
@@ -640,7 +639,7 @@ internal class ClickHandler @Inject constructor(
             sendEvent(
                 Event.ShowSetRemovedUndo(
                     message = resourceWrapper.getString(
-                        CoreEditorR.string.core_ui_plan_editor_toast_set_removed,
+                        R.string.feature_exercise_edit_plan_set_removed,
                     ),
                     set = draft[bodyAction.index],
                     index = bodyAction.index,
