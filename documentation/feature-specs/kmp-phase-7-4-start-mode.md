@@ -1,8 +1,12 @@
 # KMP Phase 7.4 — `core:ui:start-mode` becomes the first shared UI leaf
 
-**Status:** IMPLEMENTED LOCALLY; DELIVERY IN PROGRESS. The maintainer supplied the explicit
-implementation GO and later authorized the single test-only compatibility correction recorded
-below. PR CI/review evidence remains delivery evidence; the maintainer still owns the merge.
+**Status:** COMPLETE — implementation PR #265 merged into `dev` on 2026-08-28.
+
+**Delivery:** base `d8e4c3af968a6fc9ebf46c42718bafa85f8ffe19` · reviewed head
+`3750ff44d66f3fb8172cd6a205ab94aa09976429` · merge
+`ceae5dee282b182ef0946ba40e59e67c6d1a45e7`. All five final PR-head checks passed; all three
+implementation commits were signed/Verified; the review inventory contained zero threads and
+zero submitted reviews; the active `~ALL` ruleset and both required contexts remained unchanged.
 
 ---
 
