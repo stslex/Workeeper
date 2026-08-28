@@ -987,14 +987,13 @@ diagnostic probes only; the accepted dependency proof uses
 
 ### 20.4 Review corrections — 2026-08-28
 
-All six review comments reproduced as correct before their fixes. The JVM oracle now pins the
-complete measured public manifest, including generic bounds, descriptors and generated helper
-holders; `StoreLifecycle` is private and no longer leaks through an inline composable. Android
-performance tests enter the public one-argument facade and the actual composable provider while
-temporarily routing the unchanged Firebase backend to deterministic trace sinks. The device test
-reads the lifecycle owner retained by the real Store scope, and the topology oracle pins every
-Kotlin path to its reviewed source set. The AppGraph KDoc and §10.3 now describe one runtime
-generation and the remembered child lifecycle owner respectively.
+All six initial review comments reproduced as correct before their fixes. At this point the JVM
+oracle still pinned only selected public types, the lifecycle test compared owners only while both
+were resumed, the actual-provider test proved its Firebase sink but not its Activity, and topology
+enumerated only the source sets already present in its expected map. Those four incomplete claims
+are superseded by §20.5. `StoreLifecycle` is private and no longer leaks through an inline
+composable. The public performance facade and real Firebase provider remain covered, and the
+AppGraph KDoc and §10.3 describe one runtime generation and the remembered child lifecycle owner.
 
 The accepted negative controls made the new named oracle red for an added Compose default helper,
 a no-op public performance facade, a no-op actual screen provider, and an unrelated Store
@@ -1011,3 +1010,48 @@ Fresh post-review results are: MVI Android host `83 actionable tasks: 83 execute
 `617 actionable tasks: 617 executed`; and custom Detekt rules
 `9 actionable tasks: 9 executed`. GitHub evidence remains pending until the review-fix commit is
 pushed and its required contexts complete.
+
+### 20.5 Follow-up corrections — 2026-08-28
+
+The four follow-up findings reproduced as correct and were fixed without changing production API,
+test identities, dependencies, versions or migration scope:
+
+- The JVM ABI oracle now derives a deterministic manifest from every public non-synthetic module
+  class file, including named nested classes and file facades, public constructors, fields and
+  methods, JVM descriptors, generic signatures and bounds, default/Compose helpers and
+  `DefaultImpls`. The checked snapshot is traced to a clean compile of the exact pre-conversion
+  base plus the explicit Phase 7.3 allowlist. Exclusions are limited to synthetic/local classes,
+  AGP `BuildConfig` and generated Compose resources.
+- `appFeatureProcessorResolvesAtActivityScope` still has its original identity and now observes the
+  owner retained by the real Store while the host Activity moves `RESUMED -> CREATED -> RESUMED`,
+  using scenario lifecycle control and Compose idling. The module still contains exactly the same
+  two `@Smoke` device identities.
+- `theComposableAndroidScreenProviderKeepsTheFirebaseAdapter` now enters
+  `rememberScreenRenderRecorder()`, captures the composition Activity and proves the actual
+  `FirebaseScreenRenderAdapter` retains that same instance while deterministic sinks remain in use.
+- The topology gate first enumerates every immediate Kotlin-bearing source-set directory and
+  rejects unknown names with their paths, then applies the existing exact per-source-set manifests
+  and legacy/import/symbol/deleted-seam checks.
+
+Each accepted mutation established fresh green, reached the named oracle, restored exact bytes and
+then established fresh green again:
+
+| Mutation | Fresh green -> required red -> restoration green |
+| --- | --- |
+| add a public method to the existing `NavResults.kt` and clean-compile | ABI host test `84/84` -> `MviJvmAbiTest.publicMviAbiMatchesTheMeasuredManifest` red at `84/84` -> `84/84`; source SHA-256 restored exactly |
+| retain an independent lifecycle owner frozen at initial `RESUMED` | focused MVI device `137/137`, 2 identities -> `AppFeatureScopeTest.appFeatureProcessorResolvesAtActivityScope` red at `137/137` -> `137/137`, same 2 identities |
+| return `FirebaseScreenRenderAdapter(activity = null)` from the Android actual provider | provider host test `84/84` -> `AndroidPerformanceProviderTest.theComposableAndroidScreenProviderKeepsTheFirebaseAdapter` red at `84/84` -> `84/84` |
+| add `src/desktopMain/**/DesktopLeak.kt` in an isolated exact source-tree copy | topology green -> red naming `desktopMain` and its exact unexpected path -> fresh topology green with the approved `27/6/2/3/2/2/1` file counts |
+
+The retained public-facade bypass and no-op actual-provider controls also remain named red. Final
+local results are: MVI Android host `84 actionable tasks: 84 executed`, 26 tests and 9 exact
+identities; Native kit/navigation/MVI `86 actionable tasks: 86 executed`, XML totals 1 / 1 / 14
+and exact identities 1 / 1 / 5; focused MVI device `137 actionable tasks: 137 executed`, exactly 2
+tests and identities; all 15 consumers plus app assembly `325 actionable tasks: 325 executed`; MVI
+Detekt/lint `103 actionable tasks: 103 executed`; repository build/analysis/host tests
+`2073 actionable tasks: 2073 executed`; instrumented assembly `1936 actionable tasks: 1936
+executed`; Paparazzi `617 actionable tasks: 617 executed` with all 456 goldens unchanged; custom
+rules `9 actionable tasks: 9 executed`; Smoke `2009 actionable tasks: 2009 executed` with exact
+44 / 41 / 3 membership; Regression `2009 actionable tasks: 2009 executed` with exact 81 / 81
+membership. The 35-case XML fixture matrix, topology, three dependency reports, personal-data
+gate, Python compilation, all workflow YAML parsing and `git diff --check` are green.
