@@ -1067,9 +1067,9 @@ PR #262 merged into `dev` at `2026-08-28T11:31:28Z` from final head
 Both workflow runs at the final PR head completed successfully:
 
 - `Android CI/CD - Unified Build and Tests` run `33165327733`: `KMP iOS kit smoke` and
-  `Build and Unit Tests` succeeded;
-- `v3 Mockup Appearance Gate` run `33165327732`: `Mockup Appearance Gate`,
-  `Unit Test Results`, and `Detailed Unit Test Report` succeeded.
+  `Build and Unit Tests` succeeded. The latter published the successful `Unit Test Results`
+  and `Detailed Unit Test Report` checks;
+- `v3 Mockup Appearance Gate` run `33165327732`: `Mockup Appearance Gate` succeeded.
 
 All 10 review threads are resolved (0 unresolved). The active repository-wide `all` ruleset
 (id `8116593`, `~ALL`) remains unchanged and continues to require signed commits plus
