@@ -66,6 +66,11 @@ The build is configured in `settings.gradle.kts`. Every module is included from 
   Compose Multiplatform resources, public mode-name resolver, and reusable mode sheet. Production
   Kotlin/resources live in `commonMain`; Android-host Paparazzi parity and the iOS-simulator
   production-scene test remain platform-specific verification surfaces.
+- `core/ui/plan-editor` — shared KMP Compose leaf for the plan-editor model, reducer, and reusable
+  production UI. Production Kotlin and its private read-only-empty Compose Multiplatform resource
+  catalog live in `commonMain`; the reducer runs from `commonTest`, while Android-host Paparazzi
+  parity and the iOS-simulator production-scene test remain platform-specific verification
+  surfaces.
 - `core/ui/test-utils` — shared test infrastructure (`BaseComposeTest`, `MockDataFactory`,
   `PagingTestUtils`, `@Smoke`, `@Regression`).
 
