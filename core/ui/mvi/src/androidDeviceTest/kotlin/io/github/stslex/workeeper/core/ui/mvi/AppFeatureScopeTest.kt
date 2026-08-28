@@ -3,6 +3,7 @@ package io.github.stslex.workeeper.core.ui.mvi
 
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelStoreOwner
@@ -102,11 +103,15 @@ internal class AppFeatureScopeTest {
             activity,
             initializedOwner,
         )
-        assertEquals(
-            "the child lifecycle passed to BaseStore.init must follow its resumed Activity parent",
-            activity.lifecycle.currentState,
-            initializedOwner.lifecycle.currentState,
-        )
+        assertLifecycleFollowsActivity(activity, initializedOwner, Lifecycle.State.RESUMED)
+
+        composeRule.activityRule.scenario.moveToState(Lifecycle.State.CREATED)
+        composeRule.waitForIdle()
+        assertLifecycleFollowsActivity(activity, initializedOwner, Lifecycle.State.CREATED)
+
+        composeRule.activityRule.scenario.moveToState(Lifecycle.State.RESUMED)
+        composeRule.waitForIdle()
+        assertLifecycleFollowsActivity(activity, initializedOwner, Lifecycle.State.RESUMED)
     }
 
     /**
@@ -156,6 +161,26 @@ internal class AppFeatureScopeTest {
 
     private companion object {
         const val WAIT_SECONDS = 5L
+    }
+
+    private fun assertLifecycleFollowsActivity(
+        activity: TestActivity,
+        initializedOwner: LifecycleOwner,
+        expectedState: Lifecycle.State,
+    ) {
+        composeRule.runOnIdle {
+            assertEquals(
+                "host Activity did not reach $expectedState",
+                expectedState,
+                activity.lifecycle.currentState,
+            )
+            assertEquals(
+                "the lifecycle retained by the Store did not follow its Activity parent to " +
+                    expectedState,
+                activity.lifecycle.currentState,
+                initializedOwner.lifecycle.currentState,
+            )
+        }
     }
 }
 

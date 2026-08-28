@@ -2,7 +2,9 @@
 package io.github.stslex.workeeper.core.ui.mvi.performance
 
 import android.app.Activity
+import androidx.activity.compose.LocalActivity
 import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.v2.runComposeUiTest
 import io.github.stslex.workeeper.core.core.logger.Log
@@ -79,19 +81,36 @@ internal class AndroidPerformanceProviderTest {
     @Test
     fun theComposableAndroidScreenProviderKeepsTheFirebaseAdapter() = runComposeUiTest {
         var recorder: ScreenRenderRecorder? = null
+        var compositionActivity: Activity? = null
 
         setContent {
             val current = rememberScreenRenderRecorder()
-            SideEffect { recorder = current }
+            val activity = LocalActivity.current ?: LocalContext.current as? Activity
+            SideEffect {
+                recorder = current
+                compositionActivity = activity
+            }
         }
         waitForIdle()
 
         val adapter = recorder as? FirebaseScreenRenderAdapter
             ?: error("the Android composable provider returned ${recorder?.let { it::class }}")
+        val visibleActivity = checkNotNull(compositionActivity) {
+            "the host composition did not expose an Activity"
+        }
         assertSame(
             FirebaseScreenTraceSink,
             adapter.sink,
             "the actual composable provider must retain the Firebase screen sink",
+        )
+        val retainedActivity = FirebaseScreenRenderAdapter::class.java
+            .getDeclaredField("activity")
+            .apply { isAccessible = true }
+            .get(adapter)
+        assertSame(
+            visibleActivity,
+            retainedActivity,
+            "the actual composable provider must retain the Activity visible to its composition",
         )
     }
 

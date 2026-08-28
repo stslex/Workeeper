@@ -135,7 +135,20 @@ def main() -> None:
                 f"src/androidDeviceTest, not src/androidTest, so these execute zero times."
             )
 
-    # 2. Every intended Kotlin path belongs to exactly its reviewed source set.
+    # 2. Every Kotlin-bearing source-set directory is reviewed before exact manifests are read.
+    kotlin_by_source_set = {
+        path.name: kotlin_files(path.name)
+        for path in sorted(SRC.iterdir())
+        if path.is_dir() and kotlin_files(path.name)
+    }
+    unexpected_source_sets = sorted(set(kotlin_by_source_set) - set(REQUIRED_SOURCE_SETS))
+    for source_set in unexpected_source_sets:
+        failures.append(
+            f"unexpected Kotlin-bearing source set {source_set}: "
+            f"{[str(path) for path in kotlin_by_source_set[source_set]]}"
+        )
+
+    # 3. Every intended Kotlin path belongs to exactly its reviewed source set.
     for source_set, expected in EXPECTED_PATHS_BY_SOURCE_SET.items():
         actual = {
             path.relative_to(SRC / source_set).as_posix()
@@ -148,7 +161,7 @@ def main() -> None:
                 f"{source_set} Kotlin manifest mismatch; missing={missing}, extra={extra}"
             )
 
-    # 3. Common and iOS production stay free of Android, Java and Firebase types.
+    # 4. Common and iOS production stay free of Android, Java and Firebase types.
     for source_set in ("commonMain", "iosMain"):
         for path in kotlin_files(source_set):
             for match in FORBIDDEN_IMPORTS.finditer(path.read_text(encoding="utf-8")):
@@ -156,7 +169,7 @@ def main() -> None:
                     f"{path} imports a platform type in {source_set}: {match.group(0).strip()!r}"
                 )
 
-    # 4. The Android deps holder is Android-only.
+    # 5. The Android deps holder is Android-only.
     for source_set in ("commonMain", "iosMain", "commonTest", "iosTest"):
         for path in kotlin_files(source_set):
             text = path.read_text(encoding="utf-8")
@@ -164,7 +177,7 @@ def main() -> None:
                 if symbol in text:
                     failures.append(f"{path} names {symbol}, which must stay Android-only")
 
-    # 5. The deleted Context seam stays deleted from production. The ABI oracle intentionally
+    # 6. The deleted Context seam stays deleted from production. The ABI oracle intentionally
     # names the removed class to prove it cannot be loaded.
     for symbol in DELETED_SYMBOLS:
         hits = [
