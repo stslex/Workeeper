@@ -120,6 +120,11 @@ lifecycle-compose = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-
 # KMP lifecycle runtime (2.10.0 publishes iosArm64/iosSimulatorArm64): LifecycleOwner,
 # LifecycleObserver and lifecycleScope used by AppCoroutineScope(Impl) in commonMain.
 lifecycle-runtime = { group = "androidx.lifecycle", name = "lifecycle-runtime", version.ref = "lifecycle" }
+# KMP ViewModel base class. `lifecycle-viewModel` above is the Android-only `-ktx` artifact; this
+# is the multiplatform one BaseStore extends from commonMain.
+lifecycle-viewmodel = { group = "androidx.lifecycle", name = "lifecycle-viewmodel", version.ref = "lifecycle" }
+# KMP lifecycle-compose: rememberLifecycleOwner / LocalLifecycleOwner in commonMain processors.
+lifecycle-runtime-compose = { group = "androidx.lifecycle", name = "lifecycle-runtime-compose", version.ref = "lifecycle" }
 coroutines = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
 # KMP coroutines core (commonMain-safe; pulls android/native variants per target).
 coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "coroutines" }

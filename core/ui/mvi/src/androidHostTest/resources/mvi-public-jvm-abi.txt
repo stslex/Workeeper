@@ -1,0 +1,390 @@
+# core:ui:mvi complete public JVM ABI
+# source: measured pre-conversion output plus Phase 7.3 allowlist
+# Phase 7.3 allowlist:
+# - BaseStore constructor adds AppScopeLifetime; init removes Job
+# - StoreGenerationDeps is deleted
+# - internal expect/actual performance backend and screen-recorder JVM seams
+# - PerformanceMetricsRecorder.process delegates synchronization to its backend
+# - rememberStoreProcessor is non-inline and therefore not ACC_SYNTHETIC
+# excluded class rules:
+# - ACC_SYNTHETIC classes: compiler implementation artifacts
+# - EnclosingMethod/EnclosingConstructor classes: local implementation artifacts
+# - io.github.stslex.workeeper.core.ui.mvi.BuildConfig : AGP-generated build constant holder
+# - workeeper.core.ui.mvi.generated.resources.* : empty Compose resource compiler accessors
+
+CLASS io.github.stslex.workeeper.core.ui.mvi.AppFeature flags=0x0401 typeParameters=[TProcessor:io.github.stslex.workeeper.core.ui.mvi.processor.StoreProcessor<?, ?, ?>] superclass=java.lang.Object interfaces=[]
+  CONSTRUCTOR ()V flags=0x0001 typeParameters=[] genericParameters=[] throws=[]
+  FIELD $stable I flags=0x0019 genericType=int
+  METHOD processor(Landroidx/compose/runtime/Composer;I)Lio/github/stslex/workeeper/core/ui/mvi/processor/StoreProcessor; flags=0x0401 typeParameters=[] genericReturn=TProcessor genericParameters=[androidx.compose.runtime.Composer, int] throws=[]
+
+CLASS io.github.stslex.workeeper.core.ui.mvi.BaseStore flags=0x0001 typeParameters=[S:io.github.stslex.workeeper.core.ui.mvi.Store$State, A:io.github.stslex.workeeper.core.ui.mvi.Store$Action, E:io.github.stslex.workeeper.core.ui.mvi.Store$Event] superclass=androidx.lifecycle.ViewModel interfaces=[io.github.stslex.workeeper.core.ui.mvi.Store<S, A, E>, io.github.stslex.workeeper.core.ui.mvi.store.StoreConsumer<S, A, E>]
+  CONSTRUCTOR (Ljava/lang/String;Lio/github/stslex/workeeper/core/ui/mvi/Store$State;Lio/github/stslex/workeeper/core/ui/mvi/handler/HandlerStoreEmitter;Lio/github/stslex/workeeper/core/ui/mvi/handler/HandlerCreator;Ljava/util/List;Lio/github/stslex/workeeper/core/ui/mvi/di/StoreDispatchers;Lio/github/stslex/workeeper/core/core/coroutine/scope/AppScopeLifetime;Ljava/util/List;Lio/github/stslex/workeeper/core/ui/mvi/holders/AnalyticsHolder;Lio/github/stslex/workeeper/core/ui/mvi/holders/LoggerHolder;)V flags=0x0001 typeParameters=[] genericParameters=[java.lang.String, S, io.github.stslex.workeeper.core.ui.mvi.handler.HandlerStoreEmitter<S, A, E>, io.github.stslex.workeeper.core.ui.mvi.handler.HandlerCreator<? super A>, java.util.List<? extends A>, io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers, io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetime, java.util.List<? extends A>, io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder, io.github.stslex.workeeper.core.ui.mvi.holders.LoggerHolder] throws=[]
+  CONSTRUCTOR (Ljava/lang/String;Lio/github/stslex/workeeper/core/ui/mvi/Store$State;Lio/github/stslex/workeeper/core/ui/mvi/handler/HandlerStoreEmitter;Lio/github/stslex/workeeper/core/ui/mvi/handler/HandlerCreator;Ljava/util/List;Lio/github/stslex/workeeper/core/ui/mvi/di/StoreDispatchers;Lio/github/stslex/workeeper/core/core/coroutine/scope/AppScopeLifetime;Ljava/util/List;Lio/github/stslex/workeeper/core/ui/mvi/holders/AnalyticsHolder;Lio/github/stslex/workeeper/core/ui/mvi/holders/LoggerHolder;ILkotlin/jvm/internal/DefaultConstructorMarker;)V flags=0x1001 typeParameters=[] genericParameters=[java.lang.String, io.github.stslex.workeeper.core.ui.mvi.Store$State, io.github.stslex.workeeper.core.ui.mvi.handler.HandlerStoreEmitter, io.github.stslex.workeeper.core.ui.mvi.handler.HandlerCreator, java.util.List, io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers, io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetime, java.util.List, io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder, io.github.stslex.workeeper.core.ui.mvi.holders.LoggerHolder, int, kotlin.jvm.internal.DefaultConstructorMarker] throws=[]
+  FIELD $stable I flags=0x0019 genericType=int
+  FIELD Companion Lio/github/stslex/workeeper/core/ui/mvi/BaseStore$Companion; flags=0x0019 genericType=io.github.stslex.workeeper.core.ui.mvi.BaseStore$Companion
+  FIELD STORE_LOGGER_PREFIX Ljava/lang/String; flags=0x0019 genericType=java.lang.String
+  METHOD access$get_event$p(Lio/github/stslex/workeeper/core/ui/mvi/BaseStore;)Lkotlinx/coroutines/flow/MutableSharedFlow; flags=0x1019 typeParameters=[] genericReturn=kotlinx.coroutines.flow.MutableSharedFlow genericParameters=[io.github.stslex.workeeper.core.ui.mvi.BaseStore] throws=[]
+  METHOD consume(Lio/github/stslex/workeeper/core/ui/mvi/Store$Action;)V flags=0x0001 typeParameters=[] genericReturn=void genericParameters=[A] throws=[]
+  METHOD consumeOnMain(Lio/github/stslex/workeeper/core/ui/mvi/Store$Action;Lkotlin/coroutines/Continuation;)Ljava/lang/Object; flags=0x0001 typeParameters=[] genericReturn=java.lang.Object genericParameters=[A, kotlin.coroutines.Continuation<? super kotlin.Unit>] throws=[]
+  METHOD dispose()V flags=0x0011 typeParameters=[] genericReturn=void genericParameters=[] throws=[]
+  METHOD getAnalyticsHolder()Lio/github/stslex/workeeper/core/ui/mvi/holders/AnalyticsHolder; flags=0x0011 typeParameters=[] genericReturn=io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder genericParameters=[] throws=[]
+  METHOD getDisposeActions()Ljava/util/List; flags=0x0011 typeParameters=[] genericReturn=java.util.List<A> genericParameters=[] throws=[]
+  METHOD getEvent()Lkotlinx/coroutines/flow/SharedFlow; flags=0x0001 typeParameters=[] genericReturn=kotlinx.coroutines.flow.SharedFlow<E> genericParameters=[] throws=[]
+  METHOD getLastAction()Lio/github/stslex/workeeper/core/ui/mvi/Store$Action; flags=0x0001 typeParameters=[] genericReturn=A genericParameters=[] throws=[]
+  METHOD getLogger()Lio/github/stslex/workeeper/core/core/logger/Logger; flags=0x0001 typeParameters=[] genericReturn=io.github.stslex.workeeper.core.core.logger.Logger genericParameters=[] throws=[]
+  METHOD getLoggerHolder()Lio/github/stslex/workeeper/core/ui/mvi/holders/LoggerHolder; flags=0x0011 typeParameters=[] genericReturn=io.github.stslex.workeeper.core.ui.mvi.holders.LoggerHolder genericParameters=[] throws=[]
+  METHOD getName()Ljava/lang/String; flags=0x0011 typeParameters=[] genericReturn=java.lang.String genericParameters=[] throws=[]
+  METHOD getState()Lkotlinx/coroutines/flow/StateFlow; flags=0x0001 typeParameters=[] genericReturn=kotlinx.coroutines.flow.StateFlow<S> genericParameters=[] throws=[]
+  METHOD init(Landroidx/lifecycle/LifecycleOwner;)V flags=0x0011 typeParameters=[] genericReturn=void genericParameters=[androidx.lifecycle.LifecycleOwner] throws=[]
+  METHOD launch(Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function3;Lkotlinx/coroutines/CoroutineDispatcher;Lkotlinx/coroutines/CoroutineDispatcher;Lkotlin/jvm/functions/Function2;)Lkotlinx/coroutines/Job; flags=0x0001 typeParameters=[T:java.lang.Object] genericReturn=kotlinx.coroutines.Job genericParameters=[kotlin.jvm.functions.Function2<? super java.lang.Throwable, ? super kotlin.coroutines.Continuation<? super kotlin.Unit>, ?>, kotlin.jvm.functions.Function3<? super kotlinx.coroutines.CoroutineScope, ? super T, ? super kotlin.coroutines.Continuation<? super kotlin.Unit>, ?>, kotlinx.coroutines.CoroutineDispatcher, kotlinx.coroutines.CoroutineDispatcher, kotlin.jvm.functions.Function2<? super kotlinx.coroutines.CoroutineScope, ? super kotlin.coroutines.Continuation<? super T>, ?>] throws=[]
+  METHOD launch(Lkotlinx/coroutines/flow/Flow;Lkotlin/jvm/functions/Function2;Lkotlinx/coroutines/CoroutineDispatcher;Lkotlinx/coroutines/CoroutineDispatcher;Lkotlin/jvm/functions/Function2;)Lkotlinx/coroutines/Job; flags=0x0001 typeParameters=[T:java.lang.Object] genericReturn=kotlinx.coroutines.Job genericParameters=[kotlinx.coroutines.flow.Flow<? extends T>, kotlin.jvm.functions.Function2<? super java.lang.Throwable, ? super kotlin.coroutines.Continuation<? super kotlin.Unit>, ?>, kotlinx.coroutines.CoroutineDispatcher, kotlinx.coroutines.CoroutineDispatcher, kotlin.jvm.functions.Function2<? super T, ? super kotlin.coroutines.Continuation<? super kotlin.Unit>, ?>] throws=[]
+  METHOD launchDefault(Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function2;)Lkotlinx/coroutines/Job; flags=0x0001 typeParameters=[T:java.lang.Object] genericReturn=kotlinx.coroutines.Job genericParameters=[kotlin.jvm.functions.Function2<? super java.lang.Throwable, ? super kotlin.coroutines.Continuation<? super kotlin.Unit>, ?>, kotlin.jvm.functions.Function3<? super kotlinx.coroutines.CoroutineScope, ? super T, ? super kotlin.coroutines.Continuation<? super kotlin.Unit>, ?>, kotlin.jvm.functions.Function2<? super kotlinx.coroutines.CoroutineScope, ? super kotlin.coroutines.Continuation<? super T>, ?>] throws=[]
+  METHOD sendEvent(Lio/github/stslex/workeeper/core/ui/mvi/Store$Event;)V flags=0x0001 typeParameters=[] genericReturn=void genericParameters=[E] throws=[]
+  METHOD updateState(Lkotlin/jvm/functions/Function1;)V flags=0x0001 typeParameters=[] genericReturn=void genericParameters=[kotlin.jvm.functions.Function1<? super S, ? extends S>] throws=[]
+  METHOD updateStateImmediate(Lio/github/stslex/workeeper/core/ui/mvi/Store$State;Lkotlin/coroutines/Continuation;)Ljava/lang/Object; flags=0x0001 typeParameters=[] genericReturn=java.lang.Object genericParameters=[S, kotlin.coroutines.Continuation<? super kotlin.Unit>] throws=[]
+  METHOD updateStateImmediate(Lkotlin/jvm/functions/Function2;Lkotlin/coroutines/Continuation;)Ljava/lang/Object; flags=0x0001 typeParameters=[] genericReturn=java.lang.Object genericParameters=[kotlin.jvm.functions.Function2<? super S, ? super kotlin.coroutines.Continuation<? super S>, ?>, kotlin.coroutines.Continuation<? super kotlin.Unit>] throws=[]
+
+CLASS io.github.stslex.workeeper.core.ui.mvi.BaseStore$Companion flags=0x0019 typeParameters=[] superclass=java.lang.Object interfaces=[]
+  CONSTRUCTOR (Lkotlin/jvm/internal/DefaultConstructorMarker;)V flags=0x1001 typeParameters=[] genericParameters=[kotlin.jvm.internal.DefaultConstructorMarker] throws=[]
+
+CLASS io.github.stslex.workeeper.core.ui.mvi.Feature flags=0x0401 typeParameters=[TProcessor:io.github.stslex.workeeper.core.ui.mvi.processor.StoreProcessor<?, ?, ?>, TScreen:io.github.stslex.workeeper.core.ui.navigation.Screen] superclass=java.lang.Object interfaces=[]
+  CONSTRUCTOR ()V flags=0x0001 typeParameters=[] genericParameters=[] throws=[]
+  FIELD $stable I flags=0x0019 genericType=int
+  METHOD processor(Landroidx/compose/runtime/Composer;I)Lio/github/stslex/workeeper/core/ui/mvi/processor/StoreProcessor; flags=0x0401 typeParameters=[] genericReturn=TProcessor genericParameters=[androidx.compose.runtime.Composer, int] throws=[]
+
+CLASS io.github.stslex.workeeper.core.ui.mvi.FeatureAssisted flags=0x0401 typeParameters=[TProcessor:io.github.stslex.workeeper.core.ui.mvi.processor.StoreProcessor<?, ?, ?>, TScreen:io.github.stslex.workeeper.core.ui.navigation.Screen] superclass=java.lang.Object interfaces=[]
+  CONSTRUCTOR ()V flags=0x0001 typeParameters=[] genericParameters=[] throws=[]
+  FIELD $stable I flags=0x0019 genericType=int
+  METHOD processor(Lio/github/stslex/workeeper/core/ui/navigation/Screen;Landroidx/compose/runtime/Composer;I)Lio/github/stslex/workeeper/core/ui/mvi/processor/StoreProcessor; flags=0x0401 typeParameters=[] genericReturn=TProcessor genericParameters=[TScreen, androidx.compose.runtime.Composer, int] throws=[]
+
+CLASS io.github.stslex.workeeper.core.ui.mvi.NavComponentScreenKt flags=0x0011 typeParameters=[] superclass=java.lang.Object interfaces=[]
+  METHOD navComponentScreen(Lio/github/stslex/workeeper/core/ui/navigation/NavGraphScope;Lio/github/stslex/workeeper/core/ui/mvi/Feature;Lkotlin/jvm/functions/Function3;)V flags=0x1019 typeParameters=[TProcessor:io.github.stslex.workeeper.core.ui.mvi.processor.StoreProcessor<?, ?, ?>, TScreen:io.github.stslex.workeeper.core.ui.navigation.Screen] genericReturn=void genericParameters=[io.github.stslex.workeeper.core.ui.navigation.NavGraphScope, io.github.stslex.workeeper.core.ui.mvi.Feature<TProcessor, TScreen>, kotlin.jvm.functions.Function3<? super TProcessor, ? super androidx.compose.runtime.Composer, ? super java.lang.Integer, kotlin.Unit>] throws=[]
+  METHOD navComponentScreen(Lio/github/stslex/workeeper/core/ui/navigation/NavGraphScope;Lio/github/stslex/workeeper/core/ui/mvi/FeatureAssisted;Lkotlin/jvm/functions/Function3;)V flags=0x1019 typeParameters=[TProcessor:io.github.stslex.workeeper.core.ui.mvi.processor.StoreProcessor<?, ?, ?>, TScreen:io.github.stslex.workeeper.core.ui.navigation.Screen] genericReturn=void genericParameters=[io.github.stslex.workeeper.core.ui.navigation.NavGraphScope, io.github.stslex.workeeper.core.ui.mvi.FeatureAssisted<TProcessor, TScreen>, kotlin.jvm.functions.Function3<? super TProcessor, ? super androidx.compose.runtime.Composer, ? super java.lang.Integer, kotlin.Unit>] throws=[]
+  METHOD navComponentScreenWithResults(Lio/github/stslex/workeeper/core/ui/navigation/NavGraphScope;Lio/github/stslex/workeeper/core/ui/mvi/FeatureAssisted;Lkotlin/jvm/functions/Function4;)V flags=0x1019 typeParameters=[TProcessor:io.github.stslex.workeeper.core.ui.mvi.processor.StoreProcessor<?, ?, ?>, TScreen:io.github.stslex.workeeper.core.ui.navigation.Screen] genericReturn=void genericParameters=[io.github.stslex.workeeper.core.ui.navigation.NavGraphScope, io.github.stslex.workeeper.core.ui.mvi.FeatureAssisted<TProcessor, TScreen>, kotlin.jvm.functions.Function4<? super io.github.stslex.workeeper.core.ui.mvi.NavResults, ? super TProcessor, ? super androidx.compose.runtime.Composer, ? super java.lang.Integer, kotlin.Unit>] throws=[]
+
+CLASS io.github.stslex.workeeper.core.ui.mvi.NavResults flags=0x0011 typeParameters=[] superclass=java.lang.Object interfaces=[]
+  CONSTRUCTOR (Lio/github/stslex/workeeper/core/ui/navigation/NavResultsSource;)V flags=0x0001 typeParameters=[] genericParameters=[io.github.stslex.workeeper.core.ui.navigation.NavResultsSource] throws=[]
+  FIELD $stable I flags=0x0019 genericType=int
+  METHOD OnResult(Lkotlin/reflect/KClass;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;I)V flags=0x0011 typeParameters=[S:io.github.stslex.workeeper.core.ui.navigation.ScreenWithResult<R>, R:java.lang.Object] genericReturn=void genericParameters=[kotlin.reflect.KClass<S>, kotlin.jvm.functions.Function1<? super R, kotlin.Unit>, androidx.compose.runtime.Composer, int] throws=[]
+  METHOD access$OnResult$lambda$0(Landroidx/compose/runtime/State;)Ljava/lang/Object; flags=0x1019 typeParameters=[] genericReturn=java.lang.Object genericParameters=[androidx.compose.runtime.State] throws=[]
+  METHOD clear(Lkotlin/reflect/KClass;)V flags=0x0011 typeParameters=[S:io.github.stslex.workeeper.core.ui.navigation.ScreenWithResult<R>, R:java.lang.Object] genericReturn=void genericParameters=[kotlin.reflect.KClass<S>] throws=[]
+  METHOD result(Lkotlin/reflect/KClass;)Lkotlinx/coroutines/flow/StateFlow; flags=0x0011 typeParameters=[S:io.github.stslex.workeeper.core.ui.navigation.ScreenWithResult<R>, R:java.lang.Object] genericReturn=kotlinx.coroutines.flow.StateFlow<R> genericParameters=[kotlin.reflect.KClass<S>] throws=[]
+
+CLASS io.github.stslex.workeeper.core.ui.mvi.Store flags=0x0601 typeParameters=[S:io.github.stslex.workeeper.core.ui.mvi.Store$State, A:io.github.stslex.workeeper.core.ui.mvi.Store$Action, E:io.github.stslex.workeeper.core.ui.mvi.Store$Event] superclass=- interfaces=[]
+  METHOD consume(Lio/github/stslex/workeeper/core/ui/mvi/Store$Action;)V flags=0x0401 typeParameters=[] genericReturn=void genericParameters=[A] throws=[]
+  METHOD getEvent()Lkotlinx/coroutines/flow/SharedFlow; flags=0x0401 typeParameters=[] genericReturn=kotlinx.coroutines.flow.SharedFlow<E> genericParameters=[] throws=[]
+  METHOD getState()Lkotlinx/coroutines/flow/StateFlow; flags=0x0401 typeParameters=[] genericReturn=kotlinx.coroutines.flow.StateFlow<S> genericParameters=[] throws=[]
+
+CLASS io.github.stslex.workeeper.core.ui.mvi.Store$Action flags=0x0609 typeParameters=[] superclass=- interfaces=[]
+
+CLASS io.github.stslex.workeeper.core.ui.mvi.Store$Action$RepeatLast flags=0x0609 typeParameters=[] superclass=- interfaces=[io.github.stslex.workeeper.core.ui.mvi.Store$Action]
+
+CLASS io.github.stslex.workeeper.core.ui.mvi.Store$Event flags=0x0609 typeParameters=[] superclass=- interfaces=[]
+
+CLASS io.github.stslex.workeeper.core.ui.mvi.Store$State flags=0x0609 typeParameters=[] superclass=- interfaces=[]
+
+CLASS io.github.stslex.workeeper.core.ui.mvi.di.AppDepsHolder flags=0x0601 typeParameters=[] superclass=- interfaces=[]
+  METHOD appDeps()Ljava/lang/Object; flags=0x0401 typeParameters=[] genericReturn=java.lang.Object genericParameters=[] throws=[]
+
+CLASS io.github.stslex.workeeper.core.ui.mvi.di.AppDepsHolderKt flags=0x0011 typeParameters=[] superclass=java.lang.Object interfaces=[]
+  METHOD appDeps(Landroid/content/Context;)Ljava/lang/Object; flags=0x1019 typeParameters=[T:java.lang.Object] genericReturn=T genericParameters=[android.content.Context] throws=[]
+
+CLASS io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers flags=0x0011 typeParameters=[] superclass=java.lang.Object interfaces=[]
+  CONSTRUCTOR (Lkotlinx/coroutines/CoroutineDispatcher;Lkotlinx/coroutines/CoroutineDispatcher;)V flags=0x0001 typeParameters=[] genericParameters=[kotlinx.coroutines.CoroutineDispatcher, kotlinx.coroutines.CoroutineDispatcher] throws=[]
+  FIELD $stable I flags=0x0019 genericType=int
+  METHOD component1()Lkotlinx/coroutines/CoroutineDispatcher; flags=0x0011 typeParameters=[] genericReturn=kotlinx.coroutines.CoroutineDispatcher genericParameters=[] throws=[]
+  METHOD component2()Lkotlinx/coroutines/CoroutineDispatcher; flags=0x0011 typeParameters=[] genericReturn=kotlinx.coroutines.CoroutineDispatcher genericParameters=[] throws=[]
+  METHOD copy(Lkotlinx/coroutines/CoroutineDispatcher;Lkotlinx/coroutines/CoroutineDispatcher;)Lio/github/stslex/workeeper/core/ui/mvi/di/StoreDispatchers; flags=0x0011 typeParameters=[] genericReturn=io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers genericParameters=[kotlinx.coroutines.CoroutineDispatcher, kotlinx.coroutines.CoroutineDispatcher] throws=[]
+  METHOD copy$default(Lio/github/stslex/workeeper/core/ui/mvi/di/StoreDispatchers;Lkotlinx/coroutines/CoroutineDispatcher;Lkotlinx/coroutines/CoroutineDispatcher;ILjava/lang/Object;)Lio/github/stslex/workeeper/core/ui/mvi/di/StoreDispatchers; flags=0x1009 typeParameters=[] genericReturn=io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers genericParameters=[io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers, kotlinx.coroutines.CoroutineDispatcher, kotlinx.coroutines.CoroutineDispatcher, int, java.lang.Object] throws=[]
+  METHOD equals(Ljava/lang/Object;)Z flags=0x0001 typeParameters=[] genericReturn=boolean genericParameters=[java.lang.Object] throws=[]
+  METHOD getDefaultDispatcher()Lkotlinx/coroutines/CoroutineDispatcher; flags=0x0011 typeParameters=[] genericReturn=kotlinx.coroutines.CoroutineDispatcher genericParameters=[] throws=[]
+  METHOD getDefaultDispatcher$annotations()V flags=0x1009 typeParameters=[] genericReturn=void genericParameters=[] throws=[]
+  METHOD getMainImmediateDispatcher()Lkotlinx/coroutines/CoroutineDispatcher; flags=0x0011 typeParameters=[] genericReturn=kotlinx.coroutines.CoroutineDispatcher genericParameters=[] throws=[]
+  METHOD getMainImmediateDispatcher$annotations()V flags=0x1009 typeParameters=[] genericReturn=void genericParameters=[] throws=[]
+  METHOD hashCode()I flags=0x0001 typeParameters=[] genericReturn=int genericParameters=[] throws=[]
+  METHOD toString()Ljava/lang/String; flags=0x0001 typeParameters=[] genericReturn=java.lang.String genericParameters=[] throws=[]
+
+CLASS io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers$MetroFactory flags=0x0019 typeParameters=[] superclass=java.lang.Object interfaces=[dev.zacsweers.metro.internal.Factory<io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers>]
+  CONSTRUCTOR (Ldev/zacsweers/metro/Provider;Ldev/zacsweers/metro/Provider;Lkotlin/jvm/internal/DefaultConstructorMarker;)V flags=0x1001 typeParameters=[] genericParameters=[dev.zacsweers.metro.Provider, dev.zacsweers.metro.Provider, kotlin.jvm.internal.DefaultConstructorMarker] throws=[]
+  FIELD $stable I flags=0x0019 genericType=int
+  FIELD Companion Lio/github/stslex/workeeper/core/ui/mvi/di/StoreDispatchers$MetroFactory$Companion; flags=0x0019 genericType=io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers$MetroFactory$Companion
+  METHOD create(Ldev/zacsweers/metro/Provider;Ldev/zacsweers/metro/Provider;)Lio/github/stslex/workeeper/core/ui/mvi/di/StoreDispatchers$MetroFactory; flags=0x0019 typeParameters=[] genericReturn=io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers$MetroFactory genericParameters=[dev.zacsweers.metro.Provider<kotlinx.coroutines.CoroutineDispatcher>, dev.zacsweers.metro.Provider<kotlinx.coroutines.CoroutineDispatcher>] throws=[]
+  METHOD invoke()Lio/github/stslex/workeeper/core/ui/mvi/di/StoreDispatchers; flags=0x0011 typeParameters=[] genericReturn=io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers genericParameters=[] throws=[]
+  METHOD invoke()Ljava/lang/Object; flags=0x1041 typeParameters=[] genericReturn=java.lang.Object genericParameters=[] throws=[]
+  METHOD mirrorFunction(Lkotlinx/coroutines/CoroutineDispatcher;Lkotlinx/coroutines/CoroutineDispatcher;)Lio/github/stslex/workeeper/core/ui/mvi/di/StoreDispatchers; flags=0x0011 typeParameters=[] genericReturn=io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers genericParameters=[kotlinx.coroutines.CoroutineDispatcher, kotlinx.coroutines.CoroutineDispatcher] throws=[]
+  METHOD newInstance(Lkotlinx/coroutines/CoroutineDispatcher;Lkotlinx/coroutines/CoroutineDispatcher;)Lio/github/stslex/workeeper/core/ui/mvi/di/StoreDispatchers; flags=0x0019 typeParameters=[] genericReturn=io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers genericParameters=[kotlinx.coroutines.CoroutineDispatcher, kotlinx.coroutines.CoroutineDispatcher] throws=[]
+
+CLASS io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers$MetroFactory$Companion flags=0x0019 typeParameters=[] superclass=java.lang.Object interfaces=[]
+  CONSTRUCTOR (Lkotlin/jvm/internal/DefaultConstructorMarker;)V flags=0x1001 typeParameters=[] genericParameters=[kotlin.jvm.internal.DefaultConstructorMarker] throws=[]
+  METHOD create(Ldev/zacsweers/metro/Provider;Ldev/zacsweers/metro/Provider;)Lio/github/stslex/workeeper/core/ui/mvi/di/StoreDispatchers$MetroFactory; flags=0x0011 typeParameters=[] genericReturn=io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers$MetroFactory genericParameters=[dev.zacsweers.metro.Provider<kotlinx.coroutines.CoroutineDispatcher>, dev.zacsweers.metro.Provider<kotlinx.coroutines.CoroutineDispatcher>] throws=[]
+  METHOD newInstance(Lkotlinx/coroutines/CoroutineDispatcher;Lkotlinx/coroutines/CoroutineDispatcher;)Lio/github/stslex/workeeper/core/ui/mvi/di/StoreDispatchers; flags=0x0011 typeParameters=[] genericReturn=io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers genericParameters=[kotlinx.coroutines.CoroutineDispatcher, kotlinx.coroutines.CoroutineDispatcher] throws=[]
+
+CLASS io.github.stslex.workeeper.core.ui.mvi.handler.BaseHandlerStore flags=0x0001 typeParameters=[S:io.github.stslex.workeeper.core.ui.mvi.Store$State, A:io.github.stslex.workeeper.core.ui.mvi.Store$Action, E:io.github.stslex.workeeper.core.ui.mvi.Store$Event] superclass=java.lang.Object interfaces=[io.github.stslex.workeeper.core.ui.mvi.handler.HandlerStore<S, A, E>, io.github.stslex.workeeper.core.ui.mvi.handler.HandlerStoreEmitter<S, A, E>]
+  CONSTRUCTOR ()V flags=0x0001 typeParameters=[] genericParameters=[] throws=[]
+  FIELD $stable I flags=0x0019 genericType=int
+  METHOD clearStore()V flags=0x0001 typeParameters=[] genericReturn=void genericParameters=[] throws=[]
+  METHOD consume(Lio/github/stslex/workeeper/core/ui/mvi/Store$Action;)V flags=0x0001 typeParameters=[] genericReturn=void genericParameters=[A] throws=[]
+  METHOD consumeOnMain(Lio/github/stslex/workeeper/core/ui/mvi/Store$Action;Lkotlin/coroutines/Continuation;)Ljava/lang/Object; flags=0x0001 typeParameters=[] genericReturn=java.lang.Object genericParameters=[A, kotlin.coroutines.Continuation<? super kotlin.Unit>] throws=[]
+  METHOD getLastAction()Lio/github/stslex/workeeper/core/ui/mvi/Store$Action; flags=0x0001 typeParameters=[] genericReturn=A genericParameters=[] throws=[]
+  METHOD getLogger()Lio/github/stslex/workeeper/core/core/logger/Logger; flags=0x0001 typeParameters=[] genericReturn=io.github.stslex.workeeper.core.core.logger.Logger genericParameters=[] throws=[]
+  METHOD getState()Lkotlinx/coroutines/flow/StateFlow; flags=0x0001 typeParameters=[] genericReturn=kotlinx.coroutines.flow.StateFlow<S> genericParameters=[] throws=[]
+  METHOD launch(Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function3;Lkotlinx/coroutines/CoroutineDispatcher;Lkotlinx/coroutines/CoroutineDispatcher;Lkotlin/jvm/functions/Function2;)Lkotlinx/coroutines/Job; flags=0x0001 typeParameters=[T:java.lang.Object] genericReturn=kotlinx.coroutines.Job genericParameters=[kotlin.jvm.functions.Function2<? super java.lang.Throwable, ? super kotlin.coroutines.Continuation<? super kotlin.Unit>, ?>, kotlin.jvm.functions.Function3<? super kotlinx.coroutines.CoroutineScope, ? super T, ? super kotlin.coroutines.Continuation<? super kotlin.Unit>, ?>, kotlinx.coroutines.CoroutineDispatcher, kotlinx.coroutines.CoroutineDispatcher, kotlin.jvm.functions.Function2<? super kotlinx.coroutines.CoroutineScope, ? super kotlin.coroutines.Continuation<? super T>, ?>] throws=[]
+  METHOD launch(Lkotlinx/coroutines/flow/Flow;Lkotlin/jvm/functions/Function2;Lkotlinx/coroutines/CoroutineDispatcher;Lkotlinx/coroutines/CoroutineDispatcher;Lkotlin/jvm/functions/Function2;)Lkotlinx/coroutines/Job; flags=0x0001 typeParameters=[T:java.lang.Object] genericReturn=kotlinx.coroutines.Job genericParameters=[kotlinx.coroutines.flow.Flow<? extends T>, kotlin.jvm.functions.Function2<? super java.lang.Throwable, ? super kotlin.coroutines.Continuation<? super kotlin.Unit>, ?>, kotlinx.coroutines.CoroutineDispatcher, kotlinx.coroutines.CoroutineDispatcher, kotlin.jvm.functions.Function2<? super T, ? super kotlin.coroutines.Continuation<? super kotlin.Unit>, ?>] throws=[]
+  METHOD launchDefault(Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function2;)Lkotlinx/coroutines/Job; flags=0x0001 typeParameters=[T:java.lang.Object] genericReturn=kotlinx.coroutines.Job genericParameters=[kotlin.jvm.functions.Function2<? super java.lang.Throwable, ? super kotlin.coroutines.Continuation<? super kotlin.Unit>, ?>, kotlin.jvm.functions.Function3<? super kotlinx.coroutines.CoroutineScope, ? super T, ? super kotlin.coroutines.Continuation<? super kotlin.Unit>, ?>, kotlin.jvm.functions.Function2<? super kotlinx.coroutines.CoroutineScope, ? super kotlin.coroutines.Continuation<? super T>, ?>] throws=[]
+  METHOD sendEvent(Lio/github/stslex/workeeper/core/ui/mvi/Store$Event;)V flags=0x0001 typeParameters=[] genericReturn=void genericParameters=[E] throws=[]
+  METHOD setStore(Lio/github/stslex/workeeper/core/ui/mvi/store/StoreConsumer;)V flags=0x0001 typeParameters=[] genericReturn=void genericParameters=[io.github.stslex.workeeper.core.ui.mvi.store.StoreConsumer<S, A, ? super E>] throws=[]
+  METHOD updateState(Lkotlin/jvm/functions/Function1;)V flags=0x0001 typeParameters=[] genericReturn=void genericParameters=[kotlin.jvm.functions.Function1<? super S, ? extends S>] throws=[]
+  METHOD updateStateImmediate(Lio/github/stslex/workeeper/core/ui/mvi/Store$State;Lkotlin/coroutines/Continuation;)Ljava/lang/Object; flags=0x0001 typeParameters=[] genericReturn=java.lang.Object genericParameters=[S, kotlin.coroutines.Continuation<? super kotlin.Unit>] throws=[]
+  METHOD updateStateImmediate(Lkotlin/jvm/functions/Function2;Lkotlin/coroutines/Continuation;)Ljava/lang/Object; flags=0x0001 typeParameters=[] genericReturn=java.lang.Object genericParameters=[kotlin.jvm.functions.Function2<? super S, ? super kotlin.coroutines.Continuation<? super S>, ?>, kotlin.coroutines.Continuation<? super kotlin.Unit>] throws=[]
+
+CLASS io.github.stslex.workeeper.core.ui.mvi.handler.Handler flags=0x0601 typeParameters=[A:io.github.stslex.workeeper.core.ui.mvi.Store$Action] superclass=- interfaces=[]
+  METHOD invoke(Lio/github/stslex/workeeper/core/ui/mvi/Store$Action;)V flags=0x0401 typeParameters=[] genericReturn=void genericParameters=[A] throws=[]
+
+CLASS io.github.stslex.workeeper.core.ui.mvi.handler.HandlerCreator flags=0x0601 typeParameters=[A:io.github.stslex.workeeper.core.ui.mvi.Store$Action] superclass=- interfaces=[]
+  METHOD invoke(Lio/github/stslex/workeeper/core/ui/mvi/Store$Action;)Lio/github/stslex/workeeper/core/ui/mvi/handler/Handler; flags=0x0401 typeParameters=[] genericReturn=io.github.stslex.workeeper.core.ui.mvi.handler.Handler<?> genericParameters=[A] throws=[]
+
+CLASS io.github.stslex.workeeper.core.ui.mvi.handler.HandlerStore flags=0x0601 typeParameters=[S:io.github.stslex.workeeper.core.ui.mvi.Store$State, A:io.github.stslex.workeeper.core.ui.mvi.Store$Action, E:io.github.stslex.workeeper.core.ui.mvi.Store$Event] superclass=- interfaces=[]
+  METHOD consume(Lio/github/stslex/workeeper/core/ui/mvi/Store$Action;)V flags=0x0401 typeParameters=[] genericReturn=void genericParameters=[A] throws=[]
+  METHOD consumeOnMain(Lio/github/stslex/workeeper/core/ui/mvi/Store$Action;Lkotlin/coroutines/Continuation;)Ljava/lang/Object; flags=0x0401 typeParameters=[] genericReturn=java.lang.Object genericParameters=[A, kotlin.coroutines.Continuation<? super kotlin.Unit>] throws=[]
+  METHOD getLastAction()Lio/github/stslex/workeeper/core/ui/mvi/Store$Action; flags=0x0401 typeParameters=[] genericReturn=A genericParameters=[] throws=[]
+  METHOD getLogger()Lio/github/stslex/workeeper/core/core/logger/Logger; flags=0x0401 typeParameters=[] genericReturn=io.github.stslex.workeeper.core.core.logger.Logger genericParameters=[] throws=[]
+  METHOD getState()Lkotlinx/coroutines/flow/StateFlow; flags=0x0401 typeParameters=[] genericReturn=kotlinx.coroutines.flow.StateFlow<S> genericParameters=[] throws=[]
+  METHOD launch(Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function3;Lkotlinx/coroutines/CoroutineDispatcher;Lkotlinx/coroutines/CoroutineDispatcher;Lkotlin/jvm/functions/Function2;)Lkotlinx/coroutines/Job; flags=0x0401 typeParameters=[T:java.lang.Object] genericReturn=kotlinx.coroutines.Job genericParameters=[kotlin.jvm.functions.Function2<? super java.lang.Throwable, ? super kotlin.coroutines.Continuation<? super kotlin.Unit>, ?>, kotlin.jvm.functions.Function3<? super kotlinx.coroutines.CoroutineScope, ? super T, ? super kotlin.coroutines.Continuation<? super kotlin.Unit>, ?>, kotlinx.coroutines.CoroutineDispatcher, kotlinx.coroutines.CoroutineDispatcher, kotlin.jvm.functions.Function2<? super kotlinx.coroutines.CoroutineScope, ? super kotlin.coroutines.Continuation<? super T>, ?>] throws=[]
+  METHOD launch(Lkotlinx/coroutines/flow/Flow;Lkotlin/jvm/functions/Function2;Lkotlinx/coroutines/CoroutineDispatcher;Lkotlinx/coroutines/CoroutineDispatcher;Lkotlin/jvm/functions/Function2;)Lkotlinx/coroutines/Job; flags=0x0401 typeParameters=[T:java.lang.Object] genericReturn=kotlinx.coroutines.Job genericParameters=[kotlinx.coroutines.flow.Flow<? extends T>, kotlin.jvm.functions.Function2<? super java.lang.Throwable, ? super kotlin.coroutines.Continuation<? super kotlin.Unit>, ?>, kotlinx.coroutines.CoroutineDispatcher, kotlinx.coroutines.CoroutineDispatcher, kotlin.jvm.functions.Function2<? super T, ? super kotlin.coroutines.Continuation<? super kotlin.Unit>, ?>] throws=[]
+  METHOD launch$default(Lio/github/stslex/workeeper/core/ui/mvi/handler/HandlerStore;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function3;Lkotlinx/coroutines/CoroutineDispatcher;Lkotlinx/coroutines/CoroutineDispatcher;Lkotlin/jvm/functions/Function2;ILjava/lang/Object;)Lkotlinx/coroutines/Job; flags=0x1009 typeParameters=[] genericReturn=kotlinx.coroutines.Job genericParameters=[io.github.stslex.workeeper.core.ui.mvi.handler.HandlerStore, kotlin.jvm.functions.Function2, kotlin.jvm.functions.Function3, kotlinx.coroutines.CoroutineDispatcher, kotlinx.coroutines.CoroutineDispatcher, kotlin.jvm.functions.Function2, int, java.lang.Object] throws=[]
+  METHOD launch$default(Lio/github/stslex/workeeper/core/ui/mvi/handler/HandlerStore;Lkotlinx/coroutines/flow/Flow;Lkotlin/jvm/functions/Function2;Lkotlinx/coroutines/CoroutineDispatcher;Lkotlinx/coroutines/CoroutineDispatcher;Lkotlin/jvm/functions/Function2;ILjava/lang/Object;)Lkotlinx/coroutines/Job; flags=0x1009 typeParameters=[] genericReturn=kotlinx.coroutines.Job genericParameters=[io.github.stslex.workeeper.core.ui.mvi.handler.HandlerStore, kotlinx.coroutines.flow.Flow, kotlin.jvm.functions.Function2, kotlinx.coroutines.CoroutineDispatcher, kotlinx.coroutines.CoroutineDispatcher, kotlin.jvm.functions.Function2, int, java.lang.Object] throws=[]
+  METHOD launchDefault(Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function2;)Lkotlinx/coroutines/Job; flags=0x0401 typeParameters=[T:java.lang.Object] genericReturn=kotlinx.coroutines.Job genericParameters=[kotlin.jvm.functions.Function2<? super java.lang.Throwable, ? super kotlin.coroutines.Continuation<? super kotlin.Unit>, ?>, kotlin.jvm.functions.Function3<? super kotlinx.coroutines.CoroutineScope, ? super T, ? super kotlin.coroutines.Continuation<? super kotlin.Unit>, ?>, kotlin.jvm.functions.Function2<? super kotlinx.coroutines.CoroutineScope, ? super kotlin.coroutines.Continuation<? super T>, ?>] throws=[]
+  METHOD launchDefault$default(Lio/github/stslex/workeeper/core/ui/mvi/handler/HandlerStore;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function2;ILjava/lang/Object;)Lkotlinx/coroutines/Job; flags=0x1009 typeParameters=[] genericReturn=kotlinx.coroutines.Job genericParameters=[io.github.stslex.workeeper.core.ui.mvi.handler.HandlerStore, kotlin.jvm.functions.Function2, kotlin.jvm.functions.Function3, kotlin.jvm.functions.Function2, int, java.lang.Object] throws=[]
+  METHOD sendEvent(Lio/github/stslex/workeeper/core/ui/mvi/Store$Event;)V flags=0x0401 typeParameters=[] genericReturn=void genericParameters=[E] throws=[]
+  METHOD updateState(Lkotlin/jvm/functions/Function1;)V flags=0x0401 typeParameters=[] genericReturn=void genericParameters=[kotlin.jvm.functions.Function1<? super S, ? extends S>] throws=[]
+  METHOD updateStateImmediate(Lio/github/stslex/workeeper/core/ui/mvi/Store$State;Lkotlin/coroutines/Continuation;)Ljava/lang/Object; flags=0x0401 typeParameters=[] genericReturn=java.lang.Object genericParameters=[S, kotlin.coroutines.Continuation<? super kotlin.Unit>] throws=[]
+  METHOD updateStateImmediate(Lkotlin/jvm/functions/Function2;Lkotlin/coroutines/Continuation;)Ljava/lang/Object; flags=0x0401 typeParameters=[] genericReturn=java.lang.Object genericParameters=[kotlin.jvm.functions.Function2<? super S, ? super kotlin.coroutines.Continuation<? super S>, ?>, kotlin.coroutines.Continuation<? super kotlin.Unit>] throws=[]
+
+CLASS io.github.stslex.workeeper.core.ui.mvi.handler.HandlerStoreEmitter flags=0x0601 typeParameters=[S:io.github.stslex.workeeper.core.ui.mvi.Store$State, A:io.github.stslex.workeeper.core.ui.mvi.Store$Action, E:io.github.stslex.workeeper.core.ui.mvi.Store$Event] superclass=- interfaces=[]
+  METHOD clearStore()V flags=0x0401 typeParameters=[] genericReturn=void genericParameters=[] throws=[]
+  METHOD setStore(Lio/github/stslex/workeeper/core/ui/mvi/store/StoreConsumer;)V flags=0x0401 typeParameters=[] genericReturn=void genericParameters=[io.github.stslex.workeeper.core.ui.mvi.store.StoreConsumer<S, A, ? super E>] throws=[]
+
+CLASS io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder flags=0x0011 typeParameters=[] superclass=java.lang.Object interfaces=[]
+  CONSTRUCTOR ()V flags=0x0001 typeParameters=[] genericParameters=[] throws=[]
+  FIELD $stable I flags=0x0019 genericType=int
+  METHOD create(Ljava/lang/String;)Lio/github/stslex/workeeper/core/ui/mvi/holders/StoreAnalytics; flags=0x0011 typeParameters=[A:io.github.stslex.workeeper.core.ui.mvi.Store$Action, E:io.github.stslex.workeeper.core.ui.mvi.Store$Event] genericReturn=io.github.stslex.workeeper.core.ui.mvi.holders.StoreAnalytics<A, E> genericParameters=[java.lang.String] throws=[]
+
+CLASS io.github.stslex.workeeper.core.ui.mvi.holders.LoggerHolder flags=0x0011 typeParameters=[] superclass=java.lang.Object interfaces=[]
+  CONSTRUCTOR ()V flags=0x0001 typeParameters=[] genericParameters=[] throws=[]
+  FIELD $stable I flags=0x0019 genericType=int
+  METHOD create(Ljava/lang/String;)Lio/github/stslex/workeeper/core/core/logger/Logger; flags=0x0011 typeParameters=[] genericReturn=io.github.stslex.workeeper.core.core.logger.Logger genericParameters=[java.lang.String] throws=[]
+
+CLASS io.github.stslex.workeeper.core.ui.mvi.holders.LoggerHolder$MetroFactory flags=0x0019 typeParameters=[] superclass=java.lang.Object interfaces=[dev.zacsweers.metro.internal.Factory<io.github.stslex.workeeper.core.ui.mvi.holders.LoggerHolder>]
+  FIELD $stable I flags=0x0019 genericType=int
+  FIELD INSTANCE Lio/github/stslex/workeeper/core/ui/mvi/holders/LoggerHolder$MetroFactory; flags=0x0019 genericType=io.github.stslex.workeeper.core.ui.mvi.holders.LoggerHolder$MetroFactory
+  METHOD create()Lio/github/stslex/workeeper/core/ui/mvi/holders/LoggerHolder$MetroFactory; flags=0x0019 typeParameters=[] genericReturn=io.github.stslex.workeeper.core.ui.mvi.holders.LoggerHolder$MetroFactory genericParameters=[] throws=[]
+  METHOD invoke()Lio/github/stslex/workeeper/core/ui/mvi/holders/LoggerHolder; flags=0x0011 typeParameters=[] genericReturn=io.github.stslex.workeeper.core.ui.mvi.holders.LoggerHolder genericParameters=[] throws=[]
+  METHOD invoke()Ljava/lang/Object; flags=0x1041 typeParameters=[] genericReturn=java.lang.Object genericParameters=[] throws=[]
+  METHOD mirrorFunction()Lio/github/stslex/workeeper/core/ui/mvi/holders/LoggerHolder; flags=0x0011 typeParameters=[] genericReturn=io.github.stslex.workeeper.core.ui.mvi.holders.LoggerHolder genericParameters=[] throws=[]
+  METHOD newInstance()Lio/github/stslex/workeeper/core/ui/mvi/holders/LoggerHolder; flags=0x0019 typeParameters=[] genericReturn=io.github.stslex.workeeper.core.ui.mvi.holders.LoggerHolder genericParameters=[] throws=[]
+
+CLASS io.github.stslex.workeeper.core.ui.mvi.holders.StoreAnalytics flags=0x0011 typeParameters=[A:io.github.stslex.workeeper.core.ui.mvi.Store$Action, E:io.github.stslex.workeeper.core.ui.mvi.Store$Event] superclass=java.lang.Object interfaces=[]
+  CONSTRUCTOR (Ljava/lang/String;)V flags=0x0001 typeParameters=[] genericParameters=[java.lang.String] throws=[]
+  FIELD $stable I flags=0x0019 genericType=int
+  METHOD getName()Ljava/lang/String; flags=0x0011 typeParameters=[] genericReturn=java.lang.String genericParameters=[] throws=[]
+  METHOD logAction(Lio/github/stslex/workeeper/core/ui/mvi/Store$Action;)V flags=0x0011 typeParameters=[] genericReturn=void genericParameters=[A] throws=[]
+  METHOD logEvent(Lio/github/stslex/workeeper/core/ui/mvi/Store$Event;)V flags=0x0011 typeParameters=[] genericReturn=void genericParameters=[E] throws=[]
+  METHOD logLifecycleEvent(Landroidx/lifecycle/Lifecycle$Event;)V flags=0x0011 typeParameters=[] genericReturn=void genericParameters=[androidx.lifecycle.Lifecycle$Event] throws=[]
+
+CLASS io.github.stslex.workeeper.core.ui.mvi.performance.FirebasePerformanceBackend flags=0x0011 typeParameters=[] superclass=java.lang.Object interfaces=[io.github.stslex.workeeper.core.ui.mvi.performance.PerformanceBackend]
+  CONSTRUCTOR ()V flags=0x0001 typeParameters=[] genericParameters=[] throws=[]
+  CONSTRUCTOR (Lio/github/stslex/workeeper/core/ui/mvi/performance/PerfTraceFactory;)V flags=0x0001 typeParameters=[] genericParameters=[io.github.stslex.workeeper.core.ui.mvi.performance.PerfTraceFactory] throws=[]
+  CONSTRUCTOR (Lio/github/stslex/workeeper/core/ui/mvi/performance/PerfTraceFactory;ILkotlin/jvm/internal/DefaultConstructorMarker;)V flags=0x1001 typeParameters=[] genericParameters=[io.github.stslex.workeeper.core.ui.mvi.performance.PerfTraceFactory, int, kotlin.jvm.internal.DefaultConstructorMarker] throws=[]
+  FIELD $stable I flags=0x0019 genericType=int
+  METHOD process(Lio/github/stslex/workeeper/core/ui/mvi/performance/RecordAction;)V flags=0x0021 typeParameters=[] genericReturn=void genericParameters=[io.github.stslex.workeeper.core.ui.mvi.performance.RecordAction] throws=[]
+  METHOD withTraceFactoryForTest$Workeeper_core_ui_mvi(Lio/github/stslex/workeeper/core/ui/mvi/performance/PerfTraceFactory;Lkotlin/jvm/functions/Function0;)Ljava/lang/Object; flags=0x0011 typeParameters=[T:java.lang.Object] genericReturn=T genericParameters=[io.github.stslex.workeeper.core.ui.mvi.performance.PerfTraceFactory, kotlin.jvm.functions.Function0<? extends T>] throws=[]
+
+CLASS io.github.stslex.workeeper.core.ui.mvi.performance.FirebaseScreenRenderAdapter flags=0x0011 typeParameters=[] superclass=java.lang.Object interfaces=[io.github.stslex.workeeper.core.ui.mvi.performance.ScreenRenderRecorder]
+  CONSTRUCTOR (Landroid/app/Activity;Lio/github/stslex/workeeper/core/ui/mvi/performance/ScreenTraceSink;)V flags=0x0001 typeParameters=[] genericParameters=[android.app.Activity, io.github.stslex.workeeper.core.ui.mvi.performance.ScreenTraceSink] throws=[]
+  CONSTRUCTOR (Landroid/app/Activity;Lio/github/stslex/workeeper/core/ui/mvi/performance/ScreenTraceSink;ILkotlin/jvm/internal/DefaultConstructorMarker;)V flags=0x1001 typeParameters=[] genericParameters=[android.app.Activity, io.github.stslex.workeeper.core.ui.mvi.performance.ScreenTraceSink, int, kotlin.jvm.internal.DefaultConstructorMarker] throws=[]
+  FIELD $stable I flags=0x0019 genericType=int
+  METHOD getSink$Workeeper_core_ui_mvi()Lio/github/stslex/workeeper/core/ui/mvi/performance/ScreenTraceSink; flags=0x0011 typeParameters=[] genericReturn=io.github.stslex.workeeper.core.ui.mvi.performance.ScreenTraceSink genericParameters=[] throws=[]
+  METHOD start(Ljava/lang/String;)V flags=0x0001 typeParameters=[] genericReturn=void genericParameters=[java.lang.String] throws=[]
+  METHOD stop(Ljava/lang/String;)V flags=0x0001 typeParameters=[] genericReturn=void genericParameters=[java.lang.String] throws=[]
+
+CLASS io.github.stslex.workeeper.core.ui.mvi.performance.FirebaseScreenRenderRecorder flags=0x0011 typeParameters=[] superclass=java.lang.Object interfaces=[]
+  FIELD $stable I flags=0x0019 genericType=int
+  FIELD INSTANCE Lio/github/stslex/workeeper/core/ui/mvi/performance/FirebaseScreenRenderRecorder; flags=0x0019 genericType=io.github.stslex.workeeper.core.ui.mvi.performance.FirebaseScreenRenderRecorder
+  METHOD clearAllTraces()V flags=0x0011 typeParameters=[] genericReturn=void genericParameters=[] throws=[]
+  METHOD recordScreenTrace(Ljava/lang/String;Landroid/app/Activity;)V flags=0x0011 typeParameters=[] genericReturn=void genericParameters=[java.lang.String, android.app.Activity] throws=[]
+  METHOD stopScreenTrace(Ljava/lang/String;)V flags=0x0011 typeParameters=[] genericReturn=void genericParameters=[java.lang.String] throws=[]
+
+CLASS io.github.stslex.workeeper.core.ui.mvi.performance.FirebaseScreenTraceSink flags=0x0011 typeParameters=[] superclass=java.lang.Object interfaces=[io.github.stslex.workeeper.core.ui.mvi.performance.ScreenTraceSink]
+  FIELD $stable I flags=0x0019 genericType=int
+  FIELD INSTANCE Lio/github/stslex/workeeper/core/ui/mvi/performance/FirebaseScreenTraceSink; flags=0x0019 genericType=io.github.stslex.workeeper.core.ui.mvi.performance.FirebaseScreenTraceSink
+  METHOD start(Ljava/lang/String;Landroid/app/Activity;)V flags=0x0001 typeParameters=[] genericReturn=void genericParameters=[java.lang.String, android.app.Activity] throws=[]
+  METHOD stop(Ljava/lang/String;)V flags=0x0001 typeParameters=[] genericReturn=void genericParameters=[java.lang.String] throws=[]
+
+CLASS io.github.stslex.workeeper.core.ui.mvi.performance.FirebaseTraceFactory flags=0x0011 typeParameters=[] superclass=java.lang.Object interfaces=[io.github.stslex.workeeper.core.ui.mvi.performance.PerfTraceFactory]
+  FIELD $stable I flags=0x0019 genericType=int
+  FIELD INSTANCE Lio/github/stslex/workeeper/core/ui/mvi/performance/FirebaseTraceFactory; flags=0x0019 genericType=io.github.stslex.workeeper.core.ui.mvi.performance.FirebaseTraceFactory
+  METHOD create(Ljava/lang/String;)Lio/github/stslex/workeeper/core/ui/mvi/performance/PerfTrace; flags=0x0001 typeParameters=[] genericReturn=io.github.stslex.workeeper.core.ui.mvi.performance.PerfTrace genericParameters=[java.lang.String] throws=[]
+
+CLASS io.github.stslex.workeeper.core.ui.mvi.performance.PerfTrace flags=0x0601 typeParameters=[] superclass=- interfaces=[]
+  METHOD putAttribute(Ljava/lang/String;Ljava/lang/String;)V flags=0x0401 typeParameters=[] genericReturn=void genericParameters=[java.lang.String, java.lang.String] throws=[]
+  METHOD start()V flags=0x0401 typeParameters=[] genericReturn=void genericParameters=[] throws=[]
+  METHOD stop()V flags=0x0401 typeParameters=[] genericReturn=void genericParameters=[] throws=[]
+
+CLASS io.github.stslex.workeeper.core.ui.mvi.performance.PerfTraceFactory flags=0x0601 typeParameters=[] superclass=- interfaces=[]
+  METHOD create(Ljava/lang/String;)Lio/github/stslex/workeeper/core/ui/mvi/performance/PerfTrace; flags=0x0401 typeParameters=[] genericReturn=io.github.stslex.workeeper.core.ui.mvi.performance.PerfTrace genericParameters=[java.lang.String] throws=[]
+
+CLASS io.github.stslex.workeeper.core.ui.mvi.performance.PerformanceBackend flags=0x0601 typeParameters=[] superclass=- interfaces=[]
+  METHOD process(Lio/github/stslex/workeeper/core/ui/mvi/performance/RecordAction;)V flags=0x0401 typeParameters=[] genericReturn=void genericParameters=[io.github.stslex.workeeper.core.ui.mvi.performance.RecordAction] throws=[]
+
+CLASS io.github.stslex.workeeper.core.ui.mvi.performance.PerformanceBackend_androidKt flags=0x0011 typeParameters=[] superclass=java.lang.Object interfaces=[]
+  METHOD getPlatformPerformanceBackend()Lio/github/stslex/workeeper/core/ui/mvi/performance/PerformanceBackend; flags=0x0019 typeParameters=[] genericReturn=io.github.stslex.workeeper.core.ui.mvi.performance.PerformanceBackend genericParameters=[] throws=[]
+
+CLASS io.github.stslex.workeeper.core.ui.mvi.performance.PerformanceMetricsRecorder flags=0x0011 typeParameters=[] superclass=java.lang.Object interfaces=[]
+  FIELD $stable I flags=0x0019 genericType=int
+  FIELD INSTANCE Lio/github/stslex/workeeper/core/ui/mvi/performance/PerformanceMetricsRecorder; flags=0x0019 genericType=io.github.stslex.workeeper.core.ui.mvi.performance.PerformanceMetricsRecorder
+  METHOD process(Lio/github/stslex/workeeper/core/ui/mvi/performance/RecordAction;)V flags=0x0011 typeParameters=[] genericReturn=void genericParameters=[io.github.stslex.workeeper.core.ui.mvi.performance.RecordAction] throws=[]
+
+CLASS io.github.stslex.workeeper.core.ui.mvi.performance.PerformanceRecorder flags=0x0011 typeParameters=[] superclass=java.lang.Object interfaces=[]
+  CONSTRUCTOR (Lio/github/stslex/workeeper/core/ui/mvi/performance/PerformanceRecorder$RecordType;Lio/github/stslex/workeeper/core/ui/mvi/performance/PerfTraceFactory;)V flags=0x0001 typeParameters=[] genericParameters=[io.github.stslex.workeeper.core.ui.mvi.performance.PerformanceRecorder$RecordType, io.github.stslex.workeeper.core.ui.mvi.performance.PerfTraceFactory] throws=[]
+  CONSTRUCTOR (Lio/github/stslex/workeeper/core/ui/mvi/performance/PerformanceRecorder$RecordType;Lio/github/stslex/workeeper/core/ui/mvi/performance/PerfTraceFactory;ILkotlin/jvm/internal/DefaultConstructorMarker;)V flags=0x1001 typeParameters=[] genericParameters=[io.github.stslex.workeeper.core.ui.mvi.performance.PerformanceRecorder$RecordType, io.github.stslex.workeeper.core.ui.mvi.performance.PerfTraceFactory, int, kotlin.jvm.internal.DefaultConstructorMarker] throws=[]
+  FIELD $stable I flags=0x0019 genericType=int
+  FIELD Companion Lio/github/stslex/workeeper/core/ui/mvi/performance/PerformanceRecorder$Companion; flags=0x0019 genericType=io.github.stslex.workeeper.core.ui.mvi.performance.PerformanceRecorder$Companion
+  METHOD clear()V flags=0x0011 typeParameters=[] genericReturn=void genericParameters=[] throws=[]
+  METHOD getTracePrefix()Ljava/lang/String; flags=0x0011 typeParameters=[] genericReturn=java.lang.String genericParameters=[] throws=[]
+  METHOD getType()Lio/github/stslex/workeeper/core/ui/mvi/performance/PerformanceRecorder$RecordType; flags=0x0011 typeParameters=[] genericReturn=io.github.stslex.workeeper.core.ui.mvi.performance.PerformanceRecorder$RecordType genericParameters=[] throws=[]
+  METHOD start(Ljava/lang/String;[Lkotlin/Pair;)V flags=0x0091 typeParameters=[] genericReturn=void genericParameters=[java.lang.String, kotlin.Pair<java.lang.String, java.lang.String>[]] throws=[]
+  METHOD stop(Ljava/lang/String;)V flags=0x0011 typeParameters=[] genericReturn=void genericParameters=[java.lang.String] throws=[]
+
+CLASS io.github.stslex.workeeper.core.ui.mvi.performance.PerformanceRecorder$Companion flags=0x0019 typeParameters=[] superclass=java.lang.Object interfaces=[]
+  CONSTRUCTOR (Lkotlin/jvm/internal/DefaultConstructorMarker;)V flags=0x1001 typeParameters=[] genericParameters=[kotlin.jvm.internal.DefaultConstructorMarker] throws=[]
+
+CLASS io.github.stslex.workeeper.core.ui.mvi.performance.PerformanceRecorder$RecordType flags=0x4019 typeParameters=[] superclass=java.lang.Enum<io.github.stslex.workeeper.core.ui.mvi.performance.PerformanceRecorder$RecordType> interfaces=[]
+  FIELD ActivityCreate Lio/github/stslex/workeeper/core/ui/mvi/performance/PerformanceRecorder$RecordType; flags=0x4019 genericType=io.github.stslex.workeeper.core.ui.mvi.performance.PerformanceRecorder$RecordType
+  FIELD AppCreate Lio/github/stslex/workeeper/core/ui/mvi/performance/PerformanceRecorder$RecordType; flags=0x4019 genericType=io.github.stslex.workeeper.core.ui.mvi.performance.PerformanceRecorder$RecordType
+  FIELD TTID Lio/github/stslex/workeeper/core/ui/mvi/performance/PerformanceRecorder$RecordType; flags=0x4019 genericType=io.github.stslex.workeeper.core.ui.mvi.performance.PerformanceRecorder$RecordType
+  METHOD getEntries()Lkotlin/enums/EnumEntries; flags=0x0009 typeParameters=[] genericReturn=kotlin.enums.EnumEntries<io.github.stslex.workeeper.core.ui.mvi.performance.PerformanceRecorder$RecordType> genericParameters=[] throws=[]
+  METHOD getSingleShot()Z flags=0x0011 typeParameters=[] genericReturn=boolean genericParameters=[] throws=[]
+  METHOD getTag()Ljava/lang/String; flags=0x0011 typeParameters=[] genericReturn=java.lang.String genericParameters=[] throws=[]
+  METHOD valueOf(Ljava/lang/String;)Lio/github/stslex/workeeper/core/ui/mvi/performance/PerformanceRecorder$RecordType; flags=0x0009 typeParameters=[] genericReturn=io.github.stslex.workeeper.core.ui.mvi.performance.PerformanceRecorder$RecordType genericParameters=[java.lang.String] throws=[]
+  METHOD values()[Lio/github/stslex/workeeper/core/ui/mvi/performance/PerformanceRecorder$RecordType; flags=0x0009 typeParameters=[] genericReturn=io.github.stslex.workeeper.core.ui.mvi.performance.PerformanceRecorder$RecordType[] genericParameters=[] throws=[]
+
+CLASS io.github.stslex.workeeper.core.ui.mvi.performance.RecordAction flags=0x0601 typeParameters=[] superclass=- interfaces=[]
+
+CLASS io.github.stslex.workeeper.core.ui.mvi.performance.RecordAction$ActivityCreated flags=0x0019 typeParameters=[] superclass=java.lang.Object interfaces=[io.github.stslex.workeeper.core.ui.mvi.performance.RecordAction]
+  CONSTRUCTOR (Z)V flags=0x0001 typeParameters=[] genericParameters=[boolean] throws=[]
+  FIELD $stable I flags=0x0019 genericType=int
+  METHOD component1()Z flags=0x0011 typeParameters=[] genericReturn=boolean genericParameters=[] throws=[]
+  METHOD copy(Z)Lio/github/stslex/workeeper/core/ui/mvi/performance/RecordAction$ActivityCreated; flags=0x0011 typeParameters=[] genericReturn=io.github.stslex.workeeper.core.ui.mvi.performance.RecordAction$ActivityCreated genericParameters=[boolean] throws=[]
+  METHOD copy$default(Lio/github/stslex/workeeper/core/ui/mvi/performance/RecordAction$ActivityCreated;ZILjava/lang/Object;)Lio/github/stslex/workeeper/core/ui/mvi/performance/RecordAction$ActivityCreated; flags=0x1009 typeParameters=[] genericReturn=io.github.stslex.workeeper.core.ui.mvi.performance.RecordAction$ActivityCreated genericParameters=[io.github.stslex.workeeper.core.ui.mvi.performance.RecordAction$ActivityCreated, boolean, int, java.lang.Object] throws=[]
+  METHOD equals(Ljava/lang/Object;)Z flags=0x0001 typeParameters=[] genericReturn=boolean genericParameters=[java.lang.Object] throws=[]
+  METHOD getColdStart()Z flags=0x0011 typeParameters=[] genericReturn=boolean genericParameters=[] throws=[]
+  METHOD hashCode()I flags=0x0001 typeParameters=[] genericReturn=int genericParameters=[] throws=[]
+  METHOD toString()Ljava/lang/String; flags=0x0001 typeParameters=[] genericReturn=java.lang.String genericParameters=[] throws=[]
+
+CLASS io.github.stslex.workeeper.core.ui.mvi.performance.RecordAction$AppCreated flags=0x0019 typeParameters=[] superclass=java.lang.Object interfaces=[io.github.stslex.workeeper.core.ui.mvi.performance.RecordAction]
+  FIELD $stable I flags=0x0019 genericType=int
+  FIELD INSTANCE Lio/github/stslex/workeeper/core/ui/mvi/performance/RecordAction$AppCreated; flags=0x0019 genericType=io.github.stslex.workeeper.core.ui.mvi.performance.RecordAction$AppCreated
+  METHOD equals(Ljava/lang/Object;)Z flags=0x0001 typeParameters=[] genericReturn=boolean genericParameters=[java.lang.Object] throws=[]
+  METHOD hashCode()I flags=0x0001 typeParameters=[] genericReturn=int genericParameters=[] throws=[]
+  METHOD toString()Ljava/lang/String; flags=0x0001 typeParameters=[] genericReturn=java.lang.String genericParameters=[] throws=[]
+
+CLASS io.github.stslex.workeeper.core.ui.mvi.performance.RecordAction$ClearTraces flags=0x0019 typeParameters=[] superclass=java.lang.Object interfaces=[io.github.stslex.workeeper.core.ui.mvi.performance.RecordAction]
+  FIELD $stable I flags=0x0019 genericType=int
+  FIELD INSTANCE Lio/github/stslex/workeeper/core/ui/mvi/performance/RecordAction$ClearTraces; flags=0x0019 genericType=io.github.stslex.workeeper.core.ui.mvi.performance.RecordAction$ClearTraces
+  METHOD equals(Ljava/lang/Object;)Z flags=0x0001 typeParameters=[] genericReturn=boolean genericParameters=[java.lang.Object] throws=[]
+  METHOD hashCode()I flags=0x0001 typeParameters=[] genericReturn=int genericParameters=[] throws=[]
+  METHOD toString()Ljava/lang/String; flags=0x0001 typeParameters=[] genericReturn=java.lang.String genericParameters=[] throws=[]
+
+CLASS io.github.stslex.workeeper.core.ui.mvi.performance.RecordAction$Navigation flags=0x0409 typeParameters=[S:io.github.stslex.workeeper.core.ui.navigation.Screen] superclass=java.lang.Object interfaces=[io.github.stslex.workeeper.core.ui.mvi.performance.RecordAction]
+  CONSTRUCTOR (Lkotlin/reflect/KClass;Ljava/lang/String;Lkotlin/jvm/internal/DefaultConstructorMarker;)V flags=0x1001 typeParameters=[] genericParameters=[kotlin.reflect.KClass, java.lang.String, kotlin.jvm.internal.DefaultConstructorMarker] throws=[]
+  FIELD $stable I flags=0x0019 genericType=int
+  METHOD getNavType()Ljava/lang/String; flags=0x0011 typeParameters=[] genericReturn=java.lang.String genericParameters=[] throws=[]
+  METHOD getScreen()Lkotlin/reflect/KClass; flags=0x0011 typeParameters=[] genericReturn=kotlin.reflect.KClass<S> genericParameters=[] throws=[]
+
+CLASS io.github.stslex.workeeper.core.ui.mvi.performance.RecordAction$Navigation$NavTo flags=0x0019 typeParameters=[S:io.github.stslex.workeeper.core.ui.navigation.Screen] superclass=io.github.stslex.workeeper.core.ui.mvi.performance.RecordAction$Navigation<S> interfaces=[]
+  CONSTRUCTOR (Lkotlin/reflect/KClass;)V flags=0x0001 typeParameters=[] genericParameters=[kotlin.reflect.KClass<S>] throws=[]
+  FIELD $stable I flags=0x0019 genericType=int
+
+CLASS io.github.stslex.workeeper.core.ui.mvi.performance.RecordAction$Navigation$ReplaceTo flags=0x0019 typeParameters=[S:io.github.stslex.workeeper.core.ui.navigation.Screen] superclass=io.github.stslex.workeeper.core.ui.mvi.performance.RecordAction$Navigation<S> interfaces=[]
+  CONSTRUCTOR (Lkotlin/reflect/KClass;)V flags=0x0001 typeParameters=[] genericParameters=[kotlin.reflect.KClass<S>] throws=[]
+  FIELD $stable I flags=0x0019 genericType=int
+
+CLASS io.github.stslex.workeeper.core.ui.mvi.performance.RecordAction$OnScreenPlaced flags=0x0019 typeParameters=[S:io.github.stslex.workeeper.core.ui.navigation.Screen] superclass=java.lang.Object interfaces=[io.github.stslex.workeeper.core.ui.mvi.performance.RecordAction]
+  CONSTRUCTOR (Lkotlin/reflect/KClass;)V flags=0x0001 typeParameters=[] genericParameters=[kotlin.reflect.KClass<S>] throws=[]
+  FIELD $stable I flags=0x0019 genericType=int
+  METHOD component1()Lkotlin/reflect/KClass; flags=0x0011 typeParameters=[] genericReturn=kotlin.reflect.KClass<S> genericParameters=[] throws=[]
+  METHOD copy(Lkotlin/reflect/KClass;)Lio/github/stslex/workeeper/core/ui/mvi/performance/RecordAction$OnScreenPlaced; flags=0x0011 typeParameters=[] genericReturn=io.github.stslex.workeeper.core.ui.mvi.performance.RecordAction$OnScreenPlaced<S> genericParameters=[kotlin.reflect.KClass<S>] throws=[]
+  METHOD copy$default(Lio/github/stslex/workeeper/core/ui/mvi/performance/RecordAction$OnScreenPlaced;Lkotlin/reflect/KClass;ILjava/lang/Object;)Lio/github/stslex/workeeper/core/ui/mvi/performance/RecordAction$OnScreenPlaced; flags=0x1009 typeParameters=[] genericReturn=io.github.stslex.workeeper.core.ui.mvi.performance.RecordAction$OnScreenPlaced genericParameters=[io.github.stslex.workeeper.core.ui.mvi.performance.RecordAction$OnScreenPlaced, kotlin.reflect.KClass, int, java.lang.Object] throws=[]
+  METHOD equals(Ljava/lang/Object;)Z flags=0x0001 typeParameters=[] genericReturn=boolean genericParameters=[java.lang.Object] throws=[]
+  METHOD getScreen()Lkotlin/reflect/KClass; flags=0x0011 typeParameters=[] genericReturn=kotlin.reflect.KClass<S> genericParameters=[] throws=[]
+  METHOD hashCode()I flags=0x0001 typeParameters=[] genericReturn=int genericParameters=[] throws=[]
+  METHOD toString()Ljava/lang/String; flags=0x0001 typeParameters=[] genericReturn=java.lang.String genericParameters=[] throws=[]
+
+CLASS io.github.stslex.workeeper.core.ui.mvi.performance.ScreenRenderRecorder flags=0x0601 typeParameters=[] superclass=- interfaces=[]
+  METHOD start(Ljava/lang/String;)V flags=0x0401 typeParameters=[] genericReturn=void genericParameters=[java.lang.String] throws=[]
+  METHOD stop(Ljava/lang/String;)V flags=0x0401 typeParameters=[] genericReturn=void genericParameters=[java.lang.String] throws=[]
+
+CLASS io.github.stslex.workeeper.core.ui.mvi.performance.ScreenRenderRecorderKt flags=0x0011 typeParameters=[] superclass=java.lang.Object interfaces=[]
+  METHOD getLocalScreenRenderRecorder()Landroidx/compose/runtime/ProvidableCompositionLocal; flags=0x0019 typeParameters=[] genericReturn=androidx.compose.runtime.ProvidableCompositionLocal<io.github.stslex.workeeper.core.ui.mvi.performance.ScreenRenderRecorder> genericParameters=[] throws=[]
+  METHOD rememberScreenRenderRecorder(Landroidx/compose/runtime/Composer;I)Lio/github/stslex/workeeper/core/ui/mvi/performance/ScreenRenderRecorder; flags=0x0019 typeParameters=[] genericReturn=io.github.stslex.workeeper.core.ui.mvi.performance.ScreenRenderRecorder genericParameters=[androidx.compose.runtime.Composer, int] throws=[]
+
+CLASS io.github.stslex.workeeper.core.ui.mvi.performance.ScreenRenderRecorder_androidKt flags=0x0011 typeParameters=[] superclass=java.lang.Object interfaces=[]
+  METHOD rememberPlatformScreenRenderRecorder(Landroidx/compose/runtime/Composer;I)Lio/github/stslex/workeeper/core/ui/mvi/performance/ScreenRenderRecorder; flags=0x0019 typeParameters=[] genericReturn=io.github.stslex.workeeper.core.ui.mvi.performance.ScreenRenderRecorder genericParameters=[androidx.compose.runtime.Composer, int] throws=[]
+
+CLASS io.github.stslex.workeeper.core.ui.mvi.performance.ScreenTraceSink flags=0x0601 typeParameters=[] superclass=- interfaces=[]
+  METHOD start(Ljava/lang/String;Landroid/app/Activity;)V flags=0x0401 typeParameters=[] genericReturn=void genericParameters=[java.lang.String, android.app.Activity] throws=[]
+  METHOD stop(Ljava/lang/String;)V flags=0x0401 typeParameters=[] genericReturn=void genericParameters=[java.lang.String] throws=[]
+
+CLASS io.github.stslex.workeeper.core.ui.mvi.processor.ActionProcessor flags=0x0011 typeParameters=[A:io.github.stslex.workeeper.core.ui.mvi.Store$Action, TStore:io.github.stslex.workeeper.core.ui.mvi.Store<?, ? super A, ?>] superclass=java.lang.Object interfaces=[]
+  CONSTRUCTOR (Lio/github/stslex/workeeper/core/ui/mvi/Store;)V flags=0x0001 typeParameters=[] genericParameters=[TStore] throws=[]
+  FIELD $stable I flags=0x0019 genericType=int
+  METHOD getStore()Lio/github/stslex/workeeper/core/ui/mvi/Store; flags=0x0011 typeParameters=[] genericReturn=TStore genericParameters=[] throws=[]
+  METHOD invoke(Lio/github/stslex/workeeper/core/ui/mvi/Store$Action;)V flags=0x0011 typeParameters=[] genericReturn=void genericParameters=[A] throws=[]
+
+CLASS io.github.stslex.workeeper.core.ui.mvi.processor.EffectsProcessor flags=0x0011 typeParameters=[E:io.github.stslex.workeeper.core.ui.mvi.Store$Event, TStore:io.github.stslex.workeeper.core.ui.mvi.Store<?, ?, ? extends E>] superclass=java.lang.Object interfaces=[]
+  CONSTRUCTOR (Lio/github/stslex/workeeper/core/ui/mvi/Store;)V flags=0x0001 typeParameters=[] genericParameters=[TStore] throws=[]
+  FIELD $stable I flags=0x0019 genericType=int
+  METHOD getStore()Lio/github/stslex/workeeper/core/ui/mvi/Store; flags=0x0011 typeParameters=[] genericReturn=TStore genericParameters=[] throws=[]
+  METHOD invoke(Lio/github/stslex/workeeper/core/ui/mvi/processor/SuspendProcessor;Landroidx/compose/runtime/Composer;I)V flags=0x0011 typeParameters=[] genericReturn=void genericParameters=[io.github.stslex.workeeper.core.ui.mvi.processor.SuspendProcessor<E>, androidx.compose.runtime.Composer, int] throws=[]
+
+CLASS io.github.stslex.workeeper.core.ui.mvi.processor.MetroStoreProcessorKt flags=0x0011 typeParameters=[] superclass=java.lang.Object interfaces=[]
+  METHOD rememberMetroStoreProcessor(Lkotlin/jvm/functions/Function0;Landroidx/compose/runtime/Composer;I)Lio/github/stslex/workeeper/core/ui/mvi/processor/StoreProcessor; flags=0x1019 typeParameters=[TStoreImpl:io.github.stslex.workeeper.core.ui.mvi.BaseStore<?, ?, ?>] genericReturn=io.github.stslex.workeeper.core.ui.mvi.processor.StoreProcessor<?, ?, ?> genericParameters=[kotlin.jvm.functions.Function0<? extends TStoreImpl>, androidx.compose.runtime.Composer, int] throws=[]
+
+CLASS io.github.stslex.workeeper.core.ui.mvi.processor.StoreCreator flags=0x0601 typeParameters=[TStoreImpl:io.github.stslex.workeeper.core.ui.mvi.BaseStore<?, ?, ?>] superclass=- interfaces=[]
+  METHOD invoke(Landroidx/compose/runtime/Composer;I)Lio/github/stslex/workeeper/core/ui/mvi/BaseStore; flags=0x0401 typeParameters=[] genericReturn=TStoreImpl genericParameters=[androidx.compose.runtime.Composer, int] throws=[]
+
+CLASS io.github.stslex.workeeper.core.ui.mvi.processor.StoreProcessor flags=0x0601 typeParameters=[S:io.github.stslex.workeeper.core.ui.mvi.Store$State, A:io.github.stslex.workeeper.core.ui.mvi.Store$Action, E:io.github.stslex.workeeper.core.ui.mvi.Store$Event] superclass=- interfaces=[]
+  METHOD Handle(Lio/github/stslex/workeeper/core/ui/mvi/processor/SuspendProcessor;Landroidx/compose/runtime/Composer;I)V flags=0x0401 typeParameters=[] genericReturn=void genericParameters=[io.github.stslex.workeeper.core.ui.mvi.processor.SuspendProcessor<E>, androidx.compose.runtime.Composer, int] throws=[]
+  METHOD consume(Lio/github/stslex/workeeper/core/ui/mvi/Store$Action;)V flags=0x0401 typeParameters=[] genericReturn=void genericParameters=[A] throws=[]
+  METHOD getState()Landroidx/compose/runtime/State; flags=0x0401 typeParameters=[] genericReturn=androidx.compose.runtime.State<S> genericParameters=[] throws=[]
+
+CLASS io.github.stslex.workeeper.core.ui.mvi.processor.StoreProcessorImpl flags=0x0011 typeParameters=[S:io.github.stslex.workeeper.core.ui.mvi.Store$State, A:io.github.stslex.workeeper.core.ui.mvi.Store$Action, E:io.github.stslex.workeeper.core.ui.mvi.Store$Event, TStore:io.github.stslex.workeeper.core.ui.mvi.Store<? extends S, ? super A, ? extends E>] superclass=java.lang.Object interfaces=[io.github.stslex.workeeper.core.ui.mvi.processor.StoreProcessor<S, A, E>]
+  CONSTRUCTOR (Lio/github/stslex/workeeper/core/ui/mvi/processor/ActionProcessor;Lio/github/stslex/workeeper/core/ui/mvi/processor/EffectsProcessor;Landroidx/compose/runtime/State;)V flags=0x0001 typeParameters=[] genericParameters=[io.github.stslex.workeeper.core.ui.mvi.processor.ActionProcessor<? super A, TStore>, io.github.stslex.workeeper.core.ui.mvi.processor.EffectsProcessor<E, TStore>, androidx.compose.runtime.State<? extends S>] throws=[]
+  FIELD $stable I flags=0x0019 genericType=int
+  METHOD Handle(Lio/github/stslex/workeeper/core/ui/mvi/processor/SuspendProcessor;Landroidx/compose/runtime/Composer;I)V flags=0x0001 typeParameters=[] genericReturn=void genericParameters=[io.github.stslex.workeeper.core.ui.mvi.processor.SuspendProcessor<E>, androidx.compose.runtime.Composer, int] throws=[]
+  METHOD consume(Lio/github/stslex/workeeper/core/ui/mvi/Store$Action;)V flags=0x0001 typeParameters=[] genericReturn=void genericParameters=[A] throws=[]
+  METHOD getState()Landroidx/compose/runtime/State; flags=0x0001 typeParameters=[] genericReturn=androidx.compose.runtime.State<S> genericParameters=[] throws=[]
+
+CLASS io.github.stslex.workeeper.core.ui.mvi.processor.StoreProcessorKt flags=0x0011 typeParameters=[] superclass=java.lang.Object interfaces=[]
+  METHOD rememberStoreProcessor(Lio/github/stslex/workeeper/core/ui/mvi/processor/StoreCreator;Landroidx/compose/runtime/Composer;I)Lio/github/stslex/workeeper/core/ui/mvi/processor/StoreProcessor; flags=0x0019 typeParameters=[TStoreImpl:io.github.stslex.workeeper.core.ui.mvi.BaseStore<?, ?, ?>] genericReturn=io.github.stslex.workeeper.core.ui.mvi.processor.StoreProcessor<?, ?, ?> genericParameters=[io.github.stslex.workeeper.core.ui.mvi.processor.StoreCreator<TStoreImpl>, androidx.compose.runtime.Composer, int] throws=[]
+
+CLASS io.github.stslex.workeeper.core.ui.mvi.processor.SuspendProcessor flags=0x0601 typeParameters=[E:io.github.stslex.workeeper.core.ui.mvi.Store$Event] superclass=- interfaces=[]
+  METHOD invoke(Lio/github/stslex/workeeper/core/ui/mvi/Store$Event;Lkotlin/coroutines/Continuation;)Ljava/lang/Object; flags=0x0401 typeParameters=[] genericReturn=java.lang.Object genericParameters=[E, kotlin.coroutines.Continuation<? super kotlin.Unit>] throws=[]
+
+CLASS io.github.stslex.workeeper.core.ui.mvi.store.StoreConsumer flags=0x0601 typeParameters=[S:io.github.stslex.workeeper.core.ui.mvi.Store$State, A:io.github.stslex.workeeper.core.ui.mvi.Store$Action, E:io.github.stslex.workeeper.core.ui.mvi.Store$Event] superclass=- interfaces=[]
+  METHOD consume(Lio/github/stslex/workeeper/core/ui/mvi/Store$Action;)V flags=0x0401 typeParameters=[] genericReturn=void genericParameters=[A] throws=[]
+  METHOD consumeOnMain(Lio/github/stslex/workeeper/core/ui/mvi/Store$Action;Lkotlin/coroutines/Continuation;)Ljava/lang/Object; flags=0x0401 typeParameters=[] genericReturn=java.lang.Object genericParameters=[A, kotlin.coroutines.Continuation<? super kotlin.Unit>] throws=[]
+  METHOD getLastAction()Lio/github/stslex/workeeper/core/ui/mvi/Store$Action; flags=0x0401 typeParameters=[] genericReturn=A genericParameters=[] throws=[]
+  METHOD getLogger()Lio/github/stslex/workeeper/core/core/logger/Logger; flags=0x0401 typeParameters=[] genericReturn=io.github.stslex.workeeper.core.core.logger.Logger genericParameters=[] throws=[]
+  METHOD getState()Lkotlinx/coroutines/flow/StateFlow; flags=0x0401 typeParameters=[] genericReturn=kotlinx.coroutines.flow.StateFlow<S> genericParameters=[] throws=[]
+  METHOD launch(Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function3;Lkotlinx/coroutines/CoroutineDispatcher;Lkotlinx/coroutines/CoroutineDispatcher;Lkotlin/jvm/functions/Function2;)Lkotlinx/coroutines/Job; flags=0x0401 typeParameters=[T:java.lang.Object] genericReturn=kotlinx.coroutines.Job genericParameters=[kotlin.jvm.functions.Function2<? super java.lang.Throwable, ? super kotlin.coroutines.Continuation<? super kotlin.Unit>, ?>, kotlin.jvm.functions.Function3<? super kotlinx.coroutines.CoroutineScope, ? super T, ? super kotlin.coroutines.Continuation<? super kotlin.Unit>, ?>, kotlinx.coroutines.CoroutineDispatcher, kotlinx.coroutines.CoroutineDispatcher, kotlin.jvm.functions.Function2<? super kotlinx.coroutines.CoroutineScope, ? super kotlin.coroutines.Continuation<? super T>, ?>] throws=[]
+  METHOD launch(Lkotlinx/coroutines/flow/Flow;Lkotlin/jvm/functions/Function2;Lkotlinx/coroutines/CoroutineDispatcher;Lkotlinx/coroutines/CoroutineDispatcher;Lkotlin/jvm/functions/Function2;)Lkotlinx/coroutines/Job; flags=0x0401 typeParameters=[T:java.lang.Object] genericReturn=kotlinx.coroutines.Job genericParameters=[kotlinx.coroutines.flow.Flow<? extends T>, kotlin.jvm.functions.Function2<? super java.lang.Throwable, ? super kotlin.coroutines.Continuation<? super kotlin.Unit>, ?>, kotlinx.coroutines.CoroutineDispatcher, kotlinx.coroutines.CoroutineDispatcher, kotlin.jvm.functions.Function2<? super T, ? super kotlin.coroutines.Continuation<? super kotlin.Unit>, ?>] throws=[]
+  METHOD launch$default(Lio/github/stslex/workeeper/core/ui/mvi/store/StoreConsumer;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function3;Lkotlinx/coroutines/CoroutineDispatcher;Lkotlinx/coroutines/CoroutineDispatcher;Lkotlin/jvm/functions/Function2;ILjava/lang/Object;)Lkotlinx/coroutines/Job; flags=0x1009 typeParameters=[] genericReturn=kotlinx.coroutines.Job genericParameters=[io.github.stslex.workeeper.core.ui.mvi.store.StoreConsumer, kotlin.jvm.functions.Function2, kotlin.jvm.functions.Function3, kotlinx.coroutines.CoroutineDispatcher, kotlinx.coroutines.CoroutineDispatcher, kotlin.jvm.functions.Function2, int, java.lang.Object] throws=[]
+  METHOD launch$default(Lio/github/stslex/workeeper/core/ui/mvi/store/StoreConsumer;Lkotlinx/coroutines/flow/Flow;Lkotlin/jvm/functions/Function2;Lkotlinx/coroutines/CoroutineDispatcher;Lkotlinx/coroutines/CoroutineDispatcher;Lkotlin/jvm/functions/Function2;ILjava/lang/Object;)Lkotlinx/coroutines/Job; flags=0x1009 typeParameters=[] genericReturn=kotlinx.coroutines.Job genericParameters=[io.github.stslex.workeeper.core.ui.mvi.store.StoreConsumer, kotlinx.coroutines.flow.Flow, kotlin.jvm.functions.Function2, kotlinx.coroutines.CoroutineDispatcher, kotlinx.coroutines.CoroutineDispatcher, kotlin.jvm.functions.Function2, int, java.lang.Object] throws=[]
+  METHOD launchDefault(Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function2;)Lkotlinx/coroutines/Job; flags=0x0401 typeParameters=[T:java.lang.Object] genericReturn=kotlinx.coroutines.Job genericParameters=[kotlin.jvm.functions.Function2<? super java.lang.Throwable, ? super kotlin.coroutines.Continuation<? super kotlin.Unit>, ?>, kotlin.jvm.functions.Function3<? super kotlinx.coroutines.CoroutineScope, ? super T, ? super kotlin.coroutines.Continuation<? super kotlin.Unit>, ?>, kotlin.jvm.functions.Function2<? super kotlinx.coroutines.CoroutineScope, ? super kotlin.coroutines.Continuation<? super T>, ?>] throws=[]
+  METHOD launchDefault$default(Lio/github/stslex/workeeper/core/ui/mvi/store/StoreConsumer;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function2;ILjava/lang/Object;)Lkotlinx/coroutines/Job; flags=0x1009 typeParameters=[] genericReturn=kotlinx.coroutines.Job genericParameters=[io.github.stslex.workeeper.core.ui.mvi.store.StoreConsumer, kotlin.jvm.functions.Function2, kotlin.jvm.functions.Function3, kotlin.jvm.functions.Function2, int, java.lang.Object] throws=[]
+  METHOD sendEvent(Lio/github/stslex/workeeper/core/ui/mvi/Store$Event;)V flags=0x0401 typeParameters=[] genericReturn=void genericParameters=[E] throws=[]
+  METHOD updateState(Lkotlin/jvm/functions/Function1;)V flags=0x0401 typeParameters=[] genericReturn=void genericParameters=[kotlin.jvm.functions.Function1<? super S, ? extends S>] throws=[]
+  METHOD updateStateImmediate(Lio/github/stslex/workeeper/core/ui/mvi/Store$State;Lkotlin/coroutines/Continuation;)Ljava/lang/Object; flags=0x0401 typeParameters=[] genericReturn=java.lang.Object genericParameters=[S, kotlin.coroutines.Continuation<? super kotlin.Unit>] throws=[]
+  METHOD updateStateImmediate(Lkotlin/jvm/functions/Function2;Lkotlin/coroutines/Continuation;)Ljava/lang/Object; flags=0x0401 typeParameters=[] genericReturn=java.lang.Object genericParameters=[kotlin.jvm.functions.Function2<? super S, ? super kotlin.coroutines.Continuation<? super S>, ?>, kotlin.coroutines.Continuation<? super kotlin.Unit>] throws=[]
+

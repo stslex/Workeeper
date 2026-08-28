@@ -29,7 +29,6 @@ import io.github.stslex.workeeper.core.data.exercise.session.SessionConflictReso
 import io.github.stslex.workeeper.core.data.exercise.session.SessionRepository
 import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolderProducer
 import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
-import io.github.stslex.workeeper.core.ui.mvi.di.StoreGenerationDeps
 import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
 import io.github.stslex.workeeper.core.ui.mvi.holders.LoggerHolder
 import io.github.stslex.workeeper.core.ui.navigation.Navigator
@@ -44,15 +43,14 @@ import io.github.stslex.workeeper.navigation.NavigatorEventBus
 import kotlinx.coroutines.CoroutineDispatcher
 
 /**
- * The Metro app-scope dependency graph, held by `BaseApplication` for the process lifetime.
- * Factory-shaped: the app `Context` and the other bound roots enter through `create(...)`.
+ * The Metro app-scope dependency graph for one runtime generation. `BaseApplication` publishes
+ * the current generation, and replacement creates a new graph through `create(...)`.
  */
 @DependencyGraph(scope = AppScope::class)
 internal interface AppGraph :
     RecoveryDeps,
     BackupWorkerDeps,
-    AppRootDeps,
-    StoreGenerationDeps {
+    AppRootDeps {
 
     val analyticsHolder: AnalyticsHolder
 
@@ -118,7 +116,8 @@ internal interface AppGraph :
 
     val imageStorage: ImageStorage
 
-    override val appScopeLifetime: AppScopeLifetime
+    /** GUARD: Metro must hand this exact factory-bound generation lifetime to every Store. */
+    val appScopeLifetime: AppScopeLifetime
 
     /** Recovery graph nodes. Resolving [recoveryBootstrap] eagerly arms its subscriber. */
     override val restoreRecoveryCoordinator: RestoreRecoveryCoordinator

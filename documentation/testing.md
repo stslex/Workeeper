@@ -323,6 +323,20 @@ The `pending_*` dialog flags are process-wide in the instrumentation process too
 
 ### Deliberate coverage boundaries
 
+#### Shared MVI runtime
+
+`core:ui:mvi` uses `commonTest` for Store lifetime, disposal, navigation-result and event-pressure
+contracts; `androidHostTest` for the clean JVM ABI and real Android Firebase-provider seam;
+`iosTest` for the production Compose processor scene; and `androidDeviceTest` for the two
+`@Smoke` lifetime/retention cases. The legacy `src/test` and `src/androidTest` directories must
+remain empty.
+
+The identity gates parse JUnit XML structurally rather than accepting a Gradle exit code or module
+total. They require seven exact Android-host identities, five exact MVI Native identities, and both
+Android-device identities. Native results live under `build/test-results/iosSimulatorArm64Test`;
+the AGP-KMP connected result path is
+`core/ui/mvi/build/outputs/androidTest-results/connected/androidMain`.
+
 - `NavResults.OnResult` is deliberately not unit-tested: it is a `@Composable` and needs a
   composition, which `core:ui:mvi`'s unit tests have no host for. Its two behaviours — deliver
   only on a non-null result, and clear after delivering — are covered instead as the composition
@@ -955,10 +969,22 @@ From the project root:
 # Unit tests (JVM, fast; on KMP modules the alias fans out to testAndroidHostTest)
 ./gradlew testDebugUnitTest
 
-# The native Phase-7 tests (macOS + Xcode; CI runs both in "KMP iOS kit smoke"):
-# the kit's Compose-scene smoke and the navigation serializer-registry round trip
-./gradlew :core:ui:kit:iosSimulatorArm64Test
-./gradlew :core:ui:navigation:iosSimulatorArm64Test
+# Shared MVI Android-host tests plus exact JUnit identities
+./gradlew :core:ui:mvi:testAndroidHostTest --rerun-tasks --no-build-cache --no-configuration-cache
+python3 .github/scripts/assert_mvi_host_identities.py
+
+# Native Phase-7 tests (macOS + Xcode), kept in one --continue invocation
+./gradlew :core:ui:kit:iosSimulatorArm64Test \
+  :core:ui:navigation:iosSimulatorArm64Test \
+  :core:ui:mvi:iosSimulatorArm64Test \
+  --rerun-tasks --no-build-cache --no-configuration-cache --continue
+python3 .github/scripts/assert_kmp_ios_smoke.py
+
+# Focused MVI device cases plus exact JUnit identities
+./gradlew :core:ui:mvi:connectedAndroidDeviceTest \
+  -Pandroid.testInstrumentationRunnerArguments.annotation=io.github.stslex.workeeper.core.ui.test.annotations.Smoke \
+  --rerun-tasks --no-build-cache --no-configuration-cache
+python3 .github/scripts/assert_mvi_device_identities.py
 
 # Every UI test in every module (slow; emulator required)
 ./gradlew connectedDebugAndroidTest

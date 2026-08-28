@@ -5,31 +5,10 @@ An exit code is not evidence and neither is a total: two kit tests and zero
 navigation tests would satisfy any repo-wide count, and a classname from one
 case plus a method name from another can forge an identity out of substrings.
 
-Per configured module this script therefore requires, structurally parsed:
-
-* the result directory exists and holds at least one parseable `TEST-*.xml`;
-* at least one `<testsuite>` and at least one `<testcase>`;
-* **per `<testsuite>`**, every count attribute is a non-negative integer, the
-  declared `tests` equals that suite's own `<testcase>` children, and its
-  `skipped` / `failures` / `errors` are each zero;
-* no testcase carries a `<failure>`, `<error>` or `<skipped>` child;
-* the expected normalized (classname, name) tuple occurs exactly once.
-
-The per-suite checks are the point. A module-level sum alone lets malformed
-suites cancel each other out: one file declaring `tests=2` with a single
-testcase and another declaring `tests=0` with a single testcase sums to
-`2 == 2` and would pass, while both files are lying about what ran. Validating
-each suite before it contributes to any total closes that, and requiring each
-suite's status counters to be zero means a negative counter can never offset a
-positive one.
-
-Additional *successful* testcases are allowed, so a module may grow a second
-native test without touching this file; none of the guarantees above weaken,
-because every extra case still has to pass and still has to be counted.
-
-Every configured module is checked even when an earlier one fails, so a
-kit-side problem cannot hide the navigation verdict — the same reason the
-Gradle invocation uses `--continue`.
+The structural rules live in `junit_identity.py`, shared with the MVI
+Android-host and MVI device gates so the three cannot drift apart. This file
+is the Native gate's configuration: which modules run here, and which exact
+`(classname, name)` tuples each must contain.
 
 Run from the repository root, after the forced Native Gradle invocation:
 
@@ -48,199 +27,84 @@ three distinct outcomes:
   real failure upstream.
 """
 
-import sys
-import xml.etree.ElementTree as ET
-from pathlib import Path
+from junit_identity import run_gate
 
 # The Kotlin/Native Gradle test task prefixes every suite/testcase classname
-# with its own name ("iosSimulatorArm64Test.<fqcn>"). Strip exactly that one
-# known prefix before comparing, then require full equality — an endswith()
-# would accept a foreign package, and stripping repeatedly would accept a
-# doubled prefix.
+# with its own name ("iosSimulatorArm64Test.<fqcn>"), and suffixes every method
+# name with "[iosSimulatorArm64]". Both are measured from real output, never
+# guessed.
 KNOWN_SUITE_PREFIX = "iosSimulatorArm64Test."
 
-COUNT_ATTRIBUTES = ("tests", "skipped", "failures", "errors")
-
-NON_SUCCESS_TAGS = ("failure", "error", "skipped")
+TARGET_SUFFIX = "[iosSimulatorArm64]"
 
 
-class ModuleError(Exception):
-    """One module failed its contract. Raised, not exited, so every module is reported."""
+def native(classname: str, name: str) -> dict:
+    return {"classname": classname, "name": f"{name}{TARGET_SUFFIX}"}
 
+
+MVI_PACKAGE = "io.github.stslex.workeeper.core.ui.mvi"
 
 EXPECTED = [
     {
         "module": "core:ui:kit",
-        "results_dir": Path("core/ui/kit/build/test-results/iosSimulatorArm64Test"),
-        "classname": "io.github.stslex.workeeper.core.ui.kit.IosKitSceneSmokeTest",
-        "name": "sheetLayoutRendersMigratedStringFontAndIcon[iosSimulatorArm64]",
+        "results_dir": "core/ui/kit/build/test-results/iosSimulatorArm64Test",
+        "classname_prefix": KNOWN_SUITE_PREFIX,
+        "identities": [
+            native(
+                "io.github.stslex.workeeper.core.ui.kit.IosKitSceneSmokeTest",
+                "sheetLayoutRendersMigratedStringFontAndIcon",
+            ),
+        ],
     },
     {
         "module": "core:ui:navigation",
-        "results_dir": Path(
-            "core/ui/navigation/build/test-results/iosSimulatorArm64Test"
-        ),
-        "classname": "io.github.stslex.workeeper.core.ui.navigation.ScreenSerializationIosTest",
-        "name": "allCurrentRoutesRoundTripThroughProductionRegistry[iosSimulatorArm64]",
+        "results_dir": "core/ui/navigation/build/test-results/iosSimulatorArm64Test",
+        "classname_prefix": KNOWN_SUITE_PREFIX,
+        "identities": [
+            native(
+                "io.github.stslex.workeeper.core.ui.navigation.ScreenSerializationIosTest",
+                "allCurrentRoutesRoundTripThroughProductionRegistry",
+            ),
+        ],
+    },
+    {
+        # Phase 7.3. Four independent claims, because one tuple could pass while the
+        # Store runtime this module exists for never executed natively at all.
+        "module": "core:ui:mvi",
+        "results_dir": "core/ui/mvi/build/test-results/iosSimulatorArm64Test",
+        "classname_prefix": KNOWN_SUITE_PREFIX,
+        "identities": [
+            # The generation-join contract: Store jobs descend from the injected lifetime.
+            native(
+                f"{MVI_PACKAGE}.StoreGenerationJoinTest",
+                "aStoreJobStartedViaLaunchDefaultIsJoinedByTheGenerationLifetime",
+            ),
+            # Navigation result delivery and clearing.
+            native(
+                f"{MVI_PACKAGE}.NavigationResultContractTest",
+                "each produced result is delivered exactly once per cycle",
+            ),
+            native(
+                f"{MVI_PACKAGE}.NavigationResultContractTest",
+                "clear returns the destination to no-result so re-entry sees nothing",
+            ),
+            # Event delivery under buffer pressure.
+            native(
+                f"{MVI_PACKAGE}.StoreEventPressureTest",
+                "everyEventSubmittedUnderBufferPressureIsObservedExactlyOnce",
+            ),
+            # The production rememberMetroStoreProcessor -> rememberStoreProcessor scene.
+            native(
+                f"{MVI_PACKAGE}.StoreProcessorSceneIosTest",
+                "productionProcessorRetainsOneStoreAndDrivesTheRenderSeam",
+            ),
+        ],
     },
 ]
 
 
-def normalize_classname(raw: str) -> str:
-    """Remove exactly one leading task prefix. A doubled prefix stays a mismatch."""
-    if raw.startswith(KNOWN_SUITE_PREFIX):
-        return raw[len(KNOWN_SUITE_PREFIX):]
-    return raw
-
-
-def count_attribute(suite: ET.Element, key: str, module: str, xml_file: Path) -> int:
-    """Parse one count attribute, rejecting non-integers and negatives.
-
-    A negative counter is not merely odd: summed across suites it would subtract from a real
-    failure elsewhere, which is exactly the compensation this parser must not allow.
-    """
-    raw = suite.get(key, "0")
-    try:
-        value = int(raw)
-    except ValueError:
-        raise ModuleError(f"{module}: {xml_file.name} has non-numeric {key}={raw!r} on <testsuite>")
-    if value < 0:
-        raise ModuleError(f"{module}: {xml_file.name} has negative {key}={value} on <testsuite>")
-    return value
-
-
-def suites_of(root: ET.Element, module: str, xml_file: Path) -> list[ET.Element]:
-    """Return the <testsuite> elements to validate, handling a <testsuites> wrapper explicitly.
-
-    Only one level is modelled. A nested <testsuite> would make "which cases belong to which
-    declaration" ambiguous, and guessing is how a miscount becomes a green gate — so it is
-    refused with a precise diagnostic instead.
-    """
-    if root.tag == "testsuite":
-        suites = [root]
-    elif root.tag == "testsuites":
-        suites = root.findall("testsuite")
-        if not suites:
-            raise ModuleError(
-                f"{module}: {xml_file.name} <testsuites> wrapper contains no <testsuite> element"
-            )
-    else:
-        raise ModuleError(
-            f"{module}: {xml_file.name} root element is <{root.tag}>, "
-            "expected <testsuite> or <testsuites>"
-        )
-    for suite in suites:
-        if suite.find("testsuite") is not None:
-            raise ModuleError(
-                f"{module}: {xml_file.name} nests <testsuite> inside <testsuite>; this parser "
-                "does not model that structure and refuses to guess which cases each declares"
-            )
-    return suites
-
-
-def identify(case: ET.Element) -> str:
-    return f"{normalize_classname(case.get('classname', ''))}.{case.get('name', '')}"
-
-
-def check_module(expected: dict) -> str:
-    """Verify one module's result directory; return the verified summary line."""
-    module = expected["module"]
-    results_dir = expected["results_dir"]
-
-    if not results_dir.is_dir():
-        raise ModuleError(f"{module}: result directory {results_dir} does not exist")
-    xml_files = sorted(results_dir.glob("TEST-*.xml"))
-    if not xml_files:
-        raise ModuleError(f"{module}: no TEST-*.xml under {results_dir}")
-
-    testcases = []
-    totals = dict.fromkeys(COUNT_ATTRIBUTES, 0)
-    suites_seen = 0
-    for xml_file in xml_files:
-        try:
-            root = ET.parse(xml_file).getroot()
-        except ET.ParseError as error:
-            raise ModuleError(f"{module}: {xml_file.name} is not parseable XML: {error}")
-        for suite in suites_of(root, module, xml_file):
-            suites_seen += 1
-            # Only this suite's OWN testcase children, so a wrapper cannot double-count.
-            suite_cases = suite.findall("testcase")
-            declared = {
-                key: count_attribute(suite, key, module, xml_file) for key in COUNT_ATTRIBUTES
-            }
-            label = f"<testsuite name={suite.get('name', '?')!r}> in {xml_file.name}"
-            # Validated BEFORE contributing to any total: this is what stops two malformed
-            # suites cancelling out into a module aggregate that looks consistent.
-            if declared["tests"] != len(suite_cases):
-                raise ModuleError(
-                    f"{module}: inconsistent XML — {label} declares tests={declared['tests']} "
-                    f"but contains {len(suite_cases)} <testcase> element(s)"
-                )
-            for key in ("skipped", "failures", "errors"):
-                if declared[key] != 0:
-                    raise ModuleError(f"{module}: {label} reports {key}={declared[key]}, expected 0")
-            for key in COUNT_ATTRIBUTES:
-                totals[key] += declared[key]
-            testcases.extend(suite_cases)
-
-    if suites_seen < 1:
-        raise ModuleError(f"{module}: no <testsuite> parsed under {results_dir}")
-
-    executed = len(testcases)
-    if executed < 1:
-        raise ModuleError(f"{module}: no <testcase> parsed under {results_dir}")
-    # Defence in depth: every suite was already validated individually above.
-    if totals["tests"] != executed:
-        raise ModuleError(
-            f"{module}: inconsistent XML — suites declare tests={totals['tests']} "
-            f"but {executed} <testcase> element(s) were parsed"
-        )
-    for case in testcases:
-        for child in case:
-            if child.tag in NON_SUCCESS_TAGS:
-                raise ModuleError(f"{module}: testcase {identify(case)} carries a <{child.tag}> element")
-
-    matches = [
-        case
-        for case in testcases
-        if normalize_classname(case.get("classname", "")) == expected["classname"]
-        and case.get("name", "") == expected["name"]
-    ]
-    if len(matches) != 1:
-        found = sorted(identify(case) for case in testcases)
-        raise ModuleError(
-            f"{module}: expected exactly one testcase with classname="
-            f"{expected['classname']!r} name={expected['name']!r}, found {len(matches)}; "
-            f"parsed {executed} testcase(s): {found}"
-        )
-
-    return (
-        f"{module}: {executed} executed / {totals['skipped']} skipped / "
-        f"{totals['failures']} failed / {totals['errors']} errored — verified "
-        f"{expected['classname']}.{expected['name']}"
-    )
-
-
 def main() -> None:
-    verified: list[str] = []
-    failures: list[str] = []
-    for expected in EXPECTED:
-        try:
-            verified.append(check_module(expected))
-        except ModuleError as error:
-            failures.append(str(error))
-
-    if failures:
-        for line in verified:
-            print(f"  ok: {line}")
-        raise SystemExit(
-            "native gate FAILED (every module was checked, so no verdict is hidden):\n"
-            + "\n".join(f"  {message}" for message in failures)
-        )
-
-    print("native gate live:")
-    for line in verified:
-        print(f"  {line}")
+    run_gate("native gate", EXPECTED)
 
 
 if __name__ == "__main__":
