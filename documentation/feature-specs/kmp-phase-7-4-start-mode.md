@@ -1,8 +1,8 @@
 # KMP Phase 7.4 — `core:ui:start-mode` becomes the first shared UI leaf
 
-**Status:** SPECIFICATION. Implementation is not authorized by this document. The implementation
-branch may start only after this docs-only specification is reviewed, merged into `dev`, and the
-maintainer gives an explicit implementation GO.
+**Status:** IMPLEMENTED LOCALLY; DELIVERY IN PROGRESS. The maintainer supplied the explicit
+implementation GO and later authorized the single test-only compatibility correction recorded
+below. PR CI/review evidence remains delivery evidence; the maintainer still owns the merge.
 
 ---
 
@@ -112,6 +112,12 @@ the order oracle after it moves to common tests.
    source/resource layout, and run it under `Build and Unit Tests`.
 10. Update only documentation made stale by the completed implementation and append measured
     evidence to this file.
+11. Update only
+    `feature/home/src/test/kotlin/io/github/stslex/workeeper/feature/home/ui/components/HomeStartCardModeLabelTest.kt`
+    to remove its legacy dependency on the module-local Android resource class. The test must
+    resolve the expected
+    `DAYS_SINCE_LAST` label through the existing public `startCardModeName(StartCardModeUi)`
+    composable inside its own composition and retain its complete behavioral oracle.
 
 ## 4. Explicit non-goals
 
@@ -131,6 +137,12 @@ This phase does not:
 - change dependencies or tool versions, global compiler policy, rulesets, required-context names,
   baselines, or suppressions; or
 - clean up unrelated comments, APIs, resources, tests, or build logic.
+
+The Section 3.11 exception is deliberately test-only and file-exact. It exists solely because the
+baseline Home integration test imported the Android resource class removed by this migration. It
+does not authorize any other Home/Settings test or production change, does not expose generated
+CMP resources, and must not be generalized to later migrations. Home and Settings production
+remain byte-identical to the pinned implementation baseline.
 
 ## 5. Required source-set shape
 
@@ -181,6 +193,10 @@ not use blocking `getString`, an Android resource wrapper, or a copied string ca
 The generated resource class remains an internal implementation detail because no public
 `StringResource` value crosses the module boundary. Do not set `publicResClass = true` or make
 Home/Settings import this module's `Res` merely to mimic `core:ui:kit`.
+
+The file-exact Home test exception calls the already-public `startCardModeName` composable to
+obtain its integration expectation. It may not import `Res`, expose `Res`, introduce a resource-ID
+API, or duplicate localized text.
 
 ### 6.2 Public Kotlin surface
 
@@ -269,7 +285,9 @@ existence of the root only, or count a common enum test as the UI scene.
 ### 8.4 Consumer and device parity
 
 Compile and run the existing focused unit tests for `feature:home` and `feature:settings`. Their
-production source and dependency declarations should remain unchanged. Existing host/device
+production source and dependency declarations remain unchanged. The only allowed consumer diff is
+the Section 3.11 Home test correction, which removes the vanished Android `R` dependency through
+the existing public naming composable without weakening its assertions. Existing host/device
 coverage that distinguishes `selected = null` from a concrete selection remains authoritative;
 do not move those host-owned assertions into this leaf.
 
@@ -385,7 +403,8 @@ membership/execution evidence.
 At implementation PR head, prove:
 
 - the branch is based on the merged specification baseline;
-- only the planned module, CI scripts/workflow, and stale documentation changed;
+- only the planned module, CI scripts/workflow, stale documentation, and the exact Section 3.11
+  Home test changed;
 - the exact Section 5 source topology holds and legacy paths are absent;
 - there is no Android `R`, `androidx.compose.ui.res`, or Android/Java/Javax import in common/native;
 - every resource key/value matches the baseline and no Android resource copy remains;
@@ -430,7 +449,8 @@ Stop implementation and report instead of widening scope if:
 - `dev` changed the measured module, resource ownership, consumer graph, or required checks;
 - a current resource key/value, enum order, public signature, test tag, or behavior must change;
 - Home or Settings production code needs an adapter or behavioral edit;
-- `core:ui:plan-editor`, a feature, `app:common`, or `core:ui:test-utils` must change to compile;
+- `core:ui:plan-editor`, `app:common`, `core:ui:test-utils`, or any feature file other than the
+  exact Section 3.11 Home test must change to compile;
 - a required dependency lacks an `iosSimulatorArm64` variant;
 - the real production sheet cannot render and dispatch under the native CMP test runner;
 - Android `Context`, `Resources`, resource IDs, Java, or an expect/actual platform shim is needed
@@ -461,12 +481,94 @@ This file owns the migration rationale. During implementation:
 Do not add a parallel migration note, changelog prose, generated report, or production history
 comment.
 
+### 14.1 Local implementation evidence
+
+The implementation started from required base
+`d8e4c3af968a6fc9ebf46c42718bafa85f8ffe19`, with `origin/dev` at that exact commit. The older
+specification measurement anchor still had the same load-bearing source, resource, test, golden,
+consumer, and required-check topology, so no scope adaptation was needed. Before editing, the
+focused module tasks executed 49/49 assemble tasks, 86/86 unit tasks, and 87/87 Paparazzi tasks.
+The catalog executed once and both golden identities executed with no skip or failure. The PNG
+baseline was:
+
+| Golden | Dimensions | Bytes | SHA-256 before and after |
+| --- | --- | ---: | --- |
+| dark | 1078 x 772 RGBA | 46,739 | `a58ab7d5b3d59110c878b3a75d668cd901c4f1174f98aefcc0a64dc9cecdf4a9` |
+| light | 1078 x 772 RGBA | 46,856 | `a2049e21f916834bccd587bcb749b7daaf9ac9f031a6b307727768ac6651324d` |
+
+The final local module has the exact ten-file Section 5 allowlist. All three production files,
+both verbatim nine-entry locale catalogs, the common catalog test, the Android-host golden test,
+and both PNGs moved with history; the one native production-scene test is new. Generated CMP
+resources remain internal. Repository search finds no former start-mode Android `R` reference and
+no Android/Java/Javax dependency in common/native code. All 94 Home and Settings production blobs
+match the required base.
+
+The baseline Home integration test was the one discovered compatibility dependency: it imported
+the removed Android `R` class and therefore failed compilation after the otherwise complete leaf
+migration. Under the maintainer's file-exact authorization, it now obtains the expected
+`DAYS_SINCE_LAST` copy through `startCardModeName` in its own production-themed composition. Its
+original class/method identity executes 1/0/0/0 and its complete null-label, clickable-head,
+minimum-target, suppressed-body, transition, resolved-label, and resolved-body oracle remains.
+The first full Detekt run then exposed import ordering in that same file; reordering only those
+imports corrected it, the combined Home Detekt/unit rerun executed 186/186 tasks, and full Detekt
+then executed 53/53 tasks successfully.
+
+Fresh focused results were:
+
+| Gate | Result |
+| --- | --- |
+| start-mode assemble / unit / Paparazzi / lint | 93/93, 88/88, 89/89, and 75/75 tasks executed |
+| start-mode iOS simulator | 55/55 tasks; catalog 1/0/0/0 and exact scene 1/0/0/0 |
+| Home assemble / unit | 109/109 and 182/182 tasks executed; corrected integration identity 1/0/0/0 |
+| Settings assemble / unit | 120/120 and 200/200 tasks executed |
+| shared-UI topology | exact ten-file allowlist accepted |
+| required-job native invocation | 110/110 tasks; kit, navigation, MVI, and start-mode XML validator accepted |
+
+The native identity is
+`io.github.stslex.workeeper.core.ui.start_mode.StartModeSceneIosTest.sheetRendersMigratedCatalogAndDispatchesSelection`;
+the XML target suffix is `[iosSimulatorArm64]`. The native scene uses the production resources and
+sheet, while the common catalog and the two RU Android-host golden cases remain separate resource
+mapping and localized-output gates.
+
+Fresh repository gates all succeeded: `assembleDebug` 1157/1157,
+`assembleDebugAndroidTest` 1937/1937, `verifyPaparazziDebug` 619/619,
+`:lint-rules:test` 9/9, Detekt 53/53, `lintDebug` 1091/1091, and
+`testDebugUnitTest` 1130/1130 tasks executed. The personal-data gate passed. Paparazzi retained
+456 PNGs across 13 live golden gates. On the API 34 emulator, Smoke executed 2010/2010 Gradle tasks
+and produced 44 discovered / 41 executed / the three named pending-feature skips / zero failures
+or errors; Regression executed 2010/2010 tasks and produced 81/81 with zero skips, failures, or
+errors. Both counts came from the 14 connected-test XML files freshly written by each run.
+
+Every mandatory mutation established GREEN, the named RED, byte/tree restoration, and fresh
+GREEN:
+
+- changing a Russian title failed both RU golden identities;
+- reordering the enum failed the common catalog test;
+- blanking the production native scene failed the native scene identity;
+- suppressing its callback failed the native callback assertion;
+- changing the current Native XML method identity failed the exact-identity validator while all
+  four module result sets were still inspected;
+- leaving a legacy path and performing a same-count allowlisted-path substitution each failed the
+  exact topology oracle;
+- adding an Android import to common code failed the topology oracle (and the supplemental native
+  compile rejected the unresolved platform import);
+- changing a decoded dark-PNG pixel failed only the dark golden while light remained green;
+- adding a proven-absent third PNG failed golden liveness at two cases versus three images; and
+- adding a max-line-length violation to the native test failed module Detekt.
+
+An alpha-byte PNG mutation that did not change rendered pixels and a source-only native method
+rename checked against deliberately stale XML were rejected as non-observable attempts and were
+not counted. The accepted PNG and path controls used scratch copies plus `cp` restoration in
+`finally`; UTF-8 anchors used the mutation harness. Final hashes and topology match their exact
+pre-control state, and no mutation artifact remains.
+
 ## 15. Implementation commit plan
 
 Use signed Conventional Commits and keep every commit buildable:
 
 1. `refactor(kmp): share start mode UI` — atomically convert the build, move production/resources,
-   move common/host tests and PNGs, and add the native test;
+   move common/host tests and PNGs, add the native test, and apply the exact Section 3.11 Home test
+   compatibility correction;
 2. `ci(kmp): gate shared start mode UI` — add the topology oracle and extend native workflow/XML
    validation; and
 3. `docs(kmp): record Phase 7.4 evidence` — update only stale docs and append measured evidence.

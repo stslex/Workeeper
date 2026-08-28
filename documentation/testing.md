@@ -323,6 +323,16 @@ The `pending_*` dialog flags are process-wide in the instrumentation process too
 
 ### Deliberate coverage boundaries
 
+#### Shared start-mode UI
+
+`core:ui:start-mode` keeps its catalog/order oracle in `commonTest`, so the same assertion runs
+through both Android-host and iOS-simulator test hierarchies. Its unchanged RU Paparazzi test and
+two PNGs live in `androidHostTest`; `iosTest` renders the production
+`AppTheme { StartCardModeSheetContent(...) }` scene with the production CMP resources and verifies
+the title, all four names, selected-only check semantics, and one real row callback. Generated
+`Res` accessors remain internal to the leaf. The exact source/resource/test layout is enforced by
+`.github/scripts/assert_kmp_ui_source_topology.py`.
+
 #### Shared MVI runtime
 
 `core:ui:mvi` uses `commonTest` for Store lifetime, disposal, navigation-result and event-pressure
@@ -808,10 +818,11 @@ tags (`"HomeGraph"`, `"AllTrainingsGraph"`, etc.) for cross-feature tests.
 ## Visual gate — Paparazzi screenshot goldens
 
 Applies to every module that records goldens: `:core:ui:kit` (KMP), `:core:ui:plan-editor`,
-`:core:ui:start-mode`, and `feature/`{`all-exercises`, `all-trainings`, `archive`, `exercise`,
+`:core:ui:start-mode` (KMP), and `feature/`{`all-exercises`, `all-trainings`, `archive`, `exercise`,
 `exercise-chart`, `home`, `live-workout`, `past-session`, `settings`, `single-training`}. Goldens
 live in `src/test/snapshots/images/` in classic Android modules and in
-`src/androidHostTest/snapshots/images/` in KMP modules (`:core:ui:kit`), and are committed. The shared harness
+`src/androidHostTest/snapshots/images/` in KMP modules (`:core:ui:kit`,
+`:core:ui:start-mode`), and are committed. The shared harness
 (`golden`, `goldenSubject`, `GOLDEN_DEVICE`, `GoldenTheme`) is `core:ui:golden-harness`; the
 shared liveness gate is `gradle/golden-gate.gradle.kts`, applied with
 `apply(from = "$rootDir/gradle/golden-gate.gradle.kts")`.
@@ -824,7 +835,7 @@ shared liveness gate is `gradle/golden-gate.gradle.kts`, applied with
 ./gradlew :core:ui:kit:recordPaparazziDebug
 ```
 
-Both spellings cover the KMP-shaped `:core:ui:kit` too: on a KMP module Paparazzi registers
+Both spellings cover the KMP-shaped `:core:ui:kit` and `:core:ui:start-mode` too: on a KMP module Paparazzi registers
 `verifyPaparazziAndroidMain` / `recordPaparazziAndroidMain`, and the KMP compose convention
 registers `verifyPaparazziDebug` / `recordPaparazziDebug` as lifecycle aliases onto them, so the
 repo-wide commands above keep reaching every golden module.
@@ -977,6 +988,7 @@ python3 .github/scripts/assert_mvi_host_identities.py
 ./gradlew :core:ui:kit:iosSimulatorArm64Test \
   :core:ui:navigation:iosSimulatorArm64Test \
   :core:ui:mvi:iosSimulatorArm64Test \
+  :core:ui:start-mode:iosSimulatorArm64Test \
   --rerun-tasks --no-build-cache --no-configuration-cache --continue
 python3 .github/scripts/assert_kmp_ios_smoke.py
 

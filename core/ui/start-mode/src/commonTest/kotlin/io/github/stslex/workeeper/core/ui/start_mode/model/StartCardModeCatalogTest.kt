@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.core.ui.start_mode.model
 
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Test
+import kotlin.test.Test
+import kotlin.test.assertEquals
 
 /**
  * The catalog's declaration order is load-bearing: `StartCardModeSheetContent` renders
@@ -13,7 +13,7 @@ import org.junit.jupiter.api.Test
 internal class StartCardModeCatalogTest {
 
     @Test
-    fun `the catalog lists four modes in the ruled sheet order, default first`() {
+    fun `the catalog lists four modes in the ruled sheet order with default first`() {
         assertEquals(
             listOf(
                 StartCardModeUi.WEEK,

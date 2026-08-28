@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.home.ui.components
 
-import android.content.Context
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertHasClickAction
@@ -12,11 +12,11 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.compose.ui.unit.dp
 import androidx.paging.PagingData
-import androidx.test.core.app.ApplicationProvider
 import io.github.stslex.workeeper.core.ui.kit.components.PagingUiState
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
 import io.github.stslex.workeeper.core.ui.start_mode.model.StartCardModeUi
+import io.github.stslex.workeeper.core.ui.start_mode.startCardModeName
 import io.github.stslex.workeeper.feature.home.mvi.model.RecentSessionItem
 import io.github.stslex.workeeper.feature.home.mvi.model.StartCardBodyUi
 import io.github.stslex.workeeper.feature.home.mvi.model.WeekDayUi
@@ -28,7 +28,6 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import org.robolectric.annotation.Config
 import tech.apter.junit.jupiter.robolectric.RobolectricExtension
-import io.github.stslex.workeeper.core.ui.start_mode.R as StartModeR
 
 /**
  * HS6 on the card: the head names no mode until the persisted one arrives, and a body under a
@@ -48,8 +47,13 @@ internal class HomeStartCardModeLabelTest {
             ).startCardMode,
         )
         val body = mutableStateOf<StartCardBodyUi?>(null)
+        var expectedDaysSinceLastLabel = ""
         setContent {
             AppTheme(themeMode = ThemeMode.LIGHT) {
+                val daysSinceLastLabel = startCardModeName(StartCardModeUi.DAYS_SINCE_LAST)
+                SideEffect {
+                    expectedDaysSinceLastLabel = daysSinceLastLabel.uppercase()
+                }
                 HomeStartCard(
                     mode = mode.value,
                     body = body.value,
@@ -92,11 +96,7 @@ internal class HomeStartCardModeLabelTest {
         waitForIdle()
 
         // `AppLabel` uppercases, locale-invariantly, so the expectation does the same.
-        val context = ApplicationProvider.getApplicationContext<Context>()
-        val expected = context
-            .getString(StartModeR.string.core_ui_start_mode_name_days_since_last)
-            .uppercase()
-        onNodeWithTag(LABEL, useUnmergedTree = true).assertTextEquals(expected)
+        onNodeWithTag(LABEL, useUnmergedTree = true).assertTextEquals(expectedDaysSinceLastLabel)
         // The readout draws now, which is what gives the absence above its meaning.
         onNodeWithText(DAYS_SINCE_BODY.daysCountLabel).assertExists()
     }
