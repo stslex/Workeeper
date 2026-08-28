@@ -329,6 +329,7 @@ source set and reflect the unchanged public API:
 | `commonMain` | `api(project(":core:ui:kit"))` | public `SetTypeUiModel.toUiKitType()` returns kit `SetType`; public enum fields also use kit-backed resource types |
 | `commonMain` | `api(libs.kotlinx.collections.immutable)` | `ImmutableList` appears in public composable, reducer, and mapper signatures |
 | `commonMain` | `api(libs.kotlinx.serialization.core)` | four public serializable types generate public serializer APIs |
+| `commonMain` | `implementation(libs.cmp.material.icons.core)` | `ExercisePickerBottomSheet` directly imports `Icons`, `filled.Add`, and `filled.Search`; the KMP convention does not supply this artifact and kit does not export its own icon dependency |
 | `commonTest` | `implementation(kotlin("test"))` | common reducer tests |
 | `iosTest` | `implementation(kotlin("test"))`, `implementation(libs.cmp.ui.test)` | native production-scene test |
 | `androidHostTest` | `implementation(project(":core:ui:golden-harness"))` | unchanged Paparazzi subjects |
