@@ -15,6 +15,8 @@ import io.github.stslex.workeeper.core.ui.test.TestActivity
 import io.github.stslex.workeeper.core.ui.test.annotations.Smoke
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.runBlocking
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotSame
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -68,7 +70,7 @@ internal class AppFeatureScopeTest {
 
         val activity = composeRule.activity
         val owner = checkNotNull(capturedOwner) { "LocalViewModelStoreOwner not resolved" }
-        val lifecycle = checkNotNull(capturedLifecycle) { "LifecycleOwner not resolved" }
+        val parentLifecycle = checkNotNull(capturedLifecycle) { "LifecycleOwner not resolved" }
         val directStore = checkNotNull(capturedStore) { "Probe Store not resolved in composition" }
 
         // (1) Activity owns the ViewModelStore the Store was scoped to.
@@ -87,11 +89,23 @@ internal class AppFeatureScopeTest {
             viaActivity,
         )
 
-        // (3) BaseStore.init(LifecycleOwner) received the Activity lifecycle.
+        // (3) The parent composition is Activity-owned, but rememberLifecycleOwner creates the
+        // child that production passes to BaseStore.init.
         assertSame(
-            "BaseStore.init must receive the host Activity as LifecycleOwner",
+            "the App-root parent lifecycle must be the host Activity",
             activity,
-            lifecycle,
+            parentLifecycle,
+        )
+        val initializedOwner = directStore.initializedLifecycleOwner()
+        assertNotSame(
+            "BaseStore.init must receive rememberLifecycleOwner's child, not the parent Activity",
+            activity,
+            initializedOwner,
+        )
+        assertEquals(
+            "the child lifecycle passed to BaseStore.init must follow its resumed Activity parent",
+            activity.lifecycle.currentState,
+            initializedOwner.lifecycle.currentState,
         )
     }
 
@@ -142,5 +156,19 @@ internal class AppFeatureScopeTest {
 
     private companion object {
         const val WAIT_SECONDS = 5L
+    }
+}
+
+/** Reads the owner retained by the production scope so the assertion cannot inspect a sibling. */
+private fun AppRootProbeStoreImpl.initializedLifecycleOwner(): LifecycleOwner {
+    val scopeField = BaseStore::class.java.getDeclaredField("_scope").apply {
+        isAccessible = true
+    }
+    val scope = checkNotNull(scopeField.get(this)) { "Store scope was not initialized" }
+    val ownerField = scope.javaClass.getDeclaredField("lifecycleOwner").apply {
+        isAccessible = true
+    }
+    return checkNotNull(ownerField.get(scope) as? LifecycleOwner) {
+        "Store scope did not retain a LifecycleOwner"
     }
 }

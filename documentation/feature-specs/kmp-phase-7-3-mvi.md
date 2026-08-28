@@ -601,7 +601,8 @@ Move the two existing files to `androidDeviceTest` and preserve exactly two
 `@Smoke` cases:
 
 - App-root processor resolves and retains its Store in the Activity
-  `ViewModelStore` with the Activity lifecycle owner;
+  `ViewModelStore`; `BaseStore.init` receives the child returned by
+  `rememberLifecycleOwner`, which follows the parent Activity lifecycle;
 - a Store job is a descendant of the exact `AppScopeLifetime` passed to that Store.
 
 Remove `ProbeGenerationDeps`, the `ContextWrapper` and the fake
@@ -983,3 +984,30 @@ diagnostic probes only; the accepted dependency proof uses
   dependency version, ruleset or required-context name changed.
 - GitHub CI and required contexts are still pending. Phase 7.3 remains incomplete until that
   external evidence is green under the unchanged names.
+
+### 20.4 Review corrections — 2026-08-28
+
+All six review comments reproduced as correct before their fixes. The JVM oracle now pins the
+complete measured public manifest, including generic bounds, descriptors and generated helper
+holders; `StoreLifecycle` is private and no longer leaks through an inline composable. Android
+performance tests enter the public one-argument facade and the actual composable provider while
+temporarily routing the unchanged Firebase backend to deterministic trace sinks. The device test
+reads the lifecycle owner retained by the real Store scope, and the topology oracle pins every
+Kotlin path to its reviewed source set. The AppGraph KDoc and §10.3 now describe one runtime
+generation and the remembered child lifecycle owner respectively.
+
+The accepted negative controls made the new named oracle red for an added Compose default helper,
+a no-op public performance facade, a no-op actual screen provider, and an unrelated Store
+lifecycle owner. Moving `BaseStore.kt` from `commonMain` to `androidMain` in an isolated copy now
+fails with both the missing and extra exact paths. An earlier screen-provider mutation that did not
+compile was `INVALID` and is not evidence.
+
+Fresh post-review results are: MVI Android host `83 actionable tasks: 83 executed` with 26 tests and
+9 exact identities; three-module Native `151 actionable tasks: 151 executed`; focused MVI device
+`137 actionable tasks: 137 executed` with 2 exact identities; module Detekt plus lint
+`103 actionable tasks: 103 executed`; repository build, analysis and host tests
+`2072 actionable tasks: 2072 executed`; instrumented assembly
+`1936 actionable tasks: 1936 executed`; screenshot goldens
+`617 actionable tasks: 617 executed`; and custom Detekt rules
+`9 actionable tasks: 9 executed`. GitHub evidence remains pending until the review-fix commit is
+pushed and its required contexts complete.

@@ -27,17 +27,69 @@ SRC = MODULE / "src"
 # §5.4: at exit there is zero Kotlin under any of these.
 LEGACY_DIRS = ("main", "test", "androidTest")
 
-# The intended split. Every one of these must exist and hold at least one Kotlin file,
-# so a source set silently losing its content is a failure and not a quiet pass.
-REQUIRED_SOURCE_SETS = (
-    "commonMain",
-    "androidMain",
-    "iosMain",
-    "commonTest",
-    "androidHostTest",
-    "androidDeviceTest",
-    "iosTest",
-)
+# Exact source-set ownership. Relative paths are pinned so a file moved into another populated
+# source set, or an unreviewed Kotlin file added anywhere in the module, is rejected.
+EXPECTED_PATHS_BY_SOURCE_SET = {
+    "commonMain": {
+        "kotlin/io/github/stslex/workeeper/core/ui/mvi/AppFeature.kt",
+        "kotlin/io/github/stslex/workeeper/core/ui/mvi/BaseStore.kt",
+        "kotlin/io/github/stslex/workeeper/core/ui/mvi/Feature.kt",
+        "kotlin/io/github/stslex/workeeper/core/ui/mvi/FeatureAssisted.kt",
+        "kotlin/io/github/stslex/workeeper/core/ui/mvi/NavComponentScreen.kt",
+        "kotlin/io/github/stslex/workeeper/core/ui/mvi/NavResults.kt",
+        "kotlin/io/github/stslex/workeeper/core/ui/mvi/Store.kt",
+        "kotlin/io/github/stslex/workeeper/core/ui/mvi/di/StoreDispatchers.kt",
+        "kotlin/io/github/stslex/workeeper/core/ui/mvi/handler/BaseHandlerStore.kt",
+        "kotlin/io/github/stslex/workeeper/core/ui/mvi/handler/Handler.kt",
+        "kotlin/io/github/stslex/workeeper/core/ui/mvi/handler/HandlerCreator.kt",
+        "kotlin/io/github/stslex/workeeper/core/ui/mvi/handler/HandlerStore.kt",
+        "kotlin/io/github/stslex/workeeper/core/ui/mvi/handler/HandlerStoreEmitter.kt",
+        "kotlin/io/github/stslex/workeeper/core/ui/mvi/holders/AnalyticsHolder.kt",
+        "kotlin/io/github/stslex/workeeper/core/ui/mvi/holders/LoggerHolder.kt",
+        "kotlin/io/github/stslex/workeeper/core/ui/mvi/holders/StoreAnalytics.kt",
+        "kotlin/io/github/stslex/workeeper/core/ui/mvi/performance/PerformanceBackend.kt",
+        "kotlin/io/github/stslex/workeeper/core/ui/mvi/performance/PerformanceMetricsRecorder.kt",
+        "kotlin/io/github/stslex/workeeper/core/ui/mvi/performance/RecordAction.kt",
+        "kotlin/io/github/stslex/workeeper/core/ui/mvi/performance/ScreenRenderRecorder.kt",
+        "kotlin/io/github/stslex/workeeper/core/ui/mvi/processor/ActionProcessor.kt",
+        "kotlin/io/github/stslex/workeeper/core/ui/mvi/processor/EffectsProcessor.kt",
+        "kotlin/io/github/stslex/workeeper/core/ui/mvi/processor/MetroStoreProcessor.kt",
+        "kotlin/io/github/stslex/workeeper/core/ui/mvi/processor/StoreProcessor.kt",
+        "kotlin/io/github/stslex/workeeper/core/ui/mvi/processor/StoreProcessorImpl.kt",
+        "kotlin/io/github/stslex/workeeper/core/ui/mvi/processor/SuspendProcessor.kt",
+        "kotlin/io/github/stslex/workeeper/core/ui/mvi/store/StoreConsumer.kt",
+    },
+    "androidMain": {
+        "kotlin/io/github/stslex/workeeper/core/ui/mvi/di/AppDepsHolder.kt",
+        "kotlin/io/github/stslex/workeeper/core/ui/mvi/performance/FirebaseScreenRenderRecorder.kt",
+        "kotlin/io/github/stslex/workeeper/core/ui/mvi/performance/PerfTrace.kt",
+        "kotlin/io/github/stslex/workeeper/core/ui/mvi/performance/PerformanceBackend.android.kt",
+        "kotlin/io/github/stslex/workeeper/core/ui/mvi/performance/PerformanceRecorder.kt",
+        "kotlin/io/github/stslex/workeeper/core/ui/mvi/performance/ScreenRenderRecorder.android.kt",
+    },
+    "iosMain": {
+        "kotlin/io/github/stslex/workeeper/core/ui/mvi/performance/PerformanceBackend.ios.kt",
+        "kotlin/io/github/stslex/workeeper/core/ui/mvi/performance/ScreenRenderRecorder.ios.kt",
+    },
+    "commonTest": {
+        "kotlin/io/github/stslex/workeeper/core/ui/mvi/NavigationResultContractTest.kt",
+        "kotlin/io/github/stslex/workeeper/core/ui/mvi/StoreEventPressureTest.kt",
+        "kotlin/io/github/stslex/workeeper/core/ui/mvi/StoreGenerationJoinTest.kt",
+    },
+    "androidHostTest": {
+        "kotlin/io/github/stslex/workeeper/core/ui/mvi/MviJvmAbiTest.kt",
+        "kotlin/io/github/stslex/workeeper/core/ui/mvi/performance/AndroidPerformanceProviderTest.kt",
+    },
+    "androidDeviceTest": {
+        "kotlin/io/github/stslex/workeeper/core/ui/mvi/AppFeatureProbe.kt",
+        "kotlin/io/github/stslex/workeeper/core/ui/mvi/AppFeatureScopeTest.kt",
+    },
+    "iosTest": {
+        "kotlin/io/github/stslex/workeeper/core/ui/mvi/StoreProcessorSceneIosTest.kt",
+    },
+}
+
+REQUIRED_SOURCE_SETS = tuple(EXPECTED_PATHS_BY_SOURCE_SET)
 
 # Platform-typed imports that must never appear in common or iOS production code.
 FORBIDDEN_IMPORTS = re.compile(
@@ -83,12 +135,17 @@ def main() -> None:
                 f"src/androidDeviceTest, not src/androidTest, so these execute zero times."
             )
 
-    # 2. Every intended source set exists and is populated.
-    for source_set in REQUIRED_SOURCE_SETS:
-        if not kotlin_files(source_set):
+    # 2. Every intended Kotlin path belongs to exactly its reviewed source set.
+    for source_set, expected in EXPECTED_PATHS_BY_SOURCE_SET.items():
+        actual = {
+            path.relative_to(SRC / source_set).as_posix()
+            for path in kotlin_files(source_set)
+        }
+        missing = sorted(expected - actual)
+        extra = sorted(actual - expected)
+        if missing or extra:
             failures.append(
-                f"{SRC / source_set} holds no Kotlin file; the intended "
-                f"common/Android/iOS/device split requires it"
+                f"{source_set} Kotlin manifest mismatch; missing={missing}, extra={extra}"
             )
 
     # 3. Common and iOS production stay free of Android, Java and Firebase types.

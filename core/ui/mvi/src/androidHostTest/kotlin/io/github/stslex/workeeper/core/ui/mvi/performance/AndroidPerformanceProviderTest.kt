@@ -2,6 +2,9 @@
 package io.github.stslex.workeeper.core.ui.mvi.performance
 
 import android.app.Activity
+import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.v2.runComposeUiTest
 import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import org.junit.jupiter.api.AfterEach
@@ -10,6 +13,9 @@ import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.extension.ExtendWith
+import org.robolectric.annotation.Config
+import tech.apter.junit.jupiter.robolectric.RobolectricExtension
 
 /**
  * Android keeps real Firebase. These cases prove it two ways: the platform actual the common
@@ -17,6 +23,9 @@ import org.junit.jupiter.api.Test
  * adapter really delegate — driven through the public common façade against deterministic fakes,
  * with the production provider left untouched.
  */
+@ExtendWith(RobolectricExtension::class)
+@Config(sdk = [33])
+@OptIn(ExperimentalTestApi::class)
 internal class AndroidPerformanceProviderTest {
 
     private var wasLogging: Boolean = true
@@ -35,9 +44,9 @@ internal class AndroidPerformanceProviderTest {
     @Test
     fun theAndroidPlatformBackendIsTheFirebaseOneAndNotANoOp() {
         assertTrue(
-            PerformanceMetricsRecorder.backend is FirebasePerformanceBackend,
+            platformPerformanceBackend is FirebasePerformanceBackend,
             "the Android actual must stay the real Firebase backend; it resolved to " +
-                "${PerformanceMetricsRecorder.backend::class.qualifiedName}",
+                "${platformPerformanceBackend::class.qualifiedName}",
         )
     }
 
@@ -68,82 +77,107 @@ internal class AndroidPerformanceProviderTest {
     }
 
     @Test
+    fun theComposableAndroidScreenProviderKeepsTheFirebaseAdapter() = runComposeUiTest {
+        var recorder: ScreenRenderRecorder? = null
+
+        setContent {
+            val current = rememberScreenRenderRecorder()
+            SideEffect { recorder = current }
+        }
+        waitForIdle()
+
+        val adapter = recorder as? FirebaseScreenRenderAdapter
+            ?: error("the Android composable provider returned ${recorder?.let { it::class }}")
+        assertSame(
+            FirebaseScreenTraceSink,
+            adapter.sink,
+            "the actual composable provider must retain the Firebase screen sink",
+        )
+    }
+
+    @Test
     fun theCommonFacadeRoutesEveryActionThroughTheAndroidFirebaseRouter() {
         val traces = RecordingTraceFactory()
-        val backend = FirebasePerformanceBackend(traces)
+        withFakeTraces(traces) {
+            PerformanceMetricsRecorder.process(RecordAction.ActivityCreated(coldStart = true))
+            PerformanceMetricsRecorder.process(RecordAction.AppCreated)
+            PerformanceMetricsRecorder.process(
+                RecordAction.Navigation.NavTo(Screen.BottomBar.Home::class),
+            )
 
-        PerformanceMetricsRecorder.process(RecordAction.ActivityCreated(coldStart = true), backend)
-        PerformanceMetricsRecorder.process(RecordAction.AppCreated, backend)
-        PerformanceMetricsRecorder.process(
-            RecordAction.Navigation.NavTo(Screen.BottomBar.Home::class),
-            backend,
-        )
+            assertEquals(
+                listOf(
+                    "ActivityCreate_MainActivity",
+                    "AppCreate_App",
+                    "TTID_Home",
+                ),
+                traces.created,
+                "every action must map to its current trace name",
+            )
+            assertEquals(
+                mapOf("coldStart" to "true"),
+                traces.attributesOf("ActivityCreate_MainActivity"),
+                "ActivityCreated must still carry the coldStart attribute",
+            )
+            assertEquals(
+                mapOf("navType" to "nav_to"),
+                traces.attributesOf("TTID_Home"),
+                "a NavTo must still carry navType=nav_to",
+            )
 
-        assertEquals(
-            listOf(
-                "ActivityCreate_MainActivity",
-                "AppCreate_App",
-                "TTID_Home",
-            ),
-            traces.created,
-            "every action must map to its current trace name",
-        )
-        assertEquals(
-            mapOf("coldStart" to "true"),
-            traces.attributesOf("ActivityCreate_MainActivity"),
-            "ActivityCreated must still carry the coldStart attribute",
-        )
-        assertEquals(
-            mapOf("navType" to "nav_to"),
-            traces.attributesOf("TTID_Home"),
-            "a NavTo must still carry navType=nav_to",
-        )
-
-        PerformanceMetricsRecorder.process(
-            RecordAction.OnScreenPlaced(Screen.BottomBar.Home::class),
-            backend,
-        )
-        assertEquals(
-            listOf("TTID_Home", "AppCreate_App", "ActivityCreate_MainActivity"),
-            traces.stopped,
-            "OnScreenPlaced stops the matching TTID first, then the App and Activity create " +
-                "traces, in that order",
-        )
+            PerformanceMetricsRecorder.process(
+                RecordAction.OnScreenPlaced(Screen.BottomBar.Home::class),
+            )
+            assertEquals(
+                listOf("TTID_Home", "AppCreate_App", "ActivityCreate_MainActivity"),
+                traces.stopped,
+                "OnScreenPlaced stops the matching TTID first, then the App and Activity create " +
+                    "traces, in that order",
+            )
+        }
     }
 
     @Test
     fun replaceToCarriesTheReplaceNavType() {
         val traces = RecordingTraceFactory()
-        val backend = FirebasePerformanceBackend(traces)
+        withFakeTraces(traces) {
+            PerformanceMetricsRecorder.process(
+                RecordAction.Navigation.ReplaceTo(Screen.BottomBar.Home::class),
+            )
 
-        PerformanceMetricsRecorder.process(
-            RecordAction.Navigation.ReplaceTo(Screen.BottomBar.Home::class),
-            backend,
-        )
-
-        assertEquals(mapOf("navType" to "replace"), traces.attributesOf("TTID_Home"))
+            assertEquals(mapOf("navType" to "replace"), traces.attributesOf("TTID_Home"))
+        }
     }
 
     @Test
     fun appCreationStaysSingleShotAndClearTracesResetsIt() {
         val traces = RecordingTraceFactory()
-        val backend = FirebasePerformanceBackend(traces)
+        withFakeTraces(traces) {
+            PerformanceMetricsRecorder.process(RecordAction.AppCreated)
+            PerformanceMetricsRecorder.process(RecordAction.AppCreated)
+            assertEquals(
+                listOf("AppCreate_App"),
+                traces.created,
+                "AppCreate is single-shot: a second AppCreated must not open a second trace",
+            )
 
-        PerformanceMetricsRecorder.process(RecordAction.AppCreated, backend)
-        PerformanceMetricsRecorder.process(RecordAction.AppCreated, backend)
-        assertEquals(
-            listOf("AppCreate_App"),
-            traces.created,
-            "AppCreate is single-shot: a second AppCreated must not open a second trace",
-        )
+            PerformanceMetricsRecorder.process(RecordAction.ClearTraces)
+            PerformanceMetricsRecorder.process(RecordAction.AppCreated)
+            assertEquals(
+                listOf("AppCreate_App", "AppCreate_App"),
+                traces.created,
+                "ClearTraces resets the single-shot latch, as it does today",
+            )
+        }
+    }
 
-        PerformanceMetricsRecorder.process(RecordAction.ClearTraces, backend)
-        PerformanceMetricsRecorder.process(RecordAction.AppCreated, backend)
-        assertEquals(
-            listOf("AppCreate_App", "AppCreate_App"),
-            traces.created,
-            "ClearTraces resets the single-shot latch, as it does today",
-        )
+    private fun <T> withFakeTraces(
+        traces: PerfTraceFactory,
+        block: () -> T,
+    ): T {
+        val backend = platformPerformanceBackend as? FirebasePerformanceBackend
+            ?: error("Android platform backend is not Firebase-backed")
+        return backend.withTraceFactoryForTest(traces, block)
     }
 }
 

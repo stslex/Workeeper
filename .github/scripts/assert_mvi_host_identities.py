@@ -51,6 +51,10 @@ EXPECTED = [
                 f"{MVI_PACKAGE}.MviJvmAbiTest",
                 "defaultArgumentHelpersStayStaticMembersOfTheInterface",
             ),
+            host(
+                f"{MVI_PACKAGE}.MviJvmAbiTest",
+                "publicMviAbiMatchesTheMeasuredManifest",
+            ),
             # Android keeps real Firebase: the platform provider, and the delegation.
             host(
                 f"{MVI_PACKAGE}.performance.AndroidPerformanceProviderTest",
@@ -59,6 +63,10 @@ EXPECTED = [
             host(
                 f"{MVI_PACKAGE}.performance.AndroidPerformanceProviderTest",
                 "theCommonFacadeRoutesEveryActionThroughTheAndroidFirebaseRouter",
+            ),
+            host(
+                f"{MVI_PACKAGE}.performance.AndroidPerformanceProviderTest",
+                "theComposableAndroidScreenProviderKeepsTheFirebaseAdapter",
             ),
         ],
     },

@@ -43,8 +43,8 @@ import io.github.stslex.workeeper.navigation.NavigatorEventBus
 import kotlinx.coroutines.CoroutineDispatcher
 
 /**
- * The Metro app-scope dependency graph, held by `BaseApplication` for the process lifetime.
- * Factory-shaped: the app `Context` and the other bound roots enter through `create(...)`.
+ * The Metro app-scope dependency graph for one runtime generation. `BaseApplication` publishes
+ * the current generation, and replacement creates a new graph through `create(...)`.
  */
 @DependencyGraph(scope = AppScope::class)
 internal interface AppGraph :

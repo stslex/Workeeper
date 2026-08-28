@@ -71,6 +71,12 @@ dependencies {
 
     // The JVM ABI oracle enumerates declared methods and probes for DefaultImpls by name.
     "androidHostTestImplementation"(kotlin("reflect"))
+    // The Android provider oracle enters the actual composable provider under Robolectric.
+    "androidHostTestImplementation"(libs.androidx.compose.ui.test.junit4)
+    "androidHostTestImplementation"(libs.androidx.compose.ui.test.manifest)
+    "androidHostTestImplementation"(libs.robolectric)
+    "androidHostTestImplementation"(libs.robolectric.junit5.extension)
+    "androidHostTestImplementation"(libs.androidx.test)
 
     "androidDeviceTestImplementation"(libs.bundles.android.test)
     "androidDeviceTestImplementation"(libs.androidx.compose.ui.test.junit4)
@@ -90,4 +96,9 @@ dependencies {
 // Module-local on purpose — the shared KMP convention keeps the toolchain default.
 tasks.withType<KotlinJvmCompile>().configureEach {
     compilerOptions.jvmDefault.set(JvmDefaultMode.NO_COMPATIBILITY)
+}
+
+// GUARD: the Robolectric JUnit-5 bridge installs Android instrumentation through this interceptor.
+tasks.withType<Test>().configureEach {
+    systemProperty("junit.platform.launcher.interceptors.enabled", true)
 }

@@ -43,7 +43,7 @@ interface StoreProcessor<S : State, A : Action, E : Event> {
  * and the render trace.
  */
 @Composable
-inline fun <reified TStoreImpl : BaseStore<*, *, *>> rememberStoreProcessor(
+fun <TStoreImpl : BaseStore<*, *, *>> rememberStoreProcessor(
     storeCreator: StoreCreator<TStoreImpl>,
 ): StoreProcessor<*, *, *> {
     val currentLifecycleOwner = rememberLifecycleOwner()
@@ -64,10 +64,8 @@ inline fun <reified TStoreImpl : BaseStore<*, *, *>> rememberStoreProcessor(
     }
 }
 
-/** GUARD: published only for the public inline caller; the render seam stays internal API. */
-@PublishedApi
 @Composable
-internal fun StoreLifecycle(
+private fun StoreLifecycle(
     store: BaseStore<*, *, *>,
     lifecycleOwner: LifecycleOwner,
 ) {
