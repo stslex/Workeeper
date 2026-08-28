@@ -62,6 +62,10 @@ The build is configured in `settings.gradle.kts`. Every module is included from 
   (`ScreenSerialization.kt` — the polymorphic serializer registry that lets the back
   stack survive process death), `NavGraphScope` (the project-owned registration
   receiver) and its `navScreen` / `navScreenWithResults` extensions.
+- `core/ui/start-mode` — shared KMP Compose leaf for the start-card mode catalog, localized
+  Compose Multiplatform resources, public mode-name resolver, and reusable mode sheet. Production
+  Kotlin/resources live in `commonMain`; Android-host Paparazzi parity and the iOS-simulator
+  production-scene test remain platform-specific verification surfaces.
 - `core/ui/test-utils` — shared test infrastructure (`BaseComposeTest`, `MockDataFactory`,
   `PagingTestUtils`, `@Smoke`, `@Regression`).
 
