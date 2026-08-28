@@ -16,7 +16,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import io.github.stslex.workeeper.core.ui.kit.components.sheet.AppBottomSheet
 import io.github.stslex.workeeper.core.ui.kit.icons.AppIcons
@@ -25,6 +24,13 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
 import io.github.stslex.workeeper.core.ui.start_mode.model.StartCardModeUi
+import io.github.stslex.workeeper.core.ui.start_mode.resources.Res
+import io.github.stslex.workeeper.core.ui.start_mode.resources.core_ui_start_mode_description_days_since_last
+import io.github.stslex.workeeper.core.ui.start_mode.resources.core_ui_start_mode_description_forgotten_training
+import io.github.stslex.workeeper.core.ui.start_mode.resources.core_ui_start_mode_description_lagging_groups
+import io.github.stslex.workeeper.core.ui.start_mode.resources.core_ui_start_mode_description_week
+import io.github.stslex.workeeper.core.ui.start_mode.resources.core_ui_start_mode_sheet_title
+import org.jetbrains.compose.resources.stringResource
 
 /**
  * The start card's mode picker (home-start-card.md HS4/HS5), shared by Home and Settings. GUARD:
@@ -57,7 +63,7 @@ fun StartCardModeSheetContent(
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
         Text(
-            text = stringResource(R.string.core_ui_start_mode_sheet_title),
+            text = stringResource(Res.string.core_ui_start_mode_sheet_title),
             style = AppUi.typography.titleLarge,
             color = AppUi.colors.textPrimary,
         )
@@ -120,11 +126,12 @@ private fun ModeRow(
 @Composable
 private fun startCardModeDescription(mode: StartCardModeUi): String = stringResource(
     when (mode) {
-        StartCardModeUi.WEEK -> R.string.core_ui_start_mode_description_week
-        StartCardModeUi.DAYS_SINCE_LAST -> R.string.core_ui_start_mode_description_days_since_last
-        StartCardModeUi.LAGGING_GROUPS -> R.string.core_ui_start_mode_description_lagging_groups
+        StartCardModeUi.WEEK -> Res.string.core_ui_start_mode_description_week
+        StartCardModeUi.DAYS_SINCE_LAST ->
+            Res.string.core_ui_start_mode_description_days_since_last
+        StartCardModeUi.LAGGING_GROUPS -> Res.string.core_ui_start_mode_description_lagging_groups
         StartCardModeUi.FORGOTTEN_TRAINING ->
-            R.string.core_ui_start_mode_description_forgotten_training
+            Res.string.core_ui_start_mode_description_forgotten_training
     },
 )
 
