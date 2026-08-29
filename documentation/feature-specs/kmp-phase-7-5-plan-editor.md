@@ -1,6 +1,13 @@
 # KMP Phase 7.5 — `core:ui:plan-editor` becomes the shared plan-presentation leaf
 
-**Status:** SPECIFICATION READY; IMPLEMENTATION NOT AUTHORIZED
+**Status:** COMPLETE — implementation PR #267 merged into `dev` on 2026-08-29.
+
+**Delivery:** base `a34884ad7154edeaeee3cff2b6df8bb334ce9343` · reviewed head
+`9157bd8dc951cfbc270ebddcd3f0f5c8f56fc599` · merge
+`479a2960574ff165f4f6b99a24d49ab1c961bbd8`. All final-head workflows succeeded; all three
+implementation commits were signed/GitHub-Verified; the review inventory contained zero threads
+and zero submitted reviews; the active `~ALL` ruleset and both required contexts remained
+unchanged.
 
 **Target branch:** `dev`
 
@@ -759,3 +766,29 @@ CI snapshot was entirely terminal-success: run `33217962588` completed `Build an
 artifact upload; run `33217962576` completed `Mockup Appearance Gate` successfully. The PR was
 mergeable/CLEAN at that snapshot. No force-push or merge occurred; the maintainer remains the merge
 owner.
+
+### 18.6 GitHub delivery closeout — 2026-08-29
+
+PR #267 merged into `dev` at `2026-08-29T06:19:01Z` from final head
+`9157bd8dc951cfbc270ebddcd3f0f5c8f56fc599`; GitHub created merge commit
+`479a2960574ff165f4f6b99a24d49ab1c961bbd8`.
+
+The final implementation stack was:
+
+- `f16fa5fbeb93870bc1cd4f8a292605d7baf29bb9` —
+  `refactor(kmp): share plan editor UI`;
+- `f0d5164386f92f19d116dd0a3bed783a0eeb9696` —
+  `ci(kmp): gate shared plan editor UI`; and
+- `9157bd8dc951cfbc270ebddcd3f0f5c8f56fc599` —
+  `docs(kmp): record Phase 7.5 evidence`.
+
+GitHub verifies all three signatures. Final-head `Android CI/CD - Unified Build and Tests` run
+`33220042953` completed successfully: `Build and Unit Tests` in 8m35s and
+`KMP iOS kit smoke` in 2m25s. All final-head `v3 Mockup Appearance Gate` executions were also
+successful, including runs `33220042623`, `33220076250`, `33220588217`, and `33220657871`.
+
+The PR merged with zero review threads and zero submitted reviews. The repository-wide `all`
+ruleset (id `8116593`, `~ALL`) remains active and still requires signed commits plus the unchanged
+`Build and Unit Tests` and `KMP iOS kit smoke` contexts; the dedicated `dev` ruleset remains
+disabled. With the local evidence in Sections 18.1–18.4, the final-head evidence above, and the
+maintainer merge, every Section 16 exit criterion is closed.
