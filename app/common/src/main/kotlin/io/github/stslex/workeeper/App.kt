@@ -41,6 +41,7 @@ import androidx.compose.ui.zIndex
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation3.runtime.rememberNavBackStack
+import io.github.stslex.workeeper.app.common.di.AppRootDeps
 import io.github.stslex.workeeper.app.common.di.AppRootDepsHolder
 import io.github.stslex.workeeper.app.common.di.AppUiAdmissionToken
 import io.github.stslex.workeeper.app.common.di.AppUiGenerationsHolder
@@ -86,6 +87,9 @@ fun App() {
                     GenerationAdmission(generationsHolder, currentPhase.id)
                 }
                 if (admission.granted) {
+                    val deps = remember(currentPhase.id) {
+                        (context.applicationContext as AppRootDepsHolder).appRootDeps()
+                    }
                     CompositionLocalProvider(
                         LocalViewModelStoreOwner provides currentPhase.viewModelStoreOwner,
                     ) {
@@ -97,7 +101,7 @@ fun App() {
                                 ?.let(saveableStateHolder::removeState)
                             previousGenerationId = currentPhase.id
                         }
-                        AppGenerationContent()
+                        AppGenerationContent(deps)
                     }
                 }
             }
@@ -137,12 +141,10 @@ private class GenerationAdmission(
 
 @Composable
 @Suppress("LongMethod")
-private fun AppGenerationContent() {
+private fun AppGenerationContent(deps: AppRootDeps) {
     // AppRootViewModel reads deps through [AppRootDeps]; the app graph is below-the-line here and
-    // cannot be named. Resolving inside the region binds it to the current generation.
-    val context = LocalContext.current
+    // cannot be named. The admitted generation resolves and passes this exact instance once.
     val viewModel: AppRootViewModel = viewModel {
-        val deps = (context.applicationContext as AppRootDepsHolder).appRootDeps()
         AppRootViewModel(
             commonDataStore = deps.commonDataStore,
             navigatorEventBus = deps.navigatorEventBus,
@@ -249,6 +251,7 @@ private fun AppGenerationContent() {
                 modifier = Modifier,
                 navigatorHolder = holder,
                 results = navigatorEventBus,
+                imageViewerGraphFactory = deps.imageViewerGraphFactory,
             )
 
             // GUARD: no host-owned affordance here — the host may not place a control in a band

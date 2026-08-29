@@ -32,6 +32,7 @@ import io.github.stslex.workeeper.feature.archive.ui.archiveGraph
 import io.github.stslex.workeeper.feature.exercise.ui.exerciseGraph
 import io.github.stslex.workeeper.feature.exercise_chart.ui.exerciseChartGraph
 import io.github.stslex.workeeper.feature.home.ui.homeGraph
+import io.github.stslex.workeeper.feature.image_viewer.di.ImageViewerGraph
 import io.github.stslex.workeeper.feature.image_viewer.ui.imageViewerGraph
 import io.github.stslex.workeeper.feature.live_workout.ui.liveWorkoutGraph
 import io.github.stslex.workeeper.feature.past_session.ui.pastSessionGraph
@@ -44,6 +45,7 @@ import io.github.stslex.workeeper.feature.single_training.ui.singleTrainingsGrap
 internal fun AppNavigationHost(
     navigatorHolder: NavigatorHolder,
     results: NavResultsSource,
+    imageViewerGraphFactory: ImageViewerGraph.Factory,
     modifier: Modifier = Modifier,
 ) {
     SharedTransitionLayout(
@@ -144,6 +146,7 @@ internal fun AppNavigationHost(
                             .testTag("PastSessionGraph"),
                     )
                     imageViewerGraph(
+                        factory = imageViewerGraphFactory,
                         modifier = imageViewerModifier
                             .reportScreenPlace<Screen.ExerciseImage>()
                             .testTag("ImageViewerGraph"),

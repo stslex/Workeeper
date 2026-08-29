@@ -2,11 +2,9 @@
 package io.github.stslex.workeeper.di
 
 import android.content.Context
-import dev.zacsweers.metro.asContribution
 import dev.zacsweers.metro.createGraphFactory
 import io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetime
 import io.github.stslex.workeeper.core.ui.navigation.Screen
-import io.github.stslex.workeeper.feature.image_viewer.di.ImageViewerGraph
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.resetMain
@@ -50,7 +48,7 @@ internal class ImageViewerExtensionIdentityTest {
     @Test
     fun `extension resolves the store through the parent graph`() {
         val store = buildAppGraph()
-            .asContribution<ImageViewerGraph.Factory>()
+            .imageViewerGraphFactory
             .createImageViewerGraph(screen("/img/a.png"))
             .imageViewerStore
 
@@ -62,7 +60,7 @@ internal class ImageViewerExtensionIdentityTest {
         val appGraph = buildAppGraph()
 
         val store = appGraph
-            .asContribution<ImageViewerGraph.Factory>()
+            .imageViewerGraphFactory
             .createImageViewerGraph(screen("/img/a.png"))
             .imageViewerStore
 
@@ -80,7 +78,7 @@ internal class ImageViewerExtensionIdentityTest {
 
     @Test
     fun `each extension carries its own route arg into the store state`() {
-        val factory = buildAppGraph().asContribution<ImageViewerGraph.Factory>()
+        val factory = buildAppGraph().imageViewerGraphFactory
 
         val a = factory.createImageViewerGraph(screen("/img/a.png")).imageViewerStore
         val b = factory.createImageViewerGraph(screen("/img/b.png")).imageViewerStore

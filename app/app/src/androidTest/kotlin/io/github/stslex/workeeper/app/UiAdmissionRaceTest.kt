@@ -20,7 +20,6 @@ import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
-import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -65,9 +64,10 @@ internal class UiAdmissionRaceTest {
             1,
             MetroTestGraphHolder.outstandingAdmissions(generationId),
         )
-        assertTrue(
+        assertEquals(
             "an admitted region resolves the generation's app-scope deps",
-            MetroTestGraphHolder.appRootDepsResolutions.get() >= 1,
+            1,
+            MetroTestGraphHolder.appRootDepsResolutions.get(),
         )
     }
 
