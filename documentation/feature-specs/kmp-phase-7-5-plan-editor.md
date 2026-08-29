@@ -629,3 +629,133 @@ pre-authorized:
 A throwaway `iosApp` that bypasses `app:common` remains out of scope. Phase-5 replacement,
 publication, admission, retirement, journal, and recovery semantics remain separately authoritative
 throughout the remaining roadmap.
+
+## 18. Implementation evidence
+
+### 18.1 Entry gate and measured boundary
+
+On 2026-08-29 the implementation fetched the live repository, proved
+`origin/dev = a34884ad7154edeaeee3cff2b6df8bb334ce9343`, verified this specification on that
+commit, and created `feature/kmp-phase-7-5-plan-editor` directly from it. PR #266 was live as
+merged with its required checks successful. The only pre-existing worktree entries were the
+untracked user-owned `KMP_C1_RESULTS.md`, `documentation/regression/`, and `iosApp/`; all remained
+untouched and unstaged. A throwaway `git commit-tree -S` probe contained a `gpgsig` header before
+the first implementation commit.
+
+The repeated §11.1 inventory reproduced the specified frontier exactly: 13 production Kotlin
+files and 838 production lines, one core Android-resource access, 14 EN plus 14 RU core strings,
+19 reducer identities, three Paparazzi classes with 18 executions and 18 PNGs, five external
+caller files with 12 `CoreEditorR` accesses, six direct consumers, 456 repository PNGs across the
+same 13 golden modules, and unchanged Smoke/Regression membership. Every PNG SHA-256, Git blob,
+byte size, color model, and dimension matched the §2 table. Fresh pre-change focused gates were:
+
+- `:core:ui:plan-editor:assembleDebug`: `66 actionable tasks: 66 executed`;
+- `:core:ui:plan-editor:testDebugUnitTest`: `117 actionable tasks: 117 executed`;
+- `:core:ui:plan-editor:verifyPaparazziDebug`: `118 actionable tasks: 118 executed`; and
+- `:core:ui:plan-editor:lintDebug`: `130 actionable tasks: 130 executed`.
+
+Fresh pre-change JUnit XML contained the exact 19 reducer and 18 golden cases with zero skipped,
+failed, or errored cases. No entry STOP condition was reached.
+
+### 18.2 Implemented topology and ownership
+
+The implementation produces the exact 38-file manifest: all 13 production files are in
+`commonMain`; the only private core CMP resource is `core_ui_plan_editor_read_plan_empty` in EN/RU;
+the unchanged 19-case reducer is in `commonTest`; the three golden classes and 18 byte-identical
+PNGs are in `androidHostTest`; and the single required production scene is in `iosTest`. There is
+no plan-editor `androidMain`, `iosMain`, expect/actual, platform shim, Android resource/API access,
+Java API, Context access, or legacy production/test file.
+
+Exactly the five authorized production callers and the EN/RU owners in `feature:plan-editor`,
+`feature:exercise`, and `feature:single-training` changed. The feature partition is five, six, and
+one migrated identifiers respectively; the seven already-local plan-editor identifiers are
+unchanged. The first fresh consumer compile established that the authorized plan-editor handler
+did not already import its local `R` as the discovery wording stated, so its local import was added
+inside that already-authorized file. No sixth caller or fourth feature module was required.
+
+The module uses `convention.kmpComposeLibrary`, applies serialization explicitly, keeps generated
+resources private under
+`io.github.stslex.workeeper.core.ui.plan_editor.resources`, exposes only the §8 API dependencies,
+and declares material-icons-core privately in `commonMain`. The dead `core:core` and
+`core:data:exercise` edges are removed; every one of the six consumers retains its direct
+`core:ui:kit` edge. The extended topology/resource oracle passes the exact plan-editor manifest and
+owner/value maps while retaining the Phase 7.4 start-mode manifest unchanged.
+
+### 18.3 Fresh positive verification
+
+Every forced Gradle gate used `--rerun-tasks --no-build-cache`; KMP, Paparazzi, Native, and final
+repository gates also used `--no-configuration-cache` where required. The focused results were:
+
+- plan-editor assemble `93/93`, Android-host unit `88/88`, Paparazzi `89/89`, lint `75/75`, and
+  local Xcode `iosSimulatorArm64Test` `56/56` executed;
+- all six consumers' assemble/unit coverage `432/432` executed;
+- the stable five-module Native invocation `134/134` executed; and
+- the topology/resource oracle and Native XML validator both passed.
+
+Fresh structural XML proved exactly 19 common reducer cases, 18 Android-host golden cases, and one
+`io.github.stslex.workeeper.core.ui.plan_editor.PlanEditorSceneIosTest.readOnlyCopyAndEditableAddRenderAndDispatch`
+case, all with zero skips, failures, or errors. The full Native validator retained kit `1`,
+navigation `1`, MVI `14` including all five required identities, start-mode `2`, and plan-editor
+`20` including the 19 common cases plus the single scene.
+
+Fresh repository gates were `assembleDebug` `1174/1174`, `assembleDebugAndroidTest` `1938/1938`,
+`verifyPaparazziDebug` `621/621`, `:lint-rules:test` `9/9`, `detekt` `57/57`, `lintDebug`
+`1091/1091`, and `testDebugUnitTest` `1132/1132`, all executed and successful. The personal-data
+gate passed with only its documented exceptions. No suppression, baseline, tolerance, version,
+convention, compiler policy, ruleset, required context, or golden was changed.
+
+Local device infrastructure was available. Canonical Smoke ran `2011/2011` Gradle tasks and its
+14 fresh XML files proved `44 discovered / 41 executed / 3` exact `pendingFeatureRewrite` skips
+with zero failures/errors. Canonical Regression ran `2011/2011` tasks and its 14 fresh XML files
+proved `81/81` with zero skips/failures/errors. Two week-old KMP alias reports under
+`connected/debug` were identified by timestamp and excluded; only reports freshly written by each
+run were counted. The MVI device identity validator retained both exact cases at zero skips,
+failures, and errors.
+
+All 18 PNGs retained the §2 hashes, byte sizes, dimensions, and metadata, and Git records each as a
+100% rename. Repository membership remains 456 PNGs across the same 13 modules. No image was
+re-recorded.
+
+### 18.4 Mandatory known-negative controls
+
+Each control ran as fresh GREEN, the named RED, exact restoration without Git recovery, and fresh
+GREEN:
+
+1. a same-count `commonMain` file moved to legacy `src/main` made the exact topology oracle RED;
+2. an `androidx.compose.ui.res` import made topology RED and the Native compiler rejected the
+   unresolved platform API; the generic mutation harness classifies compiler rejection as
+   `INVALID`, but the named platform-boundary compiler oracle itself was the specified RED, not a
+   syntax failure, and the `30/30` compile gate was green before and after restoration;
+3. a restored `CoreEditorR` call made resource ownership RED;
+4. a same-total identifier moved into the wrong feature catalog made ownership RED;
+5. a changed RU feature value made exact value ownership RED;
+6. changed RU read-only copy made both `readOnlyEmpty` LIGHT/DARK Paparazzi cases RED, followed by
+   `89/89` green;
+7. default repetitions `5 -> 6` made both owning reducer identities RED, followed by `88/88`
+   green;
+8. a blank Native composition made the exact production-scene identity RED, followed by `56/56`
+   green;
+9. suppressed add dispatch made the exact action-list assertion RED, followed by `56/56` green;
+10. a renamed Native method plus freshly regenerated XML made the Native identity validator RED,
+    followed by `56/56` and validator green;
+11. changing decoded RGBA pixel `(539, 103)` from red `239` to `16` made the exact owning LIGHT
+    Paparazzi case RED; the original `ad51992f...` SHA-256 was restored and `89/89` was green;
+12. a proven-absent nineteenth PNG made `assertGoldenLiveness` RED; count 18 was restored and
+    `89/89` was green; and
+13. a Native-test `MaxLineLength` violation made root Detekt RED; exact restoration returned
+    `57/57` green.
+
+No temporary mutation, report, local configuration, secret, or generated output entered a commit.
+
+### 18.5 Delivery snapshot
+
+Implementation PR #267 targets `dev` and remains open and unmerged. Its implementation head
+`f0d5164386f92f19d116dd0a3bed783a0eeb9696` contains GitHub-Verified signed commits
+`f16fa5fbeb93870bc1cd4f8a292605d7baf29bb9` (`refactor(kmp): share plan editor UI`) and
+`f0d5164386f92f19d116dd0a3bed783a0eeb9696` (`ci(kmp): gate shared plan editor UI`). Codex review
+completed on that head with zero submitted reviews and zero review threads. The implementation-head
+CI snapshot was entirely terminal-success: run `33217962588` completed `Build and Unit Tests` in
+33m04s and `KMP iOS kit smoke` in 21m42s, including both exact-identity validators and the Native
+artifact upload; run `33217962576` completed `Mockup Appearance Gate` successfully. The PR was
+mergeable/CLEAN at that snapshot. No force-push or merge occurred; the maintainer remains the merge
+owner.

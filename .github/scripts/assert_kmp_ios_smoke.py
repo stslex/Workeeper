@@ -111,6 +111,17 @@ EXPECTED = [
             ),
         ],
     },
+    {
+        "module": "core:ui:plan-editor",
+        "results_dir": "core/ui/plan-editor/build/test-results/iosSimulatorArm64Test",
+        "classname_prefix": KNOWN_SUITE_PREFIX,
+        "identities": [
+            native(
+                "io.github.stslex.workeeper.core.ui.plan_editor.PlanEditorSceneIosTest",
+                "readOnlyCopyAndEditableAddRenderAndDispatch",
+            ),
+        ],
+    },
 ]
 
 

@@ -10,6 +10,7 @@ import io.github.stslex.workeeper.core.ui.plan_editor.domain.PlanDraftReducer
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanEditorBodyAction
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
+import io.github.stslex.workeeper.feature.plan_editor.R
 import io.github.stslex.workeeper.feature.plan_editor.di.PlanEditorHandlerStore
 import io.github.stslex.workeeper.feature.plan_editor.di.PlanEditorScope
 import io.github.stslex.workeeper.feature.plan_editor.domain.PlanEditorInteractor
@@ -20,7 +21,6 @@ import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorSto
 import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorStore.Event
 import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorStore.State.Mode
 import kotlinx.collections.immutable.toImmutableList
-import io.github.stslex.workeeper.core.ui.plan_editor.R as CoreEditorR
 
 @Suppress("TooManyFunctions")
 @SingleIn(PlanEditorScope::class)
@@ -95,16 +95,16 @@ internal class ClickHandler @Inject constructor(
             sendEvent(Event.HapticClick(HapticFeedbackType.LongPress))
             // Strings resolved outside the updateState lambda — compose-state-discipline Rule 1.
             val title = resourceWrapper.getString(
-                CoreEditorR.string.core_ui_plan_editor_type_change_weightless_title,
+                R.string.feature_plan_editor_type_change_weightless_title,
             )
             val body = resourceWrapper.getString(
-                CoreEditorR.string.core_ui_plan_editor_type_change_weightless_body,
+                R.string.feature_plan_editor_type_change_weightless_body,
             )
             val impactSummary = resourceWrapper.getString(
-                CoreEditorR.string.core_ui_plan_editor_type_change_weightless_impact,
+                R.string.feature_plan_editor_type_change_weightless_impact,
             )
             val confirmLabel = resourceWrapper.getString(
-                CoreEditorR.string.core_ui_plan_editor_type_change_weightless_confirm,
+                R.string.feature_plan_editor_type_change_weightless_confirm,
             )
             updateState {
                 it.copy(

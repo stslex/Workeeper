@@ -44,6 +44,7 @@
     <string name="feature_training_edit_add_exercise">Add exercise</string>
     <string name="feature_training_edit_exercise_removed">Exercise removed from training</string>
     <string name="feature_training_edit_no_plan">no plan yet</string>
+    <string name="feature_training_edit_plan_set_removed">Set removed</string>
     <string name="feature_training_edit_remove_exercise">Remove exercise</string>
     <string name="feature_training_edit_drag_handle">Reorder</string>
     <string name="feature_training_edit_error_name_required">Name is required</string>

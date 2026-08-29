@@ -51,7 +51,6 @@ import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorSto
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 import org.jetbrains.compose.resources.stringResource
-import io.github.stslex.workeeper.core.ui.plan_editor.R as CoreEditorR
 
 @Composable
 internal fun PlanEditorScreen(
@@ -116,7 +115,7 @@ internal fun PlanEditorScreen(
                     consume(Action.EditorAction(editorAction))
                 },
                 setTypeTooltipText = stringResource(
-                    CoreEditorR.string.core_ui_plan_editor_set_type_tooltip,
+                    R.string.feature_plan_editor_set_type_tooltip,
                 ),
                 onTypeChange = if (state.mode is Mode.PerformedExercise) {
                     null
