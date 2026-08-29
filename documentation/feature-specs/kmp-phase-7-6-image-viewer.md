@@ -1,6 +1,9 @@
 # KMP Phase 7.6 — `feature:image-viewer` becomes the first shared feature entry
 
-**Status:** IMPLEMENTED IN OPEN PR #269; AWAITING MAINTAINER MERGE
+**Status:** COMPLETE — PR #269 merged
+
+**Completion:** PR #269 merged into `dev` as
+`d52dd740b5e6154cb717c879be3bf59c76d47dac` on 2026-08-29.
 
 **Target branch:** `dev`
 
