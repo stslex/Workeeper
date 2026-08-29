@@ -69,8 +69,9 @@ sealed interface Screen : NavKey {
     ) : Screen
 
     /**
-     * Full-screen image viewer; [model] is a file path or a content URI, both resolved by Coil.
-     * Pops back with an [ExerciseImageRequest] name — the editor, not the viewer, performs it.
+     * Full-screen image viewer; [model] is an opaque caller-owned string interpreted by Coil.
+     * The viewer does not parse, normalize, copy, delete, or persist it, and pops back with an
+     * [ExerciseImageRequest] name — the editor, not the viewer, performs the request.
      */
     @Serializable
     data class ExerciseImage(

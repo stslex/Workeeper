@@ -2,6 +2,7 @@
 package io.github.stslex.workeeper.app.common.di
 
 import io.github.stslex.workeeper.core.data.dataStore.store.CommonDataStore
+import io.github.stslex.workeeper.feature.image_viewer.di.ImageViewerGraph
 import io.github.stslex.workeeper.navigation.NavigatorEventBus
 
 /**
@@ -18,6 +19,9 @@ interface AppRootDeps {
      * three of its faces at once, and three members could be satisfied by three objects.
      */
     val navigatorEventBus: NavigatorEventBus
+
+    /** Generation-owned factory for the image-viewer graph extension. */
+    val imageViewerGraphFactory: ImageViewerGraph.Factory
 }
 
 /**

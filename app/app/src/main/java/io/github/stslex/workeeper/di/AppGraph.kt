@@ -35,6 +35,7 @@ import io.github.stslex.workeeper.core.ui.navigation.Navigator
 import io.github.stslex.workeeper.feature.app_dialogs.api.observer.AppDialogObserver
 import io.github.stslex.workeeper.feature.app_dialogs.impl.data.AppDialogRepository
 import io.github.stslex.workeeper.feature.app_dialogs.impl.observer.AppDialogObserverImpl
+import io.github.stslex.workeeper.feature.image_viewer.di.ImageViewerGraph
 import io.github.stslex.workeeper.feature.recovery.boot.RecoveryBootstrap
 import io.github.stslex.workeeper.feature.recovery.di.RecoveryDeps
 import io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinator
@@ -77,6 +78,8 @@ internal interface AppGraph :
      */
     val navigator: Navigator
     override val navigatorEventBus: NavigatorEventBus
+
+    override val imageViewerGraphFactory: ImageViewerGraph.Factory
 
     val activityHolderProducer: ActivityHolderProducer
 

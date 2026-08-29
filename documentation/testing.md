@@ -346,6 +346,28 @@ module-private. See
 [kmp-phase-7-5-plan-editor.md](feature-specs/kmp-phase-7-5-plan-editor.md) for the measured topology,
 resource partition, and exact identities.
 
+#### Shared image-viewer feature
+
+`feature:image-viewer` keeps its three handler suites in `commonTest`, so the same 12 deterministic
+cases run through the Android-host and `iosSimulatorArm64Test` hierarchies: Click 8, Common 2, and
+Navigation 2. The navigation cases assert both the exact destination and result request name,
+including `BackWithRequest`; their small in-module fakes fail immediately on unused logger,
+coroutine, or navigator operations.
+
+The exact Native identity
+`io.github.stslex.workeeper.feature.image_viewer.ImageViewerSceneIosTest.resourcesBranchesAndActionsRenderAndDispatch`
+composes the production screen under `AppTheme`. It proves the read-only branch has no menu, the
+editable branch resolves the exact menu/replace/remove copy from private CMP resources, back and
+menu actions dispatch exactly, and the production Coil request path composes through
+`LocalPlatformContext`. Together with the 12 common cases, the image-viewer Native XML contains 13
+passing cases with no skip, failure, or error. This is a headless Compose scene, not an iOS app,
+application-window, UIKit, Metal, or XCTest claim.
+
+Android keeps three `ImageViewerExtensionIdentityTest` cases, resolving the factory through
+`appGraph.imageViewerGraphFactory`, and three `UiAdmissionRaceTest` cases: the admitted generation
+resolves app-root dependencies exactly once while both rejected paths resolve them zero times.
+The four existing image-viewer regression journeys remain unchanged.
+
 #### Shared MVI runtime
 
 `core:ui:mvi` uses `commonTest` for Store lifetime, disposal, navigation-result and event-pressure
@@ -1002,8 +1024,9 @@ python3 .github/scripts/assert_mvi_host_identities.py
 ./gradlew :core:ui:kit:iosSimulatorArm64Test \
   :core:ui:navigation:iosSimulatorArm64Test \
   :core:ui:mvi:iosSimulatorArm64Test \
-  :core:ui:plan-editor:iosSimulatorArm64Test \
   :core:ui:start-mode:iosSimulatorArm64Test \
+  :core:ui:plan-editor:iosSimulatorArm64Test \
+  :feature:image-viewer:iosSimulatorArm64Test \
   --rerun-tasks --no-build-cache --no-configuration-cache --continue
 python3 .github/scripts/assert_kmp_ios_smoke.py
 
