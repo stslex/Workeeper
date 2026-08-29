@@ -275,9 +275,9 @@ jobs:
           report-path: "**/build/reports/lint-results-*.xml"
 
   # The Phase-7 native gate behind the stable required context `KMP iOS kit smoke`: one forced
-  # Gradle invocation executes the kit, navigation, MVI, start-mode and plan-editor Phase-7 Native
-  # tests on the iOS simulator, then a checked-in script requires every exact per-module XML
-  # identity.
+  # Gradle invocation executes the kit, navigation, MVI, start-mode, plan-editor and image-viewer
+  # Phase-7 Native tests on the iOS simulator, then a checked-in script requires every exact
+  # per-module XML identity.
   # Narrow on purpose: no Xcode app, no Apple signing, no XCFramework, no App Store Connect
   # secrets. See
   # documentation/feature-specs/kmp-phase-7-1-ui-kit.md §9 and kmp-phase-7-2-navigation.md §9.
@@ -345,7 +345,7 @@ jobs:
 
       # --continue so a kit failure cannot mask whether navigation ran (and vice versa): the
       # identity script needs both modules' XML to say which tuple broke.
-      - name: Run the native kit navigation MVI start-mode and plan-editor tests
+      - name: Run the native kit navigation MVI start-mode plan-editor and image-viewer tests
         id: native_tests
         run: >
           ./gradlew
@@ -354,6 +354,7 @@ jobs:
           :core:ui:mvi:iosSimulatorArm64Test
           :core:ui:start-mode:iosSimulatorArm64Test
           :core:ui:plan-editor:iosSimulatorArm64Test
+          :feature:image-viewer:iosSimulatorArm64Test
           --rerun-tasks --no-build-cache --no-configuration-cache
           --continue --full-stacktrace --console=plain
 
@@ -387,4 +388,5 @@ jobs:
             core/ui/mvi/build/test-results/iosSimulatorArm64Test/
             core/ui/start-mode/build/test-results/iosSimulatorArm64Test/
             core/ui/plan-editor/build/test-results/iosSimulatorArm64Test/
+            feature/image-viewer/build/test-results/iosSimulatorArm64Test/
           retention-days: 30

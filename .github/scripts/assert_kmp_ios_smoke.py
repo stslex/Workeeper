@@ -122,6 +122,17 @@ EXPECTED = [
             ),
         ],
     },
+    {
+        "module": "feature:image-viewer",
+        "results_dir": "feature/image-viewer/build/test-results/iosSimulatorArm64Test",
+        "classname_prefix": KNOWN_SUITE_PREFIX,
+        "identities": [
+            native(
+                "io.github.stslex.workeeper.feature.image_viewer.ImageViewerSceneIosTest",
+                "resourcesBranchesAndActionsRenderAndDispatch",
+            ),
+        ],
+    },
 ]
 
 

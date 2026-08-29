@@ -95,12 +95,46 @@ MODULES = {
             "src/commonMain/composeResources/values-ru",
         },
     },
+    "feature:image-viewer": {
+        "root": Path("feature/image-viewer"),
+        "files": {
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/image_viewer/di/ImageViewerFeature.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/image_viewer/di/ImageViewerGraph.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/image_viewer/di/ImageViewerHandlerStore.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/image_viewer/di/ImageViewerHandlerStoreImpl.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/image_viewer/di/ImageViewerScope.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/image_viewer/mvi/handler/ClickHandler.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/image_viewer/mvi/handler/CommonHandler.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/image_viewer/mvi/handler/NavigationHandler.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/image_viewer/mvi/store/ImageViewerStore.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/image_viewer/mvi/store/ImageViewerStoreImpl.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/image_viewer/ui/ImageViewerGraph.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/image_viewer/ui/ImageViewerScreen.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/image_viewer/ui/components/ZoomableImage.kt",
+            "src/commonMain/composeResources/values/strings.xml",
+            "src/commonMain/composeResources/values-ru/strings.xml",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/image_viewer/mvi/handler/ClickHandlerTest.kt",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/image_viewer/mvi/handler/CommonHandlerTest.kt",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/image_viewer/mvi/handler/NavigationHandlerTest.kt",
+            "src/iosTest/kotlin/io/github/stslex/workeeper/feature/image_viewer/ImageViewerSceneIosTest.kt",
+        },
+        "kotlin_source_sets": {
+            "commonMain",
+            "commonTest",
+            "iosTest",
+        },
+        "resource_dirs": {
+            "src/commonMain/composeResources/values",
+            "src/commonMain/composeResources/values-ru",
+        },
+    },
 }
 
 LEGACY_SOURCE_SETS = ("main", "test", "androidTest")
 
 FORBIDDEN_IMPORT = re.compile(
-    r"^\s*import\s+(android\.|androidx\.compose\.ui\.res(?:\.|\s|$)|java\.|javax\.)",
+    r"^\s*import\s+(android\.|androidx\.annotation(?:\.|\s|$)|"
+    r"androidx\.compose\.ui\.res(?:\.|\s|$)|java\.|javax\.)",
     re.MULTILINE,
 )
 
@@ -118,6 +152,40 @@ CORE_PLAN_EDITOR_CATALOGS = {
     Path("core/ui/plan-editor/src/commonMain/composeResources/values-ru/strings.xml"): {
         "core_ui_plan_editor_read_plan_empty": "У упражнения нет плана по умолчанию.",
     },
+}
+
+IMAGE_VIEWER_CATALOGS = {
+    Path("feature/image-viewer/src/commonMain/composeResources/values/strings.xml"): {
+        "feature_image_viewer_back": "Back",
+        "feature_image_viewer_content_description": "Exercise image, full size",
+        "feature_image_viewer_unavailable": "Image unavailable",
+        "feature_image_viewer_menu": "Image actions",
+        "feature_image_viewer_action_replace": "Replace photo",
+        "feature_image_viewer_action_remove": "Remove photo",
+    },
+    Path("feature/image-viewer/src/commonMain/composeResources/values-ru/strings.xml"): {
+        "feature_image_viewer_back": "Назад",
+        "feature_image_viewer_content_description": "Полноразмерное фото упражнения",
+        "feature_image_viewer_unavailable": "Фото недоступно",
+        "feature_image_viewer_menu": "Действия с фото",
+        "feature_image_viewer_action_replace": "Заменить фото",
+        "feature_image_viewer_action_remove": "Удалить фото",
+    },
+}
+
+EXPECTED_APP_DEPS_READERS = {
+    Path("feature/all-exercises/src/main/kotlin/io/github/stslex/workeeper/feature/all_exercises/di/AllExercisesFeature.kt"): "AllExercisesGraph.Factory",
+    Path("feature/all-trainings/src/main/kotlin/io/github/stslex/workeeper/feature/all_trainings/di/AllTrainingsFeature.kt"): "AllTrainingsGraph.Factory",
+    Path("feature/app-dialogs/impl/src/main/kotlin/io/github/stslex/workeeper/feature/app_dialogs/impl/di/AppDialogFeature.kt"): "AppDialogGraph.Factory",
+    Path("feature/archive/src/main/kotlin/io/github/stslex/workeeper/feature/archive/di/ArchiveFeature.kt"): "ArchiveGraph.Factory",
+    Path("feature/exercise-chart/src/main/kotlin/io/github/stslex/workeeper/feature/exercise_chart/di/ExerciseChartFeature.kt"): "ExerciseChartGraph.Factory",
+    Path("feature/exercise/src/main/kotlin/io/github/stslex/workeeper/feature/exercise/di/ExerciseFeature.kt"): "ExerciseGraph.Factory",
+    Path("feature/home/src/main/kotlin/io/github/stslex/workeeper/feature/home/di/HomeFeature.kt"): "HomeGraph.Factory",
+    Path("feature/live-workout/src/main/kotlin/io/github/stslex/workeeper/feature/live_workout/di/LiveWorkoutFeature.kt"): "LiveWorkoutGraph.Factory",
+    Path("feature/past-session/src/main/kotlin/io/github/stslex/workeeper/feature/past_session/di/PastSessionFeature.kt"): "PastSessionGraph.Factory",
+    Path("feature/plan-editor/src/main/kotlin/io/github/stslex/workeeper/feature/plan_editor/di/PlanEditorFeature.kt"): "PlanEditorGraph.Factory",
+    Path("feature/settings/src/main/kotlin/io/github/stslex/workeeper/feature/settings/di/SettingsFeature.kt"): "SettingsGraph.Factory",
+    Path("feature/single-training/src/main/kotlin/io/github/stslex/workeeper/feature/single_training/di/SingleTrainingFeature.kt"): "SingleTrainingGraph.Factory",
 }
 
 FEATURE_PLAN_EDITOR_RESOURCES = {
@@ -301,6 +369,209 @@ def check_plan_editor_resources() -> list[str]:
     return failures
 
 
+def compact(source: str) -> str:
+    return re.sub(r"\s+", "", source)
+
+
+def check_image_viewer_contract() -> list[str]:
+    failures: list[str] = []
+
+    for catalog, expected in IMAGE_VIEWER_CATALOGS.items():
+        actual = read_strings(catalog) if catalog.is_file() else {}
+        if actual != expected:
+            failures.append(
+                f"feature:image-viewer: exact private CMP catalog mismatch in {catalog}; "
+                f"expected={expected!r}, actual={actual!r}"
+            )
+
+    build_path = Path("feature/image-viewer/build.gradle.kts")
+    build_source = build_path.read_text(encoding="utf-8")
+    required_build_fragments = [
+        "alias(libs.plugins.convention.kmpComposeLibrary)",
+        "alias(libs.plugins.metro)",
+        'packageOfResClass = "io.github.stslex.workeeper.feature.image_viewer.resources"',
+        "includeJavax()",
+        'implementation(project(":core:core"))',
+        'implementation(project(":core:ui:kit"))',
+        'api(project(":core:ui:mvi"))',
+        'api(project(":core:ui:navigation"))',
+        "api(libs.cmp.ui)",
+        "implementation(libs.coil.compose)",
+        "implementation(libs.cmp.animation)",
+        "implementation(libs.cmp.material.icons.extended)",
+        "implementation(libs.cmp.ui.test)",
+    ]
+    for fragment in required_build_fragments:
+        if build_source.count(fragment) != 1:
+            failures.append(
+                f"feature:image-viewer: build contract must contain {fragment!r} exactly once"
+            )
+    if build_source.count('implementation(kotlin("test"))') != 2:
+        failures.append(
+            "feature:image-viewer: kotlin(test) must exist exactly once in commonTest and iosTest"
+        )
+    for forbidden in (
+        "convention.composeLibrary",
+        "publicResClass",
+        "androidTestImplementation",
+        "debugImplementation",
+        "coil-network-ktor3",
+        "libs.bundles.android.test",
+        "libs.androidx.compose.ui.test.manifest",
+        "mockk",
+        "robolectric",
+        "paparazzi",
+    ):
+        if forbidden in build_source:
+            failures.append(
+                f"feature:image-viewer: forbidden build dependency/configuration remains: {forbidden}"
+            )
+
+    zoom_path = Path(
+        "feature/image-viewer/src/commonMain/kotlin/io/github/stslex/workeeper/"
+        "feature/image_viewer/ui/components/ZoomableImage.kt"
+    )
+    zoom_source = zoom_path.read_text(encoding="utf-8")
+    exact_request = compact(
+        """
+        ImageRequest.Builder(LocalPlatformContext.current)
+            .data(model)
+            .crossfade(true)
+            .build()
+        """
+    )
+    if compact(zoom_source).count(exact_request) != 1:
+        failures.append(
+            "feature:image-viewer: Coil request must use exactly one "
+            "LocalPlatformContext/data(model)/crossfade(true)/build() chain"
+        )
+    if zoom_source.count("ImageRequest.Builder(") != 1:
+        failures.append("feature:image-viewer: expected exactly one ImageRequest.Builder call")
+    if "import coil3.compose.LocalPlatformContext" not in zoom_source:
+        failures.append("feature:image-viewer: LocalPlatformContext import is missing")
+
+    required_root_fragments = {
+        Path("app/common/src/main/kotlin/io/github/stslex/workeeper/app/common/di/AppRootDeps.kt"): [
+            "val imageViewerGraphFactory: ImageViewerGraph.Factory",
+        ],
+        Path("app/app/src/main/java/io/github/stslex/workeeper/di/AppGraph.kt"): [
+            "override val imageViewerGraphFactory: ImageViewerGraph.Factory",
+        ],
+        Path("app/common/src/main/kotlin/io/github/stslex/workeeper/App.kt"): [
+            "if (admission.granted) {",
+            "val deps = remember(currentPhase.id)",
+            "(context.applicationContext as AppRootDepsHolder).appRootDeps()",
+            "AppGenerationContent(deps)",
+            "private fun AppGenerationContent(deps: AppRootDeps)",
+            "commonDataStore = deps.commonDataStore",
+            "navigatorEventBus = deps.navigatorEventBus",
+            "imageViewerGraphFactory = deps.imageViewerGraphFactory",
+        ],
+        Path(
+            "app/common/src/main/kotlin/io/github/stslex/workeeper/host/AppNavigationHost.kt"
+        ): [
+            "imageViewerGraphFactory: ImageViewerGraph.Factory",
+            "imageViewerGraph(factory = imageViewerGraphFactory",
+        ],
+        Path(
+            "feature/image-viewer/src/commonMain/kotlin/io/github/stslex/workeeper/"
+            "feature/image_viewer/ui/ImageViewerGraph.kt"
+        ): [
+            "factory: ImageViewerGraph.Factory",
+            "navComponentScreen(ImageViewerFeature(factory))",
+        ],
+        Path(
+            "feature/image-viewer/src/commonMain/kotlin/io/github/stslex/workeeper/"
+            "feature/image_viewer/di/ImageViewerFeature.kt"
+        ): [
+            "private val factory: ImageViewerGraph.Factory",
+        ],
+        Path(
+            "app/app/src/test/kotlin/io/github/stslex/workeeper/di/"
+            "ImageViewerExtensionIdentityTest.kt"
+        ): [
+            ".imageViewerGraphFactory",
+        ],
+    }
+    for path, fragments in required_root_fragments.items():
+        source = path.read_text(encoding="utf-8") if path.is_file() else ""
+        compact_source = compact(source)
+        for fragment in fragments:
+            if compact(fragment) not in compact_source:
+                failures.append(
+                    f"feature:image-viewer: required root-factory flow is missing in {path}: "
+                    f"{fragment!r}"
+                )
+
+    app_source = Path(
+        "app/common/src/main/kotlin/io/github/stslex/workeeper/App.kt"
+    ).read_text(encoding="utf-8")
+    if app_source.count(".appRootDeps()") != 1:
+        failures.append(
+            "feature:image-viewer: the admitted composed region must resolve appRootDeps exactly once"
+        )
+
+    feature_source = Path(
+        "feature/image-viewer/src/commonMain/kotlin/io/github/stslex/workeeper/"
+        "feature/image_viewer/di/ImageViewerFeature.kt"
+    ).read_text(encoding="utf-8")
+    retained_factory = re.compile(
+        r"rememberMetroStoreProcessor<ImageViewerStoreImpl>\s*\{\s*"
+        r"factory\s*\.createImageViewerGraph\(screen\)\s*\.imageViewerStore\s*\}",
+        re.DOTALL,
+    )
+    if len(retained_factory.findall(feature_source)) != 1:
+        failures.append(
+            "feature:image-viewer: factory invocation must occur exactly inside retained Store creation"
+        )
+    for forbidden in ("LocalContext", "appDeps<", "CompositionLocal"):
+        if forbidden in feature_source:
+            failures.append(
+                f"feature:image-viewer: explicit feature factory flow forbids {forbidden}"
+            )
+
+    identity_source = Path(
+        "app/app/src/test/kotlin/io/github/stslex/workeeper/di/"
+        "ImageViewerExtensionIdentityTest.kt"
+    ).read_text(encoding="utf-8")
+    if identity_source.count(".imageViewerGraphFactory") != 3:
+        failures.append(
+            "feature:image-viewer: all three extension identities must use the root accessor"
+        )
+    if "asContribution" in identity_source:
+        failures.append(
+            "feature:image-viewer: extension identities must not bypass AppRootDeps via asContribution"
+        )
+
+    app_common_build = Path("app/common/build.gradle.kts").read_text(encoding="utf-8")
+    if app_common_build.count('api(project(":feature:image-viewer"))') != 1:
+        failures.append("app:common: image-viewer edge must be exactly one api dependency")
+    if 'implementation(project(":feature:image-viewer"))' in app_common_build:
+        failures.append("app:common: image-viewer edge must not remain implementation")
+
+    app_build = Path("app/app/build.gradle.kts").read_text(encoding="utf-8")
+    if app_build.count('implementation(project(":feature:image-viewer"))') != 1:
+        failures.append("app:app: direct image-viewer aggregation edge must remain implementation")
+
+    reader_pattern = re.compile(r"\bappDeps<\s*([A-Za-z0-9_.]+\.Factory)\s*>\s*\(")
+    actual_readers: dict[Path, list[str]] = {}
+    for path in source_files(".kt"):
+        matches = reader_pattern.findall(path.read_text(encoding="utf-8"))
+        if matches:
+            actual_readers[path] = matches
+    expected_readers = {
+        path: [factory]
+        for path, factory in EXPECTED_APP_DEPS_READERS.items()
+    }
+    if actual_readers != expected_readers:
+        failures.append(
+            "remaining Context.appDeps readers are not the exact 12 unported entries; "
+            f"expected={expected_readers!r}, actual={actual_readers!r}"
+        )
+
+    return failures
+
+
 def check_module(name: str, manifest: dict) -> list[str]:
     failures: list[str] = []
     root = manifest["root"]
@@ -374,6 +645,7 @@ def main() -> None:
     for name, manifest in MODULES.items():
         failures.extend(check_module(name, manifest))
     failures.extend(check_plan_editor_resources())
+    failures.extend(check_image_viewer_contract())
 
     if failures:
         raise SystemExit(
@@ -386,8 +658,12 @@ def main() -> None:
         print(f"  {name}: {len(manifest['files'])} exact source/resource/test files")
         for path in sorted(manifest["files"]):
             print(f"    {path}")
-    print("  legacy source sets empty; common/native production has no Android/Java/Javax API")
+    print(
+        "  legacy source sets empty; common/native production has no "
+        "Android/Java/Javax/AndroidX-annotation API"
+    )
     print("  plan-editor resource ownership and exact EN/RU values are canonical")
+    print("  image-viewer resources, Coil request, root factory flow, and 12 readers are exact")
 
 
 if __name__ == "__main__":
