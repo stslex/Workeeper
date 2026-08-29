@@ -24,7 +24,10 @@ The build is configured in `settings.gradle.kts`. Every module is included from 
   (plus `host/BottomBarNavigationListener.kt`, `host/ClearFocusOnDestinationChanged.kt`),
   `navigation/NavigatorEventBus.kt`, `navigation/NavigatorExt.kt`, the `bottom_bar_label_*`
   strings, and `app/common/di/AppRootDeps.kt` — the narrow contract this module declares and
-  `:app:app`'s `AppGraph` implements, because the graph is not nameable from below. See
+  `:app:app`'s `AppGraph` implements, because the graph is not nameable from below. The contract
+  includes `ImageViewerGraph.Factory`: after generation admission, `App()` resolves one
+  `AppRootDeps` for the live generation-keyed region and passes that same instance through
+  `AppGenerationContent` to both `AppRootViewModel` and `AppNavigationHost`. See
   [feature-specs/kmp-phase-4-app-common.md](feature-specs/kmp-phase-4-app-common.md).
   (`navigation/NavigatorReceiver.kt` went to `core/ui/navigation` — it is navigation tooling.)
 - `app/dev` — debuggable development variant with its own application id and Firebase config.
@@ -80,8 +83,11 @@ Each feature is a self-contained module that owns a Store, Handlers, DI, and a C
 point. Current feature modules live under `feature/`, including `feature/home`,
 `feature/all-trainings`, `feature/all-exercises`, `feature/single-training`,
 `feature/exercise`, `feature/live-workout`, `feature/past-session`,
-`feature/settings`, and `feature/archive`. Feature contents are detailed in [features.md](features.md); their
-conventional layout is described under [Per-feature MVI layout](#per-feature-mvi-layout).
+`feature/settings`, `feature/archive`, and `feature/image-viewer`. Image-viewer is the first shared
+feature entry: its Store, handlers, Metro extension, UI, and private resources compile from
+`commonMain` for Android and `iosSimulatorArm64`. Feature contents are detailed in
+[features.md](features.md); their conventional layout is described under
+[Per-feature MVI layout](#per-feature-mvi-layout).
 
 ### `build-logic/`
 
@@ -201,14 +207,17 @@ saveable-only, and omitting the ViewModel decorator makes `viewModel {}` resolve
 the Activity's store, silently process-scoping every Store
 (`StoreRetentionTest.isolation` guards it). Both store shapes go through it:
 
-1. Plain `Feature` — the feature's `processor()` resolves `context.appDeps<XxxGraph.Factory>()`,
-   creates its graph extension, and reads the Store accessor. No route arguments (e.g.
+1. Plain `Feature` — the feature resolves `context.appDeps<XxxGraph.Factory>()`, creates its graph
+   extension, and reads the Store accessor. Plain features have no route arguments (e.g.
    `Screen.BottomBar.Home`).
 2. `FeatureAssisted` — `processor(screen)` passes the route arg to the extension factory as a
    bound instance, so the Store receives it as a normal constructor parameter. The screen
    object is the typed back-stack key itself, handed to the graph composable by
    `navScreen<TScreen>` — the key IS the argument object, so the Store never retains any
-   navigation library type.
+   navigation library type. The shared image-viewer is the bounded factory-resolution exception:
+   its generation-owned root passes the required `ImageViewerGraph.Factory` through
+   `AppNavigationHost` and `imageViewerGraph` into `ImageViewerFeature`; the feature invokes that
+   factory only inside the `rememberMetroStoreProcessor` creation lambda.
 
 The graph extension is created INSIDE the `rememberMetroStoreProcessor` factory lambda, so it
 is built at most once per retained Store — binding the extension and its feature-scoped nodes
@@ -469,7 +478,11 @@ bound instance, which already gives it graph lifetime.
 seams, never a concrete-`Application` cast: `AppGraphOwner` (in-module readers such as
 `MainActivity`), `AppDepsHolder` + `Context.appDeps<T>()` (feature-side readers), and the
 typed `RecoveryDepsHolder` / `BackupWorkerDepsHolder` (the two framework readers that must
-not depend on `core:ui:mvi`).
+not depend on `core:ui:mvi`). Image-viewer no longer uses the feature-side Context seam:
+`AppGraph.imageViewerGraphFactory` implements the accessor declared by `AppRootDeps`, and the
+admitted composition reads that root contract exactly once. Retired generations and generations
+that lose the publication race resolve it zero times. The other 12 feature/dialog Context readers
+remain unchanged.
 
 ### Feature graphs (`@GraphExtension`)
 

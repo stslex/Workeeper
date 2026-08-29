@@ -1,20 +1,23 @@
 # KMP Phase 7.6 — `feature:image-viewer` becomes the first shared feature entry
 
-**Status:** SPECIFICATION READY; IMPLEMENTATION NOT AUTHORIZED
+**Status:** IMPLEMENTED IN OPEN PR #269; AWAITING MAINTAINER MERGE
 
 **Target branch:** `dev`
 
 **Specification baseline:** `479a2960574ff165f4f6b99a24d49ab1c961bbd8` — verified merge
 commit of Phase 7.5 implementation PR #267
 
+**Implementation base:** `5bcecf721caf8ec216b3c50133b45538a027a616` — the specification
+baseline plus merged docs-only specification PR #268
+
 ---
 
 ## 0. Authority and entry condition
 
-This document becomes the implementation authority for Phase 7.6 only after this docs-only
-specification merges and the maintainer gives a separate, explicit implementation GO. It does not
-authorize production, test, Gradle, workflow, repository-setting, or generated-artifact changes by
-itself.
+This document became the implementation authority for Phase 7.6 after docs-only specification PR
+#268 merged and the maintainer gave the separate, explicit implementation GO. That GO authorized
+the bounded production, test, Gradle, workflow, documentation, branch, and pull-request work
+recorded below; it did not authorize merge or repository-setting changes.
 
 The specification is measured from the exact `dev` commit above and refines the remaining frontier
 in:
@@ -625,8 +628,8 @@ Phase 7.6 is complete only when all are true:
 
 ## 17. Boundary and remaining migration roadmap
 
-This docs-only specification authorizes no implementation. After it merges, Phase 7.6 still needs
-an explicit maintainer GO.
+Phase 7.6 is implemented in open PR #269 under the maintainer's explicit GO, but it is not complete
+until the maintainer merges it. The implementation does not pre-authorize any later roadmap item.
 
 Phase 7.6 proves one reusable feature-entry pattern but does not pre-authorize a batch conversion.
 After it completes, the ordered frontier is:
@@ -647,3 +650,141 @@ After it completes, the ordered frontier is:
 A throwaway `iosApp` that bypasses `app:common` remains forbidden. Phase-5 replacement,
 publication, admission, retirement, journal, and recovery semantics remain separately authoritative
 throughout the remaining roadmap.
+
+## 18. Implementation evidence
+
+### 18.1 Entry gate and measured boundary
+
+On 2026-08-29 the implementation fetched `origin/dev`, proved it exactly equal to the required
+base `5bcecf721caf8ec216b3c50133b45538a027a616`, and created
+`feature/kmp-phase-7-6-image-viewer` from that commit in a clean isolated worktree. The delta from
+the Phase 7.5 merge `479a2960574ff165f4f6b99a24d49ab1c961bbd8` to the required base was only
+the merged Phase 7.6 specification. The primary checkout's user-owned untracked
+`.claude/settings.local.json` and `cleanup-branches.sh` remained untouched and unstaged.
+
+The repeated Section 11.1 inventory matched the specification: 13 production Kotlin files, 6 EN
+plus 6 RU Android values, three handler suites with 11 cases, three app graph identities, four
+unchanged Android regression journeys, two direct consumers, 13 `Context.appDeps<Factory>()`
+readers, no image-viewer golden, and 456 PNGs across the same 13 golden modules. Fresh baseline
+gates executed successfully. Xcode 26.6, an iOS simulator runtime, and API-34 Android devices were
+available. The active repository-wide `all` ruleset remained id `8116593` with the exact required
+contexts `Build and Unit Tests` and `KMP iOS kit smoke`; the dedicated `dev` ruleset remained
+disabled. No entry STOP condition was reached.
+
+### 18.2 Implemented topology and ownership
+
+The implementation produces the exact 19-file feature manifest: 13 production Kotlin files and
+two private 6+6 CMP catalogs in `commonMain`, three deterministic handler suites in `commonTest`,
+and one production scene in `iosTest`. There is no feature production or test file under legacy
+`src/main`, `src/test`, or `src/androidTest`, and no Kotlin-bearing `androidMain`, `iosMain`,
+`androidHostTest`, or `androidDeviceTest`. The module uses `convention.kmpComposeLibrary`, retains
+Metro and `includeJavax()`, exposes only the specified API dependencies, and has no expect/actual,
+platform shim, public resource class, Android Context/resource/annotation import, or network Coil
+loader.
+
+`AppRootDeps.imageViewerGraphFactory` is implemented directly by `AppGraph`. After
+`GenerationAdmission.granted`, `App()` resolves one dependency instance for the live
+generation-keyed region; the same instance supplies `AppRootViewModel` and
+`AppNavigationHost`, which passes the required factory through `imageViewerGraph` into
+`ImageViewerFeature`. The feature invokes the factory only inside the retained Store creation
+lambda. The admitted region resolves app-root dependencies exactly once; retired and
+publication-race generations resolve them zero times. The remaining 12 unported feature/dialog
+Context readers are unchanged.
+
+Coil uses `ImageRequest.Builder(LocalPlatformContext.current).data(model).crossfade(true).build()`
+with the existing `AsyncImage`, `ContentScale.Fit`, error, gesture, animation, tag, and unavailable
+UI behavior. `Screen.ExerciseImage.model` remains an opaque caller-owned `String`. No acquisition,
+storage, filesystem, replacement, deletion, route, Store, action, event, result-name, scope, or
+creator contract changed.
+
+### 18.3 Fresh positive verification
+
+Every cited positive Gradle gate used `--rerun-tasks --no-build-cache`; KMP and Native gates also
+used `--no-configuration-cache`. Evidence was accepted only when tasks executed. Focused feature
+assemble, Android-host test, lint, and Native execution completed `255/255`; `app:common`
+assemble/unit completed `468/468`; and `app:app` assemble/unit/androidTest-assemble completed
+`707/707`. The app instrumented-classpath gate scanned 23 source files and 276 entries with zero
+missing classes.
+
+Fresh structural XML proved the exact 12 common handler cases on Android host (Click 8, Common 2,
+Navigation 2) and 13 image-viewer Native cases: those 12 plus exactly one
+`io.github.stslex.workeeper.feature.image_viewer.ImageViewerSceneIosTest.resourcesBranchesAndActionsRenderAndDispatch`.
+All had zero skips, failures, or errors. The stable six-module Native invocation executed
+`161/161`; its validator proved kit `1`, navigation `1`, MVI `14`, start-mode `2`, plan-editor
+`20`, and image-viewer `13`, with every required identity exactly once and no skip, failure, or
+error.
+
+All three `ImageViewerExtensionIdentityTest` identities passed through
+`appGraph.imageViewerGraphFactory`. All three `UiAdmissionRaceTest` identities passed with exact
+one/zero/zero resolution, and the exact route journey passed. Fresh repository gates were
+`assembleDebug` `1196/1196`, `assembleDebugAndroidTest` `1939/1939`,
+`verifyPaparazziDebug` `621/621`, `:lint-rules:test` `9/9`, `detekt` `57/57`, `lintDebug`
+`1091/1091`, and `testDebugUnitTest` `1134/1134`, all executed and successful. The personal-data
+gate passed with only its documented exceptions.
+
+Fresh device Smoke executed `2012/2012`; XML proved 44 discovered / 41 executed / exactly three
+named `pendingFeatureRewrite` skips / zero failures and errors, and the MVI exact-identity validator
+passed. Fresh Regression on the API-34 portrait AVD executed `2012/2012`; XML proved 81/81 with
+zero skips, failures, or errors, including all four protected image-viewer journeys. A preliminary
+landscape-TV Regression attempt was rejected rather than counted after its coordinate clicks hit
+the exercise Save dock; the unchanged identities passed on the repository's portrait device
+profile. Both devices were restored to `mStayOn=false` afterward.
+
+The base and implementation heads contain exactly the same 456 PNG Git tree entries — mode, blob,
+and path — across the same 13 golden modules. No image was recorded or mutated. No suppression,
+baseline, tolerance, version, convention, compiler policy, ruleset, required context, device
+membership, or filter changed.
+
+### 18.4 Mandatory known-negative controls
+
+All 15 controls ran as fresh GREEN, named observable RED, exact restoration without Git recovery,
+and fresh GREEN. `documentation/mockups/mutation_harness.py` performed text mutations; the
+same-count topology move used direct filesystem moves with exact restoration:
+
+1. moving one production file to legacy `src/main` made the exact topology gate RED;
+2. an AndroidX annotation import in common production made platform rejection RED;
+3. removing Coil crossfade made the exact request contract RED;
+4. changing the EN action title made the Native scene RED, and removing the RU value made exact
+   resource ownership RED;
+5. removing the non-editable menu guard made its Click handler identity RED;
+6. mapping REPLACE to REMOVE made the owning Click handler identity RED;
+7. changing the `BackWithRequest` request name made the exact navigation identity RED;
+8. misqualifying `AppGraph.imageViewerGraphFactory` made all three graph identities RED;
+9. bypassing the host factory with a throwing factory made topology and the exact route journey
+   RED;
+10. resolving dependencies twice behind admission made the admitted identity RED;
+11. resolving dependencies before admission made both rejected identities and the admitted
+    identity RED;
+12. suppressing the production Scaffold made the Native scene RED;
+13. suppressing back dispatch made the Native action assertion RED;
+14. renaming the Native method produced passing XML that the exact identity validator rejected;
+    and
+15. a Native-test `MaxLineLength` violation made root Detekt RED.
+
+Restoration greens executed the owning topology (`5/5`), handler (`104/104`), graph (`524/524`),
+device (`683/683`), Native (`79/79`, or `80/80` for regenerated identity XML), and Detekt (`57/57`)
+gates as applicable. An initially non-observable accessor mutation, syntax-only/non-executed
+attempts, and sandbox-blocked verdicts were rejected and are not counted. No compensating total or
+PNG mutation was used. No temporary mutation, generated output, report, local configuration, or
+secret entered a commit.
+
+### 18.5 Implementation-head delivery checkpoint
+
+The implementation and CI commits are
+`40e4677ce772c2c710d52a2b740b8c15e2febc42` (`refactor(kmp): share image viewer feature entry`)
+and `fdcc3e4a590737beba07a9e2a40528a855e48cae` (`ci(kmp): gate shared image viewer feature`).
+Both are signed and GitHub reports both signatures as Verified.
+
+At implementation head `fdcc3e4a590737beba07a9e2a40528a855e48cae`, unified workflow run
+`33252003892` concluded successfully: `Build and Unit Tests` job `99099173133` took 32m18s, and
+`KMP iOS kit smoke` job `99099173224` took 26m13s. The Native job selected Xcode 26.6, executed
+all six modules, passed the exact-identity validator, and uploaded their test results. Mockup run
+`33252003845`, job `99099173023`, concluded successfully in 34s, including its permanent known
+negative. Both required contexts and the mockup gate were green.
+
+Codex review completed against that implementation head with no findings. The live inventory had
+zero submitted reviews and zero review threads, so there was no finding to reproduce, classify,
+answer, fix, or resolve. PR #269 was `OPEN`, non-draft, `MERGEABLE` / `CLEAN`, targeted `dev` at
+the exact required base, and had no merge commit. The documentation-only commit carrying this
+checkpoint does not change the implementation boundary; its final-head workflows are reported at
+delivery, and the PR remains for maintainer-owned merge.
