@@ -444,7 +444,7 @@ change.
 
 | Baseline blocker | Required treatment |
 | --- | --- |
-| `PlanEditorFeature` uses `LocalContext` and `Context.appDeps` | pass `PlanEditorGraph.Factory` explicitly through the admitted root flow in Section 6; remove both imports and lookup |
+| `PlanEditorFeature` uses `LocalContext` and `Context.appDeps` | pass `PlanEditorGraph.Factory` explicitly through the admitted root flow and the `PlanEditorFeature(factory)` constructor in Section 6; remove both imports and lookup |
 | graph uses Android `stringResource` and activity `BackHandler` | use private CMP resources and `androidx.compose.ui.backhandler.BackHandler` with the required Compose UI experimental opt-in |
 | screen uses Android `R`, `Configuration`, and Android preview semantics | use generated private `Res`, portable Compose `Preview`, and explicit `ThemeMode.LIGHT`/`DARK` preview wrappers |
 | `ErrorType` carries Android `Int` ids | make it a semantic payload-free enum; the composable maps each entry to a private CMP `StringResource` and resolves it |
@@ -539,7 +539,7 @@ AppRootDeps.planEditorGraphFactory
   -> admitted AppGenerationContent(deps)
   -> AppNavigationHost(planEditorGraphFactory = deps.planEditorGraphFactory)
   -> planEditorGraph(factory = planEditorGraphFactory)
-  -> PlanEditorFeature.processor(screen, factory)
+  -> PlanEditorFeature(factory).processor(screen)
   -> rememberMetroStoreProcessor<PlanEditorStoreImpl> {
          factory.createPlanEditorGraph(screen).planEditorStore
      }
@@ -553,9 +553,11 @@ Required invariants:
 3. `App()` still calls `appRootDeps()` once, only after the generation admission grant. Reading two
    factory properties from that one object does not mean resolving root deps twice.
 4. Rejected or retired regions still call `appRootDeps()` zero times.
-5. `AppNavigationHost`, `planEditorGraph`, and `PlanEditorFeature.processor` take the factory as an
-   explicit required parameter. No default, nullable fallback, CompositionLocal, or service lookup
-   is permitted.
+5. `AppNavigationHost` and `planEditorGraph` receive the factory as explicit required parameters.
+   `planEditorGraph` supplies it to the required `PlanEditorFeature(factory)` constructor, and
+   `PlanEditorFeature` continues to override `processor(screen)` exactly. The processor override
+   does not gain a factory parameter. No default, nullable fallback, CompositionLocal, or service
+   lookup is permitted.
 6. Production invokes `createPlanEditorGraph(screen)` only inside the Store-creation lambda. A
    recomposition that retains the Store must not create another extension.
 7. The shape-B creator name and `@Provides Screen.PlanEditor` parameter remain unchanged.
@@ -817,8 +819,8 @@ Do not rename or split a required job. Make only these repository-specific addit
 
 1. Extend `.github/scripts/assert_kmp_ui_source_topology.py` with the exact 32-file target
    manifest, two resource owners and values, forbidden common-platform imports/APIs, two-preview
-   contract, explicit root-factory flow, `app:common` API edge, and exact remaining 11-reader
-   inventory.
+   contract, explicit root-factory flow through `PlanEditorFeature(factory).processor(screen)`,
+   `app:common` API edge, and exact remaining 11-reader inventory.
 2. Append `:feature:plan-editor:iosSimulatorArm64Test` to the existing forced Native Gradle
    invocation in `KMP iOS kit smoke`.
 3. Append `feature/plan-editor/build/test-results/iosSimulatorArm64Test/` to the existing
@@ -860,9 +862,10 @@ Section 14 STOP.
 
 ### 12.3 Focused implementation gates
 
-Run gates serially. Every Gradle evidence command uses `--rerun-tasks --no-build-cache`; Native,
-auto-correct, and any gate known to require it also use `--no-configuration-cache`. Quote the
-summary line. A summary containing `from cache` or `up-to-date`, or anything other than
+Run gates serially. Every load-bearing Gradle invocation uses
+`--rerun-tasks --no-build-cache --no-configuration-cache`; configuration-cache use is not permitted
+for any evidence command. Run `detekt` in its own Gradle invocation as shown in Section 12.4. Quote
+the summary line. A summary containing `from cache` or `up-to-date`, or anything other than
 `N actionable tasks: N executed`, is not execution evidence.
 
 ```bash
@@ -918,14 +921,18 @@ setting afterward.
 
 ### 12.4 Repository and visual gates
 
-Run the repository contract without overlap:
+Run the repository contract without overlap. The initial `clean` is preparation, not evidence.
+Every load-bearing Gradle invocation after it uses all three required cache-defeating flags, and
+`detekt` runs in its own invocation:
 
 ```bash
 ./gradlew clean
-./gradlew assembleDebug detekt lintDebug testDebugUnitTest \
-  --rerun-tasks --no-build-cache --continue --console=plain
+./gradlew assembleDebug lintDebug testDebugUnitTest \
+  --rerun-tasks --no-build-cache --no-configuration-cache --continue --console=plain
+./gradlew detekt \
+  --rerun-tasks --no-build-cache --no-configuration-cache --continue --console=plain
 ./gradlew assembleDebugAndroidTest \
-  --rerun-tasks --no-build-cache --continue --console=plain
+  --rerun-tasks --no-build-cache --no-configuration-cache --continue --console=plain
 ./gradlew verifyPaparazziDebug \
   --rerun-tasks --no-build-cache --no-configuration-cache --console=plain
 ./gradlew :lint-rules:test \
@@ -957,7 +964,8 @@ recorded merely to make a migration green.
 At implementation PR head, prove:
 
 - only Section 9 paths changed and no generated/local/secret file is tracked;
-- exact target topology, catalog, import/API, preview, factory-flow, and reader gates are green;
+- exact target topology, catalog, import/API, preview,
+  `PlanEditorFeature(factory).processor(screen)` factory-flow, and reader gates are green;
 - all 42 portable identities execute on both platforms and the Native scene identity executes
   once;
 - all three graph, three editor-journey, and three admission identities remain green;
@@ -997,7 +1005,7 @@ sandbox-blocked run, `UP-TO-DATE`, or `FROM-CACHE` result is not RED evidence.
 | 9 | Handler does not resolve feature copy | reintroduce a `ResourceWrapper` import/call in `ClickHandler`; forbidden feature-copy check must be RED |
 | 10 | Back handling is portable and behaviorally wired | replace the portable BackHandler import with `androidx.activity.compose.BackHandler` or suppress its `OnBackClick`; topology or the owning Native/action gate must be RED by name |
 | 11 | Root accessors exist | remove either `AppRootDeps.planEditorGraphFactory` or `AppGraph`'s explicit override; root topology must name the missing accessor |
-| 12 | Exact root/host/feature flow | bypass one arrow between App, host, graph, feature, and `createPlanEditorGraph(screen)`; flow topology must name that broken edge |
+| 12 | Exact root/host/feature flow | bypass one arrow in `AppRootDeps.planEditorGraphFactory` -> `AppGraph` -> admitted `AppGenerationContent(deps)` -> `AppNavigationHost(required factory)` -> `planEditorGraph(required factory)` -> `PlanEditorFeature(factory).processor(screen)` -> `createPlanEditorGraph(screen)`; flow topology must name that broken edge |
 | 13 | Admitted root resolution remains one | make the admitted region call `appRootDeps()` twice; `admittedGeneration_composesTheRegion_andResolvesItsDependencies` must fail with observed count 2 |
 | 14 | Rejected root resolution remains zero | move root-deps resolution before admission; retired and race identities must fail with a nonzero count |
 | 15 | Route arguments are extension-local | replace `initialState = screen.toInitialState()` with a fixed valid route; `each extension carries its own route arg into the store state()` must fail |
@@ -1045,7 +1053,8 @@ Commits. Every commit is signed, locally verified, pushed, and GitHub Verified.
 
 1. **`refactor(kmp): share plan editor feature entry`**
    - target KMP build/source/resources/tests/scene;
-   - explicit AppRootDeps/AppGraph/App/host/feature factory flow;
+   - explicit AppRootDeps/AppGraph/App/host/graph/`PlanEditorFeature(factory).processor(screen)`
+     factory flow;
    - `app:common` API visibility and explicit-root identity test;
    - focused topology-independent compile, Android-host, Native, graph, device, and PNG proof.
 2. **`ci(kmp): gate shared plan editor feature`**
@@ -1070,8 +1079,10 @@ Phase 7.7 implementation is complete only when all are true:
 - exact 32-file topology and two private catalogs hold, with no legacy/platform residue;
 - visible EN/RU copy, format placeholders, previews, test tags, route fields, and behavior are
   unchanged;
-- the explicit root factory flows through the admitted generation and is called only for Store
-  creation;
+- the explicit root factory flows through the admitted generation, the required
+  `AppNavigationHost` and `planEditorGraph` parameters, and the `PlanEditorFeature(factory)`
+  constructor; `processor(screen)` remains the exact override and invokes the factory only for
+  Store creation;
 - admitted dependency resolution is exactly one and both rejected cases are zero;
 - every route entry owns a distinct graph/Store and the three extension identities pass through
   the explicit AppGraph accessor;
