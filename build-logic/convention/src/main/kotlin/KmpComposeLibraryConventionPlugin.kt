@@ -31,6 +31,7 @@ class KmpComposeLibraryConventionPlugin : Plugin<Project> {
                 add("commonMainImplementation", libs.findLibrary("cmp-foundation").get())
                 add("commonMainImplementation", libs.findLibrary("cmp-material3").get())
                 add("commonMainImplementation", libs.findLibrary("cmp-ui").get())
+                add("commonMainImplementation", libs.findLibrary("cmp-uiBackhandler").get())
                 add("commonMainImplementation", libs.findLibrary("cmp-uiToolingPreview").get())
                 add("commonMainImplementation", libs.findLibrary("cmp-components-resources").get())
             }
