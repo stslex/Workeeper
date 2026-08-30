@@ -101,6 +101,7 @@ cmp-gradlePlugin = { group = "org.jetbrains.compose", name = "compose-gradle-plu
 cmp-runtime = { group = "org.jetbrains.compose.runtime", name = "runtime", version.ref = "composeGradle" }
 cmp-foundation = { group = "org.jetbrains.compose.foundation", name = "foundation", version.ref = "composeGradle" }
 cmp-ui = { group = "org.jetbrains.compose.ui", name = "ui", version.ref = "composeGradle" }
+cmp-uiBackhandler = { group = "org.jetbrains.compose.ui", name = "ui-backhandler", version.ref = "composeGradle" }
 cmp-uiToolingPreview = { group = "org.jetbrains.compose.ui", name = "ui-tooling-preview", version.ref = "composeGradle" }
 cmp-material3 = { group = "org.jetbrains.compose.material3", name = "material3", version.ref = "cmpMaterial3" }
 cmp-components-resources = { group = "org.jetbrains.compose.components", name = "components-resources", version.ref = "composeGradle" }
