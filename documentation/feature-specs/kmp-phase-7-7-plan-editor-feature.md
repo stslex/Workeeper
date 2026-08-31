@@ -4,18 +4,27 @@
 
 **Target branch:** `dev`
 
-**Specification baseline:** `d52dd740b5e6154cb717c879be3bf59c76d47dac` — verified merge
+**Specification baseline:** `e2e18db1398ddeb997dbf1a4d66c7838bf6004fa` — verified merge
+commit of the Phase 7.7 portable BackHandler convention prerequisite PR #271
+
+**Original measured baseline:** `d52dd740b5e6154cb717c879be3bf59c76d47dac` — verified merge
 commit of Phase 7.6 implementation PR #269
 
+**Specification merge:** `8f522da568250f6adfc715b48b7780a78dac5d2d` — verified merge commit of the
+documentation-only Phase 7.7 specification PR #270
+
 **Discovery date:** 2026-08-29
+
+**Prerequisite rebaseline date:** 2026-08-31
 
 ---
 
 ## 0. Authority, entry gate, and authorization boundary
 
-This document specifies the next bounded Kotlin/Compose Multiplatform increment. It authorizes no
-production implementation while it is open or merely merged. Implementation requires both this
-documentation-only specification PR to merge and a later, explicit maintainer GO.
+This document specifies the next bounded Kotlin/Compose Multiplatform increment. The original
+documentation-only specification is merged. This prerequisite rebaseline authorizes no production
+implementation: its merge records the corrected measured contract, and implementation still
+requires a later, explicit maintainer GO.
 
 The authority order for this measurement is:
 
@@ -23,33 +32,50 @@ The authority order for this measurement is:
 2. `AGENTS.md`, `documentation/architecture.md`, `documentation/testing.md`,
    `documentation/ci-cd.md`, and `documentation/compose-state-discipline.md`;
 3. `documentation/feature-specs/kmp-phase-2-probes.md`, the current KMP convention plugins,
-   Phase 7.5, and completed Phase 7.6;
+   Phase 7.5, completed Phase 7.6, and merged BackHandler prerequisite PR #271;
 4. `documentation/graph-extension-arc/HANDOFF.md` for the Metro shape-B contract; and
 5. the checked-in topology, Native XML, and workflow gates.
 
 `documentation/kmp-migration-assessment.md` was read as historical assessment evidence only. Its
 old module counts and classifications do not override this live census.
 
-### 0.1 Reproduced entry facts
+### 0.1 Reproduced entry and prerequisite facts
 
 | Claim | Reproduced evidence |
 | --- | --- |
-| Live target | `git fetch origin dev`; `origin/dev` = `d52dd740b5e6154cb717c879be3bf59c76d47dac` |
-| Supplied SHA comparison | exact equality; there is no delta to inspect or re-baseline |
-| Phase 7.6 delivery | PR #269 is `MERGED`; implementation head `c1fb534afc4c662d3d9345eee6015cf134f3f6f2`; merged at `2026-08-29T13:29:24Z`; merge commit is the baseline SHA |
+| Live target | GitHub branch ref `dev` = `e2e18db1398ddeb997dbf1a4d66c7838bf6004fa` |
+| Phase 7.6 delivery | PR #269 is `MERGED`; implementation head `c1fb534afc4c662d3d9345eee6015cf134f3f6f2`; merged at `2026-08-29T13:29:24Z`; merge commit `d52dd740b5e6154cb717c879be3bf59c76d47dac` is the original measured baseline |
+| Phase 7.7 specification | PR #270 is `MERGED`; specification head `9cf772d167921c66f07542e1a488dc1f42243391`; merged at `2026-08-29T22:02:22Z`; merge commit `8f522da568250f6adfc715b48b7780a78dac5d2d` |
+| Triggering STOP | the first implementation attempt stopped before any production commit when `:feature:plan-editor:assembleDebug` failed only on unresolved `androidx.compose.ui.backhandler` / `BackHandler`; `192 actionable tasks: 192 executed` |
+| Prerequisite delivery | PR #271 is `MERGED`; signed and GitHub-Verified head `3685abd808eca83ece26a6e5b0d85cf9cf8efda5`; merged at `2026-08-30T20:03:39Z`; merge commit is the live target SHA |
+| Exact post-spec delta | GitHub comparison `8f522da568250f6adfc715b48b7780a78dac5d2d..e2e18db1398ddeb997dbf1a4d66c7838bf6004fa` is ahead by two commits, behind by zero, and changes exactly two files with one insertion each: the `cmp-uiBackhandler` catalog alias and its single `commonMainImplementation` convention edge |
+| Target-boundary drift | zero feature, application, workflow, script, test, generated, documentation, ruleset, golden, or repository-setting path changed after the specification merge |
 | Conflicting PR | live open-PR inventory is empty |
-| Conflicting specification/branch | no Phase 7.7 document and no local or remote `docs/kmp-phase-7-7-plan-editor-feature` branch existed at entry |
-| Local preservation | discovery used a detached worktree at the baseline; the primary checkout and its two protected untracked files were not touched |
-| Native infrastructure | Xcode 26.6 (`17F113`), available iOS Simulator runtimes/devices, and Apple-silicon `iosSimulatorArm64` execution |
-| Android infrastructure | `emulator-5554`, Pixel 6 API 34, available and used for the focused six-case baseline |
+| Local preservation | prerequisite rebaseline discovery read the exact GitHub refs without modifying a production checkout |
+| Native infrastructure | Xcode 26.6 (`17F113`), available iOS Simulator runtimes/devices, and Apple-silicon `iosSimulatorArm64` execution from the original measurement remain the applicable implementation environment |
+| Android infrastructure | `emulator-5554`, Pixel 6 API 34, was available for the original focused six-case baseline; implementation must resolve and report the explicit live serial again |
 
-The exact existing Native CI invocation ran all six current modules with
-`--rerun-tasks --no-build-cache --no-configuration-cache` and finished
-`161 actionable tasks: 161 executed`. The checked-in XML oracle then reported 51 executed, zero
-skipped, zero failed, and zero errored across kit (1), navigation (1), MVI (14), start-mode (2),
-shared plan-editor (20), and image-viewer (13). Native production composition therefore executes on
-the available infrastructure; Phase 7.7 does not need a host, signing, target, or convention
-prerequisite.
+The prerequisite's causal probe proved the missing module was the separate
+`org.jetbrains.compose.ui:ui-backhandler` artifact, not ordinary CMP `ui`. With the probe held
+byte-identical, Android moved from RED on only that API (`84 actionable tasks: 84 executed`) to
+GREEN (`93 actionable tasks: 93 executed`); common metadata moved from the same RED
+(`33 actionable tasks: 33 executed`) to GREEN with the same task count; and Native remained GREEN
+(`30 actionable tasks: 30 executed`). Dependency resolution selected
+`org.jetbrains.compose.ui:ui-backhandler:1.11.1` for common metadata, Android, and
+`iosSimulatorArm64`.
+
+PR #271 also reran all six current KMP Compose consumers on Android and Native. Native again
+finished `161 actionable tasks: 161 executed`; the checked-in XML oracle reported the unchanged
+51 tests, zero skipped, zero failed, and zero errored across kit (1), navigation (1), MVI (14),
+start-mode (2), shared plan-editor (20), and image-viewer (13). The full repository, Android-test,
+Paparazzi, lint-rules, Detekt, lint, unit, and personal-data gates passed. All three authoritative
+GitHub contexts passed at the prerequisite head, including both Mockup Appearance Gate directions;
+the local shell-gate directions remain explicitly unmeasured for the documented Python/Chrome host
+reasons.
+
+The original STOP is therefore closed at the generic convention owner. The exact Phase 7.7 target,
+root, route/result, test, resource, CI, and PNG boundaries remain unchanged. No further prerequisite
+is known, but this rebaseline is not implementation authorization.
 
 ### 0.2 Live protection and workflow facts
 
@@ -326,11 +352,14 @@ The current Android convention's exact library visibility is:
 The Android-only coordinates and JVM test tools are intentionally not carried into common. Their
 needed production capabilities already have KMP counterparts in the KMP Compose convention or the
 seven project dependencies; JUnit/MockK/Robolectric are replaced by portable test APIs/fakes. The
-KMP Compose convention supplies CMP runtime, foundation, Material 3, UI, preview tooling, and
-components-resources to `commonMain`; the KMP library convention owns Android/Native targets,
-host/device source sets, lint, compiler defaults, and ordinary task aliases.
+KMP Compose convention supplies CMP runtime, foundation, Material 3, UI, the portable BackHandler
+artifact, preview tooling, and components-resources to `commonMain`; the KMP library convention
+owns Android/Native targets, host/device source sets, lint, compiler defaults, and ordinary task
+aliases.
 
-No dependency version, catalog entry, compiler option, or plugin implementation change is needed.
+No further dependency version, catalog entry, compiler option, or plugin implementation change is
+needed inside Phase 7.7. The separate merged prerequisite already placed the generic artifact at
+its convention owner.
 
 ### 3.5 External consumers and graph/result boundary
 
@@ -455,10 +484,16 @@ change.
 | unused serialization JSON | remove the declaration; do not add serialization work |
 | previews | keep two portable named previews; no deletion and no Android-only preview source is necessary |
 
-The cached Compose 1.11.1 UI artifact already in the convention dependency graph provides the
-portable `androidx.compose.ui.backhandler.BackHandler`. Its deprecation in favor of the broader
-navigation-event API is not permission to change behavior in this bounded phase. Preserve the
-current boolean enablement and `OnBackClick` dispatch exactly.
+Merged prerequisite PR #271 adds the separate
+`org.jetbrains.compose.ui:ui-backhandler:1.11.1` artifact directly to
+`convention.kmpComposeLibrary` as `commonMainImplementation`. The ordinary CMP `ui` artifact
+did not provide the Android compile edge; the prerequisite's byte-identical causal probe proved
+that distinction on common metadata, Android, and Native. Do not duplicate the generic dependency
+in `feature:plan-editor`.
+
+The portable `androidx.compose.ui.backhandler.BackHandler` API is deprecated in favor of the
+broader navigation-event API, but that is not permission to change behavior in this bounded phase.
+Preserve the current boolean enablement and `OnBackClick` dispatch exactly.
 
 Common production at exit must contain no Android resource id, Android `R`, Android
 `ResourceWrapper` call for feature-local static copy, `Context` lookup, Android annotation,
@@ -738,10 +773,11 @@ Declare only the narrow source-set dependencies:
 | `commonTest implementation` | `libs.coroutine-test` | deterministic suspend/launch fake execution |
 | `iosTest implementation` | `kotlin("test")`, `libs.cmp.ui.test` | Native production-scene assertions and UI driver |
 
-The KMP Compose convention supplies runtime, foundation, Material 3, UI, preview tooling, and CMP
-resources. Do not add Android activity-compose, Android resources, Android test bundles, JUnit,
-MockK, Robolectric, Paparazzi, a golden harness, serialization JSON, or a duplicate generic CMP
-dependency.
+The KMP Compose convention supplies runtime, foundation, Material 3, UI, the portable BackHandler
+artifact, preview tooling, and CMP resources. Do not add Android activity-compose, Android
+resources, Android test bundles, JUnit, MockK, Robolectric, Paparazzi, a golden harness,
+serialization JSON, a module-local `libs.cmp.uiBackhandler` edge, or any other duplicate generic
+CMP dependency.
 
 Change `app:common`'s existing plan-editor dependency to `api`, because public `AppRootDeps` names
 `PlanEditorGraph.Factory`. Leave `app:app`'s existing `implementation` dependency unchanged for
@@ -851,14 +887,18 @@ The implementation agent must repeat, from a clean isolated worktree:
 git fetch origin dev
 git rev-parse origin/dev
 git status --short
-gh pr view 269 --repo stslex/Workeeper --json state,mergeCommit,mergedAt
+git merge-base --is-ancestor e2e18db1398ddeb997dbf1a4d66c7838bf6004fa origin/dev
+gh pr view 270 --repo stslex/Workeeper --json state,mergeCommit,mergedAt
+gh pr view 271 --repo stslex/Workeeper --json state,headRefOid,mergeCommit,mergedAt
 gh pr list --repo stslex/Workeeper --state open --json number,headRefName,baseRefName,title
 python3 .github/scripts/assert_kmp_ui_source_topology.py
 ```
 
-The base must descend from this specification's merged commit and the target boundary must still
-match Section 3. Re-run the six-suite baseline and inspect fresh XML. Any material drift invokes a
-Section 14 STOP.
+The base must contain this rebased specification, descend from the exact prerequisite merge, and
+still match the Section 3 target boundary. PR #271 must remain merged with head
+`3685abd808eca83ece26a6e5b0d85cf9cf8efda5` and merge commit
+`e2e18db1398ddeb997dbf1a4d66c7838bf6004fa`. Re-run the six-suite baseline and inspect fresh XML.
+Any material drift invokes a Section 14 STOP.
 
 ### 12.3 Focused implementation gates
 
@@ -1048,8 +1088,9 @@ expansion.
 
 ## 15. Signed, bisect-green implementation commit plan
 
-After the specification PR merges and the maintainer gives GO, use three English Conventional
-Commits. Every commit is signed, locally verified, pushed, and GitHub Verified.
+After this prerequisite rebaseline PR merges and the maintainer gives a new explicit GO, use three
+English Conventional Commits. Every commit is signed, locally verified, pushed, and GitHub
+Verified.
 
 1. **`refactor(kmp): share plan editor feature entry`**
    - target KMP build/source/resources/tests/scene;
@@ -1074,7 +1115,8 @@ structure locally; the maintainer owns merge strategy.
 
 Phase 7.7 implementation is complete only when all are true:
 
-- the specification was merged before implementation and the maintainer gave explicit GO;
+- the original specification and this prerequisite rebaseline were merged before implementation,
+  and the maintainer gave a new explicit GO;
 - target production compiles from commonMain for Android and `iosSimulatorArm64`;
 - exact 32-file topology and two private catalogs hold, with no legacy/platform residue;
 - visible EN/RU copy, format placeholders, previews, test tags, route fields, and behavior are
@@ -1126,7 +1168,8 @@ retirement, persistence, navigation-result, and recovery specifications remain a
 
 ## 18. No implementation authorization
 
-This specification PR is documentation-only. Its merge will establish the measured contract but
-will not authorize Gradle, Kotlin, resource, workflow, script, test, generated-file, ruleset,
+This prerequisite rebaseline is documentation-only. Its merge records that PR #271 closed the
+original BackHandler STOP and establishes the corrected measured contract, but it does not
+authorize Gradle, Kotlin, resource, workflow, script, test, generated-file, ruleset,
 repository-setting, or production migration work. Phase 7.7 implementation may begin only after
-the merged specification is followed by a separate, explicit maintainer GO.
+this rebaseline merges and the maintainer gives a new, separate, explicit GO.
