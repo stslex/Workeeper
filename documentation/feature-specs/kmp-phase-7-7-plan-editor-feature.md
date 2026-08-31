@@ -890,12 +890,21 @@ git status --short
 git merge-base --is-ancestor e2e18db1398ddeb997dbf1a4d66c7838bf6004fa origin/dev
 gh pr view 270 --repo stslex/Workeeper --json state,mergeCommit,mergedAt
 gh pr view 271 --repo stslex/Workeeper --json state,headRefOid,mergeCommit,mergedAt
+REBASELINE_MERGE_SHA="$(
+  gh pr view 272 --repo stslex/Workeeper \
+    --json state,mergeCommit,mergedAt \
+    --jq 'select(.state == "MERGED" and .mergeCommit.oid != null) | .mergeCommit.oid'
+)"
+test -n "$REBASELINE_MERGE_SHA"
+git merge-base --is-ancestor "$REBASELINE_MERGE_SHA" origin/dev
 gh pr list --repo stslex/Workeeper --state open --json number,headRefName,baseRefName,title
 python3 .github/scripts/assert_kmp_ui_source_topology.py
 ```
 
-The base must contain this rebased specification, descend from the exact prerequisite merge, and
-still match the Section 3 target boundary. PR #271 must remain merged with head
+The `REBASELINE_MERGE_SHA` resolution and ancestry assertion are the load-bearing proof that
+PR #272 is merged and that `origin/dev` contains this rebaseline; checking only PRs #270 and #271
+is insufficient. The base must also descend from the exact prerequisite merge and still match the
+Section 3 target boundary. PR #271 must remain merged with head
 `3685abd808eca83ece26a6e5b0d85cf9cf8efda5` and merge commit
 `e2e18db1398ddeb997dbf1a4d66c7838bf6004fa`. Re-run the six-suite baseline and inspect fresh XML.
 Any material drift invokes a Section 14 STOP.
