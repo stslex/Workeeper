@@ -478,11 +478,11 @@ bound instance, which already gives it graph lifetime.
 seams, never a concrete-`Application` cast: `AppGraphOwner` (in-module readers such as
 `MainActivity`), `AppDepsHolder` + `Context.appDeps<T>()` (feature-side readers), and the
 typed `RecoveryDepsHolder` / `BackupWorkerDepsHolder` (the two framework readers that must
-not depend on `core:ui:mvi`). Image-viewer no longer uses the feature-side Context seam:
-`AppGraph.imageViewerGraphFactory` implements the accessor declared by `AppRootDeps`, and the
-admitted composition reads that root contract exactly once. Retired generations and generations
-that lose the publication race resolve it zero times. The other 12 feature/dialog Context readers
-remain unchanged.
+not depend on `core:ui:mvi`). Image-viewer and plan-editor no longer use the feature-side Context
+seam: `AppGraph.imageViewerGraphFactory` and `AppGraph.planEditorGraphFactory` implement the
+accessors declared by `AppRootDeps`, and the admitted composition reads that root contract exactly
+once. Retired generations and generations that lose the publication race resolve it zero times.
+Exactly 11 feature/dialog Context readers remain.
 
 ### Feature graphs (`@GraphExtension`)
 
