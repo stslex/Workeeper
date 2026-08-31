@@ -2,11 +2,9 @@
 package io.github.stslex.workeeper.di
 
 import android.content.Context
-import dev.zacsweers.metro.asContribution
 import dev.zacsweers.metro.createGraphFactory
 import io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetime
 import io.github.stslex.workeeper.core.ui.navigation.Screen
-import io.github.stslex.workeeper.feature.plan_editor.di.PlanEditorGraph
 import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorStore.State
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
@@ -46,7 +44,7 @@ internal class PlanEditorExtensionIdentityTest {
         )
 
     private fun AppGraph.planEditor(screen: Screen.PlanEditor) =
-        asContribution<PlanEditorGraph.Factory>().createPlanEditorGraph(screen)
+        planEditorGraphFactory.createPlanEditorGraph(screen)
 
     private fun existing(exerciseUuid: String) = Screen.PlanEditor.Existing(
         performedExerciseUuid = null,

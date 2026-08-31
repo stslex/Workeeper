@@ -128,6 +128,52 @@ MODULES = {
             "src/commonMain/composeResources/values-ru",
         },
     },
+    "feature:plan-editor": {
+        "root": Path("feature/plan-editor"),
+        "files": {
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/plan_editor/di/PlanEditorFeature.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/plan_editor/di/PlanEditorGraph.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/plan_editor/di/PlanEditorHandlerStore.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/plan_editor/di/PlanEditorHandlerStoreImpl.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/plan_editor/di/PlanEditorScope.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/plan_editor/domain/PlanEditorInteractor.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/plan_editor/domain/PlanEditorInteractorImpl.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/plan_editor/domain/mapper/PlanEditorDomainMapper.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/plan_editor/domain/model/ExerciseTypeDomain.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/plan_editor/domain/model/PlanEditorLoadResult.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/plan_editor/domain/model/PlanSetDomain.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/plan_editor/domain/model/SetTypeDomain.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/plan_editor/ui/PlanEditorGraph.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/plan_editor/ui/PlanEditorScreen.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/plan_editor/ui/mapper/PlanEditorMapper.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/plan_editor/ui/mvi/handler/ClickHandler.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/plan_editor/ui/mvi/handler/CommonHandler.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/plan_editor/ui/mvi/handler/EditorHandler.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/plan_editor/ui/mvi/handler/InputHandler.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/plan_editor/ui/mvi/handler/NavigationHandler.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/plan_editor/ui/mvi/store/DialogState.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/plan_editor/ui/mvi/store/PlanEditorStore.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/plan_editor/ui/mvi/store/PlanEditorStoreImpl.kt",
+            "src/commonMain/composeResources/values/strings.xml",
+            "src/commonMain/composeResources/values-ru/strings.xml",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/plan_editor/mappers/PlanEditorMapperTest.kt",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/plan_editor/model/SetTypeUiModelTest.kt",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/plan_editor/mvi/handler/ClickHandlerTest.kt",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/plan_editor/mvi/handler/CommonHandlerTest.kt",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/plan_editor/mvi/handler/NavigationHandlerTest.kt",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/plan_editor/ui/mvi/store/PlanEditorStateRouteArgTest.kt",
+            "src/iosTest/kotlin/io/github/stslex/workeeper/feature/plan_editor/PlanEditorFeatureSceneIosTest.kt",
+        },
+        "kotlin_source_sets": {
+            "commonMain",
+            "commonTest",
+            "iosTest",
+        },
+        "resource_dirs": {
+            "src/commonMain/composeResources/values",
+            "src/commonMain/composeResources/values-ru",
+        },
+    },
 }
 
 LEGACY_SOURCE_SETS = ("main", "test", "androidTest")
@@ -183,7 +229,6 @@ EXPECTED_APP_DEPS_READERS = {
     Path("feature/home/src/main/kotlin/io/github/stslex/workeeper/feature/home/di/HomeFeature.kt"): "HomeGraph.Factory",
     Path("feature/live-workout/src/main/kotlin/io/github/stslex/workeeper/feature/live_workout/di/LiveWorkoutFeature.kt"): "LiveWorkoutGraph.Factory",
     Path("feature/past-session/src/main/kotlin/io/github/stslex/workeeper/feature/past_session/di/PastSessionFeature.kt"): "PastSessionGraph.Factory",
-    Path("feature/plan-editor/src/main/kotlin/io/github/stslex/workeeper/feature/plan_editor/di/PlanEditorFeature.kt"): "PlanEditorGraph.Factory",
     Path("feature/settings/src/main/kotlin/io/github/stslex/workeeper/feature/settings/di/SettingsFeature.kt"): "SettingsGraph.Factory",
     Path("feature/single-training/src/main/kotlin/io/github/stslex/workeeper/feature/single_training/di/SingleTrainingFeature.kt"): "SingleTrainingGraph.Factory",
 }
@@ -234,7 +279,7 @@ FEATURE_SINGLE_TRAINING_RESOURCES = {
 }
 
 FEATURE_RESOURCE_OWNERS = {
-    Path("feature/plan-editor/src/main/res"): FEATURE_PLAN_EDITOR_RESOURCES,
+    Path("feature/plan-editor/src/commonMain/composeResources"): FEATURE_PLAN_EDITOR_RESOURCES,
     Path("feature/exercise/src/main/res"): FEATURE_EXERCISE_RESOURCES,
     Path("feature/single-training/src/main/res"): FEATURE_SINGLE_TRAINING_RESOURCES,
 }
@@ -328,8 +373,8 @@ def check_plan_editor_resources() -> list[str]:
             )
 
     plan_editor_legacy_catalogs = {
-        Path("feature/plan-editor/src/main/res/values/strings.xml"),
-        Path("feature/plan-editor/src/main/res/values-ru/strings.xml"),
+        Path("feature/plan-editor/src/commonMain/composeResources/values/strings.xml"),
+        Path("feature/plan-editor/src/commonMain/composeResources/values-ru/strings.xml"),
     }
     for key in sorted(FEATURE_PLAN_EDITOR_LEGACY_KEYS):
         actual_catalogs = {path for path, _ in entries.get(key, [])}
@@ -565,7 +610,7 @@ def check_image_viewer_contract() -> list[str]:
     }
     if actual_readers != expected_readers:
         failures.append(
-            "remaining Context.appDeps readers are not the exact 12 unported entries; "
+            "remaining Context.appDeps readers are not the exact 11 unported entries; "
             f"expected={expected_readers!r}, actual={actual_readers!r}"
         )
 
@@ -663,7 +708,7 @@ def main() -> None:
         "Android/Java/Javax/AndroidX-annotation API"
     )
     print("  plan-editor resource ownership and exact EN/RU values are canonical")
-    print("  image-viewer resources, Coil request, root factory flow, and 12 readers are exact")
+    print("  image-viewer resources, Coil request, root factory flow, and 11 readers are exact")
 
 
 if __name__ == "__main__":
