@@ -102,7 +102,9 @@ The exact live task/script ownership is:
 
 The live lint/rules boundary contains 48 tracked entries under `lint-rules`/`config`, with path-list
 SHA-256 `5bffbb3f504684eac75f9872cd7905ca6ec38e37e15a7164169da9d0a1f12842`.
-No ruleset, rule, baseline, suppression, task filter, or required-context change is authorized.
+No ruleset, rule, baseline, task filter, or required-context change is authorized. The sole
+suppression exception is the two test-file annotations enumerated in Section 11.1; no production
+suppression or other suppression change is authorized.
 
 ## 1. Decision and bounded exit claim
 
@@ -804,6 +806,40 @@ handwritten deterministic fakes/spies:
   and
 - fake helpers stay in their owning files so the exact six-file topology does not grow.
 
+The sole authorized suppression exception is exactly
+`@file:Suppress("INVALID_CHARACTERS_NATIVE_ERROR")` in these two files:
+
+```text
+feature/plan-editor/src/commonTest/kotlin/io/github/stslex/workeeper/feature/plan_editor/mvi/handler/ClickHandlerTest.kt
+feature/plan-editor/src/commonTest/kotlin/io/github/stslex/workeeper/feature/plan_editor/mvi/handler/CommonHandlerTest.kt
+```
+
+The exception exists only to preserve the three inherited comma-bearing identities in Section 3.2
+under Kotlin/Native 2.4.10. It authorizes no production suppression, additional diagnostic,
+additional file, compiler flag, task filter, baseline, ruleset change, or test-identity change. It
+is the only exception to the suppression prohibitions in Sections 0.2 and 12.5 and the suppression
+STOP condition in Section 14.
+
+Independent removal experiments on 2026-08-31 used
+`documentation/mockups/mutation_harness.py` with the canonical seven-module Native command and all
+required cache-defeating flags. The untouched PR #273 head
+`4a1efd030f20a60db84d50a323141e54af0561e7` first passed with
+`197 actionable tasks: 197 executed`; the Native XML oracle verified all 43 target identities with
+zero failures, errors, or skips. Removing the annotation from `ClickHandlerTest.kt` produced
+`Name contains illegal characters: ","` for
+`OnTypeChangeConfirm wipes weights from draft, applies type, hides dialog`; removing it from
+`CommonHandlerTest.kt` produced the same compiler error for
+`a load that throws clears isLoading, or the route is composed on nothing forever` and
+`NotFound clears isLoading and reports, same reason`. Each mutated run reached
+`194 actionable tasks: 194 executed`, was correctly classified `INVALID — DID NOT COMPILE` rather
+than RED, produced no accepted mutated XML, and was byte-restored by the harness. With the two
+annotations present, Kotlin/Native warns that suppressing this error has unspecified behavior and
+will not be preserved.
+
+At that measured PR #273 head, production still contained `@Suppress("MagicNumber")`. This
+documentation-only exception neither authorizes nor claims removal of that production suppression,
+and it does not claim that the Phase 7.7 implementation has been revalidated.
+
 No identity may be renamed, removed, disabled, or skipped. Android-host XML and Native XML must
 both show all six suites and 42 exact method identities, with zero failures/errors/skips.
 
@@ -1019,8 +1055,9 @@ At implementation PR head, prove:
   once;
 - all three graph, three editor-journey, and three admission identities remain green;
 - route/result/store behavior and the 456/484 PNG manifests are unchanged;
-- rulesets, stable context names, versions, compiler policy, conventions, filters, suppressions,
-  baselines, and repository settings are unchanged;
+- rulesets, stable context names, versions, compiler policy, conventions, filters, baselines, and
+  repository settings are unchanged, and exactly the two Section 11.1 test-file annotations are
+  the only authorized suppression delta;
 - every implementation commit is signed and GitHub Verified; and
 - every review finding is reproduced/classified, answered, fixed or rebutted with evidence, and
   its thread resolved before completion is claimed.
@@ -1078,7 +1115,8 @@ during the work:
   goldens, route/result contract, or canonical migration authority;
 - any sibling feature production file must change;
 - any dependency version, catalog, compiler policy, convention plugin, ruleset, required context,
-  workflow filter, suppression, or baseline change is required;
+  workflow filter, or baseline change is required, or any suppression beyond the exact two
+  Section 11.1 test-file annotations is required;
 - a global `ResourceWrapper` redesign is required;
 - expect/actual, a placeholder implementation, service locator, CompositionLocal DI, or static
   factory registry becomes necessary;
