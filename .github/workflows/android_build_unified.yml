@@ -345,7 +345,7 @@ jobs:
 
       # --continue so a kit failure cannot mask whether navigation ran (and vice versa): the
       # identity script needs both modules' XML to say which tuple broke.
-      - name: Run the native kit navigation MVI start-mode plan-editor and image-viewer tests
+      - name: Run the native kit navigation MVI start-mode plan-editor and feature tests
         id: native_tests
         run: >
           ./gradlew
@@ -355,6 +355,7 @@ jobs:
           :core:ui:start-mode:iosSimulatorArm64Test
           :core:ui:plan-editor:iosSimulatorArm64Test
           :feature:image-viewer:iosSimulatorArm64Test
+          :feature:plan-editor:iosSimulatorArm64Test
           --rerun-tasks --no-build-cache --no-configuration-cache
           --continue --full-stacktrace --console=plain
 
@@ -389,4 +390,5 @@ jobs:
             core/ui/start-mode/build/test-results/iosSimulatorArm64Test/
             core/ui/plan-editor/build/test-results/iosSimulatorArm64Test/
             feature/image-viewer/build/test-results/iosSimulatorArm64Test/
+            feature/plan-editor/build/test-results/iosSimulatorArm64Test/
           retention-days: 30
