@@ -1102,8 +1102,8 @@ safe byte-restoring harness. No mutation is committed.
 12. Restore LocalContext or appDeps; topology names the forbidden root reader.
 13. Remove archiveGraphFactory from AppRootDeps; topology names the missing accessor.
 14. Move createArchiveGraph outside the Store lambda; topology names factory-placement drift.
-15. Resolve the admitted factory twice; the focused admission identity observes two, not one.
-16. Resolve during a rejected/retired generation; the focused admission identities observe one,
+15. Resolve the admitted AppRootDeps twice; the focused admission identity observes two, not one.
+16. Resolve AppRootDeps during a rejected/retired generation; the focused admission identities observe one,
     not zero.
 17. Make the identity test use asContribution; topology names the bypass.
 18. Swap kind/date order; the exact ArchiveMetaLine identity fails on Android host and Native.
@@ -1184,8 +1184,8 @@ Phase 7.8 is complete only when:
   restore/delete/undo, and persistence effects are unchanged;
 - ResourceWrapper is used only for date formatting and no resource resolution occurs in State
   lambdas;
-- exact explicit root-factory flow resolves once for an admitted Store and zero times for rejected
-  generations;
+- exact explicit root-factory flow resolves AppRootDeps once for an admitted generation and zero
+  times for rejected generations, while creating the feature graph exactly once per retained Store;
 - all four extension identities use archiveGraphFactory and pass;
 - all 25 inherited identities execute on Android host and Native with zero skip/failure/error;
 - exactly the three test-file suppressions preserve the five comma-bearing names;
@@ -1239,7 +1239,7 @@ implementation fills it with observed facts only:
 - exact final path boundary;
 - focused and repository N/N summaries;
 - Android-host, Native, app identity, device, Smoke, and Regression XML;
-- exact five suppression-removal compiler experiments;
+- exact three suppression-removal compiler experiments covering the five comma-bearing identities;
 - every GREEN/RED/restoration control;
 - final PNG manifests and blob proof;
 - local limitations and remote run/job IDs;
