@@ -234,7 +234,19 @@ in the lower PR, and that moves the base of everything above it.**
   restore, authentication, and auto-backup scheduling.
 - [documentation/feature-specs/app-dialogs.md](documentation/feature-specs/app-dialogs.md) —
   process-surviving cross-feature dialog catalog and persistence contract.
+- [documentation/graphify.md](documentation/graphify.md) — advisory repository knowledge-graph
+  workflow, provenance, and maintenance policy.
 - [CONTRIBUTING.md](CONTRIBUTING.md) — contributor workflow, commit format.
+
+### Graphify repository index
+
+Use the pinned [Graphify workflow](documentation/graphify.md) for repository-wide, multi-hop
+dependency and blast-radius discovery; use `rg` for exact local text and file searches. The
+committed graph is an advisory snapshot and may be stale: source code and canonical
+`documentation/` override it, and `INFERRED` or `AMBIGUOUS` edges are never sufficient evidence by
+themselves. Verify decision-critical claims against source. Run `query`, `path`, and `explain`
+through the repository wrapper; do not refresh/update the graph, install Graphify hooks, or stage
+additional Graphify outputs unless a task explicitly authorizes graph maintenance.
 
 ### Navigation lifecycle (post PR #143)
 

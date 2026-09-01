@@ -1,0 +1,20 @@
+# Graphify output and repository metadata
+graphify-out
+.git
+
+# Local build and IDE state
+.gradle
+build
+.idea
+.kotlin
+.externalNativeBuild
+.cxx
+
+# Platform-generated output
+app/*/release
+captures
+DerivedData
+Pods
+
+# Local nested worktrees
+.claude/worktrees

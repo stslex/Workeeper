@@ -59,7 +59,19 @@ here. A `PreToolUse` hook (`.claude/hooks/require-signed-commits.py`, registered
 - [documentation/feature-specs/kmp-phase-2-probes.md](documentation/feature-specs/kmp-phase-2-probes.md) — Phase 2 probe report: the measured KMP/CMP toolchain facts (Paparazzi-on-KMP, testFixtures absence, golden-gate divergences, Metro-from-androidMain, CMP-on-simulator, Room/KSP2) and the Phase-7 checklist they buy.
 - [documentation/feature-specs/app-dialogs.md](documentation/feature-specs/app-dialogs.md) — Cross-feature process-survival dialog catalog (`AppDialog`, `AppDialogStore`, `AppDialogHost`, DataStore-backed `pending_*` flags). Planned alongside backup-recovery.
 - [documentation/feature-specs/set-field-column-headers.md](documentation/feature-specs/set-field-column-headers.md) — Set-row value clipping fix (E-d): measured width budget, column-header design, closed-loop overflow gate, golden blast-radius prediction, rulings R1–R8.
+- [documentation/graphify.md](documentation/graphify.md) — advisory repository knowledge-graph
+  workflow, provenance, and maintenance policy.
 - [CONTRIBUTING.md](CONTRIBUTING.md) — contributor workflow, commit format.
+
+### Graphify repository index
+
+Use the pinned [Graphify workflow](documentation/graphify.md) for repository-wide, multi-hop
+dependency and blast-radius discovery; use `rg` for exact local text and file searches. The
+committed graph is an advisory snapshot and may be stale: source code and canonical
+`documentation/` override it, and `INFERRED` or `AMBIGUOUS` edges are never sufficient evidence by
+themselves. Verify decision-critical claims against source. Run `query`, `path`, and `explain`
+through the repository wrapper; do not refresh/update the graph, install Graphify hooks, or stage
+additional Graphify outputs unless a task explicitly authorizes graph maintenance.
 
 ## Domain layer
 
