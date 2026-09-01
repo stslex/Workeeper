@@ -240,6 +240,21 @@ notes).
 - **Multi-select bulk operations** in Trainings and Exercises lists.
 - **Crash reporting toggle** in Settings.
 
+### Android Wear OS companion — approved bounded follow-up
+
+An Android-only Wear OS companion is approved as a separate product and
+delivery workstream. Phase 1 is deliberately narrow: a glanceable Tile shows
+the state of an already-active phone workout and opens one minimal watch screen
+for editing and completing the current set. The phone remains the only durable
+owner of workout data.
+
+This exception does not authorize watchOS or shared KMP watch UI, starting or
+finishing sessions from the watch, health/sensor capture, Health Services,
+Health Connect, Samsung Health, or a general wearable platform. Implementation
+also remains subject to the no-cloud transport gate in
+[the Phase 1 Wear specification](feature-specs/wear-phase-1-active-workout-tile.md):
+the existing privacy promise must not be weakened implicitly.
+
 ## Non-goals
 
 These are explicitly **not** part of the product, now or in foreseeable
@@ -265,7 +280,10 @@ re-read of this section first.
 - **No workout timer / rest timer** as a core feature in v1 — may be
   reconsidered later.
 - **No nutrition or body-measurement tracking.**
-- **No wearable integration** (Wear OS, Health Connect) in v1.
+- **No broad wearable or health-platform integration.** The bounded Android
+  Wear OS companion above is the only approved exception; Health Services,
+  Health Connect, Samsung Health, watchOS, and cross-platform watch UI remain
+  outside the product scope.
 - **No analytics or telemetry** beyond crash reporting.
 
 ## Open questions (resolved in later stages)
