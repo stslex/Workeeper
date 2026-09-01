@@ -113,7 +113,8 @@ window expires and cannot authorize a write.
 | --- | --- | --- |
 | No active session | Workeeper + `Start a workout on your phone` | Opens the local instruction screen; it does not remotely start the phone app or a session |
 | Active and fresh | Training name, current exercise, set ordinal, compact overall progress | Opens the current-set controller |
-| Phone action required | Bounded exercise name, or localized generic `Exercise`, plus `Add a set on your phone` | Opens a read-only explanation; it never synthesizes or adds a set |
+| Phone action required — no set rows | Bounded exercise name, or localized generic `Exercise`, plus `Add a set on your phone` | Opens a read-only explanation; it never synthesizes or adds a set |
+| Phone action required — unsupported values | Bounded exercise name, or localized generic `Exercise`, plus `Edit the current set on your phone` | Opens a read-only explanation; it never rounds, clamps, or sends the unsupported values |
 | Snapshot too large for watch | Localized generic workout label plus `Open this workout on your phone` | Opens a read-only explanation; no remote name, target, or mutation lease is present |
 | Workout complete | Training name plus localized `Workout complete` and `Finish on your phone` | Opens the read-only completion screen; it cannot finish the session |
 | Active but stale/disconnected | Last known training/exercise plus `Phone unavailable` | Opens the controller in read-only reconnecting state |
@@ -152,16 +153,25 @@ weight/reps values, completion action, or mutation lease. A later accepted
 an accepted `NoSession` moves to the no-session instruction. The watch never
 retains the final target as a completion fallback and cannot finish the session.
 
+`PhoneActionRequired` is reason-specific. `NoSetRows` shows `Add a set on your
+phone`; `UnsupportedNumericValues` shows `Edit the current set on your phone`.
+Both use the bounded exercise name or localized generic `Exercise`, expose no
+editable values or completion action, and carry no mutation lease.
+
 Every interactive target is at least `48dp × 48dp`, with enough separation that
 targets do not overlap. Controls have semantic labels that include the field,
 current value, and action. Rotary input may be added only as a second input path;
 all actions must remain reachable by touch.
 
-The initial weight and reps exactly mirror the phone snapshot. Reps change in
-steps of one. The weight increment is **not guessed in Phase 1**: the entry probe
-must first inventory current phone validation and decide one explicit increment
-that round-trips through the existing `Double?` model without hidden rounding.
-Failure to close this choice before UI implementation is a STOP.
+The initial weight and reps exactly mirror an admitted phone snapshot. Reps
+change in steps of one. The weight increment is **not guessed in Phase 1**: the
+entry probe must select one positive integer increment in hundredths of a
+kilogram and prove its exact conversion to the existing `Double?` persistence
+model without hidden rounding. The same decision fixes null → value behavior and
+the enabled state at zero/maximum; controls never wrap, overflow, or silently
+clamp. Reps may be edited down to the unfilled value zero, but no completion can
+send it; increment is disabled at `999`. Failure to close the weight-step/null
+choice before UI implementation is a STOP.
 
 `Complete set` is enabled only when:
 
@@ -170,7 +180,7 @@ Failure to close this choice before UI implementation is a STOP.
 - the snapshot carries the current phone-issued mutation lease;
 - the snapshot is not stale;
 - no command is in flight;
-- reps are greater than zero; and
+- the editable draft satisfies the exact Phase 1 numeric domain in §5.2; and
 - the target identifiers still describe the current set locally.
 
 The base mutation-freshness window is exactly **two minutes**, but the accepted
@@ -242,6 +252,16 @@ two attempt correlations: the initial delivery and one explicit retry. Both
 remain known until a terminal outcome or source snapshot invalidation; a second
 transport ambiguity abandons that command and forces a correlated refresh before
 a new command may be created.
+
+Reaching the attempt's unchanged effective deadline or invalidating the source
+tuple also moves `Available` or `AttemptBound` to `Retired`, without making a
+still-known late response ineligible for once-only outcome reduction. Any
+recognized command response retires its original attempt binding before the
+attached snapshot is considered. A terminal response may then install
+`Available` only through the ordinary latest-generation snapshot gate. An
+explicitly retryable response may instead atomically replace the retired binding
+with the accepted same-intent successor `AttemptBound` defined below. No other
+response can restore that delivery binding.
 
 Once generation `N` is issued, a response from any lower generation cannot
 install a mutation lease or reset the receive-time freshness deadline, even if
@@ -318,18 +338,22 @@ every non-success as retryable:
   produces a confirmation haptic. Its snapshot replaces the screen only if the
   independent authority gate accepts it; otherwise the newer current display is
   preserved.
-- A transport timeout or lost acknowledgement has no response and therefore no
-  successor lease. It keeps the edits, `commandId`, submitted values, original
-  attempt-bound lease/fingerprint, and produces an error haptic. Retry is allowed
-  only while that originating effective window remains fresh, the local target
-  is unchanged, no authority generation newer than attempt 1 has been issued,
-  and the current authority state is the exact matching
-  `AttemptBound(commandId, attemptFingerprint, leaseId, leaseGeneration)`.
-  If a refresh or other successor intervenes, the binding becomes `Retired` and
-  the old logical command is abandoned rather than resent; a still-compatible
-  draft may be submitted under the accepted current snapshot only with a new
-  `commandId` and attempt fingerprint. Only one resend is allowed for the
-  logical command; another ambiguity forces refresh.
+- A transport timeout or lost acknowledgement delivers no accepted response or
+  successor lease to the watch. It keeps the edits, `commandId`, submitted
+  values, and original attempt-bound lease/fingerprint, and produces an error
+  haptic. Retry is allowed only while that originating effective window remains
+  fresh, the local target is unchanged, no authority generation newer than
+  attempt 1 has been issued, and the current authority state is the exact
+  matching `AttemptBound(commandId, attemptFingerprint, leaseId,
+  leaseGeneration)`. If a refresh, local expiry, abandonment, recognized
+  response, or other successor intervenes, the original binding becomes
+  `Retired` and cannot be used for the timeout resend. Only an accepted typed
+  retryable response may install its distinct successor-bound attempt state; all
+  other still-compatible drafts require a new `commandId` and attempt fingerprint
+  under later accepted authority. A lost response may already have rotated an
+  unseen phone-side successor, so the one resend may safely converge through
+  `AuthorizationExpired`; it is not assumed to succeed. Only one resend is
+  allowed for the logical command; another ambiguity forces refresh.
 - An explicitly retryable typed response produces an error haptic and follows
   the successor-rebind transition above. Retry is offered only after that
   transition succeeds; it never resends the retired original lease.
@@ -339,19 +363,24 @@ every non-success as retryable:
   snapshot passes the authority gate; otherwise it stays read-only and refreshes
   as described above.
 - `AuthorizationExpired` is terminal for the old command but does not by itself
-  prove the edits obsolete. If its accepted mutable replacement has the exact
-  source epoch/revision and target, preserve the draft and allow an explicit new
-  submission under the successor lease with a new `commandId`. If an accepted
-  replacement changes version/target or becomes read-only, clear the draft. If
-  the attached snapshot is rejected but the already-displayed state still
-  matches the source version/target, park the draft read-only and refresh; any
-  later compatible fresh snapshot still requires a new command. Otherwise clear
-  it.
+  prove the edits obsolete. If its accepted replacement has the exact source
+  database epoch, session, revision, and canonical target, preserve the draft.
+  A mutable replacement allows explicit submission under its successor lease
+  with a new `commandId`; a replacement that is read-only only because its
+  effective lease window is zero, expired, or otherwise unavailable parks the
+  same draft read-only and refreshes. A rejected attached snapshot also parks
+  the draft only while the already-displayed state still matches that complete
+  source tuple. Any later compatible mutable snapshot still requires a new
+  command. Clear the draft only when an accepted/current authoritative state
+  changes the database epoch, session, revision, or canonical target, removes
+  the target, or applies `NoSession`.
 - A value-validation rejection identifies the invalid field. It keeps the
   editable draft only while the current display still matches the command's
   source workout version and target; otherwise it discards the obsolete draft,
-  preserves the field-specific error as a one-shot event, and refreshes. Any
-  corrected submission receives a new `commandId`.
+  preserves the field-specific error as a one-shot event, and refreshes. The
+  rejection performs no row write, receipt, revision bump, or successor-lease
+  issue; its replacement is read-only. Any corrected submission first obtains
+  fresh authority and receives a new `commandId`.
 - A protocol/version rejection clears the in-flight command, disables mutation,
   and enters the update-required state; it cannot retry the incompatible
   payload.
@@ -373,11 +402,18 @@ or row-count override:
    completed set; the first exercise with such a position is the watch current
    exercise;
 4. if the first non-skipped, not-done exercise has an empty union, stop traversal
-   and return `PhoneActionRequired(NoSetRows, performedExerciseUuid)`. The Tile
-   and controller show `Add a set on your phone`, remain read-only, and request a
-   fresh snapshot after the phone creates a row. The bridge must not synthesize
-   fallback position `0` and must not skip ahead to a later exercise; and
-5. return `WorkoutComplete` only when every non-skipped exercise with an expected
+   and return `PhoneActionRequired(NoSetRows, performedExerciseUuid,
+   boundedExerciseDisplayName)`. The Tile and controller show `Add a set on your
+   phone`, remain read-only, and request a fresh snapshot after the phone creates
+   a row. The bridge must not synthesize fallback position `0` and must not skip
+   ahead to a later exercise;
+5. before authorizing a selected target, convert its persisted/default reps and
+   effective exercise-type weight through the exact §5.2 snapshot domain. A
+   failed conversion returns
+   `PhoneActionRequired(UnsupportedNumericValues(field),
+   performedExerciseUuid, boundedExerciseDisplayName)` with no target, values,
+   or lease; and
+6. return `WorkoutComplete` only when every non-skipped exercise with an expected
    position is complete and no `PhoneActionRequired` exercise exists.
 
 This deliberately means out-of-order exercise selection on the phone is not
@@ -386,7 +422,8 @@ ephemeral UI selection as session truth. Shared behavior-vector tests must run
 the phone Live-workout completion rule and the bridge rule over the same planned,
 performed, skipped, empty, and sparse-position fixtures. The empty/no-plan/no-row
 fixture must produce `PhoneActionRequired`, not `WorkoutComplete` or a synthetic
-target. A mismatch is a STOP.
+target. Numeric-domain fixtures must likewise stop on the selected unsupported
+exercise rather than skip to a later valid target. A mismatch is a STOP.
 
 Drafts typed on the phone but not checked are not synchronized. This preserves
 the existing explicit persistence contract: only a completed set is durable.
@@ -475,7 +512,52 @@ Every completion command carries at least:
 - the opaque snapshot version `(databaseEpoch, sessionRevision)` it was edited
   from;
 - the phone-issued `mutationLeaseId` and durable `mutationLeaseGeneration`; and
-- `weight`, `reps`, and immutable set type copied from the snapshot.
+- `weightHundredthsKg`, `reps`, and immutable exercise/set type copied from the
+  snapshot.
+
+Phase 1 deliberately defines a narrower **watch-write** domain than the shipped
+phone editor. It does not add a global phone-data cap:
+
+| Field | Accepted command value | Typed rejection |
+| --- | --- | --- |
+| `reps: Int` | `1..999` inclusive | `InvalidValues(Reps, BelowMinimum | AboveMaximum)` |
+| `weightHundredthsKg: Int?` for a weighted exercise | `null` or `0..99_999` inclusive (`0.00..999.99 kg`) | `InvalidValues(Weight, BelowMinimum | AboveMaximum)` |
+| `weightHundredthsKg` for a weightless exercise | exactly `null` | `InvalidValues(Weight, MustBeNullForWeightless)` |
+
+The caps are Phase 1 watch-UX limits: at most three rep digits and one bounded
+fixed-point weight. Both boundary labels must be proven on the target round sizes.
+They do not reject or rewrite phone-only editing/history; an out-of-domain
+current target takes the read-only phone-action path below.
+
+`reps` and `weightHundredthsKg` are signed 32-bit integers on the wire so every
+accepted value has one canonical encoding. A floating-point token, fractional
+reps, integer overflow, `NaN`, or positive/negative infinity is not a value to
+clamp: the codec rejects the envelope as
+`ProtocolRejected(InvalidNumericEncoding)` before command admission. The stable
+intent and attempt fingerprints hash the canonical integers/null, never a
+formatted label or raw `Double` bits.
+
+The snapshot builder uses the same fixed-point representation. A weighted phone
+`Double?` is admitted only when it is `null`, or when it is finite, non-negative,
+not negative zero, at most `999.99`, and converts exactly to hundredths without
+rounding. On the Android/JVM phone bridge the required conversion oracle is
+`BigDecimal.valueOf(weight).movePointRight(2).intValueExact()` followed by the
+range check and `hundredths.toDouble() / 100.0 == weight`; failure at any step is
+unsupported rather than rounded. The raw IEEE-754 sign bit rejects negative zero
+before `BigDecimal` conversion.
+Snapshot reps may be `0..999` because zero is the editable unfilled state, but a
+completion command still requires `1..999`. A weightless snapshot always emits
+`null` regardless of an irrelevant legacy residual weight; it never exposes or
+copies that residue into a new row.
+
+If the current weighted value cannot make that exact conversion, or snapshot
+reps lie outside `0..999`, the phone returns read-only
+`PhoneActionRequired(UnsupportedNumericValues(field))` with the exercise
+identity and bounded display name. It includes no offending value, target,
+position, or mutation lease and performs no normalization or database write.
+The user fixes the stored value through the existing phone flow. Thus a legacy
+phone row remains readable on the phone, while Phase 1 never transports or
+persists an unround-trippable value from the watch.
 
 The phone keeps mutation leases only in process memory, with one bounded active
 slot per source watch node/session/version. A lease contains a cryptographically
@@ -610,8 +692,12 @@ Inside the `CompleteCurrentSet` transaction specifically, the gateway must:
    receipt;
 6. re-derive the canonical target and inspect any existing row for
    `(performedExerciseUuid, position)`. A moved target or differing row returns
-   an authoritative conflict; otherwise validate values and perform exactly one
-   insert/update;
+   an authoritative conflict; otherwise validate the immutable exercise/set
+   types, `reps`, and `weightHundredthsKg` against the table in §5.2. An invalid
+   value returns the field/reason-specific `InvalidValues` outcome with no row
+   write, receipt, revision bump, or successor lease. Only a valid fixed-point
+   weight is converted to `Double` without rounding immediately before exactly
+   one insert/update;
 7. increment the session revision, persist the Wear receipt, and derive the
    complete replacement snapshot data from the same serialized database state;
    and
@@ -847,15 +933,18 @@ The initial protocol has three logical operations:
 `NoSession`, `ActiveWithTarget`, `PhoneActionRequired`, and `WorkoutComplete`.
 Only `ActiveWithTarget` carries a mutable target. `PhoneActionRequired` is
 reason-specific: `NoSetRows` carries the relevant exercise identity and its
-`BoundedDisplayName` exercise name, while `PayloadTooLarge` carries only the
-session identity and no remote display name, exercise identity, target, values,
-or lease. A `NoSetRows` `Value` renders exactly; `Omitted(TooLarge |
-InvalidUnicode)` renders the localized generic `Exercise` label. Neither reason
-may carry a fallback set position. `WorkoutComplete` carries only the session
-identity, bounded training name, and the overall completed/total exercise counts
-used by the read-only surfaces; it carries no exercise identity, target, set
-values, or lease. A mutable snapshot also carries its opaque mutation lease ID;
-no other state does. Its durable lease generation accompanies the ID and orders
+`BoundedDisplayName` exercise name;
+`UnsupportedNumericValues(field)` carries the same bounded exercise identity/name
+but no raw offending value; and `PayloadTooLarge` carries only the session
+identity and no remote display name, exercise identity, target, values, or
+lease. A bounded-name `Value` renders exactly; `Omitted(TooLarge |
+InvalidUnicode)` renders the localized generic `Exercise` label. None of these
+reasons may carry a fallback set position or mutation lease. `WorkoutComplete`
+carries only the session identity, bounded training name, and the overall
+completed/total exercise counts used by the read-only surfaces; it carries no
+exercise identity, target, set values, or lease. A mutable snapshot also carries
+its opaque mutation lease ID; no other state does. Its durable lease generation
+accompanies the ID and orders
 successors within one database epoch/session revision; it never extends the
 lease lifetime. The same mutable envelope carries bounded
 `leaseRemainingAtPhoneSendMs`; the watch combines it only with the matching
@@ -877,6 +966,17 @@ the final encoded UTF-8 bytes before transport:
 - `MAX_DISPLAY_NAME_UTF8_BYTES = 512` independently for training and exercise
   names; and
 - `MAX_ENVELOPE_BYTES = 16_384` for every complete request or response envelope.
+
+The same committed schema defines `MAX_WEAR_REPS = 999` and
+`MAX_WEAR_WEIGHT_HUNDREDTHS_KG = 99_999`. Snapshot and command weights use the
+nullable integer `weightHundredthsKg`; no IEEE-754 value crosses the wire. A
+decoder must reject wrong numeric token kinds, overflow, and non-finite legacy
+float tokens before constructing a command. If schema/correlation can still be
+decoded safely, the phone returns `ProtocolRejected(InvalidNumericEncoding)`;
+otherwise it drops the malformed envelope and exposes no state or lease. A
+decoded but out-of-domain signed integer reaches the serialized gateway and
+produces the exact `InvalidValues` field/reason outcome from §5.2, never
+coercion.
 
 Display names use a wire sum type `BoundedDisplayName.Value` or
 `BoundedDisplayName.Omitted(TooLarge | InvalidUnicode)`. The phone uses a strict
@@ -940,6 +1040,21 @@ update-required state and disables mutation.
   and a 16,385-byte snapshot candidate is converted to the sub-1,024-byte
   read-only `PayloadTooLarge` fallback with no name/target/lease. A 16,385-byte
   request never reaches the fake transport.
+- Numeric codec/gateway fixtures prove command reps `1` and `999` pass while
+  `0`, `-1`, and `1_000` return the exact field/reason rejection; weighted
+  hundredths `null`, `0`, and `99_999` pass while `-1` and `100_000` reject; and
+  every non-null weight on a weightless target rejects, including zero. Wrong
+  token kinds, fractional reps, integer overflow, and legacy `NaN`/infinity
+  tokens are protocol rejections before command admission. No invalid case
+  writes a row/receipt, bumps revision, or issues a successor lease.
+- Snapshot numeric-conversion fixtures prove exact round trips for `0.0`, common
+  fractional values, and `999.99`; `null` remains valid for weighted exercises;
+  negative zero, negative/non-finite/over-limit/more-than-two-decimal weighted
+  values and reps outside `0..999` become
+  `PhoneActionRequired(UnsupportedNumericValues)` with no raw value/target/lease.
+  A weightless legacy residual weight maps to canonical wire `null` without a
+  database write. Fingerprint fixtures distinguish every canonical integer/null
+  command and never depend on `Double` formatting.
 - Watch state reducer for every Tile/controller state, including fake-clock
   proofs that a zero-RTT snapshot with `120_000ms` phone lease remaining is fresh
   at `119_999ms` and stale at `120_000ms`; non-zero RTT subtracts the entire
@@ -973,17 +1088,19 @@ update-required state and disables mutation.
   known command response at the same workout revision: `AuthorizationExpired`,
   validation, stale, `Applied`, and `AlreadyApplied` terminal outcomes each
   terminate or preserve the matching draft exactly once. Authorization expiry
-  with an accepted same-version/target successor preserves the draft for a new
-  command, while changed/read-only authority clears it and a rejected snapshot
-  parks it only if the current display still exactly matches. A validation
-  response against a now-newer target discards only the obsolete draft but still
-  emits its field-specific error. A retryable outcome is consumed once for its
-  attempt and enters `AwaitingRetryAuthority`: an accepted same-version/target
-  mutable successor preserves `commandId`, intent, and local generation while
-  rebinding the lease and attempt fingerprint under a new correlation; attempt 2
-  can then apply. A rejected/read-only/different-target successor forbids resend,
-  retains only a safe draft, refreshes, and requires a new command submission. A
-  pure timeout retains the original lease/fingerprint while fresh. Late attempt 1
+  with an accepted same-source-tuple successor preserves the draft for a new
+  command; a temporarily read-only same-tuple successor or rejected snapshot
+  parks it only while the current display still exactly matches. A changed
+  epoch/session/revision/target, targetless state, or `NoSession` clears it. A
+  validation response against a now-newer target discards only the obsolete
+  draft but still emits its field-specific error. A retryable outcome is consumed
+  once for its attempt and enters `AwaitingRetryAuthority`: an accepted
+  same-version/target mutable successor preserves `commandId`, intent, and local
+  generation while rebinding the lease and attempt fingerprint under a new
+  correlation; attempt 2 can then apply. A rejected/read-only/different-target
+  successor forbids resend, retains only a safe draft, refreshes, and requires a
+  new command submission. A pure timeout retains the original lease/fingerprint
+  while fresh. Late attempt 1
   before attempt 2 commits gets `AuthorizationExpired`; after attempt 2 commits,
   the attempt-2 receipt makes its different fingerprint a protocol rejection.
   Duplicate/unknown outcomes have no effect, and a rejected convergence snapshot
@@ -991,16 +1108,23 @@ update-required state and disables mutation.
 - Response-less timeout oracles prove
   `Available` → attempt 1 → `AttemptBound` → timeout → attempt 2 without
   retiring the command's own lease. Same-command resend is permitted only while
-  that exact attempt-bound authority remains current and no post-attempt request
-  generation exists. Timeout → refresh/successor moves it to `Retired` and
-  forbids old-command resend; after an accepted compatible snapshot the retained
-  draft becomes a new command/fingerprint. Late attempt 1 converges through
-  expiry or the durable receipt without duplicating a row. A different command
-  can never consume an attempt-bound lease.
+  that exact attempt-bound authority remains current, its deadline is not
+  reached, and no post-attempt request generation exists: deadline minus `1ms`
+  permits retry and the deadline forbids it. Timeout → refresh/successor,
+  recognized response, local expiry, or source invalidation moves the original
+  binding to `Retired` and forbids old-lease resend; only an accepted typed
+  retryable response can atomically install its specified successor
+  `AttemptBound`. After any other accepted compatible snapshot the retained draft
+  becomes a new command/fingerprint. A resend after an unseen phone-side
+  successor converges through `AuthorizationExpired`; late attempt 1 converges
+  through expiry or the durable receipt without duplicating a row. A different
+  command can never consume an attempt-bound lease.
 - Current-target derivation for planned, ad-hoc, skipped, complete, empty,
   sparse-position, weighted, and weightless sessions. An empty no-plan/no-row
   exercise before a populated later exercise returns
   `PhoneActionRequired(NoSetRows)` and never position `0` or the later target.
+  An unsupported-numeric current exercise before a valid later exercise likewise
+  returns its typed phone-action state and never skips ahead.
 - Completion-state reducer oracles proving an accepted final-set response moves
   to read-only `WorkoutComplete`, clears draft/in-flight mutation state, exposes
   no retained target or controls, and stops the ongoing surface. A later fresh
@@ -1009,7 +1133,10 @@ update-required state and disables mutation.
   phone session finish moves to `NoSession`.
 - Shared behavior-vector parity against the phone Live-workout done rule.
 - Phone command validation for wrong session, wrong exercise, stale revision,
-  stale position, invalid values, duplicate retry, write failure, and success.
+  stale position, every numeric field/reason boundary, immutable-type mismatch,
+  duplicate retry, write failure, and success. A same-source numeric rejection
+  keeps the draft, exposes one field error, stays read-only, and requires a fresh
+  lease plus new `commandId` after correction; a changed target clears it.
 - Phone-monotonic lease oracles proving first delivery accepted at `119_999ms`,
   rejected without mutation at `120_000ms`, an enqueue-before/arrival-after
   delay, wrong-node/session/version lease rejection, a new successor for every
@@ -1076,6 +1203,8 @@ update-required state and disables mutation.
   `NoSetRows` round-trip and UI fixtures cover an exact bounded exercise name
   and both typed omission reasons falling back to localized `Exercise`, without
   adding a target, set position, values, or lease.
+  `UnsupportedNumericValues` fixtures cover each field reason, bounded/generic
+  exercise names, phone-edit copy, and the same no-value/no-target/no-lease rule.
 - Accessibility semantics for every control and disabled/error state.
 
 ### 11.2 Device tests
@@ -1085,13 +1214,21 @@ update-required state and disables mutation.
   Tile refresh, ongoing return affordance, disconnect/reconnect, phone-process
   death, and session finish on phone.
 - Small round Wear emulator: clipped text, scroll reachability, `48dp` targets,
-  font scaling, English/Russian, light/dark, weighted/weightless.
+  font scaling, English/Russian, light/dark, weighted/weightless, and admitted
+  boundary values `999 reps` / `999.99 kg` without truncating semantics or touch
+  controls.
 - Race: complete the same set on phone and watch; exactly one final row exists and
   the watch converges to the phone snapshot.
 - Backup restore/recovery while a watch request waits or runs; no old-generation
   read/write survives.
 - Empty no-plan/no-row exercise: Tile and controller require phone action, expose
   no completion control, and converge after a set is created on the phone.
+- Out-of-domain current phone values: negative/non-finite/over-limit/extra-scale
+  weight and reps outside `0..999` produce localized read-only
+  `UnsupportedNumericValues` with no raw value or lease; correcting the value on
+  the phone and completing a fresh handshake restores the exact fixed-point
+  controller. A weightless residual DB weight remains absent on the watch and a
+  non-null weightless command fixture cannot write.
 - With the controller open, edit the active plan length/values and change the
   exercise type on the phone; the old watch command cannot write and the watch
   converges to the newly authorized snapshot without regressing the phone edit.
@@ -1219,8 +1356,9 @@ Stop and return to the owner if any of the following occurs:
 - issuing attempt 1 could retire its own lease instead of moving it to an
   exclusive attempt-bound authority, or that binding could authorize a different
   command;
-- a timeout resend could use a lease after any newer authority generation was
-  issued, or authorization-only expiry could discard a still-compatible draft;
+- an attempt-bound lease could survive its local deadline, a recognized response,
+  source invalidation, or any newer authority generation; or authorization-only
+  expiry could discard a still-compatible draft;
 - an accepted `WorkoutComplete` state would retain a mutation target/control,
   leave Tile/controller behavior undefined, or keep the ongoing surface alive;
 - the ongoing surface could outlive the bounded reconnect window after either
@@ -1237,6 +1375,10 @@ Stop and return to the owner if any of the following occurs:
   accepted `NoSession` response;
 - a display name or encoded envelope can bypass the 512/16,384-byte limits, be
   sliced inside Unicode, or fail without the typed read-only fallback;
+- a snapshot/command could transport IEEE-754 weight, silently round/clamp a
+  phone value, exceed `999 reps` or `99_999` weight hundredths, accept non-null
+  weight for a weightless exercise, or let any numeric rejection write a row,
+  receipt, revision, or successor lease;
 - duplicate target rows exist without an owner-approved reconciliation rule;
 - a listener would access repositories without generation-bound admission;
 - KMP/common source sets, shared watch UI, Health APIs, or sensor permissions
@@ -1274,8 +1416,10 @@ Phase 1 is complete only when:
   binding;
 - timeout resend additionally proves that no successor generation exists and the
   original lease remains exclusively attempt-bound to that command rather than
-  retired by attempt 1 itself; authorization-only expiry preserves a compatible
-  draft but requires a new command under accepted authority;
+  retired by attempt 1 itself, and that deadline expiry or any recognized
+  response retires the original binding; authorization-only expiry preserves a
+  same-source-tuple draft through temporary read-only authority but requires a
+  new command under accepted authority;
 - active-session transitions and the `NoSession` tombstone are admitted only by
   the latest correlated handshake; per-session revisions never order different
   session identities;
@@ -1306,6 +1450,10 @@ Phase 1 is complete only when:
   reflected consistently in product and owner-approved public privacy copy;
 - every wire display name and complete envelope obeys its exact byte cap, with
   Unicode-safe omission and a bounded no-lease `PayloadTooLarge` fallback;
+- every Wear write uses canonical integer reps/fixed-point weight inside the
+  exact watch-only domain; unsupported stored values stay phone-owned and
+  read-only on the watch, and every numeric boundary/protocol-token rejection is
+  proven mutation-free;
 - no Health, sensor, watchOS, or KMP watch scope entered the diff;
 - all focused, repository, and paired-device gates are green at the final head;
 - commits are signed and GitHub-verified; and
