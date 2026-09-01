@@ -1174,9 +1174,11 @@ outcome; a rejected/non-matching snapshot forbids resend. An accepted matching
 mutable successor preserves command intent and local generation but replaces the
 attempt correlation, lease binding, and lease-bearing request fingerprint.
 
-Authoritative source/target invalidation uses this closed sub-matrix in gateway
-check order, after the exact-current durable-receipt replay exception described
-in §5.2:
+Only the three authoritative source/target-invalidating outcomes use this closed
+sub-matrix. Rows follow gateway order; after the no-session row and before the
+ordinary same-session revision row, an exact current durable receipt may return
+`AlreadyApplied` under its separate §5.2 contract and is intentionally not a
+sub-matrix row:
 
 | Serialized canonical state after admission | Command outcome | Attached replacement |
 | --- | --- | --- |
@@ -1359,7 +1361,7 @@ update-required state and disables mutation.
   including when that intervening revision also removed or skipped the submitted
   exercise; only after an equal revision does a wrong/skipped exercise or moved
   target with another representable target
-  returns `TargetChanged + ActiveWithTarget`, complete returns
+  return `TargetChanged + ActiveWithTarget`, complete returns
   `TargetChanged + WorkoutComplete`, missing/unsupported rows return
   `TargetChanged + PhoneActionRequired(exact reason)`, and a missing session
   returns `NoActiveSession + NoSession`, all before immutable-type comparison.
