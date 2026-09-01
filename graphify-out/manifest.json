@@ -8394,10 +8394,10 @@
     "semantic_hash": "cda1f1c2727842ef7f4f1c3cc7daae17"
   },
   "AGENTS.md": {
-    "mtime": 1787296733.9625902,
-    "seen": 1788256421.558709,
-    "ast_hash": "12aab743b717f8ead26d3c6c2b6555e1",
-    "semantic_hash": "12aab743b717f8ead26d3c6c2b6555e1"
+    "mtime": 1788276247.6271093,
+    "seen": 1788278271.871265,
+    "ast_hash": "ef4b06a0340b5529f96d4f718b51007c",
+    "semantic_hash": "ef4b06a0340b5529f96d4f718b51007c"
   },
   "CHANGELOG.md": {
     "mtime": 1787951323.2266178,
@@ -8406,10 +8406,10 @@
     "semantic_hash": "e92f589d92c1285cf225fc399495d4de"
   },
   "CLAUDE.md": {
-    "mtime": 1787951323.2290606,
-    "seen": 1788256421.55871,
-    "ast_hash": "6a7285d15f32d53ae5f3b1d61694039d",
-    "semantic_hash": "6a7285d15f32d53ae5f3b1d61694039d"
+    "mtime": 1788276247.6275256,
+    "seen": 1788278271.871265,
+    "ast_hash": "a7db7a663770d6c8f18aff5e52363628",
+    "semantic_hash": "a7db7a663770d6c8f18aff5e52363628"
   },
   "CODE_OF_CONDUCT.md": {
     "mtime": 1758795319.120605,
@@ -8880,10 +8880,10 @@
     "semantic_hash": "80af6b831a8f0c8ec09976250d9a9752"
   },
   "documentation/product.md": {
-    "mtime": 1783422605.6985583,
-    "seen": 1788256421.558741,
-    "ast_hash": "6adfa23bb33dfb37a511c3a1812894ff",
-    "semantic_hash": "6adfa23bb33dfb37a511c3a1812894ff"
+    "mtime": 1788276593.4721038,
+    "seen": 1788278271.8712692,
+    "ast_hash": "8ad352415ec632846af5b4fe1de5c9eb",
+    "semantic_hash": "8ad352415ec632846af5b4fe1de5c9eb"
   },
   "documentation/release-flow.md": {
     "mtime": 1783422605.6986766,
@@ -12262,5 +12262,29 @@
     "seen": 1788256421.558969,
     "ast_hash": "2e34e29a40509021838e1ead6b042510",
     "semantic_hash": "2e34e29a40509021838e1ead6b042510"
+  },
+  ".github/scripts/graphify": {
+    "mtime": 1788276247.6267211,
+    "seen": 1788278271.870451,
+    "ast_hash": "568b4360ed266303d404e38f6489a722",
+    "semantic_hash": "568b4360ed266303d404e38f6489a722"
+  },
+  "documentation/feature-specs/kmp-phase-7-8-archive-feature.md": {
+    "mtime": 1788266655.5843391,
+    "seen": 1788278271.8712661,
+    "ast_hash": "bb4746ec35625d6dfc0f4a37d9ed1a16",
+    "semantic_hash": "bb4746ec35625d6dfc0f4a37d9ed1a16"
+  },
+  "documentation/feature-specs/wear-phase-1-active-workout-tile.md": {
+    "mtime": 1788276593.471362,
+    "seen": 1788278271.871267,
+    "ast_hash": "4283c45534fb7e51056e6257deb0d080",
+    "semantic_hash": "4283c45534fb7e51056e6257deb0d080"
+  },
+  "documentation/graphify.md": {
+    "mtime": 1788276247.6279514,
+    "seen": 1788278271.871267,
+    "ast_hash": "7391aa77c9c366a532135f80891b2680",
+    "semantic_hash": "7391aa77c9c366a532135f80891b2680"
   }
 }
