@@ -1183,8 +1183,8 @@ sub-matrix row:
 | Serialized canonical state after admission | Command outcome | Attached replacement |
 | --- | --- | --- |
 | different database epoch | `StaleRevision` | current canonical snapshot or `NoSession` |
-| same epoch/active session, different session revision | `StaleRevision` | current active canonical snapshot |
 | no active session | `NoActiveSession` | `NoSession` |
+| same epoch/active session, different session revision | `StaleRevision` | current active canonical snapshot |
 | active session, wrong/skipped exercise, moved target, or differing row with another representable target | `TargetChanged` | current `ActiveWithTarget` |
 | active session, `WorkoutComplete` | `TargetChanged` | `WorkoutComplete` |
 | active session, `PhoneActionRequired(reason)` | `TargetChanged` | the exact reason-specific `PhoneActionRequired` |
@@ -1356,15 +1356,18 @@ update-required state and disables mutation.
   Each immutable-type mismatch returns the same canonical unavailable snapshot
   but clears the draft, exposes no numeric field error, and likewise proves zero
   row/receipt/revision/successor-issuance/lease-generation effects while still
-  retiring the presented lease. Ordering fixtures prove an
-  epoch/revision mismatch returns `StaleRevision + current canonical state`,
-  including when that intervening revision also removed or skipped the submitted
-  exercise; only after an equal revision does a wrong/skipped exercise or moved
-  target with another representable target
-  return `TargetChanged + ActiveWithTarget`, complete returns
+  retiring the presented lease. Ordering fixtures prove a database-epoch
+  mismatch wins first and returns `StaleRevision + current canonical state`; an
+  epoch-matching absent session returns `NoActiveSession + NoSession`; for an
+  active session, an exact current durable receipt may return `AlreadyApplied`
+  before the ordinary revision check; every remaining revision mismatch returns
+  `StaleRevision + current canonical state`, including when that intervening
+  revision also removed or skipped the submitted exercise. Only after an equal
+  revision does a wrong/skipped exercise or moved target with another
+  representable target return `TargetChanged + ActiveWithTarget`; complete returns
   `TargetChanged + WorkoutComplete`, missing/unsupported rows return
-  `TargetChanged + PhoneActionRequired(exact reason)`, and a missing session
-  returns `NoActiveSession + NoSession`, all before immutable-type comparison.
+  `TargetChanged + PhoneActionRequired(exact reason)`, all before immutable-type
+  comparison.
   Every invalid cross-pair for the three source/target-invalidation outcomes
   closes the offending command into protocol mismatch without replacing newer
   display/cache state. Separate fixtures prove that `Applied`, `AlreadyApplied`,
