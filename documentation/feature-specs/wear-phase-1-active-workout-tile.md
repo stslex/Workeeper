@@ -440,9 +440,12 @@ contracts; their absence from this sub-matrix is never itself a protocol error.
   replacement is the canonical stored `ActiveWithTarget` plus
   `MutationAuthority.Unavailable(FreshHandshakeRequired)`; a fresh `Granted`
   handshake and new `commandId` are required before any later submission.
-- A protocol/version rejection clears the in-flight command, disables mutation,
-  and enters the update-required state; it cannot retry the incompatible
-  payload.
+- `ProtocolRejected(reason)` is terminal: it clears the in-flight command and
+  draft, retires the watch's attempt-bound authority, disables mutation, emits
+  the reason-specific local safe-protocol/update-required error, and never
+  retries the incompatible payload. Its attached replacement is reduced
+  independently under the closed read-only contract in §9; a rejected
+  replacement cannot preserve the draft or make the old command resendable.
 
 ## 4. Canonical current-set rule
 
@@ -802,8 +805,10 @@ Inside the `CompleteCurrentSet` transaction specifically, the gateway must:
 4. compare `commandId` and request fingerprint with the durable receipt. An exact
    match returns `AlreadyApplied` only when the receipt's resulting version is
    also the current database epoch/revision; once a receipt exists, reuse of one
-   ID for another attempt fingerprint is a protocol rejection. Before a receipt
-   exists, a changed attempt fingerprint is accepted only through the matching
+   ID for another attempt fingerprint returns terminal
+   `ProtocolRejected(CommandFingerprintMismatch)`. Before a receipt exists, a
+   changed attempt fingerprint returns the same rejection unless it arrives
+   through the matching
    retry-bound successor described above. This receipt-only outcome performs no
    mutation and therefore may be returned after the original lease expired;
 5. require exact equality with the durable session revision. Any mismatch is
@@ -1142,10 +1147,22 @@ The same committed schema defines `MAX_WEAR_REPS = 999` and
 `MAX_WEAR_WEIGHT_HUNDREDTHS_KG = 99_999`. Snapshot and command weights use the
 nullable integer `weightHundredthsKg`; no IEEE-754 value crosses the wire. A
 decoder must reject wrong numeric token kinds, overflow, and non-finite legacy
-float tokens before constructing a command. If schema/correlation can still be
-decoded safely, the phone returns `ProtocolRejected(InvalidNumericEncoding)`;
-otherwise it drops the malformed envelope and exposes no state or lease. A
-decoded but out-of-domain signed integer reaches the serialized gateway and
+float tokens before constructing a command.
+
+The `CompleteCurrentSet` framing makes one response-routing tuple independently
+decodable and size-bounded before the operation body: the response-compatible
+`schemaVersion`, operation tag, delivery-attempt correlation ID, `commandId`,
+`databaseEpoch`, `sessionUuid`, `sessionRevision`, `mutationLeaseId`, and
+`mutationLeaseGeneration`. These are the command's canonical fields, not a
+second set of values; the body supplies target, immutable metadata, and editable
+numeric values. The decoder must not recover routing values heuristically from a
+partially parsed body. If this complete tuple and the authenticated source node
+remain valid while the body has an invalid numeric token, the phone returns
+`ProtocolRejected(InvalidNumericEncoding)` under the contract below. If any
+routing field, authentication binding, response schema, operation tag, or
+envelope framing is missing, malformed, unsupported, or oversized, the phone
+drops the envelope without a semantic response and exposes no snapshot or lease.
+A decoded but out-of-domain signed integer reaches the serialized gateway and
 produces the exact `InvalidValues` field/reason outcome from §5.2, never
 coercion.
 
@@ -1208,6 +1225,33 @@ display/cache state. `Applied`, `AlreadyApplied`, `AuthorizationExpired`,
 `ProtocolRejected` outcomes are not evaluated against this sub-matrix and must
 continue through their separately specified contracts.
 
+The `ProtocolRejected(reason)` outcome/replacement pairing is separately closed.
+It may be emitted only for the authenticated, response-compatible routing tuple
+above. After that tuple is accepted, the serialized coordinator re-reads the
+current canonical state without trusting the rejected operation body, retires
+the exact matching process-memory lease slot when it exists, and constructs one
+complete bounded replacement from that same read:
+
+- a representable current target is
+  `ActiveWithTarget + MutationAuthority.Unavailable(FreshHandshakeRequired)`
+  with canonical stored values;
+- a canonical active targetless state is the exact current `WorkoutComplete` or
+  reason-specific `PhoneActionRequired`; and
+- no active session is `NoSession`.
+
+Every branch is read-only: `ProtocolRejected + Granted`, any lease field,
+remaining lifetime, or effective mutation window is an invalid pairing that
+fails closed on the watch. The phone performs no row write or revision bump,
+leaves every existing receipt byte-for-byte unchanged, and neither issues/rebinds
+a successor nor increments durable lease generation. Absence of the named
+process-memory slot does not authorize or create one. The watch consumes the
+known terminal outcome once, retires its local attempt authority, clears the
+draft/command, and never retries it; the attached replacement still passes the
+ordinary epoch/identity/revision/request-generation gate and cannot overwrite a
+newer display/cache snapshot. If that gate rejects it, the watch remains
+read-only and requests one latest-generation handshake. A later independently
+accepted handshake is the only route back to mutation authority.
+
 There is no silent compatibility fallback. A newer incompatible peer shows an
 update-required state and disables mutation.
 
@@ -1262,6 +1306,19 @@ update-required state and disables mutation.
   token kinds, fractional reps, integer overflow, and legacy `NaN`/infinity
   tokens are protocol rejections before command admission. No invalid case
   writes a row/receipt, bumps revision, or issues a successor lease.
+- Correlated protocol-rejection fixtures prove that an invalid numeric body with
+  a complete authenticated routing tuple returns
+  `ProtocolRejected(InvalidNumericEncoding)`, while a malformed/missing routing
+  field, unsupported response schema/operation, or oversized envelope is
+  dropped without response or state exposure. Gateway fixtures cover
+  `UnsupportedFingerprintVersion` and `CommandFingerprintMismatch`. Every
+  emitted rejection attaches only the current bounded read-only canonical
+  replacement, retires the matching phone slot and watch attempt authority,
+  clears the draft/command, forbids retry, preserves an unsupported receipt
+  byte-for-byte, and proves zero row/receipt/revision/successor-generation
+  effects. Reducer fixtures reject `Granted` or lease-bearing pairings, gate an
+  older attached snapshot independently, and request exactly one fresh
+  handshake when convergence is rejected.
 - Snapshot numeric-conversion fixtures prove exact round trips for `0.0`, common
   fractional values, and `999.99`; `null` remains valid for weighted exercises;
   negative zero, negative/non-finite/over-limit/more-than-two-decimal weighted
@@ -1598,6 +1655,10 @@ Stop and return to the owner if any of the following occurs:
   apply a stale `NoSession` tombstone;
 - semantic command-outcome reduction cannot be separated from attached-snapshot
   authority, causing a known terminal response to be discarded;
+- a correlatable `ProtocolRejected` response could omit its complete canonical
+  read-only replacement, carry `Granted`/lease authority, preserve or retry the
+  rejected draft, fail to retire the matching attempt authority, rewrite the
+  receipt, or cause a row/revision/successor-generation side effect;
 - lease successors cannot receive a durable strictly increasing generation, or
   a pre-restart response can overwrite a post-restart lease;
 - a distinct authority handshake could reuse an ageing lease, or the watch could
@@ -1720,6 +1781,10 @@ Phase 1 is complete only when:
   canonical stored values plus `MutationAuthority.Unavailable`, with no lease
   issuance/rebind/generation side effect; the presented lease is retired, and
   partial or mixed authority payloads fail closed;
+- every emitted `ProtocolRejected` reason has the closed read-only replacement
+  and retirement contract in §9; malformed routing is dropped, while correlated
+  invalid-numeric, fingerprint-version, and command-fingerprint fixtures prove
+  deterministic reducer behavior and zero mutation/receipt/successor effects;
 - both immutable copied types are fingerprinted and have exact terminal
   `ImmutableTypeMismatch` outcomes that clear the draft, attach the canonical
   unavailable replacement, and remain mutation-free;
