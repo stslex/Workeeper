@@ -24,6 +24,8 @@ import io.github.stslex.workeeper.core.data.database.wear.WearSyncDao
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.withContext
 
 /**
@@ -41,12 +43,32 @@ public object DbCascadeBindingContainer {
         @IODispatcher ioDispatcher: CoroutineDispatcher,
     ): DbTransitionRunner = object : DbTransitionRunner {
 
+        private val afterMutationCommitListeners = MutableStateFlow<List<() -> Unit>>(emptyList())
+
+        override fun addAfterMutationCommitListener(listener: () -> Unit) {
+            afterMutationCommitListeners.update { current -> current + listener }
+        }
+
         override suspend fun <T> invoke(
             block: suspend CoroutineScope.() -> T,
+        ): T = withContext(ioDispatcher) { runTransaction(block) }
+
+        override suspend fun <T> mutate(
+            block: suspend CoroutineScope.() -> T,
         ): T = withContext(ioDispatcher) {
+            val result = runTransaction(block)
+            afterMutationCommitListeners.value.forEach { listener ->
+                runCatching { listener() }
+            }
+            result
+        }
+
+        private suspend fun <T> runTransaction(
+            block: suspend CoroutineScope.() -> T,
+        ): T {
             // GUARD: `coroutineScope` nests INSIDE `immediateTransaction` so `async {}` children
             // join the same transaction; hoisting it out silently breaks child-write rollback.
-            db.useWriterConnection { transactor ->
+            return db.useWriterConnection { transactor ->
                 transactor.immediateTransaction {
                     coroutineScope {
                         block()

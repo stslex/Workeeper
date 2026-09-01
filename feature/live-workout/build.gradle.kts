@@ -23,6 +23,7 @@ dependencies {
     implementation(project(":core:data:exercise"))
 
     testImplementation(kotlin("test"))
+    testImplementation(project(":core:data:database-test"))
     testImplementation(project(":core:ui:golden-harness"))
     // `runComposeUiTest` for LiveSetRowSemanticsTest — a semantics property no golden can show.
     testImplementation(libs.androidx.compose.ui.test.junit4)

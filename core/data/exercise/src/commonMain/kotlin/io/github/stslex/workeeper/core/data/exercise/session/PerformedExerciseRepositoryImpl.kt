@@ -6,6 +6,7 @@ import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.di.AppScope
 import io.github.stslex.workeeper.core.core.di.IODispatcher
+import io.github.stslex.workeeper.core.data.database.common.DbTransitionRunner
 import io.github.stslex.workeeper.core.data.database.session.PerformedExerciseDao
 import io.github.stslex.workeeper.core.data.database.session.PerformedExerciseEntity
 import io.github.stslex.workeeper.core.data.exercise.session.model.PerformedExerciseDataModel
@@ -19,6 +20,7 @@ import kotlin.uuid.Uuid
 @SingleIn(AppScope::class)
 class PerformedExerciseRepositoryImpl @Inject internal constructor(
     private val dao: PerformedExerciseDao,
+    private val transition: DbTransitionRunner,
     @IODispatcher private val ioDispatcher: CoroutineDispatcher,
 ) : PerformedExerciseRepository {
 
@@ -28,16 +30,12 @@ class PerformedExerciseRepositoryImpl @Inject internal constructor(
         dao.getBySession(Uuid.parse(sessionUuid)).map { it.toData() }
     }
 
-    override suspend fun insert(rows: List<PerformedExerciseDataModel>) {
-        withContext(ioDispatcher) {
-            dao.insert(rows.map { it.toEntity() })
-        }
+    override suspend fun insert(rows: List<PerformedExerciseDataModel>) = transition.mutate {
+        dao.insert(rows.map { it.toEntity() })
     }
 
-    override suspend fun setSkipped(uuid: String, skipped: Boolean) {
-        withContext(ioDispatcher) {
-            dao.setSkipped(Uuid.parse(uuid), skipped)
-        }
+    override suspend fun setSkipped(uuid: String, skipped: Boolean) = transition.mutate {
+        dao.setSkipped(Uuid.parse(uuid), skipped)
     }
 
     override suspend fun insertForSession(
@@ -45,17 +43,17 @@ class PerformedExerciseRepositoryImpl @Inject internal constructor(
         exerciseUuids: List<Pair<String, Int>>,
     ) {
         if (exerciseUuids.isEmpty()) return
-        withContext(ioDispatcher) {
-            val parsedSession = Uuid.parse(sessionUuid)
-            val rows = exerciseUuids.map { (exerciseUuid, position) ->
-                PerformedExerciseEntity(
-                    sessionUuid = parsedSession,
-                    exerciseUuid = Uuid.parse(exerciseUuid),
-                    position = position,
-                    skipped = false,
-                )
-            }
-            dao.insert(rows)
+        transition.mutate {
+            dao.insert(
+                exerciseUuids.map { (exerciseUuid, position) ->
+                    PerformedExerciseEntity(
+                        sessionUuid = Uuid.parse(sessionUuid),
+                        exerciseUuid = Uuid.parse(exerciseUuid),
+                        position = position,
+                        skipped = false,
+                    )
+                },
+            )
         }
     }
 }

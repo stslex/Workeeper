@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.live_workout.mvi.mapper
 
+import io.github.stslex.workeeper.core.data.database.testfixtures.WorkoutTargetParityFixture
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveSetUiModel
@@ -14,6 +15,30 @@ import org.junit.jupiter.api.Test
  * the intended divergence when it has one.
  */
 internal class ExerciseDoneRuleTest {
+
+    @Test
+    fun `shared persisted-state vectors retain phone completion semantics`() {
+        WorkoutTargetParityFixture.SCENARIOS.forEach { scenario ->
+            val plan = List(scenario.planSize) { planSet() }
+            val performed = scenario.performedPositions.map { position ->
+                set(position = position, isDone = true)
+            }
+            val live = ExerciseDoneRule.isDoneLive(
+                planSets = plan,
+                performedSets = performed,
+                visibleSets = emptyList<LiveSetUiModel>(),
+                skipped = scenario.skipped,
+            )
+            val load = ExerciseDoneRule.isDoneLoad(
+                planSets = plan,
+                performedSets = performed,
+                skipped = scenario.skipped,
+            )
+
+            assertEquals(scenario.expectedPhoneDone, live, scenario.name)
+            assertEquals(scenario.expectedPhoneDone, load, scenario.name)
+        }
+    }
 
     @Test
     fun `parity case 1 - sparse position 4 only on a 5-set plan`() {

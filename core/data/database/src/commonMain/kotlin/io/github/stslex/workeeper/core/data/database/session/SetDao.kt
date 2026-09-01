@@ -7,6 +7,7 @@ import androidx.room3.OnConflictStrategy
 import androidx.room3.Query
 import androidx.room3.Update
 import io.github.stslex.workeeper.core.data.database.session.model.SetEntity
+import io.github.stslex.workeeper.core.data.database.session.model.SetTypeEntity
 import kotlin.uuid.Uuid
 
 @Dao
@@ -89,6 +90,30 @@ interface SetDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(set: SetEntity)
+
+    /**
+     * One conflict-target write for the canonical set identity. On conflict the existing UUID is
+     * deliberately retained so phone edits and concurrent Wear delivery cannot replace row
+     * identity or create a second `(performedExerciseUuid, position)` row.
+     */
+    @Query(
+        """
+        INSERT INTO set_table(uuid, performed_exercise_uuid, position, reps, weight, type)
+        VALUES (:uuid, :performedExerciseUuid, :position, :reps, :weight, :type)
+        ON CONFLICT(performed_exercise_uuid, position) DO UPDATE SET
+            reps = excluded.reps,
+            weight = excluded.weight,
+            type = excluded.type
+        """,
+    )
+    suspend fun upsertByTarget(
+        uuid: Uuid,
+        performedExerciseUuid: Uuid,
+        position: Int,
+        reps: Int,
+        weight: Double?,
+        type: SetTypeEntity,
+    )
 
     @Update
     suspend fun update(set: SetEntity)
