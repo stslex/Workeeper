@@ -574,7 +574,11 @@ inside the serialized transaction. A mismatch returns the typed terminal outcome
 `ImmutableTypeMismatch(ExerciseType | SetType)`, never `InvalidValues`; it has no
 user-editable field error and follows the read-only replacement/recovery rule in
 §3.2. Validation order is deterministic: if both copied types differ,
-`ExerciseType` is reported first.
+`ExerciseType` is reported first. This outcome is reachable only after the
+source epoch/revision, lease, canonical target, and stored-value representability
+checks pass. If the serialized re-read instead yields `NoSession`,
+`WorkoutComplete`, or `PhoneActionRequired`, the earlier authoritative outcome
+and canonical non-target replacement win; `ImmutableTypeMismatch` is not emitted.
 
 The caps are Phase 1 watch-UX limits: at most three rep digits and one bounded
 fixed-point weight. Both boundary labels must be proven on the target round sizes.
@@ -744,9 +748,10 @@ Inside the `CompleteCurrentSet` transaction specifically, the gateway must:
    receipt;
 6. re-derive the canonical target and inspect any existing row for
    `(performedExerciseUuid, position)`. A moved target or differing row returns
-   an authoritative conflict. Otherwise require both copied immutable types to
-   equal the canonical types; a mismatch returns
-   `ImmutableTypeMismatch(ExerciseType | SetType)`. Only after both match,
+   an authoritative conflict. A canonical non-target state returns its typed
+   authoritative replacement before command metadata is inspected. Otherwise
+   require both copied immutable types to equal the canonical types; a mismatch
+   returns `ImmutableTypeMismatch(ExerciseType | SetType)`. Only after both match,
    validate `reps` and `weightHundredthsKg` against the table in §5.2; an invalid
    editable value returns the field/reason-specific `InvalidValues`. Either
    rejection performs no row write, receipt, revision bump, or successor lease.
@@ -1242,7 +1247,9 @@ update-required state and disables mutation.
   lease generation nor leaks the rejected draft into snapshot/cache state.
   Each immutable-type mismatch returns the same canonical unavailable snapshot
   but clears the draft, exposes no numeric field error, and likewise proves zero
-  row/receipt/revision/lease-generation effects.
+  row/receipt/revision/lease-generation effects. Ordering fixtures prove a
+  moved, complete, missing, or unsupported stored target returns its earlier
+  authoritative/non-target outcome instead of an immutable-type mismatch.
 - Phone-monotonic lease oracles proving first delivery accepted at `119_999ms`,
   rejected without mutation at `120_000ms`, an enqueue-before/arrival-after
   delay, wrong-node/session/version lease rejection, a new successor for every
