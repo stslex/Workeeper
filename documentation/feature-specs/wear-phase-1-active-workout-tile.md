@@ -88,7 +88,7 @@ stateDiagram-v2
     Active --> NeedsPhone: First pending exercise has no set rows
     NeedsPhone --> Active: Phone creates a row and sends snapshot
     Active --> Stale: Nearby phone lost
-    Active --> Stale: Snapshot age reaches 2 min
+    Active --> Stale: Effective mutation window expires
     Stale --> Active: Fresh handshake
     Active --> NoSession: Phone ends workout
     Active --> Loading: First cache access after watch reboot
@@ -155,39 +155,64 @@ Failure to close this choice before UI implementation is a STOP.
 - reps are greater than zero; and
 - the target identifiers still describe the current set locally.
 
-Mutation freshness is exactly **two minutes**, measured from the watch's
-monotonic receive time for the latest complete `ActiveWorkoutSnapshot`. Node
-connectivity, wall-clock changes, retry timers, and non-snapshot traffic do not
-refresh this deadline. At `120_000ms` the active state becomes stale even when
-the phone node still appears connected, every mutation control is disabled,
-and `Complete set` cannot enqueue a command. A complete replacement snapshot
-resets the deadline. The foreground controller may issue one
-`GetActiveWorkout` request when the deadline expires, and explicit retry may
-issue another; neither the controller nor the Tile runs a background polling
-loop.
+The base mutation-freshness window is exactly **two minutes**, but the accepted
+per-snapshot window is conservatively shortened to the phone lease that actually
+remains. For each correlated request the shared sequencer records
+`requestedAtWatchElapsedRealtimeMs`. When its response arrives, it computes:
+
+```text
+requestRttMs = receivedAtWatchElapsedRealtimeMs - requestedAtWatchElapsedRealtimeMs
+safeLeaseRemainingMs = max(0, leaseRemainingAtPhoneSendMs - requestRttMs)
+effectiveMutationWindowMs = min(120_000, safeLeaseRemainingMs)
+```
+
+Subtracting the whole request round trip is intentionally conservative because
+the response leg is no longer than that round trip. The watch persists
+`effectiveMutationWindowMs` atomically with the snapshot and measures its
+deadline from `receivedAtWatchElapsedRealtimeMs`. At that deadline the active
+state becomes stale even when the phone node still appears connected, every
+mutation control is disabled, and `Complete set` cannot enqueue a command. A
+zero, negative, malformed, or out-of-range lease remainder never grants mutation
+authority. Node connectivity, wall-clock changes, retry timers, and non-snapshot
+traffic do not refresh the window.
+
+A complete latest-generation replacement snapshot may start a new derived
+window. The foreground controller may issue one `GetActiveWorkout` request when
+the window expires, and explicit retry may issue another; neither the controller
+nor the Tile runs a background polling loop.
 
 The watch-side deadline prevents enqueue and retry, but it is not write
 authorization. Every mutable `ActiveWithTarget` snapshot also carries an opaque
-phone-issued mutation lease. The phone creates the lease immediately before it
-returns the snapshot and expires it after `120_000ms` on the phone's own
-`SystemClock.elapsedRealtime()` clock. Because phone issuance precedes watch
-receipt, the phone deadline is never later than the watch's receive-based
-deadline; transport latency may cause an earlier authoritative rejection, never
-a late write. The phone validates the lease again at serialized transactional
-write admission. At the phone boundary, age `119_999ms` is admissible subject to
-the other checks, and age `120_000ms` must not write.
+phone-issued mutation lease. For every distinct authority-bearing request that
+returns a mutable snapshot, the phone creates an ordered successor immediately
+before dispatch, expires it after `120_000ms` on the phone's own
+`SystemClock.elapsedRealtime()` clock, and includes
+`leaseRemainingAtPhoneSendMs` sampled at response handoff. Only an exact
+duplicate delivery of the same correlation ID may replay the same serialized
+response/lease; another handshake cannot reuse it. The conservative watch
+calculation above therefore never leaves controls enabled past the known lower
+bound of phone authority. The phone validates the lease again at serialized
+transactional write admission. At the phone boundary, age `119_999ms` is
+admissible subject to the other checks, and age `120_000ms` must not write; a
+command sent near the watch deadline can still receive authoritative expiry if
+its own delivery crosses that boundary.
 
 All authority-bearing requests (`GetActiveWorkout` and `CompleteCurrentSet`)
 pass through one watch-process request sequencer shared by the Tile, activity,
 cache, and transport. At issue time it assigns a strictly increasing local
-generation and maps it to the wire correlation ID. An explicit retry of the same
-in-flight `commandId` retains its original generation; a refresh or corrected
-new command receives a new one. The map is bounded to outstanding operations,
-and any response whose correlation ID is no longer known is ignored. One
-logical command owns at most two attempt correlations: the initial delivery and
-one explicit retry. Both remain known until a terminal outcome or source
-snapshot invalidation; a second transport ambiguity abandons that command and
-forces a correlated refresh before a new command may be created.
+generation and maps it, its watch-monotonic issue time, and operation identity to
+the wire correlation ID. Issuing any newer authority-bearing request immediately
+retires the locally installed mutation lease and makes the controller read-only
+until a latest-generation response installs a successor; otherwise the phone
+could retire the old lease while the watch still presents it as usable. An
+explicit retry of the same in-flight `commandId` retains its original generation;
+a refresh or corrected new command receives a new one. The map is bounded to
+outstanding operations, and any response whose correlation ID is no longer known
+is ignored. One logical command owns at most two attempt correlations: the
+initial delivery and one explicit retry. Both remain known until a terminal
+outcome or source snapshot invalidation; a second transport ambiguity abandons
+that command and forces a correlated refresh before a new command may be
+created.
 
 Once generation `N` is issued, a response from any lower generation cannot
 install a mutation lease or reset the receive-time freshness deadline, even if
@@ -318,9 +343,10 @@ the existing explicit persistence contract: only a completed set is durable.
 - Watch storage contains one versioned, atomically published app-private cache
   record. Its bounded framing header contains the cache schema version,
   `receivedAtElapsedRealtimeMs`, corresponding `Settings.Global.BOOT_COUNT`, raw
-  payload length, and payload digest; the same atomic record contains the raw
-  last protocol snapshot and minimal connection metadata. None of those fields
-  may be committed in separate preference keys or files.
+  `effectiveMutationWindowMs`, payload length, and payload digest; the same
+  atomic record contains the raw last protocol snapshot and minimal connection
+  metadata. None of those fields may be committed in separate preference keys
+  or files.
 - Cache replacement uses `AtomicFile` semantics or an equivalent temp-write,
   durable-sync, atomic-publish primitive. In-memory publication occurs only
   after the complete durable record is published. A failed, cancelled, or
@@ -335,8 +361,9 @@ the existing explicit persistence contract: only a completed set is durable.
   payload-free `NoSession` tombstone before the reducer exposes that state;
   physical deletion may follow. Once accepted, a process death cannot reveal the
   superseded active payload on the next read.
-- The two-minute mutation deadline is independent of display-cache retention:
-  stale content may remain visible and read-only while mutation is disabled.
+- The per-snapshot effective mutation deadline (capped at two minutes) is
+  independent of display-cache retention: stale content may remain visible and
+  read-only while mutation is disabled.
 - Display-cache retention is a strict **access-time TTL**, not a promise that the
   OS will wake an idle process for physical deletion. Within one boot, age is
   measured from `SystemClock.elapsedRealtime()`, including deep sleep. At age
@@ -351,6 +378,11 @@ the existing explicit persistence contract: only a completed set is durable.
   returns cacheless loading and attempts deletion before decode/render. Cached
   workout details are never readable after reboot even if physical bytes remain
   until the app is next scheduled.
+- A cache read never installs mutation authority. After every watch-process
+  start, an otherwise valid same-boot cached session is display-only and triggers
+  a correlated handshake; the persisted effective window proves that deadlines
+  were not extended and drives stale/lifecycle state, but only that live latest-
+  generation response may install its lease.
 - If no watch process runs at the deadline, app-private cache bytes may
   remain physically present past 24 hours. No exact alarm, WorkManager deadline,
   wake lock, or background loop is claimed solely for deletion; the security and
@@ -380,19 +412,22 @@ The phone keeps mutation leases only in process memory, with one bounded active
 slot per source watch node/session/version. A lease contains a cryptographically
 random ID, source node ID, session UUID, database epoch/revision, the snapshot's
 target identities/position, durable lease generation, and
-`expiresAtPhoneElapsedRealtimeMs`. It is reused for every concurrent or
-duplicate snapshot response for that exact slot while unexpired; issuing another
-response for the same version/target cannot rotate or replace it. The serialized
-phone coordinator creates a successor only after expiry or a version/target
-transition and atomically increments the session's durable lease generation
-before publishing it. A snapshot-authorizing mutation or session transition
-retires the old slot, and phone-process restart loses all in-memory slots, so the
-first successor from the new process also increments the durable generation. A
-lease is never reconstructed from wall-clock time or accepted from a different
-node, session, epoch, revision, generation, or target. An absent, mismatched,
-retired, or expired lease returns `AuthorizationExpired` plus a replacement
-snapshot; it cannot mutate. A newly returned mutable snapshot contains the
-current lease ID/generation for its exact slot.
+`expiresAtPhoneElapsedRealtimeMs`. The serialized phone coordinator creates a
+successor for every distinct authority-bearing correlation that returns a
+mutable snapshot and atomically increments the session's durable lease
+generation before publishing it. Concurrent same-version handshakes therefore
+receive ordered `L1`, `L2`, ... successors; publishing each successor retires
+the previous slot. Only an exact duplicate delivery of the same correlation may
+replay its already-serialized response while that response remains available in
+the bounded request-deduplication map. A snapshot-authorizing mutation or session
+transition also retires the old slot, and phone-process restart loses all
+in-memory slots, so the first successor from the new process increments the
+durable generation. A lease is never reconstructed from wall-clock time or
+accepted from a different node, session, epoch, revision, generation, or target.
+An absent, mismatched, retired, or expired lease returns
+`AuthorizationExpired` plus a replacement snapshot; it cannot mutate. A newly
+returned mutable snapshot contains the current lease ID/generation and bounded
+remaining lifetime for its exact slot.
 
 A content hash is not a concurrency token. Phase 1 requires a tested Room
 migration that adds durable synchronization metadata owned by the phone
@@ -404,8 +439,9 @@ database:
 - a per-session `Long` revision initialized once and incremented monotonically
   in the same transaction as every snapshot-authorizing mutation;
 - a per-session `Long` lease generation initialized once and incremented in a
-  serialized database transaction whenever a new in-memory lease successor is
-  created, but not when the same unexpired lease is reused; and
+  serialized database transaction whenever a distinct authority-bearing request
+  creates an in-memory lease successor; exact replay of the same correlation and
+  serialized response does not increment it; and
 - one bounded last-applied Wear receipt slot per session containing `commandId`,
   a deterministic request fingerprint, and the resulting version. The
   fingerprint covers the authenticated source node ID, schema version, source
@@ -660,15 +696,23 @@ workout engine.
 - Start it only after a fresh active-session response.
 - Update it from cached snapshots, not a per-second loop.
 - Deep-link it to the same controller activity.
-- When the connection is lost, retain read-only status during the bounded
-  reconnect window, then stop the ongoing surface and leave the stale Tile.
+- Enter one read-only freshness-loss grace state when either the node disconnects
+  or the accepted snapshot's effective mutation window expires without a newer
+  fresh correlated handshake. The bounded reconnect window starts at the first
+  such event; reconnect notifications, no-op traffic, failed refreshes, and
+  repeated expiry events cannot reset it. Only a fresh correlated active-session
+  response cancels the grace state and starts a new lifecycle window.
+- When the reconnect window elapses without freshness, stop the ongoing surface
+  and leave the stale Tile even if the node still reports connected.
 - Stop immediately on a no-session response.
 - Never hold a wake lock solely to keep the Tile or controller fresh.
 
 The exact reconnect window is fixed at implementation entry after measuring the
 platform reconnect behavior on the target physical watch; it must be at least
 the documented four-minute reconnection interval plus a small deterministic
-margin, and must have a testable constant rather than an unbounded timer.
+margin, and must have a testable constant rather than an unbounded timer. The
+same constant and state machine cover explicit disconnect and connected-but-
+silent freshness loss.
 
 ## 9. Protocol surface
 
@@ -687,7 +731,11 @@ a typed reason and the relevant exercise identity for display, never a fallback
 set position. A mutable snapshot also carries its opaque mutation lease ID; no
 other state does. Its durable lease generation accompanies the ID and orders
 successors within one database epoch/session revision; it never extends the
-lease lifetime.
+lease lifetime. The same mutable envelope carries bounded
+`leaseRemainingAtPhoneSendMs`; the watch combines it only with the matching
+correlation's locally measured round trip to derive
+`effectiveMutationWindowMs`. The wire value is neither a wall-clock timestamp
+nor accepted without its known correlation.
 
 Every snapshot envelope exposes the reducer's active identity explicitly:
 `NoSession` is the tombstone identity, while every other payload state carries
@@ -739,23 +787,27 @@ update-required state and disables mutation.
 - Protocol round trips, unknown-version rejection, size bound, and committed
   fixture compatibility.
 - Watch state reducer for every Tile/controller state, including fake-clock
-  proofs that a connected-but-silent snapshot is fresh at `119_999ms`, stale at
-  `120_000ms`, and cacheless after reboot; connection changes, in-flight
-  behavior, acknowledgement, retryable transport failure, stale/target/no-session
-  convergence, validation correction, and protocol mismatch.
+  proofs that a zero-RTT snapshot with `120_000ms` phone lease remaining is fresh
+  at `119_999ms` and stale at `120_000ms`; non-zero RTT subtracts the entire
+  measured round trip from the reported remainder; zero/negative/malformed
+  effective windows are read-only; and reboot is cacheless. Also cover connection
+  changes, in-flight behavior, acknowledgement, retryable transport failure,
+  stale/target/no-session convergence, validation correction, and protocol
+  mismatch.
 - Shared request-sequencer/reducer oracles for overlapping refreshes: after
-  generation 2 is issued, a same-version generation-1 response cannot apply
-  either before or after generation 2's response; concurrent same-slot responses
-  reuse the identical unexpired lease; after a legitimate lease rotation, `L2`
-  followed by late `L1` retains `L2`, including when both responses share one
-  local generation across phone-process restart; lower durable workout and lease
-  generations are ignored; an older-request higher version may only advance
-  read-only state; unsolicited snapshots remain read-only until a correlated
-  refresh; same-command retries retain their local generation; unknown/expired
-  correlation IDs are ignored; one logical command permits exactly the initial
-  attempt plus one retry attempt; a terminal response to either still closes the
-  command exactly once; a second transport ambiguity abandons it for a fresh
-  snapshot; and Tile/activity observe the same sequence and cache.
+  generation 2 is issued, the installed generation-1 lease becomes read-only and
+  its response cannot apply either before or after generation 2's response;
+  concurrent distinct same-slot handshakes receive ordered successor leases,
+  while an exact duplicate of one correlation replays the identical serialized
+  lease response; `L2` followed by late `L1` retains `L2`, including across phone
+  process restart; lower durable workout and lease generations are ignored; an
+  older-request higher version may only advance read-only state; unsolicited
+  snapshots remain read-only until a correlated refresh; same-command retries
+  retain their local generation; unknown/expired correlation IDs are ignored;
+  one logical command permits exactly the initial attempt plus one retry attempt;
+  a terminal response to either still closes the command exactly once; a second
+  transport ambiguity abandons it for a fresh snapshot; and Tile/activity
+  observe the same sequence and cache.
 - Active-identity transition oracles with sessions A and B using deliberately
   inverted revisions (`A@20`, `B@0`): only the latest correlated generation may
   move A → B, A → `NoSession`, or `NoSession` → B. B followed by a delayed
@@ -783,11 +835,17 @@ update-required state and disables mutation.
   stale position, invalid values, duplicate retry, write failure, and success.
 - Phone-monotonic lease oracles proving first delivery accepted at `119_999ms`,
   rejected without mutation at `120_000ms`, an enqueue-before/arrival-after
-  delay, wrong-node/session/version lease rejection, same-slot lease reuse,
-  atomic durable-generation allocation for successors, retired-successor
-  invalidation, phone-process restart producing a strictly greater generation,
-  and expired exact-receipt replay returning `AlreadyApplied` without a second
-  write.
+  delay, wrong-node/session/version lease rejection, a new successor for every
+  distinct authority correlation, exact-correlation response replay without a
+  generation bump, atomic durable-generation allocation for concurrent
+  successors, retired-successor invalidation, phone-process restart producing a
+  strictly greater generation, bounded remaining-lifetime serialization, and
+  expired exact-receipt replay returning `AlreadyApplied` without a second write.
+- Freshness-loss lifecycle oracles for both explicit disconnect and a connected
+  node that stops producing fresh correlated snapshots. The first loss event
+  starts one reconnect deadline; no-op traffic/repeated failures cannot extend
+  it; a fresh active response cancels it; expiry stops the ongoing surface but
+  leaves the stale Tile; and `NoSession` stops it immediately.
 - Version oracles proving strictly increasing revisions across every listed
   phone/watch snapshot-authorizing mutation, persistence across process restart,
   database-epoch rotation on restore, exact-receipt replay after lost
@@ -812,15 +870,17 @@ update-required state and disables mutation.
 - Cache tests proving a read at `86_399_999ms` returns the payload and a read at
   `86_400_000ms` returns absent and attempts deletion before the protocol decoder
   is invoked, plus an idle process crossing the deadline, deletion failure with
-  no payload exposure, same-boot process restart, changed boot count,
+  no payload exposure, same-boot process restart returning display-only and
+  requesting a handshake, changed boot count,
   missing/corrupt metadata, impossible elapsed baseline, wall-clock movement in
   both directions, and backup exclusion configuration.
 - Atomic-cache crash-cut oracles at temporary write, durable sync, atomic publish,
   and in-memory publication. Every restart observes the complete prior record or
-  complete replacement, never a valid old payload paired with a new baseline or
-  a new payload paired with old metadata. They also cover length/digest mismatch,
-  cancellation, write failure, and durable `NoSession` tombstone replacement
-  before the old active payload can be exposed again.
+  complete replacement, never a valid old payload paired with a new baseline/
+  effective mutation window or a new payload paired with old metadata. They also
+  cover length/digest mismatch, cancellation, write failure, and durable
+  `NoSession` tombstone replacement before the old active payload can be exposed
+  again.
 - DB-work lease tests proving a listener cannot touch a retired generation and
   releases admission on success, failure, timeout, and cancellation.
 - Tile layout tests proving one launch target and no mutation action.
@@ -843,6 +903,10 @@ update-required state and disables mutation.
 - With the controller open, edit the active plan length/values and change the
   exercise type on the phone; the old watch command cannot write and the watch
   converges to the newly authorized snapshot without regressing the phone edit.
+- Keep the node reported connected while suppressing snapshot responses: the
+  effective mutation window expires, the single reconnect grace deadline does
+  not move, the ongoing surface stops at its boundary, and a later fresh
+  handshake can start it again.
 
 Device evidence must identify the APK package/signature pair, OS/API versions,
 and exact test scenario. Manual observation without the resulting phone DB
@@ -940,8 +1004,14 @@ Stop and return to the owner if any of the following occurs:
   authority, causing a known terminal response to be discarded;
 - lease successors cannot receive a durable strictly increasing generation, or
   a pre-restart response can overwrite a post-restart lease;
+- a distinct authority handshake could reuse an ageing lease, or the watch could
+  derive a mutation window without subtracting its full correlated request RTT;
+- the ongoing surface could outlive the bounded reconnect window after either
+  explicit disconnect or connected-but-silent freshness loss;
 - any Tile/activity/ongoing cache consumer can decode payload bytes before the
   access-time TTL/boot metadata gate;
+- a watch-process restart could reinstall cached mutation authority without a
+  new latest-generation correlated handshake;
 - cache payload and clock/boot metadata cannot be published as one atomic record,
   or a crash can expose a mixed record or superseded active payload after an
   accepted `NoSession` response;
@@ -973,6 +1043,9 @@ Phase 1 is complete only when:
   authority;
 - durable lease generations prevent a delayed pre-restart/expiry response from
   replacing its successor even under the same local request generation;
+- each distinct mutable handshake installs an ordered fresh lease successor, and
+  the RTT-reduced effective watch window never exceeds the conservative lower
+  bound of remaining phone authority;
 - active-session transitions and the `NoSession` tombstone are admitted only by
   the latest correlated handshake; per-session revisions never order different
   session identities;
@@ -984,10 +1057,14 @@ Phase 1 is complete only when:
 - cache replacement is crash-atomic across payload, monotonic/boot metadata, and
   the accepted `NoSession` tombstone; readers gate the framing header before
   protocol-payload decode;
+- cached state after watch-process restart is display-only until a new
+  latest-generation correlated handshake installs authority;
 - empty exercises require phone action without creating a fallback row, and the
   durable version rejects ABA commands after complete/uncheck or restore;
 - package/signature, lifecycle, cache access-time TTL/non-exposure,
   accessibility, localization, and ongoing-activity requirements are proven;
+- both disconnect and connected-but-silent freshness loss stop the ongoing
+  surface after one non-extendable bounded reconnect window;
 - paired-watch transfer/cache and the chosen direct-only or E2EE-relay route are
   reflected consistently in product and owner-approved public privacy copy;
 - no Health, sensor, watchOS, or KMP watch scope entered the diff;
