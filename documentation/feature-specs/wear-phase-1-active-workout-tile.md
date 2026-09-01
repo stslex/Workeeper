@@ -392,6 +392,17 @@ every non-success as retryable:
   command, and applies the returned replacement/no-session state only if its
   snapshot passes the authority gate; otherwise it stays read-only and refreshes
   as described above.
+
+The terminal outcome/replacement pairing is closed. `StaleRevision` pairs with
+the current canonical replacement for a different database epoch/session
+revision. `NoActiveSession` pairs only with `NoSession`. `TargetChanged` pairs
+with a still-active session whose exact
+submitted target is no longer canonical: wrong/skipped membership, a
+moved/differing target, `WorkoutComplete`, or any `PhoneActionRequired` reason.
+The replacement snapshot,
+not the outcome, carries the reason-specific read-only UI data. Any other pairing
+closes the offending command into the safe protocol-mismatch state and cannot
+replace newer display/cache state.
 - `AuthorizationExpired` is terminal for the old command but does not by itself
   prove the edits obsolete. If its accepted replacement has the exact source
   database epoch, session, revision, and canonical target, preserve the draft.
@@ -559,6 +570,12 @@ Every completion command carries at least:
 - `weightHundredthsKg`, `reps`, and immutable exercise/set type copied from the
   snapshot.
 
+For Phase 1, `commandId`, `databaseEpoch`, `sessionUuid`,
+`performedExerciseUuid`, and `mutationLeaseId` are canonical 128-bit RFC-4122
+UUID values. A new user submission creates a cryptographically random new
+`commandId`; the one allowed delivery retry retains it. Textual UUID spelling is
+never identity or fingerprint input.
+
 Phase 1 deliberately defines a narrower **watch-write** domain than the shipped
 phone editor. It does not add a global phone-data cap:
 
@@ -617,8 +634,8 @@ persists an unround-trippable value from the watch.
 
 The phone keeps mutation leases only in process memory, with one bounded active
 slot per source watch node/session/version. A lease contains a cryptographically
-random ID, source node ID, session UUID, database epoch/revision, the snapshot's
-target identities/position, durable lease generation, optional retry-intent
+random RFC-4122 UUID, source node ID, session UUID, database epoch/revision, the
+snapshot's target identities/position, durable lease generation, optional retry-intent
 binding, and `expiresAtPhoneElapsedRealtimeMs`. The serialized phone
 coordinator creates a successor for every distinct authority-bearing correlation
 that returns a mutable snapshot and atomically increments the session's durable
@@ -636,25 +653,65 @@ An absent, mismatched, retired, or expired lease returns
 returned mutable snapshot contains the current lease ID/generation and bounded
 remaining lifetime for its exact slot.
 
-The protocol derives two deterministic hashes for a command. Its stable intent
-fingerprint covers source node, schema, source epoch/revision, target, submitted
-values, and immutable exercise and set types but excludes lease and correlation.
-Its attempt fingerprint additionally covers the lease ID/generation and is the
-fingerprint stored in a durable applied receipt. A successor issued with an
-explicitly retryable outcome is process-memory-bound to that command's
-`commandId` and stable intent fingerprint. This binding is the only pre-receipt
-case in which the same `commandId` may arrive with a different attempt
-fingerprint; the gateway requires the successor lease and unchanged intent.
-Phone-process restart loses both lease and retry binding, so the watch must
-refresh rather than invent a rebind.
+The protocol derives two canonical collision-resistant fingerprints, never a
+platform `hashCode`, delimited string, JSON rendering, or serializer-dependent
+byte stream. `FingerprintV1` uses this exact preimage framing:
+
+1. ASCII magic bytes `WKWF` (`57 4b 57 46`);
+2. unsigned big-endian `fingerprintEncodingVersion: UInt16 = 1`;
+3. one purpose byte: `01` for `StableIntent`, `02` for `DeliveryAttempt`;
+4. unsigned big-endian `fieldCount: UInt16`; and
+5. fields in strictly increasing tag order, each encoded as
+   `tag: UInt8 || byteLength: UInt32BE || valueBytes` exactly once. Missing,
+   duplicate, reordered, or unknown tags fail closed.
+
+The field table is normative:
+
+| Tag | Field | Canonical value bytes | Stable | Attempt |
+| --- | --- | --- | --- | --- |
+| `01` | authenticated source node ID | strict UTF-8 bytes, no normalization | yes | yes |
+| `02` | wire `schemaVersion` | signed `Int32BE` | yes | yes |
+| `03` | `commandId` | 16 RFC-4122 UUID bytes, network order | yes | yes |
+| `04` | `databaseEpoch` | 16 RFC-4122 UUID bytes, network order | yes | yes |
+| `05` | `sessionUuid` | 16 RFC-4122 UUID bytes, network order | yes | yes |
+| `06` | `sessionRevision` | signed `Int64BE` | yes | yes |
+| `07` | `performedExerciseUuid` | 16 RFC-4122 UUID bytes, network order | yes | yes |
+| `08` | `setPosition` | signed `Int32BE` | yes | yes |
+| `09` | `reps` | signed `Int32BE` | yes | yes |
+| `0a` | `weightHundredthsKg` | `00` for null; `01 || Int32BE` for a value | yes | yes |
+| `0b` | exercise type | `01=WEIGHTED`, `02=WEIGHTLESS` | yes | yes |
+| `0c` | set type | `01=WARM`, `02=WORK`, `03=FAIL`, `04=DROP` | yes | yes |
+| `0d` | `mutationLeaseId` | 16 RFC-4122 UUID bytes, network order | no | yes |
+| `0e` | `mutationLeaseGeneration` | signed `Int64BE` | no | yes |
+
+The stable preimage therefore has field count `12`; the attempt preimage repeats
+those exact twelve canonical fields and has field count `14` after appending the
+lease fields. Correlation IDs, display strings, localized/formatted values, raw
+`Double` bits, and Kotlin enum ordinals are excluded. All UUID-bearing protocol
+identifiers in this table must decode to one canonical 128-bit value; a textual
+spelling is never hashed.
+
+The fingerprint value is `UInt16BE(1) || SHA-256(preimage)`: the full 32-byte
+digest is retained and compared in constant time, never truncated. A durable
+receipt stores that 34-byte attempt fingerprint. An unsupported stored encoding
+version fails closed as `ProtocolRejected(UnsupportedFingerprintVersion)`; an
+upgrade must keep V1 verification or ship an explicit receipt migration and
+cannot silently reinterpret old bytes.
+
+A successor issued with an explicitly retryable outcome is process-memory-bound
+to that command's `commandId` and V1 stable-intent fingerprint. This binding is
+the only pre-receipt case in which the same `commandId` may arrive with a
+different attempt fingerprint; the gateway requires the successor lease and
+unchanged stable bytes. Phone-process restart loses both lease and retry binding,
+so the watch must refresh rather than invent a rebind.
 
 A content hash is not a concurrency token. Phase 1 requires a tested Room
 migration that adds durable synchronization metadata owned by the phone
 database:
 
-- a non-repeating opaque database epoch generated during migration/new-database
-  creation and rotated before a restored/replaced database is admitted to
-  listeners;
+- a cryptographically random 128-bit RFC-4122 database-epoch UUID generated
+  during migration/new-database creation and rotated before a restored/replaced
+  database is admitted to listeners;
 - a per-session `Long` revision initialized once and incremented monotonically
   in the same transaction as every snapshot-authorizing mutation;
 - a per-session `Long` lease generation initialized once and incremented in a
@@ -662,11 +719,9 @@ database:
   creates an in-memory lease successor; exact replay of the same correlation and
   serialized response does not increment it; and
 - one bounded last-applied Wear receipt slot per session containing `commandId`,
-  a deterministic request fingerprint, and the resulting version. The
-  fingerprint covers the authenticated source node ID, schema version, source
-  database epoch/revision, target identities/position, mutation lease
-  ID/generation, submitted values, and immutable exercise and set types;
-  transport correlation metadata is excluded.
+  the 34-byte V1 attempt fingerprint above, and the resulting version. The
+  receipt never stores a Kotlin/JSON hash or a digest without its encoding
+  version; transport correlation metadata remains excluded.
 
 Snapshot-authorizing mutations include set insert/update/delete,
 mark-done/uncheck, undo compensation, skip/unskip, performed-exercise
@@ -729,9 +784,12 @@ writes is forbidden because it would regress the shipped phone flow.
 
 Inside the `CompleteCurrentSet` transaction specifically, the gateway must:
 
-1. reject a database-epoch mismatch before inspecting the target;
-2. re-read the active session and verify that the submitted exercise belongs to
-   it and is not skipped;
+1. reject a database-epoch mismatch as terminal `StaleRevision` plus the current
+   canonical replacement before inspecting the target;
+2. re-read the active session. An absent session returns terminal
+   `NoActiveSession` plus `NoSession`; otherwise verify that the submitted
+   exercise belongs to it and is not skipped. Wrong membership or skipped state
+   returns terminal `TargetChanged` plus the current canonical replacement;
 3. compare `commandId` and request fingerprint with the durable receipt. An exact
    match returns `AlreadyApplied` only when the receipt's resulting version is
    also the current database epoch/revision; once a receipt exists, reuse of one
@@ -748,10 +806,13 @@ Inside the `CompleteCurrentSet` transaction specifically, the gateway must:
    receipt;
 6. re-derive the canonical target and inspect any existing row for
    `(performedExerciseUuid, position)`. A moved target or differing row returns
-   an authoritative conflict. A canonical non-target state returns its typed
-   authoritative replacement before command metadata is inspected. Otherwise
-   require both copied immutable types to equal the canonical types; a mismatch
-   returns `ImmutableTypeMismatch(ExerciseType | SetType)`. Only after both match,
+   terminal `TargetChanged` plus the canonical replacement. A still-active
+   canonical `WorkoutComplete` or any `PhoneActionRequired` reason also returns
+   `TargetChanged` plus that exact replacement; `NoSession` can pair only with
+   `NoActiveSession`. These non-target branches win before command metadata is
+   inspected. Otherwise require both copied immutable types to equal the
+   canonical types; a mismatch returns
+   `ImmutableTypeMismatch(ExerciseType | SetType)`. Only after both match,
    validate `reps` and `weightHundredthsKg` against the table in §5.2; an invalid
    editable value returns the field/reason-specific `InvalidValues`. Either
    rejection performs no row write, receipt, revision bump, or successor lease.
@@ -781,6 +842,12 @@ attach both to the response snapshot, and only then acknowledge.
 allocation is serialized with all other issuance for the session. A lease is
 never published from a transaction that later rolls back; the old lease's
 version binding already prevents reuse after the committed revision advance.
+
+For rejection and exit criteria, **no successor-lease side effect** means no new
+lease issuance or rebind, no durable lease-generation increment, and no restored
+watch authority. It does not mean retaining the consumed lease: retirement of
+the presented process-memory lease is mandatory for every recognized terminal
+or retryable response, including `InvalidValues` and `ImmutableTypeMismatch`.
 
 `commandId` correlates request, retry, and response. After a lost acknowledgement
 or phone-process restart, only the exact durable receipt can produce
@@ -1100,6 +1167,25 @@ outcome; a rejected/non-matching snapshot forbids resend. An accepted matching
 mutable successor preserves command intent and local generation but replaces the
 attempt correlation, lease binding, and lease-bearing request fingerprint.
 
+Authoritative source/target invalidation uses this outcome matrix in gateway
+check order:
+
+| Serialized canonical state after admission | Command outcome | Attached replacement |
+| --- | --- | --- |
+| different database epoch | `StaleRevision` | current canonical snapshot or `NoSession` |
+| same epoch/active session, different session revision | `StaleRevision` | current active canonical snapshot |
+| no active session | `NoActiveSession` | `NoSession` |
+| active session, wrong/skipped exercise, moved target, or differing row with another representable target | `TargetChanged` | current `ActiveWithTarget` |
+| active session, `WorkoutComplete` | `TargetChanged` | `WorkoutComplete` |
+| active session, `PhoneActionRequired(reason)` | `TargetChanged` | the exact reason-specific `PhoneActionRequired` |
+
+`StaleRevision`, `TargetChanged`, and `NoActiveSession` are terminal, clear the
+old draft/command, and never retry. The outcome does not duplicate the snapshot
+reason. A response
+whose outcome/replacement combination is outside this matrix fails closed as a
+protocol error; it closes the offending command but the separately gated
+snapshot cannot replace newer display/cache state.
+
 There is no silent compatibility fallback. A newer incompatible peer shows an
 update-required state and disables mutation.
 
@@ -1139,6 +1225,14 @@ update-required state and disables mutation.
   with that unavailable replacement, and a missing or `Granted` replacement
   fails codec validation. A gateway fixture with both copied types different
   reports `ExerciseType` deterministically.
+- Committed `FingerprintV1` known-answer fixtures contain the complete preimage
+  hex and full 34-byte version-plus-SHA-256 result for at least one weighted
+  command, one weightless/null command, and the corresponding attempt forms.
+  Phone and watch implementations must independently reproduce every vector.
+  Fixtures change each covered field one at a time, distinguish null weight from
+  zero, distinguish stable from attempt purpose, prove UUID textual spelling is
+  irrelevant, and reject wrong tag order/count/length, enum ordinals, truncated
+  digests, JSON/string concatenation, and an unsupported encoding version.
 - Numeric codec/gateway fixtures prove command reps `1` and `999` pass while
   `0`, `-1`, and `1_000` return the exact field/reason rejection; weighted
   hundredths `null`, `0`, and `99_999` pass while `-1` and `100_000` reject; and
@@ -1244,12 +1338,20 @@ update-required state and disables mutation.
   field error, installs no lease/effective window, and requires a fresh
   `Granted` lease plus new `commandId` after correction; a changed target clears
   the draft. Tests assert the unavailable response neither increments durable
-  lease generation nor leaks the rejected draft into snapshot/cache state.
+  lease generation nor leaks the rejected draft into snapshot/cache state; the
+  presented lease is nevertheless retired and a resend cannot consume it.
   Each immutable-type mismatch returns the same canonical unavailable snapshot
   but clears the draft, exposes no numeric field error, and likewise proves zero
-  row/receipt/revision/lease-generation effects. Ordering fixtures prove a
-  moved, complete, missing, or unsupported stored target returns its earlier
-  authoritative/non-target outcome instead of an immutable-type mismatch.
+  row/receipt/revision/successor-issuance/lease-generation effects while still
+  retiring the presented lease. Ordering fixtures prove a
+  epoch/revision mismatch returns `StaleRevision + current canonical state`, a
+  wrong/skipped exercise or moved target with another representable target
+  returns `TargetChanged + ActiveWithTarget`, complete returns
+  `TargetChanged + WorkoutComplete`, missing/unsupported rows return
+  `TargetChanged + PhoneActionRequired(exact reason)`, and a missing session
+  returns `NoActiveSession + NoSession`, all before immutable-type comparison.
+  Every outcome/replacement cross-pair outside that matrix closes the offending
+  command into protocol mismatch without replacing newer display/cache state.
 - Phone-monotonic lease oracles proving first delivery accepted at `119_999ms`,
   rejected without mutation at `120_000ms`, an enqueue-before/arrival-after
   delay, wrong-node/session/version lease rejection, a new successor for every
@@ -1483,6 +1585,9 @@ Stop and return to the owner if any of the following occurs:
   access-time TTL/boot metadata gate;
 - a watch-process restart could reinstall cached mutation authority without a
   new latest-generation correlated handshake;
+- stable/attempt or durable-receipt fingerprints could use ambiguous/unversioned
+  bytes, serializer/map ordering, formatted values, enum ordinals, a non-SHA-256
+  or truncated digest, or differ from the committed V1 known-answer vectors;
 - cache payload and clock/boot metadata cannot be published as one atomic record,
   or a crash can expose a mixed record or superseded active payload after an
   accepted `NoSession` response;
@@ -1498,6 +1603,8 @@ Stop and return to the owner if any of the following occurs:
 - an immutable exercise/set-type mismatch could fall through to numeric
   `InvalidValues`, retain the draft, omit its typed field, write, or install
   mutation authority;
+- a recognized value/type rejection could retain the presented process-memory
+  lease, issue/rebind a successor, or change the durable lease generation;
 - duplicate target rows exist without an owner-approved reconciliation rule;
 - a listener would access repositories without generation-bound admission;
 - KMP/common source sets, shared watch UI, Health APIs, or sensor permissions
@@ -1575,10 +1682,14 @@ Phase 1 is complete only when:
   proven mutation-free;
 - validation rejection has one encodable target-bearing read-only replacement:
   canonical stored values plus `MutationAuthority.Unavailable`, with no lease
-  side effect; partial or mixed authority payloads fail closed;
+  issuance/rebind/generation side effect; the presented lease is retired, and
+  partial or mixed authority payloads fail closed;
 - both immutable copied types are fingerprinted and have exact terminal
   `ImmutableTypeMismatch` outcomes that clear the draft, attach the canonical
   unavailable replacement, and remain mutation-free;
+- stable-intent and delivery-attempt fingerprints use the exact domain-separated
+  V1 TLV framing and full SHA-256 digest, match committed cross-device
+  known-answer vectors, and preserve durable-receipt verification across upgrade;
 - no Health, sensor, watchOS, or KMP watch scope entered the diff;
 - all focused, repository, and paired-device gates are green at the final head;
 - commits are signed and GitHub-verified; and
