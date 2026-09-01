@@ -56,6 +56,20 @@ class WatchWorkoutReducerSnapshotTest {
     }
 
     @Test
+    fun `disconnect retires mutation authority while preserving stale display content`() {
+        val reducer = WatchWorkoutReducer()
+        val correlation = ReducerTestFixtures.id(19)
+        reducer.issueHandshake(correlation, 0)
+        reducer.receiveSnapshot(correlation, ReducerTestFixtures.active(), 1)
+
+        reducer.markDisconnected()
+
+        assertIs<LocalMutationAuthority.Retired>(reducer.state.authority)
+        assertEquals(ActiveFreshness.DISCONNECTED, active(reducer).freshness)
+        assertEquals(ReducerTestFixtures.exerciseA, activePayload(reducer).target.performedExerciseUuid)
+    }
+
+    @Test
     fun `generation two retires generation one in both response orders`() {
         val reducer = WatchWorkoutReducer()
         val first = ReducerTestFixtures.id(4)

@@ -21,6 +21,7 @@ internal data class SnapshotReduction(
 )
 
 /** Single watch-process authority owner shared by Tile, controller, cache, and transport. */
+@Suppress("TooManyFunctions") // Authority and command transitions stay in one auditable state owner.
 internal class WatchWorkoutReducer {
 
     var state: WatchReducerState = WatchReducerState()
@@ -36,6 +37,7 @@ internal class WatchWorkoutReducer {
         require(issuedAtElapsedRealtimeMs >= 0L)
         latestIssuedGeneration = Math.addExact(latestIssuedGeneration, 1L)
         retireAttemptAuthority()
+        invalidateCommandForNewAuthorityRequest()
         val token = RequestToken(
             correlationId = correlationId,
             generation = latestIssuedGeneration,
@@ -95,6 +97,7 @@ internal class WatchWorkoutReducer {
             status = CommandStatus.IN_FLIGHT,
         )
         commands[command.commandId] = command
+        trimCommands()
         register(token)
         state = state.copy(
             authority = LocalMutationAuthority.AttemptBound(
@@ -151,15 +154,16 @@ internal class WatchWorkoutReducer {
             ?.takeIf { it.commandId == response.commandId }
             ?: return
         val existing = commands[response.commandId] ?: return
+        requests.remove(response.correlationId)
         if (response.correlationId in existing.consumedOutcomeCorrelations) return
-        if (existing.status in setOf(CommandStatus.TERMINAL, CommandStatus.ABANDONED)) {
+        if (existing.status in CLOSED_COMMAND_STATUSES) {
             commands[existing.commandId] = existing.copy(
                 consumedOutcomeCorrelations = existing.consumedOutcomeCorrelations + response.correlationId,
             )
             return
         }
 
-        if (!ProtocolPairingValidator.isValid(response.outcome, response.replacement.payload)) {
+        if (!responsePairingIsValid(response, existing)) {
             closeAsProtocolMismatch(existing, response.correlationId, reason = null)
             return
         }
@@ -182,6 +186,9 @@ internal class WatchWorkoutReducer {
         command = reduceOutcomeAfterSnapshot(command, response.outcome, reduction.accepted)
         commands[command.commandId] = command
         updateVisibleCommand(command)
+        if (command.status in CLOSED_COMMAND_STATUSES) {
+            removeRequestsForCommand(command.commandId)
+        }
 
         if (!reduction.accepted && response.outcome.requiresConvergence()) {
             state = state.copy(refreshRequired = true)
@@ -232,6 +239,9 @@ internal class WatchWorkoutReducer {
         }
         commands[commandId] = updated
         updateVisibleCommand(updated)
+        if (updated.status == CommandStatus.ABANDONED) {
+            removeRequestsForCommand(commandId)
+        }
         emit(ReducerEvent.ErrorHaptic)
     }
 
@@ -486,16 +496,51 @@ internal class WatchWorkoutReducer {
 
     private fun invalidateObsoleteCommand(snapshot: SnapshotData) {
         val visible = state.command ?: return
-        if (visible.status in TERMINAL_COMMAND_STATUSES) return
-        if (snapshot.sourceVersion() == visible.source && snapshot.targetKeyOrNull() == visible.target) return
+        val sourceMatches = snapshot.sourceVersion() == visible.source
+        val targetMatches = snapshot.targetKeyOrNull() == visible.target
+        if (visible.status == CommandStatus.SOURCE_INVALIDATED) {
+            if (!sourceMatches || !targetMatches) {
+                state = state.copy(draft = null)
+            }
+            return
+        }
+        if (visible.status in CLOSED_COMMAND_STATUSES) return
+        if (sourceMatches && targetMatches) return
         val invalidated = visible.copy(status = CommandStatus.SOURCE_INVALIDATED)
         commands[visible.commandId] = invalidated
         state = state.copy(command = invalidated, draft = null)
     }
 
+    private fun invalidateCommandForNewAuthorityRequest() {
+        val visible = state.command ?: return
+        if (visible.status in TERMINAL_COMMAND_STATUSES) return
+        val invalidated = visible.copy(status = CommandStatus.SOURCE_INVALIDATED)
+        commands[visible.commandId] = invalidated
+        state = state.copy(command = invalidated)
+    }
+
     private fun currentMatches(command: LogicalCommand): Boolean =
         admittedSnapshot?.sourceVersion() == command.source &&
             admittedSnapshot?.targetKeyOrNull() == command.target
+
+    private fun responsePairingIsValid(
+        response: CompleteCurrentSetResponse,
+        command: LogicalCommand,
+    ): Boolean {
+        if (!ProtocolPairingValidator.isValid(response.outcome, response.replacement.payload)) {
+            return false
+        }
+        val replacementSource = response.replacement.sourceVersion()
+        return when (response.outcome) {
+            is CompleteCommandOutcome.StaleRevision -> replacementSource != command.source
+            is CompleteCommandOutcome.NoActiveSession ->
+                replacementSource.databaseEpoch == command.source.databaseEpoch
+            is CompleteCommandOutcome.TargetChanged ->
+                replacementSource == command.source &&
+                    response.replacement.targetKeyOrNull() != command.target
+            else -> true
+        }
+    }
 
     private fun fingerprintMatchesAuthority(
         fingerprint: FingerprintCommand,
@@ -537,6 +582,7 @@ internal class WatchWorkoutReducer {
             consumedOutcomeCorrelations = command.consumedOutcomeCorrelations + correlationId,
         )
         commands[command.commandId] = closed
+        removeRequestsForCommand(command.commandId)
         retireMatchingAttempt(command.commandId)
         state = state.copy(
             display = WatchDisplayState.ProtocolMismatch(reason),
@@ -563,20 +609,40 @@ internal class WatchWorkoutReducer {
         requests[token.correlationId] = token
         while (requests.size > MAX_OUTSTANDING_REQUESTS) {
             val removable = requests.entries.firstOrNull { (_, candidate) ->
-                candidate.operation == RequestOperation.HANDSHAKE
+                candidate.operation == RequestOperation.HANDSHAKE ||
+                    candidate.commandId?.let { commandId ->
+                        commands[commandId]?.status in TERMINAL_COMMAND_STATUSES
+                    } == true
             } ?: error("Outstanding command correlation bound exceeded")
             requests.remove(removable.key)
+        }
+    }
+
+    private fun removeRequestsForCommand(commandId: CanonicalUuid) {
+        requests.entries.removeAll { (_, token) -> token.commandId == commandId }
+    }
+
+    private fun trimCommands() {
+        while (commands.size > MAX_TRACKED_COMMANDS) {
+            val removable = commands.entries.firstOrNull { (_, command) ->
+                command.status in TERMINAL_COMMAND_STATUSES
+            } ?: error("Tracked command bound exceeded")
+            removeRequestsForCommand(removable.key)
+            commands.remove(removable.key)
         }
     }
 
     private companion object {
         const val MAX_DELIVERY_ATTEMPTS = 2
         const val MAX_OUTSTANDING_REQUESTS = 64
-        val TERMINAL_COMMAND_STATUSES = setOf(
-            CommandStatus.SOURCE_INVALIDATED,
+        const val MAX_TRACKED_COMMANDS = 64
+        val CLOSED_COMMAND_STATUSES = setOf(
             CommandStatus.TERMINAL,
             CommandStatus.ABANDONED,
         )
+        val TERMINAL_COMMAND_STATUSES = setOf(
+            CommandStatus.SOURCE_INVALIDATED,
+        ) + CLOSED_COMMAND_STATUSES
     }
 }
 

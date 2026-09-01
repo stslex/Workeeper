@@ -5,6 +5,7 @@ import io.github.stslex.workeeper.core.wear.protocol.BoundedDisplayName
 import io.github.stslex.workeeper.core.wear.protocol.MutationAuthority
 import io.github.stslex.workeeper.core.wear.protocol.MutationUnavailableReason
 import io.github.stslex.workeeper.core.wear.protocol.NumericField
+import io.github.stslex.workeeper.core.wear.protocol.OmissionReason
 import io.github.stslex.workeeper.core.wear.protocol.PhoneActionReason
 import io.github.stslex.workeeper.core.wear.protocol.ProtocolRejectionReason
 import io.github.stslex.workeeper.core.wear.protocol.SnapshotData
@@ -113,6 +114,73 @@ class WearSurfaceMapperTest {
         assertFalse(model.completeEnabled)
     }
 
+    @Test
+    fun `phone action reasons preserve bounded names and omit unsafe names`() {
+        val names = listOf(
+            BoundedDisplayName.Value("Current exercise") to "Current exercise",
+            BoundedDisplayName.Omitted(OmissionReason.TOO_LARGE) to null,
+            BoundedDisplayName.Omitted(OmissionReason.INVALID_UNICODE) to null,
+        )
+
+        names.forEach { (name, expectedName) ->
+            val noRows = WearSurfaceMapper.map(
+                phoneAction(PhoneActionReason.NoSetRows(ReducerTestFixtures.exerciseA, name)),
+            )
+            assertPhoneAction(noRows, WearSurfaceKind.PHONE_ACTION_NO_SETS, expectedName, null)
+
+            listOf(NumericField.REPS, NumericField.WEIGHT).forEach { field ->
+                val unsupported = WearSurfaceMapper.map(
+                    phoneAction(
+                        PhoneActionReason.UnsupportedNumericValues(
+                            field,
+                            ReducerTestFixtures.exerciseA,
+                            name,
+                        ),
+                    ),
+                )
+                assertPhoneAction(
+                    unsupported,
+                    WearSurfaceKind.PHONE_ACTION_UNSUPPORTED,
+                    expectedName,
+                    field,
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `completed workout omits unsafe training name and remains targetless`() {
+        listOf(OmissionReason.TOO_LARGE, OmissionReason.INVALID_UNICODE).forEach { reason ->
+            val model = WearSurfaceMapper.map(
+                workoutComplete(BoundedDisplayName.Omitted(reason)),
+            )
+
+            assertEquals(WearSurfaceKind.WORKOUT_COMPLETE, model.kind)
+            assertNull(model.trainingName)
+            assertNull(model.exerciseName)
+            assertNull(model.setOrdinal)
+            assertNull(model.reps)
+            assertFalse(model.controlsVisible)
+            assertFalse(model.completeEnabled)
+        }
+    }
+
+    private fun assertPhoneAction(
+        model: WearSurfaceModel,
+        expectedKind: WearSurfaceKind,
+        expectedName: String?,
+        expectedField: NumericField?,
+    ) {
+        assertEquals(expectedKind, model.kind)
+        assertEquals(expectedName, model.exerciseName)
+        assertEquals(expectedField, model.fieldError)
+        assertNull(model.setOrdinal)
+        assertNull(model.reps)
+        assertNull(model.weightHundredthsKg)
+        assertFalse(model.controlsVisible)
+        assertFalse(model.completeEnabled)
+    }
+
     private fun phoneAction(reason: PhoneActionReason): WatchReducerState {
         val snapshot = SnapshotData(
             databaseEpoch = ReducerTestFixtures.epoch,
@@ -125,13 +193,15 @@ class WearSurfaceMapperTest {
         return WatchReducerState(display = WatchDisplayState.PhoneActionRequired(snapshot))
     }
 
-    private fun workoutComplete(): WatchReducerState {
+    private fun workoutComplete(
+        trainingName: BoundedDisplayName = BoundedDisplayName.Value("Done"),
+    ): WatchReducerState {
         val snapshot = SnapshotData(
             databaseEpoch = ReducerTestFixtures.epoch,
             payload = SnapshotPayload.WorkoutComplete(
                 sessionUuid = ReducerTestFixtures.sessionA,
                 sessionRevision = 8,
-                trainingName = BoundedDisplayName.Value("Done"),
+                trainingName = trainingName,
                 completedExercises = 4,
                 totalExercises = 4,
             ),

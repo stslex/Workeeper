@@ -60,6 +60,88 @@ class WatchWorkoutReducerCommandTest {
     }
 
     @Test
+    fun `accepted refresh preserves a compatible draft but requires a new command identity`() {
+        val reducer = activeReducer()
+        val oldCorrelation = ReducerTestFixtures.id(46)
+        reducer.issueCommand(oldCorrelation, 1, ReducerTestFixtures.fingerprint())
+        reducer.onTransportTimeout(oldCorrelation, nowElapsedRealtimeMs = 2)
+
+        val refresh = ReducerTestFixtures.id(47)
+        reducer.issueHandshake(refresh, 3)
+        reducer.receiveSnapshot(
+            refresh,
+            ReducerTestFixtures.active(
+                leaseGeneration = 2,
+                leaseId = ReducerTestFixtures.lease2,
+            ),
+            4,
+        )
+
+        assertEquals(CommandDraft(8, 10_000), reducer.state.draft)
+        assertEquals(CommandStatus.SOURCE_INVALIDATED, reducer.state.command?.status)
+        assertIs<CommandIssueResult.Rejected>(
+            reducer.issueTimeoutRetry(ReducerTestFixtures.id(48), 5),
+        )
+
+        val newCommandId = ReducerTestFixtures.id(49)
+        assertIs<CommandIssueResult.Issued>(
+            reducer.issueCommand(
+                ReducerTestFixtures.id(50),
+                5,
+                ReducerTestFixtures.fingerprint(
+                    command = newCommandId,
+                    leaseId = ReducerTestFixtures.lease2,
+                    leaseGeneration = 2,
+                ),
+            ),
+        )
+        assertEquals(newCommandId, reducer.state.command?.commandId)
+    }
+
+    @Test
+    fun `late validation outcome survives newer snapshot gating and keeps newer display`() {
+        val reducer = activeReducer()
+        val commandCorrelation = ReducerTestFixtures.id(51)
+        reducer.issueCommand(
+            commandCorrelation,
+            1,
+            ReducerTestFixtures.fingerprint(reps = 0),
+        )
+
+        val refresh = ReducerTestFixtures.id(52)
+        reducer.issueHandshake(refresh, 2)
+        reducer.receiveSnapshot(
+            refresh,
+            ReducerTestFixtures.active(
+                revision = 2,
+                leaseGeneration = 2,
+                leaseId = ReducerTestFixtures.lease2,
+                targetExercise = ReducerTestFixtures.exerciseB,
+            ),
+            3,
+        )
+        reducer.receiveCommandResponse(
+            ReducerTestFixtures.response(
+                correlationId = commandCorrelation,
+                outcome = CompleteCommandOutcome.InvalidValues(
+                    NumericField.REPS,
+                    InvalidValueReason.BELOW_MINIMUM,
+                ),
+                replacement = ReducerTestFixtures.active(unavailable = true),
+            ),
+            4,
+        )
+
+        assertEquals(ReducerTestFixtures.exerciseB, activePayload(reducer).target.performedExerciseUuid)
+        assertNull(reducer.state.draft)
+        assertEquals(CommandStatus.TERMINAL, reducer.state.command?.status)
+        assertEquals(
+            listOf(ReducerEvent.ErrorHaptic, ReducerEvent.FieldError(NumericField.REPS)),
+            reducer.drainEvents(),
+        )
+    }
+
+    @Test
     fun `applied outcome clears draft once while stale attached snapshot cannot replace newer display`() {
         val reducer = activeReducer()
         val commandCorrelation = ReducerTestFixtures.id(37)
@@ -220,6 +302,69 @@ class WatchWorkoutReducerCommandTest {
         )
         assertIs<WatchDisplayState.ProtocolMismatch>(reducer.state.display)
         assertTrue(reducer.state.refreshRequired)
+        assertNull(reducer.state.draft)
+    }
+
+    @Test
+    fun `source invalidation outcomes enforce their complete contextual pairing matrix`() {
+        val invalidCases = listOf(
+            CompleteCommandOutcome.StaleRevision to ReducerTestFixtures.active(
+                leaseGeneration = 2,
+                leaseId = ReducerTestFixtures.lease2,
+            ),
+            CompleteCommandOutcome.TargetChanged to ReducerTestFixtures.active(
+                session = ReducerTestFixtures.sessionB,
+                revision = 0,
+                leaseGeneration = 2,
+                leaseId = ReducerTestFixtures.lease2,
+                targetExercise = ReducerTestFixtures.exerciseB,
+            ),
+            CompleteCommandOutcome.TargetChanged to ReducerTestFixtures.active(
+                leaseGeneration = 2,
+                leaseId = ReducerTestFixtures.lease2,
+            ),
+            CompleteCommandOutcome.NoActiveSession to ReducerTestFixtures.noSession(
+                ReducerTestFixtures.otherEpoch,
+            ),
+        )
+
+        invalidCases.forEachIndexed { index, (outcome, replacement) ->
+            val reducer = activeReducer()
+            val correlation = ReducerTestFixtures.id(60 + index)
+            reducer.issueCommand(correlation, 1, ReducerTestFixtures.fingerprint())
+
+            reducer.receiveCommandResponse(
+                ReducerTestFixtures.response(correlation, outcome, replacement),
+                2,
+            )
+
+            assertIs<WatchDisplayState.ProtocolMismatch>(reducer.state.display, "case $index")
+            assertNull(reducer.state.draft, "case $index")
+            assertTrue(reducer.state.refreshRequired, "case $index")
+        }
+    }
+
+    @Test
+    fun `valid target changed pairing admits the same-source replacement target`() {
+        val reducer = activeReducer()
+        val correlation = ReducerTestFixtures.id(64)
+        reducer.issueCommand(correlation, 1, ReducerTestFixtures.fingerprint())
+
+        reducer.receiveCommandResponse(
+            ReducerTestFixtures.response(
+                correlationId = correlation,
+                outcome = CompleteCommandOutcome.TargetChanged,
+                replacement = ReducerTestFixtures.active(
+                    leaseGeneration = 2,
+                    leaseId = ReducerTestFixtures.lease2,
+                    targetExercise = ReducerTestFixtures.exerciseB,
+                ),
+            ),
+            2,
+        )
+
+        assertEquals(ReducerTestFixtures.exerciseB, activePayload(reducer).target.performedExerciseUuid)
+        assertEquals(CommandStatus.TERMINAL, reducer.state.command?.status)
         assertNull(reducer.state.draft)
     }
 
