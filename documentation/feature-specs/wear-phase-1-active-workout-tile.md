@@ -191,18 +191,32 @@ forces a correlated refresh before a new command may be created.
 
 Once generation `N` is issued, a response from any lower generation cannot
 install a mutation lease or reset the receive-time freshness deadline, even if
-it arrives before generation `N` completes. Within the currently admitted
-database epoch, a higher session revision may advance read-only display state
-and a lower revision is ignored; at the same revision, an older-generation
-response with an equal or lower durable lease generation is ignored entirely.
+it arrives before generation `N` completes. The reducer admits one authority
+domain `(databaseEpoch, activeIdentity)`, where `activeIdentity` is either
+`Session(sessionUuid)` or the `NoSession` tombstone. Per-session revisions are
+never compared across different active identities. Only a response for the
+latest-issued local generation may introduce another session identity or apply
+`NoSession`; doing so retires the previous session's lease, draft, pending
+attempts, and freshness.
+
+Within the currently admitted database epoch and the same `Session` identity, a
+higher session revision may advance read-only display state and a lower revision
+is ignored; at the same revision, an older-generation response with an equal or
+lower durable lease generation is ignored entirely. A lower-generation response
+whose session identity differs from the admitted identity, or whose
+`NoSession`/session state would cross that boundary, is ignored for snapshot
+state regardless of its numeric revision. The separately correlated command
+outcome remains eligible for once-only reduction below.
+
 For duplicate responses of one local generation, the greater durable lease
 generation wins and an older one cannot reinstall retired authority. Only a
 response for the latest-issued local generation may make that state mutable by
 installing its lease. Database epochs are opaque, not sortable: a different
 epoch is admitted only by the latest correlated handshake, which retires the
 previous epoch and all of its pending generations. An unsolicited snapshot may
-update read-only display state only when its epoch matches and its session or
-lease generation is newer; it cannot install a lease or reset mutation
+update read-only display state only when its epoch and `Session` identity match
+the admitted domain and its session or lease generation is newer. It cannot
+introduce another session, apply `NoSession`, install a lease, or reset mutation
 freshness and instead triggers one correlated refresh. This local request
 ordering is process-local; after watch-process restart, an unmatched old
 response is ignored, while durable lease generations still order responses
@@ -218,8 +232,8 @@ phases:
    keeps the command pending, and its next attempt uses a new correlation ID but
    retains the command's local generation. Duplicate outcomes for one attempt
    have no reducer effect; then
-2. pass the attached replacement snapshot through the epoch, workout revision,
-   lease generation, and local request-generation gates above.
+2. pass the attached replacement snapshot through the epoch, active-identity,
+   workout-revision, lease-generation, and local request-generation gates above.
 
 An older-generation response can therefore clear an in-flight command, retain a
 validation draft, identify an invalid field, or produce the appropriate haptic
@@ -639,6 +653,12 @@ other state does. Its durable lease generation accompanies the ID and orders
 successors within one database epoch/session revision; it never extends the
 lease lifetime.
 
+Every snapshot envelope exposes the reducer's active identity explicitly:
+`NoSession` is the tombstone identity, while every other payload state carries
+`Session(sessionUuid)`. A per-session revision is meaningful only inside the
+matching `(databaseEpoch, Session(sessionUuid))` domain and must never order a
+different session or the tombstone.
+
 All envelopes carry `schemaVersion` and a correlation ID. Unknown versions and
 unknown operations fail closed. Payloads are bounded well below the Data Layer
 message limit, use one deterministic `kotlinx.serialization` representation,
@@ -700,6 +720,13 @@ update-required state and disables mutation.
   attempt plus one retry attempt; a terminal response to either still closes the
   command exactly once; a second transport ambiguity abandons it for a fresh
   snapshot; and Tile/activity observe the same sequence and cache.
+- Active-identity transition oracles with sessions A and B using deliberately
+  inverted revisions (`A@20`, `B@0`): only the latest correlated generation may
+  move A → B, A → `NoSession`, or `NoSession` → B. B followed by a delayed
+  lower-generation A or `NoSession` remains B; `NoSession` followed by a delayed
+  lower-generation A remains `NoSession`; and both response arrival orders are
+  covered. An unsolicited different-session or tombstone snapshot changes no
+  display/cache state and requests one correlated refresh.
 - Split-response reducer oracles where a newer refresh arrives before an older
   known command response at the same workout revision: `AuthorizationExpired`,
   validation, stale, `Applied`, and `AlreadyApplied` terminal outcomes each
@@ -859,6 +886,9 @@ Stop and return to the owner if any of the following occurs:
   canonical watch target;
 - Tile and activity cannot share one request-generation/cache authority or an
   older correlated response can reinstall a replaced lease;
+- per-session revisions would be compared across session identities, or a
+  lower-generation/unsolicited response could change the admitted session or
+  apply a stale `NoSession` tombstone;
 - semantic command-outcome reduction cannot be separated from attached-snapshot
   authority, causing a known terminal response to be discarded;
 - lease successors cannot receive a durable strictly increasing generation, or
@@ -893,6 +923,9 @@ Phase 1 is complete only when:
   authority;
 - durable lease generations prevent a delayed pre-restart/expiry response from
   replacing its successor even under the same local request generation;
+- active-session transitions and the `NoSession` tombstone are admitted only by
+  the latest correlated handshake; per-session revisions never order different
+  session identities;
 - known delivery-attempt outcomes are consumed once independently of whether
   their attached snapshots are still authority-bearing, and terminal outcomes
   close the logical command exactly once;
