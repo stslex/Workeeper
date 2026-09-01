@@ -219,18 +219,29 @@ All authority-bearing requests (`GetActiveWorkout` and `CompleteCurrentSet`)
 pass through one watch-process request sequencer shared by the Tile, activity,
 cache, and transport. At issue time it assigns a strictly increasing local
 generation and maps it, its watch-monotonic issue time, and operation identity to
-the wire correlation ID. Issuing any newer authority-bearing request immediately
-retires the locally installed mutation lease and makes the controller read-only
-until a latest-generation response installs a successor; otherwise the phone
-could retire the old lease while the watch still presents it as usable. An
-explicit retry of the same in-flight `commandId` retains its original generation;
-a refresh or corrected new command receives a new one. The map is bounded to
-outstanding operations, and any response whose correlation ID is no longer known
-is ignored. One logical command owns at most two attempt correlations: the
-initial delivery and one explicit retry. Both remain known until a terminal
-outcome or source snapshot invalidation; a second transport ambiguity abandons
-that command and forces a correlated refresh before a new command may be
-created.
+the wire correlation ID. The sequencer owns one explicit local authority state:
+
+- `Available(leaseId, leaseGeneration, target, effectiveDeadline)` authorizes a
+  new command;
+- issuing attempt 1 of `CompleteCurrentSet` atomically moves that exact lease to
+  `AttemptBound(commandId, attemptFingerprint, leaseId, leaseGeneration,
+  target, effectiveDeadline)` and makes every mutation control read-only. The
+  command's own generation does **not** retire this delivery-only binding, which
+  cannot authorize a different command; and
+- `Retired` authorizes neither first delivery nor retry.
+
+Any later authority-bearing request other than the one allowed retry of that
+same logical command immediately moves `Available` or `AttemptBound` to
+`Retired`; otherwise the phone could publish a successor while the watch still
+presents the old lease as usable. The allowed retry retains the command's local
+generation and exact attempt-bound lease/fingerprint while receiving its second
+attempt correlation. A refresh or corrected new command receives a new
+generation. The map is bounded to outstanding operations, and any response whose
+correlation ID is no longer known is ignored. One logical command owns at most
+two attempt correlations: the initial delivery and one explicit retry. Both
+remain known until a terminal outcome or source snapshot invalidation; a second
+transport ambiguity abandons that command and forces a correlated refresh before
+a new command may be created.
 
 Once generation `N` is issued, a response from any lower generation cannot
 install a mutation lease or reset the receive-time freshness deadline, even if
@@ -309,15 +320,16 @@ every non-success as retryable:
   preserved.
 - A transport timeout or lost acknowledgement has no response and therefore no
   successor lease. It keeps the edits, `commandId`, submitted values, original
-  lease/fingerprint, and produces an error haptic. Retry is allowed only while
-  that originating effective window remains fresh, the local target is
-  unchanged, no newer authority generation has been issued, and the attempt's
-  lease ID/generation still exactly equals the currently installed mutable
-  authority. If a refresh or other successor intervenes, the old logical command
-  is abandoned rather than resent; a still-compatible draft may be submitted
-  under the accepted current snapshot only with a new `commandId` and attempt
-  fingerprint. Only one resend is allowed for the logical command; another
-  ambiguity forces refresh.
+  attempt-bound lease/fingerprint, and produces an error haptic. Retry is allowed
+  only while that originating effective window remains fresh, the local target
+  is unchanged, no authority generation newer than attempt 1 has been issued,
+  and the current authority state is the exact matching
+  `AttemptBound(commandId, attemptFingerprint, leaseId, leaseGeneration)`.
+  If a refresh or other successor intervenes, the binding becomes `Retired` and
+  the old logical command is abandoned rather than resent; a still-compatible
+  draft may be submitted under the accepted current snapshot only with a new
+  `commandId` and attempt fingerprint. Only one resend is allowed for the
+  logical command; another ambiguity forces refresh.
 - An explicitly retryable typed response produces an error haptic and follows
   the successor-rebind transition above. Retry is offered only after that
   transition succeeds; it never resends the retired original lease.
@@ -967,21 +979,24 @@ update-required state and disables mutation.
   response against a now-newer target discards only the obsolete draft but still
   emits its field-specific error. A retryable outcome is consumed once for its
   attempt and enters `AwaitingRetryAuthority`: an accepted same-version/target
-  mutable successor preserves `commandId`, intent, and local generation while rebinding
-  the lease and attempt fingerprint under a new correlation; attempt 2 can then
-  apply. A rejected/read-only/different-target successor forbids resend, retains
-  only a safe draft, refreshes, and requires a new command submission. A pure
-  timeout retains the original lease/fingerprint while fresh. Late attempt 1
+  mutable successor preserves `commandId`, intent, and local generation while
+  rebinding the lease and attempt fingerprint under a new correlation; attempt 2
+  can then apply. A rejected/read-only/different-target successor forbids resend,
+  retains only a safe draft, refreshes, and requires a new command submission. A
+  pure timeout retains the original lease/fingerprint while fresh. Late attempt 1
   before attempt 2 commits gets `AuthorizationExpired`; after attempt 2 commits,
   the attempt-2 receipt makes its different fingerprint a protocol rejection.
   Duplicate/unknown outcomes have no effect, and a rejected convergence snapshot
   schedules one current correlated refresh.
-- Response-less timeout oracles permit same-command resend only while the exact
-  original lease remains the currently installed authority and no newer request
-  generation exists. Timeout → refresh/successor forbids old-command resend;
-  after an accepted compatible snapshot the retained draft becomes a new
-  command/fingerprint. Late attempt 1 converges through expiry or the durable
-  receipt without duplicating a row.
+- Response-less timeout oracles prove
+  `Available` → attempt 1 → `AttemptBound` → timeout → attempt 2 without
+  retiring the command's own lease. Same-command resend is permitted only while
+  that exact attempt-bound authority remains current and no post-attempt request
+  generation exists. Timeout → refresh/successor moves it to `Retired` and
+  forbids old-command resend; after an accepted compatible snapshot the retained
+  draft becomes a new command/fingerprint. Late attempt 1 converges through
+  expiry or the durable receipt without duplicating a row. A different command
+  can never consume an attempt-bound lease.
 - Current-target derivation for planned, ad-hoc, skipped, complete, empty,
   sparse-position, weighted, and weightless sessions. An empty no-plan/no-row
   exercise before a populated later exercise returns
@@ -1201,6 +1216,9 @@ Stop and return to the owner if any of the following occurs:
   derive a mutation window without subtracting its full correlated request RTT;
 - a typed retryable response could resend the retired original lease or rebind
   `commandId` to a successor without proving unchanged stable command intent;
+- issuing attempt 1 could retire its own lease instead of moving it to an
+  exclusive attempt-bound authority, or that binding could authorize a different
+  command;
 - a timeout resend could use a lease after any newer authority generation was
   issued, or authorization-only expiry could discard a still-compatible draft;
 - an accepted `WorkoutComplete` state would retain a mutation target/control,
@@ -1255,8 +1273,9 @@ Phase 1 is complete only when:
   after a response-less timeout retains the original still-fresh attempt
   binding;
 - timeout resend additionally proves that no successor generation exists and the
-  original lease is still installed; authorization-only expiry preserves a
-  compatible draft but requires a new command under accepted authority;
+  original lease remains exclusively attempt-bound to that command rather than
+  retired by attempt 1 itself; authorization-only expiry preserves a compatible
+  draft but requires a new command under accepted authority;
 - active-session transitions and the `NoSession` tombstone are admitted only by
   the latest correlated handshake; per-session revisions never order different
   session identities;
