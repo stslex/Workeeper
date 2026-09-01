@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+exec uvx --from "graphifyy==0.9.50" graphify "$@"

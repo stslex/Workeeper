@@ -1,0 +1,2 @@
+# Query the snapshot through the pinned wrapper instead of loading it into prompt context.
+graphify-out/

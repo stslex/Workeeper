@@ -32,6 +32,11 @@ fastlane/README.md
 .claude.settings.local.*
 .obsidian/
 
+# Keep only the portable Graphify snapshot; all other generated outputs stay local.
+graphify-out/*
+!graphify-out/graph.json
+!graphify-out/manifest.json
+
 # shell_gate.py is run directly; its bytecode cache is not an artefact.
 documentation/mockups/__pycache__/
 # Any `__pycache__`, not just the mockups' one: importing a gate module for a probe writes it
