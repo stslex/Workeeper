@@ -84,6 +84,7 @@ stateDiagram-v2
     Active --> Controller: Tap Tile
     Controller --> Active: Set acknowledged
     Active --> Stale: Nearby phone lost
+    Active --> Stale: Snapshot age reaches 2 min
     Stale --> Active: Fresh handshake
     Active --> NoSession: Phone ends workout
     Stale --> NoSession: Cache expires
@@ -145,6 +146,17 @@ Failure to close this choice before UI implementation is a STOP.
 - reps are greater than zero; and
 - the target identifiers still describe the current set locally.
 
+Mutation freshness is exactly **two minutes**, measured from the watch's
+monotonic receive time for the latest complete `ActiveWorkoutSnapshot`. Node
+connectivity, wall-clock changes, retry timers, and non-snapshot traffic do not
+refresh this deadline. At `120_000ms` the active state becomes stale even when
+the phone node still appears connected, every mutation control is disabled,
+and `Complete set` cannot enqueue a command. A complete replacement snapshot
+resets the deadline. The foreground controller may issue one
+`GetActiveWorkout` request when the deadline expires, and explicit retry may
+issue another; neither the controller nor the Tile runs a background polling
+loop.
+
 The UI is pessimistic: it does not advance on tap. It shows in-flight feedback,
 waits for a phone acknowledgement issued after the database write, then replaces
 the screen from the returned snapshot. Success produces a confirmation haptic.
@@ -186,6 +198,10 @@ the existing explicit persistence contract: only a completed set is durable.
 - Watch storage contains only the last protocol snapshot, its receive time, and
   minimal connection metadata in app-private storage.
 - A no-session response erases the active cache immediately.
+- The two-minute mutation deadline is independent of display-cache retention:
+  stale content may remain visible and read-only while mutation is disabled.
+- After watch reboot or any loss of the monotonic receive-time baseline, a
+  cached active snapshot starts stale and requires a fresh phone response.
 - Cached workout content expires and is erased after 24 hours even if no phone
   response arrives.
 - The Wear application opts out of Android backup/data extraction for this
@@ -357,7 +373,9 @@ update-required state and disables mutation.
 
 - Protocol round trips, unknown-version rejection, size bound, and committed
   fixture compatibility.
-- Watch state reducer for every Tile/controller state, freshness expiry,
+- Watch state reducer for every Tile/controller state, including fake-clock
+  proofs that a connected-but-silent snapshot is fresh at `119_999ms`, stale at
+  `120_000ms`, and stale after reboot until a replacement snapshot arrives;
   connection changes, in-flight behavior, acknowledgement, retry, and error.
 - Current-target derivation for planned, ad-hoc, skipped, complete, empty,
   sparse-position, weighted, and weightless sessions.
