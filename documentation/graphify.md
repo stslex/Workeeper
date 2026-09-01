@@ -15,7 +15,7 @@ rewritten, or normalized by the integration task.
 | --- | --- |
 | Graphify | `graphifyy==0.9.50`, installed through `uv` |
 | Origin | [Graphify-Labs/graphify](https://github.com/Graphify-Labs/graphify) |
-| Indexed root | `/Users/stslex/StudioProjects/Workeeper` |
+| Indexed root | repository root |
 | Indexed branch and commit | `dev` at `97b55d7318273e567c58b32dccbdf2919039aba2` |
 | Extraction | default mode, undirected graph, semantic extraction enabled |
 | Semantic backend | Codex host-agent workflow |
@@ -32,8 +32,9 @@ they are not source verification.
 
 ## Read-only use
 
-Install [`uv`](https://docs.astral.sh/uv/) as the only bootstrap prerequisite. The repository
-wrapper runs the exact baseline version without creating a root Python project, virtual
+Install [`uv`](https://docs.astral.sh/uv/) as the only bootstrap prerequisite. The intentionally
+read-only repository wrapper accepts only `query`, `path`, and `explain` plus global help and
+version flags. It runs the exact baseline version without creating a root Python project, virtual
 environment, or lockfile:
 
 ```bash
@@ -59,10 +60,20 @@ on generated-index freshness.
 
 ## Future maintenance
 
-1. Agents consume the committed graph without rebuilding it.
-2. Important results are verified against source.
-3. A graph refresh is a separately authorized maintenance task or PR.
-4. Feature implementation must not silently modify the graph.
-5. A refresh reuses the pinned tool and documented default, undirected, semantic extraction mode.
-6. Determinism and Linux/macOS portability must be proven before adding hooks or CI freshness gates.
-7. Generated graph changes remain separate from feature logic.
+Agents consume the committed graph without rebuilding it and verify important results against
+source. The current provenance does not recover the exact semantic model or unified command, so a
+refresh cannot proceed merely from this document. Before any refresh, a separately approved
+maintenance specification must establish:
+
+- the exact command and flags;
+- the exact backend and model;
+- the input scope and ignore policy;
+- the expected graph format;
+- determinism controls;
+- Linux/macOS portability controls;
+- accepted graph-health deltas.
+
+That maintenance task may use an explicitly reviewed pinned invocation, but it must not silently
+broaden the ordinary read-only wrapper. Until the specification exists, the committed snapshot may
+be queried but not refreshed. Feature implementation must not modify the graph, and generated graph
+changes remain separate from feature logic.

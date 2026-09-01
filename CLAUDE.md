@@ -71,7 +71,8 @@ committed graph is an advisory snapshot and may be stale: source code and canoni
 `documentation/` override it, and `INFERRED` or `AMBIGUOUS` edges are never sufficient evidence by
 themselves. Verify decision-critical claims against source. Run `query`, `path`, and `explain`
 through the repository wrapper; do not refresh/update the graph, install Graphify hooks, or stage
-additional Graphify outputs unless a task explicitly authorizes graph maintenance.
+additional Graphify outputs. Any refresh requires the separately approved maintenance
+specification described in the canonical workflow.
 
 ## Domain layer
 
