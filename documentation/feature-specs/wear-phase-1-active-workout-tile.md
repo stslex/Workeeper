@@ -107,6 +107,12 @@ The watch never invents an active session. Every active state comes from a
 phone response. A cached active state is visibly stale once its freshness
 window expires and cannot authorize a write.
 
+`Active` in the diagram means that a canonical target can be displayed, not
+that a write is necessarily authorized. Only a fresh
+`ActiveWithTarget/MutationAuthority.Granted` substate is actionable.
+`MutationAuthority.Unavailable` keeps the target visible but read-only and
+immediately requests a correlated handshake.
+
 ### 3.1 Tile contract
 
 | State | Required content | Tap behavior |
@@ -117,7 +123,7 @@ window expires and cannot authorize a write.
 | Phone action required — unsupported values | Bounded exercise name, or localized generic `Exercise`, plus `Edit the current set on your phone` | Opens a read-only explanation; it never rounds, clamps, or sends the unsupported values |
 | Snapshot too large for watch | Localized generic workout label plus `Open this workout on your phone` | Opens a read-only explanation; no remote name, target, or mutation lease is present |
 | Workout complete | Training name plus localized `Workout complete` and `Finish on your phone` | Opens the read-only completion screen; it cannot finish the session |
-| Active but stale/disconnected | Last known training/exercise plus `Phone unavailable` | Opens the controller in read-only reconnecting state |
+| Active but stale/disconnected/authority unavailable | Last known training/exercise plus reason-appropriate `Phone unavailable` or `Refresh required` | Opens the controller in read-only reconnecting state; it never exposes a rejected draft on the Tile |
 | Loading with no cache | Workeeper + short loading label | Opens the reconnecting screen |
 | Retryable transport error | Safe generic error; no payload details | Opens recovery state with explicit retry |
 | Protocol mismatch | `Update Workeeper on phone and watch` | Opens a blocked recovery state; no mutation or retry of the incompatible command |
@@ -158,6 +164,13 @@ phone`; `UnsupportedNumericValues` shows `Edit the current set on your phone`.
 Both use the bounded exercise name or localized generic `Exercise`, expose no
 editable values or completion action, and carry no mutation lease.
 
+`ActiveWithTarget` plus `MutationAuthority.Unavailable` instead renders the
+canonical stored target/values with all mutation controls disabled and a
+localized `Refresh required` status. When it accompanies a known validation
+outcome, the controller may overlay the retained local draft and its one-shot
+field error; the Tile and durable snapshot/cache contain only canonical stored
+values, never that rejected draft.
+
 Every interactive target is at least `48dp × 48dp`, with enough separation that
 targets do not overlap. Controls have semantic labels that include the field,
 current value, and action. Rotary input may be added only as a second input path;
@@ -177,15 +190,19 @@ choice before UI implementation is a STOP.
 
 - the phone node has completed a fresh handshake;
 - the snapshot state is `ActiveWithTarget`, not `PhoneActionRequired`;
-- the snapshot carries the current phone-issued mutation lease;
+- its explicit mutation-authority variant is `Granted` and carries the complete
+  current phone-issued lease tuple/window, not `Unavailable`;
 - the snapshot is not stale;
 - no command is in flight;
 - the editable draft satisfies the exact Phase 1 numeric domain in §5.2; and
 - the target identifiers still describe the current set locally.
 
 The base mutation-freshness window is exactly **two minutes**, but the accepted
-per-snapshot window is conservatively shortened to the phone lease that actually
-remains. For each correlated request the shared sequencer records
+per-snapshot window for `MutationAuthority.Granted` is conservatively shortened
+to the phone lease that actually remains. `MutationAuthority.Unavailable`
+carries no lease remainder, derives no effective window, and is read-only even
+when its target/version is current. For each correlated request the shared
+sequencer records
 `requestedAtWatchElapsedRealtimeMs`. When its response arrives, it computes:
 
 ```text
@@ -195,11 +212,12 @@ effectiveMutationWindowMs = min(120_000, safeLeaseRemainingMs)
 ```
 
 Subtracting the whole request round trip is intentionally conservative because
-the response leg is no longer than that round trip. The watch persists
-`effectiveMutationWindowMs` atomically with the snapshot and measures its
-deadline from `receivedAtWatchElapsedRealtimeMs`. At that deadline the active
-state becomes stale even when the phone node still appears connected, every
-mutation control is disabled, and `Complete set` cannot enqueue a command. A
+the response leg is no longer than that round trip. For a `Granted` response the
+watch persists `effectiveMutationWindowMs` atomically with the snapshot and
+measures its deadline from `receivedAtWatchElapsedRealtimeMs`; for an
+`Unavailable` response the persisted field is `null`. At the granted deadline
+the active state becomes stale even when the phone node still appears connected,
+every mutation control is disabled, and `Complete set` cannot enqueue a command. A
 zero, negative, malformed, or out-of-range lease remainder never grants mutation
 authority. Node connectivity, wall-clock changes, retry timers, and non-snapshot
 traffic do not refresh the window.
@@ -263,6 +281,14 @@ explicitly retryable response may instead atomically replace the retired binding
 with the accepted same-intent successor `AttemptBound` defined below. No other
 response can restore that delivery binding.
 
+An admitted `ActiveWithTarget` whose mutation-authority variant is `Unavailable`
+may replace the displayed canonical target/values, but it atomically leaves the
+local authority state `Retired`. At the same database epoch/session/revision, a
+lower-generation unavailable payload cannot demote or overwrite a newer admitted
+snapshot; a higher-revision payload still follows the ordinary read-only version
+advance rule. The correlated command outcome remains independently eligible for
+once-only reduction.
+
 Once generation `N` is issued, a response from any lower generation cannot
 install a mutation lease or reset the receive-time freshness deadline, even if
 it arrives before generation `N` completes. The reducer admits one authority
@@ -275,17 +301,21 @@ attempts, and freshness.
 
 Within the currently admitted database epoch and the same `Session` identity, a
 higher session revision may advance read-only display state and a lower revision
-is ignored; at the same revision, an older-generation response with an equal or
-lower durable lease generation is ignored entirely. A lower-generation response
+is ignored; at the same revision, an older-generation `Granted` response with an
+equal or lower durable lease generation is ignored entirely, while an
+`Unavailable` response is admitted only at the latest-issued local generation.
+A lower-generation response
 whose session identity differs from the admitted identity, or whose
 `NoSession`/session state would cross that boundary, is ignored for snapshot
 state regardless of its numeric revision. The separately correlated command
 outcome remains eligible for once-only reduction below.
 
-For duplicate responses of one local generation, the greater durable lease
-generation wins and an older one cannot reinstall retired authority. Only a
-response for the latest-issued local generation may make that state mutable by
-installing its lease. Database epochs are opaque, not sortable: a different
+For duplicate `Granted` responses of one local generation, the greater durable
+lease generation wins and an older one cannot reinstall retired authority. An
+exact-correlation replay must remain byte-identical, so a `Granted`/`Unavailable`
+shape change for one correlation is a protocol failure. Only a response for the
+latest-issued local generation may make that state mutable by installing its
+lease. Database epochs are opaque, not sortable: a different
 epoch is admitted only by the latest correlated handshake, which retires the
 previous epoch and all of its pending generations. An unsolicited snapshot may
 update read-only display state only when its epoch and `Session` identity match
@@ -366,9 +396,10 @@ every non-success as retryable:
   prove the edits obsolete. If its accepted replacement has the exact source
   database epoch, session, revision, and canonical target, preserve the draft.
   A mutable replacement allows explicit submission under its successor lease
-  with a new `commandId`; a replacement that is read-only only because its
-  effective lease window is zero, expired, or otherwise unavailable parks the
-  same draft read-only and refreshes. A rejected attached snapshot also parks
+  with a new `commandId`; a replacement encoded as
+  `MutationAuthority.Unavailable(FreshHandshakeRequired)`, or a `Granted`
+  replacement whose derived effective lease window is zero, parks the same draft
+  read-only and refreshes. A rejected attached snapshot also parks
   the draft only while the already-displayed state still matches that complete
   source tuple. Any later compatible mutable snapshot still requires a new
   command. Clear the draft only when an accepted/current authoritative state
@@ -379,8 +410,12 @@ every non-success as retryable:
   source workout version and target; otherwise it discards the obsolete draft,
   preserves the field-specific error as a one-shot event, and refreshes. The
   rejection performs no row write, receipt, revision bump, or successor-lease
-  issue; its replacement is read-only. Any corrected submission first obtains
-  fresh authority and receives a new `commandId`.
+  issue. Its accepted same-source replacement is the canonical stored
+  `ActiveWithTarget` plus
+  `MutationAuthority.Unavailable(FreshHandshakeRequired)`: it contains the
+  stored target/values, never the rejected draft, and contains no lease fields or
+  effective window. Any corrected submission first obtains fresh `Granted`
+  authority and receives a new `commandId`.
 - A protocol/version rejection clears the in-flight command, disables mutation,
   and enters the update-required state; it cannot retry the incompatible
   payload.
@@ -437,8 +472,8 @@ the existing explicit persistence contract: only a completed set is durable.
   phone acknowledgement.
 - Watch storage contains one versioned, atomically published app-private cache
   record. Its bounded framing header contains the cache schema version,
-  `receivedAtElapsedRealtimeMs`, corresponding `Settings.Global.BOOT_COUNT`, raw
-  `effectiveMutationWindowMs`, nullable
+  `receivedAtElapsedRealtimeMs`, corresponding `Settings.Global.BOOT_COUNT`,
+  nullable derived `effectiveMutationWindowMs`, nullable
   `ongoingStopAtElapsedRealtimeMs`, payload length, and payload digest; the same
   atomic record contains the raw last protocol snapshot and minimal connection
   metadata. The ongoing deadline is present only while an actionable ongoing
@@ -488,7 +523,9 @@ the existing explicit persistence contract: only a completed set is durable.
   cache. Any in-process update to the surviving notification uses only the
   remaining interval, never the original full interval. A process restart,
   reconnect callback, or ordinary cache read cannot move the persisted deadline
-  later; only a newly accepted fresh `ActiveWithTarget` snapshot may replace it.
+  later; only a newly accepted fresh `ActiveWithTarget` snapshot carrying
+  `MutationAuthority.Granted` may replace it. An unavailable target snapshot
+  persists no effective window or ongoing deadline.
 - If no watch process runs at the deadline, app-private cache bytes may
   remain physically present past 24 hours. No exact alarm, WorkManager deadline,
   wake lock, or background loop is claimed solely for deletion; the security and
@@ -695,19 +732,29 @@ Inside the `CompleteCurrentSet` transaction specifically, the gateway must:
    an authoritative conflict; otherwise validate the immutable exercise/set
    types, `reps`, and `weightHundredthsKg` against the table in §5.2. An invalid
    value returns the field/reason-specific `InvalidValues` outcome with no row
-   write, receipt, revision bump, or successor lease. Only a valid fixed-point
-   weight is converted to `Double` without rounding immediately before exactly
-   one insert/update;
+   write, receipt, revision bump, or successor lease. From that same serialized
+   read it derives the current canonical target and stored values as
+   `ActiveWithTarget` with
+   `MutationAuthority.Unavailable(FreshHandshakeRequired)`; the replacement
+   contains neither the rejected draft nor any lease ID, lease generation,
+   remaining lifetime, or effective window. Only a valid fixed-point weight is
+   converted to `Double` without rounding immediately before exactly one
+   insert/update;
 7. increment the session revision, persist the Wear receipt, and derive the
    complete replacement snapshot data from the same serialized database state;
    and
 8. return from the transaction before any acknowledgement is emitted, so a
    rollback or failed commit can never be reported as success.
 
-After commit, the serialized coordinator retires the old process-memory lease.
-When the replacement state is mutable, it atomically increments the durable
-lease generation, issues a lease bound to the committed version, attaches both
-to the response snapshot, and only then acknowledges. Lease-generation
+Before any recognized terminal or retryable command response leaves the
+serialized coordinator, it retires the presented process-memory lease. For a
+successful mutation this happens only after the database commit; for a
+non-mutating validation rejection it happens after the serialized canonical
+read/outcome construction. Only a replacement encoded with
+`MutationAuthority.Granted` is mutable and eligible to atomically increment the
+durable lease generation, issue a lease bound to the committed/current version,
+attach both to the response snapshot, and only then acknowledge.
+`MutationAuthority.Unavailable` never enters lease issuance. Lease-generation
 allocation is serialized with all other issuance for the session. A lease is
 never published from a transaction that later rolls back; the old lease's
 version binding already prevents reuse after the committed revision advance.
@@ -862,7 +909,8 @@ watch app must expose the platform ongoing-activity/notification affordance so
 the user can return in one tap. It does not imply sensor tracking or a second
 workout engine.
 
-- Start it only after a fresh accepted `ActiveWithTarget` response. Read-only
+- Start it only after a fresh accepted `ActiveWithTarget` response carrying
+  `MutationAuthority.Granted`. Read-only
   `PhoneActionRequired`, `WorkoutComplete`, `NoSession`, and protocol-mismatch
   states do not own an ongoing surface.
 - Update it from cached snapshots, not a per-second loop.
@@ -890,8 +938,9 @@ workout engine.
   deadline to `min(existingDeadline, disconnectAtMs + reconnectWindowMs)` and
   updates `timeoutAfter` from the remaining interval. Reconnect notifications,
   no-op traffic, failed refreshes, and repeated expiry events cannot reset or
-  extend it. Only a fresh correlated `ActiveWithTarget` response cancels the
-  grace state and installs a new lifecycle window.
+  extend it. Only a fresh correlated `ActiveWithTarget` response carrying
+  `MutationAuthority.Granted` cancels the grace state and installs a new
+  lifecycle window.
 - Crash ordering is fail-closed. A fresh lifecycle persists its new deadline
   before exposing the notification. Deadline shortening updates the system
   notification to the earlier timeout before publishing the matching cache
@@ -931,7 +980,22 @@ The initial protocol has three logical operations:
 
 `ActiveWorkoutSnapshot` has four mutually exclusive payload states:
 `NoSession`, `ActiveWithTarget`, `PhoneActionRequired`, and `WorkoutComplete`.
-Only `ActiveWithTarget` carries a mutable target. `PhoneActionRequired` is
+Only `ActiveWithTarget` carries the canonical target and editable stored values;
+target presence does not itself grant mutation. It contains exactly one
+discriminated `MutationAuthority` variant:
+
+- `Granted(leaseId, leaseGeneration, leaseRemainingAtPhoneSendMs)` carries all
+  three fields and is the only wire shape eligible to become mutable after the
+  request-generation and freshness gates; or
+- `Unavailable(FreshHandshakeRequired)` carries none of those fields and is a
+  target-bearing read-only shape. `InvalidValues` must attach this shape with the
+  same authoritative source tuple/target and canonical stored values, while the
+  field/reason remains in the separately correlated command outcome. A later
+  distinct handshake is required before a corrected new command.
+
+The codec rejects a partial `Granted`, an `Unavailable` carrying any lease field,
+or an unknown authority variant. It never infers authority from nullable fields.
+`PhoneActionRequired` is
 reason-specific: `NoSetRows` carries the relevant exercise identity and its
 `BoundedDisplayName` exercise name;
 `UnsupportedNumericValues(field)` carries the same bounded exercise identity/name
@@ -943,7 +1007,8 @@ reasons may carry a fallback set position or mutation lease. `WorkoutComplete`
 carries only the session identity, bounded training name, and the overall
 completed/total exercise counts used by the read-only surfaces; it carries no
 exercise identity, target, set values, or lease. A mutable snapshot also carries
-its opaque mutation lease ID; no other state does. Its durable lease generation
+its opaque mutation lease ID through `MutationAuthority.Granted`; no other
+authority variant or payload state does. Its durable lease generation
 accompanies the ID and orders
 successors within one database epoch/session revision; it never extends the
 lease lifetime. The same mutable envelope carries bounded
@@ -1040,6 +1105,12 @@ update-required state and disables mutation.
   and a 16,385-byte snapshot candidate is converted to the sub-1,024-byte
   read-only `PayloadTooLarge` fallback with no name/target/lease. A 16,385-byte
   request never reaches the fake transport.
+- Authority-sum fixtures round-trip a complete `Granted` and a target-bearing
+  `Unavailable(FreshHandshakeRequired)`, and reject every partial/mixed lease
+  shape or unknown variant. An unavailable payload carries canonical stored
+  target/values but no lease ID/generation/remainder/effective window, cannot
+  install `Available`, and a lower-generation instance cannot demote a newer
+  admitted snapshot.
 - Numeric codec/gateway fixtures prove command reps `1` and `999` pass while
   `0`, `-1`, and `1_000` return the exact field/reason rejection; weighted
   hundredths `null`, `0`, and `99_999` pass while `-1` and `100_000` reject; and
@@ -1128,15 +1199,20 @@ update-required state and disables mutation.
 - Completion-state reducer oracles proving an accepted final-set response moves
   to read-only `WorkoutComplete`, clears draft/in-flight mutation state, exposes
   no retained target or controls, and stops the ongoing surface. A later fresh
-  phone uncheck/new pending set moves to `ActiveWithTarget` and may start a new
-  ongoing lifecycle; a new empty exercise moves to `PhoneActionRequired`; and
+  phone uncheck/new pending set moves to `ActiveWithTarget`; only a `Granted`
+  response may start a new ongoing lifecycle. A new empty exercise moves to
+  `PhoneActionRequired`; and
   phone session finish moves to `NoSession`.
 - Shared behavior-vector parity against the phone Live-workout done rule.
 - Phone command validation for wrong session, wrong exercise, stale revision,
   stale position, every numeric field/reason boundary, immutable-type mismatch,
   duplicate retry, write failure, and success. A same-source numeric rejection
-  keeps the draft, exposes one field error, stays read-only, and requires a fresh
-  lease plus new `commandId` after correction; a changed target clears it.
+  returns canonical stored target/values as `ActiveWithTarget` plus
+  `Unavailable(FreshHandshakeRequired)`, keeps the draft overlay, exposes one
+  field error, installs no lease/effective window, and requires a fresh
+  `Granted` lease plus new `commandId` after correction; a changed target clears
+  the draft. Tests assert the unavailable response neither increments durable
+  lease generation nor leaks the rejected draft into snapshot/cache state.
 - Phone-monotonic lease oracles proving first delivery accepted at `119_999ms`,
   rejected without mutation at `120_000ms`, an enqueue-before/arrival-after
   delay, wrong-node/session/version lease rejection, a new successor for every
@@ -1379,6 +1455,9 @@ Stop and return to the owner if any of the following occurs:
   phone value, exceed `999 reps` or `99_999` weight hundredths, accept non-null
   weight for a weightless exercise, or let any numeric rejection write a row,
   receipt, revision, or successor lease;
+- a validation rejection cannot encode the authoritative target/stored values
+  as `MutationAuthority.Unavailable` without lease fields, or can leak the
+  rejected draft, install authority, or bump lease generation;
 - duplicate target rows exist without an owner-approved reconciliation rule;
 - a listener would access repositories without generation-bound admission;
 - KMP/common source sets, shared watch UI, Health APIs, or sensor permissions
@@ -1454,6 +1533,9 @@ Phase 1 is complete only when:
   exact watch-only domain; unsupported stored values stay phone-owned and
   read-only on the watch, and every numeric boundary/protocol-token rejection is
   proven mutation-free;
+- validation rejection has one encodable target-bearing read-only replacement:
+  canonical stored values plus `MutationAuthority.Unavailable`, with no lease
+  side effect; partial or mixed authority payloads fail closed;
 - no Health, sensor, watchOS, or KMP watch scope entered the diff;
 - all focused, repository, and paired-device gates are green at the final head;
 - commits are signed and GitHub-verified; and
