@@ -395,7 +395,8 @@ every non-success as retryable:
 
 The source/target-invalidation outcome/replacement sub-matrix is closed.
 `StaleRevision` pairs with the current canonical replacement for a different
-database epoch/session revision. `NoActiveSession` pairs only with `NoSession`.
+database epoch, a different active session identity, or a different revision of
+the same active session. `NoActiveSession` pairs only with `NoSession`.
 `TargetChanged` pairs with a still-active session whose exact submitted target
 is no longer canonical: wrong/skipped membership, a moved/differing target,
 `WorkoutComplete`, or any `PhoneActionRequired` reason. The replacement
@@ -793,32 +794,38 @@ Inside the `CompleteCurrentSet` transaction specifically, the gateway must:
    canonical replacement before inspecting the target;
 2. re-read the active session. An absent session returns terminal
    `NoActiveSession` plus `NoSession`;
-3. compare `commandId` and request fingerprint with the durable receipt. An exact
+3. require the submitted `sessionUuid` to equal the re-read active session
+   identity before consulting any receipt or revision. A mismatch returns
+   terminal `StaleRevision` plus that different active session's current
+   canonical replacement; the gateway neither compares the two sessions'
+   revisions nor consults the submitted session's receipt;
+4. compare `commandId` and request fingerprint with the durable receipt. An exact
    match returns `AlreadyApplied` only when the receipt's resulting version is
    also the current database epoch/revision; once a receipt exists, reuse of one
    ID for another attempt fingerprint is a protocol rejection. Before a receipt
    exists, a changed attempt fingerprint is accepted only through the matching
    retry-bound successor described above. This receipt-only outcome performs no
    mutation and therefore may be returned after the original lease expired;
-4. require exact equality with the durable session revision. Any mismatch is
+5. require exact equality with the durable session revision. Any mismatch is
    `StaleRevision` even when current rows hash to the same content;
-5. only after the revision matches, verify that the submitted exercise belongs
+6. only after the revision matches, verify that the submitted exercise belongs
    to the active session and is not skipped. Wrong membership or skipped state
    returns terminal `TargetChanged` plus the current canonical replacement;
-6. require the process-bound mutation lease to match the source node, session,
+7. require the process-bound mutation lease to match the source node, session,
    database epoch/revision, durable lease generation, and submitted target, then
    read the phone monotonic clock at write admission. At `expiresAt` or later,
    return `AuthorizationExpired` without a row write, revision bump, or new
    receipt;
-7. re-derive the canonical target and inspect any existing row for
+8. re-derive the canonical target and inspect any existing row for
    `(performedExerciseUuid, position)`. A moved target or differing row returns
    terminal `TargetChanged` plus the canonical replacement. A still-active
    canonical `WorkoutComplete` or any `PhoneActionRequired` reason also returns
    `TargetChanged` plus that exact replacement; `NoSession` can pair only with
    `NoActiveSession`. These non-target branches win before immutable-type and
-   numeric-field validation; they do not precede the epoch, exact-receipt,
-   revision, and membership ordering above. Otherwise require both copied
-   immutable types to equal the canonical types; a mismatch returns
+   numeric-field validation; they do not precede the epoch, session
+   existence/identity, exact-receipt, revision, and membership ordering above.
+   Otherwise require both copied immutable types to equal the canonical types; a
+   mismatch returns
    `ImmutableTypeMismatch(ExerciseType | SetType)`. Only after both match,
    validate `reps` and `weightHundredthsKg` against the table in §5.2; an invalid
    editable value returns the field/reason-specific `InvalidValues`. Either
@@ -831,10 +838,10 @@ Inside the `CompleteCurrentSet` transaction specifically, the gateway must:
    remaining lifetime, or effective window. Only a valid fixed-point weight is
    converted to `Double` without rounding immediately before exactly one
    insert/update;
-8. increment the session revision, persist the Wear receipt, and derive the
+9. increment the session revision, persist the Wear receipt, and derive the
    complete replacement snapshot data from the same serialized database state;
    and
-9. return from the transaction before any acknowledgement is emitted, so a
+10. return from the transaction before any acknowledgement is emitted, so a
    rollback or failed commit can never be reported as success.
 
 Before any recognized terminal or retryable command response leaves the
@@ -1175,15 +1182,17 @@ mutable successor preserves command intent and local generation but replaces the
 attempt correlation, lease binding, and lease-bearing request fingerprint.
 
 Only the three authoritative source/target-invalidating outcomes use this closed
-sub-matrix. Rows follow gateway order; after the no-session row and before the
-ordinary same-session revision row, an exact current durable receipt may return
-`AlreadyApplied` under its separate §5.2 contract and is intentionally not a
-sub-matrix row:
+sub-matrix. Rows follow gateway order. After the no-session row, a different
+active session returns its own row and only an exact active identity continues.
+For that exact session, before the ordinary same-session revision row, an exact
+current durable receipt may return `AlreadyApplied` under its separate §5.2
+contract and is intentionally not a sub-matrix row:
 
 | Serialized canonical state after admission | Command outcome | Attached replacement |
 | --- | --- | --- |
 | different database epoch | `StaleRevision` | current canonical snapshot or `NoSession` |
 | no active session | `NoActiveSession` | `NoSession` |
+| same epoch, different active `sessionUuid` | `StaleRevision` | that active session's current canonical snapshot |
 | same epoch/active session, different session revision | `StaleRevision` | current active canonical snapshot |
 | active session, wrong/skipped exercise, moved target, or differing row with another representable target | `TargetChanged` | current `ActiveWithTarget` |
 | active session, `WorkoutComplete` | `TargetChanged` | `WorkoutComplete` |
@@ -1359,13 +1368,17 @@ update-required state and disables mutation.
   retiring the presented lease. Ordering fixtures prove a database-epoch
   mismatch wins first and returns `StaleRevision + current canonical state`; an
   epoch-matching absent session returns `NoActiveSession + NoSession`; for an
-  active session, an exact current durable receipt may return `AlreadyApplied`
-  before the ordinary revision check; every remaining revision mismatch returns
+  epoch-matching but different active `sessionUuid`, the gateway returns
+  `StaleRevision + that session's current canonical state` without comparing the
+  two sessions' deliberately equal or unequal revision counters and without
+  consulting the submitted session's receipt. Only for the exact active session
+  may an exact current durable receipt return `AlreadyApplied` before the
+  ordinary revision check; every remaining revision mismatch returns
   `StaleRevision + current canonical state`, including when that intervening
   revision also removed or skipped the submitted exercise. Only after an equal
   revision does a wrong/skipped exercise or moved target with another
-  representable target return `TargetChanged + ActiveWithTarget`; complete returns
-  `TargetChanged + WorkoutComplete`, missing/unsupported rows return
+  representable target return `TargetChanged + ActiveWithTarget`; complete
+  returns `TargetChanged + WorkoutComplete`, missing/unsupported rows return
   `TargetChanged + PhoneActionRequired(exact reason)`, all before immutable-type
   comparison.
   Every invalid cross-pair for the three source/target-invalidation outcomes
