@@ -177,6 +177,29 @@ a late write. The phone validates the lease again at serialized transactional
 write admission. At the phone boundary, age `119_999ms` is admissible subject to
 the other checks, and age `120_000ms` must not write.
 
+All authority-bearing requests (`GetActiveWorkout` and `CompleteCurrentSet`)
+pass through one watch-process request sequencer shared by the Tile, activity,
+cache, and transport. At issue time it assigns a strictly increasing local
+generation and maps it to the wire correlation ID. An explicit retry of the same
+in-flight `commandId` retains its original generation; a refresh or corrected
+new command receives a new one. The map is bounded to outstanding operations,
+and any response whose correlation ID is no longer known is ignored.
+
+Once generation `N` is issued, a response from any lower generation cannot
+install a mutation lease or reset the receive-time freshness deadline, even if
+it arrives before generation `N` completes. Within the currently admitted
+database epoch, a higher session revision may advance read-only display state
+and a lower revision is ignored; at the same revision, an older-generation
+response is ignored entirely. Only a response for the latest-issued generation
+may make that state mutable by installing its lease. Database epochs are opaque,
+not sortable: a different epoch is admitted only by the latest correlated
+handshake, which retires the previous epoch and all of its pending generations.
+An unsolicited snapshot may update read-only display state only when its epoch
+matches and its revision is newer; it cannot install a lease or reset mutation
+freshness and instead triggers one correlated refresh. This ordering is
+process-local; after watch-process restart, an unmatched old response is
+ignored.
+
 The UI is pessimistic: it does not advance on tap. It shows in-flight feedback
 and waits for a phone acknowledgement issued only after the compare-and-write
 transaction commits. The reducer handles outcomes by type rather than treating
@@ -280,12 +303,16 @@ The phone keeps mutation leases only in process memory, with one bounded active
 slot per source watch node/session/version. A lease contains a cryptographically
 random ID, source node ID, session UUID, database epoch/revision, the snapshot's
 target identities/position, and `expiresAtPhoneElapsedRealtimeMs`. It is
-replaced by a newer lease for that slot, invalidated by a target-affecting
-mutation or session transition, and lost on phone-process restart. It is never
-reconstructed from wall-clock time or accepted from a different node, session,
-epoch, revision, or target. An absent, mismatched, replaced, or expired lease
-returns `AuthorizationExpired` plus a replacement snapshot; it cannot mutate. A
-newly returned mutable snapshot contains a new lease.
+reused for every concurrent or duplicate snapshot response for that exact slot
+while unexpired; issuing another response for the same version/target cannot
+rotate or replace it. The serialized phone coordinator creates a successor only
+after expiry or a version/target transition, invalidates the old slot on a
+snapshot-authorizing mutation or session transition, and loses all slots on
+phone-process restart. A lease is never reconstructed from wall-clock time or
+accepted from a different node, session, epoch, revision, or target. An absent,
+mismatched, retired, or expired lease returns `AuthorizationExpired` plus a
+replacement snapshot; it cannot mutate. A newly returned mutable snapshot
+contains the current lease for its exact slot.
 
 A content hash is not a concurrency token. Phase 1 requires a tested Room
 migration that adds durable synchronization metadata owned by the phone
@@ -295,7 +322,7 @@ database:
   creation and rotated before a restored/replaced database is admitted to
   listeners;
 - a per-session `Long` revision initialized once and incremented monotonically
-  in the same transaction as every target-affecting mutation; and
+  in the same transaction as every snapshot-authorizing mutation; and
 - one bounded last-applied Wear receipt slot per session containing `commandId`,
   a deterministic request fingerprint, and the resulting version. The
   fingerprint covers the authenticated source node ID, schema version, source
@@ -303,25 +330,43 @@ database:
   submitted values, and immutable set type; transport correlation metadata is
   excluded.
 
-Target-affecting mutations include set insert/update/delete, mark-done/uncheck,
-undo compensation, skip/unskip, performed-exercise add/remove/reorder, and any
-session transition that can change the canonical target. The revision never
-decrements or returns to an earlier value during one database epoch. Phone
-process restart preserves it. A non-Wear mutation clears the last Wear receipt
-while incrementing the revision. Backup restore/recovery rotates the database
-epoch and clears the receipt before listener admission, so a command from the
-retired generation cannot match a restored older counter. Wall-clock time and a
-hash of current rows may be carried for diagnostics but can never authorize a
-write.
+Snapshot-authorizing mutations include set insert/update/delete,
+mark-done/uncheck, undo compensation, skip/unskip, performed-exercise
+add/remove/reorder, session transitions, every plan attach/detach/content write,
+and every exercise-type or weight-clearing cascade that can change an active
+session's canonical target, submitted defaults, or validation. The inventory
+must include both live entry points (`LiveWorkoutInteractorImpl.setPlanForExercise`
+and `setAdhocPlan`), the underlying `TrainingExerciseRepository.setPlan` and
+`ExerciseRepository.setAdhocPlan` paths, training-plan attach/detach, and
+`ExerciseRepository.setExerciseType`, `saveItem`, and
+`clearWeightsFromAllPlansForExercise` when their type/plan effects reach an
+active session.
+
+For a plan or exercise mutation that affects multiple active sessions, the
+coordinator resolves every affected session and increments each revision in the
+same database transaction as the plan/type/cascade write. It clears each prior
+Wear receipt and retires each affected process-memory lease after commit. Plan
+length changes must invalidate a moved target, while value/type changes at the
+same position must invalidate stale submitted defaults even when the target
+identity is unchanged. A split write-then-revision sequence is forbidden.
+
+The revision never decrements or returns to an earlier value during one database
+epoch. Phone process restart preserves it. A non-Wear mutation clears the last
+Wear receipt while incrementing the revision. Backup restore/recovery rotates
+the database epoch and clears the receipt before listener admission, so a
+command from the retired generation cannot match a restored older counter.
+Wall-clock time and a hash of current rows may be carried for diagnostics but
+can never authorize a write.
 
 The current `SetRepositoryImpl.upsert` is not an acceptable command boundary:
 it performs a lookup followed by an insert, while the
 `(performed_exercise_uuid, position)` index is non-unique. Phase 1 must add one
 phone-side mutation coordinator whose database bodies run through the existing
-`DbTransitionRunner` `immediateTransaction`. Every target-affecting application
-writer listed above must enter this serialized transition seam and bump the
-session revision. Set-row writers must additionally use one atomic row-write
-primitive rather than call the current lookup/insert sequence independently.
+`DbTransitionRunner` `immediateTransaction`. Every snapshot-authorizing
+application writer listed above must enter this serialized transition seam and
+bump the session revision. Set-row writers must additionally use one atomic
+row-write primitive rather than call the current lookup/insert sequence
+independently.
 
 Serialization does not make every operation share the Wear target policy. The
 coordinator exposes operation-specific validation while preserving existing
@@ -334,12 +379,15 @@ phone behavior:
   `(performedExerciseUuid, position)` row, even after the canonical watch target
   advanced; and
 - phone uncheck/delete, skip, reorder, and session operations retain their
-  existing domain validation.
+  existing domain validation;
+- plan attach/detach/write and exercise-type/weight-clear operations retain
+  their existing domain rules while atomically bumping every affected active
+  session revision.
 
-Every successful phone-side mutation increments the same session revision and
-clears the prior Wear receipt in its transaction. Sharing the Wear
-current-target check with completed-row edits is forbidden because it would
-regress the shipped phone flow.
+Every successful phone-side mutation increments the same revision for each
+affected active session and clears its prior Wear receipt in the transaction.
+Sharing the Wear current-target check with completed-row edits or plan-editor
+writes is forbidden because it would regress the shipped phone flow.
 
 Inside the `CompleteCurrentSet` transaction specifically, the gateway must:
 
@@ -539,6 +587,12 @@ message limit, use one deterministic `kotlinx.serialization` representation,
 and have round-trip tests with committed fixtures. Protocol fields are domain
 values, not localized strings, except display names that the watch must render.
 
+Correlation IDs are also the wire key for the watch's local request-generation
+map; they are not sufficient by themselves to order responses. The reducer
+consults the locally assigned generation plus the durable snapshot version
+before applying any authority-bearing response. Tile and activity must not own
+independent request counters or lease-bearing caches.
+
 There is no silent compatibility fallback. A newer incompatible peer shows an
 update-required state and disables mutation.
 
@@ -567,6 +621,15 @@ update-required state and disables mutation.
   `120_000ms`, and cacheless after reboot; connection changes, in-flight
   behavior, acknowledgement, retryable transport failure, stale/target/no-session
   convergence, validation correction, and protocol mismatch.
+- Shared request-sequencer/reducer oracles for overlapping refreshes: after
+  generation 2 is issued, a same-version generation-1 response cannot apply
+  either before or after generation 2's response; concurrent same-slot responses
+  reuse the identical unexpired lease; after a legitimate lease rotation, `L2`
+  followed by late `L1` retains `L2`; lower durable revisions are ignored; an
+  older-generation higher revision may only advance read-only state;
+  unsolicited snapshots remain read-only until a correlated refresh;
+  same-command retries retain their generation; unknown/expired correlation IDs
+  are ignored; and Tile/activity observe the same sequence and cache.
 - Current-target derivation for planned, ad-hoc, skipped, complete, empty,
   sparse-position, weighted, and weightless sessions. An empty no-plan/no-row
   exercise before a populated later exercise returns
@@ -576,11 +639,11 @@ update-required state and disables mutation.
   stale position, invalid values, duplicate retry, write failure, and success.
 - Phone-monotonic lease oracles proving first delivery accepted at `119_999ms`,
   rejected without mutation at `120_000ms`, an enqueue-before/arrival-after
-  delay, wrong-node/session/version lease rejection, replacement-lease
-  invalidation, process-restart invalidation, and expired exact-receipt replay
-  returning `AlreadyApplied` without a second write.
+  delay, wrong-node/session/version lease rejection, same-slot lease reuse,
+  retired-successor invalidation, process-restart invalidation, and expired
+  exact-receipt replay returning `AlreadyApplied` without a second write.
 - Version oracles proving strictly increasing revisions across every listed
-  phone/watch target-affecting mutation, persistence across process restart,
+  phone/watch snapshot-authorizing mutation, persistence across process restart,
   database-epoch rotation on restore, exact-receipt replay after lost
   acknowledgement, command-ID/fingerprint mismatch rejection, and
   complete → uncheck/delete → delayed-old-command rejection despite identical
@@ -589,6 +652,12 @@ update-required state and disables mutation.
   edit still succeeds after the canonical watch target advances to set 1,
   increments the revision, clears the Wear receipt, and makes an older watch
   command stale. That phone edit must not run the Wear current-target guard.
+- Writer-inventory and real-database oracles covering live/training/ad-hoc plan
+  writes, plan attach/detach, exercise type changes through both narrow and
+  `saveItem` paths, and weight-clearing cascades. Plan length changes move the
+  target and bump every affected active-session revision; same-position
+  weight/reps/type changes also bump it and invalidate all affected leases even
+  when the target tuple is unchanged.
 - Real-database concurrency oracles for simultaneous delivery of the same
   command, different commands for the same target, phone/watch completion, and
   phone-process retry after a lost acknowledgement. Every case asserts one row,
@@ -617,6 +686,9 @@ update-required state and disables mutation.
   read/write survives.
 - Empty no-plan/no-row exercise: Tile and controller require phone action, expose
   no completion control, and converge after a set is created on the phone.
+- With the controller open, edit the active plan length/values and change the
+  exercise type on the phone; the old watch command cannot write and the watch
+  converges to the newly authorized snapshot without regressing the phone edit.
 
 Device evidence must identify the APK package/signature pair, OS/API versions,
 and exact test scenario. Manual observation without the resulting phone DB
@@ -663,8 +735,8 @@ The streams are conceptually independent but share repository integration files.
 
 1. **Entry probes:** package/signature variants, payload-free Data Layer
    capability probe, current-set parity fixtures, Gradle task discovery, and a
-   complete inventory of target-affecting writers, migration baseline, and
-   duplicate-target probe.
+   complete inventory of set, plan, plan-attachment, exercise-type/cascade, and
+   session writers, migration baseline, and duplicate-target probe.
 2. **Protocol/cache:** versioned models, codec, watch cache, reducer, and tests.
 3. **Watch read-only surface:** Tile, controller states, accessibility, and
    rendered evidence against fake transport.
@@ -693,9 +765,14 @@ Stop and return to the owner if any of the following occurs:
   the database epoch safely across restore;
 - the phone cannot reject a first-delivery command at the mutation-lease expiry
   boundary inside serialized write admission;
-- a target-affecting writer would bypass the shared transaction/revision bump;
+- a snapshot-authorizing writer would bypass the shared transaction/revision
+  bump;
+- a plan/type/cascade writer can affect an active snapshot without atomically
+  bumping every affected session revision and retiring its lease;
 - the coordinator would make an existing completed-row phone edit depend on the
   canonical watch target;
+- Tile and activity cannot share one request-generation/cache authority or an
+  older correlated response can reinstall a replaced lease;
 - duplicate target rows exist without an owner-approved reconciliation rule;
 - a listener would access repositories without generation-bound admission;
 - KMP/common source sets, shared watch UI, Health APIs, or sensor permissions
@@ -719,6 +796,9 @@ Phase 1 is complete only when:
   deadline, while an exact already-applied receipt remains safely idempotent;
 - existing phone edits of completed rows remain valid after the watch target
   advances and still invalidate older watch commands;
+- plan length/value/type and exercise-type cascades invalidate every affected
+  session revision/lease, and out-of-order responses cannot restore retired
+  authority;
 - empty exercises require phone action without creating a fallback row, and the
   durable version rejects ABA commands after complete/uncheck or restore;
 - package/signature, lifecycle, cache erasure, accessibility, localization, and
