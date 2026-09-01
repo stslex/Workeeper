@@ -42,6 +42,10 @@ def native(classname: str, name: str) -> dict:
     return {"classname": classname, "name": f"{name}{TARGET_SUFFIX}"}
 
 
+def natives(classname: str, names: list[str]) -> list[dict]:
+    return [native(classname, name) for name in names]
+
+
 MVI_PACKAGE = "io.github.stslex.workeeper.core.ui.mvi"
 
 EXPECTED = [
@@ -129,6 +133,89 @@ EXPECTED = [
         "identities": [
             native(
                 "io.github.stslex.workeeper.feature.image_viewer.ImageViewerSceneIosTest",
+                "resourcesBranchesAndActionsRenderAndDispatch",
+            ),
+        ],
+    },
+    {
+        "module": "feature:plan-editor",
+        "results_dir": "feature/plan-editor/build/test-results/iosSimulatorArm64Test",
+        "classname_prefix": KNOWN_SUITE_PREFIX,
+        "identities": [
+            *natives(
+                "io.github.stslex.workeeper.feature.plan_editor.mappers.PlanEditorMapperTest",
+                [
+                    "formatPlanSummary falls back to reps-only when weight is null",
+                    "formatPlanSummary truncates after the fifth row with an ellipsis suffix",
+                    "formatPlanSummary keeps decimals for non-integer weights",
+                    "formatPlanSummary joins rows with bullet separators and formats integer weights",
+                    "formatPlanSummary on empty list yields an empty string",
+                ],
+            ),
+            *natives(
+                "io.github.stslex.workeeper.feature.plan_editor.model.SetTypeUiModelTest",
+                [
+                    "toUiKitType maps every variant to the kit's chip enum",
+                    "every SetTypeUiModel has a unique labelRes",
+                    "DROP labelRes resolves to drop string and not failure",
+                ],
+            ),
+            *natives(
+                "io.github.stslex.workeeper.feature.plan_editor.mvi.handler.ClickHandlerTest",
+                [
+                    "OnConfirmDiscard closes the sheet and navigates back without persisting",
+                    "back with the discard sheet open hides it and never navigates",
+                    "the discard sheet and the type-change sheet cannot be open at once",
+                    "OnAddSet copies reps from previous set when draft has rows",
+                    "state is dirty when type differs from initialType even with stable draft",
+                    "state is dirty when draft differs from initialDraft",
+                    "interceptBack stays armed while the type-change sheet is shown",
+                    "OnSetRemove with out-of-bounds index leaves draft unchanged",
+                    "OnTypeToggle WEIGHTLESS to WEIGHTED applies new type silently regardless of draft",
+                    "OnBackClick with open dialog dismisses dialog before propagating",
+                    "OnTypeChangeConfirm wipes weights from draft, applies type, hides dialog",
+                    "OnTypeToggle to same type is no-op",
+                    "OnDismissDiscard closes the sheet without navigating",
+                    "OnTypeToggle WEIGHTED to WEIGHTLESS with weighted draft opens confirm dialog",
+                    "OnSetRemove drops the row at the given index",
+                    "interceptBack stays enabled when type-change confirm dialog is open",
+                    "OnBackClick on dirty state opens discard dialog instead of popping",
+                    "OnBackClick on clean state dispatches Navigation Back",
+                    "OnTypeChangeDismiss clears pending and hides dialog without changing type",
+                    "OnTypeToggle with empty draft applies new type silently without dialog",
+                    "OnSetTypeChange updates the type of the row at the given index",
+                    "interceptBack stays armed while the discard sheet is shown",
+                    "OnAddSet appends a new work set with default reps when draft is empty",
+                ],
+            ),
+            *natives(
+                "io.github.stslex.workeeper.feature.plan_editor.mvi.handler.CommonHandlerTest",
+                [
+                    "NotFound clears isLoading and reports, same reason",
+                    "a successful load clears isLoading and hydrates the type the seed guessed wrong",
+                    "a load that throws clears isLoading, or the route is composed on nothing forever",
+                ],
+            ),
+            *natives(
+                "io.github.stslex.workeeper.feature.plan_editor.mvi.handler.NavigationHandlerTest",
+                [
+                    "BackAfterSave pops handing true back to the PlanEditor destination",
+                    "Back pops the navigation stack with no result attributes",
+                ],
+            ),
+            *natives(
+                "io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorStateRouteArgTest",
+                [
+                    "blank trainingUuid falls through to Exercise mode rather than PerformedExercise",
+                    "live workout entry maps to PerformedExercise mode",
+                    "live workout adhoc entry maps to PerformedExercise mode without training uuid",
+                    "null exerciseUuid is rejected because the editor needs an exercise to load against",
+                    "exercise default plan entry maps to Exercise mode",
+                    "single-training edit entry maps to PerformedExercise mode without performed uuid",
+                ],
+            ),
+            native(
+                "io.github.stslex.workeeper.feature.plan_editor.PlanEditorFeatureSceneIosTest",
                 "resourcesBranchesAndActionsRenderAndDispatch",
             ),
         ],

@@ -252,6 +252,7 @@ private fun AppGenerationContent(deps: AppRootDeps) {
                 navigatorHolder = holder,
                 results = navigatorEventBus,
                 imageViewerGraphFactory = deps.imageViewerGraphFactory,
+                planEditorGraphFactory = deps.planEditorGraphFactory,
             )
 
             // GUARD: no host-owned affordance here — the host may not place a control in a band

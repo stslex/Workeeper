@@ -38,7 +38,7 @@ dependencies {
     implementation(project(":feature:live-workout"))
     implementation(project(":feature:past-session"))
     api(project(":feature:image-viewer"))
-    implementation(project(":feature:plan-editor"))
+    api(project(":feature:plan-editor"))
 
     // AppDialogHost, mounted as a sibling of AppNavigationHost.
     implementation(project(":feature:app-dialogs:impl"))

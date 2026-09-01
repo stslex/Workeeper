@@ -128,6 +128,52 @@ MODULES = {
             "src/commonMain/composeResources/values-ru",
         },
     },
+    "feature:plan-editor": {
+        "root": Path("feature/plan-editor"),
+        "files": {
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/plan_editor/di/PlanEditorFeature.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/plan_editor/di/PlanEditorGraph.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/plan_editor/di/PlanEditorHandlerStore.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/plan_editor/di/PlanEditorHandlerStoreImpl.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/plan_editor/di/PlanEditorScope.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/plan_editor/domain/PlanEditorInteractor.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/plan_editor/domain/PlanEditorInteractorImpl.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/plan_editor/domain/mapper/PlanEditorDomainMapper.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/plan_editor/domain/model/ExerciseTypeDomain.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/plan_editor/domain/model/PlanEditorLoadResult.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/plan_editor/domain/model/PlanSetDomain.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/plan_editor/domain/model/SetTypeDomain.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/plan_editor/ui/PlanEditorGraph.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/plan_editor/ui/PlanEditorScreen.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/plan_editor/ui/mapper/PlanEditorMapper.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/plan_editor/ui/mvi/handler/ClickHandler.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/plan_editor/ui/mvi/handler/CommonHandler.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/plan_editor/ui/mvi/handler/EditorHandler.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/plan_editor/ui/mvi/handler/InputHandler.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/plan_editor/ui/mvi/handler/NavigationHandler.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/plan_editor/ui/mvi/store/DialogState.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/plan_editor/ui/mvi/store/PlanEditorStore.kt",
+            "src/commonMain/kotlin/io/github/stslex/workeeper/feature/plan_editor/ui/mvi/store/PlanEditorStoreImpl.kt",
+            "src/commonMain/composeResources/values/strings.xml",
+            "src/commonMain/composeResources/values-ru/strings.xml",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/plan_editor/mappers/PlanEditorMapperTest.kt",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/plan_editor/model/SetTypeUiModelTest.kt",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/plan_editor/mvi/handler/ClickHandlerTest.kt",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/plan_editor/mvi/handler/CommonHandlerTest.kt",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/plan_editor/mvi/handler/NavigationHandlerTest.kt",
+            "src/commonTest/kotlin/io/github/stslex/workeeper/feature/plan_editor/ui/mvi/store/PlanEditorStateRouteArgTest.kt",
+            "src/iosTest/kotlin/io/github/stslex/workeeper/feature/plan_editor/PlanEditorFeatureSceneIosTest.kt",
+        },
+        "kotlin_source_sets": {
+            "commonMain",
+            "commonTest",
+            "iosTest",
+        },
+        "resource_dirs": {
+            "src/commonMain/composeResources/values",
+            "src/commonMain/composeResources/values-ru",
+        },
+    },
 }
 
 LEGACY_SOURCE_SETS = ("main", "test", "androidTest")
@@ -183,12 +229,24 @@ EXPECTED_APP_DEPS_READERS = {
     Path("feature/home/src/main/kotlin/io/github/stslex/workeeper/feature/home/di/HomeFeature.kt"): "HomeGraph.Factory",
     Path("feature/live-workout/src/main/kotlin/io/github/stslex/workeeper/feature/live_workout/di/LiveWorkoutFeature.kt"): "LiveWorkoutGraph.Factory",
     Path("feature/past-session/src/main/kotlin/io/github/stslex/workeeper/feature/past_session/di/PastSessionFeature.kt"): "PastSessionGraph.Factory",
-    Path("feature/plan-editor/src/main/kotlin/io/github/stslex/workeeper/feature/plan_editor/di/PlanEditorFeature.kt"): "PlanEditorGraph.Factory",
     Path("feature/settings/src/main/kotlin/io/github/stslex/workeeper/feature/settings/di/SettingsFeature.kt"): "SettingsGraph.Factory",
     Path("feature/single-training/src/main/kotlin/io/github/stslex/workeeper/feature/single_training/di/SingleTrainingFeature.kt"): "SingleTrainingGraph.Factory",
 }
 
 FEATURE_PLAN_EDITOR_RESOURCES = {
+    "core_ui_plan_editor_screen_title_format": ("Edit plan: %1$s", "План: %1$s"),
+    "core_ui_plan_editor_screen_title_default": ("Edit plan", "План"),
+    "core_ui_plan_editor_screen_back": ("Back", "Назад"),
+    "core_ui_plan_editor_screen_save": ("Save", "Сохранить"),
+    "core_ui_plan_editor_screen_cancel": ("Cancel", "Отмена"),
+    "core_ui_plan_editor_error_load": (
+        "Failed to load the plan.",
+        "Не удалось загрузить план.",
+    ),
+    "core_ui_plan_editor_error_save": (
+        "Failed to save the plan.",
+        "Не удалось сохранить план.",
+    ),
     "feature_plan_editor_set_type_tooltip": (
         "Tap to cycle: warmup → work → failure → drop",
         "Нажмите, чтобы переключить: разминка → рабочий → отказ → дроп",
@@ -234,7 +292,7 @@ FEATURE_SINGLE_TRAINING_RESOURCES = {
 }
 
 FEATURE_RESOURCE_OWNERS = {
-    Path("feature/plan-editor/src/main/res"): FEATURE_PLAN_EDITOR_RESOURCES,
+    Path("feature/plan-editor/src/commonMain/composeResources"): FEATURE_PLAN_EDITOR_RESOURCES,
     Path("feature/exercise/src/main/res"): FEATURE_EXERCISE_RESOURCES,
     Path("feature/single-training/src/main/res"): FEATURE_SINGLE_TRAINING_RESOURCES,
 }
@@ -304,6 +362,22 @@ def check_plan_editor_resources() -> list[str]:
                 f"expected={expected!r}, actual={actual!r}"
             )
 
+    feature_catalogs = (
+        Path("feature/plan-editor/src/commonMain/composeResources/values/strings.xml"),
+        Path("feature/plan-editor/src/commonMain/composeResources/values-ru/strings.xml"),
+    )
+    for locale_index, catalog in enumerate(feature_catalogs):
+        expected = {
+            key: values[locale_index]
+            for key, values in FEATURE_PLAN_EDITOR_RESOURCES.items()
+        }
+        actual = read_strings(catalog) if catalog.is_file() else {}
+        if actual != expected:
+            failures.append(
+                f"feature:plan-editor: exact private CMP catalog mismatch in {catalog}; "
+                f"expected={expected!r}, actual={actual!r}"
+            )
+
     for owner_root, expected_resources in FEATURE_RESOURCE_OWNERS.items():
         owner_catalogs = [
             owner_root / "values" / "strings.xml",
@@ -328,8 +402,8 @@ def check_plan_editor_resources() -> list[str]:
             )
 
     plan_editor_legacy_catalogs = {
-        Path("feature/plan-editor/src/main/res/values/strings.xml"),
-        Path("feature/plan-editor/src/main/res/values-ru/strings.xml"),
+        Path("feature/plan-editor/src/commonMain/composeResources/values/strings.xml"),
+        Path("feature/plan-editor/src/commonMain/composeResources/values-ru/strings.xml"),
     }
     for key in sorted(FEATURE_PLAN_EDITOR_LEGACY_KEYS):
         actual_catalogs = {path for path, _ in entries.get(key, [])}
@@ -371,6 +445,28 @@ def check_plan_editor_resources() -> list[str]:
 
 def compact(source: str) -> str:
     return re.sub(r"\s+", "", source)
+
+
+def braced_call_bodies(source: str, call: str) -> list[str]:
+    """Return balanced lambda bodies for a literal ``call {`` sequence."""
+    bodies: list[str] = []
+    cursor = 0
+    marker = re.compile(rf"\b{re.escape(call)}\s*\{{")
+    while match := marker.search(source, cursor):
+        start = source.index("{", match.start())
+        depth = 0
+        for index in range(start, len(source)):
+            if source[index] == "{":
+                depth += 1
+            elif source[index] == "}":
+                depth -= 1
+                if depth == 0:
+                    bodies.append(source[start + 1:index])
+                    cursor = index + 1
+                    break
+        else:
+            break
+    return bodies
 
 
 def check_image_viewer_contract() -> list[str]:
@@ -565,9 +661,337 @@ def check_image_viewer_contract() -> list[str]:
     }
     if actual_readers != expected_readers:
         failures.append(
-            "remaining Context.appDeps readers are not the exact 12 unported entries; "
+            "remaining Context.appDeps readers are not the exact 11 unported entries; "
             f"expected={expected_readers!r}, actual={actual_readers!r}"
         )
+
+    return failures
+
+
+def check_plan_editor_feature_contract() -> list[str]:
+    failures: list[str] = []
+    root = Path("feature/plan-editor")
+
+    build_path = root / "build.gradle.kts"
+    build_source = build_path.read_text(encoding="utf-8")
+    required_build_fragments = [
+        "alias(libs.plugins.convention.kmpComposeLibrary)",
+        "alias(libs.plugins.metro)",
+        'packageOfResClass = "io.github.stslex.workeeper.feature.plan_editor.resources"',
+        "includeJavax()",
+        'implementation(project(":core:core"))',
+        'implementation(project(":core:ui:kit"))',
+        'api(project(":core:ui:mvi"))',
+        'api(project(":core:ui:navigation"))',
+        'api(project(":core:ui:plan-editor"))',
+        'implementation(project(":core:data:database"))',
+        'implementation(project(":core:data:exercise"))',
+        "api(libs.cmp.ui)",
+        "api(libs.kotlinx.collections.immutable)",
+        "implementation(libs.coroutine.test)",
+        "implementation(libs.cmp.ui.test)",
+    ]
+    for fragment in required_build_fragments:
+        if build_source.count(fragment) != 1:
+            failures.append(
+                f"feature:plan-editor: build contract must contain {fragment!r} exactly once"
+            )
+    if build_source.count('implementation(kotlin("test"))') != 2:
+        failures.append(
+            "feature:plan-editor: kotlin(test) must exist exactly once in commonTest and iosTest"
+        )
+    for forbidden in (
+        "convention.composeLibrary",
+        "publicResClass",
+        "androidTestImplementation",
+        "debugImplementation",
+        "libs.cmp.uiBackhandler",
+        "libs.androidx.activity.compose",
+        "libs.bundles.android.test",
+        "libs.androidx.compose.ui.test.manifest",
+        "serialization.json",
+        "junit",
+        "mockk",
+        "robolectric",
+        "paparazzi",
+    ):
+        if forbidden in build_source:
+            failures.append(
+                f"feature:plan-editor: forbidden build dependency/configuration remains: {forbidden}"
+            )
+
+    common_main = root / "src/commonMain/kotlin"
+    common_sources = {
+        path: path.read_text(encoding="utf-8")
+        for path in sorted(common_main.rglob("*.kt"))
+    }
+    forbidden_common_tokens = (
+        "androidx.activity.compose.BackHandler",
+        "androidx.compose.ui.platform.LocalContext",
+        "androidx.compose.ui.res.",
+        "ResourceWrapper",
+        "appDeps<",
+        "CompositionLocal",
+        "ServiceLocator",
+        "FactoryRegistry",
+    )
+    for path, source in common_sources.items():
+        for token in forbidden_common_tokens:
+            if token in source:
+                failures.append(
+                    f"feature:plan-editor: {path.relative_to(root)} contains forbidden "
+                    f"platform/lookup API {token!r}"
+                )
+        if re.search(r"^\s*(?:expect|actual)\s+", source, re.MULTILINE):
+            failures.append(
+                f"feature:plan-editor: {path.relative_to(root)} contains a forbidden expect/actual shim"
+            )
+
+    common_test = root / "src/commonTest/kotlin"
+    for path in sorted(common_test.rglob("*.kt")):
+        source = path.read_text(encoding="utf-8")
+        for forbidden in ("org.junit", "io.mockk", "@Disabled", "@Ignore"):
+            if forbidden in source:
+                failures.append(
+                    f"feature:plan-editor: {path.relative_to(root)} contains forbidden test API "
+                    f"{forbidden!r}"
+                )
+
+    graph_path = common_main / "io/github/stslex/workeeper/feature/plan_editor/ui/PlanEditorGraph.kt"
+    graph_source = common_sources[graph_path]
+    screen_path = common_main / "io/github/stslex/workeeper/feature/plan_editor/ui/PlanEditorScreen.kt"
+    screen_source = common_sources[screen_path]
+    click_path = (
+        common_main
+        / "io/github/stslex/workeeper/feature/plan_editor/ui/mvi/handler/ClickHandler.kt"
+    )
+    click_source = common_sources[click_path]
+    state_path = (
+        common_main
+        / "io/github/stslex/workeeper/feature/plan_editor/ui/mvi/store/PlanEditorStore.kt"
+    )
+    state_source = common_sources[state_path]
+    dialog_path = (
+        common_main
+        / "io/github/stslex/workeeper/feature/plan_editor/ui/mvi/store/DialogState.kt"
+    )
+    dialog_source = common_sources[dialog_path]
+
+    screen_resource_keys = set(FEATURE_PLAN_EDITOR_RESOURCES) - {
+        "core_ui_plan_editor_error_load",
+        "core_ui_plan_editor_error_save",
+    }
+    for key in sorted(screen_resource_keys):
+        if screen_source.count(key) != 2:
+            failures.append(
+                f"feature:plan-editor: composable must import and resolve {key} exactly once"
+            )
+    for key in ("core_ui_plan_editor_error_load", "core_ui_plan_editor_error_save"):
+        if graph_source.count(key) != 2:
+            failures.append(
+                f"feature:plan-editor: graph composable must import and resolve {key} exactly once"
+            )
+    for path, source in common_sources.items():
+        if "/handler/" in path.as_posix() or path in {state_path, dialog_path}:
+            for key in FEATURE_PLAN_EDITOR_RESOURCES:
+                if key in source:
+                    failures.append(
+                        f"feature:plan-editor: feature copy {key} must be resolved in a composable, "
+                        f"not {path.relative_to(root)}"
+                    )
+
+    error_block = re.search(
+        r"enum class ErrorType(?P<header>\s*\([^)]*\))?\s*\{(?P<body>[^}]*)\}",
+        state_source,
+    )
+    if error_block is None:
+        failures.append("feature:plan-editor: ErrorType enum is missing")
+    else:
+        variants = re.findall(r"^\s*(\w+)(?:\([^)]*\))?,?\s*$", error_block.group("body"), re.MULTILINE)
+        if (
+            variants != ["LoadFailed", "SaveFailed"]
+            or error_block.group("header") is not None
+            or "(" in error_block.group("body")
+        ):
+            failures.append(
+                "feature:plan-editor: ErrorType must remain payload-free LoadFailed, SaveFailed"
+            )
+    dialog_variants = re.findall(r"data object (\w+)\s*:\s*DialogState", dialog_source)
+    if dialog_variants != ["Hidden", "DiscardConfirm", "TypeChangeConfirm"]:
+        failures.append(
+            "feature:plan-editor: DialogState must remain three ordered payload-free objects"
+        )
+    if re.search(r"data class\s+\w+\s*\([^)]*\)\s*:\s*DialogState", dialog_source):
+        failures.append("feature:plan-editor: DialogState variants must not carry payloads")
+
+    handler_paths = sorted((common_main / "io/github/stslex/workeeper/feature/plan_editor/ui/mvi/handler").glob("*.kt"))
+    update_count = 0
+    for path in handler_paths:
+        source = common_sources[path]
+        bodies = braced_call_bodies(source, "updateState")
+        update_count += len(bodies)
+        for body in bodies:
+            if ".copy(" not in compact(body):
+                failures.append(
+                    f"feature:plan-editor: updateState in {path.relative_to(root)} must return a State copy"
+                )
+            for side_effect in ("consume(", "consumeOnMain(", "sendEvent(", "interactor.", "stringResource("):
+                if side_effect in body:
+                    failures.append(
+                        f"feature:plan-editor: updateState in {path.relative_to(root)} contains "
+                        f"side effect {side_effect!r}"
+                    )
+    if update_count == 0:
+        failures.append("feature:plan-editor: no updateState lambdas were inspected")
+
+    if graph_source.count("import androidx.compose.ui.backhandler.BackHandler") != 1:
+        failures.append("feature:plan-editor: portable BackHandler import must exist exactly once")
+    back_handler = compact(
+        """
+        BackHandler(enabled = state.interceptBack) {
+            processor.consume(Action.Click.OnBackClick)
+        }
+        """
+    )
+    if compact(graph_source).count(back_handler) != 1:
+        failures.append(
+            "feature:plan-editor: portable BackHandler must dispatch exact OnBackClick action"
+        )
+
+    if screen_source.count("@Preview(") != 2:
+        failures.append("feature:plan-editor: exactly two portable previews are required")
+    preview_fragments = (
+        '@Preview(name = "Light")',
+        "PlanEditorScreenLightPreview()",
+        "PlanEditorScreenPreview(themeMode = ThemeMode.LIGHT)",
+        '@Preview(name = "Dark")',
+        "PlanEditorScreenDarkPreview()",
+        "PlanEditorScreenPreview(themeMode = ThemeMode.DARK)",
+    )
+    for fragment in preview_fragments:
+        if screen_source.count(fragment) != 1:
+            failures.append(
+                f"feature:plan-editor: two-preview contract requires {fragment!r} exactly once"
+            )
+
+    required_root_fragments = {
+        Path("app/common/src/main/kotlin/io/github/stslex/workeeper/app/common/di/AppRootDeps.kt"): [
+            "val planEditorGraphFactory: PlanEditorGraph.Factory",
+        ],
+        Path("app/app/src/main/java/io/github/stslex/workeeper/di/AppGraph.kt"): [
+            "override val planEditorGraphFactory: PlanEditorGraph.Factory",
+        ],
+        Path("app/common/src/main/kotlin/io/github/stslex/workeeper/App.kt"): [
+            "if (admission.granted) {",
+            "val deps = remember(currentPhase.id)",
+            "(context.applicationContext as AppRootDepsHolder).appRootDeps()",
+            "AppGenerationContent(deps)",
+            "private fun AppGenerationContent(deps: AppRootDeps)",
+            "planEditorGraphFactory = deps.planEditorGraphFactory",
+        ],
+        Path("app/common/src/main/kotlin/io/github/stslex/workeeper/host/AppNavigationHost.kt"): [
+            "planEditorGraphFactory: PlanEditorGraph.Factory",
+            "planEditorGraph(",
+            "factory = planEditorGraphFactory",
+        ],
+        graph_path: [
+            "factory: PlanEditorGraph.Factory",
+            "navScreen<Screen.PlanEditor.Existing> { screen ->",
+            "PlanEditorFeature(factory).processor(screen)",
+        ],
+        Path(
+            "feature/plan-editor/src/commonMain/kotlin/io/github/stslex/workeeper/"
+            "feature/plan_editor/di/PlanEditorFeature.kt"
+        ): [
+            "private val factory: PlanEditorGraph.Factory",
+            "factory.createPlanEditorGraph(screen)",
+        ],
+        Path(
+            "feature/plan-editor/src/commonMain/kotlin/io/github/stslex/workeeper/"
+            "feature/plan_editor/ui/mvi/store/PlanEditorStoreImpl.kt"
+        ): [
+            "initialState = screen.toInitialState()",
+        ],
+        Path(
+            "feature/plan-editor/src/commonMain/kotlin/io/github/stslex/workeeper/"
+            "feature/plan_editor/ui/mvi/handler/NavigationHandler.kt"
+        ): [
+            "destination = Screen.PlanEditor::class",
+            "result = true",
+        ],
+        Path("app/app/src/test/kotlin/io/github/stslex/workeeper/di/PlanEditorExtensionIdentityTest.kt"): [
+            "planEditorGraphFactory.createPlanEditorGraph(screen)",
+        ],
+    }
+    for path, fragments in required_root_fragments.items():
+        source = path.read_text(encoding="utf-8") if path.is_file() else ""
+        compact_source = compact(source)
+        for fragment in fragments:
+            if compact_source.count(compact(fragment)) != 1:
+                failures.append(
+                    f"feature:plan-editor: exact root-factory flow requires {fragment!r} "
+                    f"once in {path}"
+                )
+
+    feature_path = (
+        root
+        / "src/commonMain/kotlin/io/github/stslex/workeeper/feature/plan_editor/di/PlanEditorFeature.kt"
+    )
+    feature_source = common_sources[feature_path]
+    retained_factory = compact(
+        """
+        rememberMetroStoreProcessor<PlanEditorStoreImpl> {
+            factory.createPlanEditorGraph(screen)
+                .planEditorStore
+        }
+        """
+    )
+    if compact(feature_source).count(retained_factory) != 1:
+        failures.append(
+            "feature:plan-editor: factory invocation must occur exactly inside retained Store creation"
+        )
+    if feature_source.count("createPlanEditorGraph(") != 1:
+        failures.append(
+            "feature:plan-editor: createPlanEditorGraph(screen) must occur once in production feature"
+        )
+    for source in (graph_source, feature_source):
+        if re.search(r"(?:factory|planEditorGraphFactory)\s*:\s*PlanEditorGraph\.Factory\s*[?=]", source):
+            failures.append("feature:plan-editor: factory parameters must be required and non-null")
+
+    app_source = Path("app/common/src/main/kotlin/io/github/stslex/workeeper/App.kt").read_text(
+        encoding="utf-8"
+    )
+    if app_source.count(".appRootDeps()") != 1:
+        failures.append(
+            "feature:plan-editor: admitted composed region must resolve appRootDeps exactly once"
+        )
+
+    identity_path = Path(
+        "app/app/src/test/kotlin/io/github/stslex/workeeper/di/PlanEditorExtensionIdentityTest.kt"
+    )
+    identity_source = identity_path.read_text(encoding="utf-8")
+    if identity_source.count(".planEditorGraphFactory") != 0:
+        failures.append(
+            "feature:plan-editor: extension identity accessor must use receiver-local root property"
+        )
+    if identity_source.count("planEditorGraphFactory.createPlanEditorGraph(screen)") != 1:
+        failures.append(
+            "feature:plan-editor: extension identities must share one explicit root accessor helper"
+        )
+    if "asContribution" in identity_source:
+        failures.append(
+            "feature:plan-editor: extension identities must not bypass AppRootDeps via asContribution"
+        )
+
+    app_common_build = Path("app/common/build.gradle.kts").read_text(encoding="utf-8")
+    if app_common_build.count('api(project(":feature:plan-editor"))') != 1:
+        failures.append("app:common: plan-editor edge must be exactly one api dependency")
+    if 'implementation(project(":feature:plan-editor"))' in app_common_build:
+        failures.append("app:common: plan-editor edge must not remain implementation")
+
+    app_build = Path("app/app/build.gradle.kts").read_text(encoding="utf-8")
+    if app_build.count('implementation(project(":feature:plan-editor"))') != 1:
+        failures.append("app:app: direct plan-editor aggregation edge must remain implementation")
 
     return failures
 
@@ -646,6 +1070,7 @@ def main() -> None:
         failures.extend(check_module(name, manifest))
     failures.extend(check_plan_editor_resources())
     failures.extend(check_image_viewer_contract())
+    failures.extend(check_plan_editor_feature_contract())
 
     if failures:
         raise SystemExit(
@@ -663,7 +1088,12 @@ def main() -> None:
         "Android/Java/Javax/AndroidX-annotation API"
     )
     print("  plan-editor resource ownership and exact EN/RU values are canonical")
-    print("  image-viewer resources, Coil request, root factory flow, and 12 readers are exact")
+    print("  image-viewer resources and Coil request are exact")
+    print(
+        "  plan-editor resources, semantic State, portable BackHandler, previews, "
+        "and explicit factory flow are exact"
+    )
+    print("  app:common API edges and 11 remaining Context.appDeps readers are exact")
 
 
 if __name__ == "__main__":

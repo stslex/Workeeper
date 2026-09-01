@@ -346,6 +346,22 @@ module-private. See
 [kmp-phase-7-5-plan-editor.md](feature-specs/kmp-phase-7-5-plan-editor.md) for the measured topology,
 resource partition, and exact identities.
 
+#### Shared plan-editor feature
+
+`feature:plan-editor` keeps all six pre-migration suites in `commonTest`, so the same 42 exact
+identities execute through Android host and `iosSimulatorArm64Test`: mapper 5, UI-model 3, click
+handler 23, common handler 3, navigation handler 2, and route/state 6. The deterministic in-file
+fakes preserve the route, reducer, save/back/discard, typed Boolean result, and distinct
+graph/Store contracts without Android test libraries.
+
+The exact Native identity
+`io.github.stslex.workeeper.feature.plan_editor.PlanEditorFeatureSceneIosTest.resourcesBranchesAndActionsRenderAndDispatch`
+composes the production screen under `AppTheme`, resolves the private CMP resource branches, and
+observes real back and add-set dispatch. Together with the 42 portable cases, the target Native
+XML contains exactly 43 passing cases with no skip, failure, or error. Android keeps the three
+`PlanEditorExtensionIdentityTest` cases and the three editor journeys; the explicit root-factory
+flow is also covered by the admitted/retired/publication-race device identities.
+
 #### Shared image-viewer feature
 
 `feature:image-viewer` keeps its three handler suites in `commonTest`, so the same 12 deterministic
@@ -1027,6 +1043,7 @@ python3 .github/scripts/assert_mvi_host_identities.py
   :core:ui:start-mode:iosSimulatorArm64Test \
   :core:ui:plan-editor:iosSimulatorArm64Test \
   :feature:image-viewer:iosSimulatorArm64Test \
+  :feature:plan-editor:iosSimulatorArm64Test \
   --rerun-tasks --no-build-cache --no-configuration-cache --continue
 python3 .github/scripts/assert_kmp_ios_smoke.py
 

@@ -1,6 +1,6 @@
 # KMP Phase 7.7 — `feature:plan-editor` becomes a shared feature entry
 
-**Status:** SPECIFICATION ONLY — NO IMPLEMENTATION AUTHORIZED
+**Status:** IMPLEMENTED FOR REVIEW — MAINTAINER MERGE REQUIRED
 
 **Target branch:** `dev`
 
@@ -16,6 +16,11 @@ documentation-only Phase 7.7 specification PR #270
 **Discovery date:** 2026-08-29
 
 **Prerequisite rebaseline date:** 2026-08-31
+
+**Authorized implementation baseline:** `74878e68fb9d029b1661179542a4c9b8d68abb8b` — verified merge
+commit of prerequisite rebaseline PR #272 and exact `origin/dev` at implementation entry
+
+**Maintainer implementation GO:** 2026-08-31
 
 ---
 
@@ -1220,3 +1225,179 @@ original BackHandler STOP and establishes the corrected measured contract, but i
 authorize Gradle, Kotlin, resource, workflow, script, test, generated-file, ruleset,
 repository-setting, or production migration work. Phase 7.7 implementation may begin only after
 this rebaseline merges and the maintainer gives a new, separate, explicit GO.
+
+## 19. Implementation evidence
+
+This section records the bounded implementation authorized by the maintainer GO on 2026-08-31.
+Section 18 remains the historical authorization boundary of prerequisite PR #272; the later GO
+changed only that authorization state and did not relax any scope, STOP condition, or proof
+requirement in this specification.
+
+### 19.1 Entry, commits, and changed boundary
+
+The isolated implementation worktree was created from exact `origin/dev`
+`74878e68fb9d029b1661179542a4c9b8d68abb8b`. PRs #270, #271, and #272 were all `MERGED`, PR #272's
+merge commit and `origin/dev` were both that exact SHA, the dynamic Section 12.2 merge-SHA ancestry
+assertion passed, and the open-PR plus local/remote branch inventories contained no conflicting
+implementation. The old stopped Phase 7.7 worktree was classified and preserved rather than
+reused or discarded. Local SSH signing was proven before the first commit.
+
+| Commit | SHA | Boundary and verification |
+| --- | --- | --- |
+| `refactor(kmp): share plan editor feature entry` | `1525a041fd668d6bc5c06e72cad119a88c97aaf9` | exact target/root implementation; locally valid SSH signature; GitHub `verified: true`, `reason: valid`; bisect-green |
+| `ci(kmp): gate shared plan editor feature` | `931c387c5a844b303ca1308dc335a05fa0058404` | exactly the three Section 9 CI/gate paths; locally valid SSH signature; GitHub `verified: true`, `reason: valid`; bisect-green |
+| `docs(kmp): record Phase 7.7 evidence` | `4a1efd030f20a60db84d50a323141e54af0561e7` | documentation only; locally valid SSH signature; GitHub `verified: true`, `reason: valid`; bisect-green |
+| `fix(kmp): remove production preview suppression` | this commit | integrates the merged PR #274 amendment and removes the unauthorized production suppression without changing preview state, names, themes, or behavior |
+
+The implementation diff is confined to the Section 9 manifest: 23 production Kotlin moves to
+`commonMain`, two byte-identical EN/RU catalog moves, six portable suite moves to `commonTest`, one
+new iOS production scene, the six allowed root/consumer files, the target build file, the three
+CI/gate files, this evidence section, and the exact stale facts in `architecture.md`, `testing.md`,
+and `ci-cd.md`. No sibling feature production, convention, catalog, version, compiler, ruleset,
+baseline, filter, golden, repository setting, or graph-extension handoff changed.
+
+### 19.2 Untouched baseline and focused positive evidence
+
+Before implementation, fresh XML reproduced the six target JVM suites and all 42 Section 3.2
+cases, the current six-module Native invocation's 51 cases, the three exact
+`PlanEditorExtensionIdentityTest` identities, and the three editor journeys plus three
+`UiAdmissionRaceTest` identities on portrait Pixel 6 API 34 `emulator-5554`; every case had zero
+failure, error, or skip. The topology oracle passed, and the two PNG manifests matched Section 3.7.
+
+Every load-bearing Gradle invocation below used
+`--rerun-tasks --no-build-cache --no-configuration-cache --console=plain`; multi-task repository
+commands also used the specified `--continue`. Fresh focused results were:
+
+| Command | Executed result | Structurally parsed result |
+| --- | ---: | --- |
+| `python3 .github/scripts/assert_kmp_ui_source_topology.py` | GREEN | exact 32 target files, catalogs, semantics, previews, factory flow, API edge, and 11 readers |
+| `./gradlew :feature:plan-editor:assembleDebug ...` | `215 actionable tasks: 215 executed` | Android target assembled |
+| `./gradlew :feature:plan-editor:testAndroidHostTest ...` | `156 actionable tasks: 156 executed` | six suites; exact Section 3.2 membership; 42 tests; 0/0/0 failure/error/skip |
+| seven-module `iosSimulatorArm64Test` invocation from Section 12.3 | `197 actionable tasks: 197 executed` | target 42 portable cases plus the exact production scene = 43; all seven modules accepted; 0/0/0 |
+| `./gradlew :app:common:assembleDebug ...` | `297 actionable tasks: 297 executed` | explicit common consumer compiled |
+| focused `PlanEditorExtensionIdentityTest` command | `531 actionable tasks: 531 executed` | three exact identities; 0/0/0 |
+| focused six-case `connectedDebugAndroidTest` command from Section 12.3 | `686 actionable tasks: 686 executed` | three editor journeys and three admission cases; 0/0/0 |
+
+Android-host XML contained the exact 5/3/23/3/2/6 suite distribution for
+`PlanEditorMapperTest`, `SetTypeUiModelTest`, `ClickHandlerTest`, `CommonHandlerTest`,
+`NavigationHandlerTest`, and `PlanEditorStateRouteArgTest`. Native contained those same 42
+normalized identities once each, plus exactly
+`PlanEditorFeatureSceneIosTest.resourcesBranchesAndActionsRenderAndDispatch`. App JVM XML contained
+exactly `extension resolves the store through the parent graph()`,
+`store's app-scoped deps are the SAME instances the parent holds()`, and
+`each extension carries its own route arg into the store state()`.
+
+Device XML contained exactly the focused membership:
+
+- `RouteReachabilityTest.planEditorOpensFromALiveSessionExerciseAndTheSessionReturns`;
+- `NavigationResultTest.planEditorSaveReachesTheLiveSessionThatOpenedIt`;
+- `StoreRetentionTest.liveWorkoutStoreSurvivesThePlanEditorRoundTrip`;
+- `UiAdmissionRaceTest.admittedGeneration_composesTheRegion_andResolvesItsDependencies`;
+- `UiAdmissionRaceTest.retiredGeneration_composesNothing_andResolvesNothing`; and
+- `UiAdmissionRaceTest.retirementBetweenPublicationAndFrame_resolvesNothing`.
+
+### 19.3 Repository, device, and PNG evidence
+
+After `./gradlew clean`, the Section 12.4 repository commands produced only executed summaries:
+
+| Command | Result |
+| --- | ---: |
+| `./gradlew assembleDebug lintDebug testDebugUnitTest ... --continue` | `2105 actionable tasks: 2105 executed` |
+| `./gradlew detekt ... --continue` | `57 actionable tasks: 57 executed` |
+| `./gradlew assembleDebugAndroidTest ... --continue` | `1940 actionable tasks: 1940 executed` |
+| `./gradlew verifyPaparazziDebug ...` | `621 actionable tasks: 621 executed` |
+| `./gradlew :lint-rules:test ...` | `9 actionable tasks: 9 executed` |
+| `python3 documentation/personal_data_gate.py -v` | GREEN |
+
+The canonical Smoke run produced `2013 actionable tasks: 2013 executed`. Its 14 fresh module XML
+files contained 44 unique cases: 41 executed and only the three documented skips
+`ArchiveScreenTest.pendingFeatureRewrite`, `AllTrainingsScreenTest.pendingFeatureRewrite`, and
+`AllExercisesScreenTest.pendingFeatureRewrite`; failures and errors were zero. The two MVI Smoke
+oracle identities executed exactly once. A preceding attempt lost the ADB server during
+`feature:archive`; it was rejected as transport evidence, all 14 stale result XML files were
+removed, and the accepted run was fresh.
+
+The canonical Regression run also produced `2013 actionable tasks: 2013 executed`. Its 14 fresh
+module XML owners were `app:app`, `core:data:database`, `core:data:exercise`, `core:ui:kit`,
+`core:ui:mvi`, `feature:all-exercises`, `feature:all-trainings`, `feature:app-dialogs:impl`,
+`feature:archive`, `feature:exercise`, `feature:exercise-chart`, `feature:live-workout`,
+`feature:settings`, and `feature:single-training`. They contained 81 unique executed cases with
+zero failure, error, or skip; the per-owner counts were respectively
+49/30/1/0/0/1/0/0/0/0/0/0/0/0. The device rotation setting was restored to its original `1/0`
+state after testing.
+
+The final Paparazzi manifest remained exactly 456 entries across 13 owners with mode/blob/path
+hash `e5c47e60890fae85a76ccd4e97cd4de7364d7c285b4da19e5e5c55e8f3d3e9ff`. The full repository PNG
+manifest remained exactly 484 entries with mode/blob/path hash
+`f2c4a01eed26b232856face73048dd831759fead6a3b173b86e848bedce4721d`. No golden was recorded or
+rewritten.
+
+### 19.4 Mandatory known-negative controls
+
+All controls used the required fresh GREEN -> named observable RED -> exact byte/path restoration
+-> fresh GREEN protocol. Kotlin/XML controls used `documentation/mockups/mutation_harness.py`;
+path controls used scratch byte copies with automatic restoration and post-restore equality. No
+compile-invalid or sandbox-blocked run was accepted as RED.
+
+| # | Observable RED at the mutation | Restored GREEN |
+| ---: | --- | --- |
+| 1 | missing exact target path named by topology | topology GREEN |
+| 2 | copied `commonMain` production file named as forbidden `src/main` residue | topology GREEN |
+| 3 | same-count wrong relative path reported as exact missing plus extra paths | topology GREEN |
+| 4 | inserted Android import named by common platform-import check | topology GREEN |
+| 5 | same-count EN key rename reported as exact catalog mismatch | topology GREEN |
+| 6 | RU value edit reported as exact catalog mismatch | topology GREEN |
+| 7 | same-count catalog move reported the wrong resource owner | topology GREEN |
+| 8 | compile-valid `ErrorType(val msgRes: Int)` reported the payload-free violation | topology GREEN |
+| 9 | compile-valid `ResourceWrapper` import/call in `ClickHandler` reported forbidden handler lookup | topology GREEN |
+| 10 | Android BackHandler import reported forbidden platform API and missing portable BackHandler | topology GREEN |
+| 11 | removed `AppRootDeps` accessor reported the missing exact root accessor | topology GREEN |
+| 12 | graph resolution moved outside the Store lambda broke the named factory-placement edge | topology GREEN |
+| 13 | double root resolution failed the admitted identity with expected 1, observed 2 | focused device pre/post GREEN, `686/686` |
+| 14 | pre-admission root resolution failed both retired/race identities with expected 0, observed 1 | focused device pre/post GREEN, `686/686` |
+| 15 | fixed valid route failed the extension-local identity with expected `ex-1`, observed `fixed` | app identity pre/post GREEN, `531/531` |
+| 16 | `OnAddSet` appended `FAILURE`; both exact handler identities failed on Android host and Native | combined host/Native pre/post GREEN, `227/227` |
+| 17 | blank production scene failed on missing `PlanEditorScreen` semantics | focused scene Native pre/post GREEN, `103/103` |
+| 18 | suppressed add dispatch failed with expected `EditorAction(OnAddSet)`, observed `[]` | focused scene Native pre/post GREEN, `103/103` |
+| 19 | renamed scene produced 43 passing Native cases, while the XML oracle reported the exact expected tuple count 0 and named the substitute | seven-module pre-GREEN `197/197`; feature restore GREEN `103/103`; oracle accepted exact 43 |
+| 20 | compile-valid long assertion failed `feature:plan-editor:detekt` and named `PlanEditorMapperTest.kt:55` / `detekt.MaxLineLength` | root Detekt pre/post GREEN, `57/57` |
+
+### 19.5 Explicit local limitations and remote evidence boundary
+
+- The default macOS `/usr/bin/python3` is 3.9.6, while the unchanged shell gate uses syntax
+  supported by the workflow's pinned Python 3.12; the exact local command stopped with a parser
+  error before evaluating the mockup.
+- The same gate's static checks pass under compatible Homebrew Python. Both installed Chrome and a
+  separately extracted supported Chromium hung in macOS headless `--dump-dom` and reached the
+  gate's own 90-second timeout. Therefore the positive browser direction and permanent
+  `f52462c7` known-negative direction are explicitly **unverified locally**; the unchanged Linux
+  `Mockup Appearance Gate` is their required remote authority.
+- Three inherited, contractually exact test names contain commas. Kotlin/Native rejects those names
+  without `@file:Suppress("INVALID_CHARACTERS_NATIVE_ERROR")`, so the two exact Section 11.1
+  test-file annotations preserve the identities but produce the compiler's warning that such names
+  have unspecified behavior. They are the only Phase 7.7 suppressions; production contains none.
+- The convention-provided portable BackHandler currently emits its upstream deprecation warning;
+  no alternate API or module-local dependency was introduced.
+- A sandbox-blocked app-common invocation, a sandbox-blocked first mutation-harness attempt, an
+  initial pre-clean Detekt failure, and the ADB transport failure above were excluded rather than
+  counted as evidence; each owning proof was rerun freshly to an accepted result.
+- This documentation commit must exist before its SHA, PR URL, GitHub CI run/job IDs, check
+  conclusions, and independent review threads can exist. Those facts, including every finding's
+  `correct`, `correct-but-already-decided`, `wrong`, or `correct-and-new` disposition, are recorded
+  in the live open PR evidence. They are not predeclared here.
+
+### 19.6 Independent suppression correction
+
+An independent audit classified the production `@Suppress("MagicNumber")` on
+`PlanEditorScreenPreview` as `correct-and-new`: the annotation contradicted Sections 0.2, 12.5,
+and 14, and made the production-suppression claim in Section 19.5 false. Removing either test-file
+annotation independently made Kotlin/Native compilation invalid on the three inherited
+comma-bearing identities, so merged amendment PR #274 authorized exactly those two Section 11.1
+annotations and no production exception.
+
+The follow-up correction integrates authoritative `dev` merge
+`2e0776979e7d4f83ee7e4432399b3c4d034fcc15`, removes the production annotation, and replaces only
+the preview fixture's eight numeric literals with named private constants. The two preview names,
+LIGHT/DARK modes, sample State, rendered values, action sink, production behavior, route/result
+contract, test identities, and PNG ownership remain unchanged. Final remote gate and fresh review
+facts are recorded in the live PR evidence because they arise only after this correction commit.
