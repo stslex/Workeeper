@@ -1,6 +1,5 @@
 plugins {
     kotlin("jvm")
-    id("com.android.lint")
     alias(libs.plugins.serialization)
     alias(libs.plugins.convention.lint)
     `java-library`
@@ -29,7 +28,10 @@ tasks.register("assembleDebug") {
     dependsOn(tasks.named("assemble"))
 }
 tasks.register("lintDebug") {
-    dependsOn(tasks.named("lint"), tasks.named("detekt"))
+    // Publishing a standalone Android lint model from this pure-JVM module makes every Android
+    // consumer fail with CannotEnableHidden for Android-only checks. Detekt is the applicable
+    // source gate here; Android consumers lint the protocol jar without a JVM lint model.
+    dependsOn(tasks.named("detekt"))
 }
 tasks.register("testDebugUnitTest") {
     dependsOn(tasks.named("test"))

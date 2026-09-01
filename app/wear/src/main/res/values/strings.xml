@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources xmlns:tools="http://schemas.android.com/tools">
+<resources
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@array/android_wear_capabilities">
     <string name="app_name">Workeeper</string>
     <string name="tile_name">Active workout</string>
     <string name="loading">Connecting…</string>
@@ -37,10 +39,10 @@
     <string name="retry">Retry</string>
     <string name="reps_invalid">Choose reps between 1 and 999</string>
     <string name="weight_invalid">Check the weight on your phone</string>
-    <!-- Read by WearableListenerService discovery rather than by generated R references. -->
+    <!-- Reserved build-time capability resource read by Google Play services. -->
     <string-array
         name="android_wear_capabilities"
-        tools:ignore="Typos,UnusedResources">
+        tools:ignore="Typos">
         <item>workeeper_watch_active_workout_v1</item>
     </string-array>
 </resources>

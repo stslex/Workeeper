@@ -4,9 +4,9 @@ plugins {
 
 android {
     lint {
-        // Android Lint cannot merge an application model with the required pure-JVM protocol
-        // model while app-only issues are enabled: it reports CannotEnableHidden before source
-        // analysis. The protocol owns an independent lintDebug alias in every root gate.
+        // Android Lint cannot merge its standalone JVM model with this app while app-only issues
+        // are enabled: it reports CannotEnableHidden before source analysis. The pure-JVM
+        // protocol instead owns an independent, Detekt-backed lintDebug alias in every root gate.
         checkDependencies = false
     }
 }

@@ -711,33 +711,33 @@ class RoomWearSetMutationWriter @Inject internal constructor(
     }
 }
 
-private fun CompleteCurrentSetRequest.toFingerprintCommand(sourceNodeId: String): FingerprintCommand =
-    FingerprintCommand(
-        sourceNodeId = sourceNodeId,
-        schemaVersion = schemaVersion,
-        commandId = commandId,
-        databaseEpoch = databaseEpoch,
-        sessionUuid = sessionUuid,
-        sessionRevision = sessionRevision,
-        performedExerciseUuid = body.performedExerciseUuid,
-        setPosition = body.setPosition,
-        reps = body.reps,
-        weightHundredthsKg = body.weightHundredthsKg,
-        exerciseType = body.exerciseType,
-        setType = body.setType,
-        mutationLeaseId = mutationLeaseId,
-        mutationLeaseGeneration = mutationLeaseGeneration,
-    )
+internal fun CompleteCurrentSetRequest.toFingerprintCommand(
+    sourceNodeId: String,
+): FingerprintCommand = FingerprintCommand(
+    sourceNodeId = sourceNodeId,
+    schemaVersion = schemaVersion,
+    commandId = commandId,
+    databaseEpoch = databaseEpoch,
+    sessionUuid = sessionUuid,
+    sessionRevision = sessionRevision,
+    performedExerciseUuid = body.performedExerciseUuid,
+    setPosition = body.setPosition,
+    reps = body.reps,
+    weightHundredthsKg = body.weightHundredthsKg,
+    exerciseType = body.exerciseType,
+    setType = body.setType,
+    mutationLeaseId = mutationLeaseId,
+    mutationLeaseGeneration = mutationLeaseGeneration,
+)
 
-private fun CompleteCurrentSetRequest.retirement(sourceNodeId: String) =
-    LeaseRetirement(
-        sourceNodeId = sourceNodeId,
-        sessionUuid = sessionUuid,
-        leaseId = mutationLeaseId,
-        leaseGeneration = mutationLeaseGeneration,
-    )
+internal fun CompleteCurrentSetRequest.retirement(sourceNodeId: String) = LeaseRetirement(
+    sourceNodeId = sourceNodeId,
+    sessionUuid = sessionUuid,
+    leaseId = mutationLeaseId,
+    leaseGeneration = mutationLeaseGeneration,
+)
 
-private fun SnapshotData.withUnavailableAuthority(): SnapshotData = copy(
+internal fun SnapshotData.withUnavailableAuthority(): SnapshotData = copy(
     payload = when (val current = payload) {
         is SnapshotPayload.ActiveWithTarget -> current.copy(
             mutationAuthority = MutationAuthority.Unavailable(
@@ -749,7 +749,7 @@ private fun SnapshotData.withUnavailableAuthority(): SnapshotData = copy(
     },
 )
 
-private fun SnapshotData.withGrantedAuthority(lease: PendingMutationLease): SnapshotData = copy(
+internal fun SnapshotData.withGrantedAuthority(lease: PendingMutationLease): SnapshotData = copy(
     payload = (payload as SnapshotPayload.ActiveWithTarget).copy(
         mutationAuthority = MutationAuthority.Granted(
             mutationLeaseId = lease.leaseId,
@@ -759,7 +759,7 @@ private fun SnapshotData.withGrantedAuthority(lease: PendingMutationLease): Snap
     ),
 )
 
-private fun SetTypeWire.toEntity(): SetTypeEntity = when (this) {
+internal fun SetTypeWire.toEntity(): SetTypeEntity = when (this) {
     SetTypeWire.WARM -> SetTypeEntity.WARM
     SetTypeWire.WORK -> SetTypeEntity.WORK
     SetTypeWire.FAIL -> SetTypeEntity.FAIL
