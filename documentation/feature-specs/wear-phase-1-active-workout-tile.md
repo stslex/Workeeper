@@ -149,6 +149,7 @@ Failure to close this choice before UI implementation is a STOP.
 
 - the phone node has completed a fresh handshake;
 - the snapshot state is `ActiveWithTarget`, not `PhoneActionRequired`;
+- the snapshot carries the current phone-issued mutation lease;
 - the snapshot is not stale;
 - no command is in flight;
 - reps are greater than zero; and
@@ -165,6 +166,17 @@ resets the deadline. The foreground controller may issue one
 issue another; neither the controller nor the Tile runs a background polling
 loop.
 
+The watch-side deadline prevents enqueue and retry, but it is not write
+authorization. Every mutable `ActiveWithTarget` snapshot also carries an opaque
+phone-issued mutation lease. The phone creates the lease immediately before it
+returns the snapshot and expires it after `120_000ms` on the phone's own
+`SystemClock.elapsedRealtime()` clock. Because phone issuance precedes watch
+receipt, the phone deadline is never later than the watch's receive-based
+deadline; transport latency may cause an earlier authoritative rejection, never
+a late write. The phone validates the lease again at serialized transactional
+write admission. At the phone boundary, age `119_999ms` is admissible subject to
+the other checks, and age `120_000ms` must not write.
+
 The UI is pessimistic: it does not advance on tap. It shows in-flight feedback
 and waits for a phone acknowledgement issued only after the compare-and-write
 transaction commits. The reducer handles outcomes by type rather than treating
@@ -177,10 +189,10 @@ every non-success as retryable:
   haptic, and offers explicit retry. Retry is allowed only while the originating
   snapshot remains fresh and the local target is unchanged; otherwise the watch
   requests a replacement snapshot instead of resending the command.
-- `StaleRevision`, `TargetChanged`, or `NoActiveSession` is authoritative. The
-  watch clears the obsolete draft and in-flight command, immediately applies the
-  returned replacement snapshot or no-session state, and never retries the old
-  command.
+- `StaleRevision`, `TargetChanged`, `AuthorizationExpired`, or
+  `NoActiveSession` is authoritative. The watch clears the obsolete draft and
+  in-flight command, immediately applies the returned replacement snapshot or
+  no-session state, and never retries the old command.
 - A value-validation rejection keeps the editable draft and identifies the
   invalid field, but the corrected submission receives a new `commandId`.
 - A protocol/version rejection clears the in-flight command, disables mutation,
@@ -260,8 +272,20 @@ Every completion command carries at least:
 - `performedExerciseUuid`;
 - `setPosition`;
 - the opaque snapshot version `(databaseEpoch, sessionRevision)` it was edited
-  from; and
+  from;
+- the opaque phone-issued `mutationLeaseId`; and
 - `weight`, `reps`, and immutable set type copied from the snapshot.
+
+The phone keeps mutation leases only in process memory, with one bounded active
+slot per source watch node/session/version. A lease contains a cryptographically
+random ID, source node ID, session UUID, database epoch/revision, the snapshot's
+target identities/position, and `expiresAtPhoneElapsedRealtimeMs`. It is
+replaced by a newer lease for that slot, invalidated by a target-affecting
+mutation or session transition, and lost on phone-process restart. It is never
+reconstructed from wall-clock time or accepted from a different node, session,
+epoch, revision, or target. An absent, mismatched, replaced, or expired lease
+returns `AuthorizationExpired` plus a replacement snapshot; it cannot mutate. A
+newly returned mutable snapshot contains a new lease.
 
 A content hash is not a concurrency token. Phase 1 requires a tested Room
 migration that adds durable synchronization metadata owned by the phone
@@ -274,9 +298,10 @@ database:
   in the same transaction as every target-affecting mutation; and
 - one bounded last-applied Wear receipt slot per session containing `commandId`,
   a deterministic request fingerprint, and the resulting version. The
-  fingerprint covers the schema version, source database epoch/revision, target
-  identities/position, submitted values, and immutable set type; transport
-  correlation metadata is excluded.
+  fingerprint covers the authenticated source node ID, schema version, source
+  database epoch/revision, target identities/position, mutation lease ID,
+  submitted values, and immutable set type; transport correlation metadata is
+  excluded.
 
 Target-affecting mutations include set insert/update/delete, mark-done/uncheck,
 undo compensation, skip/unskip, performed-exercise add/remove/reorder, and any
@@ -292,14 +317,31 @@ write.
 The current `SetRepositoryImpl.upsert` is not an acceptable command boundary:
 it performs a lookup followed by an insert, while the
 `(performed_exercise_uuid, position)` index is non-unique. Phase 1 must add one
-phone-side completion gateway whose database body runs through the existing
+phone-side mutation coordinator whose database bodies run through the existing
 `DbTransitionRunner` `immediateTransaction`. Every target-affecting application
-writer listed above must enter the same serialized transition seam and bump the
-session revision; set-row writers — phone mark-done, edits of a completed set,
-undo compensation, and the Wear bridge — must also use the shared completion
-gateway rather than call the current lookup/insert sequence independently.
+writer listed above must enter this serialized transition seam and bump the
+session revision. Set-row writers must additionally use one atomic row-write
+primitive rather than call the current lookup/insert sequence independently.
 
-Inside that one transaction, the gateway must:
+Serialization does not make every operation share the Wear target policy. The
+coordinator exposes operation-specific validation while preserving existing
+phone behavior:
+
+- `CompleteCurrentSet` validates the submitted row against the canonical watch
+  target, source version, and mutation lease;
+- phone mark-done validates the row selected by the current phone flow;
+- editing an already-completed phone row validates that exact existing
+  `(performedExerciseUuid, position)` row, even after the canonical watch target
+  advanced; and
+- phone uncheck/delete, skip, reorder, and session operations retain their
+  existing domain validation.
+
+Every successful phone-side mutation increments the same session revision and
+clears the prior Wear receipt in its transaction. Sharing the Wear
+current-target check with completed-row edits is forbidden because it would
+regress the shipped phone flow.
+
+Inside the `CompleteCurrentSet` transaction specifically, the gateway must:
 
 1. reject a database-epoch mismatch before inspecting the target;
 2. re-read the active session and verify that the submitted exercise belongs to
@@ -307,17 +349,30 @@ Inside that one transaction, the gateway must:
 3. compare `commandId` and request fingerprint with the durable receipt. An exact
    match returns `AlreadyApplied` only when the receipt's resulting version is
    also the current database epoch/revision; reuse of one ID for another
-   fingerprint is a protocol rejection;
+   fingerprint is a protocol rejection. This receipt-only outcome performs no
+   mutation and therefore may be returned after the original lease expired;
 4. require exact equality with the durable session revision. Any mismatch is
    `StaleRevision` even when current rows hash to the same content;
-5. re-derive the canonical target and inspect any existing row for
+5. require the process-bound mutation lease to match the source node, session,
+   database epoch/revision, and submitted target, then read the phone
+   monotonic clock at write admission. At `expiresAt` or later, return
+   `AuthorizationExpired` without a row write, revision bump, or new receipt;
+6. re-derive the canonical target and inspect any existing row for
    `(performedExerciseUuid, position)`. A moved target or differing row returns
    an authoritative conflict; otherwise validate values and perform exactly one
    insert/update;
-6. increment the session revision, persist the Wear receipt, and derive the
-   complete replacement snapshot from the same serialized database state; and
-7. return from the transaction before any acknowledgement is emitted, so a
+7. increment the session revision, persist the Wear receipt, and derive the
+   complete replacement snapshot data from the same serialized database state;
+   and
+8. return from the transaction before any acknowledgement is emitted, so a
    rollback or failed commit can never be reported as success.
+
+After commit, the serialized coordinator retires the old process-memory lease,
+issues a lease bound to the committed version when the replacement state is
+mutable, attaches it to the response snapshot, and only then acknowledges. A
+lease is never published from a transaction that later rolls back; the old
+lease's version binding already prevents reuse after the committed revision
+advance.
 
 `commandId` correlates request, retry, and response. After a lost acknowledgement
 or phone-process restart, only the exact durable receipt can produce
@@ -349,6 +404,11 @@ messages and stack traces never cross the device boundary.
 - If the phone finishes/cancels the session, the watch clears to no-session.
 - If connection drops before acknowledgement, the watch does not claim success;
   retry of the same command is safe only while its source snapshot remains fresh.
+- If a command was enqueued while locally fresh but reaches transactional write
+  admission at or after the phone lease deadline, it returns
+  `AuthorizationExpired` and cannot write. An exact replay of an already
+  committed receipt may still return `AlreadyApplied` because no second write
+  occurs.
 - Concurrent phone/watch completions and duplicate Wear deliveries are
   serialized by the shared immediate transaction. The loser observes the
   winner's row and returns `AlreadyApplied` or authoritative stale; exactly one
@@ -470,7 +530,8 @@ The initial protocol has three logical operations:
 `NoSession`, `ActiveWithTarget`, `PhoneActionRequired`, and `WorkoutComplete`.
 Only `ActiveWithTarget` carries a mutable target. `PhoneActionRequired` carries
 a typed reason and the relevant exercise identity for display, never a fallback
-set position.
+set position. A mutable snapshot also carries its opaque mutation lease ID; no
+other state does.
 
 All envelopes carry `schemaVersion` and a correlation ID. Unknown versions and
 unknown operations fail closed. Payloads are bounded well below the Data Layer
@@ -513,12 +574,21 @@ update-required state and disables mutation.
 - Shared behavior-vector parity against the phone Live-workout done rule.
 - Phone command validation for wrong session, wrong exercise, stale revision,
   stale position, invalid values, duplicate retry, write failure, and success.
+- Phone-monotonic lease oracles proving first delivery accepted at `119_999ms`,
+  rejected without mutation at `120_000ms`, an enqueue-before/arrival-after
+  delay, wrong-node/session/version lease rejection, replacement-lease
+  invalidation, process-restart invalidation, and expired exact-receipt replay
+  returning `AlreadyApplied` without a second write.
 - Version oracles proving strictly increasing revisions across every listed
   phone/watch target-affecting mutation, persistence across process restart,
   database-epoch rotation on restore, exact-receipt replay after lost
   acknowledgement, command-ID/fingerprint mismatch rejection, and
   complete → uncheck/delete → delayed-old-command rejection despite identical
   current content.
+- Phone-flow regression oracles proving an already-completed set-0 type/value
+  edit still succeeds after the canonical watch target advances to set 1,
+  increments the revision, clears the Wear receipt, and makes an older watch
+  command stale. That phone edit must not run the Wear current-target guard.
 - Real-database concurrency oracles for simultaneous delivery of the same
   command, different commands for the same target, phone/watch completion, and
   phone-process retry after a lost acknowledgement. Every case asserts one row,
@@ -598,10 +668,10 @@ The streams are conceptually independent but share repository integration files.
 2. **Protocol/cache:** versioned models, codec, watch cache, reducer, and tests.
 3. **Watch read-only surface:** Tile, controller states, accessibility, and
    rendered evidence against fake transport.
-4. **Phone bridge:** migration, durable epoch/revision/receipt, generation-safe
-   snapshot reads, and the shared atomic compare-and-write gateway used by phone
-   and watch, rebased onto the latest `dev` and extending the post-#273 graph
-   contract.
+4. **Phone bridge:** migration, durable epoch/revision/receipt, process-bound
+   mutation leases, generation-safe snapshot reads, and the serialized mutation
+   coordinator with operation-specific phone/Wear validation, rebased onto the
+   latest `dev` and extending the post-#273 graph contract.
 5. **Paired integration:** acknowledgement, Tile refresh, ongoing activity,
    disconnect/race handling, and physical-device proof.
 6. **Final review:** full repository gates, signed commits, zero unresolved
@@ -621,7 +691,11 @@ Stop and return to the owner if any of the following occurs:
 - current-set behavior diverges from the persisted phone Live-workout rule;
 - the revision/receipt migration cannot preserve existing workout data or rotate
   the database epoch safely across restore;
+- the phone cannot reject a first-delivery command at the mutation-lease expiry
+  boundary inside serialized write admission;
 - a target-affecting writer would bypass the shared transaction/revision bump;
+- the coordinator would make an existing completed-row phone edit depend on the
+  canonical watch target;
 - duplicate target rows exist without an owner-approved reconciliation rule;
 - a listener would access repositories without generation-bound admission;
 - KMP/common source sets, shared watch UI, Health APIs, or sensor permissions
@@ -641,6 +715,10 @@ Phase 1 is complete only when:
 - stale/disconnected/protocol-mismatch states cannot mutate data;
 - typed retry/stale handling and the atomic phone/watch write boundary converge
   without duplicate rows, obsolete-draft retries, or false success;
+- an in-flight first delivery cannot mutate at or after its phone-side lease
+  deadline, while an exact already-applied receipt remains safely idempotent;
+- existing phone edits of completed rows remain valid after the watch target
+  advances and still invalidate older watch commands;
 - empty exercises require phone action without creating a fallback row, and the
   durable version rejects ABA commands after complete/uncheck or restore;
 - package/signature, lifecycle, cache erasure, accessibility, localization, and
