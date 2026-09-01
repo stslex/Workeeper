@@ -254,11 +254,22 @@ phases:
 1. when its correlation ID and `commandId` still identify the pending command,
    consume the typed outcome once for that delivery attempt. A terminal outcome
    marks the logical command terminal; an explicitly retryable temporary outcome
-   keeps the command pending, and its next attempt uses a new correlation ID but
-   retains the command's local generation. Duplicate outcomes for one attempt
-   have no reducer effect; then
+   moves it to `AwaitingRetryAuthority`, not directly to resendable. Duplicate
+   outcomes for one attempt have no reducer effect; then
 2. pass the attached replacement snapshot through the epoch, active-identity,
    workout-revision, lease-generation, and local request-generation gates above.
+
+For a typed retryable outcome, only an accepted mutable replacement with the
+same database epoch/revision and target may complete the transition: the logical
+command retains its `commandId`, submitted values, and local generation, but is
+rebound to the accepted successor lease ID/generation and receives a new attempt
+correlation. Its attempt fingerprint is recomputed because the lease binding is
+part of that fingerprint. The retryable phone path performs no workout mutation
+and persists no Wear receipt, so this pre-commit rebind cannot collide with an
+applied receipt. If the attached snapshot is rejected by any authority gate, is
+read-only, or changes version/target, the old logical command cannot resend; the
+draft may remain for the user, but the watch requests a fresh snapshot and any
+later submission receives a new `commandId`.
 
 An older-generation response can therefore clear an in-flight command, retain a
 validation draft, identify an invalid field, or produce the appropriate haptic
@@ -278,12 +289,16 @@ every non-success as retryable:
   produces a confirmation haptic. Its snapshot replaces the screen only if the
   independent authority gate accepts it; otherwise the newer current display is
   preserved.
-- A transport timeout, lost acknowledgement, or explicitly retryable temporary
-  transport failure keeps the edits and the same `commandId`, produces an error
-  haptic, and offers explicit retry. Retry is allowed only while the originating
-  snapshot remains fresh and the local target is unchanged; otherwise the watch
-  requests a replacement snapshot instead of resending the command. Only one
-  resend is allowed for the logical command; another ambiguity forces refresh.
+- A transport timeout or lost acknowledgement has no response and therefore no
+  successor lease. It keeps the edits, `commandId`, submitted values, original
+  lease/fingerprint, and produces an error haptic. Retry is allowed only while
+  that originating effective window remains fresh and the local target is
+  unchanged; otherwise the watch requests a replacement snapshot instead of
+  resending. Only one resend is allowed for the logical command; another
+  ambiguity forces refresh.
+- An explicitly retryable typed response produces an error haptic and follows
+  the successor-rebind transition above. Retry is offered only after that
+  transition succeeds; it never resends the retired original lease.
 - `StaleRevision`, `TargetChanged`, `AuthorizationExpired`, or
   `NoActiveSession` is authoritative. The watch clears the obsolete draft and
   in-flight command, never retries the old command, and applies the returned
@@ -411,12 +426,12 @@ Every completion command carries at least:
 The phone keeps mutation leases only in process memory, with one bounded active
 slot per source watch node/session/version. A lease contains a cryptographically
 random ID, source node ID, session UUID, database epoch/revision, the snapshot's
-target identities/position, durable lease generation, and
-`expiresAtPhoneElapsedRealtimeMs`. The serialized phone coordinator creates a
-successor for every distinct authority-bearing correlation that returns a
-mutable snapshot and atomically increments the session's durable lease
-generation before publishing it. Concurrent same-version handshakes therefore
-receive ordered `L1`, `L2`, ... successors; publishing each successor retires
+target identities/position, durable lease generation, optional retry-intent
+binding, and `expiresAtPhoneElapsedRealtimeMs`. The serialized phone
+coordinator creates a successor for every distinct authority-bearing correlation
+that returns a mutable snapshot and atomically increments the session's durable
+lease generation before publishing it. Concurrent same-version handshakes
+therefore receive ordered `L1`, `L2`, ... successors; publishing each retires
 the previous slot. Only an exact duplicate delivery of the same correlation may
 replay its already-serialized response while that response remains available in
 the bounded request-deduplication map. A snapshot-authorizing mutation or session
@@ -428,6 +443,18 @@ An absent, mismatched, retired, or expired lease returns
 `AuthorizationExpired` plus a replacement snapshot; it cannot mutate. A newly
 returned mutable snapshot contains the current lease ID/generation and bounded
 remaining lifetime for its exact slot.
+
+The protocol derives two deterministic hashes for a command. Its stable intent
+fingerprint covers source node, schema, source epoch/revision, target, submitted
+values, and immutable set type but excludes lease and correlation. Its attempt
+fingerprint additionally covers the lease ID/generation and is the fingerprint
+stored in a durable applied receipt. A successor issued with an explicitly
+retryable outcome is process-memory-bound to that command's `commandId` and
+stable intent fingerprint. This binding is the only pre-receipt case in which
+the same `commandId` may arrive with a different attempt fingerprint; the
+gateway requires the successor lease and unchanged intent. Phone-process restart
+loses both lease and retry binding, so the watch must refresh rather than invent
+a rebind.
 
 A content hash is not a concurrency token. Phase 1 requires a tested Room
 migration that adds durable synchronization metadata owned by the phone
@@ -515,8 +542,10 @@ Inside the `CompleteCurrentSet` transaction specifically, the gateway must:
    it and is not skipped;
 3. compare `commandId` and request fingerprint with the durable receipt. An exact
    match returns `AlreadyApplied` only when the receipt's resulting version is
-   also the current database epoch/revision; reuse of one ID for another
-   fingerprint is a protocol rejection. This receipt-only outcome performs no
+   also the current database epoch/revision; once a receipt exists, reuse of one
+   ID for another attempt fingerprint is a protocol rejection. Before a receipt
+   exists, a changed attempt fingerprint is accepted only through the matching
+   retry-bound successor described above. This receipt-only outcome performs no
    mutation and therefore may be returned after the original lease expired;
 4. require exact equality with the durable session revision. Any mismatch is
    `StaleRevision` even when current rows hash to the same content;
@@ -759,9 +788,11 @@ independent request counters or lease-bearing caches.
 the replacement snapshot envelope. The outcome is correlated to `commandId` and
 the delivery-attempt correlation ID. It is once-only reducer input for that
 known attempt; terminal outcomes close the logical command, while a retryable
-outcome permits a new attempt correlation under the same command/generation.
+outcome only makes the command eligible for conditional successor rebinding.
 The snapshot is independently orderable and may be rejected without losing that
-outcome.
+outcome; a rejected/non-matching snapshot forbids resend. An accepted matching
+mutable successor preserves command intent and local generation but replaces the
+attempt correlation, lease binding, and lease-bearing request fingerprint.
 
 There is no silent compatibility fallback. A newer incompatible peer shows an
 update-required state and disables mutation.
@@ -821,11 +852,16 @@ update-required state and disables mutation.
   terminate or preserve the matching draft exactly once; a validation response
   against a now-newer target discards only the obsolete draft but still emits
   its field-specific error. A retryable outcome is consumed once for its attempt
-  and retains the logical command/local generation for a new attempt
-  correlation. The older attached snapshot cannot
-  install a lease or reset freshness. Duplicate/unknown attempt outcomes have no
-  effect, and a rejected convergence snapshot schedules one current correlated
-  refresh.
+  and enters `AwaitingRetryAuthority`: an accepted same-version/target mutable
+  successor preserves `commandId`, intent, and local generation while rebinding
+  the lease and attempt fingerprint under a new correlation; attempt 2 can then
+  apply. A rejected/read-only/different-target successor forbids resend, retains
+  only a safe draft, refreshes, and requires a new command submission. A pure
+  timeout retains the original lease/fingerprint while fresh. Late attempt 1
+  before attempt 2 commits gets `AuthorizationExpired`; after attempt 2 commits,
+  the attempt-2 receipt makes its different fingerprint a protocol rejection.
+  Duplicate/unknown outcomes have no effect, and a rejected convergence snapshot
+  schedules one current correlated refresh.
 - Current-target derivation for planned, ad-hoc, skipped, complete, empty,
   sparse-position, weighted, and weightless sessions. An empty no-plan/no-row
   exercise before a populated later exercise returns
@@ -839,8 +875,10 @@ update-required state and disables mutation.
   distinct authority correlation, exact-correlation response replay without a
   generation bump, atomic durable-generation allocation for concurrent
   successors, retired-successor invalidation, phone-process restart producing a
-  strictly greater generation, bounded remaining-lifetime serialization, and
-  expired exact-receipt replay returning `AlreadyApplied` without a second write.
+  strictly greater generation, bounded remaining-lifetime serialization,
+  retry-bound successor acceptance only for the same command intent, rejection
+  of changed values/target or a generic lease rebind, and expired exact-receipt
+  replay returning `AlreadyApplied` without a second write.
 - Freshness-loss lifecycle oracles for both explicit disconnect and a connected
   node that stops producing fresh correlated snapshots. The first loss event
   starts one reconnect deadline; no-op traffic/repeated failures cannot extend
@@ -1006,6 +1044,8 @@ Stop and return to the owner if any of the following occurs:
   a pre-restart response can overwrite a post-restart lease;
 - a distinct authority handshake could reuse an ageing lease, or the watch could
   derive a mutation window without subtracting its full correlated request RTT;
+- a typed retryable response could resend the retired original lease or rebind
+  `commandId` to a successor without proving unchanged stable command intent;
 - the ongoing surface could outlive the bounded reconnect window after either
   explicit disconnect or connected-but-silent freshness loss;
 - any Tile/activity/ongoing cache consumer can decode payload bytes before the
@@ -1046,6 +1086,10 @@ Phase 1 is complete only when:
 - each distinct mutable handshake installs an ordered fresh lease successor, and
   the RTT-reduced effective watch window never exceeds the conservative lower
   bound of remaining phone authority;
+- a typed retryable response permits attempt 2 only through an accepted
+  same-version/target successor bound to the unchanged command intent; a retry
+  after a response-less timeout retains the original still-fresh attempt
+  binding;
 - active-session transitions and the `NoSession` tombstone are admitted only by
   the latest correlated handshake; per-session revisions never order different
   session identities;
