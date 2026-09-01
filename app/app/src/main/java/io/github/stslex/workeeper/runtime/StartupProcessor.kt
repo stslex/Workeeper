@@ -5,6 +5,7 @@ import io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetime
 import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.core.data.database.AppDatabase
 import io.github.stslex.workeeper.core.data.database.refreshQueryPlannerStatistics
+import io.github.stslex.workeeper.core.data.database.wear.prepareWearSyncStorage
 import io.github.stslex.workeeper.di.AppGraph
 import io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinator.PreflightOutcome
 import io.github.stslex.workeeper.feature.recovery.domain.StartupCheck
@@ -22,6 +23,8 @@ internal class StartupProcessor(
     /** Terminally refuses DB-bound worker admission; driven only from [coldStart]. */
     private val sealWorkerAdmission: () -> Unit = {},
     private val warmPlanner: suspend (AppDatabase) -> Unit = { refreshQueryPlannerStatistics(it) },
+    private val prepareWearStorage: suspend (AppDatabase, Boolean) -> Unit =
+        { database, rotate -> prepareWearSyncStorage(database, rotate) },
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
 
@@ -51,6 +54,7 @@ internal class StartupProcessor(
                         appDatabase = appDatabase,
                         lifetime = lifetime,
                         publishTerminalAfterArming = false,
+                        rotateWearDatabaseEpoch = restoreOutcome.shouldRotateWearDatabaseEpoch,
                     )
                 }
             }
@@ -64,6 +68,7 @@ internal class StartupProcessor(
                         appDatabase = appDatabase,
                         lifetime = lifetime,
                         publishTerminalAfterArming = false,
+                        rotateWearDatabaseEpoch = restoreOutcome.shouldRotateWearDatabaseEpoch,
                     )
                 }
             }
@@ -103,6 +108,7 @@ internal class StartupProcessor(
                     appDatabase = appDatabase,
                     lifetime = lifetime,
                     publishTerminalAfterArming = false,
+                    rotateWearDatabaseEpoch = restoreOutcome.shouldRotateWearDatabaseEpoch,
                 )
             }
 
@@ -111,6 +117,7 @@ internal class StartupProcessor(
                 appDatabase = appDatabase,
                 lifetime = lifetime,
                 publishTerminalAfterArming = true,
+                rotateWearDatabaseEpoch = restoreOutcome.shouldRotateWearDatabaseEpoch,
             )
         }
     }
@@ -141,11 +148,16 @@ internal class StartupProcessor(
         appDatabase: AppDatabase,
         lifetime: AppScopeLifetime,
         publishTerminalAfterArming: Boolean,
+        rotateWearDatabaseEpoch: Boolean,
     ): StartupOutcome {
-        armPostPreflight(graph, appDatabase, lifetime)
-        val outcome = if (
+        val routesToRecovery =
             graph.startupMigrationCoordinator.lastDecision is StartupCheck.RouteToRecovery
-        ) {
+        if (!routesToRecovery) {
+            // This is the last synchronous boundary before graph-owned listeners may touch Room.
+            prepareWearStorage(appDatabase, rotateWearDatabaseEpoch)
+        }
+        armPostPreflight(graph, appDatabase, lifetime)
+        val outcome = if (routesToRecovery) {
             StartupOutcome.RouteToRecovery
         } else {
             StartupOutcome.Proceed
@@ -217,4 +229,8 @@ internal class StartupProcessor(
         /** Openability already proven this launch; arm without a second peek. */
         ArmOnly,
     }
+
+    private val PreflightOutcome.shouldRotateWearDatabaseEpoch: Boolean
+        get() = this == PreflightOutcome.RestoreSucceeded ||
+            this == PreflightOutcome.RecoveryCompleted
 }

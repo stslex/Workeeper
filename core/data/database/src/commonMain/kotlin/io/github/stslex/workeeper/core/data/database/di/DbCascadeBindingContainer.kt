@@ -20,6 +20,7 @@ import io.github.stslex.workeeper.core.data.database.tag.TagDao
 import io.github.stslex.workeeper.core.data.database.tag.TrainingTagDao
 import io.github.stslex.workeeper.core.data.database.training.TrainingDao
 import io.github.stslex.workeeper.core.data.database.training.TrainingExerciseDao
+import io.github.stslex.workeeper.core.data.database.wear.WearSyncDao
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.coroutineScope
@@ -90,4 +91,8 @@ public object DbCascadeBindingContainer {
     @Provides
     @SingleIn(AppScope::class)
     public fun provideTrainingTagDao(db: AppDatabase): TrainingTagDao = db.trainingTagDao
+
+    @Provides
+    @SingleIn(AppScope::class)
+    public fun provideWearSyncDao(db: AppDatabase): WearSyncDao = db.wearSyncDao
 }
