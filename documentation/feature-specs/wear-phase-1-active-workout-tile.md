@@ -393,16 +393,21 @@ every non-success as retryable:
   snapshot passes the authority gate; otherwise it stays read-only and refreshes
   as described above.
 
-The terminal outcome/replacement pairing is closed. `StaleRevision` pairs with
-the current canonical replacement for a different database epoch/session
-revision. `NoActiveSession` pairs only with `NoSession`. `TargetChanged` pairs
-with a still-active session whose exact
-submitted target is no longer canonical: wrong/skipped membership, a
-moved/differing target, `WorkoutComplete`, or any `PhoneActionRequired` reason.
-The replacement snapshot,
-not the outcome, carries the reason-specific read-only UI data. Any other pairing
-closes the offending command into the safe protocol-mismatch state and cannot
-replace newer display/cache state.
+The source/target-invalidation outcome/replacement sub-matrix is closed.
+`StaleRevision` pairs with the current canonical replacement for a different
+database epoch/session revision. `NoActiveSession` pairs only with `NoSession`.
+`TargetChanged` pairs with a still-active session whose exact submitted target
+is no longer canonical: wrong/skipped membership, a moved/differing target,
+`WorkoutComplete`, or any `PhoneActionRequired` reason. The replacement
+snapshot, not the outcome, carries the reason-specific read-only UI data. Only
+a response bearing one of these three invalidation outcomes with a pairing not
+permitted by this sub-matrix closes the offending command into the safe
+protocol-mismatch state and cannot replace newer display/cache state. Valid
+`Applied`, `AlreadyApplied`, `AuthorizationExpired`, `InvalidValues`,
+`ImmutableTypeMismatch`, explicitly retryable, and `ProtocolRejected` outcomes
+are outside this sub-matrix by design and follow their own reducer/replacement
+contracts; their absence from this sub-matrix is never itself a protocol error.
+
 - `AuthorizationExpired` is terminal for the old command but does not by itself
   prove the edits obsolete. If its accepted replacement has the exact source
   database epoch, session, revision, and canonical target, preserve the draft.
@@ -787,9 +792,7 @@ Inside the `CompleteCurrentSet` transaction specifically, the gateway must:
 1. reject a database-epoch mismatch as terminal `StaleRevision` plus the current
    canonical replacement before inspecting the target;
 2. re-read the active session. An absent session returns terminal
-   `NoActiveSession` plus `NoSession`; otherwise verify that the submitted
-   exercise belongs to it and is not skipped. Wrong membership or skipped state
-   returns terminal `TargetChanged` plus the current canonical replacement;
+   `NoActiveSession` plus `NoSession`;
 3. compare `commandId` and request fingerprint with the durable receipt. An exact
    match returns `AlreadyApplied` only when the receipt's resulting version is
    also the current database epoch/revision; once a receipt exists, reuse of one
@@ -799,19 +802,23 @@ Inside the `CompleteCurrentSet` transaction specifically, the gateway must:
    mutation and therefore may be returned after the original lease expired;
 4. require exact equality with the durable session revision. Any mismatch is
    `StaleRevision` even when current rows hash to the same content;
-5. require the process-bound mutation lease to match the source node, session,
+5. only after the revision matches, verify that the submitted exercise belongs
+   to the active session and is not skipped. Wrong membership or skipped state
+   returns terminal `TargetChanged` plus the current canonical replacement;
+6. require the process-bound mutation lease to match the source node, session,
    database epoch/revision, durable lease generation, and submitted target, then
    read the phone monotonic clock at write admission. At `expiresAt` or later,
    return `AuthorizationExpired` without a row write, revision bump, or new
    receipt;
-6. re-derive the canonical target and inspect any existing row for
+7. re-derive the canonical target and inspect any existing row for
    `(performedExerciseUuid, position)`. A moved target or differing row returns
    terminal `TargetChanged` plus the canonical replacement. A still-active
    canonical `WorkoutComplete` or any `PhoneActionRequired` reason also returns
    `TargetChanged` plus that exact replacement; `NoSession` can pair only with
-   `NoActiveSession`. These non-target branches win before command metadata is
-   inspected. Otherwise require both copied immutable types to equal the
-   canonical types; a mismatch returns
+   `NoActiveSession`. These non-target branches win before immutable-type and
+   numeric-field validation; they do not precede the epoch, exact-receipt,
+   revision, and membership ordering above. Otherwise require both copied
+   immutable types to equal the canonical types; a mismatch returns
    `ImmutableTypeMismatch(ExerciseType | SetType)`. Only after both match,
    validate `reps` and `weightHundredthsKg` against the table in §5.2; an invalid
    editable value returns the field/reason-specific `InvalidValues`. Either
@@ -824,10 +831,10 @@ Inside the `CompleteCurrentSet` transaction specifically, the gateway must:
    remaining lifetime, or effective window. Only a valid fixed-point weight is
    converted to `Double` without rounding immediately before exactly one
    insert/update;
-7. increment the session revision, persist the Wear receipt, and derive the
+8. increment the session revision, persist the Wear receipt, and derive the
    complete replacement snapshot data from the same serialized database state;
    and
-8. return from the transaction before any acknowledgement is emitted, so a
+9. return from the transaction before any acknowledgement is emitted, so a
    rollback or failed commit can never be reported as success.
 
 Before any recognized terminal or retryable command response leaves the
@@ -1167,8 +1174,9 @@ outcome; a rejected/non-matching snapshot forbids resend. An accepted matching
 mutable successor preserves command intent and local generation but replaces the
 attempt correlation, lease binding, and lease-bearing request fingerprint.
 
-Authoritative source/target invalidation uses this outcome matrix in gateway
-check order:
+Authoritative source/target invalidation uses this closed sub-matrix in gateway
+check order, after the exact-current durable-receipt replay exception described
+in §5.2:
 
 | Serialized canonical state after admission | Command outcome | Attached replacement |
 | --- | --- | --- |
@@ -1181,10 +1189,13 @@ check order:
 
 `StaleRevision`, `TargetChanged`, and `NoActiveSession` are terminal, clear the
 old draft/command, and never retry. The outcome does not duplicate the snapshot
-reason. A response
-whose outcome/replacement combination is outside this matrix fails closed as a
-protocol error; it closes the offending command but the separately gated
-snapshot cannot replace newer display/cache state.
+reason. Only a response bearing one of these three outcomes whose replacement
+is outside this sub-matrix fails closed as a protocol error; it closes the
+offending command but the separately gated snapshot cannot replace newer
+display/cache state. `Applied`, `AlreadyApplied`, `AuthorizationExpired`,
+`InvalidValues`, `ImmutableTypeMismatch`, explicitly retryable, and
+`ProtocolRejected` outcomes are not evaluated against this sub-matrix and must
+continue through their separately specified contracts.
 
 There is no silent compatibility fallback. A newer incompatible peer shows an
 update-required state and disables mutation.
@@ -1343,15 +1354,22 @@ update-required state and disables mutation.
   Each immutable-type mismatch returns the same canonical unavailable snapshot
   but clears the draft, exposes no numeric field error, and likewise proves zero
   row/receipt/revision/successor-issuance/lease-generation effects while still
-  retiring the presented lease. Ordering fixtures prove a
-  epoch/revision mismatch returns `StaleRevision + current canonical state`, a
-  wrong/skipped exercise or moved target with another representable target
+  retiring the presented lease. Ordering fixtures prove an
+  epoch/revision mismatch returns `StaleRevision + current canonical state`,
+  including when that intervening revision also removed or skipped the submitted
+  exercise; only after an equal revision does a wrong/skipped exercise or moved
+  target with another representable target
   returns `TargetChanged + ActiveWithTarget`, complete returns
   `TargetChanged + WorkoutComplete`, missing/unsupported rows return
   `TargetChanged + PhoneActionRequired(exact reason)`, and a missing session
   returns `NoActiveSession + NoSession`, all before immutable-type comparison.
-  Every outcome/replacement cross-pair outside that matrix closes the offending
-  command into protocol mismatch without replacing newer display/cache state.
+  Every invalid cross-pair for the three source/target-invalidation outcomes
+  closes the offending command into protocol mismatch without replacing newer
+  display/cache state. Separate fixtures prove that `Applied`, `AlreadyApplied`,
+  `AuthorizationExpired`, `InvalidValues`, `ImmutableTypeMismatch`, explicitly
+  retryable, and `ProtocolRejected` outcomes remain valid under their own
+  reducer/replacement contracts and are never rejected merely because they are
+  outside this sub-matrix.
 - Phone-monotonic lease oracles proving first delivery accepted at `119_999ms`,
   rejected without mutation at `120_000ms`, an enqueue-before/arrival-after
   delay, wrong-node/session/version lease rejection, a new successor for every
