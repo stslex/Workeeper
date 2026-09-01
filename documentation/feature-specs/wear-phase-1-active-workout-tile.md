@@ -82,11 +82,12 @@ stateDiagram-v2
     [*] --> Loading
     Loading --> NoSession: Phone reports no session
     Loading --> Active: Fresh snapshot
+    Loading --> NeedsPhone: Phone action or bounded fallback required
     NoSession --> Active: Phone starts workout
     Active --> Controller: Tap Tile
     Controller --> Active: Set acknowledged
-    Active --> NeedsPhone: First pending exercise has no set rows
-    NeedsPhone --> Active: Phone creates a row and sends snapshot
+    Active --> NeedsPhone: No set rows or bounded-payload fallback
+    NeedsPhone --> Active: Phone makes a deliverable target and sends snapshot
     Active --> Stale: Nearby phone lost
     Active --> Stale: Effective mutation window expires
     Stale --> Active: Fresh handshake
@@ -106,6 +107,7 @@ window expires and cannot authorize a write.
 | No active session | Workeeper + `Start a workout on your phone` | Opens the local instruction screen; it does not remotely start the phone app or a session |
 | Active and fresh | Training name, current exercise, set ordinal, compact overall progress | Opens the current-set controller |
 | Phone action required | Exercise name plus `Add a set on your phone` | Opens a read-only explanation; it never synthesizes or adds a set |
+| Snapshot too large for watch | Localized generic workout label plus `Open this workout on your phone` | Opens a read-only explanation; no remote name, target, or mutation lease is present |
 | Active but stale/disconnected | Last known training/exercise plus `Phone unavailable` | Opens the controller in read-only reconnecting state |
 | Loading with no cache | Workeeper + short loading label | Opens the reconnecting screen |
 | Retryable transport error | Safe generic error; no payload details | Opens recovery state with explicit retry |
@@ -292,18 +294,31 @@ every non-success as retryable:
 - A transport timeout or lost acknowledgement has no response and therefore no
   successor lease. It keeps the edits, `commandId`, submitted values, original
   lease/fingerprint, and produces an error haptic. Retry is allowed only while
-  that originating effective window remains fresh and the local target is
-  unchanged; otherwise the watch requests a replacement snapshot instead of
-  resending. Only one resend is allowed for the logical command; another
+  that originating effective window remains fresh, the local target is
+  unchanged, no newer authority generation has been issued, and the attempt's
+  lease ID/generation still exactly equals the currently installed mutable
+  authority. If a refresh or other successor intervenes, the old logical command
+  is abandoned rather than resent; a still-compatible draft may be submitted
+  under the accepted current snapshot only with a new `commandId` and attempt
+  fingerprint. Only one resend is allowed for the logical command; another
   ambiguity forces refresh.
 - An explicitly retryable typed response produces an error haptic and follows
   the successor-rebind transition above. Retry is offered only after that
   transition succeeds; it never resends the retired original lease.
-- `StaleRevision`, `TargetChanged`, `AuthorizationExpired`, or
-  `NoActiveSession` is authoritative. The watch clears the obsolete draft and
-  in-flight command, never retries the old command, and applies the returned
-  replacement/no-session state only if its snapshot passes the authority gate;
-  otherwise it stays read-only and refreshes as described above.
+- `StaleRevision`, `TargetChanged`, or `NoActiveSession` is authoritative. The
+  watch clears the obsolete draft and in-flight command, never retries the old
+  command, and applies the returned replacement/no-session state only if its
+  snapshot passes the authority gate; otherwise it stays read-only and refreshes
+  as described above.
+- `AuthorizationExpired` is terminal for the old command but does not by itself
+  prove the edits obsolete. If its accepted mutable replacement has the exact
+  source epoch/revision and target, preserve the draft and allow an explicit new
+  submission under the successor lease with a new `commandId`. If an accepted
+  replacement changes version/target or becomes read-only, clear the draft. If
+  the attached snapshot is rejected but the already-displayed state still
+  matches the source version/target, park the draft read-only and refresh; any
+  later compatible fresh snapshot still requires a new command. Otherwise clear
+  it.
 - A value-validation rejection identifies the invalid field. It keeps the
   editable draft only while the current display still matches the command's
   source workout version and target; otherwise it discards the obsolete draft,
@@ -755,10 +770,12 @@ The initial protocol has three logical operations:
 
 `ActiveWorkoutSnapshot` has four mutually exclusive payload states:
 `NoSession`, `ActiveWithTarget`, `PhoneActionRequired`, and `WorkoutComplete`.
-Only `ActiveWithTarget` carries a mutable target. `PhoneActionRequired` carries
-a typed reason and the relevant exercise identity for display, never a fallback
-set position. A mutable snapshot also carries its opaque mutation lease ID; no
-other state does. Its durable lease generation accompanies the ID and orders
+Only `ActiveWithTarget` carries a mutable target. `PhoneActionRequired` is
+reason-specific: `NoSetRows` carries the relevant exercise identity, while
+`PayloadTooLarge` carries only the session identity and no remote display name,
+exercise identity, target, values, or lease. Neither may carry a fallback set
+position. A mutable snapshot also carries its opaque mutation lease ID; no other
+state does. Its durable lease generation accompanies the ID and orders
 successors within one database epoch/session revision; it never extends the
 lease lifetime. The same mutable envelope carries bounded
 `leaseRemainingAtPhoneSendMs`; the watch combines it only with the matching
@@ -773,10 +790,29 @@ matching `(databaseEpoch, Session(sessionUuid))` domain and must never order a
 different session or the tombstone.
 
 All envelopes carry `schemaVersion` and a correlation ID. Unknown versions and
-unknown operations fail closed. Payloads are bounded well below the Data Layer
-message limit, use one deterministic `kotlinx.serialization` representation,
-and have round-trip tests with committed fixtures. Protocol fields are domain
-values, not localized strings, except display names that the watch must render.
+unknown operations fail closed. The protocol uses one deterministic
+`kotlinx.serialization` representation and enforces these inclusive limits on
+the final encoded UTF-8 bytes before transport:
+
+- `MAX_DISPLAY_NAME_UTF8_BYTES = 512` independently for training and exercise
+  names; and
+- `MAX_ENVELOPE_BYTES = 16_384` for every complete request or response envelope.
+
+Display names use a wire sum type `BoundedDisplayName.Value` or
+`BoundedDisplayName.Omitted(TooLarge | InvalidUnicode)`. The phone uses a strict
+UTF-8 encoder without lossy replacement or normalization. A valid name of at
+most 512 bytes is preserved exactly. A name over the limit or containing an
+invalid Unicode scalar is omitted in full; it is never byte-sliced, and the
+watch renders a localized generic `Workout` or `Exercise` label. Localized
+strings otherwise do not cross the wire.
+
+The phone measures the fully encoded envelope, including framing. If a snapshot
+would exceed 16,384 bytes even after bounded-name omission, it replaces that
+payload with the fixed read-only `PhoneActionRequired(PayloadTooLarge)` envelope
+described above; that committed fixture must remain below 1,024 bytes. It never
+sends the oversized candidate or a mutation lease. An oversized request is a
+local protocol error and is never transmitted. Limits are protocol constants,
+not estimates of current editor behavior or the platform ceiling.
 
 Correlation IDs are also the wire key for the watch's local request-generation
 map; they are not sufficient by themselves to order responses. The reducer
@@ -804,7 +840,8 @@ update-required state and disables mutation.
   disabled state.
 - Dynamic values use tabular numerals where available and remain legible with
   system font scaling.
-- Long training/exercise names truncate predictably without hiding set controls.
+- Admitted wire names may be visually ellipsized for layout without changing
+  their stored text; typed omitted names use localized generic labels.
 - English and Russian strings use the repository localization conventions; no
   user-facing string is assembled from English fragments.
 - Weightless exercises omit weight controls entirely.
@@ -815,8 +852,14 @@ update-required state and disables mutation.
 
 ### 11.1 Host tests
 
-- Protocol round trips, unknown-version rejection, size bound, and committed
-  fixture compatibility.
+- Protocol round trips, unknown-version rejection, and committed fixture
+  compatibility. Byte-boundary fixtures prove 512-byte names preserved,
+  513-byte names omitted, multi-byte code points on both sides of the boundary,
+  and invalid Unicode omitted without replacement. Raw encoded-candidate
+  size-gate fixtures prove a complete 16,384-byte envelope is admitted unchanged
+  and a 16,385-byte snapshot candidate is converted to the sub-1,024-byte
+  read-only `PayloadTooLarge` fallback with no name/target/lease. A 16,385-byte
+  request never reaches the fake transport.
 - Watch state reducer for every Tile/controller state, including fake-clock
   proofs that a zero-RTT snapshot with `120_000ms` phone lease remaining is fresh
   at `119_999ms` and stale at `120_000ms`; non-zero RTT subtracts the entire
@@ -849,10 +892,13 @@ update-required state and disables mutation.
 - Split-response reducer oracles where a newer refresh arrives before an older
   known command response at the same workout revision: `AuthorizationExpired`,
   validation, stale, `Applied`, and `AlreadyApplied` terminal outcomes each
-  terminate or preserve the matching draft exactly once; a validation response
-  against a now-newer target discards only the obsolete draft but still emits
-  its field-specific error. A retryable outcome is consumed once for its attempt
-  and enters `AwaitingRetryAuthority`: an accepted same-version/target mutable
+  terminate or preserve the matching draft exactly once. Authorization expiry
+  with an accepted same-version/target successor preserves the draft for a new
+  command, while changed/read-only authority clears it and a rejected snapshot
+  parks it only if the current display still exactly matches. A validation
+  response against a now-newer target discards only the obsolete draft but still
+  emits its field-specific error. A retryable outcome is consumed once for its
+  attempt and enters `AwaitingRetryAuthority`: an accepted same-version/target mutable
   successor preserves `commandId`, intent, and local generation while rebinding
   the lease and attempt fingerprint under a new correlation; attempt 2 can then
   apply. A rejected/read-only/different-target successor forbids resend, retains
@@ -862,6 +908,12 @@ update-required state and disables mutation.
   the attempt-2 receipt makes its different fingerprint a protocol rejection.
   Duplicate/unknown outcomes have no effect, and a rejected convergence snapshot
   schedules one current correlated refresh.
+- Response-less timeout oracles permit same-command resend only while the exact
+  original lease remains the currently installed authority and no newer request
+  generation exists. Timeout → refresh/successor forbids old-command resend;
+  after an accepted compatible snapshot the retained draft becomes a new
+  command/fingerprint. Late attempt 1 converges through expiry or the durable
+  receipt without duplicating a row.
 - Current-target derivation for planned, ad-hoc, skipped, complete, empty,
   sparse-position, weighted, and weightless sessions. An empty no-plan/no-row
   exercise before a populated later exercise returns
@@ -922,6 +974,8 @@ update-required state and disables mutation.
 - DB-work lease tests proving a listener cannot touch a retired generation and
   releases admission on success, failure, timeout, and cancellation.
 - Tile layout tests proving one launch target and no mutation action.
+- Tile/controller reducer and semantics for omitted individual names and the
+  `PayloadTooLarge` generic localized read-only state.
 - Accessibility semantics for every control and disabled/error state.
 
 ### 11.2 Device tests
@@ -945,6 +999,10 @@ update-required state and disables mutation.
   effective mutation window expires, the single reconnect grace deadline does
   not move, the ongoing surface stops at its boundary, and a later fresh
   handshake can start it again.
+- Load/import over-limit and multi-byte-boundary training/exercise names on the
+  phone: the paired watch receives exact bounded names or localized omission/
+  `PayloadTooLarge` fallback, never malformed text, transport failure, or a lease
+  on the whole-envelope fallback.
 
 Device evidence must identify the APK package/signature pair, OS/API versions,
 and exact test scenario. Manual observation without the resulting phone DB
@@ -1046,6 +1104,8 @@ Stop and return to the owner if any of the following occurs:
   derive a mutation window without subtracting its full correlated request RTT;
 - a typed retryable response could resend the retired original lease or rebind
   `commandId` to a successor without proving unchanged stable command intent;
+- a timeout resend could use a lease after any newer authority generation was
+  issued, or authorization-only expiry could discard a still-compatible draft;
 - the ongoing surface could outlive the bounded reconnect window after either
   explicit disconnect or connected-but-silent freshness loss;
 - any Tile/activity/ongoing cache consumer can decode payload bytes before the
@@ -1055,6 +1115,8 @@ Stop and return to the owner if any of the following occurs:
 - cache payload and clock/boot metadata cannot be published as one atomic record,
   or a crash can expose a mixed record or superseded active payload after an
   accepted `NoSession` response;
+- a display name or encoded envelope can bypass the 512/16,384-byte limits, be
+  sliced inside Unicode, or fail without the typed read-only fallback;
 - duplicate target rows exist without an owner-approved reconciliation rule;
 - a listener would access repositories without generation-bound admission;
 - KMP/common source sets, shared watch UI, Health APIs, or sensor permissions
@@ -1090,6 +1152,9 @@ Phase 1 is complete only when:
   same-version/target successor bound to the unchanged command intent; a retry
   after a response-less timeout retains the original still-fresh attempt
   binding;
+- timeout resend additionally proves that no successor generation exists and the
+  original lease is still installed; authorization-only expiry preserves a
+  compatible draft but requires a new command under accepted authority;
 - active-session transitions and the `NoSession` tombstone are admitted only by
   the latest correlated handshake; per-session revisions never order different
   session identities;
@@ -1111,6 +1176,8 @@ Phase 1 is complete only when:
   surface after one non-extendable bounded reconnect window;
 - paired-watch transfer/cache and the chosen direct-only or E2EE-relay route are
   reflected consistently in product and owner-approved public privacy copy;
+- every wire display name and complete envelope obeys its exact byte cap, with
+  Unicode-safe omission and a bounded no-lease `PayloadTooLarge` fallback;
 - no Health, sensor, watchOS, or KMP watch scope entered the diff;
 - all focused, repository, and paired-device gates are green at the final head;
 - commits are signed and GitHub-verified; and
