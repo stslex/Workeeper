@@ -3,15 +3,16 @@ package io.github.stslex.workeeper.host
 
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.platform.testTag
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
@@ -57,26 +58,31 @@ internal fun AppNavigationHost(
         // background; it only becomes visible once a predictive-back preview shrinks the window.
         val screenShape = displayCornerShape()
 
+        // GUARD: Nav3 remembers each NavEntry by the back stack, so the first modifier captured for
+        // Home outlives entryProvider recompositions. Keep the draw color live without replacing
+        // the entry, its ViewModel store, or saveable state.
+        val sceneBackground = rememberUpdatedState(MaterialTheme.colorScheme.background)
+
         // GUARD: order is load-bearing — clip and paint the whole scene, then inset the content,
         // so a back gesture shrinks the window rather than the content area.
         val bottomBarModifier = Modifier
             .fillMaxSize()
             .clip(screenShape)
-            .background(MaterialTheme.colorScheme.background)
+            .drawBehind { drawRect(sceneBackground.value) }
             .padding(bottom = AppDimension.BottomNavBar.height)
             .systemBarsPadding()
 
         val standardModifier = Modifier
             .fillMaxSize()
             .clip(screenShape)
-            .background(MaterialTheme.colorScheme.background)
+            .drawBehind { drawRect(sceneBackground.value) }
             .systemBarsPadding()
 
         // The one destination the clip is wrong for: the image viewer paints `Color.Black`, so a
         // fallback radius would cut theme-coloured wedges into a black frame while it is open.
         val imageViewerModifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .drawBehind { drawRect(sceneBackground.value) }
             .systemBarsPadding()
 
         val motion = AppUi.motion
