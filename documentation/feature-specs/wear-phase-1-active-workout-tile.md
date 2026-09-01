@@ -315,19 +315,35 @@ the existing explicit persistence contract: only a completed set is durable.
 - The phone Room database is authoritative.
 - The watch never writes a workout database and never declares success before a
   phone acknowledgement.
-- Watch storage contains only the last protocol snapshot, its
-  `receivedAtElapsedRealtimeMs`, the corresponding `Settings.Global.BOOT_COUNT`,
-  and minimal connection metadata in app-private storage.
-- A no-session response erases the active cache immediately.
+- Watch storage contains one versioned, atomically published app-private cache
+  record. Its bounded framing header contains the cache schema version,
+  `receivedAtElapsedRealtimeMs`, corresponding `Settings.Global.BOOT_COUNT`, raw
+  payload length, and payload digest; the same atomic record contains the raw
+  last protocol snapshot and minimal connection metadata. None of those fields
+  may be committed in separate preference keys or files.
+- Cache replacement uses `AtomicFile` semantics or an equivalent temp-write,
+  durable-sync, atomic-publish primitive. In-memory publication occurs only
+  after the complete durable record is published. A failed, cancelled, or
+  process-killed replacement exposes either the complete previous record or the
+  complete new record, never a mixed snapshot/clock pair. A corrupt, truncated,
+  oversized, or digest-mismatched record is treated as absent and deletion is
+  attempted.
+- The shared reader parses only the bounded framing header and validates its
+  length/digest and boot/TTL metadata before decoding the workout payload. Tile,
+  activity, and ongoing surfaces cannot bypass that reader.
+- An accepted no-session response atomically replaces any active record with a
+  payload-free `NoSession` tombstone before the reducer exposes that state;
+  physical deletion may follow. Once accepted, a process death cannot reveal the
+  superseded active payload on the next read.
 - The two-minute mutation deadline is independent of display-cache retention:
   stale content may remain visible and read-only while mutation is disabled.
 - Display-cache retention is a strict **access-time TTL**, not a promise that the
   OS will wake an idle process for physical deletion. Within one boot, age is
   measured from `SystemClock.elapsedRealtime()`, including deep sleep. At age
   `86_400_000ms`, every cache read treats the payload as absent and attempts to
-  delete it before decode or render. Deletion failure cannot expose the expired
-  payload: the read still returns cacheless loading and retries cleanup on a
-  later access.
+  delete it before protocol-payload decode or render. Deletion failure cannot
+  expose the expired payload: the read still returns cacheless loading and
+  retries cleanup on a later access.
 - A process restart in the same boot reuses the persisted elapsed-realtime
   baseline and therefore cannot restart either deadline. If the persisted boot
   count differs from the current boot count, either value is missing/corrupt,
@@ -547,29 +563,49 @@ messages and stack traces never cross the device boundary.
 
 This section is blocking, not advisory.
 
-Workeeper currently promises that data does not leave the device and that there
-is no cloud sync. Wear OS Data Layer is the supported phone/watch communication
-API, but Android's documentation states that Data Layer clients can route data
-through Google-owned servers when Bluetooth is unavailable. The payload is
-end-to-end encrypted, but relay transit still conflicts with a strict
-device-local promise.
+Workeeper currently promises that workout data stays locally on one device and
+that there is no cloud sync. Phase 1 necessarily crosses that device boundary:
+it sends workout names, identifiers, set values, and completion commands between
+two separately installed apps and retains a bounded cache on the watch. A direct
+Bluetooth path still contradicts the existing one-device wording even if no
+server sees the payload. Google relay transit is a second, additional policy
+question rather than the only privacy question.
+
+Two independent gates must close before production workout payload code:
+
+1. **Paired-device disclosure — mandatory for every transport choice.** Product
+   and user-facing privacy copy must explicitly say that the minimum active
+   workout data moves between the user's phone and personally paired Wear OS
+   watch, completion commands return to the phone, and the watch keeps the
+   bounded app-private cache from §5.1. This PR updates `product.md`, but
+   `docs/index.md` and `docs/_config.yml` are repository-locked by the Play
+   Console workflow. An implementation agent must not edit or bypass those
+   locks: it stops until the owner updates/approves the public Play Store privacy
+   copy through that workflow and supplies verifiable completion evidence.
+2. **Transport-route disclosure — selected by the owner after gate 1.** The
+   public/product copy must additionally match either a provably direct-only
+   transport or possible end-to-end encrypted Google relay transit. Relay is not
+   described as Workeeper cloud sync, but its third-party transit must still be
+   explicit.
 
 `Node.isNearby` means a direct Bluetooth connection is possible; it is not, by
 itself, documented as a per-message transport lock. Therefore an implementation
 must not present `isNearby` filtering as proof that a payload could never use a
 network relay.
 
-Before production payload code, the owner must explicitly choose one of these
-policies:
+After the paired-device disclosure gate closes, the owner must explicitly choose
+one of these transport policies:
 
 | Policy | Result |
 | --- | --- |
-| Preserve strict local-only guarantee | Implementation remains stopped unless a supported API can guarantee direct local transport for each workout payload |
-| Permit end-to-end encrypted Data Layer relay | Amend `product.md` and user-facing privacy copy first; use the smallest non-persistent protocol and document that Google relay transit can occur |
+| Preserve direct local transport only | Implementation remains stopped unless a supported API can guarantee direct local transport for each workout payload; copy still discloses phone/watch transfer and watch caching |
+| Permit end-to-end encrypted Data Layer relay | Amend product and public privacy copy to disclose possible Google relay transit as well as paired-watch transfer/cache; use the smallest non-persistent protocol |
 
-Until that decision, only a payload-free capability/connectivity probe is
-authorized by a future implementation GO. No workout name, exercise name, UUID,
-set, weight, reps, or timing data may be sent during the probe.
+Until gate 1 and the selected gate-2 policy both close, only a payload-free
+capability/connectivity probe is authorized by a future implementation GO. A
+general implementation GO, successful pairing, or `Node.isNearby == true` is not
+privacy authorization. No workout name, exercise name, UUID, set, weight, reps,
+or timing data may be sent during the probe.
 
 If relay is explicitly accepted later, prefer `MessageClient` request/response
 semantics over `DataClient`: messages are non-persistent and have no automatic
@@ -774,11 +810,17 @@ update-required state and disables mutation.
   one transaction winner, a deterministic typed loser result, and a snapshot
   whose revision matches the committed state.
 - Cache tests proving a read at `86_399_999ms` returns the payload and a read at
-  `86_400_000ms` returns absent and attempts deletion before decode, plus an idle
-  process crossing the deadline, deletion failure with no payload exposure,
-  same-boot process restart, changed boot count, missing/corrupt metadata,
-  impossible elapsed baseline, wall-clock movement in both directions, and
-  backup exclusion configuration.
+  `86_400_000ms` returns absent and attempts deletion before the protocol decoder
+  is invoked, plus an idle process crossing the deadline, deletion failure with
+  no payload exposure, same-boot process restart, changed boot count,
+  missing/corrupt metadata, impossible elapsed baseline, wall-clock movement in
+  both directions, and backup exclusion configuration.
+- Atomic-cache crash-cut oracles at temporary write, durable sync, atomic publish,
+  and in-memory publication. Every restart observes the complete prior record or
+  complete replacement, never a valid old payload paired with a new baseline or
+  a new payload paired with old metadata. They also cover length/digest mismatch,
+  cancellation, write failure, and durable `NoSession` tombstone replacement
+  before the old active payload can be exposed again.
 - DB-work lease tests proving a listener cannot touch a retired generation and
   releases admission on success, failure, timeout, and cancellation.
 - Tile layout tests proving one launch target and no mutation action.
@@ -848,7 +890,9 @@ The streams are conceptually independent but share repository integration files.
 1. **Entry probes:** package/signature variants, payload-free Data Layer
    capability probe, current-set parity fixtures, Gradle task discovery, and a
    complete inventory of set, plan, plan-attachment, exercise-type/cascade, and
-   session writers, migration baseline, and duplicate-target probe.
+   session writers, migration baseline, and duplicate-target probe. Record the
+   owner-approved public paired-watch disclosure evidence and selected transport
+   policy; absence limits this increment to payload-free probing.
 2. **Protocol/cache:** versioned models, codec, watch cache, reducer, and tests.
 3. **Watch read-only surface:** Tile, controller states, accessibility, and
    rendered evidence against fake transport.
@@ -862,16 +906,19 @@ The streams are conceptually independent but share repository integration files.
 6. **Final review:** full repository gates, signed commits, zero unresolved
    review threads, and an independent Codex review pass before handoff.
 
-Each increment must remain buildable and reviewable. The privacy policy decision
-must close before increment 2 sends any workout payload.
+Each increment must remain buildable and reviewable. No increment may send a
+real workout payload until both the paired-device disclosure gate and the
+selected transport-route gate are closed; protocol/cache work before then uses
+synthetic fixtures and fake transport only.
 
 ## 14. STOP conditions
 
 Stop and return to the owner if any of the following occurs:
 
-- no supported transport can meet the selected privacy policy;
-- implementation would silently permit Google relay transit under the current
-  strict product promise;
+- the paired-watch transfer/cache disclosure is absent from either product copy
+  or the owner-controlled public Play Store privacy copy;
+- no supported transport can meet the selected route policy, or implementation
+  would silently permit Google relay transit without the additional disclosure;
 - phone and watch package names or signing certificates do not match;
 - current-set behavior diverges from the persisted phone Live-workout rule;
 - the revision/receipt migration cannot preserve existing workout data or rotate
@@ -895,6 +942,9 @@ Stop and return to the owner if any of the following occurs:
   a pre-restart response can overwrite a post-restart lease;
 - any Tile/activity/ongoing cache consumer can decode payload bytes before the
   access-time TTL/boot metadata gate;
+- cache payload and clock/boot metadata cannot be published as one atomic record,
+  or a crash can expose a mixed record or superseded active payload after an
+  accepted `NoSession` response;
 - duplicate target rows exist without an owner-approved reconciliation rule;
 - a listener would access repositories without generation-bound admission;
 - KMP/common source sets, shared watch UI, Health APIs, or sensor permissions
@@ -931,11 +981,15 @@ Phase 1 is complete only when:
   close the logical command exactly once;
 - cache content is never returned after the access-time TTL or boot mismatch,
   even when physical deletion must wait for a later process access;
+- cache replacement is crash-atomic across payload, monotonic/boot metadata, and
+  the accepted `NoSession` tombstone; readers gate the framing header before
+  protocol-payload decode;
 - empty exercises require phone action without creating a fallback row, and the
   durable version rejects ABA commands after complete/uncheck or restore;
 - package/signature, lifecycle, cache access-time TTL/non-exposure,
   accessibility, localization, and ongoing-activity requirements are proven;
-- the chosen transport policy is reflected consistently in product/privacy copy;
+- paired-watch transfer/cache and the chosen direct-only or E2EE-relay route are
+  reflected consistently in product and owner-approved public privacy copy;
 - no Health, sensor, watchOS, or KMP watch scope entered the diff;
 - all focused, repository, and paired-device gates are green at the final head;
 - commits are signed and GitHub-verified; and
