@@ -113,7 +113,7 @@ window expires and cannot authorize a write.
 | --- | --- | --- |
 | No active session | Workeeper + `Start a workout on your phone` | Opens the local instruction screen; it does not remotely start the phone app or a session |
 | Active and fresh | Training name, current exercise, set ordinal, compact overall progress | Opens the current-set controller |
-| Phone action required | Exercise name plus `Add a set on your phone` | Opens a read-only explanation; it never synthesizes or adds a set |
+| Phone action required | Bounded exercise name, or localized generic `Exercise`, plus `Add a set on your phone` | Opens a read-only explanation; it never synthesizes or adds a set |
 | Snapshot too large for watch | Localized generic workout label plus `Open this workout on your phone` | Opens a read-only explanation; no remote name, target, or mutation lease is present |
 | Workout complete | Training name plus localized `Workout complete` and `Finish on your phone` | Opens the read-only completion screen; it cannot finish the session |
 | Active but stale/disconnected | Last known training/exercise plus `Phone unavailable` | Opens the controller in read-only reconnecting state |
@@ -834,14 +834,16 @@ The initial protocol has three logical operations:
 `ActiveWorkoutSnapshot` has four mutually exclusive payload states:
 `NoSession`, `ActiveWithTarget`, `PhoneActionRequired`, and `WorkoutComplete`.
 Only `ActiveWithTarget` carries a mutable target. `PhoneActionRequired` is
-reason-specific: `NoSetRows` carries the relevant exercise identity, while
-`PayloadTooLarge` carries only the session identity and no remote display name,
-exercise identity, target, values, or lease. Neither may carry a fallback set
-position. `WorkoutComplete` carries only the session identity, bounded training
-name, and the overall completed/total exercise counts used by the read-only
-surfaces; it carries no exercise identity, target, set values, or lease. A
-mutable snapshot also carries its opaque mutation lease ID; no other state does.
-Its durable lease generation accompanies the ID and orders
+reason-specific: `NoSetRows` carries the relevant exercise identity and its
+`BoundedDisplayName` exercise name, while `PayloadTooLarge` carries only the
+session identity and no remote display name, exercise identity, target, values,
+or lease. A `NoSetRows` `Value` renders exactly; `Omitted(TooLarge |
+InvalidUnicode)` renders the localized generic `Exercise` label. Neither reason
+may carry a fallback set position. `WorkoutComplete` carries only the session
+identity, bounded training name, and the overall completed/total exercise counts
+used by the read-only surfaces; it carries no exercise identity, target, set
+values, or lease. A mutable snapshot also carries its opaque mutation lease ID;
+no other state does. Its durable lease generation accompanies the ID and orders
 successors within one database epoch/session revision; it never extends the
 lease lifetime. The same mutable envelope carries bounded
 `leaseRemainingAtPhoneSendMs`; the watch combines it only with the matching
@@ -1056,6 +1058,9 @@ update-required state and disables mutation.
 - Tile layout tests proving one launch target and no mutation action.
 - Tile/controller reducer and semantics for omitted individual names,
   `PayloadTooLarge`, and `WorkoutComplete` generic/localized read-only states.
+  `NoSetRows` round-trip and UI fixtures cover an exact bounded exercise name
+  and both typed omission reasons falling back to localized `Exercise`, without
+  adding a target, set position, values, or lease.
 - Accessibility semantics for every control and disabled/error state.
 
 ### 11.2 Device tests
@@ -1092,7 +1097,9 @@ update-required state and disables mutation.
 - Load/import over-limit and multi-byte-boundary training/exercise names on the
   phone: the paired watch receives exact bounded names or localized omission/
   `PayloadTooLarge` fallback, never malformed text, transport failure, or a lease
-  on the whole-envelope fallback.
+  on the whole-envelope fallback. Repeat with an empty no-plan/no-row exercise:
+  `NoSetRows` carries its identity plus the bounded name or localized generic
+  label, but still no set position, target values, or lease.
 
 Device evidence must identify the APK package/signature pair, OS/API versions,
 and exact test scenario. Manual observation without the resulting phone DB
