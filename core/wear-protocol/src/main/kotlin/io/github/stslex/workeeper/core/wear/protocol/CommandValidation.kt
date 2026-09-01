@@ -5,21 +5,33 @@ package io.github.stslex.workeeper.core.wear.protocol
 object CommandValidation {
 
     fun validate(body: CompleteCurrentSetBody): CompleteCommandOutcome.InvalidValues? {
-        if (body.reps < 1) {
+        return validate(
+            reps = body.reps,
+            weightHundredthsKg = body.weightHundredthsKg,
+            exerciseType = body.exerciseType,
+        )
+    }
+
+    fun validate(
+        reps: Int,
+        weightHundredthsKg: Int?,
+        exerciseType: ExerciseTypeWire,
+    ): CompleteCommandOutcome.InvalidValues? {
+        if (reps < 1) {
             return CompleteCommandOutcome.InvalidValues(
                 field = NumericField.REPS,
                 reason = InvalidValueReason.BELOW_MINIMUM,
             )
         }
-        if (body.reps > WearProtocol.MAX_WEAR_REPS) {
+        if (reps > WearProtocol.MAX_WEAR_REPS) {
             return CompleteCommandOutcome.InvalidValues(
                 field = NumericField.REPS,
                 reason = InvalidValueReason.ABOVE_MAXIMUM,
             )
         }
 
-        val weight = body.weightHundredthsKg
-        if (body.exerciseType == ExerciseTypeWire.WEIGHTLESS && weight != null) {
+        val weight = weightHundredthsKg
+        if (exerciseType == ExerciseTypeWire.WEIGHTLESS && weight != null) {
             return CompleteCommandOutcome.InvalidValues(
                 field = NumericField.WEIGHT,
                 reason = InvalidValueReason.MUST_BE_NULL_FOR_WEIGHTLESS,

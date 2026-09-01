@@ -20,6 +20,11 @@ dependencies {
     testImplementation(libs.junit.jupiter)
     testImplementation(kotlin("test"))
     testImplementation(libs.androidx.wear.tiles.testing)
+    // Only the repository-owned suite annotations are needed. Pulling the module's phone/KMP UI
+    // runtime into the Wear test APK conflicts with the intentionally narrower Wear lock graph.
+    androidTestImplementation(project(":core:ui:test-utils")) {
+        isTransitive = false
+    }
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 }
