@@ -9,4 +9,7 @@ object WearProtocol {
     const val MAX_ENVELOPE_BYTES: Int = 16_384
     const val MAX_WEAR_REPS: Int = 999
     const val MAX_WEAR_WEIGHT_HUNDREDTHS_KG: Int = 99_999
+    const val MAX_MUTATION_WINDOW_MS: Long = 120_000L
+    const val DISPLAY_CACHE_TTL_MS: Long = 86_400_000L
+    const val MAX_PAYLOAD_TOO_LARGE_FALLBACK_BYTES: Int = 1_024
 }

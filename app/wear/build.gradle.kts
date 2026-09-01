@@ -2,14 +2,30 @@ plugins {
     alias(libs.plugins.convention.application.wear)
 }
 
+android {
+    lint {
+        // Android Lint cannot merge an application model with the required pure-JVM protocol
+        // model while app-only issues are enabled: it reports CannotEnableHidden before source
+        // analysis. The protocol owns an independent lintDebug alias in every root gate.
+        checkDependencies = false
+    }
+}
+
 dependencies {
     implementation(project(":core:wear-protocol"))
     implementation(libs.google.play.services.wearable)
     implementation(libs.coroutines.play.services)
 
+    testImplementation(platform(libs.junit.bom))
+    testImplementation(libs.junit.jupiter)
+    testImplementation(kotlin("test"))
     testImplementation(libs.androidx.wear.tiles.testing)
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+}
+
+tasks.withType<org.gradle.api.tasks.testing.Test>().configureEach {
+    useJUnitPlatform()
 }
 
 // The root verification contract uses unflavoured lifecycle names. AGP creates those aliases for
