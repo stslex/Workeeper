@@ -39,8 +39,8 @@ record it from the watch.
 - Wear OS only, paired with the Android Workeeper phone app.
 - Galaxy Watch Ultra (2024) as the physical acceptance device, plus one small
   round Wear emulator so the UI is not accidentally device-specific.
-- Tile states for no active workout, active workout, disconnected/stale data,
-  and temporary loading/error.
+- Tile states for no active workout, active workout, phone action required,
+  disconnected/stale data, and temporary loading/error.
 - One activity with:
   - training name and overall exercise progress;
   - current exercise name;
@@ -85,6 +85,8 @@ stateDiagram-v2
     NoSession --> Active: Phone starts workout
     Active --> Controller: Tap Tile
     Controller --> Active: Set acknowledged
+    Active --> NeedsPhone: First pending exercise has no set rows
+    NeedsPhone --> Active: Phone creates a row and sends snapshot
     Active --> Stale: Nearby phone lost
     Active --> Stale: Snapshot age reaches 2 min
     Stale --> Active: Fresh handshake
@@ -103,6 +105,7 @@ window expires and cannot authorize a write.
 | --- | --- | --- |
 | No active session | Workeeper + `Start a workout on your phone` | Opens the local instruction screen; it does not remotely start the phone app or a session |
 | Active and fresh | Training name, current exercise, set ordinal, compact overall progress | Opens the current-set controller |
+| Phone action required | Exercise name plus `Add a set on your phone` | Opens a read-only explanation; it never synthesizes or adds a set |
 | Active but stale/disconnected | Last known training/exercise plus `Phone unavailable` | Opens the controller in read-only reconnecting state |
 | Loading with no cache | Workeeper + short loading label | Opens the reconnecting screen |
 | Retryable transport error | Safe generic error; no payload details | Opens recovery state with explicit retry |
@@ -145,6 +148,7 @@ Failure to close this choice before UI implementation is a STOP.
 `Complete set` is enabled only when:
 
 - the phone node has completed a fresh handshake;
+- the snapshot state is `ActiveWithTarget`, not `PhoneActionRequired`;
 - the snapshot is not stale;
 - no command is in flight;
 - reps are greater than zero; and
@@ -189,21 +193,31 @@ Phase 1 does not synchronize the phone screen's ephemeral expanded-card or focus
 state. `LiveWorkoutStore.activeExerciseUuids`, draft text, and keyboard focus are
 presentation state and are not durable truth.
 
-The phone bridge derives the watch target from persisted rows:
+The phone bridge derives the watch target from persisted rows with the same
+load-time inputs as `ExerciseDoneRule`, without inventing the live screen's draft
+or row-count override:
 
-1. order performed exercises by `position`;
-2. ignore skipped exercises;
-3. for each exercise, resolve visible set positions using the same
-   `performed > plan > fallback` rule as Live workout;
-4. choose the first position without a persisted completed set;
-5. the first exercise with such a position is the watch current exercise;
-6. if no target remains, return `Workout complete on phone` and disable writes.
+1. order performed exercises by `position` and ignore skipped exercises;
+2. for each exercise, build expected positions from the union of plan indices
+   and persisted performed-set positions;
+3. if that union is non-empty, choose its first position without a persisted
+   completed set; the first exercise with such a position is the watch current
+   exercise;
+4. if the first non-skipped, not-done exercise has an empty union, stop traversal
+   and return `PhoneActionRequired(NoSetRows, performedExerciseUuid)`. The Tile
+   and controller show `Add a set on your phone`, remain read-only, and request a
+   fresh snapshot after the phone creates a row. The bridge must not synthesize
+   fallback position `0` and must not skip ahead to a later exercise; and
+5. return `WorkoutComplete` only when every non-skipped exercise with an expected
+   position is complete and no `PhoneActionRequired` exercise exists.
 
 This deliberately means out-of-order exercise selection on the phone is not
 mirrored in Phase 1. It is safer than persisting a new pointer or treating an
 ephemeral UI selection as session truth. Shared behavior-vector tests must run
 the phone Live-workout completion rule and the bridge rule over the same planned,
-performed, skipped, empty, and sparse-position fixtures. A mismatch is a STOP.
+performed, skipped, empty, and sparse-position fixtures. The empty/no-plan/no-row
+fixture must produce `PhoneActionRequired`, not `WorkoutComplete` or a synthetic
+target. A mismatch is a STOP.
 
 Drafts typed on the phone but not checked are not synchronized. This preserves
 the existing explicit persistence contract: only a completed set is durable.
@@ -245,51 +259,82 @@ Every completion command carries at least:
 - `sessionUuid`;
 - `performedExerciseUuid`;
 - `setPosition`;
-- the snapshot revision/hash it was edited from;
+- the opaque snapshot version `(databaseEpoch, sessionRevision)` it was edited
+  from; and
 - `weight`, `reps`, and immutable set type copied from the snapshot.
+
+A content hash is not a concurrency token. Phase 1 requires a tested Room
+migration that adds durable synchronization metadata owned by the phone
+database:
+
+- a non-repeating opaque database epoch generated during migration/new-database
+  creation and rotated before a restored/replaced database is admitted to
+  listeners;
+- a per-session `Long` revision initialized once and incremented monotonically
+  in the same transaction as every target-affecting mutation; and
+- one bounded last-applied Wear receipt slot per session containing `commandId`,
+  a deterministic request fingerprint, and the resulting version. The
+  fingerprint covers the schema version, source database epoch/revision, target
+  identities/position, submitted values, and immutable set type; transport
+  correlation metadata is excluded.
+
+Target-affecting mutations include set insert/update/delete, mark-done/uncheck,
+undo compensation, skip/unskip, performed-exercise add/remove/reorder, and any
+session transition that can change the canonical target. The revision never
+decrements or returns to an earlier value during one database epoch. Phone
+process restart preserves it. A non-Wear mutation clears the last Wear receipt
+while incrementing the revision. Backup restore/recovery rotates the database
+epoch and clears the receipt before listener admission, so a command from the
+retired generation cannot match a restored older counter. Wall-clock time and a
+hash of current rows may be carried for diagnostics but can never authorize a
+write.
 
 The current `SetRepositoryImpl.upsert` is not an acceptable command boundary:
 it performs a lookup followed by an insert, while the
 `(performed_exercise_uuid, position)` index is non-unique. Phase 1 must add one
 phone-side completion gateway whose database body runs through the existing
-`DbTransitionRunner` `immediateTransaction`. Every application writer that can
-create or replace a set row for an active session — phone mark-done, edits of a
-completed set, undo compensation, and the Wear bridge — must use this shared
-serialized boundary rather than call the current lookup/insert sequence
-independently.
+`DbTransitionRunner` `immediateTransaction`. Every target-affecting application
+writer listed above must enter the same serialized transition seam and bump the
+session revision; set-row writers — phone mark-done, edits of a completed set,
+undo compensation, and the Wear bridge — must also use the shared completion
+gateway rather than call the current lookup/insert sequence independently.
 
 Inside that one transaction, the gateway must:
 
-1. re-read the active session and verify that the submitted exercise belongs to
+1. reject a database-epoch mismatch before inspecting the target;
+2. re-read the active session and verify that the submitted exercise belongs to
    it and is not skipped;
-2. inspect the current revision, canonical target, and any existing row for
-   `(performedExerciseUuid, position)`;
-3. return `AlreadyApplied` when that row already exactly matches the submitted
-   values, even when the successful write has advanced the revision since the
-   request was sent;
-4. return an authoritative conflict plus replacement snapshot when an existing
-   row differs, the target moved, or the expected revision is stale; otherwise
-   validate the submitted values and perform exactly one insert/update;
-5. derive the post-write revision and complete replacement snapshot from the
-   same serialized database state; and
-6. return from the transaction before any acknowledgement is emitted, so a
+3. compare `commandId` and request fingerprint with the durable receipt. An exact
+   match returns `AlreadyApplied` only when the receipt's resulting version is
+   also the current database epoch/revision; reuse of one ID for another
+   fingerprint is a protocol rejection;
+4. require exact equality with the durable session revision. Any mismatch is
+   `StaleRevision` even when current rows hash to the same content;
+5. re-derive the canonical target and inspect any existing row for
+   `(performedExerciseUuid, position)`. A moved target or differing row returns
+   an authoritative conflict; otherwise validate values and perform exactly one
+   insert/update;
+6. increment the session revision, persist the Wear receipt, and derive the
+   complete replacement snapshot from the same serialized database state; and
+7. return from the transaction before any acknowledgement is emitted, so a
    rollback or failed commit can never be reported as success.
 
-`commandId` correlates request, retry, and response. Durable idempotency comes
-from the atomic state comparison rather than from an in-memory command cache:
-after a lost acknowledgement or phone-process restart, an exact persisted row
-is `AlreadyApplied`; a differing row or advanced target is authoritative stale.
-Concurrent deliveries may choose different candidate UUIDs before admission,
-but only the transaction winner may create the row, and every later writer must
-observe and reuse or reject that row. The invariant is at most one persisted row
-per `(performedExerciseUuid, position)`.
+`commandId` correlates request, retry, and response. After a lost acknowledgement
+or phone-process restart, only the exact durable receipt can produce
+`AlreadyApplied`; state equality alone cannot. Any later phone or watch mutation
+increments the revision and invalidates the older request, including an ABA
+sequence that completes and then unchecks/deletes the same set. Concurrent
+deliveries may choose different candidate UUIDs before admission, but only the
+transaction winner may create the row, and every later writer must observe and
+reuse or reject that row. The invariant is at most one persisted row per
+`(performedExerciseUuid, position)`.
 
-The no-migration route is accepted only if the implementation proves that every
-relevant writer is single-process and enters this shared immediate-transaction
-gateway. If any writer can bypass it, or the concurrency oracle can produce two
-rows, a unique database constraint plus a tested Room migration becomes an
-implementation STOP requiring owner approval; the implementation must not
-weaken the invariant to preserve the no-migration expectation.
+The revision/receipt migration is required, not optional. If any relevant writer
+can bypass the shared immediate-transaction gateway, or the concurrency oracle
+can produce two rows, implementation must additionally add a unique database
+constraint with a data-preserving migration. Existing duplicate target rows
+must never be silently discarded; discovering them without an owner-approved
+reconciliation rule is a STOP.
 
 The response echoes `commandId` and returns a typed semantic outcome together
 with the complete replacement snapshot or no-session state. A transport timeout
@@ -308,6 +353,10 @@ messages and stack traces never cross the device boundary.
   serialized by the shared immediate transaction. The loser observes the
   winner's row and returns `AlreadyApplied` or authoritative stale; exactly one
   final row exists for the target.
+- If the phone completes and then unchecks/deletes the target, both mutations
+  advance the durable revision. A delayed command from the original snapshot is
+  rejected as stale even though the visible rows returned to their earlier
+  shape.
 - If the phone process restarts, a request rebuilds a fresh snapshot; the watch
   cache never becomes authoritative.
 - Phone-side reads/writes from the listener must acquire the repository's
@@ -370,10 +419,11 @@ Constraints:
   but must not move Wear concepts into `commonMain`.
 - `core/wear-protocol` is shared only between the two Android artifacts. A
   future watchOS protocol may be designed independently.
-- No database schema change is expected only if the entry probe proves that all
-  set writers are single-process and can be routed through the shared
-  `DbTransitionRunner` immediate-transaction gateway. Otherwise the required
-  unique constraint and Room migration are a STOP for owner approval.
+- A Room migration for the durable database epoch, per-session revision, and
+  bounded Wear receipt is required. It must follow the repository migration
+  recipe and prove upgrade, rollback-on-failure, export/restore behavior, and
+  unchanged workout rows. A unique target constraint is additionally required
+  only if the serialized-writer invariant cannot be proven.
 - The watch application needs a narrow application convention without Firebase,
   Google Services JSON, Crashlytics, performance monitoring, or KSP.
 - `app/wear` emits dev/store variants whose application IDs and signing keys
@@ -416,6 +466,12 @@ The initial protocol has three logical operations:
 | `ActiveWorkoutSnapshot` | Phone → watch | Replace cached state, including no-session |
 | `CompleteCurrentSet` | Watch → phone | Atomically compare-and-write the exact current set; return a typed outcome plus replacement snapshot |
 
+`ActiveWorkoutSnapshot` has four mutually exclusive payload states:
+`NoSession`, `ActiveWithTarget`, `PhoneActionRequired`, and `WorkoutComplete`.
+Only `ActiveWithTarget` carries a mutable target. `PhoneActionRequired` carries
+a typed reason and the relevant exercise identity for display, never a fallback
+set position.
+
 All envelopes carry `schemaVersion` and a correlation ID. Unknown versions and
 unknown operations fail closed. Payloads are bounded well below the Data Layer
 message limit, use one deterministic `kotlinx.serialization` representation,
@@ -451,10 +507,18 @@ update-required state and disables mutation.
   behavior, acknowledgement, retryable transport failure, stale/target/no-session
   convergence, validation correction, and protocol mismatch.
 - Current-target derivation for planned, ad-hoc, skipped, complete, empty,
-  sparse-position, weighted, and weightless sessions.
+  sparse-position, weighted, and weightless sessions. An empty no-plan/no-row
+  exercise before a populated later exercise returns
+  `PhoneActionRequired(NoSetRows)` and never position `0` or the later target.
 - Shared behavior-vector parity against the phone Live-workout done rule.
 - Phone command validation for wrong session, wrong exercise, stale revision,
   stale position, invalid values, duplicate retry, write failure, and success.
+- Version oracles proving strictly increasing revisions across every listed
+  phone/watch target-affecting mutation, persistence across process restart,
+  database-epoch rotation on restore, exact-receipt replay after lost
+  acknowledgement, command-ID/fingerprint mismatch rejection, and
+  complete → uncheck/delete → delayed-old-command rejection despite identical
+  current content.
 - Real-database concurrency oracles for simultaneous delivery of the same
   command, different commands for the same target, phone/watch completion, and
   phone-process retry after a lost acknowledgement. Every case asserts one row,
@@ -481,6 +545,8 @@ update-required state and disables mutation.
   the watch converges to the phone snapshot.
 - Backup restore/recovery while a watch request waits or runs; no old-generation
   read/write survives.
+- Empty no-plan/no-row exercise: Tile and controller require phone action, expose
+  no completion control, and converge after a set is created on the phone.
 
 Device evidence must identify the APK package/signature pair, OS/API versions,
 and exact test scenario. Manual observation without the resulting phone DB
@@ -527,14 +593,15 @@ The streams are conceptually independent but share repository integration files.
 
 1. **Entry probes:** package/signature variants, payload-free Data Layer
    capability probe, current-set parity fixtures, Gradle task discovery, and a
-   complete inventory of set writers proving whether the transaction-only
-   no-migration route is sound.
+   complete inventory of target-affecting writers, migration baseline, and
+   duplicate-target probe.
 2. **Protocol/cache:** versioned models, codec, watch cache, reducer, and tests.
 3. **Watch read-only surface:** Tile, controller states, accessibility, and
    rendered evidence against fake transport.
-4. **Phone bridge:** generation-safe snapshot reads and the shared atomic
-   compare-and-write gateway used by phone and watch, rebased onto the latest
-   `dev` and extending the post-#273 graph contract.
+4. **Phone bridge:** migration, durable epoch/revision/receipt, generation-safe
+   snapshot reads, and the shared atomic compare-and-write gateway used by phone
+   and watch, rebased onto the latest `dev` and extending the post-#273 graph
+   contract.
 5. **Paired integration:** acknowledgement, Tile refresh, ongoing activity,
    disconnect/race handling, and physical-device proof.
 6. **Final review:** full repository gates, signed commits, zero unresolved
@@ -552,8 +619,10 @@ Stop and return to the owner if any of the following occurs:
   strict product promise;
 - phone and watch package names or signing certificates do not match;
 - current-set behavior diverges from the persisted phone Live-workout rule;
-- the single-writer immediate-transaction invariant cannot be proven without a
-  unique constraint/schema migration, or any set writer would bypass it;
+- the revision/receipt migration cannot preserve existing workout data or rotate
+  the database epoch safely across restore;
+- a target-affecting writer would bypass the shared transaction/revision bump;
+- duplicate target rows exist without an owner-approved reconciliation rule;
 - a listener would access repositories without generation-bound admission;
 - KMP/common source sets, shared watch UI, Health APIs, or sensor permissions
   become necessary;
@@ -572,6 +641,8 @@ Phase 1 is complete only when:
 - stale/disconnected/protocol-mismatch states cannot mutate data;
 - typed retry/stale handling and the atomic phone/watch write boundary converge
   without duplicate rows, obsolete-draft retries, or false success;
+- empty exercises require phone action without creating a fallback row, and the
+  durable version rejects ABA commands after complete/uncheck or restore;
 - package/signature, lifecycle, cache erasure, accessibility, localization, and
   ongoing-activity requirements are proven;
 - the chosen transport policy is reflected consistently in product/privacy copy;
