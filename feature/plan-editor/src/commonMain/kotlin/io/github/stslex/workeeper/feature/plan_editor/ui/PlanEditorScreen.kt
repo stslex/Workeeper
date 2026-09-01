@@ -233,6 +233,17 @@ internal fun PlanEditorHeader(exerciseName: String) {
     )
 }
 
+private object PlanEditorPreviewValues {
+    const val WARMUP_WEIGHT = 60.0
+    const val WARMUP_REPS = 10
+    const val FIRST_WORK_WEIGHT = 80.0
+    const val FIRST_WORK_REPS = 8
+    const val SECOND_WORK_WEIGHT = 100.0
+    const val SECOND_WORK_REPS = 5
+    const val FAILURE_WEIGHT = 85.0
+    const val FAILURE_REPS = 6
+}
+
 @Composable
 @Preview(name = "Light")
 private fun PlanEditorScreenLightPreview() {
@@ -246,7 +257,6 @@ private fun PlanEditorScreenDarkPreview() {
 }
 
 @Composable
-@Suppress("MagicNumber")
 private fun PlanEditorScreenPreview(themeMode: ThemeMode) {
     AppTheme(themeMode = themeMode) {
         PlanEditorScreen(
@@ -257,10 +267,26 @@ private fun PlanEditorScreenPreview(themeMode: ThemeMode) {
                 type = ExerciseTypeUiModel.WEIGHTED,
                 initialDraft = persistentListOf(),
                 draft = listOf(
-                    PlanSetUiModel(60.0, 10, SetTypeUiModel.WARMUP),
-                    PlanSetUiModel(80.0, 8, SetTypeUiModel.WORK),
-                    PlanSetUiModel(100.0, 5, SetTypeUiModel.WORK),
-                    PlanSetUiModel(85.0, 6, SetTypeUiModel.FAILURE),
+                    PlanSetUiModel(
+                        weight = PlanEditorPreviewValues.WARMUP_WEIGHT,
+                        reps = PlanEditorPreviewValues.WARMUP_REPS,
+                        type = SetTypeUiModel.WARMUP,
+                    ),
+                    PlanSetUiModel(
+                        weight = PlanEditorPreviewValues.FIRST_WORK_WEIGHT,
+                        reps = PlanEditorPreviewValues.FIRST_WORK_REPS,
+                        type = SetTypeUiModel.WORK,
+                    ),
+                    PlanSetUiModel(
+                        weight = PlanEditorPreviewValues.SECOND_WORK_WEIGHT,
+                        reps = PlanEditorPreviewValues.SECOND_WORK_REPS,
+                        type = SetTypeUiModel.WORK,
+                    ),
+                    PlanSetUiModel(
+                        weight = PlanEditorPreviewValues.FAILURE_WEIGHT,
+                        reps = PlanEditorPreviewValues.FAILURE_REPS,
+                        type = SetTypeUiModel.FAILURE,
+                    ),
                 ).toImmutableList(),
                 initialType = ExerciseTypeUiModel.WEIGHTED,
                 pendingTypeChange = null,
