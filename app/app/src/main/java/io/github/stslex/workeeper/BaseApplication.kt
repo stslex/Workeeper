@@ -28,6 +28,8 @@ import io.github.stslex.workeeper.di.AppGraphOwner
 import io.github.stslex.workeeper.di.buildAppGraph
 import io.github.stslex.workeeper.feature.recovery.di.RecoveryDeps
 import io.github.stslex.workeeper.feature.recovery.di.RecoveryDepsHolder
+import io.github.stslex.workeeper.feature.wear_bridge.WearBridgeWorkDepsHolder
+import io.github.stslex.workeeper.feature.wear_bridge.WearBridgeWorkLease
 import io.github.stslex.workeeper.runtime.AppRuntime
 import io.github.stslex.workeeper.runtime.RuntimeTransitionPolicy
 import io.github.stslex.workeeper.runtime.StartupOutcome
@@ -48,6 +50,7 @@ abstract class BaseApplication :
     AppDepsHolder,
     RecoveryDepsHolder,
     BackupWorkerDepsHolder,
+    WearBridgeWorkDepsHolder,
     AppRootDepsHolder,
     AppUiGenerationsHolder {
 
@@ -101,6 +104,9 @@ abstract class BaseApplication :
 
     override suspend fun awaitBackupWorkLease(): BackupWorkLease? =
         appRuntime.awaitBackupWorkLease()
+
+    override suspend fun awaitWearBridgeWorkLease(): WearBridgeWorkLease? =
+        appRuntime.awaitWearBridgeWorkLease()
 
     // Typed seam: `App()` lives in app:common, below the graph, and cannot name [AppGraph].
     override fun appRootDeps(): AppRootDeps = appGraph

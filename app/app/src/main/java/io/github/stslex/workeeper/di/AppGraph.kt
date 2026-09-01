@@ -41,6 +41,7 @@ import io.github.stslex.workeeper.feature.recovery.boot.RecoveryBootstrap
 import io.github.stslex.workeeper.feature.recovery.di.RecoveryDeps
 import io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinator
 import io.github.stslex.workeeper.feature.recovery.domain.StartupMigrationCoordinator
+import io.github.stslex.workeeper.feature.wear_bridge.WearBridgeDeps
 import io.github.stslex.workeeper.navigation.NavigatorEventBus
 import kotlinx.coroutines.CoroutineDispatcher
 
@@ -52,6 +53,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 internal interface AppGraph :
     RecoveryDeps,
     BackupWorkerDeps,
+    WearBridgeDeps,
     AppRootDeps {
 
     val analyticsHolder: AnalyticsHolder
