@@ -82,17 +82,24 @@ stateDiagram-v2
     [*] --> Loading
     Loading --> NoSession: Phone reports no session
     Loading --> Active: Fresh snapshot
+    Loading --> Complete: Fresh completed snapshot
     Loading --> NeedsPhone: Phone action or bounded fallback required
     NoSession --> Active: Phone starts workout
     Active --> Controller: Tap Tile
-    Controller --> Active: Set acknowledged
+    Controller --> Active: Non-final set acknowledged
+    Controller --> Complete: Final set acknowledged
+    Active --> Complete: Phone completes final set
     Active --> NeedsPhone: No set rows or bounded-payload fallback
     NeedsPhone --> Active: Phone makes a deliverable target and sends snapshot
+    Complete --> Active: Phone makes a set pending
+    Complete --> NeedsPhone: Phone adds an empty pending exercise
+    Complete --> NoSession: Phone ends workout
     Active --> Stale: Nearby phone lost
     Active --> Stale: Effective mutation window expires
     Stale --> Active: Fresh handshake
     Active --> NoSession: Phone ends workout
     Active --> Loading: First cache access after watch reboot
+    Complete --> Loading: Cache invalidated
     Stale --> Loading: Next cache access at age 24 h or older
 ```
 
@@ -108,6 +115,7 @@ window expires and cannot authorize a write.
 | Active and fresh | Training name, current exercise, set ordinal, compact overall progress | Opens the current-set controller |
 | Phone action required | Exercise name plus `Add a set on your phone` | Opens a read-only explanation; it never synthesizes or adds a set |
 | Snapshot too large for watch | Localized generic workout label plus `Open this workout on your phone` | Opens a read-only explanation; no remote name, target, or mutation lease is present |
+| Workout complete | Training name plus localized `Workout complete` and `Finish on your phone` | Opens the read-only completion screen; it cannot finish the session |
 | Active but stale/disconnected | Last known training/exercise plus `Phone unavailable` | Opens the controller in read-only reconnecting state |
 | Loading with no cache | Workeeper + short loading label | Opens the reconnecting screen |
 | Retryable transport error | Safe generic error; no payload details | Opens recovery state with explicit retry |
@@ -135,6 +143,14 @@ The activity has one scrollable screen and no nested navigation. Reading order:
 4. weight stepper when the exercise is weighted;
 5. reps stepper;
 6. primary `Complete set` button.
+
+For an accepted `WorkoutComplete` snapshot, the controller replaces the set
+controls with a read-only confirmation: bounded training name, localized
+`Workout complete`, and `Finish on your phone`. It exposes no exercise target,
+weight/reps values, completion action, or mutation lease. A later accepted
+`ActiveWithTarget` or `PhoneActionRequired` snapshot replaces this presentation;
+an accepted `NoSession` moves to the no-session instruction. The watch never
+retains the final target as a completion fallback and cannot finish the session.
 
 Every interactive target is at least `48dp × 48dp`, with enough separation that
 targets do not overlap. Controls have semantic labels that include the field,
@@ -373,10 +389,12 @@ the existing explicit persistence contract: only a completed set is durable.
 - Watch storage contains one versioned, atomically published app-private cache
   record. Its bounded framing header contains the cache schema version,
   `receivedAtElapsedRealtimeMs`, corresponding `Settings.Global.BOOT_COUNT`, raw
-  `effectiveMutationWindowMs`, payload length, and payload digest; the same
+  `effectiveMutationWindowMs`, nullable
+  `ongoingStopAtElapsedRealtimeMs`, payload length, and payload digest; the same
   atomic record contains the raw last protocol snapshot and minimal connection
-  metadata. None of those fields may be committed in separate preference keys
-  or files.
+  metadata. The ongoing deadline is present only while an actionable ongoing
+  surface is eligible and is shortened atomically on an earlier disconnect.
+  None of those fields may be committed in separate preference keys or files.
 - Cache replacement uses `AtomicFile` semantics or an equivalent temp-write,
   durable-sync, atomic-publish primitive. In-memory publication occurs only
   after the complete durable record is published. A failed, cancelled, or
@@ -413,6 +431,15 @@ the existing explicit persistence contract: only a completed set is durable.
   a correlated handshake; the persisted effective window proves that deadlines
   were not extended and drives stale/lifecycle state, but only that live latest-
   generation response may install its lease.
+- The framing header is also the restart boundary for the ongoing surface. If
+  `ongoingStopAtElapsedRealtimeMs` is present and already reached, the reader
+  cancels that notification before protocol-payload decode. If it is still in
+  the future, an already-posted system notification keeps its original timeout;
+  process restart never recreates a missing notification from display-only
+  cache. Any in-process update to the surviving notification uses only the
+  remaining interval, never the original full interval. A process restart,
+  reconnect callback, or ordinary cache read cannot move the persisted deadline
+  later; only a newly accepted fresh `ActiveWithTarget` snapshot may replace it.
 - If no watch process runs at the deadline, app-private cache bytes may
   remain physically present past 24 hours. No exact alarm, WorkManager deadline,
   wake lock, or background loop is claimed solely for deletion; the security and
@@ -737,26 +764,62 @@ watch app must expose the platform ongoing-activity/notification affordance so
 the user can return in one tap. It does not imply sensor tracking or a second
 workout engine.
 
-- Start it only after a fresh active-session response.
+- Start it only after a fresh accepted `ActiveWithTarget` response. Read-only
+  `PhoneActionRequired`, `WorkoutComplete`, `NoSession`, and protocol-mismatch
+  states do not own an ongoing surface.
 - Update it from cached snapshots, not a per-second loop.
 - Deep-link it to the same controller activity.
+- Every posted or updated ongoing notification sets the platform's system-owned
+  `timeoutAfter` to the remaining interval until one absolute monotonic stop
+  deadline:
+
+  ```text
+  freshnessDeadlineMs = receivedAtElapsedRealtimeMs + effectiveMutationWindowMs
+  ongoingStopAtElapsedRealtimeMs = freshnessDeadlineMs + reconnectWindowMs
+  remainingMs = ongoingStopAtElapsedRealtimeMs - nowMs
+  if remainingMs <= 0: cancel/do not post
+  otherwise: notificationTimeoutAfterMs = remainingMs
+  ```
+
+  The absolute stop deadline is persisted in the atomic cache header before the
+  notification is exposed. The notification manager therefore removes the
+  surface after process death without requiring reducer execution, a wake lock,
+  an app alarm, or a background polling loop.
 - Enter one read-only freshness-loss grace state when either the node disconnects
   or the accepted snapshot's effective mutation window expires without a newer
   fresh correlated handshake. The bounded reconnect window starts at the first
-  such event; reconnect notifications, no-op traffic, failed refreshes, and
-  repeated expiry events cannot reset it. Only a fresh correlated active-session
-  response cancels the grace state and starts a new lifecycle window.
+  such event. An earlier explicit disconnect atomically changes the persisted
+  deadline to `min(existingDeadline, disconnectAtMs + reconnectWindowMs)` and
+  updates `timeoutAfter` from the remaining interval. Reconnect notifications,
+  no-op traffic, failed refreshes, and repeated expiry events cannot reset or
+  extend it. Only a fresh correlated `ActiveWithTarget` response cancels the
+  grace state and installs a new lifecycle window.
+- Crash ordering is fail-closed. A fresh lifecycle persists its new deadline
+  before exposing the notification. Deadline shortening updates the system
+  notification to the earlier timeout before publishing the matching cache
+  header. Entering a read-only stop state cancels the notification before that
+  state is exposed. At every process-death cut the notification is therefore
+  absent or has a timeout no later than the last reducer decision; the cache
+  reader never recreates it or extends it.
 - When the reconnect window elapses without freshness, stop the ongoing surface
   and leave the stale Tile even if the node still reports connected.
-- Stop immediately on a no-session response.
+- Stop immediately when the reducer accepts `WorkoutComplete`,
+  `PhoneActionRequired`, or `NoSession`, or enters protocol-mismatch state.
+  `WorkoutComplete` remains visible as the read-only Tile/controller state until
+  a later accepted snapshot changes it or the cache becomes invalid; stopping
+  the ongoing surface does not finish the phone session.
 - Never hold a wake lock solely to keep the Tile or controller fresh.
 
 The exact reconnect window is fixed at implementation entry after measuring the
 platform reconnect behavior on the target physical watch; it must be at least
 the documented four-minute reconnection interval plus a small deterministic
 margin, and must have a testable constant rather than an unbounded timer. The
-same constant and state machine cover explicit disconnect and connected-but-
-silent freshness loss.
+same probe fixes a maximum `ONGOING_TIMEOUT_TOLERANCE_MS` for system notification
+removal on that device. The same constants and state machine cover explicit
+disconnect, connected-but-silent freshness loss, and process eviction. If
+`timeoutAfter` does not cancel the notification after process death within the
+declared tolerance, implementation is a STOP; it must not silently weaken the
+bounded-stop guarantee or add an exact-alarm permission without a new decision.
 
 ## 9. Protocol surface
 
@@ -774,8 +837,11 @@ Only `ActiveWithTarget` carries a mutable target. `PhoneActionRequired` is
 reason-specific: `NoSetRows` carries the relevant exercise identity, while
 `PayloadTooLarge` carries only the session identity and no remote display name,
 exercise identity, target, values, or lease. Neither may carry a fallback set
-position. A mutable snapshot also carries its opaque mutation lease ID; no other
-state does. Its durable lease generation accompanies the ID and orders
+position. `WorkoutComplete` carries only the session identity, bounded training
+name, and the overall completed/total exercise counts used by the read-only
+surfaces; it carries no exercise identity, target, set values, or lease. A
+mutable snapshot also carries its opaque mutation lease ID; no other state does.
+Its durable lease generation accompanies the ID and orders
 successors within one database epoch/session revision; it never extends the
 lease lifetime. The same mutable envelope carries bounded
 `leaseRemainingAtPhoneSendMs`; the watch combines it only with the matching
@@ -898,8 +964,8 @@ update-required state and disables mutation.
   parks it only if the current display still exactly matches. A validation
   response against a now-newer target discards only the obsolete draft but still
   emits its field-specific error. A retryable outcome is consumed once for its
-  attempt and enters `AwaitingRetryAuthority`: an accepted same-version/target mutable
-  successor preserves `commandId`, intent, and local generation while rebinding
+  attempt and enters `AwaitingRetryAuthority`: an accepted same-version/target
+  mutable successor preserves `commandId`, intent, and local generation while rebinding
   the lease and attempt fingerprint under a new correlation; attempt 2 can then
   apply. A rejected/read-only/different-target successor forbids resend, retains
   only a safe draft, refreshes, and requires a new command submission. A pure
@@ -918,6 +984,12 @@ update-required state and disables mutation.
   sparse-position, weighted, and weightless sessions. An empty no-plan/no-row
   exercise before a populated later exercise returns
   `PhoneActionRequired(NoSetRows)` and never position `0` or the later target.
+- Completion-state reducer oracles proving an accepted final-set response moves
+  to read-only `WorkoutComplete`, clears draft/in-flight mutation state, exposes
+  no retained target or controls, and stops the ongoing surface. A later fresh
+  phone uncheck/new pending set moves to `ActiveWithTarget` and may start a new
+  ongoing lifecycle; a new empty exercise moves to `PhoneActionRequired`; and
+  phone session finish moves to `NoSession`.
 - Shared behavior-vector parity against the phone Live-workout done rule.
 - Phone command validation for wrong session, wrong exercise, stale revision,
   stale position, invalid values, duplicate retry, write failure, and success.
@@ -935,7 +1007,15 @@ update-required state and disables mutation.
   node that stops producing fresh correlated snapshots. The first loss event
   starts one reconnect deadline; no-op traffic/repeated failures cannot extend
   it; a fresh active response cancels it; expiry stops the ongoing surface but
-  leaves the stale Tile; and `NoSession` stops it immediately.
+  leaves the stale Tile; and read-only/complete/no-session states stop it
+  immediately. The notification adapter receives `timeoutAfter` equal only to
+  the remaining interval until the persisted absolute deadline. Earlier
+  disconnect shortens that deadline; restart, repeated callbacks, and reposting
+  never restore the full interval. An already-expired header cancels before
+  payload decode. Crash-cut oracles cover initial persist/post, notification-first
+  shortening/header publish, and cancel/read-only-state publication; no cut may
+  leave a notification with a later deadline than the last exposed reducer
+  state.
 - Version oracles proving strictly increasing revisions across every listed
   phone/watch snapshot-authorizing mutation, persistence across process restart,
   database-epoch rotation on restore, exact-receipt replay after lost
@@ -967,15 +1047,15 @@ update-required state and disables mutation.
 - Atomic-cache crash-cut oracles at temporary write, durable sync, atomic publish,
   and in-memory publication. Every restart observes the complete prior record or
   complete replacement, never a valid old payload paired with a new baseline/
-  effective mutation window or a new payload paired with old metadata. They also
-  cover length/digest mismatch, cancellation, write failure, and durable
-  `NoSession` tombstone replacement before the old active payload can be exposed
-  again.
+  effective mutation window/ongoing deadline or a new payload paired with old
+  metadata. They also cover length/digest mismatch, cancellation, write failure,
+  disconnect-deadline shortening, and durable `NoSession` tombstone replacement
+  before the old active payload can be exposed again.
 - DB-work lease tests proving a listener cannot touch a retired generation and
   releases admission on success, failure, timeout, and cancellation.
 - Tile layout tests proving one launch target and no mutation action.
-- Tile/controller reducer and semantics for omitted individual names and the
-  `PayloadTooLarge` generic localized read-only state.
+- Tile/controller reducer and semantics for omitted individual names,
+  `PayloadTooLarge`, and `WorkoutComplete` generic/localized read-only states.
 - Accessibility semantics for every control and disabled/error state.
 
 ### 11.2 Device tests
@@ -999,6 +1079,16 @@ update-required state and disables mutation.
   effective mutation window expires, the single reconnect grace deadline does
   not move, the ongoing surface stops at its boundary, and a later fresh
   handshake can start it again.
+- Post an ongoing notification with the test-injected bounded deadline, kill the
+  watch process before freshness loss, and observe from an external/device-side
+  harness that the system removes it no later than the deadline plus the fixed
+  `ONGOING_TIMEOUT_TOLERANCE_MS`. Repeat after an earlier disconnect and prove
+  the shortened deadline survives process death. No app restart, wake lock, or
+  exact-alarm permission may be needed for cancellation.
+- Complete the final outstanding set from the watch: Tile and controller show
+  localized read-only completion with no set controls, and the ongoing surface
+  stops without ending the phone session. Uncheck a set on the phone and verify
+  a fresh snapshot restores the actionable state and a new ongoing lifecycle.
 - Load/import over-limit and multi-byte-boundary training/exercise names on the
   phone: the paired watch receives exact bounded names or localized omission/
   `PayloadTooLarge` fallback, never malformed text, transport failure, or a lease
@@ -1106,8 +1196,13 @@ Stop and return to the owner if any of the following occurs:
   `commandId` to a successor without proving unchanged stable command intent;
 - a timeout resend could use a lease after any newer authority generation was
   issued, or authorization-only expiry could discard a still-compatible draft;
+- an accepted `WorkoutComplete` state would retain a mutation target/control,
+  leave Tile/controller behavior undefined, or keep the ongoing surface alive;
 - the ongoing surface could outlive the bounded reconnect window after either
   explicit disconnect or connected-but-silent freshness loss;
+- the system notification timeout cannot remove the ongoing surface after watch
+  process death within the fixed physical-device tolerance, or its absolute
+  deadline cannot be persisted/shortened without extension;
 - any Tile/activity/ongoing cache consumer can decode payload bytes before the
   access-time TTL/boot metadata gate;
 - a watch-process restart could reinstall cached mutation authority without a
@@ -1170,10 +1265,17 @@ Phase 1 is complete only when:
   latest-generation correlated handshake installs authority;
 - empty exercises require phone action without creating a fallback row, and the
   durable version rejects ABA commands after complete/uncheck or restore;
+- accepted `WorkoutComplete` is a fully defined read-only Tile/controller state
+  with no retained target or controls; it stops the ongoing surface without
+  ending the phone session and can return to active only from a later accepted
+  snapshot;
 - package/signature, lifecycle, cache access-time TTL/non-exposure,
   accessibility, localization, and ongoing-activity requirements are proven;
 - both disconnect and connected-but-silent freshness loss stop the ongoing
   surface after one non-extendable bounded reconnect window;
+- the persisted absolute ongoing deadline and system-owned notification timeout
+  enforce that same stop after watch process death within the measured fixed
+  tolerance, and an earlier disconnect can only shorten it;
 - paired-watch transfer/cache and the chosen direct-only or E2EE-relay route are
   reflected consistently in product and owner-approved public privacy copy;
 - every wire display name and complete envelope obeys its exact byte cap, with
@@ -1188,6 +1290,7 @@ Phase 1 is complete only when:
 - [Tiles overview and principles](https://developer.android.com/training/wearables/tiles)
 - [Tile interactions](https://developer.android.com/training/wearables/tiles/interactions)
 - [Ongoing activities](https://developer.android.com/training/wearables/notifications/ongoing-activity)
+- [`Notification.Builder.setTimeoutAfter`](https://developer.android.com/reference/android/app/Notification.Builder#setTimeoutAfter(long))
 - [Wear Data Layer overview and transport behavior](https://developer.android.com/training/wearables/data/overview)
 - [Reachable and nearby nodes](https://developer.android.com/training/wearables/data/discover-devices)
 - [Data Layer client types](https://developer.android.com/training/wearables/data/client-types)
