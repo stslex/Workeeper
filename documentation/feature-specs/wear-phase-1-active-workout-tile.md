@@ -416,6 +416,13 @@ every non-success as retryable:
   stored target/values, never the rejected draft, and contains no lease fields or
   effective window. Any corrected submission first obtains fresh `Granted`
   authority and receives a new `commandId`.
+- `ImmutableTypeMismatch(ExerciseType | SetType)` is a terminal authoritative
+  command-metadata conflict, not a user-editable value error. It clears the draft
+  and in-flight command, uses the generic localized `Refresh required` recovery
+  status, and never emits a field-validation error. Its accepted
+  replacement is the canonical stored `ActiveWithTarget` plus
+  `MutationAuthority.Unavailable(FreshHandshakeRequired)`; a fresh `Granted`
+  handshake and new `commandId` are required before any later submission.
 - A protocol/version rejection clears the in-flight command, disables mutation,
   and enters the update-required state; it cannot retry the incompatible
   payload.
@@ -561,6 +568,14 @@ phone editor. It does not add a global phone-data cap:
 | `weightHundredthsKg: Int?` for a weighted exercise | `null` or `0..99_999` inclusive (`0.00..999.99 kg`) | `InvalidValues(Weight, BelowMinimum | AboveMaximum)` |
 | `weightHundredthsKg` for a weightless exercise | exactly `null` | `InvalidValues(Weight, MustBeNullForWeightless)` |
 
+The copied immutable metadata is validated separately from editable values.
+Both the exercise type and set type must exactly equal the canonical target read
+inside the serialized transaction. A mismatch returns the typed terminal outcome
+`ImmutableTypeMismatch(ExerciseType | SetType)`, never `InvalidValues`; it has no
+user-editable field error and follows the read-only replacement/recovery rule in
+§3.2. Validation order is deterministic: if both copied types differ,
+`ExerciseType` is reported first.
+
 The caps are Phase 1 watch-UX limits: at most three rep digits and one bounded
 fixed-point weight. Both boundary labels must be proven on the target round sizes.
 They do not reject or rewrite phone-only editing/history; an out-of-domain
@@ -619,15 +634,15 @@ remaining lifetime for its exact slot.
 
 The protocol derives two deterministic hashes for a command. Its stable intent
 fingerprint covers source node, schema, source epoch/revision, target, submitted
-values, and immutable set type but excludes lease and correlation. Its attempt
-fingerprint additionally covers the lease ID/generation and is the fingerprint
-stored in a durable applied receipt. A successor issued with an explicitly
-retryable outcome is process-memory-bound to that command's `commandId` and
-stable intent fingerprint. This binding is the only pre-receipt case in which
-the same `commandId` may arrive with a different attempt fingerprint; the
-gateway requires the successor lease and unchanged intent. Phone-process restart
-loses both lease and retry binding, so the watch must refresh rather than invent
-a rebind.
+values, and immutable exercise and set types but excludes lease and correlation.
+Its attempt fingerprint additionally covers the lease ID/generation and is the
+fingerprint stored in a durable applied receipt. A successor issued with an
+explicitly retryable outcome is process-memory-bound to that command's
+`commandId` and stable intent fingerprint. This binding is the only pre-receipt
+case in which the same `commandId` may arrive with a different attempt
+fingerprint; the gateway requires the successor lease and unchanged intent.
+Phone-process restart loses both lease and retry binding, so the watch must
+refresh rather than invent a rebind.
 
 A content hash is not a concurrency token. Phase 1 requires a tested Room
 migration that adds durable synchronization metadata owned by the phone
@@ -646,8 +661,8 @@ database:
   a deterministic request fingerprint, and the resulting version. The
   fingerprint covers the authenticated source node ID, schema version, source
   database epoch/revision, target identities/position, mutation lease
-  ID/generation, submitted values, and immutable set type; transport correlation
-  metadata is excluded.
+  ID/generation, submitted values, and immutable exercise and set types;
+  transport correlation metadata is excluded.
 
 Snapshot-authorizing mutations include set insert/update/delete,
 mark-done/uncheck, undo compensation, skip/unskip, performed-exercise
@@ -729,11 +744,14 @@ Inside the `CompleteCurrentSet` transaction specifically, the gateway must:
    receipt;
 6. re-derive the canonical target and inspect any existing row for
    `(performedExerciseUuid, position)`. A moved target or differing row returns
-   an authoritative conflict; otherwise validate the immutable exercise/set
-   types, `reps`, and `weightHundredthsKg` against the table in §5.2. An invalid
-   value returns the field/reason-specific `InvalidValues` outcome with no row
-   write, receipt, revision bump, or successor lease. From that same serialized
-   read it derives the current canonical target and stored values as
+   an authoritative conflict. Otherwise require both copied immutable types to
+   equal the canonical types; a mismatch returns
+   `ImmutableTypeMismatch(ExerciseType | SetType)`. Only after both match,
+   validate `reps` and `weightHundredthsKg` against the table in §5.2; an invalid
+   editable value returns the field/reason-specific `InvalidValues`. Either
+   rejection performs no row write, receipt, revision bump, or successor lease.
+   From that same serialized read it derives the current canonical target and
+   stored values as
    `ActiveWithTarget` with
    `MutationAuthority.Unavailable(FreshHandshakeRequired)`; the replacement
    contains neither the rejected draft nor any lease ID, lease generation,
@@ -749,7 +767,7 @@ Inside the `CompleteCurrentSet` transaction specifically, the gateway must:
 Before any recognized terminal or retryable command response leaves the
 serialized coordinator, it retires the presented process-memory lease. For a
 successful mutation this happens only after the database commit; for a
-non-mutating validation rejection it happens after the serialized canonical
+non-mutating value/type rejection it happens after the serialized canonical
 read/outcome construction. Only a replacement encoded with
 `MutationAuthority.Granted` is mutable and eligible to atomically increment the
 durable lease generation, issue a lease bound to the committed/current version,
@@ -988,10 +1006,12 @@ discriminated `MutationAuthority` variant:
   three fields and is the only wire shape eligible to become mutable after the
   request-generation and freshness gates; or
 - `Unavailable(FreshHandshakeRequired)` carries none of those fields and is a
-  target-bearing read-only shape. `InvalidValues` must attach this shape with the
-  same authoritative source tuple/target and canonical stored values, while the
-  field/reason remains in the separately correlated command outcome. A later
-  distinct handshake is required before a corrected new command.
+  target-bearing read-only shape. `InvalidValues` and `ImmutableTypeMismatch`
+  must attach this shape with the same authoritative source tuple/target and
+  canonical stored values. The numeric field/reason or immutable-type field
+  remains in the separately correlated command outcome; neither is inferred from
+  snapshot contents. A later distinct handshake is required before any corrected
+  or otherwise new command.
 
 The codec rejects a partial `Granted`, an `Unavailable` carrying any lease field,
 or an unknown authority variant. It never infers authority from nullable fields.
@@ -1110,7 +1130,10 @@ update-required state and disables mutation.
   shape or unknown variant. An unavailable payload carries canonical stored
   target/values but no lease ID/generation/remainder/effective window, cannot
   install `Available`, and a lower-generation instance cannot demote a newer
-  admitted snapshot.
+  admitted snapshot. Both `ImmutableTypeMismatch` field variants round-trip only
+  with that unavailable replacement, and a missing or `Granted` replacement
+  fails codec validation. A gateway fixture with both copied types different
+  reports `ExerciseType` deterministically.
 - Numeric codec/gateway fixtures prove command reps `1` and `999` pass while
   `0`, `-1`, and `1_000` return the exact field/reason rejection; weighted
   hundredths `null`, `0`, and `99_999` pass while `-1` and `100_000` reject; and
@@ -1164,8 +1187,11 @@ update-required state and disables mutation.
   parks it only while the current display still exactly matches. A changed
   epoch/session/revision/target, targetless state, or `NoSession` clears it. A
   validation response against a now-newer target discards only the obsolete
-  draft but still emits its field-specific error. A retryable outcome is consumed
-  once for its attempt and enters `AwaitingRetryAuthority`: an accepted
+  draft but still emits its field-specific error. An immutable-type mismatch
+  clears the draft at every ordering and emits only generic refresh-required
+  recovery; its unavailable replacement cannot install authority. A retryable
+  outcome is consumed once for its attempt and enters `AwaitingRetryAuthority`:
+  an accepted
   same-version/target mutable successor preserves `commandId`, intent, and local
   generation while rebinding the lease and attempt fingerprint under a new
   correlation; attempt 2 can then apply. A rejected/read-only/different-target
@@ -1205,14 +1231,18 @@ update-required state and disables mutation.
   phone session finish moves to `NoSession`.
 - Shared behavior-vector parity against the phone Live-workout done rule.
 - Phone command validation for wrong session, wrong exercise, stale revision,
-  stale position, every numeric field/reason boundary, immutable-type mismatch,
-  duplicate retry, write failure, and success. A same-source numeric rejection
-  returns canonical stored target/values as `ActiveWithTarget` plus
+  stale position, every numeric field/reason boundary, both exact
+  `ImmutableTypeMismatch` fields, their both-different precedence, duplicate
+  retry, write failure, and success. A same-source numeric rejection returns
+  canonical stored target/values as `ActiveWithTarget` plus
   `Unavailable(FreshHandshakeRequired)`, keeps the draft overlay, exposes one
   field error, installs no lease/effective window, and requires a fresh
   `Granted` lease plus new `commandId` after correction; a changed target clears
   the draft. Tests assert the unavailable response neither increments durable
   lease generation nor leaks the rejected draft into snapshot/cache state.
+  Each immutable-type mismatch returns the same canonical unavailable snapshot
+  but clears the draft, exposes no numeric field error, and likewise proves zero
+  row/receipt/revision/lease-generation effects.
 - Phone-monotonic lease oracles proving first delivery accepted at `119_999ms`,
   rejected without mutation at `120_000ms`, an enqueue-before/arrival-after
   delay, wrong-node/session/version lease rejection, a new successor for every
@@ -1458,6 +1488,9 @@ Stop and return to the owner if any of the following occurs:
 - a validation rejection cannot encode the authoritative target/stored values
   as `MutationAuthority.Unavailable` without lease fields, or can leak the
   rejected draft, install authority, or bump lease generation;
+- an immutable exercise/set-type mismatch could fall through to numeric
+  `InvalidValues`, retain the draft, omit its typed field, write, or install
+  mutation authority;
 - duplicate target rows exist without an owner-approved reconciliation rule;
 - a listener would access repositories without generation-bound admission;
 - KMP/common source sets, shared watch UI, Health APIs, or sensor permissions
@@ -1536,6 +1569,9 @@ Phase 1 is complete only when:
 - validation rejection has one encodable target-bearing read-only replacement:
   canonical stored values plus `MutationAuthority.Unavailable`, with no lease
   side effect; partial or mixed authority payloads fail closed;
+- both immutable copied types are fingerprinted and have exact terminal
+  `ImmutableTypeMismatch` outcomes that clear the draft, attach the canonical
+  unavailable replacement, and remain mutation-free;
 - no Health, sensor, watchOS, or KMP watch scope entered the diff;
 - all focused, repository, and paired-device gates are green at the final head;
 - commits are signed and GitHub-verified; and
