@@ -592,6 +592,64 @@ internal class PhoneWorkoutBridgeImplTest {
         }
 
     @Test
+    fun `target changed publication race reclassifies after the phone advances revision`() =
+        runTest {
+            val seed = seedSession(plans = listOf(plan(100.0, 5)))
+            val active = bridge.activePayload()
+            val command = commandFrom(active).let { current ->
+                current.copy(
+                    body = current.body.copy(performedExerciseUuid = CanonicalUuid.random()),
+                )
+            }
+            val racingTransition = OneShotInvokeRaceTransition(env.transition) {
+                env.transition.mutate {
+                    database.trainingExerciseDao.updatePlanSets(
+                        trainingUuid = seed.trainingUuid,
+                        exerciseUuid = seed.exerciseUuids.single(),
+                        planSets = PlanSetsConverter.toJson(listOf(plan(104.5, 9))),
+                    )
+                }
+            }
+
+            val response = newBridge(transition = racingTransition)
+                .completeCurrentSet(SOURCE_NODE, command)
+            val replacement = response.replacement.payload as SnapshotPayload.ActiveWithTarget
+
+            assertEquals(CompleteCommandOutcome.StaleRevision, response.outcome)
+            assertEquals(10_450, replacement.target.weightHundredthsKg)
+            assertEquals(9, replacement.target.reps)
+            assertTrue(replacement.mutationAuthority is MutationAuthority.Unavailable)
+            assertNull(leaseStore.activeLeaseForTest(SOURCE_NODE, replacement.sessionUuid))
+            assertEquals(0, database.setDao.countByPerformedExercise(seed.performedUuids.single()))
+            WearProtocolCodec.encode(response)
+        }
+
+    @Test
+    fun `target changed publication race reclassifies after the phone ends the session`() =
+        runTest {
+            val seed = seedSession(plans = listOf(plan(100.0, 5)))
+            val active = bridge.activePayload()
+            val command = commandFrom(active).let { current ->
+                current.copy(
+                    body = current.body.copy(performedExerciseUuid = CanonicalUuid.random()),
+                )
+            }
+            val racingTransition = OneShotInvokeRaceTransition(env.transition) {
+                env.transition.mutate {
+                    database.sessionDao.finishSession(seed.sessionUuid, finishedAt = 2)
+                }
+            }
+
+            val response = newBridge(transition = racingTransition)
+                .completeCurrentSet(SOURCE_NODE, command)
+
+            assertEquals(CompleteCommandOutcome.NoActiveSession, response.outcome)
+            assertTrue(response.replacement.payload is SnapshotPayload.NoSession)
+            assertEquals(0, database.setDao.countByPerformedExercise(seed.performedUuids.single()))
+            WearProtocolCodec.encode(response)
+        }
+
+    @Test
     fun `wrong source node cannot consume another node lease`() = runTest {
         val seed = seedSession(plans = listOf(plan(100.0, 5)))
         val active = bridge.activePayload()

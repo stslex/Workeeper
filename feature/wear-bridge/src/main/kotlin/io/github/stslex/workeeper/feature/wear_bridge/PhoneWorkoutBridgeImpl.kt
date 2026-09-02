@@ -600,12 +600,11 @@ class PhoneWorkoutBridgeImpl @Inject internal constructor(
             readOnlyCommandResponse(
                 correlationId = prepared.response.correlationId,
                 commandId = prepared.response.commandId,
-                outcome = if (
-                    prepared.response.outcome == CompleteCommandOutcome.RetryableTemporaryFailure
-                ) {
-                    lease.terminalOutcomeAfterPublicationLoss(base)
-                } else {
-                    prepared.response.outcome
+                outcome = when (prepared.response.outcome) {
+                    CompleteCommandOutcome.RetryableTemporaryFailure,
+                    CompleteCommandOutcome.TargetChanged,
+                    -> lease.terminalOutcomeAfterPublicationLoss(base)
+                    else -> prepared.response.outcome
                 },
                 base = base,
             )
