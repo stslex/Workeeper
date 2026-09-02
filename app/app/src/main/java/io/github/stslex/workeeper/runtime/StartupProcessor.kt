@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.runtime
 
+import android.content.Context
 import io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetime
 import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.core.data.database.AppDatabase
 import io.github.stslex.workeeper.core.data.database.refreshQueryPlannerStatistics
-import io.github.stslex.workeeper.core.data.database.wear.prepareWearSyncStorage
+import io.github.stslex.workeeper.core.data.database.wear.prepareWearSyncStorageForLaunch
+import io.github.stslex.workeeper.core.data.database.wear.wearInstallMarker
 import io.github.stslex.workeeper.di.AppGraph
 import io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinator.PreflightOutcome
 import io.github.stslex.workeeper.feature.recovery.domain.StartupCheck
@@ -16,16 +18,42 @@ import kotlinx.coroutines.runBlocking
 import kotlin.coroutines.cancellation.CancellationException
 
 /**
+ * The launch-path [StartupProcessor]: the only place the wear-storage seam is wired for real.
+ *
+ * The install marker lives under `noBackupFilesDir`, which the platform's backup never captures,
+ * so a database that arrived by Auto Backup or device transfer rotates its Wear epoch on first
+ * launch exactly as an in-app restore does.
+ */
+internal fun launchStartupProcessor(
+    context: Context,
+    isLowRamDevice: () -> Boolean,
+    sealWorkerAdmission: () -> Unit = {},
+): StartupProcessor {
+    val installMarker = wearInstallMarker(context)
+    return StartupProcessor(
+        isLowRamDevice = isLowRamDevice,
+        prepareWearStorage = { database, rotate ->
+            prepareWearSyncStorageForLaunch(database, installMarker, rotate)
+        },
+        sealWorkerAdmission = sealWorkerAdmission,
+    )
+}
+
+/**
  * Startup sequence of one runtime generation: restore preflight, migration peek, chores, observer
  * arming. See the Phase-5 startup-processor spec.
  */
 internal class StartupProcessor(
     private val isLowRamDevice: () -> Boolean,
+    /**
+     * The first Room open of the generation. Deliberately without a default: every launch path
+     * builds this processor through [launchStartupProcessor], so the fresh-install epoch gate has
+     * exactly one production wiring and no second implementation to drift from it.
+     */
+    private val prepareWearStorage: suspend (AppDatabase, Boolean) -> Unit,
     /** Terminally refuses DB-bound worker admission; driven only from [coldStart]. */
     private val sealWorkerAdmission: () -> Unit = {},
     private val warmPlanner: suspend (AppDatabase) -> Unit = { refreshQueryPlannerStatistics(it) },
-    private val prepareWearStorage: suspend (AppDatabase, Boolean) -> Unit =
-        { database, rotate -> prepareWearSyncStorage(database, rotate) },
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
 

@@ -27,7 +27,7 @@ import io.github.stslex.workeeper.runtime.ReplacementOperation
 import io.github.stslex.workeeper.runtime.ReplacementOutcome
 import io.github.stslex.workeeper.runtime.ReplacementPolicy
 import io.github.stslex.workeeper.runtime.RuntimeGeneration
-import io.github.stslex.workeeper.runtime.StartupProcessor
+import io.github.stslex.workeeper.runtime.launchStartupProcessor
 import java.io.File
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -63,7 +63,7 @@ internal class RuntimeGenerationSwapDeviceTest {
             imageStorageFactory = { FakeImageStorage() },
             graphFactory = ::buildAppGraph,
             preflight = { generation ->
-                StartupProcessor(isLowRamDevice = { false }).preflightAndArm(
+                launchStartupProcessor(context, isLowRamDevice = { false }).preflightAndArm(
                     graph = generation.graph,
                     appDatabase = generation.database,
                     lifetime = generation.lifetime,
