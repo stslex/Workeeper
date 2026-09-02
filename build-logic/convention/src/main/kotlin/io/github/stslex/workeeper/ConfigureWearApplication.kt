@@ -65,6 +65,12 @@ internal fun Project.configureWearApplication() {
         "androidx-wear-compose-foundation",
         "androidx-wear-compose-ui-tooling",
         "androidx-wear-tiles",
+        // `TileService.onTileRequest` returns a ListenableFuture, and `androidx-wear-tiles` brings
+        // only `com.google.guava:listenablefuture`, the interface-only stub. Guava's own `Futures`
+        // reached the classpath solely through the debug-only tiles-renderer, so the release
+        // variant of this module had never compiled. This declares an implementation of the
+        // contract instead of pulling all of Guava in behind a debug dependency.
+        "androidx-concurrent-futures",
         "androidx-wear-protolayout",
         "androidx-wear-protolayout-material",
         "androidx-wear-protolayout-expression",
