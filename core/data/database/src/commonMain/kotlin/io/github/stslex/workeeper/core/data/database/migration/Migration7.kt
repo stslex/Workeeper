@@ -7,6 +7,7 @@ import androidx.sqlite.execSQL
 import io.github.stslex.workeeper.core.core.logger.FirebaseCrashlyticsHolder
 import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.core.data.database.wear.installWearSyncTriggers
+import kotlin.concurrent.Volatile
 import kotlin.uuid.Uuid
 
 /** v6 -> v7: durable Wear epoch/version/lease/receipt state plus target-row uniqueness. */
@@ -59,9 +60,9 @@ object Migration7 : Migration(FROM_VERSION, TO_VERSION) {
                 "ON set_table(performed_exercise_uuid, position)",
         )
         connection.installWearSyncTriggers()
-        // Last, so the field incidence this records is an upgrade that actually completed: every
-        // statement that can still fail has run, and only the commit remains.
-        reportReconciledTargets(reconciledRows)
+        // Handed off, not reported: this still runs inside Room's migration transaction. See
+        // [ReconciledTargetsReport].
+        ReconciledTargetsReport.record(reconciledRows)
     }
 }
 
@@ -83,10 +84,42 @@ internal fun reconciliationReport(reconciledRows: Int): DuplicateSetTargetsRecon
 private const val RECONCILED_ROWS_KEY = "migration7_reconciled_set_rows"
 
 /**
- * `internal` rather than `private`: [Migration7] compiles to a different class, and a private
- * call from there would cost a synthetic accessor.
+ * Carries the reconciliation count from [Migration7] out to the post-commit report.
+ *
+ * `migrate` runs inside Room's `BEGIN EXCLUSIVE TRANSACTION`; Room stamps `user_version` and
+ * commits only after it returns. A count reported from inside `migrate` therefore describes an
+ * *attempt*: a failing commit, or a process that dies in that window, leaves the database at v6,
+ * and the next launch reconciles the same rows and reports them again — inflating the very
+ * incidence the report exists to measure. Room invokes `RoomDatabase.Callback.onOpen` after the
+ * commit, so [reportReconciledTargets] runs from there and what reaches Crashlytics is an upgrade
+ * that actually landed.
+ *
+ * [record] and [drain] run on one connection-configuration sequence, so `@Volatile` is here for
+ * visibility alone — there is no competing producer to compare-and-swap against.
  */
-internal fun reportReconciledTargets(reconciledRows: Int) {
+internal object ReconciledTargetsReport {
+
+    @Volatile
+    private var pendingRows: Int = 0
+
+    /** Called inside the migration transaction; replaces whatever a rolled-back attempt left. */
+    fun record(reconciledRows: Int) {
+        pendingRows = reconciledRows
+    }
+
+    /** Yields the pending count once. A second open finds nothing and reports nothing. */
+    fun drain(): Int {
+        val reconciledRows = pendingRows
+        pendingRows = 0
+        return reconciledRows
+    }
+}
+
+/**
+ * Reports a committed reconciliation, once. Call only after Room's migration transaction commits.
+ */
+internal fun reportReconciledTargets() {
+    val reconciledRows = ReconciledTargetsReport.drain()
     val report = reconciliationReport(reconciledRows) ?: return
     FirebaseCrashlyticsHolder.setCustomKey(RECONCILED_ROWS_KEY, reconciledRows)
     // `Log.e` is the repository's non-fatal sink; it no-ops when Crashlytics has no transport.

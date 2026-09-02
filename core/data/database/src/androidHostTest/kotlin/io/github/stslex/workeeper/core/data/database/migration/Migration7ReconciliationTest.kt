@@ -28,6 +28,8 @@ internal class Migration7ReconciliationTest {
 
     @BeforeEach
     fun setUp() {
+        // The hand-off is a process-wide object; start every test from empty.
+        ReconciledTargetsReport.drain()
         connection = AndroidSQLiteDriver().open(":memory:")
         // The v6 shape of the table: same columns, same NON-unique target index.
         connection.execSQL(
@@ -94,6 +96,32 @@ internal class Migration7ReconciliationTest {
             ),
             positions(),
         )
+    }
+
+    /**
+     * The count leaves the migration transaction exactly once. Room commits and only then opens,
+     * so a second open — or a rolled-back attempt that never reached one — must find nothing.
+     */
+    @Test
+    fun `the pending count is yielded once and a second open finds nothing`() {
+        ReconciledTargetsReport.record(3)
+
+        assertEquals(3, ReconciledTargetsReport.drain())
+        assertEquals(0, ReconciledTargetsReport.drain())
+        assertNull(reconciliationReport(ReconciledTargetsReport.drain()))
+    }
+
+    /**
+     * A commit that fails leaves its count undrained; the retry that follows must report its own
+     * result rather than adding to the abandoned one.
+     */
+    @Test
+    fun `a retried migration replaces the count its rolled-back attempt left behind`() {
+        ReconciledTargetsReport.record(3)
+
+        ReconciledTargetsReport.record(2)
+
+        assertEquals(2, ReconciledTargetsReport.drain())
     }
 
     private fun seed(rowId: Long, uuid: String, performed: String, position: Int) {
