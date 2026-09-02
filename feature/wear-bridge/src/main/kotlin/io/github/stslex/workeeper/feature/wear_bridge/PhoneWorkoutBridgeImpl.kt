@@ -203,7 +203,13 @@ class PhoneWorkoutBridgeImpl @Inject internal constructor(
             )
         }
 
-        val sync = requireNotNull(database.wearSyncDao.getActiveSessionSync())
+        // Bound to the session the snapshot just resolved. Nothing enforces that only one session
+        // is IN_PROGRESS, and an independent unordered `LIMIT 1` over that predicate could answer
+        // with a different row — leaving the target from one session while the revision, the
+        // receipt and the performed lookup below all came from another.
+        val sync = requireNotNull(
+            database.wearSyncDao.getSessionSync(Uuid.parse(activeIdentity.first.value)),
+        )
         val receiptOutcome = receiptOutcome(sync, epoch, request, attemptFingerprint)
         if (receiptOutcome != null) {
             return when (receiptOutcome) {
