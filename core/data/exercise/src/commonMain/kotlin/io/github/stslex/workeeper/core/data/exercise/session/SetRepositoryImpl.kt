@@ -69,14 +69,24 @@ class SetRepositoryImpl @Inject internal constructor(
         )
     }
 
+    /**
+     * GUARD: writes values only. The v7 target index is UNIQUE, so a whole-row update carrying
+     * `set.position` aborts the moment that position belongs to another row — which is exactly
+     * what a set-edit dialog holds after a concurrent reorder. Position moves belong to
+     * [reorderSets]; this path must never compete with it.
+     */
     override suspend fun update(
         performedExerciseUuid: String,
         set: SetsDataModel,
     ) = transition.mutate {
-        dao.update(
-            set.toEntity(
-                performedExerciseUuid = Uuid.parse(performedExerciseUuid),
-            ),
+        val entity = set.toEntity(
+            performedExerciseUuid = Uuid.parse(performedExerciseUuid),
+        )
+        dao.updateValues(
+            uuid = entity.uuid,
+            reps = entity.reps,
+            weight = entity.weight,
+            type = entity.type,
         )
     }
 

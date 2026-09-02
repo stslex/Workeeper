@@ -118,6 +118,26 @@ interface SetDao {
     @Update
     suspend fun update(set: SetEntity)
 
+    /**
+     * Value-only edit of one set row, addressed by its primary key.
+     *
+     * GUARD: deliberately never writes `position` or `performed_exercise_uuid`. Since v7 the
+     * target `(performed_exercise_uuid, position)` is UNIQUE, so a whole-row [update] carrying a
+     * stale position aborts with `SQLITE_CONSTRAINT_UNIQUE` and the user's edit is lost. Moving a
+     * row between positions has its own path — [updatePosition], driven by
+     * `SetRepository.reorderSets`, which parks rows outside the canonical range first.
+     */
+    @Query(
+        """
+        UPDATE set_table
+        SET reps = :reps,
+            weight = :weight,
+            type = :type
+        WHERE uuid = :uuid
+        """,
+    )
+    suspend fun updateValues(uuid: Uuid, reps: Int, weight: Double?, type: SetTypeEntity)
+
     /** Rewrites `position` for one set; the repository batches these inside a transaction. */
     @Query("UPDATE set_table SET position = :position WHERE uuid = :uuid")
     suspend fun updatePosition(uuid: Uuid, position: Int)
