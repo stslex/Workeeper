@@ -4,7 +4,10 @@ package io.github.stslex.workeeper.core.data.database.migration
 import androidx.room3.migration.Migration
 import androidx.sqlite.SQLiteConnection
 import androidx.sqlite.execSQL
+import io.github.stslex.workeeper.core.core.logger.FirebaseCrashlyticsHolder
+import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.core.data.database.wear.installWearSyncTriggers
+import kotlin.concurrent.Volatile
 import kotlin.uuid.Uuid
 
 /** v6 -> v7: durable Wear epoch/version/lease/receipt state plus target-row uniqueness. */
@@ -14,7 +17,12 @@ private const val TO_VERSION = 7
 object Migration7 : Migration(FROM_VERSION, TO_VERSION) {
 
     override suspend fun migrate(connection: SQLiteConnection) {
-        failOnDuplicateTargets(connection)
+        // GUARD: reconciliation runs FIRST, while the target index is still non-unique. The
+        // CREATE UNIQUE INDEX below aborts the whole migration on any surviving duplicate, and
+        // released 1.50.0 can produce them (non-transactional check-then-act in
+        // `SetRepositoryImpl.upsert`). Moving the index above this call turns an upgrade into a
+        // permanent crash loop on affected devices.
+        val reconciledRows = connection.reconcileDuplicateTargets()
         connection.execSQL(
             "ALTER TABLE session_table ADD COLUMN wear_revision INTEGER NOT NULL DEFAULT 0",
         )
@@ -52,22 +60,184 @@ object Migration7 : Migration(FROM_VERSION, TO_VERSION) {
                 "ON set_table(performed_exercise_uuid, position)",
         )
         connection.installWearSyncTriggers()
+        // Handed off, not reported: this still runs inside Room's migration transaction. See
+        // [ReconciledTargetsReport].
+        ReconciledTargetsReport.record(reconciledRows)
+    }
+}
+
+/** Field-incidence marker: this upgrade had to move rows to make its set targets unique. */
+class DuplicateSetTargetsReconciled internal constructor(
+    val reconciledRows: Int,
+) : IllegalStateException(
+    "Migration 7 repositioned $reconciledRows duplicate set target row(s)",
+)
+
+/**
+ * The non-fatal to raise for [reconciledRows], or `null` when this upgrade found nothing to
+ * reconcile — a clean database must stay silent, so the report count is the defect's incidence
+ * rather than the upgrade's.
+ */
+internal fun reconciliationReport(reconciledRows: Int): DuplicateSetTargetsReconciled? =
+    if (reconciledRows > 0) DuplicateSetTargetsReconciled(reconciledRows) else null
+
+private const val RECONCILED_ROWS_KEY = "migration7_reconciled_set_rows"
+
+/**
+ * Carries the reconciliation count from [Migration7] out to the post-commit report.
+ *
+ * `migrate` runs inside Room's `BEGIN EXCLUSIVE TRANSACTION`; Room stamps `user_version` and
+ * commits only after it returns. A count reported from inside `migrate` therefore describes an
+ * *attempt*: a failing commit, or a process that dies in that window, leaves the database at v6,
+ * and the next launch reconciles the same rows and reports them again — inflating the very
+ * incidence the report exists to measure. Room invokes `RoomDatabase.Callback.onOpen` after the
+ * commit, so [reportReconciledTargets] runs from there and what reaches Crashlytics is an upgrade
+ * that actually landed.
+ *
+ * [record] and [drain] run on one connection-configuration sequence, so `@Volatile` is here for
+ * visibility alone — there is no competing producer to compare-and-swap against.
+ */
+internal object ReconciledTargetsReport {
+
+    @Volatile
+    private var pendingRows: Int = 0
+
+    /** Called inside the migration transaction; replaces whatever a rolled-back attempt left. */
+    fun record(reconciledRows: Int) {
+        pendingRows = reconciledRows
     }
 
-    private fun failOnDuplicateTargets(connection: SQLiteConnection) {
-        connection.prepare(
-            """
-            SELECT performed_exercise_uuid, position
+    /** Yields the pending count once. A second open finds nothing and reports nothing. */
+    fun drain(): Int {
+        val reconciledRows = pendingRows
+        pendingRows = 0
+        return reconciledRows
+    }
+}
+
+/**
+ * Reports a committed reconciliation, once. Call only after Room's migration transaction commits.
+ */
+internal fun reportReconciledTargets() {
+    val reconciledRows = ReconciledTargetsReport.drain()
+    val report = reconciliationReport(reconciledRows) ?: return
+    FirebaseCrashlyticsHolder.setCustomKey(RECONCILED_ROWS_KEY, reconciledRows)
+    // `Log.e` is the repository's non-fatal sink; it no-ops when Crashlytics has no transport.
+    Log.tag("Migration7").e(report)
+}
+
+/**
+ * Makes every `(performed_exercise_uuid, position)` target unique without losing a row.
+ *
+ * Per performed exercise that owns at least one contested position: the lowest-`rowid` row of each
+ * position keeps it, and every other row is appended after that exercise's current maximum
+ * position — in ascending `rowid` order, one step at a time, across all of its contested groups.
+ * Only `position` is ever written; no row is deleted, merged, or otherwise altered, so the table's
+ * row count is identical before and after.
+ *
+ * The accepted, deliberate consequence is that a set which was half of a duplicate pair surfaces
+ * as an extra trailing set of its exercise, including in a session that is currently
+ * `IN_PROGRESS`. That is the price of losing nothing.
+ *
+ * @return how many rows were repositioned; `0` when the database held no duplicate.
+ */
+internal fun SQLiteConnection.reconcileDuplicateTargets(): Int {
+    val moves = planTargetReconciliation(readContestedTargetRows())
+    applyTargetMoves(moves)
+    return moves.size
+}
+
+/** One `set_table` row, reduced to what the reconciliation rule reads. */
+private data class TargetRow(
+    val rowId: Long,
+    val performedExerciseUuid: String,
+    val position: Long,
+)
+
+/** A single `position` rewrite, addressed by `rowid` so row identity cannot drift. */
+private data class TargetMove(
+    val rowId: Long,
+    val position: Long,
+)
+
+/**
+ * Every row of every performed exercise that owns a contested position — not only the contested
+ * rows, because the tail counter starts from that exercise's true maximum position.
+ *
+ * The `ORDER BY` is load-bearing twice over: it makes one exercise's rows contiguous, and inside
+ * an exercise it puts the lowest-`rowid` row of each position first.
+ */
+private fun SQLiteConnection.readContestedTargetRows(): List<TargetRow> {
+    val rows = mutableListOf<TargetRow>()
+    prepare(
+        """
+        SELECT rowid, performed_exercise_uuid, position
+        FROM set_table
+        WHERE performed_exercise_uuid IN (
+            SELECT performed_exercise_uuid
             FROM set_table
             GROUP BY performed_exercise_uuid, position
             HAVING COUNT(*) > 1
-            LIMIT 1
-            """.trimIndent(),
-        ).use { statement ->
-            check(!statement.step()) {
-                "Wear Phase 1 cannot reconcile duplicate set targets without owner policy: " +
-                    "performedExerciseUuid=${statement.getText(0)}, position=${statement.getLong(1)}"
-            }
+        )
+        ORDER BY performed_exercise_uuid, position, rowid
+        """.trimIndent(),
+    ).use { statement ->
+        while (statement.step()) {
+            rows += TargetRow(
+                rowId = statement.getLong(0),
+                performedExerciseUuid = statement.getText(1),
+                position = statement.getLong(2),
+            )
+        }
+    }
+    return rows
+}
+
+/**
+ * Pure, total function from the ordered read to the rewrites. It walks lists only — no hash or
+ * set container is consulted anywhere — so byte-identical input files always plan identically.
+ */
+private fun planTargetReconciliation(rows: List<TargetRow>): List<TargetMove> =
+    rows.performedExerciseRuns().flatMap(::planOnePerformedExercise)
+
+/** Splits the `performed_exercise_uuid`-ordered read into one contiguous list per exercise. */
+private fun List<TargetRow>.performedExerciseRuns(): List<List<TargetRow>> {
+    val runs = mutableListOf<List<TargetRow>>()
+    var start = 0
+    while (start < size) {
+        val uuid = this[start].performedExerciseUuid
+        var end = start
+        while (end < size && this[end].performedExerciseUuid == uuid) end++
+        runs += subList(start, end).toList()
+        start = end
+    }
+    return runs
+}
+
+/**
+ * [rows] are one exercise's rows ordered by `(position, rowid)`, so a row is a loser exactly when
+ * the row before it holds the same position. Losers are then re-sorted by `rowid` because the tail
+ * counter runs across the exercise's groups, not within one of them.
+ */
+private fun planOnePerformedExercise(rows: List<TargetRow>): List<TargetMove> {
+    val losers = rows.filterIndexed { index, row ->
+        index > 0 && rows[index - 1].position == row.position
+    }
+    if (losers.isEmpty()) return emptyList()
+    val tailStart = rows.maxOf(TargetRow::position)
+    return losers
+        .sortedBy(TargetRow::rowId)
+        .mapIndexed { index, row -> TargetMove(row.rowId, tailStart + index + 1) }
+}
+
+private fun SQLiteConnection.applyTargetMoves(moves: List<TargetMove>) {
+    if (moves.isEmpty()) return
+    prepare("UPDATE set_table SET position = ? WHERE rowid = ?").use { statement ->
+        moves.forEach { move ->
+            statement.reset()
+            statement.bindLong(1, move.position)
+            statement.bindLong(2, move.rowId)
+            statement.step()
         }
     }
 }

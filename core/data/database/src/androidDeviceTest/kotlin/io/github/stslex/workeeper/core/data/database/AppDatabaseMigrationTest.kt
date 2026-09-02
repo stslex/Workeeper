@@ -2,6 +2,7 @@
 package io.github.stslex.workeeper.core.data.database
 
 import androidx.room3.testing.MigrationTestHelper
+import androidx.sqlite.SQLiteConnection
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import androidx.sqlite.execSQL
 import androidx.test.platform.app.InstrumentationRegistry
@@ -297,20 +298,6 @@ internal class AppDatabaseMigrationTest {
     }
 
     @Test
-    fun migrate6to7_duplicateTargetsFailWithoutReconciliation() = runTest {
-        seedV6Workout(duplicateTarget = true)
-
-        val failure = runCatching {
-            helper.runMigrationsAndValidate(7, listOf(Migration7)).close()
-        }.exceptionOrNull()
-
-        assertTrue(failure != null)
-        assertTrue(
-            failure.toString().contains("cannot reconcile duplicate set targets"),
-        )
-    }
-
-    @Test
     fun migrate6to7_triggerBumpsRevisionAndClearsReceiptWithSetWrite() = runTest {
         val seed = seedV6Workout()
 
@@ -347,7 +334,172 @@ internal class AppDatabaseMigrationTest {
         }
     }
 
-    private suspend fun seedV6Workout(duplicateTarget: Boolean = false): V6WorkoutSeed {
+    /**
+     * The whole reconciliation contract in one case: nothing is lost, no duplicate survives, the
+     * lowest-`rowid` row of each contested position keeps it, and the losers append after the
+     * exercise's maximum position in ascending `rowid` order across both contested groups.
+     */
+    @Test
+    fun migrate6to7_reconcilesDuplicateTargetsWithoutLosingRows() = runTest {
+        seedV6Sets(
+            listOf(
+                SeedSet(rowId = 10, uuid = SET_A, performedUuid = PERFORMED_ONE, position = 0),
+                SeedSet(rowId = 20, uuid = SET_B, performedUuid = PERFORMED_ONE, position = 1),
+                SeedSet(rowId = 30, uuid = SET_C, performedUuid = PERFORMED_ONE, position = 0),
+                SeedSet(rowId = 40, uuid = SET_D, performedUuid = PERFORMED_ONE, position = 1),
+                SeedSet(rowId = 50, uuid = SET_E, performedUuid = PERFORMED_ONE, position = 2),
+            ),
+        )
+
+        helper.runMigrationsAndValidate(7, listOf(Migration7)).use { db ->
+            assertEquals(5L, db.countSets())
+            assertEquals(0L, db.countDuplicateTargets())
+            val positions = db.readSetPositions().toMap()
+            assertEquals(setOf(SET_A, SET_B, SET_C, SET_D, SET_E), positions.keys)
+            // The lowest rowid of each contested position keeps it; an uncontested row is untouched.
+            assertEquals(0L, positions[SET_A])
+            assertEquals(1L, positions[SET_B])
+            assertEquals(2L, positions[SET_E])
+            // Losers append after max(position) = 2, by rowid, counting across both groups.
+            assertEquals(3L, positions[SET_C])
+            assertEquals(4L, positions[SET_D])
+        }
+    }
+
+    /**
+     * Two performed exercises, each contested, reconciled independently — and the first one's
+     * positions are sparse, so its single loser must clear `max(position)` rather than fill the
+     * hole at 1.
+     */
+    @Test
+    fun migrate6to7_reconcilesEachPerformedExerciseAgainstItsOwnSparseMaximum() = runTest {
+        seedV6Sets(SPARSE_MULTI_GROUP_FIXTURE)
+
+        helper.runMigrationsAndValidate(7, listOf(Migration7)).use { db ->
+            assertEquals(6L, db.countSets())
+            assertEquals(0L, db.countDuplicateTargets())
+            val positions = db.readSetPositions().toMap()
+            // Sparse exercise: 0 and 5 survive, the loser clears the maximum instead of taking 1.
+            assertEquals(0L, positions[SET_A])
+            assertEquals(5L, positions[SET_C])
+            assertEquals(6L, positions[SET_B])
+            // Three-way collision on the other exercise, counting from its own maximum of 3.
+            assertEquals(3L, positions[SET_D])
+            assertEquals(4L, positions[SET_E])
+            assertEquals(5L, positions[SET_F])
+        }
+    }
+
+    /**
+     * Byte-identical inputs must reconcile identically. Only `set_table` is compared: the
+     * migration mints a random Wear database epoch, so the files themselves never match.
+     */
+    @Test
+    fun migrate6to7_reconciliationIsDeterministicForIdenticalDatabases() = runTest {
+        seedV6Sets(SPARSE_MULTI_GROUP_FIXTURE)
+        val first = helper.runMigrationsAndValidate(7, listOf(Migration7))
+            .use { db -> db.readSetPositions() }
+
+        deleteTestDb()
+        seedV6Sets(SPARSE_MULTI_GROUP_FIXTURE)
+        val second = helper.runMigrationsAndValidate(7, listOf(Migration7))
+            .use { db -> db.readSetPositions() }
+
+        assertEquals(first, second)
+    }
+
+    /** One seeded `set_table` row whose `rowid` is pinned, so the winner rule is stated, not implied. */
+    private data class SeedSet(
+        val rowId: Long,
+        val uuid: String,
+        val performedUuid: String,
+        val position: Int,
+    )
+
+    /**
+     * Seeds a v6 database holding exactly [sets], spreading them over one performed-exercise row
+     * per distinct `performedUuid` inside a single IN_PROGRESS session.
+     */
+    private suspend fun seedV6Sets(sets: List<SeedSet>) {
+        val performedUuids = sets.map(SeedSet::performedUuid).distinct()
+        helper.createDatabase(6).use { db ->
+            db.execSQL(
+                """
+                INSERT INTO training_table
+                    (uuid, name, description, is_adhoc, archived, created_at, archived_at)
+                VALUES ('$FIXED_TRAINING', 'Strength', NULL, 0, 0, $SEED_TIMESTAMP, NULL)
+                """.trimIndent(),
+            )
+            db.execSQL(
+                """
+                INSERT INTO exercise_table
+                    (uuid, name, type, description, image_path, archived,
+                     created_at, archived_at, last_adhoc_sets, is_adhoc)
+                VALUES ('$FIXED_EXERCISE', 'Deadlift', 'WEIGHTED', NULL, NULL, 0,
+                        $SEED_TIMESTAMP, NULL, NULL, 0)
+                """.trimIndent(),
+            )
+            db.execSQL(
+                """
+                INSERT INTO session_table
+                    (uuid, training_uuid, state, started_at, finished_at)
+                VALUES ('$FIXED_SESSION', '$FIXED_TRAINING', 'IN_PROGRESS', $SEED_TIMESTAMP, NULL)
+                """.trimIndent(),
+            )
+            performedUuids.forEachIndexed { index, performedUuid ->
+                db.execSQL(
+                    """
+                    INSERT INTO performed_exercise_table
+                        (uuid, session_uuid, exercise_uuid, position, skipped)
+                    VALUES ('$performedUuid', '$FIXED_SESSION', '$FIXED_EXERCISE', $index, 0)
+                    """.trimIndent(),
+                )
+            }
+            sets.forEach { seedSet ->
+                db.execSQL(
+                    """
+                    INSERT INTO set_table
+                        (rowid, uuid, performed_exercise_uuid, position, reps, weight, type)
+                    VALUES (${seedSet.rowId}, '${seedSet.uuid}', '${seedSet.performedUuid}',
+                            ${seedSet.position}, 8, 100.0, 'WORK')
+                    """.trimIndent(),
+                )
+            }
+        }
+    }
+
+    /** Every surviving set row as `uuid to position`, ordered by uuid so comparison is stable. */
+    private fun SQLiteConnection.readSetPositions(): List<Pair<String, Long>> {
+        val rows = mutableListOf<Pair<String, Long>>()
+        prepare("SELECT uuid, position FROM set_table ORDER BY uuid").use { statement ->
+            while (statement.step()) {
+                rows += statement.getText(0) to statement.getLong(1)
+            }
+        }
+        return rows
+    }
+
+    private fun SQLiteConnection.countSets(): Long =
+        prepare("SELECT COUNT(*) FROM set_table").use { statement ->
+            assertTrue(statement.step())
+            statement.getLong(0)
+        }
+
+    private fun SQLiteConnection.countDuplicateTargets(): Long =
+        prepare(
+            """
+            SELECT COUNT(*) FROM (
+                SELECT 1 FROM set_table
+                GROUP BY performed_exercise_uuid, position
+                HAVING COUNT(*) > 1
+            )
+            """.trimIndent(),
+        ).use { statement ->
+            assertTrue(statement.step())
+            statement.getLong(0)
+        }
+
+    private suspend fun seedV6Workout(): V6WorkoutSeed {
         val seed = V6WorkoutSeed()
         helper.createDatabase(6).use { db ->
             db.execSQL(
@@ -390,15 +542,6 @@ internal class AppDatabaseMigrationTest {
                 VALUES ('${seed.setUuid}', '${seed.performedUuid}', 0, 8, 100.0, 'WORK')
                 """.trimIndent(),
             )
-            if (duplicateTarget) {
-                db.execSQL(
-                    """
-                    INSERT INTO set_table
-                        (uuid, performed_exercise_uuid, position, reps, weight, type)
-                    VALUES ('${Uuid.random()}', '${seed.performedUuid}', 0, 10, 110.0, 'WORK')
-                    """.trimIndent(),
-                )
-            }
         }
         return seed
     }
@@ -408,6 +551,19 @@ internal class AppDatabaseMigrationTest {
         const val TEST_DB = "migration-test.db"
         const val SEED_TIMESTAMP = 1_700_000_000_000L
         const val TARGET_INDEX_NAME = "index_set_table_performed_exercise_uuid_position"
+
+        // Fixed identities: the determinism gate needs two byte-identical seeded databases.
+        const val FIXED_TRAINING = "11111111-1111-4111-8111-111111111111"
+        const val FIXED_EXERCISE = "22222222-2222-4222-8222-222222222222"
+        const val FIXED_SESSION = "33333333-3333-4333-8333-333333333333"
+        const val PERFORMED_ONE = "44444444-4444-4444-8444-444444444444"
+        const val PERFORMED_TWO = "55555555-5555-4555-8555-555555555555"
+        const val SET_A = "aaaaaaaa-0000-4000-8000-000000000001"
+        const val SET_B = "aaaaaaaa-0000-4000-8000-000000000002"
+        const val SET_C = "aaaaaaaa-0000-4000-8000-000000000003"
+        const val SET_D = "aaaaaaaa-0000-4000-8000-000000000004"
+        const val SET_E = "aaaaaaaa-0000-4000-8000-000000000005"
+        const val SET_F = "aaaaaaaa-0000-4000-8000-000000000006"
 
         // The user tables declared by AppDatabase's v6 exported schema (6.json tableNames).
         val EXPECTED_V6_TABLES = setOf(
@@ -420,6 +576,16 @@ internal class AppDatabaseMigrationTest {
             "training_exercise_table",
             "training_table",
             "training_tag_table",
+        )
+
+        /** Sparse first exercise (0, 0, 5) beside a three-way collision on a second exercise. */
+        val SPARSE_MULTI_GROUP_FIXTURE = listOf(
+            SeedSet(rowId = 10, uuid = SET_A, performedUuid = PERFORMED_ONE, position = 0),
+            SeedSet(rowId = 20, uuid = SET_B, performedUuid = PERFORMED_ONE, position = 0),
+            SeedSet(rowId = 30, uuid = SET_C, performedUuid = PERFORMED_ONE, position = 5),
+            SeedSet(rowId = 40, uuid = SET_D, performedUuid = PERFORMED_TWO, position = 3),
+            SeedSet(rowId = 50, uuid = SET_E, performedUuid = PERFORMED_TWO, position = 3),
+            SeedSet(rowId = 60, uuid = SET_F, performedUuid = PERFORMED_TWO, position = 3),
         )
     }
 

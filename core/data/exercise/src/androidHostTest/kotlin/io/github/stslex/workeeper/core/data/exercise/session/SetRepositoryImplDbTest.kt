@@ -3,6 +3,7 @@ package io.github.stslex.workeeper.core.data.exercise.session
 
 import io.github.stslex.workeeper.core.data.database.converters.PlanSetsConverter
 import io.github.stslex.workeeper.core.data.database.session.SetDao
+import io.github.stslex.workeeper.core.data.database.session.model.SetTypeEntity
 import io.github.stslex.workeeper.core.data.database.sets.PlanSetDataModel
 import io.github.stslex.workeeper.core.data.database.sets.SetTypeDataModel
 import io.github.stslex.workeeper.core.data.database.testfixtures.RepositoryTestEnv
@@ -66,7 +67,7 @@ internal class SetRepositoryImplDbTest {
     }
 
     @Test
-    fun `update rewrites the row identified by uuid and position`() = runTest {
+    fun `update rewrites the values of the row identified by uuid`() = runTest {
         val performedUuid = seedPerformedExercise()
         val original = SetsDataModel(
             uuid = Uuid.random().toString(),
@@ -83,6 +84,56 @@ internal class SetRepositoryImplDbTest {
         val rows = repository.getByPerformedExercise(performedUuid.toString())
         assertEquals(updated, rows.single())
     }
+
+    /**
+     * A set-edit dialog opened before a reorder still holds the pre-reorder position. Under the
+     * v7 UNIQUE target index a whole-row update would abort here and the edit would vanish behind
+     * a "save failed" snackbar; the value-only write keeps the edit and leaves the order alone.
+     */
+    @Test
+    fun `update carrying a position owned by another row persists values and moves nothing`() =
+        runTest {
+            val performedUuid = seedPerformedExercise()
+            val edited = SetsDataModel(
+                uuid = Uuid.random().toString(),
+                reps = 5,
+                weight = 80.0,
+                position = 0,
+                type = SetsDataType.WORK,
+            )
+            val occupier = SetsDataModel(
+                uuid = Uuid.random().toString(),
+                reps = 6,
+                weight = 90.0,
+                position = 1,
+                type = SetsDataType.WORK,
+            )
+            repository.insert(performedUuid.toString(), set = edited)
+            repository.insert(performedUuid.toString(), set = occupier)
+            // The dialog's copy went stale: it now claims the position `occupier` holds.
+            repository.reorderSets(
+                performedExerciseUuid = performedUuid.toString(),
+                orderedSetUuids = listOf(occupier.uuid, edited.uuid),
+            )
+
+            repository.update(
+                performedUuid.toString(),
+                set = edited.copy(reps = 12, weight = 105.0, type = SetsDataType.FAIL),
+            )
+
+            val rows = env.setDao.getByPerformedExercise(performedUuid)
+            assertEquals(2, rows.size)
+            val editedRow = rows.single { it.uuid.toString() == edited.uuid }
+            val occupierRow = rows.single { it.uuid.toString() == occupier.uuid }
+            // Values landed on the addressed row …
+            assertEquals(12, editedRow.reps)
+            assertEquals(105.0, editedRow.weight)
+            assertEquals(SetTypeEntity.FAIL, editedRow.type)
+            // … and the reorder's positions survived untouched.
+            assertEquals(1, editedRow.position)
+            assertEquals(0, occupierRow.position)
+            assertEquals(6, occupierRow.reps)
+        }
 
     @Test
     fun `phone edit of set zero stays valid after the plan target advances to set one`() =
