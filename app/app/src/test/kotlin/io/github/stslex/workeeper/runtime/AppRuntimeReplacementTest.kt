@@ -1111,6 +1111,50 @@ internal class AppRuntimeReplacementTest {
         }
 
     @Test
+    fun `Wear callback suspended in the closed window binds to the NEW generation`() =
+        runtimeTest { runtime ->
+            runtime.currentGeneration
+            val gate = CompletableDeferred<Unit>()
+            preflightGate = gate
+
+            val transaction = async {
+                runtime.replace(restoreOperation(sourceFile()))
+            }
+            runCurrent()
+            val leaseCall = async(UnconfinedTestDispatcher(testScheduler)) {
+                checkNotNull(runtime.awaitWearBridgeWorkLease())
+            }
+            runCurrent()
+            assertFalse(leaseCall.isCompleted, "Wear admission is CLOSED during replacement")
+
+            gate.complete(Unit)
+            runCurrent()
+
+            val genTwo = (transaction.await() as ReplacementOutcome.Completed).generation!!
+            val lease = leaseCall.await()
+            assertSame(genTwo.graph, lease.deps, "Wear callback bound to the successor graph")
+            lease.release()
+        }
+
+    @Test
+    fun `unreleased Wear callback lease aborts replacement before mutation`() =
+        runtimeTest { runtime ->
+            val genOne = runtime.currentGeneration
+            val lease = checkNotNull(runtime.awaitWearBridgeWorkLease())
+
+            val outcome = runtime.replace(restoreOperation(sourceFile()))
+
+            val rejected = assertInstanceOf(
+                ReplacementOutcome.RejectedBeforeMutation::class.java,
+                outcome,
+            )
+            assertTrue("$rejected".contains("lease"), "reason names the lease: $rejected")
+            assertTrue(protocolLog.isEmpty(), "no database mutation crossed the barrier")
+            assertSame(genOne, runtime.currentGeneration)
+            lease.release()
+        }
+
+    @Test
     fun `late ui attach after the zero observation is REFUSED - the retired id never reopens`() =
         runtimeTest { runtime ->
             val genOne = runtime.currentGeneration

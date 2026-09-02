@@ -59,6 +59,8 @@ dependencies {
     api(project(":feature:app-dialogs:impl"))
     // api: BaseApplication implements RecoveryDepsHolder (same holder-visibility reason).
     api(project(":feature:recovery"))
+    // api: BaseApplication implements WearBridgeWorkDepsHolder for generation-safe callbacks.
+    api(project(":feature:wear-bridge"))
 
     implementation(platform(libs.google.firebase.bom))
     implementation(libs.google.firebase.analytics)

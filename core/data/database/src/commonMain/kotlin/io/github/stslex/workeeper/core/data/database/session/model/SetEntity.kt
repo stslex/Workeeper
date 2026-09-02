@@ -19,7 +19,7 @@ import kotlin.uuid.Uuid
         ),
     ],
     indices = [
-        Index(value = ["performed_exercise_uuid", "position"]),
+        Index(value = ["performed_exercise_uuid", "position"], unique = true),
     ],
 )
 data class SetEntity(

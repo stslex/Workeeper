@@ -37,6 +37,10 @@ gradlePlugin {
             id = libs.plugins.convention.application.dev.get().pluginId
             implementationClass = "AndroidDevApplicationComposeConventionPlugin"
         }
+        register("androidWearApplication") {
+            id = libs.plugins.convention.application.wear.get().pluginId
+            implementationClass = "WearApplicationConventionPlugin"
+        }
         register("androidLibrary") {
             id = libs.plugins.convention.androidLibrary.get().pluginId
             implementationClass = "AndroidLibraryConventionPlugin"

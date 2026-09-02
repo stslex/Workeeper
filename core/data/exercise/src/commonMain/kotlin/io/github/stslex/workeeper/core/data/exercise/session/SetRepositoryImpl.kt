@@ -8,7 +8,6 @@ import io.github.stslex.workeeper.core.core.di.AppScope
 import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.data.database.common.DbTransitionRunner
 import io.github.stslex.workeeper.core.data.database.session.SetDao
-import io.github.stslex.workeeper.core.data.database.session.model.SetEntity
 import io.github.stslex.workeeper.core.data.exercise.exercise.model.SetsDataModel
 import io.github.stslex.workeeper.core.data.exercise.exercise.model.SetsDataType
 import io.github.stslex.workeeper.core.data.exercise.exercise.model.toData
@@ -56,27 +55,29 @@ class SetRepositoryImpl @Inject internal constructor(
     override suspend fun insert(
         performedExerciseUuid: String,
         set: SetsDataModel,
-    ) {
-        withContext(ioDispatcher) {
-            dao.insert(
-                set.toEntity(
-                    performedExerciseUuid = Uuid.parse(performedExerciseUuid),
-                ),
-            )
-        }
+    ) = transition.mutate {
+        val entity = set.toEntity(
+            performedExerciseUuid = Uuid.parse(performedExerciseUuid),
+        )
+        dao.upsertByTarget(
+            uuid = entity.uuid,
+            performedExerciseUuid = entity.performedExerciseUuid,
+            position = entity.position,
+            reps = entity.reps,
+            weight = entity.weight,
+            type = entity.type,
+        )
     }
 
     override suspend fun update(
         performedExerciseUuid: String,
         set: SetsDataModel,
-    ) {
-        withContext(ioDispatcher) {
-            dao.update(
-                set.toEntity(
-                    performedExerciseUuid = Uuid.parse(performedExerciseUuid),
-                ),
-            )
-        }
+    ) = transition.mutate {
+        dao.update(
+            set.toEntity(
+                performedExerciseUuid = Uuid.parse(performedExerciseUuid),
+            ),
+        )
     }
 
     override suspend fun reorderSets(
@@ -84,20 +85,33 @@ class SetRepositoryImpl @Inject internal constructor(
         orderedSetUuids: List<String>,
     ) {
         if (orderedSetUuids.isEmpty()) return
-        transition {
-            // Update each set's position to match its index in the new order. The
-            // sequential per-row UPDATE is fine — set lists are bounded (typical 3–10
-            // sets per exercise), and the transaction wrapper ensures atomicity.
-            orderedSetUuids.forEachIndexed { index, setUuid ->
-                dao.updatePosition(Uuid.parse(setUuid), index)
+        val performedUuid = Uuid.parse(performedExerciseUuid)
+        val orderedUuids = orderedSetUuids.map(Uuid::parse)
+        require(orderedUuids.distinct().size == orderedUuids.size) {
+            "Set order must not contain duplicate UUIDs"
+        }
+        transition.mutate {
+            val currentUuids = dao.getByPerformedExercise(performedUuid).map { it.uuid }
+            require(
+                currentUuids.size == orderedUuids.size &&
+                    currentUuids.toSet() == orderedUuids.toSet(),
+            ) {
+                "Set order must contain every set belonging to the performed exercise exactly once"
+            }
+            // The unique target index is immediate in SQLite. First move every selected row
+            // outside the canonical non-negative range, then assign the requested positions.
+            // Both passes share the database transition, so readers observe neither phase.
+            orderedUuids.forEachIndexed { index, setUuid ->
+                dao.updatePosition(setUuid, Int.MIN_VALUE + index)
+            }
+            orderedUuids.forEachIndexed { index, setUuid ->
+                dao.updatePosition(setUuid, index)
             }
         }
     }
 
-    override suspend fun delete(uuid: String) {
-        withContext(ioDispatcher) {
-            dao.delete(Uuid.parse(uuid))
-        }
+    override suspend fun delete(uuid: String) = transition.mutate {
+        dao.delete(Uuid.parse(uuid))
     }
 
     override suspend fun upsert(
@@ -106,35 +120,26 @@ class SetRepositoryImpl @Inject internal constructor(
         weight: Double?,
         reps: Int,
         type: SetsDataType,
-    ) {
-        withContext(ioDispatcher) {
-            val parent = Uuid.parse(performedExerciseUuid)
-            val existing = dao.getByPerformedAndPosition(parent, position)
-            val entity = SetEntity(
-                uuid = existing?.uuid ?: Uuid.random(),
-                performedExerciseUuid = parent,
-                position = position,
-                reps = reps,
-                weight = weight,
-                type = type.toEntity(),
-            )
-            dao.insert(entity)
-        }
+    ) = transition.mutate {
+        dao.upsertByTarget(
+            uuid = Uuid.random(),
+            performedExerciseUuid = Uuid.parse(performedExerciseUuid),
+            position = position,
+            reps = reps,
+            weight = weight,
+            type = type.toEntity(),
+        )
     }
 
     override suspend fun deleteByPerformedAndPosition(
         performedExerciseUuid: String,
         position: Int,
-    ) {
-        withContext(ioDispatcher) {
-            dao.deleteByPerformedAndPosition(Uuid.parse(performedExerciseUuid), position)
-        }
+    ) = transition.mutate {
+        dao.deleteByPerformedAndPosition(Uuid.parse(performedExerciseUuid), position)
     }
 
-    override suspend fun deleteAllForPerformedExercise(performedExerciseUuid: String) {
-        withContext(ioDispatcher) {
-            dao.deleteAllForPerformedExercise(Uuid.parse(performedExerciseUuid))
-        }
+    override suspend fun deleteAllForPerformedExercise(performedExerciseUuid: String) = transition.mutate {
+        dao.deleteAllForPerformedExercise(Uuid.parse(performedExerciseUuid))
     }
 
     override suspend fun hasAnyForPerformed(

@@ -21,6 +21,7 @@ import io.github.stslex.workeeper.core.data.backup.worker.BackupWorkLease
 import io.github.stslex.workeeper.core.data.database.AppDatabase
 import io.github.stslex.workeeper.core.data.database.closeAppDatabase
 import io.github.stslex.workeeper.di.AppGraph
+import io.github.stslex.workeeper.feature.wear_bridge.WearBridgeWorkLease
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
@@ -46,6 +47,7 @@ import kotlin.coroutines.coroutineContext
  * `onBeforeMutation` before mutation, and delivers exactly one terminal effect. See the Phase-5
  * startup-processor spec for the complete protocol.
  */
+@Suppress("LargeClass")
 internal class AppRuntime(
     private val applicationContext: Context,
     private val dbFactory: (Context) -> AppDatabase,
@@ -187,6 +189,12 @@ internal class AppRuntime(
      * answers `null` once admission is sealed — the caller must touch no database.
      */
     suspend fun awaitBackupWorkLease(): BackupWorkLease? = workerGate.awaitLease {
+        check(!isTerminal) { "runtime is terminal — no generation may admit new work" }
+        currentGeneration.graph
+    }
+
+    /** Same first-operation barrier as workers, with Wear-specific typed dependencies. */
+    suspend fun awaitWearBridgeWorkLease(): WearBridgeWorkLease? = workerGate.awaitWearLease {
         check(!isTerminal) { "runtime is terminal — no generation may admit new work" }
         currentGeneration.graph
     }

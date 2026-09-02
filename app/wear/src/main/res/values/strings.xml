@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@array/android_wear_capabilities">
+    <string name="app_name">Workeeper</string>
+    <string name="tile_name">Active workout</string>
+    <string name="loading">Connecting…</string>
+    <string name="ready">Ready</string>
+    <string name="start_workout_on_phone">Start a workout on your phone</string>
+    <string name="phone_unavailable">Phone unavailable</string>
+    <string name="refresh_required">Refresh required</string>
+    <string name="transport_error">Couldn’t reach your phone</string>
+    <string name="update_required">Update Workeeper on phone and watch</string>
+    <string name="add_set_on_phone">Add a set on your phone</string>
+    <string name="edit_set_on_phone">Edit the current set on your phone</string>
+    <string name="open_workout_on_phone">Open this workout on your phone</string>
+    <string name="workout_complete">Workout complete</string>
+    <string name="finish_on_phone">Finish on your phone</string>
+    <string name="workout_generic">Workout</string>
+    <string name="exercise_generic">Exercise</string>
+    <plurals name="exercise_progress">
+        <item quantity="one">%1$d of %2$d exercise</item>
+        <item quantity="other">%1$d of %2$d exercises</item>
+    </plurals>
+    <string name="set_progress">Set %1$d of %2$d</string>
+    <string name="reps_label">Reps</string>
+    <string name="weight_label">Weight</string>
+    <string name="weight_value">%1$s kg</string>
+    <string name="weight_unset">Not set</string>
+    <string name="decrease_reps">Decrease reps from %1$d</string>
+    <string name="increase_reps">Increase reps from %1$d</string>
+    <string name="decrease_weight">Decrease weight from %1$s</string>
+    <string name="increase_weight">Increase weight from %1$s</string>
+    <string name="control_enabled">Enabled</string>
+    <string name="control_disabled">Disabled</string>
+    <string name="complete_set_enabled_description">Complete set, enabled</string>
+    <string name="complete_set_disabled_description">Complete set, disabled</string>
+    <string name="complete_set">Complete set</string>
+    <string name="retry">Retry</string>
+    <string name="reps_invalid">Choose reps between 1 and 999</string>
+    <string name="weight_invalid">Check the weight on your phone</string>
+    <!-- Reserved build-time capability resource read by Google Play services. -->
+    <string-array
+        name="android_wear_capabilities"
+        tools:ignore="Typos">
+        <item>workeeper_watch_active_workout_v1</item>
+    </string-array>
+</resources>

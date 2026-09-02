@@ -56,37 +56,30 @@ class TrainingRepositoryImpl @Inject internal constructor(
         .flowOn(ioDispatcher)
 
     override suspend fun updateName(uuid: String, name: String) {
-        withContext(ioDispatcher) {
+        dbTransition.mutate {
             dao.updateName(Uuid.parse(uuid), name)
         }
     }
 
-    override suspend fun updateTraining(training: TrainingChangeDataModel) {
-        withContext(ioDispatcher) {
-            writeTraining(training)
-        }
+    override suspend fun updateTraining(training: TrainingChangeDataModel) = dbTransition.mutate {
+        writeTraining(training)
+        Unit
     }
 
     override suspend fun updateTrainingWithPlans(
         training: TrainingChangeDataModel,
         plans: List<TrainingRepository.ExercisePlanWrite>,
-    ) {
-        withContext(ioDispatcher) {
-            dbTransition {
-                // GUARD: plan updates run after the sync, which re-inserts the rows they hit.
-                val trainingUuid = writeTraining(training)
-                plans.forEach { plan ->
-                    trainingExerciseDao.updatePlanSets(
-                        trainingUuid = trainingUuid,
-                        exerciseUuid = Uuid.parse(plan.exerciseUuid),
-                        planSets = PlanSetsConverter.toJson(plan.planSets),
-                    )
-                }
-                // Auto-prune orphan tags here, not in `writeTraining` — `updateTraining` shares
-                // that helper with no transaction around it.
-                tagDao.deleteOrphans()
-            }
+    ) = dbTransition.mutate {
+        // GUARD: plan updates run after the sync, which re-inserts the rows they hit.
+        val trainingUuid = writeTraining(training)
+        plans.forEach { plan ->
+            trainingExerciseDao.updatePlanSets(
+                trainingUuid = trainingUuid,
+                exerciseUuid = Uuid.parse(plan.exerciseUuid),
+                planSets = PlanSetsConverter.toJson(plan.planSets),
+            )
         }
+        tagDao.deleteOrphans()
     }
 
     /** The one write path both save shapes share. Returns the row's resolved uuid. */
@@ -106,10 +99,8 @@ class TrainingRepositoryImpl @Inject internal constructor(
         entity.uuid
     }
 
-    override suspend fun removeTraining(uuid: String) {
-        withContext(ioDispatcher) {
-            dao.permanentDelete(Uuid.parse(uuid))
-        }
+    override suspend fun removeTraining(uuid: String) = dbTransition.mutate {
+        dao.permanentDelete(Uuid.parse(uuid))
     }
 
     override suspend fun getTraining(
@@ -150,26 +141,20 @@ class TrainingRepositoryImpl @Inject internal constructor(
         }
         .flowOn(ioDispatcher)
 
-    override suspend fun removeAll(uuids: List<String>) = withContext(ioDispatcher) {
+    override suspend fun removeAll(uuids: List<String>) = dbTransition.mutate {
         dao.permanentDeleteAll(uuids.map { Uuid.parse(it) })
     }
 
-    override suspend fun archive(uuid: String) {
-        withContext(ioDispatcher) {
-            dao.archive(Uuid.parse(uuid), Clock.System.now().toEpochMilliseconds())
-        }
+    override suspend fun archive(uuid: String) = dbTransition.mutate {
+        dao.archive(Uuid.parse(uuid), Clock.System.now().toEpochMilliseconds())
     }
 
-    override suspend fun restore(uuid: String) {
-        withContext(ioDispatcher) {
-            dao.restore(Uuid.parse(uuid))
-        }
+    override suspend fun restore(uuid: String) = dbTransition.mutate {
+        dao.restore(Uuid.parse(uuid))
     }
 
-    override suspend fun permanentDelete(uuid: String) {
-        withContext(ioDispatcher) {
-            dao.permanentDelete(Uuid.parse(uuid))
-        }
+    override suspend fun permanentDelete(uuid: String) = dbTransition.mutate {
+        dao.permanentDelete(Uuid.parse(uuid))
     }
 
     override fun pagedArchived(): Flow<PagingData<TrainingDataModel>> = Pager(
@@ -229,8 +214,8 @@ class TrainingRepositoryImpl @Inject internal constructor(
 
     override suspend fun bulkArchive(
         uuids: Set<String>,
-    ): BulkArchiveOutcome = withContext(ioDispatcher) {
-        if (uuids.isEmpty()) return@withContext BulkArchiveOutcome(0, emptyList())
+    ): BulkArchiveOutcome = dbTransition.mutate {
+        if (uuids.isEmpty()) return@mutate BulkArchiveOutcome(0, emptyList())
         val parsed = uuids.map(Uuid::parse)
         // Archiving a training with an in-progress session would orphan it; skip and name it.
         val activeTrainingUuid = sessionDao.getActive()?.trainingUuid
@@ -243,8 +228,8 @@ class TrainingRepositoryImpl @Inject internal constructor(
     }
 
     override suspend fun bulkPermanentDelete(uuids: Set<String>) {
-        withContext(ioDispatcher) {
-            if (uuids.isEmpty()) return@withContext
+        dbTransition.mutate {
+            if (uuids.isEmpty()) return@mutate
             dao.permanentDeleteAll(uuids.map(Uuid::parse))
         }
     }

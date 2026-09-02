@@ -46,6 +46,7 @@ internal class TrainingExerciseRepositoryImplDbTest {
         env = RepositoryTestEnv()
         repository = TrainingExerciseRepositoryImpl(
             dao = env.trainingExerciseDao,
+            transition = env.transition,
             ioDispatcher = UnconfinedTestDispatcher(),
         )
     }
@@ -168,6 +169,7 @@ internal class TrainingExerciseRepositoryImplDbTest {
             val spiedDao = spyk<TrainingExerciseDao>(env.trainingExerciseDao)
             val repositoryWithSpy = TrainingExerciseRepositoryImpl(
                 dao = spiedDao,
+                transition = env.transition,
                 ioDispatcher = UnconfinedTestDispatcher(),
             )
 

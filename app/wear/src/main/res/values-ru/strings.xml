@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Workeeper</string>
+    <string name="tile_name">Активная тренировка</string>
+    <string name="loading">Подключение…</string>
+    <string name="ready">Готово</string>
+    <string name="start_workout_on_phone">Начните тренировку на телефоне</string>
+    <string name="phone_unavailable">Телефон недоступен</string>
+    <string name="refresh_required">Требуется обновление</string>
+    <string name="transport_error">Не удалось связаться с телефоном</string>
+    <string name="update_required">Обновите Workeeper на телефоне и часах</string>
+    <string name="add_set_on_phone">Добавьте подход на телефоне</string>
+    <string name="edit_set_on_phone">Измените текущий подход на телефоне</string>
+    <string name="open_workout_on_phone">Откройте эту тренировку на телефоне</string>
+    <string name="workout_complete">Тренировка завершена</string>
+    <string name="finish_on_phone">Завершите на телефоне</string>
+    <string name="workout_generic">Тренировка</string>
+    <string name="exercise_generic">Упражнение</string>
+    <plurals name="exercise_progress">
+        <item quantity="one">Упражнения: %1$d из %2$d</item>
+        <item quantity="few">Упражнения: %1$d из %2$d</item>
+        <item quantity="many">Упражнения: %1$d из %2$d</item>
+        <item quantity="other">Упражнения: %1$d из %2$d</item>
+    </plurals>
+    <string name="set_progress">Подход %1$d из %2$d</string>
+    <string name="reps_label">Повторы</string>
+    <string name="weight_label">Вес</string>
+    <string name="weight_value">%1$s кг</string>
+    <string name="weight_unset">Не задан</string>
+    <string name="decrease_reps">Уменьшить число повторов с %1$d</string>
+    <string name="increase_reps">Увеличить число повторов с %1$d</string>
+    <string name="decrease_weight">Уменьшить вес с %1$s</string>
+    <string name="increase_weight">Увеличить вес с %1$s</string>
+    <string name="control_enabled">Доступно</string>
+    <string name="control_disabled">Недоступно</string>
+    <string name="complete_set_enabled_description">Завершить подход, доступно</string>
+    <string name="complete_set_disabled_description">Завершить подход, недоступно</string>
+    <string name="complete_set">Завершить подход</string>
+    <string name="retry">Повторить</string>
+    <string name="reps_invalid">Выберите от 1 до 999 повторов</string>
+    <string name="weight_invalid">Проверьте вес на телефоне</string>
+</resources>

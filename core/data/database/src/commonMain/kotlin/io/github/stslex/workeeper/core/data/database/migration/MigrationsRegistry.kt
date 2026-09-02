@@ -7,7 +7,7 @@ import androidx.room3.migration.Migration
  * Live schema version of `AppDatabase`, read by its `@Database(version = …)`. Bump in lock-step
  * with a new `Migration(N, N + 1)` in [MIGRATIONS]; the registry test fails one without the other.
  */
-const val APP_DATABASE_VERSION: Int = 6
+const val APP_DATABASE_VERSION: Int = 7
 
 /**
  * Single source of truth for every Room migration registered on the live database —
@@ -15,6 +15,7 @@ const val APP_DATABASE_VERSION: Int = 6
  */
 internal val MIGRATIONS: Array<Migration> = arrayOf(
     Migration6,
+    Migration7,
 )
 
 /**

@@ -27,6 +27,8 @@ import io.github.stslex.workeeper.core.data.database.training.TrainingDao
 import io.github.stslex.workeeper.core.data.database.training.TrainingEntity
 import io.github.stslex.workeeper.core.data.database.training.TrainingExerciseDao
 import io.github.stslex.workeeper.core.data.database.training.TrainingExerciseEntity
+import io.github.stslex.workeeper.core.data.database.wear.WearDatabaseMetadataEntity
+import io.github.stslex.workeeper.core.data.database.wear.WearSyncDao
 
 @Database(
     entities = [
@@ -39,6 +41,7 @@ import io.github.stslex.workeeper.core.data.database.training.TrainingExerciseEn
         TagEntity::class,
         ExerciseTagEntity::class,
         TrainingTagEntity::class,
+        WearDatabaseMetadataEntity::class,
     ],
     version = APP_DATABASE_VERSION,
     exportSchema = true,
@@ -57,6 +60,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract val tagDao: TagDao
     abstract val exerciseTagDao: ExerciseTagDao
     abstract val trainingTagDao: TrainingTagDao
+    abstract val wearSyncDao: WearSyncDao
 
     companion object {
 

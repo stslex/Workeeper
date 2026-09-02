@@ -1,8 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.core.data.exercise.session
 
+import io.github.stslex.workeeper.core.data.database.converters.PlanSetsConverter
 import io.github.stslex.workeeper.core.data.database.session.SetDao
+import io.github.stslex.workeeper.core.data.database.sets.PlanSetDataModel
+import io.github.stslex.workeeper.core.data.database.sets.SetTypeDataModel
 import io.github.stslex.workeeper.core.data.database.testfixtures.RepositoryTestEnv
+import io.github.stslex.workeeper.core.data.database.wear.prepareWearSyncStorage
 import io.github.stslex.workeeper.core.data.exercise.exercise.model.SetsDataModel
 import io.github.stslex.workeeper.core.data.exercise.exercise.model.SetsDataType
 import io.mockk.coVerify
@@ -81,6 +85,57 @@ internal class SetRepositoryImplDbTest {
     }
 
     @Test
+    fun `phone edit of set zero stays valid after the plan target advances to set one`() =
+        runTest {
+            val epoch = prepareWearSyncStorage(env.rawDatabase(), rotateDatabaseEpoch = false)
+            val training = env.seedTraining()
+            val exercise = env.seedExercise()
+            val session = env.seedSession(trainingUuid = training.uuid)
+            val performed = env.seedPerformed(session.uuid, exercise.uuid)
+            env.seedTrainingExercise(
+                trainingUuid = training.uuid,
+                exerciseUuid = exercise.uuid,
+                planSets = PlanSetsConverter.toJson(
+                    listOf(
+                        PlanSetDataModel(100.0, 5, SetTypeDataModel.WORK),
+                        PlanSetDataModel(105.0, 6, SetTypeDataModel.WORK),
+                    ),
+                ),
+            )
+            val completed = SetsDataModel(
+                uuid = Uuid.random().toString(),
+                reps = 5,
+                weight = 100.0,
+                position = 0,
+                type = SetsDataType.WORK,
+            )
+            repository.insert(performed.uuid.toString(), completed)
+            val before = requireNotNull(env.rawDatabase().wearSyncDao.getSessionSync(session.uuid))
+            assertEquals(
+                1,
+                env.rawDatabase().wearSyncDao.storeReceipt(
+                    sessionUuid = session.uuid,
+                    commandId = Uuid.random().toString(),
+                    attemptFingerprint = ByteArray(34) { 1 },
+                    databaseEpoch = epoch,
+                    revision = before.revision,
+                ),
+            )
+
+            repository.update(
+                performed.uuid.toString(),
+                completed.copy(reps = 8, weight = 110.0),
+            )
+
+            val rows = repository.getByPerformedExercise(performed.uuid.toString())
+            val after = requireNotNull(env.rawDatabase().wearSyncDao.getSessionSync(session.uuid))
+            assertEquals(8, rows.single { it.position == 0 }.reps)
+            assertEquals(1, rows.size)
+            assertTrue(after.revision > before.revision)
+            assertNull(after.receiptCommandId)
+        }
+
+    @Test
     fun `upsert keeps existing uuid when row already exists for that position`() = runTest {
         val performedUuid = seedPerformedExercise()
         val initial = SetsDataModel(
@@ -105,6 +160,31 @@ internal class SetRepositoryImplDbTest {
         assertEquals(initial.uuid, rows.single().uuid)
         assertEquals(90.0, rows.single().weight)
         assertEquals(6, rows.single().reps)
+    }
+
+    @Test
+    fun `insert conflict keeps the transaction winner row identity`() = runTest {
+        val performedUuid = seedPerformedExercise()
+        val winner = SetsDataModel(
+            uuid = Uuid.random().toString(),
+            reps = 5,
+            position = 0,
+            weight = 80.0,
+            type = SetsDataType.WORK,
+        )
+        val contender = winner.copy(
+            uuid = Uuid.random().toString(),
+            reps = 6,
+            weight = 90.0,
+        )
+
+        repository.insert(performedUuid.toString(), winner)
+        repository.insert(performedUuid.toString(), contender)
+
+        val row = repository.getByPerformedExercise(performedUuid.toString()).single()
+        assertEquals(winner.uuid, row.uuid)
+        assertEquals(6, row.reps)
+        assertEquals(90.0, row.weight)
     }
 
     @Test
@@ -259,6 +339,44 @@ internal class SetRepositoryImplDbTest {
         val rows = env.setDao.getByPerformedExercise(performedUuid)
         assertEquals(1, rows.size)
         assertEquals(0, rows.single().position)
+    }
+
+    @Test
+    fun `reorderSets rejects a partial or foreign order without moving any row`() = runTest {
+        val performedUuid = seedPerformedExercise()
+        val firstUuid = Uuid.random().toString()
+        val secondUuid = Uuid.random().toString()
+        repository.insert(
+            performedUuid.toString(),
+            SetsDataModel(firstUuid, 5, 100.0, SetsDataType.WORK, 0),
+        )
+        repository.insert(
+            performedUuid.toString(),
+            SetsDataModel(secondUuid, 5, 110.0, SetsDataType.WORK, 1),
+        )
+
+        val partialFailure = try {
+            repository.reorderSets(performedUuid.toString(), listOf(secondUuid))
+            null
+        } catch (error: IllegalArgumentException) {
+            error
+        }
+        val foreignFailure = try {
+            repository.reorderSets(
+                performedUuid.toString(),
+                listOf(secondUuid, Uuid.random().toString()),
+            )
+            null
+        } catch (error: IllegalArgumentException) {
+            error
+        }
+
+        assertTrue(partialFailure is IllegalArgumentException)
+        assertTrue(foreignFailure is IllegalArgumentException)
+        val unchanged = env.setDao.getByPerformedExercise(performedUuid)
+            .sortedBy { it.position }
+            .map { it.uuid.toString() }
+        assertEquals(listOf(firstUuid, secondUuid), unchanged)
     }
 
     @Suppress("DEPRECATION")

@@ -61,6 +61,7 @@ internal class StartupProcessorTest {
     private var plannerRuns = 0
     private var plannerError: Throwable? = null
     private var lowRam = false
+    private val wearEpochRotations = mutableListOf<Boolean>()
 
     private var seals = 0
 
@@ -71,6 +72,7 @@ internal class StartupProcessorTest {
             plannerError?.let { throw it }
             plannerRuns++
         },
+        prepareWearStorage = { _, rotate -> wearEpochRotations += rotate },
         // Unconfined so fire-and-forget chores execute inline; production keeps Dispatchers.IO.
         ioDispatcher = Dispatchers.Unconfined,
     )
@@ -104,6 +106,7 @@ internal class StartupProcessorTest {
         // lastDecision is null on this path, so the planner guard passes (spec §2).
         assertEquals(1, plannerRuns)
         coVerify(exactly = 1) { graph.recoveryBootstrap }
+        assertEquals(listOf(true), wearEpochRotations)
     }
 
     @Test
@@ -120,6 +123,7 @@ internal class StartupProcessorTest {
         }
         coVerify(exactly = 1) { restoreCoordinator.sweepRecoveryGarbage() }
         coVerify(exactly = 0) { restoreCoordinator.publishPendingTerminalOutbox() }
+        assertEquals(listOf(false), wearEpochRotations)
     }
 
     @Test
@@ -134,6 +138,7 @@ internal class StartupProcessorTest {
         assertEquals(0, plannerRuns)
         coVerify(exactly = 1) { imageStorage.cleanupTempFiles() }
         coVerify(exactly = 1) { graph.recoveryBootstrap }
+        assertEquals(emptyList<Boolean>(), wearEpochRotations)
     }
 
     @Test
@@ -266,6 +271,7 @@ internal class StartupProcessorTest {
         assertEquals(StartupOutcome.Proceed, outcome)
         assertEquals(1, peeks, "the scenario-2 peek must run on a RecoveryCompleted launch")
         coVerify(exactly = 1) { graph.recoveryBootstrap }
+        assertEquals(listOf(true), wearEpochRotations)
     }
 
     @Test
@@ -278,6 +284,7 @@ internal class StartupProcessorTest {
 
         assertEquals(StartupOutcome.RouteToRecovery, outcome)
         assertEquals(0, plannerRuns, "ANALYZE would open the file the peek just rejected")
+        assertEquals(emptyList<Boolean>(), wearEpochRotations)
     }
 
     @Test
@@ -290,6 +297,7 @@ internal class StartupProcessorTest {
 
             assertEquals(StartupOutcome.Proceed, outcome)
             assertEquals(1, peeks)
+            assertEquals(listOf(true), wearEpochRotations)
         }
 
     @Test
