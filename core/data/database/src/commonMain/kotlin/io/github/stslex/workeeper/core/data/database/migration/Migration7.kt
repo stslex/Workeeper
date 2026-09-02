@@ -4,6 +4,8 @@ package io.github.stslex.workeeper.core.data.database.migration
 import androidx.room3.migration.Migration
 import androidx.sqlite.SQLiteConnection
 import androidx.sqlite.execSQL
+import io.github.stslex.workeeper.core.core.logger.FirebaseCrashlyticsHolder
+import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.core.data.database.wear.installWearSyncTriggers
 import kotlin.uuid.Uuid
 
@@ -19,7 +21,7 @@ object Migration7 : Migration(FROM_VERSION, TO_VERSION) {
         // released 1.50.0 can produce them (non-transactional check-then-act in
         // `SetRepositoryImpl.upsert`). Moving the index above this call turns an upgrade into a
         // permanent crash loop on affected devices.
-        connection.reconcileDuplicateTargets()
+        val reconciledRows = connection.reconcileDuplicateTargets()
         connection.execSQL(
             "ALTER TABLE session_table ADD COLUMN wear_revision INTEGER NOT NULL DEFAULT 0",
         )
@@ -57,7 +59,38 @@ object Migration7 : Migration(FROM_VERSION, TO_VERSION) {
                 "ON set_table(performed_exercise_uuid, position)",
         )
         connection.installWearSyncTriggers()
+        // Last, so the field incidence this records is an upgrade that actually completed: every
+        // statement that can still fail has run, and only the commit remains.
+        reportReconciledTargets(reconciledRows)
     }
+}
+
+/** Field-incidence marker: this upgrade had to move rows to make its set targets unique. */
+class DuplicateSetTargetsReconciled internal constructor(
+    val reconciledRows: Int,
+) : IllegalStateException(
+    "Migration 7 repositioned $reconciledRows duplicate set target row(s)",
+)
+
+/**
+ * The non-fatal to raise for [reconciledRows], or `null` when this upgrade found nothing to
+ * reconcile — a clean database must stay silent, so the report count is the defect's incidence
+ * rather than the upgrade's.
+ */
+internal fun reconciliationReport(reconciledRows: Int): DuplicateSetTargetsReconciled? =
+    if (reconciledRows > 0) DuplicateSetTargetsReconciled(reconciledRows) else null
+
+private const val RECONCILED_ROWS_KEY = "migration7_reconciled_set_rows"
+
+/**
+ * `internal` rather than `private`: [Migration7] compiles to a different class, and a private
+ * call from there would cost a synthetic accessor.
+ */
+internal fun reportReconciledTargets(reconciledRows: Int) {
+    val report = reconciliationReport(reconciledRows) ?: return
+    FirebaseCrashlyticsHolder.setCustomKey(RECONCILED_ROWS_KEY, reconciledRows)
+    // `Log.e` is the repository's non-fatal sink; it no-ops when Crashlytics has no transport.
+    Log.tag("Migration7").e(report)
 }
 
 /**
