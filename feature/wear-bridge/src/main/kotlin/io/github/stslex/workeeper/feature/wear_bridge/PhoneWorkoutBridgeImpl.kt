@@ -596,11 +596,18 @@ class PhoneWorkoutBridgeImpl @Inject internal constructor(
         val lease = prepared.lease ?: return prepared.response
         if (leaseStore.publishIfCurrent(database, transition, lease)) return prepared.response
         return transition {
+            val base = snapshotBuilder.build(currentEpoch())
             readOnlyCommandResponse(
                 correlationId = prepared.response.correlationId,
                 commandId = prepared.response.commandId,
-                outcome = prepared.response.outcome,
-                base = snapshotBuilder.build(currentEpoch()),
+                outcome = if (
+                    prepared.response.outcome == CompleteCommandOutcome.RetryableTemporaryFailure
+                ) {
+                    lease.terminalOutcomeAfterPublicationLoss(base)
+                } else {
+                    prepared.response.outcome
+                },
+                base = base,
             )
         }
     }
@@ -783,6 +790,25 @@ internal fun SnapshotData.withGrantedAuthority(lease: PendingMutationLease): Sna
         ),
     ),
 )
+
+internal fun PendingMutationLease.terminalOutcomeAfterPublicationLoss(
+    base: SnapshotData,
+): CompleteCommandOutcome {
+    if (base.databaseEpoch != databaseEpoch) return CompleteCommandOutcome.StaleRevision
+    val identity = base.payload.sessionIdentityOrNull()
+        ?: return CompleteCommandOutcome.NoActiveSession
+    if (identity.first != sessionUuid || identity.second != sessionRevision) {
+        return CompleteCommandOutcome.StaleRevision
+    }
+    val target = (base.payload as? SnapshotPayload.ActiveWithTarget)?.target
+        ?: return CompleteCommandOutcome.TargetChanged
+    if (target.performedExerciseUuid != performedExerciseUuid ||
+        target.setPosition != setPosition
+    ) {
+        return CompleteCommandOutcome.TargetChanged
+    }
+    return CompleteCommandOutcome.AuthorizationExpired
+}
 
 internal fun SetTypeWire.toEntity(): SetTypeEntity = when (this) {
     SetTypeWire.WARM -> SetTypeEntity.WARM

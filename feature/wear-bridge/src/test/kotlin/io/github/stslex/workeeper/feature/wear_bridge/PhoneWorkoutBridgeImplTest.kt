@@ -563,6 +563,35 @@ internal class PhoneWorkoutBridgeImplTest {
         }
 
     @Test
+    fun `retryable publication race reclassifies against the current read only replacement`() =
+        runTest {
+            val seed = seedSession(plans = listOf(plan(100.0, 5)))
+            val command = commandFrom(bridge.activePayload())
+            val flaky = FlakyWriter(RoomWearSetMutationWriter(database))
+            val racingTransition = OneShotInvokeRaceTransition(env.transition) {
+                env.transition.mutate {
+                    database.trainingExerciseDao.updatePlanSets(
+                        trainingUuid = seed.trainingUuid,
+                        exerciseUuid = seed.exerciseUuids.single(),
+                        planSets = PlanSetsConverter.toJson(listOf(plan(103.25, 8))),
+                    )
+                }
+            }
+            val racingBridge = newBridge(writer = flaky, transition = racingTransition)
+
+            val response = racingBridge.completeCurrentSet(SOURCE_NODE, command)
+            val replacement = response.replacement.payload as SnapshotPayload.ActiveWithTarget
+
+            assertEquals(CompleteCommandOutcome.StaleRevision, response.outcome)
+            assertEquals(10_325, replacement.target.weightHundredthsKg)
+            assertEquals(8, replacement.target.reps)
+            assertTrue(replacement.mutationAuthority is MutationAuthority.Unavailable)
+            assertNull(leaseStore.activeLeaseForTest(SOURCE_NODE, replacement.sessionUuid))
+            assertEquals(0, database.setDao.countByPerformedExercise(seed.performedUuids.single()))
+            WearProtocolCodec.encode(response)
+        }
+
+    @Test
     fun `wrong source node cannot consume another node lease`() = runTest {
         val seed = seedSession(plans = listOf(plan(100.0, 5)))
         val active = bridge.activePayload()
