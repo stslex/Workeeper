@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.core.data.database.wear
 
+import androidx.room3.executeSQL
+import androidx.room3.immediateTransaction
+import androidx.room3.useWriterConnection
 import io.github.stslex.workeeper.core.data.database.BaseDatabaseTest
 import io.github.stslex.workeeper.core.data.database.converters.PlanSetsConverter
 import io.github.stslex.workeeper.core.data.database.exercise.ExerciseEntity
@@ -212,6 +215,73 @@ internal class WearSyncStorageTest : BaseDatabaseTest() {
                 database.sessionDao.update(session.copy(startedAt = session.startedAt + 1))
             }
         }
+
+    @Test
+    fun `a stale same-name trigger is repaired and starts counting the writes it was dropping`() =
+        runTest {
+            prepareWearSyncStorage(database, rotateDatabaseEpoch = false)
+            val seed = insertActiveSession()
+            installStaleTrigger()
+
+            // The defect itself, executed: the name is right, the body invalidates nothing, and
+            // `CREATE TRIGGER IF NOT EXISTS` would leave it in place forever.
+            val beforeRepair = requireNotNull(database.wearSyncDao.getSessionSync(seed.sessionUuid))
+            database.setDao.insert(set(seed, position = 0))
+            assertEquals(
+                beforeRepair.revision,
+                requireNotNull(database.wearSyncDao.getSessionSync(seed.sessionUuid)).revision,
+                "the stale trigger must really be inert, or this test proves nothing",
+            )
+
+            prepareWearSyncStorage(database, rotateDatabaseEpoch = false)
+
+            val installed = installedTriggerBodies()
+            WEAR_SYNC_TRIGGERS.forEach { sql ->
+                assertEquals(sql, installed[triggerName(sql)], "${triggerName(sql)} body")
+            }
+            val repaired = requireNotNull(database.wearSyncDao.getSessionSync(seed.sessionUuid))
+            database.setDao.insert(set(seed, position = 1))
+            assertEquals(
+                repaired.revision + 1,
+                requireNotNull(database.wearSyncDao.getSessionSync(seed.sessionUuid)).revision,
+            )
+        }
+
+    /** Same name, inert body — the drift an edit to [WEAR_SYNC_TRIGGERS] leaves on old installs. */
+    private suspend fun installStaleTrigger() {
+        database.useWriterConnection { transactor ->
+            transactor.immediateTransaction {
+                executeSQL("DROP TRIGGER wear_set_insert_revision")
+                executeSQL(
+                    "CREATE TRIGGER wear_set_insert_revision AFTER INSERT ON set_table " +
+                        "BEGIN SELECT 1; END",
+                )
+            }
+        }
+        assertNotEquals(
+            WEAR_SYNC_TRIGGERS.first { triggerName(it) == "wear_set_insert_revision" },
+            installedTriggerBodies()["wear_set_insert_revision"],
+        )
+    }
+
+    private suspend fun installedTriggerBodies(): Map<String, String> =
+        database.useWriterConnection { transactor ->
+            transactor.usePrepared(
+                "SELECT name, sql FROM sqlite_master WHERE type = 'trigger' AND sql IS NOT NULL",
+            ) { statement ->
+                buildMap {
+                    while (statement.step()) put(statement.getText(0), statement.getText(1))
+                }
+            }
+        }
+
+    private fun set(seed: Seed, position: Int) = SetEntity(
+        performedExerciseUuid = seed.performedUuid,
+        position = position,
+        reps = 8,
+        weight = 100.0,
+        type = SetTypeEntity.WORK,
+    )
 
     private suspend fun insertActiveSession(): Seed {
         val trainingUuid = Uuid.random()
