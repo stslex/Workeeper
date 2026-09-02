@@ -73,11 +73,9 @@ class PhoneWorkoutBridgeImpl @Inject internal constructor(
                 base = snapshotBuilder.build(epoch),
             )
         }
-        prepared.lease?.let { candidate ->
-            leaseStore.publishIfCurrent(database, transition, candidate)
-        }
-        snapshotResponses.put(key, prepared.response)
-        prepared.response
+        val response = publishSnapshotOrRefreshReadOnly(request.correlationId, prepared)
+        snapshotResponses.put(key, response)
+        response
     }
 
     override suspend fun completeCurrentSet(
@@ -126,11 +124,9 @@ class PhoneWorkoutBridgeImpl @Inject internal constructor(
                 leaseGeneration = retired.leaseGeneration,
             )
         }
-        prepared.lease?.let { candidate ->
-            leaseStore.publishIfCurrent(database, transition, candidate)
-        }
-        commandResponses.put(key, prepared.response)
-        prepared.response
+        val response = publishCommandOrRefreshReadOnly(prepared)
+        commandResponses.put(key, response)
+        response
     }
 
     override suspend fun protocolRejected(
@@ -578,6 +574,35 @@ class PhoneWorkoutBridgeImpl @Inject internal constructor(
         val fallback = candidate.copy(snapshot = snapshotBuilder.payloadTooLarge(base))
         check(fits(fallback)) { "PayloadTooLarge snapshot fallback exceeded the protocol envelope" }
         return fallback
+    }
+
+    private suspend fun publishSnapshotOrRefreshReadOnly(
+        correlationId: CanonicalUuid,
+        prepared: PreparedSnapshotResponse,
+    ): ActiveWorkoutSnapshotResponse {
+        val lease = prepared.lease ?: return prepared.response
+        if (leaseStore.publishIfCurrent(database, transition, lease)) return prepared.response
+        return transition {
+            fitSnapshotResponse(
+                correlationId = correlationId,
+                base = snapshotBuilder.build(currentEpoch()).withUnavailableAuthority(),
+            )
+        }
+    }
+
+    private suspend fun publishCommandOrRefreshReadOnly(
+        prepared: PreparedCommandResponse,
+    ): CompleteCurrentSetResponse {
+        val lease = prepared.lease ?: return prepared.response
+        if (leaseStore.publishIfCurrent(database, transition, lease)) return prepared.response
+        return transition {
+            readOnlyCommandResponse(
+                correlationId = prepared.response.correlationId,
+                commandId = prepared.response.commandId,
+                outcome = prepared.response.outcome,
+                base = snapshotBuilder.build(currentEpoch()),
+            )
+        }
     }
 
     private fun readOnlyCommandResponse(

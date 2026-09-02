@@ -3,6 +3,7 @@ package io.github.stslex.workeeper.feature.wear_bridge
 
 import androidx.sqlite.SQLiteException
 import io.github.stslex.workeeper.core.data.database.AppDatabase
+import io.github.stslex.workeeper.core.data.database.common.DbTransitionRunner
 import io.github.stslex.workeeper.core.data.database.converters.PlanSetsConverter
 import io.github.stslex.workeeper.core.data.database.exercise.ExerciseEntity
 import io.github.stslex.workeeper.core.data.database.exercise.ExerciseTypeEntity
@@ -34,6 +35,7 @@ import io.github.stslex.workeeper.core.wear.protocol.SetTypeWire
 import io.github.stslex.workeeper.core.wear.protocol.SnapshotPayload
 import io.github.stslex.workeeper.core.wear.protocol.WearProtocol
 import io.github.stslex.workeeper.core.wear.protocol.WearProtocolCodec
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -505,6 +507,60 @@ internal class PhoneWorkoutBridgeImplTest {
         )
         assertNull(leaseStore.activeLeaseForTest(SOURCE_NODE, payload.sessionUuid))
     }
+
+    @Test
+    fun `snapshot publication race returns current read only state instead of unpublished lease`() =
+        runTest {
+            val seed = seedSession(plans = listOf(plan(100.0, 5)))
+            val racingTransition = OneShotInvokeRaceTransition(env.transition) {
+                env.transition.mutate {
+                    database.trainingExerciseDao.updatePlanSets(
+                        trainingUuid = seed.trainingUuid,
+                        exerciseUuid = seed.exerciseUuids.single(),
+                        planSets = PlanSetsConverter.toJson(listOf(plan(101.25, 6))),
+                    )
+                }
+            }
+            val racingBridge = newBridge(transition = racingTransition)
+
+            val response = racingBridge.snapshot()
+            val payload = response.snapshot.payload as SnapshotPayload.ActiveWithTarget
+
+            assertEquals(10_125, payload.target.weightHundredthsKg)
+            assertEquals(6, payload.target.reps)
+            assertTrue(payload.mutationAuthority is MutationAuthority.Unavailable)
+            assertNull(leaseStore.activeLeaseForTest(SOURCE_NODE, payload.sessionUuid))
+        }
+
+    @Test
+    fun `command publication race keeps outcome but returns current read only replacement`() =
+        runTest {
+            val seed = seedSession(plans = listOf(plan(100.0, 5), plan(101.0, 6)))
+            val command = commandFrom(bridge.activePayload())
+            val racingTransition = OneShotInvokeRaceTransition(env.transition) {
+                env.transition.mutate {
+                    database.trainingExerciseDao.updatePlanSets(
+                        trainingUuid = seed.trainingUuid,
+                        exerciseUuid = seed.exerciseUuids.single(),
+                        planSets = PlanSetsConverter.toJson(
+                            listOf(plan(100.0, 5), plan(102.25, 7)),
+                        ),
+                    )
+                }
+            }
+            val racingBridge = newBridge(transition = racingTransition)
+
+            val response = racingBridge.completeCurrentSet(SOURCE_NODE, command)
+            val replacement = response.replacement.payload as SnapshotPayload.ActiveWithTarget
+
+            assertEquals(CompleteCommandOutcome.Applied, response.outcome)
+            assertEquals(1, replacement.target.setPosition)
+            assertEquals(10_225, replacement.target.weightHundredthsKg)
+            assertEquals(7, replacement.target.reps)
+            assertTrue(replacement.mutationAuthority is MutationAuthority.Unavailable)
+            assertNull(leaseStore.activeLeaseForTest(SOURCE_NODE, replacement.sessionUuid))
+            assertEquals(1, database.setDao.countByPerformedExercise(seed.performedUuids.single()))
+        }
 
     @Test
     fun `wrong source node cannot consume another node lease`() = runTest {
@@ -1139,9 +1195,10 @@ internal class PhoneWorkoutBridgeImplTest {
 
     private fun newBridge(
         writer: WearSetMutationWriter = RoomWearSetMutationWriter(database),
+        transition: DbTransitionRunner = env.transition,
     ): PhoneWorkoutBridgeImpl = PhoneWorkoutBridgeImpl(
         database = database,
-        transition = env.transition,
+        transition = transition,
         snapshotBuilder = PhoneWorkoutSnapshotBuilder(database),
         leaseStore = leaseStore,
         clock = clock,
@@ -1349,6 +1406,28 @@ internal class PhoneWorkoutBridgeImplTest {
         override suspend fun write(value: WearSetWrite) {
             if (fail) throw SQLiteException("synthetic busy")
             delegate.write(value)
+        }
+    }
+
+    private class OneShotInvokeRaceTransition(
+        private val delegate: DbTransitionRunner,
+        private val beforeInvoke: suspend () -> Unit,
+    ) : DbTransitionRunner {
+        private var pending = true
+
+        override suspend fun <T> invoke(block: suspend CoroutineScope.() -> T): T {
+            if (pending) {
+                pending = false
+                beforeInvoke()
+            }
+            return delegate(block)
+        }
+
+        override suspend fun <T> mutate(block: suspend CoroutineScope.() -> T): T =
+            delegate.mutate(block)
+
+        override fun addAfterMutationCommitListener(listener: () -> Unit) {
+            delegate.addAfterMutationCommitListener(listener)
         }
     }
 
