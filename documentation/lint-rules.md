@@ -760,7 +760,7 @@ tracked `.java` call site is invisible to *both* detekt layers, and AGP compiles
 variants.
 
 Text matching over source loses to lexical trivia unless the text is first canonicalised the way a
-compiler reads it, so the scan does that in five steps and pins each as a self-test case:
+compiler reads it, so the scan does that in six steps and pins each as a self-test case:
 
 | Step | Spelling it defeats | Scope |
 | --- | --- | --- |
@@ -768,21 +768,31 @@ compiler reads it, so the scan does that in five steps and pins each as a self-t
 | Comments become one separating space | `com./*gap*/google.android.gms.wearable` | Both. One space, not nothing: `a/*x*/b` is two tokens and must not be joined |
 | Trivia around a qualified name's dots collapses | `com. google…`, and the same name split across lines | Both. The cross-line pass reports the file rather than a line, since collapsing newlines would move every line number after it |
 | String literals constant-fold | `"com.google.android.gms." + "wearable.Wearable"`, including `+ ("a" + "b")` | Both, to a fixed point, so nesting collapses. A `(` following an identifier or bracket is left alone, so a call's argument list is never unwrapped and `f("a") + ("b")` cannot fold into a constant the compiler would not fold — pinned |
+| Same-file constant variables inline | `static final String PREFIX = "com.google.android.gms."` then `Class.forName(PREFIX + SUFFIX)` | `static final String`, `const val`, `val` with a single-literal initialiser, to a fixed point so a constant defined through another resolves. Substitution happens outside string literals only, so an identifier appearing inside an unrelated literal cannot invent a constant — pinned |
 | Escapes inside a literal resolve | Java octal `wea\162able`, Kotlin `wea\u0072able` | Java octal and Kotlin `\uXXXX`; Java's own `\uXXXX` is already handled file-wide above. A decode to `"` or `\` is refused, so an escape cannot forge a literal boundary. **The language decides, not the delimiter**: a Java text block processes escapes, a Kotlin raw string does not, and both are `"""` — each pinned |
 
 String and character literals are walked rather than skipped, so a `//` inside a URL literal does
 not eat the rest of its line — also pinned. A commented-out reference is not a call site and is not
 reported.
 
-**Where this stops, and why it stops there.** The line is the compiler's own: the gate sees what the
-compiler can constant-fold. A name assembled at *runtime* — from a char array, a decode, a resource
-— is not a constant, is invisible to this gate and to any other static one, and no list of patterns
-closes that class; the remedy usually proposed for it, scanning compiled output, would have to read
-R8'd DEX from variant-specific intermediate paths and still would not see a runtime-assembled name.
-That case is pinned as an expected-zero self-test so the limit stays a recorded decision rather than
-a gap someone rediscovers. Code review is the control there, which is what a *blocking* privacy gate
-means: the gate makes the introduction visible and reviewable, it does not defend against a
-committer who is deliberately hiding one. `lint-rules/` is its one exemption, because
+**Where this stops, and why it stops exactly there.** The gate resolves the string-forming part of
+the compile-time constant grammar — literals, escapes, concatenation, parentheses, and constant
+variables **within one file**. Two things sit outside it, both deliberate and both stated rather
+than discovered:
+
+- **A constant imported from another file.** Resolving it means building a cross-file symbol table
+  for two languages inside a CI script, and the value of doing so falls off sharply: the same-file
+  form is how someone writes this without intending evasion, and the cross-file form is not.
+- **A name assembled at runtime** — char array, decode, resource, string builder. Not a constant at
+  all, so no static gate sees it, compiled output included. The remedy usually proposed here,
+  scanning build artifacts, would have to read R8'd DEX from variant-specific intermediate paths and
+  still would not see it.
+
+The runtime case is pinned as an expected-zero self-test so the limit stays a recorded decision
+rather than a gap someone rediscovers. Beyond the line, code review is the control — which is what a
+*blocking* privacy gate means: it makes an introduction visible and reviewable, it does not defend
+against a committer who is deliberately hiding one, and a gate claiming otherwise is the failure
+mode this rule was written to end. `lint-rules/` is its one exemption, because
 the rule names the package it bans and its fixtures spell out the violations it must catch. The
 script carries a `--self-test` that exercises both anchors, and CI runs that first: a gate with
 nothing to find on a clean tree has no other way to show it fires.

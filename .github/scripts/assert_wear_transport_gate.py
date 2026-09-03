@@ -104,6 +104,50 @@ PARENTHESISED_LITERAL = re.compile(
 )
 
 
+# A constant variable whose initialiser is a single literal: `static final String X = "..."`,
+# `const val X = "..."`, `val X = "..."`. Both compilers inline these into the constant they build,
+# so `PREFIX + SUFFIX` is one `ldc` and must be one match here.
+CONSTANT_DECLARATION = re.compile(
+    r'\b(?:const\s+val|val|var|(?:static\s+)?final\s+String|String)\s+'
+    r'([A-Za-z_][A-Za-z0-9_]*)\s*(?::\s*String\s*)?=\s*'
+    r'("(?:[^"\\\n]|\\.)*")'
+)
+STRING_LITERAL = re.compile(r'"(?:[^"\\\n]|\\.)*"')
+
+# A constant defined through another constant needs a second pass; the bound stops a pathological
+# self-referential file from looping.
+MAX_CONSTANT_ROUNDS = 5
+
+
+def substitute_constants(text: str) -> str:
+    """Inlines same-file constant variables, which is what both compilers do before folding.
+
+    Substitution happens OUTSIDE string literals only: replacing an identifier that merely appears
+    inside some unrelated literal would invent a constant the compiler never builds, and a false
+    positive in a blocking gate is worse than a miss.
+
+    The boundary is the file. A constant imported from another file is not resolved here -- see the
+    limit recorded in documentation/lint-rules.md.
+    """
+    constants = dict(CONSTANT_DECLARATION.findall(text))
+    if not constants:
+        return text
+    names = re.compile(r"\b(" + "|".join(re.escape(name) for name in constants) + r")\b")
+    for _ in range(MAX_CONSTANT_ROUNDS):
+        pieces = []
+        cursor = 0
+        for literal in STRING_LITERAL.finditer(text):
+            pieces.append(names.sub(lambda m: constants[m.group(1)], text[cursor:literal.start()]))
+            pieces.append(literal.group(0))
+            cursor = literal.end()
+        pieces.append(names.sub(lambda m: constants[m.group(1)], text[cursor:]))
+        substituted = "".join(pieces)
+        if substituted == text:
+            break
+        text = substituted
+    return text
+
+
 def fold_literals(text: str) -> str:
     """Constant-folds string literals the way a compiler does, to a fixed point.
 
@@ -202,7 +246,7 @@ def canonical(path: Path, text: str) -> str:
         # javac decodes escapes in step 1 of lexical translation, before it tokenises -- so this
         # runs first, and only for Java. Kotlin has no equivalent source-level pass.
         text = JAVA_UNICODE_ESCAPE.sub(lambda m: chr(int(m.group(1), 16)), text)
-    return fold_literals(strip_comments(text, is_java=path.suffix == ".java"))
+    return fold_literals(substitute_constants(strip_comments(text, is_java=path.suffix == ".java")))
 
 
 def tracked_source_files() -> list[Path]:
@@ -370,6 +414,36 @@ def self_test() -> int:
         (
             "kotlin raw string escapes nothing",
             'val c = """com.google.android.gms.wea\\u0072able.Wearable"""\n',
+            0,
+        ),
+        # Constant variables are inlined by both compilers before the fold.
+        (
+            "java static final constants",
+            'static final String PREFIX = "com.google.android.gms.";\n'
+            'static final String SUFFIX = "wearable.Wearable";\n'
+            'Class.forName(PREFIX + SUFFIX);\n',
+            1,
+        ),
+        (
+            "kotlin const val constants",
+            'const val PREFIX = "com.google.android.gms."\n'
+            'const val SUFFIX = "wearable.Wearable"\n'
+            'val c = Class.forName(PREFIX + SUFFIX)\n',
+            1,
+        ),
+        (
+            "constant defined through another constant",
+            'const val HEAD = "com.google."\n'
+            'const val TAIL = "android.gms.wearable.Wearable"\n'
+            'val c = Class.forName(HEAD + TAIL)\n',
+            1,
+        ),
+        # An identifier inside an unrelated literal must not be substituted: that would invent a
+        # constant the compiler never builds, and a false positive here fails CI.
+        (
+            "identifier inside a literal is not substituted",
+            'const val WORD = "wearable.Wearable"\n'
+            'val doc = "com.google.android.gms.WORD"\n',
             0,
         ),
         # The documented limit, pinned so it stays a decision rather than an oversight: a name
