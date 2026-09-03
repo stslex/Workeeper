@@ -564,6 +564,22 @@ the existing explicit persistence contract: only a completed set is durable.
 - The Wear application opts out of Android backup/data extraction for this
   cache.
 
+**Trigger installation and repair.** The phone-side `wear_revision` invalidation is carried by
+twelve SQL triggers installed by `prepareWearSyncStorage` before any graph-owned listener is
+admitted. They are installed by comparison, not by `CREATE TRIGGER IF NOT EXISTS`, and the reason is
+measured rather than assumed: executed SQL confirms that `IF NOT EXISTS` does **not** replace a
+same-name trigger whose body differs, so a stale trigger survives preparation and the write it
+should have invalidated leaves `wear_revision` untouched. Room's exported v7 schema declares no
+triggers, so no other layer notices, and any future edit to the canonical bodies would have failed
+silently on every existing installation while looking applied. Preparation therefore reads
+`sqlite_master.sql` for each canonical name and recreates whatever differs, inside the same
+`immediateTransaction`.
+
+The comparison is byte-for-byte, which is what makes the canonical statements' exact text
+load-bearing: SQLite stores a trigger's `CREATE` text verbatim minus its `IF NOT EXISTS` clause and
+its terminating semicolon. An installation already carrying the current bodies therefore matches and
+rewrites nothing.
+
 ### 5.2 Command validation
 
 Every completion command carries at least:

@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.runtime
 
+import android.content.Context
 import io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetime
 import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.core.data.database.AppDatabase
 import io.github.stslex.workeeper.core.data.database.refreshQueryPlannerStatistics
-import io.github.stslex.workeeper.core.data.database.wear.prepareWearSyncStorage
+import io.github.stslex.workeeper.core.data.database.wear.prepareWearSyncStorageForLaunch
+import io.github.stslex.workeeper.core.data.database.wear.wearInstallMarker
 import io.github.stslex.workeeper.di.AppGraph
 import io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinator.PreflightOutcome
 import io.github.stslex.workeeper.feature.recovery.domain.StartupCheck
@@ -13,6 +15,29 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlin.coroutines.cancellation.CancellationException
+
+/**
+ * The launch-path [StartupProcessor]: the only place the wear-storage seam is wired for real.
+ *
+ * The install marker lives under `noBackupFilesDir`, which the platform's backup never captures,
+ * so a database that arrived by Auto Backup or device transfer rotates its Wear epoch on first
+ * launch exactly as an in-app restore does.
+ */
+internal fun launchStartupProcessor(
+    context: Context,
+    isLowRamDevice: () -> Boolean,
+    sealWorkerAdmission: () -> Unit = {},
+): StartupProcessor {
+    val installMarker = wearInstallMarker(context)
+    return StartupProcessor(
+        isLowRamDevice = isLowRamDevice,
+        prepareWearStorage = { database, rotate ->
+            prepareWearSyncStorageForLaunch(database, installMarker, rotate)
+        },
+        sealWorkerAdmission = sealWorkerAdmission,
+    )
+}
 
 /**
  * Startup sequence of one runtime generation: restore preflight, migration peek, chores, observer
@@ -20,11 +45,15 @@ import kotlinx.coroutines.runBlocking
  */
 internal class StartupProcessor(
     private val isLowRamDevice: () -> Boolean,
+    /**
+     * The first Room open of the generation. Deliberately without a default: every launch path
+     * builds this processor through [launchStartupProcessor], so the fresh-install epoch gate has
+     * exactly one production wiring and no second implementation to drift from it.
+     */
+    private val prepareWearStorage: suspend (AppDatabase, Boolean) -> Unit,
     /** Terminally refuses DB-bound worker admission; driven only from [coldStart]. */
     private val sealWorkerAdmission: () -> Unit = {},
     private val warmPlanner: suspend (AppDatabase) -> Unit = { refreshQueryPlannerStatistics(it) },
-    private val prepareWearStorage: suspend (AppDatabase, Boolean) -> Unit =
-        { database, rotate -> prepareWearSyncStorage(database, rotate) },
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
 
@@ -152,12 +181,26 @@ internal class StartupProcessor(
     ): StartupOutcome {
         val routesToRecovery =
             graph.startupMigrationCoordinator.lastDecision is StartupCheck.RouteToRecovery
-        if (!routesToRecovery) {
-            // This is the last synchronous boundary before graph-owned listeners may touch Room.
-            prepareWearStorage(appDatabase, rotateWearDatabaseEpoch)
+        val openFailure = if (routesToRecovery) {
+            null
+        } else {
+            // This is the last synchronous boundary before graph-owned listeners may touch Room,
+            // and it is this process's FIRST Room open — inside `Application.onCreate`, with no
+            // Activity alive to route from.
+            //
+            // GUARD, both halves load-bearing. The schema peek asks `hasMigrationPath`, which
+            // answers "registered", never "succeeds": a registered migration that throws peeks as
+            // `Proceed` and surfaces the throw right here. Uncaught it escapes `onCreate` and kills
+            // the process before `RecoveryActivity` can exist; caught but unrecorded it leaves
+            // `MainActivity` routing on a stale `Proceed`. Deliberately not narrowed to one
+            // exception type — the class is "registered != succeeds", not any one instance of it.
+            firstRoomOpenFailure(appDatabase, rotateWearDatabaseEpoch)
+        }
+        if (openFailure != null) {
+            graph.startupMigrationCoordinator.recordLiveDatabaseOpenFailure(openFailure)
         }
         armPostPreflight(graph, appDatabase, lifetime)
-        val outcome = if (routesToRecovery) {
+        val outcome = if (routesToRecovery || openFailure != null) {
             StartupOutcome.RouteToRecovery
         } else {
             StartupOutcome.Proceed
@@ -168,6 +211,23 @@ internal class StartupProcessor(
             return StartupOutcome.FinalizationPending
         }
         return outcome
+    }
+
+    /**
+     * Runs the first Room open and returns what it threw, or `null` when it succeeded.
+     *
+     * Cancellation is re-thrown rather than reported: a candidate generation whose transition was
+     * cancelled has proven nothing about the live file, and swallowing it here would both invent a
+     * recovery verdict and break the caller's unwind.
+     */
+    private suspend fun firstRoomOpenFailure(
+        appDatabase: AppDatabase,
+        rotateWearDatabaseEpoch: Boolean,
+    ): Throwable? {
+        val failure = runCatching { prepareWearStorage(appDatabase, rotateWearDatabaseEpoch) }
+            .exceptionOrNull()
+        if (failure is CancellationException) throw failure
+        return failure
     }
 
     /**

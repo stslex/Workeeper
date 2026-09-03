@@ -691,6 +691,123 @@ is load-bearing: `NoActualForExpectSuppressionRuleTest` embeds `@Suppress("NO_AC
 inside triple-quoted fixtures, so a maintainer "hardening" the rule to plain text matching would make
 it flag its own test file on the repo-wide detekt run.
 
+### `WearDataLayerApiRule`
+
+**File:** `WearDataLayerApiRule.kt` · **Severity:** Defect.
+
+Bans every reference to `com.google.android.gms.wearable` — the Wearable Data Layer, the transport
+the Wear specification puts behind a **blocking** privacy review before any workout payload leaves
+the phone. See
+[wear-phase-1-active-workout-tile.md](feature-specs/wear-phase-1-active-workout-tile.md).
+
+The rule is one half of that gate. `ForbiddenImport` in `lint-rules/detekt.yml` owns the other half
+— import directives — and the two are complementary rather than redundant: this rule skips import
+and package expressions so one violation is one finding.
+
+**Why the import half is not enough.** Measured, not assumed. `:app:wear:detekt` was GREEN on a
+main source file containing
+
+```kotlin
+com.google.android.gms.wearable.Wearable.getMessageClient(context)
+```
+
+while the same module went RED on the equivalent import. detekt's `ForbiddenImport` visits
+`KtImportDirective`, so a fully qualified reference gives it nothing to reject.
+
+**Why `ForbiddenImport` needs three globs.** Also measured, against probe files. detekt matches the
+*resolved* import name, so a star import arrives as the bare package and neither `.*` nor `.**` sees
+it. Hence `com.google.android.gms.wearable`, `…wearable.*` and `…wearable.**` are all listed. All
+three forms were observed firing, in `:app:wear` and in `:feature:wear-bridge`.
+
+**The spellings this rule covers.** Each is legal Kotlin that reaches the API with no import:
+
+| Spelling | Caught by |
+| --- | --- |
+| `import com.google.android.gms.wearable.Wearable` | `ForbiddenImport` |
+| `com.google.android.gms.wearable.Wearable.getMessageClient(c)` | `visitDotQualifiedExpression` |
+| `val c: com.google.android.gms.wearable.MessageClient` | `visitUserType` |
+| `com./*x*/google.android.gms.wearable.Wearable` | PSI names, not `element.text` |
+| `package com.google.android.gms.wearable` + bare `Wearable` | `visitPackageDirective` |
+
+The last two are why the rule compares **PSI names** and not source text, and why the package
+directive is treated as a reference in its own right: same-package resolution needs neither an
+import nor a qualifier, and both `:app:wear` and `:feature:wear-bridge` already carry
+`play-services-wearable` on their compile classpaths, so either spelling would have compiled while
+both gates passed.
+
+**The two it does not cover, and why detekt cannot be the whole gate.**
+
+- **Reflection by string name** (`Class.forName("com.google.android.gms.wearable.…")`). Invisible to
+  the AST, and matching string literals here would flag this rule's own test fixtures — the same
+  self-flagging trap documented under `NoActualForExpectSuppressionRule`.
+- **Suppression.** Detekt honours `@Suppress` by rule id and by rule-set id — this repository
+  already suppresses custom rule ids in five places — and a rule cannot report its own suppression,
+  because `@Suppress("WearDataLayerApiRule")` silences that finding too.
+
+Neither hole is closed by the classpath. `app/wear` and `feature/wear-bridge` already declare
+`implementation(libs.google.play.services.wearable)`, so both routes compile today with no
+build-file edit to review. Measured on a real source file: with a reflective load and
+`@Suppress("WearDataLayerApiRule")` present, `:app:wear:detekt` reports **BUILD SUCCESSFUL**.
+
+The second layer is therefore not a detekt rule at all —
+`.github/scripts/assert_wear_transport_gate.py`, run in `android_build_unified.yml`. It scans every
+tracked `.kt`/`.kts` file for the package name as text, on a package boundary, rejects any
+`@Suppress` naming an id that would silence either half of the gate (rule ids, rule-set ids,
+detekt's `detekt:`/`detekt.` spellings, blanket `ALL`), and **rejects any tracked `.java` file
+outright**.
+
+**The scanner is Kotlin-only by decision**, and that last check is why: this repository has no Java
+sources, so the Java canonicaliser it briefly carried — `\uXXXX` decoding, text blocks, JLS
+indentation ordering — was production code no input could reach, which is the same unreachable
+class this gate exists to catch. Refusing `.java` turns the absence of Java from a coincidence into
+an enforced invariant, and makes restoring that half a deliberate, reviewed act rather than
+something a new file quietly needs. It matters because detekt does not read Java at all, so a
+`.java` call site would be invisible to *both* detekt layers while AGP compiled it in the same
+variants.
+
+Text matching over source loses to lexical trivia unless the text is first canonicalised the way the
+compiler reads it, so the scan does that in five steps and pins each as a self-test case:
+
+| Step | Spelling it defeats | Scope |
+| --- | --- | --- |
+| Comments become one separating space | `com./*gap*/google.android.gms.wearable` | One space, not nothing: `a/*x*/b` is two tokens and must not be joined |
+| Trivia around a qualified name's dots collapses | `com. google…`, and the same name split across lines | The cross-line pass reports the file rather than a line, since collapsing newlines would move every line number after it |
+| String literals constant-fold | `"com.google.android.gms." + "wearable.Wearable"`, including `+ ("a" + "b")` and raw strings | To a fixed point, so nesting collapses. A `(` following an identifier or bracket is left alone, so a call's argument list is never unwrapped and `f("a") + ("b")` cannot fold into a constant the compiler would not fold — pinned |
+| Same-file constant variables inline | `const val PREFIX = "com.google.android.gms."` then `Class.forName(PREFIX + SUFFIX)` | `const val` / `val` with a single-literal initialiser. Folding and substitution are ALTERNATED to stability, not run once each: folding is what turns `PREFIX = "com.google." + "android.gms."` into a declaration the table can read whole, and substitution is what turns `PREFIX + SUFFIX` into two literals that fold. The declaration table is rebuilt each round and there is no depth limit, so an alias chain of any length resolves; substitution only ever replaces identifiers with literals, so it terminates. Substitution happens outside string literals only, so an identifier appearing inside an unrelated literal cannot invent a constant — pinned. If the loop ever failed to settle the file is REPORTED, not skipped: this gate fails closed |
+| Escapes inside a literal resolve | `wea\u0072able` | Kotlin `\uXXXX`. A decode to `"` or `\` is refused, so an escape cannot forge a literal boundary. A raw string processes no escapes and is left untouched — pinned, so "decode everything" cannot turn that negative into a false positive |
+
+String and character literals are walked rather than skipped, so a `//` inside a URL literal does
+not eat the rest of its line — also pinned. A commented-out reference is not a call site and is not
+reported.
+
+**Every rewrite that treats trivia as trivia stops at a literal's quotes**, because inside one the
+same characters are data. A newline between tokens joins a qualified name; a newline inside a raw
+string is part of the constant, so a package name broken across a raw string's lines does not name a
+class and is not reported — pinned, and it was that pinned case which caught the collapsing pass
+reaching inside literals.
+
+**Where this stops, and why it stops exactly there.** The gate resolves the string-forming part of
+the compile-time constant grammar — literals, escapes, concatenation, parentheses, and constant
+variables **within one file**. Two things sit outside it, both deliberate and both stated rather
+than discovered:
+
+- **A constant imported from another file.** Resolving it means building a cross-file symbol table
+  inside a CI script, and the value of doing so falls off sharply: the same-file form is how someone
+  writes this without intending evasion, and the cross-file form is not.
+- **A name assembled at runtime** — char array, decode, resource, string builder. Not a constant at
+  all, so no static gate sees it, compiled output included. The remedy usually proposed here,
+  scanning build artifacts, would have to read R8'd DEX from variant-specific intermediate paths and
+  still would not see it.
+
+The runtime case is pinned as an expected-zero self-test so the limit stays a recorded decision
+rather than a gap someone rediscovers. Beyond the line, code review is the control — which is what a
+*blocking* privacy gate means: it makes an introduction visible and reviewable, it does not defend
+against a committer who is deliberately hiding one, and a gate claiming otherwise is the failure
+mode this rule was written to end. `lint-rules/` is its one exemption, because
+the rule names the package it bans and its fixtures spell out the violations it must catch. The
+script carries a `--self-test` that exercises both anchors, and CI runs that first: a gate with
+nothing to find on a clean tree has no other way to show it fires.
+
 ### `ScopedClassNames` (helper, not a rule)
 
 `ScopedClassNames.kt` holds the class-name predicates shared by `MetroScopeRule` and

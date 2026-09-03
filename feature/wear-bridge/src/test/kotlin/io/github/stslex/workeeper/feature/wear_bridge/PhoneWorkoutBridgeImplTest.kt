@@ -17,6 +17,8 @@ import io.github.stslex.workeeper.core.data.database.testfixtures.RepositoryTest
 import io.github.stslex.workeeper.core.data.database.testfixtures.WorkoutTargetParityFixture
 import io.github.stslex.workeeper.core.data.database.training.TrainingEntity
 import io.github.stslex.workeeper.core.data.database.training.TrainingExerciseEntity
+import io.github.stslex.workeeper.core.data.database.wear.SessionWearSyncRow
+import io.github.stslex.workeeper.core.data.database.wear.WearSyncDao
 import io.github.stslex.workeeper.core.data.database.wear.prepareWearSyncStorage
 import io.github.stslex.workeeper.core.wear.protocol.CanonicalUuid
 import io.github.stslex.workeeper.core.wear.protocol.CompleteCommandOutcome
@@ -35,6 +37,8 @@ import io.github.stslex.workeeper.core.wear.protocol.SetTypeWire
 import io.github.stslex.workeeper.core.wear.protocol.SnapshotPayload
 import io.github.stslex.workeeper.core.wear.protocol.WearProtocol
 import io.github.stslex.workeeper.core.wear.protocol.WearProtocolCodec
+import io.mockk.every
+import io.mockk.mockk
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -1280,6 +1284,53 @@ internal class PhoneWorkoutBridgeImplTest {
             assertEquals(1, database.setDao.countByPerformedExercise(seed.performedUuids.single()))
         }
 
+    @Test
+    fun `the command binds to the session the snapshot resolved, not to a second active row`() =
+        runTest {
+            val seed = seedSession(plans = listOf(plan(100.0, 5)))
+            val request = commandFrom(bridge.activePayload())
+            // Nothing enforces that only one session is IN_PROGRESS. The two reads used to be
+            // independent unordered `LIMIT 1` queries over that predicate; a real database cannot
+            // be made to answer them differently, because SQLite resolves both by rowid, so the
+            // disagreement is interposed at the DAO — which is precisely the state the second
+            // query made reachable.
+            val decoy = seedSession(
+                plans = listOf(plan(50.0, 3)),
+                trainingName = "Decoy",
+                exerciseName = "Row",
+            )
+            val divergent = PhoneWorkoutBridgeImpl(
+                database = databaseWithSyncDao(
+                    DivergentActiveSyncDao(database.wearSyncDao, decoy.sessionUuid),
+                ),
+                transition = env.transition,
+                snapshotBuilder = PhoneWorkoutSnapshotBuilder(database),
+                leaseStore = leaseStore,
+                clock = clock,
+                mutationWriter = RoomWearSetMutationWriter(database),
+            )
+
+            val response = divergent.completeCurrentSet(SOURCE_NODE, request)
+
+            assertEquals(CompleteCommandOutcome.Applied, response.outcome)
+            // Revision, receipt and set all landed on the snapshot's session, and the decoy — the
+            // row the second query would have returned — was never touched.
+            val applied = requireNotNull(database.wearSyncDao.getSessionSync(seed.sessionUuid))
+            assertEquals(request.commandId.value, applied.receiptCommandId)
+            assertEquals(applied.revision, applied.receiptRevision)
+            val untouched = requireNotNull(database.wearSyncDao.getSessionSync(decoy.sessionUuid))
+            assertNull(untouched.receiptCommandId)
+            assertEquals(1, database.setDao.countByPerformedExercise(seed.performedUuids.single()))
+            assertEquals(0, database.setDao.countByPerformedExercise(decoy.performedUuids.single()))
+        }
+
+    /** Only `wearSyncDao` is interposed; every other read the bridge makes stays on the real db. */
+    private fun databaseWithSyncDao(dao: WearSyncDao): AppDatabase = mockk<AppDatabase> {
+        every { wearSyncDao } returns dao
+        every { performedExerciseDao } returns database.performedExerciseDao
+        every { setDao } returns database.setDao
+    }
+
     private fun newBridge(
         writer: WearSetMutationWriter = RoomWearSetMutationWriter(database),
         transition: DbTransitionRunner = env.transition,
@@ -1481,6 +1532,16 @@ internal class PhoneWorkoutBridgeImplTest {
         val weightHundredthsKg: Int?,
         val exerciseType: ExerciseTypeEntity = ExerciseTypeEntity.WEIGHTED,
     )
+
+    /** Answers the unordered active-session query with a DIFFERENT session than `getActive`. */
+    private class DivergentActiveSyncDao(
+        private val delegate: WearSyncDao,
+        private val divergentSessionUuid: Uuid,
+    ) : WearSyncDao by delegate {
+
+        override suspend fun getActiveSessionSync(): SessionWearSyncRow? =
+            delegate.getSessionSync(divergentSessionUuid)
+    }
 
     private class FakeClock(var now: Long = 0L) : PhoneMonotonicClock {
         override fun elapsedRealtimeMs(): Long = now

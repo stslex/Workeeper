@@ -36,6 +36,7 @@ import io.github.stslex.workeeper.runtime.StartupOutcome
 import io.github.stslex.workeeper.runtime.StartupProcessor
 import io.github.stslex.workeeper.runtime.UiHostLifecycleTracker
 import io.github.stslex.workeeper.runtime.clearStoreOnHostTeardown
+import io.github.stslex.workeeper.runtime.launchStartupProcessor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.StateFlow
 
@@ -156,11 +157,18 @@ abstract class BaseApplication :
         appRuntime.clearStoreOnHostTeardown()
     }
 
-    /** The startup sequence; the low-RAM seam is wired here because it needs the Context. */
-    private val startupProcessor = StartupProcessor(
-        isLowRamDevice = {
-            getSystemService(ActivityManager::class.java)?.isLowRamDevice == true
-        },
-        sealWorkerAdmission = { appRuntime.sealWorkerAdmission() },
-    )
+    /**
+     * The startup sequence; wired here because it needs the Context — for the low-RAM seam and for
+     * the `noBackupFilesDir` install marker. Lazy: a property initializer runs before
+     * `attachBaseContext`, where this Application has no base context to read either from.
+     */
+    private val startupProcessor: StartupProcessor by lazy {
+        launchStartupProcessor(
+            context = this,
+            isLowRamDevice = {
+                getSystemService(ActivityManager::class.java)?.isLowRamDevice == true
+            },
+            sealWorkerAdmission = { appRuntime.sealWorkerAdmission() },
+        )
+    }
 }

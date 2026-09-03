@@ -136,8 +136,39 @@ jobs:
       - name: Assemble instrumented tests
         run: ./gradlew assembleDebugAndroidTest --full-stacktrace
 
+      # GUARD: nothing else builds this variant. `assembleDebug` builds no release variant and
+      # `github_release_apk.yml` assembles only `:app:store`, so removing this step returns
+      # `:app:wear`'s release classpath to having no gate at all — and a `debugImplementation`-only
+      # dependency is invisible to every other task here.
+      #
+      # Only the shipping flavor is built. `:app:wear` has no flavor-specific source directory, so
+      # devRelease compiles the same sources and would add a second R8 run for no new coverage.
+      #
+      # `--rerun-tasks --no-build-cache`, unlike the steps above it. This job restores the Gradle
+      # build cache and `gradle-ci.properties` sets `org.gradle.caching=true`, so without the flags
+      # this task can report FROM-CACHE and never assemble anything — and AGENTS.md § "Gate
+      # discipline" is explicit that FROM-CACHE proves nothing about execution. The `assembleDebug`
+      # step above keeps its cache hits because stripping them costs ~35 minutes across the whole
+      # repository; that trade-off does not exist for one Wear module, so the gate is bought
+      # outright here rather than argued for from cache keys.
+      - name: Assemble Wear release variant
+        run: ./gradlew :app:wear:assembleStoreRelease --rerun-tasks --no-build-cache --full-stacktrace
+
       - name: Assert MVI source-set topology
         run: python3 .github/scripts/assert_mvi_source_topology.py
+
+      # The un-suppressible half of the Wear transport privacy gate. Detekt owns the fast half
+      # (ForbiddenImport + WearDataLayerApiRule, both in the pre-commit hook), but detekt honours
+      # `@Suppress` by rule id and by rule-set id, and a rule cannot report its own suppression.
+      # This step is a plain source scan for exactly that reason, and it also covers the
+      # reflective route no AST visitor can see. It is Kotlin-only, and rejects any tracked `.java`
+      # file outright rather than carrying a Java canonicaliser this repository has no input for.
+      # `--self-test` first: a gate never shown to fire is not a gate, and this one has no findings
+      # to prove itself with on a clean tree.
+      - name: Assert Wear transport privacy gate
+        run: |
+          python3 .github/scripts/assert_wear_transport_gate.py --self-test
+          python3 .github/scripts/assert_wear_transport_gate.py
 
       # Visual gate for the v3 redesign. Deliberately placed BEFORE detekt.
       #

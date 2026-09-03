@@ -445,6 +445,18 @@ style:
       - "kotlinx.android.synthetic.*"
       - "java.util.logging.*"
       - "android.util.Log.*"
+      # The Wear transport privacy blocker: sending any workout payload is gated on a BLOCKING
+      # privacy review. See documentation/feature-specs/wear-phase-1-active-workout-tile.md § 6.
+      #
+      # GUARD: repository-wide and without an allowlist. A module that needs an exemption is a
+      # deliberate edit to these lines, reviewed as the privacy decision it is.
+      # GUARD: all three globs are load-bearing — dropping any one leaves a live way in.
+      # GUARD: imports are only half the gate. WearDataLayerApiRule covers the spellings that carry
+      # no import, and assert_wear_transport_gate.py covers what detekt cannot police at all.
+      # See documentation/lint-rules.md § `WearDataLayerApiRule`.
+      - "com.google.android.gms.wearable"
+      - "com.google.android.gms.wearable.*"
+      - "com.google.android.gms.wearable.**"
     forbiddenPatterns: ''
   ForbiddenMethodCall:
     active: false
@@ -741,4 +753,9 @@ mvi-architecture:
   FadeToTransparentRule:
     active: true
   PagingCollectionRule:
+    active: true
+  # The half of the Wear transport privacy gate that ForbiddenImport structurally cannot cover:
+  # it visits import directives, so every spelling that carries no import gets through it.
+  # See documentation/lint-rules.md § `WearDataLayerApiRule`.
+  WearDataLayerApiRule:
     active: true
