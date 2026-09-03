@@ -757,10 +757,20 @@ ids, detekt's `detekt:`/`detekt.` spellings, blanket `ALL`).
 
 Java coverage is load-bearing rather than incidental: detekt does not read Java at all, so a
 tracked `.java` call site is invisible to *both* detekt layers, and AGP compiles it in the same
-variants. Java sources are scanned after `\uXXXX` escapes are decoded the way javac decodes them —
-in step 1 of lexical translation, anywhere in the file including inside identifiers, so
-`we\u0061rable` compiles as `wearable` while the raw bytes name no such package. Kotlin has no
-equivalent source-level pass, so the decoding is applied to Java only. `lint-rules/` is its one exemption, because
+variants.
+
+Text matching over source loses to lexical trivia unless the text is first canonicalised the way a
+compiler reads it, so the scan does that in three steps and pins each as a self-test case:
+
+| Step | Spelling it defeats | Scope |
+| --- | --- | --- |
+| Decode `\uXXXX` | `we\u0061rable` — javac decodes escapes in step 1 of lexical translation, anywhere including inside identifiers | Java only; Kotlin has no equivalent pass, and the Kotlin negative is pinned so the decode is not "simplified" to both |
+| Comments become one separating space | `com./*gap*/google.android.gms.wearable` | Both. One space, not nothing: `a/*x*/b` is two tokens and must not be joined |
+| Trivia around a qualified name's dots collapses | `com. google…`, and the same name split across lines | Both. The cross-line pass reports the file rather than a line, since collapsing newlines would move every line number after it |
+
+String and character literals are walked rather than skipped, so a `//` inside a URL literal does
+not eat the rest of its line — also pinned. A commented-out reference is not a call site and is not
+reported. `lint-rules/` is its one exemption, because
 the rule names the package it bans and its fixtures spell out the violations it must catch. The
 script carries a `--self-test` that exercises both anchors, and CI runs that first: a gate with
 nothing to find on a clean tree has no other way to show it fires.

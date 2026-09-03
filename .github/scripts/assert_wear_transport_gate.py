@@ -14,8 +14,10 @@ that would have reported the annotation.
 This script is that second layer, and it is deliberately not a detekt rule:
 
 1. No tracked Kotlin or Java source may contain the Data Layer package name at
-   all, after Java `\uXXXX` escapes are decoded the way javac decodes them. Text
-   matching, not AST matching, so it also covers the reflective route
+   all, after the text is canonicalised the way its compiler reads it: Java
+   `\uXXXX` escapes decoded, comments reduced to one separating space, and
+   trivia around the dots of a qualified name collapsed. Text matching, not AST
+   matching, so it also covers the reflective route
    (`Class.forName("com.google.android.gms.wearable.Wearable")`) that no AST
    visitor can see. That route needs no build-file edit in `app/wear` or
    `feature/wear-bridge`, which already declare `play-services-wearable`.
@@ -79,12 +81,65 @@ SOURCE_GLOBS = ("*.kt", "*.kts", "*.java")
 # only, exactly matching what its compiler does. Over-decoding could only ever add a match.
 JAVA_UNICODE_ESCAPE = re.compile(r"\\u+([0-9a-fA-F]{4})")
 
+# Both languages allow trivia between the tokens of a qualified name, so `com. /*gap*/ google` and
+# a name split across lines are the same name to the compiler and must be the same name here.
+SPACES_AROUND_DOT = re.compile(r"[ \t]*\.[ \t]*")
+WHITESPACE_AROUND_DOT = re.compile(r"\s*\.\s*")
 
-def decoded(path: Path, text: str) -> str:
-    """The text as its compiler sees it."""
-    if path.suffix != ".java":
-        return text
-    return JAVA_UNICODE_ESCAPE.sub(lambda m: chr(int(m.group(1), 16)), text)
+
+def strip_comments(text: str) -> str:
+    """Comments become one space -- what a tokenizer does with them.
+
+    One space, not nothing: `a/*x*/b` is two tokens to both compilers and must not be joined into
+    one. String and character literals are walked rather than skipped, so a `//` inside a URL
+    literal does not eat the rest of its line, and newlines are preserved so reported line numbers
+    stay true.
+    """
+    out: list[str] = []
+    index = 0
+    end = len(text)
+    while index < end:
+        char = text[index]
+        if text.startswith('"""', index):
+            close = text.find('"""', index + 3)
+            close = end if close == -1 else close + 3
+            out.append(text[index:close])
+            index = close
+        elif char in "\"'":
+            cursor = index + 1
+            while cursor < end:
+                if text[cursor] == "\\":
+                    cursor += 2
+                    continue
+                if text[cursor] == char or text[cursor] == "\n":
+                    cursor += 1
+                    break
+                cursor += 1
+            out.append(text[index:cursor])
+            index = cursor
+        elif text.startswith("//", index):
+            close = text.find("\n", index)
+            close = end if close == -1 else close
+            out.append(" ")
+            index = close
+        elif text.startswith("/*", index):
+            close = text.find("*/", index + 2)
+            close = end if close == -1 else close + 2
+            out.append(" " + "\n" * text.count("\n", index, close))
+            index = close
+        else:
+            out.append(char)
+            index += 1
+    return "".join(out)
+
+
+def canonical(path: Path, text: str) -> str:
+    """The text as its compiler reads it: escapes decoded, comments gone."""
+    if path.suffix == ".java":
+        # javac decodes escapes in step 1 of lexical translation, before it tokenises -- so this
+        # runs first, and only for Java. Kotlin has no equivalent source-level pass.
+        text = JAVA_UNICODE_ESCAPE.sub(lambda m: chr(int(m.group(1), 16)), text)
+    return strip_comments(text)
 
 
 def tracked_source_files() -> list[Path]:
@@ -103,11 +158,19 @@ def is_exempt(path: Path) -> bool:
 
 
 def package_violations(path: Path, text: str) -> list[str]:
-    return [
+    """[text] must already be [canonical] for its language."""
+    violations = [
         f"{path}:{number}: names {FORBIDDEN_PACKAGE}"
-        for number, line in enumerate(text.splitlines(), start=1)
+        for number, line in enumerate(SPACES_AROUND_DOT.sub(".", text).splitlines(), start=1)
         if FORBIDDEN_REFERENCE.search(line)
     ]
+    if violations:
+        return violations
+    # A qualified name split across lines is one name to the compiler. Collapsing newlines too
+    # would move every line number after it, so this second pass reports the file instead.
+    if FORBIDDEN_REFERENCE.search(WHITESPACE_AROUND_DOT.sub(".", text)):
+        return [f"{path}: names {FORBIDDEN_PACKAGE}, split across lines"]
+    return violations
 
 
 def suppression_violations(path: Path, text: str) -> list[str]:
@@ -128,7 +191,7 @@ def scan(paths: list[Path]) -> list[str]:
     for path in paths:
         if is_exempt(path):
             continue
-        text = decoded(path, path.read_text(encoding="utf-8", errors="replace"))
+        text = canonical(path, path.read_text(encoding="utf-8", errors="replace"))
         violations += package_violations(path, text)
         violations += suppression_violations(path, text)
     return violations
@@ -157,6 +220,32 @@ def self_test() -> int:
         ),
         # The same bytes in Kotlin are NOT decoded by kotlinc, so they name no package.
         ("kotlin escape is not decoded", "import com.google.android.gms.we\\u0061rable.Wearable\n", 0),
+        # Trivia between the tokens of a qualified name: legal in both languages, one name to both
+        # compilers, and invisible to a contiguous-text match.
+        (
+            "java comment inside the name",
+            "import com./*gap*/google.android.gms.wearable.Wearable;\n",
+            1,
+        ),
+        (
+            "kotlin comment inside the name",
+            "val c = com. /*gap*/ google.android.gms.wearable.Wearable\n",
+            1,
+        ),
+        (
+            "name split across lines",
+            "val c = com.\n    google.android.gms.wearable.Wearable\n",
+            1,
+        ),
+        # A `//` inside a string literal is not a comment, so the rest of its line still counts.
+        (
+            "string literal is not a comment",
+            'val u = "https://example.com"; val c = com.google.android.gms.wearable.Wearable\n',
+            1,
+        ),
+        # A commented-out reference is not a call site. Comments are trivia to the compiler and to
+        # this gate alike.
+        ("commented-out reference", "// com.google.android.gms.wearable.Wearable\n", 0),
         (
             "reflective load",
             'val c = Class.forName("' + FORBIDDEN_PACKAGE + '.Wearable")\n',
@@ -174,7 +263,7 @@ def self_test() -> int:
     failures = 0
     for name, content, expected in cases:
         path = Path("synthetic.java" if name.startswith("java") else "synthetic.kt")
-        text = decoded(path, content)
+        text = canonical(path, content)
         found = len(package_violations(path, text) + suppression_violations(path, text))
         verdict = "ok" if found == expected else "MISMATCH"
         if found != expected:
