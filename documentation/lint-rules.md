@@ -751,9 +751,16 @@ build-file edit to review. Measured on a real source file: with a reflective loa
 
 The second layer is therefore not a detekt rule at all —
 `.github/scripts/assert_wear_transport_gate.py`, run in `android_build_unified.yml`. It scans every
-tracked `.kt`/`.kts` for the package name as text, on a package boundary, and rejects any
-`@Suppress` naming an id that would silence either half of the gate (rule ids, rule-set ids,
-detekt's `detekt:`/`detekt.` spellings, blanket `ALL`). `lint-rules/` is its one exemption, because
+tracked `.kt`, `.kts` **and `.java`** file for the package name as text, on a package boundary, and
+rejects any `@Suppress` naming an id that would silence either half of the gate (rule ids, rule-set
+ids, detekt's `detekt:`/`detekt.` spellings, blanket `ALL`).
+
+Java coverage is load-bearing rather than incidental: detekt does not read Java at all, so a
+tracked `.java` call site is invisible to *both* detekt layers, and AGP compiles it in the same
+variants. Java sources are scanned after `\uXXXX` escapes are decoded the way javac decodes them —
+in step 1 of lexical translation, anywhere in the file including inside identifiers, so
+`we\u0061rable` compiles as `wearable` while the raw bytes name no such package. Kotlin has no
+equivalent source-level pass, so the decoding is applied to Java only. `lint-rules/` is its one exemption, because
 the rule names the package it bans and its fixtures spell out the violations it must catch. The
 script carries a `--self-test` that exercises both anchors, and CI runs that first: a gate with
 nothing to find on a clean tree has no other way to show it fires.

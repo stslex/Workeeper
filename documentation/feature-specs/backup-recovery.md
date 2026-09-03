@@ -846,13 +846,23 @@ filter the Crashlytics dashboard by scenario:
 | `install_source` | `String` | Scenario 2 only — Play vs sideload, from `PackageManager.getInstallSourceInfo(...)`. |
 
 The Scenario 2 pre-flight detects unrecoverable state by pure file inspection,
-so there is no Room exception to forward. `recordStartupMigrationFailure`
-therefore records a synthesized `StartupMigrationFailure(fromSchema, toSchema,
-reason)` when `exception` is null — Crashlytics needs *some* `Throwable` to group
-non-fatals by, and without one the failure mode would not surface on the
-dashboard at all. The class is declared at file scope rather than nested inside
-`StartupMigrationReporter` so Crashlytics groups by a clean class name without
-dashboard noise.
+so its three peek-decided reasons have no Room exception to forward.
+`recordStartupMigrationFailure` therefore records a synthesized
+`StartupMigrationFailure(fromSchema, toSchema, reason)` when `exception` is null
+— Crashlytics needs *some* `Throwable` to group non-fatals by, and without one
+the failure mode would not surface on the dashboard at all. The class is
+declared at file scope rather than nested inside `StartupMigrationReporter` so
+Crashlytics groups by a clean class name without dashboard noise.
+
+`LIVE_DB_OPEN_FAILED` is the exception to that, in both senses: it is decided
+after the peek, at the guarded first Room open (step 4 above), and it is the one
+reason that *does* have a real `Throwable` to forward.
+`recordLiveDatabaseOpenFailure` passes the caught error through as `exception`,
+so Crashlytics groups those by the migration's own failure rather than by the
+synthesized class — which is the point, since the whole reason this route exists
+is that the throw is the diagnosis. `fromSchema` is `-1` on this path: the peek
+succeeded, but what it read describes the file before the failed open and is not
+what went wrong.
 
 `FirebaseCrashlytics.setUserId(...)` is **not** added here — the existing
 project policy is to not pin a user identifier. Filtering by the keys above
