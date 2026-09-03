@@ -445,18 +445,14 @@ style:
       - "kotlinx.android.synthetic.*"
       - "java.util.logging.*"
       - "android.util.Log.*"
-      # The transport privacy blocker, made enforceable. The Wear specification declares a
-      # BLOCKING privacy gate on sending any workout payload, and nothing enforced it: no lint
-      # rule, no detekt rule, no CI script covered the Data Layer, and
-      # `PhoneWorkoutBridgeImpl.transportStatus` is read and asserted by nobody — removing both
-      # blocker values left every test and every detekt run green. The gate held only because the
-      # transport code had not been written yet.
+      # The Wear transport privacy blocker: sending any workout payload is gated on a BLOCKING
+      # privacy review. See documentation/feature-specs/wear-phase-1-active-workout-tile.md § 6.
       #
-      # Repository-wide and without an allowlist. A future transport module that needs an
-      # exemption is a deliberate edit to these lines, reviewed as the privacy decision it is.
-      #
-      # GUARD: all three globs are load-bearing — dropping any one leaves a live way in. Imports are
-      # only half the gate; WearDataLayerApiRule covers the spellings that carry no import at all.
+      # GUARD: repository-wide and without an allowlist. A module that needs an exemption is a
+      # deliberate edit to these lines, reviewed as the privacy decision it is.
+      # GUARD: all three globs are load-bearing — dropping any one leaves a live way in.
+      # GUARD: imports are only half the gate. WearDataLayerApiRule covers the spellings that carry
+      # no import, and assert_wear_transport_gate.py covers what detekt cannot police at all.
       # See documentation/lint-rules.md § `WearDataLayerApiRule`.
       - "com.google.android.gms.wearable"
       - "com.google.android.gms.wearable.*"
