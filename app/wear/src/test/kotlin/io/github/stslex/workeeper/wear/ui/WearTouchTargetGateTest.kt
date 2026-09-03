@@ -13,6 +13,7 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.v2.runComposeUiTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -24,10 +25,15 @@ import org.robolectric.annotation.GraphicsMode
 import tech.apter.junit.jupiter.robolectric.RobolectricExtension
 
 /**
- * Gate G1 of the Wear controller redesign spec §7: every semantics node carrying a click action
- * has layout bounds of at least 48dp on both axes, and no two such nodes overlap. Layout
- * bounds, not touch bounds, deliberately: touch-target expansion would mask an undersized
- * control, and the named mutation — the bottom-edge button forced to 40dp — must turn this red.
+ * Gate G1 of the Wear controller redesign spec §7, at both [WearScreen] extremes: every
+ * semantics node carrying a click action has layout bounds of at least 48dp on both axes, and
+ * no two such nodes overlap. Size comes from the laid-out node (unclipped — the target's own
+ * dimensions); overlap from the clipped bounds (what is actually tappable — content clipped by
+ * the scroll viewport cannot receive the touch the bottom-edge button owns). On the small
+ * screen the cards rest below the fold, so the gate scrolls them into view before tapping,
+ * exactly as a user must.
+ *
+ * Red when the bottom-edge button's height is set to 40dp.
  *
  * GUARD: keep one `@Test` and one composition — a second `runComposeUiTest` in the same
  * Robolectric sandbox hangs. See the v3 redesign spec §27.
@@ -39,24 +45,34 @@ import tech.apter.junit.jupiter.robolectric.RobolectricExtension
 internal class WearTouchTargetGateTest {
 
     @Test
-    @DisplayName("every click target is at least 48dp on both axes and never overlaps another")
+    @DisplayName("every click target is at least 48dp with no overlap, on both screen extremes")
     fun everyClickTargetIsAtLeast48dpWithNoOverlap() = runComposeUiTest {
+        var screen by mutableStateOf(WearScreen.SMALL_ROUND)
         var model by mutableStateOf(fixture(SyntheticSurfaceFixtures.ACTIVE_BOUNDARY))
-        setContent { WearControllerScreen(state = model, onAction = {}) }
-        waitForIdle()
-        assertClickTargets(surface = "active controller", expectedCount = 3)
+        setContent {
+            WearGateHost(screen) {
+                WearControllerScreen(state = model, onAction = {})
+            }
+        }
 
-        onNodeWithTag("reps_card").performClick()
-        waitForIdle()
-        assertClickTargets(surface = "numeric editor", expectedCount = 2)
+        WearScreen.entries.forEach { current ->
+            screen = current
+            model = fixture(SyntheticSurfaceFixtures.ACTIVE_BOUNDARY)
+            waitForIdle()
+            assertClickTargets(surface = "screen=$current active controller", expectedCount = 3)
 
-        model = fixture(SyntheticSurfaceFixtures.REFRESH_REQUIRED)
-        waitForIdle()
-        assertClickTargets(surface = "read-only controller", expectedCount = 3)
+            onNodeWithTag("reps_card").performScrollTo().performClick()
+            waitForIdle()
+            assertClickTargets(surface = "screen=$current numeric editor", expectedCount = 2)
 
-        model = fixture(SyntheticSurfaceFixtures.RETRYABLE)
-        waitForIdle()
-        assertClickTargets(surface = "retryable error", expectedCount = 1)
+            model = fixture(SyntheticSurfaceFixtures.REFRESH_REQUIRED)
+            waitForIdle()
+            assertClickTargets(surface = "screen=$current read-only controller", expectedCount = 3)
+
+            model = fixture(SyntheticSurfaceFixtures.RETRYABLE)
+            waitForIdle()
+            assertClickTargets(surface = "screen=$current retryable error", expectedCount = 1)
+        }
     }
 
     private fun ComposeUiTest.assertClickTargets(surface: String, expectedCount: Int) {
@@ -69,9 +85,6 @@ internal class WearTouchTargetGateTest {
         )
         val bounds = nodes.map { node ->
             val density = node.layoutInfo.density.density
-            // Size from the laid-out node (unclipped): the target's own dimensions. Overlap
-            // from the clipped bounds: what is actually tappable on screen — a card clipped
-            // by the scroll viewport cannot receive the touch the bottom-edge button owns.
             Target(
                 tag = node.config.getOrNull(SemanticsProperties.TestTag) ?: "untagged",
                 widthDp = node.size.width / density,

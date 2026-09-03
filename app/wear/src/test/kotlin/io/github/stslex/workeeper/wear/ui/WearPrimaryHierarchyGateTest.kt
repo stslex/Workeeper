@@ -18,10 +18,10 @@ import org.robolectric.annotation.GraphicsMode
 import tech.apter.junit.jupiter.robolectric.RobolectricExtension
 
 /**
- * Gate G7 (#284 review): the enabled primary action is never smaller than the disabled one, in
- * any state where both exist — an unavailable action more prominent than an available one
- * inverts the hierarchy §4 requires. Sizes are the laid-out node dimensions, measured under
- * real text metrics.
+ * Gate G7 (#284 review), at both [WearScreen] extremes: the enabled primary action is never
+ * smaller than the disabled one, in any state where both exist — an unavailable action more
+ * prominent than an available one inverts the hierarchy §4 requires. Sizes are the laid-out
+ * node dimensions, measured under real text metrics, compared within each screen.
  *
  * Red when the sizes are swapped back (enabled Small, disabled Medium).
  *
@@ -35,31 +35,41 @@ import tech.apter.junit.jupiter.robolectric.RobolectricExtension
 internal class WearPrimaryHierarchyGateTest {
 
     @Test
-    @DisplayName("the enabled primary action is never smaller than the disabled one")
+    @DisplayName("the enabled primary action is never smaller than disabled, on both extremes")
     fun enabledPrimaryActionIsNeverSmallerThanDisabled() = runComposeUiTest {
         val enabledFixture =
             requireNotNull(SyntheticSurfaceFixtures.find(SyntheticSurfaceFixtures.ACTIVE_BOUNDARY))
+        var screen by mutableStateOf(WearScreen.SMALL_ROUND)
         var model by mutableStateOf(enabledFixture)
-        setContent { WearControllerScreen(state = model, onAction = {}) }
-        waitForIdle()
-        val enabled = completeSetSize()
+        setContent {
+            WearGateHost(screen) {
+                WearControllerScreen(state = model, onAction = {})
+            }
+        }
 
-        listOf(
-            "ACTIVE with an invalid draft" to enabledFixture.copy(completeEnabled = false),
-            "REFRESH_REQUIRED" to
-                requireNotNull(SyntheticSurfaceFixtures.find(SyntheticSurfaceFixtures.REFRESH_REQUIRED)),
-            "DISCONNECTED" to
-                requireNotNull(SyntheticSurfaceFixtures.find(SyntheticSurfaceFixtures.DISCONNECTED)),
-        ).forEach { (label, state) ->
-            model = state
+        WearScreen.entries.forEach { current ->
+            screen = current
+            model = enabledFixture
             waitForIdle()
-            val disabled = completeSetSize()
-            assertTrue(
-                enabled.width >= disabled.width && enabled.height >= disabled.height,
-                "$label: the disabled complete-set button ($disabled px) is larger than the " +
-                    "enabled one ($enabled px) — the unavailable action may never be the more " +
-                    "prominent one",
-            )
+            val enabled = completeSetSize()
+
+            listOf(
+                "ACTIVE with an invalid draft" to enabledFixture.copy(completeEnabled = false),
+                "REFRESH_REQUIRED" to
+                    requireNotNull(SyntheticSurfaceFixtures.find(SyntheticSurfaceFixtures.REFRESH_REQUIRED)),
+                "DISCONNECTED" to
+                    requireNotNull(SyntheticSurfaceFixtures.find(SyntheticSurfaceFixtures.DISCONNECTED)),
+            ).forEach { (label, state) ->
+                model = state
+                waitForIdle()
+                val disabled = completeSetSize()
+                assertTrue(
+                    enabled.width >= disabled.width && enabled.height >= disabled.height,
+                    "screen=$current $label: the disabled complete-set button ($disabled px) " +
+                        "is larger than the enabled one ($enabled px) — the unavailable " +
+                        "action may never be the more prominent one",
+                )
+            }
         }
     }
 

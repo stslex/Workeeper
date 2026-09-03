@@ -1,7 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.wear.ui
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.wear.compose.material3.ColorScheme
@@ -17,9 +21,11 @@ import tech.apter.junit.jupiter.robolectric.RobolectricExtension
 import java.io.File
 
 /**
- * Gate G2 of the Wear controller redesign spec §7: no Wear source references
- * `dynamicColorScheme`, and the colour values reaching the composition are the fixed palette of
- * spec §3, asserted against the spec's literal values so palette drift cannot self-certify.
+ * Gate G2 of the Wear controller redesign spec §7, at both [WearScreen] extremes: no Wear
+ * source references `dynamicColorScheme`, and the colour values reaching the composition are
+ * the fixed palette of spec §3, asserted against the spec's literal values so palette drift
+ * cannot self-certify. The capture also records the screen width the composition sees, proving
+ * the simulated configuration is live and not silently ignored.
  *
  * Red when `dynamicColorScheme` is reintroduced in `WearAppTheme`.
  *
@@ -32,43 +38,70 @@ import java.io.File
 internal class WearThemeGateTest {
 
     @Test
-    @DisplayName("no dynamic theming in main sources, and the §3 palette reaches the composition")
+    @DisplayName("no dynamic theming, and the §3 palette reaches both screen extremes")
     fun fixedPaletteReachesTheCompositionAndNoDynamicThemingRemains() {
         assertNoMainSourceReferencesDynamicColorScheme()
 
+        var screen by mutableStateOf(WearScreen.SMALL_ROUND)
+        var seenWidthDp: Int? = null
         var scheme: ColorScheme? = null
         var contentColor: Color? = null
         runComposeUiTest {
             setContent {
-                WearAppTheme {
-                    scheme = MaterialTheme.colorScheme
-                    contentColor = LocalContentColor.current
+                WearGateHost(screen) {
+                    WearAppTheme {
+                        seenWidthDp = LocalConfiguration.current.screenWidthDp
+                        scheme = MaterialTheme.colorScheme
+                        contentColor = LocalContentColor.current
+                    }
                 }
             }
-            waitForIdle()
+            WearScreen.entries.forEach { current ->
+                screen = current
+                waitForIdle()
+                assertEquals(
+                    current.sizeDp,
+                    seenWidthDp,
+                    "the composition must see $current's width — the simulated screen is dead",
+                )
+                assertPalette(
+                    surface = "screen=$current",
+                    captured = requireNotNull(scheme) { "screen=$current never composed" },
+                    contentColor = contentColor,
+                )
+            }
         }
-        val captured = requireNotNull(scheme) { "The theme content never composed." }
+    }
 
-        assertEquals(Color(SCREEN), captured.background, "background must be §3 `screen`")
-        assertEquals(Color(TEXT_PRIMARY), captured.onBackground, "onBackground must be §3 `textPrimary`")
-        assertEquals(Color(TEXT_PRIMARY), captured.primary, "primary must be §3 `textPrimary` (D-C)")
-        assertEquals(Color(ON_ACCENT), captured.onPrimary, "onPrimary must be §3 `onAccent`")
-        assertEquals(Color(CARD), captured.surfaceContainer, "surfaceContainer must be §3 `card`")
+    private fun assertPalette(surface: String, captured: ColorScheme, contentColor: Color?) {
+        assertEquals(Color(SCREEN), captured.background, "$surface: background must be §3 `screen`")
+        assertEquals(Color(TEXT_PRIMARY), captured.onBackground, "$surface: onBackground must be §3 `textPrimary`")
+        assertEquals(Color(TEXT_PRIMARY), captured.primary, "$surface: primary must be §3 `textPrimary` (D-C)")
+        assertEquals(Color(ON_ACCENT), captured.onPrimary, "$surface: onPrimary must be §3 `onAccent`")
+        assertEquals(Color(CARD), captured.surfaceContainer, "$surface: surfaceContainer must be §3 `card`")
         assertEquals(
             Color(CARD_INACTIVE),
             captured.surfaceContainerLow,
-            "surfaceContainerLow must be §3 `cardInactive`",
+            "$surface: surfaceContainerLow must be §3 `cardInactive`",
         )
         assertEquals(
             Color(PILL_PENDING),
             captured.surfaceContainerHigh,
-            "surfaceContainerHigh must be §3 `pillPending`",
+            "$surface: surfaceContainerHigh must be §3 `pillPending`",
         )
-        assertEquals(Color(TEXT_PRIMARY), captured.onSurface, "onSurface must be §3 `textPrimary`")
-        assertEquals(Color(TEXT_SECONDARY), captured.onSurfaceVariant, "onSurfaceVariant must be §3 `textSecondary`")
-        assertEquals(Color(STROKE), captured.outline, "outline must be §3 `stroke`")
-        assertEquals(Color(ERROR), captured.error, "error must be §3 `error`")
-        assertEquals(Color(TEXT_PRIMARY), contentColor, "the default content colour must be §3 `textPrimary`")
+        assertEquals(Color(TEXT_PRIMARY), captured.onSurface, "$surface: onSurface must be §3 `textPrimary`")
+        assertEquals(
+            Color(TEXT_SECONDARY),
+            captured.onSurfaceVariant,
+            "$surface: onSurfaceVariant must be §3 `textSecondary`",
+        )
+        assertEquals(Color(STROKE), captured.outline, "$surface: outline must be §3 `stroke`")
+        assertEquals(Color(ERROR), captured.error, "$surface: error must be §3 `error`")
+        assertEquals(
+            Color(TEXT_PRIMARY),
+            contentColor,
+            "$surface: the default content colour must be §3 `textPrimary`",
+        )
 
         val palette = setOf(
             Color(SCREEN), Color(CARD), Color(CARD_INACTIVE), Color(PILL_PENDING),
@@ -78,7 +111,7 @@ internal class WearThemeGateTest {
         val strays = captured.allSlots().filterValues { it !in palette }
         assertTrue(
             strays.isEmpty(),
-            "Colour slot(s) outside the ten-role §3 palette reach the composition: $strays",
+            "$surface: colour slot(s) outside the ten-role §3 palette reach the composition: $strays",
         )
     }
 

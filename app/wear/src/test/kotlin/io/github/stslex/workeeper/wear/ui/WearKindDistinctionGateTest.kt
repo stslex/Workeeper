@@ -17,10 +17,11 @@ import org.robolectric.annotation.Config
 import tech.apter.junit.jupiter.robolectric.RobolectricExtension
 
 /**
- * Gate G3 of the Wear controller redesign spec §7: all eleven [WearSurfaceKind] values render a
- * non-empty status string, and no two kinds produce the same one. The fixture list is the
- * production [SyntheticSurfaceFixtures.allKinds], so a kind cannot fall out of coverage without
- * this test noticing the missing key.
+ * Gate G3 of the Wear controller redesign spec §7, at both [WearScreen] extremes: all eleven
+ * [WearSurfaceKind] values render a non-empty status string, and no two kinds produce the same
+ * one. The fixture list is the production [SyntheticSurfaceFixtures.allKinds], so a kind cannot
+ * fall out of coverage without this test noticing the missing key. Default graphics mode on
+ * purpose: this gate asserts semantics-tree contents, not geometry.
  *
  * Red when two kinds are pointed at the same string resource.
  *
@@ -33,38 +34,51 @@ import tech.apter.junit.jupiter.robolectric.RobolectricExtension
 internal class WearKindDistinctionGateTest {
 
     @Test
-    @DisplayName("all eleven kinds render pairwise-distinct non-empty status strings")
+    @DisplayName("all eleven kinds render pairwise-distinct statuses, on both screen extremes")
     fun everyKindCarriesItsOwnNonEmptyStatusString() = runComposeUiTest {
         val fixtures = SyntheticSurfaceFixtures.allKinds()
+        var screen by mutableStateOf(WearScreen.SMALL_ROUND)
         var model by mutableStateOf(fixtures.first())
-        setContent { WearControllerScreen(state = model, onAction = {}) }
-
-        val statusByKind = mutableMapOf<WearSurfaceKind, String>()
-        fixtures.forEach { fixture ->
-            model = fixture
-            waitForIdle()
-            val status = onNodeWithTag("status").fetchSemanticsNode()
-                .config[SemanticsProperties.Text]
-                .joinToString { it.text }
-            assertTrue(status.isNotBlank(), "kind ${fixture.kind} rendered a blank status")
-            statusByKind.merge(fixture.kind, status) { first, second ->
-                assertEquals(
-                    first,
-                    second,
-                    "kind ${fixture.kind} rendered two different statuses across fixtures",
-                )
-                first
+        setContent {
+            WearGateHost(screen) {
+                WearControllerScreen(state = model, onAction = {})
             }
         }
 
-        assertEquals(
-            WearSurfaceKind.entries.toSet(),
-            statusByKind.keys,
-            "every kind must render a status; missing kinds never reached the assertion",
-        )
-        val shared = statusByKind.entries
-            .groupBy({ it.value }, { it.key })
-            .filterValues { it.size > 1 }
-        assertTrue(shared.isEmpty(), "kinds sharing one status string: $shared")
+        WearScreen.entries.forEach { current ->
+            screen = current
+            val statusByKind = mutableMapOf<WearSurfaceKind, String>()
+            fixtures.forEach { fixture ->
+                model = fixture
+                waitForIdle()
+                val status = onNodeWithTag("status").fetchSemanticsNode()
+                    .config[SemanticsProperties.Text]
+                    .joinToString { it.text }
+                assertTrue(
+                    status.isNotBlank(),
+                    "screen=$current kind=${fixture.kind} rendered a blank status",
+                )
+                statusByKind.merge(fixture.kind, status) { first, second ->
+                    assertEquals(
+                        first,
+                        second,
+                        "screen=$current kind=${fixture.kind} rendered two different " +
+                            "statuses across fixtures",
+                    )
+                    first
+                }
+            }
+
+            assertEquals(
+                WearSurfaceKind.entries.toSet(),
+                statusByKind.keys,
+                "screen=$current: every kind must render a status; missing kinds never " +
+                    "reached the assertion",
+            )
+            val shared = statusByKind.entries
+                .groupBy({ it.value }, { it.key })
+                .filterValues { it.size > 1 }
+            assertTrue(shared.isEmpty(), "screen=$current kinds sharing one status string: $shared")
+        }
     }
 }
