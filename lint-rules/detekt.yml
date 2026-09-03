@@ -455,10 +455,9 @@ style:
       # Repository-wide and without an allowlist. A future transport module that needs an
       # exemption is a deliberate edit to these lines, reviewed as the privacy decision it is.
       #
-      # Three globs, each measured against a probe file rather than assumed. detekt matches the
-      # RESOLVED import name, so a star import arrives as the bare package and neither `.*` nor
-      # `.**` sees it; `.*` catches direct members, `.**` catches subpackages such as
-      # `...wearable.internal`. Dropping any one of the three leaves a live way in.
+      # GUARD: all three globs are load-bearing — dropping any one leaves a live way in. Imports are
+      # only half the gate; WearDataLayerApiRule covers the spellings that carry no import at all.
+      # See documentation/lint-rules.md § `WearDataLayerApiRule`.
       - "com.google.android.gms.wearable"
       - "com.google.android.gms.wearable.*"
       - "com.google.android.gms.wearable.**"
@@ -760,8 +759,7 @@ mvi-architecture:
   PagingCollectionRule:
     active: true
   # The half of the Wear transport privacy gate that ForbiddenImport structurally cannot cover:
-  # it visits import directives, so a fully qualified reference carries no import to reject.
-  # Measured before this rule existed — `:app:wear:detekt` was GREEN on a main source file
-  # containing `com.google.android.gms.wearable.Wearable.getMessageClient(context)`.
+  # it visits import directives, so every spelling that carries no import gets through it.
+  # See documentation/lint-rules.md § `WearDataLayerApiRule`.
   WearDataLayerApiRule:
     active: true

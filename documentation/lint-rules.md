@@ -691,6 +691,60 @@ is load-bearing: `NoActualForExpectSuppressionRuleTest` embeds `@Suppress("NO_AC
 inside triple-quoted fixtures, so a maintainer "hardening" the rule to plain text matching would make
 it flag its own test file on the repo-wide detekt run.
 
+### `WearDataLayerApiRule`
+
+**File:** `WearDataLayerApiRule.kt` · **Severity:** Defect.
+
+Bans every reference to `com.google.android.gms.wearable` — the Wearable Data Layer, the transport
+the Wear specification puts behind a **blocking** privacy review before any workout payload leaves
+the phone. See
+[wear-phase-1-active-workout-tile.md](feature-specs/wear-phase-1-active-workout-tile.md).
+
+The rule is one half of that gate. `ForbiddenImport` in `lint-rules/detekt.yml` owns the other half
+— import directives — and the two are complementary rather than redundant: this rule skips import
+and package expressions so one violation is one finding.
+
+**Why the import half is not enough.** Measured, not assumed. `:app:wear:detekt` was GREEN on a
+main source file containing
+
+```kotlin
+com.google.android.gms.wearable.Wearable.getMessageClient(context)
+```
+
+while the same module went RED on the equivalent import. detekt's `ForbiddenImport` visits
+`KtImportDirective`, so a fully qualified reference gives it nothing to reject.
+
+**Why `ForbiddenImport` needs three globs.** Also measured, against probe files. detekt matches the
+*resolved* import name, so a star import arrives as the bare package and neither `.*` nor `.**` sees
+it. Hence `com.google.android.gms.wearable`, `…wearable.*` and `…wearable.**` are all listed. All
+three forms were observed firing, in `:app:wear` and in `:feature:wear-bridge`.
+
+**The spellings this rule covers.** Each is legal Kotlin that reaches the API with no import:
+
+| Spelling | Caught by |
+| --- | --- |
+| `import com.google.android.gms.wearable.Wearable` | `ForbiddenImport` |
+| `com.google.android.gms.wearable.Wearable.getMessageClient(c)` | `visitDotQualifiedExpression` |
+| `val c: com.google.android.gms.wearable.MessageClient` | `visitUserType` |
+| `com./*x*/google.android.gms.wearable.Wearable` | PSI names, not `element.text` |
+| `package com.google.android.gms.wearable` + bare `Wearable` | `visitPackageDirective` |
+
+The last two are why the rule compares **PSI names** and not source text, and why the package
+directive is treated as a reference in its own right: same-package resolution needs neither an
+import nor a qualifier, and both `:app:wear` and `:feature:wear-bridge` already carry
+`play-services-wearable` on their compile classpaths, so either spelling would have compiled while
+both gates passed.
+
+**The two it does not cover, deliberately.**
+
+- **Reflection by string name** (`Class.forName("com.google.android.gms.wearable.…")`). Invisible to
+  the AST, and matching string literals would flag this rule's own test fixtures — the same
+  self-flagging trap documented under `NoActualForExpectSuppressionRule`.
+- **Java sources.** detekt reads Kotlin only.
+
+Both still require the Data Layer on a module's compile classpath, which is a build-file edit and is
+reviewed as the privacy decision it is.
+
 ### `ScopedClassNames` (helper, not a rule)
 
 `ScopedClassNames.kt` holds the class-name predicates shared by `MetroScopeRule` and
