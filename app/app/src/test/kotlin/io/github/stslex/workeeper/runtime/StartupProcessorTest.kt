@@ -353,8 +353,8 @@ internal class StartupProcessorTest {
 
     @Test
     fun `a throwing first Room open is caught AND recorded where MainActivity reads it`() {
-        // `hasMigrationPath` answers "registered", never "succeeds": this is the whole class of
-        // failures the peek returns Proceed for, of which #279's migration was one instance.
+        // `hasMigrationPath` answers "registered", never "succeeds", so a registered migration
+        // that throws is inside the class of failures the peek returns Proceed for.
         coEvery { restoreCoordinator.handlePostRestoreLaunch() } returns PreflightOutcome.NoOp
         val thrown = IllegalStateException("registered migration threw on first open")
         wearStorageError = thrown
