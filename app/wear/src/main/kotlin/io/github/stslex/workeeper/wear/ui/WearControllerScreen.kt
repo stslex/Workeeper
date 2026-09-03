@@ -536,7 +536,13 @@ private fun RetryButton(
         border = if (model.retryEnabled) null else BorderStroke(1.dp, WearPalette.stroke),
         modifier = modifier.testTag("retry"),
     ) {
-        Text(text = stringResource(R.string.retry), maxLines = 1)
+        // labelSmall: «Повторить» is one unbreakable word and must fit the Small arc at the
+        // largest font scale — G6 owns this bound.
+        Text(
+            text = stringResource(R.string.retry),
+            style = MaterialTheme.typography.labelSmall,
+            maxLines = 1,
+        )
     }
 }
 
