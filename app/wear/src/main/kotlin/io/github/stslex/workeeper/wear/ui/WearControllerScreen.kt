@@ -2,6 +2,7 @@
 package io.github.stslex.workeeper.wear.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.annotation.DrawableRes
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -40,6 +41,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.rotary.onRotaryScrollEvent
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -56,6 +58,7 @@ import androidx.wear.compose.material3.Button
 import androidx.wear.compose.material3.ButtonDefaults
 import androidx.wear.compose.material3.EdgeButton
 import androidx.wear.compose.material3.EdgeButtonSize
+import androidx.wear.compose.material3.Icon
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.ScreenScaffold
 import androidx.wear.compose.material3.Text
@@ -359,11 +362,13 @@ private fun ValueCards(model: WearSurfaceModel, onEdit: (NumericField) -> Unit) 
 
 @Composable
 private fun WeightCard(model: WearSurfaceModel, onEdit: (NumericField) -> Unit, modifier: Modifier = Modifier) {
+    val weight = model.weightHundredthsKg
     ValueCard(
-        // Unit-bearing header per §4; the numeral below stays bare (the editor keeps the plain
-        // label because its value is rendered through weight_value, which carries the unit).
-        header = stringResource(R.string.weight_label_unit),
-        value = model.weightHundredthsKg?.let(::formatWeight)
+        icon = R.drawable.ic_weight,
+        iconDescription = stringResource(R.string.weight_label),
+        // The unit lives in the value, not a header: on a one-row surface a column header is
+        // 1:1 with its content and stops paying for itself (measured at 60dp, #284 round 4).
+        value = weight?.let { stringResource(R.string.weight_value, formatWeight(it)) }
             ?: stringResource(R.string.weight_unset),
         enabled = model.controlsEnabled,
         onClick = { onEdit(NumericField.WEIGHT) },
@@ -381,7 +386,9 @@ private fun RepsCard(
     modifier: Modifier = Modifier,
 ) {
     ValueCard(
-        header = stringResource(R.string.reps_label),
+        icon = R.drawable.ic_reps,
+        iconDescription = stringResource(R.string.reps_label),
+        // Reps have no unit; the numeral stands alone.
         value = reps.toString(),
         enabled = model.controlsEnabled,
         onClick = { onEdit(NumericField.REPS) },
@@ -392,13 +399,17 @@ private fun RepsCard(
 }
 
 /**
- * A value card of §4: unit-free label in the header, bare numeral below it. Read-only cards
- * lose their fill for [WearPalette.cardInactive], keep a [WearPalette.stroke] outline, and move
- * their content to [WearPalette.textMuted] — a shape change on top of the status-row text change.
+ * A value card of §4: an icon identifying the field, and the value below it — the weight's unit
+ * inside the value, reps bare. The icon replaces a textual header because it is
+ * locale-independent and cannot regress on translation, and because one row does not amortise
+ * a column header. Read-only cards lose their fill for [WearPalette.cardInactive], keep a
+ * [WearPalette.stroke] outline, and move their content to [WearPalette.textMuted] — a shape
+ * change on top of the status-row text change.
  */
 @Composable
 private fun ValueCard(
-    header: String,
+    @DrawableRes icon: Int,
+    iconDescription: String,
     value: String,
     enabled: Boolean,
     onClick: () -> Unit,
@@ -429,11 +440,11 @@ private fun ValueCard(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
-        Text(
-            text = header,
-            color = if (enabled) WearPalette.textSecondary else WearPalette.textMuted,
-            style = MaterialTheme.typography.labelSmall,
-            maxLines = 1,
+        Icon(
+            painter = painterResource(icon),
+            contentDescription = iconDescription,
+            tint = if (enabled) WearPalette.textSecondary else WearPalette.textMuted,
+            modifier = Modifier.size(CARD_ICON.dp),
         )
         Text(
             text = value,
@@ -784,8 +795,13 @@ private fun EditorStepButton(
     }
 }
 
+/**
+ * Trailing zeros are dropped, so a whole weight reads «80 kg» rather than «80.00 kg» — the
+ * rendering the round-4 review specified. Significant decimals survive: a 2.5 kg step gives
+ * «82.5 kg», and a phone-sent 72.53 kg keeps both places.
+ */
 private fun formatWeight(hundredths: Int): String = NumberFormat.getNumberInstance().run {
-    minimumFractionDigits = 2
+    minimumFractionDigits = 0
     maximumFractionDigits = 2
     isGroupingUsed = false
     format(hundredths / HUNDREDTHS_PER_KG)
@@ -796,6 +812,9 @@ private const val STATUS_MAX_LINES = 4
 private const val DOT_RING_WIDTH = 1.5
 private const val PILL_HEIGHT = 6
 private const val LONE_CARD_WIDTH = 0.55f
+
+/** The value card's field icon, sized to sit under the value without competing with it. */
+private const val CARD_ICON = 16
 private const val ROTARY_STEP_PX = 48f
 
 /** Viewport inset above a Small (56dp) anchored edge button, its outer padding included. */
