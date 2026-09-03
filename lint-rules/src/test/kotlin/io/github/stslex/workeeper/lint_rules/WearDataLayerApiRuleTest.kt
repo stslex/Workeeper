@@ -7,9 +7,9 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 /**
- * Coverage for [WearDataLayerApiRule]. GUARD: the rule matches AST references only, which is why
- * this file's own triple-quoted fixtures — string literals naming the same package — are not
- * flagged when detekt runs over `lint-rules` itself.
+ * Coverage for [WearDataLayerApiRule]. GUARD: the rule matches AST names only, which is why this
+ * file's own triple-quoted fixtures — string literals naming the same package — are not flagged
+ * when detekt runs over `lint-rules` itself.
  */
 internal class WearDataLayerApiRuleTest {
 
@@ -81,6 +81,59 @@ internal class WearDataLayerApiRuleTest {
             """.trimIndent(),
         )
         assertEquals(0, findings.size, "The import directive belongs to ForbiddenImport: $findings")
+    }
+
+    @Test
+    fun `flags a file that declares the forbidden package and reaches the API unqualified`() {
+        // Same-package resolution needs neither an import nor a qualifier, so the package
+        // directive is a spelling of the reference in its own right.
+        val findings = rule.lint(
+            """
+            package com.google.android.gms.wearable
+
+            fun send(context: android.content.Context): Any =
+                Wearable.getMessageClient(context)
+            """.trimIndent(),
+        )
+        assertEquals(1, findings.size, "The package directive must be rejected, got: $findings")
+    }
+
+    @Test
+    fun `flags a file declared inside a subpackage of the forbidden package`() {
+        val findings = rule.lint(
+            """
+            package com.google.android.gms.wearable.internal
+
+            val probe: Any = Unit
+            """.trimIndent(),
+        )
+        assertEquals(1, findings.size, "A subpackage declaration must be rejected: $findings")
+    }
+
+    @Test
+    fun `a comment inside the qualified chain does not defeat the match`() {
+        // Legal Kotlin, and a raw-text prefix comparison misses it — hence PSI names.
+        val findings = rule.lint(
+            """
+            package io.github.stslex.workeeper.wear.tile
+
+            fun send(context: android.content.Context): Any =
+                com./*x*/google.android.gms.wearable.Wearable.getMessageClient(context)
+            """.trimIndent(),
+        )
+        assertEquals(1, findings.size, "Comments in the chain must not hide it, got: $findings")
+    }
+
+    @Test
+    fun `a package directive that merely shares a prefix is not a match`() {
+        val findings = rule.lint(
+            """
+            package com.google.android.gms.wearablefake
+
+            val probe: Any = Unit
+            """.trimIndent(),
+        )
+        assertEquals(0, findings.size, "The match must be on a package boundary: $findings")
     }
 
     @Test

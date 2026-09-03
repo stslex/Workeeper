@@ -9,27 +9,27 @@ import io.gitlab.arturbosch.detekt.api.Rule
 import io.gitlab.arturbosch.detekt.api.Severity
 import org.jetbrains.kotlin.psi.KtDotQualifiedExpression
 import org.jetbrains.kotlin.psi.KtElement
+import org.jetbrains.kotlin.psi.KtExpression
 import org.jetbrains.kotlin.psi.KtImportDirective
+import org.jetbrains.kotlin.psi.KtNameReferenceExpression
+import org.jetbrains.kotlin.psi.KtPackageDirective
 import org.jetbrains.kotlin.psi.KtUserType
+import org.jetbrains.kotlin.psi.psiUtil.getStrictParentOfType
 
 /**
- * The second half of the Wear transport privacy gate.
+ * The half of the Wear transport privacy gate that `ForbiddenImport` cannot reach: every way of
+ * naming `com.google.android.gms.wearable` that carries no import directive.
  *
- * `ForbiddenImport` in `lint-rules/detekt.yml` covers the import directive, and nothing else:
- * it visits `KtImportDirective`, so a fully qualified reference carries no import for it to
- * reject. Measured — `:app:wear:detekt` is GREEN on a main source file containing
- * `com.google.android.gms.wearable.Wearable.getMessageClient(context)` while the same module goes
- * RED on the equivalent import. That hole is the whole gate: the specification's blocking privacy
- * gate on sending a workout payload is only as real as the narrowest way around it.
+ * GUARD: match on PSI names, never on `element.text`. Source text carries comments and formatting
+ * that a reader will not expect to matter, and a raw-text prefix is defeated by legal spellings.
+ * GUARD: the package directive is a spelling too — a file declaring the forbidden package reaches
+ * the API with bare identifiers that no visitor here can see.
  *
- * This rule closes it at the other end, over references rather than imports, so the two together
- * cover both ways of naming the API. Reporting is limited to the outermost node of a qualified
- * chain, so one reference produces one finding.
+ * Deliberately AST-only, which is also what keeps this rule's own string-literal test fixtures from
+ * flagging when detekt runs over `lint-rules`.
  *
- * Reflective reach by string name is deliberately out of scope: it is invisible to the AST, and it
- * still requires the Data Layer on a module's classpath — which is a build-file edit, reviewed as
- * the privacy decision it is. AST-only also means this rule's own test fixtures, which are string
- * literals, are not flagged.
+ * See documentation/lint-rules.md § `WearDataLayerApiRule` for the derivation, the spellings this
+ * covers, and the two it does not.
  */
 class WearDataLayerApiRule(
     config: Config = Config.empty,
@@ -44,29 +44,69 @@ class WearDataLayerApiRule(
         debt = Debt.TWENTY_MINS,
     )
 
+    override fun visitPackageDirective(directive: KtPackageDirective) {
+        super.visitPackageDirective(directive)
+        reportIfForbidden(directive, directive.qualifiedName)
+    }
+
     override fun visitDotQualifiedExpression(expression: KtDotQualifiedExpression) {
         super.visitDotQualifiedExpression(expression)
-        // Qualified chains nest, so only the outermost node is the whole reference. Imports belong
-        // to ForbiddenImport; reporting them here too would double up on one line.
+        // Qualified chains nest, so only the outermost node is the whole reference.
         if (expression.parent is KtDotQualifiedExpression) return
-        if (expression.parent is KtImportDirective) return
-        reportIfForbidden(expression)
+        if (expression.isInsideDirective()) return
+        reportIfForbidden(expression, expression.namePathOrNull())
     }
 
     override fun visitUserType(type: KtUserType) {
         super.visitUserType(type)
         if (type.parent is KtUserType) return
-        reportIfForbidden(type)
+        reportIfForbidden(type, type.namePath())
     }
 
-    private fun reportIfForbidden(element: KtElement) {
-        val reference = element.text.replace(WHITESPACE, "")
-        if (!reference.startsWith("$FORBIDDEN_PACKAGE.")) return
+    /**
+     * Import and package directives are reported by their own owners — `ForbiddenImport` and
+     * [visitPackageDirective] — so the expression inside them must not report a second time.
+     */
+    private fun KtElement.isInsideDirective(): Boolean =
+        getStrictParentOfType<KtImportDirective>() != null ||
+            getStrictParentOfType<KtPackageDirective>() != null
+
+    /**
+     * The dotted identifier path this expression starts with, built from referenced names so that
+     * comments and whitespace inside the chain cannot change the answer. `null` when the chain does
+     * not start with a plain name path.
+     */
+    private fun KtExpression.namePathOrNull(): String? = when (this) {
+        is KtNameReferenceExpression -> getReferencedName()
+        is KtDotQualifiedExpression -> {
+            val receiver = receiverExpression.namePathOrNull()
+            val selector = (selectorExpression as? KtNameReferenceExpression)?.getReferencedName()
+            when {
+                receiver == null -> null
+                // A call ends the name path; the receiver is still the qualified name it was called on.
+                selector == null -> receiver
+                else -> "$receiver.$selector"
+            }
+        }
+
+        else -> null
+    }
+
+    /** The type's qualified name, assembled from its qualifier chain rather than its text. */
+    private fun KtUserType.namePath(): String = generateSequence(this) { it.qualifier }
+        .mapNotNull { it.referencedName }
+        .toList()
+        .asReversed()
+        .joinToString(separator = ".")
+
+    private fun reportIfForbidden(element: KtElement, namePath: String?) {
+        val path = namePath ?: return
+        if (path != FORBIDDEN_PACKAGE && !path.startsWith("$FORBIDDEN_PACKAGE.")) return
         report(
             CodeSmell(
                 issue,
                 Entity.from(element),
-                "`$FORBIDDEN_PACKAGE` is referenced here without an import, which the " +
+                "`$FORBIDDEN_PACKAGE` is reached here without an import, which the " +
                     "ForbiddenImport gate cannot see. Sending any workout payload over the " +
                     "Wearable Data Layer is blocked on a privacy review that has not happened.",
             ),
@@ -75,6 +115,5 @@ class WearDataLayerApiRule(
 
     private companion object {
         const val FORBIDDEN_PACKAGE = "com.google.android.gms.wearable"
-        val WHITESPACE = Regex("\\s+")
     }
 }
