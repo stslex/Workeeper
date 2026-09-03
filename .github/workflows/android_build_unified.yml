@@ -144,8 +144,16 @@ jobs:
       #
       # Only the shipping flavor is built. `:app:wear` has no flavor-specific source directory, so
       # devRelease compiles the same sources and would add a second R8 run for no new coverage.
+      #
+      # `--rerun-tasks --no-build-cache`, unlike the steps above it. This job restores the Gradle
+      # build cache and `gradle-ci.properties` sets `org.gradle.caching=true`, so without the flags
+      # this task can report FROM-CACHE and never assemble anything — and AGENTS.md § "Gate
+      # discipline" is explicit that FROM-CACHE proves nothing about execution. The `assembleDebug`
+      # step above keeps its cache hits because stripping them costs ~35 minutes across the whole
+      # repository; that trade-off does not exist for one Wear module, so the gate is bought
+      # outright here rather than argued for from cache keys.
       - name: Assemble Wear release variant
-        run: ./gradlew :app:wear:assembleStoreRelease --full-stacktrace
+        run: ./gradlew :app:wear:assembleStoreRelease --rerun-tasks --no-build-cache --full-stacktrace
 
       - name: Assert MVI source-set topology
         run: python3 .github/scripts/assert_mvi_source_topology.py
