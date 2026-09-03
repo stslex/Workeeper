@@ -97,11 +97,25 @@ WHITESPACE_AROUND_DOT = re.compile(r"\s*\.\s*")
 # the same rule as the escapes and the comments: read the source the way the compiler reads it.
 ADJACENT_LITERALS = re.compile(r'"((?:[^"\\\n]|\\.)*)"\s*\+\s*"((?:[^"\\\n]|\\.)*)"')
 
+# `("a" + "b")` folds to one constant too, and parentheses are not a barrier to the compiler.
+# The lookbehind keeps a call's argument list intact: `f("a")` must not become `f"a"`.
+PARENTHESISED_LITERAL = re.compile(
+    r'(?<![A-Za-z0-9_)\]])\(\s*("(?:[^"\\\n]|\\.)*")\s*\)'
+)
+
 
 def fold_literals(text: str) -> str:
-    """Constant-folds adjacent string literals, repeatedly, so chains of three or more collapse."""
+    """Constant-folds string literals the way a compiler does, to a fixed point.
+
+    Two rewrites, alternated until nothing changes, which is what lets arbitrary nesting collapse:
+    adjacent literals join, and a parenthesised lone literal loses its parentheses. The paren rule
+    refuses a `(` that follows an identifier or a closing bracket, so a call's argument list is
+    never unwrapped and `f("a") + ("b")` cannot be folded into a constant the compiler would not
+    fold either.
+    """
     while True:
         folded = ADJACENT_LITERALS.sub(lambda m: '"' + m.group(1) + m.group(2) + '"', text)
+        folded = PARENTHESISED_LITERAL.sub(lambda m: m.group(1), folded)
         if folded == text:
             return text
         text = folded
@@ -149,7 +163,10 @@ def strip_comments(text: str, is_java: bool = False) -> str:
         if text.startswith('"""', index):
             close = text.find('"""', index + 3)
             close = end if close == -1 else close + 3
-            out.append(text[index:close])
+            # A Java TEXT BLOCK processes escapes; a Kotlin RAW STRING does not. Same three quotes,
+            # opposite semantics, so the language decides -- not the delimiter.
+            block = text[index:close]
+            out.append(decode_string_escapes(block, is_java) if is_java else block)
             index = close
         elif char in "\"'":
             cursor = index + 1
@@ -323,6 +340,31 @@ def self_test() -> int:
             "escape survives folding",
             'val c = Class.forName("com.google.android.gms.wea" + "\\u0072able.Wearable")\n',
             1,
+        ),
+        # A Java TEXT BLOCK does process escapes, unlike a Kotlin raw string. Same delimiter,
+        # opposite semantics.
+        (
+            "java text block escape",
+            'Class.forName("""\ncom.google.android.gms.wea\\162able.Wearable""");\n',
+            1,
+        ),
+        # Parentheses do not stop the compiler folding a constant expression.
+        (
+            "parenthesised fold",
+            'val c = Class.forName("com.google.android.gms." + ("wearable." + "Wearable"))\n',
+            1,
+        ),
+        (
+            "nested parenthesised fold",
+            'val c = Class.forName(("com.google." + ("android.gms." + "wearable.Wearable")))\n',
+            1,
+        ),
+        # ...but a call result is not a constant, so its parentheses must survive: unwrapping them
+        # would fold something the compiler does not.
+        (
+            "call argument list is not unwrapped",
+            'val c = f("com.google.android.gms.") + ("wearable.Wearable")\n',
+            0,
         ),
         # A Kotlin raw string processes no escapes, so these bytes name no package.
         (
