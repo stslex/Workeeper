@@ -58,8 +58,9 @@ screens.
 This changes the §3.2 reading order.
 
 **D-G. Disabled and secondary labels use `#8B95A1`, never `#627587`.**
-`#627587` on black is 4.35:1, below the 4.5:1 text threshold. It remains legal as
-a stroke, where the 3:1 non-text threshold applies.
+`#627587` on black is 4.414:1, below the 4.5:1 text threshold. It remains legal
+as a stroke, where the 3:1 non-text threshold applies. (An earlier revision said
+4.35:1; the WCAG 2.x formula gives 4.414:1 — the conclusion is unchanged.)
 
 ## 3. Colour contract
 
@@ -136,7 +137,11 @@ none is reachable without one.
 | `NO_SESSION` | absent | absent |
 | `LOADING` | absent | absent |
 
-Copy comes from `WearCopy`; no string is introduced by this work.
+Copy comes from `WearCopy` where it already exists. A string this design requires
+and `WearCopy` lacks — the unit-bearing weight-card header of §4 is one — is
+introduced, in both locales, rather than worked around. (An earlier revision
+forbade introducing any string, which contradicted §4; the layout requirement
+wins.)
 
 ## 7. Gates
 
@@ -163,7 +168,7 @@ the disabled label.
 
 **G5 — contrast.** Every foreground/background pair used for text meets 4.5:1;
 every stroke meets 3:1. Computed from the palette object, not sampled from pixels.
-*Red when:* any text role is pointed at `stroke` (`#627587`, 4.35:1).
+*Red when:* any text role is pointed at `stroke` (`#627587`, 4.414:1).
 
 **G6 — no visual overflow.** At font scales 1.0 and the largest the platform
 offers, and with the longest string of each locale, no text node reports visual
