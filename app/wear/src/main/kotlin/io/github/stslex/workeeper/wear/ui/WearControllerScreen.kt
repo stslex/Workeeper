@@ -133,7 +133,7 @@ private fun ActiveScaffold(
     onEdit: (NumericField) -> Unit,
 ) {
     val scrollState = rememberScrollState()
-    val clearance = if (model.completeEnabled) SMALL_EDGE_CLEARANCE.dp else MEDIUM_EDGE_CLEARANCE.dp
+    val clearance = MEDIUM_EDGE_CLEARANCE.dp
     ScreenScaffold(
         scrollState = scrollState,
         contentPadding = activeContentPadding(),
@@ -478,7 +478,9 @@ private fun CompleteSetButton(
     EdgeButton(
         onClick = { onAction(ControllerAction.CompleteSet) },
         enabled = model.completeEnabled,
-        buttonSize = if (model.completeEnabled) EdgeButtonSize.Small else EdgeButtonSize.Medium,
+        // Medium in BOTH states: the disabled form needs the extra line for the disabled word,
+        // and the enabled primary action may never be smaller than the disabled one (G7).
+        buttonSize = EdgeButtonSize.Medium,
         colors = ButtonDefaults.buttonColors(
             containerColor = WearPalette.textPrimary,
             contentColor = WearPalette.onAccent,
@@ -799,7 +801,10 @@ private const val ROTARY_STEP_PX = 48f
 /** Viewport inset above a Small (56dp) anchored edge button, its outer padding included. */
 private const val SMALL_EDGE_CLEARANCE = 62
 
-/** Viewport inset above the Medium (70dp) disabled-state edge button with its extra line. */
+/**
+ * Viewport inset above the Medium (70dp) complete-set button — one size for both states, so
+ * the enabled primary action is never smaller than the disabled one and the geometry is stable.
+ */
 private const val MEDIUM_EDGE_CLEARANCE = 76
 
 /** Sides of the content column; the §4 stack sits in the wide middle band of the circle. */
