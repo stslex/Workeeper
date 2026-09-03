@@ -132,9 +132,15 @@ CONSTANT_DECLARATION = re.compile(
 )
 ANY_LITERAL = re.compile(_LITERAL)
 
-# A constant defined through another constant needs a second pass; the bound stops a pathological
-# self-referential file from looping.
-MAX_CONSTANT_ROUNDS = 5
+# Substitution only ever replaces identifiers with literals, so each round strictly reduces the
+# identifiers left to resolve and the loop terminates on its own. The bound is a backstop against a
+# pathological file, NOT a depth limit: reaching it reports the file rather than returning quietly,
+# because a gate that gives up silently is the failure this whole layer exists to prevent.
+MAX_CONSTANT_ROUNDS = 1000
+
+
+class ConstantResolutionExhausted(RuntimeError):
+    """Raised instead of returning a half-resolved file: this gate fails closed, never quiet."""
 
 
 def outside_literals(text: str, transform) -> str:
@@ -176,9 +182,11 @@ def substitute_constants(text: str) -> str:
             lambda code: names.sub(lambda m: constants[m.group(1)], code),
         )
         if substituted == text:
-            break
+            return text
         text = substituted
-    return text
+    raise ConstantResolutionExhausted(
+        f"constant substitution did not settle in {MAX_CONSTANT_ROUNDS} rounds"
+    )
 
 
 def fold_literals(text: str) -> str:
@@ -211,17 +219,55 @@ def _decoded_char(value: int) -> str | None:
     return None if char in '"\\' else char
 
 
-def decode_string_escapes(literal: str, is_java: bool) -> str:
-    """A literal's compile-time value, for the escapes that can spell a package name."""
+JAVA_OCTAL_DIGITS = re.compile(r"[0-3]?[0-7]{1,2}")
 
-    def unicode_sub(match: re.Match[str]) -> str:
-        return _decoded_char(int(match.group(1), 16)) or match.group(0)
 
-    def octal_sub(match: re.Match[str]) -> str:
-        return _decoded_char(int(match.group(1), 8)) or match.group(0)
+def decode_string_escapes(literal: str, is_java: bool, is_text_block: bool = False) -> str:
+    """A literal's compile-time value, for the escapes that can spell a package name.
 
-    decoded = literal if is_java else STRING_UNICODE_ESCAPE.sub(unicode_sub, literal)
-    return STRING_OCTAL_ESCAPE.sub(octal_sub, decoded) if is_java else decoded
+    Java is walked left to right rather than substituted by regex, because `\\` is itself
+    escapable: in `\\\\` + newline the backslash is DATA and the newline survives, while in `\\` +
+    newline inside a text block the terminator is removed. A regex cannot tell those apart, and
+    guessing wrong here invents a constant the compiler never builds.
+
+    Only the escapes that can spell a package name are transformed -- octal, the text-block line
+    continuation and `\\s`. Everything else is copied through unchanged, including `\\"` and `\\\\`,
+    so no escape can forge a literal boundary.
+    """
+    if not is_java:
+        def unicode_sub(match: re.Match[str]) -> str:
+            return _decoded_char(int(match.group(1), 16)) or match.group(0)
+
+        return STRING_UNICODE_ESCAPE.sub(unicode_sub, literal)
+
+    out: list[str] = []
+    index = 0
+    end = len(literal)
+    while index < end:
+        if literal[index] != "\\" or index + 1 >= end:
+            out.append(literal[index])
+            index += 1
+            continue
+        following = literal[index + 1]
+        if is_text_block and (following == "\n" or literal.startswith("\r\n", index + 1)):
+            # JLS 3.10.7: `\` before a line terminator removes the terminator from the value.
+            index += 3 if following == "\r" else 2
+            continue
+        if is_text_block and following == "s":
+            out.append(" ")
+            index += 2
+            continue
+        octal = JAVA_OCTAL_DIGITS.match(literal, index + 1)
+        decoded = _decoded_char(int(octal.group(0), 8)) if octal else None
+        if decoded is not None:
+            out.append(decoded)
+            index = octal.end()
+            continue
+        # `\\`, `\"`, `\n` and friends: copy both characters, so the escape keeps its meaning and
+        # the next iteration cannot read the escaped character as an escape of its own.
+        out.append(literal[index:index + 2])
+        index += 2
+    return "".join(out)
 
 
 def strip_comments(text: str, is_java: bool = False) -> str:
@@ -246,7 +292,7 @@ def strip_comments(text: str, is_java: bool = False) -> str:
             if is_java:
                 # JLS: the line terminator right after the opening delimiter is not content.
                 block = JAVA_TEXT_BLOCK_OPENING.sub('"""', block, count=1)
-                block = decode_string_escapes(block, is_java)
+                block = decode_string_escapes(block, is_java, is_text_block=True)
             out.append(block)
             index = close
         elif char in "\"'":
@@ -337,7 +383,12 @@ def scan(paths: list[Path]) -> list[str]:
     for path in paths:
         if is_exempt(path):
             continue
-        text = canonical(path, path.read_text(encoding="utf-8", errors="replace"))
+        raw = path.read_text(encoding="utf-8", errors="replace")
+        try:
+            text = canonical(path, raw)
+        except ConstantResolutionExhausted as exhausted:
+            violations.append(f"{path}: {exhausted}; cannot prove this file clean")
+            continue
         violations += package_violations(path, text)
         violations += suppression_violations(path, text)
     return violations
@@ -509,6 +560,30 @@ def self_test() -> int:
             "text block newline is part of the constant",
             'val c = """com.google.android.gms.\nwearable.Wearable"""\n',
             0,
+        ),
+        # JLS 3.10.7: `\` before a line terminator removes the terminator from a text block's
+        # value, so these two lines are one name to javac.
+        (
+            "java text block line continuation",
+            'Class.forName("""\ncom.google.android.gms.\\\nwearable.Wearable""");\n',
+            1,
+        ),
+        # ...but an ESCAPED backslash is data, and the terminator after it survives. Reading the
+        # second backslash as a continuation would invent a name javac does not build.
+        (
+            "escaped backslash is not a continuation",
+            'Class.forName("""\ncom.google.android.gms.\\\\\nwearable.Wearable""");\n',
+            0,
+        ),
+        # An alias chain deeper than any fixed round count: the fixed point has to be a fixed point.
+        (
+            "deep constant alias chain",
+            'static final String A = "com.google.android.gms.";\n'
+            'static final String B = A;\nstatic final String C = B;\n'
+            'static final String D = C;\nstatic final String E = D;\n'
+            'static final String F = E;\nstatic final String G = F;\n'
+            'Class.forName(G + "wearable.Wearable");\n',
+            1,
         ),
         # An identifier inside an unrelated literal must not be substituted: that would invent a
         # constant the compiler never builds, and a false positive here fails CI.
