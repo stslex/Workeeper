@@ -95,28 +95,63 @@ WHITESPACE_AROUND_DOT = re.compile(r"\s*\.\s*")
 
 # Both compilers fold `"a" + "b"` of two literals into one constant, so the gate folds it too --
 # the same rule as the escapes and the comments: read the source the way the compiler reads it.
-ADJACENT_LITERALS = re.compile(r'"((?:[^"\\\n]|\\.)*)"\s*\+\s*"((?:[^"\\\n]|\\.)*)"')
+# A literal is either form: `"..."`, or a Java text block / Kotlin raw string. Both concatenate
+# into the same constant, so both have to be foldable.
+_LITERAL = r'(?:"""(?:.|\n)*?"""|"(?:[^"\\\n]|\\.)*")'
+ADJACENT_LITERALS = re.compile(rf"({_LITERAL})\s*\+\s*({_LITERAL})")
 
 # `("a" + "b")` folds to one constant too, and parentheses are not a barrier to the compiler.
 # The lookbehind keeps a call's argument list intact: `f("a")` must not become `f"a"`.
-PARENTHESISED_LITERAL = re.compile(
-    r'(?<![A-Za-z0-9_)\]])\(\s*("(?:[^"\\\n]|\\.)*")\s*\)'
-)
+PARENTHESISED_LITERAL = re.compile(rf"(?<![A-Za-z0-9_)\]])\(\s*({_LITERAL})\s*\)")
+
+# A folded body is re-emitted as an ordinary literal, so a quote, a backslash or a newline carried
+# in from a triple-quoted body has to go. A space is the safe replacement: it cannot occur inside
+# the package name, so it can only prevent a match, never invent one -- and a newline really is in
+# the constant, which is why a name split across a text block's lines does not name a class.
+BODY_BREAKERS = re.compile(r'["\\\n]')
+
+JAVA_TEXT_BLOCK_OPENING = re.compile(r'^"""[ \t]*\r?\n')
+
+
+def _literal_body(literal: str) -> str:
+    return literal[3:-3] if literal.startswith('"""') else literal[1:-1]
+
+
+def _joined(first: str, second: str) -> str:
+    body = _literal_body(first) + _literal_body(second)
+    return '"' + BODY_BREAKERS.sub(" ", body) + '"' 
 
 
 # A constant variable whose initialiser is a single literal: `static final String X = "..."`,
 # `const val X = "..."`, `val X = "..."`. Both compilers inline these into the constant they build,
 # so `PREFIX + SUFFIX` is one `ldc` and must be one match here.
 CONSTANT_DECLARATION = re.compile(
-    r'\b(?:const\s+val|val|var|(?:static\s+)?final\s+String|String)\s+'
-    r'([A-Za-z_][A-Za-z0-9_]*)\s*(?::\s*String\s*)?=\s*'
-    r'("(?:[^"\\\n]|\\.)*")'
+    r"\b(?:const\s+val|val|var|(?:static\s+)?final\s+String|String)\s+"
+    r"([A-Za-z_][A-Za-z0-9_]*)\s*(?::\s*String\s*)?=\s*"
+    rf"({_LITERAL})"
 )
-STRING_LITERAL = re.compile(r'"(?:[^"\\\n]|\\.)*"')
+ANY_LITERAL = re.compile(_LITERAL)
 
 # A constant defined through another constant needs a second pass; the bound stops a pathological
 # self-referential file from looping.
 MAX_CONSTANT_ROUNDS = 5
+
+
+def outside_literals(text: str, transform) -> str:
+    """Applies [transform] to the code between string literals, leaving the literals untouched.
+
+    The distinction is not cosmetic. Between tokens a newline is trivia, so `com.\n  google` is one
+    qualified name; INSIDE a literal the same newline is data, so a package name broken across the
+    lines of a raw string does not name a class and must not be joined into one.
+    """
+    pieces = []
+    cursor = 0
+    for literal in ANY_LITERAL.finditer(text):
+        pieces.append(transform(text[cursor:literal.start()]))
+        pieces.append(literal.group(0))
+        cursor = literal.end()
+    pieces.append(transform(text[cursor:]))
+    return "".join(pieces)
 
 
 def substitute_constants(text: str) -> str:
@@ -129,19 +164,17 @@ def substitute_constants(text: str) -> str:
     The boundary is the file. A constant imported from another file is not resolved here -- see the
     limit recorded in documentation/lint-rules.md.
     """
-    constants = dict(CONSTANT_DECLARATION.findall(text))
-    if not constants:
-        return text
-    names = re.compile(r"\b(" + "|".join(re.escape(name) for name in constants) + r")\b")
     for _ in range(MAX_CONSTANT_ROUNDS):
-        pieces = []
-        cursor = 0
-        for literal in STRING_LITERAL.finditer(text):
-            pieces.append(names.sub(lambda m: constants[m.group(1)], text[cursor:literal.start()]))
-            pieces.append(literal.group(0))
-            cursor = literal.end()
-        pieces.append(names.sub(lambda m: constants[m.group(1)], text[cursor:]))
-        substituted = "".join(pieces)
+        # Recomputed every round, not once: substituting `HEAD` is what turns `PREFIX = HEAD` into
+        # a literal-backed constant, and a table collected before that never learns about `PREFIX`.
+        constants = dict(CONSTANT_DECLARATION.findall(text))
+        if not constants:
+            return text
+        names = re.compile(r"\b(" + "|".join(re.escape(name) for name in constants) + r")\b")
+        substituted = outside_literals(
+            text,
+            lambda code: names.sub(lambda m: constants[m.group(1)], code),
+        )
         if substituted == text:
             break
         text = substituted
@@ -158,7 +191,7 @@ def fold_literals(text: str) -> str:
     fold either.
     """
     while True:
-        folded = ADJACENT_LITERALS.sub(lambda m: '"' + m.group(1) + m.group(2) + '"', text)
+        folded = ADJACENT_LITERALS.sub(lambda m: _joined(m.group(1), m.group(2)), text)
         folded = PARENTHESISED_LITERAL.sub(lambda m: m.group(1), folded)
         if folded == text:
             return text
@@ -210,7 +243,11 @@ def strip_comments(text: str, is_java: bool = False) -> str:
             # A Java TEXT BLOCK processes escapes; a Kotlin RAW STRING does not. Same three quotes,
             # opposite semantics, so the language decides -- not the delimiter.
             block = text[index:close]
-            out.append(decode_string_escapes(block, is_java) if is_java else block)
+            if is_java:
+                # JLS: the line terminator right after the opening delimiter is not content.
+                block = JAVA_TEXT_BLOCK_OPENING.sub('"""', block, count=1)
+                block = decode_string_escapes(block, is_java)
+            out.append(block)
             index = close
         elif char in "\"'":
             cursor = index + 1
@@ -266,16 +303,18 @@ def is_exempt(path: Path) -> bool:
 
 def package_violations(path: Path, text: str) -> list[str]:
     """[text] must already be [canonical] for its language."""
+    spaced = outside_literals(text, lambda code: SPACES_AROUND_DOT.sub(".", code))
     violations = [
         f"{path}:{number}: names {FORBIDDEN_PACKAGE}"
-        for number, line in enumerate(SPACES_AROUND_DOT.sub(".", text).splitlines(), start=1)
+        for number, line in enumerate(spaced.splitlines(), start=1)
         if FORBIDDEN_REFERENCE.search(line)
     ]
     if violations:
         return violations
     # A qualified name split across lines is one name to the compiler. Collapsing newlines too
     # would move every line number after it, so this second pass reports the file instead.
-    if FORBIDDEN_REFERENCE.search(WHITESPACE_AROUND_DOT.sub(".", text)):
+    wrapped = outside_literals(text, lambda code: WHITESPACE_AROUND_DOT.sub(".", code))
+    if FORBIDDEN_REFERENCE.search(wrapped):
         return [f"{path}: names {FORBIDDEN_PACKAGE}, split across lines"]
     return violations
 
@@ -437,6 +476,39 @@ def self_test() -> int:
             'const val TAIL = "android.gms.wearable.Wearable"\n'
             'val c = Class.forName(HEAD + TAIL)\n',
             1,
+        ),
+        # An alias needs the constant table rebuilt mid-fixed-point, not collected once.
+        (
+            "java constant alias chain",
+            'static final String HEAD = "com.google.android.gms.";\n'
+            'static final String PREFIX = HEAD;\n'
+            'Class.forName(PREFIX + "wearable.Wearable");\n',
+            1,
+        ),
+        (
+            "kotlin constant alias chain",
+            'const val HEAD = "com.google.android.gms."\n'
+            'const val PREFIX = HEAD\n'
+            'val c = Class.forName(PREFIX + "wearable.Wearable")\n',
+            1,
+        ),
+        # A triple-quoted literal concatenates into the same constant as a quoted one.
+        (
+            "java text block concatenation",
+            'Class.forName("com.google.android.gms." + """wearable.Wearable""");\n',
+            1,
+        ),
+        (
+            "kotlin raw string concatenation",
+            'val c = Class.forName("""com.google.android.gms.""" + "wearable.Wearable")\n',
+            1,
+        ),
+        # A newline really is part of a text block's constant, so a name broken across its lines
+        # does not name a class -- and must not be folded into one.
+        (
+            "text block newline is part of the constant",
+            'val c = """com.google.android.gms.\nwearable.Wearable"""\n',
+            0,
         ),
         # An identifier inside an unrelated literal must not be substituted: that would invent a
         # constant the compiler never builds, and a false positive here fails CI.

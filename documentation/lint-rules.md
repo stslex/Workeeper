@@ -767,13 +767,20 @@ compiler reads it, so the scan does that in six steps and pins each as a self-te
 | Decode `\uXXXX` | `we\u0061rable` — javac decodes escapes in step 1 of lexical translation, anywhere including inside identifiers | Java only; Kotlin has no equivalent pass, and the Kotlin negative is pinned so the decode is not "simplified" to both |
 | Comments become one separating space | `com./*gap*/google.android.gms.wearable` | Both. One space, not nothing: `a/*x*/b` is two tokens and must not be joined |
 | Trivia around a qualified name's dots collapses | `com. google…`, and the same name split across lines | Both. The cross-line pass reports the file rather than a line, since collapsing newlines would move every line number after it |
-| String literals constant-fold | `"com.google.android.gms." + "wearable.Wearable"`, including `+ ("a" + "b")` | Both, to a fixed point, so nesting collapses. A `(` following an identifier or bracket is left alone, so a call's argument list is never unwrapped and `f("a") + ("b")` cannot fold into a constant the compiler would not fold — pinned |
+| String literals constant-fold | `"com.google.android.gms." + "wearable.Wearable"`, including `+ ("a" + "b")` and either triple-quoted form | Both, to a fixed point, so nesting collapses. A `(` following an identifier or bracket is left alone, so a call's argument list is never unwrapped and `f("a") + ("b")` cannot fold into a constant the compiler would not fold — pinned |
 | Same-file constant variables inline | `static final String PREFIX = "com.google.android.gms."` then `Class.forName(PREFIX + SUFFIX)` | `static final String`, `const val`, `val` with a single-literal initialiser, to a fixed point so a constant defined through another resolves. Substitution happens outside string literals only, so an identifier appearing inside an unrelated literal cannot invent a constant — pinned |
 | Escapes inside a literal resolve | Java octal `wea\162able`, Kotlin `wea\u0072able` | Java octal and Kotlin `\uXXXX`; Java's own `\uXXXX` is already handled file-wide above. A decode to `"` or `\` is refused, so an escape cannot forge a literal boundary. **The language decides, not the delimiter**: a Java text block processes escapes, a Kotlin raw string does not, and both are `"""` — each pinned |
 
 String and character literals are walked rather than skipped, so a `//` inside a URL literal does
 not eat the rest of its line — also pinned. A commented-out reference is not a call site and is not
 reported.
+
+**Every rewrite that treats trivia as trivia stops at a literal's quotes**, because inside one the
+same characters are data. A newline between tokens joins a qualified name; a newline inside a raw
+string is part of the constant, so a package name broken across a raw string's lines does not name a
+class and is not reported — pinned, and it was that pinned case which caught the collapsing pass
+reaching inside literals. Java text blocks drop the line terminator after their opening delimiter,
+per the JLS, which is why the same shape *is* reported when the concatenation makes it contiguous.
 
 **Where this stops, and why it stops exactly there.** The gate resolves the string-forming part of
 the compile-time constant grammar — literals, escapes, concatenation, parentheses, and constant
