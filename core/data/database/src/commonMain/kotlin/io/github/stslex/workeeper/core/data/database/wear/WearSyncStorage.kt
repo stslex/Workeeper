@@ -52,17 +52,16 @@ suspend fun prepareWearSyncStorage(
 }
 
 /**
- * Trigger-backed invalidation keeps every writer atomic with its durable Wear version.
+ * Trigger-backed invalidation keeps every writer atomic with its durable Wear version. Installs
+ * what is missing and repairs what drifted.
  *
- * Installs what is missing and REPAIRS what drifted. `CREATE TRIGGER IF NOT EXISTS` does not
- * replace a same-name trigger whose body differs — measured: a stale trigger survives preparation
- * and the write it should have invalidated leaves `wear_revision` untouched. Room's exported
- * schema declares no triggers, so nothing else in the stack notices, and any future edit to
- * [WEAR_SYNC_TRIGGERS] would silently fail to reach every existing installation.
+ * GUARD: the canonical statements carry no `IF NOT EXISTS` and no terminating semicolon, and must
+ * not gain either. SQLite stores a trigger's `CREATE` text verbatim minus exactly those, so the
+ * comparison against `sqlite_master.sql` is byte-for-byte and adding one back would make every
+ * trigger differ from itself on every launch.
  *
- * SQLite stores a trigger's `CREATE` text verbatim in `sqlite_master.sql`, minus its
- * `IF NOT EXISTS` clause and its terminating semicolon, so the canonical statements here compare
- * byte-for-byte against what is installed.
+ * See documentation/feature-specs/wear-phase-1-active-workout-tile.md § 5.1, "Trigger installation
+ * and repair", for why comparison replaced `IF NOT EXISTS`.
  */
 internal fun SQLiteConnection.installWearSyncTriggers() {
     val installed = readInstalledTriggerBodies()
