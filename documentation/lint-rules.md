@@ -735,15 +735,28 @@ import nor a qualifier, and both `:app:wear` and `:feature:wear-bridge` already 
 `play-services-wearable` on their compile classpaths, so either spelling would have compiled while
 both gates passed.
 
-**The two it does not cover, deliberately.**
+**The two it does not cover, and why detekt cannot be the whole gate.**
 
 - **Reflection by string name** (`Class.forName("com.google.android.gms.wearable.…")`). Invisible to
-  the AST, and matching string literals would flag this rule's own test fixtures — the same
+  the AST, and matching string literals here would flag this rule's own test fixtures — the same
   self-flagging trap documented under `NoActualForExpectSuppressionRule`.
-- **Java sources.** detekt reads Kotlin only.
+- **Suppression.** Detekt honours `@Suppress` by rule id and by rule-set id — this repository
+  already suppresses custom rule ids in five places — and a rule cannot report its own suppression,
+  because `@Suppress("WearDataLayerApiRule")` silences that finding too.
 
-Both still require the Data Layer on a module's compile classpath, which is a build-file edit and is
-reviewed as the privacy decision it is.
+Neither hole is closed by the classpath. `app/wear` and `feature/wear-bridge` already declare
+`implementation(libs.google.play.services.wearable)`, so both routes compile today with no
+build-file edit to review. Measured on a real source file: with a reflective load and
+`@Suppress("WearDataLayerApiRule")` present, `:app:wear:detekt` reports **BUILD SUCCESSFUL**.
+
+The second layer is therefore not a detekt rule at all —
+`.github/scripts/assert_wear_transport_gate.py`, run in `android_build_unified.yml`. It scans every
+tracked `.kt`/`.kts` for the package name as text, on a package boundary, and rejects any
+`@Suppress` naming an id that would silence either half of the gate (rule ids, rule-set ids,
+detekt's `detekt:`/`detekt.` spellings, blanket `ALL`). `lint-rules/` is its one exemption, because
+the rule names the package it bans and its fixtures spell out the violations it must catch. The
+script carries a `--self-test` that exercises both anchors, and CI runs that first: a gate with
+nothing to find on a clean tree has no other way to show it fires.
 
 ### `ScopedClassNames` (helper, not a rule)
 
