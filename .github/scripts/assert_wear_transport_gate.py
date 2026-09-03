@@ -15,12 +15,19 @@ This script is that second layer, and it is deliberately not a detekt rule:
 
 1. No tracked Kotlin or Java source may contain the Data Layer package name at
    all, after the text is canonicalised the way its compiler reads it: Java
-   `\uXXXX` escapes decoded, comments reduced to one separating space, and
-   trivia around the dots of a qualified name collapsed. Text matching, not AST
-   matching, so it also covers the reflective route
-   (`Class.forName("com.google.android.gms.wearable.Wearable")`) that no AST
-   visitor can see. That route needs no build-file edit in `app/wear` or
-   `feature/wear-bridge`, which already declare `play-services-wearable`.
+   `\uXXXX` escapes decoded, comments reduced to one separating space, trivia
+   around the dots of a qualified name collapsed, and adjacent string literals
+   constant-folded. Text matching, not AST matching, so it also covers the
+   reflective route (`Class.forName("com.google.android.gms.wearable.Wearable")`)
+   that no AST visitor can see. That route needs no build-file edit in
+   `app/wear` or `feature/wear-bridge`, which already declare
+   `play-services-wearable`.
+
+   The line this draws is the compiler's own: the gate sees what the compiler can
+   constant-fold. A name assembled at RUNTIME -- from a char array, a decode, a
+   resource -- is invisible to this and to any other static gate, and no pattern
+   list closes that class. Review is the control there, which is what the
+   blocking privacy gate is for in the first place.
 
 2. No tracked source may suppress the gate, by rule id, by rule-set id, by
    detekt's prefixed spellings, or by a blanket `ALL`.
@@ -86,6 +93,19 @@ JAVA_UNICODE_ESCAPE = re.compile(r"\\u+([0-9a-fA-F]{4})")
 SPACES_AROUND_DOT = re.compile(r"[ \t]*\.[ \t]*")
 WHITESPACE_AROUND_DOT = re.compile(r"\s*\.\s*")
 
+# Both compilers fold `"a" + "b"` of two literals into one constant, so the gate folds it too --
+# the same rule as the escapes and the comments: read the source the way the compiler reads it.
+ADJACENT_LITERALS = re.compile(r'"((?:[^"\\\n]|\\.)*)"\s*\+\s*"((?:[^"\\\n]|\\.)*)"')
+
+
+def fold_literals(text: str) -> str:
+    """Constant-folds adjacent string literals, repeatedly, so chains of three or more collapse."""
+    while True:
+        folded = ADJACENT_LITERALS.sub(lambda m: '"' + m.group(1) + m.group(2) + '"', text)
+        if folded == text:
+            return text
+        text = folded
+
 
 def strip_comments(text: str) -> str:
     """Comments become one space -- what a tokenizer does with them.
@@ -139,7 +159,7 @@ def canonical(path: Path, text: str) -> str:
         # javac decodes escapes in step 1 of lexical translation, before it tokenises -- so this
         # runs first, and only for Java. Kotlin has no equivalent source-level pass.
         text = JAVA_UNICODE_ESCAPE.sub(lambda m: chr(int(m.group(1), 16)), text)
-    return strip_comments(text)
+    return fold_literals(strip_comments(text))
 
 
 def tracked_source_files() -> list[Path]:
@@ -246,6 +266,29 @@ def self_test() -> int:
         # A commented-out reference is not a call site. Comments are trivia to the compiler and to
         # this gate alike.
         ("commented-out reference", "// com.google.android.gms.wearable.Wearable\n", 0),
+        # Both compilers fold adjacent literals into one constant before anything sees them.
+        (
+            "split reflective literal",
+            'val c = Class.forName("com.google.android.gms." + "wearable.Wearable")\n',
+            1,
+        ),
+        (
+            "three-way split literal",
+            'val c = Class.forName("com.google." + "android.gms." + "wearable.Wearable")\n',
+            1,
+        ),
+        (
+            "split literal across lines",
+            'val c = Class.forName(\n    "com.google.android.gms."\n        + "wearable.Wearable",\n)\n',
+            1,
+        ),
+        # The documented limit, pinned so it stays a decision rather than an oversight: a name
+        # assembled at RUNTIME is not a constant, and no static gate can see it.
+        (
+            "runtime-assembled name is the documented limit",
+            'val c = Class.forName("com.google.android.gms." + suffix)\n',
+            0,
+        ),
         (
             "reflective load",
             'val c = Class.forName("' + FORBIDDEN_PACKAGE + '.Wearable")\n',

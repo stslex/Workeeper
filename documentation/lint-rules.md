@@ -760,17 +760,28 @@ tracked `.java` call site is invisible to *both* detekt layers, and AGP compiles
 variants.
 
 Text matching over source loses to lexical trivia unless the text is first canonicalised the way a
-compiler reads it, so the scan does that in three steps and pins each as a self-test case:
+compiler reads it, so the scan does that in four steps and pins each as a self-test case:
 
 | Step | Spelling it defeats | Scope |
 | --- | --- | --- |
 | Decode `\uXXXX` | `we\u0061rable` — javac decodes escapes in step 1 of lexical translation, anywhere including inside identifiers | Java only; Kotlin has no equivalent pass, and the Kotlin negative is pinned so the decode is not "simplified" to both |
 | Comments become one separating space | `com./*gap*/google.android.gms.wearable` | Both. One space, not nothing: `a/*x*/b` is two tokens and must not be joined |
 | Trivia around a qualified name's dots collapses | `com. google…`, and the same name split across lines | Both. The cross-line pass reports the file rather than a line, since collapsing newlines would move every line number after it |
+| Adjacent string literals constant-fold | `Class.forName("com.google.android.gms." + "wearable.Wearable")` | Both, repeatedly, so chains of three or more collapse |
 
 String and character literals are walked rather than skipped, so a `//` inside a URL literal does
 not eat the rest of its line — also pinned. A commented-out reference is not a call site and is not
-reported. `lint-rules/` is its one exemption, because
+reported.
+
+**Where this stops, and why it stops there.** The line is the compiler's own: the gate sees what the
+compiler can constant-fold. A name assembled at *runtime* — from a char array, a decode, a resource
+— is not a constant, is invisible to this gate and to any other static one, and no list of patterns
+closes that class; the remedy usually proposed for it, scanning compiled output, would have to read
+R8'd DEX from variant-specific intermediate paths and still would not see a runtime-assembled name.
+That case is pinned as an expected-zero self-test so the limit stays a recorded decision rather than
+a gap someone rediscovers. Code review is the control there, which is what a *blocking* privacy gate
+means: the gate makes the introduction visible and reviewable, it does not defend against a
+committer who is deliberately hiding one. `lint-rules/` is its one exemption, because
 the rule names the package it bans and its fixtures spell out the violations it must catch. The
 script carries a `--self-test` that exercises both anchors, and CI runs that first: a gate with
 nothing to find on a clean tree has no other way to show it fires.
