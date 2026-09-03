@@ -160,6 +160,24 @@ def outside_literals(text: str, transform) -> str:
     return "".join(pieces)
 
 
+def reduce_constants(text: str) -> str:
+    """Alternates folding and substitution until neither changes anything.
+
+    Both directions feed each other, which is why one pass of each is not enough: folding turns
+    `PREFIX = "com.google." + "android.gms."` into a single-literal declaration the table can read,
+    and substitution turns `PREFIX + SUFFIX` into two adjacent literals that fold. Running them
+    once, in either order, truncates one of the two.
+    """
+    for _ in range(MAX_CONSTANT_ROUNDS):
+        reduced = substitute_constants(fold_literals(text))
+        if reduced == text:
+            return text
+        text = reduced
+    raise ConstantResolutionExhausted(
+        f"constant reduction did not settle in {MAX_CONSTANT_ROUNDS} rounds"
+    )
+
+
 def substitute_constants(text: str) -> str:
     """Inlines same-file constant variables, which is what both compilers do before folding.
 
@@ -220,6 +238,22 @@ def _decoded_char(value: int) -> str | None:
 
 
 JAVA_OCTAL_DIGITS = re.compile(r"[0-3]?[0-7]{1,2}")
+
+
+def strip_java_text_block_indent(body: str) -> str:
+    """JLS 3.10.6: incidental whitespace comes off BEFORE escapes are interpreted.
+
+    Order matters and is the whole point: an indented line continuation only joins its lines once
+    the indentation is gone, so decoding first leaves the spaces in the middle of the name.
+    """
+    lines = body.split("\n")
+    significant = [line for line in lines[:-1] if line.strip()]
+    # The closing delimiter's own line always participates, blank or not.
+    significant.append(lines[-1])
+    if not significant:
+        return body
+    indent = min(len(line) - len(line.lstrip()) for line in significant)
+    return "\n".join(line[indent:].rstrip() if line.strip() else "" for line in lines)
 
 
 def decode_string_escapes(literal: str, is_java: bool, is_text_block: bool = False) -> str:
@@ -292,6 +326,7 @@ def strip_comments(text: str, is_java: bool = False) -> str:
             if is_java:
                 # JLS: the line terminator right after the opening delimiter is not content.
                 block = JAVA_TEXT_BLOCK_OPENING.sub('"""', block, count=1)
+                block = '"""' + strip_java_text_block_indent(block[3:-3]) + '"""'
                 block = decode_string_escapes(block, is_java, is_text_block=True)
             out.append(block)
             index = close
@@ -329,7 +364,7 @@ def canonical(path: Path, text: str) -> str:
         # javac decodes escapes in step 1 of lexical translation, before it tokenises -- so this
         # runs first, and only for Java. Kotlin has no equivalent source-level pass.
         text = JAVA_UNICODE_ESCAPE.sub(lambda m: chr(int(m.group(1), 16)), text)
-    return fold_literals(substitute_constants(strip_comments(text, is_java=path.suffix == ".java")))
+    return reduce_constants(strip_comments(text, is_java=path.suffix == ".java"))
 
 
 def tracked_source_files() -> list[Path]:
@@ -574,6 +609,27 @@ def self_test() -> int:
             "escaped backslash is not a continuation",
             'Class.forName("""\ncom.google.android.gms.\\\\\nwearable.Wearable""");\n',
             0,
+        ),
+        # JLS 3.10.6: incidental indentation comes off before escapes, so an indented continuation
+        # joins its lines exactly as an unindented one does.
+        (
+            "java indented text block continuation",
+            'Class.forName("""\n        com.google.android.gms.\\\n        wearable.Wearable""");\n',
+            1,
+        ),
+        # A constant whose initialiser is itself a concatenation must enter the table whole.
+        (
+            "java constant with a folded initialiser",
+            'static final String PREFIX = "com.google." + "android.gms.";\n'
+            'static final String SUFFIX = "wearable.Wearable";\n'
+            'Class.forName(PREFIX + SUFFIX);\n',
+            1,
+        ),
+        (
+            "kotlin constant with a folded initialiser",
+            'const val PREFIX = "com.google." + "android.gms."\n'
+            'val c = Class.forName(PREFIX + "wearable.Wearable")\n',
+            1,
         ),
         # An alias chain deeper than any fixed round count: the fixed point has to be a fixed point.
         (
