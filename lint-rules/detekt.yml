@@ -759,3 +759,9 @@ mvi-architecture:
     active: true
   PagingCollectionRule:
     active: true
+  # The half of the Wear transport privacy gate that ForbiddenImport structurally cannot cover:
+  # it visits import directives, so a fully qualified reference carries no import to reject.
+  # Measured before this rule existed — `:app:wear:detekt` was GREEN on a main source file
+  # containing `com.google.android.gms.wearable.Wearable.getMessageClient(context)`.
+  WearDataLayerApiRule:
+    active: true

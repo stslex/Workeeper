@@ -35,6 +35,7 @@ class MviArchitectureRuleSet : RuleSetProvider {
             ActiveSurfaceSingleReaderRule(config),
             FadeToTransparentRule(config),
             PagingCollectionRule(config),
+            WearDataLayerApiRule(config),
         ),
     )
 }
