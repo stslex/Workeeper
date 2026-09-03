@@ -360,7 +360,9 @@ private fun ValueCards(model: WearSurfaceModel, onEdit: (NumericField) -> Unit) 
 @Composable
 private fun WeightCard(model: WearSurfaceModel, onEdit: (NumericField) -> Unit, modifier: Modifier = Modifier) {
     ValueCard(
-        header = stringResource(R.string.weight_label),
+        // Unit-bearing header per §4; the numeral below stays bare (the editor keeps the plain
+        // label because its value is rendered through weight_value, which carries the unit).
+        header = stringResource(R.string.weight_label_unit),
         value = model.weightHundredthsKg?.let(::formatWeight)
             ?: stringResource(R.string.weight_unset),
         enabled = model.controlsEnabled,
