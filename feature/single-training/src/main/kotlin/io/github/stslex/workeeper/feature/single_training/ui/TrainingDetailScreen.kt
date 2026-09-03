@@ -34,6 +34,8 @@ import io.github.stslex.workeeper.core.ui.kit.components.section.AppSectionHeade
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppIconButton
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopBar
 import io.github.stslex.workeeper.core.ui.kit.icons.AppIcons
+import io.github.stslex.workeeper.core.ui.kit.resources.Res
+import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_action_back
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
@@ -49,25 +51,11 @@ import io.github.stslex.workeeper.feature.single_training.ui.components.Training
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
-import io.github.stslex.workeeper.core.ui.kit.R as KitR
+import org.jetbrains.compose.resources.stringResource
 
 /**
- * `v3-editors.md` §3.3's frame, in its order:
- *
- *     topbar  ‹ · h1.sm name · ⋮
- *     meta    tags, one line
- *     head    УПРАЖНЕНИЯ                3
- *     cards   collapsed cards: .ord + glyph + title + .plan-line + .chev   (ED9)
- *     head    ОПИСАНИЕ                                                     (D-OPEN-9, amended)
- *             description, absent when blank
- *     head    ИСТОРИЯ                   2 СЕССИИ
- *     list    ruled rows
- *     dock    Изменить (128dp) · Начать сессию | Продолжить сессию         (ED10)
- *
- * Two forms on one screen, on purpose (ED9): exercises are CARDS, history is a RULED LIST.
- * An exercise is a thing with contents; a session is an event — and two lists of identical
- * rows merge visually no matter how much air sits between them, which is the defect this
- * screen replaces.
+ * The training read screen — see `v3-editors.md` §3.3 for the frame. Exercises are cards and
+ * history is a ruled list, deliberately two forms (ED9).
  */
 @Composable
 internal fun TrainingDetailScreen(
@@ -86,11 +74,7 @@ internal fun TrainingDetailScreen(
     }
 }
 
-/**
- * `.topbar` (extraction §1.2 applied to §3.3's frame): back chevron · the training name at
- * `h1.sm` · the `⋮` opening the Store-homed detail-menu sheet. ED10 moved `Изменить` out of
- * that menu and into the dock; the menu keeps «В архив» and «Удалить навсегда».
- */
+/** `.topbar`: back chevron · name at `h1.sm` · `⋮` opening the detail-menu sheet (ED10). */
 @Composable
 private fun TopBar(
     state: State,
@@ -104,7 +88,7 @@ private fun TopBar(
             AppIconButton(
                 modifier = Modifier.testTag("TrainingDetailBackButton"),
                 icon = AppIcons.ChevronLeft,
-                contentDescription = stringResource(KitR.string.core_ui_kit_action_back),
+                contentDescription = stringResource(Res.string.core_ui_kit_action_back),
                 onClick = { consume(Action.Click.OnBackClick) },
             )
         },
@@ -129,8 +113,7 @@ private fun Body(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                // Content scrolls out UNDER the dock; the clearance keeps the last block
-                // reachable above it.
+                // Content scrolls under the dock; the clearance keeps the last block reachable.
                 .padding(bottom = DOCK_CLEARANCE),
         ) {
             TagMetaLine(tags = state.tags.map { it.name })
@@ -164,10 +147,7 @@ private fun InGutter(
     }
 }
 
-/**
- * §3.3's `meta` line — the tags, on ONE mono line, exactly as the exercise read screen draws
- * its own (§3.1): chips belong to pickers, a meta line is a statement.
- */
+/** §3.3's `meta` line — tags on one mono line; chips belong to pickers. */
 @Composable
 private fun TagMetaLine(tags: List<String>) {
     if (tags.isEmpty()) return
@@ -186,11 +166,7 @@ private fun TagMetaLine(tags: List<String>) {
 /** `.meta`'s own separator — the middle dot with air either side, as every meta line draws it. */
 private const val META_SEPARATOR = " · "
 
-/**
- * §3.3 — `УПРАЖНЕНИЯ` with the bare count as its trailing label, over the collapsed cards
- * (ED9): the same form S4 shipped in the editor, minus the drag handle and `✕`, plus the
- * chevron — consumed from `TrainingExerciseCard.kt`, not rebuilt.
- */
+/** §3.3 — `УПРАЖНЕНИЯ` with its count, over the collapsed read cards (ED9). */
 @Composable
 private fun ExercisesSection(
     state: State,
@@ -220,13 +196,7 @@ private fun ExercisesSection(
     }
 }
 
-/**
- * §3.3 (as amended) — `ОПИСАНИЕ` between the cards and `ИСТОРИЯ`, the same slot the exercise
- * read screen gives it: D-OPEN-9's ruling is per-object, not per-screen — a description that
- * can be typed and never read is a field with no reader, wherever the field lives. The form
- * is the exercise block's own read-mode text half, description-only: a training has no image,
- * so the block reduces to its text. A section with nothing in it does not render.
- */
+/** §3.3 — `ОПИСАНИЕ` between the cards and `ИСТОРИЯ` (D-OPEN-9); blank does not render. */
 @Composable
 private fun DescriptionSection(description: String) {
     if (description.isBlank()) return
@@ -250,13 +220,8 @@ private fun DescriptionSection(description: String) {
 }
 
 /**
- * §3.3 — the История section: head with the session count as its trailing label, then a
- * full-bleed `.list` ruled ABOVE the first row and BELOW every row — the exercise read
- * screen's own treatment (§3.5), deliberately N+1 rules (extraction C5; reported, not
- * resolved). ED9's second form: a ruled list, against the cards above it.
- *
- * **A section with nothing in it does not render** (S8): zero sessions is nothing to list,
- * so the head goes with the rows — the exercise read screen's own rule, per object.
+ * §3.3 — `ИСТОРИЯ` over a full-bleed ruled list, deliberately N+1 rules (extraction C5).
+ * A section with nothing in it does not render (S8), so the head goes with the rows.
  */
 @Composable
 private fun HistorySection(
@@ -304,9 +269,8 @@ private fun HistoryRule() {
 }
 
 /**
- * `.dock` (§3.3, ED10): ghost `Изменить` at a fixed 128dp beside the primary session button
- * taking the rest — «Продолжить сессию» when the globally active session belongs to THIS
- * training, «Начать сессию» otherwise. Same gradient scrim as the exercise read screen's dock.
+ * `.dock` (§3.3, ED10): ghost `Изменить` beside the primary session button, which resumes
+ * when the globally active session belongs to this training.
  */
 @Composable
 private fun Dock(

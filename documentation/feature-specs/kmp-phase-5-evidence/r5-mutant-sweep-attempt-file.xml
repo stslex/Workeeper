@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.stslex.workeeper.core.data.database.snapshot.RestoreRecoveryFilesImplTest" tests="1" skipped="0" failures="1" errors="0" timestamp="2026-08-25T09:43:43.278Z" hostname="stslexs-MacBook-Pro.local" time="1.927">
+  <properties/>
+  <testcase name="owner-aware sweep preserves attempts pointer and pending terminal assets()" classname="io.github.stslex.workeeper.core.data.database.snapshot.RestoreRecoveryFilesImplTest" time="1.922">
+    <failure message="org.opentest4j.AssertionFailedError: expected: not &lt;null&gt;" type="org.opentest4j.AssertionFailedError">org.opentest4j.AssertionFailedError: expected: not &lt;null&gt;
+	at org.junit.jupiter.api.Assertions.assertNotNull(Assertions.java:336)
+	at io.github.stslex.workeeper.core.data.database.snapshot.RestoreRecoveryFilesImplTest$owner-aware sweep preserves attempts pointer and pending terminal assets$1.invokeSuspend(RestoreRecoveryFilesImplTest.kt:404)
+	at io.github.stslex.workeeper.core.data.database.snapshot.RestoreRecoveryFilesImplTest$owner-aware sweep preserves attempts pointer and pending terminal assets$1.invoke(RestoreRecoveryFilesImplTest.kt)
+	at io.github.stslex.workeeper.core.data.database.snapshot.RestoreRecoveryFilesImplTest$owner-aware sweep preserves attempts pointer and pending terminal assets$1.invoke(RestoreRecoveryFilesImplTest.kt)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt$runTest$2$1$1.invokeSuspend(TestBuilders.kt:317)
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)
+	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:100)
+	at kotlinx.coroutines.test.TestDispatcher.processEvent$kotlinx_coroutines_test(TestDispatcher.kt:24)
+	at kotlinx.coroutines.test.TestCoroutineScheduler.tryRunNextTaskUnless$kotlinx_coroutines_test(TestCoroutineScheduler.kt:98)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt$runTest$2$1$workRunner$1.invokeSuspend(TestBuilders.kt:326)
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)
+	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:100)
+	at kotlinx.coroutines.EventLoopImplBase.processNextEvent(EventLoop.common.kt:256)
+	at kotlinx.coroutines.BlockingCoroutine.joinBlocking(Builders.kt:54)
+	at kotlinx.coroutines.BuildersKt__BuildersKt.runBlockingImpl(Builders.kt:30)
+	at kotlinx.coroutines.BuildersKt.runBlockingImpl(Unknown Source)
+	at kotlinx.coroutines.BuildersKt__Builders_concurrentKt.runBlockingK(Builders.concurrent.kt:172)
+	at kotlinx.coroutines.BuildersKt.runBlockingK(Unknown Source)
+	at kotlinx.coroutines.BuildersKt__Builders_concurrentKt.runBlockingK$default(Builders.concurrent.kt:157)
+	at kotlinx.coroutines.BuildersKt.runBlockingK$default(Unknown Source)
+	at kotlinx.coroutines.test.TestBuildersJvmKt.createTestResult(TestBuildersJvm.kt:10)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:309)
+	at kotlinx.coroutines.test.TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:1)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:167)
+	at kotlinx.coroutines.test.TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:1)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt.runTest-8Mi8wO0$default(TestBuilders.kt:159)
+	at kotlinx.coroutines.test.TestBuildersKt.runTest-8Mi8wO0$default(TestBuilders.kt:1)
+	at io.github.stslex.workeeper.core.data.database.snapshot.RestoreRecoveryFilesImplTest.owner-aware sweep preserves attempts pointer and pending terminal assets(RestoreRecoveryFilesImplTest.kt:370)
+</failure>
+  </testcase>
+</testsuite>

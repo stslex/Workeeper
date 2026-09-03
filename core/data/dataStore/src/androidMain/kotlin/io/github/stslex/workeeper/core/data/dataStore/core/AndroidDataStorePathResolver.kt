@@ -11,18 +11,8 @@ import okio.Path
 import okio.Path.Companion.toOkioPath
 
 /**
- * Android's [DataStorePathResolver]: the same `Context.preferencesDataStoreFile(name)` every store
- * in this repo resolved through before the KMP split.
- *
- * **Calling that extension is the point, not a convenience.** The path it produces —
- * `File(applicationContext.filesDir, "datastore/$name.preferences_pb")`, read from the
- * `datastore` 1.2.1 sources — is where every existing installation's data already sits. Rebuilding
- * it from `filesDir` and a string here would be a second, independently-drifting definition of a
- * storage location, and the first typo would orphan user data with no compile error and no crash.
- * Delegating keeps one definition, owned by the library.
- *
- * `Context` is a PLAIN, unqualified param: Metro constructs this and resolves `Context` from the app
- * graph's `create(applicationContext)` bound instance, which carries no qualifier.
+ * Android's [DataStorePathResolver]. Delegates to `Context.preferencesDataStoreFile(name)` so the
+ * library keeps the single definition of where an existing installation's data already sits.
  */
 @ContributesBinding(AppScope::class)
 @SingleIn(AppScope::class)

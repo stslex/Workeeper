@@ -17,55 +17,9 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * Nav3 migration, stage 1.1: a destination that produces a result hands it back, and the screen
- * that opened it acts on it.
- *
- * Both result flows in the app are covered — the two that stage 1.2 rewrote end to end:
- *
- *  - `Screen.PlanEditor` → `Boolean`, consumed by `LiveWorkout`.
- *  - `Screen.ExerciseImage` → a request name, consumed by `Exercise`.
- *
- * ## Why this class asserts what it asserts
- *
- * **Every assertion here is a user-visible effect, and none of them names the transport.** That is
- * not stylistic. `AppCoroutineScopeImpl.launch(flow, …)` applies `.catch { onError(it) }`, so a
- * flow error inside an MVI Store is swallowed: if a result stops arriving, nothing throws, no
- * crash is reported, and the screen quietly holds the state it already had. A test written around
- * "the navigation completed" or "no exception was raised" passes in exactly that case.
- *
- * So each test drives the app to a state where the *absence* of the result is visible, performs
- * the action that produces it, and asserts the screen changed:
- *
- *  - the plan editor: an inline-created exercise has no plan, so its card reads "no plan". After a
- *    plan is saved the card must read the plan instead.
- *  - the image viewer: Replace opens the source sheet, while Remove turns the thumbnail into the
- *    add-photo entry point. If either request is lost, its visible effect never appears.
- *
- * ## Load-bearing limitation: only one half discriminates
- *
- * **[imageReplaceRequestReachesTheExerciseThatOpenedTheViewer] is a true regression test** for the
- * whole chain — produced, transported, resolved from name to verb, dispatched. Remove the
- * handler's dispatch and it fails on its observable assertion, and on nothing else.
- *
- * **[planEditorSaveReachesTheLiveSessionThatOpenedIt] is not.** It passes whether or not the
- * result reaches the Store: the session comes back showing the new plan either way, because
- * something other than the result re-runs the one-shot `loadSession` on return. So it is honest
- * regression cover for a user-visible outcome — save a plan, the session shows it — and is **not**
- * evidence that the result transport works.
- *
- * Do not cite it as such, and do not let its green mask a broken `Screen.PlanEditor` result flow:
- * nothing in this suite would catch that today. Why the screen recovers, and what should pin it,
- * are open in `documentation/tech-debt.md`.
- *
- * ## What this class does NOT do
- *
- * It never constructs a `Screen`, never reads a result, and never names `SavedStateHandle`,
- * `NavResults` or `ScreenWithResult`. It reaches the app through the semantics tree and Room, the
- * same two channels as the rest of the suite, so the transport underneath can be replaced without
- * touching it.
- *
- * @see NavPaths for the journeys, and for why arrival waits on an explicit timeout.
- * @see NavSeed for the rows, and for the two schema rules a call site cannot see.
+ * Nav3 stage 1.1: a destination that produces a result hands it back and the opener acts on it.
+ * Every assertion is a user-visible effect, never the transport, because a Store's flow errors are
+ * swallowed. See documentation/tech-debt.md.
  */
 @OptIn(ExperimentalUuidApi::class)
 @Regression
@@ -88,17 +42,8 @@ internal class NavigationResultTest {
     }
 
     /**
-     * `Screen.PlanEditor` → `Boolean` → `LiveWorkout` reloads.
-     *
-     * Seed-free, on the app's only plan-editor-result journey:
-     * Home → blank session → add an exercise inline → its kebab → Edit plan → add a set → Save.
-     *
-     * The card's sub-label is the instrument. An inline-created exercise is not plan-attached, so
-     * `toStatusLabel` reports the no-plan string; once a plan exists the same label renders the
-     * plan summary. Asserting "the text changed away from no-plan" rather than pinning the exact
-     * summary keeps this from breaking when the summary's formatting is tuned — the summary's
-     * shape is `LiveWorkoutMapper`'s business and has its own unit tests, whereas what is at risk
-     * here is only whether the reload happened at all.
+     * `Screen.PlanEditor` → `Boolean` → `LiveWorkout` reloads, seed-free. Green here is not
+     * evidence that the result transport works; see documentation/tech-debt.md.
      */
     @Test
     fun planEditorSaveReachesTheLiveSessionThatOpenedIt() {
@@ -109,8 +54,7 @@ internal class NavigationResultTest {
 
         paths.addInlineExerciseToSession(INLINE_EXERCISE_NAME)
 
-        // The "before" half. Without it a green run proves nothing: if the card read the plan
-        // already, the assertion after the save would hold whether or not the result arrived.
+        // The "before" half: without it the post-save assertion would hold either way.
         val subTag = paths.tagStartingWith(LIVE_EXERCISE_CARD_SUB_PREFIX, useUnmergedTree = true)
         paths.assertUnmergedText(subTag, NO_PLAN_LABEL)
 
@@ -122,22 +66,13 @@ internal class NavigationResultTest {
 
         paths.awaitTag(LIVE_WORKOUT_GRAPH)
 
-        // The result landed, the Store reloaded, and the session on screen shows the new plan.
         // A swallowed failure leaves this reading NO_PLAN_LABEL.
         paths.awaitTextChangedFrom(subTag, NO_PLAN_LABEL)
     }
 
     /**
-     * `Screen.ExerciseImage` → request name → `Exercise` acts on it.
-     *
-     * Needs a seeded image: the viewer is only reachable from an exercise that has one, and its
-     * two verbs are only offered when the caller said it can honour them — `editable` is
-     * `mode is Mode.Edit`, so the journey goes through the edit screen rather than the detail one.
-     *
-     * `Replace` is the verb under test because its effect is unambiguous and immediate: the
-     * exercise screen owns the picker machinery, so honouring the request means the image-source
-     * sheet appears. Nothing else in this journey opens that sheet, so its presence is entirely
-     * attributable to the result arriving.
+     * `Screen.ExerciseImage` → request name → `Exercise` acts on it. Needs a seeded image and goes
+     * through edit mode, since the viewer's verbs are only offered when the caller is `editable`.
      */
     @Test
     fun imageReplaceRequestReachesTheExerciseThatOpenedTheViewer() {
@@ -163,8 +98,7 @@ internal class NavigationResultTest {
 
         paths.awaitTag(EXERCISE_GRAPH)
 
-        // The request landed and the editor acted on it. If it did not, the screen returns to the
-        // edit form with no sheet and this times out.
+        // Nothing else in this journey opens the sheet, so it is attributable to the request.
         paths.awaitTag(EXERCISE_IMAGE_SOURCE_SHEET)
         composeRule.onNodeWithTag(EXERCISE_IMAGE_SOURCE_SHEET).assertIsDisplayed()
     }
@@ -210,13 +144,7 @@ internal class NavigationResultTest {
         const val LIVE_EXERCISE_CARD_SUB_PREFIX = "LiveExerciseCardSub_"
 
         const val EXERCISE_EDIT_BUTTON = "ExerciseEditButton"
-        /**
-         * Edit mode's marker, and NOT `ExerciseEditScreen` — that tag never reaches the tree.
-         * Both mode branches receive the graph's `modifier`, which already carries
-         * `.testTag("ExerciseGraph")`, and a second `testTag` on the same chain overwrites rather
-         * than adds. Measured from a semantics dump: in edit mode the tree carries `ExerciseGraph`
-         * plus the action bar's own tag, and no `ExerciseEditScreen`.
-         */
+        /** Edit mode's marker: an `ExerciseEditScreen` tag never reaches the tree. */
         const val EXERCISE_EDIT_ACTION_BAR = "ExerciseEditActionBar"
         const val EXERCISE_DESCRIPTION_IMAGE = "ExerciseDescriptionImage"
         const val IMAGE_VIEWER_MENU_BUTTON = "ImageViewerMenuButton"
@@ -225,13 +153,8 @@ internal class NavigationResultTest {
         const val EXERCISE_IMAGE_SOURCE_SHEET = "ExerciseImageSourceSheet"
 
         /**
-         * `R.string.feature_live_workout_status_no_plan`, inlined.
-         *
-         * The androidTest source set cannot see a feature module's `R`, and adding that dependency
-         * to reach one string would give this suite a compile-time edge into a feature it is
-         * otherwise independent of. The cost of inlining is that renaming the string silently
-         * turns the "before" assertion into a comparison against a stale literal — which fails
-         * loudly here rather than passing quietly, so the failure mode is the safe one.
+         * `R.string.feature_live_workout_status_no_plan`, inlined — androidTest cannot see a
+         * feature module's `R`. Renaming the string fails this loudly, not quietly.
          */
         const val NO_PLAN_LABEL = "no plan"
 

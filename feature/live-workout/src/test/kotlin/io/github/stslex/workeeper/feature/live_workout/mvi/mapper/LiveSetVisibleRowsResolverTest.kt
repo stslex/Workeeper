@@ -88,8 +88,6 @@ internal class LiveSetVisibleRowsResolverTest {
 
     @Test
     fun `fallback empty row is used when no source covers the requested position`() {
-        // Plan size = 1, performed empty, draft at position 1 (beyond plan). Position 0
-        // has nothing → fallback.
         val exercise = exercise(
             plan = persistentListOf(
                 PlanSetUiModel(weight = 100.0, reps = 5, type = SetTypeUiModel.WORK),
@@ -100,7 +98,6 @@ internal class LiveSetVisibleRowsResolverTest {
 
         val rows = resolveVisibleRows(exercise, drafts)
 
-        // Two rows: position 0 from plan, position 1 from draft.
         assertEquals(2, rows.size)
         assertEquals(100.0, rows[0].weight)
         assertEquals(50.0, rows[1].weight)
@@ -110,8 +107,6 @@ internal class LiveSetVisibleRowsResolverTest {
 
     @Test
     fun `fallback used when neither plan nor performed nor draft covers a position`() {
-        // Empty plan, empty performed, draft only at position 2 → positions 0 and 1
-        // resolve to fallback rows.
         val exercise = exercise(plan = persistentListOf(), performed = persistentListOf())
         val drafts = draftMap(2 to LiveSetUiModel(2, 60.0, 4, SetTypeUiModel.DROP, isDone = false))
 

@@ -25,29 +25,8 @@ import tech.apter.junit.jupiter.robolectric.RobolectricExtension
 import kotlin.uuid.Uuid
 
 /**
- * One fixture, every PR site, one answer.
- *
- * `PrComparator`'s KDoc used to claim a test like this existed. It did not, and that is the
- * direct reason the batch query and the single-exercise query were allowed to disagree about
- * weightless exercises for as long as they did. This is the guard that was being claimed.
- *
- * Each scenario in [PrRuleFixture] is run through:
- *
- *  - **S1** `SessionDao.getPersonalRecord` — one-shot single-exercise query
- *  - **S2** `SessionDao.observePersonalRecord` — reactive single-exercise query
- *  - **S3** `SessionDao.observePersonalRecordsBatch`, through
- *    `PersonalRecordRepositoryImpl.observePersonalRecordsBatch` and `observePrSetUuids` —
- *    the repository is what turns candidate rows into a holder, so it is part of the site
- *  - **S4** `PrComparator.bestOf` — the in-memory arm
- *
- * `ChartFolder`'s day-winner is the fifth site. It lives in `feature/exercise-chart`, which
- * has no database on its test classpath, so it is held to the same [PrRuleFixture] scenarios
- * by `ChartFolderPrRuleParityTest` over there.
- *
- * S4 is asserted in two phases, because the SQL sites cannot see an unfinished session — which
- * is the whole reason `PrComparator` exists. Sessions are seeded IN_PROGRESS; the SQL sites
- * must return nothing while `PrComparator` already names the holder; then the sessions are
- * finished and every SQL site must arrive at that same set.
+ * One [PrRuleFixture] scenario set through all four in-repo PR sites, which must agree.
+ * See documentation/feature-specs/v2.1-pr-tracking.md for the site inventory.
  */
 @ExtendWith(RobolectricExtension::class)
 @Config(application = RepositoryTestEnv.TestApplication::class, sdk = [33])
@@ -101,12 +80,10 @@ internal class PrRuleParityTest {
             "$where — S3 must not award a record from an unfinished session",
         )
 
-        // S4 answers now, from in-memory candidates, and its answer is the one the SQL sites
-        // have to reach once the session lands.
+        // S4 answers now; the SQL sites must reach the same set once the session lands.
         val planSets = scenario.candidates.map { it.toPlanSet() }
         val best = PrComparator.bestOf(planSets, type)
-        // Identity, not equality: the tie scenarios contain candidates that are equal on
-        // (weight, reps), so comparing values would pass whichever one was returned.
+        // GUARD: identity, not equality — tie scenarios hold candidates equal on (weight, reps).
         val bestLabel = planSets
             .indexOfFirst { it === best }
             .takeIf { it >= 0 }
@@ -144,9 +121,7 @@ internal class PrRuleParityTest {
 
     @Test
     fun `a residual weight on a weightless row does not promote it in the batch query`() = runTest {
-        // The regression this change exists for: the batch query used to sort weight-null rows
-        // last and then order by weight DESC, so a weightless exercise's badge landed on
-        // whichever set happened to carry a stray weight rather than on the rep record.
+        // Regression: the batch query once ordered weightless rows by a stray weight, not reps.
         val scenario = PrRuleFixture.WEIGHTLESS_WITH_RESIDUAL_WEIGHTS
         val seeded = seeder.seed(scenario, state = SessionStateEntity.FINISHED)
 

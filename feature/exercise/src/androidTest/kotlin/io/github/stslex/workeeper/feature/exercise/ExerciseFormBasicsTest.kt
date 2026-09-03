@@ -22,20 +22,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * F-02 — the create-form interaction wiring: Save is always enabled, and tapping it dispatches
- * [Action.Click.OnSaveClick].
- *
- * App-Scope Collapse Step 6 (Phase 3.4): de-Hilt'd. The former version booted a real Hilt graph +
- * in-memory `AppDatabase` (via the deleted `TestDatabaseModule`) inside `TestActivity` and asserted the
- * row landed in `exercise_table`. Post-cut the feature graph resolves its app-scope deps through the
- * `appDeps<T>()` acquisition seam (backed by the app graph, only reachable from `:app:app`), and the
- * exercise repositories have `internal` constructors — so a real end-to-end DB round-trip is not
- * constructible in this module. Following the
- * established feature-UI-test idiom (F1 — direct screen render with an `ActionCapture`, cf.
- * [io.github.stslex.workeeper.feature.settings.SettingsScreenTest] and the sibling [ExerciseScreenTest]),
- * this verifies the form's action wiring; the DB half of F-02 (type → Save → row in `exercise_table`)
- * was relocated to `app/app/src/androidTest/.../app/ExerciseCreatePersistenceTest.kt`, which drives the
- * real feature graph over `MetroTestRule`'s in-memory `AppDatabase`.
+ * F-02 — the create-form interaction wiring: Save is always enabled and its tap dispatches
+ * [Action.Click.OnSaveClick]. The DB half lives in `:app`'s `ExerciseCreatePersistenceTest`.
  */
 @Smoke
 @RunWith(AndroidJUnit4::class)
@@ -47,27 +35,17 @@ class ExerciseFormBasicsTest : BaseComposeTest() {
     private fun createState(name: String = ""): State =
         State.create(uuid = null).copy(isLoading = false, name = name)
 
-    /**
-     * **The UI half of §26 "Save is never disabled", asserted on both sides of the name.**
-     *
-     * Save is enabled with an empty name and the tap dispatches [Action.Click.OnSaveClick], which
-     * is what makes the handler's blank-name branch reachable at all: gate the button on
-     * `name.isNotBlank()` and that branch — and the two `ClickHandlerTest` cases that assert it —
-     * certify a state production cannot enter (B23's shape). Typing a name changes neither, so the
-     * assertion is about the absence of a predicate rather than about one value of it.
-     */
+    /** The UI half of §26 "Save is never disabled", asserted on both sides of the name. */
     @Test
     fun f02_saveIsEnabledWithAnEmptyName_soTheBlankNameErrorIsReachable() {
         val capture = createActionCapture<Action>()
-        // In production the Store folds Action.Input.OnNameChange back into State; here the test plays
-        // that role, so the empty → non-empty transition is a real transition rather than one frozen
-        // frame — which is what makes "enabled on both sides of it" an assertion and not a coincidence.
+        // The test plays the Store's role, so empty → non-empty is a real transition.
         var state by mutableStateOf(createState())
 
         composeTestRule.setContent {
             AppTheme(themeMode = ThemeMode.LIGHT) {
-                // ExerciseEditScreen reads from `LocalAppColors` (AppUi.colors), so the mount lives inside
-                // `AppTheme` exactly like the production hierarchy — the same wrap `ExerciseScreenTest` uses.
+                // The screen reads `LocalAppColors`, so the mount lives inside `AppTheme` as in
+                // production.
                 ExerciseEditScreen(
                     state = state,
                     consume = { action ->
@@ -80,8 +58,7 @@ class ExerciseFormBasicsTest : BaseComposeTest() {
             }
         }
 
-        // Empty name → Save ENABLED, and the tap goes through. This is the reachability the
-        // handler's blank-name branch depends on.
+        // Empty name → Save ENABLED, and the tap goes through.
         composeTestRule
             .onNodeWithTag("ExerciseEditSaveButton")
             .assertIsEnabled()
@@ -109,8 +86,7 @@ class ExerciseFormBasicsTest : BaseComposeTest() {
 
         composeTestRule.setContent {
             AppTheme(themeMode = ThemeMode.LIGHT) {
-                // A non-blank name makes the button enabled without depending on the input round-trip
-                // (the Store would normally fold OnNameChange back into state; here the screen is stateless).
+                // A non-blank name enables the button without the input round-trip.
                 ExerciseEditScreen(state = createState(name = "Bench Press"), consume = capture)
             }
         }

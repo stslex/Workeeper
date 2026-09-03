@@ -17,29 +17,11 @@ interface HomeStore : Store<HomeStore.State, HomeStore.Action, HomeStore.Event> 
         val activeSession: ActiveSessionInfo?,
 
         /**
-         * The start card's selected readout mode — **null until DataStore's first emission**,
-         * and null renders no head label at all.
-         *
-         * Not seeded with WEEK. The mode is persisted (HS6), so a cold start does not know it
-         * yet, and a seed is not a default: it is an announcement, in the most prominent
-         * element of the screen, of a mode the user may never have chosen — on every launch,
-         * not in some narrow window. It is also indistinguishable from a real reading of WEEK,
-         * which is what makes it worse than an empty head.
-         *
-         * **HS3's default is not lost with the seed, because it never lived here.** It is
-         * `CommonDataStoreImpl.DEFAULT_START_CARD_MODE` — the fallback the preference is READ
-         * with — so a user who has never chosen still gets «Неделя», as the answer to "what is
-         * persisted" rather than as a guess made while that question was still outstanding.
-         *
-         * It lands with [startCardBody] in one `copy` (see `CommonHandler.observeStartCard`),
-         * so head and readout are never a frame apart.
+         * The start card's readout mode — null until DataStore's first emission, and a null
+         * renders no head label. HS3's «Неделя» default is the DataStore read's fallback.
          */
         val startCardMode: StartCardModeUi?,
-        /**
-         * The start card's readout, null until its flow's first emission. Not a second
-         * loading discriminator: the card itself is gated by [showStartCta], and a null
-         * body renders the shell without a reading for the frames before Room answers.
-         */
+        /** The start card's readout, null until its flow's first emission. */
         val startCardBody: StartCardBodyUi?,
         val pagingUiState: PagingUiState<PagingData<RecentSessionItem>>,
         val nowMillis: Long,
@@ -61,13 +43,7 @@ interface HomeStore : Store<HomeStore.State, HomeStore.Action, HomeStore.Event> 
             fun elapsedMillis(now: Long): Long = (now - startedAt).coerceAtLeast(0L)
         }
 
-        /**
-         * Pending Active session conflict awaiting user choice. The Home picker tap routes
-         * here when a different training already has an in-progress session; carrying this
-         * in State (instead of as event-only data) keeps the modal stable across config
-         * changes. `requestedTrainingUuid` lets Delete & start new resume the original
-         * Start CTA flow after the active session is gone.
-         */
+        /** A pending active-session conflict, in State so the modal survives config changes. */
         @Stable
         data class ConflictInfo(
             val activeSessionUuid: String,
@@ -77,14 +53,8 @@ interface HomeStore : Store<HomeStore.State, HomeStore.Action, HomeStore.Event> 
         )
 
         /**
-         * Whether the ACTIVE-SESSION half of the screen has settled.
-         *
-         * **One-way, and the list's deferral depends on it.** `isActiveLoaded` goes false → true
-         * once and never back, so the `if (isLoading)` branch in `HomeScreen` can only remove
-         * `HomeBody` *before* a load has begun. Widening this to include the list — it read
-         * `!isActiveLoaded || !isRecentLoaded` once — makes it two-way, and `rememberDeferredSurface`
-         * lives inside `HomeBody`: the minimum hold would then be cancelled by the very state
-         * change it exists to outlive.
+         * Whether the ACTIVE-SESSION half has settled. GUARD: keep it one-way — a term for the
+         * list makes it two-way and cancels the deferred surface's hold inside `HomeBody`.
          */
         val isLoading: Boolean get() = !isActiveLoaded
         val showStartCta: Boolean get() = activeSession == null && !isLoading
@@ -125,26 +95,16 @@ interface HomeStore : Store<HomeStore.State, HomeStore.Action, HomeStore.Event> 
             data object OnSettingsClick : Click
             data class OnRecentSessionClick(val sessionUuid: String) : Click
 
-            /**
-             * The picker route, by itself: the card's `.setbar` «Другая тренировка» (§3.4),
-             * which always opens the picker whatever the mode is. [OnStartActionClick] can
-             * also end here — that is the handler's decision, not this action's meaning.
-             */
+            /** The card's `.setbar` «Другая тренировка» (§3.4): always opens the picker. */
             data object OnStartTrainingClick : Click
 
-            /**
-             * The card's primary button — ONE action for all four modes, carrying nothing.
-             * Which branch it takes is §3.4's rule, decided in `ClickHandler` off the body
-             * in state at click time; the card composable neither knows nor names the modes.
-             */
+            /** The card's primary button; `ClickHandler` picks the branch off the body. */
             data object OnStartActionClick : Click
 
             data class OnPickerTrainingSelected(val trainingUuid: String) : Click
 
-            // v2.3 — first row of the Start workout picker; routes to the blank-init Live
-            // workout flow without a conflict check (the Start CTA is hidden when an
-            // IN_PROGRESS session exists, so the user cannot reach this from a parallel
-            // state).
+            // First row of the Start workout picker; no conflict check because the Start CTA
+            // is hidden while an IN_PROGRESS session exists.
             data object OnStartBlankClick : Click
 
             data object OnPickerSeeAllClick : Click

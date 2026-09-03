@@ -2,13 +2,8 @@
 package io.github.stslex.workeeper.feature.home.domain.model
 
 /**
- * The start card's readout mode (home-start-card.md HS2). Domain-side twin of the shared
- * `StartCardModeUi` catalog — the UI enum lives in `core/ui/start-mode` and cannot cross
- * into this layer (`DomainLayerNoUiRule`); the feature's `mvi/mapper` bridges the two.
- *
- * [value] is the DataStore encoding (HS6). The strings are a persistence contract, pinned
- * by test: renaming an entry without keeping its [value] would silently reset every
- * affected user to the default.
+ * The start card's readout mode (home-start-card.md HS2). GUARD: [value] is the DataStore
+ * encoding — changing one silently resets every affected user to the default.
  */
 enum class StartCardModeDomain(val value: String) {
     WEEK("WEEK"),

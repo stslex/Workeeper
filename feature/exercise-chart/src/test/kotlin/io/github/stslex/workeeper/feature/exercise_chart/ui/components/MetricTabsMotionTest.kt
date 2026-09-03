@@ -10,10 +10,8 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 
 /**
- * The metric indicator's curve — **§10.4 territory, so it is asserted rather than photographed.**
- *
- * `ChartGoldenTest` renders the tabs at rest with the thumb at a stop, which pins the offset and
- * nothing about how it got there. The curve lives strictly between two settled frames.
+ * The metric indicator's curve — §10.4 territory, so it is asserted rather than photographed:
+ * the goldens pin the thumb's resting offsets, not how it got there.
  */
 internal class MetricTabsMotionTest {
 
@@ -23,16 +21,14 @@ internal class MetricTabsMotionTest {
     @DisplayName("the indicator travels on `travel`, and on the scale's own instance")
     fun indicatorUsesTravel() {
         assertSame(motion.travel, metricIndicatorSpec<Dp>(motion).easing)
-        // §26.2 replaced `out` here on a device measurement; repointing back is the regression
-        // this exists to redden, and `assertSame` also rejects a locally rebuilt equal curve.
+        // Repointing back to `out` is the regression this exists to redden.
         assertNotSame(motion.out, metricIndicatorSpec<Dp>(motion).easing)
     }
 
     @Test
     @DisplayName("the duration stays on the scale — only the curve moved")
     fun durationIsUnchanged() {
-        // §26.2 is a curve amendment and nothing else. `base` is what this always ran at, and
-        // pinning it here is what stops the tail being "fixed" a second time by shortening it.
+        // §26.2 is a curve amendment and nothing else; the duration stays on the scale.
         assertEquals(motion.base, metricIndicatorSpec<Dp>(motion).durationMillis)
     }
 }

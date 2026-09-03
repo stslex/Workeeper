@@ -2,7 +2,7 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
 
     <string name="recovery_title">Требуется обновление приложения</string>
-    <string name="recovery_body">Файл с вашими данными создан в версии, которую эта сборка не может прочитать. Ваши данные сохранены на устройстве. Обновите приложение или экспортируйте необработанные данные для резервной копии.</string>
+    <string name="recovery_body">Файл с вашими данными создан в версии, которую эта сборка не может прочитать. Workeeper не открывал его при этом запуске. Обновите приложение или попробуйте экспортировать необработанную копию для восстановления.</string>
     <string name="recovery_update_app">Обновить приложение</string>
     <string name="recovery_export_data">Экспорт данных</string>
     <string name="recovery_report_issue">Сообщить</string>
@@ -10,6 +10,25 @@
     <string name="recovery_export_data_chooser">Поделиться данными</string>
     <string name="recovery_export_diagnostics_chooser" tools:ignore="DuplicateStrings">Поделиться диагностикой</string>
     <string name="recovery_report_title">Ошибка миграции при запуске</string>
+    <string name="recovery_export_data_unavailable">Необработанная копия для восстановления недоступна. Вы всё равно можете сообщить о проблеме или, если восстановление было прервано, проверить возможность продолжения.</string>
+    <string name="recovery_export_data_failed">Не удалось подготовить необработанную копию для отправки. Освободите место и повторите попытку.</string>
+    <string name="recovery_diagnostics_failed">Не удалось подготовить или отправить файл диагностики. Можно повторить попытку, не покидая этот экран.</string>
+
+    <string name="recovery_restore_title">Восстановление прервано</string>
+    <string name="recovery_restore_body">Восстановление из резервной копии было прервано, поэтому Workeeper не может определить, находятся ли на устройстве прежние или восстановленные данные. Можно экспортировать необработанную копию, сообщить о проблеме или проверить текущую базу данных и решить, следует ли продолжить.</string>
+    <string name="recovery_restore_report_title" tools:ignore="DuplicateStrings">Ошибка восстановления</string>
+    <string name="recovery_continue">Проверить и продолжить</string>
+    <string name="recovery_continue_checking">Проверка базы данных…</string>
+    <string name="recovery_continue_confirmation_title">Использовать текущие данные?</string>
+    <string name="recovery_continue_confirmation_body">База данных прошла проверку целостности и версии, но Workeeper по-прежнему не может определить, завершилось ли прерванное восстановление. Продолжив, вы примете данные, которые сейчас находятся на устройстве, а запись о прерванном восстановлении будет удалена. Приложение перезапустится.</string>
+    <string name="recovery_continue_confirmation_confirm">Принять и перезапустить</string>
+    <string name="recovery_continue_confirmation_cancel">Назад</string>
+    <string name="recovery_continue_unavailable">Это прерванное восстановление больше не принадлежит данному экрану. Перезапустите Workeeper и повторите попытку.</string>
+    <string name="recovery_continue_database_missing">Файл текущей базы данных отсутствует. Продолжение недоступно.</string>
+    <string name="recovery_continue_integrity_failed">Текущая база данных не прошла полную проверку целостности. Не продолжайте: сохраните запись о восстановлении и сообщите о проблеме.</string>
+    <string name="recovery_continue_schema_unsupported">Эта версия Workeeper не может безопасно открыть схему базы данных, находящуюся на устройстве.</string>
+    <string name="recovery_continue_check_failed">Не удалось проверить базу данных. При необходимости освободите место, затем повторите попытку или сообщите о проблеме.</string>
+    <string name="recovery_continue_abandon_failed">Не удалось обновить запись о восстановлении, поэтому Workeeper не продолжил запуск. Повторите попытку.</string>
 
     <string name="recovery_restore_failure_share_chooser" tools:ignore="DuplicateStrings">Поделиться диагностикой</string>
     <string name="recovery_restore_failure_report_title" tools:ignore="DuplicateStrings">Ошибка восстановления</string>

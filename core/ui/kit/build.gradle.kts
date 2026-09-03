@@ -1,12 +1,8 @@
 plugins {
-    alias(libs.plugins.convention.composeLibrary)
-    // Metro plugin so the app-scoped impls in this module (ActivityHolderImpl) are contributed to the
-    // app-scope AppGraph via @ContributesBinding(AppScope) — the impl declares its own binding, so
-    // app/app names only the bound interface and never the impl. includeJavax keeps any javax.inject
-    // qualifier readable, matching the app/app + feature-module Metro config.
+    alias(libs.plugins.convention.kmpComposeLibrary)
+    // Contributes this module's app-scoped impls to AppGraph via @ContributesBinding(AppScope).
     alias(libs.plugins.metro)
-    // Visual gate for the v3 redesign. Goldens live in src/test/snapshots/images and are
-    // recorded with `:core:ui:kit:recordPaparazziDebug`, verified with `verifyPaparazziDebug`.
+    // Goldens live in src/androidHostTest/snapshots/images; record with `recordPaparazziDebug`.
     alias(libs.plugins.paparazzi)
 }
 
@@ -16,35 +12,85 @@ metro {
     }
 }
 
+compose.resources {
+    // GUARD: both are load-bearing for the ten modules that read kit strings cross-module —
+    // an internal or default-packaged Res breaks every external `Res.string.*` call site.
+    publicResClass = true
+    packageOfResClass = "io.github.stslex.workeeper.core.ui.kit.resources"
+}
+
+kotlin {
+    sourceSets {
+        commonMain.dependencies {
+            // Supplies the AppScope DI token (commonMain `di` package) for @ContributesBinding(AppScope).
+            implementation(project(":core:core"))
+
+            implementation(libs.coroutines.core)
+            implementation(libs.kotlinx.collections.immutable)
+            implementation(libs.androidx.compose.paging)
+
+            implementation(libs.dev.haze.core)
+            implementation(libs.dev.haze.materials)
+
+            // The KMP compose convention supplies runtime/foundation/material3/ui, but not
+            // Animation — and the kit imports androidx.compose.animation.* directly.
+            implementation(libs.cmp.animation)
+            implementation(libs.cmp.material.icons.core)
+            implementation(libs.cmp.material.icons.extended)
+
+            // GUARD: `api`, not implementation — kit's public `Res.string.*` fields are
+            // `StringResource`, so every cross-module caller compiles against this artifact.
+            api(libs.cmp.components.resources)
+        }
+
+        androidMain.dependencies {
+            // LocalActivity + WindowCompat/View APIs for the retained Android window seams.
+            implementation(libs.androidx.compose.activity)
+            implementation(libs.androidx.core.ktx)
+            // Metro interop: javax.inject.Qualifier must be visible to includeJavax().
+            implementation(libs.javax.inject)
+        }
+
+        iosTest.dependencies {
+            implementation(kotlin("test"))
+            // CMP UI test runner (v2 API) driving the native headless Compose scene.
+            implementation(libs.cmp.ui.test)
+        }
+    }
+}
+
 dependencies {
-    // Supplies the AppScope DI token (commonMain `di` package) for @ContributesBinding(AppScope).
-    implementation(project(":core:core"))
+    // `runComposeUiTest` on the JVM side, so accessibility assertions gate every PR under
+    // `testDebugUnitTest` rather than the dispatch-only instrumented workflow.
+    "androidHostTestImplementation"(libs.androidx.compose.ui.test.junit4)
 
-    implementation(libs.dev.haze.core)
-    implementation(libs.dev.haze.materials)
+    // Shared golden harness, so device config, tolerance and canvas width cannot drift.
+    "androidHostTestImplementation"(project(":core:ui:golden-harness"))
 
-    androidTestImplementation(libs.bundles.android.test)
-    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
-    // Carries the @Smoke / @Regression suite annotations. Without this edge androidx.test
-    // cannot load the class named by ui_tests.yml's `-e annotation` filter and SILENTLY drops
-    // the filter, running this module's whole suite in both the smoke and the regression run.
-    // `:core:ui:test-utils` depends back on this module's main source set; that is not a cycle
-    // (androidTest is a separate compilation), and `:core:ui:mvi` carries the same shape.
-    // Enforced by `verifyInstrumentedSuiteClasspath`.
-    androidTestImplementation(project(":core:ui:test-utils"))
-    debugImplementation(libs.androidx.compose.ui.test.manifest)
+    // GUARD: supplies the ComponentActivity that host-side `runComposeUiTest` launches under
+    // Robolectric — the classic module got it from `debugImplementation`, which AGP-KMP lacks.
+    "androidHostTestImplementation"(libs.androidx.compose.ui.test.manifest)
 
-    // Compose's semantics-tree test surface on the JVM side, so an accessibility assertion runs
-    // under `testDebugUnitTest` and therefore gates every PR. Instrumented tests here could not:
-    // both `connectedDebugAndroidTest` jobs in ui_tests.yml select by the runner's `annotation`
-    // argument, and that workflow is dispatch-only in the first place. Robolectric and the Jupiter
-    // `RobolectricExtension` are already on this configuration from the convention plugin; this
-    // line adds the one missing piece, `runComposeUiTest`. See AccessibilitySemanticsTest.
-    testImplementation(libs.androidx.compose.ui.test.junit4)
+    // Robolectric under JUnit 5 for androidHostTest; androidx-test supplies ApplicationProvider.
+    "androidHostTestImplementation"(libs.robolectric)
+    "androidHostTestImplementation"(libs.robolectric.junit5.extension)
+    "androidHostTestImplementation"(libs.androidx.test)
 
-    // The golden harness, shared with the 12 other golden-holding modules so device config,
-    // tolerance and canvas width cannot drift per module.
-    testImplementation(project(":core:ui:golden-harness"))
+    "androidDeviceTestImplementation"(libs.bundles.android.test)
+    "androidDeviceTestImplementation"(libs.androidx.compose.ui.test.junit4)
+    // GUARD: ui-test-manifest is versionless in the catalog; classic modules resolve it through
+    // the convention's compose BOM, which the KMP convention does not add — so add it here.
+    "androidDeviceTestImplementation"(platform(libs.androidx.compose.bom))
+    "androidDeviceTestImplementation"(libs.androidx.compose.ui.test.manifest)
+    // GUARD: carries the @Smoke / @Regression annotations — without this edge androidx.test
+    // silently drops ui_tests.yml's filter. Enforced by `verifyInstrumentedSuiteClasspath`.
+    "androidDeviceTestImplementation"(project(":core:ui:test-utils"))
+}
+
+// GUARD: the robolectric-junit5 bridge needs launcher interceptors on, or every test dies with
+// "No instrumentation registered". See feature-specs/kmp-phase-3-core-collapse.md.
+tasks.withType<Test>().configureEach {
+    systemProperty("junit.platform.launcher.interceptors.enabled", true)
 }
 
 apply(from = "$rootDir/gradle/golden-gate.gradle.kts")

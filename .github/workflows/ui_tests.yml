@@ -176,10 +176,9 @@ jobs:
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -memory 4096 -partition-size 4096
           disable-animations: true
           emulator-boot-timeout: 900
-          script: |
-            adb logcat > logcat-smoke.txt &
-            ./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.annotation=io.github.stslex.workeeper.core.ui.test.annotations.Smoke -Dorg.gradle.jvmargs=-Xmx3g --max-workers=2 --full-stacktrace --continue
-            adb logcat -d > logcat-smoke-final.txt
+          # The runner executes each physical script line in a fresh shell. Keep status
+          # capture and failure precedence inside one script process.
+          script: bash .github/scripts/run_smoke_ui_tests.sh
 
       - name: Publish Smoke Test Results
         uses: EnricoMi/publish-unit-test-result-action@v2

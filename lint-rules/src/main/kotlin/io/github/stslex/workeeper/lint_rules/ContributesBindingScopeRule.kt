@@ -12,29 +12,8 @@ import org.jetbrains.kotlin.psi.KtAnnotationEntry
 import org.jetbrains.kotlin.psi.KtClass
 
 /**
- * App-Scope Collapse Step 3 false-green guard for Metro `@ContributesBinding`.
- *
- * `@ContributesBinding(scope = KClass<*>)` accepts ANY class as its scope argument — Metro validates
- * nothing at the call site. A binding annotated with the WRONG scope therefore COMPILES GREEN but
- * silently contributes to a different (or nonexistent) graph, so the app-scope `AppGraph`
- * (`@DependencyGraph(scope = AppScope::class)`) never aggregates it. At runtime the binding is simply
- * absent — a false-green with no compile signal, the same soundness class the `MetroScopeRule` gap has
- * (it reads the `@SingleIn` scope on Handlers only, and has zero `@ContributesBinding` coverage).
- *
- * This rule fails any `@ContributesBinding` whose scope argument is not the PROJECT `AppScope`
- * (`io.github.stslex.workeeper.core.core.di.AppScope`). Two failure modes are caught:
- *  - a scope whose simple name is not `AppScope` at all (a feature scope, a typo, another marker); and
- *  - `AppScope` imported from `dev.zacsweers.metro` — Metro's BUILT-IN app scope, whose simple name is
- *    also `AppScope` but which is a DIFFERENT class from the project token the `AppGraph` is scoped to,
- *    so a contribution to it would not aggregate. PSI has no type resolution, so the import origin is
- *    the discriminator.
- *
- * `@ContributesBinding` is `@Repeatable`, so a class may carry several entries (one per bound supertype)
- * and EACH carries its own scope argument. Every entry is validated and every invalid one is reported at
- * its own annotation — a correct first entry must not shield a mis-scoped later one.
- *
- * The rule only applies to `@ContributesBinding`; every other contribution mechanism and all
- * non-contributing classes are ignored.
+ * Fails any `@ContributesBinding` not scoped to the PROJECT `AppScope` — a wrong scope compiles
+ * green and is silently absent at runtime. See documentation/app-scope-collapse-execution-spec.md.
  */
 class ContributesBindingScopeRule(
     config: Config = Config.empty,
@@ -52,11 +31,7 @@ class ContributesBindingScopeRule(
 
         if (klass.containingKtFile.virtualFilePath.contains("/test/")) return
 
-        // `@ContributesBinding` is @Repeatable: one impl binds N supertypes with N entries, each carrying
-        // its OWN scope argument (`ActivityHolderImpl` and `DatabaseSnapshotProviderImpl` both do this
-        // today). Validating only the first entry would let a correct first binding hide a mis-scoped
-        // later one — the exact false-green this rule exists to prevent — so every entry is checked and
-        // every invalid one is reported, anchored at its own annotation.
+        // `@ContributesBinding` is @Repeatable: every entry carries its own scope and is checked.
         val contributesEntries = klass.annotationEntries.filter {
             it.shortName?.asString() == CONTRIBUTES_BINDING
         }
@@ -70,9 +45,8 @@ class ContributesBindingScopeRule(
     }
 
     /**
-     * The scope violation of a SINGLE `@ContributesBinding` entry, or null when that entry is correctly
-     * scoped to the project `AppScope`. [importsMetroAppScope] is a file-level fact, so it is resolved
-     * once by the caller and passed in.
+     * The scope violation of a single `@ContributesBinding` entry, or null when it is correctly
+     * scoped. [importsMetroAppScope] is a file-level fact, resolved once by the caller.
      */
     private fun KtAnnotationEntry.scopeViolation(
         klass: KtClass,
@@ -94,8 +68,7 @@ class ContributesBindingScopeRule(
                     "$APP_SCOPE — it will not aggregate into the app graph (silently absent at runtime).",
             )
 
-            // Simple name is AppScope — but reject Metro's BUILT-IN AppScope (a different class from the
-            // project token the AppGraph is scoped to). PSI can't resolve the type, so check the import.
+            // Reject Metro's built-in AppScope: same simple name, different class from the project.
             importsMetroAppScope -> CodeSmell(
                 issue,
                 Entity.from(this),
@@ -108,10 +81,7 @@ class ContributesBindingScopeRule(
         }
     }
 
-    /**
-     * Simple name of the first scope class-literal argument (`@ContributesBinding(AppScope::class)` →
-     * `"AppScope"`; `some.pkg.WrongScope::class` → `"WrongScope"`), or null if no argument is present.
-     */
+    /** Simple name of the first scope class-literal argument, or null when absent. */
     private fun KtAnnotationEntry.firstScopeArgumentSimpleName(): String? {
         val argument = valueArguments.firstOrNull()?.getArgumentExpression() ?: return null
         return argument.text

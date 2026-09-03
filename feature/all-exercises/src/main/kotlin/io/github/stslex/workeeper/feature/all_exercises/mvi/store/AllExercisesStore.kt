@@ -32,11 +32,7 @@ interface AllExercisesStore : Store<State, Action, Event> {
 
         val isSelecting: Boolean get() = selectionMode is SelectionMode.On
 
-        /**
-         * Multi-select intercepts back so the gesture exits selection rather than the
-         * tab. Outside selection mode the predictive-back preview keeps running for the
-         * normal bottom-tab navigation.
-         */
+        /** Multi-select intercepts back so the gesture exits selection rather than the tab. */
         val interceptBack: Boolean get() = isSelecting
 
         @Stable
@@ -59,11 +55,8 @@ interface AllExercisesStore : Store<State, Action, Event> {
         data class PendingBulkDelete(val count: Int)
 
         /**
-         * Blocked-archive acknowledgement dialog. Surfaced whenever a bulk archive left at
-         * least one exercise active because it is still used by a training. [archivedSummary]
-         * is the pre-formatted "N archived" line for the partial case (null when nothing was
-         * archived); [items] carry each blocked exercise with its pre-formatted, truncated
-         * blocking-trainings label. Strings are built by the UI mapper.
+         * Blocked-archive acknowledgement: a bulk archive left at least one exercise active
+         * because a training still uses it. All strings arrive pre-formatted from the UI mapper.
          */
         @Stable
         data class BlockedArchiveDialog(
@@ -103,25 +96,14 @@ interface AllExercisesStore : Store<State, Action, Event> {
 
             data object OnFabClick : Click
 
-            /**
-             * The empty state's primary CTA. Distinct from [OnFabClick] although both open the
-             * create screen: the FAB fires `ContextClick` and a button in an empty state does not,
-             * and routing the CTA through [OnFabClick] gave this screen a haptic its sibling's
-             * identical `.empty` button does not have. Same shape and same reason as
-             * all-trainings' `OnEmptyCreate`.
-             */
+            /** The empty state's primary CTA — distinct from [OnFabClick], which fires a haptic. */
             data object OnEmptyCreate : Click
 
             data class OnTagFilterToggle(val tagUuid: String) : Click
 
             /**
-             * Clears the whole tag filter in one act.
-             *
-             * The filtered-to-empty state's only action. It clears rather than creates: a create
-             * button under a filter the user has just used answers a question they did not ask,
-             * and leaves the filter in place so the thing they create disappears on arrival.
-             * Distinct from [OnTagFilterToggle] because untoggling N chips is N taps while the
-             * state being recovered from is one condition, not N.
+             * Clears the whole tag filter in one act: the filtered-to-empty state's only action,
+             * and one tap rather than the N that untoggling chips would take.
              */
             data object OnClearTagFilter : Click
 

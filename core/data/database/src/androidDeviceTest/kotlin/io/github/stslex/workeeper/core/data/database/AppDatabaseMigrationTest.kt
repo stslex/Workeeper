@@ -18,17 +18,9 @@ import java.io.File
 import kotlin.uuid.Uuid
 
 /**
- * Migration test fixture for [AppDatabase].
- *
- * Each test seeds a v(N) DB through raw SQL, runs the matching `Migration` object via
- * [MigrationTestHelper.runMigrationsAndValidate], and asserts the resulting v(N+1) DB
- * has the expected shape and data. Room 3 removed the `validateDroppedTables` argument
- * from `runMigrationsAndValidate`; a device probe (a stale unregistered table injected at
- * v5) confirmed Room 3's `runMigrationsAndValidate` does NOT validate dropped/extra tables
- * by default — it passes. So [migrate5to6_validatesNoUnregisteredTablesSurvive]'s explicit
- * `sqlite_master` assertion is the ONLY guard for unregistered-table drift, not
- * belt-and-braces. (Column / index / FK drift is still caught by `runMigrationsAndValidate`'s
- * own schema validation against `6.json` — see that test's KDoc.)
+ * Migration fixture for [AppDatabase]: seed v(N) with raw SQL, run the `Migration`, assert the
+ * v(N+1) shape. GUARD: Room 3 does not validate dropped/extra tables, so the `sqlite_master`
+ * assertion below is the only guard against unregistered-table drift.
  */
 @Regression
 internal class AppDatabaseMigrationTest {
@@ -41,10 +33,8 @@ internal class AppDatabaseMigrationTest {
         AppDatabase::class,
     )
 
-    // Room 3's File-based MigrationTestHelper points at a real on-disk file that persists
-    // between test methods; a stale file makes the next createDatabase() try to migrate an
-    // existing DB ("A migration should never occur while creating a new database"). Delete
-    // it (+ WAL/SHM sidecars) before and after each test.
+    // GUARD: the File-based MigrationTestHelper keeps a real file between test methods, and a
+    // stale one makes the next createDatabase() try to migrate. Delete it and its sidecars.
     @Before
     fun clearDbFile() = deleteTestDb()
 
@@ -242,18 +232,8 @@ internal class AppDatabaseMigrationTest {
     }
 
     /**
-     * Unregistered-table survival guard. Room 2's `runMigrationsAndValidate(...,
-     * validateDroppedTables = true, ...)` failed the build if the post-migration DB carried
-     * tables absent from the exported schema; Room 3 dropped that parameter. This test
-     * reproduces THAT specific guarantee explicitly: after the migration, the set of user
-     * tables in `sqlite_master` must equal the tables declared by [AppDatabase]'s exported v6
-     * schema — excluding SQLite internals and Room's own bookkeeping table. It catches only
-     * TABLE add/drop drift (e.g. a stray table left by a future migration). Column / index /
-     * foreign-key drift is NOT covered here — that is caught separately by
-     * `runMigrationsAndValidate`'s core schema validation against the exported `6.json`.
-     *
-     * NOTE: [EXPECTED_V6_TABLES] is a manual maintenance point — it must be kept in sync with
-     * the `tableName`s in `schemas/.../AppDatabase/6.json` (updated whenever the entity set changes).
+     * Unregistered-table survival guard: the user tables in `sqlite_master` must equal the v6
+     * exported schema. Table add/drop drift only; column/index/FK drift is validated separately.
      */
     @Test
     fun migrate5to6_validatesNoUnregisteredTablesSurvive() = runTest {

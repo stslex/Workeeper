@@ -67,11 +67,7 @@ interface TrainingExerciseDao {
         exerciseUuids: List<Uuid>,
     ): List<TrainingExercisePlanRow>
 
-    /**
-     * Every plan row across all trainings, ordered so the snapshot exporter can
-     * `groupBy { trainingUuid }` with each group already in plan order. Unfiltered
-     * by design (full-graph export); not for user-facing reads.
-     */
+    /** Unfiltered full-graph read; its ORDER BY is the export contract. Not for user lists. */
     @Query(
         """
         SELECT * FROM training_exercise_table
@@ -95,11 +91,7 @@ interface TrainingExerciseDao {
     @Insert
     suspend fun insert(row: TrainingExerciseEntity)
 
-    /**
-     * Highest `position` currently used inside [trainingUuid], or `null` when the training has
-     * no plan rows yet. Lets the mid-session add-exercise path append at the end without
-     * reading the entire plan.
-     */
+    /** Highest `position` inside [trainingUuid], or `null` when it has no plan rows. */
     @Query(
         """
         SELECT MAX(position) FROM training_exercise_table
@@ -111,11 +103,7 @@ interface TrainingExerciseDao {
     @Query("DELETE FROM training_exercise_table WHERE training_uuid = :trainingUuid")
     suspend fun deleteByTraining(trainingUuid: Uuid)
 
-    /**
-     * Deletes ONE plan row — the pair delete that detaches an exercise from a training's
-     * plan (v3 §6.2: plan-attachment IS the row's existence, so this query is the entire
-     * "remove from plan" operation). Idempotent: zero rows matched is a valid outcome.
-     */
+    /** Detaches one exercise from a training's plan (v3 §6.2); idempotent. */
     @Query(
         """
         DELETE FROM training_exercise_table

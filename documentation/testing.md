@@ -124,6 +124,380 @@ return-value assertion or a mockk verification.
 The DAO-test pattern (`core/data/database/src/androidHostTest/.../BaseDatabaseTest.kt`) remains the
 right tool for DAO-only assertions that do not exercise repository code.
 
+#### Room 3 behaviours these fixtures rely on
+
+- **In-transaction reads see uncommitted rows.** Room 3's connection pool confines the writer
+  connection to the coroutine context, so a read issued from INSIDE
+  `useWriterConnection { transactor.immediateTransaction { … } }` reuses that same connection.
+  That is what lets `AtomicRollbackDeviceTest` assert "written, then rolled back" rather than
+  only "table empty afterwards".
+- **`async` children inside `transition` do not contend.** `RepositoryTestEnv.transition` runs
+  `coroutineScope` INSIDE `withTransaction`, so the receiver passed to `block` inherits Room's
+  `TransactionElement` and the `async` children reuse the parent's transaction connection
+  (`TrainingRepositoryImpl.getTraining` is the shape). Atomicity of such a block is delegated to
+  Room and is not verifiable at unit-test level — there is no observable mid-transaction side
+  effect to interrupt. Do not assert parallelism of the branches either: a delay-based
+  scheduling assertion re-trips the fixture deadlock.
+- **`runMigrationsAndValidate` does not validate dropped/extra tables.** Room 3 removed the
+  `validateDroppedTables` argument, and a device probe (a stale unregistered table injected at
+  v5) confirmed the default passes. `migrate5to6_validatesNoUnregisteredTablesSurvive`'s explicit
+  `sqlite_master` assertion is therefore the ONLY guard for unregistered-table drift, not
+  belt-and-braces. Column / index / FK drift is still caught by `runMigrationsAndValidate`'s own
+  validation against the exported `6.json`.
+- **The File-based `MigrationTestHelper` leaves a real file between test methods.** A stale one
+  makes the next `createDatabase()` try to migrate an existing DB and fail with "A migration
+  should never occur while creating a new database". Delete the `.db` plus its `-wal` and `-shm`
+  sidecars in both `@Before` and `@After`.
+- **There is no public `isOpen`, and `close()` is idempotent** on a closed or never-opened
+  database, so teardowns close unguarded. `MetroTestRule.after()` does so on purpose even for
+  `RecoveryActivityDbFreeTest`'s tripwire database whose driver throws from `open()`: verified
+  against androidx.room3 3.0.0, `RoomDatabase.close()` is `closeBarrier.close()` ->
+  `coroutineScope.cancel()` + `invalidationTracker.stop()` (Android's `stop()` only stops the
+  multi-instance client, it runs no SQL) + `connectionManager.close()` ->
+  `connectionPool.close()`, and BOTH pool implementations skip connections that were never
+  created (`ConnectionPoolImpl` iterates an `arrayOfNulls(capacity)`, `PassthroughConnectionPool`
+  guards on `::connection.isInitialized`). No path calls `SQLiteDriver.open()`, and leaving the
+  close unguarded means a real close failure surfaces instead of being swallowed.
+- **`Room.databaseBuilder` resolves its name against the app's databases dir**, not an arbitrary
+  path — a snapshot written into `cacheDir` cannot be opened through Room and must be read via
+  direct `android.database.sqlite.SQLiteDatabase.openDatabase(...)`
+  (`DatabaseSnapshotProviderImplTest`).
+- **The two DB fixtures deliberately run different SQLite drivers.** `RepositoryTestEnv`
+  (Robolectric) pins `AndroidSQLiteDriver` even though production flipped to
+  `BundledSQLiteDriver`: the bundled driver's android variant ships Android-ABI natives only and
+  dies with `UnsatisfiedLinkError` when loaded under Robolectric on a desktop JVM (measured).
+  `InMemoryDatabaseProvider` (on-device, via `MetroTestRule`) runs `BundledSQLiteDriver`, the
+  production driver since the flip. Both `libs.androidx.sqlite.framework` and
+  `libs.androidx.sqlite.bundled` are therefore `api` deps of `core:data:database-test`. Driver
+  behaviour is a device-suite concern; the Robolectric fixture's oracle value is repository logic
+  over a real schema.
+- **The ANALYZE gate asserts `sqlite_stat1`, never the query plan.** `QueryPlannerStatisticsTest`
+  asserts `sqlite_master` has no `sqlite_stat1` BEFORE `refreshQueryPlannerStatistics(database)`
+  and has it AFTER, and deliberately asserts nothing about the resulting plan: `EXPLAIN QUERY
+  PLAN` output is a string SQLite may reword, the plan depends on a data volume the fixture does
+  not synthesise, and a plan assertion on an empty table would pass regardless.
+  Existence-of-table rather than return-of-function is the only honest signal because
+  `warmQueryPlanner` swallows exceptions by design (a corrupt database must not kill the process
+  at launch), so a misspelled or dropped ANALYZE would leave every device on the bad plan with
+  nothing thrown. Running it twice is asserted safe because it runs on every start.
+
+#### Shared PR-rule fixture
+
+`PrRuleFixture` (`core/data/database-test/.../testfixtures/PrRuleFixture.kt`) is deliberately
+plain data — no Room, no Android — so a module with no database on its test classpath is held to
+the same answers. It exists because the PR rule has three independent implementations that cannot
+share code across modules: the DAO SQL queries, `PrComparator`, and `ChartFolder`'s per-session
+representative-set choice. `WEIGHTLESS_WITH_RESIDUAL_WEIGHTS` is the load-bearing scenario: every
+pre-existing weightless test seeds `set_table.weight = null`, precisely the input on which the
+batch query and the single-exercise query happened to agree — which is why their disagreement
+survived undetected for as long as it did. Residual weights on weightless rows exist in the wild
+(`set_table` carries no type-conditional constraint) and no migration scrubs them.
+
+### Off-device hazards: logging, Firebase, Main
+
+These bite any JVM host test, not only the ones named as carriers.
+
+- **Kermit's sink throws off-device.** A host test that can reach a `Log` / `logger.*` call must
+  set `Log.isLogging = false` in `@BeforeEach` and restore the previous value in `@AfterEach`: on
+  the Android-library unit-test classpath kermit selects the Logcat writer, which fails with
+  `UnsatisfiedLinkError` on the JVM. `Log.isLogging` is the call-time gate in front of the sink
+  and `Log` exposes no injectable writer, so flipping the gate is the whole fix. Carriers:
+  `SnackbarManagerTest`; `SnackbarOutcomeTest` (its drain can meet a stale-epoch leftover from a
+  sibling class, and the discard branch logs); `BackupInteractorImplTest`
+  (`RestoreLatestBackupUseCase`'s committed-without-a-durable-record `logger.w {}`);
+  `StoreGenerationJoinTest` (a real `BaseStore.consume`, whose first call would otherwise throw).
+- **`mockkObject(Log)` cannot replace the gate for a logging `object`.** `SnackbarManager`'s
+  private `logger` is captured at class init — possibly by an earlier test in the same JVM — so
+  stubbing `Log.tag` after the fact never reaches it.
+- **Where the logger is per-instance, `mockkObject(Log)` IS the fix.** `NavigatorEventBus`
+  constructs a `Log.tag(...)` logger that funnels through `FirebaseCrashlyticsHolder` ->
+  `Firebase.crashlytics` on every emit; with Firebase uninitialised and `Process.myPid()`
+  unmocked the real logger throws. Stub `Log` to return a relaxed `Logger` in `@BeforeEach` and
+  `unmockkObject(Log)` after — duplicated verbatim in `NavigatorEventBusTest` and
+  `NavigatorEventBusLifecycleTest`.
+- **Firebase sinks self-guard.** `FirebaseCrashlyticsHolder` resolves its client through a
+  `runCatching` that yields `null` off-device, so every method there is already a no-op and needs
+  no handling. Robolectric repository tests that read plans still `mockkObject` / `unmockkObject`
+  it around the suite, because `ExerciseRepository.getAdhocPlans` and
+  `TrainingExerciseRepository.getPlan` / `getPlans` wrap their JSON deserialisation in
+  `traceExecutionTime`, which fans out to `Log.i { }` (`ExerciseRepositoryImplDbTest`,
+  `TrainingExerciseRepositoryImplDbTest`).
+- **Install `Dispatchers.setMain(...)` BEFORE any Store is constructed**, and
+  `Dispatchers.resetMain()` in `@AfterEach`. `BaseStore` reads
+  `storeDispatchers.mainImmediateDispatcher` while constructing — the parent `AppGraph` binds it
+  to `Dispatchers.Main.immediate` through
+  `core/core/src/androidMain/.../di/DispatchersBindingContainer.kt` — and `lifecycleScope` builds
+  its scope on `Dispatchers.Main.immediate`. Every `*ExtensionIdentityTest` under
+  `app/app/src/test/kotlin/io/github/stslex/workeeper/di/` carries the pair for exactly this
+  reason. Installing a `StandardTestDispatcher` there also makes the surrounding `runTest` adopt
+  ITS scheduler, which is what puts the Store's jobs, the lifecycle registration and the test
+  body on one deterministic timeline.
+- **Build a JVM-usable `LifecycleOwner` with `LifecycleRegistry.createUnsafe(this)`.** That
+  factory drops the main-thread assertion `ArchTaskExecutor` makes (it reads
+  `Looper.getMainLooper()`, which is not mocked in a JVM unit test). The registry is otherwise
+  the production one, so `lifecycleScope` and `BaseStore`'s lifecycle observer behave as they do
+  in the app — which is what makes the test non-vacuous.
+
+### Coroutine pitfalls in host tests
+
+- A **nested** unconfined `launch` (on `UnconfinedTestDispatcher(testScheduler)` or
+  `Dispatchers.Unconfined`) queues on the thread-local event loop rather than running
+  immediately. Add `kotlinx.coroutines.yield()` after it so the job genuinely STARTS — enters its
+  `try` — before the enclosing call returns; without it the job's `finally` never registers and
+  `AppRuntimeReplacementTest`'s teardown-ordering assertions have nothing to order.
+- A test that parks an in-flight commit on a `CompletableDeferred` gate must complete that gate
+  inside a `finally`. `resolveSnackbarOutcome` runs `onDismissed` under
+  `withContext(NonCancellable)`, so a gate left closed by a failed assertion hangs `runTest` on
+  an uncancellable child instead of reporting the failure.
+- Handler-test `HandlerStore` mocks run the action as `supervisorScope { action() }`, never as a
+  bare `action()`. `processInit` fans out through two `async` children; in a plain scope the first
+  child's failure cancels the parent before the mock's `catch` can invoke `onError`, so the
+  LOAD_FAILED tests would not exercise the arm they exist for. Production survives the same shape
+  through `AppCoroutineScopeImpl`'s `CoroutineExceptionHandler` backstop; the `supervisorScope`
+  reproduces that observable (the action throws, `onError` runs) without modelling the backstop's
+  plumbing. See `CommonHandlerTest`.
+
+### MockK limits
+
+- A `relaxed = true` mock cannot synthesize a value of a **sealed** type, so a branch matched by
+  an exhaustive `when` must be stubbed explicitly. `MetroWorkerFactoryTest.newWorkerDeps()` stubs
+  `databaseSnapshotProvider.captureSnapshot` with a real
+  `BackupResult.Failure(BackupError.NetworkUnavailable)`; without it
+  `BackupWorker.executeBackup` never takes the early-return failure path.
+- A relaxed mock answers `false` for `Boolean`. `RestoreRecoveryCoordinatorTest` must stub
+  `beginAttempt` / `recordAttemptCommitted` / `resolveAttempt` `returns true` and pin
+  `getAttempt()` to `null` ("no unresolved attempt"): the coordinator's
+  `DatabaseReplacementEffects` implementations (`UndoRollbackEffects` and
+  `RecoveryRollbackEffects`, `onBeforeMutation` / `onMutationCommitted`) read `false` as
+  "another unresolved attempt owns the journal slot" and throw out of their `check(...)` calls.
+- MockK cannot cleanly mock the `Flow<T>.launch` **member extension** declared on `HandlerStore`
+  — a real implementation is the cheaper option, which is why `FakeSettingsHandlerStore` is
+  hand-written. It runs `launch {}` / `launchDefault {}` closures synchronously via
+  `runBlocking(dispatcher)` so state and event transitions are readable immediately after
+  `handler.invoke(...)`, and collects `Flow<T>.launch` into a `CoroutineScope(Job() + dispatcher)`
+  that `dispose()` cancels.
+
+### Process-wide state across tests in one JVM
+
+`SnackbarManager` is a process-wide `object`: queued models, the resolve fence and the generation
+epoch all outlive the test that set them.
+
+- Drain leftovers before asserting. The drain's real terminator is a **null poll**, not the count.
+- Call `SnackbarManager.unfenceResolves()` in `@AfterEach`. A fenced gate refuses EVERY later
+  routing, so a fence test that fails midway poisons every sibling in the JVM into silently
+  requeueing instead of resolving. The call is idempotent, so cases that never fenced pay nothing.
+- Take a `DeliveredSnackbar` off the real flow rather than hand-building one: it carries the epoch
+  it was ENQUEUED under, and only the live delivery path stamps the current one (sibling tests in
+  the same JVM advance it).
+- `pendingModelCount` is approximate and can sit ABOVE zero over an EMPTY queue: `showSnackbar`
+  increments after `trySend`, and a collector parked on the channel under an unconfined dispatcher
+  consumes the entry inline INSIDE `trySend`, so that decrement hits the `coerceAtLeast(0)` floor
+  and is swallowed before the increment lands. Assert a return to the test's own baseline, never
+  to absolute zero.
+- `SnackbarManagerTest.BURST_SIZE = 17` is deliberately one past the 16-slot buffer the queue must
+  NOT have — it is `Channel(capacity = Channel.UNLIMITED)`. A 17-deep burst queued behind one
+  visible toast plus one deferred-commit model reds any cap or overflow policy added later. What
+  it guards is not a skipped toast: `AppSnackbarModel.onDismissed` carries the ED11 deferred
+  permanent-delete commit and its screen has already popped, so an eviction is a confirmed delete
+  that silently never runs.
+
+The `pending_*` dialog flags are process-wide in the instrumentation process too — see
+[Instrumented-suite hazards](#instrumented-suite-hazards).
+
+### `app:app` graph and runtime host tests
+
+- `AppGraph.restoreStateRepository` has **no production reader**: `RestoreRecoveryCoordinator`,
+  `StartupMigrationCoordinator` and `RecoveryBootstrap` take `RestoreStateRepository` as a
+  constructor dep inside the recovery cluster. The accessor exists so
+  `AppScopeDataStoreSingletonTest` can read `restore_state_prefs` through the real app-scope
+  binding (`RestoreStateRepositoryImpl`, contributed by `@ContributesBinding(AppScope)` in
+  `core:data:backup:scheduling`) from two graphs — a read routed through a coordinator would
+  assert the coordinator's behaviour instead of the store's identity. Do not delete it as unread.
+- `app/app`'s unit-test classpath has **no room3**, so `AppDatabase`'s own members cannot be
+  resolved there at all. That is why the ordering pins in `AppRuntimeReplacementTest` record a
+  database touch with
+  `every { db.toString() } answers { protocolLog += "db-touch-$index"; "AppDatabase#$index" }`
+  rather than a DAO read: `toString()` is a call ON the database object that the mockk mock can
+  record, proving a job reached the handle before it was closed. `touchedDatabases` then asserts
+  `listOf("AppDatabase#1")` — that the job touched the CANDIDATE's database, not the outgoing one.
+
+### Deliberate coverage boundaries
+
+#### Shared start-mode UI
+
+`core:ui:start-mode` keeps its catalog/order oracle in `commonTest`, so the same assertion runs
+through both Android-host and iOS-simulator test hierarchies. Its unchanged RU Paparazzi test and
+two PNGs live in `androidHostTest`; `iosTest` renders the production
+`AppTheme { StartCardModeSheetContent(...) }` scene with the production CMP resources and verifies
+the title, all four names, selected-only check semantics, and one real row callback. Generated
+`Res` accessors remain internal to the leaf. The exact source/resource/test layout is enforced by
+`.github/scripts/assert_kmp_ui_source_topology.py`.
+
+#### Shared plan-editor UI
+
+`core:ui:plan-editor` keeps all 19 `PlanDraftReducerTest` cases in `commonTest`, so the same reducer
+contract executes through the Android-host aggregate and `iosSimulatorArm64Test`. Its three
+Paparazzi classes and 18 unchanged PNGs live in `androidHostTest`. The exact native identity
+`io.github.stslex.workeeper.core.ui.plan_editor.PlanEditorSceneIosTest.readOnlyCopyAndEditableAddRenderAndDispatch`
+renders the production read-only and editable branches with the production plan-editor and kit CMP
+resources, verifies their semantics, rejects premature dispatch, and proves exactly one real
+`PlanEditorBodyAction.OnAddSet` after clicking `AppSetBarAdd`. Generated plan-editor resources remain
+module-private. See
+[kmp-phase-7-5-plan-editor.md](feature-specs/kmp-phase-7-5-plan-editor.md) for the measured topology,
+resource partition, and exact identities.
+
+#### Shared plan-editor feature
+
+`feature:plan-editor` keeps all six pre-migration suites in `commonTest`, so the same 42 exact
+identities execute through Android host and `iosSimulatorArm64Test`: mapper 5, UI-model 3, click
+handler 23, common handler 3, navigation handler 2, and route/state 6. The deterministic in-file
+fakes preserve the route, reducer, save/back/discard, typed Boolean result, and distinct
+graph/Store contracts without Android test libraries.
+
+The exact Native identity
+`io.github.stslex.workeeper.feature.plan_editor.PlanEditorFeatureSceneIosTest.resourcesBranchesAndActionsRenderAndDispatch`
+composes the production screen under `AppTheme`, resolves the private CMP resource branches, and
+observes real back and add-set dispatch. Together with the 42 portable cases, the target Native
+XML contains exactly 43 passing cases with no skip, failure, or error. Android keeps the three
+`PlanEditorExtensionIdentityTest` cases and the three editor journeys; the explicit root-factory
+flow is also covered by the admitted/retired/publication-race device identities.
+
+#### Shared image-viewer feature
+
+`feature:image-viewer` keeps its three handler suites in `commonTest`, so the same 12 deterministic
+cases run through the Android-host and `iosSimulatorArm64Test` hierarchies: Click 8, Common 2, and
+Navigation 2. The navigation cases assert both the exact destination and result request name,
+including `BackWithRequest`; their small in-module fakes fail immediately on unused logger,
+coroutine, or navigator operations.
+
+The exact Native identity
+`io.github.stslex.workeeper.feature.image_viewer.ImageViewerSceneIosTest.resourcesBranchesAndActionsRenderAndDispatch`
+composes the production screen under `AppTheme`. It proves the read-only branch has no menu, the
+editable branch resolves the exact menu/replace/remove copy from private CMP resources, back and
+menu actions dispatch exactly, and the production Coil request path composes through
+`LocalPlatformContext`. Together with the 12 common cases, the image-viewer Native XML contains 13
+passing cases with no skip, failure, or error. This is a headless Compose scene, not an iOS app,
+application-window, UIKit, Metal, or XCTest claim.
+
+Android keeps three `ImageViewerExtensionIdentityTest` cases, resolving the factory through
+`appGraph.imageViewerGraphFactory`, and three `UiAdmissionRaceTest` cases: the admitted generation
+resolves app-root dependencies exactly once while both rejected paths resolve them zero times.
+The four existing image-viewer regression journeys remain unchanged.
+
+#### Shared MVI runtime
+
+`core:ui:mvi` uses `commonTest` for Store lifetime, disposal, navigation-result and event-pressure
+contracts; `androidHostTest` for the clean JVM ABI and real Android Firebase-provider seam;
+`iosTest` for the production Compose processor scene; and `androidDeviceTest` for the two
+`@Smoke` lifetime/retention cases. The legacy `src/test` and `src/androidTest` directories must
+remain empty.
+
+The identity gates parse JUnit XML structurally rather than accepting a Gradle exit code or module
+total. They require seven exact Android-host identities, five exact MVI Native identities, and both
+Android-device identities. Native results live under `build/test-results/iosSimulatorArm64Test`;
+the AGP-KMP connected result path is
+`core/ui/mvi/build/outputs/androidTest-results/connected/androidMain`.
+
+- `NavResults.OnResult` is deliberately not unit-tested: it is a `@Composable` and needs a
+  composition, which `core:ui:mvi`'s unit tests have no host for. Its two behaviours — deliver
+  only on a non-null result, and clear after delivering — are covered instead as the composition
+  of `NavResults.result` and `NavResults.clear`, including the full re-arm cycle, in
+  `NavigationResultContractTest`.
+- DataStore-backed repositories get no "process restart" simulation. Preferences DataStore
+  enforces singleton-per-file at runtime, so recreating the store over the same temp file would
+  first require cancelling the DataStore's internal `CoroutineScope`. Cross-restart persistence is
+  treated as the library's responsibility; the publish-then-read tests exercise the same
+  persistence path through the file storage layer (`AppDialogRepositoryTest`).
+- `PastExerciseUiModel.setSummary` has exactly **one** test reader in the whole suite:
+  `PastSessionUiMapperTest`'s "mapper builds the collapsed summary per exercise type" and its
+  three siblings. Every golden fixture hand-writes the summary string into its own data and never
+  calls `toUi`, so before those tests a `return ""` in `PastSessionUiMapper.setSummary()` kept
+  everything green while collapsed cards silently lost their plan line. Pinned there: weighted
+  joins as `{weight}×{reps}` with `×` = U+00D7 (not the Latin letter `x`) separated by `" · "`;
+  weightless collapses to bare rep counts; a WEIGHTED set with `weight = null` keeps the `×` shape
+  with the em dash in the weight position (`"49×15 · —×15"`) so 15 reps are never re-read as 15 kg
+  among weight-leading neighbours; sets with `reps == 0` are excluded.
+- `AppIconsMirroringTest`'s `NON_DIRECTIONAL` half is a **negative control**, not padding.
+  `autoMirror` is a property of the `ImageVector`, not a pixel, so LTR goldens are byte-identical
+  whichever way it is set and a semantics test never reads it — asserting only that `ChevronLeft`
+  / `ChevronRight` mirror would pass just as happily if `strokeIcon` set `autoMirror = true` for
+  EVERY glyph in the file, a worse defect than the one being fixed (the manifest sets
+  `android:supportsRtl="true"`, so a fixed-path directional glyph points the wrong way in an RTL
+  locale). `AppIcons.Skip` sits in `NON_DIRECTIONAL` deliberately rather than with the directional
+  pair: it is a media-transport glyph, and a transport timeline reads left-to-right in every
+  locale, so mirroring it would point the control at the wrong end of the track.
+- `ColorFieldScanner.COLOR_GETTER` matches `^get([A-Z][A-Za-z0-9]*)(?:-.+)?$` over zero-arg
+  `long`-returning methods, with the suffix optional, because
+  `androidx.compose.ui.graphics.Color` is a `@JvmInline value class` over `ULong`: its property
+  getters compile to no-arg methods returning primitive `long`, usually with a mangled name suffix
+  (e.g. `getPrimary-0d7_KjU`). A plain non-colour `Long` property also matches. The over-reporting
+  is deliberate and safe — `PaletteContrastReportTest` asserts the scanned name set against an
+  explicit expected set, so a false positive fails loudly and a false negative (a colour hidden
+  from the contrast report) cannot happen.
+- `NavTransitionsTest` can assert the predictive transitions on the JVM ONLY because the design
+  carries no `slide` and no `changeSize` channel. `AnimatedContentTransitionScope` is a sealed
+  interface with only `internal` implementations, so the receiver `NavDisplay` supplies cannot be
+  faked; every builder in `NavTransitions.kt` therefore takes `AppMotion` + `Int` and touches no
+  receiver member, and the host's lambdas only delegate. `EnterTransition` / `ExitTransition` then
+  compare structurally through `TransitionData`, whose `Fade` / `Scale` / `Veil` leaves are data
+  classes and whose `TweenSpec` compares duration, delay and easing. `slide` and `changeSize` both
+  store a lambda that is reference-compared, and `slideOutHorizontally` re-wraps its argument, so
+  even a shared production lambda would not survive the wrap — adding either channel silently
+  removes this whole file's ability to assert.
+
+### Screen serialization registry test
+
+`ScreenSerializationTest` round-trips every sealed `Screen` leaf through kotlinx.serialization
+`Json` configured with `screenSavedStateConfiguration.serializersModule` — **not** through
+`encodeToSavedState` / `decodeFromSavedState`. The SavedState encoder is `Bundle`-backed and needs
+a device or Robolectric, while the defect being guarded — a leaf missing from
+`screenSerializersModule` — throws in the polymorphic serializer LOOKUP, which is
+format-independent. The module under test is read off `screenSavedStateConfiguration`, the exact
+object production hands to `rememberNavBackStack`. (`documentation/feature-specs/nav3-stage-1-3.md`
+still names the SavedState vehicle; the JSON one is what the test does, and "correcting" the test
+to match that spec would break the JVM run.)
+
+`sampleValue` returns non-null samples (`"sample"` for `String`, `true` for `Boolean`) even for
+**nullable** constructor parameters, because a null field encodes as an absent key in most formats
+and would let an asymmetric field slip through the round trip undetected. Seeding null for the
+nullable uuid params — `Screen.Training.uuid`, `Screen.Exercise.uuid`, `Screen.LiveWorkout`'s two,
+`Screen.ExerciseChart.exerciseUuid`, `Screen.PlanEditor.Existing`'s three — would weaken the test
+rather than broaden it.
+
+Since the module's KMP conversion the reflection test lives in `androidHostTest`, guards the
+leaf count exactly (12 at the current baseline — a route-set change must deliberately update
+it), and additionally pins the module's no-compatibility JVM interface ABI: both `isSingleTop`
+getters are Java default methods and no `DefaultImpls` bridge class is loadable. Its
+Kotlin/Native sibling, `ScreenSerializationIosTest.allCurrentRoutesRoundTripThroughProductionRegistry`
+(`src/iosTest`), round-trips the same routes through the production registry and pins the exact
+`nav-result` key strings; it proves the registry executes under Kotlin/Native, while the JVM test
+stays the hierarchy-change detector.
+
+**The two oracles share one fixture, and the JVM one pins it to the hierarchy.** Kotlin/Native
+has no sealed-subclass reflection, so the Native test cannot discover routes — it reads
+`screenSampleCatalog` and `SCREEN_ROUTE_BASELINE` from
+`core/ui/navigation/src/commonTest/.../ScreenSampleCatalog.kt`, a plain fixture with no test-framework
+dependency, visible to both `androidHostTest` and `iosTest` through the default KMP source-set
+hierarchy. Left alone that catalog would be a second hand-maintained list free to drift from the
+routes that actually exist, so the host test asserts `sealedLeaves(Screen::class).toSet()` equals
+`screenSampleCatalog.map { it::class }.toSet()`, plus both sizes against the shared baseline and
+one sample per class. A route added to `Screen.kt` but missing from the catalog — or a catalog
+entry duplicated — reds the host test: a duplicated or swapped entry is reported by name, a count
+drift by count.
+
+The host test deliberately keeps constructing its round-trip subjects **by reflection** from the
+discovered hierarchy rather than from the catalog. Round-tripping the catalog on both platforms
+would only re-read the same list twice; generating subjects from the hierarchy is what makes the
+JVM run a hierarchy-change detector. Exhaustiveness remains limited to the current direct and
+sealed-reachable hierarchy — a route implementing only the non-sealed `ScreenWithResult` marker
+would escape discovery, which is why new result routes keep the explicit
+`: Screen, ScreenWithResult<R>` shape. There is no classpath scanning.
+
+Adding a route therefore costs four edits — register the serializer, add one non-default sample,
+increment the baseline, re-run both gates — as listed in the
+[`add-feature`](../.claude/skills/add-feature.md) route step.
+
+
 ## UI tests
 
 ### Categorization with `@Smoke` and `@Regression`
@@ -430,6 +804,44 @@ source of truth; the names listed in
 `documentation/test-scenarios/exercise.md` track those production names rather than
 introducing parallel ones.
 
+#### Instrumented-suite hazards
+
+- **`pending_*` dialog flags outlive both the graph and the test.** They live in the
+  process-lifetime `app_dialogs_prefs` DataStore, shared by every androidTest in the `:app:app`
+  instrumentation process no matter how many `AppGraph` generations a test builds —
+  `MetroTestRule`'s per-test in-memory DB teardown does not touch them. A test that publishes an
+  `AppDialog` and does not acknowledge it leaves the flag set for every later test in the run.
+  `DialogStateAcrossGenerationsTest.tearDown` therefore builds one extra generation and calls
+  `appDialogObserver.acknowledgeReaction(...)` on whatever `appDialogRepository.currentDialog`
+  still holds; it is not redundant cleanup.
+- **Injected fling gestures do not scroll the AllExercises list on CI's x86_64 emulator.** Two
+  prior versions of `scrollListUntilComposed` used `performTouchInput { swipeUp() }` and both went
+  red on that profile while green on arm64 (runs 31884113468, 31885121564). The second falsified
+  the pacing theory: 24 progress-checked swipes moved the composed row window ZERO times. Use
+  `performScrollToNode`, which drives the lazy list's own scroll semantics — no gesture, no
+  viewport math, no gesture-navigation interference. Its one precondition, that the item be
+  resolvable by the lazy layout, holds by construction in `BackStackStateRestorationTest`: Paging's
+  default initial load (3 × pageSize = 30) covers all `SEEDED_ROWS = 14` rows up front, so the
+  journey contains no paging append.
+- **Never assert on a relative-time meta string.** `NavSeed`'s
+  `FIXED_CREATED_AT = 1_700_000_000_000L`, `FIXED_STARTED_AT = 1_700_000_100_000L` and
+  `FIXED_FINISHED_AT = 1_700_000_200_000L` stop drift WITHIN a run, not across the calendar: they
+  are a moment in 2023, so a relative-time label rendered from them already reads "years ago" and
+  changes again every month with no code change. Assert on seeded names (unique per test) or on
+  absolute values the seed controls. Nothing breaks today only because every selector in the suite
+  is name-based.
+- **`app/app`'s androidTest source set cannot see a feature module's `R`.**
+  `NavigationResultTest.NO_PLAN_LABEL = "no plan"` is
+  `R.string.feature_live_workout_status_no_plan` inlined by hand; adding that dependency to reach
+  one string would give the navigation suite a compile-time edge into a feature it is otherwise
+  independent of. Accepted cost: re-wording the string turns the "before" assertion into a
+  comparison against a stale literal — which fails loudly rather than passing quietly, so the
+  failure mode is the safe one.
+- **`BottomBarItem.testTag` (`"BottomAppBarItem_$name"`) is a test contract, not a private
+  detail.** `ApplicationBottomBarTest` looks items up by it directly, and `harness/NavPaths.kt`
+  pins `BOTTOM_BAR_HOME` / `BOTTOM_BAR_TRAININGS` / `BOTTOM_BAR_EXERCISES` from it. Those tests
+  are about navigation lifecycle, so renaming the tag mixes a chrome change into a test change.
+
 ### Test-tag naming
 
 Use `Modifier.testTag("...")` with these prefixes so finders are stable across PRs:
@@ -456,8 +868,15 @@ tags (`"HomeGraph"`, `"AllTrainingsGraph"`, etc.) for cross-feature tests.
 
 ## Visual gate — Paparazzi screenshot goldens
 
-Applies to `:core:ui:kit`. Goldens live in
-`core/ui/kit/src/test/snapshots/images/` and are committed.
+Applies to every module that records goldens: `:core:ui:kit` (KMP), `:core:ui:plan-editor` (KMP),
+`:core:ui:start-mode` (KMP), and `feature/`{`all-exercises`, `all-trainings`, `archive`, `exercise`,
+`exercise-chart`, `home`, `live-workout`, `past-session`, `settings`, `single-training`}. Goldens
+live in `src/test/snapshots/images/` in classic Android modules and in
+`src/androidHostTest/snapshots/images/` in KMP modules (`:core:ui:kit`,
+`:core:ui:plan-editor`, `:core:ui:start-mode`), and are committed. The shared harness
+(`golden`, `goldenSubject`, `GOLDEN_DEVICE`, `GoldenTheme`) is `core:ui:golden-harness`; the
+shared liveness gate is `gradle/golden-gate.gradle.kts`, applied with
+`apply(from = "$rootDir/gradle/golden-gate.gradle.kts")`.
 
 ```bash
 # Verify the committed goldens (what CI runs, before detekt)
@@ -467,14 +886,21 @@ Applies to `:core:ui:kit`. Goldens live in
 ./gradlew :core:ui:kit:recordPaparazziDebug
 ```
 
+Both spellings cover the KMP-shaped `:core:ui:kit`, `:core:ui:plan-editor`, and
+`:core:ui:start-mode` too: on a KMP module Paparazzi registers
+`verifyPaparazziAndroidMain` / `recordPaparazziAndroidMain`, and the KMP compose convention
+registers `verifyPaparazziDebug` / `recordPaparazziDebug` as lifecycle aliases onto them, so the
+repo-wide commands above keep reaching every golden module.
+
 **Re-record workflow.** `recordPaparazziDebug` regenerates every golden, the PNGs are
 committed alongside the code change, and the reviewer reads the image diff. During the v3
 redesign the goldens are re-recorded at every visual step — they are the *before* picture for
 the next one, and are disposable by design.
 
 **Rule for the redesign branch: a golden change must be intentional and explained in the
-commit body. An unexplained golden delta is a review stop.** A commit that touches
-`src/test/snapshots/` without saying why in its message should not be approved.
+commit body. An unexplained golden delta is a review stop.** A commit that touches a module's
+`snapshots/` directory (`src/test/snapshots/` or `src/androidHostTest/snapshots/`) without
+saying why in its message should not be approved.
 
 **Pinned rendering inputs** (change these and every golden moves): `DeviceConfig.PIXEL_5` —
 1080×2340 at 440 dpi, `fontScale = 1.0`, `softButtons = false`, locale `en` (`ru` for the
@@ -489,25 +915,143 @@ to a golden moves ~0.03% of the frame, so the commonly copied `0.1` would not ca
 Those sites stay on manual verification.
 
 **Liveness.** A Paparazzi task that discovers no tests still exits 0. `verifyPaparazziDebug`
-and `recordPaparazziDebug` are therefore finalized by `:core:ui:kit:assertGoldenLiveness`,
-which fails the build unless at least as many golden test cases executed as there are
-committed golden images.
+and `recordPaparazziDebug` are therefore finalized by each golden-holding module's
+`assertGoldenLiveness`, which fails the build unless at least as many golden test cases
+executed as there are committed golden images.
 
 That assertion reads the JUnit XML — a cacheable *output* of the test task. So with the build
 cache warm it would read restored XML and vouch for a run that never happened: measured, a
 wiped `core/ui/kit/build` plus a warm cache printed *"Visual gate live: 10 golden test case(s)
 executed"* in a 565 ms build that executed none. The goldens themselves are declared inputs, so
 a *changed* golden always misses the cache and is still caught — only the liveness claim was
-hollow. `testDebugUnitTest` is therefore marked `doNotCacheIf` + `upToDateWhen { false }` when a
-Paparazzi task was requested, so the gate executes on every invocation, CI or local.
+hollow. The host test task (`testDebugUnitTest` on classic modules, `testAndroidHostTest` on KMP
+modules — the KMP `testDebugUnitTest` is a plain lifecycle alias, never cast to `Test`) is
+therefore marked `doNotCacheIf` + `upToDateWhen { false }` when a Paparazzi task was requested,
+so the gate executes on every invocation, CI or local.
+
+**The subject-sized canvas crops what leaves the bounds.** `goldenSubject` renders with
+`SessionParams.RenderingMode.SHRINK`, which sizes the image to the content, so anything drawn
+outside the specimen's own bounds is cropped away. Padding in these fixtures is load-bearing, not
+layout taste: `LiftSpecimen` pads all sides with `AppDimension.Space.xl` because the light theme's
+cast shadow is half of what `surfaceLifted` vs `surfaceResting` asserts, and
+`railWithOneOffUnderline` reserves `Modifier.padding(bottom = 8.dp)` because the `.grp.temp::after`
+dashed `dim` underline beneath a one-off group draws 4dp BELOW the band, outside
+`AppProgressRail`'s own bounds. For the same reason golden fixtures compose `PlanEditorBody` with
+`scrollable = false`: a capped inner scroller inside a SHRINK canvas photographs the cap rather
+than the list (the host owns the scroll on both surfaces the body ships on).
+
+**Every golden paints `AppUi.colors.surfaceTier0` across the whole frame.** Without that paint the
+visible background comes from Paparazzi's `theme` parameter, not from `AppTheme` — a dark and a
+light golden would then share a background, leaving the actual theme difference unverified.
+`GoldenTheme.windowTheme` (`android:Theme.Material.Light.NoActionBar` for LIGHT,
+`android:Theme.Material.NoActionBar` for DARK) should therefore never actually be visible; it is
+still set per variant so that a golden which forgets to paint its background produces an obviously
+wrong image rather than a plausible one. Sheet *content* is the deliberate exception — it renders
+on `surfaceTier3`, because `AppBottomSheet`'s `containerColor` is `surfaceTier3` and
+`AppSheetLayout` paints no background of its own (`ExerciseChartGoldenTest.pickerSheetContent`,
+`SessionSheetsGoldenTest`).
+
+**Native resolution is measured, not preference.** `useDeviceResolution = true`. Scaled, a `1.dp`
+rule landed across 2–4 rows at four different intensities (`#E3E3DF`, `#EFEFEC`, …) — resampling
+blur, not rendering. At device resolution the same rule is 3 rows of one flat `#E0E0DC` and the
+`0.5.dp` rule is exactly 1 row: layoutlib snaps hairlines to whole pixels, so the blur was
+entirely a downscale artefact. Cost is 216 KB for the six goldens involved. Never re-record a
+golden scaled — that reintroduces exactly this blur.
+
+**`HairlineCanaryGoldenTest` is why that is known.** 440 dpi is 2.75 physical pixels per dp, so a
+`1.dp` rule is 2.75 px and a `0.5.dp` rule is 1.375 px — neither lands on a pixel boundary, and
+the redesign leaves the hairline as the only section separator in the app. The canary probes phase
+deliberately: the spacer heights `7.dp`, `10.5.dp`, `13.dp`, `0.5.dp` accumulate fractional
+offsets so successive rules start at different sub-pixel phases down the frame. Measured answer:
+no partial-alpha edge at any phase, identically in both themes, so hairlines are crisp and stable
+at `maxPercentDifference = 0.0`. A failure here is a NO-GO finding for the hairline golden
+category, to be reported.
+
+**Paparazzi decodes no image.** `ExerciseDescriptionBlockGoldenTest.readWithImage` passes
+`ImageDisplay.FromPath(path = "/exercise/preview.jpg", lastModified = 1L)` into an `AsyncImage`
+and photographs the FILLED box's own treatment — solid-bordered gradient, no glyph — rather than a
+photograph. That is the assertion by design: the has-picture / has-no-picture signal under test is
+the border and the fill, not the picture. `ExerciseThumbGoldenTest` photographs the same
+distinction using a flat `Box` stand-in for the same reason.
+
+**One frame, and the clock is never advanced.** Anything seeded or left mid-flight is captured
+mid-flight. `ChartPointsAnimator` therefore seeds its `entries` / `live` lists synchronously in
+its constructor at `presence = 1f`, and `retarget(animate = false)` snaps everything — that, plus
+the draw phase never seeing an unpopulated collection, is why the seeding is synchronous. In
+`ChartCanvas` the animator is held by `remember` with NO keys deliberately: it must outlive every
+dataset, since a new dataset retargets the existing points rather than replacing the collection.
+
+**Localisation coverage.** Only a `LOCALE_RU` frame can fail on a hardcoded set-type letter: at
+the harness's default locale a hardcoded literal in `AppSetTypeChip` and a `stringResource` render
+identically, so no `en`-only frame can see `W` drawn over the Russian warmup label.
+`SetTypeMarkGoldenTest.setTypeMarksRu` is therefore not duplicate coverage of the `en` frame, and
+`AppSetBar` shares those frames both because its labels localise (the Russian and English add-set labels) and
+because the drawn `opacity:.35` disabled half has no other instrument — a handler test cannot see
+an alpha. Conversely `NavBarGoldenTest` deliberately ships **no** `values-ru` variant: Cyrillic
+reaches `AppNavBar` only through `contentDescription`, which is invisible in a picture. That is
+safe only while the chosen `#s-nav` variant draws no captions at all; restoring nav captions
+restores the gap.
+
+**A golden fixture can be mutation-blind.** `PastSessionGoldenTest.cardSkippedEmpty` zeroes
+`setSummary` and `sets` together, so swapping the `skipped` and `setSummary.isNotEmpty()` branches
+of `CardHeader`'s plan-line `when` produces BYTE-IDENTICAL pixels there. `cardSkippedWithSets`
+(skipped with a non-empty summary and real sets) is the fixture that actually pins the precedence,
+and that state is reachable in production — the live session preserves performed sets across a
+skip toggle, and `PastSessionUiMapper` fills both `setSummary` and `sets` regardless of `skipped`.
+The two are not redundant; deleting the second removes the only coverage of the branch order.
+
+**Jupiter drives Paparazzi, with no `junit-vintage-engine` on the classpath.** Paparazzi
+2.0.0-alpha05 exposes `setup(TestName)` / `teardown()` as public members that touch no JUnit 4
+type — `setup` builds the `PaparazziSdk`, calls its `setup()` and `prepare()` and stores the test
+name; `teardown()` tears the SDK down and closes the snapshot handler; the `TestRule`
+implementation on the same class is just another caller of those two. That matters beyond
+tidiness: on the JUnit 4 path a missing Vintage engine let `verifyPaparazziDebug` exit 0 having
+executed zero screenshot tests, whereas with Jupiter as the only engine present, dropping it fails
+loudly ("Cannot create Launcher without at least one TestEngine"). It does not close the hole in
+general — a task-level test filter still produces a silent zero-test pass — which is what
+`assertGoldenLiveness` is for.
+
+**Goldens are excluded from a plain `testDebugUnitTest`.** Paparazzi decides verify-vs-record from
+the `paparazzi.test.verify` system property, and the plugin injects it at *execution* time on its
+own tasks only — it is absent from the test task's configured `systemProperties` under either
+invocation. So under a plain `testDebugUnitTest` the goldens render into the build-dir report and
+always pass, costing ~6 s per CI build for something that only looked like a second safety net.
+Hence `excludeTestsMatching("*.golden.*")` when no Paparazzi task was requested — applied to the
+classic `testDebugUnitTest` or, on a KMP module, to the real host `Test` tasks, where the filter
+also sets `isFailOnNoMatchingTests = false` so a golden-only KMP module's plain run cannot die on
+its own filter. "Paparazzi mode" is guessed from
+`gradle.startParameter.taskNames.any { "Paparazzi" in it }` — true for both the classic and the
+`*AndroidMain` spellings — which could in principle be wrong for a lifecycle task that pulls in a
+verify task without naming it; `assertGoldenLiveness` is what catches that case.
 
 ## Running tests
 
 From the project root:
 
 ```bash
-# Unit tests (JVM, fast)
+# Unit tests (JVM, fast; on KMP modules the alias fans out to testAndroidHostTest)
 ./gradlew testDebugUnitTest
+
+# Shared MVI Android-host tests plus exact JUnit identities
+./gradlew :core:ui:mvi:testAndroidHostTest --rerun-tasks --no-build-cache --no-configuration-cache
+python3 .github/scripts/assert_mvi_host_identities.py
+
+# Native Phase-7 tests (macOS + Xcode), kept in one --continue invocation
+./gradlew :core:ui:kit:iosSimulatorArm64Test \
+  :core:ui:navigation:iosSimulatorArm64Test \
+  :core:ui:mvi:iosSimulatorArm64Test \
+  :core:ui:start-mode:iosSimulatorArm64Test \
+  :core:ui:plan-editor:iosSimulatorArm64Test \
+  :feature:image-viewer:iosSimulatorArm64Test \
+  :feature:plan-editor:iosSimulatorArm64Test \
+  --rerun-tasks --no-build-cache --no-configuration-cache --continue
+python3 .github/scripts/assert_kmp_ios_smoke.py
+
+# Focused MVI device cases plus exact JUnit identities
+./gradlew :core:ui:mvi:connectedAndroidDeviceTest \
+  -Pandroid.testInstrumentationRunnerArguments.annotation=io.github.stslex.workeeper.core.ui.test.annotations.Smoke \
+  --rerun-tasks --no-build-cache --no-configuration-cache
+python3 .github/scripts/assert_mvi_device_identities.py
 
 # Every UI test in every module (slow; emulator required)
 ./gradlew connectedDebugAndroidTest

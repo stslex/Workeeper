@@ -37,54 +37,29 @@ interface LiveWorkoutStore :
         val totalCount: Int,
         val setsLogged: Int,
         val progress: Float,
-        /**
-         * The `.shead` meta line (extraction §1.3), built in the presentation mapper:
-         * `{fin} из {act} упражнений · {d} из {t} подходов`, plus ` · пропущено {sk}` only
-         * when anything is skipped. `fin` counts exercises where every set is done, `act`
-         * excludes skipped, `d`/`t` count sets over non-skipped exercises only. Blank while
-         * the session has no exercises.
-         */
+        /** The `.shead` meta line, built in the presentation mapper. Blank when no exercises. */
         val headerMetaLabel: String,
+        /**
+         * kit's localized reps unit for WEIGHTLESS sublabels, resolved once per session load at
+         * the handler's suspend boundary — the same refresh boundary as every other
+         * State-carried presentation string. Blank only before the first load, which is also
+         * the only time no exercise sublabel can render.
+         */
+        val repsUnitLabel: String = "",
         val exercises: ImmutableList<LiveExerciseUiModel>,
         val setDrafts: ImmutableMap<DraftKey, LiveSetUiModel>,
         /**
-         * Per-exercise visible-row count set by the setbar (`+ подход` / `− подход`,
-         * extraction §1.7). Absent key = derive from `max(plan, performed, drafts)` as
-         * always; present = exactly this many rows (floored at the highest performed
-         * position, which deletion clears first). Lets `− подход` truncate BELOW the plan
-         * length — the plan itself is untouched, exactly like the drafts layer this sits
-         * beside. Ephemeral (§6.1's draft-state rule): a reload re-derives rows from the
-         * plan.
+         * Setbar's per-exercise visible-row count. Absent key = derive from
+         * `max(plan, performed, drafts)`; present = exactly this many rows. Ephemeral.
          */
         val rowCountOverrides: ImmutableMap<String, Int> = persistentMapOf(),
-        /**
-         * Exercises added DURING this session (picker adds, both library and inline). Gates
-         * the `sh-ex` one-off switch (§6.1: "the toggle appears only on mid-session
-         * additions") and selects the shorter loss body inside a template-backed session.
-         * Ephemeral by design — ad-hoc removal copy instead uses durable [isAdhoc], while a
-         * loaded one-off keeps its toggle via `!isPlanAttached`.
-         */
+        /** Exercises added during this session; gates the `sh-ex` one-off switch. Ephemeral. */
         val midSessionAddedUuids: ImmutableSet<String> = persistentSetOf(),
-        /**
-         * The single-level undo window driving the toast (extraction §1.9). Null = no toast.
-         * See [PendingUndo] for the replace/commit semantics.
-         */
+        /** Single-level undo window driving the toast; null = no toast. See [PendingUndo]. */
         val pendingUndo: PendingUndo? = null,
-        /**
-         * UUIDs the user has explicitly tapped to start (or kept active across recompute).
-         * When non-empty, the auto-default first-CURRENT behavior is suppressed; only
-         * exercises in this set become CURRENT (alongside SKIPPED/DONE derivation).
-         * Ephemeral — resets on app background/restore.
-         */
+        /** Exercises the user explicitly started; non-empty suppresses the auto-default CURRENT. */
         val activeExerciseUuids: ImmutableSet<String>,
-        /**
-         * The open cards — the whole disclosure model, by decision (the session-rebuild
-         * amendment, superseding spec §7's seven-rule automaton): expanded means open,
-         * nothing more. First entry opens the first card; a header tap flips exactly this
-         * set's membership for that card; NOTHING else ever writes it (no auto-advance, no
-         * auto-collapse-on-completion, no "exactly one open"). Multiple open cards are legal
-         * and expected. Lives in the Store so a plan-editor round-trip preserves it.
-         */
+        /** The open cards; only a header tap writes it. Multiple open cards are legal. */
         val expandedExerciseUuids: ImmutableSet<String>,
         val preSessionPrSnapshot: ImmutableMap<String, PrSnapshotItem>,
         val isAddExerciseInFlight: Boolean,
@@ -92,14 +67,7 @@ interface LiveWorkoutStore :
         val isLoading: Boolean,
         /**
          * The session could not be loaded, and the route must leave rather than render.
-         *
-         * GUARD: this is STATE and not an event, and that is the whole point. An event is
-         * replay-free and its only collector is the screen's `Handle`, which subscribes from a
-         * `LaunchedEffect` — later than the `DisposableEffect` that dispatches `Init`. A load that
-         * resolves inside that window emits into no subscriber and is dropped, leaving `isLoading`
-         * clear, the route composed on an empty seed, and a Finish dock enabled over a session
-         * whose exercises never arrived. State cannot be dropped: whenever the screen composes it
-         * reads this, and both the withholding and the leaving hang off it.
+         * GUARD: keep it in State — an Event emitted before the screen subscribes is dropped.
          */
         val loadFailed: Boolean,
         val dialogState: DialogState,
@@ -109,12 +77,7 @@ interface LiveWorkoutStore :
         @Stable
         data class DraftKey(val performedExerciseUuid: String, val position: Int)
 
-        /**
-         * Pre-session PR snapshot held in State for the entire session (Q6 lock — frozen
-         * snapshot scope). One entry per exercise; absent key means "no PR yet" and any
-         * non-zero candidate beats it. Identity (`setUuid`) is intentionally absent — the
-         * comparator paths only need weight + reps + type.
-         */
+        /** Pre-session PR snapshot for the whole session; an absent key means "no PR yet". */
         @Stable
         data class PrSnapshotItem(
             val weight: Double?,
@@ -124,40 +87,21 @@ interface LiveWorkoutStore :
 
         val elapsedMillis: Long get() = (nowMillis - startedAt).coerceAtLeast(0L)
 
-        /**
-         * "Empty session" predicate driving the E1 confirm dialog: no exercises at all,
-         * or every exercise has zero performed sets.
-         */
+        /** "Empty session" predicate driving the E1 confirm dialog. */
         val isSessionEmpty: Boolean
             get() = exercises.isEmpty() || exercises.all { it.performedSets.isEmpty() }
 
-        /**
-         * Visible rows the user never filled in, across every non-skipped exercise. Surfaced
-         * in `FinishConfirmDialog` so the discard at finish is stated rather than silent
-         * (§6.1). Skipped exercises are excluded — their rows are already outside the
-         * progress denominator, so counting them would overstate the loss.
-         */
+        /** Visible rows never filled in, over non-skipped exercises; shown in the finish dialog. */
         val unfilledSetCount: Int
             get() = exercises
                 .filter { it.status != ExerciseStatusUiModel.SKIPPED }
                 .sumOf { exercise -> exercise.visibleSets.count { it.isUnfilled } }
 
-        /**
-         * Throttle gate for the mid-session add-exercise CTA. False during an in-flight
-         * fetch (picker primary action disabled) and during the finish flow so the user
-         * cannot stack a parallel add on top of session teardown.
-         */
+        /** Throttle gate for the mid-session add-exercise CTA. */
         val canAddExercise: Boolean
             get() = !isAddExerciseInFlight && !isFinishInFlight
 
-        /**
-         * Tracks every UI state that needs to intercept the system back gesture so the
-         * Android 13+ predictive back preview stays alive everywhere else. Dismissal order
-         * is enforced by `ClickHandler.processBackClick`: picker → empty-finish dialog →
-         * name edit → default back. Plan-editor is now its own full-screen route (v2.4
-         * D1) so it owns its own BackHandler and is not part of LiveWorkout's intercept
-         * conditions.
-         */
+        /** UI states that intercept system back; dismissal order lives in `processBackClick`. */
         val interceptBack: Boolean
             get() = isTrainingNameEditing ||
                 bottomSheetState is BottomSheetState.ExercisePicker ||
@@ -212,10 +156,7 @@ interface LiveWorkoutStore :
             data class OnSetRemove(val performedExerciseUuid: String, val position: Int) : Click
             data class OnAddSet(val performedExerciseUuid: String) : Click
 
-            /**
-             * The setbar's `− подход` (§6.4): removes the LAST visible row — middle deletion
-             * is not planned. Disabled in UI at one row; the handler guards it again.
-             */
+            /** The setbar's `− подход`: removes the LAST visible row. */
             data class OnRemoveLastSet(val performedExerciseUuid: String) : Click
             data class OnEditPlan(val performedExerciseUuid: String) : Click
             data class OnResetSets(val performedExerciseUuid: String) : Click
@@ -226,35 +167,29 @@ interface LiveWorkoutStore :
             data class OnExerciseHeaderClick(val performedExerciseUuid: String) : Click
             data object OnBackClick : Click
 
-            // v2.3 — editable training-name header (save on blur, "Untitled" placeholder).
+            // Editable training-name header (save on blur, "Untitled" placeholder).
             data object OnTrainingNameTap : Click
             data class OnTrainingNameChange(val text: String) : Click
             data class OnTrainingNameSubmit(val text: String) : Click
             data object OnTrainingNameDismiss : Click
 
-            // v2.3 — mid-session add exercise (opens the picker sheet).
+            // Mid-session add exercise (opens the picker sheet).
             data object OnAddExerciseClick : Click
 
-            // v3 sheets (extraction §1.9).
-            /** Topbar `⋮` → `sh-session`. */
             data object OnSessionMenuClick : Click
 
-            /** Card `.mini.menu` → `sh-ex`. */
             data class OnExerciseMenuClick(val performedExerciseUuid: String) : Click
 
             /** Card `.mini.info` → `sh-desc`; only offered when a description exists. */
             data class OnShowDescription(val performedExerciseUuid: String) : Click
 
-            /** `sh-ex`'s `Только на сегодня` switch — flips plan attachment (§6.2). */
+            /** `sh-ex`'s `Только на сегодня` switch — flips plan attachment. */
             data class OnToggleOneOff(val performedExerciseUuid: String) : Click
 
-            /** `sh-ex`'s delete item → `sh-del`. */
             data class OnDeleteExerciseClick(val performedExerciseUuid: String) : Click
 
-            /** Scrim tap / system dismiss for the v3 sheets. */
             data object OnSheetDismiss : Click
 
-            /** The toast's `Отменить`. */
             data object OnUndoClick : Click
 
             /** The toast's 5s window elapsed; commits [PendingUndo.deferredCommit]. */
@@ -265,10 +200,9 @@ interface LiveWorkoutStore :
 
             data object OnDeleteSessionConfirm : DialogClick
 
-            /** `sh-del`'s `Удалить из плана` — commits the §6.1 deletion (undoable, 5s). */
+            /** `sh-del`'s `Удалить из плана` — commits the deletion (undoable, 5s). */
             data class OnDeleteExerciseConfirm(val performedExerciseUuid: String) : DialogClick
 
-            /** `sh-del`'s `Оставить` — closes the sheet, nothing changes. */
             data object OnDeleteExerciseKeep : DialogClick
             data object OnDeleteSessionDismiss : DialogClick
             data object OnEmptyFinishDiscard : DialogClick
@@ -281,12 +215,7 @@ interface LiveWorkoutStore :
             data object OnFinishDismiss : DialogClick
             data class OnFinishNameChange(val text: String) : DialogClick
 
-            /**
-             * Wraps the picker bottom-sheet action surface so the feature's top-level
-             * DialogClick variants stay flat. `ClickHandler` delegates to the dedicated
-             * `ExercisePickerHandler` when this variant fires (per the action-wrapper
-             * pattern from architecture docs).
-             */
+            /** Wraps picker sheet actions; delegated to `ExercisePickerHandler`. */
             @Suppress("MviActionNamingRule")
             data class PickerAction(val action: ExercisePickerAction) : DialogClick
         }
@@ -309,11 +238,7 @@ interface LiveWorkoutStore :
             data object Back : Navigation
             data class OpenPastSession(val sessionUuid: String) : Navigation
 
-            /**
-             * Navigates to the full-screen plan editor (v2.4 D1). Replaces the legacy
-             * bottom-sheet editor that lived on this screen. The screen reloads its
-             * session on resume to pick up persisted edits.
-             */
+            /** Navigates to the full-screen plan editor; the screen reloads on resume. */
             data class OpenPlanEditor(
                 val performedExerciseUuid: String,
                 val exerciseUuid: String,
@@ -324,15 +249,7 @@ interface LiveWorkoutStore :
         sealed interface Common : Action {
             data object Init : Common
 
-            /**
-             * The plan editor returned. [saved] is its declared result — `true` when a plan
-             * was written to disk.
-             *
-             * The graph forwards this without inspecting it; whether a result means the
-             * session must be re-read is a decision for the Handler. Re-running the
-             * session-load pipeline is what makes the new plan visible on the next
-             * composition, and it only happens when [saved] is `true`.
-             */
+            /** The plan editor returned; only `saved = true` re-runs the session load. */
             data class PlanResultReceived(val saved: Boolean) : Common
         }
     }

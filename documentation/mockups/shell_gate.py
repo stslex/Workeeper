@@ -125,7 +125,7 @@ MOCKUP = "documentation/mockups/pass2d.html"
 # right now", not "what did the mockup match as of some historical ref". A historical TARGET is
 # expected to disagree (that disagreement is what B19 found), and check 9 is allowed to fail there.
 APP_COLORS = (
-    "core/ui/kit/src/main/kotlin/io/github/stslex/workeeper/core/ui/kit/theme/AppColors.kt"
+    "core/ui/kit/src/commonMain/kotlin/io/github/stslex/workeeper/core/ui/kit/theme/AppColors.kt"
 )
 
 # Tokens with no corresponding AppColors.kt constant, by design — not drift. Each carries the
@@ -155,8 +155,8 @@ _HAIR_S_REASON = (
     "EXPIRED, AND KEPT ONLY UNTIL THE PALETTE DECISION LANDS. The recorded reason was "
                 "that the slots that would take it are enabled-control-outline borders owing 3:1 "
                 "under WCAG 1.4.11, which hair-s's 1.12-1.52:1 cannot clear, so the app ships "
-                "*_CONTROL_OUTLINE instead (B19) — and, in AppColors.kt's own words, that "
-                "'borderSubtle covers every decorative stroke in the app'. That clause stopped "
+                "*_CONTROL_OUTLINE instead (B19) — and on the since-removed claim that "
+                "borderSubtle covers every decorative stroke in the app. That clause stopped "
                 "being true when the v3 list row landed: the 88dp row is RULED with --hair-s "
                 "(.row border-bottom), a decorative stroke borderSubtle does not cover — "
     "borderSubtle is --hair, a different value. A named exception is valid only while "

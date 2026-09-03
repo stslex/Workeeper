@@ -10,19 +10,8 @@ import io.github.stslex.workeeper.core.data.database.migration.APP_DATABASE_VERS
 import io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProvider
 
 /**
- * Wraps [FirebaseCrashlyticsHolder] for the restore-recovery non-fatals
- * described in `documentation/feature-specs/backup-recovery.md` →
- * "Crashlytics non-fatals". Sets the custom-key set the Crashlytics
- * dashboard filters expect (`migration_from_schema`, `migration_to_schema`,
- * `available_migrations`, `app_version`, `triggered_at`,
- * `restore_in_progress`, `backup_version`), then records the underlying
- * exception via `recordException`.
- *
- * Only Scenario 1 (restore-time) keys are populated by this PR; Scenario 2
- * (startup-time) will reuse the same reporter with `triggered_at = "startup"`
- * and a different subset when PR-E lands. The interface is intentionally
- * narrow — adding a method per scenario keeps the call-sites grep-able and
- * the key-set discoverable.
+ * Crashlytics non-fatal reporter for Scenario 1 (restore-time) failures.
+ * See documentation/feature-specs/backup-recovery.md → "Crashlytics non-fatals".
  */
 @SingleIn(AppScope::class)
 internal class RestoreRecoveryReporter @Inject constructor(

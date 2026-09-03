@@ -17,11 +17,8 @@ import org.gradle.kotlin.dsl.dependencies
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 
 /**
- * One plugin id for "this module uses Room", on either module shape. The branch is decided by
- * which base convention is already applied, so a KMP consumer MUST list `convention.kmpLibrary`
- * before `convention.roomLibrary` in its plugins block — applied the other way round, the
- * Android branch's `implementation` configuration does not exist on a KMP module and the build
- * fails at configuration time, loudly and with this file in the stack trace.
+ * One plugin id for "this module uses Room", on either module shape. GUARD: a KMP consumer must
+ * list `convention.kmpLibrary` BEFORE this plugin, or the Android branch is taken and fails.
  */
 class RoomLibraryConventionPlugin : Plugin<Project> {
 
@@ -37,9 +34,7 @@ class RoomLibraryConventionPlugin : Plugin<Project> {
             }
 
             extensions.configure<RoomExtension> {
-                // The schemas directory contains a schema file for each version of the Room database.
-                // This is required to enable Room auto migrations.
-                // See https://developer.android.com/reference/kotlin/androidx/room/AutoMigration.
+                // One schema file per database version; required for Room auto migrations.
                 schemaDirectory("$projectDir/schemas")
             }
 
@@ -54,8 +49,7 @@ class RoomLibraryConventionPlugin : Plugin<Project> {
     private fun Project.configureAndroid() {
         dependencies {
             implementationBundle("room")
-            // Room 3 requires a SQLiteDriver via setDriver(); classic Android Room modules use
-            // the framework artifact, while KMP modules select their driver in configureKmp().
+            // Room 3 requires a SQLiteDriver; KMP modules select theirs in configureKmp().
             implementation("androidx-sqlite-framework")
 
             ksp("androidx-room-compiler")
@@ -66,39 +60,22 @@ class RoomLibraryConventionPlugin : Plugin<Project> {
 
     private fun Project.configureKmp() {
         dependencies {
-            // The room bundle (runtime + room3-paging) publishes every target this repo
-            // compiles; paging-common replaces the Android-only paging-runtime-ktx and is
-            // where androidx.paging.PagingSource actually lives (phase-6 spec §0).
+            // paging-common replaces the Android-only paging-runtime-ktx (phase-6 spec §0).
             add("commonMainImplementation", libs.findBundle("room").get())
             add("commonMainImplementation", libs.findLibrary("androidx-paging-common").get())
-            // BundledSQLiteDriver: one SQLite build (3.50.x) on every device instead of the
-            // per-OEM system one (phase-6 spec §6; the flip commit's own gate). Per-target by
-            // construction — iosMain gets a driver dependency the day an iOS composition root
-            // builds a database, not before. Robolectric HOST tests cannot use bundled (the
-            // android variant ships Android-ABI natives only; measured UnsatisfiedLinkError),
-            // so a module whose host tests build databases pins sqlite-framework on
-            // androidHostTestImplementation itself.
+            // BundledSQLiteDriver: one SQLite build per device instead of the per-OEM system
+            // one, per target (phase-6 spec §6). Robolectric host tests cannot use it.
             add("androidMainImplementation", libs.findLibrary("androidx-sqlite-bundled").get())
 
-            // Room's KSP codegen runs once per compilation target; the compiler artifact
-            // itself is JVM-only, which is fine — KSP always executes on the JVM.
+            // Room's KSP codegen runs once per compilation target.
             add("kspAndroid", libs.findLibrary("androidx-room-compiler").get())
             add("kspIosSimulatorArm64", libs.findLibrary("androidx-room-compiler").get())
 
             add("androidDeviceTestImplementation", libs.findLibrary("androidx-room-testing").get())
         }
 
-        // What the classic Android integration does per androidTest variant and room3's KMP
-        // integration does not: put the exported schemas on the device-test APK's assets so
-        // MigrationTestHelper can read them. Without this every migration test fails on device
-        // with "Cannot find the schema file in the assets folder … Missing file: …/5.json".
-        // Static directory, not a copy task: the committed schemas/ dir IS the canonical
-        // artifact and the test only reads it. See kmp-phase-6-data-layer.md → §9
-        // "Room-KMP does not put schemas on the device-test APK."
-        //
-        // androidResources must be enabled first: AGP-KMP defaults it off, and with it off the
-        // device-test component's `sources.assets` is null (measured) — the asset pipeline
-        // simply does not exist, so there is nowhere to add the directory.
+        // Room-KMP does not put the exported schemas on the device-test APK, which
+        // MigrationTestHelper reads; androidResources must be on or `sources.assets` is null.
         val kmpExtension = extensions.getByType(KotlinMultiplatformExtension::class.java)
         val androidDsl = (kmpExtension as ExtensionAware).extensions
             .getByName("android") as KotlinMultiplatformAndroidLibraryExtension

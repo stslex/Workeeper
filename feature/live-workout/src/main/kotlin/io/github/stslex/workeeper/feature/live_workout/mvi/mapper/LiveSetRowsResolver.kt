@@ -10,14 +10,8 @@ import kotlinx.collections.immutable.ImmutableMap
 import kotlinx.collections.immutable.toImmutableList
 
 /**
- * Resolves the visible-row list for each exercise card. Priority is
- * `performed > draft > plan > fallback`. Live workout's exercise card renders
- * `LiveExerciseUiModel.visibleSets` directly — UI never merges sources, never sees
- * `State.DraftKey`.
- *
- * Every state transition that touches `performedSets`, `planSets`, or `setDrafts`
- * must funnel through `State.withVisibleSets()` (directly, or via
- * `LiveWorkoutMapper.withPresentation`) so the resolver stays in sync.
+ * Resolves each card's visible-row list, priority `performed > draft > plan > fallback`.
+ * GUARD: every transition touching those sources must funnel through `withVisibleSets()`.
  */
 internal object LiveSetRowsResolver {
 
@@ -36,10 +30,8 @@ internal object LiveSetRowsResolver {
             .maxOfOrNull { it.position + 1 }
             ?: 0
 
-        // The setbar's truncation (§6.4): an override pins the row count exactly — it may
-        // sit BELOW the plan length, and drafts past it stay shadowed until `+ подход`
-        // raises it again. Floored at the highest performed position so a logged row can
-        // never be hidden; deletion removes the performed row before lowering the count.
+        // The setbar's truncation (§6.4) pins the count exactly, floored at the highest
+        // performed position so a logged row can never be hidden.
         val total = rowCountOverride?.coerceAtLeast(performedTotal)
             ?: maxOf(
                 exercise.planSets.size,

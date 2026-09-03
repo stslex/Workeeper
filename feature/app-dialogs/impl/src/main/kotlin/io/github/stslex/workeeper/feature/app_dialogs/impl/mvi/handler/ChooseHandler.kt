@@ -11,21 +11,8 @@ import io.github.stslex.workeeper.feature.app_dialogs.impl.mvi.store.AppDialogSt
 import io.github.stslex.workeeper.feature.app_dialogs.impl.observer.AppDialogObserverImpl
 
 /**
- * Receives `Action.Choose(dialog, action)` from the Host and emits the
- * `AppDialogUserChoice` through [AppDialogObserverImpl].
- *
- * **Does NOT clear the dialog flag.** The dismiss-after contract puts that
- * responsibility on the consumer-side handler (`@Singleton` reactor in
- * `app/app`), which calls `AppDialogObserver.acknowledgeReaction(dialog)`
- * after its side-effect runs. If the process dies mid-reaction, the dialog
- * flag survives in DataStore, the dialog re-shows on next launch, and the
- * user re-taps — idempotent by construction. See
- * `documentation/feature-specs/app-dialogs.md` → "Cross-feature observation"
- * for the rationale.
- *
- * Injects the concrete impl (not the [io.github.stslex.workeeper.feature.app_dialogs.api.observer.AppDialogObserver]
- * interface) because the producer-side `emit` is intentionally internal —
- * the api surface only exposes the consumer side.
+ * Emits `Action.Choose` as an `AppDialogUserChoice` through [AppDialogObserverImpl]. Never clears
+ * the dialog flag: the consumer acknowledges after its side-effect. See the app-dialogs spec.
  */
 @SingleIn(AppDialogsScope::class)
 internal class ChooseHandler @Inject constructor(

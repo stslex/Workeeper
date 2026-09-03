@@ -1,0 +1,11 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<testsuites tests="1" failures="0" errors="0" skipped="0" time="0.564" timestamp="2026-08-25T12:21:24" hostname="localhost">
+  <testsuite name="io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepositoryDuplicateNameDeviceTest" tests="1" failures="0" errors="0" skipped="0" time="0.058" timestamp="2026-08-25T12:21:24" hostname="localhost">
+    <properties>
+      <property name="device" value="Pixel_6_API_34(AVD) - 14" />
+      <property name="flavor" value="" />
+      <property name="project" value=":core:data:exercise" />
+    </properties>
+    <testcase name="saveItem_returnsDuplicateName_underBundledDriver" classname="io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepositoryDuplicateNameDeviceTest" time="0.058" />
+  </testsuite>
+</testsuites>

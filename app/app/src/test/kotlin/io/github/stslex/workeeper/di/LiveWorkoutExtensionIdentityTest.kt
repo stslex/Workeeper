@@ -4,6 +4,7 @@ package io.github.stslex.workeeper.di
 import android.content.Context
 import dev.zacsweers.metro.asContribution
 import dev.zacsweers.metro.createGraphFactory
+import io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetime
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutGraph
 import io.mockk.mockk
@@ -20,24 +21,13 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
 /**
- * Replaces the former feature-module `LiveWorkoutGraphBridgeTest` (a `@GraphExtension` cannot be
- * created standalone, so the assertion must run where the parent [AppGraph] is compiled — here, `:app`).
- *
- * live-workout is **port 13 — the last feature graph of the arc** — and the widest at 24 forced-public.
- * It owns the session WRITE path (start, add-exercise, finish, cancel, discard-adhoc), so it inherits
- * the deepest transactional stack of any extension and was the final STANDING RULE 4 boundary
- * candidate. Construction succeeds off-device, so the direct claim is made; if that ever changes the
- * claim becomes the BOUNDARY form (fail at platform static-init HAVING PASSED THROUGH the real
- * container, both halves), not a dropped claim.
- *
- * Every `assertSame` below has one operand from the EXTENSION and one from the parent. That is not
- * incidental: an assertion whose operands both come from the parent tests parent-side stability, not
- * inheritance, and passes no matter what the extension resolved (adjacent-answer witness 13).
+ * Identity claims for the live-workout `@GraphExtension`: every `assertSame` has one operand from
+ * the extension, so it tests inheritance rather than parent-side stability.
+ * See documentation/graph-extension-arc/HANDOFF.md.
  */
 internal class LiveWorkoutExtensionIdentityTest {
 
-    // The real parent graph provides Dispatchers.Main.immediate (DispatchersBindingContainer); a plain
-    // JVM test must install a Main dispatcher before the store constructs.
+    // GUARD: Store construction reads the parent graph's Main.immediate binding.
     @BeforeEach
     fun setUp() {
         Dispatchers.setMain(Dispatchers.Unconfined)
@@ -53,6 +43,8 @@ internal class LiveWorkoutExtensionIdentityTest {
             applicationContext = mockk<Context>(relaxed = true),
             appDatabase = mockk(relaxed = true),
             imageStorage = mockk(relaxed = true),
+            appScopeLifetime = AppScopeLifetime(),
+            databaseReplacement = mockk(relaxed = true),
         )
 
     private fun AppGraph.liveWorkout(
@@ -88,12 +80,6 @@ internal class LiveWorkoutExtensionIdentityTest {
         )
     }
 
-    /**
-     * The session write path is the deepest thing any extension inherits, and this is the feature that
-     * mutates it. Identity — not non-null — is what separates "resolved the app's real session stack"
-     * from "built its own double", and a double here would mean writes landing outside the app's
-     * transaction boundary.
-     */
     @Test
     fun `the session write path is inherited from the parent, not rebuilt`() {
         val appGraph = buildAppGraph()
@@ -118,8 +104,7 @@ internal class LiveWorkoutExtensionIdentityTest {
             extension.defaultDispatcher,
             "@DefaultDispatcher in the extension must be the parent graph's instance",
         )
-        // live-workout consumes only ONE dispatcher, so assertSame alone cannot distinguish "inherited
-        // the Default key" from "the parent collapsed Default and IO into one instance".
+        // One dispatcher consumed: assertSame alone cannot rule out Default and IO collapsing.
         assertNotSame(
             appGraph.ioDispatcher,
             extension.defaultDispatcher,
@@ -127,7 +112,6 @@ internal class LiveWorkoutExtensionIdentityTest {
         )
     }
 
-    /** Shape B's defining property: the route arg is per-extension, never shared or stale. */
     @Test
     fun `each extension carries its own route arg into the store state`() {
         val appGraph = buildAppGraph()
@@ -148,11 +132,7 @@ internal class LiveWorkoutExtensionIdentityTest {
         )
     }
 
-    /**
-     * The widest route arg in the arc: TWO nullable uuids of which at least one is non-null. Both
-     * legal shapes are asserted, because a bound instance of a nullable type is where a graph could
-     * quietly substitute a default, and here that would silently pick the wrong entry mode.
-     */
+    /** Both arms asserted: a defaulted nullable bound instance would pick the wrong mode. */
     @Test
     fun `both arms of the two-nullable-uuid route arg survive the binding`() {
         val appGraph = buildAppGraph()

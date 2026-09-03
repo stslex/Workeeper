@@ -27,13 +27,7 @@ internal class CommonHandler @Inject constructor(
         }
     }
 
-    /**
-     * Subscribes to a combined detail + PR-set-uuid flow. Detail is re-fetched in the
-     * interactor on every PR re-emission so optimistic edits aren't clobbered by stale
-     * captured detail. UI mapping happens in the collector body — keeping
-     * `updateStateImmediate` reduced to pure state transformation per the State mutation
-     * discipline rule.
-     */
+    /** Subscribes to the combined detail + PR-set-uuid flow; maps to UI in the collector body. */
     private fun processInit() {
         val sessionUuid = state.value.sessionUuid
         updateState { it.copy(phase = State.Phase.Loading) }
@@ -47,8 +41,7 @@ internal class CommonHandler @Inject constructor(
             val phase = result?.let {
                 State.Phase.Loaded(detail = it.detail.toUi(resourceWrapper, it.prSetUuids))
             } ?: State.Phase.Error(ErrorType.SessionNotFound)
-            // Disclosure survives the replacement: first Loaded seeds the first card open;
-            // later emissions (PR-flow re-fetches) carry the user's open set, pruned.
+            // Disclosure survives the wholesale phase replacement; see withExpansionCarriedFrom.
             updateStateImmediate { current ->
                 current.copy(phase = phase, hasResolved = true).withExpansionCarriedFrom(current)
             }

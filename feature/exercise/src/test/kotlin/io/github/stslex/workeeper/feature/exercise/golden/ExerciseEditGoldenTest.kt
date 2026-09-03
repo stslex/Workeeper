@@ -19,24 +19,8 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.EnumSource
 
 /**
- * The exercise editor on §3.2's frame. These frames are the rulings' own gate: the plan edited
- * inline in BOTH modes (ED1), the section rhythm (ED3), no placeholder
- * echoing a label (ED4), the monochrome toggle (ED5), no thumb in the bar (ED6), the `(i)` on the
- * plan head (ED8), and an empty create draft (ED13).
- *
- * [createEmpty] is ED13's own photograph: no seeded sets, the card's empty hint, «− подход»
- * disabled at the drawn `opacity:.35`, and the bar title standing in DIM because the record has
- * no name yet. [editWeighted] holds ED1 for an EXISTING exercise: the plan drawn as rows on
- * this screen, not as a summary line with a button off to another one. [editWeightless] is
- * B11's half: the weight column gone, everything else in place.
- *
- * The two error frames are here because nothing else holds their claims: the field draws
- * `status.error` at the heavier weight with its reason underneath, and Save in the same frame
- * is in its **enabled** treatment (§7.3).
- *
- * Whole-screen frames render in **Russian**: the drawn strings — «Новое упражнение»,
- * «ПЛАН ПО УМОЛЧАНИЮ», «N из 10», «Отмена · Сохранить» — are what §3.2 writes, and an `en`
- * frame cannot fail on them.
+ * The exercise editor on §3.2's frame — the ED rulings' own gate. Rendered in Russian because the
+ * drawn strings are what the spec writes, and an `en` frame cannot fail on them.
  */
 internal class ExerciseEditGoldenTest {
 
@@ -85,7 +69,6 @@ internal class ExerciseEditGoldenTest {
         }
     }
 
-    /** Blank name — the branch that was unreachable until the button stopped being disabled. */
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
     fun editBlankNameError(theme: GoldenTheme, testInfo: TestInfo) {
@@ -97,7 +80,6 @@ internal class ExerciseEditGoldenTest {
         }
     }
 
-    /** Duplicate name — reachable already, but it never had a picture of its own. */
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
     fun editDuplicateNameError(theme: GoldenTheme, testInfo: TestInfo) {
@@ -109,11 +91,7 @@ internal class ExerciseEditGoldenTest {
         }
     }
 
-    /**
-     * ED8's sheet CONTENT on the sheet tier — the `ModalBottomSheet` window itself is out of
-     * Paparazzi's one-window model (§10.4). In Russian because the body copy is the ruling's
-     * own verbatim text, and this is the only instrument that reads it at all.
-     */
+    /** ED8's sheet CONTENT only — the `ModalBottomSheet` window is outside Paparazzi (§10.4). */
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
     fun sheetPlanInfo(theme: GoldenTheme, testInfo: TestInfo) {

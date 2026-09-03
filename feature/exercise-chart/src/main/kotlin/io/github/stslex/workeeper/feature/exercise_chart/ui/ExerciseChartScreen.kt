@@ -18,6 +18,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppIconButton
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopBar
 import io.github.stslex.workeeper.core.ui.kit.icons.AppIcons
+import io.github.stslex.workeeper.core.ui.kit.resources.Res
+import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_action_back
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
@@ -42,6 +44,7 @@ import io.github.stslex.workeeper.feature.exercise_chart.ui.components.MetricTab
 import io.github.stslex.workeeper.feature.exercise_chart.ui.components.PresetChipsRow
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
+import org.jetbrains.compose.resources.stringResource
 import java.time.LocalDate
 
 @Composable
@@ -62,9 +65,8 @@ internal fun ExerciseChartScreen(
         ) {
             ChartTopBar(consume = consume)
 
-            // The switcher lives below the topbar, not in it (extraction §4.2's hint: the
-            // title is large and the topbar's one arrow means back). No exercise → no header;
-            // the EXERCISE_NOT_FOUND empty state carries the picker affordance instead.
+            // The switcher lives below the topbar, not in it (extraction §4.2). No exercise →
+            // no header; the EXERCISE_NOT_FOUND empty state carries the picker affordance.
             state.selectedExercise?.let { exercise ->
                 ExerciseHeader(
                     name = exercise.name,
@@ -92,10 +94,8 @@ internal fun ExerciseChartScreen(
 }
 
 /**
- * The v3 `.topbar` (extraction §4.1): back · spacer · nothing. No title — the exercise name
- * is the `.exhead` below. The mockup draws a trailing `⋮` with no handler and no drawn
- * target (§4.9: "no target drawn"), and the feature has no menu action to put behind one —
- * a dead control conforms to nothing, so the slot ships empty. Reported with the PR.
+ * The v3 `.topbar` (extraction §4.1): back, no title — the exercise name is the `.exhead`
+ * below. The mockup's trailing `⋮` has no handler and no action, so the slot ships empty.
  */
 @Composable
 private fun ChartTopBar(
@@ -106,7 +106,7 @@ private fun ChartTopBar(
             AppIconButton(
                 icon = AppIcons.ChevronLeft,
                 contentDescription = stringResource(
-                    io.github.stslex.workeeper.core.ui.kit.R.string.core_ui_kit_action_back,
+                    Res.string.core_ui_kit_action_back,
                 ),
                 onClick = { consume(Action.Click.OnBack) },
                 modifier = Modifier.testTag("ExerciseChartBack"),
@@ -120,15 +120,11 @@ private fun ChartContent(
     state: State,
     consume: (Action) -> Unit,
 ) {
-    // One branch on one resolved decision (State.content). The canvas is reachable only
-    // through Content.Plot, which State refuses to produce for an unplottable dataset —
-    // there is no arrangement of fields here that can put an empty chart on screen.
+    // One branch on one resolved decision (State.content): the canvas is reachable only
+    // through Content.Plot, which State refuses to produce for an unplottable dataset.
     when (val content = state.content) {
-        // Draws NOTHING, deliberately (§26, second amendment: no route draws a spinner while
-        // it waits), and the shell around this Box — top bar, exercise header —
-        // stays on screen, so the reader is never looking at a blank route. Reached on the cold
-        // open AND on a picker reload out of an empty chart, which is why the shell must not be
-        // withheld with it.
+        // Draws NOTHING, deliberately (§26: no route draws a spinner while it waits); the
+        // shell around this Box stays on screen, so the reader never sees a blank route.
         Content.Loading -> Unit
 
         is Content.Empty -> EmptyContent(
@@ -173,8 +169,7 @@ private fun EmptyContent(
         EmptyReason.NO_DATA_FOR_EXERCISE -> Column(
             modifier = Modifier.fillMaxSize(),
         ) {
-            // Preset row stays — the user's recovery is to widen the window. No CTA on
-            // the empty body itself, the chips at the top are the affordance.
+            // Preset row stays — the user's recovery is to widen the window.
             ChartControls(state = state, consume = consume)
             ChartEmptyState(
                 modifier = Modifier
@@ -204,15 +199,12 @@ private fun ChartPopulated(
     state: State,
     consume: (Action) -> Unit,
 ) {
-    // The record marking is derived, not stored: one mapper selector feeds the
-    // readout's flag and the canvas's molten point alike.
+    // The record marking is derived: one selector feeds the readout flag and the canvas.
     val recordIndex = remember(state.points, state.metric) {
         ChartReadoutMapper.recordIndex(state.points, state.metric)
     }
 
-    // The mockup's vertical rhythm, spelled per element rather than one spacedBy: ranges
-    // margin-bottom 14px + readout padding-top 18px = 32px → xxl (sum-of-parts, §0.2),
-    // chartwrap margin-top 14px → md, statrows margin-top 26px → xl.
+    // The mockup's vertical rhythm, spelled per element rather than one spacedBy (§0.2).
     Column(modifier = Modifier.fillMaxSize()) {
         ChartControls(state = state, consume = consume)
         state.readout?.let { readout ->
@@ -238,10 +230,8 @@ private fun ChartControls(
     state: State,
     consume: (Action) -> Unit,
 ) {
-    // Mockup order (§4.1): .tabs above .ranges — metric first, window second. 16dp of air
-    // ABOVE the block (`.tabs{margin:16px gutter 0}`; with tabs gated away the ranges'
-    // inline `margin-top:16px` plays the same role), 16dp between tabs and ranges (the
-    // inline override), still gated WEIGHTED (spec §11).
+    // Mockup order (§4.1): .tabs above .ranges — metric first, window second, with 16dp of
+    // air above the block and between the two. The metric row stays gated WEIGHTED (§11).
     Column(
         modifier = Modifier.padding(top = AppDimension.Space.lg),
         verticalArrangement = Arrangement.spacedBy(AppDimension.Space.lg),

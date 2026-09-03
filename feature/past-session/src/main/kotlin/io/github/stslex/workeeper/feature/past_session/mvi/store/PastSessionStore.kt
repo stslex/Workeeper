@@ -18,27 +18,13 @@ interface PastSessionStore :
         val sessionUuid: String,
         val phase: Phase,
         /**
-         * The route has resolved at least once — LATCHED, never cleared.
-         *
-         * GUARD: `Phase.Loading` is reachable AFTER a resolution, because Retry on the error
-         * screen re-dispatches `Init` and `Init` sets `Loading` unconditionally. Gating the route
-         * on the phase alone therefore hides the whole screen, top bar included, in one frame on a
-         * normal retry. Only the FIRST load is withheld: from the first resolution onwards the
-         * shell states nothing it has not loaded, because the fallback title is the Error phase's
-         * own title.
+         * The route has resolved at least once — LATCHED. GUARD: `Loading` recurs after Retry,
+         * so gating the route on the phase alone would blank the shell mid-flow.
          */
         val hasResolved: Boolean,
         /**
-         * The open cards — the whole disclosure model, by decision (spec §7 as amended by
-         * the session rebuild): expanded means open, nothing more. The first Loaded emission
-         * opens the FIRST card; a header tap flips exactly this set's membership for that
-         * card; nothing else ever writes it — no auto-advance, no auto-collapse, no
-         * "exactly one open". Multiple open cards are legal and expected.
-         *
-         * Store-homed per the rebuild contract, superseding the unmerged v3-screens
-         * rework's `rememberSaveable` — the same home `feature/live-workout` uses
-         * (`LiveWorkoutStore.State.expandedExerciseUuids`), so the two session surfaces
-         * cannot drift on where disclosure lives.
+         * The open cards — the whole disclosure model (§7): expanded means open, nothing more.
+         * Multiple open cards are legal; only a header tap and the first Loaded write it.
          */
         val expandedExerciseUuids: ImmutableSet<String>,
         val dialogState: DialogState,
@@ -96,11 +82,7 @@ interface PastSessionStore :
                 val type: SetTypeUiModel,
             ) : Click
 
-            /**
-             * Reorder request from the structural-edit drag gesture (v2.4 5.7).
-             * [from] / [to] are positional indices within [performedExerciseUuid]'s set
-             * list as displayed at drag-start time.
-             */
+            /** Reorder request from the drag gesture; indices are positions at drag-start. */
             data class OnSetReorder(
                 val performedExerciseUuid: String,
                 val from: Int,
@@ -111,11 +93,7 @@ interface PastSessionStore :
 
             data object OnRetryLoad : Click
 
-            /**
-             * A card-header tap. Flips [performedExerciseUuid]'s membership in
-             * [State.expandedExerciseUuids] and does nothing else anywhere — the complete
-             * toggle rule of the amended §7 disclosure contract.
-             */
+            /** A card-header tap. Flips membership in [State.expandedExerciseUuids]. */
             data class OnExerciseHeaderClick(val performedExerciseUuid: String) : Click
         }
 

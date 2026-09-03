@@ -10,23 +10,8 @@ import io.gitlab.arturbosch.detekt.api.Severity
 import org.jetbrains.kotlin.psi.KtImportDirective
 
 /**
- * UI layer must not depend on data-layer model types. Files under any
- * `/ui/` path (kit modules under core/ui and feature ui subtrees) may
- * consume only domain types; the data-to-domain bridge lives in
- * `feature/<X>/domain/mapper/`.
- *
- * Unlike `DomainLayerPurityRule` there is no exemption for
- * `ui/mapper/`. The audit categorises any UI-side data import as a
- * leak, including in mapper files; UI mappers should map between
- * domain and UI types only.
- *
- * The rule is the symmetric counterpart of `DomainLayerPurityRule`,
- * matching by file-path heuristic (`/ui/` segment) and the same
- * data-shape suffix list (`DataModel`, `Entity`, `Dto`, etc.) plus
- * any package containing `.model.` from the data layer. Repository,
- * dispatcher, and other infrastructure imports from the data layer
- * are intentionally permitted; they are abstractions, not data
- * models.
+ * UI layer must not import data-layer model types; the bridge is `feature/<X>/domain/mapper/`.
+ * Unlike `DomainLayerPurityRule` there is no `ui/mapper/` exemption. See lint-rules.md.
  */
 class UiLayerNoDataRule(
     config: Config = Config.empty,
@@ -63,13 +48,10 @@ class UiLayerNoDataRule(
     }
 
     private fun String.isInUiLayer(): Boolean {
-        // `core/ui/*` kit modules and any feature `ui/` subtree.
-        // `core/ui/mvi` is excluded — it is the MVI framework and is
-        // permitted to reference data abstractions if ever needed
-        // (none currently).
+        // `core/ui/mvi` is excluded — it is the MVI framework, not a UI surface.
         return (contains("/core/ui/") && !contains("/core/ui/mvi/")) ||
             contains("/ui/") &&
-            !contains("/core/data/") // never flag the data layer's own files
+            !contains("/core/data/")
     }
 
     private fun String.isInTestSourceSet(): Boolean =

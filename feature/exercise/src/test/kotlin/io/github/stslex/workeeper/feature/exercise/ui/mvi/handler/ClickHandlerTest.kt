@@ -6,7 +6,6 @@ import android.content.pm.PackageManager
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagItem
-import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanEditorBodyAction
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
@@ -42,6 +41,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
+import org.jetbrains.compose.resources.getString
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -97,11 +97,7 @@ internal class ClickHandlerTest {
         }
     }
 
-    /**
-     * Creation owns the type on the form now, so these are the assertions that the toggle it
-     * gained actually decides something. Weight-bearing rows make the switch destructive, so it
-     * asks; nothing to lose makes it immediate.
-     */
+    /** Weight-bearing rows make the switch destructive, so it asks; nothing to lose is instant. */
     @Test
     fun `OnTypeToggle to WEIGHTLESS with weighted rows raises the confirm instead of switching`() {
         val (stateFlow, _, handler) = setup(
@@ -188,15 +184,7 @@ internal class ClickHandlerTest {
         val handler: ClickHandler,
     )
 
-    /**
-     * **This case is only meaningful while Save is never disabled (§26).**
-     *
-     * The blank name is the exact condition that produces `nameError`, so a save predicate of
-     * `name.isNotBlank()` makes the state this asserts unreachable through the button — the test
-     * stays green and stops measuring anything. That is B23's shape: a case whose precondition
-     * production cannot produce reads as coverage on every report, and the discriminator is "ask
-     * what *reaches* the state the test builds".
-     */
+    /** Meaningful only while Save is never disabled (§26): a save predicate would unreach this. */
     @Test
     fun `OnSaveClick with blank name sets nameError without saving — reachable`() {
         val (stateFlow, store, handler) = setup(State.create(uuid = null).copy(name = ""))
@@ -290,28 +278,27 @@ internal class ClickHandlerTest {
     }
 
     /**
-     * ED11's strict order at the handler seam: confirming opens the undo window and DELETES
-     * NOTHING — the interactor is untouched until the window's close signal runs the model's
-     * own `onDismissed`. Both directions on one flow: zero calls before, exactly one after.
-     * The model is received from [SnackbarManager] itself — it rides the APP-LEVEL queue
-     * from birth, because a screen-scoped event dies with the popped screen's collector
-     * while carrying the commit.
+     * ED11's sync half on the plain JVM: confirming closes the dialog and schedules the
+     * registration coroutine — nothing deletes, and Back is NOT consumed synchronously (it
+     * rides the coroutine only after the snackbar is queued, so a scope cancelled before the
+     * coroutine starts deletes nothing and pops nothing). The full registration order, the
+     * real undo label and the commit run against real resources in ExerciseDeferredDeleteDbTest.
      */
     @Test
     fun `confirm permanent delete defers - nothing runs until the commit`() = runTest {
-        val (_, store, handler) = setup(
+        val (stateFlow, store, handler) = setup(
             State.create(uuid = "uuid-1").copy(canPermanentlyDelete = true),
         )
 
         handler.invoke(Action.Click.OnPermanentDeleteMenuClick)
         handler.invoke(Action.Click.OnConfirmPermanentDelete)
 
+        assertEquals(DialogState.Hidden, stateFlow.value.dialogState)
         coVerify(exactly = 0) { interactor.permanentlyDelete(any()) }
-        verify { store.consume(Action.Navigation.Back) }
-
-        val pending = SnackbarManager.snackbar.first()
-        pending.onDismissed()
-        coVerify(exactly = 1) { interactor.permanentlyDelete("uuid-1") }
+        verify(exactly = 0) { store.consume(Action.Navigation.Back) }
+        verify {
+            store.launch(any(), any(), any(), any(), any<suspend CoroutineScope.() -> Any?>())
+        }
     }
 
     @Test
@@ -347,12 +334,7 @@ internal class ClickHandlerTest {
         assertEquals(plan, stateFlow.value.adhocPlan)
     }
 
-    /**
-     * The toast is app-level and outlives the draft (5s, accessibility-stretched), so its
-     * «Отменить» can land after Save flipped to Read. The removal is persisted by then — a
-     * reinserted row would sit on the Read screen with no saved row behind it. The epoch
-     * guard makes the stale tap edit nothing ([State.draftEpoch]).
-     */
+    /** The app-level toast outlives the draft; the epoch guard makes the stale tap edit nothing. */
     @Test
     fun `a stale set undo after save flipped to read edits nothing`() {
         val plan = persistentListOf(
@@ -385,11 +367,7 @@ internal class ClickHandlerTest {
         assertNull(stateFlow.value.adhocPlan)
     }
 
-    /**
-     * Save → Edit again, all inside the toast's window: the re-entered draft is a NEW one,
-     * not the one the toast edited, and OnEditClick's epoch bump is what makes the stale
-     * «Отменить» miss it.
-     */
+    /** Save → Edit inside the toast's window: the epoch bump makes the stale «Отменить» miss. */
     @Test
     fun `a stale set undo does not edit a re-entered draft`() {
         val plan = persistentListOf(
@@ -423,13 +401,7 @@ internal class ClickHandlerTest {
         assertNull(stateFlow.value.adhocPlan)
     }
 
-    /**
-     * The type-change wipe runs over rows PRESENT in the draft, and a set riding
-     * its toast is absent — the undo must re-enter through the same invariant, or a
-     * WEIGHTLESS exercise carries a hidden weight the DB strips and the snapshot keeps.
-     * With the sole weighted row removed the draft holds no weights, so the switch is
-     * immediate — no confirm sheet stands between the removal and the undo.
-     */
+    /** The wipe only sees rows present in the draft, so a restored row re-enters the invariant. */
     @Test
     fun `an undo restored across a type switch re-enters weightless`() {
         val plan = persistentListOf(
@@ -465,12 +437,7 @@ internal class ClickHandlerTest {
         assertEquals(10, restored.reps)
     }
 
-    /**
-     * The in-flight interval: Save has captured its snapshot but the write has
-     * not landed — mode is still Edit and the epoch still matches, so [State.isSaving] is
-     * the only clause standing between «Отменить» and a row the database will never hold.
-     * The inert `launch` mock IS the in-flight simulation: dispatched, never completed.
-     */
+    /** The in-flight interval: the inert `launch` mock is the simulation — never completed. */
     @Test
     fun `an undo during the save's write edits nothing`() {
         val plan = persistentListOf(
@@ -504,11 +471,7 @@ internal class ClickHandlerTest {
         assertNull(stateFlow.value.adhocPlan)
     }
 
-    /**
-     * `DuplicateName` keeps the draft in Edit — the failure that re-arms its undos. The
-     * `launch` mock runs the save's action and outcome synchronously; `updateStateImmediate`
-     * is given a real implementation because both outcome branches land through it.
-     */
+    /** `DuplicateName` keeps the draft in Edit — the failure that re-arms its undos. */
     @Test
     fun `a duplicate-name save re-arms the draft's undos`() {
         val plan = persistentListOf(
@@ -557,12 +520,7 @@ internal class ClickHandlerTest {
         assertEquals(plan, stateFlow.value.adhocPlan)
     }
 
-    /**
-     * The same in-flight interval, the other direction: with the write dispatched, Отмена
-     * may not raise the discard sheet — a rollback landing before the save's outcome
-     * would leave [State.originalSnapshot] holding the saved values over reverted fields
-     * ([State.isSaving]'s KDoc). The inert `launch` mock IS the in-flight simulation.
-     */
+    /** The same in-flight interval, the other direction: Отмена may not raise the discard sheet. */
     @Test
     fun `a cancel during the save's write raises nothing and reverts nothing`() {
         val (stateFlow, _, handler) = setup(
@@ -614,13 +572,7 @@ internal class ClickHandlerTest {
         assertTrue(stateFlow.value.mode is Mode.Edit)
     }
 
-    /**
-     * The confirm is a second action after the sheet was raised, so it carries its own
-     * guard — proven where only IT stands: a create's POP_SCREEN discard, which never
-     * reaches the flip choke point and would double-pop under the save's own Back. (A
-     * FLIP_TO_READ fixture here is vacuous — `processFlipToReadMode`'s guard masks a
-     * deleted confirm guard.)
-     */
+    /** The confirm carries its own guard — proven on a create's POP_SCREEN, which skips flip. */
     @Test
     fun `a confirmed discard during the save's write pops nothing`() {
         val (stateFlow, store, handler) = setup(
@@ -667,11 +619,7 @@ internal class ClickHandlerTest {
         assertFalse(stateFlow.value.isSaving)
     }
 
-    /**
-     * The repository returns the EXISTING row for a name that already exists, so a create
-     * reached with a padded already-selected name must not chip it twice — the persisted
-     * links dedup on Save, and the draft must agree with them.
-     */
+    /** The repository returns the EXISTING row for a known name, so the chip must not double. */
     @Test
     fun `createTag resolving to an already-selected tag does not duplicate the chip`() {
         val (stateFlow, store, handler) = setup(
@@ -700,13 +648,7 @@ internal class ClickHandlerTest {
         assertEquals("", stateFlow.value.tagSearchQuery)
     }
 
-    /**
-     * The dispatch-time cap check can be passed twice while the first create's write is
-     * still in flight, so the append re-checks the cap where the chip lands: the second
-     * create resolves a row but chips nothing past [State.MAX_TAGS_PER_EXERCISE]. The
-     * parked launch mock IS the in-flight interval — both creates dispatch at nine tags,
-     * then their outcomes land in order.
-     */
+    /** The dispatch-time cap can be passed twice, so the append re-checks where the chip lands. */
     @Test
     fun `a second create landing on a full draft chips nothing past the cap`() {
         val nineTags = (1..9).map { AppTagItem(uuid = "t$it", name = "Tag$it") }
@@ -968,10 +910,7 @@ internal class ClickHandlerTest {
         assertEquals("Bench", stateFlow.value.name)
     }
 
-    /**
-     * The plan is the field the discard sheet is usually ABOUT — since ED1 it is edited inline,
-     * and `Snapshot.matches` counts it when raising the sheet. Discarding must put it back.
-     */
+    /** The plan is what the discard sheet is usually about (ED1), so discarding puts it back. */
     @Test
     fun `OnConfirmDiscard with FLIP_TO_READ restores the plan the edit changed`() {
         val original = persistentListOf(
@@ -1224,12 +1163,7 @@ internal class ClickHandlerTest {
         verify { store.consume(Action.Navigation.OpenImageViewer(path, editable = false)) }
     }
 
-    /**
-     * The viewer carries replace and remove, and only a caller that can honour one may be offered
-     * it. Read mode cannot — no Save, and `interceptBack` is false there — so a replace staged
-     * from the detail hero would look applied and be lost on the way out. The capability is stated
-     * on the route by the caller rather than guessed at by the viewer.
-     */
+    /** Only a caller that can honour replace/remove is offered them, and Read mode cannot. */
     @Test
     fun `Edit mode opens the viewer as editable`() {
         val (_, store, handler) = setup(
@@ -1301,8 +1235,7 @@ internal class ClickHandlerTest {
             Action.Click.OnAdhocPlanEditorAction(PlanEditorBodyAction.OnSetRemove(0)),
         )
 
-        // Empty draft is normalized to null so `state.adhocPlan == null` continues to mean
-        // "no default plan attached" — matches the persisted shape on `last_adhoc_sets`.
+        // An empty draft normalizes to null — the persisted shape of `last_adhoc_sets`.
         assertNull(stateFlow.value.adhocPlan)
     }
 

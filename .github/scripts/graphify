@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+readonly GRAPHIFY_USAGE_EXIT=64
+
+usage_error() {
+    printf 'graphify wrapper: %s\n' "$1" >&2
+    printf '%s\n' \
+        'Allowed: query, path, explain, --version, --help, -h. Graph maintenance requires a separately authorized task.' \
+        >&2
+    exit "$GRAPHIFY_USAGE_EXIT"
+}
+
+script_source=${BASH_SOURCE[0]}
+if [[ "$script_source" != */* ]]; then
+    script_source=$(type -P -- "$script_source") || usage_error 'cannot resolve wrapper location.'
+fi
+script_dir=$(cd -- "${script_source%/*}" && pwd -P) || usage_error 'cannot resolve wrapper directory.'
+repo_root=$(git -C "$script_dir" rev-parse --show-toplevel 2>/dev/null) || \
+    usage_error 'cannot resolve repository root.'
+
+(( $# > 0 )) || usage_error 'missing command.'
+
+case "$1" in
+    query | path | explain)
+        ;;
+    --version | --help | -h)
+        (( $# == 1 )) || usage_error "unexpected arguments after $1."
+        ;;
+    *)
+        usage_error "command '$1' is not allowed."
+        ;;
+esac
+
+cd -- "$repo_root"
+export GRAPHIFY_QUERY_LOG_DISABLE=1
+exec uvx --from "graphifyy==0.9.50" graphify "$@"

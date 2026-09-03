@@ -12,9 +12,8 @@ import kotlinx.coroutines.flow.Flow
 interface AllExercisesInteractor {
 
     /**
-     * Paged active library exercises plus per-row stats (session count, linked-trainings
-     * count, last-trained timestamp) and tag labels. Footer rendering on the all-exercises
-     * list reads from this stream. (v2.4 E6.)
+     * Paged active library exercises with per-row stats (session count, linked trainings, last
+     * trained) and tag labels; feeds the list-row footer.
      */
     fun observeExercises(filterTagUuids: Set<String>): Flow<PagingData<ExerciseListItemDomain>>
 
@@ -32,16 +31,10 @@ interface AllExercisesInteractor {
 
     suspend fun countSessionsForExercise(uuid: String): Int
 
-    /**
-     * Count of distinct active library trainings (non-archived, non-adhoc) that reference
-     * [uuid] via `training_exercise_table`. (v2.4 F1.)
-     */
+    /** Count of distinct active library trainings (non-archived, non-adhoc) referencing [uuid]. */
     fun observeLinkedTrainingsCount(uuid: String): Flow<Int>
 
-    /**
-     * Most recent finished session timestamp (epoch millis) for any non-skipped performed
-     * exercise referencing [uuid]; `null` when no such session exists. (v2.4 F2.)
-     */
+    /** Latest finished-session epoch millis for a non-skipped performed [uuid]; null when none. */
     fun observeLastTrainedAt(uuid: String): Flow<Long?>
 
     suspend fun bulkArchive(uuids: Set<String>): BulkArchiveResult

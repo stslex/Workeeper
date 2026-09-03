@@ -4,9 +4,6 @@
         name="exercise_images"
         path="exercise_images/" />
     <cache-path
-        name="recovery_diagnostics"
-        path="recovery_diagnostics/" />
-    <cache-path
-        name="pre_migration_backup"
-        path="pre_migration_backup.db" />
+        name="recovery_share"
+        path="recovery_share/" />
 </paths>

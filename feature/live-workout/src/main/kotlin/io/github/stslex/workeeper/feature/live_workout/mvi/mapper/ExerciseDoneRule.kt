@@ -4,20 +4,8 @@ package io.github.stslex.workeeper.feature.live_workout.mvi.mapper
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveSetUiModel
 
 /**
- * Single source of truth for "is this exercise done". Two entry points exist
- * because the live path also has draft rows the user has typed but not yet
- * checked, while the load path is replaying persisted state and never sees
- * drafts.
- *
- * Both entry points compute an `expectedPositions` set and require every
- * position in that set to map to a performed-and-done row. The set always
- * includes plan indices and the positions of performed rows; the live path
- * additionally folds in `visibleSets.indices` so a typed-but-unchecked draft
- * at the bottom of an adhoc card keeps the exercise CURRENT instead of
- * promoting it to DONE.
- *
- * See `documentation/feature-specs/live-workout.md` for the broader status
- * derivation pipeline.
+ * Single source of truth for "is this exercise done"; two entry points because only the live
+ * path sees drafts. See documentation/feature-specs/live-workout.md.
  */
 internal object ExerciseDoneRule {
 

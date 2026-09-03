@@ -5,6 +5,8 @@ import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.core.time.formatElapsedDuration
+import io.github.stslex.workeeper.core.ui.kit.resources.Res
+import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_plan_editor_unit_reps
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutHandlerStore
 import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutScope
@@ -15,6 +17,7 @@ import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStor
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import org.jetbrains.compose.resources.getString
 
 @SingleIn(LiveWorkoutScope::class)
 internal class CommonHandler @Inject constructor(
@@ -28,12 +31,7 @@ internal class CommonHandler @Inject constructor(
     override fun invoke(action: Action.Common) {
         when (action) {
             Action.Common.Init -> processInit()
-            // The plan editor's result. Only a save changes what the session should show,
-            // so only a save re-reads it — the branch lives here rather than in the graph,
-            // which forwards the result without interpreting it.
-            //
-            // processReload skips session creation: this can only fire on a session that
-            // already exists, because the plan editor is reachable only from inside one.
+            // Only a save changes what the session shows, so only a save re-reads it.
             is Action.Common.PlanResultReceived -> if (action.saved) processReload()
         }
     }
@@ -60,24 +58,16 @@ internal class CommonHandler @Inject constructor(
                 ?.toState(
                     nowMillis = now,
                     resourceWrapper = resourceWrapper,
+                    // kit's unit is a suspend-only CMP read: resolved here, at the load
+                    // boundary, so the mapper stays a pure synchronous transformation.
+                    repsUnitLabel = getString(Res.string.core_ui_kit_plan_editor_unit_reps),
                 )
         }
     }
 
     /**
-     * The only honest exit when the session did not load: record it, and let the route act on it.
-     * Two arms reach here — a throw, and a `loadSession` that resolves to nothing.
-     *
-     * GUARD: **both flags, and neither is optional.** Leaving `isLoading` set is a permanently
-     * empty frame behind the route gate (`launch` defaults `onError` to `{}` — B17, B21). Clearing
-     * it without recording the failure is worse: the route composes on that flag, so the requested
-     * session then reads as a successfully empty one — "No exercises yet", an Add CTA, and a Finish
-     * dock enabled by `!isLoading` — and a transient read failure can finish a workout whose
-     * exercises never loaded.
-     *
-     * GUARD: recorded in STATE rather than sent as an event, for the reason
-     * [LiveWorkoutStore.State.loadFailed] documents — an event dispatched before the screen's
-     * collector subscribes is dropped, and the dropped case is exactly the dangerous one.
+     * The only honest exit when the session did not load. GUARD: set both flags, and record the
+     * failure in State, never as an event. See documentation/architecture.md.
      */
     private suspend fun abandonUnloadedSession() {
         updateStateImmediate { it.copy(isLoading = false, loadFailed = true) }
@@ -85,10 +75,8 @@ internal class CommonHandler @Inject constructor(
 
     private suspend fun createSession(trainingUuid: String?): String? {
         if (trainingUuid.isNullOrBlank()) {
-            // Blank-init branch (v2.3 Quick start "Start blank"): both route args are null,
-            // so we mint a fresh ad-hoc training + IN_PROGRESS session with no exercises.
-            // Subsequent `loadSession` returns an empty snapshot which the screen renders as
-            // the empty state ("No exercises yet" + Add exercise CTA).
+            // Blank-init branch (Quick start "Start blank"): both route args are null, so
+            // mint a fresh ad-hoc training plus an empty IN_PROGRESS session.
             return interactor.createAdhocSession(
                 name = "",
                 exerciseUuids = emptyList(),
@@ -102,8 +90,7 @@ internal class CommonHandler @Inject constructor(
         launch(
             onSuccess = { reloaded ->
                 if (reloaded == null) return@launch
-                // A plan-editor round-trip is not "leaving the screen session" (§7), so the
-                // user's manual expansions must survive this replacement.
+                // A plan-editor round-trip is not leaving the session (§7); expansions survive.
                 updateStateImmediate { previous -> reloaded.withExpansionCarriedFrom(previous) }
             },
         ) {
@@ -111,6 +98,7 @@ internal class CommonHandler @Inject constructor(
                 ?.toState(
                     nowMillis = System.currentTimeMillis(),
                     resourceWrapper = resourceWrapper,
+                    repsUnitLabel = getString(Res.string.core_ui_kit_plan_editor_unit_reps),
                 )
         }
     }

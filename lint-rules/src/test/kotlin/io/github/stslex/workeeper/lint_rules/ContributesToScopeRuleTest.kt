@@ -7,20 +7,12 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 /**
- * App-Scope Collapse Step 3 (Phase PF commit 0) coverage for [ContributesToScopeRule], the false-green
- * guard on Metro `@BindingContainer` provides-factory contributions (the twin of
- * [ContributesBindingScopeRuleTest]).
- *
- * Verified empirically on Metro 1.1.1 (PF.0 gate): a `@BindingContainer @ContributesTo` to a wrong scope
- * — a feature scope, Metro's built-in AppScope, or a missing/absent `@ContributesTo` — compiles GREEN with
- * zero diagnostic (silent-absence false-green). These tests pin the guard on those known-NEGATIVE anchors
- * and the known-POSITIVE (project AppScope → passes), plus the no-op case (a non-container class is ignored).
+ * Coverage for [ContributesToScopeRule]: a `@BindingContainer` contributed to a wrong scope, or
+ * to none at all, compiles green with zero diagnostic. See documentation/lint-rules.md.
  */
 internal class ContributesToScopeRuleTest {
 
     private val rule = ContributesToScopeRule()
-
-    // ---- known-POSITIVE anchor: correct project AppScope passes ----
 
     @Test
     fun `BindingContainer ContributesTo the project AppScope passes`() {
@@ -48,8 +40,6 @@ internal class ContributesToScopeRuleTest {
             "A @BindingContainer @ContributesTo the project AppScope must pass — it aggregates into the app graph.",
         )
     }
-
-    // ---- known-NEGATIVE anchors: each compiles green today, the rule MUST flag ----
 
     @Test
     fun `BindingContainer with no ContributesTo is flagged`() {
@@ -103,8 +93,7 @@ internal class ContributesToScopeRuleTest {
 
     @Test
     fun `BindingContainer ContributesTo Metro's built-in AppScope is flagged`() {
-        // The negative anchor a simple-name-only check would MISS: simple name is AppScope, but it's
-        // dev.zacsweers.metro.AppScope, a different class from the project token the AppGraph is scoped to.
+        // Same simple name, different class: Metro's built-in AppScope is not the project token.
         val findings = rule.lint(
             """
             package io.github.stslex.workeeper.core.core.di
@@ -128,8 +117,6 @@ internal class ContributesToScopeRuleTest {
             "A @BindingContainer using Metro's built-in AppScope (wrong class, same simple name) must be flagged.",
         )
     }
-
-    // ---- no-op: unrelated declarations are ignored ----
 
     @Test
     fun `class without BindingContainer is ignored`() {

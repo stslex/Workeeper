@@ -7,21 +7,14 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 /**
- * App-Scope Collapse Step 3 (Phase B commit 1) coverage for [ContributesBindingScopeRule], the
- * false-green guard on Metro `@ContributesBinding` scope.
- *
- * `@ContributesBinding(scope = KClass<*>)` accepts any class → a wrong scope compiles green but the
- * binding silently fails to aggregate into the app graph. These tests pin the guard on the
- * known-NEGATIVE anchors (wrong scope, Metro's built-in AppScope, missing arg — all compile green
- * today and MUST now flag) and the known-POSITIVE (project AppScope → passes), plus the `@Repeatable`
- * multi-entry cases (every entry is validated, so a correct first entry cannot shield a mis-scoped
- * second) and the no-op case (a class with no `@ContributesBinding` is ignored).
+ * Coverage for [ContributesBindingScopeRule]: wrong scope, Metro's built-in AppScope and a missing
+ * argument all flag; the project AppScope passes; every `@Repeatable` entry is validated.
  */
 internal class ContributesBindingScopeRuleTest {
 
     private val rule = ContributesBindingScopeRule()
 
-    // ---- known-POSITIVE anchor: correct project AppScope passes ----
+    // Known-positive anchor: the project AppScope passes.
 
     @Test
     fun `ContributesBinding with the project AppScope passes`() {
@@ -48,7 +41,7 @@ internal class ContributesBindingScopeRuleTest {
         )
     }
 
-    // ---- known-NEGATIVE anchors: each compiles green today, the rule MUST flag ----
+    // Known-negative anchors: each compiles green, so the rule must flag it.
 
     @Test
     fun `ContributesBinding with a wrong (feature) scope is flagged`() {
@@ -75,9 +68,7 @@ internal class ContributesBindingScopeRuleTest {
 
     @Test
     fun `ContributesBinding with Metro's built-in AppScope is flagged`() {
-        // The negative anchor that a simple-name-only check would MISS: the simple name is AppScope,
-        // but it's dev.zacsweers.metro.AppScope, a different class from the project token the AppGraph
-        // is scoped to → the contribution would not aggregate.
+        // The anchor a simple-name-only check would miss: same simple name, different class.
         val findings = rule.lint(
             """
             package io.github.stslex.workeeper.core.ui.kit.utils
@@ -119,12 +110,9 @@ internal class ContributesBindingScopeRuleTest {
         )
     }
 
-    // ---- @Repeatable: EVERY entry is validated, not just the first ----
+    // @Repeatable: every entry is validated, not just the first.
 
-    /**
-     * The shape `ActivityHolderImpl` and `DatabaseSnapshotProviderImpl` use in the tree: one impl, two
-     * `@ContributesBinding` entries, one per bound supertype. Both scoped to the project AppScope → clean.
-     */
+    /** The shipped shape: one impl, two entries, one per supertype, both on project AppScope. */
     @Test
     fun `two ContributesBinding entries both on the project AppScope pass`() {
         val findings = rule.lint(
@@ -146,11 +134,7 @@ internal class ContributesBindingScopeRuleTest {
         assertEquals(0, findings.size, "both entries name the project AppScope, so both aggregate")
     }
 
-    /**
-     * The negative a `firstOrNull` check cannot see: the FIRST entry is correct, the SECOND is
-     * feature-scoped. The second binding is silently absent from the app graph at runtime, so it must be
-     * reported even though the first one is fine.
-     */
+    /** The negative a `firstOrNull` check misses: correct first entry, feature-scoped second. */
     @Test
     fun `a mis-scoped SECOND ContributesBinding entry is flagged even when the first is correct`() {
         val findings = rule.lint(
@@ -204,7 +188,7 @@ internal class ContributesBindingScopeRuleTest {
         assertEquals(2, findings.size, "both mis-scoped entries must produce their own finding")
     }
 
-    // ---- no-op: unrelated classes are ignored ----
+    // No-op: unrelated classes are ignored.
 
     @Test
     fun `class without ContributesBinding is ignored`() {

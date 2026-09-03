@@ -24,11 +24,15 @@ class AppCoroutineScopeImpl(
     private val lifecycleOwner: LifecycleOwner,
     override val defaultDispatcher: CoroutineDispatcher,
     override val immediateDispatcher: CoroutineDispatcher,
+    /** GUARD: required generation parent; an autonomous Store scope could outlive its database. */
+    generationJob: Job,
 ) : AppCoroutineScope, CoroutineScope {
 
-    override val coroutineContext: CoroutineContext = SupervisorJob() +
-        CoroutineName("FeatureScope") +
-        lifecycleOwner.lifecycleScope.coroutineContext
+    // Right-side Job wins CoroutineContext.plus key conflicts, retaining the generation parent.
+    override val coroutineContext: CoroutineContext =
+        lifecycleOwner.lifecycleScope.coroutineContext +
+            CoroutineName("FeatureScope") +
+            SupervisorJob(generationJob)
 
     private fun exceptionHandler(
         eachDispatcher: CoroutineDispatcher?,
@@ -67,14 +71,6 @@ class AppCoroutineScopeImpl(
         )
     }
 
-    /**
-     * Launches a flow and collects it in the screenModelScope. The flow is collected on the default dispatcher.
-     * @param onError - error handler
-     * @param each - action for each element of the flow
-     * @return Job
-     * @see kotlinx.coroutines.flow.Flow
-     * @see Job
-     * */
     override fun <T> launch(
         flow: Flow<T>,
         workDispatcher: CoroutineDispatcher?,

@@ -1,0 +1,16 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<testsuites tests="1" failures="1" errors="0" skipped="0" time="8.026" timestamp="2026-08-22T22:05:18" hostname="localhost">
+  <testsuite name="io.github.stslex.workeeper.app.AppRuntimeUiHandshakeDeviceTest" tests="1" failures="1" errors="0" skipped="0" time="7.171" timestamp="2026-08-22T22:05:18" hostname="localhost">
+    <properties>
+      <property name="device" value="Pixel_6_API_34(AVD) - 14" />
+      <property name="flavor" value="" />
+      <property name="project" value=":app:app" />
+    </properties>
+    <testcase name="realHandshake_graphOnlySwap_awaitsLiveUiDisposal_thenPublishesFreshRoot" classname="io.github.stslex.workeeper.app.AppRuntimeUiHandshakeDeviceTest" time="7.171">
+      <failure>java.lang.AssertionError: graph-only transition must publish against live UI; got Aborted(reason=ui region did not dispose in time, serving=io.github.stslex.workeeper.runtime.RuntimeGeneration&#64;55c9aed)
+at org.junit.Assert.fail(Assert.java:89)
+at io.github.stslex.workeeper.app.AppRuntimeUiHandshakeDeviceTest.realHandshake_graphOnlySwap_awaitsLiveUiDisposal_thenPublishesFreshRoot(AppRuntimeUiHandshakeDeviceTest.kt:134)
+</failure>
+    </testcase>
+  </testsuite>
+</testsuites>

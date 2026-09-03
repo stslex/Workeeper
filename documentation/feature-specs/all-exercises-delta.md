@@ -182,6 +182,14 @@ to the finding, not deleted. Its premise — "the filled-card selection visual r
 affordance entirely (spec C3)" — is false twice over on this screen after the rebuild: the card is
 gone, and the drawn selection mark is the check in the slot.
 
+**The slot's crossfade suppresses the size transform** — `fadeIn(spec) togetherWith fadeOut(spec)
+using null`. The slot width is already fixed by `AppListRowSlot` (the glyph draws at `SLOT` =
+`AppDimension.iconSm`), and an animated container size would put back exactly the row reflow the
+fixed slot removes. The transition interpolates no colour anywhere — a pure alpha crossfade on one
+shared `continuityAlphaSpec` — which is what keeps the `fadedOut` rule satisfied by construction,
+since `AppIcons.RowCheck` (`textPrimary`) and `AppIcons.ChevronRight` (`textTertiary`) carry
+different tints.
+
 ---
 
 ## 2. The screen — what differs beyond the row
@@ -232,9 +240,10 @@ gates nothing" shape §27 exists to catch, in a form that would look like covera
 
 `#s-empty`'s third `.empty` draws `M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01` at the 1.6
 empty-glyph stroke — and `#s-list`'s bottom-clearance frame draws the **same path** as the nav bar's
-third tab. That is the exact coupling `AppIcons.Trainings` already carries for trainings (its KDoc:
-"the empty state and the nav bar are one mark and changing either changes both"), now instantiated a
-second time. `AppIcons.Exercises` is added with the same warning, and §26 "Bottom navigation" already
+third tab. That is the exact coupling `AppIcons.Trainings` already carries for trainings — the empty
+state and the nav bar are one mark, so changing either changes both, and **one** `ImageVector` per
+mark is what makes that a property of the tree rather than a note someone has to remember — now
+instantiated a second time. `AppIcons.Exercises` is added with the same warning, and §26 "Bottom navigation" already
 takes the nav icons from "the drawn empty-state glyphs verbatim", so nothing new is decided.
 
 The three `h.01` segments are zero-length strokes with round caps — dots. They ship as drawn.
@@ -247,6 +256,32 @@ call. The strings change too: the shipped `Tap + to create your first exercise` 
 an affordance the user must find; the drawn one is «Добавь первое — дальше его можно будет класть в
 любую тренировку», which says what the thing is *for*. §26 "Empty state" makes the glyph, the
 headline, the sentence and the CTAs contract.
+
+### 2.4 Screen-body invariants
+
+- **The Box that holds the list and `EmptyRegion` carries `Modifier.weight(1f).fillMaxSize()`, and
+  the `fillMaxSize` is load-bearing.** `EmptyRegion`'s `AnimatedContent` measures itself with
+  `matchParentSize`, so the Box's own width comes from its other children — and the list child is
+  conditional (`listBody(surface, ListSurface.CONTENT) == ListBody.ROWS`). Without `fillMaxSize` the
+  empty region collapses to zero width in exactly the states where the list is absent, which is
+  every state it draws.
+- **One `rememberDeferredSurface(surface = listSurface(...), loadingSurface = ListSurface.LOADING)`
+  reading drives both bodies** — the rows through `listBody(surface, ListSurface.CONTENT) ==
+  ListBody.ROWS`, the region through the same `surface`. They are alternatives: during the minimum
+  hold the deferred verdict is still `LOADING` while the data already says `CONTENT`, so a list
+  composed off its own `itemCount` check draws its rows *under* the spinner for the rest of the hold.
+- **`ScreenTopBar` keeps `lastSelectionCount = remember { intArrayOf(0) }`** — written whenever
+  `mode is SelectionMode.On` — solely for the **exit** transition: `selectionMode` is already `Off`
+  while the outgoing `SelectionTopBar` is still fading, so the count that bar needs no longer exists
+  in `State`. A plain `IntArray` and deliberately not a `MutableState`: it is a cache read during
+  composition, and making it observable would invalidate this bar on every selection toggle for no
+  rendered difference.
+- **`processClearTagFilter` returns early when `state.value.activeTagFilter.isEmpty()`** so a
+  redundant emit cannot restart the paging flow the filter feeds — `PagingHandler.pagingUiState` is
+  `state.map { it.activeTagFilter }.distinctUntilChanged().flatMapLatest {
+  interactor.observeExercises(filter) }`. `distinctUntilChanged` absorbs the redundant emit today;
+  the guard states the intent at the emit site rather than resting on that downstream operator
+  staying where it is.
 
 ---
 

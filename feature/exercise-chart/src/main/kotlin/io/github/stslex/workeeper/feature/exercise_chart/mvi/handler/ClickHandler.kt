@@ -24,8 +24,7 @@ internal class ClickHandler @Inject constructor(
         when (action) {
             is Action.Click.OnPresetSelect -> processPresetSelect(action)
             is Action.Click.OnMetricSelect -> processMetricSelect(action)
-            // The query resets with the window in both directions — a sheet that reopens
-            // still filtered by a forgotten word looks like a list that lost its entries.
+            // The query resets with the window in both directions.
             Action.Click.OnPickerOpen -> updateState {
                 it.copy(isPickerOpen = true, pickerQuery = "")
             }
@@ -40,8 +39,7 @@ internal class ClickHandler @Inject constructor(
             is Action.Click.OnPickerItemSelect -> processPickerItemSelect(action)
             is Action.Click.OnScrub -> processScrub(action)
             Action.Click.OnEmptyCtaClick -> consume(Action.Navigation.OpenHome)
-            // The failure state stays on screen while the retry runs: Init resolves it either
-            // way, and clearing it first blanks the route for the length of the read.
+            // The failure state stays on screen while the retry runs; Init resolves it either way.
             Action.Click.OnRetryLoad -> consume(Action.Common.Init)
             Action.Click.OnBack -> consume(Action.Navigation.PopBack)
         }
@@ -52,10 +50,8 @@ internal class ClickHandler @Inject constructor(
         if (current.preset == action.preset) return
         val selected = current.selectedExercise ?: return
         sendEvent(Event.HapticClick(HapticFeedbackType.SegmentTick))
-        // `emptyReason` is NOT cleared here: it describes this exercise, and the exercise
-        // has not changed. Clearing it eagerly is what used to drop the screen out of its
-        // resolved empty state mid-reload — taking the recovery chips with it. loadChart
-        // owns the transition in both directions.
+        // `emptyReason` is NOT cleared here: it describes this exercise, which has not
+        // changed. loadChart owns the transition in both directions.
         updateState {
             it.copy(
                 preset = action.preset,
@@ -94,9 +90,7 @@ internal class ClickHandler @Inject constructor(
                 selectedExercise = item,
                 isPickerOpen = false,
                 pickerQuery = "",
-                // Clear EXERCISE_NOT_FOUND immediately on selection — the new selection
-                // is what's loading; loadChart will set NO_DATA_FOR_EXERCISE if the result
-                // is empty.
+                // Clear EXERCISE_NOT_FOUND immediately: the new selection is what is loading.
                 emptyReason = null,
                 isLoading = true,
             )
@@ -105,17 +99,15 @@ internal class ClickHandler @Inject constructor(
     }
 
     /**
-     * The scrub (§4.6): a repeated index is a no-op — which is what makes the haptic a tick
-     * *per crossed point* (`navigator.vibrate(4)` fires in the mockup only when the snapped
-     * index changes). SegmentTick is the same vocabulary the preset/metric segments use.
+     * The scrub (§4.6): a repeated index is a no-op, which is what makes the haptic a tick
+     * per crossed point.
      */
     private fun processScrub(action: Action.Click.OnScrub) {
         val current = state.value
         if (action.index == current.activeIndex) return
         if (action.index !in current.points.indices) return
         sendEvent(Event.HapticClick(HapticFeedbackType.SegmentTick))
-        // Rule 1 (compose-state-discipline): the readout is mapped BEFORE the lambda —
-        // resource lookups have no place inside a CAS body on a per-crossed-point path.
+        // Rule 1 (compose-state-discipline): the readout is mapped BEFORE the lambda.
         val readout = ChartReadoutMapper.toReadout(
             points = current.points,
             activeIndex = action.index,

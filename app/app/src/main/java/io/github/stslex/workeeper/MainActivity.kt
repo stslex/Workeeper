@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper
 
-import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -12,12 +11,11 @@ import io.github.stslex.workeeper.core.ui.mvi.performance.FirebaseScreenRenderRe
 import io.github.stslex.workeeper.core.ui.mvi.performance.PerformanceMetricsRecorder
 import io.github.stslex.workeeper.core.ui.mvi.performance.RecordAction
 import io.github.stslex.workeeper.di.AppGraphOwner
-import io.github.stslex.workeeper.feature.recovery.RecoveryActivity
+import io.github.stslex.workeeper.feature.recovery.RecoveryScenario
+import io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinator
 import io.github.stslex.workeeper.feature.recovery.domain.StartupCheck
 
-// App-Scope Collapse Step 6 (cut): Hilt-free. Reads its two app-scope deps from the internal AppGraph via
-// the AppGraphOwner interface (never a concrete-Application cast) — MainActivity is in app/app so it can
-// see the internal seam (the tighter idiom vs the public `context.appDeps<T>()` accessor).
+// Reads its app-scope deps from the internal AppGraph through AppGraphOwner, never a concrete cast.
 class MainActivity : ComponentActivity() {
 
     private val appGraph get() = (application as AppGraphOwner).appGraph
@@ -31,26 +29,26 @@ class MainActivity : ComponentActivity() {
         )
         super.onCreate(savedInstanceState)
 
-        // Scenario 2 routing — `BaseApplication.onCreate` already ran the
-        // startup pre-flight and cached the decision on the coordinator.
-        // If the decision was RouteToRecovery, finish this activity and
-        // launch `RecoveryActivity` directly via Intent. The brief MainActivity
-        // frame is acceptable for a rare developer-error path; we explicitly
-        // avoid `PackageManager.setComponentEnabledSetting` launcher swaps
-        // because they have known OEM-ROM flakiness.
-        //
-        // Bootstrap-context dispatch: we launch RecoveryActivity directly
-        // rather than through `Navigator.openRecovery()` (the `NavCommand.OpenRecovery`
-        // flow path) because this call site fires BEFORE `setContent { App() }`
-        // composes `NavigationEventBusSetup`. The bus is `MutableSharedFlow(
-        // replay = 0)`; an emit with no subscriber attached is dropped, so
-        // routing through `Navigator.openRecovery()` here would deterministically
-        // lose the signal. Same Option Y split as the bootstrap restart path —
-        // see `backup-recovery.md` → "Restart contract / OpenRecovery contract".
-        if (startupMigrationCoordinator.lastDecision is StartupCheck.RouteToRecovery) {
+        val restoreCoordinator = appGraph.restoreRecoveryCoordinator
+        val recoveryScenario = when {
+            restoreCoordinator.recoverySurfaceRequired ->
+                RecoveryScenario.InterruptedRestore
+
+            startupMigrationCoordinator.lastDecision is StartupCheck.RouteToRecovery ->
+                RecoveryScenario.StartupMigration
+
+            else -> null
+        }
+        if (recoveryScenario != null) {
+            // Only the integrity-gated interrupted-restore outcome has an acceptance escape.
+            val allowContinue = restoreCoordinator.lastPreflightOutcome ==
+                RestoreRecoveryCoordinator.PreflightOutcome.InterruptedRestore
             startActivity(
-                Intent(this, RecoveryActivity::class.java)
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                RecoveryScenario.intent(
+                    context = this,
+                    scenario = recoveryScenario,
+                    allowContinue = allowContinue,
+                ),
             )
             finish()
             return

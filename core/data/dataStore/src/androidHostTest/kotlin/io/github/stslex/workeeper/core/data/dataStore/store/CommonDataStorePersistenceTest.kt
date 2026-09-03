@@ -29,23 +29,14 @@ import tech.apter.junit.jupiter.robolectric.RobolectricExtension
 import java.io.File
 
 /**
- * HS6 as a behavioural gate: the start-card mode must survive process death, so this test
- * runs [CommonDataStoreImpl] across two "process generations" — two DataStore instances
- * over the SAME preferences file, the first one's scope cancelled before the second opens.
- * Only the bytes on disk connect them; a value that comes back was persisted, not cached.
- *
- * The production [DataStoreProvider] cannot express this — its companion memoizes one
- * process-lifetime store per name — which is exactly why the class carries its `open` seam.
+ * HS6 as a behavioural gate: the start-card mode must survive process death, so this runs
+ * [CommonDataStoreImpl] over two DataStore generations sharing one file. See the Phase-6 spec.
  */
 @ExtendWith(RobolectricExtension::class)
 @Config(application = Application::class, sdk = [33])
 internal class CommonDataStorePersistenceTest {
 
-    /**
-     * The base constructor still runs and still memoizes a store under its own name, which is why
-     * that name is a throwaway: only the overridden [dataStore] is ever read. The base store is
-     * never opened, so it costs nothing — DataStore opens its file lazily on first access.
-     */
+    /** Base constructor still memoizes under a throwaway name; only [dataStore] is read. */
     private class GenerationProvider(
         file: File,
         scope: CoroutineScope,
@@ -57,10 +48,7 @@ internal class CommonDataStorePersistenceTest {
             PreferenceDataStoreFactory.create(scope = scope) { file }
     }
 
-    /**
-     * Resolves under the Robolectric app's cacheDir so the base constructor's throwaway store names
-     * a writable location. It is never opened; this only has to be a legal path.
-     */
+    /** A legal, writable path for the base constructor's throwaway store; never opened. */
     private object ThrowawayPathResolver : DataStorePathResolver {
 
         override fun resolve(name: String): Path {
@@ -86,16 +74,8 @@ internal class CommonDataStorePersistenceTest {
     }
 
     /**
-     * Process death: the generation's scope dies; only the file remains.
-     *
-     * [cancelAndJoin], never a bare `cancel`: DataStore drops the file from its process-global
-     * `activeFiles` set inside an `invokeOnCompletion` handler on this scope's `Job`
-     * (`SimpleActor.init` -> `DataStoreImpl.onComplete` -> `StorageConnection.close`), which runs when
-     * the job *completes*, not when `cancel` returns. Its `Dispatchers.IO` children keep the job in
-     * Cancelling for as long as they take to unwind, so opening the next generation without joining
-     * races that removal and trips `check(!activeFiles.contains(path))` — "There are multiple
-     * DataStores active for the same file" (FileStorage.kt:52). That race is what made this test flake
-     * red on a loaded CI runner while staying green locally.
+     * Process death: the generation's scope dies; only the file remains. [cancelAndJoin], never a
+     * bare `cancel` — DataStore frees the file from `activeFiles` only on job completion.
      */
     private suspend fun killGeneration() {
         scopes.removeLast().coroutineContext.job.cancelAndJoin()
@@ -109,8 +89,7 @@ internal class CommonDataStorePersistenceTest {
 
     @AfterEach
     fun teardown() {
-        // Joined for the same reason as [killGeneration]: the file must be released, and no writer may
-        // still be unwinding against it, before the delete below.
+        // Join before the delete: no writer may still be unwinding against the file.
         runBlocking { scopes.forEach { it.coroutineContext.job.cancelAndJoin() } }
         scopes.clear()
         file.delete()

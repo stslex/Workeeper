@@ -6,28 +6,18 @@ import androidx.paging.PagingState
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 
-/**
- * Utilities for testing Paging components
- */
+/** Paging fixtures for UI tests. */
 object PagingTestUtils {
 
-    /**
-     * Creates a simple PagingData flow from a list
-     */
     fun <T : Any> createPagingFlow(items: List<T>): Flow<PagingData<T>> {
         return flowOf(PagingData.from(items))
     }
 
-    /**
-     * Creates an empty PagingData flow
-     */
     fun <T : Any> createEmptyPagingFlow(): Flow<PagingData<T>> {
         return flowOf(PagingData.from(emptyList()))
     }
 
-    /**
-     * Creates a test PagingSource that can simulate errors
-     */
+    /** [PagingSource] over a fixed list, optionally failing every load. */
     class TestPagingSource<T : Any>(
         private val items: List<T>,
         private val shouldFail: Boolean = false,
@@ -67,9 +57,6 @@ object PagingTestUtils {
         }
     }
 
-    /**
-     * Creates a PagingData flow that simulates loading error
-     */
     fun <T : Any> createErrorPagingFlow(): Flow<PagingData<T>> {
         return flowOf(PagingData.empty())
     }

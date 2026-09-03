@@ -1,0 +1,91 @@
+// SPDX-License-Identifier: GPL-3.0-only
+package io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store
+
+import dev.zacsweers.metro.Inject
+import io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetime
+import io.github.stslex.workeeper.core.ui.mvi.BaseStore
+import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
+import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
+import io.github.stslex.workeeper.core.ui.mvi.holders.LoggerHolder
+import io.github.stslex.workeeper.core.ui.navigation.Screen
+import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
+import io.github.stslex.workeeper.feature.plan_editor.di.PlanEditorHandlerStoreImpl
+import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.handler.ClickHandler
+import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.handler.CommonHandler
+import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.handler.EditorHandler
+import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.handler.InputHandler
+import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.handler.NavigationHandler
+import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorStore.Action
+import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorStore.Event
+import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorStore.State
+import kotlinx.collections.immutable.persistentListOf
+
+// The Screen.PlanEditor route arg is a bound instance on the extension factory (shape B).
+// GUARD: read the route arg HERE only — ScreenInjectionRule forbids injecting Screen elsewhere.
+@Inject
+class PlanEditorStoreImpl internal constructor(
+    screen: Screen.PlanEditor,
+    navigationHandler: NavigationHandler,
+    commonHandler: CommonHandler,
+    clickHandler: ClickHandler,
+    inputHandler: InputHandler,
+    editorHandler: EditorHandler,
+    storeDispatchers: StoreDispatchers,
+    handlerStore: PlanEditorHandlerStoreImpl,
+    analyticsHolder: AnalyticsHolder,
+    loggerHolder: LoggerHolder,
+    appScopeLifetime: AppScopeLifetime,
+) : BaseStore<State, Action, Event>(
+    name = NAME,
+    initialState = screen.toInitialState(),
+    handlerCreator = { action ->
+        when (action) {
+            is Action.Common -> commonHandler
+            is Action.Click -> clickHandler
+            is Action.Input -> inputHandler
+            is Action.Navigation -> navigationHandler
+            is Action.EditorAction -> editorHandler
+        }
+    },
+    storeEmitter = handlerStore,
+    storeDispatchers = storeDispatchers,
+    initialActions = listOf(Action.Common.Init),
+    analyticsHolder = analyticsHolder,
+    loggerHolder = loggerHolder,
+    appScopeLifetime = appScopeLifetime,
+) {
+
+    companion object {
+
+        private const val NAME = "PlanEditor"
+    }
+}
+
+internal fun Screen.PlanEditor.toMode(): State.Mode = when (this) {
+    is Screen.PlanEditor.Existing -> {
+        val performed = performedExerciseUuid
+        val exercise = exerciseUuid
+        val training = trainingUuid
+        when {
+            exercise == null -> error(
+                "Screen.PlanEditor.Existing must carry exerciseUuid (got performed=$performed, exercise=$exercise)",
+            )
+            // Live workout or single-training; a null trainingUuid uses `last_adhoc_sets`.
+            performed != null || !training.isNullOrBlank() -> State.Mode.PerformedExercise(
+                performedExerciseUuid = performed,
+                exerciseUuid = exercise,
+                trainingUuid = training,
+            )
+            // Exercise-detail Edit plan: the exercise's own `last_adhoc_sets` plus its `type`.
+            else -> State.Mode.Exercise(exerciseUuid = exercise)
+        }
+    }
+}
+
+internal fun Screen.PlanEditor.toInitialState(): State = State.init(
+    mode = toMode(),
+    // Seeded until CommonHandler.Init loads the real value; never seen, because the graph
+    // withholds the screen while `isLoading` is true.
+    seedType = ExerciseTypeUiModel.WEIGHTED,
+    seedPlan = persistentListOf(),
+)

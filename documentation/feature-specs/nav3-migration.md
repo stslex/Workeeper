@@ -107,7 +107,7 @@ These two are the entire result surface.
 
 **`BackStackStateRestorationTest`** — three representative cases rather than full coverage; the mechanism is shared, so a third instance adds cost without information.
 
-- scroll position on a seeded list, across a detail round-trip. **Both list cases point at Archive**, whose `ArchiveScreen.kt:170` / `:225` are the only in-repo `rememberLazyListState()` call sites — `AllExercisesScreen` and `AllTrainingsScreen` rely on `LazyColumn`'s own default. What is under test is entry retention, not the state declaration: `LazyColumn` calls the same `rememberLazyListState()` internally and takes the same `rememberSaveable` path, so Archive is representative and no production change is needed to make the mutation land;
+- scroll position on a seeded list, across a detail round-trip. **Both list cases point at Archive**, whose `ArchiveScreen.kt:159` / `:225` are the only in-repo `rememberLazyListState()` call sites — `AllExercisesScreen` and `AllTrainingsScreen` rely on `LazyColumn`'s own default. What is under test is entry retention, not the state declaration: `LazyColumn` calls the same `rememberLazyListState()` internally and takes the same `rememberSaveable` path, so Archive is representative and no production change is needed to make the mutation land;
 - an unsaved editor draft across navigate-away-and-return;
 - selection mode across navigate-away-and-return.
 

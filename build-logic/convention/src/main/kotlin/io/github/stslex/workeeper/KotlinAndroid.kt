@@ -35,9 +35,6 @@ internal fun Project.configureKotlinAndroid(
     commonExtension: LibraryExtension,
 ): Unit = configureKotlinAndroid(commonExtension, false)
 
-/**
- * Configure base Kotlin with Android options
- */
 private fun Project.configureKotlinAndroid(
     commonExtension: CommonExtension,
     isApp: Boolean
@@ -49,7 +46,6 @@ private fun Project.configureKotlinAndroid(
 
     compileSdk = libs.findVersionInt("compileSdk")
 
-    //get module name from module path
     val dropValue = if (isApp) 2 else 1
     val moduleName = path.split(":")
         .drop(dropValue)
@@ -95,9 +91,8 @@ private fun Project.configureKotlinAndroid(
             "androidx-core-ktx",
             "kotlinx-collections-immutable",
             "coroutines",
-            // App-Scope Collapse Step 6 (cut): bare javax.inject (was pulled via hilt-android) — every
-            // Android module needs javax.inject.Qualifier on its classpath so Metro's includeJavax()
-            // recognises the @DefaultDispatcher/@IODispatcher/@MainImmediateDispatcher qualifiers.
+            // Every Android module needs javax.inject.Qualifier on its classpath so Metro's
+            // includeJavax() recognises the dispatcher qualifiers.
             "javax-inject"
         )
     }
@@ -113,16 +108,11 @@ private fun Project.configureKotlinAndroid(
     testOptions.apply { unitTests.isIncludeAndroidResources = true }
 }
 
-/**
- * Configure base Kotlin options
- */
 private fun Project.configureKotlin() {
     // Use withType to workaround https://youtrack.jetbrains.com/issue/KT-55947
     tasks.withType<KotlinCompile>().configureEach {
         compilerOptions {
-            // Set JVM target to 11
             jvmTarget.set(JvmTarget.JVM_21)
-            // Treat all Kotlin warnings as errors (disabled by default)
             // Override by setting warningsAsErrors=true in your ~/.gradle/gradle.properties
             val warningsAsErrors: String? by project
             allWarningsAsErrors.set(warningsAsErrors?.toBoolean() ?: false)

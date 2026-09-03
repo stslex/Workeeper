@@ -18,42 +18,31 @@ import io.github.stslex.workeeper.core.ui.kit.components.setrow.SetColumnHeader
 import io.github.stslex.workeeper.core.ui.kit.components.setrow.SetRowGeometry
 import io.github.stslex.workeeper.core.ui.kit.golden.GOLDEN_DEVICE
 import io.github.stslex.workeeper.core.ui.kit.golden.OverflowGateSdk
+import io.github.stslex.workeeper.core.ui.kit.resources.Res
+import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_plan_editor_unit_kg
+import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_set_field_a11y_reps
+import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_set_field_a11y_weight
+import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_set_header_reps
+import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_set_header_weight
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveSetUiModel
 import io.github.stslex.workeeper.feature.live_workout.ui.components.LiveSetRow
+import kotlinx.coroutines.runBlocking
+import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.getString
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertAll
 import kotlin.math.abs
-import io.github.stslex.workeeper.core.ui.kit.R as KitR
 
 /**
- * The set-column header/row alignment assertion of
- * documentation/feature-specs/set-field-column-headers.md §7a, in the layoutlib stack.
- *
- * TWO claims, both necessary:
- *  - EDGES, the contract itself: each header label's rendered left edge equals its column's
- *    value left edge. Width equality alone cannot see an inset drift — a field inset can
- *    move while the header label's stays put and every column width stays equal.
- *  - GUTTER: the header's index gutter equals the row's index column — necessary and not
- *    sufficient; it stays because a gutter drift at 10+ sets moves every edge at once and
- *    this assert names the culprit directly.
- *
- * The edges are read from the SEMANTICS TREE of the rendered composition: the label is
- * addressable by its text, the field by its accessibility label, and
- * `ViewRootForTest.semanticsOwner` is the same public access path Paparazzi's own
- * accessibility extension uses under layoutlib — so the edge capture leaves ZERO trace in
- * production composables; do not add test tags to reach it. The gutter/index pair keeps its
- * `onSizeChanged` probes: they fire only on size change, never per frame.
- *
- * Asserted at ONE set and at TEN sets — the count where the index text outgrows the 12dp
- * minimum of the §5 width budget. layoutlib rather than Robolectric because the claim is
- * about real text metrics: Robolectric does not widen the index column with digit count, so
- * the drift scenario is unreachable there and the growth precondition below fails.
+ * Header/row column-alignment gate (set-field-column-headers.md §7a) on layoutlib, not
+ * Robolectric — the claim is about real text metrics. Asserts column edges and index gutter.
+ * GUARD: edges come from the semantics tree; never add test tags to reach them.
  */
 internal class SetColumnAlignmentGateTest {
 
@@ -63,17 +52,13 @@ internal class SetColumnAlignmentGateTest {
         gate.setup()
         val samples = mutableListOf<Sample>()
         try {
-            val weightHeaderText = gate.context
-                .getString(KitR.string.core_ui_kit_set_header_weight).uppercase() +
+            val weightHeaderText = cmpString(Res.string.core_ui_kit_set_header_weight).uppercase() +
                 " (" +
-                gate.context.getString(KitR.string.core_ui_kit_plan_editor_unit_kg).uppercase() +
+                cmpString(Res.string.core_ui_kit_plan_editor_unit_kg).uppercase() +
                 ")"
-            val repsHeaderText = gate.context
-                .getString(KitR.string.core_ui_kit_set_header_reps).uppercase()
-            val weightFieldLabel = gate.context
-                .getString(KitR.string.core_ui_kit_set_field_a11y_weight)
-            val repsFieldLabel = gate.context
-                .getString(KitR.string.core_ui_kit_set_field_a11y_reps)
+            val repsHeaderText = cmpString(Res.string.core_ui_kit_set_header_reps).uppercase()
+            val weightFieldLabel = cmpString(Res.string.core_ui_kit_set_field_a11y_weight)
+            val repsFieldLabel = cmpString(Res.string.core_ui_kit_set_field_a11y_reps)
 
             for (case in CASES) {
                 gate.setFontScale(case.fontScale)
@@ -115,8 +100,7 @@ internal class SetColumnAlignmentGateTest {
             )
         }
         check(samples.size == CASES.size) { "gate ran over ${samples.size} cases" }
-        // Precondition: the ten-set index column must outgrow the one-set minimum in this
-        // stack, or the gutter-drift scenario is unreachable here and a pass is vacuous.
+        // Precondition: ten sets must outgrow the one-set index minimum, or a pass is vacuous.
         val oneSet = samples.first { it.case.setCount == 1 && it.case.fontScale == 1f }
         val tenSet = samples.first { it.case.setCount == TEN_SETS }
         check(tenSet.indexPx > oneSet.indexPx) {
@@ -153,10 +137,7 @@ internal class SetColumnAlignmentGateTest {
         )
     }
 
-    /**
-     * The header and the WIDEST row (the last: its index label is the set count itself)
-     * exactly as `SetsColumn` composes them: one resolution, both consumers.
-     */
+    /** The header and the widest row, composed exactly as `SetsColumn` composes them. */
     @Composable
     private fun AlignedPair(case: Case, capture: Capture) {
         val contentWidth = with(LocalDensity.current) {
@@ -246,11 +227,8 @@ internal class SetColumnAlignmentGateTest {
         const val TEN_SETS = 10
 
         /**
-         * The axes that can move a column edge: the index gutter (set count), the text
-         * scale, and WHICH trailing component the row draws — a record row swaps the type
-         * chip for `PersonalRecordTag`, whose label outgrows the shared 34dp minimum at
-         * fontScale 2.0, so a trailing slot pinned to that minimum leaves the record row's
-         * fields narrower than the header's columns.
+         * Axes that can move a column edge: index gutter, text scale, and which trailing
+         * component the row draws — `PersonalRecordTag` outgrows the chip's shared minimum.
          */
         val CASES = listOf(
             Case(label = "1 set @1.0", setCount = 1, fontScale = 1f),
@@ -262,4 +240,7 @@ internal class SetColumnAlignmentGateTest {
         /** Two independent Rows accumulate px rounding; beyond one step is a drift. */
         const val EDGE_TOLERANCE_PX = 1.5f
     }
+
+    /** kit's strings are Compose-resource-backed; suspend-only outside composition. */
+    private fun cmpString(resource: StringResource): String = runBlocking { getString(resource) }
 }

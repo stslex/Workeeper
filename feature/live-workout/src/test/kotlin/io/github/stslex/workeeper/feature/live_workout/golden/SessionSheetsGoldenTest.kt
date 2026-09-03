@@ -23,10 +23,8 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.EnumSource
 
 /**
- * The four sheets' CONTENT (extraction §1.9) plus the undo toast, rendered on the surfaces
- * they actually sit on — `surfaceTier3` for sheet bodies, the page for the floating toast.
- * §10.4 puts the *windows* (scrim, drag, entrance) on the device checklist; everything drawn
- * inside them is gated here.
+ * The four sheets' CONTENT (extraction §1.9) plus the undo toast, on the surfaces they sit
+ * on. §10.4 puts the windows themselves on the device checklist, not here.
  */
 internal class SessionSheetsGoldenTest {
 
@@ -53,8 +51,7 @@ internal class SessionSheetsGoldenTest {
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
     fun exerciseMenuSheet(theme: GoldenTheme, testInfo: TestInfo) {
-        // A mid-session addition currently toggled ONE-OFF: switch row on, its msep, the
-        // kept plan/reset items, the skip toggle and the rust delete.
+        // A mid-session addition currently toggled ONE-OFF: the switch row is on.
         goldenSubject(testInfo, theme, surface = { AppUi.colors.surfaceTier3 }) {
             SheetFrame {
                 ExerciseMenuSheetContent(
@@ -69,7 +66,6 @@ internal class SessionSheetsGoldenTest {
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
     fun exerciseMenuSheetSkipped(theme: GoldenTheme, testInfo: TestInfo) {
-        // The §10.2 pair for the skip label: `Пропустить упражнение` ⇄ `Вернуть в сессию`.
         goldenSubject(testInfo, theme, surface = { AppUi.colors.surfaceTier3 }) {
             SheetFrame {
                 ExerciseMenuSheetContent(
@@ -101,7 +97,6 @@ internal class SessionSheetsGoldenTest {
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
     fun deleteExerciseSheetAdhoc(theme: GoldenTheme, testInfo: TestInfo) {
-        // An ad-hoc workout has no user-visible template, including after process restoration.
         goldenSubject(testInfo, theme, surface = { AppUi.colors.surfaceTier3 }) {
             SheetFrame {
                 DeleteExerciseSheetContent(

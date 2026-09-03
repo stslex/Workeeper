@@ -86,11 +86,7 @@ internal class ClickHandlerTest {
         verify { store.consume(Action.Navigation.OpenCreate) }
     }
 
-    /**
-     * §26 "Haptics": **the FAB morph fires nothing.** It follows the long press that already fired
-     * when selection was entered, and two in a row read as a fault. This test asserted the opposite
-     * — it encoded the behaviour the ledger has since retracted, so it inverts with it.
-     */
+    /** §26 "Haptics": the FAB morph fires nothing — the long press that entered selection did. */
     @Test
     fun `OnFabClick with selection fires no haptic and sets pendingBulkDelete`() {
         stateFlow.value = stateFlow.value.copy(
@@ -171,12 +167,7 @@ internal class ClickHandlerTest {
         assertEquals(expected, (event as Event.HapticClick).type)
     }
 
-    /**
-     * §26 "Haptics", all three, each asserted on the constant rather than on "a haptic fired".
-     * The vocabulary is the decision — `LongPress` for entering the mode, `ContextClick` for
-     * changing what is in it, `Confirm` for the act itself — so a test that only checked *that*
-     * something buzzed would pass while the meaning drifted.
-     */
+    /** §26 "Haptics": each case asserts the constant, not merely that something fired. */
     @Test
     fun `entering selection by long press fires LongPress`() {
         handler.invoke(Action.Click.OnTrainingLongPress("uuid-1"))
@@ -210,10 +201,7 @@ internal class ClickHandlerTest {
         assertHaptic(captured.captured, HapticFeedbackType.ContextClick)
     }
 
-    /**
-     * A long press on a row while selection is already on is a **toggle**, so it gets
-     * ContextClick and not a second LongPress: two in a row read as a fault.
-     */
+    /** A long press inside selection is a toggle: ContextClick, not a second LongPress. */
     @Test
     fun `long press inside selection fires ContextClick, not a second LongPress`() {
         stateFlow.value = stateFlow.value.copy(
@@ -232,13 +220,7 @@ internal class ClickHandlerTest {
         verify(exactly = 0) { store.sendEvent(any()) }
     }
 
-    /**
-     * `Confirm` for the act itself — after the dialog, not on the button that opens it.
-     *
-     * This assertion was promised by the KDoc above and missing from the file: mutation #11 of the
-     * all-exercises delta (`Confirm` reverted to `LongPress`) reddened that screen's suite and
-     * passed silently here.
-     */
+    /** `Confirm` fires after the dialog, not on the button that opens it. */
     @Test
     fun `confirmed bulk archive fires Confirm`() {
         stateFlow.value = stateFlow.value.copy(
@@ -254,13 +236,7 @@ internal class ClickHandlerTest {
         )
     }
 
-    /**
-     * The filtered-to-empty state's only action, and it is one tap rather than N.
-     *
-     * No haptic: [ClickHandler] fires none on a filter change and the vocabulary is four constants,
-     * none of which is "a filter changed". Asserted rather than assumed — silence is also what an
-     * accidental deletion produces.
-     */
+    /** The filtered-to-empty state's only action: one tap, and no haptic. */
     @Test
     fun `OnClearTagFilter empties the whole filter in one act`() {
         stateFlow.value = stateFlow.value.copy(
@@ -285,17 +261,7 @@ internal class ClickHandlerTest {
         assertEquals(before, stateFlow.value)
         verify(exactly = 0) { store.updateState(any()) }
     }
-    /**
-     * The empty state's CTA opens create and fires **nothing**. The FAB fires `ContextClick`; a
-     * button inside an empty state does not, and routing the CTA through [Action.Click.OnFabClick]
-     * gave this screen a haptic its sibling's identical `.empty` button does not have.
-     *
-     * **Residual, stated rather than papered over:** this asserts the *handler*. That the screen
-     * dispatches this action and not `OnFabClick` is screen wiring, which no unit test and no
-     * golden can see — a Compose UI test could, but `ui_tests.yml` is `workflow_dispatch`-only and
-     * does not gate PRs. Proven by mutation to be uncovered, and left named. Same class as the
-     * paging-tail selector before it was extracted.
-     */
+    /** The empty state's CTA opens create and fires nothing; only the FAB fires ContextClick. */
     @Test
     fun `OnEmptyCreate opens create and fires no haptic`() {
         handler.invoke(Action.Click.OnEmptyCreate)

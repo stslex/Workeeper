@@ -233,8 +233,7 @@ internal class SessionRepositoryImplWriteDbTest {
             val firstExercise = env.seedExercise(name = "First")
             val nextExercise = env.seedExercise(name = "Next")
             val session = env.seedSession(trainingUuid = training.uuid)
-            // Seed the first exercise as the existing position-0 attachment to mimic what
-            // createAdhocSession would have written.
+            // Seed the position-0 attachment createAdhocSession would have written.
             env.seedTrainingExercise(
                 trainingUuid = training.uuid,
                 exerciseUuid = firstExercise.uuid,
@@ -302,8 +301,7 @@ internal class SessionRepositoryImplWriteDbTest {
         )
 
         val plan = env.trainingExerciseDao.getByTraining(training.uuid).single()
-        // The new training_exercise row carries the verbatim history JSON so the next session
-        // reload sees the same plan.
+        // The new plan row carries the verbatim history JSON, so a reload sees the same plan.
         assertEquals(historyJson, plan.planSets)
         assertNotNull(result.planSets)
         assertEquals(1, result.planSets?.size)
@@ -340,8 +338,7 @@ internal class SessionRepositoryImplWriteDbTest {
             exerciseUuid = libraryExercise.uuid.toString(),
         )
 
-        // The library exercise must not be flipped to is_adhoc = 1; that flag drives the
-        // discardAdhocSession cleanup predicate.
+        // GUARD: a library exercise must not flip to is_adhoc = 1 — that flag drives cleanup.
         val reloaded = env.exerciseDao.getById(libraryExercise.uuid)
         assertEquals(false, reloaded?.isAdhoc)
     }
@@ -353,7 +350,6 @@ internal class SessionRepositoryImplWriteDbTest {
             val adhocOnly = env.seedExercise(name = "AdhocOnly", isAdhoc = true)
             val libraryPicked = env.seedExercise(name = "Library", isAdhoc = false)
             val session = env.seedSession(trainingUuid = adhocTraining.uuid)
-            // Both exercises participate in this ad-hoc training.
             env.seedTrainingExercise(
                 trainingUuid = adhocTraining.uuid,
                 exerciseUuid = adhocOnly.uuid,
@@ -380,12 +376,10 @@ internal class SessionRepositoryImplWriteDbTest {
                 trainingUuid = adhocTraining.uuid.toString(),
             )
 
-            // Session + training are gone (and their cascaded children).
             assertNull(env.sessionDao.getById(session.uuid))
             assertNull(env.trainingDao.getById(adhocTraining.uuid))
-            // The is_adhoc=1 inline-created exercise is gone.
             assertNull(env.exerciseDao.getById(adhocOnly.uuid))
-            // The library exercise (is_adhoc=0) is preserved by the defence-in-depth predicate.
+            // The library exercise is spared by the `is_adhoc` half of the predicate.
             assertNotNull(env.exerciseDao.getById(libraryPicked.uuid))
         }
 

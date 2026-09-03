@@ -37,6 +37,9 @@ internal object BackupUiMapper {
         BackupError.AuthRevoked -> BackupErrorUi.AUTH_REVOKED
         BackupError.MissingRequiredScope -> BackupErrorUi.MISSING_REQUIRED_SCOPE
         BackupError.StorageQuotaExceeded -> BackupErrorUi.STORAGE_QUOTA_EXCEEDED
+        is BackupError.InsufficientLocalStorage,
+        is BackupError.StorageCapacityUnavailable,
+        -> BackupErrorUi.IO_ERROR
         is BackupError.CorruptedBackup -> BackupErrorUi.CORRUPTED_BACKUP
         is BackupError.BackupTooNew -> BackupErrorUi.BACKUP_TOO_NEW
         is BackupError.MissingMigrationPath -> BackupErrorUi.MISSING_MIGRATION_PATH

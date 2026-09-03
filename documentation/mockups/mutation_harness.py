@@ -233,6 +233,8 @@ def case(name: str, rel: str, old: str, new: str, task: str) -> str:
     print(f"\n=== {name} -> {verdict}")
     for d in detail:
         print("     ", d)
+    for summary in [line.strip() for line in out.splitlines() if " actionable task" in line][-1:]:
+        print("     ", summary)
     sys.stdout.flush()
     return verdict
 
@@ -240,7 +242,7 @@ def case(name: str, rel: str, old: str, new: str, task: str) -> str:
 # --- the registered cases -------------------------------------------------------------------------
 
 _ALPHA_SPEC = (
-    "core/ui/kit/src/main/kotlin/io/github/stslex/workeeper/core/ui/kit/theme/ContinuityMotion.kt"
+    "core/ui/kit/src/commonMain/kotlin/io/github/stslex/workeeper/core/ui/kit/theme/ContinuityMotion.kt"
 )
 
 # Each entry: (name, rel, old, new, task).
@@ -250,7 +252,7 @@ CASES: list[tuple[str, str, str, str, str]] = [
         _ALPHA_SPEC,
         "    easing = motion.linear,",
         "    easing = motion.out,",
-        ":core:ui:kit:testDebugUnitTest --tests *ContinuityMotionTest*",
+        ":core:ui:kit:testAndroidHostTest --tests *ContinuityMotionTest*",
     ),
     (
         "blank-start CTA stops withdrawing while a session runs (B27's guard)",
@@ -288,7 +290,7 @@ _SELF_TEST = [
         _ALPHA_SPEC,
         "    durationMillis = motion.base,\n    easing = motion.linear,",
         "    durationMillis = motion.slow,\n    easing = motion.linear,",
-        ":core:ui:kit:testDebugUnitTest --tests *ContinuityMotionTest*",
+        ":core:ui:kit:testAndroidHostTest --tests *ContinuityMotionTest*",
         "RED",
     ),
     (

@@ -7,16 +7,8 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 /**
- * Coverage for [InstrumentedSuiteSelectorRule].
- *
- * The positive controls are load-bearing: they prove the detector fires on known-bad input, so
- * a green run over the real `src/androidTest` tree means "every test is selectable", not "the
- * rule never ran". That distinction is the entire reason this rule exists — the defect it was
- * written for was a *green* CI run in which a filter matched nothing.
- *
- * `locally declared Smoke` is the sharpest of them. Without type resolution a name check alone
- * would accept a same-named annotation from any package while the instrumentation filter,
- * which resolves the real FQN, still matched nothing.
+ * Coverage for [InstrumentedSuiteSelectorRule]. The positive controls are load-bearing: they prove
+ * a green run means "every test is selectable", not "the rule never fired".
  */
 internal class InstrumentedSuiteSelectorRuleTest {
 
@@ -26,7 +18,7 @@ internal class InstrumentedSuiteSelectorRuleTest {
     private val regressionImport =
         "import io.github.stslex.workeeper.core.ui.test.annotations.Regression"
 
-    // ---------------------------- positive controls (must fire) ----------------------------
+    // Positive controls (must fire).
 
     @Test
     fun `flags a test class carrying no suite annotation`() {
@@ -142,9 +134,7 @@ internal class InstrumentedSuiteSelectorRuleTest {
 
     @Test
     fun `flags an unannotated test whose JUnit import is aliased`() {
-        // The dangerous direction: an alias made the function invisible to the rule, so an
-        // unselectable test passed BOTH gate halves while the filter excluded it from both runs.
-        // Detecting @Test must be at least as permissive as JUnit's own resolution.
+        // The dangerous direction: an alias hides the test, so it passes both gate halves.
         val findings = rule.lint(
             """
             package io.github.stslex.workeeper.feature.example
@@ -203,7 +193,6 @@ internal class InstrumentedSuiteSelectorRuleTest {
     @Test
     fun `flags an unannotated test written with a backticked annotation name`() {
         // `shortName` normalises the escaped identifier; the raw `typeReference.text` does not.
-        // Detecting @Test must not depend on which spelling the author used.
         val findings = rule.lint(
             """
             package io.github.stslex.workeeper.feature.example
@@ -242,9 +231,7 @@ internal class InstrumentedSuiteSelectorRuleTest {
 
     @Test
     fun `flags a test whose only suite annotation sits on an abstract base class`() {
-        // `@Smoke` is NOT `@Inherited`, so androidx.test's filter — which reads the annotations of
-        // the concrete class it runs — never sees it. Crediting it here would bless an arrangement
-        // in which every concrete subclass silently runs in neither suite.
+        // `@Smoke` is not `@Inherited`, and androidx.test reads the concrete class's annotations.
         val findings = rule.lint(
             """
             package io.github.stslex.workeeper.feature.example
@@ -269,8 +256,7 @@ internal class InstrumentedSuiteSelectorRuleTest {
 
     @Test
     fun `flags a test declared in an open class even when the class is annotated`() {
-        // Codex round 5, from the other direction: a concrete subclass declaring no @Test of its
-        // own is never visited, so the shape itself is refused rather than reasoned about.
+        // A concrete subclass declaring no @Test is never visited, so the shape itself is refused.
         val findings = rule.lint(
             """
             package io.github.stslex.workeeper.feature.example
@@ -320,7 +306,7 @@ internal class InstrumentedSuiteSelectorRuleTest {
         assertTrue(findings.single().message.contains("innerCase"))
     }
 
-    // ---------------------------- negative controls (must stay silent) ---------------------
+    // Negative controls (must stay silent).
 
     @Test
     fun `accepts a class level Smoke`() {
@@ -344,9 +330,7 @@ internal class InstrumentedSuiteSelectorRuleTest {
 
     @Test
     fun `accepts a method level Regression alongside a class level Smoke`() {
-        // The real shape of AllExercisesScreenTest: class-level @Smoke puts both tests in the
-        // smoke run, and one method-level @Regression additionally puts that one in the
-        // regression run.
+        // The real shape of AllExercisesScreenTest: class-level @Smoke plus one method @Regression.
         val findings = rule.lint(
             """
             package io.github.stslex.workeeper.feature.example
@@ -392,11 +376,7 @@ internal class InstrumentedSuiteSelectorRuleTest {
 
     @Test
     fun `accepts a wildcard import of the annotations package`() {
-        // Load-bearing, not hypothetical: detekt.yml's WildcardImport rule EXCLUDES
-        // `**/androidTest/**`, and ktlint's NoWildcardImports never reaches that source set either
-        // (the plain `detekt` task cannot see it, and detekt-androidtest-suite.yml activates only
-        // this rule). Wildcard imports are therefore permitted precisely where this rule polices,
-        // so failing to bind them would red the gate on correct code.
+        // Load-bearing: wildcard imports are permitted in androidTest, exactly where this polices.
         val findings = rule.lint(
             """
             package io.github.stslex.workeeper.feature.example
@@ -483,8 +463,7 @@ internal class InstrumentedSuiteSelectorRuleTest {
 
     @Test
     fun `ignores a class with no tests at all`() {
-        // Harness and fixture classes under src/androidTest declare no @Test and are selected
-        // by nothing — requiring a suite annotation on them would be noise.
+        // Harness classes under src/androidTest declare no @Test and are selected by nothing.
         val findings = rule.lint(
             """
             package io.github.stslex.workeeper.harness

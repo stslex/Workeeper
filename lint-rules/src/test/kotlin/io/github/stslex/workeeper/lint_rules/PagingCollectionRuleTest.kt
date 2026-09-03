@@ -8,19 +8,8 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 
 /**
- * Coverage for `PagingCollectionRule`.
- *
- * PSI-only by necessity — this repo's detekt runs without type resolution, so a type-resolving
- * rule silently finds nothing in CI. The rule matches the callee name, which is why the receiver
- * shape does not matter and why the "safe" cases below are safe for a reason the rule can actually
- * see.
- *
- * **The kit-helper exclusion is deliberately NOT tested here.** `lint()` synthesises a file name,
- * so a case asserting "silent inside `CollectPagingItems.kt`" would be asserting the synthetic name
- * and not the exclusion — a green that means nothing. It is covered instead by the real detekt run
- * over the tree: if the exclusion broke, `CollectPagingItems.kt` itself would be flagged and the
- * build would go red. Proven by mutation (removing the `containingKtFile.name` guard reddens the
- * kit), not by a test that cannot see it.
+ * Coverage for `PagingCollectionRule`. The kit-helper exclusion is deliberately untested here —
+ * `lint()` synthesises the file name; the real detekt run over the tree is its coverage.
  */
 internal class PagingCollectionRuleTest {
 
@@ -44,9 +33,7 @@ internal class PagingCollectionRuleTest {
     @Test
     @DisplayName("flags it even when wrapped in remember — the helper is the one supported form")
     fun flagsTheWrappedShapeToo() {
-        // The three sibling screens' old form. It is CORRECT, and still flagged: leaving two
-        // supported spellings is what let the fourth screen copy the wrong one. The rule's job is
-        // that there is exactly one way in, not that every other way is broken.
+        // Correct, and still flagged: there must be exactly one supported spelling.
         val findings = rule.lint(
             """
             @Composable

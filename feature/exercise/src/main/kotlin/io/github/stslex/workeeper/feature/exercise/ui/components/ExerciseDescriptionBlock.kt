@@ -29,32 +29,8 @@ import io.github.stslex.workeeper.feature.exercise.R
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ImageDisplay
 
 /**
- * The `ОПИСАНИЕ` section's content — the description and the picture beside it
- * (`v3-editors.md` §3.1, §3.2; D-OPEN-3, D-OPEN-9).
- *
- * ## One component, two hosts
- *
- * The read screen draws it read-only and the editor draws it editable, and they are the **same
- * block**: D-OPEN-3 put the image entry point beside the description on both, and a second copy
- * per screen is the drift this arc exists to remove. The section head is the host's, because the
- * two hosts sit in different rhythms — a scrolling read frame and a form.
- *
- * ## The picture
- *
- * This block is the exercise image's **only** affordance, on both screens (ED6, D-OPEN-3,
- * D-OPEN-9) — do not give a bar or a form row a second one. The placeholder is
- * [AppExerciseThumb]'s own type mark, so the glyph needs no copy in this feature.
- * **The placement is the statement**: the image is optional and descriptive, so it sits with the
- * other optional descriptive thing.
- *
- * ## The two callbacks encode D-OPEN-3's rule once
- *
- * With a picture the tap opens the viewer; without one it opens the picker. Either may be absent
- * — read mode has no picker — and when the one this state resolves to is absent, the box is drawn
- * and inert rather than promising an action it cannot take.
- *
- * [onDescriptionChange] is the mode: **the null is the exclusion**, the same grammar
- * `PlanEditorBody` and `PlanSetCard` already use.
+ * The `ОПИСАНИЕ` section content — description plus the picture beside it, and the image's only
+ * affordance. A null [onDescriptionChange] is read mode (`v3-editors.md` §3.1).
  */
 @Composable
 internal fun ExerciseDescriptionBlock(
@@ -87,9 +63,7 @@ internal fun ExerciseDescriptionBlock(
                     color = AppUi.colors.textSecondary,
                 )
             } else {
-                // No explicit height — `.tf.multi` is the same box taller and the FIELD owns that
-                // number (extraction §7.2). A call site that sets its own guesses at a value the
-                // drawing already puts at 96.
+                // No explicit height — `.tf.multi` is the field's own number (extraction §7.2).
                 AppTextField(
                     modifier = Modifier.testTag("ExerciseEditDescriptionField"),
                     accessibilityLabel = stringResource(R.string.feature_exercise_edit_label_description),
@@ -104,8 +78,7 @@ internal fun ExerciseDescriptionBlock(
             modifier = Modifier.testTag("ExerciseDescriptionImage"),
             isWeighted = type == ExerciseTypeUiModel.WEIGHTED,
             onClick = if (model != null) onOpenImage else onPickImage,
-            // Three states, three labels: open the picture, add one, or say there is none. A box
-            // whose only child is a decorative type mark tells a screen reader nothing by itself.
+            // Three states, three labels: open the picture, add one, or say there is none.
             contentDescription = stringResource(
                 when {
                     model != null -> R.string.feature_exercise_image_thumb_open_description

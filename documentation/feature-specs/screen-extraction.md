@@ -71,7 +71,8 @@ mockups paint in `--dim`:
 `.label` · `.unit` · `.set-i` · `.ord` · `.ordchip` (resting) · `.sub` · `.plan-line` · `.chev` ·
 `.tchip` text · `.val .x` · `.scrub` · `.empty .glyph svg` · `.tempbadge` border · `.mini` (resting)
 
-`AppSectionHeader`'s KDoc already records the substitution to `textTertiary` and the reason:
+`AppSectionHeader` already ships the substitution — its label renders the `--dim` role at
+`meta`'s value — and the measurement is the reason:
 
 > dark `--dim` `#6B7078` on `base` `#0B0D0F` measures **3.91:1** against the 4.5:1 an 11sp label owes.
 
@@ -257,7 +258,10 @@ container around the header.** `.session` is padding only.
 - `min-height: 60px` → **48dp** rung. `display:flex; align-items:center; gap:6px; padding:6px gutter`.
 - `.icon-btn`: **44×44** (→ 48dp), radius 12px, `color: --meta`.
   SVG **21×21**, `stroke-width: 1.7`, `fill:none`, round caps and joins.
-  Hover: `background: --sec`, `color: --max`.
+  Hover: `background: --sec`, `color: --max`. **The hover state maps onto the PRESSED state**
+  — there is no hover on touch hardware — animated on the `fast` motion token to match the CSS's
+  140ms transitions. A Material ripple is deliberately refused: it is a different treatment from the
+  one drawn.
   `.lead { margin-left: -12px }` · `.trail { margin-right: -12px }` — the icons hang into the gutter
   so their **glyphs** align to the 16dp edge, not their touch targets.
 - Left icon: chevron-left, path `M15 5l-7 7 7 7`.
@@ -343,6 +347,10 @@ Radius 18px → **16dp**. Gap 10px → **8dp**. Top margin 26px → **24dp**.
 **There is no border in any state.** Active is marked by **surface change `sec` → `slab` plus
 `--slabtop`** (§0.2). Nothing else.
 
+**`.card.active` is a disclosure state — the card is OPEN — not "this is the current exercise."** A
+manually opened finished card is active without being current, and takes the lift like any other
+open card. `isActive` in code carries exactly this meaning.
+
 ### Head
 
 ```
@@ -365,10 +373,20 @@ Radius 18px → **16dp**. Gap 10px → **8dp**. Top margin 26px → **24dp**.
 | `.skip` | transparent | `--dim` | **1px dashed `--hair-s`** | the number |
 | `.temp` | transparent | `--dim` | **1px dashed `--dim`** | the number |
 | `.temp.active` | transparent | `--max` | 1px dashed `--max` | number, weight 500 |
-| `.temp.fin` | transparent | `--meta` | 1px dashed `--meta` | number |
+| `.temp.fin` | transparent | `--meta` | 1px dashed `--meta` | **a checkmark SVG** (corrected below) |
 
 Checkmark: `<svg width=13 height=13 stroke=currentColor stroke-width=3 fill=none>` path
 `M4 12.5l5 5L20 7`. `.card.fin .ordchip svg{display:block}` + `.card.fin .ordchip i{display:none}`.
+
+Two cascade facts this table shipped wrong, re-read off the stylesheet (`session-v3f.html` L86–96,
+later rules win):
+
+- **`.fin` ALWAYS swaps the number for the checkmark.** `.card.fin .ordchip svg{display:block}`
+  carries no `:not(.temp)` guard, so a finished ONE-OFF shows a `meta` checkmark inside a dashed
+  `meta` chip. This table's `.temp.fin` row said `number`; that was the error. The golden
+  `SessionStateGoldenTest.exerciseOneOffFinished` pins the correct rendering.
+- **A skipped one-off keeps the `temp` chip** (dashed `--dim`): `.card.temp .ordchip` is declared
+  after `.card.skip .ordchip`, so the one-off treatment wins the chip while `.skip` wins the card.
 
 **"Done" for an exercise is: a `donefill` chip whose number is replaced by a checkmark, plus the
 title going `--meta`/weight-500. It is NOT an opacity change.**
@@ -376,6 +394,9 @@ title going `--meta`/weight-500. It is NOT an opacity change.**
 `.ctitle` — 16.5px → **15 rung**, weight **600**, `--max`, `letter-spacing:-.01em`, line-height 1.25.
 - `.card.fin .ctitle` → `color:--meta; font-weight:500`
 - `.card.skip .ctitle` → `color:--meta; text-decoration:line-through; decoration-color:--dim`
+  — **the two-tone strike cannot be built.** `TextDecoration.LineThrough` shares the text colour in
+  Compose and there is no per-`Text` equivalent of `text-decoration-color`, so the whole title
+  renders in `textTertiary` with the line the same colour. A deliberate deviation, not a bug.
 
 `.tempbadge` — the one-off marker, `display:none` until `.card.temp`.
 mono **9.5px → 11 rung**, `.12em`, uppercase, `color:--body`, **1px dashed `--dim`**, radius 5px → 4dp,
@@ -469,6 +490,11 @@ Order: **`.set-i` → field(s) → `.tchip` or `.prtag` → `.mark`**.
 Pressed: `scale(.9)`. **The morph is circle → rounded-square and the checkmark draws itself in.**
 Not a checkbox, not a colour swap, and the resting ring is dim `--hair-s`, not an accent.
 
+**The draw-in is reproduced with `PathMeasure`, not a dash path effect**: the mockup's `26`
+**exceeds** the path's actual length — `M4 12.5 l5 5 L20 7` measures ~22.3 viewBox units. A
+dash-based reproduction would depend on 26 being the true length and would not map
+`stroke-dashoffset` correctly. Measure the real path, draw its first `progress`.
+
 ### Transients
 
 ```css
@@ -507,6 +533,21 @@ separated by a 1px `--hair` rule, with a 1px `--hair` rule above the pair.
 **`− подход` is disabled when `sets.length <= 1`.**
 Add: appends a set copying the last one's `w`/`r`, un-collapses the card if the user had closed it,
 toasts `Подход добавлен`. Delete: `pop()`, toasts `Подход удалён`. Both snapshot for undo.
+
+As built (`AppSetBar`):
+
+- The drawn `padding:15px 0 14px` around a ~16px line totals **45px**; each half takes
+  `AppDimension.heightMd` (**48dp**) with its label centred instead. The asymmetric 15/14 pair is a
+  1px optical nudge that does not survive the dp ladder, and a rung is a better thing to own than a
+  rounding.
+- `opacity:.35` ships as `DISABLED_LABEL_ALPHA = 0.35f` applied to `textTertiary`, **not** to a
+  palette role: there is no "disabled label" slot, and inventing one for a value the drawing states
+  directly would be adding a role to avoid writing a number down. WCAG carves disabled controls out,
+  so nothing is owed here.
+- The two `--hair` rules map to `borderSubtle` — they separate, they carry no state, and §3.1 puts
+  them outside the contrast contract.
+- `letter-spacing:.06em` ships as `SETBAR_TRACKING = 0.06.em` carried on the component at the 12.5
+  rung, not on the scale.
 
 ## 1.8 `.addex` and `.dock`
 
@@ -679,6 +720,13 @@ round to the 34 rung.
 Two `.label`s: **`Записано`** and **`можно править`**. They are peers — same class, same style. The
 right one declares the mode. Margin 32px → **32dp** top, 12px → **12dp** bottom.
 `align-items: baseline`, not centre.
+
+**The gaps are ADDITIVE, because margins do not collapse in a flex column** — and this screen's
+rhythm is a flex column. So this section head's 12px bottom margin and §2.5's 26px `.cards` top
+margin sum rather than max: first-card top = **12 + 24**. In code: `Space.xxl` top / `Space.md`
+bottom on the section head, `Space.xl` on the first card, `Space.sm` (8dp, from 10px) between cards.
+A reader porting the mockup with block-flow intuition produces different numbers and reads the code
+as wrong.
 
 ## 2.5 `.card` — two states only
 
@@ -1030,6 +1078,40 @@ div            3 × .statrow                 margin-top 26px
   шапки: заголовок крупный, стрелка ровно одна — назад."* — the switcher moved out of the topbar; the
   title is large; there is exactly one arrow, and it means back.
 
+## 4.2a `sh-pick` — the picker sheet, as built
+
+The mockup draws a `.mitem` list; the constraints below are the device facts `ExercisePickerSheet`
+had to be built against, and are not in the drawing.
+
+- **The sheet window is never resized for the keyboard.** Material sets bottom-sheet windows to
+  `SOFT_INPUT_ADJUST_NOTHING` on API 30+, so content taller than the space left above the keyboard
+  is neither scrolled nor panned — it is simply covered. The `ime` inset IS delivered and it
+  animates: measured on API 35 portrait, `WindowInsets.ime.getBottom` climbs **0 → 883px** over the
+  keyboard's rise and the content's height budget follows it **863dp → 473dp** frame by frame. The
+  inset must be read in composition (not taken from a padding modifier) or the reflow jumps at the
+  end of the animation instead of tracking it. Bounding the content to the remaining space is the
+  only fix.
+- **`SHEET_CHROME = 60.dp`** is what the sheet window spends before the content gets a pixel, and
+  therefore what the height budget hands back: the grab-handle block (8 + 4 + 16) plus
+  `AppBottomSheet`'s own bottom padding (`xxl`, 32) — all **outside** the `heightIn(max = …)`.
+  `AppSheetLayout`'s own 8/24 padding is **inside** the cap and is already accounted for by the cap.
+  It stays a constant rather than a measurement because measuring the chrome and feeding it back
+  into the constraint that produced it is a layout feedback loop; the residual is absorbed by the
+  list's `weight(1f, fill = false)`, which takes whatever is actually left. That `fill = false` is
+  what makes the list the elastic element, so a rising keyboard shrinks the list instead of pushing
+  it under itself; `PICKER_LIST_MAX_HEIGHT = 360.dp` still caps it when there is room to spare.
+- **`MIN_SHEET_CONTENT_HEIGHT = 160.dp`** is a floor so the computed cap can never reach zero and
+  collapse the layout. It is also where the sheet stops being solvable: measured on API 35,
+  landscape, keyboard up — window 1080px, IME 662px, status bar 137px = 281px, i.e. **94dp** for
+  everything, against 60dp of chrome. A 56dp text field with a title above it does not fit at any
+  cap; the sheet would have to stop being a sheet. **Reported, not worked around.**
+- **No auto-focus, deliberately.** Focus was briefly driven from `AppBottomSheet`'s `onSettled` —
+  the only point where taking it does not race the enter animation (requesting earlier raises the
+  IME into a sheet that is still translating and the layout jitters). On device that correctness
+  costs a multi-second wait before the keyboard appears, and every cheaper trigger reintroduces the
+  race, so raising the keyboard is left to the user. `expandedOnly = true` is what puts the field on
+  screen the moment the sheet is.
+
 ## 4.3 `.tabs` — metric tabs with a sliding indicator
 
 ```css
@@ -1045,8 +1127,16 @@ div            3 × .statrow                 margin-top 26px
 
 - Track: **`--sec`** (`surfaceTier1`), radius 14px → **16dp**, padding 5px → 4dp.
 - Buttons: height 44px → **48dp**, 14px → **15 rung**, weight **500**, `--meta` → **`--max` when on**.
-- **`.ind`** — the sliding thumb. `--slab` (**`surfaceTier2`**) + **`--slabtop`**, radius 10px → 8dp,
+- **`.ind`** — the sliding thumb. `--slab` (**`surfaceTier2`**) + **`--slabtop`**, drawn radius 10px,
   full track height (`top:0;bottom:0`).
+  **It does NOT round to 8dp.** The shipped radius is derived —
+  `RoundedCornerShape(TRACK_RADIUS - TRACK_PADDING)` = 16dp − 4dp = **12dp**.
+  **GUARD: it must stay derived.** The thumb is inset by `TRACK_PADDING` inside a track rounded at
+  `TRACK_RADIUS`, so its corners nest concentrically only at that difference. Putting `tabShape`
+  (`Radius.small`, 8dp — the drawn 10px, which is the BUTTONS' radius) on the thumb is the
+  obvious-looking choice and is what this used to be: at 8dp against a 16dp track inset by 4dp the
+  two curves diverge and the track shows through at each corner. Writing 12dp as a literal is the
+  same bug deferred — correct today, silently wrong the moment either token moves.
   **It animates `left` and `width` over 320ms `--e-out`** — a sixth duration, not in `--d-*`.
   `moveInd(btn)` sets `ind.style.left = btn.offsetLeft` and `ind.style.width = btn.offsetWidth`,
   so the thumb **resizes** to each tab, not just slides.
@@ -1375,8 +1465,8 @@ variant, which the mockup does not draw.
 | Loading | — | `CircularProgressIndicator` | **not drawn** |
 
 **Note:** `SettingsSection` is not merely a different look — it contradicts the kit's own
-`AppSection`, whose KDoc states the rule the mockup follows. The screen predates step 4 and never
-migrated.
+`AppSection`, which implements the rule the mockup follows (§6.1 C5). The screen predates step 4 and
+never migrated.
 ---
 
 # Part 6 — Conflicts, blockers, and gaps
@@ -1427,7 +1517,7 @@ filed in §25, not appended here.
 | E4 | **letter-spacing is absent from `AppTypography`.** Ten declared values, positive on mono labels and negative on headings. | `.label` `.14em`, `.prtag` `.1em`, `.tempbadge` `.12em`, `.setbar` `.06em`, `.toast button` `.08em`, `.ctitle` `-.01em`, `.shead h2` `-.015em`, `.exhead h2` `-.02em`, `.data-hero` `-.02em`, `.topbar h1` `-.015em` | §25 **B4** — the one number that collides with §25's on the same subject, by coincidence. Resolved: `text.title` only, at −0.39sp |
 | E5 | **No `dim` tier.** The palette has four text tiers; the mockups use five, and `meta`/`dim` appear on the same screen with different jobs. See C1 — and note light `dim` measures 2.47:1, so it cannot ship as drawn either. | `.label`, `.unit`, `.set-i`, `.ord`, `.sub`, `.plan-line`, `.chev`, `.tchip`, `.val .x`, `.scrub`, `.tempbadge`, `.mini` | **No §25 row.** Ruled in §26 ("`dim` fourth step" — merged into `meta`, on perceptual collapse) and re-audited by §25 **B28**, which found the *slot* (`AppColors.textDim`) survives at meta's value |
 | E6 | **No `--slabtop` equivalent.** An inset 1px top highlight in dark, a two-layer drop shadow in light. `AppElevation.shadow` is `0.dp`. | `.card.active`, `.card.open`, `.tabs .ind`, `.mseg button.on` — the entire "lifted" vocabulary | **No §25 row.** Ruled in §26 ("Elevation") and built as `Modifier.liftedSurface`. This is the `B-2025-elevation` §25's own preamble says a rewrite lost once |
-| E7 | **No 12dp radius rung.** `AppDimension.Radius` is 4/8/16/32/64/128; the mockup's most common radius is **12px** (`.field`, `.set`, `.mitem`, `.icon-btn`), with 11px and 13px nearby. | every field, every sheet menu item | **Open, and answered per component rather than by a rung** — each site rounds onto the ladder with its reason stated at the site (`AppIconButton`'s KDoc rounds 12 → `Radius.small` and says why). No rung was added |
+| E7 | **No 12dp radius rung.** `AppDimension.Radius` is 4/8/16/32/64/128; the mockup's most common radius is **12px** (`.field`, `.set`, `.mitem`, `.icon-btn`), with 11px and 13px nearby. | every field, every sheet menu item | **Open, and answered per component rather than by a rung.** `AppIconButton` rounds 12 → `Radius.small` (8dp) — **DOWN, not up**: every small control on that screen lands on the 8dp rung (`.ordchip` 8px, `.mini` 9px, `.tchip` 9px), and an inner radius should stay tighter than the 16dp cards it sits amongst. No rung was added |
 | E8 | **No `--donefill`, `--flash`, `--grid` tokens.** Three translucent washes with no palette slot. | done field, set flash, chart gridlines | **Closed in code, not by a row.** `AppColors.donefill` and `AppColors.grid` both ship, declared in `ContrastContract` (SURFACE and DECORATIVE respectively); the flash wash lives in `SetClosureVisuals`. §25 **B7** is a different question about the same wash — *which element* it paints |
 | E9 | **Durations outside `--d-*`.** 320ms (tab indicator), 380ms (pstrip), 420ms (rail fill, metric tween), 560ms (pulse), 620ms (flash), 900ms (PR sweep), 1000ms (sweep cleanup), 5000ms (toast). §5 defines three. | motion tokens | **Partly closed, and deliberately not by widening the scale.** `AppMotion` still declares three durations; the off-scale values ship as component constants with their reason at the site. The toast's 5000 is ruled in §25 **B25** (branch B, host-owned `TOAST_VISIBLE_MS`) |
 
@@ -1729,6 +1819,14 @@ goes is `TrainingExerciseEditRow`'s `ReorderControls`: **two `IconButton`s drawi
 a control. The `moveUp`/`moveDown` **semantics survive** as
 `CustomAccessibilityAction`s — `reorderableColumnItem` already registers both — so the capability is
 not lost with the arrows, it stops being drawn as two identical marks.
+
+**GUARD — the loop that hosts the cards must be `key()`-ed on the item's identity**, or a drag
+cannot cross more than one neighbour. `reorderableColumnDragHandle` is built on
+`pointerInput(state, key)`, which restarts whenever `key` changes; in a positional loop the first
+reorder puts a different item in this slot, cancelling the long-press coroutine mid-drag.
+`key(...)` moves the whole subtree with the item instead. `ExercisesEditSection`
+(`key(exercise.exerciseUuid)`) and `PastExerciseCard` (`key(set.setUuid)`) both carry the wrapper
+for this reason.
 
 ## 7.9 Loading — **there is no loading surface, and that is the ruling**
 

@@ -1506,6 +1506,33 @@ the genuine `AuthProvidersBindingContainer` — a STRONGER inheritance claim tha
 proves the extension resolved the real app-scoped provider rather than a double. Any feature whose Store
 transitively touches GMS, WorkManager, or another off-device singleton will need the same treatment.
 
+### Observability accessors — kept on purpose, one line per graph
+
+Distinct from the orphaned accessors above: these sit on a **feature** graph, have **no production
+consumer inside the feature**, and exist so a `:app` identity test can make its claim at all. They read
+as dead declarations from inside the module and deleting them as unused reds a test in a module the
+feature does not reference. None forces public surface — `CoroutineDispatcher` and `Context` are
+external types, and the app-dialogs / archive types are already public.
+
+| graph | accessor(s) | reader in `app/app/src/test/.../di/` | the claim it makes possible |
+|---|---|---|---|
+| `ExerciseGraph` | `@DefaultDispatcher defaultDispatcher`, `@MainImmediateDispatcher mainImmediateDispatcher`, `appContext: Context` | `ExerciseExtensionIdentityTest` | two same-typed qualified dispatchers inherit as two DISTINCT (`CoroutineDispatcher` + qualifier) keys without cross-wiring; the bare unqualified `Context` is the app graph's `create(applicationContext)` bound instance |
+| `SettingsGraph` | `@DefaultDispatcher defaultDispatcher`, `@IODispatcher ioDispatcher`, `appContext: Context` | `SettingsExtensionIdentityTest` | the same two claims |
+| `ExerciseChartGraph` | `@DefaultDispatcher defaultDispatcher` | `ExerciseChartExtensionIdentityTest` | the accessor is the parent's `@DefaultDispatcher` **and not** the parent's `@IODispatcher` — the feature consumes one dispatcher, and an `assertSame` against the parent alone cannot distinguish "inherited the Default key" from "the parent collapsed Default and IO into one instance" |
+| `PastSessionGraph` | `@IODispatcher ioDispatcher` | `PastSessionExtensionIdentityTest` | same shape, other qualifier: `assertSame(appGraph.ioDispatcher, extension.ioDispatcher)` **and** `assertNotSame(appGraph.defaultDispatcher, extension.ioDispatcher)` |
+| `AppDialogGraph` | `appDialogRepository`, `appDialogObserverImpl` | `AppDialogExtensionIdentityTest` | `===` against the parent's instances is what separates "the extension inherited the app-scoped singleton" from "the extension rebuilt it" |
+| `ArchiveGraph` | `handlerStoreByConcreteKey: ArchiveHandlerStoreImpl`, `handlerStoreByInterfaceKey: ArchiveHandlerStore` | `ArchiveExtensionIdentityTest` | the two binding keys resolve `===` |
+
+`ArchiveGraph`'s pair is the one with a runtime-only failure mode. `ArchiveStoreImpl` injects the
+concrete key as its `storeEmitter`; every archive `*Handler` injects the interface key and delegates to
+it `by store`. The MVI wiring silently depends on both resolving to ONE object — `BaseStore.init {}`
+calls `setStore(this)` on the emitter it was given, and every handler's `updateState` / `sendEvent`
+reads `BaseHandlerStore.store`'s `requireNotNull(_store)`. `@SingleIn(ArchiveScope::class)` on
+`ArchiveHandlerStoreImpl` is the ONLY thing making them one object: drop it and both keys stay legal
+bindings that each construct their own instance, so nothing fails to compile and the screen crashes on
+the first action instead. The two accessors are the only way to make that sharing invariant observable,
+replacing what `@ViewModelScoped` carried under Hilt.
+
 ## Debt the arc makes visible — `ExerciseTypeDomain` × 8 (record only, do NOT fix during the arc)
 
 `ExerciseTypeDomain` is an identical `internal enum class` duplicated in **8 feature modules**

@@ -23,12 +23,10 @@ without touching the feature module.
 - Auto-backup scheduling (Daily / Weekly / ManualOnly + allow-on-mobile-data
   toggle) and the first-sign-in bootstrap (immediate one-time backup + snackbar
   + Daily periodic) are shipped.
-- **Upcoming**: schema-migration safety net and user-initiated undo of last
-  restore land via the recovery work — see
-  [backup-recovery.md](backup-recovery.md). The v1 restore path described here
-  remains the foundation; recovery extends it with pre-restore migration-path
-  checks, automatic rollback on migration crash, and a preserved-`.db`-backed
-  undo slot.
+- Restore includes the installation-scoped, attempt-owned durability protocol
+  in [backup-recovery.md](backup-recovery.md): compatibility and capacity
+  admission, immutable exact-ref undo, verified finalization with a terminal
+  outbox, and an owner-aware one-step undo opportunity.
 - `BackupError.AuthRevoked` cancels the periodic work, raises a persistent
   low-importance notification, and reflects an "Auto-backup paused" banner in
   Settings until re-sign-in.
@@ -45,7 +43,7 @@ without touching the feature module.
 | `core/data/backup/google-drive` | Drive REST impl: `DriveBackupAuth`, `DriveBackupStorage`, `DriveApi[Impl]`, `DriveAuthPlugin`, `DriveAuthTokenProvider`, `AccountDataStore[Impl]`, `UserInfoFetcher`, `RotationPolicy`, `ManifestPropertiesMapper`, `DriveErrorMapper`. |
 | `core/data/backup/scheduling` | DataStore-backed `BackupPreferencesRepositoryImpl` (single `@Singleton` writer of the persisted schedule + last-error + bootstrap-flag tuple). |
 | `core/data/backup/worker` | `BackupWorker` (HiltWorker), `BackupScheduler` (`AutoBackupController` impl over WorkManager), `BackupNotificationHelper` (auth-paused notification channel + lifecycle). |
-| `core/data/database/snapshot` | `DatabaseSnapshotProvider[Impl]` — WAL checkpoint + file copy for capture; SQLite-magic verification + atomic file replace for restore. Lives in the database module because it is intrusive on the live Room instance. |
+| `core/data/database/snapshot` | `DatabaseSnapshotProvider[Impl]` + `RestoreRecoveryFiles[Impl]` — WAL checkpoint/capture, exact-ref validation/replacement, no-backup recovery assets, advisory capacity admission, and owner-aware sweep. |
 | `feature/settings` | UI integration: `BackupSection`, `FrequencyPickerBottomSheet`, `AutoBackupRow`, `AuthPausedBanner`, `RestoreConfirmationDialog`, `SignOutConfirmationDialog`, and the `BackupClickHandler` that orchestrates all four flows (sign-in, manual backup, restore, scheduling). |
 
 The feature module depends only on `core/data/backup/api`; concrete impls are
@@ -199,10 +197,29 @@ The Ktor `HttpClient` used by `DriveApi` is configured (see
 3. Otherwise → `authorize()` silently with the same scope set, cache the new
    token with a 50-minute TTL, and return it.
 
+`DriveBackupAuth.persistTokenAndGrant` writes the `drive.file` grant flag
+(`accountStore.setDriveFileGranted`) **first**, before touching the token cache,
+so a concurrent `DriveAuthTokenProvider` refresh that misses the cache requests
+the correct scope set. A GMS success `AuthorizationResult` can carry a newly
+granted scope but a `null` `accessToken` — GMS returns no token when it deems a
+cached credential sufficient. In that case, when `drive.file` is now granted the
+cached token is dropped (`accountStore.clearToken()`, never `setToken`): it
+predates the grant and may be appdata-only, so serving it would 403 the
+visible-Drive upload until its ~50-minute `TOKEN_TTL_MS` expires. A fresh token
+is cached with `expiresAtEpochMs = System.currentTimeMillis() + TOKEN_TTL_MS`.
+
 `DriveBackupStorage.withTokenRefreshOn401 { ... }` wraps every Drive HTTP call.
 On a typed `DriveException.AuthRevoked` from the auth plugin, it invalidates
 both caches via `DriveTokenInvalidator` and retries the call once. A second
 401 propagates as `BackupError.AuthRevoked`. See `DriveTokenInvalidatorTest`.
+
+Clearing the DataStore alone is not enough: GMS holds its own per-account token
+cache that the next silent `authorize()` hits, returning the same stale value —
+so `TokenInvalidator.invalidate()` also calls
+`AuthorizationClient.clearToken(ClearTokenRequest)`. Invalidation is best-effort:
+failures are logged, never propagated, because the caller is a retry path that
+can only attempt the refresh anyway. Consumers are `DriveBackupStorage` and
+`DriveSnapshotStorage`.
 
 ### Common authentication failures
 
@@ -221,7 +238,15 @@ both caches via `DriveTokenInvalidator` and retries the call once. A second
   userinfo endpoint's job. Fall back to the `GoogleSignInAccount` derived from
   the result only when userinfo fetch fails; if that also fails, persist the
   placeholder `"drive_account"` string. See
-  `DriveBackupAuth.toAccount(userInfo)`.
+  `DriveBackupAuth.toAccount(userInfo)`. That build step is now
+  `toAccountOrNull(userInfo)`, and `resolveAccount(result)` inserts one step
+  before the placeholder: the already-stored `accountStore.account()`. An
+  incremental `drive.file` grant that GMS satisfies from a cached credential
+  returns `accessToken == null` **and** `toGoogleSignInAccount() == null`, so
+  going straight to the placeholder would clobber the signed-in user's email /
+  display name purely because they flipped the AI-export toggle. Only a genuine
+  first-time sign-in with no derivable identity and no prior stored account
+  reaches `PLACEHOLDER_EMAIL = "drive_account"`.
 - **Partial grant (user unchecked `drive.appdata` on the consent screen).**
   `AuthorizationResult` comes back with a non-null `accessToken` but a
   `grantedScopes` set that omits a required scope. `DriveBackupAuth` checks
@@ -235,7 +260,12 @@ both caches via `DriveTokenInvalidator` and retries the call once. A second
   The UI shows an explicit "Drive access wasn't granted — sign in again" 
   snackbar via `BackupErrorUi.MISSING_REQUIRED_SCOPE`. `userinfo.email` and
   `userinfo.profile` are NOT in `REQUIRED` — declining them only forces the
-  placeholder display fallback in `toAccount`.
+  placeholder display fallback in `toAccount`. The obligation is api-level, not
+  Drive-specific: `SignInResult.PartialGrant(missingScopes)` requires every
+  `BackupAuth` impl to skip the token cache, skip the signed-in transition, and
+  drop the just-issued token from the provider's own cache. `missingScopes` is
+  the declined subset of `DriveAuthScopes.REQUIRED` — logging / diagnostics
+  only, never user-facing.
 
 ## Backup storage
 
@@ -254,9 +284,11 @@ SQLite's built-in `PRAGMA user_version`. Choosing the raw file means:
 
 Before each capture, `DatabaseSnapshotProviderImpl.captureSnapshot()` runs
 `PRAGMA wal_checkpoint(TRUNCATE)` to flush any in-flight WAL pages into the
-main `.db` file. This ensures the copied file is durable on its own; a
-caller restoring it on a fresh device will see every committed write up to
-the moment of capture.
+main `.db` file. It consumes the returned row and accepts only `busy == 0`
+with every reported log frame checkpointed. A missing row, busy reader, or
+incomplete frame count fails the capture instead of publishing a misleading
+snapshot. A successful copied file is durable on its own; a caller restoring
+it on a fresh device sees every committed write up to the moment of capture.
 
 ### Drive layout
 
@@ -299,6 +331,11 @@ fix was to split into per-field entries; every pair now stays well under the
 | `db_file_size_bytes` | `Long` (as String) | The SQLite file's actual size. |
 | `device_model` | `String` (≤ 100 chars) | `Build.MODEL`, defensively truncated to keep the pair under 124 bytes. |
 
+Budget per pair against the 124-byte ceiling: `app_version=1.43.0` 19 bytes,
+`db_schema_version=6` 19 bytes, `created_at_epoch_ms=…` ≤ 38 bytes (epoch ms fits
+19 digits), `db_file_size_bytes=…` ≤ 37 bytes, `device_model=<≤ 100 chars>`
+≤ 113 bytes — that ≤ 113 is what `DEVICE_MODEL_MAX_LEN = 100` buys.
+
 `ManifestPropertiesMapper.fromAppProperties` parses on restore and collapses
 any missing/invalid field to `BackupError.CorruptedBackup(reason = "manifest
 field X missing or invalid")` so the UI can surface a typed error rather than
@@ -324,31 +361,87 @@ because a rotation cleanup failed.
    which lists the user's backups and returns the newest as a
    `BackupSummaryDomain`. The UI shows `DialogState.RestoreConfirmation` with
    the formatted timestamp and file size.
-3. On confirm, `Action.Backup.ConfirmRestore` → `interactor.restoreLatest()`.
-   The interactor:
-   - Re-lists backups (sources of truth in case of concurrent uploads) and
-     picks the newest.
-   - Calls `DatabaseSnapshotProvider.peekSnapshotSchemaVersion(file)` to read
-     the backup's `user_version` *before* taking any destructive action.
-   - If `backupSchema > appSchema` → `BackupError.SchemaTooNew(...)`. The UI
-     surfaces a "Backup needs a newer app version" snackbar.
-4. `DatabaseSnapshotProviderImpl.restoreFromSnapshot(source)`:
-   - Verifies the SQLite magic bytes (`"SQLite format 3 "`); a wrong
-     header collapses to `CorruptedBackup`.
-   - Closes the live `AppDatabase`.
-   - **Deletes the `<db>-wal` and `<db>-shm` sidecars.** This is load-bearing —
-     leftover WAL would replay on the next open and partially override the
-     restored data with the now-stale pre-restore writes. Skipping this step
-     causes silent data corruption that surfaces minutes after restore.
-   - Copies the downloaded file to `<db>.tmp`, then atomically renames it to
-     the live database path. On rename failure the temp is deleted; on success
-     the live file is now the restored snapshot.
-5. The UI flips `RestoreProgressUi` from `Restoring` to `Completed`, holds for
-   a brief delay, and emits `Event.AppRestartRequested`. The graph consumes
-   that event via `restartApp(context)` (`feature/settings/.../ui/AppRestartHelper.kt`),
-   which clears the task stack and calls `Runtime.getRuntime().exit(0)`.
-   The process termination is the load-bearing step — only a cold start
-   rebuilds the Room graph with the restored file.
+3. On confirm, `RestoreLatestBackupUseCase` re-lists and selects the newest
+   backup, rejects a newer schema or missing migration path from manifest
+   metadata, downloads to a caller temp, and mints a unique
+   `RestoreOwnerId`. Production mutation has no constant/no-op owner and
+   transactions are not coalesced across owners.
+4. `DatabaseReplacement.restoreFromSnapshot` transfers the caller source
+   into `noBackupFilesDir/restore-recovery` as
+   `staged_restore_<owner>.db` before suspension, journal claim, or PONR. The
+   cache temp is non-authoritative and is consumed after successful transfer.
+   Recovery-root creation/write failure rejects while the current generation
+   is still serving.
+5. While the live database remains open, the runtime validates the exact staged
+   source and runs the advisory allocatable-bytes gate. Restore requires the
+   checkpointed live size for immutable undo, staged-source size for
+   `<db>.tmp`, and a 16 MiB margin. Equality passes; query failure, overflow,
+   or one-byte-short capacity is typed `RejectedBeforeMutation` with no undo,
+   journal, close, or swap. The gate calls `getAllocatableBytes()`, never
+   `allocateBytes()`, and all writes still handle ENOSPC.
+6. The runtime publishes immutable `undo_<owner>.db` through a unique synced
+   `.<nonce>.creating` partial and a publication-lock-guarded atomic move, then reversibly
+   quiesces UI and DB-bound work. Only after quiescence succeeds does it claim
+   `Restore(owner, Prepared, context, undoRef, sourceRef)` while keeping the
+   previous active pointer P. The claim attempt is PONR and is marked before
+   the DataStore call so a persist-then-throw result cannot reopen the old
+   generation. It then closes the outgoing DB, deletes WAL/SHM sidecars,
+   replaces through `<db>.tmp`, and owner-checks the attempt to `Committed`.
+7. The same verified preflight finalizes both replacement policies: cold-start
+   preflight for `RestartProcess`, candidate preflight before publication for
+   `RebuildInProcess`. One restore-state edit replaces or clears
+   `activeUndo`, writes the terminal outbox, and removes the owned attempt. A
+   verified restore whose N undo is missing succeeds with
+   `previousVersionAvailable=false`; P is never advertised as undo of N.
+   Atomic finalization-write failure keeps `Committed`, P, and N and cannot
+   report clean success or publish a success dialog.
+8. The coordinator idempotently publishes the terminal through
+   `AppDialogPublisher` and acknowledges the outbox only after publication. For
+   `RebuildInProcess`, a newly finalized success remains pending through every
+   fallible candidate-arming step. If arming escapes, exact persisted proof of
+   the resolved owner, terminal and N-or-null pointer permits one arming retry
+   without compensation; unreadable or mismatched proof is `Fatal`. Only after
+   arming succeeds is the pending success published, then acknowledgement is
+   attempted. A failed app-dialog write remains `FinalizationPending`: cold startup seals admission
+   before chores, an in-process candidate is not published, and a committed
+   rollback is not reported complete. Its applied source becomes collectible
+   after the rollback finalizer is durable. Once the app-dialog write succeeds,
+   a restore-state acknowledgement failure is replay cleanup because the
+   terminal is already durable.
+   Owner-aware sweep then deletes only strict unreferenced recovery names;
+   deletion failure remains retryable garbage.
+
+For Android production, the runtime invokes the host-owned process restart
+after every post-PONR outcome and before the submitting deferred can complete;
+restart no longer depends on a Settings Store or navigation coroutine. That
+restart is not protocol finalization: durable owner/pointer/outbox truth is
+established by verified preflight as described above. Restart-terminal state
+is sealed under the transition mutex before queued work can proceed, and a
+restart callback failure is `Fatal`, never clean completion. Full recovery, legacy
+migration, rollback, and Continue behavior lives in
+[backup-recovery.md](backup-recovery.md).
+
+### Android backup and transfer boundary
+
+Authoritative recovery files and the stable installation epoch live in
+`noBackupFilesDir/restore-recovery`. The restore protocol DataStore remains in
+`files/datastore`, but the exact
+`datastore/restore_state_prefs.preferences_pb` path is excluded from:
+
+- legacy `backup_rules.xml`;
+- API 31+ `<cloud-backup>` in `data_extraction_rules.xml`;
+- API 31+ `<device-transfer>` in `data_extraction_rules.xml`.
+
+Runtime epoch reconciliation is still required. A new-format mismatch clears
+foreign attempt, pointer, outbox, and obsolete protocol keys before callbacks
+or ref lookup, leaves the live DB untouched, and continues through normal
+schema/migration preflight. A same-epoch missing exact ref remains
+`RecoveryRequired`; "missing file means ignore" is forbidden.
+
+This correction does not set `allowBackup=false` and does not change Room
+database backup eligibility. Those are separate maintainer/product decisions.
+The durable recovery export is never exposed directly: an explicit share
+copies it to the narrow `cache/recovery_share/` FileProvider root.
 
 ## Scheduling
 
@@ -420,9 +513,26 @@ Persisted in DataStore Preferences via
 | `auto_backup_bootstrapped` | `Boolean` | `false` |
 
 `BackupErrorCode` is a flat enum mirror of `BackupError` — variants that carry
-payloads (`CorruptedBackup.reason`, `SchemaTooNew.versions`, `Io.cause`,
+payloads (`CorruptedBackup.reason`, `BackupTooNew.versions`, `Io.cause`,
 `Unknown.cause`) collapse to the discriminator only, which is all the UI
 surface needs (banner / notification / settings badge).
+
+- Updaters are per-field, never a whole-object `setPreferences(p)`: each issues
+  a DataStore `edit { }` that touches only its own key, so the worker writing
+  `setLastAttempt` cannot clobber a concurrent user toggle of
+  `setAllowOnMobileData`. Settings UI, worker and the post-sign-in bootstrap
+  share the one `@Singleton` instance.
+- `BackupSchedule` is persisted via `Enum.name`, so the spelling of `Daily` /
+  `Weekly` / `ManualOnly` **and** their declaration order are part of the
+  persistence contract — renaming or reordering requires a DataStore migration.
+- The snapshot handed to `schedulePeriodic` is built by copying the two edited
+  fields onto `preferencesRepository.observe().first()`, never onto
+  `BackupPreferences.DEFAULT`: the `DEFAULT.copy(...)` shortcut would pass
+  sentinel `lastAttemptAtEpochMs` / `lastSuccessAtEpochMs` / `lastError` /
+  `autoBackupBootstrapped` into another module. `schedulePeriodic` consumes only
+  schedule + allowOnMobileData today, so the corruption would stay invisible
+  until a future reader of the snapshot's other fields. Pinned by `SaveFrequency
+  preserves persisted non-sentinel fields in scheduled snapshot`.
 
 ### First-sign-in bootstrap
 
@@ -537,7 +647,12 @@ The auth-paused notification is owned by `BackupNotificationHelper`:
 - The helper guards `notify(...)` behind
   `NotificationManagerCompat.areNotificationsEnabled()` so a user that denied
   `POST_NOTIFICATIONS` on Android 13+ silently falls back to the in-app
-  banner only.
+  banner only. The app never prompts for that permission itself, and the
+  `notify(...)` call is additionally wrapped in `catch (_: SecurityException)`
+  for the race where the permission is revoked between the check and the call.
+- The channel is registered idempotently on the first `showAuthPaused()` call
+  rather than at app startup, so cold-start cost stays flat for users who never
+  hit the auth-revoked path.
 
 ## Cloud Console setup
 
@@ -593,8 +708,10 @@ UI surfaces each variant via `BackupErrorUi` + a localized string resource.
 | `MissingRequiredScope` | Consent screen returned a token but `grantedScopes` excludes `drive.appdata`; detected at the data boundary before any token is cached | n/a (sign-in path only — periodic never reaches this) | snackbar via `BackupErrorUi.MISSING_REQUIRED_SCOPE` with explicit retry copy |
 | `StorageQuotaExceeded` | Drive 403 with `quotaExceeded` / `userRateLimitExceeded` reason in the body | `Result.failure()` (non-retryable without user action) | snackbar via `BackupErrorUi.STORAGE_QUOTA_EXCEEDED` |
 | `CorruptedBackup(reason)` | SQLite magic header mismatch on restore; manifest parse failure | `Result.retry()` (other paths) | snackbar via `BackupErrorUi.CORRUPTED_BACKUP` |
-| `BackupTooNew(backupSchema, appSchema)` | Pre-restore in [`BackupInteractorImpl.restoreLatest`](../../feature/settings/src/main/kotlin/io/github/stslex/workeeper/feature/settings/domain/BackupInteractorImpl.kt): `backup.schemaVersion > currentCodeSchemaVersion`. Defence-in-depth check on the downloaded file in [`DatabaseSnapshotProviderImpl.restoreFromSnapshot`](../../core/data/database/src/main/kotlin/io/github/stslex/workeeper/core/data/database/snapshot/DatabaseSnapshotProviderImpl.kt). Renamed from `SchemaTooNew` in the recovery PR for consistency with the user-facing framing. | n/a (restore path) | snackbar via `BackupErrorUi.BACKUP_TOO_NEW` ("Update the app to restore this backup"). |
-| `MissingMigrationPath(backupSchema, appSchema)` | Pre-restore in [`BackupInteractorImpl.restoreLatest`](../../feature/settings/src/main/kotlin/io/github/stslex/workeeper/feature/settings/domain/BackupInteractorImpl.kt): backup schema strictly older than the current code and [`hasMigrationPath`](../../core/data/database/src/main/kotlin/io/github/stslex/workeeper/core/data/database/migration/MigrationGraph.kt) returns false. Distinct from `BackupTooNew` (backup newer than code) and `CorruptedBackup` (manifest unreadable). | n/a (restore path) | snackbar via `BackupErrorUi.MISSING_MIGRATION_PATH` ("Backup is from an older version that this app build cannot migrate"). |
+| `BackupTooNew(backupSchema, appSchema)` | Pre-restore in [`RestoreLatestBackupUseCase`](../../feature/settings/src/main/kotlin/io/github/stslex/workeeper/feature/settings/domain/usecase/RestoreLatestBackupUseCase.kt): `backup.schemaVersion > currentCodeSchemaVersion`, then exact staged-source validation before mutation. | n/a (restore path) | snackbar via `BackupErrorUi.BACKUP_TOO_NEW` ("Update the app to restore this backup"). |
+| `MissingMigrationPath(backupSchema, appSchema)` | The same use case and staged-source validation reject a strictly older schema when [`hasMigrationPath`](../../core/data/database/src/commonMain/kotlin/io/github/stslex/workeeper/core/data/database/migration/MigrationGraph.kt) returns false. Distinct from `BackupTooNew` and `CorruptedBackup`. | n/a (restore path) | snackbar via `BackupErrorUi.MISSING_MIGRATION_PATH` ("Backup is from an older version that this app build cannot migrate"). |
+| `InsufficientLocalStorage(requiredBytes, availableBytes)` | Advisory restore/rollback admission estimate is larger than allocatable bytes, or overflow makes the safe requirement unrepresentable. | n/a (restore path) | snackbar via `BackupErrorUi.IO_ERROR`; mutation has not started. |
+| `StorageCapacityUnavailable(cause)` | Android cannot answer `StorageManager.getAllocatableBytes()`, or reports an invalid negative capacity/size. | n/a (restore path) | snackbar via `BackupErrorUi.IO_ERROR`; mutation has not started. |
 | `Io(cause)` | Snapshot capture `IOException`; Drive 5xx | `Result.retry()` | snackbar via `BackupErrorUi.IO_ERROR` |
 | `Unknown(cause)` | Any uncategorized `Throwable` | `Result.retry()` | snackbar via `BackupErrorUi.UNKNOWN` |
 
@@ -635,6 +752,11 @@ Decisions locked in for v1, with rationale.
   undo of the last successful restore — is the scope of
   [backup-recovery.md](backup-recovery.md) and ships independently of the
   picker work.
+- **Android platform backup policy is unchanged.** Restore protocol metadata
+  is excluded from legacy/cloud/device-transfer rules and authoritative
+  recovery assets use `noBackupFilesDir`. `allowBackup` remains enabled and
+  Room database eligibility is unchanged; revisiting either requires a
+  separate maintainer/product decision.
 - **Drive only.** No self-hosted backend, no Dropbox, no iCloud (Workeeper
   is Android-only). The api/impl split inside `core/data/backup/` keeps the
   door open for additional providers in their own modules without touching
@@ -744,7 +866,12 @@ open. Tests in `DatabaseSnapshotProviderImplTest` cover this.
 | `BackupClickHandlerTest` | `feature/settings` | every `Action.Backup.*` branch, dialog-state transitions, first-sign-in bootstrap, re-sign-in rehydrate, AuthRevoked clearing, ConfirmSignOut cancels periodic |
 | `BackupUiMapperTest` | `feature/settings` | exhaustive `BackupError` → `BackupErrorUi` mapping |
 | `BackupDateMapperTest` | `feature/settings` | "Last backup: …" / count plurals formatting |
-| `DatabaseSnapshotProviderImplTest` | `core/data/database` | capture WAL-checkpoint, restore atomic replace + sidecar cleanup, schema peek, magic-byte rejection |
+| `DatabaseSnapshotProviderImplTest` | `core/data/database` | WAL checkpoint, exact-ref validation/replacement, capacity boundary/query/overflow/ENOSPC behavior, schema peek, structural rejection |
+| `RestoreRecoveryFilesImplTest` | `core/data/database` | stable epoch, no-backup immutable publication, cache independence, exact filenames, share copy, owner-aware sweep/retry |
+| `RestoreStateRepositoryImplTest` | `core/data/backup/scheduling` | epoch reconciliation, legacy rollout table, exact attempt/pointer/outbox ownership, atomic finalization and abandon |
+| `RestoreTransactionIntegrationTest` / `AppRuntimeReplacementTest` | `app/app` | unique caller ownership, no unsafe coalescing, pre-PONR capacity rejection, policy finalization/admission ordering |
+| `InterruptedRestoreCheckerTest` / `RecoveryActivityModelTest` | `feature/recovery` | real SQLite integrity/schema checks, explicit two-step Continue, owner recheck, export failure state |
+| `RecoveryBackupRulesTest` / `RecoveryActivityDbFreeTest` | `app/app` | exact legacy/cloud/D2D exclusion and DB-free launch/composition for every recovery intent mode |
 
 Run all backup-related tests:
 

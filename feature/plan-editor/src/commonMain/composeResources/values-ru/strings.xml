@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="core_ui_plan_editor_screen_title_format">План: %1$s</string>
+    <string name="core_ui_plan_editor_screen_title_default">План</string>
+    <string name="core_ui_plan_editor_screen_back">Назад</string>
+    <string name="core_ui_plan_editor_screen_save">Сохранить</string>
+    <string name="core_ui_plan_editor_screen_cancel">Отмена</string>
+
+    <string name="core_ui_plan_editor_error_load">Не удалось загрузить план.</string>
+    <string name="core_ui_plan_editor_error_save">Не удалось сохранить план.</string>
+
+    <string name="feature_plan_editor_set_type_tooltip">Нажмите, чтобы переключить: разминка → рабочий → отказ → дроп</string>
+    <string name="feature_plan_editor_type_change_weightless_title">Переключить на без веса?</string>
+    <string name="feature_plan_editor_type_change_weightless_body">Значения веса из планов этого упражнения будут очищены. Это нельзя отменить.</string>
+    <string name="feature_plan_editor_type_change_weightless_impact">Все веса в планах очищены</string>
+    <string name="feature_plan_editor_type_change_weightless_confirm">Переключить</string>
+</resources>

@@ -122,13 +122,17 @@ The typed contract (`ScreenWithResult<R>`, `Navigator.popBackWithResult`, `NavRe
 into the Navigator implementation: a keyed in-memory store (`nav-result:<qualifiedName>` →
 nullable `StateFlow`) behind a small `NavResultsSource` interface in `core:ui:navigation`,
 implemented by `NavigatorEventBus`, read by `NavResults` (whose consumer surface is byte-identical
-— nullable, `null` means no result, cleared after delivery). Write-before-pop stays load-bearing.
+— nullable, `null` means no result, cleared after delivery). Write-before-pop stays load-bearing,
+and so does the clearing: a pending value survives ONLY the pop that delivers it, and any other
+navigation clears every channel — the store is process-wide and keyed by destination rather than
+by entry, so an uncleared value written over a non-consuming screen would leak into a later,
+unrelated composition of the consumer.
 `navScreenWithState` loses its `SavedStateHandle` parameter (sole caller:
 `navComponentScreenWithResults`).
 
 **Accepted delta:** a result no longer survives process death inside the set→collect window (the
 `SavedStateHandle` transport did). The window is one recomposition; no oracle covers it and no
-user journey holds a result across process death. Recorded in the `NavResultsSource` KDoc.
+user journey holds a result across process death.
 
 **Witness:** `NavigationResultContractTest` (renamed at 1.2 for exactly this moment) plus
 `NavigationResultTest`'s image half run unchanged — the typed contract surviving a transport swap
@@ -139,8 +143,12 @@ is the point of both.
 last entry mapped by TYPE identity (`Screen.Companion.isCurrentScreen` — the
 `serializer().descriptor.serialName == route` string compare — is DELETED with its
 `InternalSerializationApi` opt-in; `BottomBarItem.getByRoute` matches on `KClass` instead). The
-`selectedIndex` latch semantics are preserved verbatim (the `AnimatedVisibility` exit animation
-reads the latched index; regression is golden-invisible, documented in the listener's KDoc).
+`selectedIndex` latch semantics are preserved verbatim — latched, never null, because
+`AnimatedVisibility` keeps composing the bar for the whole exit animation: a bar reading its
+selection off the nullable `bottomBarDestination` would see `null`, resolve it to "no index", and
+slide the pill back to the first item while the bar animates away. No golden catches that (a
+golden gates one static frame), and the latch is written in the `snapshotFlow` collector rather
+than in `App.kt` so nothing writes snapshot state during composition.
 `ClearFocusOnDestinationChanged` becomes a `LaunchedEffect` on the stack's last entry — and must
 fire on the INITIAL value too (the Nav2 listener replays the current destination on registration;
 the startup focus-clear depends on it).
@@ -168,10 +176,10 @@ removal.
 
 ### 3.10 KDoc / doc corrections riding along
 `NavigatorHolder` is re-typed (`NavHostController` → the back stack) and finally gets KDoc.
-Corrections found by the pre-1.3 survey land in the same docs commit: `Navigator.kt:58-59`
+Corrections found by the pre-1.3 survey land in the same docs commit: `Navigator.kt:33`
 (cites `MutableSharedFlow(replay = 0)`; actual is `extraBufferCapacity = 64`, which makes the drop
-silent AND the warning log unreachable), `ScreenWithResult.kt:33-34` (names `Navigator` as the
-producer; actual is `NavigatorEventBus`), `NavGraphScope.kt:23-24` (overstates the gate's
+silent AND the warning log unreachable), `ScreenWithResult.kt:16` (names `Navigator` as the
+producer; actual is `NavigatorEventBus`), `NavGraphScope.kt:14-15` (overstates the gate's
 coverage), and `core/ui/navigation/build.gradle.kts:6-7` (two unused project deps, `:core:core`
 and `:core:ui:plan-editor` — removed). The stale statements S1–S19 catalogued in the survey are
 corrected in `nav3-migration.md`/`nav3-stage-1-2.md` in a separate docs push.

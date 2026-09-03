@@ -23,23 +23,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * Per-entry state and back-stack shape across leaving-and-returning. Guards the silent
- * regressions of per-entry `rememberSaveable` retention and back-stack restoration: nothing
- * crashes when either breaks — a list quietly re-opens at the top, a draft quietly vanishes, the
- * stack quietly collapses to its root on recreation.
- *
- * Four representative cases, not full coverage — the mechanism is shared:
- * 1. scroll position across a detail round trip (composition-local `rememberSaveable` state);
- * 2. an unsaved editor draft across a viewer round trip;
- * 3. selection mode across a bottom-bar tab round trip — which under the CURRENT navigator
- *    semantics arrives RESET (tab taps pop the current root inclusively and never restore), so
- *    reset is what this oracle pins;
- * 4. back-stack depth across activity recreation.
- *
- * The list case runs on AllExercises rather than Archive because Archive rows push to no detail
- * destination (`ArchivedItemRow` has no click) — a detail round trip is unreachable from there.
- * `LazyColumn`'s internal `rememberLazyListState()` takes the identical `rememberSaveable` path,
- * which is what is actually under test — entry retention, not the state declaration.
+ * Per-entry state and back-stack shape across leaving-and-returning. Both regress silently: the
+ * list re-opens at the top, a draft vanishes, the stack collapses to its root.
  */
 @OptIn(ExperimentalTestApi::class)
 @Regression
@@ -61,11 +46,7 @@ internal class BackStackStateRestorationTest {
         seed = NavSeed(metroRule.appDatabase)
     }
 
-    /**
-     * SCROLL — a list scrolled deep, a detail opened from it, and the return lands where the user
-     * left, not at the top. Seeds more rows than any sane viewport shows, so the scroll is a real
-     * displacement.
-     */
+    /** SCROLL: the return from a detail lands where the user left the list, not at the top. */
     @Test
     fun listScrollPositionSurvivesTheDetailRoundTrip() {
         val uuids = (1..SEEDED_ROWS).map { index ->
@@ -76,8 +57,7 @@ internal class BackStackStateRestorationTest {
         paths.toAllExercises()
         paths.awaitTag(ALL_EXERCISES_GRAPH)
 
-        // The rows composed on arrival are "the top"; the target is any seeded row that is not
-        // among them, so the scroll to it is guaranteed to be a real displacement.
+        // The target is a seeded row not composed on arrival, so the scroll is a real displacement.
         val initiallyComposed = paths
             .tagsStartingWith(ROW_PREFIX, atLeast = 1)
             .toSet()
@@ -91,8 +71,7 @@ internal class BackStackStateRestorationTest {
         paths.tap("ExerciseDetailBackButton")
         paths.awaitTag(ALL_EXERCISES_GRAPH)
 
-        // Restored scroll ⇒ the deep row is back in (or near) the viewport and the original top
-        // row is no longer composed. A reset-to-top list inverts both.
+        // A reset-to-top list inverts both assertions.
         composeRule.waitUntilAtLeastOneExists(hasTestTag(targetTag), NavPaths.ARRIVAL_TIMEOUT_MS)
         composeRule.onNodeWithTag(targetTag).assertIsDisplayed()
         check(
@@ -101,10 +80,8 @@ internal class BackStackStateRestorationTest {
     }
 
     /**
-     * DRAFT — a retained Exercise Store receives `Init` again after the viewer round trip. The
-     * reload may refresh its persisted baseline, but it must carry the dirty editor fields forward.
-     * `CommonHandlerTest` synchronously proves the load landed before asserting that carry-forward;
-     * this test covers the navigation and Store-retention boundary around it.
+     * DRAFT: the re-fired `Init` after the viewer round trip may refresh the persisted baseline but
+     * must carry the dirty editor fields forward.
      */
     @Test
     fun editorDraftSurvivesTheImageViewerRoundTrip() {
@@ -123,8 +100,7 @@ internal class BackStackStateRestorationTest {
         paths.awaitTag("ExerciseEditActionBar")
         paths.typeInto("ExerciseEditNameField", DRAFT_SUFFIX)
 
-        // The draft really was typed — without this, a broken text input would make the
-        // wipe assertion below pass vacuously.
+        // Without this, a broken text input would make the assertion below pass vacuously.
         composeRule
             .onNodeWithTag("ExerciseEditNameField")
             .assertTextContains(value = DRAFT_SUFFIX, substring = true)
@@ -141,11 +117,8 @@ internal class BackStackStateRestorationTest {
     }
 
     /**
-     * SELECTION MODE — pins the CURRENT semantics, which is reset, not retention: a bottom-bar tab
-     * tap pops the current root inclusively (`saveState` is written but nothing ever restores it),
-     * so returning to the tab is a fresh entry with `SelectionMode.Off`. 1.3's replace-last must
-     * arrive at the same observable — a selection that suddenly survives a tab round trip is as
-     * much a regression as a draft that vanishes.
+     * SELECTION MODE: a tab tap pops its root inclusively and nothing restores it, so the return is
+     * a fresh entry. A selection that survives is as much a regression as a draft that vanishes.
      */
     @Test
     fun selectionModeArrivesResetAfterABottomBarRoundTrip() {
@@ -175,12 +148,7 @@ internal class BackStackStateRestorationTest {
         ) { "Selection mode survived a bottom-bar round trip — tab taps no longer arrive reset." }
     }
 
-    /**
-     * DEPTH — the stack Home → Settings → Archive survives activity recreation: still on Archive
-     * afterwards, and the back chain unwinds through Settings to Home. Under Nav2 the controller
-     * saves this through the activity's SavedStateRegistry; under Nav3 it is the app-owned
-     * `rememberNavBackStack` — either way, this observable.
-     */
+    /** DEPTH: Home → Settings → Archive survives recreation and unwinds back through Settings. */
     @Test
     fun backStackDepthSurvivesActivityRecreation() {
         paths.awaitTag(HOME_GRAPH)
@@ -199,17 +167,8 @@ internal class BackStackStateRestorationTest {
     }
 
     /**
-     * Scroll the list until [tag] is composed — SEMANTICALLY, never by touch injection.
-     *
-     * Two prior versions of this journey used `performTouchInput { swipeUp() }`, and both went
-     * red on CI's x86_64 emulator profile while green on arm64 (runs 31884113468, 31885121564).
-     * The second failure falsified the pacing theory: 24 progress-checked swipes moved the
-     * composed row window ZERO times — injected flings do not scroll this list on that profile
-     * at all. `performScrollToNode` drives the lazy list's own scroll semantics instead, with no
-     * gesture, no viewport math and no gesture-navigation interference. Its one precondition —
-     * the item must be resolvable by the lazy layout — holds by construction: Paging's default
-     * initial load (3 x pageSize = 30) covers all seeded rows up front, which also corrects this
-     * journey's earlier framing — there is no paging append in it, and never was.
+     * GUARD: scroll semantically, never by touch injection — injected flings do not scroll this
+     * list on CI's x86_64 emulator profile. See documentation/testing.md.
      */
     private fun scrollListUntilComposed(tag: String) {
         composeRule

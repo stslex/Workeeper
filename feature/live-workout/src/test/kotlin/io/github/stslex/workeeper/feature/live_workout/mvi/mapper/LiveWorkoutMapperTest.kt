@@ -53,7 +53,11 @@ internal class LiveWorkoutMapperTest {
             preSessionPrSnapshot = emptyMap(),
         )
 
-        val state = snapshot.toState(nowMillis = 5000L, resourceWrapper = resourceWrapper)
+        val state = snapshot.toState(
+            nowMillis = 5000L,
+            resourceWrapper = resourceWrapper,
+            repsUnitLabel = REPS_UNIT,
+        )
 
         assertEquals(ExerciseStatusUiModel.DONE, state.exercises[0].status)
         assertEquals(ExerciseStatusUiModel.CURRENT, state.exercises[1].status)
@@ -76,7 +80,11 @@ internal class LiveWorkoutMapperTest {
             preSessionPrSnapshot = emptyMap(),
         )
 
-        val state = snapshot.toState(nowMillis = 1000L, resourceWrapper = resourceWrapper)
+        val state = snapshot.toState(
+            nowMillis = 1000L,
+            resourceWrapper = resourceWrapper,
+            repsUnitLabel = REPS_UNIT,
+        )
 
         assertEquals(ExerciseStatusUiModel.SKIPPED, state.exercises[0].status)
         assertEquals(ExerciseStatusUiModel.CURRENT, state.exercises[1].status)
@@ -97,7 +105,11 @@ internal class LiveWorkoutMapperTest {
             preSessionPrSnapshot = emptyMap(),
         )
 
-        val state = snapshot.toState(nowMillis = 1000L, resourceWrapper = resourceWrapper)
+        val state = snapshot.toState(
+            nowMillis = 1000L,
+            resourceWrapper = resourceWrapper,
+            repsUnitLabel = REPS_UNIT,
+        )
 
         assertEquals(persistentSetOf("pe-1"), state.expandedExerciseUuids)
     }
@@ -114,7 +126,11 @@ internal class LiveWorkoutMapperTest {
             ),
             preSessionPrSnapshot = emptyMap(),
         )
-        val reloaded = snapshot.toState(nowMillis = 1000L, resourceWrapper = resourceWrapper)
+        val reloaded = snapshot.toState(
+            nowMillis = 1000L,
+            resourceWrapper = resourceWrapper,
+            repsUnitLabel = REPS_UNIT,
+        )
         val previous = reloaded.copy(
             expandedExerciseUuids = persistentSetOf("pe-2", "pe-deleted"),
         )
@@ -135,7 +151,11 @@ internal class LiveWorkoutMapperTest {
             exercises = listOf(pending(uuid = "pe-1", position = 0)),
             preSessionPrSnapshot = emptyMap(),
         )
-        val loaded = snapshot.toState(nowMillis = 1000L, resourceWrapper = resourceWrapper)
+        val loaded = snapshot.toState(
+            nowMillis = 1000L,
+            resourceWrapper = resourceWrapper,
+            repsUnitLabel = REPS_UNIT,
+        )
         val freshStore = State.create(sessionUuid = "s", trainingUuid = "t")
 
         val carried = loaded.withExpansionCarriedFrom(freshStore)
@@ -164,9 +184,47 @@ internal class LiveWorkoutMapperTest {
             preSessionPrSnapshot = emptyMap(),
         )
 
-        val state = snapshot.toState(nowMillis = 1000L, resourceWrapper = resourceWrapper)
+        val state = snapshot.toState(
+            nowMillis = 1000L,
+            resourceWrapper = resourceWrapper,
+            repsUnitLabel = REPS_UNIT,
+        )
 
         assertEquals("12 · 60×8", state.exercises.first().statusLabel)
+    }
+
+    /** The mapper is a pure synchronous transformation over an already-resolved localized unit. */
+    @Test
+    fun `WEIGHTLESS sublabel joins reps with the resolved localized unit`() {
+        val snapshot = SessionSnapshotDomain(
+            session = sessionAt(1000L),
+            trainingName = "Push Day",
+            isAdhoc = false,
+            exercises = listOf(
+                pending(uuid = "pe-1", position = 0).copy(
+                    exerciseType = ExerciseTypeDomain.WEIGHTLESS,
+                    planSets = listOf(
+                        PlanSetDomain(weight = null, reps = 12, type = SetTypeDomain.WORK),
+                        PlanSetDomain(weight = null, reps = 10, type = SetTypeDomain.WORK),
+                    ),
+                ),
+            ),
+            preSessionPrSnapshot = emptyMap(),
+        )
+
+        val enState = snapshot.toState(
+            nowMillis = 1000L,
+            resourceWrapper = resourceWrapper,
+            repsUnitLabel = REPS_UNIT,
+        )
+        val ruState = snapshot.toState(
+            nowMillis = 1000L,
+            resourceWrapper = resourceWrapper,
+            repsUnitLabel = "повт",
+        )
+
+        assertEquals("12 reps · 10 reps", enState.exercises.first().statusLabel)
+        assertEquals("12 повт · 10 повт", ruState.exercises.first().statusLabel)
     }
 
     @Test
@@ -179,7 +237,11 @@ internal class LiveWorkoutMapperTest {
             preSessionPrSnapshot = emptyMap(),
         )
 
-        val state = snapshot.toState(nowMillis = 9_000L, resourceWrapper = resourceWrapper)
+        val state = snapshot.toState(
+            nowMillis = 9_000L,
+            resourceWrapper = resourceWrapper,
+            repsUnitLabel = REPS_UNIT,
+        )
 
         assertEquals(7_000L, state.startedAt)
         assertEquals(9_000L, state.nowMillis)
@@ -210,7 +272,11 @@ internal class LiveWorkoutMapperTest {
             preSessionPrSnapshot = emptyMap(),
         )
 
-        val state = snapshot.toState(nowMillis = 2000L, resourceWrapper = resourceWrapper)
+        val state = snapshot.toState(
+            nowMillis = 2000L,
+            resourceWrapper = resourceWrapper,
+            repsUnitLabel = REPS_UNIT,
+        )
 
         assertEquals(ExerciseStatusUiModel.DONE, state.exercises[0].status)
         assertEquals(ExerciseStatusUiModel.CURRENT, state.exercises[1].status)
@@ -578,4 +644,10 @@ internal class LiveWorkoutMapperTest {
         type = SetTypeUiModel.WORK,
         isDone = isDone,
     )
+
+    private companion object {
+
+        /** What the load boundary resolves in the default locale; the mapper never resolves it. */
+        const val REPS_UNIT = "reps"
+    }
 }

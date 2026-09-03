@@ -8,18 +8,12 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 /**
- * The rule keys on the file's path, so every fixture is compiled *at a path*.
- *
- * `Rule.lint(String)` synthesises a virtual file at an internal location, which no path predicate
- * can match — a test written that way would pass for the wrong reason, reporting a violation
- * because the fixture is nowhere rather than because the call is misplaced. `lintAt` below uses the
- * same `compileContentForTest(content, path)` route `DomainLayerPurityRuleTest` established.
+ * Coverage for [ActiveSurfaceSingleReaderRule]. GUARD: the rule keys on the file path, so every
+ * fixture is compiled at a path — `lint(String)` would pass for the wrong reason.
  */
 internal class ActiveSurfaceSingleReaderRuleTest {
 
     private val rule = ActiveSurfaceSingleReaderRule()
-
-    // ---- known-NEGATIVE anchors: each one compiles and looks reasonable, and MUST flag ----
 
     @Test
     fun `a second call site in another feature is flagged`() {
@@ -50,7 +44,7 @@ internal class ActiveSurfaceSingleReaderRuleTest {
     @Test
     fun `a call site inside the kit but outside the surface package is flagged`() {
         val findings = rule.lintAt(
-            path = "core/ui/kit/src/main/kotlin/io/github/stslex/workeeper/core/ui/kit/" +
+            path = "core/ui/kit/src/commonMain/kotlin/io/github/stslex/workeeper/core/ui/kit/" +
                 "components/card/AppCard.kt",
             content = """
             package io.github.stslex.workeeper.core.ui.kit.components.card
@@ -139,7 +133,7 @@ internal class ActiveSurfaceSingleReaderRuleTest {
     @Test
     fun `a new file dropped into the surface package is flagged`() {
         val findings = rule.lintAt(
-            path = "core/ui/kit/src/main/kotlin/io/github/stslex/workeeper/core/ui/kit/" +
+            path = "core/ui/kit/src/commonMain/kotlin/io/github/stslex/workeeper/core/ui/kit/" +
                 "components/surface/AnotherRaisedThing.kt",
             content = """
             package io.github.stslex.workeeper.core.ui.kit.components.surface
@@ -158,8 +152,6 @@ internal class ActiveSurfaceSingleReaderRuleTest {
                 "file next to it is an unguarded way to raise a second surface.",
         )
     }
-
-    // ---- known-POSITIVE anchors: the intended usage must not be flagged ----
 
     @Test
     fun `the permitted reader passes`() {
@@ -185,7 +177,7 @@ internal class ActiveSurfaceSingleReaderRuleTest {
     @Test
     fun `the declaring file may preview itself`() {
         val findings = rule.lintAt(
-            path = "core/ui/kit/src/main/kotlin/io/github/stslex/workeeper/core/ui/kit/" +
+            path = "core/ui/kit/src/commonMain/kotlin/io/github/stslex/workeeper/core/ui/kit/" +
                 "components/surface/AppActiveSurface.kt",
             content = """
             package io.github.stslex.workeeper.core.ui.kit.components.surface
@@ -208,7 +200,7 @@ internal class ActiveSurfaceSingleReaderRuleTest {
     @Test
     fun `the kit goldens may render it`() {
         val findings = rule.lintAt(
-            path = "core/ui/kit/src/test/kotlin/io/github/stslex/workeeper/core/ui/kit/golden/" +
+            path = "core/ui/kit/src/androidHostTest/kotlin/io/github/stslex/workeeper/core/ui/kit/golden/" +
                 "ActiveSurfaceGoldenTest.kt",
             content = """
             package io.github.stslex.workeeper.core.ui.kit.golden

@@ -7,20 +7,14 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 /**
- * Graph-extension arc coverage for [ScreenInjectionRule].
- *
- * Under shape B the route arg is a `@Provides` bound instance on the contributed extension factory, so it
- * is an ORDINARY binding in the feature scope and any `@Inject` node can resolve it — the mechanical
- * guarantee `@AssistedInject` used to give (arg reaches only the store constructor) is gone. These tests
- * pin the guard on the known-NEGATIVE anchor (a Handler injecting the arg must fail) and the
- * known-POSITIVE anchor (the Store's primary constructor must pass), plus the no-op cases the rule must
- * not touch.
+ * Coverage for [ScreenInjectionRule]: the Store's primary constructor passes, every other
+ * feature-graph node injecting the route arg fails, and non-DI shapes are untouched.
  */
 internal class ScreenInjectionRuleTest {
 
     private val rule = ScreenInjectionRule()
 
-    // ---- known-POSITIVE anchors: the legitimate sinks pass ----
+    // Known-positive anchors: the legitimate sinks pass.
 
     @Test
     fun `Store primary constructor taking the route arg passes`() {
@@ -43,11 +37,8 @@ internal class ScreenInjectionRuleTest {
     }
 
     /**
-     * A 0-finding assertion cannot distinguish "the `*StoreImpl` exemption spared this class" from "the
-     * rule never visited it" — and the second reading is what a broken rule looks like. This pins the
-     * difference: the SAME source, with only the class name changed off the Store suffix, must fail. If
-     * this test and the one above ever go green together, the exemption is doing the work; if both go
-     * green, the rule has stopped visiting and the guarantee is gone.
+     * Paired control: the same source off the Store suffix must fail, so the green above proves the
+     * exemption ran rather than the rule skipping the class.
      */
     @Test
     fun `the Store exemption is what spares the primary constructor, not a skipped visit`() {
@@ -73,11 +64,7 @@ internal class ScreenInjectionRuleTest {
         )
     }
 
-    /**
-     * The six not-yet-ported features still carry the pre-arc shape (`@AssistedInject` on the constructor,
-     * `@Assisted` on the route arg). They must keep passing while the arc is in flight. The exemption
-     * test above pins that this green is the Store exemption rather than a skipped visit.
-     */
+    /** The un-ported features still carry the pre-arc `@AssistedInject` shape and must pass. */
     @Test
     fun `assisted Store primary constructor keeps passing during the arc`() {
         val findings = rule.lint(
@@ -153,7 +140,7 @@ internal class ScreenInjectionRuleTest {
         assertEquals(0, findings.size, "ScreenSize is not the navigation Screen type")
     }
 
-    // ---- known-NEGATIVE anchors: resolving the arg from the graph fails ----
+    // Known-negative anchors: resolving the arg from the graph fails.
 
     @Test
     fun `Handler injecting the route arg fails`() {
@@ -231,10 +218,8 @@ internal class ScreenInjectionRuleTest {
     }
 
     /**
-     * A `*HandlerStoreImpl` ends with the Store suffix but is NOT a Store: it is an injected
-     * `BaseHandlerStore` event relay in the feature scope. If the suffix check exempted it, a route arg
-     * could be resolved from the graph into it and read outside the Store — the exact bypass this rule
-     * exists to close. The pair below pins that only the real Store is exempt.
+     * A `*HandlerStoreImpl` shares the Store suffix but is an ordinary feature-graph node; the pair
+     * below pins that only the real Store is exempt.
      */
     @Test
     fun `HandlerStoreImpl injecting the route arg fails while the Store itself passes`() {

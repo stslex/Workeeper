@@ -10,11 +10,8 @@ import io.github.stslex.workeeper.core.ui.kit.components.paging.AppPagingLoading
 import io.github.stslex.workeeper.feature.home.R
 
 /**
- * Home's paging tails — thin wrappers over the kit's drawing, which is now on its fourth consumer.
- *
- * What stays here is this screen's **vocabulary and its test tags**, the only part that was ever
- * screen-specific. §26 "Paging tails": three states, two drawings — exhausted is no footer at all,
- * so there is deliberately nothing here for it.
+ * Home's paging tails — vocabulary and test tags over the kit's drawing. §26: exhausted draws no
+ * footer at all.
  */
 @Composable
 internal fun PagingLoadingFooter(
@@ -26,12 +23,7 @@ internal fun PagingLoadingFooter(
     )
 }
 
-/**
- * @param reason defaults to the append tail's. The cold-open caller passes its own, because
- *  «дальше» is a lie when nothing loaded at all.
- * @param ruled the drawn rule separates the footer from the last row; at the top of an empty list
- *  there is no row above it to separate from.
- */
+/** @param ruled draws the rule separating the footer from the last row. */
 @Composable
 internal fun PagingErrorFooter(
     onRetry: () -> Unit,

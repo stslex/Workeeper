@@ -37,7 +37,6 @@ import kotlinx.collections.immutable.toImmutableSet
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import kotlin.uuid.Uuid
-import io.github.stslex.workeeper.core.ui.plan_editor.R as CoreEditorR
 
 @Suppress("TooManyFunctions", "LongMethod", "LargeClass")
 @SingleIn(SingleTrainingScope::class)
@@ -98,7 +97,6 @@ internal class ClickHandler @Inject constructor(
     private fun processBackClick() {
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
         val current = state.value
-        // Back gesture dismisses the topmost dialog before propagating to navigation.
         if (current.dialogState !is DialogState.Hidden) {
             updateState { it.copy(dialogState = DialogState.Hidden) }
             return
@@ -107,9 +105,7 @@ internal class ClickHandler @Inject constructor(
             consume(Action.Navigation.Back)
             return
         }
-        // The write is in flight: the draft is committing, so Отмена may not offer to
-        // roll back what the database is about to hold — the save's own outcome is what
-        // ends the draft ([State.isSaving]'s KDoc).
+        // The write is in flight: Отмена may not roll back what the database is about to hold.
         if (current.isSaving) return
         if (current.hasChanges) {
             updateState { it.copy(dialogState = DialogState.DiscardConfirm) }
@@ -118,21 +114,13 @@ internal class ClickHandler @Inject constructor(
         }
     }
 
-    /**
-     * ED14 is about ENTERING: "entering the editor you see the whole list; you expand the one you
-     * mean". So the collapse lives here rather than on the ways OUT — one route in, however the
-     * screen got back to Read, and a route added later inherits it. `applySnapshotOrPop` clears
-     * the set too, for its own reason: a discard restores the loaded form, and expansion is part
-     * of the form. D-OPEN-8's insert-opens fires while editing and is untouched by either.
-     */
+    /** Entering the editor collapses every card (ED14); D-OPEN-8's insert-opens is unaffected. */
     private fun processEditClick() {
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
         updateState { current ->
             current.copy(
                 mode = Mode.Edit(isCreate = false),
-                // A new draft: undo toasts of the previous one must not edit this one, its
-                // stashed restores must not resurface, and a stuck flag from an orphaned
-                // save must not gag its undos.
+                // A new draft: nothing from the previous one may carry over.
                 draftEpoch = current.draftEpoch + 1,
                 isSaving = false,
                 pendingSetRestores = persistentListOf(),
@@ -146,8 +134,7 @@ internal class ClickHandler @Inject constructor(
         val uuid = state.value.uuid ?: return
         val name = state.value.name
         sendEvent(Event.HapticClick(HapticFeedbackType.LongPress))
-        // The action lives in the `⋮` sheet; close it before the result lands so nothing
-        // stacks on the open sheet.
+        // Close the `⋮` sheet before the result lands so nothing stacks on it.
         updateState { it.copy(dialogState = DialogState.Hidden) }
         launch(
             onSuccess = { result ->
@@ -183,8 +170,7 @@ internal class ClickHandler @Inject constructor(
         val current = state.value
         if (!current.canPermanentlyDelete) return
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
-        // Pre-resolve display strings outside the updateState lambda — Rule 1 of
-        // compose-state-discipline (no ResourceWrapper calls inside the lambda body).
+        // Rule 1 of compose-state-discipline: no ResourceWrapper calls inside updateState.
         val title = resourceWrapper.getString(
             R.string.feature_training_detail_permanent_delete_title,
             current.name,
@@ -337,8 +323,7 @@ internal class ClickHandler @Inject constructor(
                 planSets = item.planSets?.map { it.toDomain() },
             )
         }
-        // The snapshot above is captured: from here until an outcome lands, an undo would
-        // reach the screen and miss the write ([State.isSaving]'s KDoc).
+        // Snapshot captured: until an outcome lands, an undo would miss the write.
         updateState { it.copy(isSaving = true) }
         launch(
             onError = {
@@ -360,10 +345,8 @@ internal class ClickHandler @Inject constructor(
                 }
             },
         ) {
-            // ONE act: the training row and every plan commit in a single repository
-            // transaction, which is also what lets a CREATE flow carry plans at all (ED1) —
-            // the plan writes land on the `training_exercise_table` rows the same
-            // transaction just wrote.
+            // One transaction: the training row and every plan, which is what lets a create
+            // flow carry plans (ED1).
             interactor.saveTraining(snapshot, plans)
         }
     }
@@ -371,9 +354,8 @@ internal class ClickHandler @Inject constructor(
     private fun processConfirmDiscard() {
         sendEvent(Event.HapticClick(HapticFeedbackType.LongPress))
         updateState { it.copy(dialogState = DialogState.Hidden) }
-        // Guarded on its own, not only at the entries that raise the sheet: the confirm
-        // is a second action, and a save dispatched between the two would land on the
-        // rollback below ([State.isSaving]'s KDoc).
+        // Guarded on its own: the confirm is a second action, and a save can be dispatched
+        // between the sheet and the confirm.
         if (state.value.isSaving) return
         applyDiscard()
     }
@@ -387,7 +369,6 @@ internal class ClickHandler @Inject constructor(
         if (mode.isCreate) {
             consume(Action.Navigation.Back)
         } else {
-            // Roll the form back to the loaded snapshot and flip into Read mode.
             updateState { latest -> latest.applySnapshotOrPop() }
         }
     }
@@ -406,12 +387,8 @@ internal class ClickHandler @Inject constructor(
             description = snapshot.description,
             tags = matchedTags,
             tagSearchQuery = "",
-            // The whole list, from the snapshot — never the current one filtered and
-            // re-sorted. Filtering can only ever REMOVE, so a removed exercise would have
-            // nothing to come back from; and re-sorting moves rows without rewriting
-            // `position`, which this screen renders as `"${position + 1}."`. Discard is one
-            // assignment for the same reason the training and its plans save as one act:
-            // half an undo is a wrong screen.
+            // The whole snapshot list, never the current one filtered and re-sorted:
+            // filtering can only remove, and re-sorting would leave `position` stale.
             exercises = snapshot.exercises,
         )
     }
@@ -446,9 +423,8 @@ internal class ClickHandler @Inject constructor(
         }
     }
 
-    // Immediate, and deliberately unconfirmed (D-OPEN-11): the draft is unsaved and Cancel
-    // stands behind it. The undo snackbar is the affordance ED11 pairs with that absence —
-    // a DRAFT restore, item-wise, with no timer and nothing deferred: nothing was persisted.
+    // Immediate and unconfirmed (D-OPEN-11): the draft is unsaved, and the undo toast is
+    // the affordance ED11 pairs with that absence.
     private fun processExerciseRemove(action: Action.Click.OnExerciseRemove) {
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
         val current = state.value
@@ -495,8 +471,7 @@ internal class ClickHandler @Inject constructor(
         }
     }
 
-    // Per card, never an accordion (ED14's amendment): closing card N must not move card
-    // N+3 under the user's finger.
+    // Per card, never an accordion (ED14): closing card N must not move card N+3.
     private fun processExerciseCardToggle(action: Action.Click.OnExerciseCardToggle) {
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
         updateState { current ->
@@ -512,10 +487,8 @@ internal class ClickHandler @Inject constructor(
     }
 
     /**
-     * The expanded card's plan edit (ED1): reduce against THAT exercise's rows and write the
-     * item back. In memory only — Save persists every plan alongside the training, which is
-     * also what lets a not-yet-saved training edit its plans at all (the route this replaces
-     * had to no-op there: it needed a `training_exercise_table` row to write to).
+     * The expanded card's plan edit (ED1), in memory only — Save persists every plan alongside
+     * the training, which is what lets a not-yet-saved training edit its plans.
      */
     private fun processExercisePlanAction(action: Action.Click.OnExercisePlanAction) {
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
@@ -531,8 +504,7 @@ internal class ClickHandler @Inject constructor(
                 action = action.action,
                 isWeighted = target.exerciseType == ExerciseTypeUiModel.WEIGHTED,
             )
-            // Empty normalizes back to null: `plan_sets IS NULL` is attached-with-no-plan, the
-            // persisted shape, and an empty list would be a third value the row never stores.
+            // Empty normalizes to null — `plan_sets IS NULL` is the persisted no-plan shape.
             val nextPlan = nextDraft.takeIf { it.isNotEmpty() }
             current.copy(
                 exercises = current.exercises.map { item ->
@@ -547,9 +519,7 @@ internal class ClickHandler @Inject constructor(
                 }.toImmutableList(),
             )
         }
-        // `− подход` gets its undo toast (§4's table): a DRAFT edit — the undo re-inserts the
-        // removed row; no timer, nothing deferred. The deferred machinery belongs to the
-        // permanent delete alone.
+        // `− подход` gets its undo toast (§4): a draft restore, no timer, nothing deferred.
         if (bodyAction is PlanEditorBodyAction.OnSetRemove &&
             priorDraft != null &&
             bodyAction.index in priorDraft.indices
@@ -557,7 +527,7 @@ internal class ClickHandler @Inject constructor(
             sendEvent(
                 Event.ShowSetRemovedUndo(
                     message = resourceWrapper.getString(
-                        CoreEditorR.string.core_ui_plan_editor_toast_set_removed,
+                        R.string.feature_training_edit_plan_set_removed,
                     ),
                     exerciseUuid = action.exerciseUuid,
                     set = priorDraft[bodyAction.index],
@@ -568,16 +538,10 @@ internal class ClickHandler @Inject constructor(
         }
     }
 
-    /**
-     * The set-removed toast's «Отменить»: the addressed card's draft takes the row back.
-     * Two stacked removals in one card can restore out of order — B-E8 records why exact
-     * composition needs row identity the plan rows do not carry.
-     */
+    /** The set-removed toast's «Отменить»: the addressed card's draft takes the row back. */
     private fun processUndoSetRemove(action: Action.Click.OnUndoSetRemove) {
         updateState { current ->
-            // The toast can outlive the draft (Save/Cancel ended it, Edit may have begun a
-            // new one) or land while a save's captured snapshot is in flight — a stale
-            // «Отменить» edits nothing. [State.draftEpoch] and [State.isSaving], both KDocs.
+            // A stale «Отменить» edits nothing: the toast can outlive its draft or land mid-save.
             if (current.isSaving ||
                 current.mode !is Mode.Edit ||
                 action.draftEpoch != current.draftEpoch
@@ -585,9 +549,8 @@ internal class ClickHandler @Inject constructor(
                 return@updateState current
             }
             val target = current.exercises.firstOrNull { it.exerciseUuid == action.exerciseUuid }
-                // The card itself was removed after this set was (both toasts queue): the
-                // restore stashes for the exercise undo to apply — dropped here, the row
-                // would be lost with BOTH undos tapped ([State.pendingSetRestores]).
+                // The card itself was removed too (both toasts queue): stash the restore
+                // for the exercise undo to apply.
                 ?: return@updateState current.copy(
                     pendingSetRestores = (
                         current.pendingSetRestores + State.PendingSetRestore(
@@ -617,15 +580,10 @@ internal class ClickHandler @Inject constructor(
         }
     }
 
-    /**
-     * The exercise-removed toast's «Отменить»: the item returns where it stood — clamped to
-     * the list's current size, since other edits may have landed inside the toast's window —
-     * positions reindex, and a card that was open re-opens.
-     */
+    /** The exercise-removed toast's «Отменить»: the item returns where it stood, clamped. */
     private fun processUndoExerciseRemove(action: Action.Click.OnUndoExerciseRemove) {
         updateState { current ->
-            // Same stale-toast guard as the set undo above — [State.draftEpoch] and
-            // [State.isSaving], both KDocs.
+            // Same stale-toast guard as the set undo above.
             if (current.isSaving ||
                 current.mode !is Mode.Edit ||
                 action.draftEpoch != current.draftEpoch
@@ -633,18 +591,15 @@ internal class ClickHandler @Inject constructor(
                 return@updateState current
             }
             if (current.exercises.any { it.exerciseUuid == action.item.exerciseUuid }) {
-                // The card is already back by another route (the picker): stashes for it
-                // belong to the dead removal chain and must not wait around to resurrect
-                // into the NEW card's own remove-and-undo.
+                // Already back by another route: its stashes belong to the dead chain.
                 return@updateState current.copy(
                     pendingSetRestores = current.pendingSetRestores
                         .filterNot { it.exerciseUuid == action.item.exerciseUuid }
                         .toImmutableList(),
                 )
             }
-            // Stashed set restores that fired while this card was absent go back into it
-            // now, in tap order — [State.pendingSetRestores]. The plan was frozen while
-            // the card was gone, so each captured index still points where it did.
+            // Stashes that fired while the card was absent go back in tap order; the plan
+            // was frozen meanwhile, so each captured index still points where it did.
             val stashes = current.pendingSetRestores
                 .filter { it.exerciseUuid == action.item.exerciseUuid }
             val restoredItem = stashes
@@ -728,8 +683,7 @@ internal class ClickHandler @Inject constructor(
             onSuccess = { tag ->
                 updateStateImmediate { current ->
                     // The repository returns the EXISTING row for a name that already
-                    // exists, so «Создать» over an already-selected name must not chip it
-                    // twice — the persisted links dedup on Save, the draft must agree.
+                    // exists, so an already-selected tag must not be chipped twice.
                     val alreadySelected = current.tags.any { it.uuid == tag.uuid }
                     current.copy(
                         tags = if (alreadySelected) {
@@ -779,10 +733,8 @@ internal class ClickHandler @Inject constructor(
         launch(
             onSuccess = { resolved ->
                 updateStateImmediate { latest ->
-                    // Against LATEST, not the state the picker opened over: the resolution
-                    // is async and the removed card's «Отменить» can restore it while the
-                    // query is in flight — a blind append would seat the same uuid twice,
-                    // and Save cannot write a duplicate (training_uuid, exercise_uuid) key.
+                    // Against LATEST: an undo can restore a card while this query is in
+                    // flight, and Save cannot write a duplicate (training_uuid, exercise_uuid).
                     val fresh = resolved.filterNot { picker ->
                         latest.exercises.any { it.exerciseUuid == picker.exercise.uuid }
                     }
@@ -793,26 +745,21 @@ internal class ClickHandler @Inject constructor(
                             exerciseType = picker.exercise.type.toUi(),
                             tags = picker.labels.toImmutableList(),
                             position = latest.exercises.size + localIndex,
-                            // null, not an empty list: attached-with-no-plan is what the row
-                            // will persist as, and the dirty signature compares this value.
+                            // null, not an empty list — the persisted no-plan shape.
                             planSets = null,
                             planSummary = "",
                         )
                     }
                     latest.copy(
                         exercises = (latest.exercises + nextItems).toImmutableList(),
-                        // A picker insert is a FRESH card: a stash left by the removed
-                        // card's chain must not resurrect into it on a later undo
-                        // ([State.pendingSetRestores]'s lifecycle).
+                        // A fresh card owes the removed card's stash chain nothing.
                         pendingSetRestores = latest.pendingSetRestores
                             .filterNot { stash ->
                                 nextItems.any { it.exerciseUuid == stash.exerciseUuid }
                             }
                             .toImmutableList(),
                         pickerState = PickerState.Closed,
-                        // D-OPEN-8: an insert is an addressed gesture whose next step is the
-                        // plan, so the inserted card opens — the FIRST only on a multi-insert.
-                        // Cards already open stay open (per card, not an accordion).
+                        // D-OPEN-8: the inserted card opens — the first only on a multi-insert.
                         expandedExerciseUuids = (
                             latest.expandedExerciseUuids +
                                 listOfNotNull(nextItems.firstOrNull()?.exerciseUuid)

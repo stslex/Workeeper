@@ -13,12 +13,8 @@ import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialog
 import io.github.stslex.workeeper.feature.app_dialogs.impl.R
 
 /**
- * Post-restore happy path acknowledgement. Single confirm button when the
- * pre-restore database is no longer available (`previousVersionAvailable = false`);
- * adds a secondary "Undo" button when the user still has an in-app rollback slot.
- *
- * Dismiss policy: back press dismisses, outside tap does not — the user must
- * acknowledge or explicitly tap Undo so neither path is taken silently.
+ * Post-restore acknowledgement; adds an Undo button when a rollback slot is still available.
+ * Back press dismisses, outside tap does not.
  */
 @Composable
 internal fun RestoreSuccessDialog(

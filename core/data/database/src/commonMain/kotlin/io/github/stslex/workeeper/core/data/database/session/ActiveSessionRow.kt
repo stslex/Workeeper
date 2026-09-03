@@ -4,21 +4,14 @@ package io.github.stslex.workeeper.core.data.database.session
 import androidx.room3.ColumnInfo
 import kotlin.uuid.Uuid
 
-/**
- * Slim projection for the global "is anything in progress?" query. Avoids loading the
- * full `SessionEntity` when the UI only needs the training reference.
- */
+/** Slim projection for the global "is anything in progress?" query. */
 data class ActiveSessionRow(
     @ColumnInfo(name = "uuid") val uuid: Uuid,
     @ColumnInfo(name = "training_uuid") val trainingUuid: Uuid,
     @ColumnInfo(name = "started_at") val startedAt: Long,
 )
 
-/**
- * Projection that powers the Home active-session banner. Carries the training name +
- * `is_adhoc` flag plus done/total exercise counts so the banner can render without an
- * extra round trip per session. `done_count` is heuristic (any logged set ⇒ done).
- */
+/** Projection for the Home active-session banner; `done_count` is heuristic (any logged set). */
 data class ActiveSessionWithStatsRow(
     @ColumnInfo(name = "uuid") val uuid: Uuid,
     @ColumnInfo(name = "training_uuid") val trainingUuid: Uuid,

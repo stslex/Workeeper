@@ -13,7 +13,7 @@ corrected figure is stated and the delta explained.
 ## 1. Problem, measured
 
 - `AppNumberInput` lays out `[value Box(weight 1f)] [4dp gap] [suffix Text]` inside a
-  `Row(.height(48dp).padding(horizontal = 12dp))` (`AppNumberInput.kt:110-163`). The
+  `Row(.height(48dp).padding(horizontal = 12dp))` (`AppNumberInput.kt:71-113`). The
   suffix has no weight: it takes intrinsic width first, the value gets the remainder.
   Priority inversion — the column label outranks the data.
 - The value is a `BasicTextField(singleLine = true)`. It does not clip in layout: its
@@ -26,7 +26,7 @@ corrected figure is stated and the delta explained.
   exactly 0.600 em, uniform, Cyrillic included. Archivo `.`/`,` = 0.320 em (8.32 dp
   at 26sp), untouched by `tnum`.
 - `numeric.title` (= `dataValue`) carries **no letterSpacing** — the −0.39sp title
-  tracking is text-family-only (`AppTypography.kt:393-402`). A 26sp digit costs
+  tracking is text-family-only (`AppTypography.kt:231-238`). A 26sp digit costs
   **18.20 dp**; two digits need **36.40 dp**. (The brief's 17.81/35.62 baked in the
   phantom tracking; the deficit is worse than briefed.)
 - Live weighted row on the 360.73 dp card: reps field = **92.15 dp** (the brief's
@@ -37,12 +37,12 @@ corrected figure is stated and the delta explained.
   box). fontScale ≥ 1.3 turns the deficit from marginal into gross (10 dp+).
 - The golden corpus never catches this: `SessionStateGoldenTest` defaults `reps = 5`
   (`:224-236`), its only `reps = 12` case is `setBodyweight` with `isWeighted = false`
-  (`:77-91`), and `GOLDEN_DEVICE` pins `fontScale = 1.0` (`GoldenHarness.kt:81-85`).
+  (`:77-91`), and `GOLDEN_DEVICE` pins `fontScale = 1.0` (`GoldenHarness.kt:37-41`).
   Two further blind spots found: bare-row `goldenSubject` frames are 392 dp wide with
   no screen/card context (reps box 60.87 dp — roomy), and the EN locale renders
   "reps" (4 glyphs = same 28.4 dp as `повт`) so RU-specific widths are gated nowhere;
   `повторений` (71.0 dp) has zero golden coverage.
-- Stale in-code figures at `AppNumberInput.kt:98-103`: "'102.5' needs ~66dp" is
+- Stale in-code figures at `AppNumberInput.kt:59-64`: "'102.5' needs ~66dp" is
   actually **81.12 dp**; "the weighted row's value box has ~52" is actually
   **68.38 dp** (weight) / **35.75 dp** (reps). Fixed in this PR per R8.
 
@@ -50,7 +50,10 @@ corrected figure is stated and the delta explained.
 
 1. Unit labels move OUT of the field and INTO a column header inside the exercise
    card. The field keeps 48 dp height (as `heightIn(min)`) and the 26sp `dataValue`
-   rung.
+   rung. `heightIn`, never `height`: 48 dp is the floor the mockup draws, but above
+   roughly fontScale 1.5 the 26sp `dataValue` line height exceeds it and a hard height
+   would clip vertically exactly what this component exists to stop clipping
+   horizontally.
 2. Header text, Russian: `ВЕС (КГ)` and `ПОВТОРЫ`; bodyweight: `ПОВТОРЕНИЙ`. Casing
    applied by the component via `uppercase()`, matching `AppLabel`. That no-arg overload
    is locale-INVARIANT (`Locale.ROOT` mapping), which is the property wanted here: the
@@ -88,7 +91,7 @@ corrected figure is stated and the delta explained.
   direction is itself a stop-finding.
 - **R7** — mandatory new fixtures: weighted row with two-digit reps; RU bodyweight
   header `ПОВТОРЕНИЙ`; the D3 canary (header + rows at 10+ sets).
-- **R8** — the stale KDoc at `AppNumberInput.kt:98-103` is corrected in this PR with
+- **R8** — the stale KDoc at `AppNumberInput.kt:59-64` is corrected in this PR with
   the §1 figures.
 
 ## 4. Delegated decisions, resolved (accepted at GO)
@@ -111,7 +114,7 @@ corrected figure is stated and the delta explained.
   row. Rows keep `widthIn(min = passed)` with the default equal to today's 12 dp, so
   bare rows are byte-identical; at 10+ sets header and rows grow together.
   `PastSessionGoldenTest.cardDoubleDigitIndex` is the movement canary.
-- **D4 — `suffix` parameter survives.** Remaining consumers: `PlanSetCard.kt:172,186`
+- **D4 — `suffix` parameter survives.** Remaining consumers: `PlanSetCard.kt:147,186`
   (out of scope) and previews. KDoc notes the set rows moved to headers.
 - **D5 — measured stepdown inside `AppNumberInput`.** `BoxWithConstraints` provides
   the slot width ahead of children layout; `TextMeasurer` measures the value at each
@@ -123,11 +126,50 @@ corrected figure is stated and the delta explained.
   `MAX_GLYPHS_AT_FULL_SIZE` is deleted (commit 5).
 - **D6 — the unit returns via semantics.** New `accessibilityLabel: String?` on
   `AppNumberInput`, applied as `Modifier.semantics { contentDescription = ... }` on
-  the `BasicTextField` — the `AppTextField.kt:144-153` template. Rows pass the
+  the `BasicTextField` — the `AppTextField.kt:82-87` template. Rows pass the
   localized full unit. Asserted with the repo's PR-gating JVM pattern: Robolectric +
   `runComposeUiTest` (`AccessibilitySemanticsTest` constraints: one `@Test` and one
   composition per class; never `createComposeRule()` — silently undiscovered under
   JUnit 5).
+
+## 4a. Column geometry — the resolved widths, as built
+
+D3 closes the leading side. Two more columns behave the same way, and all three must be
+resolved once and handed to the header and every row.
+
+- **Trailing slot.** `SetRowGeometry.resolveTrailingSlotWidth()` =
+  `max(setTypeSlotWidth, personalRecordTagIntrinsicWidth())`, by measurement.
+  `CHIP_MIN_WIDTH` (34 dp) is a *minimum* `AppSetTypeChip` and `PersonalRecordTag`
+  share, and the `PR` label outgrows it above roughly fontScale 1.6 — at 2.0 the tag
+  measures wider than the chip it replaces. A slot pinned to the minimum leaves a
+  RECORD row's fields narrower than its non-record siblings' and than the header's
+  columns. Both trailing branches of `LiveSetRow` / `PastSetEditRow` take the one
+  resolved width, never their intrinsic widths.
+- `personalRecordTagIntrinsicWidth()` measures the label at `prTagTextStyle()`
+  (`mono.caption` at `FontWeight.SemiBold`, `PR_TAG_TRACKING` = 1.1.sp) plus
+  `AppDimension.Space.xs` × 2, and lives beside the label and style it measures so the
+  two cannot drift.
+- **Header gutters mirror the rows from the components' own constants**, not from
+  copied numbers: live = `AppCheckmarkButtonTouchSize` (48 dp — public for this reason,
+  not for callers to size the button; the mockup's `.mark` is 46 px, 48 dp is the rung
+  and the minimum touch target); past = `resolveTrailingSlotWidth() +
+  AppDimension.Space.sm + DragHandleSize` (24 dp) in `PastExerciseCard.CardBody`.
+  Changing either side desynchronises header and rows.
+- Every fixture sits at fontScale 1.0, where chip and tag both measure exactly the
+  minimum, so no golden and no width gate can see the divergence. The alignment gate's
+  fourth axis is what covers it — WHICH trailing component the row draws:
+  `Case(label = "1 record set @2.0", setCount = 1, fontScale = 2f, isRecord = true)`.
+- **Index column (D3), why measured rather than tabulated:** a fixed 12 dp box clips a
+  SINGLE digit at fontScale ~1.6. At 10+ sets header and rows must be handed the same
+  resolved value or the rows shift ~3 dp out from under a static header.
+- **Card-head ordinal, a third column.** `PastExerciseCard.OrdinalWidth` = 16 dp
+  (`.chead .ord { width: 16px }`) is applied as `widthIn(min = ...)` plus
+  `maxLines = 1`, the same correction the set row's `indexColumnWidth` carries. 16 dp
+  fits a two-digit ordinal only at fontScale 1.0; in a FIXED box Compose `Text` breaks
+  the over-wide token at a GRAPHEME boundary rather than overflowing, so "10" stacks
+  1-over-0. The wrap is SILENT — the title column (card head) and the 48 dp fields (set
+  row) set the row height, so nothing moves.
+  `PastSessionGoldenTest.cardDoubleDigitIndex` is the fixture that makes it visible.
 
 ## 5. Measured width budget
 
@@ -141,10 +183,10 @@ mono @11sp + 0.5sp tracking = 7.10 dp/glyph → `кг` 14.2, `повт`/`reps` 2
 
 | link | value |
 |---|---|
-| screen edge padding (`LiveWorkoutScreen.kt:325-331`, `screenEdge` = 16) | −32 → card 360.727 |
+| screen edge padding (`LiveWorkoutScreen.kt:309-315`, `screenEdge` = 16) | −32 → card 360.727 |
 | `AppActiveSurface` / `liftedSurface` | −0 (no padding, no layout border) |
-| `SetsColumn` `padding(h = 12)` (`LiveExerciseCard.kt:404-408`) | −24 → 336.727 |
-| row `padding(h = 4)` (`LiveSetRow.kt:99-102`) | −8 → 328.727 |
+| `SetsColumn` `padding(h = 12)` (`LiveExerciseCard.kt:375-378`) | −24 → 336.727 |
+| row `padding(h = 4)` (`LiveSetRow.kt:77-80`) | −8 → 328.727 |
 | 5 children → 4 × 8 dp gaps | −32 |
 | index `widthIn(min = 12)` | −12 |
 | chip-or-PR-tag (both exactly 34 wide) | −34 |
@@ -155,6 +197,11 @@ mono @11sp + 0.5sp tracking = 7.10 dp/glyph → `кг` 14.2, `повт`/`reps` 2
 
 Bodyweight branch: 4 children → fixed 118 → field 210.727 → value box 111.73 (RU) /
 154.33 (EN).
+
+`SetRowGeometry.WEIGHT_COLUMN_FLEX` = 1.2f is a deliberate deviation from the mockup,
+which draws `flex: 1` on both fields: weights carry decimals ("102.5") and reps never
+do, so the extra fifth softens the budget. Restoring 1f to "match the drawing" narrows
+the weight field.
 
 ### 5.2 Past weighted row, in-app
 
@@ -195,6 +242,12 @@ Probe findings the design rests on (measured 2026-08-18, throwaway test, deleted
 - Plain `testDebugUnitTest` renders via the HTML report writer — no golden
   comparison, no `src/` writes; `assertGoldenLiveness` hooks only
   `verifyPaparazzi*`/`recordPaparazzi*` and counts only `*.golden.*` suites.
+- Robolectric is false-negative for text metrics, so the header ellipsis sweep
+  (`SetColumnHeaderTest`) renders through the Paparazzi measurement harness
+  (`OverflowGateSdk`), never a Robolectric composition. ~156 px is the full Russian weight header
+  advance at `mono.caption` on the golden device, which is what makes
+  `CONSTRAINED_WIDTHS_PX = listOf(220, 150, 130, 110, 90, 70, 50)` straddle the regime
+  the test needs — unit truncated while the name still reads in full.
 
 ### Gate design (R1 + R2 compliant)
 
@@ -202,7 +255,7 @@ Probe findings the design rests on (measured 2026-08-18, throwaway test, deleted
    `slotWidthProbe: ((Dp) -> Unit)? = null` invoked with the `BoxWithConstraints`
    max width D5 introduces anyway; `LiveSetRow`/`PastSetEditRow` forward it
    (default `null`, production never passes — the `flashAlphaOverride` precedent,
-   `LiveSetRow.kt:61-64`). The gate composes the **real row** at the real card
+   `LiveSetRow.kt:48`). The gate composes the **real row** at the real card
    content width (device width minus `screenEdge`×2 minus the sets-column `Space.md`
    ×2 — context tokens referenced from `AppDimension`, the same tokens the screen
    reads; everything inside the row — gaps, index, chip, checkmark/drag, flex split,
@@ -231,6 +284,21 @@ Probe findings the design rests on (measured 2026-08-18, throwaway test, deleted
 7. **Commit rule.** The gate lands together with the change that makes its asserted
    band green (bisect-green): the fontScale-1.0 band with commit 2 (suffix removal +
    header), the full R4 matrix with commit 5 (stepdown). No red state is committed.
+8. **GUARD — no `onGloballyPositioned` inside `AppNumberInput`** for a test-only
+   capture: it dispatches on every scroll frame of a live session. The seam is the
+   probe callback (shipped as `valueSlotProbe`), fed from the `BoxWithConstraints` the
+   D5 rung choice needs anyway; production never passes it.
+9. **Edge capture reads the SEMANTICS TREE, never test tags.** The alignment asserts
+   address the header label by its text and the field by its accessibility label
+   through `ViewRootForTest.semanticsOwner.getAllSemanticsNodes(mergingEnabled = false)`
+   — the same public access path Paparazzi's own accessibility extension uses under
+   layoutlib, so the capture leaves ZERO trace in production composables. GUARD: do not
+   add test tags to reach these edges. The gutter/index pair keeps its `onSizeChanged`
+   probes only because they fire on size change, never per frame.
+10. **Why the read happens in the frame hook.** `OverflowGateSdk.renderView` invokes its
+    `onFrame` hook from `PaparazziSdk`'s `onNewFrame` consumer because the frame is the
+    one moment the caller's view is attached and its composition live — the only window
+    in which a read of the rendered semantics tree is guaranteed valid.
 
 ## 7a. Second-round rulings (Gate 2, 2026-08-18)
 
@@ -376,7 +444,7 @@ New fixtures (new snapshots, first recording — not re-records):
 5. Adaptive stepdown (D5); delete `MAX_GLYPHS_AT_FULL_SIZE`; extend the gate to the
    full R4 matrix; record the §7 known-limit numbers; R3 fixture 4.
 6. Strings audit: `values/` + `values-ru/` additions; old unit strings stay
-   (consumers: `PlanSetCard`, `PersonalRecordHero.kt:144`, `LiveWorkoutMapper.kt:431`,
+   (consumers: `PlanSetCard`, `PersonalRecordHero.kt:131`, `LiveWorkoutMapper.kt:412`,
    `exercise-chart`'s own duplicate). R7 fixture 3 + D3 canary golden.
 
 ## 10. Blocker registry
@@ -387,10 +455,10 @@ New fixtures (new snapshots, first recording — not re-records):
 | B-2 | follow-up, vetoed here (R5) | `AppNumberInput` lacks `semantics { error() }` unlike `AppTextField` — separate PR |
 | B-3 | gated (R3) | D5 lifts `PlanSetCard` ≥4-glyph values back to 26sp where they fit; new 5-glyph fixture pins it |
 | B-4 | constraint | fontScale is non-linear (×1.40 at 26sp/2.0); all gate expectations computed from measured output |
-| B-5 | fixed in PR (R8) | stale `AppNumberInput.kt:98-103` KDoc figures |
+| B-5 | fixed in PR (R8) | stale `AppNumberInput.kt:59-64` KDoc figures |
 | B-6 | note | EN `unit_reps` == `unit_reps_full` ("reps", `tools:ignore=DuplicateStrings`); they diverge only in RU — header strings must not collapse the pair |
 | B-7 | note | new golden test classes must live in `*.golden.*` packages and be recorded, or the module liveness gate fails permanently; the R2 gate deliberately lives outside them |
-| B-8 | follow-up (R10) | reps and weight have NO upper input bound (`InputHandler.kt:30`, `PlanDraftReducer.kt:40` coerce only at zero): 99999 reps is enterable and storable — a data-domain defect; the cap is new product behaviour for its own PR, and five of the seven §7 ledger cells resolve with it |
+| B-8 | follow-up (R10) | reps and weight have NO upper input bound (`InputHandler.kt:30`, `PlanDraftReducer.kt:35` coerce only at zero): 99999 reps is enterable and storable — a data-domain defect; the cap is new product behaviour for its own PR, and five of the seven §7 ledger cells resolve with it |
 
 ## 11. Verification discipline
 

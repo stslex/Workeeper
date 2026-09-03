@@ -6,21 +6,11 @@ import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreInProgress
 
 /**
  * Writes a human-readable recovery diagnostics `.txt` to app cache and returns its content [Uri].
- *
- * Extracted to `core:data:backup:api` in App-Scope Collapse Step 6 (P-REC): the impl
- * (`feature/recovery`'s `RecoveryDiagnosticsExporter`) is Metro-owned via
- * `@ContributesBinding(AppScope)` and exposed on the app graph as `recoveryDiagnosticsExporter`, so the
- * post-cut library consumer (`RecoveryActivity`) reads it via the typed holder (`RecoveryDepsHolder`) — but
- * the app-scope dep interfaces cannot name a `feature`-owned type, so the CONTRACT lives here in the api
- * module both the dep interfaces and `feature/recovery` already see. The impl carries the Android-bound
- * file/`Uri`/`Context` logic; this interface is the GMS/Room-free seam.
+ * The GMS/Room-free seam; the Android-bound file logic lives in `feature/recovery`.
  */
 interface RecoveryDiagnosticsExporter {
 
-    /**
-     * Scenario 1 (restore-time) variant. Writes a restore-failure diagnostic and returns its content
-     * URI, or `null` if the write failed (caller hides the share action).
-     */
+    /** Restore-time variant. `null` when the write failed, so the caller hides sharing. */
     suspend fun exportRestoreFailure(
         exception: Throwable?,
         context: RestoreInProgressContext?,
@@ -28,10 +18,6 @@ interface RecoveryDiagnosticsExporter {
         appVersionCode: Long,
     ): Uri?
 
-    /**
-     * Scenario 2 (startup-time) variant. Writes a startup-migration-failure diagnostic and returns its
-     * content URI, or `null` if the write failed. Reads version + install-source info from the app
-     * context directly, so `RecoveryActivity` does not plumb them in.
-     */
+    /** Startup-time variant; reads version info itself. `null` when the write failed. */
     suspend fun exportStartupMigrationFailure(): Uri?
 }

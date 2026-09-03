@@ -4,6 +4,7 @@ package io.github.stslex.workeeper.di
 import android.content.Context
 import dev.zacsweers.metro.asContribution
 import dev.zacsweers.metro.createGraphFactory
+import io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetime
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseGraph
 import io.mockk.mockk
@@ -20,23 +21,12 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
 /**
- * Replaces the former feature-module `ExerciseGraphBridgeTest` (a `@GraphExtension` cannot be created
- * standalone, so the assertion must run where the parent [AppGraph] is compiled — here, `:app`).
- *
- * exercise is port 3 of the assisted batch and, alongside `settings`, the widest inheritance claim in
- * the arc: 14 formerly hand-threaded bindings, and the only OTHER graph carrying all three hard
- * categories at once — two same-typed qualified dispatchers, a bare unqualified `Context`, and six
- * repositories. Each of those gets its own assertion below, because each is a distinct way for
- * inheritance across a graph boundary to go silently wrong.
- *
- * Unlike past-session and exercise-chart, this feature consumes BOTH dispatchers, so the
- * qualifier-distinctness claim is made *within the extension* — the stronger form, and the same one
- * `SettingsExtensionIdentityTest` uses.
+ * Identity claims for the exercise `@GraphExtension`: two qualified dispatchers, a bare `Context`
+ * and the route arg. See documentation/graph-extension-arc/HANDOFF.md.
  */
 internal class ExerciseExtensionIdentityTest {
 
-    // The real parent graph provides Dispatchers.Main.immediate (DispatchersBindingContainer); a plain
-    // JVM test must install a Main dispatcher before the store constructs.
+    // GUARD: Store construction reads the parent graph's Main.immediate binding.
     @BeforeEach
     fun setUp() {
         Dispatchers.setMain(Dispatchers.Unconfined)
@@ -54,6 +44,8 @@ internal class ExerciseExtensionIdentityTest {
             applicationContext = appContextMock,
             appDatabase = mockk(relaxed = true),
             imageStorage = mockk(relaxed = true),
+            appScopeLifetime = AppScopeLifetime(),
+            databaseReplacement = mockk(relaxed = true),
         )
 
     private fun AppGraph.exercise(uuid: String?): ExerciseGraph =
@@ -101,9 +93,7 @@ internal class ExerciseExtensionIdentityTest {
             extension.mainImmediateDispatcher,
             "@MainImmediateDispatcher in the extension must be the parent graph's instance",
         )
-        // The cross-wire this guards: two same-typed bindings separated only by qualifier, collapsing
-        // into one across the graph boundary. Both assertSame calls above would still pass if the
-        // parent itself held one instance for both keys, so distinctness is asserted explicitly.
+        // Two same-typed bindings separated only by qualifier: assertSame alone allows a collapse.
         assertNotSame(
             extension.defaultDispatcher,
             extension.mainImmediateDispatcher,
@@ -111,8 +101,6 @@ internal class ExerciseExtensionIdentityTest {
         )
     }
 
-    /**
-     */
     @Test
     fun `the bare app Context is inherited from the parent's bound instance`() {
         val extension = buildAppGraph().exercise("ex-1")
@@ -124,7 +112,6 @@ internal class ExerciseExtensionIdentityTest {
         )
     }
 
-    /** Shape B's defining property: the route arg is per-extension, never shared or stale. */
     @Test
     fun `each extension carries its own route arg into the store state`() {
         val appGraph = buildAppGraph()
@@ -145,10 +132,7 @@ internal class ExerciseExtensionIdentityTest {
         )
     }
 
-    /**
-     * A null uuid is "create a new exercise" — a real destination, not an edge case. A bound instance
-     * of a nullable type is where a graph could quietly substitute a non-null default.
-     */
+    /** A null uuid is "create a new exercise", not an edge case that may be defaulted. */
     @Test
     fun `a null route arg survives the binding and reaches the store as null`() {
         val store = buildAppGraph().exercise(null).exerciseStore

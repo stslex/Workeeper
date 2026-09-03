@@ -28,14 +28,8 @@ import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialog
 import io.github.stslex.workeeper.feature.app_dialogs.impl.R
 
 /**
- * Three-action restore-failure dialog. Distinct from
- * `AppConfirmationDialog` (which supports at most two buttons) — it stacks
- * the secondary actions (Report / Export) in a row above the primary OK
- * action so they share the same chrome but get their own touch targets.
- *
- * Strict dismiss policy per spec: `dismissOnBackPress = false`,
- * `dismissOnClickOutside = false` — the user must tap an action button
- * explicitly so the failure can never be swiped away without acknowledgement.
+ * Three-action restore-failure dialog; `AppConfirmationDialog` supports at most two buttons.
+ * Neither back press nor outside tap dismisses it — acknowledgement must be explicit.
  */
 @Composable
 internal fun RestoreFailureDialog(
@@ -108,6 +102,9 @@ private fun BackupErrorCode.toReasonStringRes(): Int = when (this) {
         R.string.app_dialog_restore_failure_reason_missing_required_scope
     BackupErrorCode.StorageQuotaExceeded ->
         R.string.app_dialog_restore_failure_reason_storage_quota_exceeded
+    BackupErrorCode.InsufficientLocalStorage,
+    BackupErrorCode.StorageCapacityUnavailable,
+    -> R.string.app_dialog_restore_failure_reason_io
     BackupErrorCode.CorruptedBackup -> R.string.app_dialog_restore_failure_reason_corrupted_backup
     BackupErrorCode.SchemaTooNew -> R.string.app_dialog_restore_failure_reason_schema_too_new
     BackupErrorCode.MissingMigrationPath ->

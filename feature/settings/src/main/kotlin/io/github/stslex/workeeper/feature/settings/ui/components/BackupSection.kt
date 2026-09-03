@@ -22,16 +22,8 @@ import io.github.stslex.workeeper.feature.settings.mvi.model.BackupScheduleUi
 import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStore.Action
 
 /**
- * The `Резервные копии` group (extraction §5.6), in the `.srow` grammar — the
- * `AppButton.Secondary` pill rows die. Every row dispatches the exact Action.Backup its
- * predecessor did (the recovery flow's contract, verbatim); the `operation.isInProgress`
- * re-entrancy gate survives as click suppression + the per-operation trailing spinner
- * replacing the row's chevron.
- *
- * Rows the mockup does not draw but the code needs are kept in the same grammar and
- * reported: the signed-out sign-in row, the auth-paused banner, and the conditional
- * revert-last-restore row. The old separate `BackupInfoRow` block dies — its data is the
- * mockup's own sub-line on the restore row (`3 копии · последняя минуту назад`).
+ * The backup settings group. `operation.isInProgress` shows as click suppression plus a
+ * trailing spinner in place of the row's chevron.
  */
 @Composable
 internal fun BackupSection(
@@ -79,7 +71,6 @@ private fun AuthenticatedRows(
     canRevertLastRestore: Boolean,
     onAction: (Action.Backup) -> Unit,
 ) {
-    // The account row — `.srow.plain`, the placeholder the mockup draws made real.
     SettingsGroupRow(
         title = auth.email,
         subtitle = auth.displayName?.takeIf { it.isNotBlank() },
@@ -87,9 +78,8 @@ private fun AuthenticatedRows(
     if (preferences?.isAuthPaused == true) {
         AuthPausedBanner(onSignInClick = { onAction(Action.Backup.SignIn) })
     }
-    // Hidden until the persisted preferences are observed — otherwise users whose schedule
-    // != Daily would see a flash of the hard-coded default (the same anti-flash gate as
-    // before the rebuild).
+    // Hidden until the persisted preferences arrive, so a non-Daily schedule never flashes
+    // the default.
     if (preferences != null) {
         val schedule = stringResource(preferences.schedule.labelRes())
         val subtitle = preferences.nextBackupText
@@ -114,9 +104,8 @@ private fun AuthenticatedRows(
             chevron = RowChevron.InApp,
             onClick = { onAction(Action.Backup.OpenFrequencyPicker) },
         )
-        // `.srow.plain` + `.sw` — the switch is the affordance, the row itself is inert
-        // (the mockup's plain rows have no hover); the toggle grant may bounce through the
-        // auth resolution launcher, so the in-flight spinner replaces the control.
+        // The switch is the affordance, the row inert; the grant may bounce through the auth
+        // resolution launcher, so the in-flight spinner replaces the control.
         SettingsGroupRow(
             modifier = Modifier.testTag("AiExportRow"),
             title = stringResource(R.string.feature_settings_backup_ai_export_label),
@@ -125,12 +114,8 @@ private fun AuthenticatedRows(
                 if (operation == BackupOperationUi.TogglingAiExport) {
                     RowSpinner()
                 } else {
-                    // Dispatch is deliberately UNGATED (pre-reskin behaviour): the handler
-                    // honors ToggleAiExport(false) — consent withdrawal, which deletes the
-                    // exported plaintext snapshots — unconditionally and before its own
-                    // re-entrancy check; only the enable direction is gated, and there by
-                    // the handler itself. A UI-side isInProgress gate would silently
-                    // swallow a withdrawal while any backup operation is in flight.
+                    // GUARD: never gate this dispatch on isInProgress — the handler gates
+                    // only the enable direction, and a gate here swallows consent withdrawal.
                     AppSwitch(
                         checked = preferences.aiExportEnabled,
                         onCheckedChange = { enabled ->
@@ -149,10 +134,6 @@ private fun AuthenticatedRows(
     )
     ActionRow(
         title = stringResource(R.string.feature_settings_backup_restore),
-        // `Unknown` renders no sub-line — exactly what `null` rendered, so this change moves no
-        // pixels. What it SHOULD render is undrawn (`#s-set` draws only the populated row) and is
-        // owed to the mockup pass; the point of the sealed type is that the question is now
-        // unavoidable at this call site instead of hidden inside a nullable.
         subtitle = when (info) {
             BackupInfoUi.Unknown -> null
             is BackupInfoUi.Empty -> info.backupCountText
@@ -171,12 +152,10 @@ private fun AuthenticatedRows(
             onClick = { onAction(Action.Backup.RequestRevertLastRestore) },
         )
     }
-    // `.srow.rust` — destructive is text colour only, no chevron, no icon, no container.
     SettingsGroupRow(
         title = stringResource(R.string.feature_settings_backup_sign_out),
         destructive = true,
-        // null while an operation runs — a row whose click would be swallowed must not
-        // flash pressed feedback either (SettingsGroupRow keys both on onClick != null).
+        // null, not a swallowing wrapper: SettingsGroupRow keys its pressed flash on onClick.
         onClick = if (operation.isInProgress) {
             null
         } else {
@@ -190,10 +169,6 @@ private fun AuthenticatedRows(
 
 /**
  * A navigable action row: the chevron yields to the operation's spinner while in flight.
- * While suppressed (`enabled = false`), `onClick` is passed as null rather than a swallowing
- * wrapper — SettingsGroupRow keys its pressed flash on `onClick != null`, and a row that
- * flashes but dispatches nothing promises an action it does not perform (the pre-rebuild
- * pills rendered a real disabled state here).
  */
 @Composable
 private fun ActionRow(

@@ -7,15 +7,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
-/**
- * Coverage for `DomainLayerPurityRule`'s scoping and the api-submodule
- * exemption introduced alongside the `core/data/<feature>/api/` split.
- *
- * The rule operates on AST + import strings only; it cannot reach the
- * module graph. The exemption is structural: an import whose first
- * segment after `core.data.` is the feature directory and whose second
- * segment is exactly `api` is treated as a public-contract import.
- */
+/** Coverage for `DomainLayerPurityRule` scoping and the `core/data/<feature>/api/` exemption. */
 internal class DomainLayerPurityRuleTest {
 
     private val rule = DomainLayerPurityRule()
@@ -106,7 +98,6 @@ internal class DomainLayerPurityRuleTest {
 
     @Test
     fun `flags core data model import even when feature has api submodule`() {
-        // Negative control: importing from a non-api impl module is still flagged.
         val findings = rule.lintForPath(
             "src/main/kotlin/io/github/stslex/workeeper/feature/settings/domain/X.kt",
             """
@@ -149,7 +140,6 @@ internal class DomainLayerPurityRuleTest {
             interface ExampleStore { fun seed(item: ExampleDataModel) }
             """.trimIndent(),
         )
-        // Note: UiLayerNoDataRule covers the MVI layer — this rule scopes to domain only.
         assertEquals(0, findings.size, "rule scope is /feature/*/domain/, got: $findings")
     }
 
@@ -201,8 +191,6 @@ internal class DomainLayerPurityRuleTest {
 
     @Test
     fun `does not flag androidx import in feature domain`() {
-        // androidx.paging / androidx.datastore are multiplatform-portable and used
-        // legitimately in real domain interactors — they must NOT be flagged.
         val findings = rule.lintForPath(
             "src/main/kotlin/io/github/stslex/workeeper/feature/archive/domain/ArchiveInteractor.kt",
             """
@@ -218,8 +206,6 @@ internal class DomainLayerPurityRuleTest {
 
     @Test
     fun `flags android import in domain mapper (mapper exemption is data-only)`() {
-        // The /domain/mapper/ exemption covers core.data imports, NOT android.* — a mapper
-        // must still be platform-neutral.
         val findings = rule.lintForPath(
             "src/main/kotlin/io/github/stslex/workeeper/feature/example/domain/mapper/ExampleMapper.kt",
             """
@@ -235,7 +221,6 @@ internal class DomainLayerPurityRuleTest {
 
     @Test
     fun `does not flag android import outside feature domain`() {
-        // The mvi edge is allowed to hold android.* — the rule scopes to /domain/ only.
         val findings = rule.lintForPath(
             "src/main/kotlin/io/github/stslex/workeeper/feature/settings/mvi/handler/BackupClickHandler.kt",
             """
@@ -264,13 +249,7 @@ internal class DomainLayerPurityRuleTest {
         assertEquals(0, findings.size, "test sources are exempt, got: $findings")
     }
 
-    /**
-     * `Rule.lint(String)` synthesises a virtual file at an internal location, so the
-     * rule's path-based predicates (`/feature/...`, `/domain/mapper/`, `/src/test/`)
-     * never match. detekt-test's `compileContentForTest(content, filename)` accepts a
-     * filename that lands as the resulting `KtFile.virtualFilePath`, which is what the
-     * rule reads via `importDirective.containingKtFile.virtualFilePath`.
-     */
+    /** GUARD: `lint(String)` synthesises a path no predicate matches — compile at a path. */
     private fun DomainLayerPurityRule.lintForPath(
         virtualPath: String,
         content: String,

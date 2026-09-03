@@ -19,10 +19,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * App-Scope Collapse Step 6 (Phase 3.3): moved from `app/dev` into the consolidated `:app:app`
- * androidTest suite and de-Hilt'd. [MetroTestRule] (order 0) installs the per-test Metro graph
- * (in-memory DB + fake image storage) BEFORE the compose rule (order 1) launches `MainActivity`, which
- * reads it via `application as AppGraphOwner`.
+ * Bottom-bar navigation over the real `MainActivity`. [MetroTestRule] (order 0) must install the
+ * per-test graph before the compose rule (order 1) launches the activity that reads it.
  */
 @Regression
 @RunWith(AndroidJUnit4::class)
@@ -61,12 +59,10 @@ internal class ApplicationBottomBarTest {
 
         checkScreenOpen(BottomBarItem.HOME)
 
-        /**Open Trainings*/
         BottomBarItem.TRAININGS.performClick()
         composeRule.waitForIdle()
         checkScreenOpen(BottomBarItem.TRAININGS)
 
-        /**Back press - close app*/
         composeRule.runOnUiThread {
             composeRule.activity.onBackPressedDispatcher.onBackPressed()
         }
@@ -84,12 +80,10 @@ internal class ApplicationBottomBarTest {
 
         checkScreenOpen(BottomBarItem.HOME)
 
-        /**Open Exercises*/
         BottomBarItem.EXERCISES.performClick()
         composeRule.waitForIdle()
         checkScreenOpen(BottomBarItem.EXERCISES)
 
-        /**Back press - close app*/
         composeRule.runOnUiThread {
             composeRule.activity.onBackPressedDispatcher.onBackPressed()
         }
@@ -107,17 +101,14 @@ internal class ApplicationBottomBarTest {
 
         checkScreenOpen(BottomBarItem.HOME)
 
-        /**Open Exercises*/
         BottomBarItem.EXERCISES.performClick()
         composeRule.waitForIdle()
         checkScreenOpen(BottomBarItem.EXERCISES)
 
-        /**Open Trainings*/
         BottomBarItem.TRAININGS.performClick()
         composeRule.waitForIdle()
         checkSelectedBottomAppBar(BottomBarItem.TRAININGS)
 
-        /**Back press - close app*/
         composeRule.runOnUiThread {
             composeRule.activity.onBackPressedDispatcher.onBackPressed()
         }
@@ -126,15 +117,8 @@ internal class ApplicationBottomBarTest {
     }
 
     private fun checkAppClosed() {
-        // `onBackPressed()` returns before the activity's `finish()` lands on the main
-        // looper, so the composition can still hold `AppRoot` for a few frames.
-        // `assertDoesNotExist` samples once with no wait of its own — gate on the
-        // absence instead of sampling it, or this races teardown (tech-debt.md,
-        // "Flaky UI test"). Not `waitForIdle`: idle can be reached before the frame
-        // that removes the root.
-        // `atLeastOneRootRequired = false`: once the window is gone there are ZERO compose
-        // roots, and the default throws "No compose hierarchies found" at exactly the
-        // moment the wait should succeed.
+        // GUARD: gate on the absence — `assertDoesNotExist` samples once and would race teardown.
+        // `atLeastOneRootRequired = false`: zero compose roots remain once the window is gone.
         composeRule.waitUntil(timeoutMillis = NavPaths.ARRIVAL_TIMEOUT_MS) {
             composeRule
                 .onAllNodesWithTag("AppRoot")

@@ -17,13 +17,8 @@ import tech.apter.junit.jupiter.robolectric.RobolectricExtension
 import kotlin.uuid.Uuid
 
 /**
- * The plan-attached axis (v3 §6.2) at the repository boundary.
- *
- * Every test here exists because the axis is encoded as the **absence of a
- * `training_exercise_table` row** rather than as a column, which makes it invisible to any
- * assertion that only reads the exercise. The pairs below are deliberately symmetric: each
- * one-off case has an attached counterpart, so a regression that ignores the flag entirely
- * fails one side of the pair rather than passing both.
+ * The plan-attached axis at the repository boundary. Cases come in one-off/attached pairs, so
+ * a regression that ignores the flag fails one side. See v3-redesign-spec.md §6.2.
  */
 @ExtendWith(RobolectricExtension::class)
 @Config(application = RepositoryTestEnv.TestApplication::class, sdk = [33])
@@ -66,9 +61,7 @@ internal class SessionRepositoryImplPlanAttachedDbTest {
                 attachToPlan = false,
             )
 
-            // The saved template is the thing a one-off must not touch.
             assertTrue(env.trainingExerciseDao.getByTraining(training.uuid).isEmpty())
-            // ...but the exercise is fully part of this session.
             val performed = env.performedExerciseDao.getBySession(session.uuid).single()
             assertEquals(exercise.uuid, performed.exerciseUuid)
             assertEquals(result.performedExerciseUuid, performed.uuid.toString())
@@ -116,12 +109,10 @@ internal class SessionRepositoryImplPlanAttachedDbTest {
             attachToPlan = true,
         )
 
-        // The plan sees only the attached exercise, and it takes position 0 — the one-off
-        // never occupied a plan slot to be skipped over.
+        // A one-off never occupies a plan slot, so the attached exercise takes position 0.
         val plan = env.trainingExerciseDao.getByTraining(training.uuid).single()
         assertEquals(attached.uuid, plan.exerciseUuid)
         assertEquals(0, plan.position)
-        // Performed positions are unaffected: both exercises are in the session, in order.
         val performed = env.performedExerciseDao.getBySession(session.uuid).sortedBy { it.position }
         assertEquals(listOf(0, 1), performed.map { it.position })
         assertEquals(listOf(oneOff.uuid, attached.uuid), performed.map { it.exerciseUuid })
@@ -129,9 +120,7 @@ internal class SessionRepositoryImplPlanAttachedDbTest {
 
     @Test
     fun `finishSessionAtomic graduates an inline exercise added as a one-off`() = runTest {
-        // The regression this pins: graduation used to join through training_exercise_table,
-        // so a one-off inline exercise — which has no plan row by construction — would stay
-        // is_adhoc = 1 forever and be filtered out of every user-facing library list.
+        // Regression: a plan-table join stranded one-offs at is_adhoc = 1 forever.
         val training = env.seedTraining(name = "Push Day")
         val inlineOneOff = env.seedExercise(name = "Inline one-off", isAdhoc = true)
         val session = env.seedSession(trainingUuid = training.uuid)
@@ -151,14 +140,12 @@ internal class SessionRepositoryImplPlanAttachedDbTest {
 
         assertTrue(applied)
         assertEquals(false, env.exerciseDao.getById(inlineOneOff.uuid)?.isAdhoc)
-        // Graduation must not have resurrected a plan row.
         assertTrue(env.trainingExerciseDao.getByTraining(training.uuid).isEmpty())
     }
 
     @Test
     fun `finishSessionAtomic leaves an exercise outside the session untouched`() = runTest {
-        // The other direction: session membership is the predicate, so an ad-hoc exercise
-        // that was never performed here must not graduate.
+        // Session membership is the predicate, so an unperformed ad-hoc exercise stays ad-hoc.
         val training = env.seedTraining(name = "Push Day")
         val performedInline = env.seedExercise(name = "Performed", isAdhoc = true)
         val strangerInline = env.seedExercise(name = "Stranger", isAdhoc = true)
@@ -178,9 +165,7 @@ internal class SessionRepositoryImplPlanAttachedDbTest {
 
     @Test
     fun `discardAdhocSession cascades an inline exercise added as a one-off`() = runTest {
-        // Same shape as the graduation regression, on the cancel path: with the old
-        // training_exercise_table join a one-off inline exercise survived teardown as an
-        // orphan is_adhoc = 1 row.
+        // The graduation regression's shape on the cancel path: a one-off survived teardown.
         val training = env.seedTraining(name = "Quick start", isAdhoc = true)
         val inlineOneOff = env.seedExercise(name = "Inline one-off", isAdhoc = true)
         val libraryPick = env.seedExercise(name = "Library pick", isAdhoc = false)
@@ -203,8 +188,7 @@ internal class SessionRepositoryImplPlanAttachedDbTest {
             trainingUuid = training.uuid.toString(),
         )
 
-        // The inline row is gone; the library row it sat next to is untouched. The flag half
-        // of the defence-in-depth predicate is what separates them.
+        // The `is_adhoc` half of the predicate is what spares the library row next to it.
         assertEquals(null, env.exerciseDao.getById(inlineOneOff.uuid))
         assertNotNull(env.exerciseDao.getById(libraryPick.uuid))
     }
@@ -233,10 +217,7 @@ internal class SessionRepositoryImplPlanAttachedDbTest {
 
     @Test
     fun `a failed finish does not delete the discarded sets`() = runTest {
-        // The rollback property. `finishSessionAtomic` returns false for a missing session,
-        // the caller reports a failed finish and leaves the session active — so the sets must
-        // still be there. Deleting them before the transaction would destroy real rows on
-        // behalf of a finish that never happened.
+        // A false finish leaves the session active, so the discarded sets must still be there.
         val training = env.seedTraining(name = "Push Day")
         val exercise = env.seedExercise(name = "Bench")
         val session = env.seedSession(trainingUuid = training.uuid)

@@ -3,67 +3,50 @@ package io.github.stslex.workeeper.core.data.backup.api.restore
 
 import kotlinx.coroutines.flow.Flow
 
-/**
- * DataStore-backed state for the restore-recovery flows
- * (`documentation/feature-specs/backup-recovery.md`).
- *
- * Two distinct pieces of state, both surviving process restart:
- *
- * 1. **`restore_in_progress`** — a transient flag set by
- *    `BackupInteractor.restoreLatest` just before the file replace, and
- *    cleared by the post-restart pre-flight in `Application.onCreate` (either
- *    after a successful Room open or after rollback). The presence of this
- *    flag tells the pre-flight that the user just tapped Restore; the
- *    [RestoreInProgressContext] payload feeds Crashlytics keys + the
- *    diagnostic export on failure.
- *
- * 2. **`pre_restore_backup_available`** — a longer-lived flag set after the
- *    post-restart pre-flight verifies the restore succeeded. While `true`,
- *    Settings renders the "Revert last restore" row and the corresponding
- *    `cache/pre_restore_backup.db` snapshot is preserved. Cleared on undo or
- *    when the next Restore overwrites the preserved file.
- */
+/** Epoch-reconciled restore state and replay-safe terminal-outbox transaction owner. */
 interface RestoreStateRepository {
 
-    /**
-     * Mark that a Restore is in progress and persist the manifest context for
-     * the post-restart pre-flight. Replaces any previously persisted context.
-     */
-    suspend fun markRestoreInProgress(context: RestoreInProgressContext)
+    /** Reconciles installation ownership before decoding any attempt, ref, pointer or outbox. */
+    suspend fun readProtocol(): RestoreProtocolRead
+
+    /** Installs the explicit released-state migration result in one edit. */
+    suspend fun installLegacyState(
+        epoch: InstallEpoch,
+        attempt: RestoreAttempt?,
+        activeUndo: ActiveUndo?,
+    ): Boolean
+
+    /** Atomically claims the attempt slot; false when another unresolved owner holds it. */
+    suspend fun beginAttempt(attempt: RestoreAttempt): Boolean
+
+    /** Advances the owned attempt to Committed; false unless [attemptId] owns the slot. */
+    suspend fun recordAttemptCommitted(attemptId: RestoreOwnerId): Boolean
+
+    /** Atomically replaces one owned restore journal with its exact compensation rollback. */
+    suspend fun beginCompensation(
+        restoreAttemptId: RestoreOwnerId,
+        rollback: RestoreAttempt.Rollback,
+    ): Boolean
+
+    /** Drops only an owned Prepared attempt after a proven pre-PONR rejection. */
+    suspend fun discardPreparedAttempt(attemptId: RestoreOwnerId): Boolean
 
     /**
-     * Returns the persisted [RestoreInProgressContext] when a restore is in
-     * progress, or `null` otherwise.
-     *
-     * **Read-only.** Callers MUST explicitly invoke [clearRestoreInProgress]
-     * after handling the context — typically at the end of the post-restart
-     * pre-flight branch that consumed it (success or rollback). Leaving the
-     * context set across a normal app session causes the pre-flight to re-run
-     * its in-progress logic on every cold start.
+     * One owner-checked edit: transition the pointer, write terminal outbox, remove attempt.
+     * This is the shared finalizer for cold-start and in-process candidate preflight.
      */
-    suspend fun getRestoreInProgressContext(): RestoreInProgressContext?
+    suspend fun finalizeAttempt(
+        attemptId: RestoreOwnerId,
+        activeUndoTransition: ActiveUndoTransition,
+        terminal: RestoreTerminal,
+    ): Boolean
 
-    /**
-     * Clears the `restore_in_progress` flag and its context payload. Called
-     * after the pre-flight resolves the in-progress restore (either success
-     * or rollback).
-     */
-    suspend fun clearRestoreInProgress()
+    /** Clears the matching outbox only after its AppDialog publication returned successfully. */
+    suspend fun acknowledgeTerminal(owner: RestoreOwnerId): Boolean
 
-    /** Record that `cache/pre_restore_backup.db` is preserved and available for undo. */
-    suspend fun markPreRestoreBackupAvailable(originalDataDateEpochMs: Long)
+    /** Explicit user escape: atomically abandon only [attemptId] and all now-untruthful state. */
+    suspend fun abandonInterruptedAttempt(attemptId: RestoreOwnerId): Boolean
 
-    /** Clear the preserved-backup marker (file deletion is a separate concern). */
-    suspend fun clearPreRestoreBackupAvailable()
-
-    /** Reactive view used by Settings to toggle the "Revert last restore" row. */
-    fun observePreRestoreBackupAvailable(): Flow<Boolean>
-
-    /**
-     * The original-data date passed into `AppDialog.UndoRestoreConfirmation`'s
-     * body ("Your data will revert to the state it was in on …"). Equals the
-     * `startedAtEpochMs` captured at restore time. Returns `null` when no
-     * preserved backup is available.
-     */
-    suspend fun getPreRestoreOriginalDate(): Long?
+    /** Epoch-filtered reactive pointer used by Settings. Foreign state never emits as available. */
+    fun observeActiveUndo(): Flow<ActiveUndo?>
 }

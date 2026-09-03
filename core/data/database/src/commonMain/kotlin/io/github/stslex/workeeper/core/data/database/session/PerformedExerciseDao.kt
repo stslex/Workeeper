@@ -17,11 +17,7 @@ interface PerformedExerciseDao {
     )
     suspend fun getBySession(sessionUuid: Uuid): List<PerformedExerciseEntity>
 
-    /**
-     * Every performed-exercise row across all sessions, ordered so the snapshot
-     * exporter can `groupBy { sessionUuid }` with each group already in position
-     * order. Unfiltered full-graph read; not for user-facing use.
-     */
+    /** Unfiltered full-graph read; its ORDER BY is the export contract. Not for user lists. */
     @Query(
         """
         SELECT * FROM performed_exercise_table
@@ -36,11 +32,7 @@ interface PerformedExerciseDao {
     @Insert
     suspend fun insert(row: PerformedExerciseEntity)
 
-    /**
-     * Highest `position` currently used inside [sessionUuid], or `null` when the session has
-     * no performed exercises yet. Used by the mid-session add-exercise path to append at the
-     * end without reading the whole list.
-     */
+    /** Highest `position` inside [sessionUuid], or `null` when it has no performed rows. */
     @Query(
         """
         SELECT MAX(position) FROM performed_exercise_table
@@ -52,11 +44,7 @@ interface PerformedExerciseDao {
     @Query("UPDATE performed_exercise_table SET skipped = :skipped WHERE uuid = :uuid")
     suspend fun setSkipped(uuid: Uuid, skipped: Boolean)
 
-    /**
-     * Removes one performed exercise from its session (v3 §6.1 "deleted"). Set rows are
-     * deleted explicitly by the repository transaction first — this table carries no FK
-     * cascade onto `set_table` by `performed_exercise_uuid`.
-     */
+    /** Removes one performed exercise from its session (v3 §6.1 "deleted"). */
     @Query("DELETE FROM performed_exercise_table WHERE uuid = :uuid")
     suspend fun deleteByUuid(uuid: Uuid)
 }

@@ -17,12 +17,17 @@ import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.St
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -34,22 +39,8 @@ import tech.apter.junit.jupiter.robolectric.RobolectricExtension
 import kotlin.uuid.Uuid
 
 /**
- * ED11's deferred delete against a REAL in-memory Room database — the row is the witness,
- * driven through the real [ClickHandler] and the real interactor/repository so the claim is
- * about the mechanism and not about a test-built precondition (B23's rule).
- *
- * The window itself is the app-level snackbar's lifetime; its close signal is
- * `resolveSnackbarOutcome` (asserted in `SnackbarOutcomeTest`), and what it runs on close is
- * the [AppSnackbarModel.onDismissed] received here from [SnackbarManager] itself — the model
- * rides the app-level queue from birth, never the screen's own event flow. So the three
- * directions are:
- *
- *  - confirming DELETES NOTHING — the row survives until the window closes (never
- *    delete-first-and-reinsert);
- *  - the window closing — [AppSnackbarModel.onDismissed] — removes the row;
- *  - «Отменить», or a process death inside the window (D-OPEN-10), never runs the commit,
- *    and the row survives. The two are one case at this seam on purpose: undo's action is
- *    a no-op and death is a cancellation, and both leave the commit un-run.
+ * ED11's deferred delete against a real in-memory Room DB: confirming deletes nothing, the
+ * snackbar's `onDismissed` commits, and undo or process death inside the window leaves the row.
  */
 @ExtendWith(RobolectricExtension::class)
 @Config(application = RepositoryTestEnv.TestApplication::class, sdk = [33])
@@ -61,10 +52,8 @@ internal class ExerciseDeferredDeleteDbTest {
     @BeforeEach
     fun setup() {
         env = RepositoryTestEnv()
-        // `ExerciseRepositoryImpl`'s constructor is internal to `core:data:exercise`, so the
-        // repository seam is a one-method delegate onto the REAL DAO over the REAL database —
-        // the impl's own transactional delete is proven in `ExerciseRepositoryImplDbTest`;
-        // THIS file's subject is the window: who calls the delete, and when.
+        // `ExerciseRepositoryImpl`'s constructor is internal to `core:data:exercise`, so this seam
+        // delegates onto the real DAO; the subject here is the window, not the delete itself.
         val repository = mockk<io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepository>(
             relaxed = true,
         ) {
@@ -90,6 +79,9 @@ internal class ExerciseDeferredDeleteDbTest {
         env.close()
     }
 
+    /** Every consumed action, paired with whether the undo snackbar was already queued. */
+    private val consumedActions = mutableListOf<Pair<Action, Boolean>>()
+
     private fun handlerFor(state: State): Triple<MutableStateFlow<State>, MutableList<Event>, ClickHandler> {
         val stateFlow = MutableStateFlow(state)
         val events = mutableListOf<Event>()
@@ -100,6 +92,20 @@ internal class ExerciseDeferredDeleteDbTest {
                 stateFlow.value = update(stateFlow.value)
             }
             every { sendEvent(any()) } answers { events.add(firstArg()) }
+            every { consume(any()) } answers {
+                consumedActions.add(firstArg<Action>() to (SnackbarManager.pendingModelCount > 0))
+            }
+            every { launch<Any?>(any(), any(), any(), any(), any()) } answers {
+                val onError = firstArg<suspend (Throwable) -> Unit>()
+                val onSuccess = secondArg<suspend CoroutineScope.(Any?) -> Unit>()
+                val action = arg<suspend CoroutineScope.() -> Any?>(4)
+                runBlocking {
+                    runCatching { supervisorScope { action() } }
+                        .onSuccess { onSuccess(this, it) }
+                        .onFailure { onError(it) }
+                }
+                mockk<Job>(relaxed = true)
+            }
         }
         val handler = ClickHandler(
             interactor = interactor,
@@ -135,7 +141,7 @@ internal class ExerciseDeferredDeleteDbTest {
         )
         handler.invoke(Action.Click.OnPermanentDeleteMenuClick)
         handler.invoke(Action.Click.OnConfirmPermanentDelete)
-        return SnackbarManager.snackbar.first()
+        return SnackbarManager.snackbar.first().model
     }
 
     @Test
@@ -146,6 +152,20 @@ internal class ExerciseDeferredDeleteDbTest {
 
         // The strict order (ED11): the confirm opened the window; the DB is untouched.
         assertNotNull(env.exerciseDao.getById(uuid))
+    }
+
+    /** The real catalog resolves the label — no static mock — and Back rides after the queue. */
+    @Test
+    fun `back is consumed only after the snackbar is queued, with the real undo label`() = runTest {
+        val uuid = seedExercise()
+
+        val pending = confirmDelete(uuid)
+
+        assertEquals("Undo", pending.actionLabel)
+        assertEquals(listOf<Action>(Action.Navigation.Back), consumedActions.map { it.first })
+        assertTrue(consumedActions.single().second) {
+            "Back must land only after the undo snackbar is queued"
+        }
     }
 
     @Test
@@ -166,17 +186,14 @@ internal class ExerciseDeferredDeleteDbTest {
         val uuid = seedExercise()
 
         confirmDelete(uuid)
-        // «Отменить» is a no-op action and death is a cancellation: in both, `commit`
-        // never runs. Nothing to invoke IS the case (D-OPEN-10).
+        // Undo is a no-op and death is a cancellation: `commit` never runs (D-OPEN-10).
 
         assertNotNull(env.exerciseDao.getById(uuid))
     }
 
     /**
-     * The dead-store hazard named in the mechanism report: the commit must not need the
-     * Store's scope, because the screen popped. The lambda holds the interactor only, so it
-     * still deletes after the Store's state is gone from every reader — modelled here by
-     * committing with no handler or store in scope at all.
+     * The commit must not need the Store's scope — the screen popped. The lambda holds only the
+     * interactor, modelled here by committing with no handler or store in scope.
      */
     @Test
     fun `the commit outlives the screen that scheduled it`() = runTest {

@@ -47,12 +47,7 @@ internal class ClickHandler @Inject constructor(
         }
     }
 
-    /**
-     * The amended §7 disclosure model, complete: a header tap flips this card's membership
-     * in the open set, and nothing else happens anywhere — no status recompute, no side
-     * effects on other cards, no haptic (matching `feature/live-workout`'s toggle). A uuid
-     * that no longer exists in the loaded detail is a no-op, not a phantom entry.
-     */
+    /** A header tap flips this card's membership in the open set and nothing else (§7). */
     private fun processExerciseHeaderClick(action: Action.Click.OnExerciseHeaderClick) {
         updateState { current ->
             val loaded = current.phase as? State.Phase.Loaded ?: return@updateState current
@@ -198,9 +193,7 @@ internal class ClickHandler @Inject constructor(
         if (action.from !in targetExercise.sets.indices) return
         if (action.to !in targetExercise.sets.indices) return
 
-        // Apply the permutation in memory first so the UI reflects the new order
-        // immediately. The persisted positions are derived from the new index, and
-        // each set's `position` field is rewritten to match.
+        // Permute in memory first; each set's `position` is rewritten from its new index.
         val reorderedSets = targetExercise.sets
             .toMutableList()
             .apply { add(action.to, removeAt(action.from)) }

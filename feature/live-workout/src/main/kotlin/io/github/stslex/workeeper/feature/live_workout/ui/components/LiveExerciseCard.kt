@@ -68,19 +68,8 @@ import kotlinx.collections.immutable.toImmutableList
 private const val SKIPPED_ALPHA = 0.5f
 
 /**
- * `.card` (extraction §1.5). Radius 18px → 16dp; **no border in any state** — the open card
- * is marked by the lift (`sec → slab` + `slabtop`, via [AppActiveSurface]) and by nothing
- * else.
- *
- * `active` is the mockup's `.card.active`, which is **`isOpen(e)`** — the card is lifted when
- * it is *expanded*, not when it is the current exercise (`session-v3f.html:409`,
- * `c.classList.toggle('active', isOpen(e))`). A finished card the user reopens lifts exactly
- * like the current one. Step 5 keyed the lift on CURRENT; that was the nearest state the old
- * skeleton had, not what the mockup draws.
- *
- * Done is **not** an opacity change: `.fin` re-chips the ordinal (checkmark on `donefill`)
- * and mutes the title to `meta`/500. The old `DONE_ALPHA` fade is gone. Skip keeps the
- * mockup's `opacity:.5` plus the strikethrough title.
+ * `.card` (extraction §1.5): no border in any state; the open card is marked by the lift.
+ * `active` mirrors the mockup's `.card.active`, which is `isOpen(e)`, not "is current".
  */
 @Composable
 internal fun LiveExerciseCard(
@@ -132,11 +121,7 @@ internal fun LiveExerciseCard(
     }
 }
 
-/**
- * `.chead`: ordchip · title/sub/pstrip column · the `.mini` action cluster. Padding 16dp,
- * gap 8dp (mockup 11px), top-aligned; the action cluster hangs 6dp up and out of the padding
- * (`margin:-6px -6px 0 0`). Tapping anywhere except the menu toggles the card.
- */
+/** `.chead`: ordchip · title/sub/pstrip column · `.mini` cluster; a tap toggles the card. */
 @Composable
 private fun ExerciseCardHeader(
     exercise: LiveExerciseUiModel,
@@ -157,8 +142,7 @@ private fun ExerciseCardHeader(
         verticalAlignment = Alignment.Top,
         horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
     ) {
-        // Index-dense, not position-based: the mockup renumbers on splice (`ei+1`), so a
-        // deleted middle exercise never leaves a gap in the ordinals.
+        // Index-dense, not position-based: the mockup renumbers on splice, so no gaps.
         AppOrdinalChip(
             ordinal = ordinal,
             isActive = expanded,
@@ -218,8 +202,7 @@ private fun TitleRow(
             text = exercise.exerciseName,
             style = AppUi.typography.text.body.copy(
                 fontWeight = if (isDone) FontWeight.Medium else FontWeight.SemiBold,
-                // Strikethrough shares the text colour; the mockup's separate
-                // `text-decoration-color: --dim` has no Compose equivalent on one Text.
+                // Strikethrough shares the text colour; there is no separate decoration colour.
                 textDecoration = if (isSkipped) TextDecoration.LineThrough else TextDecoration.None,
             ),
             color = titleColor,
@@ -230,12 +213,7 @@ private fun TitleRow(
     }
 }
 
-/**
- * `.tempbadge` — mono caption, `.12em` tracking, uppercase, `body` text inside a dashed
- * `dim` outline (extraction §1.5). Rendered only on one-off cards; the string ships
- * lowercase like the mockup's markup and is uppercased at the edge, the same move
- * `AppSectionHeader` makes.
- */
+/** `.tempbadge` — mono caption inside a dashed `dim` outline; uppercased at the edge. */
 @Composable
 private fun OneOffBadge() {
     Text(
@@ -308,11 +286,8 @@ private fun HeaderActions(
 }
 
 /**
- * `.pstrip` — the card's own 4dp miniature of the rail (extraction §1.5): one segment per
- * visible row, track `raise`, fill `max` (or `molten-solid` for a record), 2dp radius and
- * gaps. Skipped cards outline the segments dashed and never fill them. Fill width animates
- * over [PSTRIP_FILL_MS] — the mockup's 380ms, one of the durations outside the three-token
- * motion scale (extraction B9); named here rather than rounded onto a token it is not.
+ * `.pstrip` — the card's 4dp miniature of the rail: one segment per visible row, skipped
+ * cards outlined and never filled. Fill width animates over [PSTRIP_FILL_MS].
  */
 @Composable
 private fun ExercisePstrip(
@@ -394,13 +369,8 @@ private fun ExerciseCardBody(
 }
 
 /**
- * `.sets{padding:0 12px}` with `border-top: 1px --hair` on every row but the first —
- * the hairline is intra-card row trim (spec §3.1, decorative), drawn by the container.
- *
- * The index column width is resolved HERE, once, so the header and every row read the same
- * number and grow together past nine sets (set-field-column-headers.md §4 D3). The trailing
- * gutter mirrors the row's chip slot + gap + checkmark from the components' own widths. No
- * divider between header and row 1 — the hairlines stay intra-row trim.
+ * `.sets` with a hairline above every row but the first, drawn by the container.
+ * The index column width is resolved here once so header and rows grow together past nine.
  */
 @Composable
 private fun SetsColumn(
@@ -492,12 +462,8 @@ private fun SetsColumn(
 }
 
 /**
- * `.setbar` (extraction §1.7) — "missing entirely from the build" until now. Two
- * equal-width mono buttons at the foot of every expanded card, ruled off by hairlines:
- * `+ подход` appends a copy of the last row; `− подход` removes the last row and is
- * disabled at one. Present on completed cards too — §6.4: adding a set to a completed
- * exercise returns it to incomplete. The mockup's toasts and their undo land with the
- * toast component (C6).
+ * `.setbar` — two equal-width mono buttons at the foot of every expanded card: `+ подход`
+ * appends a copy of the last row, `− подход` removes it and is disabled at one row.
  */
 @Composable
 private fun SetBar(
@@ -569,19 +535,15 @@ private fun SetBarButton(
     }
 }
 
-/** `.setbar button:disabled{opacity:.35}`. */
 private const val SETBAR_DISABLED_ALPHA = 0.35f
 
-/** `.setbar{letter-spacing:.06em}` at the 12.5sp meta rung. */
 private val SETBAR_TRACKING = 0.75.sp
 
 /** `.chead-act{margin:-6px -6px 0 0}` — the cluster hangs into the header padding. */
 private val ACTIONS_HANG: Dp = 6.dp
 
-/** `.card.active .mini.rot svg{transform:rotate(90deg)}`. */
 private const val CHEVRON_OPEN_DEGREES = 90f
 
-/** `.tempbadge{letter-spacing:.12em}` at the 11sp caption rung. */
 private val ONE_OFF_BADGE_TRACKING = 1.32.sp
 
 private val PSTRIP_HEIGHT: Dp = 4.dp
@@ -589,7 +551,7 @@ private val PSTRIP_HEIGHT: Dp = 4.dp
 /** 2px in the mockup; below the `Radius` ladder's smallest rung, kept as drawn. */
 private val PSTRIP_RADIUS: Dp = 2.dp
 
-/** `.pstrip i b{transition:width 380ms}` — outside the motion tokens, reported under B9. */
+/** `.pstrip i b{transition:width 380ms}` — outside the three-token motion scale. */
 private const val PSTRIP_FILL_MS = 380
 
 @Preview

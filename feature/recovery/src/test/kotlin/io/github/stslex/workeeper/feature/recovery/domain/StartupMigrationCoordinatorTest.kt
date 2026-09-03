@@ -13,10 +13,12 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import java.io.File
+import java.io.IOException
 
 internal class StartupMigrationCoordinatorTest {
 
@@ -49,7 +51,8 @@ internal class StartupMigrationCoordinatorTest {
         liveDbFile.delete()
         val result = coordinator.checkAndRouteOrProceed()
         assertEquals(StartupCheck.Proceed, result)
-        coVerify(exactly = 1) { snapshotProvider.deletePreMigrationBackup() }
+        assertNull(coordinator.lastRecoveryExportOutcome)
+        coVerify(exactly = 1) { snapshotProvider.deleteRecoveryExport() }
         coVerify(exactly = 0) { snapshotProvider.preserveDbBeforeMigration() }
         coVerify(exactly = 0) {
             reporter.recordStartupMigrationFailure(any(), any(), any(), any())
@@ -65,7 +68,8 @@ internal class StartupMigrationCoordinatorTest {
         val result = coordinator.checkAndRouteOrProceed()
 
         assertEquals(StartupCheck.Proceed, result)
-        coVerify(exactly = 1) { snapshotProvider.deletePreMigrationBackup() }
+        assertNull(coordinator.lastRecoveryExportOutcome)
+        coVerify(exactly = 1) { snapshotProvider.deleteRecoveryExport() }
         coVerify(exactly = 0) { snapshotProvider.preserveDbBeforeMigration() }
         coVerify(exactly = 0) {
             reporter.recordStartupMigrationFailure(any(), any(), any(), any())
@@ -85,7 +89,8 @@ internal class StartupMigrationCoordinatorTest {
         val result = coordinator.checkAndRouteOrProceed()
 
         assertEquals(StartupCheck.Proceed, result)
-        coVerify(exactly = 1) { snapshotProvider.deletePreMigrationBackup() }
+        assertNull(coordinator.lastRecoveryExportOutcome)
+        coVerify(exactly = 1) { snapshotProvider.deleteRecoveryExport() }
         coVerify(exactly = 0) { snapshotProvider.preserveDbBeforeMigration() }
         coVerify(exactly = 0) {
             reporter.recordStartupMigrationFailure(any(), any(), any(), any())
@@ -102,7 +107,8 @@ internal class StartupMigrationCoordinatorTest {
             every {
                 snapshotProvider.hasMigrationPath(older, APP_DATABASE_VERSION)
             } returns false
-            coEvery { snapshotProvider.preserveDbBeforeMigration() } returns liveDbFile
+            coEvery { snapshotProvider.preserveDbBeforeMigration() } returns
+                BackupResult.Success(liveDbFile)
 
             val result = coordinator.checkAndRouteOrProceed()
 
@@ -111,8 +117,12 @@ internal class StartupMigrationCoordinatorTest {
                 StartupMigrationFailureReason.NO_MIGRATION_PATH,
                 (result as StartupCheck.RouteToRecovery).reason,
             )
+            assertEquals(
+                RecoveryExportOutcome.Available,
+                coordinator.lastRecoveryExportOutcome,
+            )
             coVerify(exactly = 1) { snapshotProvider.preserveDbBeforeMigration() }
-            coVerify(exactly = 0) { snapshotProvider.deletePreMigrationBackup() }
+            coVerify(exactly = 0) { snapshotProvider.deleteRecoveryExport() }
             coVerify(exactly = 1) {
                 reporter.recordStartupMigrationFailure(
                     exception = null,
@@ -129,7 +139,8 @@ internal class StartupMigrationCoordinatorTest {
         coEvery {
             snapshotProvider.peekSnapshotSchemaVersion(liveDbFile)
         } returns BackupResult.Success(newer)
-        coEvery { snapshotProvider.preserveDbBeforeMigration() } returns liveDbFile
+        coEvery { snapshotProvider.preserveDbBeforeMigration() } returns
+            BackupResult.Success(liveDbFile)
 
         val result = coordinator.checkAndRouteOrProceed()
 
@@ -138,6 +149,7 @@ internal class StartupMigrationCoordinatorTest {
             StartupMigrationFailureReason.APP_DOWNGRADE,
             (result as StartupCheck.RouteToRecovery).reason,
         )
+        assertEquals(RecoveryExportOutcome.Available, coordinator.lastRecoveryExportOutcome)
         coVerify(exactly = 1) { snapshotProvider.preserveDbBeforeMigration() }
         coVerify(exactly = 1) {
             reporter.recordStartupMigrationFailure(
@@ -155,7 +167,8 @@ internal class StartupMigrationCoordinatorTest {
             coEvery {
                 snapshotProvider.peekSnapshotSchemaVersion(liveDbFile)
             } returns BackupResult.Failure(BackupError.CorruptedBackup("magic mismatch"))
-            coEvery { snapshotProvider.preserveDbBeforeMigration() } returns liveDbFile
+            coEvery { snapshotProvider.preserveDbBeforeMigration() } returns
+                BackupResult.Success(liveDbFile)
 
             val result = coordinator.checkAndRouteOrProceed()
 
@@ -163,6 +176,10 @@ internal class StartupMigrationCoordinatorTest {
             assertEquals(
                 StartupMigrationFailureReason.CANNOT_PEEK_LIVE_DB,
                 (result as StartupCheck.RouteToRecovery).reason,
+            )
+            assertEquals(
+                RecoveryExportOutcome.Available,
+                coordinator.lastRecoveryExportOutcome,
             )
             coVerify(exactly = 1) {
                 reporter.recordStartupMigrationFailure(
@@ -183,15 +200,43 @@ internal class StartupMigrationCoordinatorTest {
         every {
             snapshotProvider.hasMigrationPath(older, APP_DATABASE_VERSION)
         } returns false
-        // Preserve fails — still proceed to RouteToRecovery, just without the
-        // raw-export option (RecoveryActivity handles a null preserved file).
-        coEvery { snapshotProvider.preserveDbBeforeMigration() } returns null
+        coEvery { snapshotProvider.preserveDbBeforeMigration() } returns
+            BackupResult.Failure(BackupError.Io(IOException("ENOSPC")))
 
         val result = coordinator.checkAndRouteOrProceed()
 
         assertTrue(result is StartupCheck.RouteToRecovery)
+        assertEquals(RecoveryExportOutcome.Failed, coordinator.lastRecoveryExportOutcome)
         coVerify(exactly = 1) {
             reporter.recordStartupMigrationFailure(any(), any(), any(), any())
+        }
+    }
+
+    @Test
+    fun `thrown export failure is visible while startup still routes to recovery`() = runTest {
+        val older = APP_DATABASE_VERSION - 1
+        coEvery {
+            snapshotProvider.peekSnapshotSchemaVersion(liveDbFile)
+        } returns BackupResult.Success(older)
+        every {
+            snapshotProvider.hasMigrationPath(older, APP_DATABASE_VERSION)
+        } returns false
+        coEvery { snapshotProvider.preserveDbBeforeMigration() } throws IOException("ENOSPC")
+
+        val result = coordinator.checkAndRouteOrProceed()
+
+        assertEquals(
+            StartupCheck.RouteToRecovery(StartupMigrationFailureReason.NO_MIGRATION_PATH),
+            result,
+        )
+        assertEquals(RecoveryExportOutcome.Failed, coordinator.lastRecoveryExportOutcome)
+        coVerify(exactly = 1) {
+            reporter.recordStartupMigrationFailure(
+                exception = null,
+                fromSchema = older,
+                toSchema = APP_DATABASE_VERSION,
+                reason = StartupMigrationFailureReason.NO_MIGRATION_PATH,
+            )
         }
     }
 }

@@ -7,12 +7,8 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 
 /**
- * Ktor client plugin that attaches `Authorization: Bearer <token>` to every
- * outgoing request and surfaces a typed [DriveException.AuthRevoked] when Drive
- * answers 401. The token is fetched per request from [AuthTokenProvider], so
- * fresh tokens take effect without rebuilding the client.
- *
- * Configure via [DriveAuthPluginConfig.authTokenProvider] when installing.
+ * Ktor plugin attaching `Authorization: Bearer <token>` per request, so a fresh token takes
+ * effect without rebuilding the client, and mapping a 401 to [DriveException.AuthRevoked].
  */
 internal val DriveAuthPlugin = createClientPlugin("DriveAuth", ::DriveAuthPluginConfig) {
     val provider = requireNotNull(pluginConfig.authTokenProvider) {

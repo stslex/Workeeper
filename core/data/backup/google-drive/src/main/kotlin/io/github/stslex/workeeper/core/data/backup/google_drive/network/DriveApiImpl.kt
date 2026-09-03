@@ -22,12 +22,8 @@ import kotlinx.serialization.json.Json
 import java.io.File
 
 /**
- * Ktor-backed `DriveApi` for Drive v3 endpoints. All requests run on [dispatcher];
- * Authorization headers are injected by `DriveAuthPlugin` on the shared `HttpClient`.
- *
- * Upload + download buffer the payload fully in memory. v1 backups/snapshots are
- * bounded by `MAX_BACKUPS = 3` and small db/JSON sizes, so the trade-off favors
- * implementation simplicity over streaming.
+ * Ktor-backed `DriveApi` for Drive v3; `DriveAuthPlugin` injects the Authorization header.
+ * Upload and download buffer fully in memory, bounded by `MAX_BACKUPS = 3` and small payloads.
  */
 @ContributesBinding(AppScope::class)
 @SingleIn(AppScope::class)
@@ -94,11 +90,7 @@ class DriveApiImpl @Inject internal constructor(
         }
     }
 
-    /**
-     * Builds a `multipart/related` body (JSON metadata part + raw payload) and POSTs it.
-     * Shared by both [uploadMultipart] overloads; the binary path reads its file into
-     * [content] first, so its on-the-wire request is byte-for-byte what it was before.
-     */
+    /** Builds a `multipart/related` body (JSON metadata part + raw payload) and POSTs it. */
     private suspend fun postMultipart(
         metadata: DriveFileMetadataDto,
         content: ByteArray,

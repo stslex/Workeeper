@@ -15,19 +15,8 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
 /**
- * Unit tests for `StateStatusMapper.recomputeOnly` — the pure status derivation pipeline.
- * Drives single-exercise inputs with crafted `planSets` / `performedSets` / `visibleSets`
- * combinations and asserts the computed `ExerciseStatusUiModel`.
- *
- * `ResourceWrapper` is relaxed-mocked because `recomputeOnly` does not touch it
- * (presentation strings are applied in the parent `recomputeStatuses` path via
- * `withPresentation`, which these tests don't exercise).
- *
- * The visible-set indices contribute to the "expected positions" set inside the
- * is-done check (alongside `planSets.indices` and the positions of `performed` rows).
- * That guards a previously fixed regression where a partially-completed adhoc exercise
- * could be classified as DONE because empty plan + single performed = single
- * "expected" position. Cases 5–7 lock in the post-fix behavior.
+ * Unit tests for `StateStatusMapper.recomputeOnly`, the pure status derivation pipeline.
+ * Cases 5–7 lock in `visibleSets.indices` counting toward the is-done expected positions.
  */
 internal class StateStatusMapperTest {
 
@@ -36,10 +25,7 @@ internal class StateStatusMapperTest {
 
     @Test
     fun `recomputeOnly assigns CURRENT when plan is empty visible has three rows and only one is performed done`() {
-        // Regression: pre-fix, "no plan + one performed done" registered as DONE because
-        // expectedPositions only covered plan.indices ∪ performed positions = {0}.
-        // After folding visibleSets.indices in, expectedPositions = {0,1,2} and the row
-        // is correctly not-done.
+        // With visibleSets folded in, expectedPositions is {0,1,2}, so this is not done.
         val exercise = exercise(
             plan = persistentListOf(),
             performed = persistentListOf(
@@ -80,7 +66,6 @@ internal class StateStatusMapperTest {
 
     @Test
     fun `recomputeOnly assigns DONE when plan has two rows visible has three rows and all three performed are done`() {
-        // User added one set beyond the plan and completed everything — DONE wins.
         val exercise = exercise(
             plan = persistentListOf(
                 PlanSetUiModel(weight = 100.0, reps = 5, type = SetTypeUiModel.WORK),
@@ -129,10 +114,7 @@ internal class StateStatusMapperTest {
 
     @Test
     fun `recomputeOnly assigns CURRENT when plan performed and visible sets are all empty`() {
-        // expectedPositions is empty so isDone short-circuits to false via the
-        // `isNotEmpty()` guard — distinct from the all-elements-done branch but the
-        // observable outcome (status not DONE) is the same. With auto-current and the
-        // exercise being neither skipped nor done, it's elected CURRENT.
+        // Empty expectedPositions short-circuits isDone to false, so auto-current elects it.
         val exercise = exercise(
             plan = persistentListOf(),
             performed = persistentListOf(),

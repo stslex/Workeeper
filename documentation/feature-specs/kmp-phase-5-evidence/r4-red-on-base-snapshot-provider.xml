@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProviderImplTest" tests="21" skipped="0" failures="1" errors="0" timestamp="2026-08-23T14:40:07.127Z" hostname="stslexs-MacBook-Pro.local" time="2.812">
+  <properties/>
+  <testcase name="a reserved snapshot promoted onto the undo slot is detected by getPreRestoreBackupFile()" classname="io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProviderImplTest" time="2.303"/>
+  <testcase name="getPreMigrationBackupFile returns the file when present and null when absent()" classname="io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProviderImplTest" time="0.036"/>
+  <testcase name="a reserved snapshot is a self-contained SQLite copy at the live schema()" classname="io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProviderImplTest" time="0.031"/>
+  <testcase name="deletePreRestoreBackup removes the file when present()" classname="io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProviderImplTest" time="0.022"/>
+  <testcase name="deletePreRestoreBackup is a no-op when no file exists()" classname="io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProviderImplTest" time="0.012"/>
+  <testcase name="peekSnapshotSchemaVersion matches currentSchemaVersion for fresh capture()" classname="io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProviderImplTest" time="0.035"/>
+  <testcase name="rollback transaction sequence swaps live db with preserved contents and consumes file()" classname="io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProviderImplTest" time="0.047"/>
+  <testcase name="preserveDbBeforeMigration runs wal_checkpoint via direct SQLite()" classname="io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProviderImplTest" time="0.027"/>
+  <testcase name="a stale promoting file from a crashed promotion is discarded, never promoted()" classname="io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProviderImplTest" time="0.02"/>
+  <testcase name="pre_migration and pre_restore slots have independent lifecycles()" classname="io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProviderImplTest" time="0.038"/>
+  <testcase name="validateSnapshotForRestore returns BackupTooNew when source schema is newer()" classname="io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProviderImplTest" time="0.029"/>
+  <testcase name="preserveDbBeforeMigration returns null when no live db file exists()" classname="io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProviderImplTest" time="0.012"/>
+  <testcase name="second captureSnapshot reflects only entities present at second capture()" classname="io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProviderImplTest" time="0.036"/>
+  <testcase name="validateSnapshotForRestore with non-SQLite source returns CorruptedBackup()" classname="io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProviderImplTest" time="0.013"/>
+  <testcase name="liveDatabaseFile resolves to the app database path()" classname="io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProviderImplTest" time="0.011"/>
+  <testcase name="promotion COPIES - the journal-named reservation survives with its exact bytes()" classname="io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProviderImplTest" time="0.021">
+    <failure message="org.opentest4j.AssertionFailedError: the reservation must SURVIVE the promotion — the journal still names it until the runtime durably records Committed ==&gt; expected: &lt;true&gt; but was: &lt;false&gt;" type="org.opentest4j.AssertionFailedError">org.opentest4j.AssertionFailedError: the reservation must SURVIVE the promotion — the journal still names it until the runtime durably records Committed ==&gt; expected: &lt;true&gt; but was: &lt;false&gt;
+	at org.junit.jupiter.api.Assertions.assertTrue(Assertions.java:232)
+	at io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProviderImplTest$promotion COPIES - the journal-named reservation survives with its exact bytes$1.invokeSuspend(DatabaseSnapshotProviderImplTest.kt:299)
+	at io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProviderImplTest$promotion COPIES - the journal-named reservation survives with its exact bytes$1.invoke(DatabaseSnapshotProviderImplTest.kt)
+	at io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProviderImplTest$promotion COPIES - the journal-named reservation survives with its exact bytes$1.invoke(DatabaseSnapshotProviderImplTest.kt)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt$runTest$2$1$1.invokeSuspend(TestBuilders.kt:317)
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)
+	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:100)
+	at kotlinx.coroutines.test.TestDispatcher.processEvent$kotlinx_coroutines_test(TestDispatcher.kt:24)
+	at kotlinx.coroutines.test.TestCoroutineScheduler.tryRunNextTaskUnless$kotlinx_coroutines_test(TestCoroutineScheduler.kt:98)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt$runTest$2$1$workRunner$1.invokeSuspend(TestBuilders.kt:326)
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)
+	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:100)
+	at kotlinx.coroutines.EventLoopImplBase.processNextEvent(EventLoop.common.kt:256)
+	at kotlinx.coroutines.BlockingCoroutine.joinBlocking(Builders.kt:54)
+	at kotlinx.coroutines.BuildersKt__BuildersKt.runBlockingImpl(Builders.kt:30)
+	at kotlinx.coroutines.BuildersKt.runBlockingImpl(Unknown Source)
+	at kotlinx.coroutines.BuildersKt__Builders_concurrentKt.runBlockingK(Builders.concurrent.kt:172)
+	at kotlinx.coroutines.BuildersKt.runBlockingK(Unknown Source)
+	at kotlinx.coroutines.BuildersKt__Builders_concurrentKt.runBlockingK$default(Builders.concurrent.kt:157)
+	at kotlinx.coroutines.BuildersKt.runBlockingK$default(Unknown Source)
+	at kotlinx.coroutines.test.TestBuildersJvmKt.createTestResult(TestBuildersJvm.kt:10)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:309)
+	at kotlinx.coroutines.test.TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:1)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:167)
+	at kotlinx.coroutines.test.TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:1)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt.runTest-8Mi8wO0$default(TestBuilders.kt:159)
+	at kotlinx.coroutines.test.TestBuildersKt.runTest-8Mi8wO0$default(TestBuilders.kt:1)
+	at io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProviderImplTest.promotion COPIES - the journal-named reservation survives with its exact bytes(DatabaseSnapshotProviderImplTest.kt:284)
+</failure>
+  </testcase>
+  <testcase name="captureSnapshot truncates WAL sidecar and snapshot opens with persisted data()" classname="io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProviderImplTest" time="0.029"/>
+  <testcase name="deletePreMigrationBackup removes the file and is idempotent()" classname="io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProviderImplTest" time="0.021"/>
+  <testcase name="getPreRestoreBackupFile returns null when no file was preserved()" classname="io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProviderImplTest" time="0.012"/>
+  <testcase name="restore transaction sequence replaces live db with snapshot contents()" classname="io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProviderImplTest" time="0.031"/>
+  <testcase name="preserveDbBeforeMigration copies the live db file into cacheDir without Room()" classname="io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProviderImplTest" time="0.021"/>
+  <system-out><![CDATA[stripped - suite stdout only; testcase failures verbatim]]></system-out>
+  <system-err/>
+</testsuite>

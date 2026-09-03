@@ -111,7 +111,6 @@ internal class SessionRepositoryImplReadDbTest {
             exerciseUuid = firstExercise.uuid,
             position = 0,
         )
-        // Skipped row should NOT count toward total or done.
         env.seedPerformed(
             sessionUuid = session.uuid,
             exerciseUuid = secondExercise.uuid,
@@ -259,10 +258,8 @@ internal class SessionRepositoryImplReadDbTest {
 
     @Test
     fun `pagedRecentWithStats maps every finished session with its counts, newest first`() = runTest {
-        // Replaces two cases — `observeRecent … respects limit` and `observeRecentWithStats …` —
-        // that between them asserted a ceiling this repository no longer has. The count here is
-        // deliberately ABOVE the old hardcoded ten, because "row eleven is reachable" is the whole
-        // behavioural change and any fixture of ten or fewer passes with the limit still in place.
+        // The fixture is deliberately above the old hardcoded ten: "row eleven is reachable" is
+        // the whole behavioural change, and ten rows or fewer would pass with the limit in place.
         val training = env.seedTraining(name = "Push Day", isAdhoc = false)
         val exerciseA = env.seedExercise(name = "Bench")
         val exerciseB = env.seedExercise(name = "Pull")
@@ -309,9 +306,7 @@ internal class SessionRepositoryImplReadDbTest {
         assertEquals("Push Day", row.trainingName)
         assertEquals(false, row.isAdhoc)
         assertEquals(100_000L, row.finishedAt)
-        // Skipped performed_exercise row excluded from exercise_count...
         assertEquals(1, row.exerciseCount)
-        // ...while both sets still land under the non-skipped one.
         assertEquals(2, row.setCount)
     }
 
@@ -430,13 +425,11 @@ internal class SessionRepositoryImplReadDbTest {
         assertEquals(false, result.isAdhoc)
         assertEquals(1_000L, result.startedAt)
         assertEquals(4_000L, result.finishedAt)
-        // Performed exercises sorted by position.
         assertEquals(listOf("Bench", "Pull Up"), result.exercises.map { it.exerciseName })
         assertEquals(
             listOf(ExerciseTypeDataModel.WEIGHTED, ExerciseTypeDataModel.WEIGHTLESS),
             result.exercises.map { it.exerciseType },
         )
-        // Sets sorted by position within each exercise.
         val benchSets = result.exercises.first { it.exerciseName == "Bench" }.sets
         assertEquals(listOf(0, 1), benchSets.indices.toList())
         assertEquals(listOf(100.0, 105.0), benchSets.map { it.weight })
@@ -451,8 +444,6 @@ internal class SessionRepositoryImplReadDbTest {
     fun `getHistoryByExercise groups rows per session and includes set summaries`() = runTest {
         val training = env.seedTraining(name = "Push", isAdhoc = false)
         val exercise = env.seedExercise(name = "Bench")
-        // A finished session with two sets — should collapse into one HistoryEntry with two
-        // SetSummary items.
         val firstSession = env.seedSession(
             trainingUuid = training.uuid,
             state = SessionStateEntity.FINISHED,
@@ -479,11 +470,9 @@ internal class SessionRepositoryImplReadDbTest {
 
         val result = repository.getHistoryByExercise(exercise.uuid.toString())
 
-        // Newest first.
         assertEquals(2, result.size)
         assertEquals(secondSession.uuid.toString(), result[0].sessionUuid)
         assertEquals(firstSession.uuid.toString(), result[1].sessionUuid)
-        // Multiple sets collapse into one entry's `sets` list.
         assertEquals(2, result[1].sets.size)
         assertEquals(listOf(100.0, 105.0), result[1].sets.map { it.weight })
         assertEquals(1, result[0].sets.size)

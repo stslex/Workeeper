@@ -161,6 +161,78 @@ Status — Error:    red.
 Status — Info:     uses text secondary (low key).
 ```
 
+#### Slot roles and dead slots
+
+- `SlotRole` is derived from a slot's **call sites**, never from its name — the recon pass
+  found three whose names lie: `record.border` fills a pill, `accentTintedForeground` fills
+  a circle, `borderSubtle` paints a Box that is functionally a rule.
+- `PaletteInventory.slots(colors)` walks `AppColors` by reflection — nested groups
+  discovered rather than listed, at unbounded depth, restricted to the
+  `io.github.stslex.workeeper.core.ui.kit.theme` package — and `ContrastGateTest` insists
+  every combination it returns is accounted for, so a new slot arrives as a test failure
+  rather than as an unmeasured pair.
+- `SlotRole.DECORATIVE` takes no threshold: dark `hair-s` on `slab` measures 1.22:1, and a
+  thing meant to be barely there fails 3:1 by construction.
+- `status.info` has **zero readers** — no production site, no test, no `@Preview`, no
+  mention in `documentation/`; the only occurrences of the identifier are its declaration
+  and its two assignments in `AppColors.kt`. It is kept because removing it is a public-API
+  change to the design system, and pinned as `"status.info" to DEAD` in
+  `ContrastContract.ROLES` so it cannot quietly acquire a reader.
+
+#### Material 3 `ColorScheme` mapping
+
+`ColorScheme` carries **48** colour roles, counted by reflection rather than taken from the
+spec. Any role left unset falls back to the Material baseline, which in practice renders as
+baseline purple — that was the entire `*Fixed` family until it was mapped. `scrim` is the
+trap: its Material baseline value **is** `Color.Black`, so assigning `Color.Black` is
+indistinguishable from leaving it unmapped and only *looks* like a mapping. Nothing in the
+project reads `MaterialTheme.colorScheme.primaryFixed` and no current stock component does;
+the roles are mapped anyway, because proving a role unreachable means proving a negative
+across every M3 component and every future version of the library, while mapping costs
+nothing.
+
+The `*Fixed` roles are contracted by Material to hold the **same tone in light and dark**,
+so `FixedTones` assigns them from literal constants — `RAISE = 0xFF242B32`,
+`SLAB = 0xFF1E242A`, `MAX = 0xFFF1F5F9`, `BODY = 0xFFB7C0CA`, all from the dark end of the
+v3 ramp — and never from `AppColors`. Sourcing them from theme-dependent slots would satisfy
+"not purple" while breaking the contract itself, and any component that later started
+reading them would flip on a theme switch. Measured: `ON_CONTAINER` on `CONTAINER` 13.07:1,
+`ON_CONTAINER_VARIANT` on `CONTAINER` 7.78:1, `ON_CONTAINER` on `CONTAINER_DIM` 14.29:1.
+
+#### Contrast gate
+
+`ContrastGateTest` reads `ContrastContract` and the palette, and scores every declared pair
+with `WcagContrast` (all three in `core/ui/kit` unit tests).
+
+- Translucent foregrounds are rejected outright — a ratio for a see-through colour is
+  meaningless until flattened onto a **known** backdrop, and flattening onto the wrong one
+  yields a plausible, wrong number. Exactly two palette slots are genuinely translucent: the
+  molten wash (9% / 11%) and the destructive wash (12%). Both are painted directly on a card,
+  so `surfaceTier1` is the backdrop the composite uses. No declared pair currently has a
+  translucent foreground on a translucent background; if one appears, `flatten` resolves the
+  background first and the foreground against the result.
+- `SRGB_LINEAR_THRESHOLD = 0.03928` is WCAG 2.x's **written** value, not sRGB's exact
+  inflection point `0.04045`: the goal is to reproduce what a WCAG conformance checker
+  reports, not to re-derive sRGB. For 8-bit input the choice is provably moot —
+  `0.03928 × 255 = 10.016` and `0.04045 × 255 = 10.315`, so no byte value falls between the
+  two thresholds and every printed ratio is bit-identical either way.
+- `relativeLuminance` takes channels from the packed 8-bit sRGB bytes rather than from
+  `Color.red` / `.green` / `.blue`. Those accessors return `Float`, and `128 / 255f` widened
+  to `Double` is `0.50196081399…` against an exact `0.50196078431…` — an error near 1e-8 that
+  could never move a two-decimal report, but would make `WcagContrastTest`'s reference
+  anchors unverifiable at a tolerance tight enough to catch a genuinely wrong implementation.
+  Related: `format(ratio)` truncates via `floor(ratio * 100) / 100` rather than rounding, so
+  4.4996 is never printed as "4.50" beside a band column that says it failed.
+- **Known hole.** The gate does not read production call sites. Adding a slot, or painting
+  one declared slot on another the contract has not accounted for, fails; adding a screen
+  that paints an already-declared pair stays green correctly; but adding a screen that paints
+  a pair currently covered by an **exclusion** stays green **wrongly**, because an
+  exclusion's premise is a claim about layout (e.g. "molten never appears on `field`") that
+  the test cannot re-verify. `no_pair_is_both_declared_and_excluded` only catches a contract
+  that has already contradicted one of its own exclusions. Closing the remaining gap needs
+  call-site analysis — a detekt rule resolving `AppUi.colors.<slot>` against the enclosing
+  surface. Until then an exclusion is an assertion about the UI, and it ages.
+
 ### Typography
 
 **Stale as written; superseded by the v3 type system.** This section described a
@@ -173,8 +245,11 @@ What ships now, and where to read it:
 - **`core/ui/kit/.../theme/AppTypography.kt`** is the source of truth — three
   bundled families, six sizes, and the fifteen Material names as *aliases* onto
   those six. Nothing is fetched at runtime.
-- **`core/ui/kit/licenses/README.md`** carries the font provenance: which cut of
-  which family, its hash, and why that cut.
+- **`core/ui/kit/licenses/README.md`** carries the font provenance *and* the measured
+  `cmap` coverage: which cut of which family, its hash, why that cut, and which characters
+  each family actually has. Archivo covers **zero** of the 55 Cyrillic characters the
+  shipped `values-ru` corpus uses; `« » · × — … → •` **are** present, so the gap is
+  Cyrillic letters and nothing else.
 - **`documentation/feature-specs/v3-redesign-spec.md` §4** is the contract for the
   scale itself; the mockups are the contract for appearance.
 
@@ -197,6 +272,53 @@ Two constraints that are enforced rather than documented:
   proportional. Guarded by `TnumCanaryGoldenTest` and `AppTypographyContractTest`.
   Note that the same setting on an IBM Plex style is a **no-op**: neither Plex
   family ships a `tnum` feature, being tabular by default already.
+
+Two corollaries of those rules:
+
+- A number formatted into a string is still a string: a rendered `"20 "` plus the localized reps suffix violates the
+  digits-and-`: . , - + / %` rule even though it starts with digits. A bullet-prefixed
+  timer needs no split — `•` is one of the marks Archivo does cover.
+- `NumericFontFamilyOnLocalizedTextRule` recognises the numeric family only through
+  `NUMERIC_MARKERS`: `numericFontFamily`, `typography.numeric`, `typography.timer`,
+  `typography.dataValue`. Any new alias onto the family must be added there the day it is
+  added to the typography, or `Text` / `BasicText` calls reached through it are silently
+  unchecked.
+
+Measured digit advances, in font units:
+
+| cut | `0` | `1` | under `tnum` |
+| --- | --- | --- | --- |
+| Archivo `wdth 116` (bundled) | 706 | 652 | 700, uniform |
+| Archivo `wdth 125` (the cut this scale used to ship) | 769 | 683 | 758, uniform |
+
+`tnum` makes 20 substitutions — the ten lining digits to their `.tf` forms and the ten
+oldstyle digits to `.tosf`. A dropped `tnum` compiles and looks fine on any string whose
+digits do not change, so `TnumCanaryGoldenTest` renders `00:00` above `11:11` through
+`AppUi.typography.timer` (the alias the session screen calls, not `numeric.display`): with
+tabular figures the colons align vertically, without them the second line contracts and
+they visibly separate.
+
+Three more facts about the families:
+
+- `plexSansFontFamily` bundles 400 / 500 / 600 (`ibm_plex_sans_regular` / `_medium` /
+  `_semibold`). `FontWeight.Bold` still resolves by synthesis, but bundling 600 changed what
+  it synthesises *from*: the matcher now falls back to the 600 file rather than the 500.
+  Nothing asks for Bold today — bundle a real 700 file before relying on it.
+- IBM Plex Mono shares its vertical metrics **exactly** with IBM Plex Sans, so mono units and
+  metadata stay on the same baseline when set inline beside body text. It is tabular by
+  default and covers Cyrillic in full, so unlike Archivo it is safe for localized text.
+- **Fifteen of Material's thirty type slots are unmapped.** Material 3 `1.5.0-alpha24` grew
+  `Typography` to thirty slots — the classic fifteen plus an `*Emphasized` twin for each —
+  and `toM3Typography()` maps only the fifteen; the other fifteen keep Material's own
+  baseline family and metrics. Nothing renders wrong today: no component token file in that
+  library reads an `*Emphasized` key except `ScrollField`, which this app does not use. Same
+  shape as the unmapped `ColorScheme` roles above — a live trap, not a settled one.
+
+Thousands grouping in numerals is a pinned NBSP (U+00A0), not a locale API —
+`ChartReadoutMapper.formatGrouped`'s `GROUP_SEPARATOR` — so the output cannot drift to NNBSP
+(U+202F) on an ICU update: the bundled Archivo cut has real glyphs for SPACE and NBSP but
+none for NNBSP, and only the missing one would seam. `formatGrouped` feeds the chart readout
+and all three footer statrows.
 
 ### Spacing (`AppDimension`)
 
@@ -300,10 +422,36 @@ borderElevation     = 0.5.dp (hairline borders for tier separation)
 The only exception: focus rings on text fields use `0.5.dp` outline
 in `accent` color when focused.
 
+#### `liftedSurface`
+
+`Modifier.liftedSurface` is the shared lift treatment (segmented thumb, nav pill, selected
+list row) — a cast shadow plus a top-edge highlight.
+
+- It paints its shadow through `graphicsLayer { shadowElevation = shadow.toPx() }`, never
+  `Modifier.shadow`, because `Modifier.shadow` compiles to nothing at `0.dp` — so the dark
+  theme, and every unlifted state, would add and remove a modifier node on each lift flip
+  instead of keeping one node whose elevation happens to be zero. Inside that `graphicsLayer`
+  `clip = false` is required: the shadow is drawn **outside** the surface's bounds, so
+  clipping to `shape` there removes exactly the part that is the effect.
+- `restingFill(restingColor, lifted)` repairs a **fully transparent** `restingColor` to
+  `lifted.fadedOut()` — the *lifted* colour faded out, not the surface behind, because a
+  component cannot know what it is sitting on. Any alpha but zero passes through untouched;
+  without the repair the tween would travel toward transparent *black*. It is pure and
+  `internal` specifically so it can be asserted directly, since no golden can see a
+  mid-transition frame.
+- Call it **unconditionally** and let the `lifted` flag drive it. Branching at the call site —
+  applying the modifier only when selected — rebuilds the modifier graph on the flip and kills
+  the tween. `ExerciseRow` passes `restingColor = Color.Transparent` because the drawn resting
+  row has no fill of its own; it sits on `--base`.
+
 ### Motion (`AppMotion`)
 
 Animation durations and easings, exposed as tokens so they remain
 consistent.
+
+**The names and numbers below are the v1 set and are stale.** What ships is
+`AppMotion.fast` = 140 ms, `base` = 260 ms, `slow` = 520 ms, with easings `out` / `spring` /
+`travel` / `linear` (`core/ui/kit/.../theme/AppMotion.kt`).
 
 ```
 Durations:
@@ -323,6 +471,70 @@ Easings:
 The current hard-coded `defaultAnimationDuration = 600` in
 `core/ui/kit` is replaced by `AppMotion.deliberate`. All other
 animations use `normal` (300ms) or `fast` (200ms) as the default.
+
+#### Loading deferral (`rememberDeferredSurface`)
+
+Appear delay = `AppMotion.fast` = 140 ms; minimum hold = `AppMotion.base` = 260 ms.
+
+- The numbers were set against measured loads. Device-instrumented worst case for a real load
+  in this app is **61 ms** on a `debug` build (cold `all-trainings` entry, `refresh = Loading`
+  → `NotLoading`); Home's warm path is **23 ms** on the same build. 140 ms therefore clears
+  the measured debug distribution by 2.3x, and since release loads are not slower than debug
+  ones, a release re-measure moves the margin up, never the threshold down.
+- Bounded cost: the maximum content delay this can add is 260 ms (a T = 141 ms load resolves
+  visually at 400 ms), and only loads in the open interval (140, 400) ms are delayed at all.
+- During the deferral window the function returns `lastSettled` — the last non-loading verdict
+  — and `null` only before one has been drawn. `null` means "delete what is drawn", not "leave
+  it alone": call sites render a verdict by removing the block it names, and Compose keeps no
+  frame behind a composable that has left composition. Returning `null` for the whole window
+  blanked the region on every transition **from** an already-settled empty-region verdict —
+  tapping retry on a cold-open error moves REFRESH_ERROR → LOADING while the appear delay is
+  still running, so the error was removed at once and the region sat blank for up to 140 ms.
+  The retained verdict is always an empty-region one: a selector returns its content verdict
+  only at `itemCount > 0` and LOADING only at `itemCount == 0`, so rows can never be what
+  persists.
+- Call-site contract: branch on the return value and on `listBody`, and **never** re-derive
+  `surface == loadingSurface` beside them — during the minimum hold the selector has already
+  moved to CONTENT (or FIRST_RUN, or an error), so a screen that re-derives draws nothing for
+  the rest of the hold and flashes the spinner for the millisecond the two numbers exist to
+  prevent. Call `rememberDeferredSurface` where it **outlives** the loading state: sited
+  inside `if (surface == LOADING) { ... }` it leaves composition at the instant the hold
+  should start, so the minimum silently does nothing however the result is read. Rows and the
+  loading treatment are alternatives, not layers — `listBody`'s equality test is total rather
+  than heuristic because every surface selector on this arc returns its content verdict first.
+
+#### Set-closure automaton (`SetClosureVisuals`)
+
+- `tickProgress` needs no false→true gate: `animateFloatAsState` seeds its `Animatable` at the
+  target on first composition, so a row that arrives already done renders at exactly 1 and
+  never animates. `LaunchedEffect` does **not** have that property — it also runs on first
+  composition — so the flash needs the explicit `wasDone` / `closedJustNow` gate, without
+  which every already-completed set flashes whenever an active session loads or a completed
+  card is collapsed and reopened.
+- The flash cannot be rewritten as `animateFloatAsState`: it is transient (peaks at closure,
+  decays, has no resting value to interpolate to), and a state-driven tween would be a
+  permanently-zero constant that animates nothing.
+- There is deliberately **no `markScale`**. One used to live here, resting at 0.92 and
+  animating to 1.0; the growth it stood in for is real geometry — `AppCheckmarkButton` lerps
+  38dp → 42dp off `closedFraction` — so keeping both would scale the growth on top of itself.
+  The mockup's only `transform: scale()` is `.mark:active{transform:scale(.9)}`, a press state
+  belonging to the interaction, not to the closure automaton.
+
+#### Indicator gel (`IndicatorGel`)
+
+`k = |Δ| / trackWidth`, clamped to 1; the peak is `1 + 0.30 × k`. `trackWidth` must be the
+**OUTER** track width — it is the denominator `k` is taken against, and passing the padded
+inner width instead inflates every peak.
+
+| | track | item | neighbour peak | two-step peak |
+|---|---|---|---|---|
+| `AppNavBar` pill | 411.4dp | 129.1dp | +9.71% (12.5dp) | +19.41% (25.1dp) |
+| `MetricTabs` thumb | 379.3dp | 121.1dp | +9.89% (12.0dp) | +19.79% (24.0dp) |
+
+Both are three equal-width stops, so `pitch / track` is ~1/3 and ~2/3 on each. Transferable is
+not identical: the tabs' item is 8dp narrower, so the same percentage is ~1dp less drawn
+width. A track with unequal or differently-many stops would not land here, and the numbers
+would have to be recomputed rather than assumed.
 
 ### Haptic feedback
 
@@ -382,6 +594,31 @@ explicit haptic mappings per Click action. The base rule of thumb:
 Haptic emission is the trigger's responsibility, not the receiver's.
 Tapping a row that opens a dialog: the haptic emits at row tap. The
 dialog opens silently (no separate haptic).
+
+### Accessibility conventions
+
+- **Alias a `contentDescription` before a `semantics` block.** Inside
+  `Modifier.semantics { }` a bare `contentDescription` resolves to the **receiver's** own
+  property, so `this.contentDescription = contentDescription` is a silent self-assign that
+  compiles and drops the caller's string. Alias the parameter to a local outside the block
+  first (`val label = contentDescription`). Sites: `AppExerciseThumb`, `AppNumberInput`
+  (`val fieldLabel = accessibilityLabel`).
+- **A `BasicTextField` owes two properties M3's `OutlinedTextField` supplies internally.**
+  (1) Error semantics — M3 sets `error(...)` from `isError` inside `TextFieldImpl.kt`, so
+  without an explicit `semantics { if (isError) error(errorMessage) }` an invalid box
+  announces as an ordinary one. (2) The label association — `OutlinedTextField(label = ...)`
+  makes it itself, but the drawn `.flabel` is a **sibling** node (`AppFieldLabel`), so it
+  names the field on screen and not to a screen reader; with a value present the placeholder
+  is gone too and the field would announce its text and role without ever saying which field
+  it is. Every caller that draws an `AppFieldLabel` passes the same string as
+  `accessibilityLabel`. `AppNumberInput` is the sharper case: its unit lives in
+  `SetColumnHeader`, so the label is the only thing telling TalkBack which field it is.
+- **Register a `CustomAccessibilityAction` only where it can act.** `ReorderableColumn`
+  registers `moveUp` / `moveDown` conditionally (`index > 0`, `index < lastIndex`) because
+  `state.moveUp` no-ops at 0 and `state.moveDown` no-ops at `lastIndex` while the action
+  lambda still returns `true`: registering both unconditionally advertises an impossible
+  action to a screen reader **and** reports success having done nothing. Resolve the announced
+  labels outside the `semantics` block, which is not a composable scope.
 
 ## Component inventory
 
@@ -548,6 +785,12 @@ Visual:
   background: surface tier 4 (default), accent tinted bg (selected)
 ```
 
+`CHIP_CORNER = 6.dp` is a second copy of `AppUi.shapes.small`'s 6dp (`AppShapes.kt:16`),
+needed because `dashedBorder` takes a `Dp` corner radius rather than a `Shape`. It is
+deliberately **not** `AppDimension.Radius.small`, which is 8dp (`AppDimension.kt:17`). Change
+`provideAppShapes` and this literal must follow, or the dashed add-tag chip's outline stops
+matching its own clip.
+
 ### 9. AppTagPicker
 
 Compound component for tag selection with inline creation.
@@ -620,6 +863,21 @@ Haptics: none. The caller fires SegmentTick, matching every other
          haptic in the app.
 ```
 
+Two things the layout and the motion depend on:
+
+- The drawn `border-top:1px solid var(--hair-s)` ships as a `HorizontalDivider` **overlaid**
+  on the bar's top edge (`Alignment.TopCenter`), not as a third box in a column, so the bar's
+  total height stays exactly `AppDimension.BottomNavBar.heightWithInsets`. CSS `border-top` on
+  a `content-box` element adds its 1px *outside* the declared 60px; reproducing that as a
+  layout row would put the bar 0.5dp off the number `AppNavigationHost` pads every bottom-bar
+  destination's content by (the bare `BottomNavBar.height`).
+- `stretchOrigin` is written once inside `LaunchedEffect(selectedIndex)` and never derived
+  during composition: the jump's delta is gone from state as soon as `previousIndex` catches
+  up, so a derived origin would flip back to its default part-way through the 340 ms travel
+  and stretch the pill from the wrong edge for the rest of it. `previousIndex` is seeded with
+  the initial `selectedIndex` for the same class of reason — unseeded, the first composition
+  reads as a 0 → n jump and fires a stretch on a settled bar.
+
 ### 12. AppBottomSheet
 
 Wrapper around M3 `ModalBottomSheet`.
@@ -634,6 +892,21 @@ Visual:
   background: surface tier 1
   drag handle: visible, default M3 styling
 ```
+
+- **The window owns the scrim and the grab handle; `AppSheetLayout` owns the title and the
+  content.** Both window layers are affordances for gestures the content cannot service.
+  `AppBottomSheet` passes `dragHandle = { SheetGrabHandle() }` to `ModalBottomSheet`, so a
+  grab handle drawn inside sheet content would be the **second** handle in every sheet.
+- **IME-padded, never IME-resized.** `ModalBottomSheet`'s own `contentWindowInsets` defaults
+  to `safeDrawing.only(Bottom + Top)` and `safeDrawing` includes the IME, so sheet content
+  already gets bottom padding equal to the keyboard — verified on device (API 35, portrait, an
+  820px IME: the sheet reflowed above it unaided). What that padding cannot do is make
+  oversized content fit: on API 30+ Material sets this window to `SOFT_INPUT_ADJUST_NOTHING`
+  (`ModalBottomSheet.android.kt`), so the window is never resized and anything taller than the
+  space left above the keyboard is simply covered — measured in landscape, where the exercise
+  picker's search field vanished entirely. Content that can outgrow that space must bound
+  itself: `AppTagPickerSheetContent` uses `CHIP_AREA_MAX_HEIGHT = 360.dp` + `verticalScroll`,
+  the same bound `ExercisePickerSheet` uses for the same seat.
 
 ### 13. AppDialog
 
@@ -691,6 +964,17 @@ Visual:
   no shadow (color-based elevation only)
 ```
 
+Two guards on the glyph crossfade:
+
+- `contentDescription` lives on the `FloatingActionButton`'s semantics, not on the `Icon`s:
+  for the 260 ms `AnimatedContent` crossfade two `Icon`s are composed at once, and a
+  description on each would merge into a single node announcing both.
+- `using null` in
+  `transitionSpec = { fadeIn(glyphSpec) togetherWith fadeOut(glyphSpec) using null }`
+  suppresses `AnimatedContent`'s default `SizeTransform` — both glyphs are
+  `AppDimension.iconMd`, and an animated container would introduce the reflow the fixed size
+  exists to prevent.
+
 ### 16. AppLoadingIndicator
 
 Generic loading spinner.
@@ -741,6 +1025,13 @@ Visual:
   unselected: text tertiary
   gap between segments: Space.xs (4.dp), no rule
 ```
+
+Two pieces of `.mseg` geometry are load-bearing for the lifted thumb, not decorative.
+`TRACK_PADDING` insets the thumb from the track's clipped edge — without it the light theme's
+cast shadow has nowhere to fall and the lift is invisible in exactly one theme, which is the
+failure mode `liftedSurface` exists to fix. And the segments are separated by a 3px gap and
+**no rule**: a hairline divider is a sibling of the thumb, so a lifted thumb would have a seam
+running down its edge. Do not reintroduce the dividers this component used to draw.
 
 ### 19. AppSnackbar
 
@@ -831,6 +1122,108 @@ settings surfaces.
 
 (Counts as 19 + 1 added during scope review per the chat session
 + 1 added in Stage 5.1 (AppSettingsRow); final count = 21 components.)
+
+## Kit components added after v1
+
+Shared components in `core/ui/kit` outside the numbered v1 inventory above, recorded with the
+constraints that are not visible from a call site.
+
+### AppListRow
+
+Its two modifier seams are **not** interchangeable. `modifier` reaches the outer `Column` —
+the row **plus** its divider — and is what a caller animates (`Modifier.animateItem`).
+`rowModifier` reaches the inner `Row` — the ruled area **without** the rule — and is what a
+caller lifts, clicks and tags. Swapping them breaks things silently: a `liftedSurface` on the
+outer box paints behind the divider, and a `combinedClickable` there makes the hairline part
+of the touch target. `rowModifier` is applied **before** `heightIn(min = rowHeight)` and the
+`screenEdge` gutter, which is where every caller's chain sat before the extraction, so the
+painted region and the touch region are unchanged.
+
+### AppCheckmarkButton
+
+`MARK_SIZE = 46.dp` is the mockup's `.mark` size **and** the room the spring overshoot needs.
+In `SetDoneMark` the geometry — the side lerping `SHAPE_REST` 38dp → `SHAPE_DONE` 42dp and
+the radius `REST_RADIUS` 19dp → `DONE_RADIUS` 13dp — rides `closedFraction`, which is `spring`
+and legitimately overshoots past 1.0, so the drawn side goes beyond 42dp; a canvas sized to
+the done state would clip it. Every colour and the tick's own progress ride `out`; the press
+scale rides `spring` because it is geometry.
+
+### AppMiniIconButton
+
+`MINI_SIZE = 34.dp` deliberately undershoots the 48dp minimum touch-target guidance. It is the
+mockup's drawn `.mini` size (34×34, 17dp glyph), three in a row in a card header where 48dp
+targets would not fit — the same trade the mockup makes, recorded rather than accidental.
+
+### DashedBorder
+
+`Modifier.border` cannot draw a `1px dashed` CSS border, which the mockups use as the
+excluded-from-the-record signature (skipped rail group, one-off ordinal chip and badge,
+`.addex`). CSS leaves dash geometry to the user agent, so the rhythm was measured off Chrome's
+rendering of the mockup — a 1px dashed border is ~3px on / ~3px off — and kept as fixed
+`DASH_ON = 3.dp` / `DASH_OFF = 3.dp` rather than exposed as a per-call-site parameter. The
+stroke is centred inside the bounds (`inset = stroke / 2`) the way a CSS border is.
+
+### ReorderableColumn / ReorderableColumnState
+
+Live-commit: as the dragged item's centre crosses a neighbour's centre the state fires
+`onMoveResolved` immediately and re-anchors the offset so the finger stays on the same visual
+point across the swap. On release the state simply resets — there is no terminal
+`onMoveResolved` call.
+
+- Consumers **must** apply `onMoveResolved` synchronously: update the list state before
+  returning from the lambda. Async or throttled updates desync the crossover logic and are not
+  supported.
+- Live-commit has no preview-displacement layer, so non-dragged rows snap to their new layout
+  positions. For smooth slide-in the consumer `Column` must be wrapped in a `LookaheadScope`
+  with `Modifier.animateBounds(scope)` applied to each row; without it the siblings jump.
+- `onItemPlaced` returns early when `key == draggedKey`, because during a drag
+  `boundsInWindow()` for the dragged item **includes** the `graphicsLayer.translationY` the
+  drag applies, and feeding those transformed bounds back into the crossover math corrupts it.
+- `onItemPlaced` is the only writer of `itemTops` / `itemBottoms` / `itemIndices` /
+  `keysByIndex`, and a removed row simply stops calling it — so a row that leaves composition
+  without `onItemDisposed` keeps its bounds, its index and its slot, and stays a drop target
+  that is not on screen. Two concrete failures: with three 100px rows at y = 0 / 100 / 200 and
+  "c" disposed, dragging "b" by 101px puts the finger at 251, past the departed row's old
+  centre at 250, and commits a phantom move against a dead key; and `moveDown`'s boundary
+  guard, which reads `keysByIndex.keys.maxOrNull()`, still believes index 1 can move down when
+  "b" is now the last row. `onItemDisposed` clears the `keysByIndex` slot **only** when it
+  still points at that key, because a reorder may already have handed that index to another
+  row. It is called from `reorderableColumnItem`'s `DisposableEffect`, so both consumers get
+  it without recreating the state when membership changes.
+- `lastIndex` is **required** and must not gain a default — a default is a value every
+  existing call site would silently keep, which is the bug.
+- `reorderableColumnItem` deliberately installs **no** long-press detector on the whole row;
+  gesture detection lives only in `reorderableColumnDragHandle`, so child widgets that consume
+  long-press (text fields, tooltip wrappers) cannot block the reorder affordance.
+
+### AppIcons
+
+- Contexts whose drawn stroke weights differ by **0.1 viewBox units** are deliberately
+  collapsed onto one `ImageVector`, on the ruling that 0.1 is invisible below 24dp:
+  `MoreVertical` serves the 1.7 top-bar context and the 1.8 card context (`.mini.menu`) from
+  one vector, and `NAV_GLYPH_STROKE` resolves to `EMPTY_GLYPH_STROKE` = 1.6f even though
+  `.nb button svg` declares 1.7 — so `Trainings` and `Exercises` are **one vector each**,
+  shared by the nav bar and the empty state, and cannot drift apart.
+- Constants that are numerically equal are still named separately when the drawing declares
+  them separately and either could move alone: `THUMB_STROKE = TOPBAR_STROKE` (1.7f — `.thumb
+  svg` sits in the top bar but is not an `.icon-btn`) and
+  `NAV_GLYPH_STROKE = EMPTY_GLYPH_STROKE` (1.6f).
+- The manifest sets `android:supportsRtl="true"`, so a fixed path in a directional mark points
+  the wrong way under an RTL layout direction. `strokeIcon(autoMirror = true)` is therefore set
+  on any glyph whose meaning is "back", "forward" or "onward" (`ChevronLeft`, `ChevronRight` —
+  the latter also because the Material equivalent it sits beside in `TrainingExerciseRow`
+  auto-mirrors) and left off for marks carrying no direction. Media-transport glyphs such as
+  `Skip` stay off by convention: a timeline reads left-to-right in every locale.
+
+### AppSectionHeader / AppLabel
+
+`AppSectionHeader`'s `Row` applies `padding(horizontal = AppDimension.screenEdge)` of its own,
+so a screen whose column already carries the gutter must use the bare `AppLabel` rung instead
+or the gutter doubles — `TrainingEditScreen`'s `TagsSection` does exactly that. The opposite
+arrangement is equally valid and also shipped: `TrainingDetailScreen` gives each block the
+gutter individually (its `InGutter` helper) so full-bleed sections can opt out and
+`AppSectionHeader` is used directly, and `PastSessionScreen`'s `LoadedContent` pads per item
+rather than through the `LazyColumn`'s `contentPadding` for the same reason.
 
 ## Module structure
 
@@ -966,7 +1359,7 @@ Goal: get the full token system in place and AppTheme composable working. No com
 PASS 2 — COMPONENTS
 Goal: implement the 20 shared components.
 
-1. Create one file per component under core/ui/kit/src/main/kotlin/.../components/<package>/<Name>.kt.
+1. Create one file per component under core/ui/kit/src/commonMain/kotlin/.../components/<package>/<Name>.kt.
 2. Each component must:
    - Use only tokens from AppColors / AppTypography / AppDimension / AppShapes / AppMotion. No hardcoded colors, sizes, or font sizes.
    - Have a Compose Preview function below the implementation showing both light and dark mode.

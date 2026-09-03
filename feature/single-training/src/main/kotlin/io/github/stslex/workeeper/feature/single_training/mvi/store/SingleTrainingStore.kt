@@ -25,25 +25,9 @@ interface SingleTrainingStore : Store<State, Action, Event> {
     data class State(
         val uuid: String?,
         val mode: Mode,
-        /**
-         * Which edit session the current draft belongs to — bumped on every entry into
-         * [Mode.Edit]. The draft-undo toasts carry it back with their action: a toast
-         * outlives the draft it edited (5s, accessibility-stretched), so Save or Cancel can
-         * end the draft — and Edit can start a new one — while «Отменить» is still on
-         * screen. The undo handlers no-op unless the epoch still matches, so a stale undo
-         * cannot put an unsaved row onto the Read screen or into a draft it never edited.
-         */
+        /** Edit-session id, bumped on every [Mode.Edit] entry; a stale undo toast no-ops. */
         val draftEpoch: Int,
-        /**
-         * A save's write is in flight: the snapshot is already captured, so the draft may
-         * not take an undo any more — a row restored now would reach the screen and miss
-         * the database. Discard is refused for the same reason in the other direction: a
-         * rollback now would hand the landing save's flip-to-Read a reverted form to
-         * snapshot, splitting the screen from the row the write just committed. Set when
-         * Save dispatches, cleared on every outcome (the success flip to Read, or the
-         * failure that keeps the draft alive and re-arms its undos) — and defensively on
-         * Edit entry, so a flag orphaned with a dead draft cannot gag the next one.
-         */
+        /** A save's write is in flight: the draft refuses both undo and discard until it lands. */
         val isSaving: Boolean,
         val name: String,
         val nameError: Boolean,
@@ -53,21 +37,13 @@ interface SingleTrainingStore : Store<State, Action, Event> {
         val tagSearchQuery: String,
         val exercises: ImmutableList<TrainingExerciseItem>,
         /**
-         * The open cards in the editor's exercise list — empty when all are collapsed, which
-         * is the INITIAL state (ED14) and not a limit: **expansion is per card, never an
-         * accordion**. An accordion trades scroll stability for height — collapsing a card
-         * above the viewport shifts the page under the user's finger mid-edit — and height is
-         * the cheaper of the two. The STORE owns this rather than the card because an insert
-         * opens the inserted card (D-OPEN-8), and a `remember` could not see the insert.
+         * Open cards in the editor list — per card, never an accordion (ED14). Store-owned
+         * because a picker insert opens the inserted card (D-OPEN-8).
          */
         val expandedExerciseUuids: ImmutableSet<String>,
         /**
-         * Set restorations that landed while their card was absent: both removals queue
-         * toasts, so the set toast's «Отменить» can fire after the exercise itself was
-         * removed — the lookup finds no card, and dropping the restore would lose the row
-         * with BOTH undos tapped. Stashed here instead; the exercise undo that brings the
-         * card back applies its stashes in tap order — the card's plan is frozen while it
-         * is absent, so the captured index is exact. Cleared with the draft.
+         * Set restores that landed while their card was absent — both removals queue toasts.
+         * The exercise undo replays them in tap order when the card comes back.
          */
         val pendingSetRestores: ImmutableList<PendingSetRestore>,
         val pastSessions: ImmutableList<HistorySessionItem>,
@@ -83,20 +59,13 @@ interface SingleTrainingStore : Store<State, Action, Event> {
 
         val isCreate: Boolean get() = (mode as? Mode.Edit)?.isCreate == true
 
-        // NO SAVE-ENABLED PREDICATE HERE, and none may be added. On this screen it would hide
-        // TWO error branches, not one: `name.isNotBlank()` is the condition that produces
-        // `nameError`, and `exercises.isNotEmpty()` is the one that emits `Event.ShowSaveError`
-        // (§26, "Save is never disabled"). The empty list stays a snackbar — there is no field
-        // for it to sit under and the drawing draws no error surface for a section (§7.3).
+        // GUARD: no save-enabled predicate here — it would hide both `nameError` and
+        // `Event.ShowSaveError` (§26, "Save is never disabled").
 
         val hasChanges: Boolean
             get() = originalSnapshot?.matches(this) == false
 
-        /**
-         * Intercept back when edits are unsaved or a dialog is open — and a plan edited in a
-         * card counts, through the plan half of [Snapshot]'s comparison. Dialog dismissal
-         * precedes screen pop so the back gesture closes the topmost dialog before propagating.
-         */
+        /** Intercept back for an open dialog or unsaved edits (a card's plan edit counts). */
         val interceptBack: Boolean
             get() = (mode is Mode.Edit && hasChanges) || dialogState !is DialogState.Hidden
 
@@ -109,16 +78,8 @@ interface SingleTrainingStore : Store<State, Action, Event> {
         }
 
         /**
-         * The loaded form, kept whole so that discarding can put it back whole.
-         *
-         * [exercises] holds the ITEMS and must keep holding them: a signature of them is enough
-         * to DETECT a change and not enough to UNDO one. Reduce this field to a signature and
-         * the discard has to rebuild the list from the current one, which can only remove what
-         * the user added — never restore what they removed — and leaves `position` at the
-         * edited value on a screen that renders it as `"${position + 1}."`.
-         *
-         * The signature [matches] compares is derived from these items, on both sides, so
-         * widening the field does not widen dirty detection.
+         * The loaded form, kept whole so discard can put it back whole — [exercises] holds the
+         * items, since a signature can detect a change but not undo one.
          */
         @Stable
         data class Snapshot(
@@ -136,12 +97,8 @@ interface SingleTrainingStore : Store<State, Action, Event> {
             private companion object {
 
                 /**
-                 * The three fields an edit can touch. `planSets` is IN it since the plan became
-                 * an inline edit (ED1): a plan edit with no baseline echo must read as
-                 * `hasChanges`, or back would pop over an unsaved plan without the discard sheet
-                 * — the protection D-OPEN-11 counts on. Name, type and tags are NOT: they belong
-                 * to the exercise, are edited on its own screen, and a refresh of them arriving
-                 * from there is not an unsaved edit to THIS training.
+                 * The three fields an edit can touch. `planSets` is in since plans became an
+                 * inline edit (ED1); name, type and tags belong to the exercise, not here.
                  */
                 fun TrainingExerciseItem.signature() =
                     Triple(exerciseUuid, position, planSets)
@@ -271,11 +228,7 @@ interface SingleTrainingStore : Store<State, Action, Event> {
             /** The card head's tap (ED14): expand the one you mean, collapse the one open. */
             data class OnExerciseCardToggle(val exerciseUuid: String) : Click
 
-            /**
-             * The expanded card's plan edit — `PlanEditorBody`'s action, addressed to one
-             * exercise of the list and reduced in memory (ED1): nothing is persisted until
-             * Save writes every plan alongside the training.
-             */
+            /** One card's plan edit, reduced in memory (ED1); nothing persists until Save. */
             @Suppress("MviActionNamingRule")
             data class OnExercisePlanAction(
                 val exerciseUuid: String,
@@ -339,11 +292,7 @@ interface SingleTrainingStore : Store<State, Action, Event> {
 
         data class ShowSaveError(val message: String) : Event
 
-        /**
-         * `− подход` in an expanded card is a DRAFT edit (§4's table): nothing is persisted,
-         * so the undo puts [set] back at [index] in [exerciseUuid]'s draft — no timer, no
-         * deferred anything. Item-wise so queued toasts compose.
-         */
+        /** `− подход` is a draft edit: the undo puts [set] back at [index] in [exerciseUuid]. */
         data class ShowSetRemovedUndo(
             val message: String,
             val exerciseUuid: String,
@@ -353,12 +302,7 @@ interface SingleTrainingStore : Store<State, Action, Event> {
             val draftEpoch: Int,
         ) : Event
 
-        /**
-         * `✕` removes from THIS training only, unconfirmed (D-OPEN-11) — the undo snackbar is
-         * the affordance ED11 pairs with that absence. A draft edit like the row above it:
-         * the undo re-inserts [item] where it stood (and re-opens it if it was expanded),
-         * and nothing was persisted in between.
-         */
+        /** `✕` removes from this training only (D-OPEN-11); the undo re-inserts [item]. */
         data class ShowExerciseRemovedUndo(
             val message: String,
             val item: TrainingExerciseItem,

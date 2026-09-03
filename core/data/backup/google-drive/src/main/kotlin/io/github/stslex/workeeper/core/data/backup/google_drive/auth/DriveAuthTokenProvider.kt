@@ -19,15 +19,8 @@ import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 
 /**
- * `AuthTokenProvider` impl that prefers the cached access token captured at
- * sign-in / `completeSignIn` time (see [AccountDataStore.setToken]) and falls
- * back to a silent `authorize()` only when the cache is empty or expired.
- *
- * Returns `null` (treated as `BackupError.NotAuthenticated` by the network
- * layer) when no account is stored OR when both the cache and the silent
- * `authorize()` fail to yield a usable token. Failure modes are surfaced at
- * warning ([Log.w] on null-token refresh) and error ([Log.e] on `authorize()`
- * throwing) levels only — no debug-level diagnostic logging in production.
+ * `AuthTokenProvider` serving the cached access token, falling back to a silent `authorize()`.
+ * Returns `null` — read as `BackupError.NotAuthenticated` — when no usable token can be had.
  */
 @ContributesBinding(AppScope::class)
 @SingleIn(AppScope::class)
@@ -48,9 +41,7 @@ class DriveAuthTokenProvider @Inject internal constructor(
         refreshTokenFromGms()
     }
 
-    // Request ONLY the scopes the account already granted: base, plus drive.file only if
-    // it was previously granted. Appdata-only users therefore request exactly
-    // DriveAuthScopes.ALL (identical to v1) and never trip an authorize() resolution.
+    // Request only already-granted scopes; appdata-only users never trip a resolution.
     private suspend fun refreshTokenFromGms(): String? = runCatching {
         val includeDriveFile = accountStore.isDriveFileGranted()
         val scopes = if (includeDriveFile) {
@@ -66,11 +57,7 @@ class DriveAuthTokenProvider @Inject internal constructor(
         .onFailure { t -> Log.tag(KtorLogger.TAG).e(t, "authorize() threw") }
         .getOrNull()
 
-    /**
-     * Authorizes [scopes], re-derives + persists the `drive.file` grant from the result's
-     * granted scopes (so a revocation flips the flag off on the very next refresh), caches a
-     * non-null token, and returns the token (or `null` when resolution is required).
-     */
+    /** Authorizes [scopes], persists the grant, caches the token; `null` if resolution needed. */
     private suspend fun authorizeFor(scopes: List<Scope>): String? {
         val request = AuthorizationRequest.builder()
             .setRequestedScopes(scopes)

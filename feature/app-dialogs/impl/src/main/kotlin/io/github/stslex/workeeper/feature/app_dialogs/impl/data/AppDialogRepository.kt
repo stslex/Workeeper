@@ -8,82 +8,99 @@ import androidx.datastore.preferences.core.edit
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.di.AppScope
+import io.github.stslex.workeeper.core.data.backup.api.restore.InstallEpoch
+import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreOwnerId
+import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreRecoveryFiles
 import io.github.stslex.workeeper.core.data.dataStore.core.DataStoreProviderFactory
 import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialog
 import io.github.stslex.workeeper.feature.app_dialogs.api.publisher.AppDialogPublisher
 import io.github.stslex.workeeper.feature.app_dialogs.impl.domain.AppDialogResolver
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 
 /**
- * Single writer of every `pending_*` flag in the `app_dialogs_prefs` DataStore
- * and the persistence layer of the cross-feature `AppDialog` mechanism.
- * Implements [AppDialogPublisher] for producers; the impl-only [dismiss] entry
- * point is used by `AppDialogHost` (and, after the MVI rewrite, by the
- * `DismissHandler` / `UserActionHandler` inside `AppDialogStore`).
+ * Single writer of every `pending_*` flag in the `app_dialogs_prefs` DataStore; state is derived
+ * from DataStore on every read so a pending dialog survives process death.
  *
- * State is derived from DataStore on every read — no in-memory queue, no
- * `MutableStateFlow<AppDialog?>` field. This is load-bearing: backup recovery's
- * primary case is "show this dialog after a process restart", which an
- * in-memory queue would not survive (see
- * `documentation/feature-specs/app-dialogs.md` → "Single source of truth").
- *
- * DI (App-Scope Collapse Step 3, app-dialogs slice): Metro-owned, self-bound
- * app singleton (`@SingleIn(AppScope)` + `@Inject` on the DataStore-building
- * secondary ctor). Public because app/app's `AppGraph` names the concrete type
- * in its accessor (Metro contributions/accessors can't reach an `internal`
- * cross-module type). It implements [AppDialogPublisher] but is NOT bound to it
- * (the producer binding is [AppDialogPublisherImpl]); so it is a self accessor,
- * never `@ContributesBinding`.
- *
- * Mint the store through [DataStoreProviderFactory] only: a second `AppGraph` that
- * built its own would throw `IllegalStateException: There are multiple DataStores
- * active` on the second read. Pinned by `app/app` androidTest
- * `AppScopeDataStoreSingletonTest`. Mechanism and evidence:
- * `documentation/tech-debt.md` -> "DataStore singleton bypass".
+ * GUARD: mint the store through [DataStoreProviderFactory] only — a second one throws at runtime.
  */
 @SingleIn(AppScope::class)
 class AppDialogRepository internal constructor(
     private val dataStore: DataStore<Preferences>,
+    private val installEpoch: suspend () -> InstallEpoch,
 ) : AppDialogPublisher {
 
     @Inject
-    constructor(storeFactory: DataStoreProviderFactory) : this(
+    constructor(
+        storeFactory: DataStoreProviderFactory,
+        recoveryFiles: RestoreRecoveryFiles,
+    ) : this(
         storeFactory.create(PREFS_NAME).dataStore,
+        recoveryFiles::installEpoch,
     )
 
-    /**
-     * Reactive view of the currently-pending top-priority dialog. Re-emits on
-     * every DataStore write; emits `null` when no flag is set. Priority is
-     * resolved by [AppDialogResolver]; this repository only owns persistence.
-     */
-    val currentDialog: Flow<AppDialog?> = dataStore.data
-        .map { prefs -> AppDialogResolver(prefs) }
-        .distinctUntilChanged()
+    /** Highest-priority pending dialog, or `null`; re-emits on every DataStore write. */
+    val currentDialog: Flow<AppDialog?> = flow {
+        val epoch = installEpoch()
+        dataStore.edit { prefs -> prefs.reconcileRestoreEpoch(epoch) }
+        emitAll(
+            dataStore.data.map { prefs ->
+                if (prefs[AppDialogKeys.RESTORE_DIALOG_INSTALL_EPOCH] == epoch.toString()) {
+                    AppDialogResolver(prefs)
+                } else {
+                    null
+                }
+            },
+        )
+    }.distinctUntilChanged()
 
     override suspend fun publish(dialog: AppDialog) {
+        val epoch = installEpoch()
         dataStore.edit { prefs ->
+            prefs.reconcileRestoreEpoch(epoch)
             if (prefs.isAlreadyPending(dialog)) return@edit
             prefs.writeFlags(dialog)
         }
     }
 
-    /**
-     * Clear every flag belonging to [dialog]. Internal API used by
-     * `AppDialogHost` on user dismiss / confirm — never exposed via
-     * [AppDialogPublisher].
-     */
+    /** Clears every flag of [dialog]; reached through `AppDialogObserver.acknowledgeReaction`. */
     suspend fun dismiss(dialog: AppDialog) {
-        dataStore.edit { prefs -> prefs.clearFlags(dialog) }
+        val epoch = installEpoch()
+        dataStore.edit { prefs ->
+            prefs.reconcileRestoreEpoch(epoch)
+            prefs.clearFlags(dialog)
+        }
     }
 
     private fun Preferences.isAlreadyPending(dialog: AppDialog): Boolean = when (dialog) {
-        is AppDialog.RestoreFailure -> this[AppDialogKeys.PENDING_RESTORE_FAILURE] == true
-        is AppDialog.RestoreSuccess -> this[AppDialogKeys.PENDING_RESTORE_SUCCESS] == true
-        AppDialog.UndoRestoreSuccess -> this[AppDialogKeys.PENDING_UNDO_RESTORE_SUCCESS] == true
-        is AppDialog.UndoRestoreConfirmation ->
-            this[AppDialogKeys.PENDING_UNDO_RESTORE_CONFIRMATION] == true
+        is AppDialog.RestoreFailure ->
+            this[AppDialogKeys.PENDING_RESTORE_FAILURE] == true &&
+                this[AppDialogKeys.PENDING_RESTORE_FAILURE_REASON] == dialog.reason.name &&
+                this[AppDialogKeys.PENDING_RESTORE_FAILURE_OWNER] ==
+                dialog.terminalOwner?.value
+
+        is AppDialog.RestoreSuccess ->
+            this[AppDialogKeys.PENDING_RESTORE_SUCCESS] == true &&
+                this[AppDialogKeys.PENDING_RESTORE_SUCCESS_AT_EPOCH_MS] ==
+                dialog.restoredAtEpochMs &&
+                this[AppDialogKeys.PENDING_RESTORE_SUCCESS_HAS_PREVIOUS] ==
+                dialog.previousVersionAvailable &&
+                this[AppDialogKeys.PENDING_RESTORE_SUCCESS_OWNER] ==
+                dialog.terminalOwner?.value
+
+        is AppDialog.UndoRestoreSuccess ->
+            this[AppDialogKeys.PENDING_UNDO_RESTORE_SUCCESS] == true &&
+                this[AppDialogKeys.PENDING_UNDO_RESTORE_SUCCESS_OWNER] ==
+                dialog.terminalOwner?.value
+
+        is AppDialog.UndoRestoreConfirmation -> {
+            val pendingOwner = this[AppDialogKeys.PENDING_UNDO_RESTORE_CONFIRMATION_OWNER]
+            this[AppDialogKeys.PENDING_UNDO_RESTORE_CONFIRMATION] == true &&
+                pendingOwner == dialog.undoRef.owner.value
+        }
     }
 
     private fun MutablePreferences.writeFlags(dialog: AppDialog) {
@@ -91,6 +108,10 @@ class AppDialogRepository internal constructor(
             is AppDialog.RestoreFailure -> {
                 this[AppDialogKeys.PENDING_RESTORE_FAILURE] = true
                 this[AppDialogKeys.PENDING_RESTORE_FAILURE_REASON] = dialog.reason.name
+                writeOptionalOwner(
+                    AppDialogKeys.PENDING_RESTORE_FAILURE_OWNER,
+                    dialog.terminalOwner,
+                )
             }
 
             is AppDialog.RestoreSuccess -> {
@@ -98,42 +119,93 @@ class AppDialogRepository internal constructor(
                 this[AppDialogKeys.PENDING_RESTORE_SUCCESS_AT_EPOCH_MS] = dialog.restoredAtEpochMs
                 this[AppDialogKeys.PENDING_RESTORE_SUCCESS_HAS_PREVIOUS] =
                     dialog.previousVersionAvailable
+                writeOptionalOwner(
+                    AppDialogKeys.PENDING_RESTORE_SUCCESS_OWNER,
+                    dialog.terminalOwner,
+                )
             }
 
-            AppDialog.UndoRestoreSuccess -> {
+            is AppDialog.UndoRestoreSuccess -> {
+                // The terminal is published only after rollback finalization is durable. Clearing
+                // the initiating confirmation in this same dialog-store edit prevents it resurfacing.
+                remove(AppDialogKeys.PENDING_UNDO_RESTORE_CONFIRMATION)
+                remove(AppDialogKeys.PENDING_UNDO_RESTORE_CONFIRMATION_ORIGINAL_AT_EPOCH_MS)
+                remove(AppDialogKeys.PENDING_UNDO_RESTORE_CONFIRMATION_OWNER)
                 this[AppDialogKeys.PENDING_UNDO_RESTORE_SUCCESS] = true
+                writeOptionalOwner(
+                    AppDialogKeys.PENDING_UNDO_RESTORE_SUCCESS_OWNER,
+                    dialog.terminalOwner,
+                )
             }
 
             is AppDialog.UndoRestoreConfirmation -> {
                 this[AppDialogKeys.PENDING_UNDO_RESTORE_CONFIRMATION] = true
                 this[AppDialogKeys.PENDING_UNDO_RESTORE_CONFIRMATION_ORIGINAL_AT_EPOCH_MS] =
                     dialog.originalDataDateEpochMs
+                this[AppDialogKeys.PENDING_UNDO_RESTORE_CONFIRMATION_OWNER] =
+                    dialog.undoRef.owner.value
             }
         }
     }
 
     private fun MutablePreferences.clearFlags(dialog: AppDialog) {
+        if (!isAlreadyPending(dialog)) return
         when (dialog) {
             is AppDialog.RestoreFailure -> {
                 remove(AppDialogKeys.PENDING_RESTORE_FAILURE)
                 remove(AppDialogKeys.PENDING_RESTORE_FAILURE_REASON)
+                remove(AppDialogKeys.PENDING_RESTORE_FAILURE_OWNER)
             }
 
             is AppDialog.RestoreSuccess -> {
                 remove(AppDialogKeys.PENDING_RESTORE_SUCCESS)
                 remove(AppDialogKeys.PENDING_RESTORE_SUCCESS_AT_EPOCH_MS)
                 remove(AppDialogKeys.PENDING_RESTORE_SUCCESS_HAS_PREVIOUS)
+                remove(AppDialogKeys.PENDING_RESTORE_SUCCESS_OWNER)
             }
 
-            AppDialog.UndoRestoreSuccess -> {
+            is AppDialog.UndoRestoreSuccess -> {
                 remove(AppDialogKeys.PENDING_UNDO_RESTORE_SUCCESS)
+                remove(AppDialogKeys.PENDING_UNDO_RESTORE_SUCCESS_OWNER)
             }
 
             is AppDialog.UndoRestoreConfirmation -> {
-                remove(AppDialogKeys.PENDING_UNDO_RESTORE_CONFIRMATION)
-                remove(AppDialogKeys.PENDING_UNDO_RESTORE_CONFIRMATION_ORIGINAL_AT_EPOCH_MS)
+                val pendingOwner = this[AppDialogKeys.PENDING_UNDO_RESTORE_CONFIRMATION_OWNER]
+                if (pendingOwner == dialog.undoRef.owner.value) {
+                    remove(AppDialogKeys.PENDING_UNDO_RESTORE_CONFIRMATION)
+                    remove(AppDialogKeys.PENDING_UNDO_RESTORE_CONFIRMATION_ORIGINAL_AT_EPOCH_MS)
+                    remove(AppDialogKeys.PENDING_UNDO_RESTORE_CONFIRMATION_OWNER)
+                }
             }
         }
+    }
+
+    private fun MutablePreferences.reconcileRestoreEpoch(epoch: InstallEpoch) {
+        if (this[AppDialogKeys.RESTORE_DIALOG_INSTALL_EPOCH] == epoch.toString()) return
+        clearAllRestoreDialogs()
+        this[AppDialogKeys.RESTORE_DIALOG_INSTALL_EPOCH] = epoch.toString()
+    }
+
+    private fun MutablePreferences.clearAllRestoreDialogs() {
+        remove(AppDialogKeys.PENDING_RESTORE_SUCCESS)
+        remove(AppDialogKeys.PENDING_RESTORE_SUCCESS_AT_EPOCH_MS)
+        remove(AppDialogKeys.PENDING_RESTORE_SUCCESS_HAS_PREVIOUS)
+        remove(AppDialogKeys.PENDING_RESTORE_SUCCESS_OWNER)
+        remove(AppDialogKeys.PENDING_RESTORE_FAILURE)
+        remove(AppDialogKeys.PENDING_RESTORE_FAILURE_REASON)
+        remove(AppDialogKeys.PENDING_RESTORE_FAILURE_OWNER)
+        remove(AppDialogKeys.PENDING_UNDO_RESTORE_CONFIRMATION)
+        remove(AppDialogKeys.PENDING_UNDO_RESTORE_CONFIRMATION_ORIGINAL_AT_EPOCH_MS)
+        remove(AppDialogKeys.PENDING_UNDO_RESTORE_CONFIRMATION_OWNER)
+        remove(AppDialogKeys.PENDING_UNDO_RESTORE_SUCCESS)
+        remove(AppDialogKeys.PENDING_UNDO_RESTORE_SUCCESS_OWNER)
+    }
+
+    private fun MutablePreferences.writeOptionalOwner(
+        key: Preferences.Key<String>,
+        owner: RestoreOwnerId?,
+    ) {
+        if (owner == null) remove(key) else this[key] = owner.value
     }
 
     internal companion object {

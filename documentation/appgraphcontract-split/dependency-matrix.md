@@ -73,21 +73,21 @@ Method: each `*Feature.kt` reader's consumed set == the accessors passed into it
 
 | Reader | count | `create(...)` / read site | consumed accessors |
 |---|---|---|---|
-| **AllExercises** | 8 | `AllExercisesFeature.kt:35` | analyticsHolder, defaultDispatcher, exerciseRepository, loggerHolder, navigator, resourceWrapper, storeDispatchers, tagRepository |
-| **AllTrainings** | 8 | `AllTrainingsFeature.kt:34` | analyticsHolder, defaultDispatcher, loggerHolder, navigator, resourceWrapper, storeDispatchers, tagRepository, trainingRepository |
-| **AppDialog** | 3 | `AppDialogFeature.kt:41` | analyticsHolder, loggerHolder, storeDispatchers |
-| **Archive** | 8 | `ArchiveFeature.kt:38` | analyticsHolder, defaultDispatcher, exerciseRepository, loggerHolder, navigator, resourceWrapper, storeDispatchers, trainingRepository |
-| **ExerciseChart** | 8 | `ExerciseChartFeature.kt:39` | analyticsHolder, defaultDispatcher, exerciseRepository, loggerHolder, navigator, resourceWrapper, sessionRepository, storeDispatchers |
-| **Exercise** | 13 | `ExerciseFeature.kt:36` | analyticsHolder, defaultDispatcher, exerciseRepository, imageStorage, loggerHolder, mainImmediateDispatcher, navigator, personalRecordRepository, resourceWrapper, sessionRepository, storeDispatchers, tagRepository, trainingRepository |
-| **Home** | 9 | `HomeFeature.kt:35` | analyticsHolder, defaultDispatcher, loggerHolder, navigator, resourceWrapper, sessionConflictResolver, sessionRepository, storeDispatchers, trainingRepository |
-| **ImageViewer** | 4 | `ImageViewerFeature.kt:38` | analyticsHolder, loggerHolder, navigator, storeDispatchers |
+| **AllExercises** | 8 | `AllExercisesFeature.kt:24` | analyticsHolder, defaultDispatcher, exerciseRepository, loggerHolder, navigator, resourceWrapper, storeDispatchers, tagRepository |
+| **AllTrainings** | 8 | `AllTrainingsFeature.kt:26` | analyticsHolder, defaultDispatcher, loggerHolder, navigator, resourceWrapper, storeDispatchers, tagRepository, trainingRepository |
+| **AppDialog** | 3 | `AppDialogFeature.kt:29` | analyticsHolder, loggerHolder, storeDispatchers |
+| **Archive** | 8 | `ArchiveFeature.kt:28` | analyticsHolder, defaultDispatcher, exerciseRepository, loggerHolder, navigator, resourceWrapper, storeDispatchers, trainingRepository |
+| **ExerciseChart** | 8 | `ExerciseChartFeature.kt:29` | analyticsHolder, defaultDispatcher, exerciseRepository, loggerHolder, navigator, resourceWrapper, sessionRepository, storeDispatchers |
+| **Exercise** | 13 | `ExerciseFeature.kt:22` | analyticsHolder, defaultDispatcher, exerciseRepository, imageStorage, loggerHolder, mainImmediateDispatcher, navigator, personalRecordRepository, resourceWrapper, sessionRepository, storeDispatchers, tagRepository, trainingRepository |
+| **Home** | 9 | `HomeFeature.kt:25` | analyticsHolder, defaultDispatcher, loggerHolder, navigator, resourceWrapper, sessionConflictResolver, sessionRepository, storeDispatchers, trainingRepository |
+| **ImageViewer** | 4 | `ImageViewerFeature.kt:29` | analyticsHolder, loggerHolder, navigator, storeDispatchers |
 | **LiveWorkout** | 13 | `LiveWorkoutFeature.kt` (create block :40–52) | analyticsHolder, defaultDispatcher, exerciseRepository, loggerHolder, navigator, performedExerciseRepository, personalRecordRepository, resourceWrapper, sessionRepository, setRepository, storeDispatchers, trainingExerciseRepository, trainingRepository |
 | **PastSession** | 9 | `PastSessionFeature.kt` (create block :40–48) | analyticsHolder, ioDispatcher, loggerHolder, navigator, personalRecordRepository, resourceWrapper, sessionRepository, setRepository, storeDispatchers |
 | **PlanEditor** | 8 | `PlanEditorFeature.kt` (create block :39–46) | analyticsHolder, defaultDispatcher, exerciseRepository, loggerHolder, navigator, resourceWrapper, storeDispatchers, trainingExerciseRepository |
 | **Settings** | 16 | `SettingsFeature.kt` (create block :42–58) | analyticsHolder, autoBackupController, backupAuth, backupPreferencesRepository, backupStorage, commonDataStore, databaseSnapshotProvider, defaultDispatcher, ioDispatcher, loggerHolder, navigator, platformInfoProvider, restoreStateRepository, snapshotExportRunner, storeDispatchers, tempFileProvider |
 | **SingleTraining** | 13 | `SingleTrainingFeature.kt` (create block :43–55) | analyticsHolder, defaultDispatcher, exerciseRepository, loggerHolder, mainImmediateDispatcher, navigator, resourceWrapper, sessionConflictResolver, sessionRepository, storeDispatchers, tagRepository, trainingExerciseRepository, trainingRepository |
-| **RecoveryActivity** | 2 | `RecoveryActivity.kt:69` + `:71` (direct reads) | databaseSnapshotProvider, recoveryDiagnosticsExporter |
-| **MetroWorkerFactory** | 6 | `MetroWorkerFactory.kt:40–45` (direct reads) | autoBackupController, backupNotificationHelper, backupPreferencesRepository, backupStorage, databaseSnapshotProvider, snapshotExportRunner |
+| **RecoveryActivity** | 2 | `RecoveryActivity.kt:45` + `:71` (direct reads) | databaseSnapshotProvider, recoveryDiagnosticsExporter |
+| **MetroWorkerFactory** | 6 | `MetroWorkerFactory.kt:21–45` (direct reads) | autoBackupController, backupNotificationHelper, backupPreferencesRepository, backupStorage, databaseSnapshotProvider, snapshotExportRunner |
 
 ### ✓-matrix (rows = 15 readers · columns = 30 consumed accessors)
 
@@ -154,8 +154,8 @@ defaultDispatcher 10/15 · resourceWrapper 10/15 · exerciseRepository 7/15 · s
 - **1/15:** backupAuth (Settings) · backupNotificationHelper (Worker) · commonDataStore (Settings) · imageStorage (Exercise) · performedExerciseRepository (LiveWorkout) · platformInfoProvider (Settings) · recoveryDiagnosticsExporter (RecoveryActivity) · restoreStateRepository (Settings) · tempFileProvider (Settings).
 
 ### Dead surface — accessors on the contract consumed by ZERO of the 15 readers
-- **`appReinitializer`** (contract :75) — no `graph.appReinitializer` / `appGraphContract().appReinitializer` in any of the 15. (Declared on `AppGraph.kt:136` as an override; not read through the contract.)
-- **`liveDatabaseLocator`** (contract :105) — no contract read in any of the 15. (Declared on `AppGraph.kt:256`; used inside `feature/recovery/.../StartupMigrationCoordinator.kt:125` as `liveDatabaseLocator.liveDatabaseFile()`, but that is a **constructor-injected graph node**, not a read via `appGraphContract()`.)
+- **`appReinitializer`** (contract :75) — no `graph.appReinitializer` / `appGraphContract().appReinitializer` in any of the 15. (Declared on `AppGraph.kt:83` as an override; not read through the contract.)
+- **`liveDatabaseLocator`** (contract :105) — no contract read in any of the 15. (Declared on `AppGraph.kt:132`; used inside `feature/recovery/.../StartupMigrationCoordinator.kt:63` as `liveDatabaseLocator.liveDatabaseFile()`, but that is a **constructor-injected graph node**, not a read via `appGraphContract()`.)
 
 So **2 of the 32** contract accessors are unread by any channel-(a) reader; the consumed **union is 30**.
 

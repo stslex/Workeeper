@@ -40,6 +40,7 @@
     <string name="feature_training_edit_add_exercise">Добавить упражнение</string>
     <string name="feature_training_edit_exercise_removed">Упражнение убрано из тренировки</string>
     <string name="feature_training_edit_no_plan">плана пока нет</string>
+    <string name="feature_training_edit_plan_set_removed">Подход удалён</string>
     <string name="feature_training_edit_remove_exercise">Удалить упражнение</string>
     <string name="feature_training_edit_drag_handle">Переместить</string>
     <string name="feature_training_edit_error_name_required">Введите название</string>

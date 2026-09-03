@@ -1,0 +1,20 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<testsuites tests="10" failures="0" errors="0" skipped="0" time="11.92" timestamp="2026-08-25T14:58:57" hostname="localhost">
+  <testsuite name="io.github.stslex.workeeper.feature.app_dialogs.impl.ui.AppDialogHostContentTest" tests="10" failures="0" errors="0" skipped="0" time="9.164" timestamp="2026-08-25T14:58:57" hostname="localhost">
+    <properties>
+      <property name="device" value="Pixel_6_API_34(AVD) - 14" />
+      <property name="flavor" value="" />
+      <property name="project" value=":feature:app-dialogs:impl" />
+    </properties>
+    <testcase name="undoRestoreConfirmationConfirmDispatchesConfirmUndo" classname="io.github.stslex.workeeper.feature.app_dialogs.impl.ui.AppDialogHostContentTest" time="2.085" />
+    <testcase name="restoreFailureExportTapDispatchesExportDiagnostics" classname="io.github.stslex.workeeper.feature.app_dialogs.impl.ui.AppDialogHostContentTest" time="1.187" />
+    <testcase name="nullCurrentRendersNothing" classname="io.github.stslex.workeeper.feature.app_dialogs.impl.ui.AppDialogHostContentTest" time="0.585" />
+    <testcase name="undoRestoreConfirmationCancelDispatchesCancel" classname="io.github.stslex.workeeper.feature.app_dialogs.impl.ui.AppDialogHostContentTest" time="0.833" />
+    <testcase name="restoreSuccessHidesUndoActionWhenNoPreviousAvailable" classname="io.github.stslex.workeeper.feature.app_dialogs.impl.ui.AppDialogHostContentTest" time="0.677" />
+    <testcase name="restoreSuccessRendersWithTitleAndUndoActionWhenPreviousAvailable" classname="io.github.stslex.workeeper.feature.app_dialogs.impl.ui.AppDialogHostContentTest" time="0.777" />
+    <testcase name="restoreFailureRendersThreeButtonsAndOkDispatchesAcknowledge" classname="io.github.stslex.workeeper.feature.app_dialogs.impl.ui.AppDialogHostContentTest" time="0.806" />
+    <testcase name="undoRestoreSuccessRendersTitleAndOkDispatchesAcknowledge" classname="io.github.stslex.workeeper.feature.app_dialogs.impl.ui.AppDialogHostContentTest" time="0.708" />
+    <testcase name="restoreFailureReportTapDispatchesReport" classname="io.github.stslex.workeeper.feature.app_dialogs.impl.ui.AppDialogHostContentTest" time="0.798" />
+    <testcase name="restoreSuccessUndoTapDispatchesRequestUndoChoice" classname="io.github.stslex.workeeper.feature.app_dialogs.impl.ui.AppDialogHostContentTest" time="0.708" />
+  </testsuite>
+</testsuites>

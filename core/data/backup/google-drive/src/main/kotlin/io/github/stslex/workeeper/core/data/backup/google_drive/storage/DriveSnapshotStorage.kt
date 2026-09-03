@@ -24,13 +24,8 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 
 /**
- * `SnapshotStorage` impl over Drive v3 files in the *visible* `drive` space — the sibling
- * of `DriveBackupStorage` (which targets the hidden `appDataFolder`). It owns the
- * `Workeeper/` folder lifecycle (create-or-lookup + id cache), uploads the JSON bytes, and
- * prunes old snapshots via the shared [RotationPolicy].
- *
- * 401 handling mirrors `DriveBackupStorage` ([withTokenRefreshOn401]); a stale cached
- * folder id surfaces as a `404` on upload, which is recovered once (recreate + retry).
+ * [SnapshotStorage] over Drive v3 files in the *visible* `drive` space, sibling of
+ * `DriveBackupStorage`; owns the `Workeeper/` folder lifecycle and prunes via [RotationPolicy].
  */
 @ContributesBinding(AppScope::class)
 @SingleIn(AppScope::class)
@@ -58,13 +53,7 @@ class DriveSnapshotStorage @Inject internal constructor(
             )
         }
 
-    /**
-     * Deletes every snapshot file in the visible folder (consent withdrawal / sign-out cleanup).
-     * No-op when `drive.file` is not granted (can't see the visible files without the scope) or
-     * when no folder exists yet — and it never CREATES a folder, unlike [resolveFolderId]. The
-     * empty folder is left in place; only `workeeper_export_*` files are removed. Per-file delete
-     * failures are swallowed (best-effort); a list failure surfaces as a typed [BackupResult].
-     */
+    /** Deletes every `workeeper_export_*` file; no-ops without the `drive.file` grant. */
     override suspend fun deleteAllSnapshots(): BackupResult<Unit> = withContext(dispatcher) {
         if (!accountStore.isDriveFileGranted()) return@withContext BackupResult.Success(Unit)
         runCatching {
@@ -91,7 +80,7 @@ class DriveSnapshotStorage @Inject internal constructor(
         return id
     }
 
-    /** Cached id, else the oldest existing `Workeeper/` folder in Drive, else `null` (no create). */
+    /** Cached id, else the oldest existing `Workeeper/` folder, else `null` (no create). */
     private suspend fun existingFolderId(): String? =
         accountStore.snapshotFolderId() ?: findFolderInDrive()?.id
 
@@ -99,11 +88,7 @@ class DriveSnapshotStorage @Inject internal constructor(
         driveApi.listFiles(spaces = DRIVE_SPACE, query = FOLDER_QUERY)
     }.minByOrNull { it.createdTime.orEmpty() }
 
-    /**
-     * Uploads to [folderId]; if the folder is gone (`404`, e.g. user trashed it), drops the
-     * cached id, recreates the folder, and retries once. Returns the folder id actually
-     * uploaded into, so rotation prunes the right folder.
-     */
+    /** Uploads to [folderId]; a `404` recreates the folder, retries once and returns its id. */
     private suspend fun uploadWithFolderRecovery(
         name: String,
         content: ByteArray,
@@ -121,11 +106,7 @@ class DriveSnapshotStorage @Inject internal constructor(
         newId
     }
 
-    /**
-     * Best-effort rotation: list snapshots in [folderId] and delete the oldest beyond
-     * [BackupConstants.MAX_BACKUPS]. Failures never propagate — the upload already
-     * succeeded and leftover files are non-blocking housekeeping.
-     */
+    /** Best-effort rotation past [BackupConstants.MAX_BACKUPS]; failures never propagate. */
     private suspend fun rotate(folderId: String) {
         runCatching {
             val files = withTokenRefreshOn401 {

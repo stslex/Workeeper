@@ -1,0 +1,13 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<testsuites tests="1" failures="0" errors="0" skipped="1" time="0.596" timestamp="2026-08-25T14:55:07" hostname="localhost">
+  <testsuite name="io.github.stslex.workeeper.feature.archive.ArchiveScreenTest" tests="1" failures="0" errors="0" skipped="1" time="0.025" timestamp="2026-08-25T14:55:07" hostname="localhost">
+    <properties>
+      <property name="device" value="Pixel_6_API_34(AVD) - 14" />
+      <property name="flavor" value="" />
+      <property name="project" value=":feature:archive" />
+    </properties>
+    <testcase name="pendingFeatureRewrite" classname="io.github.stslex.workeeper.feature.archive.ArchiveScreenTest" time="0.025">
+      <skipped />
+    </testcase>
+  </testsuite>
+</testsuites>

@@ -1,0 +1,22 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<testsuites tests="5" failures="0" errors="0" skipped="0" time="9.459" timestamp="2026-08-25T12:27:12" hostname="localhost">
+  <testsuite name="io.github.stslex.workeeper.feature.exercise.ExerciseFormBasicsTest" tests="2" failures="0" errors="0" skipped="0" time="4.86" timestamp="2026-08-25T12:27:12" hostname="localhost">
+    <properties>
+      <property name="device" value="Pixel_6_API_34(AVD) - 14" />
+      <property name="flavor" value="" />
+      <property name="project" value=":feature:exercise" />
+    </properties>
+    <testcase name="f02_saveIsEnabledWithAnEmptyName_soTheBlankNameErrorIsReachable" classname="io.github.stslex.workeeper.feature.exercise.ExerciseFormBasicsTest" time="3.488" />
+    <testcase name="f02_tappingSaveWithAValidName_dispatchesOnSaveClick" classname="io.github.stslex.workeeper.feature.exercise.ExerciseFormBasicsTest" time="1.372" />
+  </testsuite>
+  <testsuite name="io.github.stslex.workeeper.feature.exercise.ExerciseScreenTest" tests="3" failures="0" errors="0" skipped="0" time="2.975" timestamp="2026-08-25T12:27:12" hostname="localhost">
+    <properties>
+      <property name="device" value="Pixel_6_API_34(AVD) - 14" />
+      <property name="flavor" value="" />
+      <property name="project" value=":feature:exercise" />
+    </properties>
+    <testcase name="edit_inCreateMode_startsFromAnEmptyInlinePlan" classname="io.github.stslex.workeeper.feature.exercise.ExerciseScreenTest" time="1.255" />
+    <testcase name="edit_forExistingExercise_editsThePlanInlineToo" classname="io.github.stslex.workeeper.feature.exercise.ExerciseScreenTest" time="0.87" />
+    <testcase name="edit_inCreateMode_rendersPlanRowsWhenAdhocPlanIsPresent" classname="io.github.stslex.workeeper.feature.exercise.ExerciseScreenTest" time="0.85" />
+  </testsuite>
+</testsuites>

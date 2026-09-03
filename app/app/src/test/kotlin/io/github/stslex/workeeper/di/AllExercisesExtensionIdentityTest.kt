@@ -4,6 +4,7 @@ package io.github.stslex.workeeper.di
 import android.content.Context
 import dev.zacsweers.metro.asContribution
 import dev.zacsweers.metro.createGraphFactory
+import io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetime
 import io.github.stslex.workeeper.feature.all_exercises.di.AllExercisesGraph
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
@@ -16,23 +17,12 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
 /**
- * Replaces the former feature-module `AllExercisesGraphBridgeTest` (a `@GraphExtension` cannot be created
- * standalone, so the assertion must run where the parent [AppGraph] is compiled — here, `:app`).
- *
- * Proves the contributed extension aggregates into the REAL parent graph and inherits its app-scoped
- * bindings by IDENTITY, not copy:
- *  1. the extension resolves `AllExercisesStoreImpl` (constructed via its INTERNAL ctor + internal
- *     handlers, entirely by :app-generated code), and
- *  2. the store's app-scoped deps are the SAME instances the parent graph holds (`===`).
- *
- * Plain construction assertion, as in [HomeExtensionIdentityTest]: nothing all-exercises resolves touches
- * a platform singleton, so STANDING RULE 4's boundary shape (see [SettingsExtensionIdentityTest]) does not
- * apply here.
+ * Identity claims for the all-exercises `@GraphExtension`: it resolves its Store from the real
+ * parent [AppGraph] and inherits app-scoped bindings by identity, not copy.
  */
 internal class AllExercisesExtensionIdentityTest {
 
-    // The real parent graph provides Dispatchers.Main.immediate (DispatchersBindingContainer); a plain
-    // JVM test must install a Main dispatcher before the store constructs.
+    // GUARD: Store construction reads the parent graph's Main.immediate binding.
     @BeforeEach
     fun setUp() {
         Dispatchers.setMain(Dispatchers.Unconfined)
@@ -48,6 +38,8 @@ internal class AllExercisesExtensionIdentityTest {
             applicationContext = mockk<Context>(relaxed = true),
             appDatabase = mockk(relaxed = true),
             imageStorage = mockk(relaxed = true),
+            appScopeLifetime = AppScopeLifetime(),
+            databaseReplacement = mockk(relaxed = true),
         )
 
     @Test
@@ -72,7 +64,6 @@ internal class AllExercisesExtensionIdentityTest {
             .createAllExercisesGraph()
             .allExercisesStore
 
-        // Identity, not just non-null: the extension inherits the parent's app-scoped singletons.
         assertSame(
             appGraph.analyticsHolder,
             store.analyticsHolder,

@@ -10,7 +10,7 @@ All workflow files live under `.github/workflows/`.
 
 | File | Trigger | Purpose |
 |---|---|---|
-| `android_build_unified.yml` | push to `master`, every `pull_request`, `workflow_dispatch` | detekt, Android Lint, build, unit tests, test reporting. Gates PRs. |
+| `android_build_unified.yml` | push to `master`, every `pull_request`, `workflow_dispatch` | Two jobs: `Build and Unit Tests` (including MVI/shared-UI topology, forced Android-host tests and exact identities; Linux) and `KMP iOS kit smoke` (kit, navigation, MVI, start-mode, shared plan-editor UI, image-viewer, and the plan-editor feature Native tests plus exact identities on `macos-26`). Gates PRs. |
 | `ui_tests.yml` | weekly `schedule` (Mondays 05:00 UTC, against `dev`), `workflow_dispatch`, `workflow_call` | Smoke / regression UI tests on an emulator. Does not gate PRs; called by `android_deploy_prod.yml` with `test_suite=smoke`. |
 | `mockup_gate.yml` | every `pull_request` **except** into `master`, `workflow_dispatch`, `workflow_call` | Runs `documentation/mockups/shell_gate.py` against the v3 shell mockup, plus its permanent known negative. Seconds; no emulator, no JDK, no secrets. |
 | `pr_guard.yml` | `pull_request` into `master` only | Fails any PR into `master` whose head branch is not `release/release-v.X.Y.Z`. |
@@ -54,17 +54,29 @@ manual dispatch, or inside the production deploy — never on a PR.
 ```bash
 ./gradlew assembleDebug --full-stacktrace
 ./gradlew assembleDebugAndroidTest --full-stacktrace   # compiles the instrumented tests; running them still needs a device
+python3 .github/scripts/assert_mvi_source_topology.py
+python3 .github/scripts/assert_kmp_ui_source_topology.py
 ./gradlew verifyPaparazziDebug --full-stacktrace   # visual gate, before anything can rewrite the tree
 ./gradlew :lint-rules:test --full-stacktrace       # the custom detekt rules, before detekt consumes them
 ./gradlew detekt --full-stacktrace
 python3 documentation/personal_data_gate.py -v     # no real names/emails in tracked files
 ./gradlew lintDebug --no-configuration-cache --full-stacktrace
+./gradlew :core:ui:mvi:testAndroidHostTest --rerun-tasks --no-build-cache --no-configuration-cache --full-stacktrace --console=plain
+python3 .github/scripts/assert_mvi_host_identities.py
 ./gradlew testDebugUnitTest --full-stacktrace
 ```
 
 Order is load-bearing twice over. `verifyPaparazziDebug` runs first so the goldens are compared
 against the tree as checked out, before any step could rewrite it. `:lint-rules:test` runs before
 `detekt`, since detekt is what consumes the jar those tests cover.
+
+Every repo-wide spelling above also covers the KMP-shaped `:core:ui:kit`, `:core:ui:navigation`,
+`:core:ui:mvi`, `:core:ui:start-mode`, `:core:ui:plan-editor`, `:feature:image-viewer`, and
+`:feature:plan-editor`: the KMP
+conventions register `assembleDebug`, `testDebugUnitTest`, `lintDebug`,
+`assembleDebugAndroidTest` and `verifyPaparazziDebug` as lifecycle aliases onto the real KMP tasks
+(`assemble`, `testAndroidHostTest`, `lint`, `assembleAndroidDeviceTest`,
+`verifyPaparazziAndroidMain`), so a converted module cannot silently vanish from these steps.
 
 `lintDebug` is run with `--no-configuration-cache` because the lint integration is not
 configuration-cache compatible at the pinned Android Gradle Plugin version. That flag is about the
@@ -152,6 +164,59 @@ python3 documentation/mockups/shell_gate.py --target f52462c7   # must exit 1
 Whether `Mockup Appearance Gate` is required to merge is a branch-protection setting, not a
 property of the workflow.
 
+## KMP iOS kit smoke job
+
+The unified workflow's second job (`KMP iOS kit smoke`, `runs-on: macos-26`) is the stable
+required context for the Phase-7 native tests. One forced Gradle invocation executes the
+`iosSimulatorArm64Test` tasks for `:core:ui:kit` (resource-backed Compose scene),
+`:core:ui:navigation` (all 12 routes through the production serialization registry),
+`:core:ui:mvi` (lifetime/event/navigation/processor contracts), `:core:ui:start-mode`
+(production sheet composition, migrated resources, selected-state semantics, and callback),
+`:core:ui:plan-editor` (common reducer coverage plus the production read-only-to-editable scene),
+`:feature:image-viewer` (12 common handler cases plus the production resource, branch, Coil, and
+action scene), and `:feature:plan-editor` (all 42 portable cases plus the production resource,
+branch, and action scene).
+It uses `--continue` so one module's failure cannot mask whether the others ran. The job selects
+`/Applications/Xcode_26.6.app` explicitly, asserts
+`xcodebuild -version` and the presence of an iOS simulator runtime before Gradle, and provisions
+an ephemeral throwaway JKS with `keytool` (the repository configuration reads signing material
+at configuration time; no production secret is used).
+
+After Gradle, `.github/scripts/assert_kmp_ios_smoke.py` parses each module's JUnit XML
+structurally. Per module it requires: the result directory exists with at least one parseable
+`TEST-*.xml` and at least one `<testsuite>`; the declared aggregate `tests` equals the number of
+parsed `<testcase>` elements and is at least one; aggregate `skipped` / `failures` / `errors` are
+zero and no case carries a `<failure>`, `<error>` or `<skipped>` child; and the expected
+normalized `(classname, name)` tuple occurs **exactly once**. Additional *passing* cases are
+allowed, so a module can grow a second native test without editing the script — nothing weakens,
+because every extra case must still pass and still be counted, and a suite declaring more cases
+than it emitted is inconsistent XML rather than evidence. A repo-wide total or a substring match
+could not vouch for a test that vanished; a classname from one case paired with a method name
+from another cannot forge an identity.
+
+The assertion step is bound to the Gradle step's id (`native_tests`) and runs on
+`!cancelled() && steps.native_tests.outcome != 'skipped'` — that is, whenever the Native Gradle
+step actually **started**, red or green. A red native run from a *test* failure is the case where
+the per-module XML matters most, and reporting only Gradle's exit code there would not say which
+module or which tuple broke; a red run from a compile or simulator-boot failure produces no XML,
+and the script says so plainly. It is skipped when the job is cancelled, and when the Gradle step
+never ran because an earlier setup step (checkout, Xcode selection, JDK, signing material) failed —
+asserting there would bury the real setup failure under a misleading `result directory … does not
+exist`. Every module is checked even when an earlier one fails, so a kit-side problem cannot hide
+the navigation, MVI, start-mode, shared plan-editor UI, image-viewer, or plan-editor feature
+verdict. The image-viewer validator requires
+`io.github.stslex.workeeper.feature.image_viewer.ImageViewerSceneIosTest.resourcesBranchesAndActionsRenderAndDispatch`
+exactly once. The plan-editor feature validator requires all 42 portable tuples and
+`io.github.stslex.workeeper.feature.plan_editor.PlanEditorFeatureSceneIosTest.resourcesBranchesAndActionsRenderAndDispatch`
+exactly once, for exactly 43 target tuples. All seven result directories upload under
+`if: always()` regardless.
+
+The job builds no Xcode app, signs no Apple bundle and uploads no framework. See
+[kmp-phase-7-1-ui-kit.md](feature-specs/kmp-phase-7-1-ui-kit.md) §9 for the context's origin and
+required-ruleset status, and
+[kmp-phase-7-2-navigation.md](feature-specs/kmp-phase-7-2-navigation.md) §9 for the expanded
+payload and §19 for the hardening evidence.
+
 ## UI test workflow
 
 `ui_tests.yml` triggers three ways: a weekly `schedule` (cron `0 5 * * 1` — Mondays
@@ -189,6 +254,10 @@ Two parallel jobs (`smoke-tests` and `regression-tests`) gate their own executio
    annotation (see [testing.md](testing.md#running-tests) for the exact `-P` argument),
    with a small heap for the connected phase
    (`-Dorg.gradle.jvmargs=-Xmx3g --max-workers=2`) so the emulator keeps its headroom.
+
+The Smoke job then runs `assert_mvi_device_identities.py` even when the Gradle command failed, so
+the two required MVI cases cannot disappear behind another module's failure or a green zero-test
+task. The original Gradle failure still takes precedence after the identity verdict is captured.
 
 ### Reporting
 
@@ -322,6 +391,7 @@ without overwriting each other.
 | Workflow | Action | `check_name` |
 |---|---|---|
 | `android_build_unified.yml` | `EnricoMi/publish-unit-test-result-action@v2` | `Unit Test Results` |
+| `android_build_unified.yml` | job check run (no reporting action) | `KMP iOS kit smoke` |
 | `android_build_unified.yml` | `mikepenz/action-junit-report@v4` | `Detailed Unit Test Report` |
 | `ui_tests.yml` (smoke job) | EnricoMi | `Smoke UI Test Results (API 34)` |
 | `ui_tests.yml` (smoke job) | mikepenz | `Detailed Smoke Test Report (API 34)` |
@@ -332,6 +402,13 @@ When adding new reporting jobs (e.g. for additional API levels or test types), p
 `check_name` for both the EnricoMi `check_name` and `comment_title` and the mikepenz
 `check_name` to avoid clobbering existing checks.
 
+## Toolchain pins
+
+- The root `build.gradle.kts` `buildscript` block forces `org.jetbrains:annotations:23.0.0`
+  (`resolutionStrategy`): AGP requires `annotations:23.0.0` while Gradle's embedded Kotlin pins
+  `annotations:13.0` **strictly**, and forcing the higher version is what resolves that conflict.
+  Removing the force reintroduces it. Recorded against AGP 9.1.0 / Gradle 9.3.1.
+
 ## Branch model
 
 - `master` is the long-lived main branch. Pushes to `master` retrigger the unified build.
@@ -339,7 +416,7 @@ When adding new reporting jobs (e.g. for additional API levels or test types), p
   runs for any PR target.
 - Release tags follow `beta-v<version>` and `release-v<version>` and are produced by the deploy
   workflows. Pushing a `release-*` tag triggers `github_release_apk.yml` automatically.
-- The pre-commit hook (`.githooks/pre-commit`, installed via `setup-hooks.sh`) is currently
-  disabled at the script level — the hook returns early without running checks. CI is the
-  enforcement point for detekt and lint until the hook is re-enabled. See
-  [lint-rules.md](lint-rules.md#pre-commit-hook) for details.
+- The pre-commit hook (`.githooks/pre-commit`, wired via `setup-hooks.sh` setting
+  `core.hooksPath`) runs `./gradlew detekt` on every commit with staged Kotlin files; its early
+  `exit 0` sits AFTER the detekt block and only skips the Android Lint half, which stays
+  CI-enforced. See [lint-rules.md](lint-rules.md#pre-commit-hook) for details.

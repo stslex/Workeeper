@@ -32,6 +32,8 @@ import io.github.stslex.workeeper.core.ui.kit.components.paging.ListBody
 import io.github.stslex.workeeper.core.ui.kit.components.paging.listBody
 import io.github.stslex.workeeper.core.ui.kit.components.segmented.AppSegmentedControl
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopAppBar
+import io.github.stslex.workeeper.core.ui.kit.resources.Res
+import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_action_back
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
@@ -52,7 +54,7 @@ import io.github.stslex.workeeper.feature.archive.ui.components.pagingTailKind
 import io.github.stslex.workeeper.feature.archive.ui.components.rememberArchiveSurface
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.flow.flowOf
-import io.github.stslex.workeeper.core.ui.kit.R as KitR
+import org.jetbrains.compose.resources.stringResource
 
 @Composable
 internal fun ArchiveScreen(
@@ -80,7 +82,7 @@ internal fun ArchiveScreen(
                     Icon(
                         modifier = Modifier.size(AppDimension.iconMd),
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = stringResource(KitR.string.core_ui_kit_action_back),
+                        contentDescription = stringResource(Res.string.core_ui_kit_action_back),
                     )
                 }
             },
@@ -90,11 +92,6 @@ internal fun ArchiveScreen(
             modifier = Modifier
                 .padding(horizontal = AppDimension.screenEdge, vertical = AppDimension.Space.sm)
                 .testTag("ArchiveSegments"),
-            // The count formatting moved off the UI: CLAUDE.md puts display strings in the UI
-            // mapper, and the `TODO(tech-debt-localization)` that used to sit here said so. The
-            // labels arrive pre-formatted on State; `ArchiveSegmentLabelTest` asserts the
-            // composition, which nothing else could — a golden of a segmented control cannot say
-            // whether its own count is right.
             items = persistentListOf(state.exerciseSegmentLabel, state.trainingSegmentLabel),
             selected = if (state.selectedSegment == Segment.EXERCISES) 0 else 1,
             onSelectedChange = { index ->
@@ -146,10 +143,7 @@ private fun ArchivedExerciseList(
     consume: (Action) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // Taken ABOVE the swap, not inside the region: this branch decides whether the region is
-    // composed at all, and the hold works by staying in composition after the data stops loading.
-    // Reading `archiveListSurface` here would delete the region — and the deferral with it — at
-    // the exact moment the minimum starts. See [ListBody].
+    // GUARD: read the surface above the swap — deriving it inside the region kills the deferral.
     val surface = rememberArchiveSurface(items)
     if (listBody(surface, ArchiveListSurface.CONTENT) == ListBody.REGION) {
         ArchiveEmptyRegion(
@@ -162,10 +156,7 @@ private fun ArchivedExerciseList(
         return
     }
     LazyColumn(
-        // Full-bleed, like both siblings: the drawn row owns its own gutter and its own rule, so
-        // the list adds no horizontal padding and no inter-item spacing. **No bottom clearance
-        // either** — `#s-list`'s navnote scopes the 88dp to the screens that draw a FAB
-        // ("Запас нужен только тем экранам, где кнопка есть"), and this screen draws none.
+        // Full-bleed: the row owns its gutter and rule; no bottom clearance without a FAB.
         modifier = modifier.testTag("ArchiveExerciseList"),
         state = rememberLazyListState(),
     ) {
@@ -175,10 +166,7 @@ private fun ArchivedExerciseList(
         ) { index ->
             items[index]?.let { row ->
                 ArchivedItemRow(
-                    // §26, continuity motion. This is the list where a row leaves on a user
-                    // action — restore and permanent delete both remove one — and until now the
-                    // remainder jumped up under the finger that pressed. Same spec as both list
-                    // screens; the class has one duration and one curve.
+                    // Continuity motion (§26): a row leaves on restore or permanent delete.
                     modifier = Modifier.animateItem(
                         fadeInSpec = continuityAlphaSpec(),
                         placementSpec = continuityPositionalSpec(),
@@ -186,8 +174,7 @@ private fun ArchivedExerciseList(
                     ),
                     item = row.item,
                     metaLine = row.metaLine,
-                    // The drawing removes the last row's rule (`.frame .row:last-of-type`), so the
-                    // list does not end on a hairline into empty space.
+                    // No rule under the last row: the list must not end on a hairline.
                     showDivider = index < items.itemCount - 1,
                     onRestore = { consume(Action.Click.OnRestoreClick(row.item)) },
                     onPermanentDelete = { consume(Action.Click.OnPermanentDeleteClick(row.item)) },
@@ -217,10 +204,7 @@ private fun ArchivedTrainingList(
         return
     }
     LazyColumn(
-        // Full-bleed, like both siblings: the drawn row owns its own gutter and its own rule, so
-        // the list adds no horizontal padding and no inter-item spacing. **No bottom clearance
-        // either** — `#s-list`'s navnote scopes the 88dp to the screens that draw a FAB
-        // ("Запас нужен только тем экранам, где кнопка есть"), and this screen draws none.
+        // Full-bleed: the row owns its gutter and rule; no bottom clearance without a FAB.
         modifier = modifier.testTag("ArchiveTrainingList"),
         state = rememberLazyListState(),
     ) {
@@ -230,10 +214,7 @@ private fun ArchivedTrainingList(
         ) { index ->
             items[index]?.let { row ->
                 ArchivedItemRow(
-                    // §26, continuity motion. This is the list where a row leaves on a user
-                    // action — restore and permanent delete both remove one — and until now the
-                    // remainder jumped up under the finger that pressed. Same spec as both list
-                    // screens; the class has one duration and one curve.
+                    // Continuity motion (§26): a row leaves on restore or permanent delete.
                     modifier = Modifier.animateItem(
                         fadeInSpec = continuityAlphaSpec(),
                         placementSpec = continuityPositionalSpec(),
@@ -241,8 +222,7 @@ private fun ArchivedTrainingList(
                     ),
                     item = row.item,
                     metaLine = row.metaLine,
-                    // The drawing removes the last row's rule (`.frame .row:last-of-type`), so the
-                    // list does not end on a hairline into empty space.
+                    // No rule under the last row: the list must not end on a hairline.
                     showDivider = index < items.itemCount - 1,
                     onRestore = { consume(Action.Click.OnRestoreClick(row.item)) },
                     onPermanentDelete = { consume(Action.Click.OnPermanentDeleteClick(row.item)) },
@@ -253,15 +233,7 @@ private fun ArchivedTrainingList(
     }
 }
 
-/**
- * §26 "Paging tails" — built here for the first time, and the reason is recorded rather than
- * assumed: this screen pages (`ExerciseRepositoryImpl.pagedArchived()` is a real `Pager`) and has
- * always paged, but it read `loadState.append` **nowhere except an emptiness predicate**, so a
- * failed page was a list that quietly stopped. See `archive-delta.md` §3.1 — the drawing was never
- * at fault and no correction is owed to it; the screen was simply behind.
- *
- * The decision lives in [pagingTailKind], not here, because no golden can see it. This is dispatch.
- */
+/** Dispatches the append tail; the decision lives in [pagingTailKind], where a test can see it. */
 private fun LazyListScope.pagingTail(
     items: LazyPagingItems<*>,
     onRetry: () -> Unit,
@@ -274,16 +246,7 @@ private fun LazyListScope.pagingTail(
 }
 
 /**
- * The empty region — B22's fix for this screen.
- *
- * `isPagingEmpty` collapsed three states into one: it wanted `refresh`, `append` **and** `prepend`
- * all `NotLoading`, so on a cold open the tab had no rows *and* its empty state was suppressed by
- * the same condition, and drew nothing at all. A failed first page blanked identically.
- *
- * Four verdicts, not the siblings' six: this screen has no tag filter and no selection mode, so
- * those verdicts are unreachable and are not declared. The loading and error treatments are the
- * kit's paging tails at the position row 1 will occupy — placement, not a new drawing, exactly as
- * on the list screens.
+ * The empty region — four verdicts, not the siblings' six: no tag filter, no selection mode here.
  */
 @Composable
 private fun ArchiveEmptyRegion(
@@ -293,9 +256,7 @@ private fun ArchiveEmptyRegion(
     emptyTestTag: String,
     modifier: Modifier = Modifier,
 ) {
-    // The verdict is PASSED IN, from the swap above — see [ArchiveBody]. Deriving it here again
-    // would put the deferral inside the composable the raw verdict removes, which is where the
-    // minimum hold used to die. `null` is the deferral window, where nothing draws at all.
+    // Passed in from the swap above, never re-derived here; `null` is the deferral window.
     when (surface) {
         null -> Unit
 

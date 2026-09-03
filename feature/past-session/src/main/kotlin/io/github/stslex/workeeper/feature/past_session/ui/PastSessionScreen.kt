@@ -22,6 +22,8 @@ import io.github.stslex.workeeper.core.ui.kit.components.sheet.AppBottomSheet
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppIconButton
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopBar
 import io.github.stslex.workeeper.core.ui.kit.icons.AppIcons
+import io.github.stslex.workeeper.core.ui.kit.resources.Res
+import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_action_back
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
@@ -43,7 +45,7 @@ import io.github.stslex.workeeper.feature.past_session.ui.components.PastSession
 import kotlinx.collections.immutable.ImmutableSet
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.persistentSetOf
-import io.github.stslex.workeeper.core.ui.kit.R as KitR
+import org.jetbrains.compose.resources.stringResource
 
 @Composable
 internal fun PastSessionScreen(
@@ -59,10 +61,7 @@ internal fun PastSessionScreen(
     ) {
         TopBar(state = state, consume = consume)
         when (val phase = state.phase) {
-            // Unreachable through `PastSessionGraph`, which withholds the whole screen while
-            // loading — kept as an arm rather than a crash because the phase is legal state, and
-            // drawing NOTHING is the decision (§26, second amendment), and the top bar above
-            // would meanwhile be showing its fallback title.
+            // Unreachable: `PastSessionGraph` withholds the screen while loading (§26).
             State.Phase.Loading -> Unit
 
             is State.Phase.Error -> ErrorContent(
@@ -103,14 +102,8 @@ internal fun PastSessionScreen(
 }
 
 /**
- * `.topbar` (extraction §2.2): back chevron leading, the `h1.sm` title, vertical three-dot
- * trailing — the same `.icon-btn` treatment as the session screen, plus the small title the
- * session deliberately lacks. The trailing glyph is the mockup's ⋮ overflow, **not** the
- * v2.4 error-tinted delete icon, which is retired: the ⋮ opens the session menu sheet, and
- * deletion lives there as a destructive item ahead of its confirmation.
- *
- * `internal` rather than private so the golden can render it in isolation — the same move
- * `feature/live-workout`'s `TopBar` makes for `SessionHeaderGoldenTest`.
+ * `.topbar` (extraction §2.2): back chevron, `h1.sm` title, ⋮ opening the session menu sheet.
+ * `internal` rather than private so the golden can render it in isolation.
  */
 @Composable
 internal fun TopBar(
@@ -118,9 +111,7 @@ internal fun TopBar(
     consume: (Action) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // GUARD: the fallback is the ERROR phase's title, not a placeholder for the way in — the route
-    // does not compose while loading (`PastSessionGraph`). Composing this before the load lands is
-    // what would put a heading on screen for the name to rewrite.
+    // GUARD: the fallback title serves the ERROR phase; the route never composes while loading.
     val title = (state.phase as? State.Phase.Loaded)?.detail?.trainingName
         ?: stringResource(R.string.feature_past_session_loading_title)
     AppTopBar(
@@ -131,7 +122,7 @@ internal fun TopBar(
             AppIconButton(
                 modifier = Modifier.testTag("PastSessionBackButton"),
                 icon = AppIcons.ChevronLeft,
-                contentDescription = stringResource(KitR.string.core_ui_kit_action_back),
+                contentDescription = stringResource(Res.string.core_ui_kit_action_back),
                 onClick = { consume(Action.Click.OnBackClick) },
             )
         },
@@ -177,13 +168,8 @@ private fun LoadedContent(
     consume: (Action) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // Horizontal padding is per-item rather than contentPadding: `AppSectionHeader` carries
-    // its own screen-edge padding, so a list-level gutter would double it.
-    //
-    // Vertical rhythm, from the mockup's flex column (margins do NOT collapse in flex, so
-    // §2.4's 12px bottom and §2.5's 26px `.cards` top are additive): section head sits
-    // 32dp under the header block and 12dp above the cards region, whose own top margin is
-    // 24dp — first card top = 12+24; between cards the gap is 8dp (10px → 8dp).
+    // GUARD: gutter is per-item, not `contentPadding` — `AppSectionHeader` self-pads and a
+    // list-level gutter would double it on that row. Vertical rhythm follows extraction §2.4.
     LazyColumn(
         modifier = modifier,
         contentPadding = PaddingValues(bottom = AppDimension.Space.xl),
@@ -195,8 +181,7 @@ private fun LoadedContent(
             )
         }
         item(key = "section-head") {
-            // `Записано` / `можно править` (§2.4) — two peer labels; the right one declares
-            // the mode. Same class in the mockup, same one style here.
+            // Two peer labels (§2.4); the right one declares the mode.
             AppSectionHeader(
                 modifier = Modifier.padding(
                     top = AppDimension.Space.xxl,
@@ -217,7 +202,7 @@ private fun LoadedContent(
                     top = if (index == 0) AppDimension.Space.xl else AppDimension.Space.sm,
                 ),
                 exercise = exercise,
-                // The amended §7 disclosure model: open is exactly membership in this set.
+                // Open is exactly membership in the expanded set (§7).
                 expanded = exercise.performedExerciseUuid in expandedUuids,
                 onHeaderClick = {
                     consume(

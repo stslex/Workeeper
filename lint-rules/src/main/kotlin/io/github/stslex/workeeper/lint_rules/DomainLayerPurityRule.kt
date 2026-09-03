@@ -10,39 +10,8 @@ import io.gitlab.arturbosch.detekt.api.Severity
 import org.jetbrains.kotlin.psi.KtImportDirective
 
 /**
- * Domain layer must stay platform-neutral (KMP-portable), so it enforces two things on
- * files under `feature/<X>/domain/`:
- *
- * 1. **No `android.*` imports.** The domain layer must not reference Android framework
- *    types — they must be neutralised behind an `expect`/`actual` seam or a neutral
- *    abstraction and converted at the mvi/ui edge. `androidx.*` is intentionally NOT
- *    flagged: `androidx.paging` / `androidx.datastore` types are multiplatform-portable
- *    and used legitimately in domain interactors (`startsWith("android.")` excludes
- *    `androidx.`). This check applies to `/domain/mapper/` too — a mapper must be portable.
- *    Limitation: it inspects import directives only; an inline fully-qualified
- *    `android.foo.Bar` reference with no import is not caught.
- * 2. **No data MODEL types from `core.data.*`** — the data → domain conversion lives in
- *    `feature/<X>/domain/mapper/` and is the only place such imports are allowed.
- *
- * For the data-model check, the rule flags imports under `feature/<X>/domain/` whose simple name
- * matches a known data-shape suffix (e.g. `DataModel`, `Entity`,
- * `*Row`) OR whose package path includes `.model.`. Repository
- * interfaces, dispatcher qualifiers, storage helpers, and other
- * infrastructure imports under `core.data.*` are intentionally
- * permitted — they are abstractions, not data models, and the audit
- * scope (V1/V3/V6) covers types in public surface, not transitive
- * dependencies.
- *
- * Two exemptions apply:
- *
- *  1. Files inside `feature/<X>/domain/mapper/` are exempt — a mapper's
- *     job is to convert from data to domain, so the data import is the
- *     contract.
- *  2. Imports from `core.data.<feature>.api.*` submodules are exempt —
- *     `core/data/<X>/api/` modules are the public contract surface
- *     shared across the codebase (analogous to a multi-module Maven
- *     api / impl split). Types under `.api.` (including `.api.model.*`)
- *     are intentionally consumable from any layer.
+ * Keeps `feature/<X>/domain/` platform-neutral: no `android.*` imports, and no `core.data.*` model
+ * types outside `/domain/mapper/` and `.api.` submodules. See documentation/lint-rules.md.
  */
 class DomainLayerPurityRule(
     config: Config = Config.empty,
@@ -65,9 +34,7 @@ class DomainLayerPurityRule(
 
         val importPath = importDirective.importPath?.pathStr ?: return
 
-        // (1) Platform leak. Applies to ALL of /feature/*/domain/, mappers included — the
-        // domain layer must be KMP-portable. `startsWith("android.")` excludes `androidx.*`
-        // (multiplatform-portable, legitimately used in domain).
+        // (1) Platform leak, mappers included; `android.` excludes portable `androidx.*`.
         // TODO(tech-debt): inline `android.*` FQN (no import) is not detected — the rule
         //  inspects import directives only. This gap SELF-CLOSES at the KMP split: commonMain
         //  physically cannot see `android.*`, so an inline android FQN won't compile there. FQN
@@ -88,8 +55,7 @@ class DomainLayerPurityRule(
             return
         }
 
-        // (2) Data-model leak. The /domain/mapper/ exemption applies to THIS check only — a
-        // mapper's job is data → domain conversion, so the core.data import is its contract.
+        // (2) Data-model leak. The /domain/mapper/ exemption applies to THIS check only.
         if (filePath.isInDomainMapper()) return
         if (!importPath.startsWith(CORE_DATA_PREFIX)) return
         if (importPath.isFromApiSubmodule()) return
@@ -108,7 +74,6 @@ class DomainLayerPurityRule(
     }
 
     private fun String.isInFeatureDomain(): Boolean {
-        // Match any /feature/<X>/domain/ file regardless of nesting depth.
         return contains("/feature/") && contains("/domain/")
     }
 
@@ -118,10 +83,8 @@ class DomainLayerPurityRule(
     private fun String.isInDomainMapper(): Boolean = contains("/domain/mapper/")
 
     /**
-     * Matches imports under `core.data.<feature>.api.*` — the second segment
-     * after the [CORE_DATA_PREFIX] strip is `api`. The package convention
-     * mirrors the module path `:core:data:<feature>:api/`, so this is a
-     * structural check, not a substring search.
+     * Matches `core.data.<feature>.api.*` — a structural segment check mirroring the module path
+     * `:core:data:<feature>:api/`, not a substring search.
      */
     private fun String.isFromApiSubmodule(): Boolean {
         val suffix = removePrefix(CORE_DATA_PREFIX)
@@ -130,10 +93,7 @@ class DomainLayerPurityRule(
     }
 
     private fun String.isDataModelLike(): Boolean {
-        // Heuristic: suffix-based detection for the known data-shape patterns
-        // the audit identifies as V1 leaks. Repository / Storage / Dao /
-        // Dispatcher / similar utility types are intentionally not in this
-        // list — they are abstractions, not data models.
+        // Suffix heuristic for data shapes; repositories and DAOs are abstractions, not models.
         val simpleName = substringAfterLast('.')
         return DATA_MODEL_SUFFIXES.any { simpleName.endsWith(it) } ||
             this.contains(".model.") ||
@@ -148,8 +108,7 @@ class DomainLayerPurityRule(
     }
 
     private companion object {
-        // Trailing dot is load-bearing: it makes `androidx.` fall outside the prefix, so
-        // multiplatform-portable androidx types in domain/ are not misflagged as leaks.
+        // Trailing dot is load-bearing: it keeps portable `androidx.` outside the prefix.
         const val ANDROID_PREFIX = "android."
         const val CORE_DATA_PREFIX = "io.github.stslex.workeeper.core.data."
 

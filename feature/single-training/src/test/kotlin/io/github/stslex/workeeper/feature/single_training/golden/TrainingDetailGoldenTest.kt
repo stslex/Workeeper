@@ -19,38 +19,12 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.EnumSource
 
 /**
- * The training READ screen (`v3-editors.md` §3.3) — S5's frame, the screen ED9 rules and
- * nothing ever drew.
- *
- * The rulings that land on a static frame of this screen and have no other instrument:
- *
- *  - **Two forms on one screen (ED9)**: the exercises are CARDS — the collapsed form S4
- *    shipped in the editor, minus the drag handle and `✕`, plus the `.chev` — while the
- *    history below them is a full-bleed RULED LIST. [detailWithPlans] holds both at once,
- *    which is the frame the ruling is about.
- *  - **`Изменить` is on the dock, not in the `⋮` menu (ED10)** — the ghost 128dp beside the
- *    primary session button. Every frame shows it.
- *  - **The tags are one mono `.meta` line**, not chips (§3.3's `meta` row).
- *
- * [detailNoPlanExercise] pins the collapsed card's no-plan italic on READ — the same string
- * the editor's card renders, because the two heads are one composable.
- * [detailEmptyHistory] pins the ИСТОРИЯ section ABSENT at zero sessions (S8): a section with
- * nothing in it does not render, head and all — the exercise read screen's rule, per object.
- *
- * Russian, deliberately — the section heads, the dock labels and the no-plan italic are all
- * strings the shipped app renders in Russian (`TrainingEditGoldenTest`'s own reasoning).
- *
- * Out of model, per the harness KDoc: the `⋮` menu sheet and every confirm this screen opens
- * render in their own windows and stay on manual verification.
+ * The training read screen (`v3-editors.md` §3.3) — the ED9/ED10 rulings pinned on a static
+ * frame. Russian, since the heads and dock labels ship in Russian; sheets are out of model.
  */
 internal class TrainingDetailGoldenTest {
 
-    /**
-     * ED9's frame whole: meta line · cards with plans · description · ruled history rows ·
-     * dock. The description renders HERE and only here — the other two frames keep the
-     * section-absent branch pinned (it renders only when there is something in it,
-     * D-OPEN-9's per-object amendment to §3.3).
-     */
+    /** ED9's frame whole: meta · cards with plans · description · ruled history rows · dock. */
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
     fun detailWithPlans(theme: GoldenTheme, testInfo: TestInfo) {

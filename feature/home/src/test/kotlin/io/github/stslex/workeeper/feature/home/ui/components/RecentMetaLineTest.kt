@@ -7,17 +7,8 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 
 /**
- * The meta line's **token order**, which is a decision and not a transcription.
- *
- * §26 "Meta-line order" fixes the rule — information first, tags last, because the line does not
- * wrap so what truncates is always the tail. It does not fix Home's tokens, because Home is not
- * drawn: `pass2d.html` has eleven sections and none of them is this screen. The order chosen is
- * *when · how long · how much*, following `#s-nav`'s drawn session row («12 июля · 6 упражнений»,
- * when-then-count) with duration inserted between.
- *
- * A golden of one row cannot assert an order — it shows the string that resulted, and a reviewer
- * comparing two pictures cannot tell a deliberate order from an accidental one. Hence a pure
- * function and this file (§27).
+ * The meta line's token order — when · how long · how much. A golden of one row shows the string
+ * that resulted and cannot tell a deliberate order from an accidental one.
  */
 internal class RecentMetaLineTest {
 
@@ -39,9 +30,7 @@ internal class RecentMetaLineTest {
     @Test
     @DisplayName("the relative label leads — it is what orders the list being scanned")
     fun relativeLabelIsFirst() {
-        // Pinned separately from the full-string case so a reordering that keeps every token still
-        // reddens something that names the defect, rather than only a long equality that reads as
-        // "the string changed".
+        // Pinned separately so a reordering reddens something that names the defect.
         assertEquals(true, item.metaLine().startsWith(item.finishedAtRelativeLabel))
     }
 
@@ -54,9 +43,7 @@ internal class RecentMetaLineTest {
     @Test
     @DisplayName("an empty token is dropped, not left as a dangling separator")
     fun emptyTokensAreDropped() {
-        // Reachable: `getAbbreviatedRelativeTime` and `formatElapsedDuration` both return strings, and a
-        // zero-length one would otherwise print a leading « · ». The filter is one call and the
-        // failure it prevents is visible on every row at once.
+        // Reachable: a zero-length token would otherwise print a leading « · ».
         assertEquals(
             "47:12 · 5 упражнений · 18 подходов",
             item.copy(finishedAtRelativeLabel = "").metaLine(),

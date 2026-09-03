@@ -112,6 +112,9 @@ jobs:
           restore-keys: |
             konan-${{ runner.os }}-
 
+      - name: Assert shared KMP UI source-set topology
+        run: python3 .github/scripts/assert_kmp_ui_source_topology.py
+
       - name: Build with Gradle
         run: ./gradlew assembleDebug --full-stacktrace
 
@@ -132,6 +135,9 @@ jobs:
       # that same run did) is out of this step's reach by construction.
       - name: Assemble instrumented tests
         run: ./gradlew assembleDebugAndroidTest --full-stacktrace
+
+      - name: Assert MVI source-set topology
+        run: python3 .github/scripts/assert_mvi_source_topology.py
 
       # Visual gate for the v3 redesign. Deliberately placed BEFORE detekt.
       #
@@ -190,6 +196,22 @@ jobs:
 
       - name: Run Android Lint
         run: ./gradlew lintDebug --no-configuration-cache --full-stacktrace
+
+      - name: Run forced MVI Android-host tests
+        id: mvi_host_tests
+        continue-on-error: true
+        run: >
+          ./gradlew :core:ui:mvi:testAndroidHostTest
+          --rerun-tasks --no-build-cache --no-configuration-cache
+          --full-stacktrace --console=plain
+
+      - name: Assert exact MVI Android-host identities
+        if: ${{ !cancelled() && steps.mvi_host_tests.outcome != 'skipped' }}
+        run: python3 .github/scripts/assert_mvi_host_identities.py
+
+      - name: Propagate forced MVI Android-host Gradle failure
+        if: ${{ !cancelled() && steps.mvi_host_tests.outcome == 'failure' }}
+        run: exit 1
 
       - name: Run Unit Tests
         run: ./gradlew testDebugUnitTest --full-stacktrace
@@ -251,3 +273,122 @@ jobs:
         uses: yutailang0119/action-android-lint@v4
         with:
           report-path: "**/build/reports/lint-results-*.xml"
+
+  # The Phase-7 native gate behind the stable required context `KMP iOS kit smoke`: one forced
+  # Gradle invocation executes the kit, navigation, MVI, start-mode, plan-editor and image-viewer
+  # Phase-7 Native tests on the iOS simulator, then a checked-in script requires every exact
+  # per-module XML identity.
+  # Narrow on purpose: no Xcode app, no Apple signing, no XCFramework, no App Store Connect
+  # secrets. See
+  # documentation/feature-specs/kmp-phase-7-1-ui-kit.md §9 and kmp-phase-7-2-navigation.md §9.
+  kmp-ios-kit-smoke:
+    name: KMP iOS kit smoke
+    runs-on: macos-26
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - name: Select Xcode 26.6 and assert the simulator runtime
+        run: |
+          sudo xcode-select -s /Applications/Xcode_26.6.app/Contents/Developer
+          xcodebuild -version
+          xcodebuild -version | grep -q "Xcode 26.6"
+          # The Kotlin/Native test task boots an iOS simulator; fail here, not mid-Gradle.
+          xcrun simctl list runtimes | tee /dev/stderr | grep -q "iOS"
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Use CI-optimized Gradle properties
+        run: cp .github/properties/gradle-ci.properties gradle.properties
+
+      - name: Use CI-optimized Convention Gradle properties
+        run: cp .github/properties/gradle-convention-ci.properties build-logic/gradle.properties
+
+      # Same rationale as the Linux job's ~/.konan cache; macOS downloads its own K/N toolchain.
+      - name: Restore Kotlin/Native toolchain
+        uses: actions/cache@v4
+        with:
+          path: ~/.konan
+          key: konan-${{ runner.os }}-${{ hashFiles('gradle/libs.versions.toml') }}
+          restore-keys: |
+            konan-${{ runner.os }}-
+
+      # Repository configuration reads a signing keystore at configuration time. This job holds
+      # no production secret by design: an ephemeral throwaway JKS satisfies configuration and
+      # signs nothing that leaves the runner. GUARD: the convention resolves storeFile against
+      # the repository root even for absolute paths (java.io.File(parent, "/abs") concatenates),
+      # so the keystore must sit in the workspace and be referenced relatively.
+      - name: Configure ephemeral signing material
+        run: |
+          keytool -genkeypair -alias ci-smoke -keyalg RSA -keysize 2048 -validity 1 \
+            -storepass ci-smoke-pass -keypass ci-smoke-pass \
+            -dname "CN=kmp-ios-kit-smoke" -keystore "$RUNNER_TEMP/ci-smoke.jks"
+          cp "$RUNNER_TEMP/ci-smoke.jks" ci-smoke.jks
+          {
+            echo "storeFile=ci-smoke.jks"
+            echo "keyAlias=ci-smoke"
+            echo "storePassword=ci-smoke-pass"
+            echo "keyPassword=ci-smoke-pass"
+          } > keystore.properties
+
+      # --continue so a kit failure cannot mask whether navigation ran (and vice versa): the
+      # identity script needs both modules' XML to say which tuple broke.
+      - name: Run the native kit navigation MVI start-mode plan-editor and feature tests
+        id: native_tests
+        run: >
+          ./gradlew
+          :core:ui:kit:iosSimulatorArm64Test
+          :core:ui:navigation:iosSimulatorArm64Test
+          :core:ui:mvi:iosSimulatorArm64Test
+          :core:ui:start-mode:iosSimulatorArm64Test
+          :core:ui:plan-editor:iosSimulatorArm64Test
+          :feature:image-viewer:iosSimulatorArm64Test
+          :feature:plan-editor:iosSimulatorArm64Test
+          --rerun-tasks --no-build-cache --no-configuration-cache
+          --continue --full-stacktrace --console=plain
+
+      # An exit code is not evidence: the checked-in script structurally parses each module's
+      # JUnit XML and independently requires one exact (classname, name) tuple per module —
+      # a repo-wide total or substring match would accept two kit tests and zero navigation
+      # tests, or a classname from one case paired with a method name from another. Counts are
+      # validated PER <testsuite> before any module total is formed, so two malformed suites
+      # cannot cancel out into a consistent-looking aggregate. It allows additional PASSING
+      # cases, so a module can grow a second native test without edits here.
+      #
+      # The condition runs it whenever the Gradle step actually STARTED, which covers three
+      # outcomes: a red TEST run leaves XML and the script names the module and tuple that
+      # broke, which Gradle's exit code cannot; a compile or simulator-boot failure leaves no
+      # XML and the script says the results are missing, which is the honest answer; and a
+      # setup failure (checkout, Xcode selection, JDK, signing material) skips the Gradle step,
+      # so this step stays skipped too rather than masking that failure behind a
+      # missing-results error. Cancellation also skips it.
+      - name: Assert exact native test identities
+        if: ${{ !cancelled() && steps.native_tests.outcome != 'skipped' }}
+        run: python3 .github/scripts/assert_kmp_ios_smoke.py
+
+      - name: Upload native test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: kmp-ios-kit-smoke-results
+          path: |
+            core/ui/kit/build/test-results/iosSimulatorArm64Test/
+            core/ui/navigation/build/test-results/iosSimulatorArm64Test/
+            core/ui/mvi/build/test-results/iosSimulatorArm64Test/
+            core/ui/start-mode/build/test-results/iosSimulatorArm64Test/
+            core/ui/plan-editor/build/test-results/iosSimulatorArm64Test/
+            feature/image-viewer/build/test-results/iosSimulatorArm64Test/
+            feature/plan-editor/build/test-results/iosSimulatorArm64Test/
+          retention-days: 30

@@ -91,9 +91,8 @@ internal class SettingsInteractorImplTest {
         }
 
     /**
-     * The persistence contract (HS6): the strings must match feature/home's enum of the same
-     * name — two features, one preference — and the WEEK default is what an absent key reads
-     * as. Pinned on both sides of the feature boundary.
+     * GUARD: these strings must match feature/home's enum of the same name — two features share
+     * the one preference — and WEEK is what an absent key reads as.
      */
     @Test
     fun `the storage encoding and the WEEK default are pinned`() {
@@ -103,11 +102,7 @@ internal class SettingsInteractorImplTest {
         assertEquals("FORGOTTEN_TRAINING", StartCardModeDomain.FORGOTTEN_TRAINING.value)
         assertEquals(StartCardModeDomain.WEEK, StartCardModeDomain.fromValue("not-a-mode"))
     }
-    /**
-     * B15's premise was that the archive counts had no data source. They have had one since the
-     * archive screen was built — two `Flow<Int>`s straight off `observeArchivedCount()` — and this
-     * asserts the pass-through combines them rather than inventing anything.
-     */
+
     @Test
     fun `observeArchivedCounts combines the two counts that already existed`() =
         runTest(testDispatcher) {

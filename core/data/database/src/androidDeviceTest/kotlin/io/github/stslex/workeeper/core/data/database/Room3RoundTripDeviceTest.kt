@@ -27,27 +27,9 @@ import org.junit.runner.RunWith
 import kotlin.uuid.Uuid
 
 /**
- * ROOM 3 ROUND-TRIP — real device, real FILE-BACKED database, self-contained.
- *
- * ★ WHAT THIS PROVES, repeatably (runs in a normal `connectedAndroidTest`):
- *   Room 3 round-trips the production schema on a real on-disk file — write, close,
- *   RE-OPEN a fresh AppDatabase on the same file, read the exact values back, drive a
- *   PagingSource DAO (the `@DaoReturnTypeConverters` path), and persist a write through
- *   the ported `useWriterConnection { immediateTransaction { } }` transaction primitive.
- *   Self-seeding, so uninstall-between-runs is irrelevant (unlike the earlier cross-branch
- *   paired test, which required a Room-2-seeded file and could only run manually).
- *
- * ★ WHAT THIS DOES NOT PROVE:
- *   That a file written specifically by the Room 2.8.4 runtime is readable by Room 3.
- *   That is a DIFFERENT guarantee (the actual Play-upgrade cross-version path). It was
- *   proven ONCE, manually, on 2026-07-18 (Room-2 write APK + Room-3 read APK via
- *   `installDebugAndroidTest` install -r + `am instrument`, with an `ls -l` vacuity gate,
- *   3/3 green, plus a real dev-app launch on the Room-2 file with zero Room
- *   integrity/migration/driver exceptions). It is NOT in the automated suite — to repeat
- *   it, see documentation/tech-debt.md → "Room 2→3 cross-version upgrade proof".
- *
- * ⚠️ androidDeviceTest + file-backed on purpose (own DB name, not "app.db", so it never collides
- * with production/other tests). Do NOT move onto Robolectric or in-memory.
+ * Room 3 round-trip on a real device file: write, close, re-open a fresh AppDatabase, read the
+ * values back, drive a PagingSource DAO and the `useWriterConnection` primitive. It does NOT prove
+ * a Room-2-written file opens under Room 3 — see tech-debt.md for that one-off manual proof.
  */
 @Regression
 @RunWith(AndroidJUnit4::class)
@@ -99,8 +81,7 @@ internal class Room3RoundTripDeviceTest {
         database.close()
         database = openDb()
 
-        // pagedActive() : PagingSource<Int, ExerciseEntity> — the return type that needed
-        // @DaoReturnTypeConverters(PagingSourceDaoReturnTypeConverter) under Room 3.
+        // pagedActive() is the PagingSource return type needing @DaoReturnTypeConverters on Room 3.
         val result = database.exerciseDao.pagedActive().load(
             PagingSource.LoadParams.Refresh(key = null, loadSize = 20, placeholdersEnabled = false),
         )
@@ -130,9 +111,8 @@ internal class Room3RoundTripDeviceTest {
     }
 
     /**
-     * KNOWN-NEGATIVE: asserting a value that was never written MUST fail — proving the
-     * read assertions above can observe ABSENCE, so a round-trip that reads its own write
-     * is a real check, not a tautology. Runs the same read path against a value never inserted.
+     * Known-negative: a value never written must read back absent, so the round-trip reads above
+     * are a real check rather than a tautology.
      */
     @Test
     fun knownNegative_neverWrittenValueIsAbsent() = runBlocking {

@@ -1,0 +1,200 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest" tests="50" skipped="0" failures="4" errors="0" timestamp="2026-08-23T14:39:26.275Z" hostname="stslexs-MacBook-Pro.local" time="0.986">
+  <properties/>
+  <testcase name="terminal compensation failure is surfaced on the outcome()" classname="io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest" time="0.268"/>
+  <testcase name="a MISSING journal-named rollback source is a typed rejection - the canonical slot is never substituted()" classname="io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest" time="0.028">
+    <failure message="org.opentest4j.AssertionFailedError: Unexpected type, expected: &lt;io.github.stslex.workeeper.runtime.ReplacementOutcome.RejectedBeforeMutation&gt; but was: &lt;io.github.stslex.workeeper.runtime.ReplacementOutcome.Completed&gt;" type="org.opentest4j.AssertionFailedError">org.opentest4j.AssertionFailedError: Unexpected type, expected: &lt;io.github.stslex.workeeper.runtime.ReplacementOutcome.RejectedBeforeMutation&gt; but was: &lt;io.github.stslex.workeeper.runtime.ReplacementOutcome.Completed&gt;
+	at org.junit.jupiter.api.Assertions.assertInstanceOf(Assertions.java:3699)
+	at io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest$a MISSING journal-named rollback source is a typed rejection - the canonical slot is never substituted$1.invokeSuspend(AppRuntimeReplacementTest.kt:1364)
+	at io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest$a MISSING journal-named rollback source is a typed rejection - the canonical slot is never substituted$1.invoke(AppRuntimeReplacementTest.kt)
+	at io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest$a MISSING journal-named rollback source is a typed rejection - the canonical slot is never substituted$1.invoke(AppRuntimeReplacementTest.kt)
+	at io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest$runtimeTest$1.invokeSuspend(AppRuntimeReplacementTest.kt:238)
+	at io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest$runtimeTest$1.invoke(AppRuntimeReplacementTest.kt)
+	at io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest$runtimeTest$1.invoke(AppRuntimeReplacementTest.kt)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt$runTest$2$1$1.invokeSuspend(TestBuilders.kt:317)
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)
+	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:100)
+	at kotlinx.coroutines.test.TestDispatcher.processEvent$kotlinx_coroutines_test(TestDispatcher.kt:24)
+	at kotlinx.coroutines.test.TestCoroutineScheduler.tryRunNextTaskUnless$kotlinx_coroutines_test(TestCoroutineScheduler.kt:98)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt$runTest$2$1$workRunner$1.invokeSuspend(TestBuilders.kt:326)
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)
+	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:100)
+	at kotlinx.coroutines.EventLoopImplBase.processNextEvent(EventLoop.common.kt:256)
+	at kotlinx.coroutines.BlockingCoroutine.joinBlocking(Builders.kt:54)
+	at kotlinx.coroutines.BuildersKt__BuildersKt.runBlockingImpl(Builders.kt:30)
+	at kotlinx.coroutines.BuildersKt.runBlockingImpl(Unknown Source)
+	at kotlinx.coroutines.BuildersKt__Builders_concurrentKt.runBlockingK(Builders.concurrent.kt:172)
+	at kotlinx.coroutines.BuildersKt.runBlockingK(Unknown Source)
+	at kotlinx.coroutines.BuildersKt__Builders_concurrentKt.runBlockingK$default(Builders.concurrent.kt:157)
+	at kotlinx.coroutines.BuildersKt.runBlockingK$default(Unknown Source)
+	at kotlinx.coroutines.test.TestBuildersJvmKt.createTestResult(TestBuildersJvm.kt:10)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:309)
+	at kotlinx.coroutines.test.TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:1)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:167)
+	at kotlinx.coroutines.test.TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:1)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt.runTest-8Mi8wO0$default(TestBuilders.kt:159)
+	at kotlinx.coroutines.test.TestBuildersKt.runTest-8Mi8wO0$default(TestBuilders.kt:1)
+	at io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest.runtimeTest(AppRuntimeReplacementTest.kt:158)
+	at io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest.runtimeTest$default(AppRuntimeReplacementTest.kt:152)
+	at io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest.a MISSING journal-named rollback source is a typed rejection - the canonical slot is never substituted(AppRuntimeReplacementTest.kt:1348)
+</failure>
+  </testcase>
+  <testcase name="restore swap failure with successful rollback - RecoveredByRollback, never Completed()" classname="io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest" time="0.021"/>
+  <testcase name="different operation gets its OWN serialized result - never the other operation's()" classname="io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest" time="0.016"/>
+  <testcase name="candidate dispose close failure stops the ladder FATAL - no rollback rename()" classname="io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest" time="0.022"/>
+  <testcase name="A reaches Fatal while B is queued - B performs no validation, close, swap or publish()" classname="io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest" time="0.02"/>
+  <testcase name="orphaned candidate close failure after graphFactory throw - Fatal, ladder stopped()" classname="io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest" time="0.015"/>
+  <testcase name="the ladder rolls back onto THIS attempt's reservation, not the older canonical slot()" classname="io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest" time="0.017"/>
+  <testcase name="marker written - caller killed - lease timeout - transaction-owned cleanup still runs()" classname="io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest" time="0.012"/>
+  <testcase name="restart-process close throw - FailedAfterMutation, never rejected, no rename()" classname="io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest" time="0.009"/>
+  <testcase name="restore stages the source at submission and cleans the staged copy on commit()" classname="io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest" time="0.015"/>
+  <testcase name="rollback mechanics failure - Fatal with fatal effects()" classname="io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest" time="0.014"/>
+  <testcase name="a partially constructed generation joins its jobs before closing the orphan database()" classname="io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest" time="0.016"/>
+  <testcase name="replace after Fatal returns Fatal - never a cleanup-safe rejection()" classname="io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest" time="0.015"/>
+  <testcase name="terminal effects hold the transition mutex - a successor cannot interleave them()" classname="io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest" time="0.013"/>
+  <testcase name="cancelled caller deleting its temp path cannot strand the transaction - it commits()" classname="io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest" time="0.01"/>
+  <testcase name="unjoinable outgoing job after PONR - Fatal, the database is never closed()" classname="io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest" time="0.011"/>
+  <testcase name="Fatal rejects reads and admission loudly - the acquirer never parks forever()" classname="io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest" time="0.012"/>
+  <testcase name="the reservation is promoted BEFORE the durable commit is recorded()" classname="io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest" time="0.014"/>
+  <testcase name="staging failure rejects before anything - no validation, compensation runs()" classname="io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest" time="0.009"/>
+  <testcase name="attach BEFORE the zero observation blocks the transition until disposed()" classname="io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest" time="0.01"/>
+  <testcase name="simultaneous same-operation submissions share ONE transaction and one staging()" classname="io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest" time="0.011"/>
+  <testcase name="unreleased lease aborts pre-PONR - rejection, admission reopens, retry works()" classname="io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest" time="0.012"/>
+  <testcase name="restart-process policy - validate, close, swap, no rebuild, no phase change()" classname="io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest" time="0.007"/>
+  <testcase name="the rollback snapshot is reserved INSIDE the transaction, after validation()" classname="io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest" time="0.015"/>
+  <testcase name="a rejected restore discards only its own reservation and leaves the previous undo slot intact()" classname="io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest" time="0.008"/>
+  <testcase name="ladder recovery applies the reservation WITHOUT consuming it - the journal still names it until resolve()" classname="io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest" time="0.012"/>
+  <testcase name="ladder recovery whose reservation VANISHED goes Fatal - never the older canonical()" classname="io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest" time="0.01">
+    <failure message="org.opentest4j.AssertionFailedError: Unexpected type, expected: &lt;io.github.stslex.workeeper.runtime.ReplacementOutcome.Fatal&gt; but was: &lt;io.github.stslex.workeeper.runtime.ReplacementOutcome.RecoveredByRollback&gt;" type="org.opentest4j.AssertionFailedError">org.opentest4j.AssertionFailedError: Unexpected type, expected: &lt;io.github.stslex.workeeper.runtime.ReplacementOutcome.Fatal&gt; but was: &lt;io.github.stslex.workeeper.runtime.ReplacementOutcome.RecoveredByRollback&gt;
+	at org.junit.jupiter.api.Assertions.assertInstanceOf(Assertions.java:3699)
+	at io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest$ladder recovery whose reservation VANISHED goes Fatal - never the older canonical$1.invokeSuspend(AppRuntimeReplacementTest.kt:1463)
+	at io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest$ladder recovery whose reservation VANISHED goes Fatal - never the older canonical$1.invoke(AppRuntimeReplacementTest.kt)
+	at io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest$ladder recovery whose reservation VANISHED goes Fatal - never the older canonical$1.invoke(AppRuntimeReplacementTest.kt)
+	at io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest$runtimeTest$1.invokeSuspend(AppRuntimeReplacementTest.kt:238)
+	at io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest$runtimeTest$1.invoke(AppRuntimeReplacementTest.kt)
+	at io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest$runtimeTest$1.invoke(AppRuntimeReplacementTest.kt)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt$runTest$2$1$1.invokeSuspend(TestBuilders.kt:317)
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)
+	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:100)
+	at kotlinx.coroutines.test.TestDispatcher.processEvent$kotlinx_coroutines_test(TestDispatcher.kt:24)
+	at kotlinx.coroutines.test.TestCoroutineScheduler.tryRunNextTaskUnless$kotlinx_coroutines_test(TestCoroutineScheduler.kt:98)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt$runTest$2$1$workRunner$1.invokeSuspend(TestBuilders.kt:326)
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)
+	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:100)
+	at kotlinx.coroutines.EventLoopImplBase.processNextEvent(EventLoop.common.kt:256)
+	at kotlinx.coroutines.BlockingCoroutine.joinBlocking(Builders.kt:54)
+	at kotlinx.coroutines.BuildersKt__BuildersKt.runBlockingImpl(Builders.kt:30)
+	at kotlinx.coroutines.BuildersKt.runBlockingImpl(Unknown Source)
+	at kotlinx.coroutines.BuildersKt__Builders_concurrentKt.runBlockingK(Builders.concurrent.kt:172)
+	at kotlinx.coroutines.BuildersKt.runBlockingK(Unknown Source)
+	at kotlinx.coroutines.BuildersKt__Builders_concurrentKt.runBlockingK$default(Builders.concurrent.kt:157)
+	at kotlinx.coroutines.BuildersKt.runBlockingK$default(Unknown Source)
+	at kotlinx.coroutines.test.TestBuildersJvmKt.createTestResult(TestBuildersJvm.kt:10)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:309)
+	at kotlinx.coroutines.test.TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:1)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:167)
+	at kotlinx.coroutines.test.TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:1)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt.runTest-8Mi8wO0$default(TestBuilders.kt:159)
+	at kotlinx.coroutines.test.TestBuildersKt.runTest-8Mi8wO0$default(TestBuilders.kt:1)
+	at io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest.runtimeTest(AppRuntimeReplacementTest.kt:158)
+	at io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest.runtimeTest$default(AppRuntimeReplacementTest.kt:152)
+	at io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest.ladder recovery whose reservation VANISHED goes Fatal - never the older canonical(AppRuntimeReplacementTest.kt:1444)
+</failure>
+  </testcase>
+  <testcase name="a failed promotion keeps the reservation - the journal still names it()" classname="io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest" time="0.011"/>
+  <testcase name="graphFactory failure with clean orphan close - ladder recovers by rollback()" classname="io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest" time="0.012"/>
+  <testcase name="staging happens in the SUBMISSION frame - before the host coroutine ever runs()" classname="io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest" time="0.009"/>
+  <testcase name="rollback operation commits - Completed is the requested-op truth()" classname="io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest" time="0.008"/>
+  <testcase name="a failed durable commit record keeps every asset and surfaces on the outcome()" classname="io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest" time="0.01"/>
+  <testcase name="a committed restore promotes its reservation onto the undo slot()" classname="io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest" time="0.01"/>
+  <testcase name="candidate jobs are joined before the candidate database closes()" classname="io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest" time="0.02"/>
+  <testcase name="an explicit rollback applies and consumes EXACTLY its named source - the canonical survives()" classname="io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest" time="0.01">
+    <failure message="org.opentest4j.AssertionFailedError: the exact applied file was consumed ==&gt; expected: &lt;false&gt; but was: &lt;true&gt;" type="org.opentest4j.AssertionFailedError">org.opentest4j.AssertionFailedError: the exact applied file was consumed ==&gt; expected: &lt;false&gt; but was: &lt;true&gt;
+	at org.junit.jupiter.api.Assertions.assertFalse(Assertions.java:266)
+	at io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest$an explicit rollback applies and consumes EXACTLY its named source - the canonical survives$1.invokeSuspend(AppRuntimeReplacementTest.kt:1403)
+	at io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest$an explicit rollback applies and consumes EXACTLY its named source - the canonical survives$1.invoke(AppRuntimeReplacementTest.kt)
+	at io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest$an explicit rollback applies and consumes EXACTLY its named source - the canonical survives$1.invoke(AppRuntimeReplacementTest.kt)
+	at io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest$runtimeTest$1.invokeSuspend(AppRuntimeReplacementTest.kt:238)
+	at io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest$runtimeTest$1.invoke(AppRuntimeReplacementTest.kt)
+	at io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest$runtimeTest$1.invoke(AppRuntimeReplacementTest.kt)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt$runTest$2$1$1.invokeSuspend(TestBuilders.kt:317)
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)
+	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:100)
+	at kotlinx.coroutines.test.TestDispatcher.processEvent$kotlinx_coroutines_test(TestDispatcher.kt:24)
+	at kotlinx.coroutines.test.TestCoroutineScheduler.tryRunNextTaskUnless$kotlinx_coroutines_test(TestCoroutineScheduler.kt:98)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt$runTest$2$1$workRunner$1.invokeSuspend(TestBuilders.kt:326)
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)
+	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:100)
+	at kotlinx.coroutines.EventLoopImplBase.processNextEvent(EventLoop.common.kt:256)
+	at kotlinx.coroutines.BlockingCoroutine.joinBlocking(Builders.kt:54)
+	at kotlinx.coroutines.BuildersKt__BuildersKt.runBlockingImpl(Builders.kt:30)
+	at kotlinx.coroutines.BuildersKt.runBlockingImpl(Unknown Source)
+	at kotlinx.coroutines.BuildersKt__Builders_concurrentKt.runBlockingK(Builders.concurrent.kt:172)
+	at kotlinx.coroutines.BuildersKt.runBlockingK(Unknown Source)
+	at kotlinx.coroutines.BuildersKt__Builders_concurrentKt.runBlockingK$default(Builders.concurrent.kt:157)
+	at kotlinx.coroutines.BuildersKt.runBlockingK$default(Unknown Source)
+	at kotlinx.coroutines.test.TestBuildersJvmKt.createTestResult(TestBuildersJvm.kt:10)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:309)
+	at kotlinx.coroutines.test.TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:1)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:167)
+	at kotlinx.coroutines.test.TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:1)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt.runTest-8Mi8wO0$default(TestBuilders.kt:159)
+	at kotlinx.coroutines.test.TestBuildersKt.runTest-8Mi8wO0$default(TestBuilders.kt:1)
+	at io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest.runtimeTest(AppRuntimeReplacementTest.kt:158)
+	at io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest.runtimeTest$default(AppRuntimeReplacementTest.kt:152)
+	at io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest.an explicit rollback applies and consumes EXACTLY its named source - the canonical survives(AppRuntimeReplacementTest.kt:1381)
+</failure>
+  </testcase>
+  <testcase name="committed handover advances the snackbar epoch - an abort never does()" classname="io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest" time="0.01"/>
+  <testcase name="aborted transition reopens ui admission for the outgoing id()" classname="io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest" time="0.008"/>
+  <testcase name="beforeMutation failure - rejection, nothing closed or swapped()" classname="io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest" time="0.006"/>
+  <testcase name="validation failure - rejection with compensation, nothing irreversible()" classname="io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest" time="0.007"/>
+  <testcase name="late ui attach after the zero observation is REFUSED - the retired id never reopens()" classname="io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest" time="0.009"/>
+  <testcase name="inline scenario-1 rollback - the outer RESTORE reports RecoveredByRollback()" classname="io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest" time="0.014"/>
+  <testcase name="reinitialize after Fatal returns Fatal and publishes nothing()" classname="io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest" time="0.009"/>
+  <testcase name="durable commit is recorded BEFORE the rollback asset is consumed()" classname="io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest" time="0.009"/>
+  <testcase name="strict replacement clears the probe ViewModel and joins the DB job BEFORE close()" classname="io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest" time="0.012"/>
+  <testcase name="worker suspended in the closed window binds to the NEW generation()" classname="io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest" time="0.012"/>
+  <testcase name="committed effects failure is SURFACED - never a silently clean commit()" classname="io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest" time="0.01"/>
+  <testcase name="a rejection whose terminal compensation fails KEEPS the reservation the journal names()" classname="io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest" time="0.01">
+    <failure message="org.opentest4j.AssertionFailedError: an unresolved journal may still name this reservation — it must survive ==&gt; expected: &lt;1&gt; but was: &lt;0&gt;" type="org.opentest4j.AssertionFailedError">org.opentest4j.AssertionFailedError: an unresolved journal may still name this reservation — it must survive ==&gt; expected: &lt;1&gt; but was: &lt;0&gt;
+	at org.junit.jupiter.api.Assertions.assertEquals(Assertions.java:601)
+	at io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest$a rejection whose terminal compensation fails KEEPS the reservation the journal names$1.invokeSuspend(AppRuntimeReplacementTest.kt:1434)
+	at io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest$a rejection whose terminal compensation fails KEEPS the reservation the journal names$1.invoke(AppRuntimeReplacementTest.kt)
+	at io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest$a rejection whose terminal compensation fails KEEPS the reservation the journal names$1.invoke(AppRuntimeReplacementTest.kt)
+	at io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest$runtimeTest$1.invokeSuspend(AppRuntimeReplacementTest.kt:238)
+	at io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest$runtimeTest$1.invoke(AppRuntimeReplacementTest.kt)
+	at io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest$runtimeTest$1.invoke(AppRuntimeReplacementTest.kt)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt$runTest$2$1$1.invokeSuspend(TestBuilders.kt:317)
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)
+	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:100)
+	at kotlinx.coroutines.test.TestDispatcher.processEvent$kotlinx_coroutines_test(TestDispatcher.kt:24)
+	at kotlinx.coroutines.test.TestCoroutineScheduler.tryRunNextTaskUnless$kotlinx_coroutines_test(TestCoroutineScheduler.kt:98)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt$runTest$2$1$workRunner$1.invokeSuspend(TestBuilders.kt:326)
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)
+	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:100)
+	at kotlinx.coroutines.EventLoopImplBase.processNextEvent(EventLoop.common.kt:256)
+	at kotlinx.coroutines.BlockingCoroutine.joinBlocking(Builders.kt:54)
+	at kotlinx.coroutines.BuildersKt__BuildersKt.runBlockingImpl(Builders.kt:30)
+	at kotlinx.coroutines.BuildersKt.runBlockingImpl(Unknown Source)
+	at kotlinx.coroutines.BuildersKt__Builders_concurrentKt.runBlockingK(Builders.concurrent.kt:172)
+	at kotlinx.coroutines.BuildersKt.runBlockingK(Unknown Source)
+	at kotlinx.coroutines.BuildersKt__Builders_concurrentKt.runBlockingK$default(Builders.concurrent.kt:157)
+	at kotlinx.coroutines.BuildersKt.runBlockingK$default(Unknown Source)
+	at kotlinx.coroutines.test.TestBuildersJvmKt.createTestResult(TestBuildersJvm.kt:10)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:309)
+	at kotlinx.coroutines.test.TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:1)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:167)
+	at kotlinx.coroutines.test.TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:1)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt.runTest-8Mi8wO0$default(TestBuilders.kt:159)
+	at kotlinx.coroutines.test.TestBuildersKt.runTest-8Mi8wO0$default(TestBuilders.kt:1)
+	at io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest.runtimeTest(AppRuntimeReplacementTest.kt:158)
+	at io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest.runtimeTest$default(AppRuntimeReplacementTest.kt:152)
+	at io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest.a rejection whose terminal compensation fails KEEPS the reservation the journal names(AppRuntimeReplacementTest.kt:1415)
+</failure>
+  </testcase>
+  <testcase name="outgoing close failure is FATAL - no rename, no republished generation()" classname="io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest" time="0.007"/>
+  <testcase name="restart-process swap failure - FailedAfterMutation, journal effects, assets preserved()" classname="io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest" time="0.009"/>
+  <system-out><![CDATA[stripped - suite stdout only; testcase failures verbatim]]></system-out>
+  <system-err/>
+</testsuite>

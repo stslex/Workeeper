@@ -79,8 +79,7 @@ internal fun AllExercisesScreen(
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             ScreenTopBar(state = state, consume = consume)
-            // The band stays visible during selection (spec C4) so the list does not vertically
-            // jump on entering the mode.
+            // The band stays visible during selection (spec C4) so the list does not jump.
             if (state.availableTags.isNotEmpty()) {
                 TagFilterRow(
                     tags = state.availableTags,
@@ -88,20 +87,15 @@ internal fun AllExercisesScreen(
                     onToggle = { uuid -> consume(Action.Click.OnTagFilterToggle(uuid)) },
                 )
             }
-            // `fillMaxSize` and not just `weight`: the empty region measures itself with
-            // `matchParentSize`, so the Box's own width comes from its other children — and
-            // the list is now conditional. Without this the region collapses to zero width
-            // in exactly the states where the list is absent, which is every state it draws.
+            // GUARD: keep `fillMaxSize` — the empty region measures with `matchParentSize`, so
+            // without it the region collapses to zero width whenever the list is absent.
             Box(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxSize(),
             ) {
-                // ONE reading of the verdict for BOTH bodies. The rows and the region are
-                // alternatives (`ListBody`): during the minimum hold the deferred verdict is still
-                // LOADING while the data already says CONTENT, so a list composed independently of
-                // it draws its rows UNDER the spinner for the rest of the hold — the flash the two
-                // numbers remove, wearing an overlay.
+                // GUARD: one deferred reading drives both bodies; an independent list check
+                // would draw rows under the spinner for the rest of the minimum hold.
                 val surface = rememberDeferredSurface(
                     surface = listSurface(
                         itemCount = items.itemCount,
@@ -123,10 +117,7 @@ internal fun AllExercisesScreen(
             }
         }
         val isSelecting = state.isSelecting
-        // §26 "FAB in selection mode": the morph is SHAPE AND GLYPH ONLY. The fill stays `--max`
-        // and the content `--base` throughout — the action is archive, archive is reversible, and
-        // `--rust` marks destruction only (§1), so the old `status.error` fill was promising
-        // irreversibility for a reversible act and `Icons.Filled.Delete` was following the fill.
+        // Selection morph is shape and glyph only; the fill stays `--max` (spec §26).
         AppFAB(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
@@ -187,33 +178,8 @@ internal fun AllExercisesScreen(
 }
 
 /**
- * §26 "Selection mode": the top bar is replaced **whole** — and under §26's continuity-motion row
- * it now crossfades whole, because that is the same sentence read at 260ms instead of at one frame.
- *
- * The close glyph and the archive glyph previously **appeared from nowhere**: on a long press the
- * bar's leading and trailing slots were empty in frame N and occupied in frame N+1, with no path
- * between them, which is exactly the class's membership test. The FAB beside them already morphed.
- *
- * ## Why the whole bar, rather than the two icons
- *
- * Fading the icons in place is the smaller change and the wrong one: the leading slot takes its
- * 48dp the instant it appears, so the title jumps sideways while the glyph fades — the teleport
- * moved rather than removed. Crossfading the two bars superimposes two independent layouts that
- * both sit on `surfaceTier0` with the same height, so nothing shifts and no seam is visible; the
- * mid-frame composites to the resting container colour because **both layers are that colour**,
- * which is why this needs no `fadedOut` treatment and no colour tween at all.
- *
- * ## The count does not animate, and that is asserted
- *
- * [topBarMode] is the transition key, never the title. «Выбрано N» encodes a value, and §26's row
- * excludes values from the class outright — a number in motion is a number being read wrong at
- * every intermediate frame. Keyed on the title, the bar would crossfade on every toggle. Both
- * endpoint goldens are identical either way, so `TopBarModeTest` is the only thing that can see it.
- *
- * [lastSelectionCount] exists solely for the **exit** transition: the mode is already `Off` while
- * the outgoing bar is still fading, so the count it needs no longer exists in state. A plain array
- * rather than a `MutableState` deliberately — it is a cache read during composition, not state, and
- * making it observable would invalidate this bar on every toggle for no rendered difference.
+ * Top bar for the list; crossfades whole between resting and selection (spec §26), keyed on
+ * [topBarMode]. [lastSelectionCount] caches the count the outgoing bar needs during the exit.
  */
 @Composable
 private fun ScreenTopBar(
@@ -244,11 +210,7 @@ private fun ScreenTopBar(
     }
 }
 
-/**
- * The replacement bar: close, count, archive. §26 "Selection mode" — count PLUS actions. The
- * archive action was drawn from the start and never built; the FAB is not the only affordance the
- * drawing gives this mode.
- */
+/** The replacement bar in selection mode: close, count, archive (spec §26). */
 @Composable
 private fun SelectionTopBar(
     count: Int,
@@ -303,11 +265,7 @@ private fun ExercisesList(
         modifier = Modifier
             .fillMaxSize()
             .testTag("AllExercisesList"),
-        // Full-bleed: the drawn row owns its own gutter and its own rule, so the list adds no
-        // horizontal padding and no inter-item spacing. The bottom is FAB clearance and nothing
-        // else — §26 "Add action": `16 + 56 + 16` = 88. The navigation bar's inset is the host's,
-        // globally, together with the system inset the mockup cannot draw. Without the 88 the tail
-        // sits under the button permanently, and on a paged list the tail is live.
+        // Full-bleed rows own their gutter and rule; the bottom is FAB clearance and nothing else.
         contentPadding = PaddingValues(bottom = LIST_BOTTOM_CLEARANCE),
     ) {
         items(
@@ -316,12 +274,8 @@ private fun ExercisesList(
         ) { index ->
             items[index]?.let { item ->
                 ExerciseRow(
-                    // §26, continuity motion: a row added, removed or reordered used to be in one
-                    // place in frame N and another in frame N+1, with no path between them.
-                    // Archiving from this screen and restoring from the archive both do it, and the
-                    // list is keyed by uuid, so the settle costs one modifier. One shared spec
-                    // across all three channels — `spring` is illegal on the two fades, whose alpha
-                    // is bounded, and the class uses one curve everywhere by definition.
+                    // Continuity motion for add / remove / reorder; one shared spec across
+                    // all three channels (spec §26).
                     modifier = Modifier.animateItem(
                         fadeInSpec = continuityAlphaSpec(),
                         placementSpec = continuityPositionalSpec(),
@@ -330,8 +284,6 @@ private fun ExercisesList(
                     item = item,
                     isSelected = selectedSet?.contains(item.uuid) == true,
                     isSelecting = state.isSelecting,
-                    // The drawing removes the last row's rule (`.frame .row:last-of-type`), so the
-                    // list does not end on a hairline into empty space.
                     showDivider = index < items.itemCount - 1,
                     onClick = { consume(Action.Click.OnExerciseClick(item.uuid)) },
                     onLongPress = { consume(Action.Click.OnExerciseLongPress(item.uuid)) },
@@ -343,37 +295,8 @@ private fun ExercisesList(
 }
 
 /**
- * The empty region — one selector, five verdicts, three of them new.
- *
- * This replaces `isEmptyAndIdle() && !isSelecting`, a single branch in which four different states
- * were living. See [listSurface] for the ordering and the reasoning; the states themselves are
- * drawn in `#s-empty` and ruled by §26 "List states reached by an action".
- *
- * Every verdict renders. [ListSurface.REFRESH_ERROR] was the one that did not — a failed *first*
- * page was B22's last undrawn region, and the last remaining path to a blank frame. It is drawn
- * now, and it is the same `.perr` the append tail uses, moved: placement, not a new treatment.
- *
- * ## The block crossfades — §26, continuity motion
- *
- * Four blocks replacing each other inside a `when` is four things that appeared and disappeared
- * between two frames, which is the class's membership test with nothing left to argue. The pair that
- * moves on this screen's own gesture is `SELECTION_EMPTY` ⇄ `FILTERED_EMPTY`: a tag filter emptied
- * under an active selection, then the mode left with the filter still on. Pure transit, no
- * character, so the class's alpha spec and nothing else.
- *
- * Which verdicts take part, and why two of them do not, is [ListSurface.crossfades] — a named,
- * assertable property rather than an `if` here, because the first cut keyed the transition on all
- * five verdicts and **ten goldens went red**. That direction is the surprise: §27's standing
- * prediction is that adding motion moves zero pixels, and widening a transition key until a settled
- * golden photographs a transient is the one motion change a single frame can see. The property
- * carries the measurement; `ListSurfaceTest` gates it.
- *
- * The `Box` inside the content lambda is not decoration: `AnimatedContent` gives its content an
- * `AnimatedContentScope`, not this function's [BoxScope], so every branch's `Modifier.align` needs
- * a box of its own. `matchParentSize` keeps the region exactly the size it had — the list, not the
- * blocks, is what measures this parent — so no verdict's placement moves. And because the
- * `AnimatedContent` is not composed at all for a non-crossfading verdict, the list never carries an
- * overlay above it.
+ * The empty region: one verdict per state from [listSurface], crossfaded between the verdicts
+ * [ListSurface.crossfades] admits. The inner `Box` gives each branch its own align scope.
  */
 @Composable
 private fun BoxScope.EmptyRegion(
@@ -401,8 +324,7 @@ private fun BoxScope.EmptyRegion(
     ) { block ->
         Box(modifier = Modifier.fillMaxSize()) {
             when (block) {
-                // Neither reaches this lambda — `crossfades` returned above for both. Named rather
-                // than folded into an `else` so adding a verdict to the enum breaks here.
+                // Unreachable: `crossfades` returned above. Named so a new verdict breaks here.
                 ListSurface.CONTENT, ListSurface.LOADING -> Unit
 
                 ListSurface.REFRESH_ERROR -> ColdOpenError(
@@ -430,18 +352,8 @@ private fun BoxScope.EmptyRegion(
 }
 
 /**
- * §26 "Paging tails": three states, two drawings.
- *
- * Loading is a footer spinner. **Exhausted is no footer at all** — "end of list" states only what is
- * already visible, so the absence is the drawing. Error is the reason plus a retry, because a
- * silently truncated list is indistinguishable from a finished one.
- *
- * None of this existed here: `loadState.append` was never read, so a failed page was a list that
- * quietly stopped.
- *
- * The **decision** lives in `pagingTailKind` rather than here, because no golden can see it: with
- * the branch inlined, deleting the error case left all 30 goldens byte-identical. This function is
- * now only the dispatch.
+ * Paging tail: a spinner while appending, a reason plus retry on failure, nothing when exhausted
+ * (spec §26). The decision itself lives in [pagingTailKind]; no golden can see it.
  */
 private fun LazyListScope.pagingTail(
     items: LazyPagingItems<ExerciseUiModel>,
@@ -455,13 +367,8 @@ private fun LazyListScope.pagingTail(
 }
 
 /**
- * §26 "Add action": `16 + 56 + 16` = **88**. FAB clearance and nothing else — the navigation bar's
- * inset is the host's, globally, together with the system inset the mockup cannot draw.
- *
- * Named rather than inlined because **no golden can see it.** `contentPadding.bottom` moves no pixel
- * in an unscrolled frame, and Paparazzi renders one frame of an unscrolled list, so the visual gate
- * is blind to this value however many goldens the suite grows to. `AllExercisesClearanceTest` is the
- * gate instead. §27 carries the measurement that established it.
+ * FAB clearance under the list: `16 + 56 + 16` = 88 (spec §26). No golden can see
+ * `contentPadding.bottom`; `AllExercisesClearanceTest` is the gate.
  */
 internal val LIST_BOTTOM_CLEARANCE: Dp =
     AppDimension.screenEdge + AppDimension.heightLg + AppDimension.screenEdge

@@ -7,16 +7,8 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 /**
- * Coverage for `MviHandlerConstructorRule` after the lifecycle-safe navigation refactor.
- *
- * The rule expects every `*Handler` class implementing `Handler<...>` to declare a primary
- * constructor with `@Inject` and at least one parameter. The literal class name
- * `NavigationHandler` is exempt at the source level (`MviHandlerConstructorRule.kt:74`)
- * for historical reasons. The current architecture uses normal Hilt constructor injection
- * on every handler — `NavigationHandler` included — so the exemption is only there for
- * back-compat. These tests pin both halves of that contract: the canonical
- * `@Inject` shape passes cleanly, and missing-`@Inject` non-NavigationHandler variants
- * still get flagged.
+ * Coverage for `MviHandlerConstructorRule`: the literal class name `NavigationHandler` is exempt
+ * from the `@Inject` requirement, and no other `*Handler` name inherits that exemption.
  */
 internal class MviHandlerConstructorRuleNavigationTest {
 
@@ -43,10 +35,7 @@ internal class MviHandlerConstructorRuleNavigationTest {
 
     @Test
     fun `NavigationHandler without Inject still passes due to the literal-name exemption`() {
-        // The rule has a literal-name exemption (line 74). New code should not rely on
-        // it — the canonical shape is `@Inject` on every handler — but the exemption
-        // remains so legacy code compiles. Pin its current behavior so the exemption
-        // is removed only deliberately.
+        // Pinned so the literal-name exemption is removed only deliberately.
         val findings = rule.lint(
             """
             package io.github.stslex.workeeper.feature.example.mvi.handler

@@ -25,35 +25,9 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * ATOMICITY ORACLE — real device, real FILE-BACKED database. Answers: does the
- * `DbTransitionRunner` transaction primitive roll back writes on a throw, for the two
- * shapes production actually uses inside `transition { }`?
- *
- * ⚠️ THIS TEST MUST STAY androidDeviceTest + FILE-BACKED. Do NOT "simplify" it onto
- * Robolectric or an in-memory DB. Robolectric's shadow SQLite gave a **false NEGATIVE on this exact
- * measurement twice** — a Robolectric variant of this probe reported shape B (concurrent
- * `async` children) as NOT rolling back, when the real device proves it does. Robolectric
- * is not a valid oracle for transaction/async-child rollback semantics here; the device is.
- * See documentation/tech-debt.md → "Robolectric is not a valid oracle for transaction
- * semantics".
- *
- * Four runs, mirroring the two real production shapes with their REAL helpers (imported from
- * core:core — not hand-rolled):
- *  - CONTROL  : `withTransaction { insert; insert; throw }`            → must roll back.
- *  - NEGATIVE : write outside the transaction survives an unrelated rollback → must survive.
- *  - SHAPE A  : finishSessionAtomic's shape — sequential `asyncScope { write }` writers.
- *  - SHAPE B  : clearWeightsFromAllPlans' shape — concurrent `coroutineScope { async { write } }`.
- *
- * The transaction runner is built inline exactly as production's `DbTransitionRunner`
- * (`withTransaction { coroutineScope { block() } }`).
- *
- * Each rollback run makes THREE assertions, not one, so none of them can pass vacuously:
- *  1. the throwable escaping `transition { }` is the intentional [RollbackTrigger]
- *     (see `assertRollbackTrigger`) — proves the body ran to its throw rather than failing on entry;
- *  2. the rows are readable INSIDE the transaction just before the throw (`readNames`) — proves the
- *     writes actually reached the connection;
- *  3. the table is empty (or holds only the outside write) afterwards — proves the rollback.
- * (1) + (2) are what turn (3) from "empty, for any reason" into "written, then rolled back".
+ * Atomicity oracle — real device, real file-backed database: does the `DbTransitionRunner`
+ * transaction primitive roll back on a throw for both production shapes? GUARD: keep it a device
+ * test: Robolectric's shadow SQLite gave a false negative on this measurement twice (tech-debt.md).
  */
 @Regression
 @RunWith(AndroidJUnit4::class)
@@ -76,8 +50,7 @@ internal class AtomicRollbackDeviceTest {
     fun setUp() {
         context = ApplicationProvider.getApplicationContext()
         context.deleteDatabase(PROBE_DB)
-        // Real file-backed DB on the device — NOT in-memory, so transaction/connection
-        // semantics match production, not Robolectric's shadow SQLite.
+        // Real file-backed DB on the device — connection semantics must match production.
         database = Room.databaseBuilder<AppDatabase>(context, PROBE_DB)
             .setDriver(BundledSQLiteDriver())
             .build()
@@ -198,22 +171,15 @@ internal class AtomicRollbackDeviceTest {
     }
 
     /**
-     * One-shot read of the tag names written by the current test, ordered by name.
-     *
-     * Called from INSIDE `transition { }`: Room 3's connection pool confines the writer connection to
-     * the coroutine context, so a read issued within the transaction reuses that same connection and
-     * therefore sees the still-uncommitted rows. That is what turns "table empty afterwards" into
-     * "written, then rolled back".
+     * One-shot read of this test's tag names, called from INSIDE `transition { }`: Room 3 confines
+     * the writer connection to the coroutine context, so the read sees the still-uncommitted rows.
      */
     private suspend fun readNames(prefix: String): List<String> =
         tagDao.searchByPrefix(prefix).map { it.name }
 
     /**
-     * Vacuity gate. Without it every test here would also pass when `transition { }` throws BEFORE the
-     * first insert (e.g. a Room upgrade making `useWriterConnection` fail on entry from `runBlocking`) —
-     * `runCatching` swallows that too, and an empty table satisfies the "rolled back" assertion.
-     * Asserting the escaping throwable is the intentional [RollbackTrigger] pins that the transaction
-     * body actually ran to its throw.
+     * Vacuity gate: without it every test would also pass when `transition { }` throws before the
+     * first insert, since an empty table satisfies the "rolled back" assertion.
      */
     private fun assertRollbackTrigger(label: String, thrown: Throwable?) {
         assertTrue(

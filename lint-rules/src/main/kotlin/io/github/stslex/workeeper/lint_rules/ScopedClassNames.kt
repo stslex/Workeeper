@@ -2,27 +2,14 @@
 package io.github.stslex.workeeper.lint_rules
 
 /**
- * Class-name predicates shared by the Metro DI rules.
- *
- * [isScopeChecked] is the dependency-bucket test [MetroScopeRule] applies: a Metro-injected class whose
- * name matches one of the fragments below must declare a `@SingleIn(<Scope>::class)`. It used to be an
- * enum (`ScopeClassType`) with a `SINGLETON` / `FEATURE_SCOPED` split, but the split was write-only —
- * the single consumer only compared the result against `null`, and the Handler bucket is re-derived
- * inline where the app-scope guard needs it — so the classifier is a `Boolean`.
- *
- * [isStoreImpl] is the Store exemption that [MetroScopeRule] and [ScreenInjectionRule] both need. An MVI
- * `*StoreImpl` is intentionally UNSCOPED (retained by the Android `ViewModelStore` via
- * `rememberMetroStoreProcessor`) and its primary constructor is the one legitimate sink for the
- * navigation route arg. A `*HandlerStoreImpl` is NOT such a Store: it is the feature-scoped
- * `BaseHandlerStore` event-relay adapter, so it stays scope-checked by [MetroScopeRule] and does not
- * inherit the route-arg exemption in [ScreenInjectionRule].
+ * Class-name predicates shared by the Metro DI rules: the scope-checked dependency buckets, and the
+ * `*StoreImpl` exemption that `*HandlerStoreImpl` deliberately does not inherit.
  */
 internal object ScopedClassNames {
 
     /**
-     * Name fragments of the injected dependency buckets that must declare a Metro scope. Matched by
-     * `contains`, so `ExerciseRepositoryImpl`, `ArchiveInteractorImpl` and `ClickHandler` all match while
-     * a name outside every bucket (e.g. `NavigatorEventBus`) is intentionally unconstrained.
+     * Name fragments of the injected dependency buckets that must declare a Metro scope, matched by
+     * `contains`; a name outside every bucket is intentionally unconstrained.
      */
     private val scopeCheckedFragments = listOf(
         "Repository",
@@ -43,8 +30,8 @@ internal object ScopedClassNames {
     fun isScopeChecked(name: String): Boolean = scopeCheckedFragments.any { name.contains(it) }
 
     /**
-     * True when [name] is an MVI Store implementation. The `*HandlerStoreImpl` adapters are deliberately
-     * excluded — they end with the same suffix but are ordinary feature-scoped graph nodes.
+     * True when [name] is an MVI Store implementation; the `*HandlerStoreImpl` adapters share the
+     * suffix but are ordinary feature-scoped graph nodes and are excluded.
      */
     fun isStoreImpl(name: String): Boolean =
         name.endsWith(STORE_IMPL_SUFFIX) && name.endsWith(HANDLER_STORE_IMPL_SUFFIX).not()

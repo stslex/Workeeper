@@ -78,33 +78,25 @@ internal class SessionRepositoryImplFinishAtomicDbTest {
         )
 
         assertTrue(applied)
-        // Session row state.
         val finished = env.sessionDao.getById(session.uuid)
         assertEquals(SessionStateEntity.FINISHED, finished?.state)
         assertEquals(2_000L, finished?.finishedAt)
-        // Training graduated to a regular library row.
         val graduatedTraining = env.trainingDao.getById(adhocTraining.uuid)
         assertEquals(false, graduatedTraining?.isAdhoc)
         val graduatedExercise = env.exerciseDao.getById(adhocExercise.uuid)
-        // Graduation is scoped by SESSION MEMBERSHIP (v3 §6.2): an ad-hoc exercise graduates
-        // when it was performed in the finished session. We seeded no performed row here, so
-        // this exercise is NOT graduated — confirming the scope is a join, not a wildcard.
+        // Graduation is scoped by session membership; no performed row was seeded, so no
+        // graduation.
         assertEquals(true, graduatedExercise?.isAdhoc)
     }
 
     @Test
     fun `finishSessionAtomic graduates only exercises performed in the session`() = runTest {
-        // Contract change in v3 step 5 (§6.2): graduation is scoped by session membership,
-        // not by plan attachment. A one-off has no `training_exercise_table` row by
-        // construction, so the old plan-table join stranded every inline-created one-off at
-        // `is_adhoc = 1` — permanently invisible to `pagedActive`. `performed` here is
-        // deliberately NOT plan-attached, which is exactly the case the old rule missed.
+        // `performed` is deliberately not plan-attached — the case a plan-table join missed.
         val adhocTraining = env.seedTraining(name = "Adhoc", isAdhoc = true)
         val performed = env.seedExercise(name = "Performed one-off", isAdhoc = true)
         val planOnly = env.seedExercise(name = "Plan-only", isAdhoc = true)
         val session = env.seedSession(trainingUuid = adhocTraining.uuid)
         env.seedPerformed(sessionUuid = session.uuid, exerciseUuid = performed.uuid)
-        // Attached to the plan but never performed in this session.
         env.seedTrainingExercise(
             trainingUuid = adhocTraining.uuid,
             exerciseUuid = planOnly.uuid,
@@ -117,9 +109,7 @@ internal class SessionRepositoryImplFinishAtomicDbTest {
             planUpdates = emptyList(),
         )
 
-        // Performed in the session — graduates, even with no plan row.
         assertEquals(false, env.exerciseDao.getById(performed.uuid)?.isAdhoc)
-        // In the plan but not performed here — untouched. The scope is still a join.
         assertEquals(true, env.exerciseDao.getById(planOnly.uuid)?.isAdhoc)
     }
 
@@ -189,8 +179,6 @@ internal class SessionRepositoryImplFinishAtomicDbTest {
             )
 
             val rawPlan = env.trainingExerciseDao.getPlanSets(training.uuid, exercise.uuid)
-            // Verify the new plan landed by checking shape; exact JSON is tested in DAO/converter
-            // tests. Here, parse and compare.
             assertNotNull(rawPlan)
             assertTrue(rawPlan!!.contains("\"weight\":90.0"))
             assertTrue(rawPlan.contains("\"weight\":95.0"))
@@ -226,9 +214,8 @@ internal class SessionRepositoryImplFinishAtomicDbTest {
     @Test
     fun `finishSessionAtomic rolls back state, name, and graduation when an inner write throws`() =
         runTest {
-            // Hybrid: real DAOs for state-relevant tables, a spy on exerciseDao that throws on
-            // graduateAdhocForSession. Room's withTransaction wraps the whole block so the
-            // failure rolls back every other DAO write.
+            // Real DAOs plus a spy that throws on graduateAdhocForSession, so the surrounding
+            // transaction has to roll back every other write.
             val adhocTraining = env.seedTraining(name = "Original", isAdhoc = true)
             val session = env.seedSession(trainingUuid = adhocTraining.uuid)
             val throwingExerciseDao = mockk<ExerciseDao>()
@@ -250,7 +237,6 @@ internal class SessionRepositoryImplFinishAtomicDbTest {
                 performedExerciseDao = env.performedExerciseDao,
                 setDao = env.setDao,
                 trainingDao = env.trainingDao,
-                // Only this DAO throws; all other DAOs are real and write to the in-memory DB.
                 exerciseDao = throwingExerciseDao,
                 trainingExerciseDao = env.trainingExerciseDao,
                 transition = transitionSpy,
@@ -268,15 +254,12 @@ internal class SessionRepositoryImplFinishAtomicDbTest {
                 }
             }
 
-            // The transaction rolls back everything: state stays IN_PROGRESS, finished_at stays
-            // null, the rename never lands, and the training is still flagged ad-hoc.
             val sessionAfter = env.sessionDao.getById(session.uuid)
             assertEquals(SessionStateEntity.IN_PROGRESS, sessionAfter?.state)
             assertNull(sessionAfter?.finishedAt)
             val trainingAfter = env.trainingDao.getById(adhocTraining.uuid)
             assertEquals("Original", trainingAfter?.name)
             assertEquals(true, trainingAfter?.isAdhoc)
-            // The exercise DAO was invoked, confirming the throw came from the right step.
             coVerify(exactly = 1) {
                 throwingExerciseDao.graduateAdhocForSession(session.uuid)
             }

@@ -24,51 +24,25 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import io.github.stslex.workeeper.core.ui.kit.R
 import io.github.stslex.workeeper.core.ui.kit.components.input.AppNumberInput
 import io.github.stslex.workeeper.core.ui.kit.components.pr.PersonalRecordTag
 import io.github.stslex.workeeper.core.ui.kit.components.setchip.AppSetTypeChip
 import io.github.stslex.workeeper.core.ui.kit.components.setrow.SetRowGeometry
+import io.github.stslex.workeeper.core.ui.kit.resources.Res
+import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_reorderable_drag_handle
+import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_set_field_a11y_reps
+import io.github.stslex.workeeper.core.ui.kit.resources.core_ui_kit_set_field_a11y_weight
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.past_session.mvi.model.PastSetUiModel
+import org.jetbrains.compose.resources.stringResource
 
 /**
  * `.set` — one logged, editable set (extraction §2.6): `set-i · field(s) · tchip-or-prtag ·
- * drag handle`. Identical geometry to the session's `.set` (§1.6) minus the `.mark` — a past
- * session has nothing left to complete.
- *
- * ## The colour ramp is the logged one
- *
- * Every value renders at full contrast (`AppNumberInput.isLogged` — the mockup's inline
- * `color:var(--max)` on ordinary rows) on the plain `surfaceTier3` field; the record row
- * drops the override and lets `.pr` win: molten value on the molten wash, both fields.
- *
- * ## The trailing slot holds ONE thing
- *
- * The type chip or the record tag — never both; they share the 34×32 slot geometry. The tag
- * opens the PR explainer (extraction §2.7 — "PR explainer, opened from the PR tag"); the
- * chip stays display-only, deliberately: `Action.Click.OnSetTypeChange` persists through the
- * same whole-row write path as the #178 stale-weight hazard, and making the chip tappable
- * would arm that path from a second trigger (PF4).
- *
- * ## The drag handle is deliberately still here
- *
- * The mockup does not draw it, but drag-to-reorder is a shipped v2.4 5.7 feature with a live
- * gesture. Deleting a working affordance is not this redesign's call — kept, flagged in the
- * PR (extraction §2.8 records the same deviation).
- *
- * ## Why this is not `LiveSetRow` (PF3)
- *
- * Extraction §6.4 rank 8 settles the shared-row question: deliberately separate. Measured at
- * the v3-screens preflight: 8 semantically shared lines of 163; the load-bearing split is the
- * input contract — this row is an **editing draft** (`String` + error flags, so a half-typed
- * "72." survives) where `LiveSetRow` is typed display + commit (`(Double?) -> Unit`). #186
- * widened that gap (closure visuals, the mark); what is genuinely shared is shared at the
- * kit grain: `AppNumberInput` (B1+B7), `AppSetTypeChip`, `PersonalRecordTag`.
+ * drag handle`. The trailing slot holds the type chip OR the record tag, never both.
  */
 @Composable
 internal fun PastSetEditRow(
@@ -110,7 +84,7 @@ internal fun PastSetEditRow(
                 isRecord = set.isPersonalRecord,
                 isLogged = true,
                 fieldInset = SetRowGeometry.compactFieldInset,
-                accessibilityLabel = stringResource(R.string.core_ui_kit_set_field_a11y_weight),
+                accessibilityLabel = stringResource(Res.string.core_ui_kit_set_field_a11y_weight),
                 valueSlotProbe = weightSlotProbe,
             )
             AppNumberInput(
@@ -122,12 +96,11 @@ internal fun PastSetEditRow(
                 isRecord = set.isPersonalRecord,
                 isLogged = true,
                 fieldInset = SetRowGeometry.compactFieldInset,
-                accessibilityLabel = stringResource(R.string.core_ui_kit_set_field_a11y_reps),
+                accessibilityLabel = stringResource(Res.string.core_ui_kit_set_field_a11y_reps),
                 valueSlotProbe = repsSlotProbe,
             )
         } else {
-            // Bodyweight: ONE full-width field; the unit lives in the column header
-            // (`ПОВТОРЕНИЙ`), inherited through §2.6's "identical geometry".
+            // Bodyweight: ONE full-width field; the unit lives in the column header.
             AppNumberInput(
                 modifier = Modifier.weight(1f),
                 value = set.repsInput,
@@ -137,13 +110,11 @@ internal fun PastSetEditRow(
                 isRecord = set.isPersonalRecord,
                 isLogged = true,
                 fieldInset = SetRowGeometry.compactFieldInset,
-                accessibilityLabel = stringResource(R.string.core_ui_kit_set_field_a11y_reps),
+                accessibilityLabel = stringResource(Res.string.core_ui_kit_set_field_a11y_reps),
                 valueSlotProbe = repsSlotProbe,
             )
         }
-        // One slot width for the chip and the tag alike — see `LiveSetRow`: the tag's label
-        // outgrows their shared minimum at large text scales, and per-component intrinsic
-        // widths make a record row's columns disagree with the header's.
+        // GUARD: chip and tag share one slot width, or rows disagree with the column header.
         val trailingSlotWidth = SetRowGeometry.resolveTrailingSlotWidth()
         if (set.isPersonalRecord) {
             Box(
@@ -164,7 +135,7 @@ internal fun PastSetEditRow(
         Icon(
             modifier = dragHandleModifier.size(DragHandleSize),
             imageVector = Icons.Filled.DragHandle,
-            contentDescription = stringResource(R.string.core_ui_kit_reorderable_drag_handle),
+            contentDescription = stringResource(Res.string.core_ui_kit_reorderable_drag_handle),
             tint = AppUi.colors.textDim,
         )
     }

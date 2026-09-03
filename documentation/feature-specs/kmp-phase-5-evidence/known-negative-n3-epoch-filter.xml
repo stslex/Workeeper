@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManagerTest" tests="5" skipped="0" failures="2" errors="0" timestamp="2026-08-23T00:16:22.688Z" hostname="stslexs-MacBook-Pro.local" time="0.133">
+  <properties/>
+  <testcase name="an aborted transition preserves the queue - no advance, the model delivers normally()" classname="io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManagerTest" time="0.07"/>
+  <testcase name="emissions while the collector is busy are buffered, not dropped()" classname="io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManagerTest" time="0.003"/>
+  <testcase name="a commit queued behind a burst is delivered, never evicted()" classname="io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManagerTest" time="0.004"/>
+  <testcase name="re-enqueue after the advance delivers exactly once - the pre-advance copy is discarded()" classname="io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManagerTest" time="0.04">
+    <failure message="org.opentest4j.AssertionFailedError: expected: &lt;[AppSnackbarModel(message=re-enqueued-intent, actionLabel=null, action=io.github.stslex.workeeper.core.ui.kit.snackbar.AppSnackbarModel$$Lambda/0x000000f0022e5ce0@2a7d9b41, onDismissed=() -&gt; kotlin.Unit)]&gt; but was: &lt;[AppSnackbarModel(message=re-enqueued-intent, actionLabel=null, action=io.github.stslex.workeeper.core.ui.kit.snackbar.AppSnackbarModel$$Lambda/0x000000f0022e5ce0@2a7d9b41, onDismissed=() -&gt; kotlin.Unit), AppSnackbarModel(message=re-enqueued-intent, actionLabel=null, action=io.github.stslex.workeeper.core.ui.kit.snackbar.AppSnackbarModel$$Lambda/0x000000f0022e5ce0@2a7d9b41, onDismissed=() -&gt; kotlin.Unit)]&gt;" type="org.opentest4j.AssertionFailedError">org.opentest4j.AssertionFailedError: expected: &lt;[AppSnackbarModel(message=re-enqueued-intent, actionLabel=null, action=io.github.stslex.workeeper.core.ui.kit.snackbar.AppSnackbarModel$$Lambda/0x000000f0022e5ce0@2a7d9b41, onDismissed=() -&gt; kotlin.Unit)]&gt; but was: &lt;[AppSnackbarModel(message=re-enqueued-intent, actionLabel=null, action=io.github.stslex.workeeper.core.ui.kit.snackbar.AppSnackbarModel$$Lambda/0x000000f0022e5ce0@2a7d9b41, onDismissed=() -&gt; kotlin.Unit), AppSnackbarModel(message=re-enqueued-intent, actionLabel=null, action=io.github.stslex.workeeper.core.ui.kit.snackbar.AppSnackbarModel$$Lambda/0x000000f0022e5ce0@2a7d9b41, onDismissed=() -&gt; kotlin.Unit)]&gt;
+	at org.junit.jupiter.api.Assertions.assertEquals(Assertions.java:1199)
+	at io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManagerTest$re-enqueue after the advance delivers exactly once - the pre-advance copy is discarded$1.invokeSuspend(SnackbarManagerTest.kt:208)
+	at io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManagerTest$re-enqueue after the advance delivers exactly once - the pre-advance copy is discarded$1.invoke(SnackbarManagerTest.kt)
+	at io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManagerTest$re-enqueue after the advance delivers exactly once - the pre-advance copy is discarded$1.invoke(SnackbarManagerTest.kt)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt$runTest$2$1$1.invokeSuspend(TestBuilders.kt:317)
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)
+	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:100)
+	at kotlinx.coroutines.test.TestDispatcher.processEvent$kotlinx_coroutines_test(TestDispatcher.kt:24)
+	at kotlinx.coroutines.test.TestCoroutineScheduler.tryRunNextTaskUnless$kotlinx_coroutines_test(TestCoroutineScheduler.kt:98)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt$runTest$2$1$workRunner$1.invokeSuspend(TestBuilders.kt:326)
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)
+	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:100)
+	at kotlinx.coroutines.EventLoopImplBase.processNextEvent(EventLoop.common.kt:256)
+	at kotlinx.coroutines.BlockingCoroutine.joinBlocking(Builders.kt:54)
+	at kotlinx.coroutines.BuildersKt__BuildersKt.runBlockingImpl(Builders.kt:30)
+	at kotlinx.coroutines.BuildersKt.runBlockingImpl(Unknown Source)
+	at kotlinx.coroutines.BuildersKt__Builders_concurrentKt.runBlockingK(Builders.concurrent.kt:172)
+	at kotlinx.coroutines.BuildersKt.runBlockingK(Unknown Source)
+	at kotlinx.coroutines.BuildersKt__Builders_concurrentKt.runBlockingK$default(Builders.concurrent.kt:157)
+	at kotlinx.coroutines.BuildersKt.runBlockingK$default(Unknown Source)
+	at kotlinx.coroutines.test.TestBuildersJvmKt.createTestResult(TestBuildersJvm.kt:10)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:309)
+	at kotlinx.coroutines.test.TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:1)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:167)
+	at kotlinx.coroutines.test.TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:1)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt.runTest-8Mi8wO0$default(TestBuilders.kt:159)
+	at kotlinx.coroutines.test.TestBuildersKt.runTest-8Mi8wO0$default(TestBuilders.kt:1)
+	at io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManagerTest.re-enqueue after the advance delivers exactly once - the pre-advance copy is discarded(SnackbarManagerTest.kt:193)
+</failure>
+  </testcase>
+  <testcase name="a model queued before a committed handover is DISCARDED at delivery - its callbacks never run()" classname="io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManagerTest" time="0.005">
+    <failure message="org.opentest4j.AssertionFailedError: expected: &lt;[fresh-after-handover]&gt; but was: &lt;[stale-before-handover, fresh-after-handover]&gt;" type="org.opentest4j.AssertionFailedError">org.opentest4j.AssertionFailedError: expected: &lt;[fresh-after-handover]&gt; but was: &lt;[stale-before-handover, fresh-after-handover]&gt;
+	at org.junit.jupiter.api.Assertions.assertEquals(Assertions.java:1199)
+	at io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManagerTest$a model queued before a committed handover is DISCARDED at delivery - its callbacks never run$1.invokeSuspend(SnackbarManagerTest.kt:146)
+	at io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManagerTest$a model queued before a committed handover is DISCARDED at delivery - its callbacks never run$1.invoke(SnackbarManagerTest.kt)
+	at io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManagerTest$a model queued before a committed handover is DISCARDED at delivery - its callbacks never run$1.invoke(SnackbarManagerTest.kt)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt$runTest$2$1$1.invokeSuspend(TestBuilders.kt:317)
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)
+	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:100)
+	at kotlinx.coroutines.test.TestDispatcher.processEvent$kotlinx_coroutines_test(TestDispatcher.kt:24)
+	at kotlinx.coroutines.test.TestCoroutineScheduler.tryRunNextTaskUnless$kotlinx_coroutines_test(TestCoroutineScheduler.kt:98)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt$runTest$2$1$workRunner$1.invokeSuspend(TestBuilders.kt:326)
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)
+	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:100)
+	at kotlinx.coroutines.EventLoopImplBase.processNextEvent(EventLoop.common.kt:256)
+	at kotlinx.coroutines.BlockingCoroutine.joinBlocking(Builders.kt:54)
+	at kotlinx.coroutines.BuildersKt__BuildersKt.runBlockingImpl(Builders.kt:30)
+	at kotlinx.coroutines.BuildersKt.runBlockingImpl(Unknown Source)
+	at kotlinx.coroutines.BuildersKt__Builders_concurrentKt.runBlockingK(Builders.concurrent.kt:172)
+	at kotlinx.coroutines.BuildersKt.runBlockingK(Unknown Source)
+	at kotlinx.coroutines.BuildersKt__Builders_concurrentKt.runBlockingK$default(Builders.concurrent.kt:157)
+	at kotlinx.coroutines.BuildersKt.runBlockingK$default(Unknown Source)
+	at kotlinx.coroutines.test.TestBuildersJvmKt.createTestResult(TestBuildersJvm.kt:10)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:309)
+	at kotlinx.coroutines.test.TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:1)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:167)
+	at kotlinx.coroutines.test.TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:1)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt.runTest-8Mi8wO0$default(TestBuilders.kt:159)
+	at kotlinx.coroutines.test.TestBuildersKt.runTest-8Mi8wO0$default(TestBuilders.kt:1)
+	at io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManagerTest.a model queued before a committed handover is DISCARDED at delivery - its callbacks never run(SnackbarManagerTest.kt:115)
+</failure>
+  </testcase>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

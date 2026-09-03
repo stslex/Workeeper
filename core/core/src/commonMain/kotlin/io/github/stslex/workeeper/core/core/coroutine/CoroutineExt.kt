@@ -30,14 +30,8 @@ suspend fun <T, R> Iterable<T>.asyncMapNotNull(
     .filterNotNull()
 
 /**
- * Runs [transform] in parallel for each element and assembles the resulting pairs into a
- * single [Map]. Each transform launches as an `async` child of `coroutineScope`, so all
- * calls run concurrently and the function suspends until every child completes.
- *
- * Duplicate keys: last-write-wins. The results are awaited into an ordered list of pairs and
- * then folded into the map, so the surviving value for any duplicated key is whichever pair
- * appears last in iteration order (deterministic, unlike a concurrent map). If callers need a
- * different resolution, they must de-duplicate before calling.
+ * Runs [transform] in parallel for each element and folds the resulting pairs into a [Map].
+ * Duplicate keys: last in iteration order wins — de-duplicate first if that is not wanted.
  */
 suspend inline fun <T, K : Any, V : Any> Iterable<T>.asyncAssociate(
     crossinline transform: suspend (T) -> Pair<K, V>,
@@ -62,9 +56,8 @@ suspend fun <T> asyncScope(
 }
 
 /**
- * Evaluates [predicate] in parallel for each element and returns `true` only when every
- * element satisfies it. All predicates are awaited (no short-circuit) — if early termination
- * matters, prefer the sequential `Iterable.all { ... }` instead.
+ * Evaluates [predicate] in parallel and returns `true` only when every element satisfies it.
+ * Every predicate is awaited; use the sequential `all { }` when early termination matters.
  */
 suspend inline fun <T> Iterable<T>.asyncAll(
     crossinline predicate: suspend (T) -> Boolean,

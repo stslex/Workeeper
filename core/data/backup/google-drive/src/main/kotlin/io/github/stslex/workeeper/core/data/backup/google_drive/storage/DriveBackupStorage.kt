@@ -25,15 +25,8 @@ import java.io.File
 import kotlin.math.abs
 
 /**
- * `BackupStorage` impl over Drive v3 `appdata` files. Mapping (`DriveFileMapper`)
- * and rotation logic (`RotationPolicy`) live in sibling stateless objects so the
- * impl stays focused on orchestration + error mapping.
- *
- * Every Drive HTTP call goes through [withTokenRefreshOn401], which catches the
- * typed `DriveException.AuthRevoked` raised by `DriveAuthPlugin` on a 401
- * response, invalidates both the DataStore-cached and GMS-cached bearer tokens,
- * and retries the call once. The retry uses a freshly-issued token from
- * `authorize()`; a second 401 propagates and maps to `BackupError.AuthRevoked`.
+ * [BackupStorage] over Drive v3 `appdata` files; mapping and rotation live in sibling stateless
+ * objects. Every call goes through [withTokenRefreshOn401].
  */
 @ContributesBinding(AppScope::class)
 @SingleIn(AppScope::class)
@@ -99,12 +92,7 @@ class DriveBackupStorage @Inject internal constructor(
             )
         }
 
-    /**
-     * Best-effort rotation. Lists current backups after a successful upload and
-     * deletes the oldest if we are over [BackupConstants.MAX_BACKUPS]. Failures
-     * inside rotation never propagate — the upload itself already succeeded and
-     * leftover old backups are a non-blocking housekeeping concern.
-     */
+    /** Best-effort rotation past [BackupConstants.MAX_BACKUPS]; failures never propagate. */
     private suspend fun rotate() {
         runCatching {
             val current = withTokenRefreshOn401 { driveApi.listFiles(spaces = APP_DATA_FOLDER, query = LIST_QUERY) }
@@ -119,12 +107,7 @@ class DriveBackupStorage @Inject internal constructor(
         }.onFailure { logger.e(it, "rotation: list failed") }
     }
 
-    /**
-     * Runs [block]; on `DriveException.AuthRevoked` (Drive returned 401), clears
-     * the bearer token from both the DataStore cache and the GMS local cache,
-     * then retries [block] once. A second AuthRevoked propagates — the upper
-     * layer maps it to `BackupError.AuthRevoked`.
-     */
+    /** Runs [block]; a 401 clears the cached bearer token and retries once, then propagates. */
     private suspend fun <T> withTokenRefreshOn401(block: suspend () -> T): T = try {
         block()
     } catch (firstFailure: DriveException.AuthRevoked) {

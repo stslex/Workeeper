@@ -2,11 +2,8 @@
 package io.github.stslex.workeeper.core.core.platform
 
 /**
- * Platform/runtime information the domain layer needs (app version, device model)
- * without importing platform SDK types. An expect/actual class, not an interface with a
- * DI binding: consumers inject the class itself and each platform's actual owns
- * construction (Android reads `PackageManager` + `Build`; iOS reads the main-bundle info
- * dictionary + `UIDevice`).
+ * Platform/runtime information (app version, device model) without platform SDK types in the
+ * domain layer. An expect/actual class: consumers inject it directly, with no DI binding.
  */
 expect class PlatformInfoProvider {
 

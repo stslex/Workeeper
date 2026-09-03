@@ -26,10 +26,7 @@ internal class CommonHandlerTest {
 
     /**
      * The store mock runs `launch` synchronously and routes a throw to `onError`, because that
-     * routing is the thing under test: production's default for `onError` is `{}` (B17, B21), so a
-     * mock that swallowed the throw would report the defect as fixed. Mirrors the sibling fixture
-     * in `feature/single-training`, deliberately — both routes carry the same route gate and owe
-     * the same precondition.
+     * routing is the thing under test — a mock that swallowed it would report the defect fixed.
      */
     private fun setup(
         initialState: State,
@@ -60,20 +57,7 @@ internal class CommonHandlerTest {
         return Triple(stateFlow, CommonHandler(interactor, resourceWrapper, store), store)
     }
 
-    /**
-     * The exit, on both arms that can reach it.
-     *
-     * Clearing `isLoading` alone is not enough and is the more dangerous half on its own: the route
-     * composes on that flag, so clearing it presents the requested session as a **successfully
-     * empty** one — "No exercises yet", an Add CTA, and a Finish dock enabled by `!isLoading`. A
-     * transient read failure could then finish a workout whose exercises never loaded. And leaving
-     * the flag set is the opposite failure, a permanently empty frame behind the gate. So both are
-     * asserted: the flag is cleared, and the leave-with-message is asked for.
-     *
-     * Both are STATE, so both are assertable here — which is the point of recording the failure
-     * rather than announcing it. An event dispatched before the screen's collector subscribes is
-     * dropped, and the dropped case is the dangerous one.
-     */
+    /** The load-failure exit on both arms; both flags asserted, since either alone lies. */
     @Test
     fun `a load that throws clears isLoading and records the failure`() {
         coEvery { interactor.loadSession(any()) } throws IllegalStateException("db down")

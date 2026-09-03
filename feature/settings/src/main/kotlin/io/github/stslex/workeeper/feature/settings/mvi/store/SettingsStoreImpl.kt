@@ -3,6 +3,7 @@ package io.github.stslex.workeeper.feature.settings.mvi.store
 
 import androidx.annotation.VisibleForTesting
 import dev.zacsweers.metro.Inject
+import io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetime
 import io.github.stslex.workeeper.core.ui.mvi.BaseStore
 import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
 import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
@@ -32,6 +33,7 @@ class SettingsStoreImpl internal constructor(
     storeEmitter: SettingsHandlerStoreImpl,
     analyticsHolder: AnalyticsHolder,
     loggerHolder: LoggerHolder,
+    appScopeLifetime: AppScopeLifetime,
 ) : BaseStore<State, Action, Event>(
     name = NAME,
     initialState = State.initial(
@@ -57,6 +59,7 @@ class SettingsStoreImpl internal constructor(
     ),
     analyticsHolder = analyticsHolder,
     loggerHolder = loggerHolder,
+    appScopeLifetime = appScopeLifetime,
 ) {
 
     companion object {

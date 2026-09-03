@@ -321,6 +321,20 @@ Index check: `session(state, finished_at DESC)` is already covered by existing i
 cost is negligible. If perf becomes an issue, add composite `session(state, finished_at)` later. *
 *Do not add prematurely.**
 
+**Shipped instead: `pagedRecentWithStats()`** — same projection, no `LIMIT`, returning
+`PagingSource<Int, RecentSessionRow>`. Two notes on the predicates:
+
+- `s.finished_at IS NOT NULL` is not belt-and-braces with `s.state = 'FINISHED'`; it is load-bearing
+  for the sort. SQLite parks NULLs at the *tail* of `ORDER BY finished_at DESC`, so a FINISHED row
+  with no timestamp would not vanish — it would sit below every dated session forever, a worse
+  failure than being absent. `observeLastFinishedSession` carries the same predicate for the same
+  reason: with `LIMIT 1` such a row wins from below.
+- `RECENT_FIXTURE_SIZE = 12` in `SessionRepositoryImplReadDbTest` is deliberately above the
+  hardcoded 10 the replaced `observeRecentWithStats(limit)` capped Home at — "row eleven is
+  reachable" is the whole behavioural change, so any fixture of ten rows or fewer would still pass
+  with the old limit in place. That case replaces two older ones (`observeRecent … respects limit`,
+  `observeRecentWithStats …`) which asserted a ceiling the repository no longer has.
+
 **`getSessionDetail(sessionUuid)`** — one-shot for Past session detail. Returns the session row +
 all performed_exercise rows + all set rows joined, deserialized into a hierarchical model. Three
 options:
@@ -726,6 +740,48 @@ The picker is loaded lazily on first open, NOT eagerly on `Init`. Reasoning:
 Acceptable cost: ~50-100ms perceived latency on first picker open. If this becomes noticeable in QA,
 switch to eager hot Flow.
 
+### Recent list as shipped — paging and the loading deferral
+
+The list became a `Pager` after 5.5. These couplings are invisible at their call sites.
+
+- `rememberDeferredSurface(surface = homeListSurface(…), loadingSurface = HomeListSurface.LOADING)`
+  is computed in `HomeBody`, never inside `emptyRegion`: the deferral holds only by staying in
+  composition after loading ends, and `emptyRegion`'s `item(key = "empty_region")` is removed the
+  instant the list has rows — a call sited inside it would leave composition exactly when the hold
+  was meant to begin. `emptyRegion` takes the verdict as a parameter and must not re-derive it; the
+  raw verdict drops both the post-load LOADING report and the `null` returned while the window is
+  open.
+- The helper's two thresholds, as Home consumes them (they live in `core:ui:kit` — see
+  design-system.md → "Loading deferral"): a load finishing under **140 ms** draws nothing at all and
+  the outgoing frame persists, which is what stops the flash; a load past 140 ms keeps the spinner
+  up for at least **260 ms**, which is what stops a 141 ms load flashing it for 1 ms.
+- `items(count = recent.itemCount, …)` is gated on
+  `listBody(surface, HomeListSurface.CONTENT) == ListBody.ROWS` — the deferred verdict, not
+  `itemCount`. During the minimum hold the rows have arrived while the verdict is still LOADING, and
+  a list that emits them anyway draws them underneath the footer for the rest of the hold. The
+  active-session banner and the start card sit outside the gate deliberately: they are not the list.
+- GUARD: `State.isLoading` is `!isActiveLoaded` and nothing else. `isActiveLoaded` goes false → true
+  once and never back, so `if (isLoading)` in `HomeScreen` can only remove `HomeBody` *before* a
+  load has begun. Widening it — it read `!isActiveLoaded || !isRecentLoaded` once — makes it
+  two-way, and since `rememberDeferredSurface` lives inside `HomeBody`, the minimum hold would be
+  cancelled by the very state change it exists to outlive.
+- GUARD: `PagingHandler` reads `System.currentTimeMillis()` once per emitted `PagingData`, in the
+  outer `.map { }` and deliberately not inside `pagingData.map { }`, which is lazy and per item as
+  pages load — reading it there would let two rows either side of a day boundary print contradicting
+  relative labels ("yesterday" / "2 days ago"). The predecessor took `nowMillis` off `State`, set on
+  the first emission and never updated, so labels aged in place for the screen's lifetime; the paged
+  one refreshes whenever the pager invalidates. `HomeUiMapper.toRecentItem(nowMillis,
+  resourceWrapper)` maps one row and takes the clock from the caller for that reason; the
+  list-shaped `List<RecentSessionDomain>.toRecentItems(…)` was deleted rather than kept beside it,
+  because under a `Pager` the unit of mapping is the item and two mappers for one row is how the two
+  drift.
+- `RecentSessionRow` renders its four payloads at 88.0 / 88.0 / 88.0 / 88.0 dp on feature/home's own
+  goldens — the fourth being the two-line-clamped name — which is the evidence that `AppListRow`'s
+  min-height floor holds and neither a long name nor a truncating meta line grows the row. It has no
+  `lifted` flag and no `AnimatedContent` / `TrailingSlotKind` selector by construction, not by
+  omission: the backing query is FINISHED-only so nothing on this list can be running, and Home has
+  no selection mode, so both branches would be unreachable. The trailing slot is a fixed chevron.
+
 ## MVI surface — `feature/past-session` (new)
 
 ### Component
@@ -798,6 +854,41 @@ map (`observePersonalRecords` per exercise). The mapper sets `isPersonalRecord =
 [exerciseUuid]?.setUuid == set.uuid)`. Edits apply optimistically through `InputHandler`,
 so the snapshot stays consistent between PR re-emissions; when the user saves an edit, the
 underlying `set_table` change triggers Room to re-emit the PR map and the badge follows.
+
+**Every PR re-emission replaces the whole `Loaded` phase.** `observeDetailWithPrs` re-fetches the
+full session detail on each PR-flow re-emission (an edit that moves a record re-fetches the detail),
+and `CommonHandler.processInit` replaces the entire `State.Phase.Loaded` on each emission.
+`PastSessionUiMapper.withExpansionCarriedFrom(previous)` exists solely to survive that wholesale
+replacement — without it an edit round-trip silently resets the user's open cards. Previous phase
+not `Loaded` (first entry, or retry after an error) seeds exactly the first card, status never
+consulted; previous phase `Loaded` carries the previous open set forward, pruned to exercises that
+still exist (defensive: this screen cannot remove single exercises today, but a stale uuid would be
+an invisible leak). This supersedes v2.1-pr-tracking.md's still-open "detail does not auto-refresh"
+item.
+
+**Totals, as shipped.** `totalSets` counts only sets with `reps > 0` (v3-redesign-spec.md §6.1), so
+the past-session count agrees with the live-session denominator, which excludes unfilled rows; the
+same sentinel gates `setSummary()`, so a collapsed card can never summarise a row the header refuses
+to count. No production writer can persist a `reps <= 0` row today — the filter is defence-in-depth
+over legacy or imported data.
+
+`tonnageKg()` filters `exerciseType == ExerciseTypeDomain.WEIGHTED` rather than summing
+`weight ?: 0.0` over every set, because it must mirror `SessionDao.getBestSessionVolumes` exactly
+(`e.type = 'WEIGHTED' AND s.weight IS NOT NULL`). `SetEntity.weight` is nullable but not
+type-constrained: residual non-null weights on WEIGHTLESS rows exist in shipped data and scrubbing
+them by migration was rejected (v3-redesign-spec.md §12), so a naive sum would absorb them as
+kilograms. No `reps > 0` clause is needed (a zero-rep set contributes a zero product); skipped
+exercises are deliberately not excluded, matching the set count the figure sits beside.
+
+`buildTotalsLabel` uses two formats — `R.string.feature_past_session_totals_format` and
+`R.string.feature_past_session_totals_format_with_tonnage` — rather than one with an empty third
+argument: the figure drops out when `tonnageKg.roundToLong() <= 0L`, because a session that lifted
+nothing (all-weightless, or weighted-but-logged-without-weights) would otherwise read "· 0 kg",
+stating a measurement never taken. Grouping is `%,d` inside
+`R.string.feature_past_session_tonnage_format`, resolved by `Resources.getString` against the
+configuration locale — "4,820" in en, "4 820" in ru — with no number formatter in this codebase;
+that grouping is not exercised on the host JVM, where `PastSessionUiMapperTest`'s fake returns
+`"${args[0]} kg"` ungrouped.
 
 ### Action
 
@@ -874,6 +965,13 @@ list of `PastSetEditRow`.
 `PastSetEditRow` mirrors the live-workout set row visually: type chip, weight TextField, reps
 TextField. No "mark done" checkbox here — every set is already done. Stable `key` per row for
 TextField identity preservation (per architecture.md → TextField inputs).
+
+The trailing slot holds the type chip **or** the record tag, never both. The tag opens the PR
+explainer; the chip is display-only deliberately (PF4) — `AppSetTypeChip` is rendered with no
+`onClick`, because `Action.Click.OnSetTypeChange` persists through
+`ClickHandler.processSetTypeChange → persistSet → interactor.updateSet`, the same whole-row write
+path that carries the #178 stale-weight hazard, and a tappable chip would arm it from a second
+trigger.
 
 ### Discard / back gesture
 

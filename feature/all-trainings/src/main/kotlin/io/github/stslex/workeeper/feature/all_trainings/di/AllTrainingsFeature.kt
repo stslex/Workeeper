@@ -16,16 +16,8 @@ import io.github.stslex.workeeper.feature.all_trainings.mvi.store.AllTrainingsSt
 internal typealias AllTrainingsStoreProcessor = StoreProcessor<State, Action, Event>
 
 /**
- * feature/all-trainings resolves its Store through the **Metro** graph-extension path. PLAIN Store
- * (a BottomBar destination) — the extension exposes the Store directly and this composable retains it
- * via `rememberMetroStoreProcessor`.
- *
- * The app-scope graph (returned as `Any` by the `AppDepsHolder` seam) IS the parent graph, and once
- * `:app` is compiled it implements the contributed [AllTrainingsGraph.Factory]. `appDeps<T>()` re-narrows
- * it with its `as T` cast — the same acquisition seam used before, now targeting the contributed factory
- * instead of a `XxxDeps` interface. (`asContribution<T>()` is not usable here: it requires a statically
- * `@DependencyGraph`-typed receiver, which the `Any` seam is not.) All 8 formerly hand-threaded app-scoped
- * deps are inherited from the parent graph, so `create()` takes no arguments.
+ * Resolves the plain Store through the Metro graph-extension path: `appDeps<T>()` narrows the
+ * app-scope graph to the contributed [AllTrainingsGraph.Factory]. See architecture.md.
  */
 internal object AllTrainingsFeature : Feature<AllTrainingsStoreProcessor, AllTrainings>() {
 

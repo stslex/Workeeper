@@ -60,16 +60,16 @@ Verified by grep against `dev @ 5b3c1cb2`. Each symbol is named so CC deletes ra
 - `ExerciseGraph`'s `savedStateHandle.getStateFlow(Screen.PlanEditor.planEditorSavedAttr)` bridge
 - `TypeChipReadOnly` + `feature_exercise_edit_type_chip_hint`
 - `DefaultPlanSection`'s summary branch — **two identically-named private composables exist**. The
-  one that dies is `ExerciseEditScreen.kt:201-255`, which branches on `isCreate` and renders the
-  summary label in its else-branch. `ExerciseDetailScreen.kt:224` has **no branch** and renders
+  one that dies is `ExerciseEditScreen.kt:169-216`, which branches on `isCreate` and renders the
+  summary label in its else-branch. `ExerciseDetailScreen.kt:192` has **no branch** and renders
   `PlanCard` unconditionally — that one is S2's to rebuild, not S3's to delete.
-- `adhocPlanSummaryLabel` — **measured, not assumed**: its only read is `ExerciseEditScreen.kt:236`,
+- `adhocPlanSummaryLabel` — **measured, not assumed**: its only read is `ExerciseEditScreen.kt:197`,
   inside the branch above. The read screen never references it, so it dies with the branch.
-- `ExerciseTopBarThumb` and its **one** call site, `ExerciseEditScreen.kt:92` (ED6). The read screen
+- `ExerciseTopBarThumb` and its **one** call site, `ExerciseEditScreen.kt:78` (ED6). The read screen
   never had a thumb: its trailing slot is the `⋮` `AppIconButton` and its image affordance is
   `ExerciseHero` in the scrolling body, so ED6's read half is already true at HEAD.
 - `ExerciseHero`'s **call site in the read body** and the `state.effectiveImageDisplay !is
-  ImageDisplay.None` gate around it — `ExerciseDetailScreen.kt:134-142`, the **only** production
+  ImageDisplay.None` gate around it — `ExerciseDetailScreen.kt:121-126`, the **only** production
   call site; the image moves beside the description (D-OPEN-9). Perimeter counted by kind: 1
   production call site, 2 previews and 3 `testTag` literals, all three kinds inside
   `ExerciseHero.kt` itself, and **no test asserts the tags**. Whether the component file survives
@@ -155,6 +155,29 @@ too — the glyph shown when `imageDisplay` is `None`, which today lives in `Exe
 which `exercise-image.md` also reuses for the thumb. Where that glyph ends up is S2's call and it
 is **mechanical, not a decision**: nothing in §5 rides on it.
 
+**Shipped facts about this frame, measured against the build.**
+
+- The `.tchip` padding `Box` (`AppDimension.Space.xxs` on both axes) inside `SetTypeSlot` is drawn in
+  read-only mode too. It is what positions the chip, so skipping it when `onAction == null` moves the
+  trailing column by 2dp on one screen of the two — against D-OPEN-6.
+- `countSessions` may legitimately **exceed** the history-section rows it labels: it counts every FINISHED
+  session containing the exercise, while `getRecentHistory` truncates at `DEFAULT_HISTORY_LIMIT = 5`
+  *and* additionally drops sessions with no logged sets. Two populations, not an inconsistency to
+  align.
+- `PersonalRecordUiModel` carries `sessionUuid`, `weightLabel` (`null` when weightless), `repsLabel`
+  and `absoluteDateLabel` only; the hero composes `{weight}×{reps}` from the split parts. The drawn
+  second meta term `· {training}` is deliberately **not** modelled — the PR flow does not carry the
+  training name. `sessionUuid` is there for the chart entry point and the record match below.
+- A history row is the day-month date plus a compact set summary (`7×12 · 7×12 · …`, first five then
+  an ellipsis). The training name and the ad-hoc marker are no longer drawn on the row — the session
+  screen the row opens carries both. Being *the* record row is not a field on `HistoryUiModel`: it is
+  matched at render time on `sessionUuid` against the record's, which is what keeps `.prtag` live when
+  the PR flow re-emits.
+- `OnArchiveMenuClick` sets `bottomSheetState = BottomSheetState.Hidden` synchronously, before
+  `launch { interactor.archive(uuid) }`, so an `ArchiveResult.Blocked` outcome never stacks
+  `DialogState.ArchiveBlocked` over a still-open sheet. Moving the hide into the result branches is the
+  tidier-looking form and is wrong.
+
 ### 3.2 Exercise — create / edit (`ExerciseEditScreen`)
 
 ```
@@ -174,6 +197,21 @@ dock      Отмена · Сохранить                             Save al
 `2 из 10` renders **only** on the exercise: `MAX_TAGS_PER_EXERCISE = 10` lives in
 `feature/exercise`'s `ClickHandler`; `feature/single-training` has no limit. Showing it there
 would be a lie.
+
+**The create-tag action is checked twice, and both checks are at landing time.** `createTag` returns the
+**existing** row for a name that already exists (`TagRepositoryImpl.create` → `TagDao.findByName`,
+`WHERE name = :name COLLATE NOCASE`), so both editors' success arms re-check
+`tags.any { it.uuid == tag.uuid }` before chipping — the persisted links dedup on Save and the draft
+must agree. On the exercise the `MAX_TAGS_PER_EXERCISE` check also runs twice: once at dispatch, once
+where the chip actually lands, because two rapid creates both pass the first while the first write is
+in flight.
+
+**WEIGHTED→WEIGHTLESS: the screen's wipe is local, the cascade is in the repository.**
+`processTypeChangeConfirm`'s `adhocPlan.map { it.copy(weight = null) }` clears the DRAFT only. An
+existing exercise's weights also sit on every `training_exercise.plan_sets` row that references it,
+and nothing on this screen reaches those: `ExerciseRepositoryImpl.saveItem` clears them from the
+referencing rows whenever the saved type is `ExerciseTypeDataModel.WEIGHTLESS`, in the same
+transaction as the save. The confirm sheet only decides whether the user accepts losing them.
 
 The image entry point is **beside the description** — not in the top bar (ED6 stands, the thumb
 is deleted), not among the plan and not among the tags. The placement is the statement: the image
@@ -220,6 +258,44 @@ training unscannable, which is why D-OPEN-7 reversed this section's earlier "All
 default governs *scanning* an existing list. An insert is an addressed gesture whose next step is
 the plan — and the inserted card has no plan yet — so it opens where it lands. Inserting several at
 once opens **the first only**.
+
+**Shipped structure of this editor.**
+
+- `State.expandedExerciseUuids` is Store-owned rather than `remember`ed inside
+  `TrainingExerciseCard`, because the insert-opens rule above is written by the handler and a
+  card-local `remember` could not see the insert.
+- Card head, three gestures with three outcomes: the head `Row`'s `clickable` is expand; `✕` is an
+  `IconButton` whose own clickable node consumes the tap outright; the drag handle's `Box` carries
+  **only** the long-press drag detector (`dragHandleModifier`), so a long press starts the drag and
+  cancels the head's tap while a plain tap deliberately falls through to expansion. Both children are
+  48dp boxes (`AppDimension.iconXl`) rather than their 18dp glyphs — the gesture sits on the container
+  because a bare `pointerInput` gets none of `IconButton`'s minimum-touch-target expansion.
+- `processPickerConfirm` filters `resolved` against **latest** state inside `updateStateImmediate`,
+  never against the state the picker opened over: `interactor.resolveExercises` is async and a removed
+  card's undo action can restore that exercise while the query is in flight, and
+  `training_exercise_table`'s composite primary key (`training_uuid`, `exercise_uuid`) makes the
+  duplicate unwritable at Save.
+- An emptied plan draft normalizes back to `null`, never `persistentListOf()` — the write-back in
+  `processExercisePlanAction` is `nextDraft.takeIf { it.isNotEmpty() }`, and `processPickerConfirm`
+  inserts new cards with `planSets = null` for the same reason. `plan_sets IS NULL` is the persisted
+  attached-with-no-plan shape, an empty list is a third value the row never stores, and the dirty
+  signature compares this value directly — a lingering `[]` reads dirty forever.
+- `interactor.saveTraining(snapshot, plans)` commits the training row and every listed exercise's plan
+  in a **single** repository transaction, so a failure anywhere leaves nothing behind one save confirmation.
+  That single transaction is also what makes plans editable on a not-yet-saved training (ED1): the
+  plan writes land on the `training_exercise_table` rows the same transaction just wrote.
+- `State.Snapshot.exercises` holds whole `TrainingExerciseItem`s while `Snapshot.matches` compares
+  only `signature() = Triple(exerciseUuid, position, planSets)` — the storage is wider on purpose,
+  because a signature DETECTS a change and cannot UNDO one. `planSets` is in the signature since the
+  plan became an inline edit (ED1): a plan edit with no baseline echo must read as `hasChanges`, or
+  back pops over an unsaved plan without the discard sheet. Name, type and tags are deliberately out —
+  they belong to the exercise, are edited on its own screen, and a refresh of them arriving from there
+  is not an unsaved edit to THIS training.
+- `State.applySnapshotOrPop` therefore assigns `exercises = snapshot.exercises` whole, never the
+  current list filtered and re-sorted: filtering can only REMOVE, so an exercise the edit removed would
+  have nothing to come back from, and re-sorting moves rows without rewriting `position`, which this
+  screen renders as `"${position + 1}."`. The same call clears `expandedExerciseUuids` and
+  `pendingSetRestores` — expansion is part of the restored form, and a stash belongs to the dead draft.
 
 ---
 
@@ -268,11 +344,82 @@ plan row cannot be deleted at the SQLite level, and the only deletable exercise 
 neither: no history, nothing expensive to retain. What the deferred mechanism costs is only what
 it always cost: "deleted" is a UI state the DB does not share while the snackbar lives.
 
+**The same RESTRICT reaches the session's ad-hoc cleanup.** `ExerciseDao.deleteIfAdhocOrphan(uuid)`
+deletes only when the row is absent from `performed_exercise_table` **and** from
+`training_exercise_table`, and the second check is load-bearing: `training_exercise_table` carries
+`onDelete = RESTRICT` on `exercise_uuid`, so deleting a still-planned exercise throws
+`SQLiteConstraintException` and takes the whole enclosing transaction down with it — silently
+resurrecting the performed row and sets the user just deleted. An ad-hoc session reaches exactly that
+state, because `createAdhocSession` and `addExerciseToActiveSession` both insert plan rows even for an
+ad-hoc training. Pinned by `SessionRepositoryImplRemoveExerciseDbTest`.
+
 **A deferred delete that loses its process is not committed — ruled (D-OPEN-10).** The row
 survives. Committing at next launch would be a deletion the user never saw complete and never
 confirmed; the opposite error — the item is still there — is **visible and repeatable**, and the
 user simply deletes it again. It also spares the alternative's cost: a persisted queue of pending
 operations, replayed at startup, for a five-second window.
+
+**How the undos are shipped.** The toasts are app-level (`SnackbarManager`) and outlive the draft
+they edited — Save or Cancel can end that draft, and Edit can start a new one, while the undo action is
+still on screen. Three pieces of `State` keep a stale one from landing.
+
+- **`draftEpoch`** — bumped on every entry into `Mode.Edit` (`ClickHandler.processEditClick`), carried
+  out on `Event.ShowSetRemovedUndo` / `Event.ShowExerciseRemovedUndo`, forwarded verbatim by
+  `ExerciseGraph` / `SingleTrainingGraph` into `Action.Click.OnUndoSetRemove` /
+  `OnUndoExerciseRemove`, and re-checked in the handler. The guard is one disjunction, duplicated per
+  handler: `isSaving || mode !is Mode.Edit || action.draftEpoch != current.draftEpoch`. The epoch
+  clause is the only one that blocks a **re-entered** draft (mode is `Edit` again there); the mode
+  clause is the only one that blocks a save's **flip to Read** (the epoch still matches there). Drop
+  either and the code still compiles. Pinned in both features' `ClickHandlerTest` by `a stale set undo
+  after save flipped to read edits nothing` and `a stale set undo does not edit a re-entered draft`.
+- **`isSaving`** — the interval where the save's snapshot is already captured and the write has not
+  landed. Set when Save dispatches, cleared on every outcome (the success flip to Read and the
+  failures that keep the draft alive — `SaveOutcome.DuplicateName`, `SaveOutcome.ImageSaveFailed`, the
+  `launch` `onError` arm) and defensively on Edit entry, so a flag orphaned with a dead draft cannot
+  gag the next one. While set it refuses two **opposite** things: an undo (the restored row would reach
+  the screen and miss the database) and a rollback — Back / Cancel (a create's `POP_SCREEN` would
+  double-pop under the save's own Back), the discard confirm (its own copy of the check, because the
+  confirm is a second action dispatched after the sheet was raised and a create's `POP_SCREEN` never
+  reaches the flip choke point) and the flip to Read (a rollback there would leave `originalSnapshot`
+  holding the saved values while the visible fields show reverted ones).
+- **`pendingSetRestores`** (training editor only) — both removals queue toasts, so a set toast's
+  the undo action can fire after the exercise card itself was removed. `processUndoSetRemove` then finds no
+  card and stashes a `State.PendingSetRestore(exerciseUuid, set, index)` rather than dropping the
+  restore, which would lose the row when BOTH undos are tapped. The captured index is still exact
+  because the absent card's plan is frozen while it is gone. `processUndoExerciseRemove` applies that
+  exercise's stashes in tap order when the card comes back; a picker insert of the same uuid and the
+  exercise undo's already-back branch both **discard** them (a fresh card owes the dead removal chain
+  nothing, or a later remove-and-undo would resurrect the old set); the list is cleared with the draft
+  on Edit entry and in `applySnapshotOrPop`.
+
+A set restored by undo must re-enter the weightless invariant: `processUndoSetRemove` rewrites it to
+`action.set.copy(weight = null)` when the type is `ExerciseTypeUiModel.WEIGHTLESS`, because the
+type-change wipe only runs over rows PRESENT in the draft and a row riding its toast is absent — while
+`saveItem` strips the weight in the DB regardless, so a weight the in-memory snapshot keeps diverges
+on the next reload. Pinned by `an undo restored across a type switch re-enters weightless`.
+
+**GUARD — the deferred permanent delete may not ride the screen's event flow.**
+`processConfirmPermanentDelete` deletes nothing: it hands the `AppSnackbarModel` to
+`SnackbarManager.showSnackbar` directly and pops the screen on the next line, with the commit as
+`onDismissed = { interactor.permanentlyDelete(uuid) }` and a deliberately empty `action` — declining a
+delete that has not run is doing nothing. It must go straight onto `SnackbarManager` and never through
+the Store's event flow: the pop is the next statement, and a screen-scoped event dies with its
+collector (buffered or subscriber-less, silently either way) while carrying the COMMIT. The closure
+captures the **interactor** — app-scoped repositories underneath — never the Store, whose scope dies
+with the pop. No `interactor.permanentlyDelete` call may appear in this method outside `onDismissed`.
+Pinned by `confirm permanent delete defers - nothing runs until the commit`.
+
+**What makes D-OPEN-10 exact: `resolveSnackbarOutcomeOrRequeue`.** `SnackbarManager`'s queue does NOT
+replay — its channel delivers once — and the collector is a `LaunchedEffect` that dies with its
+composition. Without the requeue, an activity recreated under a visible toast drops the model with
+NEITHER callback run, and a deferred delete's confirmed commit silently never happens while the
+process is still alive. The host therefore puts the model back on the queue, carrying its ORIGINAL
+generation epoch, whenever it dies between taking the model off the queue and completing the outcome
+routing — so only PROCESS death may drop it, which is D-OPEN-10's shape. The requeue covers only
+models held before the outcome is known: a commit that BEGAN always finishes, because
+`resolveSnackbarOutcome` runs `onDismissed` under `NonCancellable`, so a requeued model is one whose
+undo window genuinely never closed. A callback throwing `CancellationException` of its own still
+escapes and requeues — that is the collector's stop signal, not an outcome.
 
 ---
 
@@ -289,7 +436,7 @@ was holding; §6 says which PR that step now ships in.
 |---|---|---|---|
 | **D-OPEN-1** | **RULED** | dialog vs sheet for delete confirmation. → **Sheet.** §7.4 stands; **no dialog primitive is added** to this language. | S7 — unblocked |
 | **D-OPEN-2** | **RULED**, both halves | which "delete an exercise", and deferred-delete (a) vs retain-and-re-insert (b). → **Scope:** removing an exercise from a training removes it **from that training only**; confirmation sheet + undo snackbar — **since narrowed by D-OPEN-11 to undo snackbar alone, no confirmation.** Cite both rows, never this one alone. → **Mechanism, for every undoable delete: deferred (a).** Nothing is deleted while the snackbar lives; the order is strict and it *is* the rule — timer expires → snackbar dismissed → only then the delete commits. **Never delete first and undo by re-inserting.** ED11 carries this as its mechanism sentence. | S7 — unblocked |
-| **D-OPEN-3** | **RULED** | **where the image entry point lives now that ED6 removed the thumb.** #213 shipped the thumb on the **editor only** — `ExerciseTopBarThumb` has exactly one call site, `ExerciseEditScreen.kt:92`; the read screen's trailing slot is the `⋮` `AppIconButton` and its image affordance is `ExerciseHero` in the scrolling body, so ED6's read half is already true at HEAD. The photo, the viewer and the source picker all still exist. → **The image is available on both read and edit, and its entry point sits BESIDE THE DESCRIPTION** — not in the top bar, not among the plan, not among the tags. Its placement is what states that it is optional and descriptive. **The thumb deletion (ED6) stands.** | S3 — unblocked |
+| **D-OPEN-3** | **RULED** | **where the image entry point lives now that ED6 removed the thumb.** #213 shipped the thumb on the **editor only** — `ExerciseTopBarThumb` has exactly one call site, `ExerciseEditScreen.kt:78`; the read screen's trailing slot is the `⋮` `AppIconButton` and its image affordance is `ExerciseHero` in the scrolling body, so ED6's read half is already true at HEAD. The photo, the viewer and the source picker all still exist. → **The image is available on both read and edit, and its entry point sits BESIDE THE DESCRIPTION** — not in the top bar, not among the plan, not among the tags. Its placement is what states that it is optional and descriptive. **The thumb deletion (ED6) stands.** | S3 — unblocked |
 | **D-OPEN-4** | **RULED** | orphan tags. The symbol with **zero callers anywhere** is `TagRepository.delete` (`TagRepository.kt:16`); `TagDao.delete(uuid)` has exactly one production caller, `TagRepositoryImpl.delete` (`TagRepositoryImpl.kt:53`), which nothing calls. Nothing in the app ever deletes a tag, and `Создать` writes the dictionary immediately, before the exercise is saved. → **Auto-prune.** A tag with no remaining links is deleted from the dictionary — shipped as `TagDao.deleteOrphans()` inside both save transactions, which this ruling's own in-transaction ordering forced; the per-uuid `TagRepository.delete` chain is deleted rather than left callerless (B-E2's closure note has the derivation). A tag editor screen showing each tag's links is a **future item, not this arc** — recorded as **B-E5**. | S6 — unblocked |
 | **D-OPEN-5** | **RULED** | dashed `--hair-s` as a control outline (`+ тег`, `.addex`) measures **1.52 dark / 1.35 light** against 3.0. → **Keep the dashed `--hair-s` outline.** The **label** identifies the control; the dash is decoration and owes no contrast threshold. Same answer for `+ тег` and `.addex`, as the row required. The measurement and this reasoning are recorded here so the pair is not re-litigated. | S6 — unblocked |
 | **D-OPEN-6** | **RULED** | read card and edit card are now visually near-identical. Intended, or does read drop the chip / sit on `surfaceTier1`? → **Identical.** No chip removal, no tier change. You read the plan in the shape you will perform it. | S2 — unblocked |
@@ -393,6 +540,15 @@ New goldens this arc: type toggle (2 states × 2 themes), read-only set card (we
 component, so **both** its modes (read-only with image / read-only with the placeholder / editable
 × 2, D-OPEN-9).
 
+**The shared plan-editor body is gated in `core/ui/plan-editor` itself, not in either host**, because
+neither host can photograph it: the exercise editor's whole-screen frame scrolls it off the bottom of a
+single Paparazzi viewport, and the full-screen `feature/plan-editor` route's module has no goldens at
+all. `PlanEditorBodyGoldenTest` shoots `weightedDraft`, `weightlessDraft` and `emptyDraft` in
+`LOCALE_RU` — the empty hint and both foot labels are strings a Russian user actually sees, and the
+default `en` frame cannot fail on them. `emptyDraft` is the control and the second half of the foot's
+contract: with no rows the remove label is disabled at the drawn `opacity:.35` and the hint takes the
+card.
+
 ---
 
 ## 8. Registry additions
@@ -400,7 +556,7 @@ component, so **both** its modes (read-only with image / read-only with the plac
 - **B-E1** — `Screen.PlanEditor` survives with one caller (live session). The route, module and
   `planEditorSavedAttr` contract cannot be deleted until the session edits its plan inline. The
   later deletion arc inherits more than the three consumer features: the route is also referenced
-  by `AppNavigationHost.kt:141` (`.reportScreenPlace<Screen.PlanEditor>()`, production) and by two
+  by `AppNavigationHost.kt:120` (`.reportScreenPlace<Screen.PlanEditor>()`, production) and by two
   test files outside those features — `app/app/.../PlanEditorExtensionIdentityTest.kt` and
   `core/ui/mvi/.../SavedStateHandleNavigationResultTest.kt` — on top of the feature-side
   `NavigationHandlerTest`s that go with their own features.
@@ -415,7 +571,7 @@ component, so **both** its modes (read-only with image / read-only with the plac
   **CONFIRMED at the arc's close (PR-D) — the census, measured, `Screen.PlanEditor` by word
   boundary plus every `feature.plan_editor` import outside the module.** Production: **one**
   route construction, `live-workout/.../NavigationHandler.kt:26` (fed by that feature's own
-  `Action.Navigation.OpenPlanEditor` — `ClickHandler.kt:357`, `LiveWorkoutStore.kt:303`); **one**
+  `Action.Navigation.OpenPlanEditor` — `ClickHandler.kt:357`, `LiveWorkoutStore.kt:225`); **one**
   return bridge, `LiveWorkoutGraph.kt` (`planEditorSavedAttr`, two lines); **two** host
   references, `AppNavigationHost.kt` (the `planEditorGraph` import and
   `.reportScreenPlace<Screen.PlanEditor>()`); the definition in `core/ui/navigation/Screen.kt`.
@@ -446,7 +602,7 @@ component, so **both** its modes (read-only with image / read-only with the plac
   zero references outside its own file — that half carries forward.
 - **B-E4** — no clamp is declared for `.prhero`'s meta line; a long training name grows it. The
   pushed-bar title is **not** part of this blocker: `AppTopBar` declares `maxLines = 1` +
-  `TextOverflow.Ellipsis` (`AppTopBar.kt:89-90`) and has since the file was introduced.
+  `TextOverflow.Ellipsis` (`AppTopBar.kt:65-66`) and has since the file was introduced.
   **CLOSED by S8, and the premise was true of the plan, not of the shipped hero:** the meta
   line has clamped (`maxLines = 1` + `Ellipsis`) since `PersonalRecordHero` was built
   (`e7577ba7`, PR-A) — the row predates the component and nobody re-measured. What S8 added is

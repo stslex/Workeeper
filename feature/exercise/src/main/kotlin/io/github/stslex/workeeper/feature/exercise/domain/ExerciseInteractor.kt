@@ -27,19 +27,14 @@ interface ExerciseInteractor {
     ): List<HistoryEntryDomain>
 
     /**
-     * Total finished sessions containing this exercise — the История section head's
-     * trailing count (§3.5 draws `4 сессии` beside three visible rows). May exceed the
-     * row list slightly: the list additionally filters sessions with no logged sets.
+     * Total finished sessions containing this exercise (История section head count). May exceed
+     * the row list: that additionally filters sessions with no logged sets.
      */
     suspend fun countSessions(exerciseUuid: String): Int
 
     fun observeAvailableTags(): Flow<List<TagDomain>>
 
-    /**
-     * Reactive PR for the exercise. Re-emits when finished-session sets for [exerciseUuid]
-     * change (Room invalidation). Drives the read-mode PR card; collected only when the
-     * screen is bound to an existing exercise (create mode has no uuid yet).
-     */
+    /** Reactive PR for the exercise; collected only when the screen is bound to a saved one. */
     fun observePersonalRecord(exerciseUuid: String): Flow<PersonalRecordDomain?>
 
     suspend fun saveExercise(snapshot: ExerciseChangeDomain): SaveResult
@@ -65,19 +60,14 @@ interface ExerciseInteractor {
     suspend fun deleteImageFile(path: String): Boolean
 
     /**
-     * Resolve whether an active session blocks Track now. Track now always creates a fresh
-     * ad-hoc training, so the same-training silent-resume case used by Home and Training
-     * detail does not apply — any active session means the user must choose how to
-     * reconcile.
+     * Resolve whether an active session blocks Track now. Unlike Home and Training detail there is
+     * no silent-resume case — Track now always creates a fresh ad-hoc training.
      */
     suspend fun resolveTrackNowConflict(): TrackNowConflict
 
     /**
-     * Create an ad-hoc training that wraps [exerciseUuid] only, then start a session for it.
-     * Returns the new session uuid for navigation. Delegates to
-     * `SessionRepository.createAdhocSession` — same data path as v2.3 Quick start. Plan
-     * rows are persisted with `plan_sets = null`; the existing `loadSession` fallback
-     * (`exercise.last_adhoc_sets`) populates the editor.
+     * Create an ad-hoc training wrapping [exerciseUuid] only, start a session for it and return
+     * the session uuid. Plan rows persist with `plan_sets = null`; `loadSession` falls back.
      */
     suspend fun startTrackNowSession(
         exerciseUuid: String,
@@ -86,10 +76,7 @@ interface ExerciseInteractor {
 
     /**
      * Cancel the in-progress session [sessionUuid]. Branches on training type so an ad-hoc
-     * training created for Track Now (or v2.3 Quick start) is cascade-deleted alongside
-     * its inline-created exercises, while a library training session is just unlinked.
-     * Replaces the older session-only delete that leaked the parent ad-hoc training row —
-     * this is the bug the v5 → v6 retroactive sweep cleans up history of.
+     * training is cascade-deleted with its inline-created exercises, a library one just unlinked.
      */
     suspend fun deleteSession(sessionUuid: String)
 

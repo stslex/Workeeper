@@ -73,9 +73,7 @@ class TrainingRepositoryImpl @Inject internal constructor(
     ) {
         withContext(ioDispatcher) {
             dbTransition {
-                // After the sync, inside the transaction: the sync truncates and re-inserts
-                // the rows these updates land on. See the interface KDoc — the ordering is
-                // the guarantee now, not a caller's comment.
+                // GUARD: plan updates run after the sync, which re-inserts the rows they hit.
                 val trainingUuid = writeTraining(training)
                 plans.forEach { plan ->
                     trainingExerciseDao.updatePlanSets(
@@ -84,10 +82,8 @@ class TrainingRepositoryImpl @Inject internal constructor(
                         planSets = PlanSetsConverter.toJson(plan.planSets),
                     )
                 }
-                // Auto-prune on SAVE COMMIT, inside the same transaction as the link writes
-                // (D-OPEN-4). Deliberately NOT inside `writeTraining`: `updateTraining` shares
-                // that helper without a transaction around it, and a prune outside the link
-                // writes' transaction is the ordering the ruling forbids.
+                // Auto-prune orphan tags here, not in `writeTraining` — `updateTraining` shares
+                // that helper with no transaction around it.
                 tagDao.deleteOrphans()
             }
         }
@@ -236,8 +232,7 @@ class TrainingRepositoryImpl @Inject internal constructor(
     ): BulkArchiveOutcome = withContext(ioDispatcher) {
         if (uuids.isEmpty()) return@withContext BulkArchiveOutcome(0, emptyList())
         val parsed = uuids.map(Uuid::parse)
-        // Block trainings with an in-progress session — archive on those would orphan the
-        // active session in the UI, so the bulk path skips them and surfaces names.
+        // Archiving a training with an in-progress session would orphan it; skip and name it.
         val activeTrainingUuid = sessionDao.getActive()?.trainingUuid
         val (allowed, blocked) = parsed.partition { it != activeTrainingUuid }
         val blockedNames = blocked.mapNotNull { dao.getById(it)?.name }
@@ -287,9 +282,7 @@ class TrainingRepositoryImpl @Inject internal constructor(
     }
 
     private suspend fun syncExercises(trainingUuid: Uuid, exerciseUuids: List<String>) {
-        // Snapshot existing rows before truncating so we can preserve plan_sets across an
-        // edit. Plans are sub-entities of (training, exercise) — replacing the position
-        // map should not silently wipe them.
+        // Snapshot existing rows before truncating so plan_sets survives a position-map edit.
         val existing = asyncScope {
             trainingExerciseDao.getByTraining(trainingUuid)
                 .associateBy { it.exerciseUuid }
@@ -303,10 +296,8 @@ class TrainingRepositoryImpl @Inject internal constructor(
                 // Already attached — preserve whatever the user has, including empty.
                 existing.await()[exerciseUuid]?.planSets
             } else {
-                // New attachment — inherit the exercise's own default plan so the user
-                // doesn't have to re-enter a plan they already configured on the
-                // exercise. `containsKey` (not `?:`) keeps a deliberately-cleared empty
-                // plan empty across re-saves.
+                // New attachment — inherit the exercise's own default plan. GUARD: the
+                // `containsKey` above, not `?:`, keeps a deliberately-cleared plan empty.
                 PlanSetsConverter.toJson(exerciseRepository.getAdhocPlan(rawUuid))
             }
             TrainingExerciseEntity(

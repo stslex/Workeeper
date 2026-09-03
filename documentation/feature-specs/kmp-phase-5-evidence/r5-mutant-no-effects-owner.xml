@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.stslex.workeeper.core.data.backup.api.restore.RestoreOwnerIdTest" tests="1" skipped="0" failures="1" errors="0" timestamp="2026-08-25T09:55:39.571Z" hostname="stslexs-MacBook-Pro.local" time="0.02">
+  <properties/>
+  <testcase name="production no-effects owner is not a valid protocol identity()" classname="io.github.stslex.workeeper.core.data.backup.api.restore.RestoreOwnerIdTest" time="0.014">
+    <failure message="org.opentest4j.AssertionFailedError: Expected java.lang.IllegalArgumentException to be thrown, but nothing was thrown." type="org.opentest4j.AssertionFailedError">org.opentest4j.AssertionFailedError: Expected java.lang.IllegalArgumentException to be thrown, but nothing was thrown.
+	at org.junit.jupiter.api.Assertions.assertThrows(Assertions.java:3234)
+	at io.github.stslex.workeeper.core.data.backup.api.restore.RestoreOwnerIdTest.production no-effects owner is not a valid protocol identity(RestoreOwnerIdTest.kt:28)
+</failure>
+  </testcase>
+</testsuite>

@@ -23,9 +23,8 @@ import org.robolectric.annotation.Config
 import tech.apter.junit.jupiter.robolectric.RobolectricExtension
 
 /**
- * Real-DB coverage for the three start-card readout queries (home-start-card.md §3.2–§3.4):
- * the last-finished-session anchor, the tag idle stats, and the most-forgotten template.
- * One file because the modes ship together and the seeds interlock.
+ * Real-DB coverage for the three start-card readout queries; one file because their seeds
+ * interlock. See documentation/feature-specs/home-start-card.md §3.2–§3.4.
  */
 @ExtendWith(RobolectricExtension::class)
 @Config(application = RepositoryTestEnv.TestApplication::class, sdk = [33])
@@ -71,8 +70,6 @@ internal class StartCardReadoutQueriesDbTest {
         env.close()
     }
 
-    // ---- observeLastFinishedSession (§3.2) ------------------------------------------------
-
     @Test
     fun `last finished session is the one with the greatest finish time, carrying its name`() =
         runTest {
@@ -97,8 +94,6 @@ internal class StartCardReadoutQueriesDbTest {
 
         assertNull(sessionRepository.observeLastFinishedSession().first())
     }
-
-    // ---- observeTagIdleStats (§3.3) -------------------------------------------------------
 
     private suspend fun seedTaggedHistory(
         tagName: String,
@@ -166,8 +161,6 @@ internal class StartCardReadoutQueriesDbTest {
 
         assertEquals(emptyList<Any>(), tagRepository.observeTagIdleStats(limit = 3).first())
     }
-
-    // ---- observeMostForgottenTemplate (§3.4, HD1) -----------------------------------------
 
     @Test
     fun `a never-run template outranks every template that has ever run`() = runTest {
