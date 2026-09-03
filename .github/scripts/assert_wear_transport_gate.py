@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Un-suppressible source gate for the Wear transport privacy blocker.
+r"""Un-suppressible source gate for the Wear transport privacy blocker.
 
 The privacy gate on sending workout payloads (wear-phase-1-active-workout-tile.md
 section 6) is enforced in two layers. Detekt is the fast one: `ForbiddenImport`
@@ -14,7 +14,8 @@ that would have reported the annotation.
 This script is that second layer, and it is deliberately not a detekt rule:
 
 1. No tracked Kotlin or Java source may contain the Data Layer package name at
-   all. Text matching, not AST matching, so it also covers the reflective route
+   all, after Java `\uXXXX` escapes are decoded the way javac decodes them. Text
+   matching, not AST matching, so it also covers the reflective route
    (`Class.forName("com.google.android.gms.wearable.Wearable")`) that no AST
    visitor can see. That route needs no build-file edit in `app/wear` or
    `feature/wear-bridge`, which already declare `play-services-wearable`.
@@ -72,6 +73,19 @@ SUPPRESSED_TARGET = re.compile(rf'"(?:detekt[:.])?(?:{_TARGETS})"')
 # to BOTH detekt rules. There are none today; the glob is here so adding one is not a way in.
 SOURCE_GLOBS = ("*.kt", "*.kts", "*.java")
 
+# javac decodes `\uXXXX` in step 1 of lexical translation, ANYWHERE in the file including inside
+# identifiers, so `we\u0061rable` compiles as `wearable` while the raw bytes contain no such
+# package. Kotlin has no equivalent source-level pass, so this normalisation is applied to Java
+# only, exactly matching what its compiler does. Over-decoding could only ever add a match.
+JAVA_UNICODE_ESCAPE = re.compile(r"\\u+([0-9a-fA-F]{4})")
+
+
+def decoded(path: Path, text: str) -> str:
+    """The text as its compiler sees it."""
+    if path.suffix != ".java":
+        return text
+    return JAVA_UNICODE_ESCAPE.sub(lambda m: chr(int(m.group(1), 16)), text)
+
 
 def tracked_source_files() -> list[Path]:
     """Tracked sources only: an untracked scratch file is not what ships."""
@@ -114,7 +128,7 @@ def scan(paths: list[Path]) -> list[str]:
     for path in paths:
         if is_exempt(path):
             continue
-        text = path.read_text(encoding="utf-8", errors="replace")
+        text = decoded(path, path.read_text(encoding="utf-8", errors="replace"))
         violations += package_violations(path, text)
         violations += suppression_violations(path, text)
     return violations
@@ -129,6 +143,20 @@ def self_test() -> int:
             f"package io.github.stslex.workeeper.wear;\n\nimport {FORBIDDEN_PACKAGE}.Wearable;\n",
             1,
         ),
+        # javac decodes this to the forbidden package before it tokenises; the raw bytes do not
+        # contain it, so an undecoded scan reports nothing while the call compiles.
+        (
+            "java unicode escape",
+            "import com.google.android.gms.we\\u0061rable.Wearable;\n",
+            1,
+        ),
+        (
+            "java doubled-u escape",
+            "import com.google.android.gms.we\\uu0061rable.Wearable;\n",
+            1,
+        ),
+        # The same bytes in Kotlin are NOT decoded by kotlinc, so they name no package.
+        ("kotlin escape is not decoded", "import com.google.android.gms.we\\u0061rable.Wearable\n", 0),
         (
             "reflective load",
             'val c = Class.forName("' + FORBIDDEN_PACKAGE + '.Wearable")\n',
@@ -145,8 +173,9 @@ def self_test() -> int:
     ]
     failures = 0
     for name, content, expected in cases:
-        path = Path("synthetic.kt")
-        found = len(package_violations(path, content) + suppression_violations(path, content))
+        path = Path("synthetic.java" if name.startswith("java") else "synthetic.kt")
+        text = decoded(path, content)
+        found = len(package_violations(path, text) + suppression_violations(path, text))
         verdict = "ok" if found == expected else "MISMATCH"
         if found != expected:
             failures += 1
