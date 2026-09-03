@@ -136,11 +136,10 @@ jobs:
       - name: Assemble instrumented tests
         run: ./gradlew assembleDebugAndroidTest --full-stacktrace
 
-      # `assembleDebug` builds no release variant, and `github_release_apk.yml` assembles only
-      # `:app:store`, so `:app:wear`'s release classpath had no gate anywhere: WorkoutTileService
-      # imported `com.google.common.util.concurrent.Futures`, which reaches the classpath only
-      # through `debugImplementation(tiles-renderer)`. Debug variants built, the release variant
-      # had never been built by anyone, and the module has shipped that way.
+      # GUARD: nothing else builds this variant. `assembleDebug` builds no release variant and
+      # `github_release_apk.yml` assembles only `:app:store`, so removing this step returns
+      # `:app:wear`'s release classpath to having no gate at all — and a `debugImplementation`-only
+      # dependency is invisible to every other task here.
       #
       # Only the shipping flavor is built. `:app:wear` has no flavor-specific source directory, so
       # devRelease compiles the same sources and would add a second R8 run for no new coverage.
