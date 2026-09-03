@@ -751,25 +751,30 @@ build-file edit to review. Measured on a real source file: with a reflective loa
 
 The second layer is therefore not a detekt rule at all —
 `.github/scripts/assert_wear_transport_gate.py`, run in `android_build_unified.yml`. It scans every
-tracked `.kt`, `.kts` **and `.java`** file for the package name as text, on a package boundary, and
-rejects any `@Suppress` naming an id that would silence either half of the gate (rule ids, rule-set
-ids, detekt's `detekt:`/`detekt.` spellings, blanket `ALL`).
+tracked `.kt`/`.kts` file for the package name as text, on a package boundary, rejects any
+`@Suppress` naming an id that would silence either half of the gate (rule ids, rule-set ids,
+detekt's `detekt:`/`detekt.` spellings, blanket `ALL`), and **rejects any tracked `.java` file
+outright**.
 
-Java coverage is load-bearing rather than incidental: detekt does not read Java at all, so a
-tracked `.java` call site is invisible to *both* detekt layers, and AGP compiles it in the same
+**The scanner is Kotlin-only by decision**, and that last check is why: this repository has no Java
+sources, so the Java canonicaliser it briefly carried — `\uXXXX` decoding, text blocks, JLS
+indentation ordering — was production code no input could reach, which is the same unreachable
+class this gate exists to catch. Refusing `.java` turns the absence of Java from a coincidence into
+an enforced invariant, and makes restoring that half a deliberate, reviewed act rather than
+something a new file quietly needs. It matters because detekt does not read Java at all, so a
+`.java` call site would be invisible to *both* detekt layers while AGP compiled it in the same
 variants.
 
-Text matching over source loses to lexical trivia unless the text is first canonicalised the way a
-compiler reads it, so the scan does that in six steps and pins each as a self-test case:
+Text matching over source loses to lexical trivia unless the text is first canonicalised the way the
+compiler reads it, so the scan does that in five steps and pins each as a self-test case:
 
 | Step | Spelling it defeats | Scope |
 | --- | --- | --- |
-| Decode `\uXXXX` | `we\u0061rable` — javac decodes escapes in step 1 of lexical translation, anywhere including inside identifiers | Java only; Kotlin has no equivalent pass, and the Kotlin negative is pinned so the decode is not "simplified" to both |
-| Comments become one separating space | `com./*gap*/google.android.gms.wearable` | Both. One space, not nothing: `a/*x*/b` is two tokens and must not be joined |
-| Trivia around a qualified name's dots collapses | `com. google…`, and the same name split across lines | Both. The cross-line pass reports the file rather than a line, since collapsing newlines would move every line number after it |
-| String literals constant-fold | `"com.google.android.gms." + "wearable.Wearable"`, including `+ ("a" + "b")` and either triple-quoted form | Both, to a fixed point, so nesting collapses. A `(` following an identifier or bracket is left alone, so a call's argument list is never unwrapped and `f("a") + ("b")` cannot fold into a constant the compiler would not fold — pinned |
-| Same-file constant variables inline | `static final String PREFIX = "com.google.android.gms."` then `Class.forName(PREFIX + SUFFIX)` | `static final String`, `const val`, `val` with a single-literal initialiser. Folding and substitution are ALTERNATED to stability, not run once each: folding is what turns `PREFIX = "com.google." + "android.gms."` into a declaration the table can read whole, and substitution is what turns `PREFIX + SUFFIX` into two literals that fold. The declaration table is rebuilt each round and there is no depth limit, so an alias chain of any length resolves; substitution only ever replaces identifiers with literals, so it terminates. Substitution happens outside string literals only, so an identifier appearing inside an unrelated literal cannot invent a constant — pinned. If the loop ever failed to settle the file is REPORTED, not skipped: this gate fails closed |
-| Escapes inside a literal resolve | Java octal `wea\162able`, Kotlin `wea\u0072able`, and a text block's `\`-before-newline line continuation — after its incidental indentation is removed, in that order, because an indented continuation only joins its lines once the indentation is gone (JLS 3.10.6 then 3.10.7) | Java is walked left to right rather than regex-substituted, because `\` is itself escapable: `\\` before a newline is data and the terminator survives, while `\` before one removes it, and no regex tells those apart — both pinned. Kotlin `\uXXXX`; Java's own `\uXXXX` is already handled file-wide above. A decode to `"` or `\` is refused, so an escape cannot forge a literal boundary. **The language decides, not the delimiter**: a Java text block processes escapes, a Kotlin raw string does not, and both are `"""` — each pinned |
+| Comments become one separating space | `com./*gap*/google.android.gms.wearable` | One space, not nothing: `a/*x*/b` is two tokens and must not be joined |
+| Trivia around a qualified name's dots collapses | `com. google…`, and the same name split across lines | The cross-line pass reports the file rather than a line, since collapsing newlines would move every line number after it |
+| String literals constant-fold | `"com.google.android.gms." + "wearable.Wearable"`, including `+ ("a" + "b")` and raw strings | To a fixed point, so nesting collapses. A `(` following an identifier or bracket is left alone, so a call's argument list is never unwrapped and `f("a") + ("b")` cannot fold into a constant the compiler would not fold — pinned |
+| Same-file constant variables inline | `const val PREFIX = "com.google.android.gms."` then `Class.forName(PREFIX + SUFFIX)` | `const val` / `val` with a single-literal initialiser. Folding and substitution are ALTERNATED to stability, not run once each: folding is what turns `PREFIX = "com.google." + "android.gms."` into a declaration the table can read whole, and substitution is what turns `PREFIX + SUFFIX` into two literals that fold. The declaration table is rebuilt each round and there is no depth limit, so an alias chain of any length resolves; substitution only ever replaces identifiers with literals, so it terminates. Substitution happens outside string literals only, so an identifier appearing inside an unrelated literal cannot invent a constant — pinned. If the loop ever failed to settle the file is REPORTED, not skipped: this gate fails closed |
+| Escapes inside a literal resolve | `wea\u0072able` | Kotlin `\uXXXX`. A decode to `"` or `\` is refused, so an escape cannot forge a literal boundary. A raw string processes no escapes and is left untouched — pinned, so "decode everything" cannot turn that negative into a false positive |
 
 String and character literals are walked rather than skipped, so a `//` inside a URL literal does
 not eat the rest of its line — also pinned. A commented-out reference is not a call site and is not
@@ -779,8 +784,7 @@ reported.
 same characters are data. A newline between tokens joins a qualified name; a newline inside a raw
 string is part of the constant, so a package name broken across a raw string's lines does not name a
 class and is not reported — pinned, and it was that pinned case which caught the collapsing pass
-reaching inside literals. Java text blocks drop the line terminator after their opening delimiter,
-per the JLS, which is why the same shape *is* reported when the concatenation makes it contiguous.
+reaching inside literals.
 
 **Where this stops, and why it stops exactly there.** The gate resolves the string-forming part of
 the compile-time constant grammar — literals, escapes, concatenation, parentheses, and constant
@@ -788,8 +792,8 @@ variables **within one file**. Two things sit outside it, both deliberate and bo
 than discovered:
 
 - **A constant imported from another file.** Resolving it means building a cross-file symbol table
-  for two languages inside a CI script, and the value of doing so falls off sharply: the same-file
-  form is how someone writes this without intending evasion, and the cross-file form is not.
+  inside a CI script, and the value of doing so falls off sharply: the same-file form is how someone
+  writes this without intending evasion, and the cross-file form is not.
 - **A name assembled at runtime** — char array, decode, resource, string builder. Not a constant at
   all, so no static gate sees it, compiled output included. The remedy usually proposed here,
   scanning build artifacts, would have to read R8'd DEX from variant-specific intermediate paths and

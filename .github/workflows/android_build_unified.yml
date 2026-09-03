@@ -161,8 +161,10 @@ jobs:
       # (ForbiddenImport + WearDataLayerApiRule, both in the pre-commit hook), but detekt honours
       # `@Suppress` by rule id and by rule-set id, and a rule cannot report its own suppression.
       # This step is a plain source scan for exactly that reason, and it also covers the
-      # reflective route no AST visitor can see. `--self-test` first: a gate never shown to fire
-      # is not a gate, and this one has no findings to prove itself with on a clean tree.
+      # reflective route no AST visitor can see. It is Kotlin-only, and rejects any tracked `.java`
+      # file outright rather than carrying a Java canonicaliser this repository has no input for.
+      # `--self-test` first: a gate never shown to fire is not a gate, and this one has no findings
+      # to prove itself with on a clean tree.
       - name: Assert Wear transport privacy gate
         run: |
           python3 .github/scripts/assert_wear_transport_gate.py --self-test

@@ -6,38 +6,43 @@ section 6) is enforced in two layers. Detekt is the fast one: `ForbiddenImport`
 covers imports, `WearDataLayerApiRule` covers every spelling that carries no
 import, and both run in the pre-commit hook. Neither can be the whole gate,
 because both are ordinary detekt rules and detekt honours `@Suppress` by rule id
-and by rule-set id -- this repository already suppresses custom rule ids in five
-places, so the mechanism is live, not hypothetical. A rule cannot police its own
-suppression either: `@Suppress("WearDataLayerApiRule")` silences the very finding
-that would have reported the annotation.
+and by rule-set id, and a rule cannot police its own suppression:
+`@Suppress("WearDataLayerApiRule")` silences the very finding that would have
+reported the annotation.
 
 This script is that second layer, and it is deliberately not a detekt rule:
 
-1. No tracked Kotlin or Java source may contain the Data Layer package name at
-   all, after the text is canonicalised the way its compiler reads it: Java
-   `\uXXXX` escapes decoded, comments reduced to one separating space, trivia
-   around the dots of a qualified name collapsed, and adjacent string literals
-   constant-folded. Text matching, not AST matching, so it also covers the
-   reflective route (`Class.forName("com.google.android.gms.wearable.Wearable")`)
+1. No tracked Kotlin source may contain the Data Layer package name at all,
+   after the text is canonicalised the way kotlinc reads it: comments reduced to
+   one separating space, trivia around the dots of a qualified name collapsed,
+   string literals constant-folded, same-file constant variables inlined, and
+   literal escapes resolved. Text matching, not AST matching, so it also covers
+   the reflective route (`Class.forName("com.google.android.gms.wearable...")`)
    that no AST visitor can see. That route needs no build-file edit in
    `app/wear` or `feature/wear-bridge`, which already declare
    `play-services-wearable`.
 
    The line this draws is the compiler's own: the gate sees what the compiler can
    constant-fold. A name assembled at RUNTIME -- from a char array, a decode, a
-   resource -- is invisible to this and to any other static gate, and no pattern
-   list closes that class. Review is the control there, which is what the
-   blocking privacy gate is for in the first place.
+   resource -- is invisible to this and to any other static gate, and no list of
+   patterns closes that class. Code review is the control there.
 
 2. No tracked source may suppress the gate, by rule id, by rule-set id, by
    detekt's prefixed spellings, or by a blanket `ALL`.
 
-Java is scanned for the same reason it is easy to forget: detekt does not read it
-at all, so both detekt layers are blind to a `.java` call site by construction.
+3. No tracked `.java` file may exist at all.
 
-The single exemption is `lint-rules/`, where the gate is defined and tested: the
-rule names the package it bans, and its fixtures spell out the violations it must
-catch. Nothing there is a transport call site.
+KOTLIN-ONLY BY DECISION, which is what check 3 is for. This repository has no
+Java sources, so a Java canonicaliser here -- `\uXXXX` decoding, text blocks,
+JLS indentation ordering -- was code no input could reach: the same unreachable
+class this gate exists to catch, produced by the gate itself. Rejecting `.java`
+outright turns the absence of Java from a coincidence into an enforced
+invariant, and makes restoring that half a deliberate, reviewed act rather than
+something a new file quietly needs.
+
+The single exemption from checks 1 and 2 is `lint-rules/`, where the gate is
+defined and tested: the rule names the package it bans, and its fixtures spell
+out the violations it must catch. Nothing there is a transport call site.
 
 Run from the repository root:
 
@@ -56,7 +61,14 @@ FORBIDDEN_PACKAGE = "com.google.android.gms.wearable"
 # scanned, which is why this script may spell the package it bans.
 FORBIDDEN_REFERENCE = re.compile(re.escape(FORBIDDEN_PACKAGE) + r"(?![A-Za-z0-9_])")
 
-# The gate defines and tests itself here; every other tracked Kotlin file is a call site.
+SOURCE_GLOBS = ("*.kt", "*.kts")
+
+# Check 3. Detekt does not read Java at all, so a `.java` call site would be invisible to both
+# detekt layers, and AGP compiles it in the same variants. Rather than carry a Java canonicaliser
+# that no input in this repository can reach, the file type itself is refused.
+JAVA_GLOBS = ("*.java",)
+
+# The gate defines and tests itself here; every other tracked source is a call site.
 EXEMPT_PREFIXES = ("lint-rules/",)
 
 # Every argument that would silence either half of the gate. Rule ids, the rule-set ids that
@@ -76,28 +88,10 @@ _TARGETS = "|".join(
 SUPPRESS_CALL = re.compile(r"@(?:file:)?Suppress\s*\(([^)]*)\)", re.DOTALL)
 SUPPRESSED_TARGET = re.compile(rf'"(?:detekt[:.])?(?:{_TARGETS})"')
 
-
-# Java as well as Kotlin: these are Android modules, AGP compiles `.java` in the same variants,
-# and detekt does not read Java at all — so a tracked `.java` transport call site would be invisible
-# to BOTH detekt rules. There are none today; the glob is here so adding one is not a way in.
-SOURCE_GLOBS = ("*.kt", "*.kts", "*.java")
-
-# javac decodes `\uXXXX` in step 1 of lexical translation, ANYWHERE in the file including inside
-# identifiers, so `we\u0061rable` compiles as `wearable` while the raw bytes contain no such
-# package. Kotlin has no equivalent source-level pass, so this normalisation is applied to Java
-# only, exactly matching what its compiler does. Over-decoding could only ever add a match.
-JAVA_UNICODE_ESCAPE = re.compile(r"\\u+([0-9a-fA-F]{4})")
-
-# Both languages allow trivia between the tokens of a qualified name, so `com. /*gap*/ google` and
-# a name split across lines are the same name to the compiler and must be the same name here.
-SPACES_AROUND_DOT = re.compile(r"[ \t]*\.[ \t]*")
-WHITESPACE_AROUND_DOT = re.compile(r"\s*\.\s*")
-
-# Both compilers fold `"a" + "b"` of two literals into one constant, so the gate folds it too --
-# the same rule as the escapes and the comments: read the source the way the compiler reads it.
-# A literal is either form: `"..."`, or a Java text block / Kotlin raw string. Both concatenate
-# into the same constant, so both have to be foldable.
+# A literal is either form: `"..."` or a raw string. Both concatenate into the same constant, so
+# both have to be foldable.
 _LITERAL = r'(?:"""(?:.|\n)*?"""|"(?:[^"\\\n]|\\.)*")'
+ANY_LITERAL = re.compile(_LITERAL)
 ADJACENT_LITERALS = re.compile(rf"({_LITERAL})\s*\+\s*({_LITERAL})")
 
 # `("a" + "b")` folds to one constant too, and parentheses are not a barrier to the compiler.
@@ -105,12 +99,48 @@ ADJACENT_LITERALS = re.compile(rf"({_LITERAL})\s*\+\s*({_LITERAL})")
 PARENTHESISED_LITERAL = re.compile(rf"(?<![A-Za-z0-9_)\]])\(\s*({_LITERAL})\s*\)")
 
 # A folded body is re-emitted as an ordinary literal, so a quote, a backslash or a newline carried
-# in from a triple-quoted body has to go. A space is the safe replacement: it cannot occur inside
-# the package name, so it can only prevent a match, never invent one -- and a newline really is in
-# the constant, which is why a name split across a text block's lines does not name a class.
+# in from a raw-string body has to go. A space is the safe replacement: it cannot occur inside the
+# package name, so it can only prevent a match, never invent one -- and a newline really is in the
+# constant, which is why a name split across a raw string's lines does not name a class.
 BODY_BREAKERS = re.compile(r'["\\\n]')
 
-JAVA_TEXT_BLOCK_OPENING = re.compile(r'^"""[ \t]*\r?\n')
+# Trivia between the tokens of a qualified name, so `com. /*gap*/ google` and a name split across
+# lines are the same name to the compiler and must be the same name here.
+SPACES_AROUND_DOT = re.compile(r"[ \t]*\.[ \t]*")
+WHITESPACE_AROUND_DOT = re.compile(r"\s*\.\s*")
+
+# Escapes RESOLVED BY THE COMPILER inside a string literal. Only escapes that can produce a letter
+# or a dot matter, so whitespace escapes are left alone, and a decode to `"` or `\` is refused so
+# it cannot forge a literal boundary. Kotlin has no octal escapes.
+STRING_UNICODE_ESCAPE = re.compile(r"\\u+([0-9a-fA-F]{4})")
+
+# A constant variable whose initialiser is a single literal. The compiler inlines these into the
+# constant it builds, so `PREFIX + SUFFIX` is one constant and must be one match here.
+CONSTANT_DECLARATION = re.compile(
+    r"\b(?:const\s+val|val|var)\s+"
+    r"([A-Za-z_][A-Za-z0-9_]*)\s*(?::\s*String\s*)?=\s*"
+    rf"({_LITERAL})"
+)
+
+# Substitution only ever replaces identifiers with literals, so each round strictly reduces the
+# identifiers left to resolve and the loop terminates on its own. The bound is a backstop against a
+# pathological file, NOT a depth limit: reaching it reports the file rather than returning quietly,
+# because a gate that gives up silently is the failure this whole layer exists to prevent.
+MAX_CONSTANT_ROUNDS = 1000
+
+
+def _decoded_char(value: int) -> str | None:
+    char = chr(value)
+    return None if char in '"\\' else char
+
+
+def decode_string_escapes(literal: str) -> str:
+    """A literal's compile-time value, for the escapes that can spell a package name."""
+
+    def unicode_sub(match: re.Match[str]) -> str:
+        return _decoded_char(int(match.group(1), 16)) or match.group(0)
+
+    return STRING_UNICODE_ESCAPE.sub(unicode_sub, literal)
 
 
 def _literal_body(literal: str) -> str:
@@ -119,24 +149,7 @@ def _literal_body(literal: str) -> str:
 
 def _joined(first: str, second: str) -> str:
     body = _literal_body(first) + _literal_body(second)
-    return '"' + BODY_BREAKERS.sub(" ", body) + '"' 
-
-
-# A constant variable whose initialiser is a single literal: `static final String X = "..."`,
-# `const val X = "..."`, `val X = "..."`. Both compilers inline these into the constant they build,
-# so `PREFIX + SUFFIX` is one `ldc` and must be one match here.
-CONSTANT_DECLARATION = re.compile(
-    r"\b(?:const\s+val|val|var|(?:static\s+)?final\s+String|String)\s+"
-    r"([A-Za-z_][A-Za-z0-9_]*)\s*(?::\s*String\s*)?=\s*"
-    rf"({_LITERAL})"
-)
-ANY_LITERAL = re.compile(_LITERAL)
-
-# Substitution only ever replaces identifiers with literals, so each round strictly reduces the
-# identifiers left to resolve and the loop terminates on its own. The bound is a backstop against a
-# pathological file, NOT a depth limit: reaching it reports the file rather than returning quietly,
-# because a gate that gives up silently is the failure this whole layer exists to prevent.
-MAX_CONSTANT_ROUNDS = 1000
+    return '"' + BODY_BREAKERS.sub(" ", body) + '"'
 
 
 class ConstantResolutionExhausted(RuntimeError):
@@ -146,9 +159,9 @@ class ConstantResolutionExhausted(RuntimeError):
 def outside_literals(text: str, transform) -> str:
     """Applies [transform] to the code between string literals, leaving the literals untouched.
 
-    The distinction is not cosmetic. Between tokens a newline is trivia, so `com.\n  google` is one
-    qualified name; INSIDE a literal the same newline is data, so a package name broken across the
-    lines of a raw string does not name a class and must not be joined into one.
+    The distinction is not cosmetic. Between tokens a newline is trivia, so a qualified name split
+    across lines is one name; INSIDE a literal the same newline is data, so a package name broken
+    across the lines of a raw string does not name a class and must not be joined into one.
     """
     pieces = []
     cursor = 0
@@ -179,7 +192,7 @@ def reduce_constants(text: str) -> str:
 
 
 def substitute_constants(text: str) -> str:
-    """Inlines same-file constant variables, which is what both compilers do before folding.
+    """Inlines same-file constant variables, which is what the compiler does before folding.
 
     Substitution happens OUTSIDE string literals only: replacing an identifier that merely appears
     inside some unrelated literal would invent a constant the compiler never builds, and a false
@@ -208,7 +221,7 @@ def substitute_constants(text: str) -> str:
 
 
 def fold_literals(text: str) -> str:
-    """Constant-folds string literals the way a compiler does, to a fixed point.
+    """Constant-folds string literals the way the compiler does, to a fixed point.
 
     Two rewrites, alternated until nothing changes, which is what lets arbitrary nesting collapse:
     adjacent literals join, and a parenthesised lone literal loses its parentheses. The paren rule
@@ -224,93 +237,13 @@ def fold_literals(text: str) -> str:
         text = folded
 
 
-# Escapes RESOLVED BY THE COMPILER inside a string literal: Kotlin `\uXXXX`, and Java octal.
-# Java's own `\uXXXX` is handled file-wide in [canonical], because javac decodes it before it
-# tokenises. Only escapes that can produce a letter or a dot matter here, so whitespace escapes are
-# left alone, and a decode to `"` or `\` is refused so it cannot forge a literal boundary.
-STRING_UNICODE_ESCAPE = re.compile(r"\\u+([0-9a-fA-F]{4})")
-STRING_OCTAL_ESCAPE = re.compile(r"\\([0-3]?[0-7]{1,2})")
-
-
-def _decoded_char(value: int) -> str | None:
-    char = chr(value)
-    return None if char in '"\\' else char
-
-
-JAVA_OCTAL_DIGITS = re.compile(r"[0-3]?[0-7]{1,2}")
-
-
-def strip_java_text_block_indent(body: str) -> str:
-    """JLS 3.10.6: incidental whitespace comes off BEFORE escapes are interpreted.
-
-    Order matters and is the whole point: an indented line continuation only joins its lines once
-    the indentation is gone, so decoding first leaves the spaces in the middle of the name.
-    """
-    lines = body.split("\n")
-    significant = [line for line in lines[:-1] if line.strip()]
-    # The closing delimiter's own line always participates, blank or not.
-    significant.append(lines[-1])
-    if not significant:
-        return body
-    indent = min(len(line) - len(line.lstrip()) for line in significant)
-    return "\n".join(line[indent:].rstrip() if line.strip() else "" for line in lines)
-
-
-def decode_string_escapes(literal: str, is_java: bool, is_text_block: bool = False) -> str:
-    """A literal's compile-time value, for the escapes that can spell a package name.
-
-    Java is walked left to right rather than substituted by regex, because `\\` is itself
-    escapable: in `\\\\` + newline the backslash is DATA and the newline survives, while in `\\` +
-    newline inside a text block the terminator is removed. A regex cannot tell those apart, and
-    guessing wrong here invents a constant the compiler never builds.
-
-    Only the escapes that can spell a package name are transformed -- octal, the text-block line
-    continuation and `\\s`. Everything else is copied through unchanged, including `\\"` and `\\\\`,
-    so no escape can forge a literal boundary.
-    """
-    if not is_java:
-        def unicode_sub(match: re.Match[str]) -> str:
-            return _decoded_char(int(match.group(1), 16)) or match.group(0)
-
-        return STRING_UNICODE_ESCAPE.sub(unicode_sub, literal)
-
-    out: list[str] = []
-    index = 0
-    end = len(literal)
-    while index < end:
-        if literal[index] != "\\" or index + 1 >= end:
-            out.append(literal[index])
-            index += 1
-            continue
-        following = literal[index + 1]
-        if is_text_block and (following == "\n" or literal.startswith("\r\n", index + 1)):
-            # JLS 3.10.7: `\` before a line terminator removes the terminator from the value.
-            index += 3 if following == "\r" else 2
-            continue
-        if is_text_block and following == "s":
-            out.append(" ")
-            index += 2
-            continue
-        octal = JAVA_OCTAL_DIGITS.match(literal, index + 1)
-        decoded = _decoded_char(int(octal.group(0), 8)) if octal else None
-        if decoded is not None:
-            out.append(decoded)
-            index = octal.end()
-            continue
-        # `\\`, `\"`, `\n` and friends: copy both characters, so the escape keeps its meaning and
-        # the next iteration cannot read the escaped character as an escape of its own.
-        out.append(literal[index:index + 2])
-        index += 2
-    return "".join(out)
-
-
-def strip_comments(text: str, is_java: bool = False) -> str:
+def strip_comments(text: str) -> str:
     """Comments become one space -- what a tokenizer does with them.
 
-    One space, not nothing: `a/*x*/b` is two tokens to both compilers and must not be joined into
+    One space, not nothing: `a/*x*/b` is two tokens to the compiler and must not be joined into
     one. String and character literals are walked rather than skipped, so a `//` inside a URL
     literal does not eat the rest of its line, and newlines are preserved so reported line numbers
-    stay true.
+    stay true. A raw string processes no escapes, so it is emitted untouched.
     """
     out: list[str] = []
     index = 0
@@ -320,15 +253,7 @@ def strip_comments(text: str, is_java: bool = False) -> str:
         if text.startswith('"""', index):
             close = text.find('"""', index + 3)
             close = end if close == -1 else close + 3
-            # A Java TEXT BLOCK processes escapes; a Kotlin RAW STRING does not. Same three quotes,
-            # opposite semantics, so the language decides -- not the delimiter.
-            block = text[index:close]
-            if is_java:
-                # JLS: the line terminator right after the opening delimiter is not content.
-                block = JAVA_TEXT_BLOCK_OPENING.sub('"""', block, count=1)
-                block = '"""' + strip_java_text_block_indent(block[3:-3]) + '"""'
-                block = decode_string_escapes(block, is_java, is_text_block=True)
-            out.append(block)
+            out.append(text[index:close])
             index = close
         elif char in "\"'":
             cursor = index + 1
@@ -340,7 +265,7 @@ def strip_comments(text: str, is_java: bool = False) -> str:
                     cursor += 1
                     break
                 cursor += 1
-            out.append(decode_string_escapes(text[index:cursor], is_java))
+            out.append(decode_string_escapes(text[index:cursor]))
             index = cursor
         elif text.startswith("//", index):
             close = text.find("\n", index)
@@ -358,19 +283,15 @@ def strip_comments(text: str, is_java: bool = False) -> str:
     return "".join(out)
 
 
-def canonical(path: Path, text: str) -> str:
-    """The text as its compiler reads it: escapes decoded, comments gone."""
-    if path.suffix == ".java":
-        # javac decodes escapes in step 1 of lexical translation, before it tokenises -- so this
-        # runs first, and only for Java. Kotlin has no equivalent source-level pass.
-        text = JAVA_UNICODE_ESCAPE.sub(lambda m: chr(int(m.group(1), 16)), text)
-    return reduce_constants(strip_comments(text, is_java=path.suffix == ".java"))
+def canonical(text: str) -> str:
+    """The text as kotlinc reads it: comments gone, constants and literals reduced."""
+    return reduce_constants(strip_comments(text))
 
 
-def tracked_source_files() -> list[Path]:
+def _tracked(globs: tuple[str, ...]) -> list[Path]:
     """Tracked sources only: an untracked scratch file is not what ships."""
     out = subprocess.run(
-        ["git", "ls-files", "-z", *SOURCE_GLOBS],
+        ["git", "ls-files", "-z", *globs],
         capture_output=True,
         text=True,
         check=True,
@@ -382,8 +303,21 @@ def is_exempt(path: Path) -> bool:
     return str(path).startswith(EXEMPT_PREFIXES)
 
 
+def java_source_violations() -> list[str]:
+    """Any tracked Java file, anywhere, including under the gate's own exemption.
+
+    Not a content check: this scanner canonicalises Kotlin only, so a `.java` file is a source it
+    cannot read, in a language detekt cannot read either. Refusing the file type is what keeps the
+    absence of Java an invariant instead of a coincidence.
+    """
+    return [
+        f"{path}: tracked Java source; this gate canonicalises Kotlin only"
+        for path in _tracked(JAVA_GLOBS)
+    ]
+
+
 def package_violations(path: Path, text: str) -> list[str]:
-    """[text] must already be [canonical] for its language."""
+    """[text] must already be [canonical]."""
     spaced = outside_literals(text, lambda code: SPACES_AROUND_DOT.sub(".", code))
     violations = [
         f"{path}:{number}: names {FORBIDDEN_PACKAGE}"
@@ -420,7 +354,7 @@ def scan(paths: list[Path]) -> list[str]:
             continue
         raw = path.read_text(encoding="utf-8", errors="replace")
         try:
-            text = canonical(path, raw)
+            text = canonical(raw)
         except ConstantResolutionExhausted as exhausted:
             violations.append(f"{path}: {exhausted}; cannot prove this file clean")
             continue
@@ -430,37 +364,17 @@ def scan(paths: list[Path]) -> list[str]:
 
 
 def self_test() -> int:
-    """A gate never shown to fire is not a gate. Both anchors, on synthetic content."""
+    """A gate never shown to fire is not a gate. Both anchors, on synthetic content.
+
+    The tracked-Java check is absent here by nature: it asks the repository a question, not a file,
+    so it is proven by adding and removing a real tracked `.java` file instead.
+    """
     cases = [
         ("clean file", "package io.github.stslex.workeeper.wear\n\nval x = 1\n", 0),
+        # Trivia between the tokens of a qualified name: legal, one name to the compiler, and
+        # invisible to a contiguous-text match.
         (
-            "java import",
-            f"package io.github.stslex.workeeper.wear;\n\nimport {FORBIDDEN_PACKAGE}.Wearable;\n",
-            1,
-        ),
-        # javac decodes this to the forbidden package before it tokenises; the raw bytes do not
-        # contain it, so an undecoded scan reports nothing while the call compiles.
-        (
-            "java unicode escape",
-            "import com.google.android.gms.we\\u0061rable.Wearable;\n",
-            1,
-        ),
-        (
-            "java doubled-u escape",
-            "import com.google.android.gms.we\\uu0061rable.Wearable;\n",
-            1,
-        ),
-        # The same bytes in Kotlin are NOT decoded by kotlinc, so they name no package.
-        ("kotlin escape is not decoded", "import com.google.android.gms.we\\u0061rable.Wearable\n", 0),
-        # Trivia between the tokens of a qualified name: legal in both languages, one name to both
-        # compilers, and invisible to a contiguous-text match.
-        (
-            "java comment inside the name",
-            "import com./*gap*/google.android.gms.wearable.Wearable;\n",
-            1,
-        ),
-        (
-            "kotlin comment inside the name",
+            "comment inside the name",
             "val c = com. /*gap*/ google.android.gms.wearable.Wearable\n",
             1,
         ),
@@ -478,7 +392,7 @@ def self_test() -> int:
         # A commented-out reference is not a call site. Comments are trivia to the compiler and to
         # this gate alike.
         ("commented-out reference", "// com.google.android.gms.wearable.Wearable\n", 0),
-        # Both compilers fold adjacent literals into one constant before anything sees them.
+        # The compiler folds adjacent literals into one constant before anything sees them.
         (
             "split reflective literal",
             'val c = Class.forName("com.google.android.gms." + "wearable.Wearable")\n',
@@ -496,25 +410,13 @@ def self_test() -> int:
         ),
         # Escapes the compiler resolves inside the literal itself.
         (
-            "java octal escape in a literal",
-            'Class.forName("com.google.android.gms.wea\\162able.Wearable");\n',
-            1,
-        ),
-        (
-            "kotlin unicode escape in a literal",
+            "unicode escape in a literal",
             'val c = Class.forName("com.google.android.gms.wea\\u0072able.Wearable")\n',
             1,
         ),
         (
             "escape survives folding",
             'val c = Class.forName("com.google.android.gms.wea" + "\\u0072able.Wearable")\n',
-            1,
-        ),
-        # A Java TEXT BLOCK does process escapes, unlike a Kotlin raw string. Same delimiter,
-        # opposite semantics.
-        (
-            "java text block escape",
-            'Class.forName("""\ncom.google.android.gms.wea\\162able.Wearable""");\n',
             1,
         ),
         # Parentheses do not stop the compiler folding a constant expression.
@@ -535,22 +437,27 @@ def self_test() -> int:
             'val c = f("com.google.android.gms.") + ("wearable.Wearable")\n',
             0,
         ),
-        # A Kotlin raw string processes no escapes, so these bytes name no package.
+        # A raw string processes no escapes, so these bytes name no package.
         (
-            "kotlin raw string escapes nothing",
+            "raw string escapes nothing",
             'val c = """com.google.android.gms.wea\\u0072able.Wearable"""\n',
             0,
         ),
-        # Constant variables are inlined by both compilers before the fold.
         (
-            "java static final constants",
-            'static final String PREFIX = "com.google.android.gms.";\n'
-            'static final String SUFFIX = "wearable.Wearable";\n'
-            'Class.forName(PREFIX + SUFFIX);\n',
+            "raw string concatenation",
+            'val c = Class.forName("""com.google.android.gms.""" + "wearable.Wearable")\n',
             1,
         ),
+        # A newline really is part of a raw string's constant, so a name broken across its lines
+        # does not name a class -- and must not be folded into one.
         (
-            "kotlin const val constants",
+            "raw string newline is part of the constant",
+            'val c = """com.google.android.gms.\nwearable.Wearable"""\n',
+            0,
+        ),
+        # Constant variables are inlined by the compiler before the fold.
+        (
+            "const val constants",
             'const val PREFIX = "com.google.android.gms."\n'
             'const val SUFFIX = "wearable.Wearable"\n'
             'val c = Class.forName(PREFIX + SUFFIX)\n',
@@ -565,80 +472,26 @@ def self_test() -> int:
         ),
         # An alias needs the constant table rebuilt mid-fixed-point, not collected once.
         (
-            "java constant alias chain",
-            'static final String HEAD = "com.google.android.gms.";\n'
-            'static final String PREFIX = HEAD;\n'
-            'Class.forName(PREFIX + "wearable.Wearable");\n',
-            1,
-        ),
-        (
-            "kotlin constant alias chain",
+            "constant alias chain",
             'const val HEAD = "com.google.android.gms."\n'
             'const val PREFIX = HEAD\n'
-            'val c = Class.forName(PREFIX + "wearable.Wearable")\n',
-            1,
-        ),
-        # A triple-quoted literal concatenates into the same constant as a quoted one.
-        (
-            "java text block concatenation",
-            'Class.forName("com.google.android.gms." + """wearable.Wearable""");\n',
-            1,
-        ),
-        (
-            "kotlin raw string concatenation",
-            'val c = Class.forName("""com.google.android.gms.""" + "wearable.Wearable")\n',
-            1,
-        ),
-        # A newline really is part of a text block's constant, so a name broken across its lines
-        # does not name a class -- and must not be folded into one.
-        (
-            "text block newline is part of the constant",
-            'val c = """com.google.android.gms.\nwearable.Wearable"""\n',
-            0,
-        ),
-        # JLS 3.10.7: `\` before a line terminator removes the terminator from a text block's
-        # value, so these two lines are one name to javac.
-        (
-            "java text block line continuation",
-            'Class.forName("""\ncom.google.android.gms.\\\nwearable.Wearable""");\n',
-            1,
-        ),
-        # ...but an ESCAPED backslash is data, and the terminator after it survives. Reading the
-        # second backslash as a continuation would invent a name javac does not build.
-        (
-            "escaped backslash is not a continuation",
-            'Class.forName("""\ncom.google.android.gms.\\\\\nwearable.Wearable""");\n',
-            0,
-        ),
-        # JLS 3.10.6: incidental indentation comes off before escapes, so an indented continuation
-        # joins its lines exactly as an unindented one does.
-        (
-            "java indented text block continuation",
-            'Class.forName("""\n        com.google.android.gms.\\\n        wearable.Wearable""");\n',
-            1,
-        ),
-        # A constant whose initialiser is itself a concatenation must enter the table whole.
-        (
-            "java constant with a folded initialiser",
-            'static final String PREFIX = "com.google." + "android.gms.";\n'
-            'static final String SUFFIX = "wearable.Wearable";\n'
-            'Class.forName(PREFIX + SUFFIX);\n',
-            1,
-        ),
-        (
-            "kotlin constant with a folded initialiser",
-            'const val PREFIX = "com.google." + "android.gms."\n'
             'val c = Class.forName(PREFIX + "wearable.Wearable")\n',
             1,
         ),
         # An alias chain deeper than any fixed round count: the fixed point has to be a fixed point.
         (
             "deep constant alias chain",
-            'static final String A = "com.google.android.gms.";\n'
-            'static final String B = A;\nstatic final String C = B;\n'
-            'static final String D = C;\nstatic final String E = D;\n'
-            'static final String F = E;\nstatic final String G = F;\n'
-            'Class.forName(G + "wearable.Wearable");\n',
+            'const val A = "com.google.android.gms."\n'
+            'const val B = A\nconst val C = B\nconst val D = C\n'
+            'const val E = D\nconst val F = E\nconst val G = F\n'
+            'val c = Class.forName(G + "wearable.Wearable")\n',
+            1,
+        ),
+        # A constant whose initialiser is itself a concatenation must enter the table whole.
+        (
+            "constant with a folded initialiser",
+            'const val PREFIX = "com.google." + "android.gms."\n'
+            'val c = Class.forName(PREFIX + "wearable.Wearable")\n',
             1,
         ),
         # An identifier inside an unrelated literal must not be substituted: that would invent a
@@ -658,22 +511,22 @@ def self_test() -> int:
         ),
         (
             "reflective load",
-            'val c = Class.forName("' + FORBIDDEN_PACKAGE + '.Wearable")\n',
+            f'val c = Class.forName("{FORBIDDEN_PACKAGE}.Wearable")\n',
             1,
         ),
-        ("qualified call", "val c = " + FORBIDDEN_PACKAGE + ".Wearable.get()\n", 1),
-        ("package directive", "package " + FORBIDDEN_PACKAGE + "\n", 1),
-        ('rule suppression', '@file:Suppress("WearDataLayerApiRule")\n', 1),
-        ('rule-set suppression', '@Suppress("style")\nval x = 1\n', 1),
-        ('prefixed suppression', '@Suppress("detekt:ForbiddenImport")\nval x = 1\n', 1),
-        ('blanket suppression', '@file:Suppress("ALL")\n', 1),
-        ('unrelated suppression', '@Suppress("TooManyFunctions")\nval x = 1\n', 0),
+        ("qualified call", f"val c = {FORBIDDEN_PACKAGE}.Wearable.get()\n", 1),
+        ("package directive", f"package {FORBIDDEN_PACKAGE}\n", 1),
+        ("rule suppression", '@file:Suppress("WearDataLayerApiRule")\n', 1),
+        ("rule-set suppression", '@Suppress("style")\nval x = 1\n', 1),
+        ("prefixed suppression", '@Suppress("detekt:ForbiddenImport")\nval x = 1\n', 1),
+        ("blanket suppression", '@file:Suppress("ALL")\n', 1),
+        ("unrelated suppression", '@Suppress("TooManyFunctions")\nval x = 1\n', 0),
         ("near-miss package", "package com.google.android.gms.wearablefake\n", 0),
     ]
     failures = 0
     for name, content, expected in cases:
-        path = Path("synthetic.java" if name.startswith("java") else "synthetic.kt")
-        text = canonical(path, content)
+        path = Path("synthetic.kt")
+        text = canonical(content)
         found = len(package_violations(path, text) + suppression_violations(path, text))
         verdict = "ok" if found == expected else "MISMATCH"
         if found != expected:
@@ -690,14 +543,14 @@ def main() -> int:
     if "--self-test" in sys.argv:
         return self_test()
 
-    paths = tracked_source_files()
+    paths = _tracked(SOURCE_GLOBS)
     scanned = [path for path in paths if not is_exempt(path)]
-    violations = scan(paths)
+    violations = java_source_violations() + scan(paths)
 
-    print(f"wear transport gate: {len(scanned)} tracked source file(s) scanned, "
+    print(f"wear transport gate: {len(scanned)} tracked Kotlin file(s) scanned, "
           f"{len(paths) - len(scanned)} exempt under {', '.join(EXEMPT_PREFIXES)}")
     if not violations:
-        print(f"no reference to {FORBIDDEN_PACKAGE}, and nothing suppresses the gate")
+        print(f"no reference to {FORBIDDEN_PACKAGE}, nothing suppresses the gate, no Java sources")
         return 0
 
     print(f"\n{len(violations)} violation(s):\n")
