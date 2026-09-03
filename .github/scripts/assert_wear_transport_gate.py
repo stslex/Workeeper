@@ -107,7 +107,33 @@ def fold_literals(text: str) -> str:
         text = folded
 
 
-def strip_comments(text: str) -> str:
+# Escapes RESOLVED BY THE COMPILER inside a string literal: Kotlin `\uXXXX`, and Java octal.
+# Java's own `\uXXXX` is handled file-wide in [canonical], because javac decodes it before it
+# tokenises. Only escapes that can produce a letter or a dot matter here, so whitespace escapes are
+# left alone, and a decode to `"` or `\` is refused so it cannot forge a literal boundary.
+STRING_UNICODE_ESCAPE = re.compile(r"\\u+([0-9a-fA-F]{4})")
+STRING_OCTAL_ESCAPE = re.compile(r"\\([0-3]?[0-7]{1,2})")
+
+
+def _decoded_char(value: int) -> str | None:
+    char = chr(value)
+    return None if char in '"\\' else char
+
+
+def decode_string_escapes(literal: str, is_java: bool) -> str:
+    """A literal's compile-time value, for the escapes that can spell a package name."""
+
+    def unicode_sub(match: re.Match[str]) -> str:
+        return _decoded_char(int(match.group(1), 16)) or match.group(0)
+
+    def octal_sub(match: re.Match[str]) -> str:
+        return _decoded_char(int(match.group(1), 8)) or match.group(0)
+
+    decoded = literal if is_java else STRING_UNICODE_ESCAPE.sub(unicode_sub, literal)
+    return STRING_OCTAL_ESCAPE.sub(octal_sub, decoded) if is_java else decoded
+
+
+def strip_comments(text: str, is_java: bool = False) -> str:
     """Comments become one space -- what a tokenizer does with them.
 
     One space, not nothing: `a/*x*/b` is two tokens to both compilers and must not be joined into
@@ -135,7 +161,7 @@ def strip_comments(text: str) -> str:
                     cursor += 1
                     break
                 cursor += 1
-            out.append(text[index:cursor])
+            out.append(decode_string_escapes(text[index:cursor], is_java))
             index = cursor
         elif text.startswith("//", index):
             close = text.find("\n", index)
@@ -159,7 +185,7 @@ def canonical(path: Path, text: str) -> str:
         # javac decodes escapes in step 1 of lexical translation, before it tokenises -- so this
         # runs first, and only for Java. Kotlin has no equivalent source-level pass.
         text = JAVA_UNICODE_ESCAPE.sub(lambda m: chr(int(m.group(1), 16)), text)
-    return fold_literals(strip_comments(text))
+    return fold_literals(strip_comments(text, is_java=path.suffix == ".java"))
 
 
 def tracked_source_files() -> list[Path]:
@@ -281,6 +307,28 @@ def self_test() -> int:
             "split literal across lines",
             'val c = Class.forName(\n    "com.google.android.gms."\n        + "wearable.Wearable",\n)\n',
             1,
+        ),
+        # Escapes the compiler resolves inside the literal itself.
+        (
+            "java octal escape in a literal",
+            'Class.forName("com.google.android.gms.wea\\162able.Wearable");\n',
+            1,
+        ),
+        (
+            "kotlin unicode escape in a literal",
+            'val c = Class.forName("com.google.android.gms.wea\\u0072able.Wearable")\n',
+            1,
+        ),
+        (
+            "escape survives folding",
+            'val c = Class.forName("com.google.android.gms.wea" + "\\u0072able.Wearable")\n',
+            1,
+        ),
+        # A Kotlin raw string processes no escapes, so these bytes name no package.
+        (
+            "kotlin raw string escapes nothing",
+            'val c = """com.google.android.gms.wea\\u0072able.Wearable"""\n',
+            0,
         ),
         # The documented limit, pinned so it stays a decision rather than an oversight: a name
         # assembled at RUNTIME is not a constant, and no static gate can see it.

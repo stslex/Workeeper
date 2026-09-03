@@ -760,7 +760,7 @@ tracked `.java` call site is invisible to *both* detekt layers, and AGP compiles
 variants.
 
 Text matching over source loses to lexical trivia unless the text is first canonicalised the way a
-compiler reads it, so the scan does that in four steps and pins each as a self-test case:
+compiler reads it, so the scan does that in five steps and pins each as a self-test case:
 
 | Step | Spelling it defeats | Scope |
 | --- | --- | --- |
@@ -768,6 +768,7 @@ compiler reads it, so the scan does that in four steps and pins each as a self-t
 | Comments become one separating space | `com./*gap*/google.android.gms.wearable` | Both. One space, not nothing: `a/*x*/b` is two tokens and must not be joined |
 | Trivia around a qualified name's dots collapses | `com. google…`, and the same name split across lines | Both. The cross-line pass reports the file rather than a line, since collapsing newlines would move every line number after it |
 | Adjacent string literals constant-fold | `Class.forName("com.google.android.gms." + "wearable.Wearable")` | Both, repeatedly, so chains of three or more collapse |
+| Escapes inside a literal resolve | Java octal `wea\162able`, Kotlin `wea\u0072able` | Java octal and Kotlin `\uXXXX`; Java's own `\uXXXX` is already handled file-wide above. Kotlin raw strings process no escapes, so they are left alone — pinned. A decode to `"` or `\` is refused, so an escape cannot forge a literal boundary |
 
 String and character literals are walked rather than skipped, so a `//` inside a URL literal does
 not eat the rest of its line — also pinned. A commented-out reference is not a call site and is not
