@@ -30,6 +30,13 @@ import org.junit.jupiter.api.Assertions.assertTrue
 internal fun ComposeUiTest.assertNoTextOverflowAcrossAllSurfaces() {
     val fixtures = SyntheticSurfaceFixtures.allKinds()
     val weighted = requireNotNull(SyntheticSurfaceFixtures.find(SyntheticSurfaceFixtures.ACTIVE_BOUNDARY))
+    val unsetWeight = requireNotNull(SyntheticSurfaceFixtures.find(SyntheticSurfaceFixtures.UNSET_WEIGHT))
+    val editorCases = listOf(
+        Triple(weighted, "reps_card", "reps editor"),
+        Triple(weighted, "weight_card", "weight editor"),
+        Triple(unsetWeight, "weight_card", "weight editor (absent weight)"),
+        Triple(unsetWeight, "reps_card", "reps editor (absent weight)"),
+    )
     var screen by mutableStateOf(WearScreen.SMALL_ROUND)
     var fontScale by mutableFloatStateOf(1.0f)
     var model by mutableStateOf(fixtures.first())
@@ -48,11 +55,10 @@ internal fun ComposeUiTest.assertNoTextOverflowAcrossAllSurfaces() {
                 waitForIdle()
                 assertNoOverflow(surface = "screen=$currentScreen kind=${fixture.kind} scale=$scale")
             }
-            listOf(
-                "reps_card" to "reps editor",
-                "weight_card" to "weight editor",
-            ).forEach { (card, surface) ->
-                model = weighted
+            // Both editors, opened from a full weight AND from an absent one: the editor
+            // spells the absence out in full («Not set»), where the card draws only «—».
+            editorCases.forEach { (source, card, surface) ->
+                model = source
                 waitForIdle()
                 onNodeWithTag(card).performScrollTo().performClick()
                 waitForIdle()
