@@ -374,10 +374,14 @@ private fun WeightCard(model: WearSurfaceModel, onEdit: (NumericField) -> Unit, 
         // The card shows a bare numeral. The app is kilograms only — no module offers a unit
         // choice — so «kg» on the card is a constant, and a constant does not earn the width
         // it costs: with it, no split of a 192dp row fits «999.99 kg» (108 + 52 + 8 > 160).
-        // The unit still reaches the user in the full-screen editor, and reaches TalkBack here
-        // through the value's content description, so no channel loses it.
-        value = formatted ?: stringResource(R.string.weight_unset),
-        valueDescription = formatted?.let { stringResource(R.string.weight_value, it) },
+        // An absent weight is the same trade once more: «—» is the conventional marker for an
+        // empty numeric field, and it fits every screen, while «Не задан» needs 88dp against
+        // the 76dp the card can offer. Both the unit and the spelled-out absence keep their
+        // full wording in the value's content description and in the full-screen editor, so
+        // neither the sighted nor the TalkBack user loses anything.
+        value = formatted ?: UNSET_WEIGHT_MARK,
+        valueDescription = formatted?.let { stringResource(R.string.weight_value, it) }
+            ?: stringResource(R.string.weight_unset),
         enabled = model.controlsEnabled,
         onClick = { onEdit(NumericField.WEIGHT) },
         tag = "weight_card",
@@ -824,6 +828,9 @@ private const val STATUS_MAX_LINES = 4
 private const val DOT_RING_WIDTH = 1.5
 private const val PILL_HEIGHT = 6
 private const val LONE_CARD_WIDTH = 0.55f
+
+/** Em dash — the conventional marker for an absent value in a numeric field. */
+private const val UNSET_WEIGHT_MARK = "\u2014"
 
 /** The value card's field icon, sized to sit under the value without competing with it. */
 private const val CARD_ICON = 16
