@@ -8,6 +8,7 @@ internal object SyntheticSurfaceFixtures {
     const val EXTRA_ID = "wear_surface_fixture"
     const val ACTIVE_BOUNDARY = "active_boundary"
     const val WEIGHTLESS = "weightless"
+    const val FIELD_ERROR = "field_error"
     const val REFRESH_REQUIRED = "refresh_required"
     const val DISCONNECTED = "disconnected"
     const val NO_SETS = "no_sets"
@@ -24,8 +25,9 @@ internal object SyntheticSurfaceFixtures {
      * redesign gates iterate this list so a kind cannot fall out of coverage silently.
      */
     fun allKinds(): List<WearSurfaceModel> = listOf(
-        ACTIVE_BOUNDARY, WEIGHTLESS, REFRESH_REQUIRED, DISCONNECTED, NO_SETS, UNSUPPORTED,
-        PAYLOAD_TOO_LARGE, COMPLETE, RETRYABLE, PROTOCOL_MISMATCH, NO_SESSION, LOADING,
+        ACTIVE_BOUNDARY, WEIGHTLESS, FIELD_ERROR, REFRESH_REQUIRED, DISCONNECTED, NO_SETS,
+        UNSUPPORTED, PAYLOAD_TOO_LARGE, COMPLETE, RETRYABLE, PROTOCOL_MISMATCH, NO_SESSION,
+        LOADING,
     ).map { requireNotNull(find(it)) }
 
     fun find(id: String?): WearSurfaceModel? = when (id) {
@@ -57,6 +59,23 @@ internal object SyntheticSurfaceFixtures {
             controlsVisible = true,
             controlsEnabled = true,
             completeEnabled = true,
+        )
+        // A validation error on the ACTIVE surface: the only fixture that renders the
+        // `field_error` line, which no fixture reached before (#284 round 5 audit).
+        FIELD_ERROR -> WearSurfaceModel(
+            kind = WearSurfaceKind.ACTIVE,
+            trainingName = "Full body strength",
+            exerciseName = "Front squat",
+            completedExercises = 1,
+            totalExercises = 5,
+            setOrdinal = 1,
+            totalSets = 3,
+            reps = 0,
+            weightHundredthsKg = 6_000,
+            weighted = true,
+            controlsVisible = true,
+            controlsEnabled = true,
+            fieldError = NumericField.REPS,
         )
         REFRESH_REQUIRED -> WearSurfaceModel(
             kind = WearSurfaceKind.REFRESH_REQUIRED,

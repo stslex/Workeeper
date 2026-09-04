@@ -343,11 +343,15 @@ private fun SetPill(completed: Boolean, current: Boolean, modifier: Modifier = M
 private fun ValueCards(model: WearSurfaceModel, onEdit: (NumericField) -> Unit) {
     val reps = requireNotNull(model.reps)
     if (model.weighted) {
+        // Deliberately UNEQUAL. Reps are at most three digits; a weight carries up to six
+        // characters, so equal halves starve one and waste the other. Measured at font scale
+        // 1.24, the binding case: «999.99» needs 65dp of content and «999» needs 36dp, and
+        // this split gives them 76dp and 44dp on a 192dp screen. See WEIGHT_CARD_SHARE.
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            WeightCard(model, onEdit, modifier = Modifier.weight(1f))
+            WeightCard(model, onEdit, modifier = Modifier.weight(WEIGHT_CARD_SHARE))
             RepsCard(model, reps, onEdit, modifier = Modifier.weight(1f))
         }
     } else {
@@ -363,13 +367,17 @@ private fun ValueCards(model: WearSurfaceModel, onEdit: (NumericField) -> Unit) 
 @Composable
 private fun WeightCard(model: WearSurfaceModel, onEdit: (NumericField) -> Unit, modifier: Modifier = Modifier) {
     val weight = model.weightHundredthsKg
+    val formatted = weight?.let(::formatWeight)
     ValueCard(
         icon = R.drawable.ic_weight,
         iconDescription = stringResource(R.string.weight_label),
-        // The unit lives in the value, not a header: on a one-row surface a column header is
-        // 1:1 with its content and stops paying for itself (measured at 60dp, #284 round 4).
-        value = weight?.let { stringResource(R.string.weight_value, formatWeight(it)) }
-            ?: stringResource(R.string.weight_unset),
+        // The card shows a bare numeral. The app is kilograms only — no module offers a unit
+        // choice — so «kg» on the card is a constant, and a constant does not earn the width
+        // it costs: with it, no split of a 192dp row fits «999.99 kg» (108 + 52 + 8 > 160).
+        // The unit still reaches the user in the full-screen editor, and reaches TalkBack here
+        // through the value's content description, so no channel loses it.
+        value = formatted ?: stringResource(R.string.weight_unset),
+        valueDescription = formatted?.let { stringResource(R.string.weight_value, it) },
         enabled = model.controlsEnabled,
         onClick = { onEdit(NumericField.WEIGHT) },
         tag = "weight_card",
@@ -388,8 +396,9 @@ private fun RepsCard(
     ValueCard(
         icon = R.drawable.ic_reps,
         iconDescription = stringResource(R.string.reps_label),
-        // Reps have no unit; the numeral stands alone.
+        // Reps have no unit; the numeral stands alone and needs no spoken embellishment.
         value = reps.toString(),
+        valueDescription = null,
         enabled = model.controlsEnabled,
         onClick = { onEdit(NumericField.REPS) },
         tag = "reps_card",
@@ -411,6 +420,7 @@ private fun ValueCard(
     @DrawableRes icon: Int,
     iconDescription: String,
     value: String,
+    valueDescription: String?,
     enabled: Boolean,
     onClick: () -> Unit,
     tag: String,
@@ -451,7 +461,9 @@ private fun ValueCard(
             color = if (enabled) WearPalette.textPrimary else WearPalette.textMuted,
             style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
             maxLines = 1,
-            modifier = Modifier.testTag(valueTag),
+            modifier = Modifier
+                .semantics { valueDescription?.let { contentDescription = it } }
+                .testTag(valueTag),
         )
     }
 }
@@ -815,6 +827,13 @@ private const val LONE_CARD_WIDTH = 0.55f
 
 /** The value card's field icon, sized to sit under the value without competing with it. */
 private const val CARD_ICON = 16
+
+/**
+ * The weight card's share of the two-card row, against the reps card's 1f. 92:60 on a 192dp
+ * screen — 76dp and 44dp of content, against the 65dp and 36dp the widest values need at the
+ * largest font scale. Equal halves gave both 60dp, which the weight overran.
+ */
+private const val WEIGHT_CARD_SHARE = 1.533f
 private const val ROTARY_STEP_PX = 48f
 
 /** Viewport inset above a Small (56dp) anchored edge button, its outer padding included. */

@@ -46,11 +46,7 @@ internal fun ComposeUiTest.assertNoTextOverflowAcrossAllSurfaces() {
             fixtures.forEach { fixture ->
                 model = fixture
                 waitForIdle()
-                assertNoOverflow(
-                    screen = currentScreen,
-                    scale = scale,
-                    surface = "screen=$currentScreen kind=${fixture.kind} scale=$scale",
-                )
+                assertNoOverflow(surface = "screen=$currentScreen kind=${fixture.kind} scale=$scale")
             }
             listOf(
                 "reps_card" to "reps editor",
@@ -60,11 +56,7 @@ internal fun ComposeUiTest.assertNoTextOverflowAcrossAllSurfaces() {
                 waitForIdle()
                 onNodeWithTag(card).performScrollTo().performClick()
                 waitForIdle()
-                assertNoOverflow(
-                    screen = currentScreen,
-                    scale = scale,
-                    surface = "screen=$currentScreen $surface scale=$scale",
-                )
+                assertNoOverflow(surface = "screen=$currentScreen $surface scale=$scale")
                 // Authority loss closes the editor, resetting for the next surface.
                 model = requireNotNull(SyntheticSurfaceFixtures.find(SyntheticSurfaceFixtures.REFRESH_REQUIRED))
                 waitForIdle()
@@ -74,7 +66,7 @@ internal fun ComposeUiTest.assertNoTextOverflowAcrossAllSurfaces() {
 }
 
 @OptIn(ExperimentalTestApi::class)
-private fun ComposeUiTest.assertNoOverflow(screen: WearScreen, scale: Float, surface: String) {
+private fun ComposeUiTest.assertNoOverflow(surface: String) {
     val nodes = onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsActions.GetTextLayoutResult))
         .fetchSemanticsNodes()
     assertTrue(nodes.isNotEmpty(), "$surface: no text nodes found — the surface never rendered")
@@ -84,9 +76,6 @@ private fun ComposeUiTest.assertNoOverflow(screen: WearScreen, scale: Float, sur
         val results = mutableListOf<TextLayoutResult>()
         node.config[SemanticsActions.GetTextLayoutResult].action?.invoke(results)
         results.forEach { layout ->
-            if (isOpenWeightCardMisfit(screen, scale, tag)) {
-                return@forEach
-            }
             if (tag == "exercise_name") {
                 assertTrue(
                     layout.lineCount <= 2,
@@ -108,31 +97,3 @@ private fun ComposeUiTest.assertNoOverflow(screen: WearScreen, scale: Float, sur
  * medium 1.12, large 1.24).
  */
 internal const val LARGEST_WEAR_FONT_SCALE = 1.24f
-
-/**
- * THE ONE OPEN DESIGN QUESTION — a named carve-out, never a silent one. Everything else on
- * every surface is gated at both screen extremes and both font scales.
- *
- * The weight value carries its unit inside itself (round 4), and a unit-bearing weight does
- * not fit the half-width card of a 192dp round screen. Measured against a 60dp content box
- * (small) and an 84dp one (XL at scale 1.24), identical in both locales:
- *
- * | Value | SMALL 1.0 | SMALL 1.24 | XL 1.0 | XL 1.24 |
- * | --- | --- | --- | --- | --- |
- * | «999.99 kg» (protocol max) | overflows | overflows | fits | overflows |
- * | «100 kg» (ordinary) | fits | overflows (en) | fits | fits |
- * | «72.5 kg» (ordinary) | fits | overflows | fits | fits |
- *
- * So this is not only the boundary fixture: an everyday three-digit weight overflows at the
- * largest font scale on a small watch. Resolving it means choosing between a narrower value
- * (drop the unit again, or drop decimals), a wider card (stack the two cards vertically on
- * short screens), or accepting truncation — all design decisions, recorded on PR #284 and
- * explicitly not this branch's to make. Shrinking the type or tightening spacing to force a
- * green is forbidden: it would defeat G1's 48dp targets and this gate at once.
- *
- * The carve-out is deliberately tight — the weight card is still asserted at XL_ROUND/1.0,
- * the one configuration where it fits, so a regression there is still caught. Delete this
- * function and its call site the moment the design decision lands.
- */
-private fun isOpenWeightCardMisfit(screen: WearScreen, scale: Float, tag: String): Boolean =
-    tag == "weight_card" && !(screen == WearScreen.XL_ROUND && scale == 1.0f)
