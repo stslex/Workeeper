@@ -22,6 +22,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import org.robolectric.annotation.Config
 import tech.apter.junit.jupiter.robolectric.RobolectricExtension
+import java.io.File
 
 /**
  * Gate G9 — the instrument that closes a whole class of defect.
@@ -34,12 +35,22 @@ import tech.apter.junit.jupiter.robolectric.RobolectricExtension
  *
  * It reflects over every id in `R.string`, renders the whole fixture set across both screen
  * extremes plus all four editor surfaces, and requires each id's value to appear somewhere in
- * the resulting semantics — as text, a content description, or a state description. Format
- * strings are matched on their literal segments, since their arguments are substituted at
- * render time.
+ * the resulting semantics — as text, a content description, or a state description.
  *
- * The walk itself is asserted non-empty: a gate that iterates zero ids passes silently, which
- * is precisely the failure it exists to prevent.
+ * The walk itself is checked against an independent parse of the resource XML — not a floor.
+ * A floor rots: at forty strings a walk returning thirty still clears "at least thirty", the
+ * very under-coverage this gate exists to prevent.
+ *
+ * KNOWN LIMIT, measured rather than assumed. The six substituted ids (`set_progress`,
+ * `weight_value`, `decrease_reps`, `increase_reps`, `decrease_weight`, `increase_weight`)
+ * cannot be matched whole, because their arguments are substituted at render time; they are
+ * matched on their literal segments instead. That is a substring test, so in principle one
+ * id could be credited to text another id rendered — `weight_value`'s only literal is «kg»,
+ * two characters. Probed directly rather than reasoned about: each of the six had its sole
+ * renderer neutralised in turn, with the other five verified untouched on every pass, and
+ * every one of the six turned this gate red naming its own id. No false positive exists
+ * today. What would create one is a new string sharing every literal segment of an existing
+ * substituted id — if that lands, this matcher must become exact.
  *
  * Runs in the default locale. Coverage is structural — which fixture reaches which id — and
  * the id set is identical in `values/` and `values-ru/`; G6 is the gate that measures both
@@ -61,10 +72,24 @@ internal class WearStringCoverageGateTest {
             .filter { it.type == Int::class.javaPrimitiveType }
             .associate { it.name to it.getInt(null) }
 
+        // The walk must cover exactly what the resource file declares. A floor would rot:
+        // at forty strings a walk returning thirty still clears "at least thirty", which is
+        // the under-coverage this gate exists to prevent, reintroduced by its own guard.
+        val declared = declaredStringNames()
         assertTrue(
-            ids.size >= MINIMUM_EXPECTED_IDS,
-            "The resource walk found only ${ids.size} string id(s); it must not silently " +
-                "iterate an empty or truncated set. Expected at least $MINIMUM_EXPECTED_IDS.",
+            declared.size >= MINIMUM_DECLARED_IDS,
+            "Parsed only ${declared.size} <string> declaration(s) from $STRINGS_XML; the " +
+                "independent parse must not itself be reading nothing.",
+        )
+        val missedByWalk = declared - ids.keys
+        val unknownToFile = ids.keys - declared
+        assertTrue(
+            missedByWalk.isEmpty() && unknownToFile.isEmpty(),
+            "The resource walk and $STRINGS_XML disagree — the walk must cover exactly what " +
+                "the file declares.\n" +
+                "  declared ${declared.size}, reflected ${ids.size}\n" +
+                "  declared but NOT reflected (the walk is short): ${missedByWalk.sorted()}\n" +
+                "  reflected but NOT declared here: ${unknownToFile.sorted()}",
         )
         val staleAllowlist = UNREACHABLE_BY_DESIGN.keys - ids.keys
         assertTrue(
@@ -178,6 +203,18 @@ internal class WearStringCoverageGateTest {
         .filter { it.isNotEmpty() }
         .ifEmpty { listOf(value.trim()) }
 
+    /**
+     * The `<string>` names in the module's own resource file, parsed straight from XML so the
+     * expected set never comes from the same place as the actual one.
+     */
+    private fun declaredStringNames(): Set<String> {
+        val file = File(STRINGS_XML)
+        assertTrue(file.isFile, "Expected the string resources at ${file.absolutePath}")
+        return STRING_DECLARATION.findAll(file.readText())
+            .map { it.groupValues[1] }
+            .toSet()
+    }
+
     private fun fixture(id: String): WearSurfaceModel =
         requireNotNull(SyntheticSurfaceFixtures.find(id))
 
@@ -185,12 +222,12 @@ internal class WearStringCoverageGateTest {
 
         val FORMAT_SPECIFIER = Regex("%\\d+\\$[a-zA-Z]|%[a-zA-Z]")
 
-        /**
-         * A floor under the walk, not a count of it: reflection returning an empty or
-         * truncated field set must fail rather than pass over nothing. Raise it only when
-         * strings are added, never to accommodate a shrinking walk.
-         */
-        const val MINIMUM_EXPECTED_IDS = 30
+        const val STRINGS_XML = "src/main/res/values/strings.xml"
+
+        val STRING_DECLARATION = Regex("""<string name="([^"]+)"""")
+
+        /** A floor under the PARSE, so a regex that stops matching cannot pass over nothing. */
+        const val MINIMUM_DECLARED_IDS = 30
 
         /**
          * Strings that no controller surface can reach, each with the reason it cannot. Both
