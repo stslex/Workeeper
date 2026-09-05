@@ -45,6 +45,27 @@ above is measured from. This is consistent with the touch gate, which already sc
 tapping a card on this profile. Whether the fold is acceptable is a design question and is
 recorded here untouched.
 
+## Measured heights on the 192dp profile — numbers only
+
+Requested for the open layout question. Measured from the running composition at the small
+round profile; the harness was checked against a known-negative first (a control string that
+cannot fit one line measured 160 × 55dp at scale 1.0 and 160 × 67dp at 1.24, so it reports a
+different answer when the answer differs).
+
+| Measure | scale 1.0 | scale 1.24 |
+| --- | --- | --- |
+| At-rest content stack, top inset (y = 24dp) to the bottom of the value cards | **138dp** | **159dp** |
+| Height available above the anchored action (screen top → button top, y = 119dp) | **119dp** | **119dp** |
+| — of which usable content area (116dp scroll viewport, less the 24dp top inset) | **92dp** | **92dp** |
+| Stack minus usable area | **46dp** | **67dp** |
+| Height of the value-card block (what a single row would replace) | **49dp** | **53dp** |
+| Single-line row «80 кг · 8», card type size, given the full 160dp content width | **64 × 19dp** | **78 × 23dp** |
+
+Arithmetic on those figures: substituting a 19dp / 23dp row for the 49dp / 53dp card block
+would put the stack at 108dp (scale 1.0) and 129dp (scale 1.24).
+
+No conclusion is drawn here and nothing was built.
+
 ## The mid-word break, fixed
 
 An earlier revision rendered «Завершить» as «Завершит» / «ь» — the primary action split
