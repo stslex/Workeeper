@@ -35,8 +35,7 @@
     <string name="control_disabled">Disabled</string>
     <string name="complete_set_enabled_description">Complete set, enabled</string>
     <string name="complete_set_disabled_description">Complete set, disabled</string>
-    <string name="complete_set">Complete set</string>
-    <string name="retry">Retry</string>
+    <string name="retry">Try again</string>
     <string name="reps_invalid">Choose reps between 1 and 999</string>
     <string name="weight_invalid">Check the weight on your phone</string>
     <!-- Reserved build-time capability resource read by Google Play services. -->
