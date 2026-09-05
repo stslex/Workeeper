@@ -174,6 +174,7 @@ private fun ActiveScaffold(
                 ValueCards(model, onEdit)
                 FieldError(model)
             }
+            UnavailableWord(model, modifier = Modifier.align(Alignment.BottomCenter))
             CompleteSetButton(model, onAction, modifier = Modifier.align(Alignment.BottomCenter))
         }
     }
@@ -494,6 +495,28 @@ private fun FieldError(model: WearSurfaceModel) {
  * outlined and gains the word `control_disabled` beneath its label — shape and text, not colour
  * alone (§4); the taller size makes room for that extra line.
  */
+/**
+ * The unavailability word sits ABOVE the arc, not inside it. Inside, alongside the glyph, it
+ * had no configuration that worked at 192dp and font scale 1.24: one line overran the height,
+ * two lines split «Недоступно» mid-word, and no wrapping overran the width. Out here it has
+ * the full content width. It is anchored rather than scrolled, so the disabled state is stated
+ * in text even before the user scrolls.
+ */
+@Composable
+private fun UnavailableWord(model: WearSurfaceModel, modifier: Modifier = Modifier) {
+    if (model.completeEnabled || model.kind == WearSurfaceKind.RETRYABLE_ERROR) return
+    Text(
+        text = stringResource(R.string.control_disabled),
+        style = MaterialTheme.typography.labelSmall,
+        color = WearPalette.textMuted,
+        textAlign = TextAlign.Center,
+        modifier = modifier
+            .padding(bottom = MEDIUM_EDGE_CLEARANCE.dp)
+            .padding(horizontal = CONTENT_SIDE_INSET.dp)
+            .testTag("complete_unavailable"),
+    )
+}
+
 @Composable
 private fun CompleteSetButton(
     model: WearSurfaceModel,
@@ -525,26 +548,16 @@ private fun CompleteSetButton(
             }
             .testTag("complete_set"),
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                text = stringResource(R.string.complete_set),
-                style = if (model.completeEnabled) {
-                    MaterialTheme.typography.labelMedium
-                } else {
-                    MaterialTheme.typography.labelSmall
-                },
-                maxLines = 2,
-                textAlign = TextAlign.Center,
-            )
-            if (!model.completeEnabled) {
-                Text(
-                    text = stringResource(R.string.control_disabled),
-                    style = MaterialTheme.typography.labelSmall,
-                    maxLines = 1,
-                    modifier = Modifier.testTag("complete_unavailable"),
-                )
-            }
-        }
+        // A glyph, not a word. «Завершить» is one unbreakable nine-character word and the arc
+        // gives a label about 80dp: it split mid-word («Завершит» / «ь») even on the largest
+        // screen at the default font scale, and «Complete» split on the smallest. The word is
+        // not lost — the button's own content description states the action in full, as it
+        // already did. Same trade as the unit and the absent weight.
+        Icon(
+            painter = painterResource(R.drawable.ic_complete),
+            contentDescription = null,
+            modifier = Modifier.size(COMPLETE_GLYPH.dp),
+        )
     }
 }
 
@@ -834,6 +847,9 @@ private const val UNSET_WEIGHT_MARK = "\u2014"
 
 /** The value card's field icon, sized to sit under the value without competing with it. */
 private const val CARD_ICON = 16
+
+/** The primary action's check glyph. Larger than a card icon: it is the action itself. */
+private const val COMPLETE_GLYPH = 16
 
 /**
  * The weight card's share of the two-card row, against the reps card's 1f. 92:60 on a 192dp

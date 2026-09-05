@@ -35,7 +35,6 @@
     <string name="control_disabled">Недоступно</string>
     <string name="complete_set_enabled_description">Завершить подход, доступно</string>
     <string name="complete_set_disabled_description">Завершить подход, недоступно</string>
-    <string name="complete_set">Завершить</string>
     <string name="retry">Ещё раз</string>
     <string name="reps_invalid">Выберите от 1 до 999 повторов</string>
     <string name="weight_invalid">Проверьте вес на телефоне</string>
