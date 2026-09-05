@@ -136,7 +136,13 @@ private fun ActiveScaffold(
     onEdit: (NumericField) -> Unit,
 ) {
     val scrollState = rememberScrollState()
-    val clearance = MEDIUM_EDGE_CLEARANCE.dp
+    // The unavailability word is anchored above the arc, so the scroll viewport must clear it
+    // too — otherwise the word lands on top of the last line of content.
+    val clearance = if (model.completeEnabled) {
+        MEDIUM_EDGE_CLEARANCE.dp
+    } else {
+        (MEDIUM_EDGE_CLEARANCE + UNAVAILABLE_WORD_CLEARANCE).dp
+    }
     ScreenScaffold(
         scrollState = scrollState,
         contentPadding = activeContentPadding(),
@@ -850,6 +856,12 @@ private const val CARD_ICON = 16
 
 /** The primary action's check glyph. Larger than a card icon: it is the action itself. */
 private const val COMPLETE_GLYPH = 16
+
+/**
+ * Extra viewport inset for the unavailability word above the arc. Sized for its line at the
+ * largest font scale (21dp measured), so the word never lands on the content behind it.
+ */
+private const val UNAVAILABLE_WORD_CLEARANCE = 24
 
 /**
  * The weight card's share of the two-card row, against the reps card's 1f. 92:60 on a 192dp

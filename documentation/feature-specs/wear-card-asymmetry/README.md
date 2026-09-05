@@ -29,17 +29,27 @@ Card fill (`#1E242A`) extents, read off the pixels rather than quoted from the l
 
 Content width inside each card is 16dp less: 76dp / 44dp on small, 105dp / 63dp on XL.
 
-## Two things the images show that no gate measures
+## What is visible at rest on the small screen — reported, not acted on
 
-1. **On a 192dp screen the cards sit below the fold at rest.** `small-round-192dp-en.png`
-   and `small-round-192dp-ru.png` are the surface as it first appears: only the top edges
-   of the cards clear the anchored button, and the values need a scroll to read. The
-   `-scrolled` pair is the same surface after one swipe. This is consistent with the touch
-   gate, which scrolls before tapping a card on the small profile, but it is worth seeing.
-2. **«Завершить» wraps mid-word on the small screen** — `small-round-192dp-ru.png` renders
-   it as «Завершит» / «ь». The overflow gate is green here and correct to be: the label
-   allows two lines and neither line overflows, so a break *inside* the allowance is
-   invisible to it. A gate that expressed "does not split a word" would be a different
-   instrument.
+`small-round-192dp-en.png` and `small-round-192dp-ru.png` are the 192dp surface as it first
+appears, before any scrolling. Visible at rest, in order: the **connection dot and status
+word**, the **exercise name** (two lines, ellipsized), the **set scale pills**, the **set
+progress line** («Подход 4 из 4»), and the **anchored primary action**. The **two value
+cards are below the fold** — only their top edges clear the button — so neither the weight
+nor the reps can be read without scrolling. `small-round-192dp-ru-disabled.png` shows the
+read-only variant, where the unavailability word «Недоступно» is anchored above the arc and
+the set-progress line has scrolled out.
 
-Both are reported on PR #284 rather than acted on.
+The `-scrolled` pair is the same surface after one swipe, which is what the width table
+above is measured from. This is consistent with the touch gate, which already scrolls before
+tapping a card on this profile. Whether the fold is acceptable is a design question and is
+recorded here untouched.
+
+## The mid-word break, fixed
+
+An earlier revision rendered «Завершить» as «Завершит» / «ь» — the primary action split
+inside a word. The overflow gate was green and right to be: the label allowed two lines and
+neither overflowed, so a break *inside* the allowance was invisible to it. Gate G10 now
+states the missing invariant, and measurement chose the label: «Завершить» split at 192dp on
+both font scales and at 240dp on the default scale, and «Complete» split at 192dp, so the
+action carries a check glyph with the wording in its content description.
