@@ -87,23 +87,39 @@ The accent surface is `textPrimary` on `onAccent` (D-C).
 Reading order, top to bottom:
 
 1. Time of day, pinned at the top arc.
-2. Connection status: a dot plus a word. The dot is **filled** when fresh and
-   **hollow** when not — a shape difference, not only a colour one.
-3. Exercise name. Up to two lines, then ellipsis.
+2. Connection status: a dot, and a word beside it in every state **except**
+   `ACTIVE`. The dot is **filled** when fresh and **hollow** when not — a shape
+   difference, not only a colour one. In `ACTIVE` the filled dot carries the
+   message and the word would cost a line of a 192dp screen, so it is spoken and
+   not drawn; in every degraded state the word is the whole message and is drawn.
+3. Exercise name, one line, then ellipsis. The semantics carry the whole name.
 4. Set scale: one pill per set of the current exercise. Completed pills filled,
-   the current one outlined, pending ones `pillPending`. Directly below it the
-   same information as words (`Подход 3 из 5`), because §10 forbids relying on a
-   visual channel alone.
-5. Two value cards side by side: weight and reps. Each card shows a unit-bearing
-   label in the header and a bare numeral below it — the column-header convention
-   already used on the phone. When the exercise is weightless the weight card is
-   absent and the reps card is centred.
-6. `Complete set`, anchored to the bottom edge.
+   the current one outlined, pending ones `pillPending`. The same information in
+   words (`Подход 3 из 5`) is the pill row's content description. §10 forbids
+   relying on a visual channel **alone**, which this does not: the words are
+   still stated, in the accessible channel.
+5. Two value cards side by side: weight and reps, **unequal** — the weight takes
+   the larger share, because its widest value needs 65dp of content against the
+   reps' 36dp at the largest font scale. Each card shows an **icon** identifying
+   the field and the value below it: the weight bare, without its unit, and the
+   reps bare. The unit and an absent weight (`—`) are stated in the value's
+   content description and in the full-screen editor. A textual header is not
+   used: one row does not amortise a column header, and the unit is a constant
+   in a kilograms-only app.
+6. The primary action, anchored to the bottom edge, drawn as a **check glyph**.
+   Its wording lives in the button's content description: `Завершить` is one
+   unbreakable nine-character word that splits mid-word inside the arc even on
+   the largest screen at the default font scale.
 
 When mutation is unavailable the cards lose their fill and keep an outline, their
-values move to `textMuted`, and the button inverts from filled to outlined and
-gains the word `Недоступно` beneath its label. Both changes are changes of shape
-and of text, not of colour alone.
+values move to `textMuted`, the action inverts from filled to outlined, and the
+word `Недоступно` is drawn **directly above** the action rather than inside it —
+inside the arc it had no configuration that fits at 192dp and the largest font
+scale. Both changes are changes of shape and of text, not of colour alone.
+
+Known residual, measured at 192dp: after this reading order the value cards are
+2dp short of fitting above the fold at font scale 1.0 and 10dp short at 1.24.
+The values read cleanly at both; the bottom of the card fill is what clips.
 
 ## 5. Full-screen numeric editor
 
