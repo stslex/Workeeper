@@ -22,49 +22,39 @@ Card fill (`#1E242A`) extents, read off the pixels rather than quoted from the l
 
 | Image | Screen | Locale | Weight card | Reps card | Ratio |
 | --- | --- | --- | --- | --- | --- |
-| `small-round-192dp-en-scrolled.png` | 192dp | en | **92dp** | **60dp** | 1.53:1 |
-| `small-round-192dp-ru-scrolled.png` | 192dp | ru | **92dp** | **60dp** | 1.53:1 |
+| `small-round-192dp-en.png` | 192dp | en | **92dp** | **60dp** | 1.53:1 |
+| `small-round-192dp-ru.png` | 192dp | ru | **92dp** | **60dp** | 1.53:1 |
 | `xl-round-240dp-en.png` | 240dp | en | **121dp** | **79dp** | 1.53:1 |
 | `xl-round-240dp-ru.png` | 240dp | ru | **121dp** | **79dp** | 1.53:1 |
 
 Content width inside each card is 16dp less: 76dp / 44dp on small, 105dp / 63dp on XL.
 
-## What is visible at rest on the small screen — reported, not acted on
+## What is visible at rest on the small screen — after the header cut
 
-`small-round-192dp-en.png` and `small-round-192dp-ru.png` are the 192dp surface as it first
-appears, before any scrolling. Visible at rest, in order: the **connection dot and status
-word**, the **exercise name** (two lines, ellipsized), the **set scale pills**, the **set
-progress line** («Подход 4 из 4»), and the **anchored primary action**. The **two value
-cards are below the fold** — only their top edges clear the button — so neither the weight
-nor the reps can be read without scrolling. `small-round-192dp-ru-disabled.png` shows the
-read-only variant, where the unavailability word «Недоступно» is anchored above the arc and
-the set-progress line has scrolled out.
+The header was cut in three steps to bring the value cards above the fold. Stack height at
+192dp, and how much of the 49dp / 53dp card block is visible at rest, at scales 1.0 / 1.24:
 
-The `-scrolled` pair is the same surface after one swipe, which is what the width table
-above is measured from. This is consistent with the touch gate, which already scrolls before
-tapping a card on this profile. Whether the fold is acceptable is a design question and is
-recorded here untouched.
-
-## Measured heights on the 192dp profile — numbers only
-
-Requested for the open layout question. Measured from the running composition at the small
-round profile; the harness was checked against a known-negative first (a control string that
-cannot fit one line measured 160 × 55dp at scale 1.0 and 160 × 67dp at 1.24, so it reports a
-different answer when the answer differs).
-
-| Measure | scale 1.0 | scale 1.24 |
+| Step | Stack height | Card visible |
 | --- | --- | --- |
-| At-rest content stack, top inset (y = 24dp) to the bottom of the value cards | **138dp** | **159dp** |
-| Height available above the anchored action (screen top → button top, y = 119dp) | **119dp** | **119dp** |
-| — of which usable content area (116dp scroll viewport, less the 24dp top inset) | **92dp** | **92dp** |
-| Stack minus usable area | **46dp** | **67dp** |
-| Height of the value-card block (what a single row would replace) | **49dp** | **53dp** |
-| Single-line row «80 кг · 8», card type size, given the full 160dp content width | **64 × 19dp** | **78 × 23dp** |
+| baseline | 138dp / 159dp | 3dp / 0dp |
+| 1 — «Подход N из M» moves to the pill row's description | 120dp / 137dp | 21dp / 8dp |
+| 2 — the status word leaves the drawing in ACTIVE only | 112dp / 124dp | 29dp / 21dp |
+| 3 — the exercise name drops to one line | **94dp / 102dp** | **47dp / 43dp** |
 
-Arithmetic on those figures: substituting a 19dp / 23dp row for the 49dp / 53dp card block
-would put the stack at 108dp (scale 1.0) and 129dp (scale 1.24).
+**The criterion is not met.** Both cards are **2dp short at scale 1.0 and 10dp short at
+1.24** — card bottom at 118dp and 126dp against a viewport ending at 116dp. What that means
+in practice is visible in the images: both values read cleanly at both scales, and it is the
+bottom of the card *fill* that is clipped, not the numbers. Nothing was shrunk, tightened,
+reduced or raised to close the gap.
 
-No conclusion is drawn here and nothing was built.
+Visible at rest on the ACTIVE surface now, in order: the **connection dot** (filled, with no
+word beside it — the word is spoken, not drawn, in this state only), the **exercise name** on
+one line, the **set-scale pills** (whose «Подход 4 из 4» is spoken), and **both value cards**
+with their icons and values, above the **check-glyph action**.
+
+`small-round-192dp-ru-disabled.png` shows the read-only variant, where the status word *is*
+drawn — it is the whole message there — and «Недоступно» sits between the pills and the
+outlined action.
 
 ## The mid-word break, fixed
 
