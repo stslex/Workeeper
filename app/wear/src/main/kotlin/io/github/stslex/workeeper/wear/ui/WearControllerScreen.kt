@@ -167,16 +167,6 @@ private fun ActiveScaffold(
                 StatusRow(model, showDot = true)
                 ExerciseName(model)
                 SetScale(model)
-                Text(
-                    text = stringResource(
-                        R.string.set_progress,
-                        requireNotNull(model.setOrdinal),
-                        requireNotNull(model.totalSets),
-                    ),
-                    color = WearPalette.textSecondary,
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.testTag("set_progress"),
-                )
                 ValueCards(model, onEdit)
                 FieldError(model)
             }
@@ -255,26 +245,38 @@ private fun InstructionScaffold(model: WearSurfaceModel) {
 
 @Composable
 private fun StatusRow(model: WearSurfaceModel, showDot: Boolean) {
+    // In ACTIVE the filled dot already says "connected", so the word beside it is nearly
+    // redundant and costs a line of a 192dp screen. It is dropped from the DRAWING there and
+    // kept on the row's description, so the accessible channel is unchanged. Every degraded
+    // state keeps the word visible: there the word is the whole message.
+    val word = stringResource(model.statusCopy().resource)
+    val drawWord = model.kind != WearSurfaceKind.ACTIVE
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            // Merged: the dot and the word are one status, and TalkBack should say it once.
+            .semantics(mergeDescendants = true) {
+                heading()
+                if (!drawWord) contentDescription = word
+            }
+            .testTag("status"),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (showDot) {
             ConnectionDot(fresh = model.kind == WearSurfaceKind.ACTIVE)
-            Spacer(Modifier.width(6.dp))
+            if (drawWord) Spacer(Modifier.width(6.dp))
         }
-        Text(
-            text = stringResource(model.statusCopy().resource),
-            modifier = Modifier
-                .semantics { heading() }
-                .testTag("status"),
-            textAlign = TextAlign.Center,
-            color = WearPalette.textPrimary,
-            maxLines = STATUS_MAX_LINES,
-            overflow = TextOverflow.Ellipsis,
-            style = MaterialTheme.typography.titleSmall,
-        )
+        if (drawWord) {
+            Text(
+                text = word,
+                textAlign = TextAlign.Center,
+                color = WearPalette.textPrimary,
+                maxLines = STATUS_MAX_LINES,
+                overflow = TextOverflow.Ellipsis,
+                style = MaterialTheme.typography.titleSmall,
+            )
+        }
     }
 }
 
@@ -302,7 +304,9 @@ private fun ConnectionDot(fresh: Boolean) {
 private fun ExerciseName(model: WearSurfaceModel) {
     Text(
         text = model.exerciseName ?: stringResource(R.string.exercise_generic),
-        maxLines = 2,
+        // One line on the controller. The full name is never truncated in the accessible
+        // channel — ellipsis is visual only, and the semantics carry the whole string.
+        maxLines = 1,
         overflow = TextOverflow.Ellipsis,
         textAlign = TextAlign.Center,
         color = WearPalette.textPrimary,
@@ -316,10 +320,15 @@ private fun ExerciseName(model: WearSurfaceModel) {
 private fun SetScale(model: WearSurfaceModel) {
     val total = requireNotNull(model.totalSets)
     val current = requireNotNull(model.setOrdinal)
+    // The wording rides the pills instead of occupying a line of its own. §10 forbids relying
+    // on a visual channel ALONE, not stating it in the accessible channel — the same trade
+    // already made for the unit, for the absent weight, and for the action label.
+    val spoken = stringResource(R.string.set_progress, current, total)
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp)
+            .semantics { contentDescription = spoken }
             .testTag("set_scale"),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {

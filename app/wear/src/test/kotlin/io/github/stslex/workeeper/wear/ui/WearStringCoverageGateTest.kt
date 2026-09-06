@@ -97,6 +97,23 @@ internal class WearStringCoverageGateTest {
             "The allowlist names string id(s) that no longer exist: $staleAllowlist",
         )
 
+        // TRIPWIRE. This gate matches format strings on their literal segments, which is a
+        // substring test, and a one-character orphan was measured slipping through it: «x» was
+        // credited to «Exercise». The blind spot is exactly where the gate matters most — a
+        // NEWLY ADDED string with no fixture — so the file is stopped from entering it. Exact
+        // attribution (recording which ids actually resolve during composition) is the real
+        // fix and is deliberately separate work; this holds the line until then.
+        val tooShort = declared.associateWith { name ->
+            resources.getString(requireNotNull(ids[name]))
+        }.filterValues { it.length < MINIMUM_VALUE_LENGTH }
+        assertTrue(
+            tooShort.isEmpty(),
+            "String value(s) shorter than $MINIMUM_VALUE_LENGTH characters cannot be told " +
+                "apart from a substring of unrelated text, so this gate could credit them to " +
+                "a string that merely contains them: $tooShort. Lengthen the value, or land " +
+                "exact attribution first.",
+        )
+
         val rendered = renderEveryFixture()
         assertTrue(
             rendered.isNotEmpty(),
@@ -228,6 +245,13 @@ internal class WearStringCoverageGateTest {
 
         /** A floor under the PARSE, so a regex that stops matching cannot pass over nothing. */
         const val MINIMUM_DECLARED_IDS = 30
+
+        /**
+         * Shortest value this gate can distinguish from an accident. The shortest real value
+         * today is «Вес» at 3 characters, so the margin is exactly zero — deliberately: any
+         * shorter value is the case the tripwire exists to stop.
+         */
+        const val MINIMUM_VALUE_LENGTH = 3
 
         /**
          * Strings that no controller surface can reach, each with the reason it cannot. Both

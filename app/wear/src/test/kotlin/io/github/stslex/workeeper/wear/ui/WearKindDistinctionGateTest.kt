@@ -5,6 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.v2.runComposeUiTest
@@ -51,13 +52,29 @@ internal class WearKindDistinctionGateTest {
             fixtures.forEach { fixture ->
                 model = fixture
                 waitForIdle()
-                val status = onNodeWithTag("status").fetchSemanticsNode()
-                    .config[SemanticsProperties.Text]
-                    .joinToString { it.text }
+                val node = onNodeWithTag("status").fetchSemanticsNode()
+                val drawn = node.config.getOrNull(SemanticsProperties.Text)
+                    ?.joinToString { it.text }
+                    .orEmpty()
+                val spoken = node.config.getOrNull(SemanticsProperties.ContentDescription)
+                    ?.joinToString()
+                    .orEmpty()
+                val status = drawn.ifBlank { spoken }
                 assertTrue(
                     status.isNotBlank(),
                     "screen=$current kind=${fixture.kind} rendered a blank status",
                 )
+                // The ACTIVE surface drops the word from the DRAWING — the filled dot says it —
+                // and keeps it spoken. Every other kind must still DRAW it: in a degraded state
+                // the word is the whole message, and losing it there is the regression this
+                // clause exists to catch.
+                if (fixture.kind != WearSurfaceKind.ACTIVE) {
+                    assertTrue(
+                        drawn.isNotBlank(),
+                        "screen=$current kind=${fixture.kind} must draw its status word, " +
+                            "not only speak it; drawn=«$drawn» spoken=«$spoken»",
+                    )
+                }
                 statusByKind.merge(fixture.kind, status) { first, second ->
                     assertEquals(
                         first,
