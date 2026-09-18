@@ -136,13 +136,6 @@ private fun ActiveScaffold(
     onEdit: (NumericField) -> Unit,
 ) {
     val scrollState = rememberScrollState()
-    // The unavailability word is anchored above the arc, so the scroll viewport must clear it
-    // too — otherwise the word lands on top of the last line of content.
-    val clearance = if (model.completeEnabled) {
-        MEDIUM_EDGE_CLEARANCE.dp
-    } else {
-        (MEDIUM_EDGE_CLEARANCE + UNAVAILABLE_WORD_CLEARANCE).dp
-    }
     ScreenScaffold(
         scrollState = scrollState,
         contentPadding = activeContentPadding(),
@@ -152,12 +145,14 @@ private fun ActiveScaffold(
         // the end — the primary action below the fold is the exact defect D-E removes. The
         // button is anchored statically instead, and the scroll VIEWPORT is inset above it
         // (padding before verticalScroll), so content can never sit under the button at any
-        // font scale: what does not fit is clipped un-tappable until scrolled into view.
+        // font scale: what does not fit is clipped un-tappable until scrolled into view. One
+        // inset for every surface: the disabled word is the button's own label, inside the band
+        // this inset already clears, so no surface reserves more viewport than the button needs.
         Box(modifier = Modifier.fillMaxSize()) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(bottom = clearance)
+                    .padding(bottom = MEDIUM_EDGE_CLEARANCE.dp)
                     .verticalScroll(scrollState)
                     .padding(contentPadding)
                     .testTag("controller_scroll"),
@@ -170,7 +165,6 @@ private fun ActiveScaffold(
                 ValueCards(model, onEdit)
                 FieldError(model)
             }
-            UnavailableWord(model, modifier = Modifier.align(Alignment.BottomCenter))
             CompleteSetButton(model, onAction, modifier = Modifier.align(Alignment.BottomCenter))
         }
     }
@@ -507,31 +501,12 @@ private fun FieldError(model: WearSurfaceModel) {
 
 /**
  * `Complete set`, anchored to the bottom edge (D-E). Disabled it inverts from filled to
- * outlined and gains the word `control_disabled` beneath its label — shape and text, not colour
- * alone (§4); the taller size makes room for that extra line.
+ * outlined and draws the word `control_disabled` as its label, in place of the glyph — shape
+ * and text, not colour alone (§4). Label-only on purpose: stacked under the glyph the word had
+ * no configuration that fit at 192dp and font scale 1.24 (bottom-band rebudget §2). It is
+ * anchored rather than scrolled, so the disabled state is stated in text before the user
+ * scrolls, and no surface reserves viewport for a word outside the arc.
  */
-/**
- * The unavailability word sits ABOVE the arc, not inside it. Inside, alongside the glyph, it
- * had no configuration that worked at 192dp and font scale 1.24: one line overran the height,
- * two lines split «Недоступно» mid-word, and no wrapping overran the width. Out here it has
- * the full content width. It is anchored rather than scrolled, so the disabled state is stated
- * in text even before the user scrolls.
- */
-@Composable
-private fun UnavailableWord(model: WearSurfaceModel, modifier: Modifier = Modifier) {
-    if (model.completeEnabled || model.kind == WearSurfaceKind.RETRYABLE_ERROR) return
-    Text(
-        text = stringResource(R.string.control_disabled),
-        style = MaterialTheme.typography.labelSmall,
-        color = WearPalette.textMuted,
-        textAlign = TextAlign.Center,
-        modifier = modifier
-            .padding(bottom = MEDIUM_EDGE_CLEARANCE.dp)
-            .padding(horizontal = CONTENT_SIDE_INSET.dp)
-            .testTag("complete_unavailable"),
-    )
-}
-
 @Composable
 private fun CompleteSetButton(
     model: WearSurfaceModel,
@@ -543,8 +518,8 @@ private fun CompleteSetButton(
     EdgeButton(
         onClick = { onAction(ControllerAction.CompleteSet) },
         enabled = model.completeEnabled,
-        // Medium in BOTH states: the disabled form needs the extra line for the disabled word,
-        // and the enabled primary action may never be smaller than the disabled one (G7).
+        // Medium in BOTH states: the disabled form carries the disabled word as its label, and
+        // the enabled primary action may never be smaller than the disabled one (G7).
         buttonSize = EdgeButtonSize.Medium,
         colors = ButtonDefaults.buttonColors(
             containerColor = WearPalette.textPrimary,
@@ -563,16 +538,34 @@ private fun CompleteSetButton(
             }
             .testTag("complete_set"),
     ) {
-        // A glyph, not a word. «Завершить» is one unbreakable nine-character word and the arc
-        // gives a label about 80dp: it split mid-word («Завершит» / «ь») even on the largest
-        // screen at the default font scale, and «Complete» split on the smallest. The word is
-        // not lost — the button's own content description states the action in full, as it
-        // already did. Same trade as the unit and the absent weight.
-        Icon(
-            painter = painterResource(R.drawable.ic_complete),
-            contentDescription = null,
-            modifier = Modifier.size(COMPLETE_GLYPH.dp),
-        )
+        if (model.completeEnabled) {
+            // A glyph, not a word. «Завершить» is one unbreakable nine-character word and the
+            // arc gives a label about 80dp: it split mid-word («Завершит» / «ь») even on the
+            // largest screen at the default font scale, and «Complete» split on the smallest.
+            // The word is not lost — the button's own content description states the action in
+            // full, as it already did. Same trade as the unit and the absent weight.
+            Icon(
+                painter = painterResource(R.drawable.ic_complete),
+                contentDescription = null,
+                modifier = Modifier.size(COMPLETE_GLYPH.dp),
+            )
+        } else {
+            // The disabled word, alone, on one line — never split (G10) and never wrapped
+            // (maxLines 1). At the binding cell — 192dp × font scale 1.24 × the longest locale —
+            // it exceeds the arc's content lane (159dp Medium) and ellipsizes: a decided,
+            // accepted residual (bottom-band rebudget — copy decision). Ellipsis, not clip, so
+            // the truncation stays graceful; the full action and state remain in the button's
+            // content description, the drawn half of «not colour alone» (G4). G6 owns the
+            // single-line bound; the in-lane ellipsis at that one cell is exempted there.
+            Text(
+                text = stringResource(R.string.control_disabled),
+                style = MaterialTheme.typography.labelSmall,
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.testTag("complete_unavailable"),
+            )
+        }
     }
 }
 
@@ -865,12 +858,6 @@ private const val CARD_ICON = 16
 
 /** The primary action's check glyph. Larger than a card icon: it is the action itself. */
 private const val COMPLETE_GLYPH = 16
-
-/**
- * Extra viewport inset for the unavailability word above the arc. Sized for its line at the
- * largest font scale (21dp measured), so the word never lands on the content behind it.
- */
-private const val UNAVAILABLE_WORD_CLEARANCE = 24
 
 /**
  * The weight card's share of the two-card row, against the reps card's 1f. 92:60 on a 192dp

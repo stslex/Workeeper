@@ -88,6 +88,19 @@ private fun ComposeUiTest.assertNoOverflow(surface: String) {
                     "$surface: the exercise name may ellipsize at its second line, " +
                         "not overflow past it («$text», ${layout.lineCount} lines)",
                 )
+            } else if (tag == "complete_set") {
+                // The disabled-completion label. At the binding cell — 192dp × font scale 1.24 ×
+                // the longest locale — the chosen word (ru «Отключено») exceeds the arc's content
+                // lane and ellipsizes on one line. That in-lane ellipsis is a decided, accepted
+                // residual (bottom-band rebudget — copy decision); the full text is in the
+                // button's content description, and G10 forbids a mid-word split. What G6 still
+                // enforces here is the single-line contract: the label may ellipsize, never wrap.
+                // Only the disabled state draws text under this tag; the enabled state is a glyph.
+                assertTrue(
+                    layout.lineCount <= 1,
+                    "$surface: the disabled completion label may ellipsize on one line, " +
+                        "never wrap («$text», ${layout.lineCount} lines)",
+                )
             } else {
                 assertTrue(
                     !layout.hasVisualOverflow,
