@@ -85,7 +85,7 @@ internal fun WearControllerScreen(
         val editing = editingField?.takeIf { field ->
             state.controlsEnabled && (field == NumericField.REPS || state.weighted)
         }
-        if (editing == null && editingField != null) {
+        if (!ambient.isAmbient && editing == null && editingField != null) {
             SideEffect { editingField = null }
         }
         if (ambient.isAmbient) {

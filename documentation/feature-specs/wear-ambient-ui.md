@@ -283,3 +283,80 @@ Derived proof: `/private/tmp/wear-ambient-review-derived-evidence/20260922T21431
 are frozen in the derived record. **No Gradle gate or mutation was re-executed**, and the
 original failed controller record was not relabelled COMPLETE. This is a repair of the
 proof parser for the already executed gates, not a new build or device measurement.
+
+### 5.2 Review follow-up: editor eligibility at ambient wake
+
+The preceding §5 and §5.1 remain historical byte-for-byte. This is a separate follow-up
+based on `7771a5b8146ef74a2c814bffbcefa0eaaea7a11c` plus the complete source snapshot below. The finding was classified
+**correct-and-new** after the initial regression revision failed on unchanged controller
+production: **37 actionable tasks: 37 executed**. The archive retains the captured
+controller and initial test source; it is not described as a full original-tree snapshot.
+
+| Initial unfixed regression revision | Actual XML assertion excerpt |
+| --- | --- |
+| WearAmbientEditorEligibilityTest.ambientRestoresBothEditorsOnlyWhenEligibleAtWake() | java.lang.AssertionError: java.lang.AssertionError: Failed to assert the following: (Text + EditableText = [9]) |
+
+The final test revision changes only its controller call to named arguments for compatibility
+with the subsequent ongoing integration. The recorded transition pins both revisions and
+verifies that exact sole change. The required `ambient-editor-clears-selection-during-ambient`
+control restores the byte-exact original controller production against the final test bytes;
+its intended assertion RED and exact restoration below establish the final-revision regression.
+No direct reproduction is silently relabeled as a measurement of different test bytes.
+
+The controller retains the selected editor while ambient even if editing eligibility changes
+temporarily. When interactive presentation resumes, the current model still determines
+whether that editor can be shown. An ineligible wake closes the retained selection and
+returns controller focus; a later eligibility change cannot reopen it without user action.
+Numeric values are not rewritten by these transitions. The ambient branch remains
+noninteractive and has no editor click or rotary handlers.
+
+| Executed gate | Archived XML | Executed task summary |
+| --- | --- | --- |
+| Fixed DevDebug ambient + G9 + review regressions | 16 tests / 9 classes; zero failures, errors or skips | `42 actionable tasks: 42 executed` |
+| Restored DevDebug focused suite | 16 tests / 9 classes; zero failures, errors or skips | `42 actionable tasks: 42 executed` |
+| Repository per-commit gate | testDevDebugUnitTest: 96 tests / 39 classes; testStoreDebugUnitTest: 96 tests / 39 classes; zero failures, errors or skips | `2331 actionable tasks: 2331 executed` |
+| Repository phase exit, Paparazzi, lint-rule tests and StoreRelease assembly | Fresh passing archived XML for lint-rule tests and every configured Paparazzi module | `2400 actionable tasks: 2400 executed` |
+
+The focused suite includes the original ambient/G9 tests, the §5.1 clock/draft regressions
+and the new editor test: **16 tests in 9 classes**. Full Wear debug suites contain **96 tests
+in 39 classes per flavor**. Fixed, restored and repository gates also archive fresh complete
+128-cell summary and 24-cell clock capture sets. The new single-composition test covers both
+reps and weight editors, temporary and persistent ineligibility, root-delivered rotary focus,
+unchanged draft values and absence of commands during ambient. These are host assertions,
+not measurements of a physical watch or real phone authority events.
+
+All **four new controls** killed the intended named assertion with byte-exact restoration.
+The exact-method validator covers **1/1 new protective method**. The separate weight control
+lets the reps path pass before breaking weight retention; other controls expose an editor
+on an ineligible wake or reopen a previously discarded selection. Actual selected failures:
+
+| Executed new control | Observed intended failing method | Actual XML assertion excerpt |
+| --- | --- | --- |
+| `ambient-editor-clears-selection-during-ambient` | WearAmbientEditorEligibilityTest.ambientRestoresBothEditorsOnlyWhenEligibleAtWake() | java.lang.AssertionError: java.lang.AssertionError: Failed to assert the following: (Text + EditableText = [9]) |
+| `ambient-editor-clears-weight-selection-during-ambient` | WearAmbientEditorEligibilityTest.ambientRestoresBothEditorsOnlyWhenEligibleAtWake() | java.lang.AssertionError: java.lang.AssertionError: Failed to assert the following: (Text + EditableText = [102.5 kg]) |
+| `ambient-editor-skips-wake-eligibility` | WearAmbientEditorEligibilityTest.ambientRestoresBothEditorsOnlyWhenEligibleAtWake() | java.lang.AssertionError: java.lang.AssertionError: Failed: assertDoesNotExist. |
+| `ambient-editor-retains-selection-after-ineligible-wake` | WearAmbientEditorEligibilityTest.ambientRestoresBothEditorsOnlyWhenEligibleAtWake() | java.lang.AssertionError: java.lang.AssertionError: Failed: assertDoesNotExist. |
+
+Observed mutation summaries: `37 actionable tasks: 37 executed`. Earlier 24 and 6 control campaigns were not
+re-executed here; their protected tests run in the fresh regression suites, while their
+original ledgers retain their own provenance. No new release-host/device UI result is
+claimed; StoreRelease assembly remains a build gate.
+
+Phase Paparazzi evidence retains every raw testcase occurrence, including repeated legacy
+display labels. Receipts preserve XML-relative path, one-based ordinal, class, unmodified
+label/time, raw XML SHA and counters; no method identity is invented or deduplicated.
+Wear, lint-rule and intended mutation identities remain strict.
+
+Evidence: `/private/tmp/wear-ambient-review2-evidence/runs/20260922T221919.434791Z`. Base `7771a5b8146ef74a2c814bffbcefa0eaaea7a11c` plus full source snapshot JSON SHA-256 `c3ac18f9a454e5037592f4600b2fc9461b6d57839078014992760cbabab5b522`.
+The cohort freezes source bytes, method/control map, commands/timestamps, XML, 128+24 PNG
+inventories, before/mutant bytes and exact intended-kill proof. Every Gradle proof gate ran
+serially with `--rerun-tasks --no-build-cache --no-configuration-cache`; preparatory clean
+is separate. Source bytes remain unchanged through the cohort and finalizer validation;
+this append is the only subsequent documentation delta. Runnable local evidence tools and
+manifests are not claimed to be shipped in the repository.
+
+**Physical acceptance remains pending.** Host behavior does not establish actual ambient
+callbacks, Activity reuse/recreation, TalkBack, foreground retention, reconnect constants
+or notification removal after process death. The closed privacy/transport gate and the
+ambient-only `WatchProcessState`/static-preview boundary remain unchanged. The synthetic
+runtime/ongoing increment has its own subsequent source and acceptance scope.
