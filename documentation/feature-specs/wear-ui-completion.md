@@ -334,3 +334,45 @@ It does not prove physical touch/rotary, TalkBack speech, the curved time render
 a watch, or platform lifecycle/notification behavior. PR-A/B/C ledgers remain evidence
 about their own trees; no earlier pass certifies this increment. Physical acceptance,
 real transport and the privacy boundary remain separate as specified in §4.
+
+### 7.1 Review follow-up — refresh-required completion guard
+
+The preceding §7 ledger records the original PR-D candidate at
+[`95738d4c`](https://github.com/stslex/Workeeper/commit/95738d4cacd0d007a91e78a3cb3b1d7812e75a98): 31 named controls,
+80 tests in 30 Wear classes, and its recorded repository gates. Those historical
+counts are preserved. The review fix below has its own evidence on the subsequent
+candidate; the 31-control campaign was not rerun for this one-line change.
+
+[Review comment 4075657636](https://github.com/stslex/Workeeper/pull/288#discussion_r4075657636)
+was classified **correct-and-new** after execution. A real accepted handshake,
+followed by a rejected unsolicited snapshot, preserves `LocalMutationAuthority.Available`
+and sets `refreshRequired=true`. The previous mapper still exposed completion when
+the command was idle or terminal. The unfixed regression failed at
+`io.github.stslex.workeeper.wear.ui.WearRefreshRequiredCompletionTest.rejectedUnsolicitedSnapshotBlocksOtherwiseValidIdleCompletion()` with
+“A rejected unsolicited snapshot must block completion while refresh is required”: expected false, observed true.
+The reproduction reports **37 actionable tasks: 37 executed**; it is a reproduced defect,
+not a failed compilation. [The classification reply](https://github.com/stslex/Workeeper/pull/288#discussion_r4075716534)
+records that executed reproduction.
+
+`completeEnabled` now also requires `!state.refreshRequired`. The existing reason
+precedence reports `REFRESH_REQUIRED`. Reducer admission, mutation authority, editing
+controls and the phone protocol are unchanged. The standalone regression exercises
+foreign database epoch, foreign session and stale revision, each with no command and
+with a real Applied response leaving a terminal command: six scenarios in one method.
+
+| Review-fix evidence | Observed result |
+| --- | --- |
+| Fixed focused baseline plus Wear Detekt | **42 actionable tasks: 42 executed**; one regression method, zero failures/errors/skips. |
+| Named `d-refresh-guard-removed` control | Removing only the refresh guard restores the same assertion failure; **37 actionable tasks: 37 executed**; source restored byte-exactly. |
+| Restored repository `assembleDebug detekt lintDebug testDebugUnitTest` | **2331 actionable tasks: 2331 executed**; DevDebug and StoreDebug each have **81 tests in 31 classes**, zero failures/errors/skips. |
+| Repository `assembleDebugAndroidTest verifyPaparazziDebug :lint-rules:test :app:wear:assembleStoreRelease` | **2400 actionable tasks: 2400 executed**. |
+
+The repository gates followed the control and preparatory clean serially, using
+`--rerun-tasks --no-build-cache --no-configuration-cache`. Evidence is archived under
+`/private/tmp/wear-d-review-evidence`: the reproduced and fixed XML, named-control source/test hashes and
+failure XML, `root-xml/Dev`, `root-xml/Store`, `root-commit.log`, `root-phase.log`, and
+`candidate-source.json`. The mapper SHA-256 is `261753cfa3af50491e30f01d087b125d1cbc6e608572833735eb5091e65bf542`; the standalone
+regression SHA-256 is `d8d1baeb5fe716717aa14b5e04930e8a57ee9d8853ddd1edd6fa233edd066b4c`. The finalizer checks the
+entire candidate byte snapshot and confirms the only code delta from `95738d4c` is
+the mapper guard plus this new test. This is host evidence; it adds no physical watch,
+ambient, ongoing-activity or real-transport acceptance claim.

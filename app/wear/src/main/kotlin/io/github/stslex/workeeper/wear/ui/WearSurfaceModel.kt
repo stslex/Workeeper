@@ -100,7 +100,7 @@ internal object WearSurfaceMapper {
             weightHundredthsKg = weight,
             exerciseType = payload.target.exerciseType,
         )?.field
-        val completeEnabled = available && commandIdle && invalidField == null
+        val completeEnabled = available && commandIdle && !state.refreshRequired && invalidField == null
         return WearSurfaceModel(
             kind = when (display.freshness) {
                 ActiveFreshness.FRESH -> WearSurfaceKind.ACTIVE
