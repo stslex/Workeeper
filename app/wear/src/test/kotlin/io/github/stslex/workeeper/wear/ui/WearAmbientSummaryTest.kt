@@ -6,6 +6,7 @@ import android.content.res.Resources
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
+import android.provider.Settings
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -55,6 +56,18 @@ internal class WearAmbientSummaryTest {
 
 @OptIn(ExperimentalTestApi::class)
 internal fun ComposeUiTest.assertAmbientSummaryMatrix(locale: Locale) {
+    val resolver = RuntimeEnvironment.getApplication().contentResolver
+    val previous = Settings.System.getString(resolver, Settings.System.TIME_12_24)
+    try {
+        Settings.System.putString(resolver, Settings.System.TIME_12_24, "24")
+        assertAmbientSummaryMatrixWithFixedTimeFormat(locale)
+    } finally {
+        Settings.System.putString(resolver, Settings.System.TIME_12_24, previous)
+    }
+}
+
+@OptIn(ExperimentalTestApi::class)
+private fun ComposeUiTest.assertAmbientSummaryMatrixWithFixedTimeFormat(locale: Locale) {
     val app = RuntimeEnvironment.getApplication()
     val configuration = Configuration(app.resources.configuration).apply { setLocale(locale) }
     val resources = app.createConfigurationContext(configuration).resources
@@ -253,7 +266,7 @@ private fun expectedAmbientNumericRows(
     }
 }
 
-private fun assertAmbientNumericRaster(
+internal fun assertAmbientNumericRaster(
     image: ImageBitmap,
     layout: List<AmbientDrawLine>,
     expectedRows: Map<AmbientLineRole, String>,
@@ -302,7 +315,7 @@ private fun assertAmbientNumericRaster(
     }
 }
 
-private fun assertAmbientPixels(image: ImageBitmap, lowBit: Boolean, where: String) {
+internal fun assertAmbientPixels(image: ImageBitmap, lowBit: Boolean, where: String) {
     val pixels = image.toPixelMap()
     val centerX = image.width / 2f
     val centerY = image.height / 2f

@@ -7,6 +7,7 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.text.TextPaint
 import android.text.TextUtils
+import android.text.format.DateFormat
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
@@ -48,8 +49,12 @@ internal fun WearAmbientSummary(
         context.createConfigurationContext(localized).resources
     }
     val timeZone = TimeZone.getDefault()
-    val content = remember(resources, model, ambient.timestampMillis, hasUnsubmittedValues, timeZone) {
-        ambientSummaryContent(resources, model, ambient.timestampMillis, hasUnsubmittedValues, timeZone)
+    val use24HourFormat = DateFormat.is24HourFormat(context)
+    val timePattern = remember(model.selectedLocale, use24HourFormat) {
+        DateFormat.getBestDateTimePattern(model.selectedLocale, if (use24HourFormat) "Hm" else "hm")
+    }
+    val content = remember(resources, model, ambient.timestampMillis, hasUnsubmittedValues, timeZone, timePattern) {
+        ambientSummaryContent(resources, model, ambient.timestampMillis, hasUnsubmittedValues, timeZone, timePattern)
     }
     val density = LocalDensity.current
     BoxWithConstraints(Modifier.fillMaxSize()) {
@@ -114,8 +119,9 @@ internal fun ambientSummaryContent(
     timestampMillis: Long?,
     hasUnsubmittedValues: Boolean,
     timeZone: TimeZone,
+    timePattern: String = "HH:mm",
 ): AmbientSummaryContent {
-    val time = ambientTime(timestampMillis, model.selectedLocale, timeZone)
+    val time = ambientTime(timestampMillis, model.selectedLocale, timeZone, timePattern)
     val context = model.exerciseName ?: model.trainingName ?: resources.getString(R.string.workout_generic)
     val progress = model.setOrdinal?.let { current ->
         model.totalSets?.let { total ->
@@ -183,10 +189,14 @@ private fun ambientStatusResource(model: WearSurfaceModel): Int = when (model.co
     }
 }
 
-internal fun ambientTime(timestampMillis: Long?, locale: Locale, timeZone: TimeZone): String =
-    timestampMillis?.let {
-        SimpleDateFormat("HH:mm", locale).apply { this.timeZone = timeZone }.format(Date(it))
-    } ?: "--:--"
+internal fun ambientTime(
+    timestampMillis: Long?,
+    locale: Locale,
+    timeZone: TimeZone,
+    timePattern: String = "HH:mm",
+): String = timestampMillis?.let {
+    SimpleDateFormat(timePattern, locale).apply { this.timeZone = timeZone }.format(Date(it))
+} ?: "--:--"
 
 internal fun ambientSummaryLayout(
     content: AmbientSummaryContent,

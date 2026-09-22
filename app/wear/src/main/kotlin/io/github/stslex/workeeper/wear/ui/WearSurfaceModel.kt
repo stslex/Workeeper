@@ -118,6 +118,7 @@ internal object WearSurfaceMapper {
             totalSets = payload.target.totalSets,
             reps = reps,
             weightHundredthsKg = weight,
+            hasUnsubmittedDraft = draft != null,
             weighted = payload.target.exerciseType == ExerciseTypeWire.WEIGHTED,
             controlsVisible = true,
             controlsEnabled = available && commandIdle,

@@ -162,3 +162,124 @@ recording build type, OS/API and exact scenario. The transitional no-op/static-p
 boundary in §4 remains unchanged. Ongoing retention, calibrated reconnect timing, process-
 death notification removal and real phone transport/acknowledgement belong to later
 increments and their separate privacy and physical acceptance gates.
+
+### 5.1 Review follow-up: draft projection and system time preference
+
+The original campaign completed its Gradle gates and six negative controls, but its
+controller remained **FAILED** during postprocessing of repeated Paparazzi display
+labels. A separate proof-only reprocessing validates the original executed artifacts;
+it does not rerun Gradle, mutations or source changes. See the provenance below.
+
+The preceding §5 is the original host-evidence ledger published in `4e7581dd`; its
+24-control campaign, release-host scope and counts remain historical. This follow-up
+records a separate reviewed candidate based on that commit plus the source-byte snapshot
+below. It does not relabel the original mutation results as measurements of the new source.
+
+Both review findings were reproduced on unchanged production before applying their fixes
+and classified **correct-and-new**. The new regression classes executed three methods:
+exactly two intended assertion failures and one passing canonical/targetless control,
+with **37 actionable tasks: 37 executed**. Actual archived assertions:
+
+| Unfixed regression | Actual XML assertion excerpt |
+| --- | --- |
+| WearAmbientTimePreferenceTest.systemTimePreferenceControlsSpokenAndDrawnClockAtSmallScreenBoundaries() | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: AmbientClockCase(locale=en, use24Hour=false, timeZone=sun.util.calendar.ZoneInfo[id="UTC",offset=0,dstSavings=0,useDaylight=false,transitions=0,lastRule=null], timestampMillis=0) system time preference must produce '12:00 AM', actual '00:00. Single-arm dumbbell shoulder press. Set 2147483647 of 2147483647. Weight: 999.99 kg. 999 reps. Ready. Complete set, enabled. Not sent' ==&gt; expected:... |
+| WearSurfaceDraftProjectionTest.activeDraftProjectionMarksUnsubmittedValues() | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: Every projected active draft must retain its unsent marker ==&gt; expected: &lt;true&gt; but was: &lt;false&gt; |
+
+`WearSurfaceMapper` now sets `hasUnsubmittedDraft` when its active projection applies a
+numeric draft, including explicit absent weight. Clearing the draft clears the marker;
+canonical and targetless projections do not claim unsent values. This fixes the model
+projection used by the ambient summary without adding transport, acknowledgement or
+process-surviving draft storage.
+
+The rendered and spoken clock now use the Android 12/24-hour preference, the selected
+locale's time pattern and the current time zone. Recomposition includes the chosen time
+pattern in the content key. Display time still comes only from the supplied ambient event
+timestamp; there is no independent clock ticker. The existing summary matrix pins the
+system setting to 24-hour time and restores it afterward; its pixel assertions and 128
+capture names remain intact, and its raster helpers are shared with the new clock test.
+
+| Executed gate | Archived XML | Executed task summary |
+| --- | --- | --- |
+| Fixed DevDebug ambient + G9 + review regressions | 15 tests / 8 classes; zero failures, errors or skips | `42 actionable tasks: 42 executed` |
+| Restored DevDebug focused suite | 15 tests / 8 classes; zero failures, errors or skips | `42 actionable tasks: 42 executed` |
+| Repository per-commit gate | testDevDebugUnitTest: 95 tests / 38 classes; testStoreDebugUnitTest: 95 tests / 38 classes; zero failures, errors or skips | `2331 actionable tasks: 2331 executed` |
+| Repository phase exit, Paparazzi, lint-rule tests and StoreRelease assembly | Fresh passing archived XML for lint-rule tests and every configured Paparazzi module | `2400 actionable tasks: 2400 executed` |
+
+The fixed baseline, restored focused gate and repository gate each archive a fresh complete
+**128-cell** ambient matrix and **24 additional clock captures**. The clock matrix covers
+EN/RU × 12/24-hour preference × UTC/GMT+03:00 × timestamps 00:00, 12:00 and 23:59 UTC,
+at 192dp and font scale 1.24 with both low-bit and burn-in protection enabled. Its assertions
+check the spoken clock, complete native TIME-row raster, circular safe bounds and black
+pixel budget. Passing captured pixels are host evidence, not a target-watch rendering claim.
+
+All **six new controls** produced a named intended assertion RED, with byte-exact source
+restoration. The exact-method validator covers **3/3 new protective methods**. The draw-only
+TIME control preserves semantic text and layout, requiring the actual clock ink to be
+painted. Observed mutation execution summaries: `37 actionable tasks: 37 executed`.
+The excerpts below come from actual selected XML, not prepared manifest expectations.
+
+| Executed new control | Observed intended failing method | Actual XML assertion excerpt |
+| --- | --- | --- |
+| `ambient-mapper-drops-projected-draft-marker` | WearSurfaceDraftProjectionTest.activeDraftProjectionMarksUnsubmittedValues() | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: Every projected active draft must retain its unsent marker ==&gt; expected: &lt;true&gt; but was: &lt;false&gt; |
+| `ambient-mapper-marks-canonical-values-unsent` | WearSurfaceDraftProjectionTest.canonicalAndTargetlessProjectionsDoNotClaimUnsubmittedValues()<br>WearSurfaceDraftProjectionTest.activeDraftProjectionMarksUnsubmittedValues() | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: expected: &lt;false&gt; but was: &lt;true&gt;<br>org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: Clearing the draft must clear its unsent marker ==&gt; expected: &lt;false&gt; but was: &lt;true&gt; |
+| `ambient-mapper-marks-targetless-values-unsent` | WearSurfaceDraftProjectionTest.canonicalAndTargetlessProjectionsDoNotClaimUnsubmittedValues() | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: A targetless projection does not apply a numeric draft ==&gt; expected: &lt;false&gt; but was: &lt;true&gt; |
+| `ambient-clock-ignores-system-twelve-hour-preference` | WearAmbientTimePreferenceTest.systemTimePreferenceControlsSpokenAndDrawnClockAtSmallScreenBoundaries() | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: AmbientClockCase(locale=en, use24Hour=false, timeZone=sun.util.calendar.ZoneInfo[id="UTC",offset=0,dstSavings=0,useDaylight=false,transitions=0,lastRule=null], timestampMillis=0) system time preference must produce '12:00 AM', actual '00:00. Single-arm dumbbell shoulder press. Set 2147483647 of 2147483647. Weight: 999.99 kg. 999 reps. Ready. Complete set, enabled. Not sent' ==&gt; expected:... |
+| `ambient-clock-ignores-selected-time-zone` | WearAmbientTimePreferenceTest.systemTimePreferenceControlsSpokenAndDrawnClockAtSmallScreenBoundaries() | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: AmbientClockCase(locale=en, use24Hour=false, timeZone=sun.util.calendar.ZoneInfo[id="GMT+03:00",offset=10800000,dstSavings=0,useDaylight=false,transitions=0,lastRule=null], timestampMillis=0) system time preference must produce '3:00 AM', actual '12:00 AM. Single-arm dumbbell shoulder press. Set 2147483647 of 2147483647. Weight: 999.99 kg. 999 reps. Ready. Complete set, enabled. Not sent... |
+| `ambient-clock-draw-only-omits-time` | WearAmbientTimePreferenceTest.systemTimePreferenceControlsSpokenAndDrawnClockAtSmallScreenBoundaries() | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: AmbientClockCase(locale=en, use24Hour=false, timeZone=sun.util.calendar.ZoneInfo[id="UTC",offset=0,dstSavings=0,useDaylight=false,transitions=0,lastRule=null], timestampMillis=0) TIME actual row must draw full '12:00 AM': expected ink=296, actual ink=0 ==&gt; expected: &lt;0&gt; but was: &lt;296&gt; |
+
+The original 24 negative controls were not re-executed in this follow-up. Their protected
+host tests run in the fresh focused and full suites above; §5 retains their original source
+and execution provenance. No additional release-host or release-device UI result is claimed
+here. `assembleStoreRelease` remains a build gate, while these painting and mapper tests
+are measured through the two debug variants described above.
+
+Evidence run: `20260922T211518.348821Z`; base `4e7581dd074ccea548e7f841516041ee5beb99e8` plus the recorded complete source snapshot.
+The snapshot JSON SHA-256 is `e91d7e0d17808efdbffe69026811351be153bbf3a3104692c1045f948e26b966`. Command receipts, archived XML,
+128- and 24-PNG inventories, before/mutant bytes and the exact-method validator report
+are retained under `/private/tmp/wear-ambient-review-evidence/runs/20260922T211518.348821Z`. The six-control manifest and standalone evidence tools are
+local execution artifacts; this ledger does not assert that runnable manifests are shipped
+in the repository. All Gradle proof gates execute serially with `--rerun-tasks --no-build-cache
+--no-configuration-cache`; preparatory `clean` is separate. The candidate's complete source
+bytes were checked unchanged after each stage and immediately before this documentation
+append. B/C/D evidence and the original ambient ledger are preserved byte-for-byte.
+
+**Physical acceptance remains pending.** These results do not establish actual watch clock
+settings, ambient callbacks, Activity recreation, TalkBack speech, automatic return to the
+watch face, foreground retention, reconnect constants or notification removal after process
+death. The transitional `WatchProcessState`/no-op/static-preview boundary in §4 and the
+closed privacy/transport gate are unchanged. Runtime and ongoing activity remain the next
+separate increment.
+
+#### Proof-only reprocessing of phase reports
+
+The original pipeline JSON still records `FAILED` at `root-phase` with
+`RuntimeError: Duplicate XML identities`. Its actual phase command exited zero and logged
+`2400 actionable tasks: 2400 executed`; the failure occurred when the evidence parser
+assumed each `(classname, display label)` denoted a unique method. Parameterized reports
+legitimately reuse labels such as `[1] LIGHT` within one XML file, including host tests
+in Paparazzi-enabled modules that are not named Golden tests.
+
+Before another build could overwrite them, the original fresh phase reports were copied
+byte-for-byte with their modification times and SHA-256 hashes. The separate amended
+parser preserves every raw testcase occurrence using the relative XML path and its
+one-based ordinal within that file; it also records the supplied classname/display label.
+It invents no method names and never deduplicates cases. The exception applies only to
+phase reports from the configured Paparazzi modules. Wear, new-regression, mutation and
+lint-rule identity validation remains strict.
+
+Reprocessed phase scope: **164 XML files / 1706 testcase occurrences in
+13 Paparazzi-enabled modules**, plus **15 lint-rule XML files /
+138 tests**. All actual testcase counts match suite counters, with
+zero failures, errors or skips and original phase-interval timestamps. The parser retains
+61 repeated display-label groups containing 440 occurrences.
+The complete source snapshot, all prior executed stage receipts, PNG hashes, six intended
+assertion controls and their byte restoration were revalidated unchanged. The exact-method
+proof is **COMPLETE for 6/6 controls and 3/3 methods**.
+
+Derived proof: `/private/tmp/wear-ambient-review-derived-evidence/20260922T214313.115398Z` (`DERIVED_PROOF_COMPLETE`). Original raw capture:
+`/private/tmp/wear-ambient-review-phase-raw-20260922T211518.348821Z`. Original pipeline SHA-256:
+`51e327f804b73aa40ac4c4b363baffaaaa979b75d4506c18f93d2428e73d52fd`; amended proof-only parser SHA-256:
+`e9489f1e4da647547e8d375b2ea3e998b8de9b679bacfe4bcab236e30789ea26`. Original campaign and raw-capture artifact inventories
+are frozen in the derived record. **No Gradle gate or mutation was re-executed**, and the
+original failed controller record was not relabelled COMPLETE. This is a repair of the
+proof parser for the already executed gates, not a new build or device measurement.
