@@ -26,6 +26,6 @@ internal class WearOverflowGateTest {
     @Test
     @DisplayName("no English text overflows at font scales 1.0 and 1.24 on any surface")
     fun noTextOverflowsOnAnySurfaceAtEitherFontScale() = runComposeUiTest {
-        assertNoTextOverflowAcrossAllSurfaces()
+        assertNoTextOverflowAcrossAllSurfaces(GateLocale.EN)
     }
 }

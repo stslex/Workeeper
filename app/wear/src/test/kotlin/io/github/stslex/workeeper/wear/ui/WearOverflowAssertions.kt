@@ -22,12 +22,14 @@ import org.junit.jupiter.api.Assertions.assertTrue
  * cross product of screens × font scales {1.0, largest} — smallest screen at the largest scale
  * is the combination that actually breaks, and a union of extremes would miss it. Every
  * rendered text node across all eleven kinds and both editor surfaces reports no visual
- * overflow — except the exercise name, which may ellipsize at its second line.
+ * overflow — except the exercise name, which may ellipsize at its second line, and the
+ * disabled completion label in exactly one cell, [ELLIPSIS_CELL], where the accepted residual
+ * is asserted positively rather than skipped.
  *
  * Red when the status row is given a fixed width narrower than its longest string.
  */
 @OptIn(ExperimentalTestApi::class)
-internal fun ComposeUiTest.assertNoTextOverflowAcrossAllSurfaces() {
+internal fun ComposeUiTest.assertNoTextOverflowAcrossAllSurfaces(locale: GateLocale) {
     val fixtures = SyntheticSurfaceFixtures.allKinds()
     val weighted = requireNotNull(SyntheticSurfaceFixtures.find(SyntheticSurfaceFixtures.ACTIVE_BOUNDARY))
     val unsetWeight = requireNotNull(SyntheticSurfaceFixtures.find(SyntheticSurfaceFixtures.UNSET_WEIGHT))
@@ -50,10 +52,11 @@ internal fun ComposeUiTest.assertNoTextOverflowAcrossAllSurfaces() {
         listOf(1.0f, LARGEST_WEAR_FONT_SCALE).forEach { scale ->
             screen = currentScreen
             fontScale = scale
+            val cell = GateCell(locale, currentScreen, scale)
             fixtures.forEach { fixture ->
                 model = fixture
                 waitForIdle()
-                assertNoOverflow(surface = "screen=$currentScreen kind=${fixture.kind} scale=$scale")
+                assertNoOverflow(cell, surface = "screen=$currentScreen kind=${fixture.kind} scale=$scale")
             }
             // Both editors, opened from a full weight AND from an absent one: the editor
             // spells the absence out in full («Not set»), where the card draws only «—».
@@ -62,7 +65,7 @@ internal fun ComposeUiTest.assertNoTextOverflowAcrossAllSurfaces() {
                 waitForIdle()
                 onNodeWithTag(card).performScrollTo().performClick()
                 waitForIdle()
-                assertNoOverflow(surface = "screen=$currentScreen $surface scale=$scale")
+                assertNoOverflow(cell, surface = "screen=$currentScreen $surface scale=$scale")
                 // Authority loss closes the editor, resetting for the next surface.
                 model = requireNotNull(SyntheticSurfaceFixtures.find(SyntheticSurfaceFixtures.REFRESH_REQUIRED))
                 waitForIdle()
@@ -71,14 +74,28 @@ internal fun ComposeUiTest.assertNoTextOverflowAcrossAllSurfaces() {
     }
 }
 
+/** The locale a G6 test class renders under. Each class states it; the shared body never infers it. */
+internal enum class GateLocale { EN, RU }
+
+/** One cell of the G6 cross product: locale × screen × font scale. */
+internal data class GateCell(val locale: GateLocale, val screen: WearScreen, val scale: Float)
+
+/**
+ * The one cell where the disabled completion label is accepted to ellipsize (bottom-band
+ * rebudget — copy decision): ru «Отключено» exceeds the Medium EdgeButton's 159 px content lane
+ * on the small round screen at the largest font scale, and fits with margin in every other cell.
+ */
+private val ELLIPSIS_CELL = GateCell(GateLocale.RU, WearScreen.SMALL_ROUND, LARGEST_WEAR_FONT_SCALE)
+
 @OptIn(ExperimentalTestApi::class)
-private fun ComposeUiTest.assertNoOverflow(surface: String) {
+private fun ComposeUiTest.assertNoOverflow(cell: GateCell, surface: String) {
     val nodes = onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsActions.GetTextLayoutResult))
         .fetchSemanticsNodes()
     assertTrue(nodes.isNotEmpty(), "$surface: no text nodes found — the surface never rendered")
     nodes.forEach { node ->
         val tag = node.config.getOrNull(SemanticsProperties.TestTag) ?: "untagged"
         val text = node.config.getOrNull(SemanticsProperties.Text)?.joinToString { it.text }
+        val disabledCompletion = tag == "complete_set" && node.config.contains(SemanticsProperties.Disabled)
         val results = mutableListOf<TextLayoutResult>()
         node.config[SemanticsActions.GetTextLayoutResult].action?.invoke(results)
         results.forEach { layout ->
@@ -87,6 +104,22 @@ private fun ComposeUiTest.assertNoOverflow(surface: String) {
                     layout.lineCount <= 2,
                     "$surface: the exercise name may ellipsize at its second line, " +
                         "not overflow past it («$text», ${layout.lineCount} lines)",
+                )
+            } else if (disabledCompletion && cell == ELLIPSIS_CELL) {
+                // The disabled completion label in the one accepted cell. The in-lane ellipsis
+                // there is a decided residual (bottom-band rebudget — copy decision): the full
+                // text stays in the button's content description, and G10 forbids a mid-word
+                // split. Keyed on the node's `Disabled` semantics so the enabled state stays under
+                // the strict branch below, and on the single cell so every other disabled cell
+                // does too. Not a skip: the residual is asserted as accepted — exactly one line,
+                // ellipsized — so if it ever disappears (a shorter string, a wider lane) this
+                // reds and the exemption is removed rather than left exempting nothing.
+                assertTrue(
+                    layout.lineCount == 1 && layout.hasVisualOverflow,
+                    "$surface: the disabled completion label is accepted to ellipsize on exactly " +
+                        "one line in this cell only («$text», ${layout.lineCount} line(s), " +
+                        "overflow=${layout.hasVisualOverflow}) — if the residual is gone, " +
+                        "remove the exemption",
                 )
             } else {
                 assertTrue(

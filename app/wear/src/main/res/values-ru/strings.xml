@@ -32,7 +32,7 @@
     <string name="decrease_weight">Уменьшить вес с %1$s</string>
     <string name="increase_weight">Увеличить вес с %1$s</string>
     <string name="control_enabled">Доступно</string>
-    <string name="control_disabled">Недоступно</string>
+    <string name="control_disabled">Отключено</string>
     <string name="complete_set_enabled_description">Завершить подход, доступно</string>
     <string name="complete_set_disabled_description">Завершить подход, недоступно</string>
     <string name="retry">Ещё раз</string>
