@@ -2,7 +2,9 @@
 
 Status: implementation authorized on 2026-09-22; PR-A is merged as `20215640`.
 This is the delivery and acceptance contract for the remaining Wear UI and lifecycle
-work. It does not mark the later increments implemented or the complete Phase 1 accepted.
+work. PR-D layout/model/test changes have executed host acceptance evidence in §7.
+Physical-device acceptance and the privacy/transport boundary remain open; Phase 1 is
+not marked complete.
 The [Phase 1 behavioural specification](wear-phase-1-active-workout-tile.md) continues
 to govern protocol, authority, cache, and privacy.
 
@@ -234,3 +236,143 @@ The gate inventory remains G1–G7 and G9–G11; oracle fixtures and locale vari
 not introduce a G8. PR-B evidence above applies to its own recorded tree. This
 increment changes measurement and semantics protection; it does not close PR-D's
 initial-visibility criterion or substitute for physical-watch acceptance.
+
+
+## 7. PR-D compact-controller contract and evidence
+
+The layout puts a short exercise context, or the specific reason completion is
+unavailable, above fully visible weight/reps cards. Full exercise name, connection
+status, exact spoken set progress and further error explanation follow in scrollable
+details. The column shares the established rotary scroll state. A Small anchored
+completion button keeps the same check glyph and dimensions in both states; disabled
+semantics and an outline indicate unavailability, with its reason above the cards.
+See the [redesign contract](wear-controller-redesign.md#4-layout--primary-information-and-scrollable-details).
+
+The nominal 192dp budget is a 26dp top inset, 42dp context slot, 4dp gap, 54dp minimum
+card height and 62dp bottom clearance. These are design dimensions; the gates measure
+actual laid-out and ancestor-clipped bounds, including card growth at font scale 1.24.
+The user's font scale is preserved. The old generic disabled word and exact-cell RU
+G6 exception are removed; only the compact exercise context may abbreviate. Its full
+name wraps in details and must remain reachable after scrolling.
+
+`WearFirstViewGateTest` and `WearFirstViewGateRuTest` passed all **80 cells**:
+192/240dp × EN/RU × 1.0/1.24 × ten cases. Cases include numeric minima/maxima,
+weightless/absent weight, all five unavailable reasons and `Int.MAX_VALUE` set count.
+Each cell starts with a fresh subtree and zero scroll. Whole cards, value text/icons,
+reason/context text, minimum 48dp action and its glyph are checked before scrolling;
+text lines and icons must fit the modeled round screen. Enabled/disabled action sizes
+match. The merged cards must contain the localized field label, exact value/full
+weight unit or absence, button role, disabled state and spoken availability. Details
+are verified separately after scrolling. Native captures are generated under
+`app/wear/build/reports/wear-first-view`; representative small-screen/font-1.24 EN/RU
+active, refresh-required, disconnected and weight-error captures were visually inspected.
+
+`wearSetScaleSlots` renders at most eight contiguous progress buckets. Totals up to
+eight keep one pill per set; larger totals aggregate ranges without Int overflow.
+Exact ordinal/total remains spoken. G3 retains global spoken-only ACTIVE/progress
+checks; G4 verifies the specific blocking reason; G6 rejects reason/details truncation.
+`WearValueFormatter` prepares both fields for an explicit locale outside composition,
+including exact hundredths, null weight, and recomputation when a model is copied.
+Reason precedence and explicit cleared draft weight have separate regression tests.
+
+Fresh baseline with Wear Detekt and the focused model/formatter/scale/first-view tests
+reports **42 actionable tasks: 42 executed**. The six initial-geometry controls were
+rerun after adding the merged accessibility assertions. All **31 distinct controls**
+below then have named assertion REDs and byte-exact restoration, each reporting
+**37 actionable tasks: 37 executed**. Saved XML identities, literal failure observables,
+exact mutant bytes, source hashes and current relevant test-source hashes were checked;
+all **21 new protective methods** have an intended observed killing control.
+
+| Named mutation | Protected observable |
+| --- | --- |
+| `d-first-view-clipped` | Mandatory value cards become clipped before any scrolling. |
+| `d-card-too-small` | Visible card height falls below 48dp and content clips. |
+| `d-round-header-cut` | The wider context crosses the round screen chord at its initial top position. |
+| `d-reason-wrong` | A disconnected completion incorrectly announces refresh instead. |
+| `d-reason-truncated` | Blocking reason no longer fits its own initial header slot. |
+| `d-disabled-action-different-size` | Disabled action has a different declared size than enabled in the same screen/scale cell. |
+| `d-full-name-ellipsized` | The full exercise name in details becomes abbreviated. |
+| `d-details-removed` | Full exercise details and spoken set progress disappear. |
+| `d-scale-cap` | Totals above eight incorrectly allocate a ninth segment. |
+| `d-scale-int-overflow` | Int.MAX_VALUE progress ranges wrap before Long promotion. |
+| `d-scale-partial-completed` | A partially completed current bucket is incorrectly filled as completed. |
+| `d-scale-current-missing` | A current set inside a bucket has no highlighted segment. |
+| `d-invalid-progress-accepted` | Invalid progress must be rejected rather than silently producing no slots. |
+| `d-reason-on-actionable` | An actionable target must not report a reason. |
+| `d-disconnect-precedence` | Connection loss must precede numeric error and in-flight command. |
+| `d-refresh-precedence` | An explicit refresh request must be reported before pending command. |
+| `d-inflight-precedence` | In-flight state precedes numeric validation. |
+| `d-authority-reason` | Retired authority requires refresh. |
+| `d-numeric-reason` | Protocol numeric-field precedence identifies reps first. |
+| `d-null-draft-fallback` | Explicit null draft weight must not restore canonical weight. |
+| `d-fixture-missing-reason` | Every blocked synthetic target has a typed reason. |
+| `d-forced-english-numbers` | RU decimal and Arabic digit formats must honor selected locale. |
+| `d-weight-wrong-scale` | Hundredths kilogram values must keep exact magnitude. |
+| `d-copy-retains-stale-labels` | copy changes to values and locale must recompute display strings. |
+| `d-command-status-reason-missing` | The IN_FLIGHT status still blocks completion but now has null completionUnavailableReason; assertNotNull must fail naming that status. |
+| `d-null-weight-rendered-as-zero` | Absent weight must remain null; the mutation produces the visible numeric string 0 and fails the exact WearFormattedValues equality. |
+| `d-rtl-numeric-override` | An erroneous RLO/PDF wrapper forces digit characters into an odd bidi embedding level; the independent paragraph.getLevelAt parity guard must fail. |
+| `d-current-set-marked-completed` | The current set is prematurely completed: the small-total boolean list differs at set4 and the single-set slot has completed=true. |
+| `d-a11y-value-split-from-card` | A separate child merge boundary keeps unmerged value text but removes it from the merged parent card; reps-card merged numeric Text must fail before scrolling. |
+| `d-a11y-weight-unit-missing` | Merged weight-card contentDescription must include the localized full value plus kg unit, not only the bare numeral. |
+| `d-a11y-disabled-announced-enabled` | Read-only cards retain disabled semantics but incorrectly announce Enabled; exact localized merged StateDescription must fail. |
+
+After restoration and `clean`, repository `assembleDebug detekt lintDebug testDebugUnitTest`
+reports **2331 actionable tasks: 2331 executed**. Each Wear flavor's XML has **80 tests in 30 classes**, zero
+failures, errors or skips. `assembleDebugAndroidTest verifyPaparazziDebug :lint-rules:test
+:app:wear:assembleStoreRelease` reports **2400 actionable tasks: 2400 executed**. Both runs used
+`--rerun-tasks --no-build-cache --no-configuration-cache` and ran serially.
+
+G9 walks 37 IDs: 35 required/reached, two intentionally allowlisted, zero unreached.
+G10 visits 248 text nodes per locale; 54 EN and 70 RU nodes wrap at spaces, with zero
+mid-word splits. G11 compares 248 visible text pairs, skips 32 clipped-away detail
+nodes, and finds zero overlaps with a minimum 2dp gap. Skipping offscreen detail nodes
+is not an exception to the separate mandatory initial-visibility matrix.
+
+This is executed host geometry, semantics, native raster and pure-state evidence.
+It does not prove physical touch/rotary, TalkBack speech, the curved time renderer on
+a watch, or platform lifecycle/notification behavior. PR-A/B/C ledgers remain evidence
+about their own trees; no earlier pass certifies this increment. Physical acceptance,
+real transport and the privacy boundary remain separate as specified in §4.
+
+### 7.1 Review follow-up — refresh-required completion guard
+
+The preceding §7 ledger records the original PR-D candidate at
+[`95738d4c`](https://github.com/stslex/Workeeper/commit/95738d4cacd0d007a91e78a3cb3b1d7812e75a98): 31 named controls,
+80 tests in 30 Wear classes, and its recorded repository gates. Those historical
+counts are preserved. The review fix below has its own evidence on the subsequent
+candidate; the 31-control campaign was not rerun for this one-line change.
+
+[Review comment 4075657636](https://github.com/stslex/Workeeper/pull/288#discussion_r4075657636)
+was classified **correct-and-new** after execution. A real accepted handshake,
+followed by a rejected unsolicited snapshot, preserves `LocalMutationAuthority.Available`
+and sets `refreshRequired=true`. The previous mapper still exposed completion when
+the command was idle or terminal. The unfixed regression failed at
+`io.github.stslex.workeeper.wear.ui.WearRefreshRequiredCompletionTest.rejectedUnsolicitedSnapshotBlocksOtherwiseValidIdleCompletion()` with
+“A rejected unsolicited snapshot must block completion while refresh is required”: expected false, observed true.
+The reproduction reports **37 actionable tasks: 37 executed**; it is a reproduced defect,
+not a failed compilation. [The classification reply](https://github.com/stslex/Workeeper/pull/288#discussion_r4075716534)
+records that executed reproduction.
+
+`completeEnabled` now also requires `!state.refreshRequired`. The existing reason
+precedence reports `REFRESH_REQUIRED`. Reducer admission, mutation authority, editing
+controls and the phone protocol are unchanged. The standalone regression exercises
+foreign database epoch, foreign session and stale revision, each with no command and
+with a real Applied response leaving a terminal command: six scenarios in one method.
+
+| Review-fix evidence | Observed result |
+| --- | --- |
+| Fixed focused baseline plus Wear Detekt | **42 actionable tasks: 42 executed**; one regression method, zero failures/errors/skips. |
+| Named `d-refresh-guard-removed` control | Removing only the refresh guard restores the same assertion failure; **37 actionable tasks: 37 executed**; source restored byte-exactly. |
+| Restored repository `assembleDebug detekt lintDebug testDebugUnitTest` | **2331 actionable tasks: 2331 executed**; DevDebug and StoreDebug each have **81 tests in 31 classes**, zero failures/errors/skips. |
+| Repository `assembleDebugAndroidTest verifyPaparazziDebug :lint-rules:test :app:wear:assembleStoreRelease` | **2400 actionable tasks: 2400 executed**. |
+
+The repository gates followed the control and preparatory clean serially, using
+`--rerun-tasks --no-build-cache --no-configuration-cache`. Evidence is archived under
+`/private/tmp/wear-d-review-evidence`: the reproduced and fixed XML, named-control source/test hashes and
+failure XML, `root-xml/Dev`, `root-xml/Store`, `root-commit.log`, `root-phase.log`, and
+`candidate-source.json`. The mapper SHA-256 is `261753cfa3af50491e30f01d087b125d1cbc6e608572833735eb5091e65bf542`; the standalone
+regression SHA-256 is `d8d1baeb5fe716717aa14b5e04930e8a57ee9d8853ddd1edd6fa233edd066b4c`. The finalizer checks the
+entire candidate byte snapshot and confirms the only code delta from `95738d4c` is
+the mapper guard plus this new test. This is host evidence; it adds no physical watch,
+ambient, ongoing-activity or real-transport acceptance claim.

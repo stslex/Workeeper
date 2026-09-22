@@ -59,6 +59,16 @@ internal class WearKindDistinctionGateTest {
             fixtures.forEach { fixture ->
                 model = fixture
                 waitForIdle()
+                if (fixture.controlsVisible) {
+                    onAllNodes(
+                        hasTestTag("status") and hasAnyAncestor(hasTestTag("controller_details")),
+                        useUnmergedTree = true,
+                    ).assertCountEquals(1)
+                    onAllNodes(
+                        hasTestTag("set_scale") and hasAnyAncestor(hasTestTag("controller_details")),
+                        useUnmergedTree = true,
+                    ).assertCountEquals(1)
+                }
                 val node = onNodeWithTag("status").fetchSemanticsNode()
                 val drawn = node.config.getOrNull(SemanticsProperties.Text)
                     ?.joinToString { it.text }
@@ -71,14 +81,10 @@ internal class WearKindDistinctionGateTest {
                     status.isNotBlank(),
                     "screen=$current kind=${fixture.kind} rendered a blank status",
                 )
-                // The ACTIVE surface drops the word from the DRAWING — the filled dot says it —
-                // and keeps it spoken. Every other kind must still DRAW it: in a degraded state
-                // the word is the whole message, and losing it there is the regression this
-                // clause exists to catch.
                 if (fixture.kind == WearSurfaceKind.ACTIVE) {
                     assertTrue(drawn.isBlank(), "screen=$current ACTIVE status must remain spoken-only")
                     assertTrue(spoken.isNotBlank(), "screen=$current ACTIVE status must remain accessible")
-                    val expectedStatus = RuntimeEnvironment.getApplication().getString(fixture.statusCopy().resource)
+                    val expectedStatus = RuntimeEnvironment.getApplication().getString(R.string.ready)
                     assertEquals(expectedStatus, spoken, "screen=$current spoken ACTIVE status")
                     onAllNodes(hasText(expectedStatus), useUnmergedTree = true).assertCountEquals(0)
                 } else {

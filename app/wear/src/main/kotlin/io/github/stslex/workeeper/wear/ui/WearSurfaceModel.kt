@@ -13,6 +13,7 @@ import io.github.stslex.workeeper.wear.state.LocalMutationAuthority
 import io.github.stslex.workeeper.wear.state.ReducerEvent
 import io.github.stslex.workeeper.wear.state.WatchDisplayState
 import io.github.stslex.workeeper.wear.state.WatchReducerState
+import java.util.Locale
 
 internal enum class WearSurfaceKind {
     LOADING,
@@ -26,6 +27,14 @@ internal enum class WearSurfaceKind {
     DISCONNECTED,
     RETRYABLE_ERROR,
     PROTOCOL_MISMATCH,
+}
+
+internal enum class CompletionUnavailableReason {
+    DISCONNECTED,
+    REFRESH_REQUIRED,
+    COMMAND_IN_FLIGHT,
+    INVALID_REPS,
+    INVALID_WEIGHT,
 }
 
 internal data class WearSurfaceModel(
@@ -42,9 +51,14 @@ internal data class WearSurfaceModel(
     val controlsVisible: Boolean = false,
     val controlsEnabled: Boolean = false,
     val completeEnabled: Boolean = false,
+    val completionUnavailableReason: CompletionUnavailableReason? = null,
     val retryEnabled: Boolean = false,
     val fieldError: NumericField? = null,
-)
+    val selectedLocale: Locale = Locale.getDefault(),
+) {
+    // A body property is recomputed by copy; a constructor default would retain stale labels.
+    val formattedValues: WearFormattedValues = WearValueFormatter.format(reps, weightHundredthsKg, selectedLocale)
+}
 
 internal typealias WearSurfaceState = WearSurfaceModel
 
@@ -77,14 +91,16 @@ internal object WearSurfaceMapper {
         val payload = display.snapshot.payload as SnapshotPayload.ActiveWithTarget
         val draft = state.draft
         val reps = draft?.reps ?: payload.target.reps
-        val weight = draft?.weightHundredthsKg ?: payload.target.weightHundredthsKg
+        // A present draft may explicitly clear the weight; only an absent draft uses the snapshot.
+        val weight = if (draft != null) draft.weightHundredthsKg else payload.target.weightHundredthsKg
         val available = state.authority is LocalMutationAuthority.Available
         val commandIdle = state.command == null || state.command.status in TERMINAL_STATUSES
-        val numericValid = CommandValidation.validate(
+        val invalidField = CommandValidation.validate(
             reps = reps,
             weightHundredthsKg = weight,
             exerciseType = payload.target.exerciseType,
-        ) == null
+        )?.field
+        val completeEnabled = available && commandIdle && !state.refreshRequired && invalidField == null
         return WearSurfaceModel(
             kind = when (display.freshness) {
                 ActiveFreshness.FRESH -> WearSurfaceKind.ACTIVE
@@ -104,9 +120,36 @@ internal object WearSurfaceMapper {
             weighted = payload.target.exerciseType == ExerciseTypeWire.WEIGHTED,
             controlsVisible = true,
             controlsEnabled = available && commandIdle,
-            completeEnabled = available && commandIdle && numericValid,
+            completeEnabled = completeEnabled,
+            completionUnavailableReason = if (completeEnabled) {
+                null
+            } else {
+                completionUnavailableReason(
+                    display.freshness,
+                    state.refreshRequired,
+                    commandIdle,
+                    available,
+                    invalidField,
+                )
+            },
             fieldError = state.events.filterIsInstance<ReducerEvent.FieldError>().lastOrNull()?.field,
         )
+    }
+
+    private fun completionUnavailableReason(
+        freshness: ActiveFreshness,
+        refreshRequired: Boolean,
+        commandIdle: Boolean,
+        available: Boolean,
+        invalidField: NumericField?,
+    ): CompletionUnavailableReason = when {
+        freshness == ActiveFreshness.DISCONNECTED -> CompletionUnavailableReason.DISCONNECTED
+        freshness != ActiveFreshness.FRESH || refreshRequired -> CompletionUnavailableReason.REFRESH_REQUIRED
+        !commandIdle -> CompletionUnavailableReason.COMMAND_IN_FLIGHT
+        !available -> CompletionUnavailableReason.REFRESH_REQUIRED
+        invalidField == NumericField.REPS -> CompletionUnavailableReason.INVALID_REPS
+        invalidField == NumericField.WEIGHT -> CompletionUnavailableReason.INVALID_WEIGHT
+        else -> error("A blocked active completion must have an unavailable reason")
     }
 
     private fun phoneAction(display: WatchDisplayState.PhoneActionRequired): WearSurfaceModel {
