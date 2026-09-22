@@ -25,7 +25,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -54,6 +53,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.wear.compose.foundation.BasicSwipeToDismissBox
+import androidx.wear.compose.foundation.requestFocusOnHierarchyActive
+import androidx.wear.compose.foundation.rotary.RotaryScrollableDefaults
+import androidx.wear.compose.foundation.rotary.rotaryScrollable
 import androidx.wear.compose.material3.Button
 import androidx.wear.compose.material3.ButtonDefaults
 import androidx.wear.compose.material3.EdgeButton
@@ -136,6 +138,7 @@ private fun ActiveScaffold(
     onEdit: (NumericField) -> Unit,
 ) {
     val scrollState = rememberScrollState()
+    val focusRequester = remember { FocusRequester() }
     ScreenScaffold(
         scrollState = scrollState,
         contentPadding = activeContentPadding(),
@@ -153,6 +156,11 @@ private fun ActiveScaffold(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(bottom = MEDIUM_EDGE_CLEARANCE.dp)
+                    .requestFocusOnHierarchyActive()
+                    .rotaryScrollable(
+                        behavior = RotaryScrollableDefaults.behavior(scrollState),
+                        focusRequester = focusRequester,
+                    )
                     .verticalScroll(scrollState)
                     .padding(contentPadding)
                     .testTag("controller_scroll"),
@@ -181,6 +189,7 @@ private fun activeContentPadding() = PaddingValues(
 @Composable
 private fun RetryScaffold(model: WearSurfaceModel, onAction: (ControllerAction) -> Unit) {
     val scrollState = rememberScrollState()
+    val focusRequester = remember { FocusRequester() }
     ScreenScaffold(
         scrollState = scrollState,
         timeText = { TimeText() },
@@ -190,8 +199,14 @@ private fun RetryScaffold(model: WearSurfaceModel, onAction: (ControllerAction) 
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(bottom = SMALL_EDGE_CLEARANCE.dp)
+                    .requestFocusOnHierarchyActive()
+                    .rotaryScrollable(
+                        behavior = RotaryScrollableDefaults.behavior(scrollState),
+                        focusRequester = focusRequester,
+                    )
                     .verticalScroll(scrollState)
-                    .padding(contentPadding),
+                    .padding(contentPadding)
+                    .testTag("controller_scroll"),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(space = 6.dp, alignment = Alignment.CenterVertically),
             ) {
@@ -205,6 +220,7 @@ private fun RetryScaffold(model: WearSurfaceModel, onAction: (ControllerAction) 
 @Composable
 private fun InstructionScaffold(model: WearSurfaceModel) {
     val scrollState = rememberScrollState()
+    val focusRequester = remember { FocusRequester() }
     ScreenScaffold(
         scrollState = scrollState,
         timeText = { TimeText() },
@@ -212,8 +228,14 @@ private fun InstructionScaffold(model: WearSurfaceModel) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .requestFocusOnHierarchyActive()
+                .rotaryScrollable(
+                    behavior = RotaryScrollableDefaults.behavior(scrollState),
+                    focusRequester = focusRequester,
+                )
                 .verticalScroll(scrollState)
-                .padding(contentPadding),
+                .padding(contentPadding)
+                .testTag("controller_scroll"),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(space = 6.dp, alignment = Alignment.CenterVertically),
         ) {
@@ -651,7 +673,7 @@ private fun WorkoutCompleteContent(model: WearSurfaceModel) {
  * The full-screen numeric editor of §5: one value, large, increment at the top arc, decrement
  * at the bottom arc. Every step emits the existing draft action immediately, so leaving the
  * editor — swipe to dismiss or hardware back — loses nothing; there is no unconfirmed state.
- * This is the only screen where rotary input is bound, so no mode indicator is required.
+ * Rotary input edits the value here and scrolls content on the controller.
  */
 @Composable
 private fun NumericEditor(
@@ -716,10 +738,10 @@ private fun EditorContent(
 ) {
     val focusRequester = remember { FocusRequester() }
     var rotaryAccumulator by remember { mutableFloatStateOf(0f) }
-    LaunchedEffect(Unit) { focusRequester.requestFocus() }
     Box(
         modifier = Modifier
             .fillMaxSize()
+            .requestFocusOnHierarchyActive()
             .onRotaryScrollEvent { event ->
                 rotaryAccumulator += event.verticalScrollPixels
                 while (rotaryAccumulator >= ROTARY_STEP_PX) {
@@ -733,7 +755,8 @@ private fun EditorContent(
                 true
             }
             .focusRequester(focusRequester)
-            .focusable(),
+            .focusable()
+            .testTag("editor_rotary"),
     ) {
         val reps = model.reps
         val weight = model.weightHundredthsKg
