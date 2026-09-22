@@ -5,6 +5,15 @@ into `dev` as `20215640`. The original comparison baseline was `254e075f`.
 Decision: **C4L** — move the unavailability word into the disabled `EdgeButton`, omit
 its glyph, and remove the separate word reservation.
 
+PR-D implements the successor contract: compact context/reason above complete value
+cards, Small anchored action with the same glyph in both states, and scrollable
+details. Its 80-cell host matrix and 31 named negative controls pass. This supersedes
+the generic disabled-word layout and RU-only G6 exception for the PR-D implementation;
+physical-device acceptance remains separate.
+The measurements, accepted PR-A copy and review/negative-control ledgers below remain
+historical evidence for PR-A; they must not be rewritten as PR-D results. See the
+[PR-D ledger](wear-ui-completion.md#7-pr-d-compact-controller-contract-and-evidence).
+
 This document separates the merged implementation from historical measurements and
 mockup predictions. Device measurements below are recorded in the PR-A merge commit;
 they have not been repeated by this documentation update. Rows marked ᴹ are predictions
@@ -104,8 +113,10 @@ reason all visible before scrolling. PR-A alone does not satisfy that criterion.
 
 ## §6 Remaining defects and ownership
 
-These remain open until the completion plan's compact-screen increment and its gates
-prove otherwise:
+The following defects were open at PR-A. PR-D's executed first-view and merged
+accessibility matrix now covers the primary visibility requirements; see
+[the PR-D evidence](wear-ui-completion.md#7-pr-d-compact-controller-contract-and-evidence).
+Physical-device acceptance remains open. The historical observations were:
 
 1. The error line on `field_error` / `weight_error` is below the fold. The original
    record/model reported e75.8 at 1.0 / e108.9ᴹ at 1.24. PR-A did not reorder it.
@@ -167,7 +178,7 @@ also records a pressed-alpha mutation caught by the same pixel comparison.
 ### 7.3 Text-only disabled affordance
 
 The accepted C4L implementation uses the drawn disabled word and outlined button while
-preserving the full content description. The redesign [layout contract](wear-controller-redesign.md#4-layout--active-state)
+preserving the full content description. The redesign [layout contract](wear-controller-redesign.md#4-layout--primary-information-and-scrollable-details)
 now states that form explicitly. G4 protects the label; the completion plan will replace
 generic unavailable copy with a concrete reason in the primary content area.
 

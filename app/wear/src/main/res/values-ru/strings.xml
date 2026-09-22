@@ -38,4 +38,9 @@
     <string name="retry">Ещё раз</string>
     <string name="reps_invalid">Выберите от 1 до 999 повторов</string>
     <string name="weight_invalid">Проверьте вес на телефоне</string>
+    <string name="complete_reason_disconnected">Нет связи</string>
+    <string name="complete_reason_refresh">Обновите данные</string>
+    <string name="complete_reason_sending">Отправка…</string>
+    <string name="complete_reason_reps">Повторы: 1–999</string>
+    <string name="complete_reason_weight">Ошибка веса</string>
 </resources>

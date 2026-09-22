@@ -1,8 +1,11 @@
 # Wear controller visual redesign — phase 1a
 
-Status: initial redesign implemented in PR #284; bottom-band correction implemented
-in PR #285 (`dev` merge `20215640`). This document describes that baseline. The approved
-next increments are tracked in [Wear UI completion](wear-ui-completion.md). Supersedes the layout described in
+Status: PR-D compact controller implemented with **executed host geometry, accessibility
+and negative-control evidence**. The initial redesign landed in PR #284 and PR-A in
+PR #285 (`dev` merge `20215640`); their observations remain historical evidence for
+those layouts. Physical-device and Phase 1 acceptance remain open. Delivery and fresh
+evidence are tracked in [Wear UI completion](wear-ui-completion.md#7-pr-d-compact-controller-contract-and-evidence).
+Supersedes the layout described in
 `wear-phase-1-active-workout-tile.md` §3.2 where the two disagree; the behavioural
 contract in that document is unchanged and still governs.
 
@@ -22,8 +25,10 @@ Out of scope, with the reason each is excluded:
 | Durable drafts, live session | Separate step; phone-side, no Wear code. |
 | Removal of the mutation lease | Belongs to the variant-A protocol rewrite. |
 
-`MainActivity` continues to render `SyntheticSurfaceFixtures` with `onAction = {}`.
-This work changes how the surface looks, not where its data comes from.
+`MainActivity` accepts `SyntheticSurfaceFixtures` only in debug and otherwise displays
+the existing process-state surface; the action bridge and real transport remain gated.
+PR-D changes presentation, local formatting and typed unavailability reasons, not
+phone protocol, database schema or mutation authority.
 
 ## 2. Recorded decisions
 
@@ -82,50 +87,80 @@ noted; no new hues are introduced.
 
 The accent surface is `textPrimary` on `onAccent` (D-C).
 
-## 4. Layout — active state
+## 4. Layout — primary information and scrollable details
 
-Reading order, top to bottom:
+This is the implemented PR-D reading order. Its nominal dimensions below are the design
+budget; the mandatory matrix separately measures actual visibility before scrolling.
 
-1. Time of day, pinned at the top arc.
-2. Connection status: a dot, and a word beside it in every state **except**
-   `ACTIVE`. The dot is **filled** when fresh and **hollow** when not — a shape
-   difference, not only a colour one. In `ACTIVE` the filled dot carries the
-   message and the word would cost a line of a 192dp screen, so it is spoken and
-   not drawn; in every degraded state the word is the whole message and is drawn.
-3. Exercise name, one line, then ellipsis. The semantics carry the whole name.
-4. Set scale: one pill per set of the current exercise. Completed pills filled,
-   the current one outlined, pending ones `pillPending`. The same information in
-   words (`Подход 3 из 5`) is the pill row's content description. §10 forbids
-   relying on a visual channel **alone**, which this does not: the words are
-   still stated, in the accessible channel.
-5. Two value cards side by side: weight and reps, **unequal** — the weight takes
-   the larger share, because its widest value needs 65dp of content against the
-   reps' 36dp at the largest font scale. Each card shows an **icon** identifying
-   the field and the value below it: the weight bare, without its unit, and the
-   reps bare. The unit and an absent weight (`—`) are stated in the value's
-   content description and in the full-screen editor. A textual header is not
-   used: one row does not amortise a column header, and the unit is a constant
-   in a kilograms-only app.
-6. The primary action, anchored to the bottom edge, drawn as a **check glyph**.
-   Its wording lives in the button's content description: `Завершить` is one
-   unbreakable nine-character word that splits mid-word inside the arc even on
-   the largest screen at the default font scale.
+1. Time of day remains pinned at the top arc.
+2. The primary context shows the exercise name, abbreviated on at most two lines,
+   while completion is enabled. If completion is blocked, this slot instead shows
+   the specific typed reason, fully visible without clipping or ellipsis.
+3. Weight and reps cards follow immediately, with both values and field icons fully
+   visible before scrolling. Weighted exercises retain the unequal card widths;
+   weightless exercises show only the reps card. Cards contain bare numeric values,
+   with units and the explicit absent-weight wording in their accessible descriptions.
+   An absent weight is drawn as `—`.
+4. A Small `EdgeButton` is anchored independently of the scroll column. Both enabled
+   and disabled states draw the same check glyph and have exactly equal dimensions,
+   with a visible target at least 48dp on each axis. Enabled is filled; disabled is
+   outlined and exposes disabled action semantics. The explicit reason above the
+   cards makes its availability understandable without colour or a generic label.
+5. Scrollable details follow the primary block in the same column. They contain the
+   connection status, complete exercise name, set scale and additional field-error
+   explanation. The full name has no line cap or ellipsis. Rotary scrolls this
+   column; opening an editor transfers focus as specified in §10. The button stays
+   anchored while either the primary block or details move through the viewport.
 
-When mutation is unavailable the cards lose their fill and keep an outline, their
-values move to `textMuted`, and the action inverts from filled to outlined. Its glyph
-is replaced by the label **“Disabled” / “Отключено” inside the button**. Both states use
-`EdgeButtonSize.Medium`; there is no sibling unavailable-word overlay or extra word
-reservation. The disabled label is one line and may ellipsize only in the accepted
-RU × 192dp × 1.24 cell. The full action and state remain spoken. See the
-[bottom-band decision](wear-bottom-band-rebudget.md#2-decision-and-accepted-copy).
+The details status retains the connection dot: filled for ACTIVE, hollow for degraded
+states. ACTIVE's status word is spoken only; degraded status words remain drawn in
+**details**, while the concrete completion reason occupies the initial primary slot.
+The set scale contains at most eight pills. For totals up to eight, each represents
+one set. Larger totals use eight contiguous set ranges covering the entire sequence:
+a range wholly before the current set is filled, exactly one range containing the
+current set is outlined, and later ranges use `pillPending`. `WearSetScale` uses Long
+arithmetic for range products so protocol Int bounds cannot overflow or trigger an
+unbounded number of composables. Exact localized set progress remains the scale's
+content description, without a duplicate drawn sentence; buckets never replace the
+spoken ordinal/total. These semantics remain accessible after scrolling.
 
-The historical 2dp/10dp card-fill clipping record at 192dp covered **ACTIVE only**.
-It does not characterize errors or worded read-only states. Error reasons below the
-fold, clipped or absent value nodes on worded states, and the circular-edge boundary
-remain open; see [remaining defects](wear-bottom-band-rebudget.md#6-remaining-defects-and-ownership).
-PR-A improves the budget but does not establish complete initial visibility. The approved
-completion contract requires values, action, and a concrete disabled reason before
-scrolling; it will change this reading order and the corresponding gates together.
+`CompletionUnavailableReason` replaces inference from `completeEnabled` alone. Its
+precedence is disconnection, then stale/refresh-required state, then an outstanding
+command, then remaining unavailable authority, then numeric validation. A fresh pending
+command owns AttemptBound authority and is explained as sending; idle missing authority
+requires refresh. Rep validation precedes weight validation under the protocol's
+existing rules. An actionable completion has no reason, and every blocked target-bearing
+surface must have one. Invalid fields leave editing available when existing authority
+permits it.
+
+| Typed reason | EN primary copy | RU primary copy |
+| --- | --- | --- |
+| `DISCONNECTED` | Phone offline | Нет связи |
+| `REFRESH_REQUIRED` | Refresh needed | Обновите данные |
+| `COMMAND_IN_FLIGHT` | Sending… | Отправка… |
+| `INVALID_REPS` | Reps: 1–999 | Повторы: 1–999 |
+| `INVALID_WEIGHT` | Invalid weight | Ошибка веса |
+
+Weight and reps use `WearValueFormatter` with the same selected locale, outside
+composition. Values are formatted when the presentation model is built or copied;
+copying a changed value or locale recomputes them. Weight uses exact hundredths,
+zero-to-two fractional digits and no grouping. Reps use the same locale's digits.
+Cards and editors consume these prepared strings; localized unit/absence wording
+remains in UI resources. Clearing a draft weight keeps it null rather than restoring
+the snapshot value.
+
+The nominal 192dp budget reserves 26dp for the top arc, 42dp for the 128dp-wide
+context slot, a 4dp gap, a minimum 54dp card row, and 62dp for the anchored Small
+button including its outer padding. At the minimum card height the row ends at 126dp;
+the scroll viewport ends at 130dp. These are design dimensions, not pixel measurements.
+The fresh 80-cell first-view matrix verifies actual card growth, both locales/scales,
+bounds, absent weight and every reason. No user font-scale reduction is allowed.
+
+The historical PR-A 159/211px Medium-button lanes and RU × 192dp × 1.24 disabled-word
+exception do not certify this Small glyph layout. PR-D removes that word and its G6
+exception, with the layout and strict host checks verified together. The
+[PR-A ledger](wear-bottom-band-rebudget.md) remains
+an account of its original implementation and observations.
 
 ## 5. Full-screen numeric editor
 
@@ -149,9 +184,9 @@ none is reachable without one.
 
 | Kind | Cards | Bottom edge |
 | --- | --- | --- |
-| `ACTIVE` | interactive | `Complete set` |
-| `REFRESH_REQUIRED` | read-only | outlined, disabled |
-| `DISCONNECTED` | read-only | outlined, disabled |
+| `ACTIVE` | editable when existing authority and command state permit | Small check glyph; enabled or outlined/disabled with a primary reason |
+| `REFRESH_REQUIRED` | read-only | Small outlined check glyph; refresh reason above cards |
+| `DISCONNECTED` | read-only | Small outlined check glyph; connection reason above cards |
 | `PHONE_ACTION_NO_SETS` | absent | absent |
 | `PHONE_ACTION_UNSUPPORTED` | absent | absent |
 | `PAYLOAD_TOO_LARGE` | absent | absent |
@@ -161,18 +196,19 @@ none is reachable without one.
 | `NO_SESSION` | absent | absent |
 | `LOADING` | absent | absent |
 
-Copy comes from `WearCopy` where it already exists. A string this design requires
-and `WearCopy` lacks — the unit-bearing weight-card header of §4 is one — is
-introduced, in both locales, rather than worked around. (An earlier revision
-forbade introducing any string, which contradicted §4; the layout requirement
-wins.)
+Copy uses existing `WearCopy` resources for status/details and the five bilingual
+`complete_reason_*` resources for the primary reason. `control_disabled` remains an
+accessible card state; removing its old completion-label rendering does not make the
+resource unused. String coverage must follow actual rendered and semantic roles,
+including the in-flight fixture, instead of retaining the old label's corpus entry.
 
 ## 7. Gates
 
 Each gate is stated with the mutation that must turn it red. A gate that cannot be
 made to fail is a comment, not a gate.
 
-The implemented inventory is **G1–G7 and G9–G11: ten numbered gates; G8 does not exist**.
+The numbered inventory remains **G1–G7 and G9–G11: ten gates; G8 does not exist**.
+PR-D revises the following contracts; its executed evidence is in Wear UI completion §7.
 Locale-specific test classes are not additional gate numbers. Unset-weight semantics
 have a separate regression test.
 
@@ -192,63 +228,91 @@ does not intersect the anchored button with its sibling scroll viewport. Seven o
 fixtures cover visible, clipped, nested-clipped, non-clipping-parent, sibling-viewport,
 partially off-screen, and fully off-screen targets. Shape outlines, the round-display
 mask, sibling occlusion, alpha and painted pixels are outside this instrument.
-G1's card check proves scroll reachability; it does not establish complete initial card
-visibility or prove that a card's text is visible. PR-D must add those mandatory initial
-visibility checks with the compact layout; passing PR-C cannot close that acceptance.
-*Red when:* the bottom-edge button's height is set to 40dp, or the oracle replaces
-ancestor-clipped bounds with a node's full layout size.
+PR-C's G1 card check proves scroll reachability. PR-D adds mandatory first-view
+checks in `WearFirstViewGateTest` and `WearFirstViewGateRuTest`: a fresh subtree with
+scroll position zero, complete card rectangles inside the ancestor/screen clips,
+whole field icons and text line rectangles inside the modeled round-screen boundary,
+all values and blocking reasons without overflow, and identical action dimensions
+across enabled/disabled fixtures. The anchored action's visible rectangle must meet
+48dp and its glyph must be wholly inside the round screen. After that initial check,
+the full name and set scale must remain reachable by scrolling.
+
+The first-view matrix covers 192/240dp × EN/RU × 1.0/1.24, numeric minima/maxima,
+weightless and absent-weight states, all five typed reasons, and set ordinal/total
+at `Int.MAX_VALUE`: ten fixtures make 80 cells. The circle check uses
+layout/text line rectangles, not rasterized pixels or a physical hit-test trace.
+Those limits do not weaken the requirement for full initial values, reason and action.
+*Red when:* the primary inset clips the initial cards, a card is forced to 40dp, the
+reason slot truncates its text, or the bounds oracle ignores an actual ancestor clip.
 
 **G2 — no dynamic theming.** No Wear source references `dynamicColorScheme`, and
 the colour values reaching the composition are the palette of §3.
 *Red when:* `dynamicColorScheme` is reintroduced in `WearAppTheme`.
 
-**G3 — every kind is distinguishable by text.** For all eleven kinds the rendered
-semantics tree contains a non-empty status string, and no two kinds produce the
-same one. Every non-ACTIVE kind also draws its status word. ACTIVE does not draw its
-word: its status node has no text and carries the exact localized
-status in its content description. Target-bearing surfaces expose exact localized
-set progress in `set_scale`'s content description and no text in that row or its
-descendants. Global unmerged-tree assertions also forbid the exact localized ACTIVE
-status and set-progress labels, so adding either as a separate sibling label cannot
-bypass the tagged-node checks. This is a semantics contract on both screen sizes;
-it is not a raster proof of absence or a font/locale visibility matrix. PR-D revises
-§4 and these checks together when it changes the primary/detail reading order.
-*Red when:* two kinds share one status resource, the ACTIVE word is drawn, the spoken
-set description is removed, or a separate set-progress text label is added.
+**G3 — every kind is distinguishable by text.** All eleven kinds retain distinct
+nonempty status strings. On target-bearing surfaces, the status and set scale belong
+to `controller_details`, after the primary values. The details status draws every
+non-ACTIVE word; ACTIVE speaks its exact localized status without drawing it. Set
+progress is the exact localized `set_scale` content description, with no text on that
+row or its descendants. Retain PR-C's global unmerged-tree absence checks for the
+exact ACTIVE status and set-progress labels, so separate sibling labels cannot bypass
+these assertions. This semantics contract is separate from initial geometry and does
+not claim raster absence.
+*Red when:* statuses are shared, either spoken-only sentence is drawn separately,
+set progress loses its description, or status/scale leave the details subtree.
 
-**G4 — disabled is not signalled by colour alone.** In every state where
-`completeEnabled` is false and the button is present, the semantics tree contains
-the disabled label.
-*Red when:* the label is removed and only the fill changes.
+**G4 — blocked completion explains its reason.** Every target-bearing disabled
+completion has a `CompletionUnavailableReason`, its exact localized reason is drawn
+in the primary context slot, and the action exposes both disabled state and the full
+disabled action description. The enabled surface instead shows exercise context and
+has no blocking reason. Fixtures must cover every enum member. G1's first-view matrix
+proves initial reason visibility in both locales/scales; G4 does not equate semantics
+presence with visible text. The outlined action and explicit reason preserve a
+non-colour distinction without the old generic word inside the button.
+*Red when:* a reason maps to another condition's copy, is removed, or the action is
+incorrectly enabled. Separate mapper tests protect precedence and completeness.
 
 **G5 — contrast.** Every foreground/background pair used for text meets 4.5:1;
 every stroke meets 3:1. Computed from the palette object, not sampled from pixels.
 *Red when:* any text role is pointed at `stroke` (`#627587`, 4.414:1).
 
-**G6 — no visual overflow.** At font scales 1.0 and the largest the platform
-offers, and with the longest string of each locale, no text node reports visual
-overflow except the exercise name, which is allowed at most two lines by the current
-oracle (production draws one), and the one disabled completion-label cell described
-in [PR-A G6](wear-bottom-band-rebudget.md#9-gates-and-review-classification). That cell
-must positively report one line and overflow; it is not skipped.
-*Red when:* the status row is given a fixed width narrower than its longest string.
+**G6 — no visual overflow.** Across EN/RU, both screen sizes and font scales 1.0/1.24,
+all text layouts must be unellipsized and report no visual overflow except the compact
+`exercise_context`, which may abbreviate on at most two lines. The full exercise name
+in details, every blocking reason, values, status text and editor copy take the strict
+branch. PR-D removes the disabled completion word and the RU-only exact-cell G6
+exception; it does not replace it with a broader exemption. Historical PR-A positive
+ellipsis assertions remain in its ledger, not in the new layout's acceptance.
+*Red when:* the full name is restricted to an ellipsized line, or a reason/status
+width or height is made too small for its text.
 
-**G7 — primary hierarchy.** The enabled primary action is never smaller than its
-disabled form at either screen extreme.
-*Red when:* enabled uses Small while disabled uses Medium.
+**G7 — equal primary dimensions.** The completion action has exactly the same size
+in enabled and disabled states at every first-view matrix cell. Both use Small and
+the same glyph. The older no-smaller-than comparison remains a useful regression
+check; PR-D's first-view gate adds equality.
+*Red when:* one completion state uses Medium and the other Small.
 
 **G9 — string coverage.** Rendered fixtures exercise every required string resource,
-with an explicit allowance list, and the EN/RU resource-ID sets match.
-*Red when:* a required user-facing string is added without a fixture that renders it.
+with an explicit allowance list, and the EN/RU resource-ID sets match. Refresh the
+corpus for `complete_reason_*`, the in-flight fixture, and semantic card/action state.
+Remove references to the old `complete_unavailable` text node; keep `control_disabled`
+where it is still spoken. Corpus/allowlist updates must follow actual uses and must
+not simply lower the count to hide lost coverage.
+*Red when:* required copy is added without a fixture that renders or exposes its role.
 
-**G10 — no mid-word button-label breaks.** Labels in both locales must not split a
-word across lines. Single-line ellipsis is governed separately by G6.
-*Red when:* the narrow completion lane renders a multi-line “Завершить” label.
+**G10 — no mid-word text breaks.** The existing structural walk checks every rendered
+text layout in both locales and scales, including primary reasons, details, retry and
+editors. Completion is glyph-only in both states and therefore has no button text to
+wrap. A compact-context ellipsis is governed by G6; it is not a general exemption
+from word-break checks. PR-D visits 248 text nodes per locale, with 54 EN and 70 RU
+legal space wraps and no mid-word splits; the nonempty-walk floor remains enforced.
+*Red when:* a reason or details label is narrowed until a line boundary splits one
+word. The historical “Завершить” split is not a present completion label.
 
 **G11 — no text collisions.** Rendered text bounds do not overlap other visible text
 bounds. Clipped-away nodes are counted separately; a minimum compared-pair count stops
 an empty walk from passing.
-*Red when:* the unavailable word is positioned over another rendered text node.
+*Red when:* a primary reason or details text is positioned over another rendered text node.
 
 Robolectric is the host for composition gates. It is an unreliable oracle for
 transactional and concurrent semantics; text layout and semantics trees are
@@ -275,8 +339,8 @@ neither, so it is used here deliberately and within that limit.
   guarantee that the active screen never scrolls, at every font scale and screen
   size; that guarantee must exist as a gate before the swipe is built.
 - `EdgeButton` is present and used at the pinned Wear Compose version `1.6.2`.
-  The controller already uses Medium completion and Small retry buttons; no library
-  upgrade or substitute is required for rotary work.
+  PR-D selects Small for completion and retry; the PR-A baseline used Medium for
+  completion. No library upgrade is required for this change.
 - Initial visibility, circular-edge clipping, and pressed-state appearance need the
   targeted geometry/device checks in the completion plan. Text and semantics gates
   alone do not establish visual acceptance.
@@ -291,8 +355,9 @@ rotary APIs and hierarchy-aware focus request; do not create a parallel scroll s
 The active hierarchy owns exactly one rotary destination. Entering either numeric
 editor transfers focus to its existing value-step handler. Back, swipe dismiss,
 and loss of edit authority return focus to the controller without an extra tap.
-The numeric step sizes, bounds, null-weight transition, protocol actions, and primary
-button dimensions are unchanged. Rotary events must not leak into the covered hierarchy.
+PR-B left numeric step sizes, bounds, null-weight transition, protocol actions and
+primary dimensions unchanged. PR-D deliberately changes the primary button to Small
+while retaining that rotary/focus contract. Rotary events must not leak into the covered hierarchy.
 
 Acceptance exercises scroll movement on overflow content in each controller family;
 a non-scrollable fixture may consume focus but must not mutate a value. Both editors
