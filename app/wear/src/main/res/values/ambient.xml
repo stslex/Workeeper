@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ambient_read_only">Ambient, read only</string>
+    <string name="ambient_not_sent">Not sent</string>
+    <string name="ambient_reps">%1$s reps</string>
+    <string name="ambient_weightless">No weight</string>
+    <string name="ambient_no_workout">No workout</string>
+    <string name="ambient_add_set">Add sets on phone</string>
+    <string name="ambient_edit_phone">Edit on phone</string>
+    <string name="ambient_open_phone">Open on phone</string>
+    <string name="ambient_retry_phone">Retry on phone</string>
+    <string name="ambient_update_apps">Update apps</string>
+</resources>

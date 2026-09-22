@@ -62,11 +62,14 @@ gate. Update redesign §4 and G3/G4 with the resulting structure. Remove the PR-
 exception if its residual disappears. Format weight and reps consistently for the
 selected locale outside composition.
 
-**Ambient.** Add an injectable platform provider compatible with the current minSdk.
-Use system ambient transitions/updates, respect low-bit and burn-in capabilities, and
-avoid actions, animations, a per-second ticker, or an app wake lock in ambient. Preserve
-navigation/editor state and the draft across ambient transitions; expiry invalidates
-editing under the existing rules. See the [Android always-on guidance](https://developer.android.com/training/wearables/always-on).
+**Ambient.** The injectable provider uses pinned `androidx.wear:wear:1.3.0` with the
+existing minSdk 28. Its library-required WAKE_LOCK permission adds no app-owned lock or
+ticker. The noninteractive summary, native low-bit/burn-in rendering and saved editor/
+scroll branch have executed host evidence; authority loss prevents an editor from returning.
+This PR still uses transitional WatchProcessState and no-op debug-preview actions. The
+[ambient ledger](wear-ambient-ui.md#5-executed-host-evidence-and-physical-boundary) records
+the 128-cell matrix, 24 named controls and fresh gates. Physical acceptance remains open;
+runtime and ongoing wiring follow later.
 
 **Ongoing.** Use the existing `wear-ongoing` dependency and the atomic-cache/reducer
 contract in [Phase 1 §8](wear-phase-1-active-workout-tile.md#8-lifecycle-and-ongoing-surface).

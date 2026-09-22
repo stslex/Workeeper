@@ -52,6 +52,7 @@ internal data class WearSurfaceModel(
     val controlsEnabled: Boolean = false,
     val completeEnabled: Boolean = false,
     val completionUnavailableReason: CompletionUnavailableReason? = null,
+    val hasUnsubmittedDraft: Boolean = false,
     val retryEnabled: Boolean = false,
     val fieldError: NumericField? = null,
     val selectedLocale: Locale = Locale.getDefault(),

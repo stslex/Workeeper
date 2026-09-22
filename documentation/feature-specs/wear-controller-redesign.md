@@ -365,3 +365,19 @@ must still change their own field using rotary, and each exit path must restore 
 control. Back/swipe are tested as behaviour: lack of an explicit `interceptBack` argument
 alone is not evidence of a defect. Each protective check needs a named negative control,
 and host input injection is recorded separately from physical bezel/crown evidence.
+
+## 11. Ambient presentation boundary
+
+Ambient replaces the interactive controller/editor subtree with the summary specified
+in [Wear ambient UI](wear-ambient-ui.md). Its branch has no click, rotary or editor Back
+handler. Saveable interactive state retains scroll and the selected editor; a current
+loss of editing authority closes the editor before returning to that branch. The model
+supplies the unsent-value marker, and spoken context/progress remain complete.
+
+This increment uses the pinned minSdk-compatible provider, its required manifest
+permission, native low-bit rendering and bounded event-driven burn-in offsets. It does
+not change the interactive PR-D contract, its G1–G7/G9–G11 evidence, or font scaling.
+The separate [ambient ledger](wear-ambient-ui.md#5-executed-host-evidence-and-physical-boundary)
+records the executed 128-cell matrix, 24 controls and fresh host gates. Transitional
+WatchProcessState and no-op debug-preview actions are explicit limitations until the
+subsequent runtime/ongoing PR; ambient rendering alone is not foreground-retention proof.

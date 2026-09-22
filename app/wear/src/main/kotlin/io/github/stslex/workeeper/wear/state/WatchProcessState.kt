@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.wear.state
 
+import android.os.SystemClock
+import androidx.annotation.MainThread
 import io.github.stslex.workeeper.wear.ui.WearSurfaceMapper
 import io.github.stslex.workeeper.wear.ui.WearSurfaceModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -14,4 +16,10 @@ internal object WatchProcessState {
     val surface: StateFlow<WearSurfaceModel> = mutableSurface
 
     fun currentSurface(): WearSurfaceModel = mutableSurface.value
+
+    @MainThread
+    fun expireAuthority(nowElapsedRealtimeMs: Long = SystemClock.elapsedRealtime()) {
+        reducer.expireAuthority(nowElapsedRealtimeMs)
+        mutableSurface.value = WearSurfaceMapper.map(reducer.state)
+    }
 }

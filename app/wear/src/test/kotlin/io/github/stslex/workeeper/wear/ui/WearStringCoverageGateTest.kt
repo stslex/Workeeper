@@ -16,6 +16,7 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.test.core.app.ApplicationProvider
 import io.github.stslex.workeeper.wear.R
+import io.github.stslex.workeeper.wear.ambient.WearAmbientState
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
@@ -75,17 +76,21 @@ internal class WearStringCoverageGateTest {
         // The walk must cover exactly what the resource file declares. A floor would rot:
         // at forty strings a walk returning thirty still clears "at least thirty", which is
         // the under-coverage this gate exists to prevent, reintroduced by its own guard.
-        val declared = declaredStringNames()
+        val declared = declaredStringNames("values")
+        assertTrue(
+            declared == declaredStringNames("values-ru"),
+            "English and Russian resource name sets must match",
+        )
         assertTrue(
             declared.size >= MINIMUM_DECLARED_IDS,
-            "Parsed only ${declared.size} <string> declaration(s) from $STRINGS_XML; the " +
+            "Parsed only ${declared.size} <string> declaration(s) from $STRINGS_DIRECTORY; the " +
                 "independent parse must not itself be reading nothing.",
         )
         val missedByWalk = declared - ids.keys
         val unknownToFile = ids.keys - declared
         assertTrue(
             missedByWalk.isEmpty() && unknownToFile.isEmpty(),
-            "The resource walk and $STRINGS_XML disagree — the walk must cover exactly what " +
+            "The resource walk and $STRINGS_DIRECTORY disagree — the walk must cover exactly what " +
                 "the file declares.\n" +
                 "  declared ${declared.size}, reflected ${ids.size}\n" +
                 "  declared but NOT reflected (the walk is short): ${missedByWalk.sorted()}\n" +
@@ -116,14 +121,16 @@ internal class WearStringCoverageGateTest {
 
         val rendered = renderEveryFixture()
         assertTrue(
-            rendered.isNotEmpty(),
+            rendered.controller.isNotEmpty() && rendered.ambient.isNotEmpty(),
             "No semantics were collected at all; the corpus must not be empty.",
         )
 
         val checked = ids.filterKeys { it !in UNREACHABLE_BY_DESIGN }
-        val unreached = checked.filterNot { (_, id) ->
+        val unreached = checked.filterNot { (name, id) ->
+            // Ambient reuse must not hide a missing controller renderer.
+            val corpus = if (name.startsWith("ambient_")) rendered.ambient else rendered.controller
             literalSegments(resources.getString(id)).all { segment ->
-                rendered.any { it.contains(segment) }
+                corpus.any { it.contains(segment) }
             }
         }
 
@@ -155,19 +162,28 @@ internal class WearStringCoverageGateTest {
     }
 
     /**
-     * Every fixture on both screen extremes, plus all four editor surfaces, reduced to the set
+     * Every controller and ambient fixture, plus all four editor surfaces, reduced to the set
      * of strings their semantics expose.
      */
-    private fun ComposeUiTest.renderEveryFixture(): Set<String> {
+    private fun ComposeUiTest.renderEveryFixture(): RenderedStrings {
         val corpus = mutableSetOf<String>()
         val fixtures = SyntheticSurfaceFixtures.allKinds()
         val weighted = fixture(SyntheticSurfaceFixtures.ACTIVE_BOUNDARY)
         val unsetWeight = fixture(SyntheticSurfaceFixtures.UNSET_WEIGHT)
         var screen by mutableStateOf(WearScreen.SMALL_ROUND)
         var model by mutableStateOf(fixtures.first())
+        var ambientMode by mutableStateOf(false)
         setContent {
             WearGateHost(screen) {
-                WearControllerScreen(state = model, onAction = {})
+                if (ambientMode) {
+                    WearAmbientSummary(
+                        model = model,
+                        ambient = WearAmbientState(isAmbient = true, timestampMillis = 0L),
+                        hasUnsubmittedValues = true,
+                    )
+                } else {
+                    WearControllerScreen(state = model, onAction = {})
+                }
             }
         }
 
@@ -194,7 +210,17 @@ internal class WearStringCoverageGateTest {
                 waitForIdle()
             }
         }
-        return corpus
+        val ambientCorpus = mutableSetOf<String>()
+        ambientMode = true
+        WearScreen.entries.forEach { current ->
+            screen = current
+            fixtures.forEach { candidate ->
+                model = candidate
+                waitForIdle()
+                ambientCorpus += collectSemantics()
+            }
+        }
+        return RenderedStrings(controller = corpus, ambient = ambientCorpus)
     }
 
     private fun ComposeUiTest.collectSemantics(): Set<String> =
@@ -221,25 +247,29 @@ internal class WearStringCoverageGateTest {
         .ifEmpty { listOf(value.trim()) }
 
     /**
-     * The `<string>` names in the module's own resource file, parsed straight from XML so the
+     * The `<string>` names in every XML of one locale, parsed independently so the
      * expected set never comes from the same place as the actual one.
      */
-    private fun declaredStringNames(): Set<String> {
-        val file = File(STRINGS_XML)
-        assertTrue(file.isFile, "Expected the string resources at ${file.absolutePath}")
-        return STRING_DECLARATION.findAll(file.readText())
-            .map { it.groupValues[1] }
-            .toSet()
+    private fun declaredStringNames(qualifier: String): Set<String> {
+        val directory = File(STRINGS_DIRECTORY, qualifier)
+        val files = requireNotNull(directory.listFiles()) { "Missing resources: ${directory.absolutePath}" }
+            .filter { it.isFile && it.extension == "xml" }
+        assertTrue(files.isNotEmpty(), "Expected XML resources at ${directory.absolutePath}")
+        return files.flatMap { file ->
+            STRING_DECLARATION.findAll(file.readText()).map { it.groupValues[1] }.toList()
+        }.toSet()
     }
 
     private fun fixture(id: String): WearSurfaceModel =
         requireNotNull(SyntheticSurfaceFixtures.find(id))
 
+    private data class RenderedStrings(val controller: Set<String>, val ambient: Set<String>)
+
     private companion object {
 
         val FORMAT_SPECIFIER = Regex("%\\d+\\$[a-zA-Z]|%[a-zA-Z]")
 
-        const val STRINGS_XML = "src/main/res/values/strings.xml"
+        const val STRINGS_DIRECTORY = "src/main/res"
 
         val STRING_DECLARATION = Regex("""<string name="([^"]+)"""")
 
