@@ -22,7 +22,8 @@ import org.junit.jupiter.api.Assertions.assertTrue
  * cross product of screens × font scales {1.0, largest} — smallest screen at the largest scale
  * is the combination that actually breaks, and a union of extremes would miss it. Every
  * rendered text node across all eleven kinds and both editor surfaces reports no visual
- * overflow — except the exercise name, which may ellipsize at its second line.
+ * overflow — except the exercise name, which may ellipsize at its second line, and the
+ * disabled completion label, which may ellipsize on its single line.
  *
  * Red when the status row is given a fixed width narrower than its longest string.
  */
@@ -88,14 +89,20 @@ private fun ComposeUiTest.assertNoOverflow(surface: String) {
                     "$surface: the exercise name may ellipsize at its second line, " +
                         "not overflow past it («$text», ${layout.lineCount} lines)",
                 )
-            } else if (tag == "complete_set") {
-                // The disabled-completion label. At the binding cell — 192dp × font scale 1.24 ×
-                // the longest locale — the chosen word (ru «Отключено») exceeds the arc's content
-                // lane and ellipsizes on one line. That in-lane ellipsis is a decided, accepted
-                // residual (bottom-band rebudget — copy decision); the full text is in the
-                // button's content description, and G10 forbids a mid-word split. What G6 still
-                // enforces here is the single-line contract: the label may ellipsize, never wrap.
-                // Only the disabled state draws text under this tag; the enabled state is a glyph.
+            } else if (tag == "complete_set" && node.config.contains(SemanticsProperties.Disabled)) {
+                // The DISABLED completion label, and only that. At the binding cell — 192dp ×
+                // font scale 1.24 × the longest locale — the chosen word (ru «Отключено») exceeds
+                // the arc's content lane and ellipsizes on one line. That in-lane ellipsis is a
+                // decided, accepted residual (bottom-band rebudget — copy decision); the full
+                // text is in the button's content description, and G10 forbids a mid-word split.
+                // What G6 still enforces here is the single-line contract: may ellipsize, never
+                // wrap.
+                //
+                // Keyed on the node's `Disabled` semantics, not on the tag alone. The same tag in
+                // the ENABLED state falls through to the strict branch below, so an enabled label
+                // that ever overflows the lane still reds this gate. Proven in both directions:
+                // an overflowing enabled label PASSED under a tag-only exemption and reds under
+                // this one; the disabled label wrapping to two lines reds here.
                 assertTrue(
                     layout.lineCount <= 1,
                     "$surface: the disabled completion label may ellipsize on one line, " +
