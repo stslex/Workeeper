@@ -552,11 +552,12 @@ private fun CompleteSetButton(
         } else {
             // The disabled word, alone, on one line — never split (G10) and never wrapped
             // (maxLines 1). At the binding cell — 192dp × font scale 1.24 × the longest locale —
-            // it exceeds the arc's content lane (159dp Medium) and ellipsizes: a decided,
-            // accepted residual (bottom-band rebudget — copy decision). Ellipsis, not clip, so
-            // the truncation stays graceful; the full action and state remain in the button's
-            // content description, the drawn half of «not colour alone» (G4). G6 owns the
-            // single-line bound; the in-lane ellipsis at that one cell is exempted there.
+            // it exceeds the Medium EdgeButton's content lane (159 px / 79.5 dp at 192dp; see
+            // documentation/feature-specs/wear-bottom-band-rebudget.md §7.1) and ellipsizes: a
+            // decided, accepted residual (copy decision). Ellipsis, not clip, so the truncation
+            // stays graceful; the full action and state remain in the button's content
+            // description, the drawn half of «not colour alone» (G4). G6 owns the single-line
+            // bound and asserts the ellipsis in that one cell.
             Text(
                 text = stringResource(R.string.control_disabled),
                 style = MaterialTheme.typography.labelSmall,
