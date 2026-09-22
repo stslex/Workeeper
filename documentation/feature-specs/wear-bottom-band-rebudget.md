@@ -190,8 +190,8 @@ status-contract decision for PR-D; this table is not a permanent prohibition on 
 
 | Gate | Current contract and limitation |
 | --- | --- |
-| G1 touch targets | Full `node.size` is checked; actual clipped visible size is not yet the oracle |
-| G3 kind distinction | Degraded kinds retain drawn status text |
+| G1 touch targets | PR-C adds ancestor-clipped rectangular bounds: anchored action visible initially, cards at least 48dp after scrolling; complete initial card/text visibility remains PR-D |
+| G3 kind distinction | Degraded kinds retain drawn status text; PR-C protects exact spoken-only ACTIVE and set progress, including absence of separate sibling labels |
 | G4 disabled-not-colour-alone | The disabled button has drawn unavailable text |
 | G6 text overflow | Only disabled `complete_set` at RU / SMALL_ROUND / 1.24 is excepted; it must report exactly one line **and** `hasVisualOverflow` |
 | G7 primary hierarchy | Enabled primary dimensions are not smaller than disabled dimensions |
@@ -199,6 +199,12 @@ status-contract decision for PR-D; this table is not a permanent prohibition on 
 G6's exception is a positive check, not a skip. If shorter copy or a wider lane removes
 that overflow, the exception must fail and be deleted. Enabled completion and every
 other disabled cell take the strict `!hasVisualOverflow` branch.
+
+PR-C's oracle and matrix are recorded in the
+[measurement contract](wear-ui-completion.md#6-pr-c-measurement-contract-and-evidence).
+Rectangular ancestor clips do not establish shape/raster visibility or sibling occlusion;
+the G1 update does not close the initial-fold defects in §6. PR-A's measurement and
+press-hold evidence above remain scoped to their recorded runs.
 
 Historical negative controls recorded in commit `eda2e7f5` (not rerun for this document):
 
