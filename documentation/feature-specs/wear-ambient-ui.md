@@ -360,3 +360,82 @@ callbacks, Activity reuse/recreation, TalkBack, foreground retention, reconnect 
 or notification removal after process death. The closed privacy/transport gate and the
 ambient-only `WatchProcessState`/static-preview boundary remain unchanged. The synthetic
 runtime/ongoing increment has its own subsequent source and acceptance scope.
+
+### 5.3 Review follow-up: submitted values and the unsent marker
+
+The preceding §5, §5.1 and §5.2 remain historical byte-for-byte. This separate follow-up
+is based on `ef0ee90344d56e4fb341b0bbf5a0ec091d2493b3` plus the complete source snapshot below. The finding was classified
+**correct-and-new** after the final regression test bytes ran against unchanged production:
+**37 actionable tasks: 37 executed**. The reproduction archive retains the exact
+unfixed production and final regression sources; it is not described as a full
+original-tree snapshot. The intended regression failed by assertion; the companion
+positive method passed. Neither source revision is relabeled after execution.
+
+| Unfixed regression | Actual XML assertion excerpt |
+| --- | --- |
+| WearSubmittedDraftProjectionTest.unresolvedSubmittedValuesAreNotMarkedUnsentEvenAfterAuthorityExpires() | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: Sending values were already submitted; they are not unsent ==&gt; expected: &lt;false&gt; but was: &lt;true&gt; |
+
+A draft retained for an unresolved command is already submitted when its exact reps and
+nullable weight, full source version and target match the values being projected. That
+projection keeps the values but omits the unsent marker. This includes an in-flight
+retry, authority expiry and awaiting retry authority; authority loss does not undo
+submission. A different draft or source/target, absent command, or closed command keeps
+the marker. Canonical/targetless projections continue to omit it. This changes display
+semantics only: no transport acknowledgement, mutation authority, command lifecycle,
+value or draft-retention policy is altered.
+
+| Executed gate | Archived XML | Executed task summary |
+| --- | --- | --- |
+| Fixed DevDebug ambient + G9 + review regressions | 18 tests / 10 classes; zero failures, errors or skips | `42 actionable tasks: 42 executed` |
+| Restored DevDebug focused suite | 18 tests / 10 classes; zero failures, errors or skips | `42 actionable tasks: 42 executed` |
+| Repository per-commit gate | testDevDebugUnitTest: 98 tests / 40 classes; testStoreDebugUnitTest: 98 tests / 40 classes; zero failures, errors or skips | `2331 actionable tasks: 2331 executed` |
+| Repository phase exit, Paparazzi, lint-rule tests and StoreRelease assembly | Fresh passing archived XML for lint-rule tests and every configured Paparazzi module | `2400 actionable tasks: 2400 executed` |
+
+The focused suite includes the original ambient/G9 tests and prior review regressions,
+plus the submitted-draft tests. Archived fixed and restored XML contains
+**18 tests in 10 classes**.
+Full Wear debug suites each contain **98 tests
+in 40 classes**. These gates also archive fresh complete
+128-cell summary and 24-cell clock capture sets. The new mapper tests use a real correlated
+reducer handshake and command issue, timeout/retry and expiry, plus explicit projection
+variants for open, closed, mismatched and absent commands. These are host assertions,
+not measurements of transport delivery or a physical watch.
+
+All **8 new controls** killed their intended named assertions
+with byte-exact restoration. The exact-method validator covers
+**2/2 new protective methods**. Actual selected failures:
+
+| Executed new control | Observed intended failing method | Actual XML assertion excerpt |
+| --- | --- | --- |
+| `ambient-submitted-values-marked-unsent` | WearSubmittedDraftProjectionTest.unresolvedSubmittedValuesAreNotMarkedUnsentEvenAfterAuthorityExpires() | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: Sending values were already submitted; they are not unsent ==&gt; expected: &lt;false&gt; but was: &lt;true&gt; |
+| `ambient-expiry-marks-submitted-values-unsent` | WearSubmittedDraftProjectionTest.unresolvedSubmittedValuesAreNotMarkedUnsentEvenAfterAuthorityExpires() | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: Authority expiry does not undo command submission ==&gt; expected: &lt;false&gt; but was: &lt;true&gt; |
+| `ambient-awaiting-command-marked-unsent` | WearSubmittedDraftProjectionTest.unresolvedSubmittedValuesAreNotMarkedUnsentEvenAfterAuthorityExpires() | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: An unresolved command retains submitted values while awaiting authority ==&gt; expected: &lt;false&gt; but was: &lt;true&gt; |
+| `ambient-submitted-match-ignores-weight` | WearSubmittedDraftProjectionTest.differentDraftOrCommandIdentityAndClosedCommandsKeepUnsentMarker() | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: Only the same unresolved submitted payload may hide the unsent marker ==&gt; expected: &lt;true&gt; but was: &lt;false&gt; |
+| `ambient-submitted-match-ignores-reps` | WearSubmittedDraftProjectionTest.differentDraftOrCommandIdentityAndClosedCommandsKeepUnsentMarker() | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: Only the same unresolved submitted payload may hide the unsent marker ==&gt; expected: &lt;true&gt; but was: &lt;false&gt; |
+| `ambient-submitted-match-ignores-source` | WearSubmittedDraftProjectionTest.differentDraftOrCommandIdentityAndClosedCommandsKeepUnsentMarker() | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: Only the same unresolved submitted payload may hide the unsent marker ==&gt; expected: &lt;true&gt; but was: &lt;false&gt; |
+| `ambient-submitted-match-ignores-target` | WearSubmittedDraftProjectionTest.differentDraftOrCommandIdentityAndClosedCommandsKeepUnsentMarker() | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: Only the same unresolved submitted payload may hide the unsent marker ==&gt; expected: &lt;true&gt; but was: &lt;false&gt; |
+| `ambient-closed-command-hides-unsent-draft` | WearSubmittedDraftProjectionTest.differentDraftOrCommandIdentityAndClosedCommandsKeepUnsentMarker() | org.opentest4j.AssertionFailedError: org.opentest4j.AssertionFailedError: Only the same unresolved submitted payload may hide the unsent marker ==&gt; expected: &lt;true&gt; but was: &lt;false&gt; |
+
+Observed mutation summaries: `37 actionable tasks: 37 executed`. Earlier 24, 6 and 4 control campaigns were not
+re-executed here; their protected tests run in the fresh regression suites, while their
+original ledgers retain their own provenance. No new release-host/device UI result is
+claimed; StoreRelease assembly remains a build gate.
+
+Phase Paparazzi evidence retains every raw testcase occurrence, including repeated legacy
+display labels. Receipts preserve XML-relative path, one-based ordinal, class, unmodified
+label/time, raw XML SHA and counters; no method identity is invented or deduplicated.
+Wear, lint-rule and intended mutation identities remain strict.
+
+Evidence: `/private/tmp/wear-ambient-review3-evidence/runs/20260923T074536.806976Z`. Base `ef0ee90344d56e4fb341b0bbf5a0ec091d2493b3` plus full source snapshot JSON SHA-256 `74ae2ea461190d01717d78f9dc98c0b3364bbf87cc30ae89d0d7ca8693eac0c9`.
+The cohort freezes source bytes, method/control map, commands/timestamps, XML, 128+24 PNG
+inventories, before/mutant bytes and exact intended-kill proof. Every Gradle proof gate ran
+serially with `--rerun-tasks --no-build-cache --no-configuration-cache`; preparatory clean
+is separate. Source bytes remain unchanged through the cohort and finalizer validation;
+this append is the only subsequent documentation delta. Runnable local evidence tools and
+manifests are not claimed to be shipped in the repository.
+
+**Physical acceptance remains pending.** Host behavior does not establish actual ambient
+callbacks, Activity reuse/recreation, TalkBack, foreground retention, reconnect constants
+or notification removal after process death. The closed privacy/transport gate and the
+ambient-only `WatchProcessState`/static-preview boundary remain unchanged. The synthetic
+runtime/ongoing increment has its own subsequent source and acceptance scope.

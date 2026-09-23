@@ -13,6 +13,8 @@ import io.github.stslex.workeeper.wear.state.LocalMutationAuthority
 import io.github.stslex.workeeper.wear.state.ReducerEvent
 import io.github.stslex.workeeper.wear.state.WatchDisplayState
 import io.github.stslex.workeeper.wear.state.WatchReducerState
+import io.github.stslex.workeeper.wear.state.sourceVersion
+import io.github.stslex.workeeper.wear.state.targetKeyOrNull
 import java.util.Locale
 
 internal enum class WearSurfaceKind {
@@ -96,6 +98,11 @@ internal object WearSurfaceMapper {
         val weight = if (draft != null) draft.weightHundredthsKg else payload.target.weightHundredthsKg
         val available = state.authority is LocalMutationAuthority.Available
         val commandIdle = state.command == null || state.command.status in TERMINAL_STATUSES
+        val submittedDraft = state.command?.takeUnless { commandIdle }?.let { command ->
+            command.draft == draft &&
+                command.source == display.snapshot.sourceVersion() &&
+                command.target == display.snapshot.targetKeyOrNull()
+        } == true
         val invalidField = CommandValidation.validate(
             reps = reps,
             weightHundredthsKg = weight,
@@ -118,7 +125,7 @@ internal object WearSurfaceMapper {
             totalSets = payload.target.totalSets,
             reps = reps,
             weightHundredthsKg = weight,
-            hasUnsubmittedDraft = draft != null,
+            hasUnsubmittedDraft = draft != null && !submittedDraft,
             weighted = payload.target.exerciseType == ExerciseTypeWire.WEIGHTED,
             controlsVisible = true,
             controlsEnabled = available && commandIdle,
