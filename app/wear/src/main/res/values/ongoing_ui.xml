@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ongoing_notifications_disabled">Notifications are off. The watch may return to its watch face without a workout shortcut. You can continue here.</string>
+    <string name="ongoing_enable_notifications">Enable notifications</string>
+    <string name="ongoing_shortcut_inactive">Workout shortcut inactive. The watch may return to its watch face. You can continue here.</string>
+</resources>

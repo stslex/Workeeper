@@ -102,6 +102,23 @@ internal class WatchSnapshotCache(
         )
     }
 
+    /** Only the serialized cache owner may update lifecycle metadata after replace or read. */
+    fun shortenOngoingDeadline(
+        stopAtElapsedRealtimeMs: Long?,
+        connection: CachedConnection? = null,
+    ) {
+        val record = publishedRecord ?: return
+        require(
+            stopAtElapsedRealtimeMs == null ||
+                record.ongoingStopAtElapsedRealtimeMs?.let { stopAtElapsedRealtimeMs <= it } == true,
+        ) { "Only a fresh snapshot replacement may extend an ongoing deadline" }
+        val replacement = record.copy(
+            ongoingStopAtElapsedRealtimeMs = stopAtElapsedRealtimeMs,
+            connection = connection ?: record.connection,
+        )
+        if (replacement != record) publish(replacement)
+    }
+
     fun read(): CacheReadResult {
         val raw = try {
             storage.read()

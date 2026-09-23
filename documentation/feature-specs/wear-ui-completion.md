@@ -62,24 +62,23 @@ gate. Update redesign §4 and G3/G4 with the resulting structure. Remove the PR-
 exception if its residual disappears. Format weight and reps consistently for the
 selected locale outside composition.
 
-**Ambient.** The injectable provider uses pinned `androidx.wear:wear:1.3.0` with the
-existing minSdk 28. Its library-required WAKE_LOCK permission adds no app-owned lock or
-ticker. The noninteractive summary, native low-bit/burn-in rendering and saved editor/
-scroll branch have executed host evidence; authority loss prevents an editor from returning.
-This PR still uses transitional WatchProcessState and no-op debug-preview actions. The
-[ambient ledger](wear-ambient-ui.md#5-executed-host-evidence-and-physical-boundary) records
-the 128-cell matrix, 24 named controls and fresh gates. Physical acceptance remains open;
-runtime and ongoing wiring follow later.
+**Ambient.** The minSdk-compatible provider, noninteractive summary, low-bit/burn-in
+rendering and retained editor/scroll branch keep their separate
+[ambient host ledger](wear-ambient-ui.md#5-executed-host-evidence-and-physical-boundary).
+The subsequent runtime owner now refreshes freshness before publication and preserves the
+editor/draft only while the existing rules permit editing. The library-required manifest
+permission adds no app-owned wake lock or ticker. Physical acceptance remains open; see
+[the current lifecycle contract](wear-lifecycle-ui.md#3-ambient-presentation).
 
-**Ongoing.** Use the existing `wear-ongoing` dependency and the atomic-cache/reducer
-contract in [Phase 1 §8](wear-phase-1-active-workout-tile.md#8-lifecycle-and-ongoing-surface).
-Start only from the authorized fresh active lifecycle. Persist an absolute monotonic
-stop deadline and compute `timeoutAfter` from its remaining interval on every post or
-update. Disconnect may shorten it; repeated events, cache reads, and process restart
-cannot extend it. Terminal states cancel immediately with the specified crash ordering.
-Return to the same Activity. Notification permission denial leaves ordinary UI usable
-and does not promise ongoing retention. Treat Wear OS 5+ retention and behaviour on
-older supported versions as separate device observations. See [Ongoing Activity](https://developer.android.com/training/wearables/notifications/ongoing-activity).
+**Ongoing.** One serialized runtime owner, an injected coordinator/policy and the Android
+notification adapter implement the synthetic lifecycle around the existing cache/reducer
+and `wear-ongoing` dependency. They preserve [Phase 1 §8](wear-phase-1-active-workout-tile.md#8-lifecycle-and-ongoing-surface)
+and the [absolute deadline/crash ordering](wear-lifecycle-ui.md#4-ongoing-deadline-and-crash-ordering).
+Only debug constructs the synthetic mutable runtime; release stays read-only. Denial leaves
+otherwise valid ordinary UI available; permission restoration cannot itself post or renew
+retention. The [executed host ledger](wear-lifecycle-ui.md#6-executed-host-evidence) records
+110 controls, 100 concrete identities and fresh gates. Wear OS 5+ and older-device probes,
+calibrated constants, process-death notification removal and real transport remain open.
 
 ## 4. Evidence and release boundary
 

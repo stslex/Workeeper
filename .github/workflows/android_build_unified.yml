@@ -247,6 +247,15 @@ jobs:
       - name: Run Unit Tests
         run: ./gradlew testDebugUnitTest --full-stacktrace
 
+      # The debug suite cannot prove that the synthetic source is absent from release.
+      - name: Run Wear release source boundary test
+        run: >
+          ./gradlew :app:wear:testDevReleaseUnitTest
+          -Pandroid.onlyEnableUnitTestForTheTestedBuildType=false
+          --tests '*ReleaseRuntimeBoundaryTest.releaseRejectsSyntheticEventsAndExcludesTheirSourceClass'
+          --rerun-tasks --no-build-cache --no-configuration-cache
+          --full-stacktrace --console=plain
+
       - name: Publish Unit Test Results
         uses: EnricoMi/publish-unit-test-result-action@v2
         if: always()
