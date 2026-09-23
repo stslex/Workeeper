@@ -6,10 +6,11 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import io.github.stslex.workeeper.wear.ambient.AndroidWearAmbientProvider
 import io.github.stslex.workeeper.wear.state.WatchProcessState
 import io.github.stslex.workeeper.wear.ui.SyntheticSurfaceFixtures
 import io.github.stslex.workeeper.wear.ui.WearControllerScreen
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.combine
 
 class MainActivity : ComponentActivity() {
 
@@ -22,13 +23,21 @@ class MainActivity : ComponentActivity() {
         } else {
             null
         }
+        val ambientProvider = AndroidWearAmbientProvider(
+            activity = this,
+            expireAuthority = { WatchProcessState.expireAuthority() },
+        )
         val initialModel = synthetic ?: WatchProcessState.currentSurface().copy(selectedLocale = locale)
-        val presentedSurface = WatchProcessState.surface.map { model ->
-            synthetic ?: model.copy(selectedLocale = locale)
+        val initialPresentation = initialModel to ambientProvider.state.value
+        val presentedSurface = combine(WatchProcessState.surface, ambientProvider.state) { _, ambient ->
+            // Read the synchronous expiry result even if the surface collector is behind the ambient event.
+            val model = synthetic ?: WatchProcessState.currentSurface().copy(selectedLocale = locale)
+            model to ambient
         }
         setContent {
-            val model by presentedSurface.collectAsState(initial = initialModel)
-            WearControllerScreen(state = model, onAction = {})
+            val presentation by presentedSurface.collectAsState(initial = initialPresentation)
+            val (model, ambient) = presentation
+            WearControllerScreen(state = model, ambient = ambient, onAction = {})
         }
     }
 }

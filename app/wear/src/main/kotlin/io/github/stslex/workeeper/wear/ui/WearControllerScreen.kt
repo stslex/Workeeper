@@ -33,6 +33,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -69,34 +70,43 @@ import androidx.wear.compose.material3.Text
 import androidx.wear.compose.material3.TimeText
 import io.github.stslex.workeeper.core.wear.protocol.NumericField
 import io.github.stslex.workeeper.wear.R
+import io.github.stslex.workeeper.wear.ambient.WearAmbientState
 
 /** Primary values and the blocking reason precede scrollable details; see Wear UI completion §1. */
 @Composable
 internal fun WearControllerScreen(
     state: WearSurfaceState,
+    ambient: WearAmbientState = WearAmbientState(),
     onAction: (ControllerAction) -> Unit,
 ) {
     WearAppTheme {
+        val interactiveState = rememberSaveableStateHolder()
         var editingField by rememberSaveable { mutableStateOf<NumericField?>(null) }
         val editing = editingField?.takeIf { field ->
             state.controlsEnabled && (field == NumericField.REPS || state.weighted)
         }
-        if (editing == null && editingField != null) {
+        if (!ambient.isAmbient && editing == null && editingField != null) {
             SideEffect { editingField = null }
         }
-        if (editing != null) {
-            NumericEditor(
-                field = editing,
-                model = state,
-                onAction = onAction,
-                onClose = { editingField = null },
-            )
+        if (ambient.isAmbient) {
+            WearAmbientSummary(state, ambient, hasUnsubmittedValues = state.hasUnsubmittedDraft)
         } else {
-            Controller(
-                model = state,
-                onAction = onAction,
-                onEdit = { editingField = it },
-            )
+            interactiveState.SaveableStateProvider("interactive") {
+                if (editing != null) {
+                    NumericEditor(
+                        field = editing,
+                        model = state,
+                        onAction = onAction,
+                        onClose = { editingField = null },
+                    )
+                } else {
+                    Controller(
+                        model = state,
+                        onAction = onAction,
+                        onEdit = { editingField = it },
+                    )
+                }
+            }
         }
     }
 }
