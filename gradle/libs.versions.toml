@@ -83,6 +83,7 @@ concurrentFutures = "1.3.0"
 wearProtoLayout = "1.4.0"
 wearOngoing = "1.1.0"
 wearAmbient = "1.3.0"
+wearFragment = "1.3.6"
 
 junitKtx = "1.3.0"
 
@@ -256,6 +257,7 @@ androidx-wear-protolayout-material = { module = "androidx.wear.protolayout:proto
 androidx-wear-protolayout-expression = { module = "androidx.wear.protolayout:protolayout-expression", version.ref = "wearProtoLayout" }
 androidx-wear-ongoing = { module = "androidx.wear:wear-ongoing", version.ref = "wearOngoing" }
 androidx-wear-ambient = { module = "androidx.wear:wear", version.ref = "wearAmbient" }
+androidx-fragment = { module = "androidx.fragment:fragment", version.ref = "wearFragment" }
 
 google-gms = { module = "com.google.gms:google-services", version.ref = "gms" }
 google-firebase-plugin-perf = { group = "com.google.firebase", name = "perf-plugin", version.ref = "fbPerf" }

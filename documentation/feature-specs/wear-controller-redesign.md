@@ -379,5 +379,6 @@ permission, native low-bit rendering and bounded event-driven burn-in offsets. I
 not change the interactive PR-D contract, its G1–G7/G9–G11 evidence, or font scaling.
 The separate [ambient ledger](wear-ambient-ui.md#5-executed-host-evidence-and-physical-boundary)
 records the executed 128-cell matrix, 24 controls and fresh host gates. Transitional
-WatchProcessState and no-op debug-preview actions are explicit limitations until the
-subsequent runtime/ongoing PR; ambient rendering alone is not foreground-retention proof.
+WatchProcessState and no-op debug-preview actions describe the ambient-only increment;
+the [runtime/ongoing contract](wear-lifecycle-ui.md) now supersedes that temporary wiring.
+Ambient rendering alone is not foreground-retention proof.

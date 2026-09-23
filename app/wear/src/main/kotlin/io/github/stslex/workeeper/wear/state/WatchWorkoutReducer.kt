@@ -8,6 +8,7 @@ import io.github.stslex.workeeper.core.wear.protocol.FingerprintCommand
 import io.github.stslex.workeeper.core.wear.protocol.FingerprintPurpose
 import io.github.stslex.workeeper.core.wear.protocol.FingerprintV1
 import io.github.stslex.workeeper.core.wear.protocol.MutationAuthority
+import io.github.stslex.workeeper.core.wear.protocol.MutationUnavailableReason
 import io.github.stslex.workeeper.core.wear.protocol.ProtocolPairingValidator
 import io.github.stslex.workeeper.core.wear.protocol.SnapshotData
 import io.github.stslex.workeeper.core.wear.protocol.SnapshotPayload
@@ -32,6 +33,26 @@ internal class WatchWorkoutReducer {
     private var admittedSnapshot: SnapshotData? = null
     private val requests = linkedMapOf<CanonicalUuid, RequestToken>()
     private val commands = linkedMapOf<CanonicalUuid, LogicalCommand>()
+
+    /** Initialize only a pristine reducer from a snapshot already admitted by the guarded cache reader. */
+    fun restoreDisplayOnly(snapshot: SnapshotData) {
+        check(latestIssuedGeneration == 0L && admittedMeta == null && state == WatchReducerState())
+        val active = snapshot.payload as? SnapshotPayload.ActiveWithTarget
+        val restored = if (active == null) {
+            snapshot
+        } else {
+            snapshot.copy(
+                payload = active.copy(
+                    mutationAuthority = MutationAuthority.Unavailable(
+                        MutationUnavailableReason.FRESH_HANDSHAKE_REQUIRED,
+                    ),
+                ),
+            )
+        }
+        admittedMeta = AdmittedSnapshotMeta(restored.sourceVersion(), localGeneration = 0L, leaseGeneration = null)
+        admittedSnapshot = restored
+        state = WatchReducerState(display = displayState(restored, mutable = false), refreshRequired = true)
+    }
 
     fun issueHandshake(correlationId: CanonicalUuid, issuedAtElapsedRealtimeMs: Long): RequestToken {
         require(issuedAtElapsedRealtimeMs >= 0L)

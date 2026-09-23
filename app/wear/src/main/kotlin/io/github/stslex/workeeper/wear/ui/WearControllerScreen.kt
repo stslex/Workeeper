@@ -77,6 +77,8 @@ import io.github.stslex.workeeper.wear.ambient.WearAmbientState
 internal fun WearControllerScreen(
     state: WearSurfaceState,
     ambient: WearAmbientState = WearAmbientState(),
+    ongoingNotice: WearOngoingNotice? = null,
+    onEnableNotifications: () -> Unit = {},
     onAction: (ControllerAction) -> Unit,
 ) {
     WearAppTheme {
@@ -102,6 +104,8 @@ internal fun WearControllerScreen(
                 } else {
                     Controller(
                         model = state,
+                        ongoingNotice = ongoingNotice,
+                        onEnableNotifications = onEnableNotifications,
                         onAction = onAction,
                         onEdit = { editingField = it },
                     )
@@ -114,6 +118,8 @@ internal fun WearControllerScreen(
 @Composable
 private fun Controller(
     model: WearSurfaceModel,
+    ongoingNotice: WearOngoingNotice?,
+    onEnableNotifications: () -> Unit,
     onAction: (ControllerAction) -> Unit,
     onEdit: (NumericField) -> Unit,
 ) {
@@ -121,7 +127,7 @@ private fun Controller(
         WearSurfaceKind.ACTIVE,
         WearSurfaceKind.REFRESH_REQUIRED,
         WearSurfaceKind.DISCONNECTED,
-        -> ActiveScaffold(model, onAction, onEdit)
+        -> ActiveScaffold(model, ongoingNotice, onEnableNotifications, onAction, onEdit)
         WearSurfaceKind.RETRYABLE_ERROR -> RetryScaffold(model, onAction)
         WearSurfaceKind.LOADING,
         WearSurfaceKind.NO_SESSION,
@@ -137,6 +143,8 @@ private fun Controller(
 @Composable
 private fun ActiveScaffold(
     model: WearSurfaceModel,
+    ongoingNotice: WearOngoingNotice?,
+    onEnableNotifications: () -> Unit,
     onAction: (ControllerAction) -> Unit,
     onEdit: (NumericField) -> Unit,
 ) {
@@ -166,7 +174,7 @@ private fun ActiveScaffold(
             ) {
                 PrimaryContext(model)
                 ValueCards(model, onEdit)
-                ControllerDetails(model)
+                ControllerDetails(model, ongoingNotice, onEnableNotifications)
             }
             CompleteSetButton(model, onAction, modifier = Modifier.align(Alignment.BottomCenter))
         }
@@ -206,7 +214,11 @@ private fun CompletionUnavailableReason.copyResource(): Int = when (this) {
 }
 
 @Composable
-private fun ControllerDetails(model: WearSurfaceModel) {
+private fun ControllerDetails(
+    model: WearSurfaceModel,
+    ongoingNotice: WearOngoingNotice?,
+    onEnableNotifications: () -> Unit,
+) {
     Column(
         modifier = Modifier.width(PRIMARY_CONTEXT_WIDTH.dp).testTag("controller_details"),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -216,6 +228,7 @@ private fun ControllerDetails(model: WearSurfaceModel) {
         ExerciseName(model)
         SetScale(model)
         FieldError(model)
+        OngoingNotice(ongoingNotice, onEnableNotifications)
     }
 }
 
