@@ -1,0 +1,21 @@
+import org.gradle.api.GradleException
+import org.gradle.api.tasks.testing.Test
+
+// Configuration only: no TestListener or execution-time Project capture.
+def observerJar = System.getenv('CI_CONTEXT_OBSERVER_JAR')
+def phaseOutput = System.getenv('CI_CONTEXT_PHASE_OUTPUT')
+def observerToken = System.getenv('CI_CONTEXT_OBSERVER_TOKEN')
+if (!observerJar || !phaseOutput || !observerToken || !new File(observerJar).isFile()) {
+    throw new GradleException('Missing full-context diagnostic observer configuration')
+}
+gradle.beforeProject { project ->
+    if (project.path == ':feature:live-workout') {
+        project.tasks.withType(Test).configureEach { test ->
+            if (test.name == 'testDebugUnitTest') {
+                test.classpath = test.classpath.plus(project.files(observerJar))
+                test.environment('CI_CONTEXT_PHASE_OUTPUT', phaseOutput)
+                test.environment('CI_CONTEXT_OBSERVER_TOKEN', observerToken)
+            }
+        }
+    }
+}

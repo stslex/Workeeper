@@ -7,13 +7,14 @@ on:
   workflow_dispatch:
     inputs:
       diagnostic_mode:
-        description: 'Run only a bounded host-test liveness diagnostic'
+        description: 'Optional isolated or original-context host-test diagnostic'
         required: false
         type: choice
         default: 'off'
         options:
           - 'off'
           - 'live-set-isolated'
+          - 'live-set-full-context'
   workflow_call:
     inputs:
       ref:
@@ -45,6 +46,10 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ inputs.ref || github.ref }}
+
+      - name: Start full-context diagnostic budget
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.diagnostic_mode == 'live-set-full-context' }}
+        run: python3 .github/scripts/run_ci_context_liveness.py --initialize --output "$RUNNER_TEMP/ci-full-context"
 
       - name: Decrypt keystore
         env:
@@ -200,8 +205,28 @@ jobs:
       # non-cacheable and never up-to-date in Paparazzi mode, rather than with `--no-build-cache`
       # here: the flag would also strip cache hits from every upstream compile task in this graph,
       # and would leave local runs of the gate just as replayable as before.
+      - name: Prepare full-context diagnostic observer
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.diagnostic_mode == 'live-set-full-context' }}
+        timeout-minutes: 3
+        run: python3 .github/scripts/prepare_ci_context_observer.py --output "$RUNNER_TEMP/ci-full-context/observer"
+
       - name: Verify screenshot goldens
-        run: ./gradlew verifyPaparazziDebug --full-stacktrace
+        run: |
+          if [[ "${{ github.event_name }}" == 'workflow_dispatch' && "${{ inputs.diagnostic_mode }}" == 'live-set-full-context' ]]; then
+            python3 .github/scripts/run_ci_context_liveness.py --phase paparazzi --output "$RUNNER_TEMP/ci-full-context"
+          else
+            ./gradlew verifyPaparazziDebug --full-stacktrace
+          fi
+
+      - name: Upload Paparazzi phase diagnostic snapshot
+        if: ${{ always() && github.event_name == 'workflow_dispatch' && inputs.diagnostic_mode == 'live-set-full-context' }}
+        uses: actions/upload-artifact@v4
+        timeout-minutes: 3
+        with:
+          name: host-context-paparazzi-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/ci-full-context/
+          if-no-files-found: warn
+          retention-days: 14
 
       - name: Upload screenshot diffs
         uses: actions/upload-artifact@v4
@@ -255,7 +280,22 @@ jobs:
         run: exit 1
 
       - name: Run Unit Tests
-        run: ./gradlew testDebugUnitTest --full-stacktrace
+        run: |
+          if [[ "${{ github.event_name }}" == 'workflow_dispatch' && "${{ inputs.diagnostic_mode }}" == 'live-set-full-context' ]]; then
+            python3 .github/scripts/run_ci_context_liveness.py --phase unit --output "$RUNNER_TEMP/ci-full-context"
+          else
+            ./gradlew testDebugUnitTest --full-stacktrace
+          fi
+
+      - name: Upload full-context diagnostic snapshots
+        if: ${{ always() && github.event_name == 'workflow_dispatch' && inputs.diagnostic_mode == 'live-set-full-context' }}
+        uses: actions/upload-artifact@v4
+        timeout-minutes: 3
+        with:
+          name: host-context-final-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/ci-full-context/
+          if-no-files-found: warn
+          retention-days: 14
 
       - name: Publish Unit Test Results
         uses: EnricoMi/publish-unit-test-result-action@v2
