@@ -1,7 +1,54 @@
+import groovy.json.JsonOutput
+import org.gradle.api.Action
 import org.gradle.api.GradleException
+import org.gradle.api.Task
 import org.gradle.api.tasks.testing.Test
 
-// Configuration only: no TestListener or execution-time Project capture.
+import java.security.MessageDigest
+import java.time.Instant
+
+class VerifyContextObserver implements Action<Task>, Serializable {
+    final File observerFile
+    final File receiptFile
+    final String phaseOutput
+    final String observerToken
+    final String expectedSha
+
+    VerifyContextObserver(String jar, String output, String token) {
+        observerFile = new File(jar)
+        receiptFile = new File(output, 'observer-classpath.json')
+        phaseOutput = output
+        observerToken = token
+        expectedSha = sha256(observerFile)
+    }
+
+    static String sha256(File file) {
+        MessageDigest.getInstance('SHA-256').digest(file.bytes).encodeHex().toString()
+    }
+
+    @Override
+    void execute(Task task) {
+        Test test = (Test) task
+        boolean present = test.classpath.files.any { it.canonicalFile == observerFile.canonicalFile }
+        String actualSha = observerFile.isFile() ? sha256(observerFile) : null
+        boolean environmentMatches = test.environment.get('CI_CONTEXT_PHASE_OUTPUT') == phaseOutput &&
+            test.environment.get('CI_CONTEXT_OBSERVER_TOKEN') == observerToken
+        receiptFile.text = JsonOutput.prettyPrint(JsonOutput.toJson([
+            utc: Instant.now().toString(),
+            task_path: test.path,
+            observer_jar: observerFile.absolutePath,
+            jar_present_in_final_classpath: present,
+            expected_sha256: expectedSha,
+            actual_sha256: actualSha,
+            phase_environment_matches: environmentMatches,
+        ])) + '\n'
+        if (!present || actualSha != expectedSha || !environmentMatches) {
+            throw new GradleException('Full-context observer classpath/environment verification failed')
+        }
+    }
+}
+
+// Configuration-only registration; the execution guard retains only files and strings.
 def observerJar = System.getenv('CI_CONTEXT_OBSERVER_JAR')
 def phaseOutput = System.getenv('CI_CONTEXT_PHASE_OUTPUT')
 def observerToken = System.getenv('CI_CONTEXT_OBSERVER_TOKEN')
@@ -10,12 +57,16 @@ if (!observerJar || !phaseOutput || !observerToken || !new File(observerJar).isF
 }
 gradle.beforeProject { project ->
     if (project.path == ':feature:live-workout') {
-        project.tasks.withType(Test).configureEach { test ->
-            if (test.name == 'testDebugUnitTest') {
-                test.classpath = test.classpath.plus(project.files(observerJar))
-                test.environment('CI_CONTEXT_PHASE_OUTPUT', phaseOutput)
-                test.environment('CI_CONTEXT_OBSERVER_TOKEN', observerToken)
-            }
+        project.pluginManager.withPlugin('com.android.library') {
+            // AGP applies unitTests.all after assigning the Android test classpath.
+            project.extensions.getByName('android').testOptions.unitTests.all({ Test test ->
+                if (test.name == 'testDebugUnitTest') {
+                    test.classpath = test.classpath.plus(project.files(observerJar))
+                    test.environment('CI_CONTEXT_PHASE_OUTPUT', phaseOutput)
+                    test.environment('CI_CONTEXT_OBSERVER_TOKEN', observerToken)
+                    test.doFirst(new VerifyContextObserver(observerJar, phaseOutput, observerToken))
+                }
+            } as Action<Test>)
         }
     }
 }
