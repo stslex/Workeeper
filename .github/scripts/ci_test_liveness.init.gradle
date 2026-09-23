@@ -1,0 +1,60 @@
+import groovy.json.JsonOutput
+import org.gradle.api.GradleException
+import org.gradle.api.tasks.testing.Test
+import org.gradle.api.tasks.testing.logging.TestExceptionFormat
+import java.time.Instant
+
+def output = System.getProperty('ci.liveness.output')
+def token = System.getProperty('ci.liveness.token')
+if (!output || !token) throw new GradleException('Missing diagnostic output/token')
+def eventFile = new File(output, 'test-events.jsonl')
+eventFile.parentFile.mkdirs()
+def lock = new Object()
+def workerMarker = '-Dci.liveness.worker=' + token
+def workerPids = {
+    def matches = []
+    ProcessHandle.allProcesses().withCloseable { processes ->
+        processes.forEach { process ->
+            def arguments = process.info().arguments().orElse(new String[0])
+            if (arguments.contains(workerMarker)) matches.add(process.pid())
+        }
+    }
+    matches.sort()
+}
+def emit = { Map fields ->
+    def event = [utc: Instant.now().toString(), epoch_ms: System.currentTimeMillis(),
+                 worker_pids: workerPids()] + fields
+    synchronized (lock) {
+        eventFile.append(JsonOutput.toJson(event) + '\n', 'UTF-8')
+    }
+}
+
+gradle.beforeProject { project ->
+    project.tasks.withType(Test).configureEach { test ->
+        if (test.path == ':feature:live-workout:testDebugUnitTest') {
+            maxParallelForks = 1
+            systemProperty 'ci.liveness.worker', token
+            systemProperty 'junit.jupiter.execution.parallel.enabled', 'false'
+            failOnNoDiscoveredTests.set(true)
+            filter.failOnNoMatchingTests = true
+            testLogging {
+                events 'started', 'passed', 'skipped', 'failed', 'standardOut', 'standardError'
+                exceptionFormat = TestExceptionFormat.FULL
+                showExceptions = true
+                showCauses = true
+                showStackTraces = true
+            }
+            doFirst { emit([event: 'task_start', task: test.path, max_parallel_forks: test.maxParallelForks]) }
+            beforeTest { descriptor ->
+                emit([event: 'test_start', task: test.path, class_name: descriptor.className,
+                      name: descriptor.name, display_name: descriptor.displayName])
+            }
+            afterTest { descriptor, result ->
+                emit([event: 'test_end', task: test.path, class_name: descriptor.className,
+                      name: descriptor.name, display_name: descriptor.displayName,
+                      result: result.resultType.toString(), start_ms: result.startTime,
+                      end_ms: result.endTime])
+            }
+        }
+    }
+}

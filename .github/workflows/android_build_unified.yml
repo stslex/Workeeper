@@ -5,6 +5,15 @@ on:
     branches: [ master ]
   pull_request:
   workflow_dispatch:
+    inputs:
+      diagnostic_mode:
+        description: 'Run only a bounded host-test liveness diagnostic'
+        required: false
+        type: choice
+        default: 'off'
+        options:
+          - 'off'
+          - 'live-set-isolated'
   workflow_call:
     inputs:
       ref:
@@ -26,6 +35,7 @@ concurrency:
 jobs:
   # Main build job - runs linting, unit tests, and build
   build:
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.diagnostic_mode != 'live-set-isolated' }}
     name: Build and Unit Tests
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -313,6 +323,7 @@ jobs:
   # secrets. See
   # documentation/feature-specs/kmp-phase-7-1-ui-kit.md §9 and kmp-phase-7-2-navigation.md §9.
   kmp-ios-kit-smoke:
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.diagnostic_mode != 'live-set-isolated' }}
     name: KMP iOS kit smoke
     runs-on: macos-26
     timeout-minutes: 60
@@ -423,3 +434,64 @@ jobs:
             feature/image-viewer/build/test-results/iosSimulatorArm64Test/
             feature/plan-editor/build/test-results/iosSimulatorArm64Test/
           retention-days: 30
+
+  host-test-liveness:
+    name: Host test liveness diagnostic
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.diagnostic_mode == 'live-set-isolated' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout diagnostic branch
+        uses: actions/checkout@v4
+        timeout-minutes: 3
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        timeout-minutes: 5
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Apply existing CI Gradle configuration
+        timeout-minutes: 2
+        run: |
+          chmod +x gradlew
+          cp .github/properties/gradle-ci.properties gradle.properties
+          cp .github/properties/gradle-convention-ci.properties build-logic/gradle.properties
+
+      - name: Configure ephemeral signing material
+        timeout-minutes: 2
+        run: |
+          keytool -genkeypair -alias ci-diagnostic -keyalg RSA -keysize 2048 -validity 1 \
+            -storepass ci-diagnostic-pass -keypass ci-diagnostic-pass \
+            -dname "CN=host-test-diagnostic" -keystore "$RUNNER_TEMP/ci-diagnostic.jks"
+          cp "$RUNNER_TEMP/ci-diagnostic.jks" ci-diagnostic.jks
+          {
+            echo "storeFile=ci-diagnostic.jks"
+            echo "keyAlias=ci-diagnostic"
+            echo "storePassword=ci-diagnostic-pass"
+            echo "keyPassword=ci-diagnostic-pass"
+          } > keystore.properties
+
+      - name: Run the isolated method with bounded diagnostics
+        timeout-minutes: 28
+        run: python3 .github/scripts/run_ci_test_liveness.py --output "$RUNNER_TEMP/ci-liveness"
+
+      - name: Upload raw host-test diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        timeout-minutes: 3
+        with:
+          name: host-test-liveness-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/ci-liveness/
+            feature/live-workout/build/test-results/testDebugUnitTest/
+            feature/live-workout/build/reports/tests/testDebugUnitTest/
+          if-no-files-found: warn
+          retention-days: 14
