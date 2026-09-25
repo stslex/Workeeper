@@ -17,6 +17,7 @@ from acceptance_model import (
     notification_deadline, notification_key, process_birth, removal_result, strict_json,
     uptime_ms, validate_config, validate_observation, validate_retention_progress, validate_ui_receipt,
     validate_elapsed_calibration, resumed_activities, background_activity_state, validate_background_continuity,
+    validate_passive_timeout,
 )
 from adb_acceptance import artifact_inventory, extract_artifacts, parse_sections, run_cell, observation_verdict, UI_INVOCATIONS, death_trial
 from run_mutations import is_assertion_test_failure
@@ -29,9 +30,10 @@ KEY = "0|io.github.stslex.workeeper.dev|35501|null|10083"
 IDENTITY = ("io.github.stslex.workeeper.wear.acceptance.WearActivityAcceptanceTest", "fixtureRendersThroughRealActivity")
 
 
-def instrument_output(code=0, final=-1):
+def instrument_output(code=0, final=-1, stack=None):
     common = f"INSTRUMENTATION_STATUS: class={IDENTITY[0]}\nINSTRUMENTATION_STATUS: test={IDENTITY[1]}\n"
-    return common + "INSTRUMENTATION_STATUS_CODE: 1\n" + common + f"INSTRUMENTATION_STATUS_CODE: {code}\nINSTRUMENTATION_CODE: {final}\n"
+    failure = "" if stack is None else f"INSTRUMENTATION_STATUS: stack={stack}\n"
+    return common + "INSTRUMENTATION_STATUS_CODE: 1\n" + common + failure + f"INSTRUMENTATION_STATUS_CODE: {code}\nINSTRUMENTATION_CODE: {final}\n"
 
 
 def sample(when, *, key=KEY, pid=None, birth=None):
@@ -73,6 +75,13 @@ class MatrixEvidenceTest(unittest.TestCase):
         with self.assertRaises(InvalidEvidence):
             inventory_result({**rows, "ui/extra": {"status": "PASS"}})
         self.assertEqual("FAIL", inventory_result({**rows, next(iter(rows)): {"status": "FAIL"}})["status"])
+
+    def test_passive_trials_require_measured_integer_fifteen_second_timeout(self):
+        validate_passive_timeout({"screenOffTimeoutMs": 15000})
+        for invalid in ({}, {"screenOffTimeoutMs": 120000}, {"screenOffTimeoutMs": "15000"},
+                        {"screenOffTimeoutMs": 15000.0}, {"screenOffTimeoutMs": True}, {"screenOffTimeoutMs": None}):
+            with self.assertRaises(InvalidEvidence):
+                validate_passive_timeout(invalid)
 
     def test_config_uses_actual_resources_and_rejects_matrix_drift(self):
         cell = cell_by_id("api36-192-ru-1.24")
@@ -207,10 +216,31 @@ class MonotonicEvidenceTest(unittest.TestCase):
         with self.assertRaises(InvalidEvidence):
             boot_id("missing")
 
+    def test_removal_before_deadline_is_failure_with_centisecond_precision(self):
+        for deadline in (10000, 9930):
+            with self.assertRaises(ObservedFailure):
+                removal_result([sample(9700), sample(9900, key=None)], deadline)
+        try:
+            uncertain = removal_result([sample(9700), sample(9900, key=None)], 9925)
+        except InvalidEvidence as error:
+            self.fail(f"A boundary within the recorded clock precision was rejected: {error}")
+        self.assertEqual([9700, 9930], uncertain["removal_interval_ms"])
+        self.assertEqual(10, uncertain.get("clock_precision_ms"))
+
+    def test_removal_watchdog_requires_quantized_upper_bound(self):
+        with self.assertRaises(InvalidEvidence):
+            removal_result([sample(14780), sample(14980, key=None)], 10000)
+        try:
+            result = removal_result([sample(14770), sample(14970, key=None)], 10000)
+        except InvalidEvidence as error:
+            self.fail(f"A fully bounded watchdog observation was rejected: {error}")
+        self.assertEqual([14770, 15000], result["removal_interval_ms"])
+        self.assertEqual(10, result.get("clock_precision_ms"))
+
     def test_removal_has_a_real_bracket_and_no_live_app(self):
         rows = [sample(9900), sample(10100), sample(10300, key=None)]
         result = removal_result(rows, 10000)
-        self.assertEqual([10100, 10320], result["removal_interval_ms"])
+        self.assertEqual([10100, 10330], result["removal_interval_ms"])
         for invalid in ([sample(9900, pid=1, birth=99), sample(10100, key=None)],
                         [sample(9900), sample(10100, key="wrong")],
                         [sample(9900, key=None), sample(10100, key=None)], [sample(9900)]):
@@ -253,8 +283,38 @@ class InstrumentationEvidenceTest(unittest.TestCase):
             instrumentation_results(instrument_output() + instrument_output(), {IDENTITY})
 
     def test_actual_named_assertion_failure_is_fail(self):
-        with self.assertRaises(ObservedFailure):
-            instrumentation_results(instrument_output(-2), {IDENTITY})
+        for assertion in ("AssertionError", "java.lang.AssertionError", "junit.framework.AssertionFailedError",
+                          "junit.framework.ComparisonFailure", "org.junit.ComparisonFailure", "org.opentest4j.AssertionFailedError",
+                          "org.junit.internal.ArrayComparisonFailure"):
+            with self.assertRaises(ObservedFailure):
+                instrumentation_results(instrument_output(-2, stack=assertion + ": expected a different value"), {IDENTITY})
+
+    def test_execution_errors_are_inconclusive_even_with_assertion_stack(self):
+        for code, stack in ((-1, "java.lang.IllegalStateException: setup failed"),
+                            (-1, "java.lang.AssertionError: runner failed"),
+                            (2, "java.lang.AssertionError: unknown status")):
+            try:
+                instrumentation_results(instrument_output(code, stack=stack), {IDENTITY})
+            except InvalidEvidence:
+                pass
+            except ObservedFailure as error:
+                self.fail(f"Execution status was misclassified as an application assertion: {error}")
+            else:
+                self.fail("Execution error incorrectly returned completed test evidence")
+
+    def test_failure_code_requires_top_level_assertion_stack(self):
+        stacks = (None, "", "java.lang.RuntimeException: setup failed",
+                  "java.lang.IllegalStateException: wrapper\nCaused by: java.lang.AssertionError: nested",
+                  "at org.junit.Assert.fail(Assert.java:89)", "java.lang.AssertionErrorExtra: unknown type")
+        for stack in stacks:
+            try:
+                instrumentation_results(instrument_output(-2, stack=stack), {IDENTITY})
+            except InvalidEvidence:
+                pass
+            except ObservedFailure as error:
+                self.fail(f"Non-assertion stack was misclassified as an application assertion: {error}")
+            else:
+                self.fail("Non-assertion stack incorrectly returned completed test evidence")
 
 
 class ArtifactEvidenceTest(unittest.TestCase):
@@ -439,7 +499,7 @@ class DeathPreparationTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             adb = SimpleNamespace(directory=Path(directory), shell=shell, command=Mock(return_value=b"cache"), screenshot=Mock())
             with patch("adb_acceptance.start_trial", return_value=sample(1000, pid=77, birth=8)), patch(
-                "adb_acceptance.deadline", return_value=2000
+                "adb_acceptance.deadline", return_value=1400
             ), patch("adb_acceptance.background_for_death", side_effect=background), patch(
                 "adb_acceptance.observe", side_effect=observations
             ), patch("adb_acceptance.time.sleep"):

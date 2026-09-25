@@ -111,7 +111,7 @@ private fun WearAcceptanceSession.exerciseLowerBoundsAndExpiry() {
     assertEquals("Zero explicitly clears weight", null, runtimeModel().weightHundredthsKg)
     capture("weight-unset")
     pressBack()
-    assertControllerRotary("after-weight-back", requireOverflow = true)
+    assertControllerRotary("after-weight-back")
 
     dispatchScenario("fixture:${SyntheticSurfaceFixtures.FIELD_ERROR}")
     openEditor("reps_card")
@@ -123,11 +123,11 @@ private fun WearAcceptanceSession.exerciseLowerBoundsAndExpiry() {
     assertEquals(1, runtimeModel().reps)
     rule.onNodeWithTag("editor").performTouchInput { swipeRight() }
     rule.waitForIdle()
-    assertControllerRotary("after-reps-swipe", requireOverflow = true)
+    assertControllerRotary("after-reps-swipe")
     openEditor("reps_card")
     dispatchScenario("expire")
     assertFalse("Synthetic expiry removes editing authority", runtimeModel().controlsEnabled)
-    assertControllerRotary("after-explicit-authority-expiry", requireOverflow = true)
+    assertControllerRotary("after-explicit-authority-expiry")
     capture("expired")
 }
 

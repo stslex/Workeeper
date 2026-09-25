@@ -28,6 +28,7 @@ FIXTURES = (
     "protocol_mismatch", "no_session", "loading",
 )
 NOTIFICATION_ID = 35501
+UPTIME_PRECISION_MS = 10
 DEADLINE_EXTRA = "io.github.stslex.workeeper.ongoing.stop_at_elapsed_ms"
 STATUSES = frozenset(("PASS", "FAIL", "BLOCKED", "N/A"))
 ACTIVITY_CLASS = "io.github.stslex.workeeper.wear.MainActivity"
@@ -306,11 +307,15 @@ def removal_result(samples: list[Observation], deadline_ms: int, tolerance_ms: i
         if sample.key is None:
             if last_present is None:
                 raise InvalidEvidence("No present-to-absent transition")
-            if sample.after_ms > deadline_ms + tolerance_ms:
+            absent_upper_ms = sample.after_ms + UPTIME_PRECISION_MS
+            if absent_upper_ms <= deadline_ms:
+                raise ObservedFailure("Notification disappeared before its persisted deadline")
+            if absent_upper_ms > deadline_ms + tolerance_ms:
                 raise InvalidEvidence("Removal interval straddles or exceeds the declared watchdog")
             return {"last_present": asdict(last_present), "first_absent": asdict(sample),
-                    "removal_interval_ms": [last_present.before_ms, sample.after_ms],
-                    "deadline_ms": deadline_ms, "tolerance_ms": tolerance_ms}
+                    "removal_interval_ms": [last_present.before_ms, absent_upper_ms],
+                    "deadline_ms": deadline_ms, "tolerance_ms": tolerance_ms,
+                    "clock_precision_ms": UPTIME_PRECISION_MS}
         last_present = sample
         previous = sample
     if samples[-1].before_ms >= deadline_ms + tolerance_ms:
@@ -356,9 +361,26 @@ def instrumentation_results(text: str, expected: set[tuple[str, str]]) -> list[d
         raise InvalidEvidence("Missing/incomplete instrumentation identities or final result")
     if any(row["code"] in (-3, -4) for row in finished.values()):
         raise InvalidEvidence("Skipped/assumption-failed test is not acceptance")
+    assertion_types = {"AssertionError", "java.lang.AssertionError", "junit.framework.AssertionFailedError",
+                       "org.opentest4j.AssertionFailedError", "junit.framework.ComparisonFailure",
+                       "org.junit.ComparisonFailure", "org.junit.internal.ArrayComparisonFailure"}
+    for row in finished.values():
+        if row["code"] not in (0, -2):
+            raise InvalidEvidence("Instrumentation execution failed or reported an unsupported status")
+        if row["code"] == -2:
+            first_line = next((line.strip() for line in row["stack"].splitlines() if line.strip()), "")
+            failure_type = first_line.partition(":")[0].strip()
+            if failure_type not in assertion_types:
+                raise InvalidEvidence("Instrumentation failure lacks a top-level assertion or comparison failure")
     if any(row["code"] != 0 for row in finished.values()):
         raise ObservedFailure("Named instrumentation test failed")
     return list(finished.values())
+
+
+def validate_passive_timeout(config: dict) -> None:
+    value = config.get("screenOffTimeoutMs")
+    if type(value) is not int or value != 15000:
+        raise InvalidEvidence("Passive lifecycle trials require the measured 15000 ms screen timeout")
 
 
 def validate_config(config: dict, cell: Cell) -> None:

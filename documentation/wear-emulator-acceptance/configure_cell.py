@@ -17,6 +17,8 @@ def main():
     parser.add_argument("--package", choices=("io.github.stslex.workeeper", "io.github.stslex.workeeper.dev"),
                         default="io.github.stslex.workeeper.dev")
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--screen-timeout-ms", choices=("15000", "120000"), default="120000",
+                        help="Use 120000 for interactive captures; 15000 for passive lifecycle comparisons")
     parser.add_argument("--disable-tilt-to-wake", action="store_true",
                         help="Work around a separately recorded emulator wrist-sensor HAL failure")
     args = parser.parse_args()
@@ -37,7 +39,8 @@ def main():
     args.output.parent.mkdir(parents=True, exist_ok=True)
     receipt = {"requested_locale": args.locale, "requested_scale": float(args.scale),
                "package": args.package, "commands": commands, "status": "BLOCKED",
-               "disable_tilt_to_wake": args.disable_tilt_to_wake}
+               "disable_tilt_to_wake": args.disable_tilt_to_wake,
+               "requested_screen_timeout_ms": int(args.screen_timeout_ms)}
     try:
         api = int(adb("shell", "getprop", "ro.build.version.sdk"))
         if api not in (30, 36):
@@ -66,6 +69,7 @@ def main():
             while True:
                 try:
                     if "package:" in adb("shell", "pm", "path", "android"):
+                        adb("shell", "settings", "get", "system", "font_scale")
                         break
                 except subprocess.CalledProcessError:
                     pass
@@ -85,7 +89,10 @@ def main():
             receipt["tilt_to_wake"] = adb("shell", "settings", "get", "global", "ambient_tilt_to_wake")
             if receipt["tilt_to_wake"] != "0":
                 raise RuntimeError("Tilt-to-wake workaround did not take effect")
-        adb("shell", "settings", "put", "system", "screen_off_timeout", "15000")
+        adb("shell", "settings", "put", "system", "screen_off_timeout", args.screen_timeout_ms)
+        receipt["screen_timeout_ms"] = adb("shell", "settings", "get", "system", "screen_off_timeout")
+        if receipt["screen_timeout_ms"] != args.screen_timeout_ms:
+            raise RuntimeError("Requested screen timeout did not take effect")
         adb("shell", "svc", "power", "stayon", "false")
         adb("shell", "input", "keyevent", "KEYCODE_WAKEUP")
         receipt["display"] = {"size": adb("shell", "wm", "size"),

@@ -394,5 +394,50 @@
     "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
     "expected_class": "test_acceptance.NotificationEvidenceTest",
     "expected_method": "test_api30_user_all_list_and_colon_record_preserve_exact_target_identity"
+  },
+  {
+    "name": "parser-credits-premature-notification-removal",
+    "file": "documentation/wear-emulator-acceptance/acceptance_model.py",
+    "find": "if absent_upper_ms <= deadline_ms:",
+    "replace": "if False and absent_upper_ms <= deadline_ms:",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.MonotonicEvidenceTest",
+    "expected_method": "test_removal_before_deadline_is_failure_with_centisecond_precision"
+  },
+  {
+    "name": "parser-ignores-watchdog-clock-quantization",
+    "file": "documentation/wear-emulator-acceptance/acceptance_model.py",
+    "find": "if absent_upper_ms > deadline_ms + tolerance_ms:",
+    "replace": "if sample.after_ms > deadline_ms + tolerance_ms:",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.MonotonicEvidenceTest",
+    "expected_method": "test_removal_watchdog_requires_quantized_upper_bound"
+  },
+  {
+    "name": "parser-classifies-instrumentation-error-as-app-failure",
+    "file": "documentation/wear-emulator-acceptance/acceptance_model.py",
+    "find": "if row[\"code\"] not in (0, -2):",
+    "replace": "if row[\"code\"] not in (0, -1, -2):",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.InstrumentationEvidenceTest",
+    "expected_method": "test_execution_errors_are_inconclusive_even_with_assertion_stack"
+  },
+  {
+    "name": "parser-classifies-nonassertion-stack-as-app-failure",
+    "file": "documentation/wear-emulator-acceptance/acceptance_model.py",
+    "find": "if failure_type not in assertion_types:",
+    "replace": "if False and failure_type not in assertion_types:",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.InstrumentationEvidenceTest",
+    "expected_method": "test_failure_code_requires_top_level_assertion_stack"
+  },
+  {
+    "name": "parser-accepts-wrong-passive-screen-timeout",
+    "file": "documentation/wear-emulator-acceptance/acceptance_model.py",
+    "find": "if type(value) is not int or value != 15000:",
+    "replace": "if False:",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.MatrixEvidenceTest",
+    "expected_method": "test_passive_trials_require_measured_integer_fifteen_second_timeout"
   }
 ]

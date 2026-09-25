@@ -25,6 +25,7 @@ from acceptance_model import (
     inventory_result, matrix, no_shell_error, notification_deadline, notification_key,
     process_birth, removal_result, sha256, strict_json, uptime_ms, validate_config,
     validate_elapsed_calibration, validate_observation, validate_retention_progress,
+    validate_passive_timeout,
     validate_ui_receipt, resumed_activities, background_activity_state, validate_background_continuity,
 )
 
@@ -398,6 +399,7 @@ def start_trial(adb: Adb, plan: dict, api: int) -> Observation:
     cell = cell_by_id(f"api{api}-192-ru-1.24")
     calibration = run_instrumentation(adb, plan, cell, UI_METHOD, "active_boundary")
     write_json(adb.directory / "pre-trial-calibration.json", calibration)
+    validate_passive_timeout(calibration["receipt"]["configuration"])
     # The instrumentation has finished. The timed trial starts in a new ordinary app process.
     fresh_setup(adb, plan, api, "ru")
     raw = adb.shell("am", "start", "-W", "--user", str(plan["user"]), "-n", f"{plan['package']}/{ACTIVITY_CLASS}",

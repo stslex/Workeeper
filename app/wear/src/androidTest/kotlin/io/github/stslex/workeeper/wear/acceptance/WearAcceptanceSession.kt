@@ -6,6 +6,7 @@ import android.graphics.Bitmap
 import android.os.Build
 import android.os.ParcelFileDescriptor
 import android.os.SystemClock
+import android.provider.Settings
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
@@ -61,8 +62,15 @@ internal class WearAcceptanceSession(val rule: ComposeTestRule) {
     }
 
     private fun launch() {
-        val wake = instrumentation.uiAutomation.executeShellCommand("input keyevent KEYCODE_WAKEUP")
-        ParcelFileDescriptor.AutoCloseInputStream(wake).use { it.readBytes() }
+        // WAKEUP does not reset idle time while already awake; reset it before interactive captures.
+        val keys = listOf("SLEEP", "WAKEUP")
+        receipt.put("initialPowerKeys", JSONArray(keys))
+            .put("initialPowerResetStartedElapsedMs", SystemClock.elapsedRealtime())
+        keys.forEach { key ->
+            val descriptor = instrumentation.uiAutomation.executeShellCommand("input keyevent KEYCODE_$key")
+            ParcelFileDescriptor.AutoCloseInputStream(descriptor).use { it.readBytes() }
+        }
+        receipt.put("initialPowerResetFinishedElapsedMs", SystemClock.elapsedRealtime())
         val intent = Intent(instrumentation.targetContext, MainActivity::class.java)
             .putExtra(SyntheticSurfaceFixtures.EXTRA_ID, "fixture:$fixture")
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
@@ -115,6 +123,10 @@ internal class WearAcceptanceSession(val rule: ComposeTestRule) {
         val root = rule.onRoot().fetchSemanticsNode()
         val actual = JSONObject().put("api", Build.VERSION.SDK_INT).put("isScreenRound", config.isScreenRound)
             .put("elapsedRealtimeMs", SystemClock.elapsedRealtime())
+            .put(
+                "screenOffTimeoutMs",
+                Settings.System.getLong(activity.contentResolver, Settings.System.SCREEN_OFF_TIMEOUT),
+            )
             .put("screenWidthDp", config.screenWidthDp).put("screenHeightDp", config.screenHeightDp)
             .put("locale", config.locales[0].language).put("localeTag", config.locales[0].toLanguageTag())
             .put("fontScale", config.fontScale)

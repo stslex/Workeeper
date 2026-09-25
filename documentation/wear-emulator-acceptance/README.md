@@ -66,12 +66,20 @@ platform per-app locales; it does not require root. On API 30 it uses the offici
 userdebug image's root capability to set the framework locale and restart that isolated
 emulator's framework when necessary. Do this before starting a measured trial, since it
 restarts processes. The script also simulates an unplugged battery, enables ambient,
-disables stay-awake while plugged in, sets a 15-second screen timeout and records the
+disables stay-awake while plugged in, sets a 120-second interactive screen timeout and records the
 previous settings. The battery override prevents the Wear OS 3 charging screen from
 covering application ambient; it is not an energy measurement. Keep the same unplugged
 condition for baseline and active trials. Its result is
 `CONFIGURED_NOT_VERIFIED`; only the test Activity's actual locale, font scale, roundness
 and dp dimensions establish the cell configuration.
+
+Each instrumentation launch sends SLEEP then WAKEUP before opening the Activity, resetting
+the inherited idle interval without replacing the composition or adding a keep-awake window
+flag. WAKEUP alone has no effect on an already awake display. The effective screen timeout
+is recorded in the Activity configuration. Explicit ambient SLEEP/WAKE checks remain enabled.
+Before passive retention, process-death and inactivity-baseline trials, configure the same
+cell with `--screen-timeout-ms 15000`; keep that setting equal for the compared trials.
+The lifecycle runner rejects a calibration that does not report that measured timeout.
 
 If the selected emulator reports the sensor HAL abort
 `activationOnChangeSensorEvent:231: unexpected sensor type: 26`, retain its crash log and
@@ -131,6 +139,9 @@ prefix. The rotary/editor/press flow retains eight capture groups: `first-view` 
 ambient retains `before-sleep`, `system-ambient` and `after-wake`.
 A static preview cannot satisfy an interaction or lifecycle invocation.
 Inspect the screenshots and bounds for each cell before entering its visual verdict.
+Rotary must move an overflowing controller in both directions. A controller that fits the
+240dp viewport still checks focus ownership and unchanged numeric values; its receipt records
+zero scroll range and `motionObserved=false`, rather than requiring artificial overflow.
 
 Run the four natural ambient-expiry cases separately: both editors on each API at
 192dp/RU/1.24. They wait for genuine elapsed-time authority expiry and require the editor
@@ -386,6 +397,12 @@ retention receipt. A missing, delayed or incompatible observation
 is inconclusive rather than evidence of acceptable timing. These instrument bounds do
 not calibrate the application's production reconnect or retention policy.
 
+The notification must survive until its persisted deadline. A disappearance proved earlier
+is `FAIL`; an interval that cannot establish removal before the five-second watchdog is
+`BLOCKED`. `/proc/uptime` has 10ms printed precision: the conservative absence upper bound is
+the observed end plus 10ms, and the report retains this precision and the full removal interval.
+This rounding bound is part of the observer, not a production timing tolerance.
+
 Record permission denial and restoration, return from the ongoing notification to the
 same Activity, and the system Tile separately. Granting permission alone must not create
 a notification or renew authority. The ordinary UI remains available while notification
@@ -465,6 +482,27 @@ clearing its data or granting permissions for the next setup. After the control 
 rerun the restored UI baselines and archive their XML before starting the acceptance cohort.
 
 ## Reporting
+
+### Recorded infrastructure findings
+
+The first frozen attempt at `bcb8466c` completed the two API30/240dp/EN cells: 44
+invocations, 40 PASS and four FAIL. Keep those original verdicts and artifacts; they do
+not become passing acceptance evidence after the runner changes. The evidence bundle
+contains `attempt-bcb8466-analysis.md` and the review reproductions below. Application
+sources under `app/wear/src/main` were unchanged from the PR #290 baseline.
+
+| Finding | Observed evidence | Classification and correction |
+| --- | --- | --- |
+| A1: framework readiness | PackageManager was available after an API30 locale restart while SettingsService still returned exit 20. | Infrastructure setup failure; wait for both services. Preserve the failed setup receipt. |
+| A2: inherited display idle | Three fixture failures had an ambient-only bounds tree; two earlier captures in the same invocation were still interactive. | Mixed capture states, not proof of a missing interactive controller. Reset display idle before launch and use the recorded interactive timeout. Passive trials retain their separate 15-second setting. |
+| A3: a controller that fits | At 240dp/font1.0, `after-weight-back` had zero scroll range; the same path at font1.24 moved 0 → 1 → 0px. | Invalid overflow precondition; retain focus, numeric invariants and mandatory bidirectional movement wherever range is positive. |
+| R1: premature notification removal | At deadline 10000ms, the observer incorrectly accepted an absence bracket ending at 1220ms. | [Correct and new](https://github.com/stslex/Workeeper/pull/291#discussion_r4104491191); reject proved early disappearance and account for printed clock precision at both deadline bounds. |
+| R2: instrumentation execution errors | Named status −1 with `IllegalStateException`, and −2 with `RuntimeException`, both became application FAIL. | [Correct and new](https://github.com/stslex/Workeeper/pull/291#discussion_r4104491201); require a named top-level assertion for FAIL, otherwise record BLOCKED. |
+
+Changed source or tooling requires a new frozen cohort and APK provenance. Successful
+retries supplement these records; they never overwrite the original outcomes.
+
+### Acceptance ledger
 
 Every required row must report `PASS`, `FAIL` or `BLOCKED` with raw artifacts and a reason.
 Capability-level `N/A` must be explicit and cannot replace an entire required matrix row.
