@@ -560,8 +560,8 @@
   {
     "name": "manual-creates-case-before-attachment-preflight",
     "file": "documentation/wear-emulator-acceptance/adb_acceptance.py",
-    "find": "        prepared = []\n        for path in args.artifact:\n            if not path.is_file() or not path.stat().st_size:\n                raise InvalidEvidence(\"Manual verdict needs existing, nonempty supporting evidence\")\n            digest = hashlib.sha256()\n            size = 0\n            with path.open(\"rb\") as stream:\n                for chunk in iter(lambda: stream.read(1024 * 1024), b\"\"):\n                    digest.update(chunk)\n                    size += len(chunk)\n            if not size:\n                raise InvalidEvidence(\"Manual evidence became empty during preflight\")\n            prepared.append((path, size, digest.hexdigest()))\n        destination = create_case_directory(args.cohort, args.case)\n",
-    "replace": "        destination = create_case_directory(args.cohort, args.case)\n        prepared = []\n        for path in args.artifact:\n            if not path.is_file() or not path.stat().st_size:\n                raise InvalidEvidence(\"Manual verdict needs existing, nonempty supporting evidence\")\n            digest = hashlib.sha256()\n            size = 0\n            with path.open(\"rb\") as stream:\n                for chunk in iter(lambda: stream.read(1024 * 1024), b\"\"):\n                    digest.update(chunk)\n                    size += len(chunk)\n            if not size:\n                raise InvalidEvidence(\"Manual evidence became empty during preflight\")\n            prepared.append((path, size, digest.hexdigest()))\n",
+    "find": "        prepared = []\n        for path in args.artifact:\n            if not path.is_file() or not path.stat().st_size:\n                raise InvalidEvidence(\"Manual verdict needs existing, nonempty supporting evidence\")\n            digest = hashlib.sha256()\n            size = 0\n            with path.open(\"rb\") as stream:\n                for chunk in iter(lambda: stream.read(1024 * 1024), b\"\"):\n                    digest.update(chunk)\n                    size += len(chunk)\n            if not size:\n                raise InvalidEvidence(\"Manual evidence became empty during preflight\")\n            prepared.append((path, size, digest.hexdigest()))\n        destination = create_manual_staging_directory(args.cohort, args.case)\n",
+    "replace": "        destination = create_manual_staging_directory(args.cohort, args.case)\n        prepared = []\n        for path in args.artifact:\n            if not path.is_file() or not path.stat().st_size:\n                raise InvalidEvidence(\"Manual verdict needs existing, nonempty supporting evidence\")\n            digest = hashlib.sha256()\n            size = 0\n            with path.open(\"rb\") as stream:\n                for chunk in iter(lambda: stream.read(1024 * 1024), b\"\"):\n                    digest.update(chunk)\n                    size += len(chunk)\n            if not size:\n                raise InvalidEvidence(\"Manual evidence became empty during preflight\")\n            prepared.append((path, size, digest.hexdigest()))\n",
     "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
     "expected_class": "test_acceptance.ManualRegistrationTest",
     "expected_method": "test_invalid_later_attachment_leaves_no_partial_case"
@@ -745,5 +745,41 @@
     "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
     "expected_class": "test_acceptance.DeathSignalTest",
     "expected_method": "test_explicit_term_trial_keeps_background_and_removal_oracles"
+  },
+  {
+    "name": "manual-publishes-directory-before-copy",
+    "file": "documentation/wear-emulator-acceptance/adb_acceptance.py",
+    "find": "def create_manual_staging_directory(cohort: Path, case_id: str) -> Path:\n    staging = cohort / \"manual-attempts\" / f\"{case_id.replace('/', '--')}-{uuid.uuid4().hex}\"\n    require_local_path(cohort, staging)\n    staging.mkdir(parents=True, exist_ok=False)\n    return staging\n\n\ndef publish_manual_directory(cohort: Path, case_id: str, staging: Path) -> None:\n    destination = cohort / \"cases\" / case_id\n    require_local_path(cohort, destination)\n    destination.parent.mkdir(parents=True, exist_ok=True)\n    # rename can replace an empty directory; recorded and incomplete cases both stay immutable.\n    if destination.exists():\n        raise FileExistsError(destination)\n    staging.rename(destination)\n\n\n",
+    "replace": "def create_manual_staging_directory(cohort: Path, case_id: str) -> Path:\n    return create_case_directory(cohort, case_id)\n\n\ndef publish_manual_directory(cohort: Path, case_id: str, staging: Path) -> None:\n    pass\n\n\n",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.ManualRegistrationTest",
+    "expected_method": "test_late_manual_io_failures_preserve_attempt_and_allow_retry"
+  },
+  {
+    "name": "manual-replaces-existing-empty-case",
+    "file": "documentation/wear-emulator-acceptance/adb_acceptance.py",
+    "find": "    if destination.exists():\n        raise FileExistsError(destination)",
+    "replace": "    if False:\n        raise FileExistsError(destination)",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.ManualRegistrationTest",
+    "expected_method": "test_manual_publication_refuses_a_new_empty_case"
+  },
+  {
+    "name": "manual-deletes-prior-unpublished-attempts",
+    "file": "documentation/wear-emulator-acceptance/adb_acceptance.py",
+    "find": "    staging.mkdir(parents=True, exist_ok=False)",
+    "replace": "    for old_attempt in (cohort / \"manual-attempts\").glob(\"*\"):\n        __import__(\"shutil\").rmtree(old_attempt)\n    staging.mkdir(parents=True, exist_ok=False)",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.ManualRegistrationTest",
+    "expected_method": "test_late_manual_io_failures_preserve_attempt_and_allow_retry"
+  },
+  {
+    "name": "manual-hides-unpublished-attempt-history",
+    "file": "documentation/wear-emulator-acceptance/adb_acceptance.py",
+    "find": "\"unpublished_manual_attempts\": unpublished",
+    "replace": "\"unpublished_manual_attempts\": []",
+    "task": ":app:wear:verifyEmulatorAcceptanceRunner --no-configuration-cache --console=plain",
+    "expected_class": "test_acceptance.ManualRegistrationTest",
+    "expected_method": "test_report_keeps_unpublished_manual_attempts_visible"
   }
 ]

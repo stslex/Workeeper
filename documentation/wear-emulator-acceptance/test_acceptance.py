@@ -768,6 +768,7 @@ class ManualRegistrationTest(unittest.TestCase):
                     with self.assertRaises((InvalidEvidence, OSError)):
                         self.invoke(cohort, [first, last])
                 self.assertFalse((cohort / "cases").exists(), "Preflight must not publish a partial case")
+                self.assertFalse((cohort / "manual-attempts").exists())
                 self.assertEqual("Keep the first source artifact", first.read_text())
 
     def test_valid_manual_artifacts_preserve_bytes_and_existing_case(self):
@@ -780,12 +781,13 @@ class ManualRegistrationTest(unittest.TestCase):
             second.write_bytes(bytes(range(256)))
             self.invoke(cohort, [first, second])
             case = cohort / "cases/manual/api36/system-tile"
+            self.assertTrue((case / "receipt.json").is_file())
             receipt = json.loads((case / "receipt.json").read_text())
             self.assertEqual("BLOCKED", receipt["status"])
             self.assertEqual(first.read_bytes(), (case / "operator-00-first.txt").read_bytes())
             self.assertEqual(second.read_bytes(), (case / "operator-01-second.bin").read_bytes())
             before = {str(path.relative_to(case)): path.read_bytes() for path in case.rglob("*") if path.is_file()}
-            with self.assertRaises(FileExistsError):
+            with self.assertRaises(OSError):
                 self.invoke(cohort, [first, second])
             self.assertEqual(before, {str(path.relative_to(case)): path.read_bytes()
                                       for path in case.rglob("*") if path.is_file()})
@@ -806,9 +808,94 @@ class ManualRegistrationTest(unittest.TestCase):
                 with self.assertRaises(InvalidEvidence):
                     self.invoke(cohort, [evidence])
             case = cohort / "cases/manual/api36/system-tile"
+            self.assertFalse(case.exists(), "An unpublished copy must not reserve the required case")
             self.assertFalse((case / "receipt.json").exists())
             self.assertFalse((case / "operator-00-evidence.txt").exists())
             self.assertEqual(b"expected", evidence.read_bytes())
+            attempts = list((cohort / "manual-attempts").glob("*"))
+            self.assertEqual(1, len(attempts))
+            self.invoke(cohort, [evidence])
+            self.assertTrue((case / "receipt.json").is_file())
+            self.assertTrue(attempts[0].is_dir(), "A successful retry must retain the failed attempt")
+
+    def test_late_manual_io_failures_preserve_attempt_and_allow_retry(self):
+        for fault in ("copy", "receipt", "publish"):
+            with self.subTest(fault=fault), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                cohort = root / "cohort"
+                cohort.mkdir()
+                first, last = root / "first.txt", root / "last.txt"
+                first.write_bytes(b"first evidence")
+                last.write_bytes(b"last evidence")
+                case = cohort / "cases/manual/api36/system-tile"
+                real_write, real_json, real_rename = Path.write_bytes, acceptance_runner.write_json, Path.rename
+
+                def write(path, content):
+                    if fault == "copy" and path.name == "operator-01-last.txt":
+                        raise OSError("Injected late copy failure")
+                    return real_write(path, content)
+
+                def json_write(path, value):
+                    if path.name == "receipt.json":
+                        self.assertFalse(case.exists(), "Only the complete bundle may become a case")
+                        if fault == "receipt":
+                            raise OSError("Injected receipt failure")
+                    return real_json(path, value)
+
+                def rename(path, target):
+                    if fault == "publish" and Path(target).resolve() == case.resolve():
+                        raise OSError("Injected publication failure")
+                    return real_rename(path, target)
+
+                with patch.object(Path, "write_bytes", write), patch.object(
+                    Path, "rename", rename,
+                ), patch("adb_acceptance.write_json", json_write):
+                    with self.assertRaises(OSError):
+                        self.invoke(cohort, [first, last])
+                self.assertFalse(case.exists(), "A failed publication must remain retryable")
+                attempts = list((cohort / "manual-attempts").glob("*"))
+                self.assertEqual(1, len(attempts))
+                before = {str(p.relative_to(attempts[0])): p.read_bytes()
+                          for p in attempts[0].rglob("*") if p.is_file()}
+                self.assertEqual(b"first evidence", before.get("operator-00-first.txt"))
+                self.invoke(cohort, [first, last])
+                self.assertTrue((case / "receipt.json").is_file())
+                self.assertEqual(before, {str(p.relative_to(attempts[0])): p.read_bytes()
+                                          for p in attempts[0].rglob("*") if p.is_file()})
+
+    def test_manual_publication_refuses_a_new_empty_case(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            cohort = root / "cohort"
+            cohort.mkdir()
+            evidence = root / "evidence.txt"
+            evidence.write_bytes(b"observed")
+            case = cohort / "cases/manual/api36/system-tile"
+            real_json = acceptance_runner.write_json
+
+            def json_write(path, value):
+                result = real_json(path, value)
+                if path.name == "receipt.json":
+                    case.mkdir(parents=True, exist_ok=True)
+                return result
+
+            with patch("adb_acceptance.write_json", json_write), self.assertRaises(FileExistsError):
+                self.invoke(cohort, [evidence])
+            self.assertEqual([], list(case.iterdir()), "An existing empty directory must not be replaced")
+            self.assertEqual(1, len(list((cohort / "manual-attempts").glob("*/receipt.json"))))
+
+    def test_report_keeps_unpublished_manual_attempts_visible(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            cohort = Path(temporary)
+            attempt = cohort / "manual-attempts/manual--api36--system-tile-failed"
+            attempt.mkdir(parents=True)
+            (attempt / "receipt.json").write_text('{"status":"PASS"}')
+            plan = {"cohort": "manual-test", "source": {"head": "test"}, "expected": expected_inventory()}
+            with patch("adb_acceptance.validate_plan", return_value=plan):
+                result = acceptance_runner.report(cohort)
+            self.assertEqual([str(attempt.relative_to(cohort))], result.get("unpublished_manual_attempts"))
+            self.assertEqual({}, result["cases"])
+            self.assertEqual("BLOCKED", result["status"])
 
 
 class DeathSignalTest(unittest.TestCase):

@@ -1,0 +1,176 @@
+{
+  "status": "PASS",
+  "scope": "Manual evidence publication infrastructure only; no APK rebuild or emulator rerun",
+  "review_comment": "https://github.com/stslex/Workeeper/pull/291#discussion_r4108523592",
+  "classification": "correct-and-new",
+  "pre_fix": {
+    "path": "/private/tmp/wear-manual-publication-r3-prefixed-red/receipt.json",
+    "bytes": 734,
+    "sha256": "48bb7b0114edf7903cf27e572db80f45ca16200385125cdd245557d6cc4a9b62"
+  },
+  "reproduction": {
+    "path": "/private/tmp/wear-manual-registration-review-repro-a94/reproduction.json",
+    "bytes": 6827,
+    "sha256": "3685e7ccb10eb719e62118e50de1e952e1c93e279865b4112a057af1a9b2effc"
+  },
+  "initial_postfix_attempt": {
+    "classification": {
+      "path": "/private/tmp/wear-manual-publication-r3-gates/baseline-failure-classification.json",
+      "bytes": 421,
+      "sha256": "b413c2557e44e1cc6ef425996170e1ed2fb1394401c3e1127736da79bacc3163"
+    },
+    "log": {
+      "path": "/private/tmp/wear-manual-publication-r3-gates/baseline/process.log",
+      "bytes": 16053,
+      "sha256": "4e5d749c51cb293b2c77befb0a277fefb364929be10cb5b69b61e5fed27f35f3"
+    },
+    "credited": false
+  },
+  "baseline_tests": 65,
+  "named_controls": 8,
+  "new_controls": 4,
+  "rechecked_prior_manual_controls": 4,
+  "restored_tests": 65,
+  "each_gradle_summary": "5 actionable tasks: 5 executed",
+  "mutation_xml_errors": 0,
+  "mutation_xml_skips": 0,
+  "source_bytes_restored": true,
+  "source_files": [
+    {
+      "path": "/private/tmp/workeeper-wear-acceptance-report-20260925/documentation/wear-emulator-acceptance/adb_acceptance.py",
+      "bytes": 40645,
+      "sha256": "1b9b5bdc70c8e465b5cfb473238da4feeb584e319e558c05f3ce51a045ce6ddb"
+    },
+    {
+      "path": "/private/tmp/workeeper-wear-acceptance-report-20260925/documentation/wear-emulator-acceptance/test_acceptance.py",
+      "bytes": 62187,
+      "sha256": "d4461c5d26ce349f9f52aeb02c820c13ddad5b75b06b951ff89ce9099f079d57"
+    },
+    {
+      "path": "/private/tmp/workeeper-wear-acceptance-report-20260925/documentation/wear-emulator-acceptance/parser_mutations.json",
+      "bytes": 47003,
+      "sha256": "fd24e690c3e72a62cdaa6e78e5683f61e305682a52e933e12db3e1097b08d238"
+    }
+  ],
+  "gate": {
+    "path": "/private/tmp/wear-manual-publication-r3-gates-v2/receipt.json",
+    "bytes": 1691,
+    "sha256": "d95bc45dab1ef2334305575e82e4cb2cce59b80c4b2a3ab7346852103bf91d4b"
+  },
+  "source_before": {
+    "path": "/private/tmp/wear-manual-publication-r3-gates-v2/source-before.json",
+    "bytes": 437095,
+    "sha256": "7fac9d640322e4a6f2bec1cc74d3e52474ed6ad044ed9b3df203afbb2fac7412"
+  },
+  "source_after": {
+    "path": "/private/tmp/wear-manual-publication-r3-gates-v2/source-after.json",
+    "bytes": 437095,
+    "sha256": "7fac9d640322e4a6f2bec1cc74d3e52474ed6ad044ed9b3df203afbb2fac7412"
+  },
+  "xml": [
+    {
+      "path": "/private/tmp/wear-manual-publication-r3-gates-v2/baseline/TEST-WearAcceptanceParser.xml",
+      "bytes": 10337,
+      "sha256": "cb9d4587d305b893457dbf5dea15c7980bdbc453d1223414b2917a813c1b4026"
+    },
+    {
+      "path": "/private/tmp/wear-manual-publication-r3-gates-v2/01-manual-creates-case-before-attachment-preflight/control/manual-creates-case-before-attachment-preflight/xml-908fa02f.xml",
+      "bytes": 12687,
+      "sha256": "be8e4ac419841e614f323392b0cd72b9fd22f4e9dfc857846458494b5b82cb5e"
+    },
+    {
+      "path": "/private/tmp/wear-manual-publication-r3-gates-v2/02-manual-credits-attachment-emptied-during-preflight/control/manual-credits-attachment-emptied-during-preflight/xml-908fa02f.xml",
+      "bytes": 10991,
+      "sha256": "ee5435f93a3ab8234ad2965b6eb931a92387b4c0e542f7b5837deafbbdae47c3"
+    },
+    {
+      "path": "/private/tmp/wear-manual-publication-r3-gates-v2/03-manual-discards-copied-evidence-bytes/control/manual-discards-copied-evidence-bytes/xml-908fa02f.xml",
+      "bytes": 12964,
+      "sha256": "fa7650c23344c6b638849c5551d6929cca137eeced6d8a3b5867a9e782e207d1"
+    },
+    {
+      "path": "/private/tmp/wear-manual-publication-r3-gates-v2/04-manual-credits-attachment-changed-after-preflight/control/manual-credits-attachment-changed-after-preflight/xml-908fa02f.xml",
+      "bytes": 10930,
+      "sha256": "f9fd2f11592b775e2163d0679a1047a60550520e1ab6549268abd9e5e57bc5cd"
+    },
+    {
+      "path": "/private/tmp/wear-manual-publication-r3-gates-v2/05-manual-publishes-directory-before-copy/control/manual-publishes-directory-before-copy/xml-908fa02f.xml",
+      "bytes": 16081,
+      "sha256": "612dc4f384d01d010df972a7a2970fa3c57fbe6643bc459ff58a72663397cd34"
+    },
+    {
+      "path": "/private/tmp/wear-manual-publication-r3-gates-v2/06-manual-replaces-existing-empty-case/control/manual-replaces-existing-empty-case/xml-908fa02f.xml",
+      "bytes": 10981,
+      "sha256": "ede320879a5102ddbfa9e533804fd6ba759aa33d6ab4b70fe32fa926bf90a15c"
+    },
+    {
+      "path": "/private/tmp/wear-manual-publication-r3-gates-v2/07-manual-deletes-prior-unpublished-attempts/control/manual-deletes-prior-unpublished-attempts/xml-908fa02f.xml",
+      "bytes": 13835,
+      "sha256": "fc371af547b8bc7126b4b3cec4a299f5d3338000c0e77957208a7da3d439356b"
+    },
+    {
+      "path": "/private/tmp/wear-manual-publication-r3-gates-v2/08-manual-hides-unpublished-attempt-history/control/manual-hides-unpublished-attempt-history/xml-908fa02f.xml",
+      "bytes": 11231,
+      "sha256": "9de9a4f873a56a36bde713180a5ecdd8a6287e61b2f263daebd9752c121a92f7"
+    },
+    {
+      "path": "/private/tmp/wear-manual-publication-r3-gates-v2/restored-baseline/TEST-WearAcceptanceParser.xml",
+      "bytes": 10340,
+      "sha256": "aebf8602e8f952344d2118fd000a5658675edfb77c8e8b71fcde8269f84117a3"
+    }
+  ],
+  "controls": [
+    {
+      "name": "manual-creates-case-before-attachment-preflight",
+      "status": "INTENDED_ASSERTION_RED",
+      "summary": "5 actionable tasks: 5 executed",
+      "restored": true
+    },
+    {
+      "name": "manual-credits-attachment-emptied-during-preflight",
+      "status": "INTENDED_ASSERTION_RED",
+      "summary": "5 actionable tasks: 5 executed",
+      "restored": true
+    },
+    {
+      "name": "manual-discards-copied-evidence-bytes",
+      "status": "INTENDED_ASSERTION_RED",
+      "summary": "5 actionable tasks: 5 executed",
+      "restored": true
+    },
+    {
+      "name": "manual-credits-attachment-changed-after-preflight",
+      "status": "INTENDED_ASSERTION_RED",
+      "summary": "5 actionable tasks: 5 executed",
+      "restored": true
+    },
+    {
+      "name": "manual-publishes-directory-before-copy",
+      "status": "INTENDED_ASSERTION_RED",
+      "summary": "5 actionable tasks: 5 executed",
+      "restored": true
+    },
+    {
+      "name": "manual-replaces-existing-empty-case",
+      "status": "INTENDED_ASSERTION_RED",
+      "summary": "5 actionable tasks: 5 executed",
+      "restored": true
+    },
+    {
+      "name": "manual-deletes-prior-unpublished-attempts",
+      "status": "INTENDED_ASSERTION_RED",
+      "summary": "5 actionable tasks: 5 executed",
+      "restored": true
+    },
+    {
+      "name": "manual-hides-unpublished-attempt-history",
+      "status": "INTENDED_ASSERTION_RED",
+      "summary": "5 actionable tasks: 5 executed",
+      "restored": true
+    }
+  ],
+  "historical_emulator_report_unchanged": true,
+  "application_apk_source": "85ae0cfee2e0ca198caf70c2e4dec6b89a5a691c",
+  "application_acceptance": "FAIL",
+  "concurrency_scope": "Serial runner; existing final paths refused before atomic directory rename"
+}

@@ -96,6 +96,23 @@ def create_case_directory(cohort: Path, case_id: str) -> Path:
     return destination
 
 
+def create_manual_staging_directory(cohort: Path, case_id: str) -> Path:
+    staging = cohort / "manual-attempts" / f"{case_id.replace('/', '--')}-{uuid.uuid4().hex}"
+    require_local_path(cohort, staging)
+    staging.mkdir(parents=True, exist_ok=False)
+    return staging
+
+
+def publish_manual_directory(cohort: Path, case_id: str, staging: Path) -> None:
+    destination = cohort / "cases" / case_id
+    require_local_path(cohort, destination)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    # rename can replace an empty directory; recorded and incomplete cases both stay immutable.
+    if destination.exists():
+        raise FileExistsError(destination)
+    staging.rename(destination)
+
+
 def artifact_inventory(directory: Path) -> dict:
     require_local_path(directory, directory)
     for path in directory.rglob("*"):
@@ -623,7 +640,12 @@ def report(directory: Path) -> dict:
         if row.get("artifacts") != artifact_inventory(path.parent):
             raise InvalidEvidence(f"Evidence files changed or went missing: {relative}")
         receipts[relative] = row
+    unpublished = []
+    for path in sorted((directory / "manual-attempts").glob("*")):
+        require_local_path(directory, path)
+        unpublished.append(str(path.relative_to(directory)))
     result = {"cohort": plan["cohort"], "source": plan["source"]["head"], **inventory_result(receipts),
+              "unpublished_manual_attempts": unpublished,
               "cases": {key: {"status": row["status"], "reason": row["reason"]} for key, row in receipts.items()}}
     write_json(directory / "report.json", result)
     return result
@@ -713,7 +735,7 @@ def main() -> None:
             if not size:
                 raise InvalidEvidence("Manual evidence became empty during preflight")
             prepared.append((path, size, digest.hexdigest()))
-        destination = create_case_directory(args.cohort, args.case)
+        destination = create_manual_staging_directory(args.cohort, args.case)
         for index, (path, size, expected_hash) in enumerate(prepared):
             content = path.read_bytes()
             if len(content) != size or hashlib.sha256(content).hexdigest() != expected_hash:
@@ -722,6 +744,7 @@ def main() -> None:
         write_json(destination / "receipt.json", {"schema": 1, "cohort": plan["cohort"], "case_id": args.case,
                    "status": args.status, "reason": args.reason, "recorded_at": utc(), "operator_attestation": True,
                    "artifacts": artifact_inventory(destination)})
+        publish_manual_directory(args.cohort, args.case, destination)
     else:
         result = report(args.cohort)
         print(json.dumps(result, indent=2))

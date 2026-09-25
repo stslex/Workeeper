@@ -360,8 +360,16 @@ instrumentation captures, elapsed-time observations and the final `report.json`.
 The report verifies artifact hashes and returns a nonzero status for `FAIL` or `BLOCKED`.
 Manual registration validates every attachment before creating its case directory and
 rechecks its size and hash immediately before copying. Empty command streams remain in the
-raw hash inventory; attach that nonempty inventory or its archive, not an empty file. A failed attachment preflight
-must leave no partial case to be mistaken for a completed verdict.
+raw hash inventory; attach that nonempty inventory or its archive, not an empty file.
+The serial runner stages copies and the receipt under a unique `manual-attempts/` directory,
+then renames the complete bundle into the case path. Existing case paths, including empty
+ones, cannot be reused. A copy, receipt-write or publication failure preserves its unpublished
+directory and leaves the required case available for a corrected retry. The canonical JSON
+lists `unpublished_manual_attempts`; retain those directories when archiving retries.
+A failed preflight creates neither a case nor a staging directory.
+The [publication review evidence](reports/2026-09-25/manual-publication-review.json) records
+65 fresh tests, eight named assertion controls and the restored 65-test baseline. It also
+retains the earlier unsuccessful test-injector attempt; the emulator report is unchanged.
 
 ## Headless lifecycle events
 
@@ -487,7 +495,7 @@ unordered rejection, Activity launch, debug permission and the release manifest 
 The [parser controls](parser_mutations.json) protect notification/process observations,
 configuration and artifact validation, complete result inventories and assertion classification.
 They also cover durable API 30 locale setup, preflight-before-manual-registration and
-explicit/default-disposition SIGTERM checks. The inventory contains 83 named parser controls;
+explicit/default-disposition SIGTERM checks. The inventory contains 87 named parser controls;
 the receiver and instrumented UI controls remain separate.
 Run their baseline, controls and restored baseline serially:
 
@@ -540,6 +548,7 @@ sources under `app/wear/src/main` were unchanged from the PR #290 baseline.
 | A6: API 30 signal policy | `run-as kill -9` was denied by enforcing SELinux and the same process remained alive. | Keep the original trial BLOCKED. A new, explicitly labeled default-disposition SIGTERM attempt has independent process-absence and deadline observations; no automatic fallback or physical-watch equivalence. |
 | R1: premature notification removal | At deadline 10000ms, the observer incorrectly accepted an absence bracket ending at 1220ms. | [Correct and new](https://github.com/stslex/Workeeper/pull/291#discussion_r4104491191); reject proved early disappearance and account for printed clock precision at both deadline bounds. |
 | R2: instrumentation execution errors | Named status −1 with `IllegalStateException`, and −2 with `RuntimeException`, both became application FAIL. | [Correct and new](https://github.com/stslex/Workeeper/pull/291#discussion_r4104491201); require a named top-level assertion for FAIL, otherwise record BLOCKED. |
+| R3: manual copy failure after preflight | Changed attachment bytes or a later copy failure left a partial final directory; a corrected retry raised `FileExistsError`. The existing receipt-only test passed. | [Correct and new](https://github.com/stslex/Workeeper/pull/291#discussion_r4108523592); stage a complete bundle before publication, preserve failed attempts, and refuse existing final paths. Fresh pre-fix checks fail four named methods with assertion failures and no XML errors. |
 
 Changed source or tooling requires a new frozen cohort and APK provenance. Successful
 retries supplement these records; they never overwrite the original outcomes.
