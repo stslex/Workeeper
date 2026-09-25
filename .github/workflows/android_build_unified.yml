@@ -5,6 +5,15 @@ on:
     branches: [ master ]
   pull_request:
   workflow_dispatch:
+    inputs:
+      diagnostic_mode:
+        description: 'Optional Wear RU full-context observation'
+        type: choice
+        required: false
+        default: 'none'
+        options:
+          - 'none'
+          - 'wear-ru-full-context'
   workflow_call:
     inputs:
       ref:
@@ -36,6 +45,10 @@ jobs:
         with:
           ref: ${{ inputs.ref || github.ref }}
 
+      - name: Start Wear observation budget
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.diagnostic_mode == 'wear-ru-full-context' }}
+        run: python3 .github/scripts/run_ci_wear_context_liveness.py --initialize --output "$RUNNER_TEMP/ci-wear-context"
+
       - name: Decrypt keystore
         env:
           KEYSTORE: ${{ secrets.KEYSTORE }}
@@ -50,6 +63,10 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
           cache: gradle
+
+      - name: Prepare Wear JUnit observer
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.diagnostic_mode == 'wear-ru-full-context' }}
+        run: python3 .github/scripts/prepare_ci_wear_observer.py --output "$RUNNER_TEMP/ci-wear-context/observer"
 
       - name: Configure Keystore
         env:
@@ -191,7 +208,21 @@ jobs:
       # here: the flag would also strip cache hits from every upstream compile task in this graph,
       # and would leave local runs of the gate just as replayable as before.
       - name: Verify screenshot goldens
-        run: ./gradlew verifyPaparazziDebug --full-stacktrace
+        run: |
+          if [[ "${{ github.event_name }}" == 'workflow_dispatch' && "${{ inputs.diagnostic_mode }}" == 'wear-ru-full-context' ]]; then
+            python3 .github/scripts/run_ci_wear_context_liveness.py --phase paparazzi --output "$RUNNER_TEMP/ci-wear-context"
+          else
+            ./gradlew verifyPaparazziDebug --full-stacktrace
+          fi
+
+      - name: Upload Wear paparazzi diagnostic snapshot
+        if: ${{ always() && github.event_name == 'workflow_dispatch' && inputs.diagnostic_mode == 'wear-ru-full-context' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: wear-context-paparazzi-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/ci-wear-context/
+          if-no-files-found: warn
+          retention-days: 14
 
       - name: Upload screenshot diffs
         uses: actions/upload-artifact@v4
@@ -245,7 +276,21 @@ jobs:
         run: exit 1
 
       - name: Run Unit Tests
-        run: ./gradlew testDebugUnitTest --full-stacktrace
+        run: |
+          if [[ "${{ github.event_name }}" == 'workflow_dispatch' && "${{ inputs.diagnostic_mode }}" == 'wear-ru-full-context' ]]; then
+            python3 .github/scripts/run_ci_wear_context_liveness.py --phase unit --output "$RUNNER_TEMP/ci-wear-context"
+          else
+            ./gradlew testDebugUnitTest --full-stacktrace
+          fi
+
+      - name: Upload Wear unit diagnostic snapshot
+        if: ${{ always() && github.event_name == 'workflow_dispatch' && inputs.diagnostic_mode == 'wear-ru-full-context' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: wear-context-unit-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/ci-wear-context/
+          if-no-files-found: warn
+          retention-days: 14
 
       # The debug suite cannot prove that the synthetic source is absent from release.
       - name: Run Wear release source boundary test

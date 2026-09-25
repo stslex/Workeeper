@@ -1,0 +1,79 @@
+import groovy.json.JsonOutput
+import org.gradle.api.Action
+import org.gradle.api.GradleException
+import org.gradle.api.Task
+import org.gradle.api.tasks.testing.Test
+import java.security.MessageDigest
+import java.time.Instant
+
+class VerifyWearObserver implements Action<Task>, Serializable {
+    final File observerFile
+    final File receiptFile
+    final String output
+    final String token
+    final String taskPath
+    final String flavor
+    final String expectedSha
+
+    VerifyWearObserver(String jar, String directory, String marker, String path, String variant) {
+        observerFile = new File(jar)
+        output = directory
+        token = marker
+        taskPath = path
+        flavor = variant
+        receiptFile = new File(directory, 'observer-classpath.json')
+        expectedSha = sha256(observerFile)
+    }
+
+    static String sha256(File file) {
+        MessageDigest.getInstance('SHA-256').digest(file.bytes).encodeHex().toString()
+    }
+
+    @Override
+    void execute(Task task) {
+        Test test = (Test) task
+        boolean present = test.classpath.files.any { it.canonicalFile == observerFile.canonicalFile }
+        String actualSha = observerFile.isFile() ? sha256(observerFile) : null
+        boolean environmentMatches = test.environment.get('CI_CONTEXT_PHASE_OUTPUT') == output &&
+            test.environment.get('CI_CONTEXT_OBSERVER_TOKEN') == token &&
+            test.environment.get('CI_WEAR_TASK_PATH') == taskPath &&
+            test.environment.get('CI_WEAR_FLAVOR') == flavor && test.path == taskPath
+        receiptFile.parentFile.mkdirs()
+        def receipt = [utc: Instant.now().toString(), task_path: test.path, flavor: flavor,
+            jar_present_in_final_classpath: present, expected_sha256: expectedSha,
+            actual_sha256: actualSha, phase_environment_matches: environmentMatches]
+        receiptFile.text = JsonOutput.prettyPrint(JsonOutput.toJson(receipt)) + '\n'
+        println('CI_WEAR_CLASSPATH ' + JsonOutput.toJson(receipt))
+        if (!present || actualSha != expectedSha || !environmentMatches) {
+            throw new GradleException('Wear observer final classpath/environment verification failed')
+        }
+    }
+}
+
+// The execution guard captures only serializable files and strings.
+def observerJar = System.getenv('CI_CONTEXT_OBSERVER_JAR')
+def phaseOutput = System.getenv('CI_CONTEXT_PHASE_OUTPUT')
+def observerToken = System.getenv('CI_CONTEXT_OBSERVER_TOKEN')
+if (!observerJar || !phaseOutput || !observerToken || !new File(observerJar).isFile()) {
+    throw new GradleException('Missing Wear diagnostic observer configuration')
+}
+gradle.beforeProject { project ->
+    if (project.path == ':app:wear') {
+        project.pluginManager.withPlugin('com.android.application') {
+            // AGP applies unitTests.all after assigning the Android test classpath.
+            project.extensions.getByName('android').testOptions.unitTests.all({ Test test ->
+                def flavors = [testDevDebugUnitTest: 'devDebug', testStoreDebugUnitTest: 'storeDebug']
+                if (flavors.containsKey(test.name)) {
+                    String directory = new File(phaseOutput, test.name).absolutePath
+                    String flavor = flavors[test.name]
+                    test.classpath = test.classpath.plus(project.files(observerJar))
+                    test.environment('CI_CONTEXT_PHASE_OUTPUT', directory)
+                    test.environment('CI_CONTEXT_OBSERVER_TOKEN', observerToken)
+                    test.environment('CI_WEAR_TASK_PATH', test.path)
+                    test.environment('CI_WEAR_FLAVOR', flavor)
+                    test.doFirst(new VerifyWearObserver(observerJar, directory, observerToken, test.path, flavor))
+                }
+            } as Action<Test>)
+        }
+    }
+}
