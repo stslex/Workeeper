@@ -1,0 +1,74 @@
+{
+  "claim": "Previously recorded/reverified image hashes, not newly rehashed during passive trials.",
+  "image_inventory_receipt": {
+    "path": "/private/tmp/wear-emulator-acceptance-20260925/final-package-and-image-identity/images-reverified.json",
+    "bytes": 1667,
+    "sha256": "23d5490b1553d72e691a0247dfded2a36cc19857d67a1b6f23296619aa7eda36"
+  },
+  "images": {
+    "system-images/android-30/android-wear/arm64-v8a": {
+      "source.properties": {
+        "bytes": 212,
+        "sha256": "81b83ba5605bb04e4e9a16800f05d757de1f3a68c4da3fb3413e6ec8210b60f0"
+      },
+      "system.img": {
+        "bytes": 3232759808,
+        "sha256": "c57d3ee411ffd159763e72d335d8b042bae71cbc8ff5e39913f8019fdf8a93df"
+      },
+      "vendor.img": {
+        "bytes": 48234496,
+        "sha256": "024d2ead36242a39ac10b32fff439fdb513b4ba5e6d92bcc4bbcede5de318122"
+      },
+      "ramdisk.img": {
+        "bytes": 1557337,
+        "sha256": "6c0c138dc1c06066ab7ee2eed98fc567b9af35f22de2bfc0babc2659d2d1e711"
+      },
+      "kernel-ranchu": {
+        "bytes": 13443801,
+        "sha256": "9d3dc8805055f3d3f685727f464120b784c5e7c17fdffeeb3e74b3f0ac9cf5b2"
+      }
+    },
+    "system-images/android-36/android-wear-signed/arm64-v8a": {
+      "source.properties": {
+        "bytes": 275,
+        "sha256": "e344e47c3e761c118c1b5128b543ecf5dc4caf6a9d96fcff6692f65187a94ecd"
+      },
+      "system.img": {
+        "bytes": 2056257536,
+        "sha256": "1bf97344d3cb60ec59c2fd184e84b52895efc67d94dba91d1b0c333de74af0cb"
+      },
+      "vendor.img": {
+        "bytes": 88080384,
+        "sha256": "07293992dfb40293a81abf7f04766fc2132c6088caceff232c106ef181412527"
+      },
+      "ramdisk.img": {
+        "bytes": 1820403,
+        "sha256": "aaafc472f0889413eddb7908e29163ff3d91f83bd87deed098fdbbfb18c121de"
+      },
+      "kernel-ranchu": {
+        "bytes": 14489771,
+        "sha256": "b950027375a82427604eba65f41de7188737e444b01cb625c61056ffd14cf427"
+      }
+    }
+  },
+  "actual_fingerprints": [
+    {
+      "api": 30,
+      "fingerprint": "google/sdk_gwear_arm64/emulator_arm64:11/RWDA.230114.008.S4/10486519:userdebug/dev-keys",
+      "source": {
+        "path": "/private/tmp/wear-manual-api30-dev-85ae/steps/20260925T190639.422033Z-tile-carousel-second-2ee8e20f/fingerprint/stdout",
+        "bytes": 88,
+        "sha256": "dc93e490af06c608fbc0db678daf959474c352fba66a3fb21efc7d4af863068b"
+      }
+    },
+    {
+      "api": 36,
+      "fingerprint": "google/sdk_gwear_arm64/emu64a:16/BP2A.250605.006.E4/13659021:user/release-keys",
+      "source": {
+        "path": "/private/tmp/wear-manual-api36-dev-85ae/steps/20260925T162015.918917Z-notification-channel-denied-return-state-67b15a63/fingerprint/stdout",
+        "bytes": 79,
+        "sha256": "3336bc0946cf2004c04d32046a903b2f7cf61268356e11b8736ebb056b224f4c"
+      }
+    }
+  ]
+}

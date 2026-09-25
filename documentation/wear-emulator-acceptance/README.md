@@ -17,6 +17,10 @@ The tools and receiver are acceptance instrumentation. Their presence does not m
 the emulator matrix has run or passed. Use the generated receipts and report for execution
 status; retain failed attempts and their raw artifacts.
 
+The [25 September 2026 acceptance report](reports/2026-09-25/README.md) records the executed
+matrix, system observations, application defects and separate retry cohorts. Its FAIL
+verdict is not changed by successful infrastructure checks.
+
 The required matrix uses round API 30 and API 36 emulators at 192dp and 240dp, EN and RU,
 and font scales 1.00 and 1.24. Verify the actual configuration reported inside the test
 process rather than inferring it from an AVD name. Every cell must retain all 18 fixture
@@ -65,7 +69,11 @@ Use a new receipt path for every setup attempt. On the API 36 user image the scr
 platform per-app locales; it does not require root. On API 30 it uses the official
 userdebug image's root capability to set the framework locale and restart that isolated
 emulator's framework when necessary. Do this before starting a measured trial, since it
-restarts processes. The script also simulates an unplugged battery, enables ambient,
+restarts processes. API 30 setup checks the user-0 `system_locales` setting, locale property
+and effective framework configuration together. Before restarting, it waits until the
+requested setting is actually persisted in the XML returned by `abx2xml`; a successful
+`settings put` alone does not prove persistence. All three values must agree afterward.
+The script also simulates an unplugged battery, enables ambient,
 disables stay-awake while plugged in, sets a 120-second interactive screen timeout and records the
 previous settings. The battery override prevents the Wear OS 3 charging screen from
 covering application ambient; it is not an energy measurement. Keep the same unplugged
@@ -212,6 +220,9 @@ and keep the entire death/reopen sequence within the recorded cache validity int
    Kill that process with `run-as <package> kill -9 <pid>`. Record elapsed-time brackets
    around the command and evidence that the old process ended. Do not use force-stop,
    clear application data, reinstall, refresh, or select another fixture.
+   If the API 30 image denies SIGKILL, preserve that BLOCKED attempt. An explicitly selected
+   SIGTERM attempt may be recorded separately under the guarded process-death procedure
+   below; do not silently switch signals or treat a successful signal command as death.
 4. Open the application from its launcher with no fixture/scenario extra. Record the launch
    route, actual Activity intent, new PID/birth identity and first rendered screen; a replayed
    debug fixture intent cannot establish cache restoration. Expect the cached canonical 999,
@@ -347,6 +358,10 @@ example does not create or imply a Tile result. Case directories are never overw
 Retain `plan.json`, every `cases/<id>/receipt.json`, `commands.jsonl`, raw command output,
 instrumentation captures, elapsed-time observations and the final `report.json`.
 The report verifies artifact hashes and returns a nonzero status for `FAIL` or `BLOCKED`.
+Manual registration validates every attachment before creating its case directory and
+rechecks its size and hash immediately before copying. Empty command streams remain in the
+raw hash inventory; attach that nonempty inventory or its archive, not an empty file. A failed attachment preflight
+must leave no partial case to be mistaken for a completed verdict.
 
 ## Headless lifecycle events
 
@@ -381,6 +396,27 @@ time for expiry and notification-removal measurements. Synthetic clock-offset ev
 cannot establish those measurements.
 
 ## Lifecycle observations and limits
+
+The default death instrument is `run-as ... kill -9`. On the tested API 30 userdebug image,
+enforcing SELinux denied that signal. To make a separate, explicit attempt on an image
+with that restriction, the runner supports:
+
+```bash
+python3 documentation/wear-emulator-acceptance/adb_acceptance.py run-lifecycle \
+  --cohort /private/tmp/wear-acceptance-results/api30-term-attempt \
+  --adb "$ANDROID_SDK_ROOT/platform-tools/adb" --serial "$SERIAL" \
+  --api 30 --scenario death-fresh --repetition 1 --death-signal term-default
+```
+
+Create this new cohort with `plan` first, using the same pinned source and APKs if they
+have not changed. The option is rejected for API 36 and retention. Before SIGTERM, the
+runner requires unique matching `Pid`/`Tgid` and complete signal masks proving TERM is
+neither caught, ignored nor blocked in the main thread. It then rechecks process birth
+immediately before `run-as ... kill -15`. There is no automatic fallback or second signal.
+Subsequent observations must prove process absence, boot continuity, the unchanged
+notification deadline and bounded removal. A signal-policy or status-parser failure stays
+BLOCKED. Retain `signal-backend.json` and identify SIGTERM separately from SIGKILL, LMK or
+physical-watch behavior in the report.
 
 For each API, record three repetitions of retention, process death with a fresh deadline,
 and process death after disconnect. Retain the boot ID, PID plus process birth identity,
@@ -450,6 +486,9 @@ unordered rejection, Activity launch, debug permission and the release manifest 
 
 The [parser controls](parser_mutations.json) protect notification/process observations,
 configuration and artifact validation, complete result inventories and assertion classification.
+They also cover durable API 30 locale setup, preflight-before-manual-registration and
+explicit/default-disposition SIGTERM checks. The inventory contains 83 named parser controls;
+the receiver and instrumented UI controls remain separate.
 Run their baseline, controls and restored baseline serially:
 
 ```bash
@@ -496,6 +535,9 @@ sources under `app/wear/src/main` were unchanged from the PR #290 baseline.
 | A1: framework readiness | PackageManager was available after an API30 locale restart while SettingsService still returned exit 20. | Infrastructure setup failure; wait for both services. Preserve the failed setup receipt. |
 | A2: inherited display idle | Three fixture failures had an ambient-only bounds tree; two earlier captures in the same invocation were still interactive. | Mixed capture states, not proof of a missing interactive controller. Reset display idle before launch and use the recorded interactive timeout. Passive trials retain their separate 15-second setting. |
 | A3: a controller that fits | At 240dp/font1.0, `after-weight-back` had zero scroll range; the same path at font1.24 moved 0 → 1 → 0px. | Invalid overflow precondition; retain focus, numeric invariants and mandatory bidirectional movement wherever range is positive. |
+| A4: API 30 locale persistence | The RU property coexisted with EN `system_locales`/effective configuration; a separate restart raced the asynchronous settings write. | The original wrong-locale cells remain excluded from RU coverage. Check all locale sources and wait for durable settings before restart; preserve separate qualified retries. |
+| A5: incomplete manual registration | An empty raw stream caused registration to fail after creating a partial case. | Validate all attachments before creating the case and verify copied bytes. Preserve the original failed registration and inventory empty streams without passing them as attachments. |
+| A6: API 30 signal policy | `run-as kill -9` was denied by enforcing SELinux and the same process remained alive. | Keep the original trial BLOCKED. A new, explicitly labeled default-disposition SIGTERM attempt has independent process-absence and deadline observations; no automatic fallback or physical-watch equivalence. |
 | R1: premature notification removal | At deadline 10000ms, the observer incorrectly accepted an absence bracket ending at 1220ms. | [Correct and new](https://github.com/stslex/Workeeper/pull/291#discussion_r4104491191); reject proved early disappearance and account for printed clock precision at both deadline bounds. |
 | R2: instrumentation execution errors | Named status −1 with `IllegalStateException`, and −2 with `RuntimeException`, both became application FAIL. | [Correct and new](https://github.com/stslex/Workeeper/pull/291#discussion_r4104491201); require a named top-level assertion for FAIL, otherwise record BLOCKED. |
 

@@ -432,7 +432,64 @@ def background_for_death(adb: Adb, plan: dict) -> dict:
     raise InvalidEvidence(reason)
 
 
-def death_trial(adb: Adb, plan: dict, api: int, disconnected: bool) -> dict:
+def validate_death_signal(api: int, scenario_name: str, death_signal: str) -> None:
+    if death_signal not in ("kill", "term-default"):
+        raise InvalidEvidence("Unknown process-death instrument")
+    if death_signal == "term-default" and (api != 30 or scenario_name == "retention"):
+        raise InvalidEvidence("Default-disposition SIGTERM is only available for explicit API30 death trials")
+
+
+def default_term_disposition(text: str, expected_pid: int) -> dict:
+    no_shell_error(text)
+    if type(expected_pid) is not int or expected_pid <= 0 or not text.endswith("\n"):
+        raise InvalidEvidence("Missing signal status or invalid expected PID")
+    if len(text.encode("utf-8")) > 65536:
+        raise InvalidEvidence("Unexpectedly large process status")
+    fields = {}
+    for name in ("Pid", "Tgid", "SigCgt", "SigIgn", "SigBlk"):
+        values = re.findall(r"(?m)^" + name + r":[ \t]*([^\r\n]*)$", text)
+        if len(values) != 1:
+            raise InvalidEvidence("Missing or duplicate signal status field: " + name)
+        fields[name] = values[0]
+    for name in ("Pid", "Tgid"):
+        if not re.fullmatch(r"[1-9][0-9]*", fields[name]) or int(fields[name]) != expected_pid:
+            raise InvalidEvidence("Signal status PID/Tgid differs from the verified process")
+    for name in ("SigCgt", "SigIgn", "SigBlk"):
+        if not re.fullmatch(r"[0-9a-fA-F]{16}", fields[name]):
+            raise InvalidEvidence("Malformed signal mask: " + name)
+        if int(fields[name], 16) & 0x4000:
+            raise InvalidEvidence("SIGTERM is caught, ignored, or blocked: " + name)
+    return {"pid": expected_pid, "tgid": expected_pid, "signal": 15,
+            "masks_hex": {name: fields[name] for name in ("SigCgt", "SigIgn", "SigBlk")},
+            "default_disposition_observed": True, "main_thread_unblocked_observed": True}
+
+
+def signal_process_death(adb: Adb, plan: dict, before: Observation, api: int, death_signal: str) -> dict:
+    validate_death_signal(api, "death", death_signal)
+    signal = "-15" if death_signal == "term-default" else "-9"
+    record = {"backend": "RUN_AS_SIGTERM_DEFAULT_DISPOSITION" if death_signal == "term-default" else "RUN_AS_SIGKILL",
+              "api": api, "signal": -int(signal), "expected_pid": before.pid,
+              "expected_birth_ticks": before.birth, "no_fallback_or_retry": True,
+              "status": "PRECONDITIONS_PENDING_SIGNAL_NOT_YET_SENT"}
+    write_json(adb.directory / "signal-backend.json", record)
+    if death_signal == "term-default":
+        raw = adb.shell("run-as", plan["package"], "cat", f"/proc/{before.pid}/status")
+        record["disposition"] = default_term_disposition(raw, before.pid)
+        record["status_sha256"] = hashlib.sha256(raw.encode()).hexdigest()
+        record["status"] = "PRECONDITIONS_VALIDATED_SIGNAL_NOT_YET_SENT"
+        write_json(adb.directory / "signal-backend.json", record)
+    # No device operation is inserted between this birth check and the signal.
+    stat = adb.shell("run-as", plan["package"], "cat", f"/proc/{before.pid}/stat")
+    if process_birth(stat, before.pid) != before.birth:
+        raise InvalidEvidence("PID was reused before kill")
+    no_shell_error(adb.shell("run-as", plan["package"], "kill", signal, str(before.pid)))
+    record["status"] = "SIGNAL_COMMAND_RETURNED_SUCCESS_NOT_DEATH_PROOF"
+    write_json(adb.directory / "signal-backend.json", record)
+    return record
+
+
+def death_trial(adb: Adb, plan: dict, api: int, disconnected: bool, death_signal: str = "kill") -> dict:
+    validate_death_signal(api, "death", death_signal)
     initial = start_trial(adb, plan, api)
     original_deadline = deadline(adb, initial.key)
     if disconnected:
@@ -452,11 +509,7 @@ def death_trial(adb: Adb, plan: dict, api: int, disconnected: bool) -> dict:
     before = after_home
     cache = adb.command(["exec-out", "run-as", plan["package"], "cat", "no_backup/synthetic_watch_snapshot"], binary=True)
     (adb.directory / "cache-before-kill.bin").write_bytes(cache)
-    # Re-check PID birth immediately before signalling; never target a recycled PID.
-    stat = adb.shell("run-as", plan["package"], "cat", f"/proc/{before.pid}/stat")
-    if process_birth(stat, before.pid) != before.birth:
-        raise InvalidEvidence("PID was reused before kill")
-    adb.shell("run-as", plan["package"], "kill", "-9", str(before.pid))
+    signal_backend = signal_process_death(adb, plan, before, api, death_signal)
     samples = []
     previous = before
     until = time.monotonic() + max(0, (stop_at + WATCHDOG_MS - before.before_ms) / 1000) + 10
@@ -474,7 +527,8 @@ def death_trial(adb: Adb, plan: dict, api: int, disconnected: bool) -> dict:
     result = removal_result(samples, stop_at, WATCHDOG_MS)
     adb.screenshot("after-removal.png")
     return {"initial": asdict(initial), "before_kill": asdict(before), "original_deadline_ms": original_deadline,
-            "disconnected": disconnected, "background": background, "removal": result, "cache_sha256": sha256(adb.directory / "cache-before-kill.bin")}
+            "disconnected": disconnected, "background": background, "signal_backend": signal_backend,
+            "removal": result, "cache_sha256": sha256(adb.directory / "cache-before-kill.bin")}
 
 
 def retention_trial(adb: Adb, plan: dict, api: int) -> dict:
@@ -599,6 +653,8 @@ def main() -> None:
             command.add_argument("--api", type=int, required=True, choices=(30, 36))
             command.add_argument("--scenario", required=True, choices=("retention", "death-fresh", "death-disconnect"))
             command.add_argument("--repetition", type=int, required=True, choices=(1, 2, 3))
+            command.add_argument("--death-signal", choices=("kill", "term-default"), default="kill",
+                                 help="Default SIGKILL; explicit term-default requires API30 default/unblocked SIGTERM")
         else:
             command.add_argument("--api", type=int, required=True, choices=(30, 36))
             command.add_argument("--editor", required=True, choices=("reps", "weight"))
@@ -630,9 +686,10 @@ def main() -> None:
         cell = cell_by_id(args.cell)
         run_case(args, plan, f"ui/{cell.id}", lambda adb: run_cell(adb, plan, cell, args.only))
     elif args.command == "run-lifecycle":
+        validate_death_signal(args.api, args.scenario, args.death_signal)
         key = f"lifecycle/api{args.api}/{args.scenario}/{args.repetition}"
         operation = (lambda adb: retention_trial(adb, plan, args.api)) if args.scenario == "retention" else (
-            lambda adb: death_trial(adb, plan, args.api, args.scenario == "death-disconnect"))
+            lambda adb: death_trial(adb, plan, args.api, args.scenario == "death-disconnect", args.death_signal))
         run_case(args, plan, key, operation)
     elif args.command == "run-ambient-expiry":
         cell = cell_by_id(f"api{args.api}-192-ru-1.24")
@@ -643,11 +700,25 @@ def main() -> None:
     elif args.command == "record-manual":
         if plan["expected"].get(args.case, {}).get("kind") != "manual":
             raise InvalidEvidence("Only declared manual cases can receive an operator verdict")
-        destination = create_case_directory(args.cohort, args.case)
-        for index, path in enumerate(args.artifact):
+        prepared = []
+        for path in args.artifact:
             if not path.is_file() or not path.stat().st_size:
                 raise InvalidEvidence("Manual verdict needs existing, nonempty supporting evidence")
-            (destination / f"operator-{index:02d}-{path.name}").write_bytes(path.read_bytes())
+            digest = hashlib.sha256()
+            size = 0
+            with path.open("rb") as stream:
+                for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                    digest.update(chunk)
+                    size += len(chunk)
+            if not size:
+                raise InvalidEvidence("Manual evidence became empty during preflight")
+            prepared.append((path, size, digest.hexdigest()))
+        destination = create_case_directory(args.cohort, args.case)
+        for index, (path, size, expected_hash) in enumerate(prepared):
+            content = path.read_bytes()
+            if len(content) != size or hashlib.sha256(content).hexdigest() != expected_hash:
+                raise InvalidEvidence("Manual evidence changed after preflight")
+            (destination / f"operator-{index:02d}-{path.name}").write_bytes(content)
         write_json(destination / "receipt.json", {"schema": 1, "cohort": plan["cohort"], "case_id": args.case,
                    "status": args.status, "reason": args.reason, "recorded_at": utc(), "operator_attestation": True,
                    "artifacts": artifact_inventory(destination)})

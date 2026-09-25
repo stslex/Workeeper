@@ -6,6 +6,98 @@ from pathlib import Path
 import re
 import subprocess
 import time
+import xml.etree.ElementTree as ET
+
+
+def locale_configuration_matches(raw: str, tag: str) -> bool:
+    declarations = re.findall(r"(?m)^[ \t]*config:[^\r\n]*$", raw)
+    if len(declarations) != 1:
+        return False
+    match = re.fullmatch(r"[ \t]*config: (?:(?:mcc[0-9]+|mnc[0-9]+)-)*(en-rUS|ru-rRU)-[^\r\n]+",
+                         declarations[0])
+    return bool(match and match[1] == {"en-US": "en-rUS", "ru-RU": "ru-rRU"}[tag])
+
+
+def locale_needs_reload(setting: str, prop: str, effective: str, tag: str) -> bool:
+    return setting.strip() != tag or prop.strip() != tag or not locale_configuration_matches(effective, tag)
+
+
+def persisted_locale(raw: str) -> str:
+    declaration = "<?xml version='1.0' encoding='UTF-8' standalone='yes' ?>"
+    if not raw.startswith(declaration):
+        raise RuntimeError("Missing observed XML declaration from abx2xml")
+    body = raw[len(declaration):]
+    if "<?" in body or "<!" in body:
+        raise RuntimeError("Unexpected declaration or markup in settings fragments")
+    try:
+        root = ET.fromstring("<persisted-settings>" + body + "</persisted-settings>")
+    except ET.ParseError as error:
+        raise RuntimeError("Malformed persisted settings fragments") from error
+    children = list(root)
+    if [node.tag for node in children] not in (["settings"], ["settings", "namespaceHashes"]):
+        raise RuntimeError("Expected settings and at most one following namespaceHashes root")
+    if (root.text or "").strip() or any((node.tail or "").strip() for node in children):
+        raise RuntimeError("Unexpected text outside persisted settings roots")
+    settings = children[0]
+    if not re.fullmatch(r"[0-9]+", settings.get("version", "")) or (settings.text or "").strip():
+        raise RuntimeError("Missing settings version or unexpected settings text")
+    entries = list(settings)
+    if any(node.tag != "setting" or len(node) or (node.text or "").strip() or (node.tail or "").strip()
+           for node in entries):
+        raise RuntimeError("Malformed direct setting entries")
+    locales = [node for node in entries if node.get("name") == "system_locales"]
+    if len(locales) != 1 or "value" not in locales[0].attrib or "valueBase64" in locales[0].attrib:
+        raise RuntimeError("Expected one direct system_locales with a plain value")
+    value = locales[0].attrib["value"]
+    if value not in ("en-US", "ru-RU"):
+        raise RuntimeError("Persisted locale is outside the acceptance languages")
+    return value
+
+
+def configure_api30_locale(adb, tag: str, receipt: dict) -> None:
+    if adb("shell", "am", "get-current-user") != "0":
+        raise RuntimeError("API30 locale setup requires user 0")
+    setting = adb("shell", "settings", "--user", "0", "get", "system", "system_locales")
+    prop = adb("shell", "getprop", "persist.sys.locale")
+    effective = adb("shell", "am", "get-config")
+    receipt["locale_before"] = {"system_locales": setting, "property": prop, "effective": effective}
+    reload = locale_needs_reload(setting, prop, effective, tag)
+    receipt["framework_reload"] = reload
+    if reload:
+        response = adb("root")
+        if "cannot run as root" in response:
+            raise RuntimeError("API30 requires the official userdebug image for system locale changes")
+        adb("wait-for-device")
+        adb("shell", "setprop", "persist.sys.locale", tag)
+        adb("shell", "settings", "--user", "0", "put", "system", "system_locales", tag)
+        persistence_deadline = time.monotonic() + 90
+        while True:
+            raw = adb("exec-out", "abx2xml", "/data/system/users/0/settings_system.xml", "-")
+            if persisted_locale(raw) == tag:
+                receipt["persisted_locale_before_restart"] = tag
+                break
+            if time.monotonic() >= persistence_deadline:
+                raise RuntimeError("Requested locale was not committed; framework was not stopped")
+            time.sleep(0.1)
+        adb("shell", "stop")
+        adb("shell", "start")
+        deadline = time.monotonic() + 90
+        while True:
+            try:
+                if locale_configuration_matches(adb("shell", "am", "get-config"), tag):
+                    break
+            except subprocess.CalledProcessError:
+                pass
+            if time.monotonic() >= deadline:
+                raise RuntimeError("Requested framework locale did not appear after restart")
+            time.sleep(1)
+    setting = adb("shell", "settings", "--user", "0", "get", "system", "system_locales")
+    prop = adb("shell", "getprop", "persist.sys.locale")
+    effective = adb("shell", "am", "get-config")
+    user = adb("shell", "am", "get-current-user")
+    receipt["locale_after"] = {"system_locales": setting, "property": prop, "effective": effective, "user": user}
+    if user != "0" or locale_needs_reload(setting, prop, effective, tag):
+        raise RuntimeError("Locale setting, property, effective configuration or user disagrees")
 
 
 def main():
@@ -57,25 +149,8 @@ def main():
                 "--user", "0", "--locales", tag)
             receipt["app_locales"] = adb("shell", "cmd", "locale", "get-app-locales",
                                          args.package, "--user", "0")
-        elif adb("shell", "getprop", "persist.sys.locale") != tag:
-            response = adb("root")
-            if "cannot run as root" in response:
-                raise RuntimeError("API30 requires the official userdebug image for system locale changes")
-            adb("wait-for-device")
-            adb("shell", "setprop", "persist.sys.locale", tag)
-            adb("shell", "stop")
-            adb("shell", "start")
-            deadline = time.monotonic() + 90
-            while True:
-                try:
-                    if "package:" in adb("shell", "pm", "path", "android"):
-                        adb("shell", "settings", "get", "system", "font_scale")
-                        break
-                except subprocess.CalledProcessError:
-                    pass
-                if time.monotonic() >= deadline:
-                    raise RuntimeError("Framework did not become available after locale change")
-                time.sleep(1)
+        else:
+            configure_api30_locale(adb, tag, receipt)
         adb("shell", "settings", "put", "system", "font_scale", args.scale)
         receipt["battery_before"] = adb("shell", "dumpsys", "battery")
         adb("shell", "dumpsys", "battery", "unplug")

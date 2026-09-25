@@ -22,6 +22,7 @@ from acceptance_model import (
 from adb_acceptance import artifact_inventory, extract_artifacts, parse_sections, run_cell, observation_verdict, UI_INVOCATIONS, death_trial
 from run_mutations import is_assertion_test_failure
 import adb_acceptance as acceptance_runner
+import configure_cell
 
 
 BOOT = "12c90163-e223-412e-bd25-a40e776ad999"
@@ -584,6 +585,371 @@ class OutputContainmentTest(unittest.TestCase):
                 acceptance_runner.write_json(report, {"status": "PASS"})
             self.assertEqual("Preserve this external file", outside.read_text())
             self.assertEqual(previous, report.read_bytes())
+
+
+class LocaleSetupTest(unittest.TestCase):
+    def run_setup(self, *, setting="en-US", prop="en-US", effective="en-rUS", persisted=None,
+                  user="0", after_effective=None, final_setting=None, clock=None):
+        self.commands = []
+        self.locale_state = {"setting": setting, "prop": prop, "effective": effective}
+        persisted = list(persisted or ["ru-RU"])
+
+        def run(argv, **kwargs):
+            parts = argv[3:]
+            self.commands.append(parts)
+            state = self.locale_state
+            out = ""
+            if parts == ["shell", "getprop", "ro.build.version.sdk"]:
+                out = "30"
+            elif parts == ["shell", "am", "get-current-user"]:
+                out = user
+            elif parts == ["shell", "getprop", "persist.sys.locale"]:
+                out = state["prop"]
+            elif parts == ["shell", "settings", "--user", "0", "get", "system", "system_locales"]:
+                out = final_setting if final_setting is not None and ["shell", "start"] in self.commands else state["setting"]
+            elif parts == ["shell", "am", "get-config"]:
+                out = "config: " + state["effective"] + "-ldltr-sw192dp-w192dp-h192dp-small-round-v30\n"
+            elif parts[:3] == ["shell", "setprop", "persist.sys.locale"]:
+                state["prop"] = parts[3]
+            elif parts[:6] == ["shell", "settings", "--user", "0", "put", "system"]:
+                state["setting"] = parts[7]
+            elif parts == ["exec-out", "abx2xml", "/data/system/users/0/settings_system.xml", "-"]:
+                value = persisted.pop(0) if len(persisted) > 1 else persisted[0]
+                out = ("<?xml version='1.0' encoding='UTF-8' standalone='yes' ?>"
+                       '<settings version="213"><setting id="12" name="system_locales" value="'
+                       + value + '" /></settings><namespaceHashes />')
+            elif parts == ["shell", "start"]:
+                state["effective"] = after_effective or {"en-US": "en-rUS", "ru-RU": "ru-rRU"}[state["setting"]]
+            elif parts == ["shell", "pm", "path", "android"]:
+                out = "package:/system/framework/framework-res.apk"
+            elif parts == ["shell", "dumpsys", "battery"]:
+                out = "AC powered: false\nUSB powered: false\nWireless powered: false\n"
+            elif parts == ["shell", "settings", "get", "system", "screen_off_timeout"]:
+                out = "120000"
+            return SimpleNamespace(returncode=0, stdout=out, stderr="", check_returncode=lambda: None)
+
+        args = ["configure_cell.py", "--adb", "/fake/adb", "--serial", "emulator-5554",
+                "--locale", "ru", "--scale", "1.24", "--output", str(self.output)]
+        with patch("sys.argv", args), patch("configure_cell.subprocess.run", side_effect=run), patch(
+            "configure_cell.time.sleep"
+        ), patch("builtins.print"):
+            if clock is None:
+                configure_cell.main()
+            else:
+                with patch("configure_cell.time.monotonic", side_effect=clock):
+                    configure_cell.main()
+
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temporary.cleanup)
+        self.output = Path(self.temporary.name) / "setup.json"
+
+    def test_user_locale_is_corrected_even_when_property_matches(self):
+        self.run_setup(prop="ru-RU")
+        self.assertEqual("ru-RU", self.locale_state["setting"])
+        self.assertEqual("ru-rRU", self.locale_state["effective"])
+        self.assertIn(["shell", "stop"], self.commands)
+        self.assertEqual("CONFIGURED_NOT_VERIFIED", json.loads(self.output.read_text())["status"])
+
+    def test_framework_restart_waits_for_committed_settings_locale(self):
+        self.run_setup(persisted=["en-US", "ru-RU"])
+        stop = self.commands.index(["shell", "stop"])
+        reads = [i for i, command in enumerate(self.commands) if command[:2] == ["exec-out", "abx2xml"]]
+        self.assertEqual(2, len(reads))
+        self.assertLess(reads[-1], stop)
+        self.assertLess(self.commands.index(["shell", "settings", "--user", "0", "put", "system",
+                                            "system_locales", "ru-RU"]), reads[0])
+
+    def test_uncommitted_locale_never_stops_the_framework(self):
+        with self.assertRaises(RuntimeError):
+            self.run_setup(persisted=["en-US"], clock=[0, 91])
+        self.assertNotIn(["shell", "stop"], self.commands)
+        self.assertEqual("BLOCKED", json.loads(self.output.read_text())["status"])
+
+    def test_wrong_effective_locale_after_restart_cannot_be_configured(self):
+        with self.assertRaises(RuntimeError):
+            self.run_setup(after_effective="en-rUS", clock=[0, 0, 91])
+        self.assertEqual("BLOCKED", json.loads(self.output.read_text())["status"])
+
+    def test_nonzero_user_is_rejected_before_locale_mutations(self):
+        with self.assertRaises(RuntimeError):
+            self.run_setup(user="10")
+        self.assertFalse(any(command[:2] == ["shell", "setprop"] or command == ["shell", "stop"]
+                             for command in self.commands))
+        self.assertEqual("BLOCKED", json.loads(self.output.read_text())["status"])
+
+    def test_matching_user_property_and_effective_locale_do_not_restart(self):
+        self.run_setup(setting="ru-RU", prop="ru-RU", effective="ru-rRU")
+        self.assertNotIn(["shell", "stop"], self.commands)
+        self.assertNotIn(["root"], self.commands)
+        self.assertEqual("CONFIGURED_NOT_VERIFIED", json.loads(self.output.read_text())["status"])
+
+
+    def test_persisted_locale_accepts_observed_fragment_and_optional_namespace(self):
+        declaration = "<?xml version='1.0' encoding='UTF-8' standalone='yes' ?>"
+        for value in ("en-US", "ru-RU"):
+            for suffix in ("", '<namespaceHashes><namespaceHash namespace="runtime" hash="123" /></namespaceHashes>'):
+                raw = (declaration + '\n<settings version="213"><setting id="42" name="system_locales" '
+                       'value="' + value + '" package="android" /></settings>' + suffix)
+                try:
+                    actual = configure_cell.persisted_locale(raw)
+                except RuntimeError as error:
+                    self.fail(str(error))
+                self.assertEqual(value, actual)
+
+    def test_persisted_locale_rejects_ambiguous_or_nonplain_values(self):
+        declaration = "<?xml version='1.0' encoding='UTF-8' standalone='yes' ?>"
+        entry = '<setting name="system_locales" value="ru-RU" />'
+        root = '<settings version="213">' + entry + '</settings>'
+        bodies = [root + root, root + '<namespaceHashes /><namespaceHashes />',
+                  '<namespaceHashes />' + root, root + 'unparsed tail',
+                  root.replace(entry, entry + entry), root.replace(entry, ''),
+                  root.replace(entry, '<nested>' + entry + '</nested>'),
+                  root.replace('value="ru-RU"', 'valueBase64="cnUtUlU="'),
+                  root.replace('value="ru-RU"', 'value="ru-RU" valueBase64="cnUtUlU="'),
+                  root.replace('value="ru-RU"', 'value="de-DE"'),
+                  root.replace('version="213"', 'version="invalid"'),
+                  root.replace('</settings>', ''), '<!DOCTYPE settings>' + root]
+        for raw in (root, *[declaration + body for body in bodies]):
+            with self.subTest(raw=raw), self.assertRaises(RuntimeError):
+                configure_cell.persisted_locale(raw)
+
+    def test_effective_locale_requires_one_exact_matching_config(self):
+        ru = 'config: mcc250-mnc01-ru-rRU-ldltr-sw192dp-round-v30\n'
+        en = 'config: en-rUS-ldltr-sw192dp-round-v30\n'
+        self.assertTrue(configure_cell.locale_configuration_matches(ru, "ru-RU"))
+        self.assertTrue(configure_cell.locale_configuration_matches(en, "en-US"))
+        for raw in (en, ru + ru, ru + en, 'metadata ru-rRU\n', ru.replace('config:', 'configuration:')):
+            with self.subTest(raw=raw):
+                self.assertFalse(configure_cell.locale_configuration_matches(raw, "ru-RU"))
+        self.assertTrue(configure_cell.locale_needs_reload("en-US", "ru-RU", ru, "ru-RU"))
+        self.assertTrue(configure_cell.locale_needs_reload("ru-RU", "en-US", ru, "ru-RU"))
+        self.assertTrue(configure_cell.locale_needs_reload("ru-RU", "ru-RU", en, "ru-RU"))
+        self.assertFalse(configure_cell.locale_needs_reload("ru-RU", "ru-RU", ru, "ru-RU"))
+
+    def test_final_setting_drift_is_not_reported_as_configured(self):
+        with self.assertRaises(RuntimeError):
+            self.run_setup(final_setting="en-US")
+        self.assertEqual("BLOCKED", json.loads(self.output.read_text())["status"])
+
+
+class ManualRegistrationTest(unittest.TestCase):
+    def invoke(self, cohort, artifacts):
+        case_id = "manual/api36/system-tile"
+        plan = {"cohort": "manual-test", "source": {"head": "test"},
+                "expected": {case_id: {"kind": "manual"}}}
+        args = ["adb_acceptance.py", "record-manual", "--cohort", str(cohort), "--case", case_id,
+                "--status", "BLOCKED", "--reason", "A reviewed limitation"]
+        for artifact in artifacts:
+            args += ["--artifact", str(artifact)]
+        with patch("sys.argv", args), patch("adb_acceptance.validate_plan", return_value=plan):
+            acceptance_runner.main()
+
+    def test_invalid_later_attachment_leaves_no_partial_case(self):
+        for kind in ("empty", "missing", "unreadable", "became_empty"):
+            with self.subTest(kind=kind), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                cohort = root / "cohort"
+                cohort.mkdir()
+                first, last = root / "first.txt", root / "last.txt"
+                first.write_text("Keep the first source artifact")
+                if kind != "missing":
+                    last.write_bytes(b"" if kind == "empty" else b"unreadable")
+                real_open = Path.open
+
+                def open_path(path, *args, **kwargs):
+                    if path == last and kind == "unreadable":
+                        raise PermissionError("Cannot read this attachment")
+                    if path == last and kind == "became_empty":
+                        return io.BytesIO()
+                    return real_open(path, *args, **kwargs)
+
+                with patch.object(Path, "open", open_path):
+                    with self.assertRaises((InvalidEvidence, OSError)):
+                        self.invoke(cohort, [first, last])
+                self.assertFalse((cohort / "cases").exists(), "Preflight must not publish a partial case")
+                self.assertEqual("Keep the first source artifact", first.read_text())
+
+    def test_valid_manual_artifacts_preserve_bytes_and_existing_case(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            cohort = root / "cohort"
+            cohort.mkdir()
+            first, second = root / "first.txt", root / "second.bin"
+            first.write_bytes(b"Observed text\n")
+            second.write_bytes(bytes(range(256)))
+            self.invoke(cohort, [first, second])
+            case = cohort / "cases/manual/api36/system-tile"
+            receipt = json.loads((case / "receipt.json").read_text())
+            self.assertEqual("BLOCKED", receipt["status"])
+            self.assertEqual(first.read_bytes(), (case / "operator-00-first.txt").read_bytes())
+            self.assertEqual(second.read_bytes(), (case / "operator-01-second.bin").read_bytes())
+            before = {str(path.relative_to(case)): path.read_bytes() for path in case.rglob("*") if path.is_file()}
+            with self.assertRaises(FileExistsError):
+                self.invoke(cohort, [first, second])
+            self.assertEqual(before, {str(path.relative_to(case)): path.read_bytes()
+                                      for path in case.rglob("*") if path.is_file()})
+
+    def test_changed_attachment_after_preflight_cannot_publish_a_receipt(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            cohort = root / "cohort"
+            cohort.mkdir()
+            evidence = root / "evidence.txt"
+            evidence.write_bytes(b"expected")
+            real_read = Path.read_bytes
+
+            def read_path(path):
+                return b"replaced" if path == evidence else real_read(path)
+
+            with patch.object(Path, "read_bytes", read_path):
+                with self.assertRaises(InvalidEvidence):
+                    self.invoke(cohort, [evidence])
+            case = cohort / "cases/manual/api36/system-tile"
+            self.assertFalse((case / "receipt.json").exists())
+            self.assertFalse((case / "operator-00-evidence.txt").exists())
+            self.assertEqual(b"expected", evidence.read_bytes())
+
+
+class DeathSignalTest(unittest.TestCase):
+    STATUS = ("Name:\twear\nTgid:\t77\nPid:\t77\n"
+              "SigBlk:\t0000000080001204\nSigIgn:\t0000000000000001\n"
+              "SigCgt:\t0000006e400084f8\n")
+    STAT = "77 (wear process) " + " ".join(["S"] + ["0"] * 18 + ["8"])
+
+    def fake_adb(self, directory, status=None, stat=None, fail_signal=False):
+        calls = []
+        def shell(*args, **kwargs):
+            calls.append(args)
+            if args[2] == "cat" and args[3].endswith("/status"):
+                return self.STATUS if status is None else status
+            if args[2] == "cat" and args[3].endswith("/stat"):
+                return self.STAT if stat is None else stat
+            if args[2] == "kill":
+                if fail_signal and args[3] == "-15":
+                    raise InvalidEvidence("Recorded signal command was denied")
+                return ""
+            raise AssertionError("Unexpected fake command")
+        return SimpleNamespace(directory=Path(directory), shell=shell, calls=calls,
+                               command=Mock(return_value=b"cache"), screenshot=Mock())
+
+    def invoke_cli(self, api, scenario="death-fresh", selected=None):
+        args = ["adb_acceptance.py", "run-lifecycle", "--cohort", "/private/tmp/term-unit-cohort",
+                "--api", str(api), "--scenario", scenario, "--repetition", "1", "--serial", "emulator-test"]
+        if selected is not None:
+            args += ["--death-signal", selected]
+        with patch("sys.argv", args), patch("adb_acceptance.validate_plan", return_value={}), patch(
+            "adb_acceptance.death_trial", return_value={}
+        ) as death, patch("adb_acceptance.run_case", side_effect=lambda args, plan, key, operation: operation("fake")):
+            acceptance_runner.main()
+            return death.call_args
+
+    def test_cli_defaults_to_kill_and_forwards_explicit_term(self):
+        for api, selected, expected in ((30, None, "kill"), (36, None, "kill"), (30, "term-default", "term-default")):
+            try:
+                actual = self.invoke_cli(api, selected=selected)
+            except Exception as error:
+                self.fail(f"Valid CLI selection rejected: {type(error).__name__}: {error}")
+            self.assertEqual(actual.args, ("fake", {}, api, False, expected))
+
+    def test_term_is_rejected_for_wrong_api_or_retention_before_case_creation(self):
+        for api, scenario in ((36, "death-fresh"), (30, "retention")):
+            with patch("adb_acceptance.retention_trial", return_value={}):
+                with self.assertRaises(InvalidEvidence):
+                    self.invoke_cli(api, scenario, "term-default")
+        with self.assertRaises(InvalidEvidence):
+            acceptance_runner.validate_death_signal(30, "death-fresh", "unexpected")
+        with patch("adb_acceptance.start_trial") as setup:
+            with self.assertRaises(InvalidEvidence):
+                death_trial(None, {}, 36, False, "term-default")
+            setup.assert_not_called()
+
+    def test_default_disposition_is_preserved_as_explicit_backend_evidence(self):
+        with tempfile.TemporaryDirectory() as directory:
+            adb = self.fake_adb(directory)
+            try:
+                record = acceptance_runner.signal_process_death(adb, {"package": PACKAGE}, sample(1000, pid=77, birth=8), 30, "term-default")
+            except Exception as error:
+                self.fail(f"Default TERM disposition rejected: {type(error).__name__}: {error}")
+            self.assertEqual(adb.calls, [("run-as", PACKAGE, "cat", "/proc/77/status"),
+                                         ("run-as", PACKAGE, "cat", "/proc/77/stat"),
+                                         ("run-as", PACKAGE, "kill", "-15", "77")])
+            self.assertEqual(record["signal"], 15)
+            self.assertEqual(record["backend"], "RUN_AS_SIGTERM_DEFAULT_DISPOSITION")
+            self.assertTrue(record["disposition"]["default_disposition_observed"])
+            self.assertEqual(record["status"], "SIGNAL_COMMAND_RETURNED_SUCCESS_NOT_DEATH_PROOF")
+            self.assertEqual(json.loads((Path(directory) / "signal-backend.json").read_text()), record)
+
+    def test_caught_ignored_or_blocked_term_never_reaches_signal(self):
+        for original, replacement in (("0000006e400084f8", "0000006e4000c4f8"),
+                                      ("SigIgn:\t0000000000000001", "SigIgn:\t0000000000004001"),
+                                      ("SigBlk:\t0000000080001204", "SigBlk:\t0000000080005204")):
+            with tempfile.TemporaryDirectory() as directory:
+                adb = self.fake_adb(directory, status=self.STATUS.replace(original, replacement))
+                with self.assertRaises(InvalidEvidence):
+                    acceptance_runner.signal_process_death(adb, {"package": PACKAGE}, sample(1000, pid=77, birth=8), 30, "term-default")
+                self.assertEqual(adb.calls, [("run-as", PACKAGE, "cat", "/proc/77/status")])
+
+    def test_wrong_identity_or_corrupt_status_is_inconclusive(self):
+        invalid = (self.STATUS + "Pid:\t77\n", self.STATUS.replace("Pid:\t77", "Pid:\t78"),
+                   self.STATUS.replace("Tgid:\t77", "Tgid:\t78"), self.STATUS.replace("0000006e400084f8", "84f8"),
+                   self.STATUS.replace("0000006e400084f8", "0000006e400084fg"), self.STATUS.rstrip("\n"),
+                   self.STATUS.replace("SigIgn:\t0000000000000001\n", ""))
+        for raw in invalid:
+            try:
+                acceptance_runner.default_term_disposition(raw, 77)
+            except InvalidEvidence:
+                continue
+            except Exception as error:
+                self.fail(f"Wrong error classification: {type(error).__name__}: {error}")
+            self.fail("Malformed or mismatched signal status was accepted")
+
+    def test_birth_reuse_prevents_either_signal_backend(self):
+        for backend in ("kill", "term-default"):
+            with tempfile.TemporaryDirectory() as directory:
+                adb = self.fake_adb(directory, stat=self.STAT[:-1] + "9")
+                with self.assertRaises(InvalidEvidence):
+                    acceptance_runner.signal_process_death(adb, {"package": PACKAGE}, sample(1000, pid=77, birth=8), 30, backend)
+                self.assertFalse(any(call[2] == "kill" for call in adb.calls))
+
+    def test_signal_error_has_no_second_signal_or_fallback(self):
+        with tempfile.TemporaryDirectory() as directory:
+            adb = self.fake_adb(directory, fail_signal=True)
+            with self.assertRaises(InvalidEvidence):
+                acceptance_runner.signal_process_death(adb, {"package": PACKAGE}, sample(1000, pid=77, birth=8), 30, "term-default")
+            self.assertEqual([call[3] for call in adb.calls if call[2] == "kill"], ["-15"])
+            self.assertEqual(json.loads((Path(directory) / "signal-backend.json").read_text())["status"],
+                             "PRECONDITIONS_VALIDATED_SIGNAL_NOT_YET_SENT")
+
+    def test_sigkill_remains_default_without_term_disposition_reads(self):
+        for api in (30, 36):
+            with tempfile.TemporaryDirectory() as directory:
+                adb = self.fake_adb(directory)
+                record = acceptance_runner.signal_process_death(adb, {"package": PACKAGE}, sample(1000, pid=77, birth=8), api, "kill")
+                self.assertEqual(adb.calls, [("run-as", PACKAGE, "cat", "/proc/77/stat"),
+                                             ("run-as", PACKAGE, "kill", "-9", "77")])
+                self.assertEqual((record["backend"], record["signal"]), ("RUN_AS_SIGKILL", 9))
+                self.assertNotIn("disposition", record)
+
+    def test_explicit_term_trial_keeps_background_and_removal_oracles(self):
+        with tempfile.TemporaryDirectory() as directory:
+            adb = self.fake_adb(directory)
+            observations = [sample(1100, pid=77, birth=8), sample(1200, pid=77, birth=8),
+                            sample(1300), sample(1400, key=None)]
+            with patch("adb_acceptance.start_trial", return_value=sample(1000, pid=77, birth=8)), patch(
+                "adb_acceptance.deadline", return_value=1400
+            ), patch("adb_acceptance.background_for_death", return_value={"verified": True}), patch(
+                "adb_acceptance.observe", side_effect=observations
+            ), patch("adb_acceptance.time.sleep"):
+                try:
+                    result = death_trial(adb, {"package": PACKAGE, "user": 0}, 30, False, "term-default")
+                except InvalidEvidence as error:
+                    self.fail(f"Valid default-disposition trial was rejected: {error}")
+            self.assertEqual(result["signal_backend"]["backend"], "RUN_AS_SIGTERM_DEFAULT_DISPOSITION")
+            self.assertEqual(adb.calls[-1], ("run-as", PACKAGE, "kill", "-15", "77"))
+            self.assertEqual(result["background"], {"verified": True})
+            self.assertEqual(result["removal"]["first_absent"]["before_ms"], 1400)
+            self.assertEqual(result["removal"]["clock_precision_ms"], 10)
 
 
 if __name__ == "__main__":
