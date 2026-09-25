@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.wear.runtime
 
+import android.content.ComponentName
+import android.content.pm.PackageManager
 import android.os.Build
 import io.github.stslex.workeeper.wear.ongoing.OngoingStatus
 import io.github.stslex.workeeper.wear.ui.ControllerAction
@@ -26,6 +28,18 @@ internal class ReleaseRuntimeBoundaryTest {
         assertEquals(OngoingStatus.Inactive, runtime.ongoingStatus.value)
         assertThrows(ClassNotFoundException::class.java) {
             Class.forName("io.github.stslex.workeeper.wear.runtime.DebugSnapshotDriver")
+        }
+        assertThrows(ClassNotFoundException::class.java) {
+            Class.forName("io.github.stslex.workeeper.wear.runtime.AcceptanceScenarioReceiver")
+        }
+        assertThrows(PackageManager.NameNotFoundException::class.java) {
+            context.packageManager.getReceiverInfo(
+                ComponentName(
+                    context.packageName,
+                    "io.github.stslex.workeeper.wear.runtime.AcceptanceScenarioReceiver",
+                ),
+                0,
+            )
         }
     }
 }
