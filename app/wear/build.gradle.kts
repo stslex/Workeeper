@@ -65,5 +65,18 @@ tasks.register("lintDebug") {
     dependsOn("lintDevDebug", "lintStoreDebug")
 }
 tasks.register("testDebugUnitTest") {
-    dependsOn("testDevDebugUnitTest", "testStoreDebugUnitTest")
+    dependsOn("testDevDebugUnitTest", "testStoreDebugUnitTest", "verifyEmulatorAcceptanceRunner")
+}
+
+tasks.register<Exec>("verifyEmulatorAcceptanceRunner") {
+    group = "verification"
+    description = "Check the external Wear emulator evidence parser and result inventory."
+    workingDir(rootDir)
+    environment("PYTHONDONTWRITEBYTECODE", "1")
+    commandLine(
+        "python3", "documentation/wear-emulator-acceptance/run_parser_tests.py",
+        "--output", layout.buildDirectory.file(
+            "test-results/verifyEmulatorAcceptanceRunner/TEST-WearAcceptanceParser.xml",
+        ).get().asFile.absolutePath,
+    )
 }
