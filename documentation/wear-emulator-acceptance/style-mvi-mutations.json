@@ -1,0 +1,33 @@
+[
+  {
+    "name": "SHARED_TEXT_FONT_SUBSTITUTED",
+    "file": "core/ui/design-tokens/src/commonMain/kotlin/io/github/stslex/workeeper/core/ui/design/AppFonts.kt",
+    "find": "Font(Res.font.ibm_plex_sans_regular, FontWeight.Normal)",
+    "replace": "Font(Res.font.ibm_plex_mono_regular, FontWeight.Normal)",
+    "task": ":core:ui:kit:testAndroidHostTest --tests *AppBundledFontsTest --no-configuration-cache --no-parallel --console=plain",
+    "expected_class": "io.github.stslex.workeeper.core.ui.kit.theme.AppBundledFontsTest",
+    "expected_method": "bundledFamiliesReachTheirPhoneRoles()",
+    "xml_root": "core/ui/kit/build"
+  },
+  {
+    "name": "SHARED_COLOR_TOKEN_DRIFT",
+    "file": "core/ui/design-tokens/src/commonMain/kotlin/io/github/stslex/workeeper/core/ui/design/AppColorTokens.kt",
+    "find": "const val DARK_MAX: Long = 0xFFF1F5F9",
+    "replace": "const val DARK_MAX: Long = 0xFFF0F4F8",
+    "task": ":app:wear:testDevDebugUnitTest --tests *WearThemeGateTest --no-configuration-cache --no-parallel --console=plain",
+    "expected_class": "io.github.stslex.workeeper.wear.ui.WearThemeGateTest",
+    "expected_method": "no dynamic theming, and the §3 palette reaches both screen extremes",
+    "xml_root": "app/wear/build"
+  },
+  {
+    "name": "SOURCE_STRING_WALK_EXCLUDES_DECLARATIONS",
+    "file": "app/wear/src/test/kotlin/io/github/stslex/workeeper/wear/ui/WearStringCoverageGateTest.kt",
+    "find": "it in declared || it !in FIREBASE_CONFIGURATION_IDS",
+    "replace": "it !in declared && it !in FIREBASE_CONFIGURATION_IDS",
+    "task": ":app:wear:testDevDebugUnitTest --tests *WearStringCoverageGateTest --no-configuration-cache --no-parallel --console=plain",
+    "expected_class": "io.github.stslex.workeeper.wear.ui.WearStringCoverageGateTest",
+    "expected_method": "every Wear string resource is rendered by at least one fixture",
+    "expected_assertion": "declared but NOT reflected",
+    "xml_root": "app/wear/build"
+  }
+]

@@ -56,7 +56,7 @@ def main():
         source = ROOT / case["file"]
         before = source.read_bytes()
         began = time.time()
-        command = ["python3", "documentation/mockups/mutation_harness.py", "--file", case["file"],
+        command = ["python3", "documentation/mockups/mutation_harness.py", "--name", case["name"], "--file", case["file"],
                    "--find", case["find"], "--replace", case["replace"], "--task", case["task"], "--expect", "RED"]
         result = subprocess.run(command, cwd=ROOT, capture_output=True, text=True)
         output = result.stdout + result.stderr
@@ -64,14 +64,17 @@ def main():
         (directory / "command.json").write_text(json.dumps(command, indent=2) + "\n")
         restored = source.read_bytes() == before
         matches = []
-        for path in (ROOT / "app/wear/build").rglob("TEST-*.xml"):
+        for path in (ROOT / case.get("xml_root", "app/wear/build")).rglob("TEST-*.xml"):
             if path.stat().st_mtime < began:
                 continue
             for test in ET.parse(path).getroot().iter("testcase"):
                 if test.get("classname") == case["expected_class"] and test.get("name") == case["expected_method"]:
                     target = directory / ("xml-" + hashlib.sha256(str(path).encode()).hexdigest()[:8] + ".xml")
                     target.write_bytes(path.read_bytes())
-                    matches.append(is_assertion_test_failure(test))
+                    failures = "\n".join(failure.get("message", "") + (failure.text or "")
+                                         for failure in test.findall("failure"))
+                    matches.append(is_assertion_test_failure(test)
+                                   and case.get("expected_assertion", "") in failures)
         summaries = re.findall(r"(\d+) actionable tasks?: (\d+) executed([^\n]*)", output)
         fresh = len(summaries) == 1 and summaries[0][0] == summaries[0][1] and not summaries[0][2].strip()
         valid = result.returncode == 0 and restored and fresh and matches == [True]

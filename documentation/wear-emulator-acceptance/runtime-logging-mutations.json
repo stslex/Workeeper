@@ -1,0 +1,24 @@
+[
+  {
+    "file": "app/wear/src/main/kotlin/io/github/stslex/workeeper/wear/runtime/WearRuntimeUiEvent.kt",
+    "find": "Log.tag(\"WatchRuntimeUi\").e(failure, \"Runtime event failed; the read-only surface remains available\")",
+    "task": ":app:wear:testDevDebugUnitTest --tests *WearRuntimeLoggingTest --no-configuration-cache --no-parallel --console=plain",
+    "expected_class": "io.github.stslex.workeeper.wear.runtime.WearRuntimeLoggingTest",
+    "expected_method": "releaseRuntimeFailureReportsToCrashlyticsWithoutLogcat()",
+    "xml_root": "app/wear/build",
+    "name": "RUNTIME_FAILURE_BYPASSES_LOGCAT_POLICY",
+    "replace": "android.util.Log.e(\"WatchRuntimeUi\", \"Runtime event failed; the read-only surface remains available\", failure)",
+    "expected_assertion": "Release logcat must stay silent"
+  },
+  {
+    "file": "app/wear/src/main/kotlin/io/github/stslex/workeeper/wear/runtime/WearRuntimeUiEvent.kt",
+    "find": "Log.tag(\"WatchRuntimeUi\").e(failure, \"Runtime event failed; the read-only surface remains available\")",
+    "task": ":app:wear:testDevDebugUnitTest --tests *WearRuntimeLoggingTest --no-configuration-cache --no-parallel --console=plain",
+    "expected_class": "io.github.stslex.workeeper.wear.runtime.WearRuntimeLoggingTest",
+    "expected_method": "releaseRuntimeFailureReportsToCrashlyticsWithoutLogcat()",
+    "xml_root": "app/wear/build",
+    "name": "RUNTIME_FAILURE_DROPS_RELEASE_CRASHLYTICS",
+    "replace": "if (Log.isLogging) Log.tag(\"WatchRuntimeUi\").e(failure, \"Runtime event failed; the read-only surface remains available\")",
+    "expected_assertion": "Verification failed"
+  }
+]
