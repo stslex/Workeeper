@@ -19,6 +19,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import io.github.stslex.workeeper.wear.MainActivity
 import io.github.stslex.workeeper.wear.runtime.WatchRuntimeFactory
 import io.github.stslex.workeeper.wear.ui.SyntheticSurfaceFixtures
+import io.github.stslex.workeeper.wear.ui.WearSurfaceMapper
 import io.github.stslex.workeeper.wear.ui.WearSurfaceModel
 import org.json.JSONArray
 import org.json.JSONObject
@@ -91,7 +92,7 @@ internal class WearAcceptanceSession(val rule: ComposeTestRule) {
         rule.waitForIdle()
     }
 
-    fun runtimeModel(): WearSurfaceModel = WatchRuntimeFactory.get(activity).surface.value
+    fun runtimeModel(): WearSurfaceModel = WearSurfaceMapper.map(WatchRuntimeFactory.get(activity).snapshot.value)
 
     fun expectedModel(): WearSurfaceModel {
         val expected = requireNotNull(SyntheticSurfaceFixtures.find(fixture)).copy(

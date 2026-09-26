@@ -76,6 +76,10 @@ private fun WearAcceptanceSession.exerciseUpperBoundsAndDismissal() {
     assertEquals(998, runtimeModel().reps)
     rotate(EDITOR_STEP_PX)
     assertEquals(999, runtimeModel().reps)
+    rotate(-EDITOR_BATCH_PX)
+    assertEquals("One negative rotary event applies both reps steps", 997, runtimeModel().reps)
+    rotate(EDITOR_BATCH_PX)
+    assertEquals("One positive rotary event applies both reps steps", 999, runtimeModel().reps)
     rule.onNodeWithTag("editor_increase").performTouchInput { click() }
     assertEquals("Upper reps clamp", 999, runtimeModel().reps)
     capture("reps-upper")
@@ -88,6 +92,10 @@ private fun WearAcceptanceSession.exerciseUpperBoundsAndDismissal() {
     assertEquals(99_749, runtimeModel().weightHundredthsKg)
     rotate(EDITOR_STEP_PX)
     assertEquals(99_999, runtimeModel().weightHundredthsKg)
+    rotate(-EDITOR_BATCH_PX)
+    assertEquals("One negative rotary event applies both weight steps", 99_499, runtimeModel().weightHundredthsKg)
+    rotate(EDITOR_BATCH_PX)
+    assertEquals("One positive rotary event applies both weight steps", 99_999, runtimeModel().weightHundredthsKg)
     rule.onNodeWithTag("editor_increase").performTouchInput { click() }
     assertEquals("Upper weight clamp", 99_999, runtimeModel().weightHundredthsKg)
     capture("weight-upper")
@@ -232,6 +240,7 @@ private fun changedPixels(first: Bitmap, second: Bitmap): Int {
 }
 
 private const val EDITOR_STEP_PX = 49f
+private const val EDITOR_BATCH_PX = 96f
 private const val CONTROLLER_SCROLL_PX = 240f
 private const val PRESS_SETTLE_MS = 5_000L
 private const val PRESS_HOLD_MS = 500L

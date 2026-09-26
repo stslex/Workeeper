@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.wear.runtime
 
+import io.github.stslex.workeeper.wear.ui.ongoingStatus
+import io.github.stslex.workeeper.wear.ui.surface
 import io.github.stslex.workeeper.core.wear.protocol.WearProtocol
 import io.github.stslex.workeeper.wear.ongoing.OngoingStatus
 import io.github.stslex.workeeper.wear.ui.CompletionUnavailableReason
-import io.github.stslex.workeeper.wear.ui.ControllerAction
 import io.github.stslex.workeeper.wear.ui.SyntheticSurfaceFixtures
 import io.github.stslex.workeeper.wear.ui.WearSurfaceKind
 import org.junit.jupiter.api.Assertions.assertEquals
