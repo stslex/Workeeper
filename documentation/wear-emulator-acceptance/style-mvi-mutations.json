@@ -328,8 +328,8 @@
   {
     "name": "AMBIENT_WEIGHT_RASTER_OMITTED",
     "file": "app/wear/src/main/kotlin/io/github/stslex/workeeper/wear/ui/WearAmbientSummary.kt",
-    "find": "native.drawText(run.text, x, line.baselinePx + ambient.offset.yPx, run.paint)",
-    "replace": "if (line.role != AmbientLineRole.WEIGHT) native.drawText(run.text, x, line.baselinePx + ambient.offset.yPx, run.paint)",
+    "find": "native.drawAmbientLine(line, ambient.offset)",
+    "replace": "if (line.role != AmbientLineRole.WEIGHT) native.drawAmbientLine(line, ambient.offset)",
     "task": ":app:wear:testDevDebugUnitTest --tests *WearAmbientSummaryTest --no-configuration-cache --no-parallel --console=plain",
     "expected_class": "io.github.stslex.workeeper.wear.ui.WearAmbientSummaryTest",
     "expected_method": "englishSummaryFitsAndHasNoIndependentClock()",
@@ -399,5 +399,27 @@
     "expected_method": "localizedNumbersKeepTheirNumericFontAndSeparators()",
     "expected_assertion": "must keep one numeric fragment and one unit run",
     "xml_root": "app/wear/build"
+  },
+  {
+    "name": "AMBIENT_BIDI_PARAGRAPH_BYPASSED",
+    "file": "app/wear/src/main/kotlin/io/github/stslex/workeeper/wear/ui/AmbientParagraph.kt",
+    "task": ":app:wear:testDevDebugUnitTest --tests *WearAmbientBidiTest --no-configuration-cache --no-parallel --console=plain",
+    "expected_class": "io.github.stslex.workeeper.wear.ui.WearAmbientBidiTest",
+    "expected_method": "arabicTwelveHourClockMatchesThePlatformParagraphOrder()",
+    "expected_assertion": "Ambient clock pixels must retain paragraph bidi order",
+    "xml_root": "app/wear/build",
+    "find": "if (!Bidi.requiresBidi(value.toCharArray(), 0, value.length)) return null",
+    "replace": "if (value.isNotEmpty()) return null"
+  },
+  {
+    "name": "AMBIENT_BIDI_DIRECTION_FORCED_LTR",
+    "file": "app/wear/src/main/kotlin/io/github/stslex/workeeper/wear/ui/AmbientParagraph.kt",
+    "task": ":app:wear:testDevDebugUnitTest --tests *WearAmbientBidiTest --no-configuration-cache --no-parallel --console=plain",
+    "expected_class": "io.github.stslex.workeeper.wear.ui.WearAmbientBidiTest",
+    "expected_method": "arabicTwelveHourClockMatchesThePlatformParagraphOrder()",
+    "expected_assertion": "Ambient context pixels must retain paragraph bidi order",
+    "xml_root": "app/wear/build",
+    "find": ".setTextDirection(TextDirectionHeuristics.FIRSTSTRONG_LTR)",
+    "replace": ".setTextDirection(TextDirectionHeuristics.LTR)"
   }
 ]

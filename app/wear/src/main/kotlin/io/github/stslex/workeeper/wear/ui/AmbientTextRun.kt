@@ -18,7 +18,9 @@ internal fun fitAmbientNumericPaint(
     var fitted = TextPaint(paint).apply { textSize = lower }
     repeat(FONT_FIT_ITERATIONS) {
         val candidate = TextPaint(paint).apply { textSize = (lower + upper) / 2f }
-        val width = ambientTextRuns(line, candidate, fonts).sumOf { it.widthPx.toDouble() }
+        val runs = ambientTextRuns(line, candidate, fonts)
+        val width = ambientParagraph(runs, candidate)?.getLineWidth(0)
+            ?: runs.sumOf { it.widthPx.toDouble() }.toFloat()
         if (width <= availableWidth) {
             lower = candidate.textSize
             fitted = candidate

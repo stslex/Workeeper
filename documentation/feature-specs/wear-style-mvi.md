@@ -92,3 +92,15 @@ Arabic decimal/grouping separators; the complete number keeps its numeric role a
 keep their auxiliary role. The guard includes formatter-produced Arabic values, Persian
 digits and Arabic grouping. English/Russian roles and platform fallback for missing glyphs
 remain unchanged. Named controls remove Unicode digits and localized separators independently.
+
+2026-09-26 bidirectional-text review: [#294 comment 4111957516](https://github.com/stslex/Workeeper/pull/294#discussion_r4111957516)
+is correct-and-new. A native Compose raster regression of an Arabic 12-hour clock reproduced
+385 differing pixels against an independently styled platform paragraph, with one assertion
+failure and `106 actionable tasks: 106 executed`. Ambient now keeps directional text in one
+platform paragraph with the numeric and auxiliary typeface spans. Its advance and ascent/descent
+participate in centring and circular fitting; paragraph construction remains in the remembered
+layout, outside drawing. The unchanged LTR path retains its existing raster contract. Named
+controls bypass paragraph layout and force the wrong base direction independently.
+The first forced-LTR control was non-discriminating for the Arabic clock alone and remained
+INVALID, with the passing mutated XML preserved. The raster guard also includes a mixed RTL
+exercise name with a Latin unit so paragraph base direction has an observable effect.
