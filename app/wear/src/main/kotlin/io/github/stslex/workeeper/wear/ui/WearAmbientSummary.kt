@@ -25,6 +25,8 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import io.github.stslex.workeeper.core.ui.design.AppNativeFonts
+import io.github.stslex.workeeper.core.ui.design.workeeperNativeFonts
 import io.github.stslex.workeeper.wear.R
 import io.github.stslex.workeeper.wear.ambient.WearAmbientState
 import java.text.SimpleDateFormat
@@ -57,14 +59,16 @@ internal fun WearAmbientSummary(
         ambientSummaryContent(resources, model, ambient.timestampMillis, hasUnsubmittedValues, timeZone, timePattern)
     }
     val density = LocalDensity.current
+    val fonts = remember(context) { workeeperNativeFonts(context) }
     BoxWithConstraints(Modifier.fillMaxSize()) {
-        val layout = remember(content, constraints, density, ambient.deviceHasLowBitAmbient) {
+        val layout = remember(content, constraints, density, ambient.deviceHasLowBitAmbient, fonts) {
             ambientSummaryLayout(
                 content = content,
                 widthPx = constraints.maxWidth.toFloat(),
                 heightPx = constraints.maxHeight.toFloat(),
                 density = density,
                 lowBit = ambient.deviceHasLowBitAmbient,
+                fonts = fonts,
             )
         }
         Canvas(
@@ -79,12 +83,11 @@ internal fun WearAmbientSummary(
             val native = drawContext.canvas.nativeCanvas
             native.drawColor(Color.BLACK)
             layout.forEach { line ->
-                native.drawText(
-                    line.text,
-                    line.xPx + ambient.offset.xPx,
-                    line.baselinePx + ambient.offset.yPx,
-                    line.paint,
-                )
+                var x = line.xPx + ambient.offset.xPx
+                line.runs.forEach { run ->
+                    native.drawText(run.text, x, line.baselinePx + ambient.offset.yPx, run.paint)
+                    x += run.widthPx
+                }
             }
         }
     }
@@ -111,7 +114,13 @@ internal data class AmbientDrawLine(
     val baselinePx: Float,
     val availableWidthPx: Float,
     val paint: TextPaint,
-)
+    val runs: List<AmbientTextRun>,
+    val ascentPx: Float,
+    val descentPx: Float,
+    val fonts: AppNativeFonts,
+) {
+    val widthPx: Float = runs.sumOf { it.widthPx.toDouble() }.toFloat()
+}
 
 internal fun ambientSummaryContent(
     resources: Resources,
@@ -204,6 +213,7 @@ internal fun ambientSummaryLayout(
     heightPx: Float,
     density: Density,
     lowBit: Boolean,
+    fonts: AppNativeFonts,
 ): List<AmbientDrawLine> {
     val paints = content.lines.map { line ->
         TextPaint().apply {
@@ -213,32 +223,52 @@ internal fun ambientSummaryLayout(
             isSubpixelText = false
             isDither = false
             textAlign = Paint.Align.LEFT
+            typeface = fonts.text
         }
     }
+    val runs = content.lines.mapIndexed { index, line -> ambientTextRuns(line, paints[index], fonts) }
+    val tops = runs.map { line -> line.minOf { it.paint.fontMetrics.ascent } }
+    val bottoms = runs.map { line -> line.maxOf { it.paint.fontMetrics.descent } }
     val gap = with(density) { 1.dp.toPx() }
-    val totalHeight = paints.sumOf { (it.fontMetrics.bottom - it.fontMetrics.top).toDouble() }.toFloat() +
+    val totalHeight = tops.indices.sumOf { (bottoms[it] - tops[it]).toDouble() }.toFloat() +
         gap * (content.lines.size - 1)
     val radius = min(widthPx, heightPx) / 2f - AMBIENT_CONTENT_INSET_PX
     var top = (heightPx - totalHeight) / 2f
     return content.lines.mapIndexed { index, line ->
-        val paint = paints[index]
-        val metrics = paint.fontMetrics
-        val height = metrics.bottom - metrics.top
+        val height = bottoms[index] - tops[index]
         val furthestY = max(abs(top - heightPx / 2f), abs(top + height - heightPx / 2f))
         val chord = 2f * sqrt(max(0f, radius * radius - furthestY * furthestY))
         val availableWidth = max(0f, chord - AMBIENT_INK_GUARD_PX)
+        val rowWidth = runs[index].sumOf { it.widthPx.toDouble() }.toFloat()
+        val fitNumericRow = line.role == AmbientLineRole.PROGRESS || line.role == AmbientLineRole.TIME
+        val paint = if (fitNumericRow && rowWidth > availableWidth) {
+            fitAmbientNumericPaint(line, paints[index], fonts, availableWidth)
+        } else {
+            paints[index]
+        }
         val drawn = if (line.role == AmbientLineRole.CONTEXT) {
-            TextUtils.ellipsize(line.text, paint, availableWidth, TextUtils.TruncateAt.END).toString()
+            TextUtils.ellipsize(
+                line.text,
+                paint,
+                max(0f, availableWidth - AMBIENT_INK_GUARD_PX),
+                TextUtils.TruncateAt.END,
+            ).toString()
         } else {
             line.text
         }
+        val drawnRuns = ambientTextRuns(line.copy(text = drawn), paint, fonts)
+        val drawnWidth = drawnRuns.sumOf { it.widthPx.toDouble() }.toFloat()
         AmbientDrawLine(
             role = line.role,
             text = drawn,
-            xPx = (widthPx - paint.measureText(drawn)) / 2f,
-            baselinePx = top - metrics.top,
+            xPx = (widthPx - drawnWidth) / 2f,
+            baselinePx = top - tops[index],
             availableWidthPx = availableWidth,
             paint = paint,
+            runs = drawnRuns,
+            ascentPx = tops[index],
+            descentPx = bottoms[index],
+            fonts = fonts,
         ).also { top += height + gap }
     }
 }

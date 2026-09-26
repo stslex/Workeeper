@@ -23,6 +23,7 @@ import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.v2.runComposeUiTest
+import io.github.stslex.workeeper.core.ui.design.workeeperNativeFonts
 import io.github.stslex.workeeper.wear.R
 import io.github.stslex.workeeper.wear.ambient.WearAmbientOffset
 import io.github.stslex.workeeper.wear.ambient.WearAmbientState
@@ -130,11 +131,13 @@ private fun ComposeUiTest.assertAmbientSummaryMatrixWithFixedTimeFormat(locale: 
                 image.height.toFloat(),
                 node.layoutInfo.density,
                 profile.lowBit,
+                workeeperNativeFonts(app),
             )
             layout.forEach { line ->
                 assertTrue(
-                    line.paint.measureText(line.text) <= line.availableWidthPx,
-                    "$where ${line.role} exceeds its circular chord: ${line.text}",
+                    line.widthPx <= line.availableWidthPx,
+                    "$where ${line.role} width=${line.widthPx} limit=${line.availableWidthPx} " +
+                        "size=${line.paint.textSize} exceeds its circular chord: ${line.text}",
                 )
             }
             candidate.model.formattedValues.reps?.let { expected ->
@@ -276,21 +279,21 @@ internal fun assertAmbientNumericRaster(
     val actualPixels = image.toPixelMap()
     expectedRows.forEach { (role, text) ->
         val row = layout.single { it.role == role }
-        val metrics = row.paint.fontMetrics
-        val top = floor(row.baselinePx + metrics.top + offset.yPx).toInt()
-        val bottom = ceil(row.baselinePx + metrics.bottom + offset.yPx).toInt()
+        val top = floor(row.baselinePx + row.ascentPx + offset.yPx).toInt()
+        val bottom = ceil(row.baselinePx + row.descentPx + offset.yPx).toInt()
         assertTrue(top >= 0 && bottom <= image.height && top < bottom, "$where $role row is clipped")
         val expected = Bitmap.createBitmap(image.width, image.height, Bitmap.Config.ARGB_8888)
         try {
             val canvas = Canvas(expected)
             canvas.drawColor(Color.BLACK)
             // Use the model/resource string, never row.text: layout alone cannot prove drawn values.
-            canvas.drawText(
-                text,
-                (image.width - row.paint.measureText(text)) / 2f + offset.xPx,
-                row.baselinePx + offset.yPx,
-                row.paint,
-            )
+            val runs = ambientTextRuns(AmbientSummaryLine(role, text), row.paint, row.fonts)
+            val width = runs.sumOf { it.widthPx.toDouble() }.toFloat()
+            var x = (image.width - width) / 2f + offset.xPx
+            runs.forEach { run ->
+                canvas.drawText(run.text, x, row.baselinePx + offset.yPx, run.paint)
+                x += run.widthPx
+            }
             var expectedInk = 0
             var actualInk = 0
             var mismatchedPixels = 0
