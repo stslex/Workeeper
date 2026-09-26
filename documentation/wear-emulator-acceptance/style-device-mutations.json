@@ -18,5 +18,35 @@
     "expected_class": "io.github.stslex.workeeper.wear.acceptance.WearActivityAcceptanceTest",
     "expected_method": "rotaryEditorsAndPressUseRealActivity",
     "expected_assertion": "One negative rotary event applies both weight steps"
+  },
+  {
+    "name": "DEVICE_EDITOR_MINUS_OFF_CENTER",
+    "file": "app/wear/src/main/res/drawable/ic_decrement.xml",
+    "find": "M5,11h14v2H5z",
+    "replace": "M2,11h14v2H2z",
+    "task": ":app:wear:connectedDevDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=io.github.stslex.workeeper.wear.acceptance.WearActivityAcceptanceTest#rotaryEditorsAndPressUseRealActivity -Pandroid.testInstrumentationRunnerArguments.acceptanceCellId=device_editor_minus_off_center -Pandroid.testInstrumentationRunnerArguments.fixture=active_boundary -Pandroid.testInstrumentationRunnerArguments.expectedDp=192 -Pandroid.testInstrumentationRunnerArguments.expectedLocale=ru -Pandroid.testInstrumentationRunnerArguments.expectedFontScale=1.24 -Pandroid.testInstrumentationRunnerArguments.expectedApi=36 --no-configuration-cache --no-parallel --console=plain -Pandroid.injected.androidTest.leaveApksInstalledAfterRun=true",
+    "expected_class": "io.github.stslex.workeeper.wear.acceptance.WearActivityAcceptanceTest",
+    "expected_method": "rotaryEditorsAndPressUseRealActivity",
+    "expected_assertion": "painted horizontal center"
+  },
+  {
+    "name": "DEVICE_RUSSIAN_WORD_SPLIT",
+    "file": "app/wear/src/main/kotlin/io/github/stslex/workeeper/wear/ui/WearControllerScreen.kt",
+    "find": "modifier = Modifier.testTag(\"finish_on_phone\"),",
+    "replace": "modifier = Modifier.width(56.dp).testTag(\"finish_on_phone\"),",
+    "task": ":app:wear:connectedDevDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=io.github.stslex.workeeper.wear.acceptance.WearActivityAcceptanceTest#fixtureRendersThroughRealActivity -Pandroid.testInstrumentationRunnerArguments.acceptanceCellId=device_russian_word_split -Pandroid.testInstrumentationRunnerArguments.fixture=complete -Pandroid.testInstrumentationRunnerArguments.expectedDp=192 -Pandroid.testInstrumentationRunnerArguments.expectedLocale=ru -Pandroid.testInstrumentationRunnerArguments.expectedFontScale=1.24 -Pandroid.testInstrumentationRunnerArguments.expectedApi=36 --no-configuration-cache --no-parallel --console=plain -Pandroid.injected.androidTest.leaveApksInstalledAfterRun=true",
+    "expected_class": "io.github.stslex.workeeper.wear.acceptance.WearActivityAcceptanceTest",
+    "expected_method": "fixtureRendersThroughRealActivity",
+    "expected_assertion": "splits a word"
+  },
+  {
+    "name": "DEVICE_COMPLETION_OUTSIDE_CIRCLE",
+    "file": "app/wear/src/main/kotlin/io/github/stslex/workeeper/wear/ui/WearControllerScreen.kt",
+    "find": "ROUND_SAFE_FRACTION = 0.70710677f",
+    "replace": "ROUND_SAFE_FRACTION = 0.95f",
+    "task": ":app:wear:connectedDevDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=io.github.stslex.workeeper.wear.acceptance.WearActivityAcceptanceTest#fixtureRendersThroughRealActivity -Pandroid.testInstrumentationRunnerArguments.acceptanceCellId=device_completion_outside_circle -Pandroid.testInstrumentationRunnerArguments.fixture=complete -Pandroid.testInstrumentationRunnerArguments.expectedDp=192 -Pandroid.testInstrumentationRunnerArguments.expectedLocale=ru -Pandroid.testInstrumentationRunnerArguments.expectedFontScale=1.24 -Pandroid.testInstrumentationRunnerArguments.expectedApi=36 --no-configuration-cache --no-parallel --console=plain -Pandroid.injected.androidTest.leaveApksInstalledAfterRun=true",
+    "expected_class": "io.github.stslex.workeeper.wear.acceptance.WearActivityAcceptanceTest",
+    "expected_method": "fixtureRendersThroughRealActivity",
+    "expected_assertion": "round-screen edge"
   }
 ]

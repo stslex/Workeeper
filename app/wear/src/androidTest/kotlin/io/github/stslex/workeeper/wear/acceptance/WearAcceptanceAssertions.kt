@@ -106,6 +106,23 @@ private fun WearAcceptanceSession.assertCard(model: WearSurfaceModel, tag: Strin
 }
 
 internal fun WearAcceptanceSession.assertDetails(model: WearSurfaceModel) {
+    if (model.kind == WearSurfaceKind.WORKOUT_COMPLETE) {
+        val text = linkedMapOf(
+            "training_name" to (model.trainingName ?: activity.getString(R.string.workout_generic)),
+            "exercise_progress" to activity.resources.getQuantityString(
+                R.plurals.exercise_progress,
+                requireNotNull(model.totalExercises),
+                requireNotNull(model.completedExercises),
+                model.totalExercises,
+            ),
+            "finish_on_phone" to activity.getString(R.string.finish_on_phone),
+        )
+        text.forEach { (tag, expected) ->
+            rule.onNodeWithTag(tag).performScrollTo().assertIsDisplayed()
+            assertText(tag, expected)
+            capture("details-$tag")
+        }
+    }
     if (!model.controlsVisible) return
     rule.onNodeWithTag("exercise_name").performScrollTo().assertIsDisplayed()
     val name = node("exercise_name")
@@ -155,6 +172,7 @@ private fun WearAcceptanceSession.assertTextLayout(
     val layout = layouts.single()
     if (allowEllipsis) assertTrue("$tag at most two context lines", layout.lineCount <= 2)
     if (!allowEllipsis) assertFalse("$tag visual overflow", layout.hasVisualOverflow)
+    if (!allowEllipsis) assertWholeWords(layout, tag)
     repeat(layout.lineCount) { line ->
         if (!allowEllipsis) assertFalse("$tag ellipsis", layout.isLineEllipsized(line))
         val origin = text.positionInRoot

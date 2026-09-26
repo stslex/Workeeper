@@ -145,6 +145,7 @@ internal fun WearAcceptanceSession.openEditor(card: String) {
     rule.onNodeWithTag("editor_rotary").assertIsFocused()
     assertTarget("editor_increase")
     assertTarget("editor_decrease")
+    assertEditorSigns()
 }
 
 internal fun WearAcceptanceSession.pressBack() {

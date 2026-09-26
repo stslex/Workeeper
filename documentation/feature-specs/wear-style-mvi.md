@@ -52,6 +52,19 @@ Wear's typography is an adapter over the shared families. Card values use the co
 role; editor values use larger numeric spans with separate auxiliary spans for units. Missing
 weight is a text role. Actual render/layout acceptance remains mandatory after these changes.
 
+### Card sizing provenance
+
+The unequal card allocation reserves more space for a six-character weight than for
+three-digit reps. Units and the full unset-weight wording remain available in accessibility
+and the editor. The round-screen matrix must verify the actual bundled-font result.
+
+For historical context, the controller at `1af93d0b`, before shared Wear fonts, recorded
+65dp/36dp value widths at font scale 1.24, a 92dp:60dp card split with 76dp/44dp content,
+and 60dp content per card under an equal split. Its inline derivation also recorded
+`108 + 52 + 8 > 160` for a weight including its unit and 88dp for Russian unset copy.
+These are preserved source-recorded measurements of the earlier typography; they are
+not measurements or acceptance evidence for the new font roles.
+
 ## Implementation ledger
 
 2026-09-26 foundation: shared design tokens and font assets, the minimal existing MVI dependency
@@ -65,3 +78,17 @@ hardware ambient behavior remain separate acceptance.
 screen/editor decisions. Runtime snapshots keep process cache, authority and ongoing ownership
 outside the Store. The mapper prepares locale-aware values once; relative rotary batches apply
 to the latest draft. The following PR adapts Wear font roles and round geometry.
+
+2026-09-26 style: Wear consumes the shared font families and shape/spacing roles. Vector signs
+are centred inside explicit 48dp rounded buttons. Information content scrolls inside a round-safe
+viewport; ambient uses the same bundled typefaces with measured glyph fitting. New device guards
+cover whole Russian words, sign centring, complete instructions and multi-step rotary events.
+Tile refresh and the frozen final acceptance cohort follow in the last stacked PR.
+
+2026-09-26 localized-number review: [#294 comment 4111846578](https://github.com/stslex/Workeeper/pull/294#discussion_r4111846578)
+is correct-and-new. A fresh Kotlin test reproduced Arabic `١٢٨` taking one text run instead
+of separate numeric/unit roles. Ambient fragments now recognize Unicode decimal digits and
+Arabic decimal/grouping separators; the complete number keeps its numeric role and units
+keep their auxiliary role. The guard includes formatter-produced Arabic values, Persian
+digits and Arabic grouping. English/Russian roles and platform fallback for missing glyphs
+remain unchanged. Named controls remove Unicode digits and localized separators independently.
