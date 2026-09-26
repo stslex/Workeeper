@@ -6,6 +6,8 @@ import androidx.wear.tiles.RequestBuilders
 import androidx.wear.tiles.TileBuilders
 import androidx.wear.tiles.TileService
 import com.google.common.util.concurrent.ListenableFuture
+import io.github.stslex.workeeper.core.core.logger.Log
+import io.github.stslex.workeeper.wear.BuildConfig
 import io.github.stslex.workeeper.wear.runtime.WatchRuntimeFactory
 import io.github.stslex.workeeper.wear.runtime.runWearRuntimeUiEvent
 import io.github.stslex.workeeper.wear.ui.WearSurfaceMapper
@@ -23,12 +25,16 @@ class WorkoutTileService : TileService() {
     override fun onTileRequest(
         requestParams: RequestBuilders.TileRequest,
     ): ListenableFuture<TileBuilders.Tile> = CallbackToFutureAdapter.getFuture { completer ->
+        if (BuildConfig.DEBUG) Log.tag(TILE_LOG_TAG).d("onTileRequest")
         val runtime = WatchRuntimeFactory.get(applicationContext)
         runWearRuntimeUiEvent {
             runtime.setLocale(resources.configuration.locales[0])
             runtime.onWake()
         }
-        completer.set(WorkoutTileRenderer(this).render(WearSurfaceMapper.map(runtime.snapshot.value)))
+        val device = requestParams.deviceConfiguration
+        val screenDiameter = minOf(device.screenWidthDp, device.screenHeightDp).takeIf { it > 0 }
+            ?: minOf(resources.configuration.screenWidthDp, resources.configuration.screenHeightDp)
+        completer.set(WorkoutTileRenderer(this).render(WearSurfaceMapper.map(runtime.snapshot.value), screenDiameter))
         FUTURE_TAG
     }
 

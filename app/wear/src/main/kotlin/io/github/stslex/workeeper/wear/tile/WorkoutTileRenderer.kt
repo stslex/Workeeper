@@ -6,6 +6,7 @@ import androidx.wear.protolayout.TimelineBuilders
 import androidx.wear.tiles.TileBuilders
 import io.github.stslex.workeeper.wear.MainActivity
 import io.github.stslex.workeeper.wear.R
+import io.github.stslex.workeeper.wear.ui.CompletionUnavailableReason
 import io.github.stslex.workeeper.wear.ui.WearCopy
 import io.github.stslex.workeeper.wear.ui.WearSurfaceKind
 import io.github.stslex.workeeper.wear.ui.WearSurfaceModel
@@ -13,11 +14,18 @@ import io.github.stslex.workeeper.wear.ui.statusCopy
 
 internal class WorkoutTileRenderer(private val context: Context) {
 
-    fun render(model: WearSurfaceModel): TileBuilders.Tile {
+    fun render(
+        model: WearSurfaceModel,
+        screenDiameterDp: Int = minOf(
+            context.resources.configuration.screenWidthDp,
+            context.resources.configuration.screenHeightDp,
+        ),
+    ): TileBuilders.Tile {
         val layout = WorkoutTileLayout.build(
             packageName = context.packageName,
             activityClassName = MainActivity::class.java.name,
             lines = lines(model),
+            screenDiameterDp = screenDiameterDp,
         )
         return TileBuilders.Tile.Builder()
             .setResourcesVersion(RESOURCE_VERSION)
@@ -73,7 +81,15 @@ internal class WorkoutTileRenderer(private val context: Context) {
         )
     }
 
-    private fun activeLines(model: WearSurfaceModel): List<String> = listOf(
+    private fun activeLines(model: WearSurfaceModel): List<String> = if (
+        model.completionUnavailableReason == CompletionUnavailableReason.REFRESH_REQUIRED
+    ) {
+        listOf(
+            model.trainingName ?: context.getString(R.string.workout_generic),
+            model.exerciseName ?: context.getString(R.string.exercise_generic),
+            context.getString(R.string.refresh_required),
+        )
+    } else listOf(
         model.trainingName ?: context.getString(R.string.workout_generic),
         model.exerciseName ?: context.getString(R.string.exercise_generic),
         context.getString(R.string.set_progress, model.setOrdinal, model.totalSets),

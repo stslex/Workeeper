@@ -3,6 +3,7 @@ package io.github.stslex.workeeper.wear.runtime
 
 import android.content.Context
 import io.github.stslex.workeeper.wear.state.WatchProcessState
+import io.github.stslex.workeeper.wear.tile.observeWorkoutTile
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -11,9 +12,15 @@ import java.util.Locale
 /** The release source remains read-only until the privacy/transport integration gate is approved. */
 internal object WatchRuntimeFactory {
     private val runtime = ReadOnlyWatchRuntime()
+    private var observingTile = false
 
+    @Synchronized
     fun get(context: Context): WatchRuntime = runtime.also {
         it.setLocale(context.resources.configuration.locales[0])
+        if (!observingTile) {
+            observeWorkoutTile(context, it)
+            observingTile = true
+        }
     }
 
     fun handleDebugScenario(context: Context, scenario: String): Boolean = false

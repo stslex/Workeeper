@@ -1,13 +1,14 @@
 # Wear emulator acceptance
 
-This directory records observable behavior of the debug synthetic Wear application. It
-produces an acceptance report before application fixes are considered. A failing assertion,
+This directory records observable behavior of the debug synthetic Wear application, including
+separate review and post-fix cohorts. A failing assertion,
 an unavailable emulator capability, and missing evidence remain distinct outcomes; none
 permits silently changing the application or weakening the acceptance condition.
 
 The canonical contracts are [Wear UI completion](../feature-specs/wear-ui-completion.md),
 [ambient](../feature-specs/wear-ambient-ui.md), and
-[lifecycle](../feature-specs/wear-lifecycle-ui.md). Real phone payload transfer remains
+[lifecycle](../feature-specs/wear-lifecycle-ui.md), and
+[shared style and MVI](../feature-specs/wear-style-mvi.md). Real phone payload transfer remains
 privacy-gated. These scenarios do not acknowledge a set on a phone or calibrate a production
 reconnect policy.
 
@@ -16,6 +17,14 @@ reconnect policy.
 The tools and receiver are acceptance instrumentation. Their presence does not mean that
 the emulator matrix has run or passed. Use the generated receipts and report for execution
 status; retain failed attempts and their raw artifacts.
+
+For connected Gradle mutation controls, retain the installed packages with
+`-Pandroid.injected.androidTest.leaveApksInstalledAfterRun=true`, then verify the actual locale
+and font scale before the campaign. APK uninstall also removes per-app locale and permission
+state. API36 lifecycle-positive controls require POST_NOTIFICATIONS granted, matching
+`fresh_setup` in the ADB runner. Without ongoing activity the system may return to the watch
+face before the natural authority-expiry hold completes; a missing Compose hierarchy is
+INVALID evidence. Notification-denial behavior has its own separate acceptance case.
 
 The [25 September 2026 acceptance report](reports/2026-09-25/README.md) records the executed
 matrix, system observations, application defects and separate retry cohorts. Its FAIL
