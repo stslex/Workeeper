@@ -10,19 +10,19 @@ const val DARK_BODY: Long = 0xFFB7C0CA
 const val DARK_META: Long = 0xFF8B95A1
 const val DARK_IDLE: Long = 0xFF8B95A1
 const val DARK_HAIR: Long = 0x0DFFFFFF
-/** `--grid`, dark: `rgba(255,255,255,.07)` — one alpha step above [DARK_HAIR]'s 5%. */
+/** Keep grid and hair separate; see documentation/feature-specs/shared-design-tokens.md#alpha-roles. */
 const val DARK_GRID: Long = 0x12FFFFFF
-/** GUARD: equals [DARK_HAIR] by coincidence, not one token — light breaks the tie (6% vs 7%). */
+/** Keep done-fill and hair separate; see documentation/feature-specs/shared-design-tokens.md#alpha-roles. */
 const val DARK_DONEFILL: Long = 0x0DFFFFFF
-/** Control outline, dark. See `AppColors.borderStrong` — `hair-s` lifted to clear 3:1. */
+/** Enabled-control outline; see documentation/feature-specs/shared-design-tokens.md#contrast-roles. */
 const val DARK_CONTROL_OUTLINE: Long = 0xFF627587
 const val DARK_MOLTEN: Long = 0xFFF0A22E
 const val DARK_MOLTEN_BACKGROUND: Long = 0x17F0A22E
 const val DARK_MOLTEN_BORDER: Long = 0x6BF0A22E
 
 /**
- * Destructive text in dark: #DF714B, not the spec's #C4574A, which clears 4.5:1 on no dark
- * surface in this palette. Light needs no such adjustment.
+ * Destructive text has no spare contrast margin;
+ * see documentation/feature-specs/shared-design-tokens.md#contrast-roles.
  */
 const val DARK_RUST: Long = 0xFFDF714B
 const val DARK_RUST_WASH: Long = 0x1FDF714B
@@ -35,20 +35,17 @@ const val LIGHT_RAISE: Long = 0xFFDFE3E8
 const val LIGHT_MAX: Long = 0xFF0D1114
 const val LIGHT_BODY: Long = 0xFF2C333A
 
-/** See `AppColors.textTertiary` — #596169, deliberately not the mockup's #69727C. */
+/** Tertiary text; see documentation/feature-specs/shared-design-tokens.md#contrast-roles. */
 const val LIGHT_META: Long = 0xFF596169
 const val LIGHT_IDLE: Long = 0xFF7C858F
 const val LIGHT_HAIR: Long = 0x120D1114
-/** `--grid`, light: `rgba(13,17,20,.09)` — one alpha step above [LIGHT_HAIR]'s 7%. */
+/** Keep grid and hair separate; see documentation/feature-specs/shared-design-tokens.md#alpha-roles. */
 const val LIGHT_GRID: Long = 0x170D1114
-/** `--donefill`, light: `rgba(13,17,20,.06)`. */
+/** Keep done-fill and hair separate; see documentation/feature-specs/shared-design-tokens.md#alpha-roles. */
 const val LIGHT_DONEFILL: Long = 0x0F0D1114
-/** Control outline, light. See `AppColors.borderStrong` — `hair-s` darkened to clear 3:1. */
+/** Enabled-control outline; see documentation/feature-specs/shared-design-tokens.md#contrast-roles. */
 const val LIGHT_CONTROL_OUTLINE: Long = 0xFF748396
-/**
- * Molten as text in light: #BE3E0C, nudged off the spec's #C2410C, which measures 4.325:1 on
- * the PR card's real backdrop — the molten wash over the page.
- */
+/** Text accent differs from fill and border; see documentation/feature-specs/shared-design-tokens.md#contrast-roles. */
 const val LIGHT_MOLTEN: Long = 0xFFBE3E0C
 const val LIGHT_MOLTEN_SOLID: Long = 0xFFF97316
 const val LIGHT_MOLTEN_BACKGROUND: Long = 0x1CF97316
