@@ -125,7 +125,7 @@ MOCKUP = "documentation/mockups/pass2d.html"
 # right now", not "what did the mockup match as of some historical ref". A historical TARGET is
 # expected to disagree (that disagreement is what B19 found), and check 9 is allowed to fail there.
 APP_COLORS = (
-    "core/ui/kit/src/commonMain/kotlin/io/github/stslex/workeeper/core/ui/kit/theme/AppColors.kt"
+    "core/ui/design-tokens/src/commonMain/kotlin/io/github/stslex/workeeper/core/ui/design/AppColorTokens.kt"
 )
 
 # Tokens with no corresponding AppColors.kt constant, by design — not drift. Each carries the
@@ -327,7 +327,7 @@ def extract_kt_color_constants(kt_src: str) -> tuple[dict[str, str], dict[str, s
     """
     dark: dict[str, str] = {}
     light: dict[str, str] = {}
-    pat = re.compile(r"private const val (DARK|LIGHT)_([A-Z0-9_]+)\s*:\s*Long\s*=\s*0x([0-9A-Fa-f]{6,8})")
+    pat = re.compile(r"(?:private )?const val (DARK|LIGHT)_([A-Z0-9_]+)\s*:\s*Long\s*=\s*0x([0-9A-Fa-f]{6,8})")
     for theme, name, digits in pat.findall(kt_src):
         rgb = digits[-6:].upper()
         (dark if theme == "DARK" else light)[rgb] = f"{theme}_{name}"

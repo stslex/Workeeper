@@ -1,8 +1,35 @@
+import com.google.firebase.crashlytics.buildtools.gradle.CrashlyticsExtension
+import com.google.gms.googleservices.GoogleServicesTask
+
 plugins {
     alias(libs.plugins.convention.application.wear)
+    alias(libs.plugins.gms)
+    alias(libs.plugins.firebaseCrashlytics)
+    alias(libs.plugins.firebasePerf)
+    alias(libs.plugins.metro)
+}
+
+metro {
+    interop {
+        includeJavax()
+    }
 }
 
 android {
+    buildTypes {
+        named("debug") {
+            configure<CrashlyticsExtension> {
+                mappingFileUploadEnabled = false
+                nativeSymbolUploadEnabled = false
+            }
+        }
+        named("release") {
+            configure<CrashlyticsExtension> {
+                mappingFileUploadEnabled = true
+                nativeSymbolUploadEnabled = false
+            }
+        }
+    }
     bundle {
         language {
             enableSplit = false
@@ -16,8 +43,21 @@ android {
     }
 }
 
+androidComponents.onVariants { variant ->
+    val taskName = "process${variant.name.replaceFirstChar(Char::uppercase)}GoogleServices"
+    tasks.withType<GoogleServicesTask>().matching { it.name == taskName }.configureEach {
+        googleServicesJsonFiles.set(listOf(rootProject.file("app/${variant.flavorName}/google-services.json")))
+    }
+}
+
 dependencies {
     implementation(project(":core:wear-protocol"))
+    implementation(project(":core:ui:design-tokens"))
+    implementation(project(":core:ui:mvi"))
+    implementation(platform(libs.google.firebase.bom))
+    implementation(libs.google.firebase.analytics)
+    implementation(libs.google.firebase.crashlytics)
+    implementation(libs.google.firebase.perf)
     implementation(libs.google.play.services.wearable)
     implementation(libs.coroutines.play.services)
     implementation(libs.androidx.wear.ambient)
@@ -50,6 +90,8 @@ dependencies {
 
 tasks.withType<org.gradle.api.tasks.testing.Test>().configureEach {
     useJUnitPlatform()
+    maxHeapSize = "2g"
+    forkEvery = 20
     // GUARD: the robolectric-junit5 bridge needs launcher interceptors on, or every test dies
     // with "No instrumentation registered". See feature-specs/kmp-phase-3-core-collapse.md.
     systemProperty("junit.platform.launcher.interceptors.enabled", true)

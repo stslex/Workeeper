@@ -119,6 +119,7 @@ abstract class BaseApplication :
 
     override fun onCreate() {
         super.onCreate()
+        FirebaseCrashlyticsHolder.setCustomKey("platform", "phone")
         FirebaseCrashlyticsHolder.initialize()
         Log.isLogging = isDebugLoggingAllow
         CommonExt.isTraceExecutionEnabled = isDebugLoggingAllow

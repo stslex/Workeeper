@@ -79,7 +79,7 @@ internal class WearStringCoverageGateTest {
     @DisplayName("every Wear string resource is rendered by at least one fixture")
     fun everyStringResourceIsRenderedBySomeFixture() = runComposeUiTest {
         val resources = ApplicationProvider.getApplicationContext<Application>().resources
-        val ids = R.string::class.java.fields
+        val reflectedIds = R.string::class.java.fields
             .filter { it.type == Int::class.javaPrimitiveType }
             .associate { it.name to it.getInt(null) }
 
@@ -87,6 +87,8 @@ internal class WearStringCoverageGateTest {
         // at forty strings a walk returning thirty still clears "at least thirty", which is
         // the under-coverage this gate exists to prevent, reintroduced by its own guard.
         val declared = declaredStringNames("values")
+        // A source-declared string always remains subject to rendering coverage.
+        val ids = reflectedIds.filterKeys { it in declared || it !in FIREBASE_CONFIGURATION_IDS }
         assertTrue(
             declared == declaredStringNames("values-ru"),
             "English and Russian resource name sets must match",
@@ -340,6 +342,17 @@ internal class WearStringCoverageGateTest {
          * shorter value is the case the tripwire exists to stop.
          */
         const val MINIMUM_VALUE_LENGTH = 3
+
+        val FIREBASE_CONFIGURATION_IDS = setOf(
+            "com_google_firebase_crashlytics_mapping_file_id",
+            "com_google_firebase_crashlytics_version_control_info",
+            "gcm_defaultSenderId",
+            "google_api_key",
+            "google_app_id",
+            "google_crash_reporting_api_key",
+            "google_storage_bucket",
+            "project_id",
+        )
 
         /**
          * Strings that no controller surface can reach, each with the reason it cannot. Both

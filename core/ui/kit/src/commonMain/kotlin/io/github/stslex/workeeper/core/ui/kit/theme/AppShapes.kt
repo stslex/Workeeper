@@ -3,7 +3,7 @@ package io.github.stslex.workeeper.core.ui.kit.theme
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Shapes
 import androidx.compose.runtime.Immutable
-import androidx.compose.ui.unit.dp
+import io.github.stslex.workeeper.core.ui.design.AppDesignDimensions
 
 @Immutable
 data class AppShapes(
@@ -13,9 +13,9 @@ data class AppShapes(
 )
 
 fun provideAppShapes(): AppShapes = AppShapes(
-    small = RoundedCornerShape(6.dp),
-    medium = RoundedCornerShape(10.dp),
-    large = RoundedCornerShape(14.dp),
+    small = RoundedCornerShape(AppDesignDimensions.Shape.small),
+    medium = RoundedCornerShape(AppDesignDimensions.Shape.medium),
+    large = RoundedCornerShape(AppDesignDimensions.Shape.large),
 )
 
 fun AppShapes.toM3Shapes(): Shapes = Shapes(

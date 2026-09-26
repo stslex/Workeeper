@@ -7,6 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import io.github.stslex.workeeper.core.ui.design.AppDesignDimensions
 
 @Suppress("unused", "TooManyFunctions")
 object AppDimension {
@@ -67,15 +68,15 @@ object AppDimension {
 
     object Space {
 
-        val none: Dp = 0.dp
-        val xxs: Dp = 2.dp
-        val xs: Dp = 4.dp
-        val sm: Dp = 8.dp
-        val md: Dp = 12.dp
-        val lg: Dp = 16.dp
-        val xl: Dp = 24.dp
-        val xxl: Dp = 32.dp
-        val xxxl: Dp = 48.dp
+        val none: Dp = AppDesignDimensions.Space.none
+        val xxs: Dp = AppDesignDimensions.Space.xxs
+        val xs: Dp = AppDesignDimensions.Space.xs
+        val sm: Dp = AppDesignDimensions.Space.sm
+        val md: Dp = AppDesignDimensions.Space.md
+        val lg: Dp = AppDesignDimensions.Space.lg
+        val xl: Dp = AppDesignDimensions.Space.xl
+        val xxl: Dp = AppDesignDimensions.Space.xxl
+        val xxxl: Dp = AppDesignDimensions.Space.xxxl
     }
 
     val screenEdge: Dp = Space.lg
