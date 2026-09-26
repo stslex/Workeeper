@@ -84,3 +84,11 @@ are centred inside explicit 48dp rounded buttons. Information content scrolls in
 viewport; ambient uses the same bundled typefaces with measured glyph fitting. New device guards
 cover whole Russian words, sign centring, complete instructions and multi-step rotary events.
 Tile refresh and the frozen final acceptance cohort follow in the last stacked PR.
+
+2026-09-26 localized-number review: [#294 comment 4111846578](https://github.com/stslex/Workeeper/pull/294#discussion_r4111846578)
+is correct-and-new. A fresh Kotlin test reproduced Arabic `١٢٨` taking one text run instead
+of separate numeric/unit roles. Ambient fragments now recognize Unicode decimal digits and
+Arabic decimal/grouping separators; the complete number keeps its numeric role and units
+keep their auxiliary role. The guard includes formatter-produced Arabic values, Persian
+digits and Arabic grouping. English/Russian roles and platform fallback for missing glyphs
+remain unchanged. Named controls remove Unicode digits and localized separators independently.

@@ -1,6 +1,7 @@
 package io.github.stslex.workeeper.wear.ui
 
 import android.graphics.Typeface
+import android.text.TextPaint
 import androidx.compose.ui.unit.Density
 import io.github.stslex.workeeper.core.ui.design.resources.Res
 import io.github.stslex.workeeper.core.ui.design.workeeperNativeFonts
@@ -12,6 +13,7 @@ import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import tech.apter.junit.jupiter.robolectric.RobolectricExtension
+import java.util.Locale
 
 @ExtendWith(RobolectricExtension::class)
 @Config(sdk = [33])
@@ -43,6 +45,26 @@ internal class WearAmbientFontsTest {
             assertTrue(row.runs.first().text.none(Char::isLetter))
             assertEquals(mono, row.runs.last().paint.typeface)
             assertTrue(row.runs.last().text.any(Char::isLetter))
+        }
+    }
+
+    @Test
+    fun localizedNumbersKeepTheirNumericFontAndSeparators() {
+        val fonts = workeeperNativeFonts(RuntimeEnvironment.getApplication())
+        val values = WearValueFormatter.format(128, 7_253, Locale.forLanguageTag("ar-EG"))
+        val numbers = listOf(requireNotNull(values.reps), requireNotNull(values.weight), "۱۲۸", "۷۲٫۵۳", "١٬٢٣٤٫٥٦")
+        numbers.forEach { number ->
+            val line = AmbientSummaryLine(AmbientLineRole.WEIGHT, "$number كغ")
+            val paint = TextPaint().apply {
+                textSize = 18f
+                typeface = fonts.text
+            }
+            val runs = ambientTextRuns(line, paint, fonts)
+            assertEquals(2, runs.size, "$number must keep one numeric fragment and one unit run")
+            assertEquals(number, runs.first().text, "localized separators belong to the number")
+            assertEquals(fonts.numeric, runs.first().paint.typeface, "localized digits use the numeric role")
+            assertEquals(" كغ", runs.last().text)
+            assertEquals(fonts.mono, runs.last().paint.typeface)
         }
     }
 }

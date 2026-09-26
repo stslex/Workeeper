@@ -55,7 +55,7 @@ internal fun ambientTextRuns(
     }
 }
 
-private val NUMERIC_FRAGMENT = Regex("[0-9.,:/+–−-]+")
+private val NUMERIC_FRAGMENT = Regex("""[\p{Nd}.,٫٬:/+–−-]+""")
 private const val FONT_FIT_ITERATIONS = 10
 private val NUMERIC_ROLES = setOf(
     AmbientLineRole.TIME,

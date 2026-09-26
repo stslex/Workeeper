@@ -16,7 +16,7 @@
     "replace": "const val DARK_MAX: Long = 0xFFF0F4F8",
     "task": ":app:wear:testDevDebugUnitTest --tests *WearThemeGateTest --no-configuration-cache --no-parallel --console=plain",
     "expected_class": "io.github.stslex.workeeper.wear.ui.WearThemeGateTest",
-    "expected_method": "no dynamic theming, and the §3 palette reaches both screen extremes",
+    "expected_method": "no dynamic theming, and the \u00a73 palette reaches both screen extremes",
     "xml_root": "app/wear/build"
   },
   {
@@ -377,5 +377,27 @@
     "expected_class": "io.github.stslex.workeeper.wear.ui.WearBrandGeometryTest",
     "expected_method": "editorIconsAreCenteredAndRussianInstructionsStayInsideTheCircle()",
     "expected_assertion": "uses the shared rounded shape"
+  },
+  {
+    "name": "AMBIENT_LOCALIZED_DIGITS_AS_ASCII",
+    "file": "app/wear/src/main/kotlin/io/github/stslex/workeeper/wear/ui/AmbientTextRun.kt",
+    "find": "private val NUMERIC_FRAGMENT = Regex(\"\"\"[\\p{Nd}.,\u066b\u066c:/+\u2013\u2212-]+\"\"\")",
+    "replace": "private val NUMERIC_FRAGMENT = Regex(\"\"\"[0-9.,\u066b\u066c:/+\u2013\u2212-]+\"\"\")",
+    "task": ":app:wear:testDevDebugUnitTest --tests *WearAmbientFontsTest --no-configuration-cache --no-parallel --console=plain",
+    "expected_class": "io.github.stslex.workeeper.wear.ui.WearAmbientFontsTest",
+    "expected_method": "localizedNumbersKeepTheirNumericFontAndSeparators()",
+    "expected_assertion": "must keep one numeric fragment and one unit run",
+    "xml_root": "app/wear/build"
+  },
+  {
+    "name": "AMBIENT_LOCALIZED_DECIMAL_SPLIT",
+    "file": "app/wear/src/main/kotlin/io/github/stslex/workeeper/wear/ui/AmbientTextRun.kt",
+    "find": "private val NUMERIC_FRAGMENT = Regex(\"\"\"[\\p{Nd}.,\u066b\u066c:/+\u2013\u2212-]+\"\"\")",
+    "replace": "private val NUMERIC_FRAGMENT = Regex(\"\"\"[\\p{Nd}.,:/+\u2013\u2212-]+\"\"\")",
+    "task": ":app:wear:testDevDebugUnitTest --tests *WearAmbientFontsTest --no-configuration-cache --no-parallel --console=plain",
+    "expected_class": "io.github.stslex.workeeper.wear.ui.WearAmbientFontsTest",
+    "expected_method": "localizedNumbersKeepTheirNumericFontAndSeparators()",
+    "expected_assertion": "must keep one numeric fragment and one unit run",
+    "xml_root": "app/wear/build"
   }
 ]
