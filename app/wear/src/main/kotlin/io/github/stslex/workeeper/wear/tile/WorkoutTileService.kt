@@ -8,6 +8,7 @@ import androidx.wear.tiles.TileService
 import com.google.common.util.concurrent.ListenableFuture
 import io.github.stslex.workeeper.wear.runtime.WatchRuntimeFactory
 import io.github.stslex.workeeper.wear.runtime.runWearRuntimeUiEvent
+import io.github.stslex.workeeper.wear.ui.WearSurfaceMapper
 
 /** Cache-first glance surface. Privacy-gated transport wiring is intentionally absent. */
 class WorkoutTileService : TileService() {
@@ -27,7 +28,7 @@ class WorkoutTileService : TileService() {
             runtime.setLocale(resources.configuration.locales[0])
             runtime.onWake()
         }
-        completer.set(WorkoutTileRenderer(this).render(runtime.surface.value))
+        completer.set(WorkoutTileRenderer(this).render(WearSurfaceMapper.map(runtime.snapshot.value)))
         FUTURE_TAG
     }
 

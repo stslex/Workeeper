@@ -1,0 +1,22 @@
+[
+  {
+    "name": "DEVICE_REPS_ROTARY_BATCH_LOST",
+    "file": "app/wear/src/main/kotlin/io/github/stslex/workeeper/wear/ui/WearControllerScreen.kt",
+    "find": "                    onAdjust(steps)",
+    "replace": "                    onAdjust(if (field == NumericField.REPS) steps.coerceIn(-1, 1) else steps)",
+    "task": ":app:wear:connectedDevDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=io.github.stslex.workeeper.wear.acceptance.WearActivityAcceptanceTest#rotaryEditorsAndPressUseRealActivity -Pandroid.testInstrumentationRunnerArguments.acceptanceCellId=device_reps_rotary_batch_lost -Pandroid.testInstrumentationRunnerArguments.fixture=active_boundary -Pandroid.testInstrumentationRunnerArguments.expectedDp=192 -Pandroid.testInstrumentationRunnerArguments.expectedLocale=ru -Pandroid.testInstrumentationRunnerArguments.expectedFontScale=1.24 -Pandroid.testInstrumentationRunnerArguments.expectedApi=36 --no-configuration-cache --no-parallel --console=plain -Pandroid.injected.androidTest.leaveApksInstalledAfterRun=true",
+    "expected_class": "io.github.stslex.workeeper.wear.acceptance.WearActivityAcceptanceTest",
+    "expected_method": "rotaryEditorsAndPressUseRealActivity",
+    "expected_assertion": "One negative rotary event applies both reps steps"
+  },
+  {
+    "name": "DEVICE_WEIGHT_ROTARY_BATCH_LOST",
+    "file": "app/wear/src/main/kotlin/io/github/stslex/workeeper/wear/ui/WearControllerScreen.kt",
+    "find": "                    onAdjust(steps)",
+    "replace": "                    onAdjust(if (field == NumericField.WEIGHT) steps.coerceIn(-1, 1) else steps)",
+    "task": ":app:wear:connectedDevDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=io.github.stslex.workeeper.wear.acceptance.WearActivityAcceptanceTest#rotaryEditorsAndPressUseRealActivity -Pandroid.testInstrumentationRunnerArguments.acceptanceCellId=device_weight_rotary_batch_lost -Pandroid.testInstrumentationRunnerArguments.fixture=active_boundary -Pandroid.testInstrumentationRunnerArguments.expectedDp=192 -Pandroid.testInstrumentationRunnerArguments.expectedLocale=ru -Pandroid.testInstrumentationRunnerArguments.expectedFontScale=1.24 -Pandroid.testInstrumentationRunnerArguments.expectedApi=36 --no-configuration-cache --no-parallel --console=plain -Pandroid.injected.androidTest.leaveApksInstalledAfterRun=true",
+    "expected_class": "io.github.stslex.workeeper.wear.acceptance.WearActivityAcceptanceTest",
+    "expected_method": "rotaryEditorsAndPressUseRealActivity",
+    "expected_assertion": "One negative rotary event applies both weight steps"
+  }
+]

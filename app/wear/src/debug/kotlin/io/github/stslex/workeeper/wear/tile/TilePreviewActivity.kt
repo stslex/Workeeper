@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.wear.tile
 
+import io.github.stslex.workeeper.wear.ui.WearSurfaceMapper
 import android.app.Activity
 import android.os.Bundle
 import android.widget.FrameLayout
@@ -20,7 +21,7 @@ class TilePreviewActivity : Activity() {
             intent.getStringExtra(SyntheticSurfaceFixtures.EXTRA_ID),
         )
         val tile = WorkoutTileRenderer(this).render(
-            synthetic ?: WatchProcessState.currentSurface(),
+            synthetic ?: WearSurfaceMapper.map(WatchProcessState.currentState()),
         )
         val timeline = requireNotNull(tile.tileTimeline)
         val layout = requireNotNull(timeline.timelineEntries.single().layout)

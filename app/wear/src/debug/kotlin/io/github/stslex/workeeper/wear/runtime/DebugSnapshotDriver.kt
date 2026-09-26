@@ -15,7 +15,6 @@ import io.github.stslex.workeeper.core.wear.protocol.SnapshotData
 import io.github.stslex.workeeper.core.wear.protocol.SnapshotPayload
 import io.github.stslex.workeeper.core.wear.protocol.WearProtocol
 import io.github.stslex.workeeper.wear.cache.ElapsedRealtimeClock
-import io.github.stslex.workeeper.wear.ui.ControllerAction
 import io.github.stslex.workeeper.wear.ui.SyntheticSurfaceFixtures
 import io.github.stslex.workeeper.wear.ui.WearSurfaceKind
 import io.github.stslex.workeeper.wear.ui.WearSurfaceModel

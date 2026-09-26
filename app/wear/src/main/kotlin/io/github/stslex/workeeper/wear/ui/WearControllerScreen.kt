@@ -27,12 +27,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -70,44 +67,36 @@ import androidx.wear.compose.material3.Text
 import androidx.wear.compose.material3.TimeText
 import io.github.stslex.workeeper.core.wear.protocol.NumericField
 import io.github.stslex.workeeper.wear.R
-import io.github.stslex.workeeper.wear.ambient.WearAmbientState
+import io.github.stslex.workeeper.wear.mvi.store.WearStore
 
 /** Primary values and the blocking reason precede scrollable details; see Wear UI completion §1. */
 @Composable
 internal fun WearControllerScreen(
-    state: WearSurfaceState,
-    ambient: WearAmbientState = WearAmbientState(),
-    ongoingNotice: WearOngoingNotice? = null,
-    onEnableNotifications: () -> Unit = {},
-    onAction: (ControllerAction) -> Unit,
+    state: WearStore.State,
+    consume: (WearStore.Action) -> Unit,
 ) {
+    val current = state.presentation
     WearAppTheme {
         val interactiveState = rememberSaveableStateHolder()
-        var editingField by rememberSaveable { mutableStateOf<NumericField?>(null) }
-        val editing = editingField?.takeIf { field ->
-            state.controlsEnabled && (field == NumericField.REPS || state.weighted)
-        }
-        if (!ambient.isAmbient && editing == null && editingField != null) {
-            SideEffect { editingField = null }
-        }
-        if (ambient.isAmbient) {
-            WearAmbientSummary(state, ambient, hasUnsubmittedValues = state.hasUnsubmittedDraft)
+        if (current.ambient.isAmbient) {
+            WearAmbientSummary(current.model, current.ambient, hasUnsubmittedValues = current.model.hasUnsubmittedDraft)
         } else {
             interactiveState.SaveableStateProvider("interactive") {
+                val editing = state.editor
                 if (editing != null) {
                     NumericEditor(
                         field = editing,
-                        model = state,
-                        onAction = onAction,
-                        onClose = { editingField = null },
+                        model = current.model,
+                        onAction = consume,
+                        onClose = { consume(WearStore.Action.Navigation.CloseEditor) },
                     )
                 } else {
                     Controller(
-                        model = state,
-                        ongoingNotice = ongoingNotice,
-                        onEnableNotifications = onEnableNotifications,
-                        onAction = onAction,
-                        onEdit = { editingField = it },
+                        model = current.model,
+                        ongoingNotice = current.notice,
+                        onEnableNotifications = { consume(WearStore.Action.Click.EnableNotifications) },
+                        onAction = consume,
+                        onEdit = { consume(WearStore.Action.Click.Edit(it)) },
                     )
                 }
             }
@@ -120,7 +109,7 @@ private fun Controller(
     model: WearSurfaceModel,
     ongoingNotice: WearOngoingNotice?,
     onEnableNotifications: () -> Unit,
-    onAction: (ControllerAction) -> Unit,
+    onAction: (WearStore.Action) -> Unit,
     onEdit: (NumericField) -> Unit,
 ) {
     when (model.kind) {
@@ -145,7 +134,7 @@ private fun ActiveScaffold(
     model: WearSurfaceModel,
     ongoingNotice: WearOngoingNotice?,
     onEnableNotifications: () -> Unit,
-    onAction: (ControllerAction) -> Unit,
+    onAction: (WearStore.Action) -> Unit,
     onEdit: (NumericField) -> Unit,
 ) {
     val scrollState = rememberScrollState()
@@ -233,7 +222,7 @@ private fun ControllerDetails(
 }
 
 @Composable
-private fun RetryScaffold(model: WearSurfaceModel, onAction: (ControllerAction) -> Unit) {
+private fun RetryScaffold(model: WearSurfaceModel, onAction: (WearStore.Action) -> Unit) {
     val scrollState = rememberScrollState()
     val focusRequester = remember { FocusRequester() }
     ScreenScaffold(
@@ -390,7 +379,7 @@ private fun SetScale(model: WearSurfaceModel) {
             .testTag("set_scale"),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        wearSetScaleSlots(current, total).forEach { slot ->
+        model.setScaleSlots.forEach { slot ->
             SetPill(
                 completed = slot.completed,
                 current = slot.current,
@@ -565,13 +554,13 @@ private fun FieldError(model: WearSurfaceModel) {
 @Composable
 private fun CompleteSetButton(
     model: WearSurfaceModel,
-    onAction: (ControllerAction) -> Unit,
+    onAction: (WearStore.Action) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val enabledDescription = stringResource(R.string.complete_set_enabled_description)
     val disabledDescription = stringResource(R.string.complete_set_disabled_description)
     EdgeButton(
-        onClick = { onAction(ControllerAction.CompleteSet) },
+        onClick = { onAction(WearStore.Action.Click.Complete) },
         enabled = model.completeEnabled,
         buttonSize = EdgeButtonSize.Small,
         colors = ButtonDefaults.buttonColors(
@@ -598,11 +587,11 @@ private fun CompleteSetButton(
 @Composable
 private fun RetryButton(
     model: WearSurfaceModel,
-    onAction: (ControllerAction) -> Unit,
+    onAction: (WearStore.Action) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     EdgeButton(
-        onClick = { onAction(ControllerAction.Retry) },
+        onClick = { onAction(WearStore.Action.Click.Retry) },
         enabled = model.retryEnabled,
         buttonSize = EdgeButtonSize.Small,
         colors = ButtonDefaults.buttonColors(
@@ -682,30 +671,19 @@ private fun WorkoutCompleteContent(model: WearSurfaceModel) {
 private fun NumericEditor(
     field: NumericField,
     model: WearSurfaceModel,
-    onAction: (ControllerAction) -> Unit,
+    onAction: (WearStore.Action) -> Unit,
     onClose: () -> Unit,
 ) {
     BackHandler(onBack = onClose)
-    val increment: () -> Unit
-    val decrement: () -> Unit
-    val incrementEnabled: Boolean
-    val decrementEnabled: Boolean
-    if (field == NumericField.REPS) {
-        val reps = requireNotNull(model.reps)
-        val up = WearDraftPolicy.incrementReps(reps)
-        val down = WearDraftPolicy.decrementReps(reps)
-        increment = { up?.let { onAction(ControllerAction.SetReps(it)) } }
-        decrement = { down?.let { onAction(ControllerAction.SetReps(it)) } }
-        incrementEnabled = up != null
-        decrementEnabled = down != null
+    val incrementEnabled = if (field == NumericField.REPS) {
+        model.incrementRepsEnabled
     } else {
-        val weight = model.weightHundredthsKg
-        val up = WearDraftPolicy.incrementWeight(weight)
-        val down = WearDraftPolicy.decrementWeight(weight)
-        increment = { up?.let { onAction(ControllerAction.SetWeight(it)) } }
-        decrement = { down?.let { onAction(ControllerAction.SetWeight(it.value)) } }
-        incrementEnabled = up != null
-        decrementEnabled = down != null
+        model.incrementWeightEnabled
+    }
+    val decrementEnabled = if (field == NumericField.REPS) {
+        model.decrementRepsEnabled
+    } else {
+        model.decrementWeightEnabled
     }
     BasicSwipeToDismissBox(
         onDismissed = onClose,
@@ -720,8 +698,7 @@ private fun NumericEditor(
                 EditorContent(
                     field = field,
                     model = model,
-                    increment = increment,
-                    decrement = decrement,
+                    onAdjust = { steps -> onAction(WearStore.Action.Input.Draft(field, steps)) },
                     incrementEnabled = incrementEnabled,
                     decrementEnabled = decrementEnabled,
                 )
@@ -734,8 +711,7 @@ private fun NumericEditor(
 private fun EditorContent(
     field: NumericField,
     model: WearSurfaceModel,
-    increment: () -> Unit,
-    decrement: () -> Unit,
+    onAdjust: (Int) -> Unit,
     incrementEnabled: Boolean,
     decrementEnabled: Boolean,
 ) {
@@ -747,13 +723,10 @@ private fun EditorContent(
             .requestFocusOnHierarchyActive()
             .onRotaryScrollEvent { event ->
                 rotaryAccumulator += event.verticalScrollPixels
-                while (rotaryAccumulator >= ROTARY_STEP_PX) {
-                    rotaryAccumulator -= ROTARY_STEP_PX
-                    increment()
-                }
-                while (rotaryAccumulator <= -ROTARY_STEP_PX) {
-                    rotaryAccumulator += ROTARY_STEP_PX
-                    decrement()
+                val steps = (rotaryAccumulator / ROTARY_STEP_PX).toInt()
+                if (steps != 0) {
+                    rotaryAccumulator -= steps * ROTARY_STEP_PX
+                    onAdjust(steps)
                 }
                 true
             }
@@ -779,7 +752,7 @@ private fun EditorContent(
                 stringResource(R.string.increase_weight, displayedValue)
             },
             enabled = incrementEnabled,
-            onClick = increment,
+            onClick = { onAdjust(1) },
             tag = "editor_increase",
             modifier = Modifier
                 .align(Alignment.TopCenter)
@@ -817,7 +790,7 @@ private fun EditorContent(
                 stringResource(R.string.decrease_weight, displayedValue)
             },
             enabled = decrementEnabled,
-            onClick = decrement,
+            onClick = { onAdjust(-1) },
             tag = "editor_decrease",
             modifier = Modifier
                 .align(Alignment.BottomCenter)

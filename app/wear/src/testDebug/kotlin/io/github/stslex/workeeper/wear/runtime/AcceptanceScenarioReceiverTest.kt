@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.wear.runtime
 
+import io.github.stslex.workeeper.wear.ui.surface
 import android.Manifest
 import android.app.Activity
 import android.content.BroadcastReceiver

@@ -11,29 +11,20 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import io.github.stslex.workeeper.wear.ambient.AndroidWearAmbientProvider
-import io.github.stslex.workeeper.wear.ambient.WearAmbientState
+import io.github.stslex.workeeper.wear.mvi.store.WearPlatformState
 import io.github.stslex.workeeper.wear.ongoing.AndroidWearNotificationAccess
 import io.github.stslex.workeeper.wear.ongoing.NotificationEnableAction
-import io.github.stslex.workeeper.wear.ongoing.WearNotificationAccess
 import io.github.stslex.workeeper.wear.runtime.WatchRuntime
 import io.github.stslex.workeeper.wear.runtime.WatchRuntimeFactory
 import io.github.stslex.workeeper.wear.runtime.runWearRuntimeUiEvent
 import io.github.stslex.workeeper.wear.ui.SyntheticSurfaceFixtures
-import io.github.stslex.workeeper.wear.ui.WearControllerScreen
-import io.github.stslex.workeeper.wear.ui.WearOngoingNotice
-import io.github.stslex.workeeper.wear.ui.WearSurfaceModel
-import io.github.stslex.workeeper.wear.ui.ongoingNotice
+import io.github.stslex.workeeper.wear.ui.WearControllerRoute
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.combine
 
 class MainActivity : ComponentActivity() {
     private lateinit var runtime: WatchRuntime
     private lateinit var notificationAccess: AndroidWearNotificationAccess
-    private val access = MutableStateFlow(
-        WearNotificationAccess(enabled = true, action = NotificationEnableAction.NONE),
-    )
-    private val staticPreview = MutableStateFlow<WearSurfaceModel?>(null)
-    private var staticPreviewId: String? = null
+    private val platform = MutableStateFlow(WearPlatformState())
     private val notificationPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) {
         refreshRuntime()
     }
@@ -52,24 +43,15 @@ class MainActivity : ComponentActivity() {
             activity = this,
             expireAuthority = { runWearRuntimeUiEvent { runtime.onWake() } },
         )
-        val initial = presentation(ambientProvider.state.value)
-        val presentations = combine(
-            runtime.surface,
-            runtime.ongoingStatus,
-            ambientProvider.state,
-            access,
-            staticPreview,
-        ) { _, _, ambient, _, _ -> presentation(ambient) }
         setContent {
-            val current by presentations.collectAsState(initial)
-            WearControllerScreen(
-                state = current.model,
-                ambient = current.ambient,
-                ongoingNotice = current.notice,
-                onEnableNotifications = ::enableNotifications,
-                onAction = { action ->
-                    if (staticPreview.value == null) runWearRuntimeUiEvent { runtime.onAction(action) }
+            val access by platform.collectAsState()
+            val ambient by ambientProvider.state.collectAsState()
+            WearControllerRoute(
+                factory = {
+                    (application as WearApplication).graph.wearGraphFactory.createWearGraph(runtime).store
                 },
+                platform = access.copy(ambient = ambient),
+                onEnableNotifications = ::enableNotifications,
             )
         }
     }
@@ -87,7 +69,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
-        outState.putString(STATIC_PREVIEW_KEY, staticPreviewId)
+        outState.putString(STATIC_PREVIEW_KEY, platform.value.previewId)
         super.onSaveInstanceState(outState)
     }
 
@@ -97,20 +79,7 @@ class MainActivity : ComponentActivity() {
             runtime.setLocale(locale)
             runtime.onWake()
         }
-        access.value = notificationAccess.read()
-        staticPreview.value = staticPreview.value?.copy(selectedLocale = locale)
-    }
-
-    private fun presentation(ambient: WearAmbientState): WearPresentation {
-        // Read the synchronous expiry result even when a collector still holds an earlier surface emission.
-        val preview = staticPreview.value
-        val model = preview ?: runtime.surface.value
-        val notice = if (preview == null) {
-            ongoingNotice(model, runtime.ongoingStatus.value, access.value.enabled)
-        } else {
-            null
-        }
-        return WearPresentation(model, ambient, notice)
+        platform.value = platform.value.copy(notificationsEnabled = notificationAccess.read().enabled)
     }
 
     private fun acceptDebugIntent(intent: Intent) {
@@ -124,12 +93,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun showStaticPreview(id: String?) {
-        staticPreviewId = id.takeIf { BuildConfig.DEBUG }
-        staticPreview.value = if (BuildConfig.DEBUG) {
-            SyntheticSurfaceFixtures.find(id)?.copy(selectedLocale = resources.configuration.locales[0])
-        } else {
-            null
-        }
+        platform.value = platform.value.copy(previewId = id.takeIf { BuildConfig.DEBUG })
     }
 
     private fun enableNotifications() {
@@ -146,12 +110,6 @@ class MainActivity : ComponentActivity() {
             NotificationEnableAction.NONE -> refreshRuntime()
         }
     }
-
-    private data class WearPresentation(
-        val model: WearSurfaceModel,
-        val ambient: WearAmbientState,
-        val notice: WearOngoingNotice?,
-    )
 
     private companion object {
         const val STATIC_PREVIEW_KEY = "static_preview_id"

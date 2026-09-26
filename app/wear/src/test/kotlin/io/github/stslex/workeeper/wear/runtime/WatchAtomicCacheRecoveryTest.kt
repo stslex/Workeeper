@@ -23,8 +23,9 @@ import io.github.stslex.workeeper.wear.ongoing.OngoingPolicy
 import io.github.stslex.workeeper.wear.ongoing.OngoingPostResult
 import io.github.stslex.workeeper.wear.ongoing.OngoingStatus
 import io.github.stslex.workeeper.wear.state.ReducerTestFixtures
-import io.github.stslex.workeeper.wear.ui.ControllerAction
 import io.github.stslex.workeeper.wear.ui.WearSurfaceKind
+import io.github.stslex.workeeper.wear.ui.ongoingStatus
+import io.github.stslex.workeeper.wear.ui.surface
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertDoesNotThrow
 import org.junit.jupiter.api.Assertions.assertEquals
