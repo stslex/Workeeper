@@ -479,3 +479,4 @@ guard can fail. Rows are append-only.
 | Finding | Commit | Guard | Control |
 |---|---|---|---|
 | F04 - `Absent(IO_FAILURE)` on restore cancelled the surviving ongoing notification before the owner latched recovery | `fix(wear): keep the ongoing notification through a failed cache read` | `WatchRuntimeIoFailureTest` (restart and in-process recovery; a later successful read restores min(cache, system)) | `f04-io-failure-treated-as-empty`: the early return removed, RED |
+| F12 - `AtomicFile.finishWrite` only logs a failed rename, so persist-before-publish could silently not hold | `fix(wear): fail a cache replacement whose atomic publication did not complete` | `AtomicRecordStoragePublicationApi28Test` / `Api33Test` (non-empty directory at the target path; other rename causes are host-uninjectable and stay UNMEASURED) | `f12-publication-check-removed`: the leftover check disabled, RED |

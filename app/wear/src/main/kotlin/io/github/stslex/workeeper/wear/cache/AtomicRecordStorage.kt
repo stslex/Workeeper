@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.wear.cache
 
+import android.os.Build
 import android.util.AtomicFile
 import java.io.File
 import java.io.FileNotFoundException
@@ -18,6 +19,7 @@ internal class AtomicFileRecordStorage(file: File) : AtomicRecordStorage {
 
     private val atomicFile = AtomicFile(file)
     private val backupFile = File("${file.path}.bak")
+    private val stagedFile = File("${file.path}.new")
 
     // AtomicFile must attempt backup recovery before the record can be classified as absent.
     override fun read(): ByteArray? = try {
@@ -38,6 +40,14 @@ internal class AtomicFileRecordStorage(file: File) : AtomicRecordStorage {
         } catch (error: IOException) {
             atomicFile.failWrite(stream)
             throw error
+        }
+        // GUARD: finishWrite only logs a failed rename, so "persisted before published" is checked
+        // here. API 30+ stages `<name>.new` and renames it over the base; API 28-29 moves the base
+        // to `<name>.bak`, writes in place and deletes that backup. Either leftover means the old
+        // record still wins on the next read, and the caller's guarded recovery must run.
+        val leftover = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) stagedFile else backupFile
+        if (!atomicFile.baseFile.isFile || leftover.exists()) {
+            throw IOException("Atomic publication of ${atomicFile.baseFile.name} did not complete")
         }
     }
 
