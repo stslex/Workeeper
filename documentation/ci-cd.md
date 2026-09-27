@@ -63,7 +63,8 @@ python3 documentation/personal_data_gate.py -v     # no real names/emails in tra
 ./gradlew lintDebug --no-configuration-cache --full-stacktrace
 ./gradlew :core:ui:mvi:testAndroidHostTest --rerun-tasks --no-build-cache --no-configuration-cache --full-stacktrace --console=plain
 python3 .github/scripts/assert_mvi_host_identities.py
-./gradlew testDebugUnitTest --full-stacktrace
+bash .github/scripts/run_with_resource_samples.sh ./gradlew testDebugUnitTest --full-stacktrace \
+  -PwearUnitTestFlavors=store   # the property only on pull_request; other triggers run both Wear flavors
 ./gradlew :app:wear:testStoreReleaseUnitTest -Pandroid.onlyEnableUnitTestForTheTestedBuildType=false \
   --tests '*ReleaseRuntimeBoundaryTest.releaseRejectsSyntheticEventsAndExcludesTheirSourceClass' \
   --rerun-tasks --no-build-cache --no-configuration-cache --full-stacktrace --console=plain
@@ -82,6 +83,21 @@ the property out.
 runner verifies an exact identity inventory (`EXPECTED_TESTS`, 65 ids): a missing, renamed or
 extra parser test fails the task before any test runs, and every listed id must leave a passing
 testcase in `app/wear/build/test-results/verifyEmulatorAcceptanceRunner/`.
+
+The Wear module runs its host tests once per flavor. Its two flavors differ by one manifest
+meta-data line, and the second run doubled the module's share of the unit-test step, so
+`pull_request` passes `-PwearUnitTestFlavors=store` and runs the shipping flavor only. The
+property defaults to `dev,store`, an unknown value fails the build, and the dev-flavor Wear unit
+tests keep running on `master` pushes, `workflow_dispatch`, `workflow_call` and in every local
+root gate. PR **Unit Test Results** comments therefore report about 241 fewer tests than a push
+run, by design. Heap, `forkEvery` and timeouts are unchanged.
+
+The step runs inside `.github/scripts/run_with_resource_samples.sh`, which writes a `[res]` sample
+block into the step log every 15 s: `uptime`, `free -m`, one `vmstat` row (si/so/wa/st), `df -h /`,
+PSI for cpu/memory/io, and the eight largest processes by RSS. It lives in the step log rather than
+an artifact because a runner that receives a shutdown signal cancels every later step and
+`failure()` is false on cancellation. The cause of the Wear stack's mid-step runner shutdowns is
+unmeasured; these samples are the instrument for the next occurrence.
 
 `:app:wear:assembleStoreRelease` is a compile-and-R8 gate, not a release. The Crashlytics Gradle
 plugin adds `uploadCrashlyticsMappingFile<Variant>` to `assemble<Variant>` whenever the variant's
@@ -415,6 +431,7 @@ guard can fail. Rows are append-only.
 
 | Finding | Commit | Guard | Control |
 |---|---|---|---|
+| F01 — unit-test step 6.4 → 11.6 min; five stack heads needed re-runs; mid-step runner shutdowns (cause unmeasured) | `ci: run the Wear store flavor only on pull requests and sample runner resources` | `wearUnitTestFlavors` (unknown flavor fails the build) + `run_with_resource_samples.sh` in the step log | anchors: `-PwearUnitTestFlavors=bogus` → BUILD FAILED; stand-in `sleep 40; exit 1` → 3 sample blocks, exit 1 |
 | F07 — PR CI uploaded a Crashlytics mapping file for every `:app:wear:assembleStoreRelease` | `build(wear): make the Crashlytics mapping upload opt-in` | `uploadCrashlyticsMappingFileStoreRelease` leaves the `assembleStoreRelease` graph unless `-PcrashlyticsMappingUpload=true` (dry-run pair, no test guard) | anchor: with the property the task is scheduled |
 | F10 — `python3` inside the unit-test gate undocumented; parser suite accepted “≥ 20 tests” | `test(wear): pin the acceptance parser suite to an exact identity inventory` | `run_parser_tests.py` `EXPECTED_TESTS` (65 ids) via `:app:wear:verifyEmulatorAcceptanceRunner` | `f10-parser-test-renamed`: one renamed test id → RED |
 | F08 — release boundary proven on `devRelease`, not the shipping `storeRelease` | `ci: prove the Wear release boundary on storeRelease` | `ReleaseRuntimeBoundaryTest` on `:app:wear:testStoreReleaseUnitTest` | `f08-release-driver-accepts-scenario`: release `handleDebugScenario` returning `true` → RED |

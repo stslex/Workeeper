@@ -112,8 +112,25 @@ tasks.register("assembleDebugAndroidTest") {
 tasks.register("lintDebug") {
     dependsOn("lintDevDebug", "lintStoreDebug")
 }
+// Which Wear flavors the unflavoured `testDebugUnitTest` alias runs. The two flavors differ by one
+// manifest meta-data line, and running both doubled this module's share of CI's unit-test step, so
+// pull_request CI passes `-PwearUnitTestFlavors=store` (ci-cd.md § "Build and unit-test workflow").
+// Everything else keeps the default. An unknown flavor fails the build rather than testing nothing.
+val wearUnitTestFlavors = providers.gradleProperty("wearUnitTestFlavors").orElse("dev,store").map { raw ->
+    val flavors = raw.split(',').map(String::trim).filter(String::isNotEmpty)
+    val known = listOf("dev", "store")
+    require(flavors.isNotEmpty() && flavors.all { it in known }) {
+        "wearUnitTestFlavors must be a comma-separated subset of $known, got '$raw'"
+    }
+    flavors
+}
 tasks.register("testDebugUnitTest") {
-    dependsOn("testDevDebugUnitTest", "testStoreDebugUnitTest", "verifyEmulatorAcceptanceRunner")
+    dependsOn(
+        wearUnitTestFlavors.map { flavors ->
+            flavors.map { flavor -> "test${flavor.replaceFirstChar(Char::uppercase)}DebugUnitTest" }
+        },
+    )
+    dependsOn("verifyEmulatorAcceptanceRunner")
 }
 
 tasks.register<Exec>("verifyEmulatorAcceptanceRunner") {

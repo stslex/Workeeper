@@ -245,8 +245,18 @@ jobs:
         if: ${{ !cancelled() && steps.mvi_host_tests.outcome == 'failure' }}
         run: exit 1
 
+      # The Wear module runs its host tests once per flavor, and its two flavors differ by one
+      # manifest line (see the release-variant comment above). On pull_request the alias runs the
+      # shipping flavor only (`-PwearUnitTestFlavors=store`; the default is `dev,store`); push,
+      # dispatch and workflow_call keep both. The wrapper samples host resources into THIS step's
+      # log every 15 s (`[res]` lines): a runner that dies mid-step cancels every later step and
+      # `failure()` is false on cancellation, so an upload-artifact step could never capture the
+      # failure the samples exist for. Gradle's exit code is the step's exit code.
       - name: Run Unit Tests
-        run: ./gradlew testDebugUnitTest --full-stacktrace
+        run: >
+          bash .github/scripts/run_with_resource_samples.sh
+          ./gradlew testDebugUnitTest --full-stacktrace
+          ${{ github.event_name == 'pull_request' && '-PwearUnitTestFlavors=store' || '' }}
 
       # The debug suite cannot prove that the synthetic source is absent from release. storeRelease
       # is the variant that ships, so the boundary is proven on it; devRelease differs only by the
