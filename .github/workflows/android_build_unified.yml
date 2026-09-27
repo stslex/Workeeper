@@ -245,6 +245,22 @@ jobs:
         if: ${{ !cancelled() && steps.mvi_host_tests.outcome == 'failure' }}
         run: exit 1
 
+      # The build steps above leave the Gradle daemon (-Xmx8g) and two Kotlin daemons (-Xmx4g each,
+      # one per compiler version: build-logic's and the project's) holding the heap they grew. In
+      # run 36336137166 they held 73.5-77.1% of used memory while swap was full during the unit-test
+      # step. Stopping them before that step hands the memory to the test JVMs; the step starts a
+      # fresh Gradle daemon, and a Kotlin daemon only if it compiles. Rule and numbers: ci-cd.md, F01.
+      # The `[o]` keeps the pattern from matching a process whose command line contains it.
+      - name: Stop Gradle and Kotlin daemons to free memory for the unit tests
+        run: |
+          ./gradlew --stop
+          pkill -f '[o]rg.jetbrains.kotlin.daemon.KotlinCompileDaemon' || [ $? -eq 1 ]
+          for _ in $(seq 30); do
+            pgrep -f '[o]rg.jetbrains.kotlin.daemon.KotlinCompileDaemon' > /dev/null || exit 0
+            sleep 1
+          done
+          echo "::warning::a Kotlin daemon survived SIGTERM for 30 s"
+
       # The Wear module runs its host tests once per flavor, and its two flavors differ by one
       # manifest line (see the release-variant comment above). On pull_request the alias runs the
       # shipping flavor only (`-PwearUnitTestFlavors=store`; the default is `dev,store`); push,
