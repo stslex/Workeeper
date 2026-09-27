@@ -22,6 +22,11 @@ the custom key `platform=phone` or `platform=watch` at application startup, befo
 work. Wear telemetry must not serialize workout payloads through action/event descriptions.
 The real-phone-payload privacy gate remains closed; validation uses synthetic/debug sources only.
 
+The explicit notification-settings action first opens the public per-app notification page.
+If the platform has no handler for that action, it falls back to public system Settings.
+If neither route is available, the existing UI-event error boundary reports the failure without
+changing notification permission, publishing ongoing activity or terminating the controller.
+
 ## Delivery and evidence
 
 Four stacked changes cover shared resources and dependencies, presentation/rotary, final-font
@@ -200,3 +205,18 @@ controls bypass paragraph layout and force the wrong base direction independentl
 The first forced-LTR control was non-discriminating for the Arabic clock alone and remained
 INVALID, with the passing mutated XML preserved. The raster guard also includes a mixed RTL
 exercise name with a Latin unit so paragraph base direction has an observable effect.
+
+2026-09-27 final-cohort closure: source `5920e1ee` completed collection with 69 PASS,
+two BLOCKED and one FAIL. Three separately recorded replacements qualify strict process-absence
+and conservative ten-minute duration observations without overwriting the original receipts.
+Native API30/36 Tile observations now show progress, disconnect and natural freshness expiry;
+the system scheduler does not promise immediate refresh delivery. API30 notification restoration
+remains FAIL: the actual app button threw `ActivityNotFoundException` for the unsupported
+per-app Settings action. The frozen original results are retained in the final report.
+
+2026-09-27 notification Settings correction: a real Kotlin/Robolectric regression reproduced
+that missing-handler failure on API30/33 (two assertion failures; 106 executed tasks).
+The platform adapter now falls back to public system Settings and uses the existing UI-event
+error boundary if both routes fail. Eight targeted tests pass with 106 executed tasks.
+The final corrected APK and its UI matrix require separately bound fresh evidence; the
+`5920e1ee` timed observations must not be relabelled as results from the corrected APK.
