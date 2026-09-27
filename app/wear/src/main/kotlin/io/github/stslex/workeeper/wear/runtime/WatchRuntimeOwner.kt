@@ -78,21 +78,32 @@ internal class WatchRuntimeOwner(
         }
     }
 
-    override fun onWake(): WatchRuntimeSnapshot = transition {
-        // A restored tombstone has no exposed receive time, so its access-time TTL stays at the reader boundary.
-        if (tombstone && receivedAtMs == null && cache.read() !is CacheReadResult.NoSession) {
-            resetDisplay()
-        }
-        ongoing.refresh()
-    }.let { snapshot.value }
+    override fun onWake(): WatchRuntimeSnapshot = transition { wake() }.let { snapshot.value }
 
     override fun setLocale(locale: Locale) = transition {
         selectedLocale = locale
     }
 
-    override fun remainingUntilNextBoundaryMs(): Long? = synchronized(lock) {
-        if (recoveryRequired) return@synchronized null
-        nextBoundaryMs()?.let { boundary -> (boundary - clock.nowMs()).coerceAtLeast(0L) }
+    override fun tileFrame(locale: Locale): WatchTileFrame = synchronized(lock) {
+        // A failed wake latches recovery and is logged; the frame still carries what the owner published.
+        runWearRuntimeUiEvent {
+            transition {
+                selectedLocale = locale
+                wake()
+            }
+        }
+        WatchTileFrame(
+            snapshot = mutableSnapshot.value,
+            freshnessIntervalMs = tileFreshnessIntervalMs(nextBoundaryMs(), clock.nowMs(), recoveryRequired),
+        )
+    }
+
+    private fun wake() {
+        // A restored tombstone has no exposed receive time, so its access-time TTL stays at the reader boundary.
+        if (tombstone && receivedAtMs == null && cache.read() !is CacheReadResult.NoSession) {
+            resetDisplay()
+        }
+        ongoing.refresh()
     }
 
     fun issueHandshake(): RequestToken = transition {

@@ -13,7 +13,6 @@ import io.github.stslex.workeeper.wear.ongoing.OngoingStatus
 import io.github.stslex.workeeper.wear.tile.WorkoutTileService
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
-import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
@@ -21,6 +20,7 @@ import org.robolectric.Robolectric
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import tech.apter.junit.jupiter.robolectric.RobolectricExtension
+import java.util.Locale
 import java.util.concurrent.TimeUnit
 
 @ExtendWith(RobolectricExtension::class)
@@ -54,7 +54,8 @@ internal class ReleaseRuntimeBoundaryTest {
     @Test
     fun releaseTileDeclaresNoFreshnessInterval() {
         val context = RuntimeEnvironment.getApplication()
-        assertNull(WatchRuntimeFactory.get(context).remainingUntilNextBoundaryMs())
+        val frame = WatchRuntimeFactory.get(context).tileFrame(Locale.US)
+        assertEquals(0L, frame.freshnessIntervalMs, "the release runtime reports no boundary")
         val service = Robolectric.setupService(WorkoutTileService::class.java)
         val tile = service.requestTile(RequestBuilders.TileRequest.Builder().build())
         assertEquals(0L, tile.freshnessIntervalMillis, "the read-only release runtime has no boundary")

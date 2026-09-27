@@ -9,8 +9,6 @@ import com.google.common.util.concurrent.ListenableFuture
 import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.wear.BuildConfig
 import io.github.stslex.workeeper.wear.runtime.WatchRuntimeFactory
-import io.github.stslex.workeeper.wear.runtime.runWearRuntimeUiEvent
-import io.github.stslex.workeeper.wear.ui.WearSurfaceMapper
 
 /** Cache-first glance surface. Privacy-gated transport wiring is intentionally absent. */
 class WorkoutTileService : TileService() {
@@ -26,18 +24,16 @@ class WorkoutTileService : TileService() {
         requestParams: RequestBuilders.TileRequest,
     ): ListenableFuture<TileBuilders.Tile> = CallbackToFutureAdapter.getFuture { completer ->
         if (BuildConfig.DEBUG) Log.tag(TILE_LOG_TAG).d("onTileRequest")
-        val runtime = WatchRuntimeFactory.get(applicationContext)
-        runWearRuntimeUiEvent {
-            runtime.setLocale(resources.configuration.locales[0])
-            runtime.onWake()
-        }
         val device = requestParams.deviceConfiguration
         val screenDiameter = minOf(device.screenWidthDp, device.screenHeightDp).takeIf { it > 0 }
             ?: minOf(resources.configuration.screenWidthDp, resources.configuration.screenHeightDp)
-        // The owner's next authority/ongoing/cache boundary is when the rendered content can change.
-        val freshness = runWearRuntimeUiEvent { runtime.remainingUntilNextBoundaryMs() }.getOrNull() ?: 0L
+        // Snapshot and freshness come from one owner operation; the next boundary is when the content can change.
         completer.set(
-            WorkoutTileRenderer(this).render(WearSurfaceMapper.map(runtime.snapshot.value), screenDiameter, freshness),
+            WorkoutTileRenderer(this).renderFrame(
+                runtime = WatchRuntimeFactory.get(applicationContext),
+                locale = resources.configuration.locales[0],
+                screenDiameterDp = screenDiameter,
+            ),
         )
         FUTURE_TAG
     }

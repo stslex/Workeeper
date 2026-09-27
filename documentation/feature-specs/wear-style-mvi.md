@@ -92,9 +92,11 @@ keep it honest without a polling loop:
   construction; draft-only edits request nothing because the Tile does not draw them.
 - **Freshness interval = the owner's next boundary.** `Tile.freshnessIntervalMillis` is elapsed
   time (never wall clock, so Phase 1 section 5.1 holds and no timeline validity is used): the
-  service passes `WatchRuntime.remainingUntilNextBoundaryMs()`, the same authority / ongoing /
-  display-cache deadline the owner schedules its one-shot callback on, and 0 when there is none
-  (release read-only runtime, LOADING). A NoSession tombstone keeps its display-cache TTL as a
+  service renders `WatchRuntime.tileFrame(locale)`, one owner operation with expiry inside it that
+  returns the snapshot and the time to the same authority / ongoing / display-cache deadline the
+  owner schedules its one-shot callback on. 0 means no boundary and nothing else (release read-only
+  runtime, LOADING); a boundary that has already passed asks for 1 ms and a pending recovery for
+  60 s (`tileFreshnessIntervalMs`). A NoSession tombstone keeps its display-cache TTL as a
   boundary. The platform may throttle refreshes to about one per minute, so a request at the
   boundary is a request, not a guarantee; the stale request then changes the rendered content once
   and asks for at most one follow-up update.
@@ -108,6 +110,7 @@ can fail. Rows are append-only.
 | Finding | Commit | Guard | Control |
 |---|---|---|---|
 | F02 - the Tile declared no freshness interval, so after process death an ACTIVE Tile kept its progress past the mutation window | `fix(wear): let the Tile request a platform refresh at the owner boundary` | `WorkoutTileFreshnessTest` (W, expiry, single follow-up), `WorkoutTileServiceFreshnessTest` (debug service after `expire`), `ReleaseRuntimeBoundaryTest.releaseTileDeclaresNoFreshnessInterval` | `f02-freshness-forced-zero`: renderer always writes 0, RED |
+| F02 follow-up (Codex P2 on #296) - a boundary that passed between `onWake()` and the separate freshness read was sent as 0, which tells the platform never to refresh | `fix(wear): read the Tile snapshot and its freshness in one owner operation` | `WatchRuntime.tileFrame` (snapshot + freshness under one owner lock, expiry inside); `WorkoutTileFreshnessTest` (overdue boundary → 1 ms, recovery → 60 s, 0 only without a boundary, the Tile renders the frame's snapshot) | `p2-overdue-floor-removed` (`coerceAtLeast(0)`), `p2-separate-snapshot-read` (`runtime.snapshot.value`): RED |
 | F06 - payload safety of Store telemetry rested on three `toString` overrides checked by one test | `test(wear): guard every Store action and event description against workout values` | `WearStoreActionRegistryTest` (explicit list of the 10 Action leaves and 1 Event leaf, each built with sentinel values; fails on a missing or extra leaf) | `f06-draft-tostring-override-removed`: the `Draft` override dropped, RED |
 | F09 - no `@Stable`/`@Immutable` on the Composable-facing Wear models and a `List` in `WearSurfaceModel` | `refactor(wear): annotate the Composable-facing models and use ImmutableList` | `WearStableModelsTest` (class-file annotation check on the eight models; `ImmutableList` return types) | `f09-surface-model-annotation-removed`: `@Immutable` dropped from `WearSurfaceModel`, RED |
 | F03 - the refresh key omitted authority, so a handshake that retired it changed the rendered Tile without an update request | `fix(wear): key the system Tile refresh on the rendered content` | `WatchTileAuthorityRetiredTest` (anchor: display change requests one update; target: retired authority requests one more) | `f03-key-drops-rendered-lines`: key without the rendered lines, RED |

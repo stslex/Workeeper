@@ -6,6 +6,7 @@ import androidx.wear.protolayout.TimelineBuilders
 import androidx.wear.tiles.TileBuilders
 import io.github.stslex.workeeper.wear.MainActivity
 import io.github.stslex.workeeper.wear.R
+import io.github.stslex.workeeper.wear.runtime.WatchRuntime
 import io.github.stslex.workeeper.wear.runtime.WatchRuntimeSnapshot
 import io.github.stslex.workeeper.wear.ui.CompletionUnavailableReason
 import io.github.stslex.workeeper.wear.ui.WearCopy
@@ -13,6 +14,7 @@ import io.github.stslex.workeeper.wear.ui.WearSurfaceKind
 import io.github.stslex.workeeper.wear.ui.WearSurfaceMapper
 import io.github.stslex.workeeper.wear.ui.WearSurfaceModel
 import io.github.stslex.workeeper.wear.ui.statusCopy
+import java.util.Locale
 
 internal class WorkoutTileRenderer(private val context: Context) {
 
@@ -47,6 +49,15 @@ internal class WorkoutTileRenderer(private val context: Context) {
                     .build(),
             )
             .build()
+    }
+
+    /**
+     * One Tile response: the runtime's [WatchRuntime.tileFrame], rendered exactly as it was read, so
+     * the freshness interval always belongs to the snapshot on screen.
+     */
+    fun renderFrame(runtime: WatchRuntime, locale: Locale, screenDiameterDp: Int): TileBuilders.Tile {
+        val frame = runtime.tileFrame(locale)
+        return render(WearSurfaceMapper.map(frame.snapshot), screenDiameterDp, frame.freshnessIntervalMs)
     }
 
     /** The rendered lines and their locale: the coordinator requests an update when this changes. */
