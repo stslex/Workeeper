@@ -103,7 +103,11 @@ private fun ComposeUiTest.assertAmbientSummaryMatrixWithFixedTimeFormat(locale: 
                 resources.getString(R.string.ambient_read_only),
                 node.config[SemanticsProperties.StateDescription],
             )
-            assertTrue(description.contains(requireNotNull(candidate.model.exerciseName)), where)
+            // The spoken context follows the production rule: exercise, else training, else the generic workout.
+            val spokenContext = candidate.model.exerciseName
+                ?: candidate.model.trainingName
+                ?: resources.getString(R.string.workout_generic)
+            assertTrue(description.contains(spokenContext), where)
             val availability = if (candidate.model.completeEnabled) {
                 R.string.complete_set_enabled_description
             } else {
@@ -241,11 +245,8 @@ private fun ambientCases(locale: Locale): List<AmbientCase> {
         AmbientCase("weightless", active.copy(weighted = false, weightHundredthsKg = null), hasDraft = false),
         AmbientCase(
             "protocol_mismatch",
-            WearSurfaceModel(
-                kind = WearSurfaceKind.PROTOCOL_MISMATCH,
-                exerciseName = "Обновление приложения на часах и телефоне",
-                selectedLocale = locale,
-            ),
+            // Exactly as the mapper produces it: no exercise name travels with a protocol mismatch.
+            WearSurfaceModel(kind = WearSurfaceKind.PROTOCOL_MISMATCH, selectedLocale = locale),
             hasDraft = false,
         ),
     )
