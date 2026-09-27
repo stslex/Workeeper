@@ -75,6 +75,14 @@ logcat meta-data entry); AGP does not create release unit-test tasks unless
 `android.onlyEnableUnitTestForTheTestedBuildType=false` is passed, which is why the step spells
 the property out.
 
+`testDebugUnitTest` is not pure Gradle on this repository: the Wear module's alias depends on
+`:app:wear:verifyEmulatorAcceptanceRunner`, an `Exec` task that runs
+`python3 documentation/wear-emulator-acceptance/run_parser_tests.py`. The step therefore needs
+`python3` on PATH (ubuntu-latest ships it; the same holds for every local root gate), and the
+runner verifies an exact identity inventory (`EXPECTED_TESTS`, 65 ids): a missing, renamed or
+extra parser test fails the task before any test runs, and every listed id must leave a passing
+testcase in `app/wear/build/test-results/verifyEmulatorAcceptanceRunner/`.
+
 `:app:wear:assembleStoreRelease` is a compile-and-R8 gate, not a release. The Crashlytics Gradle
 plugin adds `uploadCrashlyticsMappingFile<Variant>` to `assemble<Variant>` whenever the variant's
 `mappingFileUploadEnabled` is true, so the Wear module keeps it off by default and reads
@@ -408,6 +416,7 @@ guard can fail. Rows are append-only.
 | Finding | Commit | Guard | Control |
 |---|---|---|---|
 | F07 — PR CI uploaded a Crashlytics mapping file for every `:app:wear:assembleStoreRelease` | `build(wear): make the Crashlytics mapping upload opt-in` | `uploadCrashlyticsMappingFileStoreRelease` leaves the `assembleStoreRelease` graph unless `-PcrashlyticsMappingUpload=true` (dry-run pair, no test guard) | anchor: with the property the task is scheduled |
+| F10 — `python3` inside the unit-test gate undocumented; parser suite accepted “≥ 20 tests” | `test(wear): pin the acceptance parser suite to an exact identity inventory` | `run_parser_tests.py` `EXPECTED_TESTS` (65 ids) via `:app:wear:verifyEmulatorAcceptanceRunner` | `f10-parser-test-renamed`: one renamed test id → RED |
 | F08 — release boundary proven on `devRelease`, not the shipping `storeRelease` | `ci: prove the Wear release boundary on storeRelease` | `ReleaseRuntimeBoundaryTest` on `:app:wear:testStoreReleaseUnitTest` | `f08-release-driver-accepts-scenario`: release `handleDebugScenario` returning `true` → RED |
 
 ## Check-name reference
