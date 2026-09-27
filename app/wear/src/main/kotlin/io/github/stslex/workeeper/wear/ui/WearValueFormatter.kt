@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.wear.ui
 
+import androidx.compose.runtime.Immutable
 import java.math.BigDecimal
 import java.text.NumberFormat
 import java.util.Locale
 
+@Immutable
 internal data class WearFormattedValues(
     val reps: String?,
     val weight: String?,

@@ -1,5 +1,7 @@
 package io.github.stslex.workeeper.wear.mvi.store
 
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.Stable
 import io.github.stslex.workeeper.core.ui.mvi.Store
 import io.github.stslex.workeeper.core.wear.protocol.NumericField
 import io.github.stslex.workeeper.wear.ambient.WearAmbientState
@@ -8,6 +10,7 @@ import io.github.stslex.workeeper.wear.ui.WearSurfaceKind
 import io.github.stslex.workeeper.wear.ui.WearSurfaceModel
 
 internal interface WearStore : Store<WearStore.State, WearStore.Action, WearStore.Event> {
+    @Stable
     data class State(
         val presentation: WearPresentation = WearPresentation(),
         val platform: WearPlatformState = WearPlatformState(),
@@ -46,12 +49,14 @@ internal interface WearStore : Store<WearStore.State, WearStore.Action, WearStor
     }
 }
 
+@Immutable
 internal data class WearPlatformState(
     val ambient: WearAmbientState = WearAmbientState(),
     val notificationsEnabled: Boolean = true,
     val previewId: String? = null,
 )
 
+@Immutable
 internal data class WearPresentation(
     val model: WearSurfaceModel = WearSurfaceModel(WearSurfaceKind.LOADING),
     val ambient: WearAmbientState = WearAmbientState(),

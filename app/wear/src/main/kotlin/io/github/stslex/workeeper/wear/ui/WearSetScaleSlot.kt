@@ -1,6 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.wear.ui
 
+import androidx.compose.runtime.Immutable
+import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.toImmutableList
+
+@Immutable
 internal data class WearSetScaleSlot(
     val firstSet: Int,
     val lastSet: Int,
@@ -8,7 +13,7 @@ internal data class WearSetScaleSlot(
     val current: Boolean,
 )
 
-internal fun wearSetScaleSlots(current: Int, total: Int): List<WearSetScaleSlot> {
+internal fun wearSetScaleSlots(current: Int, total: Int): ImmutableList<WearSetScaleSlot> {
     require(total > 0 && current in 1..total)
     val count = minOf(total, MAX_VISIBLE_SET_PILLS)
     return List(count) { index ->
@@ -21,7 +26,7 @@ internal fun wearSetScaleSlots(current: Int, total: Int): List<WearSetScaleSlot>
             completed = last < current,
             current = current in first..last,
         )
-    }
+    }.toImmutableList()
 }
 
 private const val MAX_VISIBLE_SET_PILLS = 8

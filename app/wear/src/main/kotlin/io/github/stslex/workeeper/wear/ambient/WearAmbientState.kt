@@ -2,11 +2,14 @@
 package io.github.stslex.workeeper.wear.ambient
 
 import androidx.annotation.MainThread
+import androidx.compose.runtime.Immutable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
+@Immutable
 internal data class WearAmbientOffset(val xPx: Int = 0, val yPx: Int = 0)
 
+@Immutable
 internal data class WearAmbientState(
     val isAmbient: Boolean = false,
     val timestampMillis: Long? = null,
