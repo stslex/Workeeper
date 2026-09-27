@@ -14,6 +14,7 @@ internal fun observeWorkoutTile(context: Context, runtime: WatchRuntime) {
     WatchTileCoordinator(
         snapshots = runtime.snapshot,
         scope = application.appScopeLifetime.childScope(Dispatchers.Main.immediate),
+        refreshKey = WorkoutTileRenderer(application)::refreshKey,
         requestUpdate = {
             TileService.getUpdater(application).requestUpdate(WorkoutTileService::class.java)
             if (BuildConfig.DEBUG) Log.tag(TILE_LOG_TAG).d("requestUpdate")

@@ -29,7 +29,10 @@ internal class WatchTileRefreshRequiredTest {
         val reducer = freshReducer()
         val snapshots = MutableStateFlow(WatchRuntimeSnapshot(workout = reducer.state))
         var requests = 0
-        WatchTileCoordinator(snapshots, backgroundScope, { requests++ }, { throw AssertionError(it) })
+        val renderer = WorkoutTileRenderer(RuntimeEnvironment.getApplication())
+        WatchTileCoordinator(snapshots, backgroundScope, renderer::refreshKey, { requests++ }) {
+            throw AssertionError(it)
+        }
         assertEquals(1, requests)
         val display = reducer.state.display
         rejectRefresh(reducer)

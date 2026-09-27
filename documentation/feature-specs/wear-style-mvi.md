@@ -78,6 +78,26 @@ and 60dp content per card under an equal split. Its inline derivation also recor
 These are preserved source-recorded measurements of the earlier typography; they are
 not measurements or acceptance evidence for the new font roles.
 
+## System Tile
+
+The Tile is a cache-first render of the runtime snapshot; it never waits for phone I/O. Two contracts
+keep it honest without a polling loop:
+
+- **Refresh key = rendered content.** `WatchTileCoordinator` requests a platform update when
+  `WorkoutTileRenderer.refreshKey` changes: the text lines the Tile draws plus the locale they were
+  formatted for. Every field that moves a rendered line, mutation authority included, is covered by
+  construction; draft-only edits request nothing because the Tile does not draw them.
+
+### Review follow-up registry
+
+Findings of the independent review of the Wear stack (#286-#295) that changed this contract. One row
+per finding: the commit, the guard that now holds it, and the negative control that proved the guard
+can fail. Rows are append-only.
+
+| Finding | Commit | Guard | Control |
+|---|---|---|---|
+| F03 - the refresh key omitted authority, so a handshake that retired it changed the rendered Tile without an update request | `fix(wear): key the system Tile refresh on the rendered content` | `WatchTileAuthorityRetiredTest` (anchor: display change requests one update; target: retired authority requests one more) | `f03-key-drops-rendered-lines`: key without the rendered lines, RED |
+
 ## Implementation ledger
 
 2026-09-26: implementation started in an isolated worktree based on `1af93d0b`. Shared tokens and

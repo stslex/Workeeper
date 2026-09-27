@@ -6,9 +6,11 @@ import androidx.wear.protolayout.TimelineBuilders
 import androidx.wear.tiles.TileBuilders
 import io.github.stslex.workeeper.wear.MainActivity
 import io.github.stslex.workeeper.wear.R
+import io.github.stslex.workeeper.wear.runtime.WatchRuntimeSnapshot
 import io.github.stslex.workeeper.wear.ui.CompletionUnavailableReason
 import io.github.stslex.workeeper.wear.ui.WearCopy
 import io.github.stslex.workeeper.wear.ui.WearSurfaceKind
+import io.github.stslex.workeeper.wear.ui.WearSurfaceMapper
 import io.github.stslex.workeeper.wear.ui.WearSurfaceModel
 import io.github.stslex.workeeper.wear.ui.statusCopy
 
@@ -40,6 +42,10 @@ internal class WorkoutTileRenderer(private val context: Context) {
             )
             .build()
     }
+
+    /** The rendered lines and their locale: the coordinator requests an update when this changes. */
+    fun refreshKey(snapshot: WatchRuntimeSnapshot): TileRefreshKey =
+        TileRefreshKey(lines(WearSurfaceMapper.map(snapshot)), snapshot.locale)
 
     private fun lines(model: WearSurfaceModel): List<String> = when (model.kind) {
         WearSurfaceKind.LOADING -> listOf(

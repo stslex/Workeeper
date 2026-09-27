@@ -16,15 +16,23 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.extension.ExtendWith
+import org.robolectric.RuntimeEnvironment
+import org.robolectric.annotation.Config
+import tech.apter.junit.jupiter.robolectric.RobolectricExtension
 import java.util.Locale
 
+@ExtendWith(RobolectricExtension::class)
+@Config(sdk = [33])
 @OptIn(ExperimentalCoroutinesApi::class)
 internal class WatchTileCoordinatorTest {
+    private fun refreshKey() = WorkoutTileRenderer(RuntimeEnvironment.getApplication())::refreshKey
+
     @Test
     fun persistedRefreshAndExpiryUpdateTheTileWithoutAScreen() = runTest(UnconfinedTestDispatcher()) {
         val env = RuntimeTestEnvironment()
         var requests = 0
-        WatchTileCoordinator(env.owner.snapshot, backgroundScope, {
+        WatchTileCoordinator(env.owner.snapshot, backgroundScope, refreshKey(), {
             requests++
             env.trace += "tile"
         }, { throw AssertionError(it) })
@@ -54,7 +62,7 @@ internal class WatchTileCoordinatorTest {
         val env = RuntimeTestEnvironment()
         var requests = 0
         var failures = 0
-        WatchTileCoordinator(env.owner.snapshot, backgroundScope, {
+        WatchTileCoordinator(env.owner.snapshot, backgroundScope, refreshKey(), {
             requests++
             if (requests == 1) error("Synthetic platform failure")
         }, { failures++ })
@@ -71,7 +79,7 @@ internal class WatchTileCoordinatorTest {
         val env = RuntimeTestEnvironment()
         val reported = mutableListOf<Throwable>()
         var requests = 0
-        WatchTileCoordinator(env.owner.snapshot, backgroundScope, {
+        WatchTileCoordinator(env.owner.snapshot, backgroundScope, refreshKey(), {
             requests++
             throw CancellationException("Synthetic Tile cancellation")
         }, { reported += it })
@@ -91,7 +99,7 @@ internal class WatchTileCoordinatorTest {
         )
         try {
             val fatal = LinkageError("Synthetic Tile linkage failure")
-            WatchTileCoordinator(env.owner.snapshot, scope, { throw fatal }, { reported += it })
+            WatchTileCoordinator(env.owner.snapshot, scope, refreshKey(), { throw fatal }, { reported += it })
             assertSame(fatal, uncaught.singleOrNull(), "Fatal Tile failure must reach the process exception handler")
             assertTrue(reported.isEmpty(), "Fatal Tile failure must not be reported as recoverable")
         } finally {
