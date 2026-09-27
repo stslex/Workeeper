@@ -141,8 +141,9 @@ jobs:
       # `:app:wear`'s release classpath to having no gate at all — and a `debugImplementation`-only
       # dependency is invisible to every other task here.
       #
-      # Only the shipping flavor is built. `:app:wear` has no flavor-specific source directory, so
-      # devRelease compiles the same sources and would add a second R8 run for no new coverage.
+      # Only the shipping flavor is built. `:app:wear`'s two flavors differ by one file,
+      # `app/wear/src/dev/AndroidManifest.xml` (a Firebase Performance logcat meta-data entry), so
+      # devRelease would add a second R8 run of the same Kotlin for no new coverage.
       #
       # `--rerun-tasks --no-build-cache`, unlike the steps above it. This job restores the Gradle
       # build cache and `gradle-ci.properties` sets `org.gradle.caching=true`, so without the flags
@@ -247,10 +248,12 @@ jobs:
       - name: Run Unit Tests
         run: ./gradlew testDebugUnitTest --full-stacktrace
 
-      # The debug suite cannot prove that the synthetic source is absent from release.
+      # The debug suite cannot prove that the synthetic source is absent from release. storeRelease
+      # is the variant that ships, so the boundary is proven on it; devRelease differs only by the
+      # dev manifest above and would prove the same classpath under a different application id.
       - name: Run Wear release source boundary test
         run: >
-          ./gradlew :app:wear:testDevReleaseUnitTest
+          ./gradlew :app:wear:testStoreReleaseUnitTest
           -Pandroid.onlyEnableUnitTestForTheTestedBuildType=false
           --tests '*ReleaseRuntimeBoundaryTest.releaseRejectsSyntheticEventsAndExcludesTheirSourceClass'
           --rerun-tasks --no-build-cache --no-configuration-cache
