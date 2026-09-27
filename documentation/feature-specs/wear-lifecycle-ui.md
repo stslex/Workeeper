@@ -470,6 +470,12 @@ Real transport, phone confirmation, disclosure/route decisions and final Phase 1
 remain blocked by the existing privacy and paired-device gates. Public privacy files, phone
 schema and mutation-authority rules are unchanged by this stage.
 
+Open items from the independent review of the Wear stack (2026-09-27), deferred without code:
+
+- F05: `WatchRuntimeOwner.transition` performs notification and storage calls on the main thread under its lock (measured on the host: one Activity refresh is seven `status()` lookups plus one notify, one ambient update four plus one); timing and ANR impact are UNMEASURED, so the next acceptance run adds an ANR/crash probe with a known-positive anchor, which also attributes the open ANR from the #284 regression run; `status()` is not memoized because it must observe a post or cancel made inside the same transition.
+- F11: the exported debug `MainActivity` forwards any `wear_surface_fixture` extra to the debug driver (including `expire`, `stop_ongoing`, `no_session`), while the DUMP-guarded receiver allows three scenarios; kept as is, and the fixtures move to the receiver the next time the acceptance runner changes (restricting to the dev flavor would drop the storeDebug acceptance subset).
+- F13: the debug deadline scheduler delays on the coroutine clock against elapsed-realtime deadlines and runs in its own scope; every wake re-checks expiry synchronously, so it stays as is.
+
 ## 8. Review follow-up registry
 
 Findings of the independent review of the Wear stack (#286-#295) that changed this runtime. One
