@@ -25,7 +25,13 @@ android {
         }
         named("release") {
             configure<CrashlyticsExtension> {
-                mappingFileUploadEnabled = true
+                // GUARD: opt-in only. PR CI assembles storeRelease as a compile gate, and the
+                // Crashlytics plugin wires uploadCrashlyticsMappingFile<Variant> into assemble
+                // whenever this is true, so every PR would upload a mapping file for a build that
+                // never ships. A release pipeline passes -PcrashlyticsMappingUpload=true (ci-cd.md).
+                mappingFileUploadEnabled = providers.gradleProperty("crashlyticsMappingUpload")
+                    .map(String::toBoolean)
+                    .getOrElse(false)
                 nativeSymbolUploadEnabled = false
             }
         }

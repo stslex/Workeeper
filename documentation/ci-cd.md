@@ -75,6 +75,13 @@ logcat meta-data entry); AGP does not create release unit-test tasks unless
 `android.onlyEnableUnitTestForTheTestedBuildType=false` is passed, which is why the step spells
 the property out.
 
+`:app:wear:assembleStoreRelease` is a compile-and-R8 gate, not a release. The Crashlytics Gradle
+plugin adds `uploadCrashlyticsMappingFile<Variant>` to `assemble<Variant>` whenever the variant's
+`mappingFileUploadEnabled` is true, so the Wear module keeps it off by default and reads
+`-PcrashlyticsMappingUpload=true`; the Wear release pipeline that does not exist yet must pass that
+property when it assembles the shipping build. The phone application keeps its unconditional
+upload: no PR workflow assembles a phone release variant.
+
 Order is load-bearing twice over. `verifyPaparazziDebug` runs first so the goldens are compared
 against the tree as checked out, before any step could rewrite it. `:lint-rules:test` runs before
 `detekt`, since detekt is what consumes the jar those tests cover.
@@ -400,6 +407,7 @@ guard can fail. Rows are append-only.
 
 | Finding | Commit | Guard | Control |
 |---|---|---|---|
+| F07 — PR CI uploaded a Crashlytics mapping file for every `:app:wear:assembleStoreRelease` | `build(wear): make the Crashlytics mapping upload opt-in` | `uploadCrashlyticsMappingFileStoreRelease` leaves the `assembleStoreRelease` graph unless `-PcrashlyticsMappingUpload=true` (dry-run pair, no test guard) | anchor: with the property the task is scheduled |
 | F08 — release boundary proven on `devRelease`, not the shipping `storeRelease` | `ci: prove the Wear release boundary on storeRelease` | `ReleaseRuntimeBoundaryTest` on `:app:wear:testStoreReleaseUnitTest` | `f08-release-driver-accepts-scenario`: release `handleDebugScenario` returning `true` → RED |
 
 ## Check-name reference

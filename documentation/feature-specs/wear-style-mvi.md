@@ -19,7 +19,13 @@ Protocol, database and mutation-authority contracts are unchanged.
 
 Firebase uses the existing phone SDKs and matching distribution configuration. Crashlytics gets
 the custom key `platform=phone` or `platform=watch` at application startup, before graph/runtime
-work. Wear telemetry must not serialize workout payloads through action/event descriptions.
+work. Release mapping upload is opt-in (`-PcrashlyticsMappingUpload=true`); PR CI assembles
+storeRelease without it (review follow-up F07, [ci-cd.md](../ci-cd.md#wear-review-follow-up-registry)).
+Open before Wear ships: phone and watch share one Firebase app per flavor, separated only by that
+key. A second Firebase app in the same project is impossible, since the Data Layer requires the
+phone's package name and signature and Firebase rejects a duplicate package, so the only
+alternative is a separate project; the lean is the shared app plus an Analytics user property
+`platform`. Wear telemetry must not serialize workout payloads through action/event descriptions.
 The real-phone-payload privacy gate remains closed; validation uses synthetic/debug sources only.
 
 The explicit notification-settings action first opens the public per-app notification page.
