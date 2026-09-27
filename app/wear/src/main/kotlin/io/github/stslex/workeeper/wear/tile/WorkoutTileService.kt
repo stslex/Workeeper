@@ -34,7 +34,11 @@ class WorkoutTileService : TileService() {
         val device = requestParams.deviceConfiguration
         val screenDiameter = minOf(device.screenWidthDp, device.screenHeightDp).takeIf { it > 0 }
             ?: minOf(resources.configuration.screenWidthDp, resources.configuration.screenHeightDp)
-        completer.set(WorkoutTileRenderer(this).render(WearSurfaceMapper.map(runtime.snapshot.value), screenDiameter))
+        // The owner's next authority/ongoing/cache boundary is when the rendered content can change.
+        val freshness = runWearRuntimeUiEvent { runtime.remainingUntilNextBoundaryMs() }.getOrNull() ?: 0L
+        completer.set(
+            WorkoutTileRenderer(this).render(WearSurfaceMapper.map(runtime.snapshot.value), screenDiameter, freshness),
+        )
         FUTURE_TAG
     }
 

@@ -45,6 +45,8 @@ private class ReadOnlyWatchRuntime : WatchRuntime {
 
     override fun onAction(action: ControllerAction): WatchActionResult = WatchActionResult.Rejected
 
+    override fun remainingUntilNextBoundaryMs(): Long? = null
+
     @Synchronized
     override fun setLocale(locale: Locale) {
         this.locale = locale

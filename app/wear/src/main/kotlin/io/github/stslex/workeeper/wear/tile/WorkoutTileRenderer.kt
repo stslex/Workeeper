@@ -16,12 +16,17 @@ import io.github.stslex.workeeper.wear.ui.statusCopy
 
 internal class WorkoutTileRenderer(private val context: Context) {
 
+    /**
+     * [freshnessIntervalMs] is elapsed time after which the platform may request this Tile
+     * again; 0 means never on its own. The platform may throttle requests to about one a minute.
+     */
     fun render(
         model: WearSurfaceModel,
         screenDiameterDp: Int = minOf(
             context.resources.configuration.screenWidthDp,
             context.resources.configuration.screenHeightDp,
         ),
+        freshnessIntervalMs: Long = 0L,
     ): TileBuilders.Tile {
         val layout = WorkoutTileLayout.build(
             packageName = context.packageName,
@@ -31,6 +36,7 @@ internal class WorkoutTileRenderer(private val context: Context) {
         )
         return TileBuilders.Tile.Builder()
             .setResourcesVersion(RESOURCE_VERSION)
+            .setFreshnessIntervalMillis(freshnessIntervalMs)
             .setTileTimeline(
                 TimelineBuilders.Timeline.Builder()
                     .addTimelineEntry(

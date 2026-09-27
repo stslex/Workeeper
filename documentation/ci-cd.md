@@ -66,7 +66,7 @@ python3 .github/scripts/assert_mvi_host_identities.py
 bash .github/scripts/run_with_resource_samples.sh ./gradlew testDebugUnitTest --full-stacktrace \
   -PwearUnitTestFlavors=store   # the property only on pull_request; other triggers run both Wear flavors
 ./gradlew :app:wear:testStoreReleaseUnitTest -Pandroid.onlyEnableUnitTestForTheTestedBuildType=false \
-  --tests '*ReleaseRuntimeBoundaryTest.releaseRejectsSyntheticEventsAndExcludesTheirSourceClass' \
+  --tests '*ReleaseRuntimeBoundaryTest*' \
   --rerun-tasks --no-build-cache --no-configuration-cache --full-stacktrace --console=plain
 ```
 

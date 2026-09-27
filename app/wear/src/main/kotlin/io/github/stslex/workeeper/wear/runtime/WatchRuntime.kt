@@ -13,6 +13,12 @@ internal interface WatchRuntime {
     fun onWake(): WatchRuntimeSnapshot
     fun onAction(action: ControllerAction): WatchActionResult
     fun setLocale(locale: Locale)
+
+    /**
+     * Milliseconds until the owner's next authority, ongoing or display-cache boundary, or null
+     * when there is none. The Tile passes it to the platform as its freshness interval.
+     */
+    fun remainingUntilNextBoundaryMs(): Long?
 }
 
 internal sealed interface WatchActionResult {

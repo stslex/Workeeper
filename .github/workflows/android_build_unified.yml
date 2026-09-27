@@ -265,7 +265,7 @@ jobs:
         run: >
           ./gradlew :app:wear:testStoreReleaseUnitTest
           -Pandroid.onlyEnableUnitTestForTheTestedBuildType=false
-          --tests '*ReleaseRuntimeBoundaryTest.releaseRejectsSyntheticEventsAndExcludesTheirSourceClass'
+          --tests '*ReleaseRuntimeBoundaryTest*'
           --rerun-tasks --no-build-cache --no-configuration-cache
           --full-stacktrace --console=plain
 

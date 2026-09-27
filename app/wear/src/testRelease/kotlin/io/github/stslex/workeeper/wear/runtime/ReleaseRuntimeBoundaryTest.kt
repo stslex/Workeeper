@@ -6,15 +6,22 @@ import io.github.stslex.workeeper.wear.ui.ongoingStatus
 import android.content.ComponentName
 import android.content.pm.PackageManager
 import android.os.Build
+import androidx.wear.tiles.RequestBuilders
+import androidx.wear.tiles.TileBuilders
+import com.google.common.util.concurrent.ListenableFuture
 import io.github.stslex.workeeper.wear.ongoing.OngoingStatus
+import io.github.stslex.workeeper.wear.tile.WorkoutTileService
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
+import org.robolectric.Robolectric
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import tech.apter.junit.jupiter.robolectric.RobolectricExtension
+import java.util.concurrent.TimeUnit
 
 @ExtendWith(RobolectricExtension::class)
 @Config(sdk = [Build.VERSION_CODES.TIRAMISU])
@@ -42,5 +49,22 @@ internal class ReleaseRuntimeBoundaryTest {
                 0,
             )
         }
+    }
+
+    @Test
+    fun releaseTileDeclaresNoFreshnessInterval() {
+        val context = RuntimeEnvironment.getApplication()
+        assertNull(WatchRuntimeFactory.get(context).remainingUntilNextBoundaryMs())
+        val service = Robolectric.setupService(WorkoutTileService::class.java)
+        val tile = service.requestTile(RequestBuilders.TileRequest.Builder().build())
+        assertEquals(0L, tile.freshnessIntervalMillis, "the read-only release runtime has no boundary")
+    }
+
+    /** `TileService.onTileRequest` is protected; the test calls it the way the platform binder would. */
+    private fun WorkoutTileService.requestTile(request: RequestBuilders.TileRequest): TileBuilders.Tile {
+        val method = WorkoutTileService::class.java
+            .getDeclaredMethod("onTileRequest", RequestBuilders.TileRequest::class.java)
+            .apply { isAccessible = true }
+        return (method.invoke(this, request) as ListenableFuture<*>).get(5, TimeUnit.SECONDS) as TileBuilders.Tile
     }
 }
