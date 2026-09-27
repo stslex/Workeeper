@@ -27,6 +27,9 @@ phone's package name and signature and Firebase rejects a duplicate package, so 
 alternative is a separate project; the lean is the shared app plus an Analytics user property
 `platform`. Wear telemetry must not serialize workout payloads through action/event descriptions.
 The real-phone-payload privacy gate remains closed; validation uses synthetic/debug sources only.
+Deferred before Wear ships (review follow-up F06): every consumed Store action still reaches Analytics
+and a Crashlytics breadcrumb, release included (an ambient tick is two actions, a rotary step three);
+the lean is a quiet-action marker in `core:ui:mvi` that skips both sinks for high-frequency actions.
 
 The explicit notification-settings action first opens the public per-app notification page.
 If the platform has no handler for that action, it falls back to public system Settings.
@@ -105,6 +108,7 @@ can fail. Rows are append-only.
 | Finding | Commit | Guard | Control |
 |---|---|---|---|
 | F02 - the Tile declared no freshness interval, so after process death an ACTIVE Tile kept its progress past the mutation window | `fix(wear): let the Tile request a platform refresh at the owner boundary` | `WorkoutTileFreshnessTest` (W, expiry, single follow-up), `WorkoutTileServiceFreshnessTest` (debug service after `expire`), `ReleaseRuntimeBoundaryTest.releaseTileDeclaresNoFreshnessInterval` | `f02-freshness-forced-zero`: renderer always writes 0, RED |
+| F06 - payload safety of Store telemetry rested on three `toString` overrides checked by one test | `test(wear): guard every Store action and event description against workout values` | `WearStoreActionRegistryTest` (explicit list of the 10 Action leaves and 1 Event leaf, each built with sentinel values; fails on a missing or extra leaf) | `f06-draft-tostring-override-removed`: the `Draft` override dropped, RED |
 | F03 - the refresh key omitted authority, so a handshake that retired it changed the rendered Tile without an update request | `fix(wear): key the system Tile refresh on the rendered content` | `WatchTileAuthorityRetiredTest` (anchor: display change requests one update; target: retired authority requests one more) | `f03-key-drops-rendered-lines`: key without the rendered lines, RED |
 
 ## Implementation ledger
