@@ -89,9 +89,10 @@ meta-data line, and the second run doubled the module's share of the unit-test s
 `pull_request` passes `-PwearUnitTestFlavors=store` and runs the shipping flavor only. The
 property defaults to `dev,store`, an unknown value fails the build, and the dev-flavor Wear unit
 tests keep running on `master` pushes, `workflow_dispatch`, `workflow_call` and in every local
-root gate. PR **Unit Test Results** comments therefore omit the dev flavor's Wear unit tests (255
-when this was written) that a push run reports, by design. Heap, `forkEvery` and timeouts are
-unchanged.
+root gate. The results publisher behind the **Unit Test Results** comment counts **tests** by unique
+name and **runs** by execution. The two Wear flavors share test names, so on pull requests
+**tests** is unaffected and **runs** drops by the dev flavor's Wear test executions, by design.
+Heap, `forkEvery` and timeouts are unchanged.
 
 The step runs inside `.github/scripts/run_with_resource_samples.sh`, which writes a `[res]` sample
 block into the step log every 15 s: `uptime`, `free -m`, one `vmstat` row (si/so/wa/st), `df -h /`,
