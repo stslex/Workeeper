@@ -243,6 +243,8 @@ source/APK/gate/mutation/cohort indexes and original screenshots accompany this 
 ## Evidence and GitHub status
 
 - [Curated proof inventory and hashes](proof/manifest.json).
+- [Archived XML publication paths](proof/xml-publication-paths.json): original XML bytes are kept
+  outside CI current-test discovery paths; historical RED assertions are preserved.
 - [Corrected-source gate sequence](proof/corrected616/notification-fix-gate-sequence.json),
   [APK manifest](proof/corrected616/notification-fix-apks/manifest.json) and
   [unchanged runtime boundary](proof/corrected616/notification-fix-unchanged-runtime-boundary.json).
