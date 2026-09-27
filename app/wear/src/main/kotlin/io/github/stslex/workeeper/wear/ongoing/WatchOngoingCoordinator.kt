@@ -8,6 +8,7 @@ import io.github.stslex.workeeper.core.wear.protocol.SnapshotData
 import io.github.stslex.workeeper.core.wear.protocol.SnapshotPayload
 import io.github.stslex.workeeper.core.wear.protocol.WearProtocol
 import io.github.stslex.workeeper.core.wear.protocol.WearProtocolCodec
+import io.github.stslex.workeeper.wear.cache.CacheAbsentReason
 import io.github.stslex.workeeper.wear.cache.CacheReadResult
 import io.github.stslex.workeeper.wear.cache.CachedConnection
 import io.github.stslex.workeeper.wear.cache.ElapsedRealtimeClock
@@ -92,6 +93,9 @@ internal class WatchOngoingCoordinator(
     /** Validated cache restores display only; it never posts or installs mutation authority. */
     fun restore(): CacheReadResult {
         val result = cache.read()
+        // GUARD: a failed read is retried by the owner; treating it as empty storage would cancel a
+        // notification the unread cache may still describe (wear-lifecycle-ui.md section 2).
+        if (result is CacheReadResult.Absent && result.reason == CacheAbsentReason.IO_FAILURE) return result
         val restored = result as? CacheReadResult.DisplayOnly
         cachedSnapshotReceivedAtMs = restored?.receivedAtElapsedRealtimeMs
         val cacheDeadline = restored?.ongoingStopAtElapsedRealtimeMs

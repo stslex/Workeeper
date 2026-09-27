@@ -469,3 +469,13 @@ flags and Robolectric timeout fields do not establish those physical results.
 Real transport, phone confirmation, disclosure/route decisions and final Phase 1 acceptance
 remain blocked by the existing privacy and paired-device gates. Public privacy files, phone
 schema and mutation-authority rules are unchanged by this stage.
+
+## 8. Review follow-up registry
+
+Findings of the independent review of the Wear stack (#286-#295) that changed this runtime. One
+row per finding: the commit, the guard that now holds it, and the negative control that proved the
+guard can fail. Rows are append-only.
+
+| Finding | Commit | Guard | Control |
+|---|---|---|---|
+| F04 - `Absent(IO_FAILURE)` on restore cancelled the surviving ongoing notification before the owner latched recovery | `fix(wear): keep the ongoing notification through a failed cache read` | `WatchRuntimeIoFailureTest` (restart and in-process recovery; a later successful read restores min(cache, system)) | `f04-io-failure-treated-as-empty`: the early return removed, RED |
