@@ -1,0 +1,11 @@
+{
+  "at": "2026-09-27T01:57:39.076744+00:00",
+  "scope": "Exactly one complete 22-invocation UI cell, API36/192/EN/font1.0, on corrected source616.",
+  "cell_status": "PASS",
+  "aggregate_status": "BLOCKED",
+  "explanation": "Repeat runner selects one requested cell; inherited four-cell aggregate condition remains unchanged. Exit 2 is the expected incomplete-profile aggregate, not an instrumentation or video failure.",
+  "receipt": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-ui-repeat-cohort/cases/ui/api36-192-en-1.00/receipt.json",
+  "receipt_sha256": "080d4af8b3c16c6a4f728f5cdd23f845cf4a1c5d8e6816df1cf2aa6c9c2b224d",
+  "manifest": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-ui-repeat-api36-192/manifest.json",
+  "manifest_sha256": "ad7fbb606676912b0b11d0fb98264127e85b69d25f8a49f70da9d529d5a790c3"
+}

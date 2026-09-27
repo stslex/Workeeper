@@ -1,0 +1,47 @@
+{
+  "schema": 1,
+  "cohort": "916bc6466535437aaa3e67fef3d8f488",
+  "case_id": "manual/api36/store-debug-parity",
+  "status": "PASS",
+  "reason": "PASS for the declared nine-invocation StoreDebug 192dp/RU/1.24 smoke subset and fresh headless refresh/disconnect/terminal transitions. Original native/Compose PNGs and all listed sampled motion sheets inspected. Full Store cell remains BLOCKED/partial. Draft background-death restoration was not repeated on corrected source616; its source592 evidence is separately qualified by unchanged runtime bytes.",
+  "recorded_at": "2026-09-27T01:58:18.827900+00:00",
+  "operator_attestation": true,
+  "artifacts": {
+    "operator-00-store-debug-parity.json": {
+      "sha256": "b0436a3ae211484cce34c7e298fa3ca4a8b086d3399bb9f31bede9fadde51ab4",
+      "bytes": 21209
+    },
+    "operator-01-audit.json": {
+      "sha256": "5a855a7ec8ed653047dde9ae59b6aee2fe5519c8857215c222929f6cdc98f5b6",
+      "bytes": 233507
+    },
+    "operator-02-prepared-evidence.json": {
+      "sha256": "81762ff8e45051051471bf8c3de04b9800a3418e797f2d032075ecb63f23aeb7",
+      "bytes": 647219
+    },
+    "operator-03-index.json": {
+      "sha256": "2cfc94d5dab376c926fb0b6f0d74288804207682c1792e0ac62bb317c2f0ab00",
+      "bytes": 152385
+    },
+    "operator-04-api36-192-ru-1.24-store-smoke.webm": {
+      "sha256": "934b45228f6562af68346475f352ce351572e8cf88fb781928076be3267616c9",
+      "bytes": 10660620
+    },
+    "operator-05-index.json": {
+      "sha256": "e68d754d453c2f7e43a6f6df173dbaa14b56692d8abf4a210e96b95082683653",
+      "bytes": 32371
+    },
+    "operator-06-video.webm": {
+      "sha256": "a706d049ec95fb633166bf689316c38680a66a198ba7e38fad279fef42dce79f",
+      "bytes": 1836779
+    },
+    "operator-07-index.json": {
+      "sha256": "dcd345a163314e925ed5e4e087b1faefc3ec6772da599fd0807b343bbde96ed5",
+      "bytes": 39920
+    },
+    "operator-08-video.webm": {
+      "sha256": "8210180e8255cb49e6fea8b0a803eb95034badbe40d773d389ffe2cb4638ac9b",
+      "bytes": 998928
+    }
+  }
+}

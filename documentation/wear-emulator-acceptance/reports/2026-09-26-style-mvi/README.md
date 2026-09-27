@@ -1,3 +1,5 @@
+> Historical implementation checkpoint. See the [27 September final scoped report](../2026-09-27-style-mvi/README.md) for corrected-source results and preserved original failures. The dated checkpoints below retain their original scope.
+
 # Shared style / MVI implementation checkpoint — 2026-09-26
 
 **IMPLEMENTATION IN PROGRESS / FRESH HOST GATES ENTERED / FINAL MATRIX NOT RUN**

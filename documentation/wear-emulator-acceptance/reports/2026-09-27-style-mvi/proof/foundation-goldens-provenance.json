@@ -1,0 +1,332 @@
+{
+  "scope": "Earlier shared-foundation checkpoint, not a rerun of the whole final application commit. This invocation includes 456 named phone golden cases in 40 golden suites, alongside other unit/rule tests.",
+  "original_receipt": "/private/tmp/wear-style-mvi-evidence-20260926/phase1-goldens-test-apks-store-release-after-space/receipt.json",
+  "sha256": "5bdb62345ce7d46c3c68ed525cd6703701bcf049457ae30198002be0e63d3460",
+  "golden_cases": 456,
+  "golden_suites": 40,
+  "all_test_count": 1845,
+  "summary": "2526 actionable tasks: 2526 executed",
+  "selected_xml": [
+    {
+      "path": "core/ui/start-mode/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.ui.start_mode.golden.StartCardModeSheetGoldenTest.xml",
+      "sha256": "8579edfcab7c3f6641e0ed472beebec2fefb63b9359581ef56a6726ce3f6536d",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/ui/kit/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.ui.kit.golden.TypeSpecimenGoldenTest.xml",
+      "sha256": "5372d766a624d102785de43de46a718d1207b2e394e3445dccb1006632378661",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/ui/kit/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.ui.kit.golden.TnumCanaryGoldenTest.xml",
+      "sha256": "f2e90a5b2244d9ba82681e3805011ac4388ecc0a5db4dc2ac7a9f4847c879602",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/ui/kit/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.ui.kit.golden.HairlineCanaryGoldenTest.xml",
+      "sha256": "ffb42be1a678b2c7873eee3d99899c335bc29d0e771ae9ca29c2ca1a3608cdab",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/ui/kit/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.ui.kit.golden.SetDoneMarkGoldenTest.xml",
+      "sha256": "d277d5379f0319b9ef2d2c5cead0bf63b1d02cd4edc32ad0aa2662dc218957af",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/ui/kit/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.ui.kit.golden.ExerciseThumbGoldenTest.xml",
+      "sha256": "f1e5fb859856a7ac9ce2b78f55f69631ae7d0ea272aba74fed4f727972276d18",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/ui/kit/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.ui.kit.golden.SheetAnatomyGoldenTest.xml",
+      "sha256": "3d324a29f00b3a8a5f21f29b6895d20cb298cf0f21117db41951c1fe5e349ad1",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/ui/kit/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.ui.kit.golden.AppTextFieldGoldenTest.xml",
+      "sha256": "e32169416a8868b8fb0c0b5fcf3883dbe67c14e24e2d7d6b2296e892e56cd14d",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/ui/kit/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.ui.kit.golden.CyrillicTextGoldenTest.xml",
+      "sha256": "0610711752cf15058556e560b9e406a4687a223967002b08a7c1b83f75852fb5",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/ui/kit/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.ui.kit.golden.SegmentedControlGoldenTest.xml",
+      "sha256": "305a924be19bf803518f3b9107196ebf5a15abfaa1645523dc41f9a2de01d57d",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/ui/kit/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.ui.kit.golden.ConfirmSheetGoldenTest.xml",
+      "sha256": "8483d37f93728721978e80af196cf31d0565b296aab56dfab315408b4b744a89",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/ui/kit/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.ui.kit.golden.TagPickerGoldenTest.xml",
+      "sha256": "fe7d59d7c00a930fe48d6ade31b020e647e3f6154d8009e7f310988c1c1c7c0e",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/ui/kit/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.ui.kit.golden.AppTagGoldenTest.xml",
+      "sha256": "6c28a0509d93d8a57cacadce0df8cb9bdf3c36e507d043c91c962e169b120ed0",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/ui/kit/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.ui.kit.golden.AppSwitchGoldenTest.xml",
+      "sha256": "b0d41bcc24b3d6e402ef67abd324e6dac980cd11d0422717001176ab656843c8",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/ui/kit/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.ui.kit.golden.SetTypeMarkGoldenTest.xml",
+      "sha256": "2022d8eb8c3a2a3709eb74bd2fdbf58d73b3801ca5fbd18b71681a3a54c225e9",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/ui/kit/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.ui.kit.golden.SectionGoldenTest.xml",
+      "sha256": "0b62e999fc98c317295b4e38a2ec7e73d3dab1e8e8b26d0195876144b8f1abae",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/ui/kit/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.ui.kit.golden.NavBarGoldenTest.xml",
+      "sha256": "2ec53e360c0b2b6fc78c9edab9b9926bd233096b27fe5b9fdca68938c7ffc4cb",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/ui/kit/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.ui.kit.golden.AppButtonGoldenTest.xml",
+      "sha256": "956221919fcb8de638a3f5d8f582ec0845aaa4899692be7ec5abb3d7ba0f0cb1",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/ui/kit/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.ui.kit.golden.RailGoldenTest.xml",
+      "sha256": "aa38c69e8597f28135c6f5cb19bd300a680859ebd566389bf50a97d03f3de7ef",
+      "tests": 14,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/ui/kit/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.ui.kit.golden.EmptyStateGoldenTest.xml",
+      "sha256": "4e48eb0e46d7672a00b3812427c43ef7aa8776f4fb25bbbc86c983e3221f21c2",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/ui/kit/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.ui.kit.golden.LiftedSurfaceGoldenTest.xml",
+      "sha256": "e2465ca045b2ff896c541e828b51f36f0c96246c1ca4b484ccfb4148ed17783e",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/ui/plan-editor/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.ui.plan_editor.golden.PlanEditorBodyGoldenTest.xml",
+      "sha256": "fde081c742a8ac575d3e026d0e46cd225d399fbaf919e6ac062601d3bce47c83",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/ui/plan-editor/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.ui.plan_editor.golden.PlanSetCardReadOnlyGoldenTest.xml",
+      "sha256": "33f592872183954f41bd0cf34f6f835cf2002cc39a0871d2eab50e43ca10318a",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/ui/plan-editor/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.ui.plan_editor.golden.TypeToggleGoldenTest.xml",
+      "sha256": "625ffdb4932f58d538ef42fb46001b6e73ccab50021aed529d148f6655d6a608",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/settings/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.settings.golden.SettingsGoldenTest.xml",
+      "sha256": "504ddf3404e419b65dadfb40340dca2b105e3828ad0ed53a8f26b31084647c4c",
+      "tests": 12,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/home/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.home.golden.HomeGoldenTest.xml",
+      "sha256": "9ce514bb46e6d370bee7c224bb794469c62fa7a5c64e34b612a5e03508b33d52",
+      "tests": 42,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/live-workout/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.live_workout.golden.SessionSheetsGoldenTest.xml",
+      "sha256": "f876c7ca6872f581c65d00e2abc9193b49c12c6116ec0e321ac86771d525826e",
+      "tests": 14,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/live-workout/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.live_workout.golden.SessionHeaderGoldenTest.xml",
+      "sha256": "013ae6465b419e5d86b85f92263ed322d626edab28840ce39ce1b54fdcbea283",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/live-workout/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.live_workout.golden.SessionScreenGoldenTest.xml",
+      "sha256": "4b0af2afa79fe8cf4f693f80ab490619f9e947e5096f49b8c9105bf5868349c7",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/live-workout/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.live_workout.golden.SessionStateGoldenTest.xml",
+      "sha256": "63398703164bd030da97222a94f6b0e5c886508cf3ec2ddfee154af01d785ff8",
+      "tests": 36,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/archive/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.archive.golden.ArchiveGoldenTest.xml",
+      "sha256": "09cf0ebc70405020a4cf7af2db9f931052ff8daa6dbad2995b38c0553ad04020",
+      "tests": 14,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/all-trainings/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.all_trainings.golden.AllTrainingsGoldenTest.xml",
+      "sha256": "95f7b837e8464c175dc4d189c9f224d7de5da4d60a677d0b0b4f5d6649886367",
+      "tests": 50,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/single-training/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.single_training.golden.TrainingDetailGoldenTest.xml",
+      "sha256": "10c863f2d713db7c357ce3e2a3231ce7bb4842774890ff6e5af2cfe4a0110a03",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/single-training/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.single_training.golden.TrainingEditGoldenTest.xml",
+      "sha256": "8f42e0f4f4f9d60e3f338cadd8d5279e6819c3698b342fa64a968b19f359da44",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/exercise/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.exercise.golden.ExerciseEditGoldenTest.xml",
+      "sha256": "d634414835e791e5ea1fa7f594ff74f558ba1e84765afa65f0ea3e13f61c859e",
+      "tests": 12,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/exercise/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.exercise.golden.ExerciseDescriptionBlockGoldenTest.xml",
+      "sha256": "617b68108f61703de65fba7764357175a6a483219559a6272652d24886c6a0f3",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/exercise/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.exercise.golden.ExerciseDetailGoldenTest.xml",
+      "sha256": "794f4551b8569f0874b27be510c9ad8786fd8b36c898520971be04958ca6a796",
+      "tests": 30,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/exercise-chart/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.exercise_chart.golden.ExerciseChartGoldenTest.xml",
+      "sha256": "45a73f73f18b89409d5d67a3d7a485f3af1451b5a13cd9214381764d9a64cf8a",
+      "tests": 30,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/past-session/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.past_session.golden.PastSessionGoldenTest.xml",
+      "sha256": "c412d6b0e08f5d6b72f2589aa8dd03a1a937e97e69b5dc48cbd5291bcf56da88",
+      "tests": 30,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/all-exercises/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.all_exercises.golden.AllExercisesGoldenTest.xml",
+      "sha256": "b8a075a0e28a8aeb2fab54a295ddbbfffea381267425e8902f11b2649d3ae1fa",
+      "tests": 52,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    }
+  ],
+  "publication_preparation_note": "A first classification incorrectly counted every non-lint XML as a golden; its assertion failed before any output was created. Count here is selected by the explicit .golden. suite namespace."
+}

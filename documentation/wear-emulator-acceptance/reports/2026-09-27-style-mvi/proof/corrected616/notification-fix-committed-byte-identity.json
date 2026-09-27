@@ -1,0 +1,7 @@
+{
+  "at": "2026-09-27T00:59:25.449907+00:00",
+  "head": "6164203f3018cdfc091045c69d3aa0ff78423fde",
+  "status": "ALL_TRACKED_BLOBS_BYTE_IDENTICAL",
+  "verified_blobs": 2488,
+  "method": "Recomputed Git blob identity directly from every tracked working-tree byte sequence, including symbolic-link target bytes; compared to git ls-tree HEAD."
+}

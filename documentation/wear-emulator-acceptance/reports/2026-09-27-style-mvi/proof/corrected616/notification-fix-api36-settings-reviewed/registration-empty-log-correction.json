@@ -1,0 +1,11 @@
+{
+  "reason": "The CLI rejects an empty file as a standalone manual attachment. Empty current-PID AndroidRuntime output is expected evidence of no matching errors; its exact hash and path remain in the unchanged operator review and raw index. Remove only that redundant empty attachment, retain every assertion and artifact.",
+  "removed_standalone_attachment": [
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-manual-api36-dev/steps/20260927T020232.470179Z-settings-app-scoped-runtime-log-1937f37e/operator-command/stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "operator_review_sha256": "f2056e17c0b7c3651735ff7cb0ec970ad857d2e062e28bad961b856354bcdb36"
+}

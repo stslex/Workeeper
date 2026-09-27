@@ -1,0 +1,306 @@
+{
+  "cohort": "8efbcabd29994cea8206b2b90cd92829",
+  "source": "5920e1eef3b4af649b00fb343ee5f50f642c58b3",
+  "status": "FAIL",
+  "expected": 72,
+  "recorded": 72,
+  "counts": {
+    "BLOCKED": 2,
+    "FAIL": 1,
+    "N/A": 0,
+    "PASS": 69
+  },
+  "missing": [],
+  "complete": true,
+  "unpublished_manual_attempts": [],
+  "cases": {
+    "ambient-expiry/api30/reps": {
+      "status": "PASS",
+      "reason": "All declared observations completed"
+    },
+    "ambient-expiry/api30/weight": {
+      "status": "PASS",
+      "reason": "All declared observations completed"
+    },
+    "ambient-expiry/api36/reps": {
+      "status": "PASS",
+      "reason": "All declared observations completed"
+    },
+    "ambient-expiry/api36/weight": {
+      "status": "PASS",
+      "reason": "All declared observations completed"
+    },
+    "lifecycle/api30/death-disconnect/1": {
+      "status": "PASS",
+      "reason": "All declared observations completed"
+    },
+    "lifecycle/api30/death-disconnect/2": {
+      "status": "PASS",
+      "reason": "All declared observations completed"
+    },
+    "lifecycle/api30/death-disconnect/3": {
+      "status": "PASS",
+      "reason": "All declared observations completed"
+    },
+    "lifecycle/api30/death-fresh/1": {
+      "status": "BLOCKED",
+      "reason": "Target remained alive or restarted after kill"
+    },
+    "lifecycle/api30/death-fresh/2": {
+      "status": "PASS",
+      "reason": "All declared observations completed"
+    },
+    "lifecycle/api30/death-fresh/3": {
+      "status": "PASS",
+      "reason": "All declared observations completed"
+    },
+    "lifecycle/api30/retention/1": {
+      "status": "PASS",
+      "reason": "All declared observations completed"
+    },
+    "lifecycle/api30/retention/2": {
+      "status": "PASS",
+      "reason": "All declared observations completed"
+    },
+    "lifecycle/api30/retention/3": {
+      "status": "PASS",
+      "reason": "All declared observations completed"
+    },
+    "lifecycle/api36/death-disconnect/1": {
+      "status": "PASS",
+      "reason": "All declared observations completed"
+    },
+    "lifecycle/api36/death-disconnect/2": {
+      "status": "PASS",
+      "reason": "All declared observations completed"
+    },
+    "lifecycle/api36/death-disconnect/3": {
+      "status": "PASS",
+      "reason": "All declared observations completed"
+    },
+    "lifecycle/api36/death-fresh/1": {
+      "status": "BLOCKED",
+      "reason": "Target remained alive or restarted after kill"
+    },
+    "lifecycle/api36/death-fresh/2": {
+      "status": "PASS",
+      "reason": "All declared observations completed"
+    },
+    "lifecycle/api36/death-fresh/3": {
+      "status": "PASS",
+      "reason": "All declared observations completed"
+    },
+    "lifecycle/api36/retention/1": {
+      "status": "PASS",
+      "reason": "All declared observations completed"
+    },
+    "lifecycle/api36/retention/2": {
+      "status": "PASS",
+      "reason": "All declared observations completed"
+    },
+    "lifecycle/api36/retention/3": {
+      "status": "PASS",
+      "reason": "All declared observations completed"
+    },
+    "manual/api30/ambient-capabilities": {
+      "status": "PASS",
+      "reason": "Actual API30 AmbientService and task476 remain system-ambient for over90s: seven timestamped samples, Dozing, mInAmbient true, input disabled; displayed02:27/02:28/02:29 and summary remain visible. Wake within fresh120s restores still-eligible controls. Low-bit=false/burn-in=false are explicit N/A. Wrong-argv initial capture excluded; separate natural-expiry trials cover stale wake. No hardware ambient claim."
+    },
+    "manual/api30/disconnect-terminal": {
+      "status": "PASS",
+      "reason": "Acknowledged API30 headless disconnect reduces deadline9413918 to9295649; repeat retains9295649; terminal removes actual ongoing key with watch face foreground. Ordinary return shows terminal summary. Original elapsed brackets and sampled native video retained."
+    },
+    "manual/api30/inactivity-baseline": {
+      "status": "PASS",
+      "reason": "API30 no-session baseline600130ms retains identical MainActivity/task across584 observations; display enters Dozing/DOZE, no automatic watch-face return observed. Active comparisons600220/600060ms and separate retention3 repeat600060ms (conservative600050) also retain Activity. Original retention3 runnerPASS at600000ms and independent599990ms audit remain invalid strict-ten-minute evidence. Raw cadence audits and all sampled videos reviewed; matched separate deliberate HOME exit succeeds. No causal/universal OS-retention claim."
+    },
+    "manual/api30/notification-denial-restoration": {
+      "status": "FAIL",
+      "reason": "Native API30 Settings toggle denies precisely Dev package (importance=NONE), notice is reachable and ongoing key absent. Actual Enable notifications button crashes PID32658 with ActivityNotFoundException for unsupported APP_NOTIFICATION_SETTINGS; OS recreates PID4269. Native Settings restoration alone leaves no key; admitted fresh seed publishes it. The app-op experiment did not establish denial and is excluded. Actual crash remains FAIL, not infrastructure or a green restoration claim."
+    },
+    "manual/api30/ongoing-return": {
+      "status": "PASS",
+      "reason": "Actual API30 native watch-face ongoing icon returns the same ActivityRecord befba54/task476, PID32658/birth741275 and unsent998 editor. Before/returned original PNGs byte-identical; no ADB launch substitutes for native return."
+    },
+    "manual/api30/process-death-restoration": {
+      "status": "PASS",
+      "reason": "Real Dev editor changes canonical999 to unsent998. Guarded default/unblocked SIGTERM establishes PID31411/birth733910 absent; ordinary launcher without fixture starts PID32658/birth741275, shows canonical999 and refresh-required disabled controls. Cache908B/e651aee7... byte-identical across canonical/draft/prekill/reopen; deadline7761787 unchanged. Online emulator, installed Tile removed, all services enabled. Not SIGKILL/LMK/physical-watch evidence."
+    },
+    "manual/api30/release-boundary": {
+      "status": "PASS",
+      "reason": "Pinned signed StoreRelease2f3adc71... on API30 remains read-only Connecting for ordinary/debug-extra launches, installed package lacks AcceptanceScenarioReceiver and explicit broadcast is not acknowledged. Pinned StoreDebug5a62b836.../test restored and Dev76387576... unchanged. No Firebase console/delivery or shipping-performance claim."
+    },
+    "manual/api30/store-debug-parity": {
+      "status": "PASS",
+      "reason": "Declared nine-invocation API30 StoreDebug192dp/RU/1.24 smoke passes and all stable native/Compose pixels plus sampled video reviewed. Headless refresh/disconnect/terminal and actual draft998->background death->ordinary canonical999 read-only verified;908B cache dca2d7a8... and deadline9564805 unchanged, PID7058->absent->7530. Full Store cohort remains partial/BLOCKED. Four native/Compose upper-round-edge differences and between-invocation transitional frames retained."
+    },
+    "manual/api30/system-tile": {
+      "status": "PASS",
+      "reason": "Native API30 Dev Tile restored through system UI after strict-death trials. Actual Tile tap opens Dev MainActivity; read-only native state shows workout/exercise, set4/4 and exercise8/12 progress, headless disconnect/repeat and natural freshness expiry. System scheduler observations are retained, not an instant-update promise."
+    },
+    "manual/api36/ambient-capabilities": {
+      "status": "PASS",
+      "reason": "PASS on API36 DevDebug: current MainActivity is continuously system-ambient across over 90s of timestamped observations and displayed minutes 23:00/23:01/23:02, then wake blocks stale controls. Reported low-bit=false and burn-in=false are N/A on this image. Instrumented expiry recordings with nonadvancing clocks are retained separately and not used as minute-update evidence. No physical-watch claim."
+    },
+    "manual/api36/disconnect-terminal": {
+      "status": "PASS",
+      "reason": "PASS on API36: acknowledged headless disconnect reduces absolute deadline from 21009059 to 20890392; repeated disconnect keeps 20890392; terminal removes the ongoing key. Captured elapsed brackets and actual watch-face foreground retained; ordinary return shows terminal summary."
+    },
+    "manual/api36/inactivity-baseline": {
+      "status": "PASS",
+      "reason": "PASS for matched API36 DevDebug passive comparison: baseline 600010ms without ongoing key returns from MainActivity to system watch face within measured [71010,72140]ms; three fresh-retention trials retain MainActivity for 600060/600100/600170ms. All raw cadence audits meet 500ms budget. Separate later matching-profile HOME exit succeeds. This records this image, not a universal OS timeout or performance."
+    },
+    "manual/api36/notification-denial-restoration": {
+      "status": "PASS",
+      "reason": "PASS on API36: denied permission shows the reachable notice, full Enable notifications action after additional scrolling, and no ongoing key. Actual action opens the system permission dialog; Allow alone leaves no key; admitted fresh state publishes it. Initial partially scrolled action and native OS English dialog retained."
+    },
+    "manual/api36/ongoing-return": {
+      "status": "PASS",
+      "reason": "PASS on API36: actual native watch-face ongoing icon returns to the same Activity/task and 998 editor draft. Before/returned original PNGs are byte-identical; no ADB launch substitutes for the return."
+    },
+    "manual/api36/process-death-restoration": {
+      "status": "PASS",
+      "reason": "PASS for manually inspected API36 restoration: separate canonical999/unsent998 guarded background-death sequence returns through ordinary launcher to canonical999 with three disabled actions and unchanged deadline/cache. All six completed OFFLINE timed-death reopens show cached read-only ambient (fresh: refresh-required; disconnect: no connection), new PID, no renewed notification; cache audit proves only expired deadline removal. Strict fresh/1 replacement belongs to separate identical-source/APK cohort 5933a409a6474d2398f7063dc44fc2c9; original ONLINE case remains BLOCKED due to Firebase transport service restart. No full original-cohort or physical-watch claim."
+    },
+    "manual/api36/release-boundary": {
+      "status": "PASS",
+      "reason": "PASS for pinned signed StoreRelease 2f3adc71eff3992220d5602060e5292fd3bbe6ed26e5bdd072c312cc07af8c46: ordinary launcher remains read-only Connecting after debug intent; installed package lacks acceptance receiver and explicit broadcast is not acknowledged. Pinned StoreDebug/test restored and Dev SHA unchanged. No Firebase delivery/console assertion."
+    },
+    "manual/api36/store-debug-parity": {
+      "status": "PASS",
+      "reason": "PASS only for declared StoreDebug API36 192dp/RU/1.24 smoke: nine invocations passed and inspected, headless refresh/disconnect/terminal observed, and guarded background death discards unsent 998 while preserving canonical 999 and deadline. Matches corresponding Dev observations. Full StoreDebug UI row remains BLOCKED/partial; seven native/Compose PNG pair differences retained."
+    },
+    "manual/api36/system-tile": {
+      "status": "PASS",
+      "reason": "PASS on installed native API36 Tile: workout/exercise and set/exercise progress remain read-only; actual Tile tap returns to MainActivity. Disconnect and natural 120-second expiry show refresh-required state. Immediate post-refresh frame still showed old status; a later system request/revisit showed active. No immediate-refresh or reps/weight-on-Tile claim."
+    },
+    "manual/visual/api30-192-en-1.00": {
+      "status": "PASS",
+      "reason": "All initial/detail frames and listed sampled rotary/navigation/press/ambient sheets manually inspected; semantics, bounds, original video and qualified differences retained in operator-review.json."
+    },
+    "manual/visual/api30-192-en-1.24": {
+      "status": "PASS",
+      "reason": "All initial/detail frames and listed sampled rotary/navigation/press/ambient sheets manually inspected; semantics, bounds, original video and qualified differences retained in operator-review.json."
+    },
+    "manual/visual/api30-192-ru-1.00": {
+      "status": "PASS",
+      "reason": "All initial/detail frames and listed sampled rotary/navigation/press/ambient sheets manually inspected; semantics, bounds, original video and qualified differences retained in operator-review.json."
+    },
+    "manual/visual/api30-192-ru-1.24": {
+      "status": "PASS",
+      "reason": "All initial/detail frames and listed sampled rotary/navigation/press/ambient sheets manually inspected; semantics, bounds, original video and qualified differences retained in operator-review.json."
+    },
+    "manual/visual/api30-240-en-1.00": {
+      "status": "PASS",
+      "reason": "All initial/detail frames and listed sampled rotary/navigation/press/ambient sheets manually inspected; semantics, bounds, original video and qualified differences retained in operator-review.json."
+    },
+    "manual/visual/api30-240-en-1.24": {
+      "status": "PASS",
+      "reason": "All initial/detail frames and listed sampled rotary/navigation/press/ambient sheets manually inspected; semantics, bounds, original video and qualified differences retained in operator-review.json."
+    },
+    "manual/visual/api30-240-ru-1.00": {
+      "status": "PASS",
+      "reason": "All initial/detail frames and listed sampled rotary/navigation/press/ambient sheets manually inspected; semantics, bounds, original video and qualified differences retained in operator-review.json."
+    },
+    "manual/visual/api30-240-ru-1.24": {
+      "status": "PASS",
+      "reason": "All initial/detail frames and listed sampled rotary/navigation/press/ambient sheets manually inspected; semantics, bounds, original video and qualified differences retained in operator-review.json."
+    },
+    "manual/visual/api36-192-en-1.00": {
+      "status": "PASS",
+      "reason": "Inspected all initial/detail frames, semantics and bounds; reviewed sampled rotary/Back/swipe/press and short-ambient video windows. Original contrary captures and scope limits retained in operator-review.json."
+    },
+    "manual/visual/api36-192-en-1.24": {
+      "status": "PASS",
+      "reason": "Inspected all initial/detail frames, semantics and bounds; reviewed sampled rotary/Back/swipe/press and short-ambient video windows. Original contrary captures and scope limits retained in operator-review.json."
+    },
+    "manual/visual/api36-192-ru-1.00": {
+      "status": "PASS",
+      "reason": "Inspected all initial/detail frames, semantics and bounds; reviewed sampled rotary/Back/swipe/press and short-ambient video windows. Original contrary captures and scope limits retained in operator-review.json."
+    },
+    "manual/visual/api36-192-ru-1.24": {
+      "status": "PASS",
+      "reason": "Inspected all initial/detail frames, semantics and bounds; reviewed sampled rotary/Back/swipe/press and short-ambient video windows. Original contrary captures and scope limits retained in operator-review.json."
+    },
+    "manual/visual/api36-240-en-1.00": {
+      "status": "PASS",
+      "reason": "All initial/detail frames and listed sampled rotary/navigation/press/ambient sheets manually inspected; semantics, bounds, original video and qualified differences retained in operator-review.json."
+    },
+    "manual/visual/api36-240-en-1.24": {
+      "status": "PASS",
+      "reason": "All initial/detail frames and listed sampled rotary/navigation/press/ambient sheets manually inspected; semantics, bounds, original video and qualified differences retained in operator-review.json."
+    },
+    "manual/visual/api36-240-ru-1.00": {
+      "status": "PASS",
+      "reason": "All initial/detail frames and listed sampled rotary/navigation/press/ambient sheets manually inspected; semantics, bounds, original video and qualified differences retained in operator-review.json."
+    },
+    "manual/visual/api36-240-ru-1.24": {
+      "status": "PASS",
+      "reason": "All initial/detail frames and listed sampled rotary/navigation/press/ambient sheets manually inspected; semantics, bounds, original video and qualified differences retained in operator-review.json."
+    },
+    "ui/api30-192-en-1.00": {
+      "status": "PASS",
+      "reason": "All declared observations completed"
+    },
+    "ui/api30-192-en-1.24": {
+      "status": "PASS",
+      "reason": "All declared observations completed"
+    },
+    "ui/api30-192-ru-1.00": {
+      "status": "PASS",
+      "reason": "All declared observations completed"
+    },
+    "ui/api30-192-ru-1.24": {
+      "status": "PASS",
+      "reason": "All declared observations completed"
+    },
+    "ui/api30-240-en-1.00": {
+      "status": "PASS",
+      "reason": "All declared observations completed"
+    },
+    "ui/api30-240-en-1.24": {
+      "status": "PASS",
+      "reason": "All declared observations completed"
+    },
+    "ui/api30-240-ru-1.00": {
+      "status": "PASS",
+      "reason": "All declared observations completed"
+    },
+    "ui/api30-240-ru-1.24": {
+      "status": "PASS",
+      "reason": "All declared observations completed"
+    },
+    "ui/api36-192-en-1.00": {
+      "status": "PASS",
+      "reason": "All declared observations completed"
+    },
+    "ui/api36-192-en-1.24": {
+      "status": "PASS",
+      "reason": "All declared observations completed"
+    },
+    "ui/api36-192-ru-1.00": {
+      "status": "PASS",
+      "reason": "All declared observations completed"
+    },
+    "ui/api36-192-ru-1.24": {
+      "status": "PASS",
+      "reason": "All declared observations completed"
+    },
+    "ui/api36-240-en-1.00": {
+      "status": "PASS",
+      "reason": "All declared observations completed"
+    },
+    "ui/api36-240-en-1.24": {
+      "status": "PASS",
+      "reason": "All declared observations completed"
+    },
+    "ui/api36-240-ru-1.00": {
+      "status": "PASS",
+      "reason": "All declared observations completed"
+    },
+    "ui/api36-240-ru-1.24": {
+      "status": "PASS",
+      "reason": "All declared observations completed"
+    }
+  }
+}

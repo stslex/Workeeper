@@ -1,0 +1,3242 @@
+{
+  "command": [
+    "./gradlew",
+    "assembleDebug",
+    "lintDebug",
+    "testDebugUnitTest",
+    "--continue",
+    "--rerun-tasks",
+    "--no-build-cache",
+    "--no-configuration-cache",
+    "--no-parallel",
+    "--console=plain"
+  ],
+  "cwd": "/private/tmp/workeeper-wear-stack-validation-20260926",
+  "started_epoch": 1790444710.4943109,
+  "exit_code": 0,
+  "finished_epoch": 1790445502.108045,
+  "task_summaries": [
+    [
+      "2360",
+      "2360",
+      ""
+    ]
+  ],
+  "all_executed": true,
+  "xml": [
+    {
+      "path": "core/ui/start-mode/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.ui.start_mode.model.StartCardModeCatalogTest.xml",
+      "sha256": "0430ce73bc4a9f7ca9da8344c424d178bdb2c545e208cdf11dc02d37019aa818",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/ui/navigation/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.ui.navigation.ScreenSerializationTest.xml",
+      "sha256": "71228d0dd841d41309eaa8f58607fc6fd5bba67b6556bcf9ca9c5cae614bfb79",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/ui/kit/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.ui.kit.theme.TravelCurveTest.xml",
+      "sha256": "3a3774889324a8102f37647f84e25c744c76ba8878b544a0e24934bb7df60a38",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/ui/kit/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManagerTest.xml",
+      "sha256": "2e42917d287535c532b70a87fbf72edfb6800ce11c538e1a784ac6380ce7bee8",
+      "tests": 12,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/ui/kit/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.ui.kit.components.rail.RailDetailTest.xml",
+      "sha256": "f4eb4e7d37203eb94aa37b591f19c6d0c9505e7539eb06c05457842340e2e020",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/ui/kit/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.ui.kit.theme.ContinuityMotionTest.xml",
+      "sha256": "39a012ffaec1b9ea78e1ea26b0938dc6181ec15a8c82085fbd1097e9781ff30c",
+      "tests": 12,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/ui/kit/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.ui.kit.components.navbar.NavPillTest.xml",
+      "sha256": "e7fd417b47132012b71b11b571978e4e3f6f050504c507b8c22b00a438eaeb90",
+      "tests": 9,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/ui/kit/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.ui.kit.theme.contrast.ColorFieldScannerTest.xml",
+      "sha256": "67478da12f8062f5d279dd5d8fbbb303c643b7938d196487ab685ed840bac6e4",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/ui/kit/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.ui.kit.components.reorderable.ReorderableColumnStateTest.xml",
+      "sha256": "e3142a933e6abd5d92f7698235d44a69716731ab978115ad3290a74424aa3a7e",
+      "tests": 13,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/ui/kit/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.ui.kit.theme.contrast.WcagContrastTest$Bands.xml",
+      "sha256": "b461a8925e86dbfdc6b803732a99581b1fe79830acd02c4a16bba39a1423ed55",
+      "tests": 10,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/ui/kit/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.ui.kit.theme.contrast.WcagContrastTest$ContrastRatio.xml",
+      "sha256": "6a662e5e506f5c6a8acf4e939acfd76ded0b121ebbd5803418ebe3a06f30dddd",
+      "tests": 20,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/ui/kit/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.ui.kit.theme.AppBundledFontsTest.xml",
+      "sha256": "f2bad0fc50d3e6f0dd850c3710144dc39ec2d39eb0314f735343d07a11f78bab",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/ui/kit/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.ui.kit.theme.FadeOutTest.xml",
+      "sha256": "127a18f6d7dd714c0347dbab523e19adbb43d416aed9ac237fd62491b04fb395",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/ui/kit/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.ui.kit.components.motion.SetClosureFlashTest.xml",
+      "sha256": "5a7d0d29beb5e4fe51078fb4bb70c6b53738405c2be293b32ef680405aae307f",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/ui/kit/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.ui.kit.theme.contrast.WcagContrastTest$RelativeLuminance.xml",
+      "sha256": "27b08efb393400efcb3cd3b3c72c945bcc1dc5133512241fe4a91a7d7241da02",
+      "tests": 9,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/ui/kit/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.ui.kit.components.AccessibilitySemanticsTest.xml",
+      "sha256": "f6e6634c3e7d333254710cf69e3c545ecdf48c318db2d62b5798b1b810457f4b",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/ui/kit/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.ui.kit.theme.contrast.ContrastGateTest.xml",
+      "sha256": "c82f8a1a08a0931e5b1cdaa673907d9a78dd40e5f782f8ec3eb70334dc8fad3c",
+      "tests": 236,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/ui/kit/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.ui.kit.components.tag.TagPickerPredicatesTest.xml",
+      "sha256": "ac57aa44cf08913f654e28ee7dd696f80f78e69b4f883652b739226bb578bef8",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/ui/kit/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.ui.kit.components.IndicatorGelTest.xml",
+      "sha256": "2001865de144deb43e832c5dbb89e99b91b6b93b09e5a7db82da6f8de9df823c",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/ui/kit/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.ui.kit.icons.AppIconsMirroringTest.xml",
+      "sha256": "114ef46e0d7d6f40016565f25e71f2a00e87683b696a3b80e471878960d19e0d",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/ui/kit/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.ui.kit.theme.AppTypographyContractTest.xml",
+      "sha256": "50064bd0a1656b0157d257b441f326622fb711153bb9ab04683a7b829a6c9a6d",
+      "tests": 10,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/ui/kit/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.ui.kit.snackbar.ToastDurationTest.xml",
+      "sha256": "b0e8aef75da3b8ea92adbf0ae3bb930b1205a922b593335574bcfd83c8622ebc",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/ui/kit/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.ui.kit.components.paging.LoadingVisibilityTest.xml",
+      "sha256": "f876cf9950a56ef828e831cf236bf910420f0a1702e779c0276118d0e4e3fa93",
+      "tests": 17,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/ui/kit/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.ui.kit.theme.contrast.WcagContrastTest$Formatting.xml",
+      "sha256": "144c3a52fb439f6c78b2e87fff0c89ec07c3e13392e3a976970f8d0dcc7a9638",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/ui/kit/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.ui.kit.components.setrow.SetColumnHeaderTest.xml",
+      "sha256": "b378c6084f7b1f44d751f3247f504c05c7a7930970493a43b977a6b370fdceca",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/ui/kit/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarOutcomeTest.xml",
+      "sha256": "56339b0c61801cdb910400fd021e9e2426eb99dd7149266d214b2a15ad309525",
+      "tests": 10,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/ui/plan-editor/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.ui.plan_editor.domain.PlanDraftReducerTest.xml",
+      "sha256": "d3ce95985425c78e720ac53d949330cdaf61653ad6a367179e2c88ec333a50ae",
+      "tests": 19,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/ui/mvi/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.ui.mvi.NavigationResultContractTest.xml",
+      "sha256": "35465e1259e8bc8e061bbb9925a7f75d571701f85b4cf5f1a15b5647adc1175c",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/ui/mvi/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.ui.mvi.StoreEventPressureTest.xml",
+      "sha256": "55dd2110827944ba2465588cf2202f057e10fdc3b28e5fd85567e8f7173e4031",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/ui/mvi/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.ui.mvi.StoreGenerationJoinTest.xml",
+      "sha256": "96ba1da21f53d42f79f82291f767895265c1b8ea97316c45c3261934cff418d6",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/ui/mvi/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.ui.mvi.MviJvmAbiTest.xml",
+      "sha256": "6b9e149ab9e9bcc0bffc254d1177f00f7934ac78f95ddbaf7e4c4966eb19ab7d",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/ui/mvi/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.ui.mvi.performance.AndroidPerformanceProviderTest.xml",
+      "sha256": "44904d4e6637045666dac0a4794a21771c7d81e256b5cce977347a11424df6d0",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/wear-protocol/build/test-results/test/TEST-io.github.stslex.workeeper.core.wear.protocol.WearProtocolCodecTest.xml",
+      "sha256": "03c469cd4f22f6ef757b2432f8c6f14ab112d684143d2dbc7a0c298cc4e4fb22",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/wear-protocol/build/test-results/test/TEST-io.github.stslex.workeeper.core.wear.protocol.FingerprintV1Test.xml",
+      "sha256": "00e19e69dacb175200c9b50f5b3d200f719f6b0bf264a51fcbb5545aea6d3b07",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/wear-protocol/build/test-results/test/TEST-io.github.stslex.workeeper.core.wear.protocol.BoundedDisplayNameTest.xml",
+      "sha256": "0182317ba2704596e6814b09af0d802d39dae835fe066b959d9ec52ee07854e2",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/wear-protocol/build/test-results/test/TEST-io.github.stslex.workeeper.core.wear.protocol.CommandValidationTest.xml",
+      "sha256": "6f3fded773ac0638fa9e4a9fd73dc43ef5d1cbb2dd0105575aceaf6af8bb6907",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/core/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.core.time.WeekWindowTest.xml",
+      "sha256": "0a0a01408dc2d97e13b133777e64886fda58b8ab62d2b3ce7d6c2d21a0e34d96",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/core/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.core.time.CalendarDaysTest.xml",
+      "sha256": "46b978543646f92b60180fe60cd657c6eb4015b4a12c1f7f0e79ec3534566291",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/core/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.core.images.ImageStorageImplTest.xml",
+      "sha256": "a6810c970b1231a771865a3956dd8e0f4632fbcfdc33131ea00c25228d2d9849",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/core/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.core.coroutine.AsyncAssociateTest.xml",
+      "sha256": "d60c121a334818e3369729db59f2e44ff89a762fa05f292a7de2a9745bff3c87",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/core/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.core.utils.NumUiUtilsTest.xml",
+      "sha256": "8b8b11b6dc9cadf7b94571f9d5d625d2b03e2569224cb536df5307c25e2333a8",
+      "tests": 9,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/core/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.core.coroutine.scope.AppScopeLifetimeTest.xml",
+      "sha256": "bb0a46d29fedce534cd27415a34c427963e8719b397011aef5721a4293d70501",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/database/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.data.database.export.mapper.WorkoutExportMapperEpochToIsoTest.xml",
+      "sha256": "582d23d6bbea852711e0b861fb065bd8965367ce406cf2252263afa55e7c980f",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/database/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.data.database.wear.WearSyncStorageTest.xml",
+      "sha256": "4e5bd9649f16b55468ef5741f932fd9c7c5c15fe7bbb655b951f2245c199d739",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/database/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.data.database.session.SessionDaoPersonalRecordTest.xml",
+      "sha256": "2b9c7db78a2f4b08fd333615a5cb84100d976cc8e4da8f97587913488565bb1d",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/database/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.data.database.session.SetDaoTest.xml",
+      "sha256": "b9e9d400f2edded5827d31aa5796aec2c88b7ca4ee656279c7ec3e1992049b81",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/database/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.data.database.training.TrainingDaoPagedActiveWithStatsTest.xml",
+      "sha256": "19e8de9fa10837306cf969a09fb1db05fa99b3ab2f603b4759db88bf4dec1777",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/database/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.data.database.session.SessionDaoObservePersonalRecordTest.xml",
+      "sha256": "7fa19b998fde77b47edea16190d486f2a06ceae9f1715947ab52de54897783c9",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/database/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.data.database.session.SessionDaoObserveAnyActiveSessionTest.xml",
+      "sha256": "a04c4dd4cec7b15174cfd8c5ae18aa524e2aec681e2e05f482809aeb15a9f0f3",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/database/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.data.database.wear.WearInstallMarkerTest.xml",
+      "sha256": "e2b54b6684666a475f93302d6628a654e549d42328a83518fe7844f0ded63dca",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/database/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.data.database.exercise.ExerciseDaoTest.xml",
+      "sha256": "18ca012b544c3177f49c9ec9c9ce3b450f1ecba844880d61e04403f9e1918029",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/database/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.data.database.migration.Migration7ReconciliationTest.xml",
+      "sha256": "342bbff2962a1b45963626cf06faefbc98291fb1861b24fe410a46b654370639",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/database/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.data.database.training.TrainingExerciseDaoTest.xml",
+      "sha256": "5229a9806a658dfff599674f7654036523e81745946e8f15bb6ed490ac30d0d6",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/database/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.data.database.migration.MigrationsRegistryTest.xml",
+      "sha256": "e27b9adeab622fb784aa88b0999fccfc542a2c24dba7584fd3e2fa1cbf7af199",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/database/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.data.database.converters.PlanSetsConverterTest.xml",
+      "sha256": "e98005d1a7c4f9d97a04d74a6fb2ca22f0f7e2285719d321c842ae13bd6c1745",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/database/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.data.database.migration.MigrationGraphTest.xml",
+      "sha256": "07774d10b087c701b11b1de3ffcc08a6440ef996d56076b2ea0d6724cf7f71a8",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/database/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.data.database.session.SessionDaoBestVolumeTest.xml",
+      "sha256": "3f9f96ff70ae44fefc7999296ff10484ce2c55a8288cb2f82641d66bd7b33f40",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/database/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.data.database.snapshot.SqliteHeaderCheckTest.xml",
+      "sha256": "8e8fe7645979aab2828beb3070e8a89c52411663b67bab82389d273e0bf9151e",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/database/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.data.database.snapshot.SnapshotFileOperationsTest.xml",
+      "sha256": "5c0ac5c4fadccc3cd539bfe56fdf0bbd7a4bb8905082102f626d174ecc967998",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/database/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.data.database.snapshot.RestoreRecoveryFilesImplTest.xml",
+      "sha256": "0f1864cf7da6861a6492d0576a4e575de4a31e87e0ee4662f8e68e35645173b7",
+      "tests": 18,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/database/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.data.database.training.TrainingDaoRecentTemplatesTest.xml",
+      "sha256": "4f7b05736d95a98ac48fc8ccaad3a4611b315ceacf66015ccbadeba8d69da3ee",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/database/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.data.database.exercise.ExerciseDaoGetAllTest.xml",
+      "sha256": "254b5cd349516d15a309f53382367f1b6bd9363bda5015e8f0fbc4574ff6fd24",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/database/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.data.database.QueryPlannerStatisticsTest.xml",
+      "sha256": "a8d32110f57a1b6f55f5575bce200f514e41793b958ef5dc26e1b9db26ba57b9",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/database/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.data.database.training.TrainingDaoGetAllTest.xml",
+      "sha256": "4c97fde8a87dd0eb080fd9fa1f82dba7e77ead40403dbfe09bec550cbcb60562",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/database/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.data.database.session.SessionDaoPagedRecentWithStatsTest.xml",
+      "sha256": "69113a14a82f4846f44f9c33763970319077084fff6df97066f054355cc70d14",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/database/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.data.database.wear.WearSyncTriggerInstallCostTest.xml",
+      "sha256": "a82a96424d5fab95048293af58dc504a3077ac6e660f139e135560768a7ab93c",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/database/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.data.database.exercise.ExerciseDaoLinkedTrainingsCountTest.xml",
+      "sha256": "aa6149fdafa55caaca65e0e7990cb3879f1f350cabc0713b06d763aa8de07a51",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/database/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.data.database.exercise.ExerciseDaoLastTrainedTest.xml",
+      "sha256": "67a58119c5a35b7fa824dbf9b7bbd1fbda4b66247e2cf7de2bd2649166b309e8",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/database/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.data.database.session.SessionDaoGetAllTest.xml",
+      "sha256": "6784c50960d4067f361b13d3d0fab49ab697ea7e6c9287e286dbafc5163d67f8",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/database/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProviderImplTest.xml",
+      "sha256": "ef882f9036b1f9d3ab5ec564e436d03e50b0d6e559e4b20cc845a3c3d7c45dea",
+      "tests": 15,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/database/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.data.database.exercise.ExerciseDaoPagedActiveWithStatsTest.xml",
+      "sha256": "dadd85d2c471746e1fc8acd761ca8b603646995c6d19195e7bfd201f74f4fa0e",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/database/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.data.database.exercise.ExerciseDaoLastTrainedAtTest.xml",
+      "sha256": "6aa77e473195c965e2ec8e0f4ef09db3524bcccccf205622b86778d3bac02170",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/database/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.data.database.session.SessionDaoTest.xml",
+      "sha256": "c16d15f7b9383ff5d706df784d35783ea310494b18b2af9fbb3214b408796ba3",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/database/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.data.database.export.DatabaseJsonExporterImplTest.xml",
+      "sha256": "f057db7936cda7d9cb9344dcca509dbbc532784c4b07c0f1154038c5b1d6fd12",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/database/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.data.database.session.SessionDaoHistoryByExerciseTest.xml",
+      "sha256": "701cad493cd44c730d46ce687f011ae6ba1fd919fa9c1d748f419239567687be",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/dataStore/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.data.dataStore.core.AndroidDataStorePathResolverTest.xml",
+      "sha256": "882dd67c2f90ba9b9a24f8bdafeddb6355c7d5bb03213f9ee535c003ae6e7a50",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/dataStore/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.data.dataStore.store.CommonDataStorePersistenceTest.xml",
+      "sha256": "76f13659b71d5348ad0901ff4df9f5dad3f1cdeaffaf3e90864ad1457ff62789",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/exercise/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.data.exercise.session.StartCardReadoutQueriesDbTest.xml",
+      "sha256": "ffbafe1b98fbbaf47f80fb830eddade733d027aca4f1600d49d81a53b6f74d38",
+      "tests": 10,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/exercise/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.data.exercise.training.TrainingExerciseRepositoryImplDbTest.xml",
+      "sha256": "dc7c2e6f398186101f7aac16165e4727509c899955d585237e064cf0e72e317e",
+      "tests": 9,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/exercise/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.data.exercise.training.TrainingRepositoryImplDbTest.xml",
+      "sha256": "734f04a9689fc3311ae27f197fa4c55e8631a24963ff7f08c0d1df9fb0f59e76",
+      "tests": 26,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/exercise/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepositoryImplDbTest.xml",
+      "sha256": "ecb6bff9a99268a2e186a39857bb9e49797a670795b9e53efeeb494426d0ac32",
+      "tests": 42,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/exercise/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.data.exercise.session.SessionRepositoryImplWriteDbTest.xml",
+      "sha256": "8a0257defbaa1280740cec921025e0eb6835a7dcdac3c3b1b1f1b13f69cfb8de",
+      "tests": 18,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/exercise/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.data.exercise.session.SessionRepositoryImplFinishAtomicDbTest.xml",
+      "sha256": "3ac3d03ac103a5153726ed1b85563c564c979279b3cb40b7cad1bab9f1662e65",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/exercise/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.data.exercise.session.SessionRepositoryImplRemoveExerciseDbTest.xml",
+      "sha256": "6375b2af64e246283a0ffaeaf2bd04c6c2131cc879110b4809f2887ed8633027",
+      "tests": 9,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/exercise/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.data.exercise.session.SessionConflictResolverTest.xml",
+      "sha256": "ddffe7b7c11ea3c668ff55934c50a2a76471cb9c4d9b991e6f2b0d245005264f",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/exercise/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.data.exercise.session.PerformedExerciseRepositoryImplDbTest.xml",
+      "sha256": "76d0d0c5679592f7a604e64aa7d52fd68b58b664528a0ca7df100cf754eb86cf",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/exercise/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.data.exercise.session.SessionRepositoryImplPlanAttachedDbTest.xml",
+      "sha256": "3ada151b28d51e4576296737ebd6fa4ba5f992fce610755193abd4c5310ab7ac",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/exercise/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.data.exercise.sets.PlanUpdateRuleTest.xml",
+      "sha256": "f7bddf6be5b219452a96c0152541d655692c1bdd83e5feb6940ece78880669d8",
+      "tests": 9,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/exercise/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.data.exercise.sets.PrComparatorTest.xml",
+      "sha256": "73687d34b817ce4320eb8d9d930377f3341e140439ba02260d868b29004fa2b0",
+      "tests": 16,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/exercise/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.data.exercise.personal_record.PrRuleParityTest.xml",
+      "sha256": "d84db043916b3b10e0d2492ac7c35822d4e65421b589b52cb6d073ee4b9e259a",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/exercise/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.data.exercise.session.SessionRepositoryImplReadDbTest.xml",
+      "sha256": "1c58789222a1f4b774fec7e71a4b7e2d5c1c8fabc752313ad812b8b1967e2f94",
+      "tests": 19,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/exercise/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.data.exercise.tags.TagRepositoryImplDbTest.xml",
+      "sha256": "2075158d3b23a8fcb12fa70e19c9e6741eccc65fe95a20fe4dab7ae9bed631a4",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/exercise/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.data.exercise.session.SetRepositoryImplDbTest.xml",
+      "sha256": "884e725e3847365b9a744ec80cadfbab777a70fdb6237bd25b5710742006b974",
+      "tests": 18,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/exercise/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.data.exercise.session.SessionRepositoryImplWeekTimesDbTest.xml",
+      "sha256": "18687f315b06b5c8864d335867d2f3d56c27845025e5ff99736f613f0afd41d2",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/exercise/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.data.exercise.stats.StatsRepositoryImplDbTest.xml",
+      "sha256": "b792f9d24fc067c69d3115d7e9590ef2faba140d60c5dfe8d02a664bfaf61774",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/exercise/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.data.exercise.personal_record.PersonalRecordRepositoryImplDbTest.xml",
+      "sha256": "661c40fe655e99ef615d820c051914d9f84ff5cfbed6d86b5002515e09124f55",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/backup/scheduling/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.core.data.backup.scheduling.RestoreStateRepositoryImplTest.xml",
+      "sha256": "be18c9e57733038bda375bd5cdabb89956de816d650d2cd8d2a761a95c4208cd",
+      "tests": 40,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/backup/scheduling/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.core.data.backup.scheduling.BackupPreferencesRepositoryImplTest.xml",
+      "sha256": "72e980b20f161b0c865ca3878ca19edfb8dedfae19d230c2f3e061b634a8c280",
+      "tests": 9,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/backup/google-drive/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.core.data.backup.google_drive.error.DriveErrorMapperTest.xml",
+      "sha256": "f2a60f9c3ff7b707e492ea79b2f097e0b67edd909e7bba9896aabef5f62c01e0",
+      "tests": 12,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/backup/google-drive/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.core.data.backup.google_drive.storage.RotationPolicyTest.xml",
+      "sha256": "3d6d750fa500a2f2588c67c15e16f2c4b01c3601823e83b209e4cc4f1d103e6a",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/backup/google-drive/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.core.data.backup.google_drive.manifest.ManifestPropertiesMapperTest.xml",
+      "sha256": "dbf76c0f9ce80c3187c09b3fa32cae6439151c12781a8aedd76a6e4cf54f5d5f",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/backup/google-drive/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.core.data.backup.google_drive.auth.UserInfoFetcherImplTest.xml",
+      "sha256": "4d094db57979882dd45e8250758749df7479a912ce772d18a2d409c277e765aa",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/backup/google-drive/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.core.data.backup.google_drive.auth.DriveTokenInvalidatorTest.xml",
+      "sha256": "ec8233cdb820f22b2a70d6d687d8891f3c288a954aa8dc5919de2d58755c4082",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/backup/google-drive/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.core.data.backup.google_drive.storage.DriveSnapshotStorageTest.xml",
+      "sha256": "31b9995dde87e2e1908f224a5627df849d8fb3c231ab83a47d12b2f082e6390c",
+      "tests": 11,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/backup/google-drive/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.core.data.backup.google_drive.auth.DriveBackupAuthTest.xml",
+      "sha256": "051c386c04248f2bb6ed841a14634eca9dfec8601c249a91aa20319cb40241ce",
+      "tests": 24,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/backup/google-drive/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.core.data.backup.google_drive.network.DriveApiImplTest.xml",
+      "sha256": "e29a0715208c086940b83cca419423c2956f9b274a16d158d73ceec409e30d03",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/backup/google-drive/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.core.data.backup.google_drive.SnapshotExportRunnerImplTest.xml",
+      "sha256": "db30260088868ca62d630cd21e786c1c1c0ab047af09d3be096a025f2d7cb595",
+      "tests": 12,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/backup/google-drive/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.core.data.backup.google_drive.storage.DriveBackupStorageTest.xml",
+      "sha256": "ea6f58cac83ef84a159400a97cd0d22313d33969239c75758e3bd881d1766a67",
+      "tests": 16,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/backup/google-drive/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.core.data.backup.google_drive.auth.DriveAuthTokenProviderTest.xml",
+      "sha256": "38cf7149ab63b1867c5158f8d572fc46b99e4a194905f32def3344b3e92b9d4a",
+      "tests": 10,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/backup/api/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.core.data.backup.api.restore.RestoreOwnerIdTest.xml",
+      "sha256": "188b12f7e1dc4357678ec315eec3cd3208ffd94a60422f15c790579b34328874",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/backup/worker/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.core.data.backup.worker.BackupWorkerTest.xml",
+      "sha256": "581fbafb487e35d952cd2dbd56870113427e2a8f5a0479244ddb9a4bed3453b0",
+      "tests": 12,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/backup/worker/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.core.data.backup.worker.scheduler.BackupSchedulerTest.xml",
+      "sha256": "6626eb875a1e9546357fd486b206c39fd5891b10f4d592ddd165bc2cde6f1df2",
+      "tests": 12,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "core/data/backup/worker/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.core.data.backup.worker.MetroWorkerFactoryTest.xml",
+      "sha256": "4bfebefbd9e5a126f411c8904f83f85a69db958ad56f4074326745b421d75166",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/app/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.di.AppDialogExtensionIdentityTest.xml",
+      "sha256": "2d6383056e39dbb740eee0a4b2c09ca616367819ed776b1e6d636afc4a5fa2ad",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/app/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.runtime.UiHostLifecycleTest.xml",
+      "sha256": "0a18502ff9daac2f7c1b1dddf6c2c5cf177f888d0e227751bbdbd566383d937b",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/app/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.di.AppGraphIdentityTest.xml",
+      "sha256": "26a9e06b2946a50c42c09753cb6ac19791b27327794e80fcb8be091844e1664f",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/app/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.runtime.UiAdmissionGateTest.xml",
+      "sha256": "e2f7349c4ec45ceb27d6ec3269469363b670485cb879b73b5d8453a87470b33a",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/app/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.runtime.AppRuntimeTest.xml",
+      "sha256": "2d9b4f9c7a636a00f952dc650f7594338330d147b5d1f10407c39508fa1fb877",
+      "tests": 20,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/app/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.di.AllTrainingsExtensionIdentityTest.xml",
+      "sha256": "46a46fcd7ced867d64c447631c503e89c9f868dd67e5ee5c567706b4cfac6531",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/app/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.runtime.StartupProcessorTest.xml",
+      "sha256": "f113b8610903f323182aa53c6c472b79a471d043f4186e36365b5ad08bf01396",
+      "tests": 21,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/app/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.di.PlanEditorExtensionIdentityTest.xml",
+      "sha256": "af03d635394c6939b8937facb2e57729ad7eadd22f285b957d4c3beefd74a68e",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/app/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.di.SingleTrainingExtensionIdentityTest.xml",
+      "sha256": "4fde7d298640fefe42b68db260da3e81d9cf4c45ccebaa8cfa5a54052e4643b0",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/app/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.di.ImageViewerExtensionIdentityTest.xml",
+      "sha256": "c03a3543eedeb97774ab484758e8b32d798c7eb87df5662dc25de2a80db289ba",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/app/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.di.ExerciseChartExtensionIdentityTest.xml",
+      "sha256": "c459f763a59d57080aad7eef1695c219d207e625fffb21acc77259ea9824d9f9",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/app/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.di.ExerciseExtensionIdentityTest.xml",
+      "sha256": "b4f0ebada998eb83899aa758f144377bc69a8624f9fdfd26dbff3a2161c96447",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/app/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.di.PastSessionExtensionIdentityTest.xml",
+      "sha256": "918cbd9b56e5c259779c6f5de57b540a7358e4d50408366247fce45ed64e39e8",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/app/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.runtime.AppRuntimeReplacementTest.xml",
+      "sha256": "89351bb1c06a2c1fd0cfeb8586fa46f10e6690e0c104607b8c1e7b9ff0dd0c1a",
+      "tests": 77,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/app/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.di.ArchiveExtensionIdentityTest.xml",
+      "sha256": "072e3a8bae88ce28536a2324230b39db26989267fa5d8c4d0666fd446ee11ebe",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/app/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.di.AllExercisesExtensionIdentityTest.xml",
+      "sha256": "c2a93e451aa9115aad620fd4654e6e132fb65bccbae393063560daa396518a6b",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/app/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.app.RecoveryBackupRulesTest.xml",
+      "sha256": "e6e047ce434cce03da44d2d329b21dd05ec095ab0b29baec3f1db05fa765da31",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/app/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.runtime.RestoreTransactionIntegrationTest.xml",
+      "sha256": "e5064d40c07f1153f2bf316d0dcbc7ecdd7e4e2b7b7fc6dbc9257fdc86f930fa",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/app/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.di.SettingsExtensionIdentityTest.xml",
+      "sha256": "6d45e4a433f0dbc5a5ec67cd5b837c9137370294fc99349088162d1dcc4dda2f",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/app/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.di.LiveWorkoutExtensionIdentityTest.xml",
+      "sha256": "6ca0fbc2b982194ad046fdcc1e5c4fcff962301bc6748a6e3e4c4b54eaf276af",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/app/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.di.HomeExtensionIdentityTest.xml",
+      "sha256": "18bc058ec616e47479889c3258480e09d459e490c7b5ed382fdbbe0746f6e083",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/common/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.navigation.NavigatorEventBusTest.xml",
+      "sha256": "99ea66bc2e3d231e241d447442e961a3a5b07dd046d9d6b9e0af785f8e465365",
+      "tests": 13,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/common/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.navigation.NavigatorEventBusLifecycleTest.xml",
+      "sha256": "4751fe6437485f81556966ead923df1ac4b023d96edc7b7b1b0b251e4bd54090",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/common/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.host.NavTransitionsTest.xml",
+      "sha256": "75d804cc1a4ca830b7bb197ed445ed6e5e14ee7de7f24e534cf3fc38d44a6062",
+      "tests": 17,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/verifyEmulatorAcceptanceRunner/TEST-WearAcceptanceParser.xml",
+      "sha256": "1dd9ca14d7f77bf0650902aa2b2187dacbc7f45ac17c0b2640bb76fc0e2fce9c",
+      "tests": 65,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.runtime.WearRuntimeUiEventTest.xml",
+      "sha256": "0aa6bd085edd1018d8ea3563f5476cfbcc91d30684d4e9d11f30b96989c8b972",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearFirstViewGateRuTest.xml",
+      "sha256": "9ca09e2b9e185c2c68d07820bbe72d180a277bdf56825d0c7c34608be821d81e",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearPrimaryHierarchyGateTest.xml",
+      "sha256": "871c9722a1df4328cd2edb65952ae4ca5513f2759528825928ad89d83e461836",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearBrandGeometryTest.xml",
+      "sha256": "ed006a86aa4bffc06caeb19005ec86f42f78e435754deeb32ed0af04b9dedc21",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearLabelWordBreakGateRuTest.xml",
+      "sha256": "d13099869c446a4f995bcce1a4c2a58ff534263051befd8bfdfd193202c9bc24",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearSurfaceDraftProjectionTest.xml",
+      "sha256": "5e29c721382cb3c010b752ef3b2cbb721bd7381cac65461df8d7c455858151cb",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ambient.WearAmbientLifecycleCallbacksTest.xml",
+      "sha256": "0a8631e995fa401e6569302e547f9dfd588b129f3c63ebd07e9712bdbec398b7",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearTextOverlapGateTest.xml",
+      "sha256": "0516f632bebc1da832f38121acfa5284f674c273e84665f1fe59f83f7e6af3cb",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearFirstViewGateTest.xml",
+      "sha256": "edca5129319e4e81a70f294cbaaabd6dc3029ff9638ae31072db449a7b200ae4",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.cache.WatchSnapshotCacheTest.xml",
+      "sha256": "cd66e4f2c412226c7592d57f7c8d82a9f7407c44f55387684af2f545730e7ced",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ongoing.AndroidOngoingNotificationApi28Test.xml",
+      "sha256": "8e4dfbf5155a1a34349d132101e40c2de0126180f1a9c493697a9e4a02ab8503",
+      "tests": 11,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ongoing.AndroidWearNotificationAccessApi33Test.xml",
+      "sha256": "3a368821305d34d0107b20260c6a48fd39f6d7a30d4849051fe0fc7cdadaa774",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearPaletteContrastGateTest.xml",
+      "sha256": "f30ff561aa1ebfadc75d4a250ec27b6256a5e1b7f16b7cc2db026d5aa8b26923",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearBrandThemeTest.xml",
+      "sha256": "4c6ab5abc6b749295665f6f24b50ddf36c09140c9d56220ca4c252c7fb354802",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ongoing.WearNotificationAccessTest.xml",
+      "sha256": "cc40cc5870bef974863904d7b341aae0900db33a3dcc8f4771643c7337e5ae01",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearKindDistinctionGateTest.xml",
+      "sha256": "a4c58e16b8cf2c645d3b75366aca48f140d5b5940582b0764352d2657722dd44",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.tile.WatchTileCoordinatorTest.xml",
+      "sha256": "81b0f87aba722119faa2db4a30719c77a13d21b1fc21baa51f4c781c72ec100e",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.state.WatchWorkoutReducerCacheRestoreTest.xml",
+      "sha256": "e83a839d8ad1acfccb1e68cd93893077acb93608a62a92512fd3170d97f7429c",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearSetScaleTest.xml",
+      "sha256": "4667878f8e60f189072821b62c9a44d26f7c66adc8af0d05e161d8e2f3e96d08",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearAmbientTimePreferenceTest.xml",
+      "sha256": "e544ba24616ac8f174b11ba2fd8232e5a425c64054fa5d6aa5cf9bf35852237b",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearDisabledLabelGateTest.xml",
+      "sha256": "74156e113396f73408f367860f6771bbf8b40e79aacb3fa18b0f828ff586b11e",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ongoing.AndroidOngoingNotificationApi33Test.xml",
+      "sha256": "3739f62361569c6e7cfbce3709961098eee989ae1571456bf100998aabe4e800",
+      "tests": 11,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ongoing.AndroidWearNotificationAccessApi28Test.xml",
+      "sha256": "b3d9f576dbd595db4d5ae48bbbc9d3dd3b19ff4d0e4b5f3de900cb070c7ff6be",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearAmbientEditorEligibilityTest.xml",
+      "sha256": "eca609e71548f1c08e065e5ff9fd4db43bbe4727a050f33647934d45f4a2cdf9",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.runtime.AcceptanceScenarioBoundaryTest.xml",
+      "sha256": "0e50ff2560eb191d848e1aa5ff6dc25dea27a208f2925d539c9122503635ce4f",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearAmbientFontsTest.xml",
+      "sha256": "376dbf3de6ae007a5a0cc03322a54c40742fcfa2f12b686883e74efa9d4cbf53",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.state.WatchWorkoutReducerSnapshotTest.xml",
+      "sha256": "95dfef45e896799040a4b671d4cd514a51b38edaf69aef11e4c1564ec73443f7",
+      "tests": 9,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearSurfaceMapperTest.xml",
+      "sha256": "545e7bf64bd026426c97579eb08b4368bb9ac5e7cce06af0a784755b556c9526",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearRotaryControllerTest.xml",
+      "sha256": "1d946762d65b778a1b4119908079b301fdc1f072b30b066c518c697bdc1b9e8e",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearDisabledPressGateTest.xml",
+      "sha256": "08b6de008425f31173875ba8546e95419e638e083de0386f94d66cdc2adc5dd8",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearNumericEditorTest.xml",
+      "sha256": "5b1d1770b04f0e5a41b51804fe9cd1ac3e391bd23d45bd550c83dff9f89e8700",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearCompletionUnavailableReasonTest.xml",
+      "sha256": "105715691c8ada6b88438b3b2a71dd06ce1e4075d034f1605d125db7f636f171",
+      "tests": 10,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearThemeGateTest.xml",
+      "sha256": "ffd8e0246b49fef36936dc487bf212be872a87f3d29c7e3cce4ed437c11fc7d5",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.tile.WorkoutTileRenderingTest.xml",
+      "sha256": "4ca65552d87fcd846c2710f49503fa8bc6ff5ebaabb288b26b1552e786c27dab",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.runtime.WatchAtomicCacheRecoveryApi28Test.xml",
+      "sha256": "bf7713fc7f24e8f7a65f27346d425b468b4a8fbdcd69ebfe5624805d9c6a21ed",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearAmbientBidiTest.xml",
+      "sha256": "9b2689d64b10082c579364b31033b51cbab6d792c431ffe8473a848bb1530db1",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.mvi.WearHandlerTest.xml",
+      "sha256": "7e1239075551832c688c354766ea3555f5ce1b6064265090a5209225962ce548",
+      "tests": 10,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.mvi.WearPresentationMapperTest.xml",
+      "sha256": "4bd4e09990eacf95a252a25407a7b7d3e2812c9bd11b18ab5661bd3c9e524d38",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearOverflowGateTest.xml",
+      "sha256": "2585022a7e9aca6af9e9d086bb89e28bc1a03d0597d251a6e20f518ae434449a",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ongoing.WatchOngoingCoordinatorTest.xml",
+      "sha256": "be3be6e0b629a9ace015c69df8713b0dab299136672bf3477b4f1a8cf973599e",
+      "tests": 27,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.runtime.DebugSnapshotDriverTest.xml",
+      "sha256": "1f691e6ce9ba87178cbf3f091e27f0b80271fd7db2365c4eab64fcc4144effc6",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearStringCoverageGateTest.xml",
+      "sha256": "4c2d190ef58f03bcfb97205fc74eff75f7ebaea1b01f27459107050e84e1838a",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearAmbientControllerIntegrationTest.xml",
+      "sha256": "ee342371edf66bb2b594bc4c159af182b3f31604090947a7d4c58f0daac976e5",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearOverflowGateRuTest.xml",
+      "sha256": "b3213b53e9483f2e1bca7d4d3dea97e1379522572dc44a6d8bf49f4fa4d6f231",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearOngoingNoticeTest.xml",
+      "sha256": "fd86426c1cb205a9dd0b221e4ccad6169759084b529eac55254eaf6c7ef8d9e3",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearAmbientSummaryTest.xml",
+      "sha256": "b4c6dacc9c905e269c73e1955bda9e432c8a8666751423aeb4567b6d3b209b29",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.runtime.AcceptanceScenarioReceiverTest.xml",
+      "sha256": "1e0fac1bfeefd650c334e4dc2d0a28b09adf06ef2d51aaed98de3d807366d086",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearLabelWordBreakGateTest.xml",
+      "sha256": "723b038c35d1511314775b953d58ef367d05e2552a4f2ef153b64d78ce0b50e2",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.runtime.WatchRuntimeOwnerTest.xml",
+      "sha256": "1e76a6709668c2d19fcfc749bfaa27fec9a6874e58adcd87830235b485155cdc",
+      "tests": 25,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.tile.WatchTileRefreshRequiredTest.xml",
+      "sha256": "103d1e2f69f417ea6993d964852585b3b2e8e4951e0dbefe0f46dab86b5acfef",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearVisibleBoundsTest.xml",
+      "sha256": "4cf938a419ae11e18e6c81a7dfae81c1c1e012a9533384433a1794b01179e723",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.cache.CacheFramingTest.xml",
+      "sha256": "8b793083856743ec61d80843eadf6f42490e04b1a6df141dd102e7fd7280cbe0",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearWeightRotaryDraftTest.xml",
+      "sha256": "695ef851de0ef16ddf43030fba3561fd25631061e413651228599ff6b77c5b2d",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearTouchTargetGateRuTest.xml",
+      "sha256": "57fefa6ee326bd41e328c9cf9dcf4291a6536b2c3a5984f1639a12a28e3895ff",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.runtime.WearRelativeDraftTest.xml",
+      "sha256": "e3c138d092ed75c8b0c30a81e804c0550f765732876b57b2819b27e19dd42bb5",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearSubmittedDraftProjectionTest.xml",
+      "sha256": "d12ac2c9a09b874992fe8cd2d33e1ea3ed9127c1d3b486e9f693c45599258a2c",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearRefreshRequiredCompletionTest.xml",
+      "sha256": "143853953e1024680e13076fabda21e6eee40c9b6ea1291c6e29690f84315d3f",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ambient.WearAmbientControllerTest.xml",
+      "sha256": "ce2508f890b0f4f6f69633245d83d54a9053f201ed09c030a420d014506ef07d",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearValueFormatterTest.xml",
+      "sha256": "d4718f53701b9836f87f029ad8a7190f78ac4f5611fef081d0de08a7113eecd3",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearOngoingNoticeRuTest.xml",
+      "sha256": "d4ba1d10feb281ec961e012d909d788b868a4c69eb7d9316a9a7303fad102172",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearUnsetWeightGateTest.xml",
+      "sha256": "5b68bf7466054eb4cc3d67999a2deecd82f0598b23cb9ed9e476deddfd4c486d",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearRotaryDraftTest.xml",
+      "sha256": "23df4e877c4554e6290a16ae7d82e3601d5460e02429390b4e234990d236f025",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.tile.WorkoutTileLayoutTest.xml",
+      "sha256": "9837ae930d61097c53180f4d43a6fa23ce593a7fdee43337efc4b118cd4e0245",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.runtime.WatchAtomicCacheRecoveryApi33Test.xml",
+      "sha256": "4e44468f1fe6f9ad7e380be5ebd09c47e60ce835865d400c2dd336a777d07145",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.state.WatchWorkoutReducerCommandTest.xml",
+      "sha256": "222edbe93132aa9ffaaa52e5c67b1078d3fa8becc376204e0ae02f28c3a74eee",
+      "tests": 13,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.runtime.WearRuntimeLoggingTest.xml",
+      "sha256": "4ebd30e81d9c3a51da6a24349ef9cc349b0f51433548d7d1dce262fd691e7710",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearTouchTargetGateTest.xml",
+      "sha256": "87becdac2fc71e722d6bd179cb24d9e307e0099b950be7b27bacd5fad03b5075",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearDraftPolicyTest.xml",
+      "sha256": "fdc738a2ef4e4540afd52ffa8e0a9fe2621a68bf791fc2a39f53eb9efc77f1ec",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearAmbientSummaryRuTest.xml",
+      "sha256": "921fc970f0cdeef2abaa1bd67d04b3bae0c808fd998c46e1e7d6d96b64923b57",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.mvi.WearStoreLifecycleTest.xml",
+      "sha256": "2d6b418d1a81d90cdc2495866581803432a587c1112a2feec0a837203793119a",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testStoreDebugUnitTest/TEST-io.github.stslex.workeeper.wear.runtime.WearRuntimeUiEventTest.xml",
+      "sha256": "a786676804a83dea1233689f2fb3f0769ef4c7dbf055f4bc407b3ff342abadfb",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testStoreDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearFirstViewGateRuTest.xml",
+      "sha256": "bdef1cf60bf6d0c942a0899128124f16e5050a9e8baf81d362d671ae167c8ac4",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testStoreDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearPrimaryHierarchyGateTest.xml",
+      "sha256": "705ea73aa3dd848cd2ce124d2a3663e49224418a1f81530c6d5316fd24c3270c",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testStoreDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearBrandGeometryTest.xml",
+      "sha256": "bfc2ff00d00d06f74248ffd5f8fe1b264813973555c97d4380cbc2e0f24684da",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testStoreDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearLabelWordBreakGateRuTest.xml",
+      "sha256": "7ba1354ad006f7974f1b427cf2072d306c8b927aba6360ec1ede7763b77603ab",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testStoreDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearSurfaceDraftProjectionTest.xml",
+      "sha256": "1eee7ef843c00be5863124015d57f4e235f2cb6c71f96cf2b768d2ff4b7d21d0",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testStoreDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ambient.WearAmbientLifecycleCallbacksTest.xml",
+      "sha256": "78668daf4d53d3942512a8aaa00aed4a9418113304f8a9aba5d5bed4c986f7bc",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testStoreDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearTextOverlapGateTest.xml",
+      "sha256": "e9c69ebe4b8a47bef6095c6d333ac9ad9fd46f328b0dc1e93e7e365e4a9d7985",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testStoreDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearFirstViewGateTest.xml",
+      "sha256": "7634c811a922e14658098232f09d4b9dba177a2eb4b15511f0cd894ac16ae538",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testStoreDebugUnitTest/TEST-io.github.stslex.workeeper.wear.cache.WatchSnapshotCacheTest.xml",
+      "sha256": "104b5e84da54824e2f307e328caffb9f3149f1dc3931870f7d99897a82b83136",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testStoreDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ongoing.AndroidOngoingNotificationApi28Test.xml",
+      "sha256": "84906cfd116bd939b8935b8051832688db7d278a7958560e341133be69787881",
+      "tests": 11,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testStoreDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ongoing.AndroidWearNotificationAccessApi33Test.xml",
+      "sha256": "472cdaf4505aa170dcad592c04545a3f6cc577b12356049647e33e49d7464c15",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testStoreDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearPaletteContrastGateTest.xml",
+      "sha256": "d8486afd55ee94fc8b1eea9a9deb50a9a8743dcfdf9c9d30d8026773d7f11572",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testStoreDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearBrandThemeTest.xml",
+      "sha256": "c24068b228d70c0a27e0422176a150a669eb62facce9c8f845efc95dbfc199c1",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testStoreDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ongoing.WearNotificationAccessTest.xml",
+      "sha256": "7664694fd6adf5e55ed903f5559aa2ee92f7baada6acee95dac1b3d6754ae9f4",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testStoreDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearKindDistinctionGateTest.xml",
+      "sha256": "2ec4dd708a7aecf1933a32acaf9f966de05c545f186d038b2145cd622238de00",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testStoreDebugUnitTest/TEST-io.github.stslex.workeeper.wear.tile.WatchTileCoordinatorTest.xml",
+      "sha256": "78868022479e96709da3dfeb77fb2ed13e51bc0be24277f038b3fcdd28e2f62f",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testStoreDebugUnitTest/TEST-io.github.stslex.workeeper.wear.state.WatchWorkoutReducerCacheRestoreTest.xml",
+      "sha256": "a02c383ee195ebc969142bdea4b8c0574e17d65def6bb1e80c662e7e8deaa876",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testStoreDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearSetScaleTest.xml",
+      "sha256": "11469a1b8eac5e629c1e8664e1d79d4b2de5b87eff9051312229174b7efc9615",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testStoreDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearAmbientTimePreferenceTest.xml",
+      "sha256": "b04e361ffbf28e31fadd6bd6056b70c00f3e166ae7d0135de94c338fa13f7b93",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testStoreDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearDisabledLabelGateTest.xml",
+      "sha256": "1772f4a21892df5448ca2f99365d0f1dd833ab15edafa03a963d23730cf83da2",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testStoreDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ongoing.AndroidOngoingNotificationApi33Test.xml",
+      "sha256": "d380c77fa0dfbd6bbfe14ece524014c98ca77625e398e17ad9c3908ba392b5bf",
+      "tests": 11,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testStoreDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ongoing.AndroidWearNotificationAccessApi28Test.xml",
+      "sha256": "fb016380e82ca65f4b3aaeda9cf3aa0cd58b144ac8d9afc37c3ad89f3ba0f70c",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testStoreDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearAmbientEditorEligibilityTest.xml",
+      "sha256": "bfb896ebf49d4c650c21e2187a19b985b7c5c7f7e2c2044d0fa0f7e805536560",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testStoreDebugUnitTest/TEST-io.github.stslex.workeeper.wear.runtime.AcceptanceScenarioBoundaryTest.xml",
+      "sha256": "9b4fb0016668d76ad492e348ebdd8b1719662e28cc3f893d51493ec7b741cc2f",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testStoreDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearAmbientFontsTest.xml",
+      "sha256": "00e6ae24cb132ca5f417cc398cd8663ca4126e68cfa2f8bd3cbee45dbfd565db",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testStoreDebugUnitTest/TEST-io.github.stslex.workeeper.wear.state.WatchWorkoutReducerSnapshotTest.xml",
+      "sha256": "6431072464af6f03206f5c0a4c7566c967a6e546b3570c05fb58e3273610f841",
+      "tests": 9,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testStoreDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearSurfaceMapperTest.xml",
+      "sha256": "ebf5873483168ab35a1e4149225e76088c826f093ab715d434f6a36f58487b2e",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testStoreDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearRotaryControllerTest.xml",
+      "sha256": "f7c1e61f0e2d6d094c873c8ac2b7a231c2486bee8aefd7fa6b4ab509be92bd07",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testStoreDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearDisabledPressGateTest.xml",
+      "sha256": "b4f160517c9a7ed152c9acc6ba30b00f8ea7e9725a2f0a711032fc65a6903dab",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testStoreDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearNumericEditorTest.xml",
+      "sha256": "f1babcc07822c2a8435e8d69b33f8a9bc7039a690a1920b0f48f5cc0bebfbcde",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testStoreDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearCompletionUnavailableReasonTest.xml",
+      "sha256": "797fea0ebed505932c87e3ae09728706006f8c5c661d6f9c9b16a1a84a8586bd",
+      "tests": 10,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testStoreDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearThemeGateTest.xml",
+      "sha256": "5b157c00a9c21c9bfc20d69284c49a4a5ccc508205cd92be3316bfd0fdc6bfca",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testStoreDebugUnitTest/TEST-io.github.stslex.workeeper.wear.tile.WorkoutTileRenderingTest.xml",
+      "sha256": "649e92ef4c1fa861d37af03eeab193d29de983d8caee3468409e72ea54d3b34e",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testStoreDebugUnitTest/TEST-io.github.stslex.workeeper.wear.runtime.WatchAtomicCacheRecoveryApi28Test.xml",
+      "sha256": "17ef6688a0f1959ea1a3525b6d58ce1690400db261d8d9cb035e4df02f77dafd",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testStoreDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearAmbientBidiTest.xml",
+      "sha256": "6370669b9568444f135d2b66f177b415f05dded02665ea851828116cfd60a2da",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testStoreDebugUnitTest/TEST-io.github.stslex.workeeper.wear.mvi.WearHandlerTest.xml",
+      "sha256": "4fbc8184dab680f538c473e65640a5efbe85b2a9c45c6b3c228c7ee0ff73c8ff",
+      "tests": 10,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testStoreDebugUnitTest/TEST-io.github.stslex.workeeper.wear.mvi.WearPresentationMapperTest.xml",
+      "sha256": "ee86121a1f7c56d07d6026adae0025c223cec2455dd60324ee3aa4d4dc073495",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testStoreDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearOverflowGateTest.xml",
+      "sha256": "56d60234dfa00b0f6948abe7cd6d229679c247dc48f7f6ad31e90d467af5f854",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testStoreDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ongoing.WatchOngoingCoordinatorTest.xml",
+      "sha256": "5800eae95c11cb0ecb1d68593657738db2459a67f472a7cc94b595fe5ea2e938",
+      "tests": 27,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testStoreDebugUnitTest/TEST-io.github.stslex.workeeper.wear.runtime.DebugSnapshotDriverTest.xml",
+      "sha256": "788cbfad75827ed0943bfcf57e166658aae2cea25d5055c3dbf202326f3b97cd",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testStoreDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearStringCoverageGateTest.xml",
+      "sha256": "2eda3bc0ff5c6a5a7f0f28894216b4aad38c697d9fbecdc0d80b22ae5cc87d75",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testStoreDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearAmbientControllerIntegrationTest.xml",
+      "sha256": "8f62aa10a26404b9d7f4719bda394dcc7c9839e3f34d3bef9f9d5cf9c9b9f8f4",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testStoreDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearOverflowGateRuTest.xml",
+      "sha256": "1a007c4ff09ce136e4ef6a4a4aa9c1c2b4e01d0a46db0fe837f892c2e3d72b44",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testStoreDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearOngoingNoticeTest.xml",
+      "sha256": "4420b4d19140e32648dfd5b5c7efe6aa2f4949c77f239fcc1dd3492c6d04af96",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testStoreDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearAmbientSummaryTest.xml",
+      "sha256": "1a43c209851be03ba3940c3848118a60c952d019106240d79b35774b6683ea46",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testStoreDebugUnitTest/TEST-io.github.stslex.workeeper.wear.runtime.AcceptanceScenarioReceiverTest.xml",
+      "sha256": "96c9b9083b789029d30e069e1af8aed0ae27feda735d13d3087bac0b32c7b534",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testStoreDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearLabelWordBreakGateTest.xml",
+      "sha256": "8ccec0672e5083059f9bebe2c89c7a9a4ec6f0a91da80555e07b14b80c26ffdc",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testStoreDebugUnitTest/TEST-io.github.stslex.workeeper.wear.runtime.WatchRuntimeOwnerTest.xml",
+      "sha256": "efff2b54bf50b5a9cea51a249d08e5fb492c81ede9475485917a72062fe56fff",
+      "tests": 25,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testStoreDebugUnitTest/TEST-io.github.stslex.workeeper.wear.tile.WatchTileRefreshRequiredTest.xml",
+      "sha256": "514d8e7bfca8091e53a3ed609d18a7397e94d195aaa9684b38e5379ad9a72763",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testStoreDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearVisibleBoundsTest.xml",
+      "sha256": "d257f5f14dd75eca180813c6512b586e79cc8f3c701d801109dd5d5e31a5c742",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testStoreDebugUnitTest/TEST-io.github.stslex.workeeper.wear.cache.CacheFramingTest.xml",
+      "sha256": "cda823201aa6cb0052e1571c8a58dede581d62c007f4ff35373c952353da2f53",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testStoreDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearWeightRotaryDraftTest.xml",
+      "sha256": "8c24734a71bd2612310ff491cc55c2876aa2a48cec2cf05ffadddc2333d5c480",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testStoreDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearTouchTargetGateRuTest.xml",
+      "sha256": "2fafff2cb99dde7f108a94c541ec56aa70f90fb193472bdcee6d0e33ee674186",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testStoreDebugUnitTest/TEST-io.github.stslex.workeeper.wear.runtime.WearRelativeDraftTest.xml",
+      "sha256": "fbeeead0220ccf2cdca9f31eb314fe488db2ee122a1190ea41a8f20cab2e2db4",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testStoreDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearSubmittedDraftProjectionTest.xml",
+      "sha256": "a579847cd03826cf670494b08cecc4b2a040da3c9d808d117c32e41598d6313d",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testStoreDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearRefreshRequiredCompletionTest.xml",
+      "sha256": "4041ab845e95d90f58a265155452c3be175aea3251d7126cf1ea1a92b37f8288",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testStoreDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ambient.WearAmbientControllerTest.xml",
+      "sha256": "ac49931033d850d72ba19216bb546c5b8baf9ab770bd5da1ebd566135039801e",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testStoreDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearValueFormatterTest.xml",
+      "sha256": "d1d139e6239c2dba0e943330208e3832f6e6463e11693b51427dc91ddedde5a0",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testStoreDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearOngoingNoticeRuTest.xml",
+      "sha256": "00251f0ff0d72a0a2273619aaa3446e4362334a239a72ca76f7ddd50ed8e335a",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testStoreDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearUnsetWeightGateTest.xml",
+      "sha256": "5ee6b3589d6c6a44946368b0ad2e6743956fa55a1c8854538b34861d35fd179c",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testStoreDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearRotaryDraftTest.xml",
+      "sha256": "6671f54b711c094c9f4536f6f11ddef382f8191933510fd8afc5208ba48ec777",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testStoreDebugUnitTest/TEST-io.github.stslex.workeeper.wear.tile.WorkoutTileLayoutTest.xml",
+      "sha256": "b472a1020015977fa932add534eca153f4e435c74a15b7ab2c32c00d53f16d70",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testStoreDebugUnitTest/TEST-io.github.stslex.workeeper.wear.runtime.WatchAtomicCacheRecoveryApi33Test.xml",
+      "sha256": "413e68a18a0654326fbdfc86bc66d247f00b7a07f40a4baaf0271f3cce734fe1",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testStoreDebugUnitTest/TEST-io.github.stslex.workeeper.wear.state.WatchWorkoutReducerCommandTest.xml",
+      "sha256": "8365fa7c6f9dd946543aca2f127832f135cce132f24c920c1cee93c27c12998f",
+      "tests": 13,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testStoreDebugUnitTest/TEST-io.github.stslex.workeeper.wear.runtime.WearRuntimeLoggingTest.xml",
+      "sha256": "3ed163f6e896be56e06de1559f663346df9ce5610d0b13dfdc08fb2f089f201a",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testStoreDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearTouchTargetGateTest.xml",
+      "sha256": "ee07f683435698f5df96a4d9775aa7eeefbe7b152c30d6d104c557d01b1ecd46",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testStoreDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearDraftPolicyTest.xml",
+      "sha256": "b70643665b33ea4bacf7f52cb02badc8c1ba371004715fae425cb180150bcc22",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testStoreDebugUnitTest/TEST-io.github.stslex.workeeper.wear.ui.WearAmbientSummaryRuTest.xml",
+      "sha256": "6de57944d7d5b5814493b3204c6ff3041b013c16d0aff32d8687829c1de56723",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testStoreDebugUnitTest/TEST-io.github.stslex.workeeper.wear.mvi.WearStoreLifecycleTest.xml",
+      "sha256": "4f7e3c0a52d480adf8cc9223c007b310b93fc54eedff04e8deaf1a942a214a79",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/settings/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.settings.mvi.handler.BackupClickHandlerTest.xml",
+      "sha256": "862f3ae9d0266097983725b466dbb5ffed3258dda19cdbda9a852f8b3257e12a",
+      "tests": 52,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/settings/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.settings.mvi.handler.SettingsInputHandlerTest.xml",
+      "sha256": "b32c1c0c2808d7f4530dd41d94af3c2a3bd7fb6892eb22da9ba31d760569095a",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/settings/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.settings.mvi.handler.SettingsClickHandlerTest.xml",
+      "sha256": "85e94ae9c2aa9cb54fb6d05e3b2414e9f41f2e266fa783b8c2c689fd55b845ba",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/settings/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.settings.mvi.mapper.BackupDateMapperTest.xml",
+      "sha256": "7fefc3b81d58ce20b83a1b4efb1a8ce6463a58f4d3235a617ee0294c5066c7be",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/settings/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.settings.mvi.handler.SettingsNavigationHandlerTest.xml",
+      "sha256": "1230afe538d87c4d63ba8e6006cfccc18d1fdca97affc690e420863ba4325c1f",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/settings/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.settings.mvi.mapper.BackupUiMapperTest.xml",
+      "sha256": "c56ab868bac63ea5116e4c35cab0075f96b584eded508ef272ed93f6765220ed",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/settings/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.settings.domain.BackupInteractorImplTest.xml",
+      "sha256": "cd141c99927a23d3d3426f744804ff252a8689e51218defcac43df7207d71d6f",
+      "tests": 32,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/settings/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.settings.mvi.mapper.StartCardModeMapperTest.xml",
+      "sha256": "3df64e6344879eaa5676df3fa5bdd4f82292694bfcaa51b68a6c6f46fd13acc0",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/settings/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.settings.domain.SettingsInteractorImplTest.xml",
+      "sha256": "575799dd476cb024f82b0551a083a8471c05be65097c68da627db58e40003cd1",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/settings/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.settings.ui.SettingsStartCardModeSheetTest.xml",
+      "sha256": "5393cb4d11a9ef8cb09e7c089a210d09cbd30cd4df1b0dd202d8496fb3620851",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/home/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.home.ui.components.HomePagingTailKindTest.xml",
+      "sha256": "e86c3b488b9724373f0b0745284ce6ddf144337092ee1f9535795a988ff06fd8",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/home/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.home.mvi.mapper.StartCardModeMapperTest.xml",
+      "sha256": "81b3b5ae11f98d1eda80383827a30a2f1cb225ff451505862d4378beb0a67fb4",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/home/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.home.mvi.mapper.HomeUiMapperTest.xml",
+      "sha256": "8591b4b751f4fafc40cfbeca45159f936a08493e7a3b7c40bdfa3f7249c92da4",
+      "tests": 14,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/home/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.home.ui.components.RecentMetaLineTest.xml",
+      "sha256": "2b72d8004cb7c9a8b2a47f30b48094b01ba28a6c21ae7f7fc9c80f35b9a74a47",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/home/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.home.ui.components.HomeStartCardModeLabelTest.xml",
+      "sha256": "c8ae139575054a4e666ebc32b2767c40ba7f049e9f5a635235006c1bbe810af1",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/home/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.home.ui.components.HomeListSurfaceTest.xml",
+      "sha256": "a55710d12aa7232cb427b24ae01e26fb7d6b7c491c24578b68f09ec3c9038dab",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/home/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.home.mvi.handler.CommonHandlerTest.xml",
+      "sha256": "3aecb6ab64d04a5dfa90f073f66763913308700a88f53b4664fb550d4f41f9d1",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/home/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.home.mvi.store.HomeStartCardSeedTest.xml",
+      "sha256": "bb7a1fc72e3a8cd2ded75ed596ed234f55820afe501004d561886d6b0051da4d",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/home/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.home.mvi.handler.NavigationHandlerTest.xml",
+      "sha256": "78f02f5cec4cb83405cd1dfb283bd2de5439f7c271027e54dabcce4a48d953f5",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/home/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.home.domain.HomeInteractorImplTest.xml",
+      "sha256": "9d7b969d41b1325d495d7e31b46e2110120753d153627818cc1d9fbd026a1a09",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/home/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.home.domain.usecase.ObserveWeekReadoutUseCaseTest.xml",
+      "sha256": "98dd6605f042f5de9de91074bb226b26f6484d3e55ad826afae6658a36f53fa1",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/home/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.home.domain.usecase.ObserveStartCardReadoutUseCaseTest.xml",
+      "sha256": "a17a5244656d678fb77c0a9c9c7ebd2737b9aa3683e158292cc3888a888b840e",
+      "tests": 9,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/home/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.home.mvi.handler.ClickHandlerTest.xml",
+      "sha256": "cd8b3807601bbac6302c6e745abab5c828b95910a6027163688310000b56e5ae",
+      "tests": 16,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/live-workout/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.live_workout.mvi.handler.LiveSetDraftBehaviorTest.xml",
+      "sha256": "9136376c1c4c11faf42b5d6666d3044139915ee89a3baba3fdd11f701b81428a",
+      "tests": 10,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/live-workout/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.live_workout.mvi.handler.DialogClickHandlerTest.xml",
+      "sha256": "90ad324a339c91d6f245335033291004b0e7fcb22a6a2e809779d8558a864b4b",
+      "tests": 28,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/live-workout/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.live_workout.mvi.handler.CommonHandlerComposeResourceTest.xml",
+      "sha256": "d7d77fd2460fe3a5c7f6502893e802335fc2a693fd65a8bb1e8284930a5f1074",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/live-workout/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.live_workout.mvi.handler.NavigationHandlerTest.xml",
+      "sha256": "2e18aebe14d532b0054ac363f96f825d6282b405dec3f3cc906a6e99ea54464c",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/live-workout/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMapperReloadTest.xml",
+      "sha256": "2facf09d43bb73021f2d2130294953d52e4ea6deacb82e20e3816273f468c869",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/live-workout/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.live_workout.gate.LiveSetRowOverflowGateTest.xml",
+      "sha256": "53083d39bd0c7b44670f066233bb56646eb19ca737d7836395339b7cd251b2df",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/live-workout/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.live_workout.mvi.mapper.StateStatusMapperTest.xml",
+      "sha256": "a15d0bcfe87f34da140aeefb1cf3b9ba7d48174892877e6b0bf192ab82ead0cd",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/live-workout/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveSetVisibleRowsResolverTest.xml",
+      "sha256": "49572e0a080eca212f9beefc5aed21ebf9c04ef947b72c3eb3f93f7f1c4332bd",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/live-workout/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMapperTest.xml",
+      "sha256": "58e180b8da315ea2f9b5f48b0a783c96faef4f9d59f50c5f457b76f54fd73ab4",
+      "tests": 20,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/live-workout/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.live_workout.mvi.mapper.ExerciseDoneRuleTest.xml",
+      "sha256": "3e8c2926c23bec8035aa7d65407d35838377f37a58c029e043cbb264627722b7",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/live-workout/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractorImplTest.xml",
+      "sha256": "2bb024356df2837d5c401451a6e5616a2f35cb6997797748cb9d7ed44b94981a",
+      "tests": 26,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/live-workout/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.live_workout.mvi.handler.ExercisePickerHandlerTest.xml",
+      "sha256": "1d88545a40c0f14ffbaaa1a1344067498898fa1bc7c4377ff054e82b5077f665",
+      "tests": 12,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/live-workout/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.live_workout.ui.components.LiveSetRowSemanticsTest.xml",
+      "sha256": "3afbc2b4b69e643761578856026654a83822eaed40329e678a48b69ec57e1cc8",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/live-workout/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.live_workout.mvi.handler.ClickHandlerTest.xml",
+      "sha256": "df5db7be5bfcdb3b7b00ca33400cd61d09bfe150ec1ee37db3ef8ac18374e11a",
+      "tests": 16,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/live-workout/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.live_workout.mvi.mapper.DeleteExerciseCopyMapperTest.xml",
+      "sha256": "d1d3b4008712958de470ce07f9869052a0a353c01a5910d32703d0897bcaa9f2",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/live-workout/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.live_workout.mvi.model.UnfilledSetTest.xml",
+      "sha256": "f3afeebd2381201de4a4e9fc30de1d0e12ae7fe58f825db24848df2079164eca",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/live-workout/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStateRouteArgTest.xml",
+      "sha256": "c4d50cd0a49d226c7b7cf3022f041697d7d788ad8fcf5066628fe5b628ec645b",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/live-workout/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveSetMutatorTest.xml",
+      "sha256": "5498201fdaf0063199fb8e7b0828ef9191a8a27cb4105f9fd0d257e780249a3c",
+      "tests": 27,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/live-workout/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.live_workout.mvi.handler.CommonHandlerComposeResourceRuTest.xml",
+      "sha256": "d6eaaeb3deee8058f4f4822db9be3d77641d0b96c490b6cb28bd5828694a4dc4",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/live-workout/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.live_workout.mvi.handler.InputHandlerTest.xml",
+      "sha256": "ee60bee3e5204f3064a0bf0dc9aedc23c113ad4217024bb88f020c5b9ef0743e",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/live-workout/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.live_workout.gate.SetColumnAlignmentGateTest.xml",
+      "sha256": "cdb0b411fca4d74b8cf6250459a43f528cbc58b50db73d46afb2fd872685f700",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/live-workout/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.live_workout.mvi.handler.CommonHandlerTest.xml",
+      "sha256": "ae398f62593321e22fb9cefd24a8bc417075504aff2e388da5f0759a19b540b1",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/archive/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.archive.ui.components.PagingTailKindTest.xml",
+      "sha256": "7a59d0b777ba1d706f69c26f7d6d398948fb72b03060351d8bc060b08d747e87",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/archive/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.archive.mvi.mapper.ArchiveMetaLineTest.xml",
+      "sha256": "95701e907ad96db7111774ed33f3937e913e1e84c55f9d6f46d4a1340f601607",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/archive/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.archive.mvi.handler.ArchivePagingHandlerTest.xml",
+      "sha256": "60b5395702e793dac4a2a97712ac242205dd1fe2ae299a1d62e0dc877b718622",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/archive/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.archive.ui.components.ArchiveListSurfaceTest.xml",
+      "sha256": "ae278c5389ec343ef118f702e40af888da1bb0a2d66a86f2511c7588ca12feac",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/archive/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.archive.mvi.handler.ArchiveClickHandlerTest.xml",
+      "sha256": "7df77896a13816653d0f12fb6c5e537c71159b02bac0bef7f74e5346bd0e557e",
+      "tests": 9,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/all-trainings/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.all_trainings.mvi.handler.ClickHandlerTest.xml",
+      "sha256": "a8fa45ea122b722af02ca2a5975e11686b45c6852b0a831ed7c0de6fe1e6031c",
+      "tests": 18,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/all-trainings/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.all_trainings.mvi.handler.NavigationHandlerTest.xml",
+      "sha256": "b1d43b1c77e3bdc9a61823e3f0769ac8b232091016c6e198a10e494be9aaf775",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/all-trainings/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.all_trainings.ui.AllTrainingsClearanceTest.xml",
+      "sha256": "9ddec167027aaf16a73dc24d61381218e6856d77869cbd750509410c705d114f",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/all-trainings/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.all_trainings.domain.AllTrainingsInteractorImplTest.xml",
+      "sha256": "cb6b87d368ff54bc7a1f07d7c4cf4af40174b65654b8533925fac255eb68ac7b",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/all-trainings/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.all_trainings.mvi.store.StartBlankGateTest.xml",
+      "sha256": "8275bde19630e844965a1f9d85cb55ce861235d74fbfe98b8aef1f961ddfe5a5",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/all-trainings/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.all_trainings.ui.components.TopBarModeTest.xml",
+      "sha256": "42638dcb9f23dbc6ec356d2d5ea815a2b6ec26a954c41da2816d4bacca0a5d44",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/all-trainings/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.all_trainings.ui.components.TrailingSlotKindTest.xml",
+      "sha256": "be02a46c04b7eb85d7a04a90eb90a6fc6dbbb2b3b77bbdfeec09eb057dbaddd4",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/all-trainings/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.all_trainings.ui.components.PagingTailKindTest.xml",
+      "sha256": "2cdb56e579aeebf9d0fe00033111f4cab6133e1f78861798e458833b7144d533",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/all-trainings/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.all_trainings.ui.components.ListSurfaceTest.xml",
+      "sha256": "993c69bdec36985bb73628ef9d2adaca4d5a2f5d816b39ba6f38161ec976c6ee",
+      "tests": 9,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/recovery/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.recovery.domain.ForeignInstallTransferIntegrationTest.xml",
+      "sha256": "45fcf52332c2ae55f84cf5c2753bf9ddbc4b52bb14e57a0b65357822a481da94",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/recovery/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinatorTest.xml",
+      "sha256": "da21886f75bdd2a0ae31479ef44b660a1e4b3ce33ee1f0a0dc95ad81309a55b2",
+      "tests": 59,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/recovery/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.recovery.RecoveryScenarioTest.xml",
+      "sha256": "f4031837e1ee47bcc29cfe9deea0b1ce3d6853e6d9dca2cc05d1b332f4ff52b7",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/recovery/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.recovery.diagnostics.RecoveryDiagnosticsExporterImplTest.xml",
+      "sha256": "fcbec695df20b78c910c285c420516f94b3f784597bad651d16b3ebf692a83ff",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/recovery/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.recovery.RestoreDialogChoiceObserverTest.xml",
+      "sha256": "d4fd2341b358acf2c892cd7f0725b28661a38084e2547c6d640ca61bd4645428",
+      "tests": 9,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/recovery/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.recovery.InterruptedRestoreCheckerTest.xml",
+      "sha256": "1cbcf6d93d7ba0d3387fec55140f905811f68ea0bf250714229ab9577ef09e5e",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/recovery/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.recovery.RecoveryActivityModelTest.xml",
+      "sha256": "137bd202464c8b29b504eb752e1bde4c16dd7017ab7a809a87675613e93eac4e",
+      "tests": 10,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/recovery/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.recovery.domain.StartupMigrationCoordinatorTest.xml",
+      "sha256": "19000be6ab1eb329cbea81b0daffc932b88e756a8fa2c40995985f2840a0d76a",
+      "tests": 9,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/image-viewer/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.feature.image_viewer.mvi.handler.ClickHandlerTest.xml",
+      "sha256": "5b4b01c63cd93396bc6d4293ad3872bb2b01e007b47de31f43256605a70d0ed9",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/image-viewer/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.feature.image_viewer.mvi.handler.CommonHandlerTest.xml",
+      "sha256": "ea01a23ac527edc3152133a4bb7f9e79c9685bb63b9731b612393f36eec6d391",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/image-viewer/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.feature.image_viewer.mvi.handler.NavigationHandlerTest.xml",
+      "sha256": "6782f3a85848dba58752d33b744f8b995e9a54093a764ab060de5ff4af64eb93",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/single-training/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStateRouteArgTest.xml",
+      "sha256": "7e199fd8e067e9ccb5a60849f2c580e77df04feb96c0a63cba22697cc4c51bc2",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/single-training/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.single_training.mvi.handler.ClickHandlerTest.xml",
+      "sha256": "22d3997692018c65a105d069734d5022d9088307da329e2b7a8989f976ed8268",
+      "tests": 47,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/single-training/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.single_training.mvi.handler.CommonHandlerTest.xml",
+      "sha256": "886b1fe68b433207b891d036190d71ccd5118b3bc1055810d05cd411c2502a0b",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/single-training/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.single_training.mvi.handler.NavigationHandlerTest.xml",
+      "sha256": "761bb6fa4fa349f84161cb314eddffef78df086af14e53ccf62238c76e08a4cf",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/app-dialogs/impl/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.app_dialogs.impl.mvi.handler.ChooseHandlerTest.xml",
+      "sha256": "43a4618f4f1240227ca998daaec9558481b5c9aa22ad3b3afa62024d97b9cc87",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/app-dialogs/impl/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.app_dialogs.impl.observer.AppDialogObserverImplTest.xml",
+      "sha256": "4a9d70a21a353d3c10366e9cb815914795541d6ec7ac8fde4a97872e60283af8",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/app-dialogs/impl/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.app_dialogs.impl.mvi.handler.AppDialogRepoHandlerTest.xml",
+      "sha256": "7f426464009933c784e5a5592e820c846a39ef5427db5d531b8b69fd43e7ba4b",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/app-dialogs/impl/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.app_dialogs.impl.domain.AppDialogResolverTest.xml",
+      "sha256": "712679ff5b37dd9a40de3f12b61298892e938cb922336fbee8f5ae0d4ad33d1c",
+      "tests": 12,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/app-dialogs/impl/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.app_dialogs.impl.data.AppDialogRepositoryTest.xml",
+      "sha256": "17dff5c7a19c4840868272952677da24a0cf5d0ee2ddaafba252b12d20e7357d",
+      "tests": 16,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/exercise/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractorImplTest.xml",
+      "sha256": "bbcac7b12c65706e1a9cf5ffc967ce094edf7b697a3b28a33d83f938fdfc5d77",
+      "tests": 9,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/exercise/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.exercise.ui.mvi.handler.CommonHandlerTest.xml",
+      "sha256": "f9c0d47c16f125ce12a63e663218b8d646af3afd2b11818dabe2f37f6162435b",
+      "tests": 11,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/exercise/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.exercise.ui.mvi.handler.NavigationHandlerTest.xml",
+      "sha256": "fb300304622550daebc3eed96af6b253933608e8fd6f951012201c3818237dc2",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/exercise/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.exercise.ui.mvi.handler.InputHandlerTest.xml",
+      "sha256": "2adf60362ee19127c9f65ce6eeafc342cd91bebba9e271fe8ef150f1fcebdff1",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/exercise/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseDirtyStateTest.xml",
+      "sha256": "618c11946330e8b9e56723bc94ef26efc7f4e028d6f2667a4e858d6652e8e98f",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/exercise/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.exercise.ui.mvi.handler.ClickHandlerTest.xml",
+      "sha256": "2ebd1e13a2e12a4e1660af440deaba38fa2addbf09f106599e7960a999a85c75",
+      "tests": 68,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/exercise/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStateRouteArgTest.xml",
+      "sha256": "95d9c553fa4117f87d20a228badcfe42ee712abf39fdcf81543ef461743d956b",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/exercise/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.exercise.ui.mvi.handler.PermanentDeleteUndoLabelRuTest.xml",
+      "sha256": "79db97227a133eff8772ee62dd78648f88ec6940287128dfc1b6c2a21430c4ad",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/exercise/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.exercise.ui.mvi.mapper.ExerciseUiMapperTest.xml",
+      "sha256": "2c04a8b2022e1aa6b0a9eecb2d6ba70ee78cfc1f62db84fc8b5fad4240b491b7",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/exercise/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.exercise.ui.mvi.handler.ExerciseDeferredDeleteDbTest.xml",
+      "sha256": "51e792b1f1455c521873cae07a6bc37c238eaecbcdd50a5d6b7245d6ce62ab5f",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/exercise-chart/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.exercise_chart.mvi.handler.NavigationHandlerTest.xml",
+      "sha256": "846003bf832f37c4dade158935eef0619b8ddb0df819c345cb7561f82b96240b",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/exercise-chart/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.exercise_chart.mvi.handler.ClickHandlerTest.xml",
+      "sha256": "e60eb0769cd80217688fa45912efc2cdcabf76e4b6b862959b2c34ce4c193cff",
+      "tests": 14,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/exercise-chart/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.exercise_chart.domain.ChartFolderPrRuleParityTest.xml",
+      "sha256": "25f7061eaa8f30973b2d566853a6c99129da3a48703128d009c57bba42e8da44",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/exercise-chart/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ChartContentResolutionTest.xml",
+      "sha256": "2805c9c9a738c5d4d8c42bce5701de79563cc8fee253ba764d2000bf51bbcbe6",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/exercise-chart/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.exercise_chart.mvi.mapper.ExerciseChartUiMapperTest.xml",
+      "sha256": "e09d58ef6a5373733a278513f7dd6fafe2812f39e29b0dd6dad1bb5271a45af8",
+      "tests": 9,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/exercise-chart/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.exercise_chart.mvi.handler.CommonHandlerTest.xml",
+      "sha256": "39511855c72ca8baa04a2546a8d287f6a7e19f0f54ac075e69643cfeb22af2f9",
+      "tests": 13,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/exercise-chart/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.exercise_chart.ui.components.ChartPointsAnimationTest.xml",
+      "sha256": "e38a987dced1e3bc5a615fc4e05b8163443eaff0be8fd741bcbd5cf0fad51a21",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/exercise-chart/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.exercise_chart.ui.components.MetricTabsMotionTest.xml",
+      "sha256": "b8bb8e6de311433d5991a457ffafd3d18ae48e4c1fc359c052af2f94bccb1f0a",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/exercise-chart/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.exercise_chart.domain.ChartFolderTest.xml",
+      "sha256": "7854cca9b9e7be2b93bcb656674da4db3063ec7c2132911243095b3cd1b1dcd7",
+      "tests": 27,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/past-session/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.past_session.mvi.mapper.PastSessionUiMapperTest.xml",
+      "sha256": "6169efc18c51f510a035745d0b5a3a6f99bef2eb3918806404e139f27f6db369",
+      "tests": 13,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/past-session/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.past_session.mvi.handler.NavigationHandlerTest.xml",
+      "sha256": "543f7834233aa78ccbeac92e20d1326547bfdf49ec5022a6ab1e5b956f868db2",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/past-session/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.past_session.mvi.handler.InputHandlerTest.xml",
+      "sha256": "558b8e9bfb92f1bddd310edb622735b55b856bd8763033e6ffc0898ba0ebedf0",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/past-session/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.past_session.gate.PastSetRowOverflowGateTest.xml",
+      "sha256": "2b00028160afc1576e2d528decc0451550345a2f3b12646d899617ea1391f311",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/past-session/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.past_session.mvi.handler.CommonHandlerTest.xml",
+      "sha256": "a4d51c3b7d343ac0e46e327f28b5904516c436adcbb07f1027b25366b7b2a65a",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/past-session/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.past_session.domain.PastSessionInteractorImplTest.xml",
+      "sha256": "61ce4769726db5444d9edd7c75eff8283160d8785c5f01e0aa489bf86ee99a85",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/past-session/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.past_session.mvi.handler.ClickHandlerTest.xml",
+      "sha256": "7e663d48792381b17af4dbff97affa82fb6023abd3ca1a8885f5d932f8183707",
+      "tests": 11,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/plan-editor/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.feature.plan_editor.mvi.handler.CommonHandlerTest.xml",
+      "sha256": "f3b5bf1d2f06a5f11cd6e4a6578125dd9baba3dc601238d16d603bb616b4031b",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/plan-editor/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorStateRouteArgTest.xml",
+      "sha256": "ef0cb7bd53a93a9b83a9cf618baf5ad757a8c9aa1dba248b146347f439c21ab5",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/plan-editor/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.feature.plan_editor.model.SetTypeUiModelTest.xml",
+      "sha256": "7a144517517044a02abb36903d57af60b8db9df66920eeb81d287c32a5439367",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/plan-editor/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.feature.plan_editor.mappers.PlanEditorMapperTest.xml",
+      "sha256": "fc4fdc89629e971aa591a14613ff40ab3f6107172c7d583f8696005fd4afb3d0",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/plan-editor/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.feature.plan_editor.mvi.handler.NavigationHandlerTest.xml",
+      "sha256": "b8eba798b485c23a560ef71a425b128d9bcbc3de1741bf493ae5a226bdc51303",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/plan-editor/build/test-results/testAndroidHostTest/TEST-io.github.stslex.workeeper.feature.plan_editor.mvi.handler.ClickHandlerTest.xml",
+      "sha256": "6455cdc77840ed329c84c6c4e5abcb66f698f99dbf69e3e289c106e74c76f126",
+      "tests": 23,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/all-exercises/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.all_exercises.ui.components.TopBarModeTest.xml",
+      "sha256": "6f0830e67e011a7994dcbf78a9ab192b47f9fa18306048d45f10293959eac769",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/all-exercises/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.all_exercises.mvi.mapper.AllExercisesUiMapperTest.xml",
+      "sha256": "d2b90a53771d5533abe56aaa78cc9a235033c025a5a032b83ef76964a44c55f2",
+      "tests": 11,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/all-exercises/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.all_exercises.ui.AllExercisesClearanceTest.xml",
+      "sha256": "173af0dad828e4cbbe9820380f0a40a9117996392f9fbba6fd5963a6a7f35538",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/all-exercises/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.all_exercises.ui.components.PagingTailKindTest.xml",
+      "sha256": "46895ab2923c02cb508571c51f88256ed456b4a67b602433d9df7e11a5e9210c",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/all-exercises/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.all_exercises.mvi.handler.ClickHandlerTest.xml",
+      "sha256": "230f16077b72f12a5e9bb3e02a4cb5901fd2f91e70f748d16a2d2b85b16b6c84",
+      "tests": 24,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/all-exercises/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.all_exercises.domain.AllExercisesInteractorImplTest.xml",
+      "sha256": "57a2172d89412813431c51d7d79f1b2c91b51eeb8c65213eff05cbfb047aeed0",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/all-exercises/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.all_exercises.ui.components.TrailingSlotKindTest.xml",
+      "sha256": "baccec336b8098f58b24b67ac75c94b81706029bc4b38c91d1d1423a0b34481b",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/all-exercises/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.all_exercises.ui.components.ListSurfaceTest.xml",
+      "sha256": "cb914fbcf5256e75641baa2b607a174fe3546736157aa70bfb36b6f20e55712f",
+      "tests": 9,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/all-exercises/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.all_exercises.mvi.handler.PagingHandlerTest.xml",
+      "sha256": "fb860ed7159688120c1c4a704da8b37610fa84af62d4bc263e44c30345738134",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/all-exercises/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.all_exercises.mvi.handler.NavigationHandlerTest.xml",
+      "sha256": "68c03eb7f1092cdce5010560ce666b73d1d66a76878d550af4c3875f7a8bd27d",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/wear-bridge/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.wear_bridge.PhoneWorkoutBridgeImplTest.xml",
+      "sha256": "ce17df9dbe3ae4a472c9d4e3cf06d7ebe1598954f195d23e2d6ac37d7932621a",
+      "tests": 38,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "feature/wear-bridge/build/test-results/testDebugUnitTest/TEST-io.github.stslex.workeeper.feature.wear_bridge.WearBridgeWorkLeaseTest.xml",
+      "sha256": "2d1dc4d2df70ef2d4aaec4f14e3f5f4d9f98a9bf5ebb9f143ce7bc29fbf2b49a",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    }
+  ],
+  "counts": {
+    "tests": 2905,
+    "failures": 0,
+    "errors": 0,
+    "skips": 0
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "command": [
+    "./gradlew",
+    ":app:wear:assembleStoreRelease",
+    ":app:wear:testDevReleaseUnitTest",
+    "--tests",
+    "*ReleaseRuntimeBoundaryTest*",
+    "-Pandroid.onlyEnableUnitTestForTheTestedBuildType=false",
+    "--rerun-tasks",
+    "--no-build-cache",
+    "--no-configuration-cache",
+    "--no-parallel",
+    "--console=plain"
+  ],
+  "cwd": "/private/tmp/workeeper-wear-stack-validation-20260926",
+  "started_epoch": 1790469857.730247,
+  "exit_code": 0,
+  "finished_epoch": 1790469954.524738,
+  "task_summaries": [
+    [
+      "234",
+      "234",
+      ""
+    ]
+  ],
+  "all_executed": true,
+  "xml": [
+    {
+      "path": "app/wear/build/test-results/testDevReleaseUnitTest/TEST-io.github.stslex.workeeper.wear.runtime.ReleaseRuntimeBoundaryTest.xml",
+      "sha256": "2f58ae323818ca4fef081b80b1fbe6cf035a544fbda5a71c80ea39e62594d3bd",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    }
+  ],
+  "counts": {
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "skips": 0
+  }
+}

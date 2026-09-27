@@ -1,0 +1,45 @@
+{
+  "scope": "Owner-authorized ignored build output and unused Gradle transforms only. Sources, worktrees, AVDs and evidence retained. About 32.3 GiB cumulative observed removal; not current free space.",
+  "raw_manifests": [
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/cleanup-summary.md",
+      "sha256": "a462a8071b953f18a4a361d2586475b34a87627a7840e1a91607195aaf881feb",
+      "bytes": 2336
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/cleanup-old-builds-manifest.json",
+      "sha256": "b7dd8142b8dd736a89bb6b616eec3c46c5fcb691a4390b23d64196239bb8a3fb",
+      "bytes": 390674
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/cleanup-plan-editor-builds-manifest.json",
+      "sha256": "271557f74a273d7c39c459ed5ce8a7f3a30d87d865e225f9d5a44f7879d78895",
+      "bytes": 407167
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/cleanup-main-builds-manifest.json",
+      "sha256": "51cfb6c87017d20c469eb748c395a8ae7cdaaaa7226d1fc8bb731a694e1f0528",
+      "bytes": 526235
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/cleanup-legacy-builds-manifest.json",
+      "sha256": "602eaf105703fd47c9c6647663d755c5c53ca62c5cb05b5cb0a0e7e97ab62809",
+      "bytes": 817733
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/cleanup-unused-transforms-manifest.json",
+      "sha256": "08073e98368e2a0fcab935e76c6fe08bd3e6eba55753e598de47c48c612a259f",
+      "bytes": 5999059
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/cleanup-completed-validation-intermediates.json",
+      "sha256": "19c384abb5809cd3b4bb19c9943d30c55d2fc974e5a92fc23b606d79055ad598",
+      "bytes": 983153
+    }
+  ],
+  "retained_files_verified": [
+    6969,
+    4462,
+    5400
+  ]
+}

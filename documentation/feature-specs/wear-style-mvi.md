@@ -30,9 +30,11 @@ changing notification permission, publishing ongoing activity or terminating the
 ## Delivery and evidence
 
 Four stacked changes cover shared resources and dependencies, presentation/rotary, final-font
-geometry, then system Tile and complete emulator acceptance. The Tile freshness defect remains
-open until the real system Tile updates following persisted state changes. Updating a preview
-does not close it. ProtoLayout uses supported system fonts with the shared colour roles.
+geometry, then system Tile and emulator acceptance. Tile freshness acceptance requires the real
+system Tile to update following persisted state changes; a preview is insufficient. ProtoLayout
+uses supported system fonts with the shared colour roles. The dated ledger and
+[final scoped report](../wear-emulator-acceptance/reports/2026-09-27-style-mvi/README.md) distinguish
+completed native observations from asynchronous platform scheduling and remaining hardware limits.
 
 Required matrix: API30/36 × round192/240dp × EN/RU × font1.0/1.24. Values, primary action and
 blocking reason must be visible before scrolling; details remain reachable after scrolling.
@@ -220,3 +222,19 @@ The platform adapter now falls back to public system Settings and uses the exist
 error boundary if both routes fail. Eight targeted tests pass with 106 executed tasks.
 The final corrected APK and its UI matrix require separately bound fresh evidence; the
 `5920e1ee` timed observations must not be relabelled as results from the corrected APK.
+
+2026-09-27 corrected-source acceptance: application `6164203f` passed the fresh serial root
+build/lint/unit gate (2,917 tests; 2,360 executed tasks), repository-wide test APK build (2,169 executed tasks),
+signed StoreRelease/runtime guard (234 executed tasks) and separate Detekt (63 executed tasks). Three named
+Settings controls reached assertion RED and restored exact bytes; 11 restored tests passed.
+The corrected UI matrix selects 16 cells / 352 invocations with native/Compose/bounds and sampled
+motion review. One additional 22-invocation attempt retains BLOCKED native visual status because
+system Hello obscured six captures; a separate complete repeat supplies that cell.
+
+Actual notification denial/Settings/Back/restoration, StoreDebug's declared nine-invocation subset
+and release boundaries passed on both APIs. Three full corrected inventories remain BLOCKED
+because they do not contain every declared subject. Source `5920e1ee` timed and native
+Tile observations retain their original 69 PASS / 2 BLOCKED / 1 FAIL and qualified repetitions; 256 selected
+runtime/UI/test/resource files are byte-identical across the two application versions. They are
+not represented as source `6164203f` reruns. Full phone Firebase SDKs and platform keys remain enabled;
+only synthetic/debug data was used. See the final scoped report for raw hashes, limits and CI.

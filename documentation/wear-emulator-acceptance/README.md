@@ -14,6 +14,11 @@ reconnect policy.
 
 ## Scope and evidence status
 
+The [27 September shared-style/MVI report](reports/2026-09-27-style-mvi/README.md) records the
+implemented stack, corrected 16-cell UI matrix, actual Settings correction, qualified source `5920e1ee`
+long-duration observations and separate full-cohort BLOCKED statuses. Its results do not rewrite
+the historical failures or claim physical-watch acceptance.
+
 The tools and receiver are acceptance instrumentation. Their presence does not mean that
 the emulator matrix has run or passed. Use the generated receipts and report for execution
 status; retain failed attempts and their raw artifacts.

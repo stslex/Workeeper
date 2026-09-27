@@ -1,0 +1,381 @@
+{
+  "schema": 1,
+  "at": "2026-09-27T02:21:21.111364+00:00",
+  "status": "COMPLETE_FOR_CORRECTED_UI_AND_PLATFORM_SCOPE",
+  "source_head": "6164203f3018cdfc091045c69d3aa0ff78423fde",
+  "apk_manifest": {
+    "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-apks/manifest.json",
+    "sha256": "92eddb1fc9d3e7b10e90a1e9c53b909f50b26057ff38ef9ef4d29146f13ea759",
+    "bytes": 2607
+  },
+  "fresh_dev_ui_cells": [
+    {
+      "cell": "api30-192-en-1.00",
+      "status": "PASS",
+      "invocations": 22,
+      "device_receipt": {
+        "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-dev-cohort/cases/ui/api30-192-en-1.00/receipt.json",
+        "sha256": "03fab72b15a17211109088dcfbaec590492eab7b0d01ecae6581b0ed87364bb6",
+        "bytes": 226063
+      },
+      "operator_review": {
+        "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-operator-visual-api30-192-en-1.00/operator-review.json",
+        "sha256": "12a5d98cf9d90c0b6f03d3f7469a7b99df33d620a42072d667ccbee4c917bc73",
+        "bytes": 6467
+      },
+      "identical_rgba_images": 115,
+      "separately_reviewed_differing_images": 6
+    },
+    {
+      "cell": "api30-192-en-1.24",
+      "status": "PASS",
+      "invocations": 22,
+      "device_receipt": {
+        "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-dev-cohort/cases/ui/api30-192-en-1.24/receipt.json",
+        "sha256": "3d352360b426b1f36e0fb00cacb33aee613c4a7e518d31ca6433267466331523",
+        "bytes": 226178
+      },
+      "operator_review": {
+        "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-operator-visual-api30-192-en-1.24/operator-review.json",
+        "sha256": "92db386911b918e0d5dc1e1a4ddf4bf0d64390d56673652b58cdc642aa5bb5f6",
+        "bytes": 6768
+      },
+      "identical_rgba_images": 115,
+      "separately_reviewed_differing_images": 6
+    },
+    {
+      "cell": "api30-192-ru-1.00",
+      "status": "PASS",
+      "invocations": 22,
+      "device_receipt": {
+        "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-dev-cohort/cases/ui/api30-192-ru-1.00/receipt.json",
+        "sha256": "094429a882eab581fd0a75db5e9b0b7a4e59cddbea94c869fd3a2538e0214b3d",
+        "bytes": 226097
+      },
+      "operator_review": {
+        "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-operator-visual-api30-192-ru-1.00/operator-review.json",
+        "sha256": "b8a1581229e8d443a43806ea79d2c6ea9e0f5bd23f16109647d43d5a18e18421",
+        "bytes": 6473
+      },
+      "identical_rgba_images": 115,
+      "separately_reviewed_differing_images": 6
+    },
+    {
+      "cell": "api30-192-ru-1.24",
+      "status": "PASS",
+      "invocations": 22,
+      "device_receipt": {
+        "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-dev-cohort/cases/ui/api30-192-ru-1.24/receipt.json",
+        "sha256": "bbd97848c2633b7825e08706a8fc49331ee889ab9c293d0d315f5a2c6489992a",
+        "bytes": 226175
+      },
+      "operator_review": {
+        "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-operator-visual-api30-192-ru-1.24/operator-review.json",
+        "sha256": "e7afc34d469a87e93319295e3e3f1645faff1de4b5cffb04bd433b7bf92e8be4",
+        "bytes": 6768
+      },
+      "identical_rgba_images": 115,
+      "separately_reviewed_differing_images": 6
+    },
+    {
+      "cell": "api30-240-en-1.00",
+      "status": "PASS",
+      "invocations": 22,
+      "device_receipt": {
+        "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-dev-cohort/cases/ui/api30-240-en-1.00/receipt.json",
+        "sha256": "f49749402c88db7458b10761243a4665c241ae66007159011d7ff70a1af819d8",
+        "bytes": 226034
+      },
+      "operator_review": {
+        "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-operator-visual-api30-240-en-1.00/operator-review.json",
+        "sha256": "df546ea5e3e4556c279d538895e97b5eb486fc1047427bb735911a5f8c422491",
+        "bytes": 7001
+      },
+      "identical_rgba_images": 115,
+      "separately_reviewed_differing_images": 6
+    },
+    {
+      "cell": "api30-240-en-1.24",
+      "status": "PASS",
+      "invocations": 22,
+      "device_receipt": {
+        "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-dev-cohort/cases/ui/api30-240-en-1.24/receipt.json",
+        "sha256": "69fcc8ee345cbc33c4eed2755f68204d5bb11a23f06f23a5250ebb4126937a9f",
+        "bytes": 226168
+      },
+      "operator_review": {
+        "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-operator-visual-api30-240-en-1.24/operator-review.json",
+        "sha256": "0cc3115b45d06e1a535bf14cfa3a951a0a6ced420d95c9f4f99dde8f5ca19c99",
+        "bytes": 6800
+      },
+      "identical_rgba_images": 115,
+      "separately_reviewed_differing_images": 6
+    },
+    {
+      "cell": "api30-240-ru-1.00",
+      "status": "PASS",
+      "invocations": 22,
+      "device_receipt": {
+        "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-dev-cohort/cases/ui/api30-240-ru-1.00/receipt.json",
+        "sha256": "526e1e5e2f936da2b69e62d7ac711d161d689c0b1dcfd25c85654e3f3d8732e4",
+        "bytes": 226090
+      },
+      "operator_review": {
+        "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-operator-visual-api30-240-ru-1.00/operator-review.json",
+        "sha256": "bb490521bf87cf12e63a5ccdb158e3e4416f8e045b91e42ce104e0374ee027c0",
+        "bytes": 6853
+      },
+      "identical_rgba_images": 114,
+      "separately_reviewed_differing_images": 7
+    },
+    {
+      "cell": "api30-240-ru-1.24",
+      "status": "PASS",
+      "invocations": 22,
+      "device_receipt": {
+        "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-dev-cohort/cases/ui/api30-240-ru-1.24/receipt.json",
+        "sha256": "664bee038485703fe2e7130335f757096150e4e6c3fee9ad3699bb614c887547",
+        "bytes": 226168
+      },
+      "operator_review": {
+        "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-operator-visual-api30-240-ru-1.24/operator-review.json",
+        "sha256": "34ddba269fc0c2961a72ba01b8eb9a77af2f9ac6d2655da8b7fc41115a7942d7",
+        "bytes": 6628
+      },
+      "identical_rgba_images": 115,
+      "separately_reviewed_differing_images": 6
+    },
+    {
+      "cell": "api36-192-en-1.00",
+      "status": "PASS",
+      "invocations": 22,
+      "device_receipt": {
+        "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-ui-repeat-cohort/cases/ui/api36-192-en-1.00/receipt.json",
+        "sha256": "080d4af8b3c16c6a4f728f5cdd23f845cf4a1c5d8e6816df1cf2aa6c9c2b224d",
+        "bytes": 244329
+      },
+      "operator_review": {
+        "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-repeat-operator-visual-api36-192-en-1.00/operator-review.json",
+        "sha256": "e3db4486167e4ee5e0ff8b93ef188e7a9039214c2b9c75f5f254cf4149335384",
+        "bytes": 7441
+      },
+      "identical_rgba_images": 104,
+      "separately_reviewed_differing_images": 17
+    },
+    {
+      "cell": "api36-192-en-1.24",
+      "status": "PASS",
+      "invocations": 22,
+      "device_receipt": {
+        "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-dev-cohort/cases/ui/api36-192-en-1.24/receipt.json",
+        "sha256": "b149d08c1b6dc64bf61da9d42fcf19dea578f7625aa3b486757734beca22a0dc",
+        "bytes": 244415
+      },
+      "operator_review": {
+        "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-operator-visual-api36-192-en-1.24/operator-review.json",
+        "sha256": "22c0120756a92675392f2489a7ca786c9306b4718422ac0ece2f5730ca68cf2b",
+        "bytes": 7390
+      },
+      "identical_rgba_images": 105,
+      "separately_reviewed_differing_images": 16
+    },
+    {
+      "cell": "api36-192-ru-1.00",
+      "status": "PASS",
+      "invocations": 22,
+      "device_receipt": {
+        "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-dev-cohort/cases/ui/api36-192-ru-1.00/receipt.json",
+        "sha256": "02773669d97b0fe0be30eb2d40a1dbdf0168d2c769eec86d00e0e76f54c88790",
+        "bytes": 244332
+      },
+      "operator_review": {
+        "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-operator-visual-api36-192-ru-1.00/operator-review.json",
+        "sha256": "bad30a9b51b164653e3d062dbde1726541f18fd3357ea57c1b65a8962bd83225",
+        "bytes": 7393
+      },
+      "identical_rgba_images": 106,
+      "separately_reviewed_differing_images": 15
+    },
+    {
+      "cell": "api36-192-ru-1.24",
+      "status": "PASS",
+      "invocations": 22,
+      "device_receipt": {
+        "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-dev-cohort/cases/ui/api36-192-ru-1.24/receipt.json",
+        "sha256": "a5822abb581efb1f4ec72dc7664606463687bedb370ba8dc5dd15dd59dc17e9f",
+        "bytes": 244411
+      },
+      "operator_review": {
+        "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-operator-visual-api36-192-ru-1.24/operator-review.json",
+        "sha256": "6767007b799ec3ba031f0facb8299da4578b4e2d8252e5efceeb0d810229c50c",
+        "bytes": 7389
+      },
+      "identical_rgba_images": 107,
+      "separately_reviewed_differing_images": 14
+    },
+    {
+      "cell": "api36-240-en-1.00",
+      "status": "PASS",
+      "invocations": 22,
+      "device_receipt": {
+        "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-dev-cohort/cases/ui/api36-240-en-1.00/receipt.json",
+        "sha256": "a1e220648eedc3eb594811d6b9070028df215a46cbd9e7b4600e081a1b078e85",
+        "bytes": 244327
+      },
+      "operator_review": {
+        "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-operator-visual-api36-240-en-1.00/operator-review.json",
+        "sha256": "c79e22f80dbbd8cdf8fd0b13bdeb5c698c2cf32b8c7456a234083c982e282817",
+        "bytes": 7489
+      },
+      "identical_rgba_images": 107,
+      "separately_reviewed_differing_images": 14
+    },
+    {
+      "cell": "api36-240-en-1.24",
+      "status": "PASS",
+      "invocations": 22,
+      "device_receipt": {
+        "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-dev-cohort/cases/ui/api36-240-en-1.24/receipt.json",
+        "sha256": "2c9c822f8856957579762b77b06ea2f3375780842accbfb8170296f45ea9eb93",
+        "bytes": 244408
+      },
+      "operator_review": {
+        "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-operator-visual-api36-240-en-1.24/operator-review.json",
+        "sha256": "699a1d83d82e155f77dd31c40adaff891aabb59beb816117f08c4bbf909a3cec",
+        "bytes": 7596
+      },
+      "identical_rgba_images": 106,
+      "separately_reviewed_differing_images": 15
+    },
+    {
+      "cell": "api36-240-ru-1.00",
+      "status": "PASS",
+      "invocations": 22,
+      "device_receipt": {
+        "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-dev-cohort/cases/ui/api36-240-ru-1.00/receipt.json",
+        "sha256": "faa435765fcc2a96045700ef7e8c4296a30b28241aa4e71e9a3edfbfbd6826a5",
+        "bytes": 244325
+      },
+      "operator_review": {
+        "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-operator-visual-api36-240-ru-1.00/operator-review.json",
+        "sha256": "12388de31f648f533f1e660822c2a9371b706d1e839934742e211be97bf71d91",
+        "bytes": 7318
+      },
+      "identical_rgba_images": 107,
+      "separately_reviewed_differing_images": 14
+    },
+    {
+      "cell": "api36-240-ru-1.24",
+      "status": "PASS",
+      "invocations": 22,
+      "device_receipt": {
+        "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-dev-cohort/cases/ui/api36-240-ru-1.24/receipt.json",
+        "sha256": "33dfe265cbfe2c999a084a1cad179956d951ffb15e60681ad846d6eedc4272a8",
+        "bytes": 244409
+      },
+      "operator_review": {
+        "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-operator-visual-api36-240-ru-1.24/operator-review.json",
+        "sha256": "a467fd39dc2226e94f76f2a5dc9218a4bea021ac66e0da06bccb0eff7394fe89",
+        "bytes": 7630
+      },
+      "identical_rgba_images": 106,
+      "separately_reviewed_differing_images": 15
+    }
+  ],
+  "fresh_manual_subjects": [
+    {
+      "case": "manual/api30/notification-denial-restoration",
+      "status": "PASS",
+      "reason": "Actual native denial, two app-button public Settings fallbacks and same Activity/PID Back return; native grant alone does not renew ongoing, fresh event does, terminal removes it. Original592 FAIL retained separately.",
+      "receipt": {
+        "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-dev-cohort/cases/manual/api30/notification-denial-restoration/receipt.json",
+        "sha256": "75ffdd07e8d64b0f115cc1f3d0066f5f141b6ec5a48fcb8127130ef21a1574d9",
+        "bytes": 5212
+      }
+    },
+    {
+      "case": "manual/api30/store-debug-parity",
+      "status": "PASS",
+      "reason": "PASS for the declared nine-invocation StoreDebug 192dp/RU/1.24 smoke subset and fresh headless refresh/disconnect/terminal transitions. Original native/Compose PNGs and all listed sampled motion sheets inspected. Full Store cell remains BLOCKED/partial. Draft background-death restoration was not repeated on corrected source616; its source592 evidence is separately qualified by unchanged runtime bytes.",
+      "receipt": {
+        "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-dev-cohort/cases/manual/api30/store-debug-parity/receipt.json",
+        "sha256": "a571413425501c21220caf7ed3c5cc7148c5e3bde0986200b6f8f12488f093af",
+        "bytes": 2012
+      }
+    },
+    {
+      "case": "manual/api30/release-boundary",
+      "status": "PASS",
+      "reason": "PASS for corrected signed StoreRelease ordinary/debug-extra launches remaining read-only Connecting, installed acceptance receiver absent, and explicit debug broadcast not acknowledged. Corrected StoreDebug/test restored and Dev APK hash unchanged. Not a Firebase delivery, crash-console, performance, or real-phone transport observation.",
+      "receipt": {
+        "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-dev-cohort/cases/manual/api30/release-boundary/receipt.json",
+        "sha256": "2323a8409895eee9ffbe17d302abe1a03ad1df324778f6e883503ad0c2cfb1ba",
+        "bytes": 1942
+      }
+    },
+    {
+      "case": "manual/api36/notification-denial-restoration",
+      "status": "PASS",
+      "reason": "Two actual native permission denials, two app-button per-app Settings routes and same Activity/PID Back return. Actual native grant alone does not renew ongoing; fresh admitted state does; terminal removes. Initial shell setup explicitly qualified.",
+      "receipt": {
+        "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-dev-cohort/cases/manual/api36/notification-denial-restoration/receipt.json",
+        "sha256": "85d376a8945cf95392c48aaca77376e84a259683fc115f7c164f1d3403c36910",
+        "bytes": 3933
+      }
+    },
+    {
+      "case": "manual/api36/store-debug-parity",
+      "status": "PASS",
+      "reason": "PASS for the declared nine-invocation StoreDebug 192dp/RU/1.24 smoke subset and fresh headless refresh/disconnect/terminal transitions. Original native/Compose PNGs and all listed sampled motion sheets inspected. Full Store cell remains BLOCKED/partial. Draft background-death restoration was not repeated on corrected source616; its source592 evidence is separately qualified by unchanged runtime bytes.",
+      "receipt": {
+        "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-dev-cohort/cases/manual/api36/store-debug-parity/receipt.json",
+        "sha256": "b989ee97e9a0d84157238815e772c3ba83693baba5242c13cbaa541cb7c9e934",
+        "bytes": 2014
+      }
+    },
+    {
+      "case": "manual/api36/release-boundary",
+      "status": "PASS",
+      "reason": "PASS for corrected signed StoreRelease ordinary/debug-extra launches remaining read-only Connecting, installed acceptance receiver absent, and explicit debug broadcast not acknowledged. Corrected StoreDebug/test restored and Dev APK hash unchanged. Not a Firebase delivery, crash-console, performance, or real-phone transport observation.",
+      "receipt": {
+        "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-dev-cohort/cases/manual/api36/release-boundary/receipt.json",
+        "sha256": "c473b52f9a2bb48c8d4f18b5a7aa077edd47e877f3bd72ff68ae89a17d354655",
+        "bytes": 1944
+      }
+    }
+  ],
+  "fresh_instrumentation_invocations": 352,
+  "historical_qualified_index": {
+    "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-acceptance-closure/qualified-index.json",
+    "sha256": "4f449b8ba1d35c354d48d6b0d786025da6a50d7811fb759e9ff911fdcc4efef8",
+    "bytes": 509358
+  },
+  "change_scope": {
+    "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-unchanged-runtime-boundary.json",
+    "sha256": "fe1e527dcdc8008ab296a7ca50bf2cf5400aad8f8da9e7b2f91563b6c67d0d9c",
+    "bytes": 76499
+  },
+  "full_cohort_statuses": {
+    "notification-fix-dev-cohort": "BLOCKED",
+    "notification-fix-store-cohort": "BLOCKED",
+    "notification-fix-ui-repeat-cohort": "BLOCKED"
+  },
+  "limits": [
+    "All three corrected full-cohort inventories remain BLOCKED: the main Dev/Store inventories omit unchanged long-duration subjects, and the repeat inventory intentionally contains only one UI cell.",
+    "StoreDebug full UI rows are partial; only the declared nine-invocation subset per API was exercised.",
+    "Source592 has its original real Settings crash and qualified lifecycle repeats; original statuses and bytes are retained.",
+    "This index closes only the fresh corrected UI matrix and six listed platform subjects, not physical watches, real transport, reconnect, energy, or Firebase console delivery.",
+    "The original API36/192/EN/font1.0 native visual case remains BLOCKED by a system Hello page. A separate full 22-invocation cell on identical source/APKs supplies the selected repeat; no original receipt is overwritten."
+  ],
+  "post_view_confirmation": {
+    "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-operator-visual-api30-240-en-1.00/post-view-confirmation.json",
+    "sha256": "90ca637b4f125cfd0340a10f4d278dc5c3c2f4c8d578cfc1d1891ddfedabafd2",
+    "bytes": 441
+  },
+  "original_system_overlay_blocked": {
+    "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-operator-visual-api36-192-en-1.00/operator-review.json",
+    "sha256": "2fea314930eb539f8013133ae0ee77c2ba00ef9706c9e7d8d880a2aaa629df08",
+    "bytes": 1509
+  },
+  "additional_repeat_invocations": 22
+}

@@ -1,0 +1,13 @@
+{
+  "base": "1af93d0bbb1fbefaef9f864df3cbac5bbdf1f9dd",
+  "fonts": {
+    "archivo_bold_wdth116.ttf": "53a800bc19a2bb6525131d70b826866829905937d0cb48ab44ded4f13652241d",
+    "ibm_plex_mono_medium.ttf": "98fbd727aae340b236955879dabed4d991aac9e8e90b3b2a67ce4a59221cc97c",
+    "ibm_plex_mono_regular.ttf": "7c6fbddca4b700be918f5f6183d9bd4464fa427fe435f0b480d77fe2bb8c5a43",
+    "ibm_plex_mono_semibold.ttf": "f04d7c488ddf7d1fa99f2574efc3406ea4cbe17bb1af3a1ab960f84d0c96a172",
+    "ibm_plex_sans_medium.ttf": "331c8639d7598b2cde62a911a71db195e30cb655cd6bdf2e324a7e984955f907",
+    "ibm_plex_sans_regular.ttf": "975dcda37d80f038dcd143c22e33ca2d97a0cc5a929aace1c749153b0fe1afa5",
+    "ibm_plex_sans_semibold.ttf": "a20caf8286023a6a7a85e40b1d2a4ae9fc3e3b1f9eda8f4c542dd4986af67bb1"
+  },
+  "unchanged_color_constants": 37
+}

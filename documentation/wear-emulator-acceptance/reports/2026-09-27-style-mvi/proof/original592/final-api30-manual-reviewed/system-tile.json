@@ -1,0 +1,33 @@
+{
+  "case": "manual/api30/system-tile",
+  "status": "PASS",
+  "reason": "Native API30 Dev Tile restored through system UI after strict-death trials. Actual Tile tap opens Dev MainActivity; read-only native state shows workout/exercise, set4/4 and exercise8/12 progress, headless disconnect/repeat and natural freshness expiry. System scheduler observations are retained, not an instant-update promise.",
+  "operator_attestation": true,
+  "artifacts": [
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-api30-manual-reviewed/raw-source-index.json",
+      "sha256": "685c39da473a0ebd29b71541adfdf6701612429bdfe136b40e478d89859897be",
+      "bytes": 2509380
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-api30-tile-reviewed.json",
+      "sha256": "0071a9566711574c66e0bd816e9351bc659488d25d9c018e29d607bcee759172",
+      "bytes": 6398
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-api30-tile-progress.json",
+      "sha256": "26f964abdb39e1f583f14521c87f491f94e0a8022f3dfc0d0dcfdae292cf61eb",
+      "bytes": 3136
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-manual-video-review-api30-tile/index.json",
+      "sha256": "86cd15dae55d8202ecce4135ad89218b6f489c1b7daa295933621944ed876528",
+      "bytes": 321551
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-manual-api30-dev/steps/20260926T235755.575156Z-native-tile-video-start-b176036c/video.webm",
+      "sha256": "8d389dd64649f844403f0171acacbe0eb1a0d433941e0fa374d63442792181c8",
+      "bytes": 71244571
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "case": "manual/api30/ongoing-return",
+  "status": "PASS",
+  "reason": "Actual API30 native watch-face ongoing icon returns the same ActivityRecord befba54/task476, PID32658/birth741275 and unsent998 editor. Before/returned original PNGs byte-identical; no ADB launch substitutes for native return.",
+  "operator_attestation": true,
+  "artifacts": [
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-api30-manual-reviewed/raw-source-index.json",
+      "sha256": "685c39da473a0ebd29b71541adfdf6701612429bdfe136b40e478d89859897be",
+      "bytes": 2509380
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-api30-ongoing-return-reviewed.json",
+      "sha256": "e59ba2a854c10deeca76fc87ed6e5c651e6684b67f8f865dba0f2fcc74fb8754",
+      "bytes": 1129
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-manual-video-review-api30-ongoing-return/index.json",
+      "sha256": "0cfefaba16df5ddf336fd85861ccb13f5fbd6dd0ca76993c1bd7c4913b171b6b",
+      "bytes": 21471
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-manual-api30-dev/steps/20260926T233223.913903Z-ongoing-return-video-start-e3efc2fd/video.webm",
+      "sha256": "b063deb3bbd7588d989705339cef97f9c7e16299013d2f49acacfed6d2de3c0f",
+      "bytes": 2916741
+    }
+  ]
+}

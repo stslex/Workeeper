@@ -1,0 +1,6 @@
+{
+  "at": "2026-09-27T01:41:06.424404+00:00",
+  "operator_review_sha256": "df546ea5e3e4556c279d538895e97b5eb486fc1047427bb735911a5f8c422491",
+  "verdict": "PASS",
+  "note": "Confirms the exact recorded review after all 12 returned motion sheets and the changed-image sheet were actually inspected. Registration occurred in the last image-loading call; this later attestation establishes review ordering. No new finding or evidence change."
+}

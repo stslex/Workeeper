@@ -1,0 +1,62 @@
+{
+  "command": [
+    "./gradlew",
+    ":app:wear:testDevDebugUnitTest",
+    "--tests",
+    "*WatchTileCoordinatorTest",
+    "--tests",
+    "*WatchTileRefreshRequiredTest",
+    "--tests",
+    "*WorkoutTileRenderingTest",
+    "assembleDebugAndroidTest",
+    "--rerun-tasks",
+    "--no-build-cache",
+    "--no-configuration-cache",
+    "--no-parallel",
+    "--console=plain"
+  ],
+  "cwd": "/private/tmp/workeeper-wear-stack-validation-20260926",
+  "started_epoch": 1790445507.603942,
+  "exit_code": 0,
+  "finished_epoch": 1790445706.264378,
+  "task_summaries": [
+    [
+      "2181",
+      "2181",
+      ""
+    ]
+  ],
+  "all_executed": true,
+  "xml": [
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.tile.WatchTileCoordinatorTest.xml",
+      "sha256": "d119bab785ca58fe3782103b920fb3a4dc26162c9db375be84b596b597be54b1",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.tile.WorkoutTileRenderingTest.xml",
+      "sha256": "648b8259de93d23fdcb64f90d89b58353fa48dea55b24de4a14d7a07075a6c95",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "path": "app/wear/build/test-results/testDevDebugUnitTest/TEST-io.github.stslex.workeeper.wear.tile.WatchTileRefreshRequiredTest.xml",
+      "sha256": "324177abef3f3a0d17ab161dee855a92509e1debcff555111cf66eee393a840f",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    }
+  ],
+  "counts": {
+    "tests": 7,
+    "failures": 0,
+    "errors": 0,
+    "skips": 0
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "head": "6164203f3018cdfc091045c69d3aa0ff78423fde",
+  "branch": "codex/wear-tile-acceptance",
+  "build_base_head": "5920e1eef3b4af649b00fb343ee5f50f642c58b3",
+  "build_source_binding": "Gates ran on the pending fix atop5920e1ee. Every tracked/unignored file hash matches this signed commit after staging; no source content changed at commit.",
+  "frozen_at": "2026-09-27T00:50:37.316315+00:00",
+  "apks": [
+    {
+      "original": "/private/tmp/workeeper-wear-stack-validation-20260926/app/wear/build/outputs/apk/dev/debug/wear-dev-debug.apk",
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-apks/wear-dev-debug.apk",
+      "sha256": "db60947bc17a9dac7a4948a9fc6851492433aa33467267f41ddadab549cf4c06",
+      "bytes": 59145144,
+      "source_mtime": 1790468894.480749
+    },
+    {
+      "original": "/private/tmp/workeeper-wear-stack-validation-20260926/app/wear/build/outputs/apk/androidTest/dev/debug/wear-dev-debug-androidTest.apk",
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-apks/wear-dev-debug-androidTest.apk",
+      "sha256": "6bd05ef05dafb17fb5bb025347b27a4d072cfaf11c7df1838ba93f2fba6881c6",
+      "bytes": 2579011,
+      "source_mtime": 1790469737.055785
+    },
+    {
+      "original": "/private/tmp/workeeper-wear-stack-validation-20260926/app/wear/build/outputs/apk/store/debug/wear-store-debug.apk",
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-apks/wear-store-debug.apk",
+      "sha256": "d743fa011f2b66cb4f9d23244f226542fba366fb6305ae7f23ae5fcf82d00572",
+      "bytes": 59145100,
+      "source_mtime": 1790468899.4502914
+    },
+    {
+      "original": "/private/tmp/workeeper-wear-stack-validation-20260926/app/wear/build/outputs/apk/androidTest/store/debug/wear-store-debug-androidTest.apk",
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-apks/wear-store-debug-androidTest.apk",
+      "sha256": "722d311c386bd6087de26fe1c4b5397677e5ba611dcbd0a4784e55eb3b25e712",
+      "bytes": 2579003,
+      "source_mtime": 1790469738.6093853
+    },
+    {
+      "original": "/private/tmp/workeeper-wear-stack-validation-20260926/app/wear/build/outputs/apk/store/release/wear-store-release.apk",
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-apks/wear-store-release.apk",
+      "sha256": "3e222dbcb7dbc5a2dedd04e4492a4e9c611150f05ceb56fcbaec26ade08ca879",
+      "bytes": 6836242,
+      "source_mtime": 1790469954.312685
+    }
+  ],
+  "scope": "Corrected notification Settings dispatch; original source592 APKs and cohort retained separately."
+}

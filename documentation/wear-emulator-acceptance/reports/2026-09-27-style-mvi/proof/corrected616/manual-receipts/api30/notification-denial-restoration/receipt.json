@@ -1,0 +1,139 @@
+{
+  "schema": 1,
+  "cohort": "916bc6466535437aaa3e67fef3d8f488",
+  "case_id": "manual/api30/notification-denial-restoration",
+  "status": "PASS",
+  "reason": "Actual native denial, two app-button public Settings fallbacks and same Activity/PID Back return; native grant alone does not renew ongoing, fresh event does, terminal removes it. Original592 FAIL retained separately.",
+  "recorded_at": "2026-09-27T01:19:52.306998+00:00",
+  "operator_attestation": true,
+  "artifacts": {
+    "operator-00-operator-review.json": {
+      "sha256": "bf84e27b6e9c2d51c4fa17ec5dd36f242218c847bcb80cf3019216cb29d5d424",
+      "bytes": 10267
+    },
+    "operator-01-raw-artifacts.json": {
+      "sha256": "2905da233f0e20afdc8be79ec431abe265779d39fbe008bfab7c0bf091bb3577",
+      "bytes": 674125
+    },
+    "operator-02-index.json": {
+      "sha256": "ee474b6778c03f25d817ccaf2b143e6d0edbbeb64210fb703106cc4624134b21",
+      "bytes": 293567
+    },
+    "operator-03-video.webm": {
+      "sha256": "97054ad1b29faf1a96366936f8a4d566ceba49688407aa8518d32bff944cf6ab",
+      "bytes": 56636245
+    },
+    "operator-04-stdout": {
+      "sha256": "d87c651b20fc6ae894efe348644c6cae61349ced7082ba684926c08a0c5de980",
+      "bytes": 86441
+    },
+    "operator-05-stdout": {
+      "sha256": "813f9469b86fa3442e7e5f828559f52140b5b8da2e8830a7c120d3e912a532b9",
+      "bytes": 86426
+    },
+    "operator-06-stdout": {
+      "sha256": "7eac3f15731263e7cb1e1baf9ba133c9f946d0b9fb34c1d0e9871fc95fa20444",
+      "bytes": 28
+    },
+    "operator-07-notification-fix-api30-observer-correction.json": {
+      "sha256": "00f6d5b7bb9c7a4e9eccc4b1717a5c129bb736d203affa591f9c133f993c21ef",
+      "bytes": 678
+    },
+    "operator-08-capture.json": {
+      "sha256": "f8d555a57129fc48c67585acf70f3a015aea5144c0da344691febad8a50c1671",
+      "bytes": 32901
+    },
+    "operator-09-capture.json": {
+      "sha256": "44ebc4193b0dbd2a7a03c9b8869d448238dbe89c708c4771b82c284db2ba11aa",
+      "bytes": 32820
+    },
+    "operator-10-capture.json": {
+      "sha256": "15aab47c6f152681b56305ce1e5772a11c3ab893856efe7870379b891112e15b",
+      "bytes": 32723
+    },
+    "operator-11-capture.json": {
+      "sha256": "dc2abae4e833be041c0aae4a13bc8df939a27e7188c1eb89317916e760437244",
+      "bytes": 32578
+    },
+    "operator-12-capture.json": {
+      "sha256": "122d7b40bd3644532a4ec9e6dfb1a69008f4591a87e1675fbf1fa82f7c0fb0eb",
+      "bytes": 32511
+    },
+    "operator-13-capture.json": {
+      "sha256": "20ae2f30bf2f7b32b3c9f6d17b2065791dba3876d7f4cc002483329fb07c0d2c",
+      "bytes": 32691
+    },
+    "operator-14-capture.json": {
+      "sha256": "b180f7e0b9aa6809d7b35b43ca4a31f01c2bd33f2214c0ae1bf8d03880e39e3a",
+      "bytes": 32829
+    },
+    "operator-15-capture.json": {
+      "sha256": "c02e370d575cfd4bdb54178013ee348bc785d2fa0340a55ba55218451c9e3341",
+      "bytes": 32675
+    },
+    "operator-16-capture.json": {
+      "sha256": "94c3125db5ac49bb2f549a5cb5482f95ae28166781e3cba60703d892fc74ec2d",
+      "bytes": 34338
+    },
+    "operator-17-capture.json": {
+      "sha256": "01fb31d2259de803f543dd10c5c601a2498d59e7ae315f5eb77775a06d30e296",
+      "bytes": 32773
+    },
+    "operator-18-sheet-001.png": {
+      "sha256": "b5244d5362892bcb88f7e4787c700cabe3b730e3e078d6a6c8d96eecf0c8c26f",
+      "bytes": 131261
+    },
+    "operator-19-sheet-002.png": {
+      "sha256": "3d5fa12388adebd55f1073547e8737a24d753d3dd9434eddc64466ab20d5fb0d",
+      "bytes": 132622
+    },
+    "operator-20-sheet-003.png": {
+      "sha256": "5463ac7b266e631562c450688bf77732244076d3d8356408824dbd3bb303363d",
+      "bytes": 138677
+    },
+    "operator-21-sheet-004.png": {
+      "sha256": "bf5c8fabe2992c1ea6b1ea57d7d88c89196e8e7be69ea3ceaf68424ae3e26ae4",
+      "bytes": 134134
+    },
+    "operator-22-sheet-005.png": {
+      "sha256": "9dd82969e8160c7089387161e8b4ea6937b72454b4932d15b92ce6a9cc3817ad",
+      "bytes": 119874
+    },
+    "operator-23-sheet-006.png": {
+      "sha256": "53f95f00bc2c5581279ae6c95d023022289dca12a58b7ff7a6847ee92906669a",
+      "bytes": 149742
+    },
+    "operator-24-sheet-007.png": {
+      "sha256": "227ab3fef11e6ed2861aa907381d3d52cf610f1084584bd7ddef2df3d8bdfc20",
+      "bytes": 149606
+    },
+    "operator-25-sheet-008.png": {
+      "sha256": "57966ed731e34b22eb5521613a84047b6f324bd0491f21774dff0b26e50297c5",
+      "bytes": 186564
+    },
+    "operator-26-sheet-009.png": {
+      "sha256": "00e109baa252dc7266e8282b13f49be47f1960a294b466eeaafef39ea33389d0",
+      "bytes": 134302
+    },
+    "operator-27-sheet-010.png": {
+      "sha256": "4496ed6629367819ccdb78133a92a4808c5edef91d7fdee5ce0056fae354a3ff",
+      "bytes": 131374
+    },
+    "operator-28-sheet-011.png": {
+      "sha256": "dbd70955174fc485319688c6c263fa426e8d80928e4ed49ea02452ae26b04180",
+      "bytes": 226279
+    },
+    "operator-29-sheet-012.png": {
+      "sha256": "71963a3f888c21dbbcfc90999b7ff115bee22a2e537602ae181e165b32584682",
+      "bytes": 107525
+    },
+    "operator-30-sheet-013.png": {
+      "sha256": "2f5463e5d297000c75c0eda618b759c2ec45d225e9c580dba05fd52f21ea1c3e",
+      "bytes": 141821
+    },
+    "operator-31-sheet-014.png": {
+      "sha256": "aa89e1b5b1e7bd1051940f615af179ffdd347f92ced78bfedee2ad11fe3a5bf4",
+      "bytes": 77608
+    }
+  }
+}

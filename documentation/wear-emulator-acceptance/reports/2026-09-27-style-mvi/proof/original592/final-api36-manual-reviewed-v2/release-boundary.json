@@ -1,0 +1,33 @@
+{
+  "case": "manual/api36/release-boundary",
+  "status": "PASS",
+  "reason": "PASS for pinned signed StoreRelease 2f3adc71eff3992220d5602060e5292fd3bbe6ed26e5bdd072c312cc07af8c46: ordinary launcher remains read-only Connecting after debug intent; installed package lacks acceptance receiver and explicit broadcast is not acknowledged. Pinned StoreDebug/test restored and Dev SHA unchanged. No Firebase delivery/console assertion.",
+  "operator_attestation": true,
+  "artifacts": [
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-api36-manual-reviewed-v2/raw-source-index.json",
+      "sha256": "20562f59ae29fef3826953cd8024078212a8ae9b874f81ef4d45ef8b55336b03",
+      "bytes": 1913042
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-api36-additional-pixel-review-1.json",
+      "sha256": "52cc8b6e9603331f34c3f6ff925f043b3ead3b07cf768857f684fa871112eab2",
+      "bytes": 11354
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-api36-additional-pixel-review-2.json",
+      "sha256": "1e7124639b23aa5566c59947844b6f63c5c35a1d7299ba395b70d7d0a34e866d",
+      "bytes": 32661
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-manual-video-review-api36-release/index.json",
+      "sha256": "142637845f8d434a9d95de1368954555cd77fb921363615252a9ba9a57b1c5ff",
+      "bytes": 24024
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-manual-api36-release/steps/20260926T201228.093737Z-release-boundary-video-0b3c25aa/video.webm",
+      "sha256": "771276485994b0dcb6816cf60f909b4459e5f9555b9b5f04ab2991761aa5bc33",
+      "bytes": 344582
+    }
+  ]
+}

@@ -1,0 +1,205 @@
+{
+  "cohort": "916bc6466535437aaa3e67fef3d8f488",
+  "source": "6164203f3018cdfc091045c69d3aa0ff78423fde",
+  "status": "BLOCKED",
+  "expected": 72,
+  "recorded": 38,
+  "counts": {
+    "BLOCKED": 1,
+    "FAIL": 0,
+    "N/A": 0,
+    "PASS": 37
+  },
+  "missing": [
+    "ambient-expiry/api30/reps",
+    "ambient-expiry/api30/weight",
+    "ambient-expiry/api36/reps",
+    "ambient-expiry/api36/weight",
+    "lifecycle/api30/death-disconnect/1",
+    "lifecycle/api30/death-disconnect/2",
+    "lifecycle/api30/death-disconnect/3",
+    "lifecycle/api30/death-fresh/1",
+    "lifecycle/api30/death-fresh/2",
+    "lifecycle/api30/death-fresh/3",
+    "lifecycle/api30/retention/1",
+    "lifecycle/api30/retention/2",
+    "lifecycle/api30/retention/3",
+    "lifecycle/api36/death-disconnect/1",
+    "lifecycle/api36/death-disconnect/2",
+    "lifecycle/api36/death-disconnect/3",
+    "lifecycle/api36/death-fresh/1",
+    "lifecycle/api36/death-fresh/2",
+    "lifecycle/api36/death-fresh/3",
+    "lifecycle/api36/retention/1",
+    "lifecycle/api36/retention/2",
+    "lifecycle/api36/retention/3",
+    "manual/api30/ambient-capabilities",
+    "manual/api30/disconnect-terminal",
+    "manual/api30/inactivity-baseline",
+    "manual/api30/ongoing-return",
+    "manual/api30/process-death-restoration",
+    "manual/api30/system-tile",
+    "manual/api36/ambient-capabilities",
+    "manual/api36/disconnect-terminal",
+    "manual/api36/inactivity-baseline",
+    "manual/api36/ongoing-return",
+    "manual/api36/process-death-restoration",
+    "manual/api36/system-tile"
+  ],
+  "complete": false,
+  "unpublished_manual_attempts": [],
+  "cases": {
+    "manual/api30/notification-denial-restoration": {
+      "status": "PASS",
+      "reason": "Actual native denial, two app-button public Settings fallbacks and same Activity/PID Back return; native grant alone does not renew ongoing, fresh event does, terminal removes it. Original592 FAIL retained separately."
+    },
+    "manual/api30/release-boundary": {
+      "status": "PASS",
+      "reason": "PASS for corrected signed StoreRelease ordinary/debug-extra launches remaining read-only Connecting, installed acceptance receiver absent, and explicit debug broadcast not acknowledged. Corrected StoreDebug/test restored and Dev APK hash unchanged. Not a Firebase delivery, crash-console, performance, or real-phone transport observation."
+    },
+    "manual/api30/store-debug-parity": {
+      "status": "PASS",
+      "reason": "PASS for the declared nine-invocation StoreDebug 192dp/RU/1.24 smoke subset and fresh headless refresh/disconnect/terminal transitions. Original native/Compose PNGs and all listed sampled motion sheets inspected. Full Store cell remains BLOCKED/partial. Draft background-death restoration was not repeated on corrected source616; its source592 evidence is separately qualified by unchanged runtime bytes."
+    },
+    "manual/api36/notification-denial-restoration": {
+      "status": "PASS",
+      "reason": "Two actual native permission denials, two app-button per-app Settings routes and same Activity/PID Back return. Actual native grant alone does not renew ongoing; fresh admitted state does; terminal removes. Initial shell setup explicitly qualified."
+    },
+    "manual/api36/release-boundary": {
+      "status": "PASS",
+      "reason": "PASS for corrected signed StoreRelease ordinary/debug-extra launches remaining read-only Connecting, installed acceptance receiver absent, and explicit debug broadcast not acknowledged. Corrected StoreDebug/test restored and Dev APK hash unchanged. Not a Firebase delivery, crash-console, performance, or real-phone transport observation."
+    },
+    "manual/api36/store-debug-parity": {
+      "status": "PASS",
+      "reason": "PASS for the declared nine-invocation StoreDebug 192dp/RU/1.24 smoke subset and fresh headless refresh/disconnect/terminal transitions. Original native/Compose PNGs and all listed sampled motion sheets inspected. Full Store cell remains BLOCKED/partial. Draft background-death restoration was not repeated on corrected source616; its source592 evidence is separately qualified by unchanged runtime bytes."
+    },
+    "manual/visual/api30-192-en-1.00": {
+      "status": "PASS",
+      "reason": "Fresh differing pixels and sampled motion inspected; exact RGBA identity explicitly reuses prior inspection for unchanged pixels only. Fresh device assertions and original evidence are linked."
+    },
+    "manual/visual/api30-192-en-1.24": {
+      "status": "PASS",
+      "reason": "Fresh differing pixels and sampled motion inspected; exact RGBA identity explicitly reuses prior inspection for unchanged pixels only. Fresh device assertions and original evidence are linked."
+    },
+    "manual/visual/api30-192-ru-1.00": {
+      "status": "PASS",
+      "reason": "Fresh differing pixels and sampled motion inspected; exact RGBA identity explicitly reuses prior inspection for unchanged pixels only. Fresh device assertions and original evidence are linked."
+    },
+    "manual/visual/api30-192-ru-1.24": {
+      "status": "PASS",
+      "reason": "Fresh differing pixels and sampled motion inspected; exact RGBA identity explicitly reuses prior inspection for unchanged pixels only. Fresh device assertions and original evidence are linked."
+    },
+    "manual/visual/api30-240-en-1.00": {
+      "status": "PASS",
+      "reason": "Fresh differing pixels and sampled motion inspected; exact RGBA identity explicitly reuses prior inspection for unchanged pixels only. Fresh device assertions and original evidence are linked."
+    },
+    "manual/visual/api30-240-en-1.24": {
+      "status": "PASS",
+      "reason": "Fresh differing pixels and sampled motion inspected; exact RGBA identity explicitly reuses prior inspection for unchanged pixels only. Fresh device assertions and original evidence are linked."
+    },
+    "manual/visual/api30-240-ru-1.00": {
+      "status": "PASS",
+      "reason": "Fresh differing pixels and sampled motion inspected; exact RGBA identity explicitly reuses prior inspection for unchanged pixels only. Fresh device assertions and original evidence are linked."
+    },
+    "manual/visual/api30-240-ru-1.24": {
+      "status": "PASS",
+      "reason": "Fresh differing pixels and sampled motion inspected; exact RGBA identity explicitly reuses prior inspection for unchanged pixels only. Fresh device assertions and original evidence are linked."
+    },
+    "manual/visual/api36-192-en-1.00": {
+      "status": "BLOCKED",
+      "reason": "Six native screenshots for active_boundary and weightless show a system Hello page instead of Workeeper. The 22 passing Compose assertions do not establish visible native UI for those captures. Original bytes are retained; a separate complete-cell repeat is required."
+    },
+    "manual/visual/api36-192-en-1.24": {
+      "status": "PASS",
+      "reason": "Fresh differing pixels and sampled motion inspected; exact RGBA identity explicitly reuses prior inspection for unchanged pixels only. Fresh device assertions and original evidence are linked."
+    },
+    "manual/visual/api36-192-ru-1.00": {
+      "status": "PASS",
+      "reason": "Fresh differing pixels and sampled motion inspected; exact RGBA identity explicitly reuses prior inspection for unchanged pixels only. Fresh device assertions and original evidence are linked."
+    },
+    "manual/visual/api36-192-ru-1.24": {
+      "status": "PASS",
+      "reason": "Fresh differing pixels and sampled motion inspected; exact RGBA identity explicitly reuses prior inspection for unchanged pixels only. Fresh device assertions and original evidence are linked."
+    },
+    "manual/visual/api36-240-en-1.00": {
+      "status": "PASS",
+      "reason": "Fresh differing pixels and sampled motion inspected; exact RGBA identity explicitly reuses prior inspection for unchanged pixels only. Fresh device assertions and original evidence are linked."
+    },
+    "manual/visual/api36-240-en-1.24": {
+      "status": "PASS",
+      "reason": "Fresh differing pixels and sampled motion inspected; exact RGBA identity explicitly reuses prior inspection for unchanged pixels only. Fresh device assertions and original evidence are linked."
+    },
+    "manual/visual/api36-240-ru-1.00": {
+      "status": "PASS",
+      "reason": "Fresh differing pixels and sampled motion inspected; exact RGBA identity explicitly reuses prior inspection for unchanged pixels only. Fresh device assertions and original evidence are linked."
+    },
+    "manual/visual/api36-240-ru-1.24": {
+      "status": "PASS",
+      "reason": "Fresh differing pixels and sampled motion inspected; exact RGBA identity explicitly reuses prior inspection for unchanged pixels only. Fresh device assertions and original evidence are linked."
+    },
+    "ui/api30-192-en-1.00": {
+      "status": "PASS",
+      "reason": "All declared observations completed"
+    },
+    "ui/api30-192-en-1.24": {
+      "status": "PASS",
+      "reason": "All declared observations completed"
+    },
+    "ui/api30-192-ru-1.00": {
+      "status": "PASS",
+      "reason": "All declared observations completed"
+    },
+    "ui/api30-192-ru-1.24": {
+      "status": "PASS",
+      "reason": "All declared observations completed"
+    },
+    "ui/api30-240-en-1.00": {
+      "status": "PASS",
+      "reason": "All declared observations completed"
+    },
+    "ui/api30-240-en-1.24": {
+      "status": "PASS",
+      "reason": "All declared observations completed"
+    },
+    "ui/api30-240-ru-1.00": {
+      "status": "PASS",
+      "reason": "All declared observations completed"
+    },
+    "ui/api30-240-ru-1.24": {
+      "status": "PASS",
+      "reason": "All declared observations completed"
+    },
+    "ui/api36-192-en-1.00": {
+      "status": "PASS",
+      "reason": "All declared observations completed"
+    },
+    "ui/api36-192-en-1.24": {
+      "status": "PASS",
+      "reason": "All declared observations completed"
+    },
+    "ui/api36-192-ru-1.00": {
+      "status": "PASS",
+      "reason": "All declared observations completed"
+    },
+    "ui/api36-192-ru-1.24": {
+      "status": "PASS",
+      "reason": "All declared observations completed"
+    },
+    "ui/api36-240-en-1.00": {
+      "status": "PASS",
+      "reason": "All declared observations completed"
+    },
+    "ui/api36-240-en-1.24": {
+      "status": "PASS",
+      "reason": "All declared observations completed"
+    },
+    "ui/api36-240-ru-1.00": {
+      "status": "PASS",
+      "reason": "All declared observations completed"
+    },
+    "ui/api36-240-ru-1.24": {
+      "status": "PASS",
+      "reason": "All declared observations completed"
+    }
+  }
+}
