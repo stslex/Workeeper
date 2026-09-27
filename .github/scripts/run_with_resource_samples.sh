@@ -6,9 +6,10 @@
 #   bash .github/scripts/run_with_resource_samples.sh ./gradlew testDebugUnitTest --full-stacktrace
 #
 # The command's exit code is the script's exit code. Sampling every RESOURCE_SAMPLE_INTERVAL
-# seconds (default 15); each block: uptime, free -m, one vmstat row (si/so/wa/st), df -h /, PSI
-# for cpu/memory/io where the kernel exposes it, and the eight largest processes by RSS. Tools
-# missing on the host (macOS lacks free/vmstat/PSI) are skipped, never fatal.
+# seconds (default 15); each block: uptime, free -m, one vmstat row (si/so/wa/st), df -h /,
+# du -sh /tmp (capped at 5 s; the JVM's default temp dir on Linux), PSI for cpu/memory/io where
+# the kernel exposes it, and the eight largest processes by RSS. Tools missing on the host (macOS
+# lacks free/vmstat/PSI/timeout) are skipped, never fatal.
 set -u
 interval="${RESOURCE_SAMPLE_INTERVAL:-15}"
 
@@ -18,6 +19,7 @@ sample() {
     free -m 2>/dev/null || true
     vmstat 1 2 2>/dev/null | tail -1 || true
     df -h / 2>/dev/null || true
+    timeout 5 du -sh /tmp 2>/dev/null || true
     cat /proc/pressure/cpu /proc/pressure/memory /proc/pressure/io 2>/dev/null || true
     ps -eo pid,rss,etimes,args --sort=-rss 2>/dev/null | head -9 | cut -c1-160 || true
   } 2>&1 | sed 's/^/[res] /'
