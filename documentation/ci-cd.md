@@ -95,6 +95,8 @@ name and **runs** by execution. The two Wear flavors share test names, so on pul
 **tests** is unaffected and **runs** drops by the dev flavor's Wear test executions, by design.
 Heap, `forkEvery` and timeouts are unchanged.
 
+For an executed CI gate, dispatch the workflow with `execute_unit_tests=true`: the unit-test step then adds `--no-build-cache` and every test task it owns executes, while a re-run of the same PR restores that PR's build cache and executes only what changed.
+
 The step runs inside `.github/scripts/run_with_resource_samples.sh`, which writes a `[res]` sample
 block into the step log every 15 s: `uptime`, `free -m`, one `vmstat` row (si/so/wa/st), `df -h /`,
 `du -sh /tmp` under a 5 s `timeout` (the JVM's default temp dir on Linux; a local root gate wrote

@@ -5,6 +5,11 @@ on:
     branches: [ master ]
   pull_request:
   workflow_dispatch:
+    inputs:
+      execute_unit_tests:
+        description: "Run Unit Tests with --no-build-cache, so every test task of that step executes"
+        type: boolean
+        default: false
   workflow_call:
     inputs:
       ref:
@@ -268,11 +273,15 @@ jobs:
       # log every 15 s (`[res]` lines): a runner that dies mid-step cancels every later step and
       # `failure()` is false on cancellation, so an upload-artifact step could never capture the
       # failure the samples exist for. Gradle's exit code is the step's exit code.
+      # A dispatch with `execute_unit_tests` adds --no-build-cache (not --rerun-tasks): what the
+      # steps above built stays UP-TO-DATE and every task this step owns executes, the shape of a
+      # PR's first run. Every other trigger restores cached test results as before.
       - name: Run Unit Tests
         run: >
           bash .github/scripts/run_with_resource_samples.sh
           ./gradlew testDebugUnitTest --full-stacktrace
           ${{ github.event_name == 'pull_request' && '-PwearUnitTestFlavors=store' || '' }}
+          ${{ github.event_name == 'workflow_dispatch' && inputs.execute_unit_tests && '--no-build-cache' || '' }}
 
       # The debug suite cannot prove that the synthetic source is absent from release. storeRelease
       # is the variant that ships, so the boundary is proven on it; devRelease differs only by the
