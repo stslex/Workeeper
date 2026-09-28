@@ -1,6 +1,8 @@
 # Wear controller visual redesign — phase 1a
 
-Status: specification. Supersedes the layout described in
+Status: initial redesign implemented in PR #284; bottom-band correction implemented
+in PR #285 (`dev` merge `20215640`). This document describes that baseline. The approved
+next increments are tracked in [Wear UI completion](wear-ui-completion.md). Supersedes the layout described in
 `wear-phase-1-active-workout-tile.md` §3.2 where the two disagree; the behavioural
 contract in that document is unchanged and still governs.
 
@@ -25,9 +27,8 @@ This work changes how the surface looks, not where its data comes from.
 
 ## 2. Recorded decisions
 
-**D-A. Fixed palette, no dynamic theming.** `WearAppTheme` currently calls
-`dynamicColorScheme(LocalContext.current)`, which sources colour from the active
-watch face. It is replaced by a fixed palette derived from `AppColors`. Cost: the
+**D-A. Fixed palette, no dynamic theming.** `WearAppTheme` uses a fixed palette
+derived from `AppColors`, replacing watch-face-sourced dynamic colour. Cost: the
 app does not adapt to the watch face. Accepted because the Workeeper palette is
 monochrome, which is the least likely thing to clash with an arbitrary face, and
 because the Tile (raw ProtoLayout) sets no colours at all — dynamic theming
@@ -49,9 +50,8 @@ full-screen numeric editor. Three 48dp targets per value do not fit twice across
 input. A full-screen editor has nothing to scroll, so rotary binds to the value
 with no mode.
 
-**D-E. `Complete set` is anchored to the bottom edge.** It is currently the last
-child of a `Column`, which places the primary action below the fold on small
-screens.
+**D-E. `Complete set` is anchored to the bottom edge.** A static sibling button
+keeps the primary action available while the controller content scrolls.
 
 **D-F. The training name is dropped from the controller.** It costs a line of a
 240dp screen for information the user already has and which the Tile also carries.
@@ -112,25 +112,33 @@ Reading order, top to bottom:
    the largest screen at the default font scale.
 
 When mutation is unavailable the cards lose their fill and keep an outline, their
-values move to `textMuted`, the action inverts from filled to outlined, and the
-word `Недоступно` is drawn **directly above** the action rather than inside it —
-inside the arc it had no configuration that fits at 192dp and the largest font
-scale. Both changes are changes of shape and of text, not of colour alone.
+values move to `textMuted`, and the action inverts from filled to outlined. Its glyph
+is replaced by the label **“Disabled” / “Отключено” inside the button**. Both states use
+`EdgeButtonSize.Medium`; there is no sibling unavailable-word overlay or extra word
+reservation. The disabled label is one line and may ellipsize only in the accepted
+RU × 192dp × 1.24 cell. The full action and state remain spoken. See the
+[bottom-band decision](wear-bottom-band-rebudget.md#2-decision-and-accepted-copy).
 
-Known residual, measured at 192dp: after this reading order the value cards are
-2dp short of fitting above the fold at font scale 1.0 and 10dp short at 1.24.
-The values read cleanly at both; the bottom of the card fill is what clips.
+The historical 2dp/10dp card-fill clipping record at 192dp covered **ACTIVE only**.
+It does not characterize errors or worded read-only states. Error reasons below the
+fold, clipped or absent value nodes on worded states, and the circular-edge boundary
+remain open; see [remaining defects](wear-bottom-band-rebudget.md#6-remaining-defects-and-ownership).
+PR-A improves the budget but does not establish complete initial visibility. The approved
+completion contract requires values, action, and a concrete disabled reason before
+scrolling; it will change this reading order and the corresponding gates together.
 
 ## 5. Full-screen numeric editor
 
 Opened by tapping a value card. One value, large, with increment and decrement
-controls placed at the top and bottom arcs. Confirm returns to the controller.
+controls placed at the top and bottom arcs. Each step immediately updates the draft;
+Back or swipe dismissal returns to the controller.
 
 - Reps step 1, weight step `WEIGHT_STEP_HUNDREDTHS_KG` (250, i.e. 2.5 kg).
 - Bounds and the `null` weight transition are governed by `WearDraftPolicy`,
   which is unchanged. Controls at a bound are disabled and say so.
-- Rotary input drives the value. This is the only screen where rotary is bound
-  to anything, so no mode indicator is required.
+- Rotary input drives the value. Controller rotary scrolls content; opening an editor
+  transfers rotary focus to numeric stepping, so no user-selected rotary mode is needed.
+  This controller binding is the PR-B contract below, not part of the PR-A baseline.
 - The editor emits the existing `ControllerAction.SetReps` / `SetWeight`. It
   introduces no new action type and no new state.
 
@@ -164,8 +172,15 @@ wins.)
 Each gate is stated with the mutation that must turn it red. A gate that cannot be
 made to fail is a comment, not a gate.
 
-**G1 — touch targets.** Every semantics node carrying a click action has bounds of
-at least 48dp on both axes, and no two such nodes overlap.
+The implemented inventory is **G1–G7 and G9–G11: ten numbered gates; G8 does not exist**.
+Locale-specific test classes are not additional gate numbers. Unset-weight semantics
+have a separate regression test.
+
+**G1 — touch targets.** Every semantics node carrying a click action has layout size of
+at least 48dp on both axes, and no two clipped target bounds overlap. The current test
+uses `node.size` for minimum dimensions and scrolls before opening editors; it does not
+prove that the complete target is initially visible. PR-C/PR-D replace this gap with
+explicit ancestor-clip visibility checks, including read-only surfaces.
 *Red when:* the bottom-edge button's height is set to 40dp.
 
 **G2 — no dynamic theming.** No Wear source references `dynamicColorScheme`, and
@@ -174,7 +189,9 @@ the colour values reaching the composition are the palette of §3.
 
 **G3 — every kind is distinguishable by text.** For all eleven kinds the rendered
 semantics tree contains a non-empty status string, and no two kinds produce the
-same one.
+same one. Every non-ACTIVE kind also draws its status word. The current test does not
+protect the inverse ACTIVE rule or the set-count spoken-only rule; PR-C adds that coverage
+before PR-D deliberately revises the layout contract.
 *Red when:* two kinds are pointed at the same string resource.
 
 **G4 — disabled is not signalled by colour alone.** In every state where
@@ -188,10 +205,30 @@ every stroke meets 3:1. Computed from the palette object, not sampled from pixel
 
 **G6 — no visual overflow.** At font scales 1.0 and the largest the platform
 offers, and with the longest string of each locale, no text node reports visual
-overflow except the exercise name, which may ellipsize at its second line.
+overflow except the exercise name, which is allowed at most two lines by the current
+oracle (production draws one), and the one disabled completion-label cell described
+in [PR-A G6](wear-bottom-band-rebudget.md#9-gates-and-review-classification). That cell
+must positively report one line and overflow; it is not skipped.
 *Red when:* the status row is given a fixed width narrower than its longest string.
 
-Robolectric is the host for G1, G3, G4 and G6. It is an unreliable oracle for
+**G7 — primary hierarchy.** The enabled primary action is never smaller than its
+disabled form at either screen extreme.
+*Red when:* enabled uses Small while disabled uses Medium.
+
+**G9 — string coverage.** Rendered fixtures exercise every required string resource,
+with an explicit allowance list, and the EN/RU resource-ID sets match.
+*Red when:* a required user-facing string is added without a fixture that renders it.
+
+**G10 — no mid-word button-label breaks.** Labels in both locales must not split a
+word across lines. Single-line ellipsis is governed separately by G6.
+*Red when:* the narrow completion lane renders a multi-line “Завершить” label.
+
+**G11 — no text collisions.** Rendered text bounds do not overlap other visible text
+bounds. Clipped-away nodes are counted separately; a minimum compared-pair count stops
+an empty walk from passing.
+*Red when:* the unavailable word is positioned over another rendered text node.
+
+Robolectric is the host for composition gates. It is an unreliable oracle for
 transactional and concurrent semantics; text layout and semantics trees are
 neither, so it is used here deliberately and within that limit.
 
@@ -215,8 +252,29 @@ neither, so it is used here deliberately and within that limit.
   tap-opened picker and a vertical swipe is open. A swipe requires a proven
   guarantee that the active screen never scrolls, at every font scale and screen
   size; that guarantee must exist as a gate before the swipe is built.
-- Availability of `EdgeButton` in Wear Compose Material3 at the pinned
-  `wearCompose` version is unverified. If it is absent, the fallback is a
-  bottom-anchored container with the same dimensions and the same gates.
-- No screenshot testing exists for the Wear module. Adding it would let the
-  layout be gated on appearance rather than only on semantics.
+- `EdgeButton` is present and used at the pinned Wear Compose version `1.6.2`.
+  The controller already uses Medium completion and Small retry buttons; no library
+  upgrade or substitute is required for rotary work.
+- Initial visibility, circular-edge clipping, and pressed-state appearance need the
+  targeted geometry/device checks in the completion plan. Text and semantics gates
+  alone do not establish visual acceptance.
+
+## 10. Controller rotary and hierarchy focus (PR-B)
+
+PR-B follows merged PR-A because both edit the same controller columns. It binds
+rotary scrolling to the existing `ScrollState` on all three controller families:
+active/read-only, retry, and instruction-only states. Use the pinned Wear Compose
+rotary APIs and hierarchy-aware focus request; do not create a parallel scroll state.
+
+The active hierarchy owns exactly one rotary destination. Entering either numeric
+editor transfers focus to its existing value-step handler. Back, swipe dismiss,
+and loss of edit authority return focus to the controller without an extra tap.
+The numeric step sizes, bounds, null-weight transition, protocol actions, and primary
+button dimensions are unchanged. Rotary events must not leak into the covered hierarchy.
+
+Acceptance exercises scroll movement on overflow content in each controller family;
+a non-scrollable fixture may consume focus but must not mutate a value. Both editors
+must still change their own field using rotary, and each exit path must restore scroll
+control. Back/swipe are tested as behaviour: lack of an explicit `interceptBack` argument
+alone is not evidence of a defect. Each protective check needs a named negative control,
+and host input injection is recorded separately from physical bezel/crown evidence.

@@ -1,212 +1,232 @@
 # Wear controller — bottom-band rebudget (PR-A)
 
-Status: specified, not implemented.
-Baseline: `dev` @ `254e075f`.
-Decision: **C4L** — the unavailability word moves into the disabled `EdgeButton` as its
-label, the glyph is dropped in the disabled state, and `UNAVAILABLE_WORD_CLEARANCE` is
-removed.
+Status: implemented by [PR #285](https://github.com/stslex/Workeeper/pull/285), merged
+into `dev` as `20215640`. The original comparison baseline was `254e075f`.
+Decision: **C4L** — move the unavailability word into the disabled `EdgeButton`, omit
+its glyph, and remove the separate word reservation.
 
-Every number in this document was measured on `wear_192` / `wear_240` emulators or in
-the calibrated mockup at `documentation/mockups/wear-bottom-band.html`. Rows marked ᴹ are
-model predictions from the mockup's fitted non-linear font-scale multipliers
-(×1.28 for 13/14sp, ×1.20 for 16sp), which were confirmed against live device text to
-within +2.0px.
+This document separates the merged implementation from historical measurements and
+mockup predictions. Device measurements below are recorded in the PR-A merge commit;
+they have not been repeated by this documentation update. Rows marked ᴹ are predictions
+from `documentation/mockups/wear-bottom-band.html`, whose fitted font-scale multipliers
+were ×1.28 for 13/14sp and ×1.20 for 16sp. They are not a current device acceptance result.
+The remaining delivery sequence is in [Wear UI completion](wear-ui-completion.md).
 
----
+## §1 Problem and implemented correction
 
-## §1 Problem
+Before PR-A, disabled surfaces reserved `UNAVAILABLE_WORD_CLEARANCE = 24dp` in addition
+to `MEDIUM_EDGE_CLEARANCE = 76dp`. Padding before `verticalScroll` shrank the content
+viewport to **184px / 92dp** on the 192dp profile. A separate `UnavailableWord` sibling
+painted the disabled word above the button, outside the scroll flow.
 
-On `!completeEnabled` surfaces the content viewport is **184px (92dp)** while the value
-row rests at **186px** (ACTIVE-kind error fixtures) or **203px** (worded kinds). Reps and
-weight are clipped out of the rest-state view *and* out of the rest-state accessibility
-dump. At font scale 1.24 on DISCONNECTED the status word wraps to two lines and the set
-pills and both cards vanish entirely.
+Historical pre-change measurements at 192dp:
 
-Measured effective card height at 192dp today:
-
-| surface class | effective card height | vs 48dp minimum |
-|---|---|---|
+| Surface | Effective card height | Against 48dp minimum |
+| --- | --- | --- |
 | ACTIVE, enabled | 47dp | under |
 | ACTIVE-kind error fixtures (`field_error`, `weight_error`) | 23dp | under |
-| worded kinds (`refresh_required`, `disconnected`) | 14.85dp | under |
+| Worded kinds (`refresh_required`, `disconnected`) | 14.85dp | under |
 
-Cause: `WearControllerScreen.kt:141-145` adds a fixed `UNAVAILABLE_WORD_CLEARANCE = 24`
-(`:873`) to `MEDIUM_EDGE_CLEARANCE = 76` (`:890`) whenever `completeEnabled == false`,
-and `.padding(bottom = clearance)` precedes `.verticalScroll(scrollState)` on the content
-Column (`:157-163`), so the reservation shrinks the scroll viewport itself. The word it
-reserves for is drawn by `UnavailableWord` (`:521-533`) as a **sibling** of the scroll
-column — `align(BottomCenter)`, `padding(bottom = 76.dp)`, tag `complete_unavailable` —
-i.e. painted *over* the content, not placed in the flow.
+`WearSurfaceMapper.active` in `WearSurfaceModel.kt` computes `completeEnabled` as
+`available && commandIdle && numericValid`, independently of kind. The disabled branch
+therefore includes invalid values on ACTIVE as well as stale/disconnected snapshots.
+A label that says only “No connection” would be incorrect for that entire branch.
 
-The reservation is conditional on one boolean but fixed in amount: the word's measured
-box is 32px @1.0 and 41px @1.24, so 24dp reserves more than the word ever needs at 1.0
-and still fails at 1.24 when the word wraps.
+PR-A removes the extra reservation and the sibling overlay. The content viewport is
+**232px / 116dp** at 192dp for enabled and disabled controller surfaces. Content order
+and the separate retry screen's `SMALL_EDGE_CLEARANCE = 62dp` remain unchanged.
 
-`completeEnabled` is computed at `WearSurfaceMapper.kt:107` as
-`available && commandIdle && numericValid`, independently of kind — so three kinds can
-take the branch (ACTIVE, REFRESH_REQUIRED, DISCONNECTED) across four fixtures
-(`field_error`, `weight_error`, `refresh_required`, `disconnected`).
+## §2 Decision and accepted copy
 
----
+- Both completion states use `EdgeButtonSize.Medium` and the same bottom clearance.
+- Enabled completion draws its existing check glyph.
+- Disabled completion draws only `control_disabled`: **“Disabled” / “Отключено”**.
+  The label uses `maxLines = 1` and `TextOverflow.Ellipsis`.
+- The full action and unavailable state remain in the button's content description.
+  The label retains the `complete_unavailable` tag; the button retains `complete_set`.
+- Exactly **RU × 192dp × font scale 1.24** is accepted to ellipsize on one line.
+  Other locale/profile/scale cells have no completion-label overflow exception.
 
-## §2 Decision
+The original mockup used “Недоступно” and predicted 15.3px margin per side against the
+*drawn arc*. That was an outer bound, not the usable content lane. The measured lane in
+[§7.1](#71-arc-content-lane) invalidated the blanket “fits every cell” prediction.
+“Отключено” is the accepted copy for both connection and numeric-validation disables;
+it does not change the user's font scale to obtain a fit.
 
-**C4L.** Three changes, all confined to the bottom band:
+## §3 Implemented change surface
 
-1. Delete `UNAVAILABLE_WORD_CLEARANCE`. The clearance expression at `:141-145` collapses
-   to `MEDIUM_EDGE_CLEARANCE.dp` unconditionally. Viewport returns to **232px (116dp)**
-   on every surface. (`SMALL_EDGE_CLEARANCE = 62` is retry-surface only and is untouched.)
-2. Delete the `UnavailableWord` sibling overlay. `R.string.control_disabled` becomes the
-   `EdgeButton`'s own label in the disabled state.
-3. In the disabled state the button renders **label only** — no glyph. The enabled state
-   keeps its checkmark glyph and its existing label treatment.
+| Component | Implemented change |
+| --- | --- |
+| `ActiveScaffold` | One `MEDIUM_EDGE_CLEARANCE.dp` inset on every active-family surface |
+| `UnavailableWord` / `UNAVAILABLE_WORD_CLEARANCE` | Removed |
+| `CompleteSetButton` | Disabled label replaces glyph; enabled glyph retained |
+| Russian `control_disabled` | “Отключено” |
+| `WearOverflowAssertions` | Locale-aware exact-cell exception with a positive assertion |
 
-Point 3 is not cosmetic. It is the reason C4L exists rather than C4:
-
-| string | 192dp @1.24ᴹ, glyph + label (C4) | 192dp @1.24ᴹ, label only (C4L) |
-|---|---|---|
-| «Disabled» (en) | fits, 23.7px/side | fits, ≥46px/side |
-| «Недоступно» (ru) | **clips 6.8px/side** | fits, 15.3px/side |
-
-The glyph pushes the label into a narrower part of the arc. With it, Russian does not
-fit the binding cell; without it, every locale × scale × profile cell passes. The KDoc on
-`UnavailableWord` already records this configuration failing once before — «Недоступно»
-split across two lines mid-word at 192dp@1.24 — so C4L fixes the geometry class, not the
-instance.
-
----
-
-## §3 Change surface
-
-| file | what changes |
-|---|---|
-| `WearControllerScreen.kt:141-145` | clearance expression collapses to `MEDIUM_EDGE_CLEARANCE.dp` |
-| `WearControllerScreen.kt:873` | `UNAVAILABLE_WORD_CLEARANCE` deleted |
-| `WearControllerScreen.kt:521-533` | `UnavailableWord` composable deleted |
-| `WearControllerScreen.kt:~174` | `CompleteSetButton` renders label-only content when disabled |
-
-Nothing else. Content order is unchanged. The scroll column's children, their order, and
-their styling are unchanged. `ScreenScaffold` (`:146`), `rememberScrollState` (`:138`)
-and the scaffold's scroll-state wiring (`:147`) are unchanged.
-
-The `complete_unavailable` test tag must survive the move onto the button, or every
-assertion that references it must be updated in the same commit — not left dangling.
-
----
+The content children, their order, scaffold scroll state, and styling were not
+restructured by PR-A. The approved later compact-screen work is a separate increment.
 
 ## §4 Behaviour contract
 
-- The disabled state remains stated in **drawn text**, before any scroll. This is the
-  commitment the sibling anchoring existed to serve, and C4L keeps it.
-- The status word on degraded kinds (`refresh_required`, `disconnected`) is **unchanged**
-  and still drawn. C4L does not touch it.
-- Semantics: the button's `contentDescription` must continue to convey both the action
-  and its disabled state. Losing the glyph must not reduce what a screen reader gets.
-- The enabled and disabled buttons remain the same size. `EdgeButtonSize.Medium` fixes
-  the height independently of content; both states measure `[0,238][384,378]` on 192dp
-  today and must continue to.
+The disabled state has drawn text before scrolling, and its complete meaning remains
+accessible. Degraded kinds still draw their status word under the existing redesign
+contract. The disabled button has an outline rather than a fill, as well as text, so
+availability is not represented by colour alone.
 
----
+Enabled and disabled completion retain equal dimensions. The historical 192dp device
+record gives `[0,238][384,378]` px for both Medium buttons; this is a recorded observation,
+not a replacement for G7 on a changed implementation.
 
-## §5 Acceptance criteria
+## §5 Recorded outcome and limits
 
-All at 192dp unless stated. `v` = value-row clip px at rest, `p` = pills, `e` = error line.
-Every criterion is a rest-state measurement — no scrolling before measuring.
+All numbers below are at rest, before scrolling. `v` means clipped value-row pixels.
+The unmarked numeric rows were recorded during PR-A; ᴹ rows remain mockup forecasts.
+The table's numeric value-clip budget is not a complete EN/RU device matrix.
 
-**Must hold:**
+| Cell | Before | C4L record / forecast | Russian coverage limit |
+| --- | --- | --- | --- |
+| `field_error` / `weight_error`, 1.0 | v39 | v0 recorded | Full first-screen matrix still required |
+| `field_error` / `weight_error`, 1.24ᴹ | v54 | v6ᴹ | Not a new device measurement |
+| `refresh_required` / `disconnected`, 1.0 | v55.8 | v7.8 recorded | Does not establish every localized text bound |
+| `refresh_required`, 1.24ᴹ | v80 | v32ᴹ | Worded RU state remains a known failure |
+| `disconnected`, 1.24ᴹ | v120.9; pills 19.9 | v72.9; pills 0ᴹ | Worded RU state remains a known failure |
+| `active_boundary`, 1.24ᴹ | v6 | v6ᴹ, unchanged | ACTIVE does not bound worded-state height |
+| Disabled viewport, 192dp | 184px | 232px recorded | Same reservation in both locales |
 
-| cell | before | after |
-|---|---|---|
-| `field_error` / `weight_error` @1.0 | v39 | **v0** |
-| `field_error` / `weight_error` @1.24ᴹ | v54 | **v6** |
-| `refresh_required` / `disconnected` @1.0 | v55.8 | **v7.8** |
-| `refresh_required` @1.24ᴹ | v80 | **v32** |
-| `disconnected` @1.24ᴹ | v120.9 · p19.9 | **v72.9 · p0** |
-| `active_boundary` @1.0 | ✓ | **✓ (unchanged)** |
-| `active_boundary` @1.24ᴹ | v6 | **v6 (unchanged)** |
-| viewport, `!completeEnabled` | 184px | **232px** |
+The merge record reports effective card height rising to 47dp on error fixtures and
+38.5dp on worded kinds. Both are still below 48dp. It also records the single accepted
+RU completion-label ellipsis; [§7.1](#71-arc-content-lane) lists its actual content budget.
+Neither this table nor a passing text-overflow gate proves complete initial visibility.
 
-**Also must hold:**
+The completion plan replaces these partial improvements with an explicit acceptance
+matrix: 192/240dp × EN/RU × 1.0/1.24, values, primary action, and the concrete disabling
+reason all visible before scrolling. PR-A alone does not satisfy that criterion.
 
-- Effective card height at 192dp rises to **47dp** on the error fixtures and **38.5dp** on
-  the worded kinds. Both remain under the 48dp minimum — see §6.
-- The value nodes appear in the rest-state accessibility dump on `field_error` and
-  `weight_error` at scale 1.0. They are present-but-clipped today; after this change they
-  must be present-and-unclipped.
-- Arc fit, measured not modelled, on a real `EdgeButton`: «Недоступно» on one line at
-  192dp @1.24 with margin on both sides. See §7 item 1 — this is the one criterion that
-  cannot be signed off from the mockup.
-- 240dp: no cell clips more than it does today, in any locale or scale.
+## §6 Remaining defects and ownership
 
----
+These remain open until the completion plan's compact-screen increment and its gates
+prove otherwise:
 
-## §6 Out of scope — named, not forgotten
+1. The error line on `field_error` / `weight_error` is below the fold. The original
+   record/model reported e75.8 at 1.0 / e108.9ᴹ at 1.24. PR-A did not reorder it.
+2. The model predicts a universal 6px value clip at 1.24, including enabled ACTIVE.
+   That forecast is not interchangeable with the earlier card-fill measurements.
+3. Worded RU states can wrap their status and leave values outside the initial
+   accessibility viewport; EN “Refresh required” at 192dp/1.24 also requires a check
+   against the circular screen boundary. A rectangular text-overflow check is insufficient.
+4. Effective visible card height remains below 48dp on the small profile.
 
-These are measured, real, and deliberately not fixed here.
+The earlier 2dp/10dp card-fill residual described ACTIVE screenshots only. It is not an
+acceptance waiver for these errors, worded states, languages, or accessibility failures.
+PR-C defines the visibility instrument; PR-D changes the layout and enables its mandatory
+acceptance checks. Removing or replacing the drawn status word requires updating the
+redesign contract and G3 together.
 
-1. **The error line rests below the fold** — `e75.8` @1.0, `e108.9` @1.24ᴹ on
-   `field_error` / `weight_error`, on the very surface it disables. It sits after the
-   cards in the content order, and content order is out of scope. Unchanged by every
-   candidate evaluated, at both profiles.
-2. **Universal 6px value clip at 1.24ᴹ** — present on every surface including enabled
-   ACTIVE. It is stack height, candidate-independent, and no band change touches it.
-3. **Worded-kind residue at 1.24ᴹ** — v32 / v72.9 remain. Closing them requires collapsing
-   the status word (candidates C5/C6), which is blocked: see §8.
-4. **Effective card height stays under 48dp** at 192dp after this change (47dp / 38.5dp).
-   PR-A improves it; PR-C is where the gate learns to measure it.
+## §7 Confirmation ledger
 
----
+### 7.1 Arc content lane
 
-## §7 Open items requiring on-device confirmation
+The PR-A merge record reports these measurements on a density-2 device/emulator profile:
 
-1. **Arc content lane.** The 15.3px/side margin was computed against the *drawn arc edge*
-   from the framebuffer. A real `EdgeButton` has its own content padding, so the usable
-   lane is narrower. 15.3px/side is an **outer bound, not a margin**. One on-device
-   measurement of the composed label inside the real button, in ru at 192dp@1.24, is
-   mandatory before merge. If it does not fit, the fallback is a copy decision on
-   `control_disabled` (ru), not a type-size change.
-2. **Pressed-state morph.** Whether the arc's press animation disturbs an in-arc label is
-   a real-device question, unanswered.
-3. **Disabled affordance becomes text-only.** Whether that needs a gate or a §4 amendment
-   to the redesign spec is a design call, not settled here.
+| Profile | Lane | RU label at 1.0 | RU label at 1.24 |
+| --- | --- | --- | --- |
+| 192dp / 384px | **159px / 79.5dp** | 150px, fits | 188px, one-line ellipsis |
+| 240dp / 480px | **211px / 105.5dp** | 150px, fits | 188px, fits |
 
----
+The content lane, not the drawn arc boundary, constrains the label. Calling the small
+lane “159dp” doubled the available budget; commit `9d6e4edb` corrected that unit error.
+The accepted copy and one-cell residual resolve the original fit question. They do not
+prove other content fits above the fold.
 
-## §8 Rejected alternatives
+### 7.2 Pressed-state behaviour
 
-| candidate | why rejected |
-|---|---|
-| **C0** — keep current behaviour | the defect under audit |
-| **C1** — word moves inside the scroll column | +48px viewport, but the word then lands below the fold in every tight cell (rest top 259.8px on `disconnected`@1.0): the disabled state becomes invisible until scrolled, surrendering the rationale the anchoring existed for |
-| **C2** — clearance derived from the word's measured box | honest, but yields only +16px @1.0 / +7pxᴹ @1.24 and still fails every band cell; strictly dominated |
-| **C3** — word removed entirely | +48px at the price of no drawn disabled word anywhere; unavailability becomes outline + semantics only |
-| **C4** — glyph + label in the arc | geometry identical to C4L, but «Недоступно» clips 6.8px/side at 192dp@1.24; the code's own KDoc records this configuration failing before |
-| **C5** — C4 plus status-row collapse on worded kinds | geometrically the best (v0 @1.0 everywhere, uniform v6 @1.24ᴹ), but **reds G3**: `WearKindDistinctionGateTest` lines 71-77 require every non-ACTIVE kind to draw its status word, not only speak it. Proven by probe — control green, C5-shape red at that clause. Shipping C5 means amending a deliberately-written clause that encodes a locked §4 decision. |
-| **C6** — C5 with a shape-distinguished status dot | geometrically free relative to C5 and restores visual kind distinction at zero cost, but reds G3 for the same reason: a slashed ring contributes no `Text`. C6 is the correct *form* of the collapse if the §4 decision is ever revisited; it is a dead letter while the clause stands. |
+**Host check executed on 2026-09-22:** `WearDisabledPressGateTest`, Robolectric native
+SDK 33, debug test variant, RU × 192/240dp × font scales 1.0/1.24. The scaffold's
+transient scroll indicator first settles for 5s of test-clock time. After pointer
+down, the Compose clock advances one frame plus 500ms. Each capture is restricted
+to the `complete_set` region, excluding the clock.
 
----
+All four disabled before/held comparisons report **0 changed pixels**; a disabled
+pointer click emits no action. The positive controls distinguish enabled and disabled
+captures (nonzero pixel difference), and an enabled pointer click emits exactly one
+`CompleteSet`. Captures are in `app/wear/build/reports/wear-press/*-before.png` and
+`*-held.png`. The local run log is `/private/tmp/wear-ui-controls-green-final.log` and reports
+`37 actionable tasks: 37 executed`.
 
-## §9 Gates
+**Limit:** this host does not render a pixel change for an enabled held ripple, so the
+original enabled-hold visual control was RED and cannot validate native press-animation
+rendering. The successful controls establish input delivery and a working capture
+comparison, not sensitivity to every platform animation. The pinned `EdgeButton`
+implementation uses a ripple rather than a press-size morph, and its disabled
+`clickable` does not dispatch press interactions. That source observation is separate
+from the host result. Physical-watch pressed appearance remains unmeasured; repeat the
+held enabled/disabled pixel comparison there before claiming device confirmation.
+The [PR-B negative-control ledger](wear-ui-completion.md#5-pr-b-implementation-and-evidence)
+also records a pressed-alpha mutation caught by the same pixel comparison.
 
-| gate | expected effect |
-|---|---|
-| G3 kind distinction | **unaffected** — the status word stays drawn on degraded kinds |
-| G7 primary hierarchy | **unaffected** — `EdgeButtonSize.Medium` fixes height independent of content; a single ≤41px label line cannot outgrow the 140px body. Settled analytically; if an empirical answer is wanted, the probe is a scratch Robolectric test comparing `EdgeButton(Medium)` `node.size` with `Icon` vs `Text` content. |
-| G1 touch targets | **still green, still blind** — it measures unclipped `node.size`, so it neither catches today's 14.85dp nor credits the improvement. PR-C, not PR-A. |
-| G6 overflow | unaffected in principle; re-run and confirm |
-| G4 disabled-not-colour-alone | must be re-confirmed: the disabled affordance loses its glyph, so the assertion's subject changes even if its verdict does not |
+### 7.3 Text-only disabled affordance
 
-Verification discipline: `./gradlew --stop` first, every invocation with
-`--rerun-tasks --no-build-cache --no-daemon`, detekt and tests as separate serial
-invocations, zero new suppressions, bisect-green per commit, no Paparazzi golden
-re-recorded.
+The accepted C4L implementation uses the drawn disabled word and outlined button while
+preserving the full content description. The redesign [layout contract](wear-controller-redesign.md#4-layout--active-state)
+now states that form explicitly. G4 protects the label; the completion plan will replace
+generic unavailable copy with a concrete reason in the primary content area.
 
----
+## §8 Alternatives considered
+
+| Candidate | Recorded reason not selected for PR-A |
+| --- | --- |
+| C0: keep the overlay | Retains the viewport defect |
+| C1: move the word into the scroll column | The word itself falls below the fold |
+| C2: size the reservation from the word | Smaller gain; does not remove the tight-cell failure |
+| C3: remove the word | Loses drawn unavailable text |
+| C4: glyph and label in the arc | The glyph consumes lane space; RU does not fit the binding cell |
+| C5: collapse the degraded status row | Requires changing the drawn-word contract and G3 |
+| C6: collapse with a shape-distinguished dot | Same contract change as C5; shape does not satisfy a drawn-word assertion |
+
+C5/C6 were outside PR-A. The approved completion plan reopens the content-order and
+status-contract decision for PR-D; this table is not a permanent prohibition on that work.
+
+## §9 Gates and review classification
+
+| Gate | Current contract and limitation |
+| --- | --- |
+| G1 touch targets | Full `node.size` is checked; actual clipped visible size is not yet the oracle |
+| G3 kind distinction | Degraded kinds retain drawn status text |
+| G4 disabled-not-colour-alone | The disabled button has drawn unavailable text |
+| G6 text overflow | Only disabled `complete_set` at RU / SMALL_ROUND / 1.24 is excepted; it must report exactly one line **and** `hasVisualOverflow` |
+| G7 primary hierarchy | Enabled primary dimensions are not smaller than disabled dimensions |
+
+G6's exception is a positive check, not a skip. If shorter copy or a wider lane removes
+that overflow, the exception must fail and be deleted. Enabled completion and every
+other disabled cell take the strict `!hasVisualOverflow` branch.
+
+Historical negative controls recorded in commit `eda2e7f5` (not rerun for this document):
+
+| Mutation | Recorded outcome |
+| --- | --- |
+| A: replace enabled glyph with a long one-line action label | EN and RU RED in the strict branch |
+| B: allow disabled text two lines | RU RED at the accepted cell; EN unchanged |
+| C: make EN disabled copy “Disabled until reconnected” | EN RED outside the accepted cell; RU unchanged |
+| D: shorten RU disabled copy to “Откл” | RU RED because the expected residual disappears; EN unchanged |
+
+Review findings and their recorded resolution:
+
+| Finding | Classification | Resolution |
+| --- | --- | --- |
+| State-wide G6 exemption admits new non-binding-cell overflow | correct | Reproduced and narrowed to one cell with a positive assertion in `eda2e7f5` |
+| 159px lane described as 159dp | correct | Unit corrected in `9d6e4edb`; derivation retained in §7.1 |
+| Experiment history in the G6 comment | correct | `eda2e7f5` moved the history to its commit record; invariant stays beside the assertion |
+
+This ledger does not claim that remote review threads have been resolved. Fresh Gradle
+runs must execute serially with `--rerun-tasks --no-build-cache`; retain the exact
+`N actionable tasks: N executed` summary, XML results, and named mutation evidence.
+Use the mutation harness for every source mutation and byte-exact restoration.
 
 ## §10 Sequencing
 
-- **PR-B** (rotary binding) is independent and can land before or after.
-- **PR-A** is this document.
-- **PR-C** (teach G1 to measure viewport intersection against ancestor clips, and add a
-  read-only fixture at the small extreme) lands **after** PR-A — run against today's
-  layout it would red on defects PR-A removes.
+PR-A is merged. Documentation closure and its outstanding press probe precede completion
+claims. **PR-B follows PR-A** because both change the same controller scroll columns.
+PR-B binds controller rotary input and restores hierarchy focus; the numeric editor
+keeps value-stepping behaviour. PR-C follows PR-A and establishes the visibility
+instrument. PR-D ships the compact layout and mandatory visibility checks together.
+See [Wear UI completion](wear-ui-completion.md) for ambient, ongoing, and privacy limits.

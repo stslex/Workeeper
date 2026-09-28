@@ -5,8 +5,14 @@ approved mockup had the two value cards equal; they landed unequal because the w
 weight (`999.99`) needs 65dp of content at the largest font scale while the widest reps
 (`999`) needs 36dp, and equal halves gave both 60dp on a 192dp screen.
 
-**This directory records what shipped. It argues nothing.** Whether 1.53:1 reads as
-intentional or as lopsided is a design call, and no gate can express it.
+**These are historical PR #284 captures.** PR #285 subsequently moved the disabled
+word into the button and changed Russian copy to “Отключено”; the disabled image below
+still shows the earlier overlay. Current acceptance and outstanding visibility work are
+tracked in [the bottom-band spec](../wear-bottom-band-rebudget.md#6-remaining-defects-and-ownership)
+and [Wear UI completion](../wear-ui-completion.md).
+
+Whether 1.53:1 reads as intentional or as lopsided is a design call, and no gate can
+express it.
 
 ## How these were captured
 
@@ -41,20 +47,21 @@ The header was cut in three steps to bring the value cards above the fold. Stack
 | 2 — the status word leaves the drawing in ACTIVE only | 112dp / 124dp | 29dp / 21dp |
 | 3 — the exercise name drops to one line | **94dp / 102dp** | **47dp / 43dp** |
 
-**The criterion is not met.** Both cards are **2dp short at scale 1.0 and 10dp short at
-1.24** — card bottom at 118dp and 126dp against a viewport ending at 116dp. What that means
-in practice is visible in the images: both values read cleanly at both scales, and it is the
-bottom of the card *fill* that is clipped, not the numbers. Nothing was shrunk, tightened,
-reduced or raised to close the gap.
+**The criterion is not met.** In these **ACTIVE-only captures**, both cards are
+**2dp short at scale 1.0 and 10dp short at 1.24** — card bottom at 118dp and 126dp against
+a viewport ending at 116dp. The pictured values remain readable while the card fill clips.
+This observation does not describe worded read-only states, field errors, or their
+accessibility trees, and is not an accepted blanket residual for the controller.
+Nothing was shrunk, tightened, reduced or raised to close this historical gap.
 
-Visible at rest on the ACTIVE surface now, in order: the **connection dot** (filled, with no
+Visible at rest on the captured ACTIVE surface, in order: the **connection dot** (filled, with no
 word beside it — the word is spoken, not drawn, in this state only), the **exercise name** on
 one line, the **set-scale pills** (whose «Подход 4 из 4» is spoken), and **both value cards**
 with their icons and values, above the **check-glyph action**.
 
-`small-round-192dp-ru-disabled.png` shows the read-only variant, where the status word *is*
-drawn — it is the whole message there — and «Недоступно» sits between the pills and the
-outlined action.
+`small-round-192dp-ru-disabled.png` shows the pre-PR-A read-only variant, where the status
+word is drawn and «Недоступно» sits between the pills and the outlined action. It does
+not depict the merged PR-A button label.
 
 ## The mid-word break, fixed
 
