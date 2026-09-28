@@ -1,0 +1,18 @@
+{
+  "token": "20260926T234600.233614Z-notification-native-block-start-ebfdcf6b",
+  "capture": "/private/tmp/wear-style-mvi-evidence-20260926/final-manual-api30-dev/steps/20260926T234601.440196Z-notification-native-apps-missing-labels-06bae242",
+  "denied_capture": "/private/tmp/wear-style-mvi-evidence-20260926/final-manual-api30-dev/steps/20260926T234754.258156Z-notification-native-denied-active-4f0347d8",
+  "status": "FAIL_ENABLE_ACTION_CRASH_OTHER_TRANSITIONS_CAPTURED",
+  "enable_result": "/private/tmp/wear-style-mvi-evidence-20260926/final-manual-api30-dev/steps/20260926T234959.463425Z-notification-enable-actual-result-a3e0effe",
+  "grant": "/private/tmp/wear-style-mvi-evidence-20260926/final-manual-api30-dev/steps/20260926T235229.267063Z-notification-restored-without-fresh-560eb724",
+  "fresh": "/private/tmp/wear-style-mvi-evidence-20260926/final-manual-api30-dev/steps/20260926T235307.630541Z-notification-fresh-published-723f2f1b",
+  "disconnect": "/private/tmp/wear-style-mvi-evidence-20260926/final-manual-api30-dev/steps/20260926T235309.373715Z-notification-disconnect-1616a478",
+  "repeat": "/private/tmp/wear-style-mvi-evidence-20260926/final-manual-api30-dev/steps/20260926T235310.263793Z-notification-repeat-9d1990a0",
+  "terminal": "/private/tmp/wear-style-mvi-evidence-20260926/final-manual-api30-dev/steps/20260926T235311.162177Z-notification-terminal-a0f58b54",
+  "terminal_return": "/private/tmp/wear-style-mvi-evidence-20260926/final-manual-api30-dev/steps/20260926T235312.237305Z-notification-terminal-return-592c7d11",
+  "video_stop": "/private/tmp/wear-style-mvi-evidence-20260926/final-manual-api30-dev/steps/20260926T235313.158362Z-notification-native-block-stop-eb43a095",
+  "reviewed_at": "2026-09-26T23:55:33.425861+00:00",
+  "operator_review": "All13 one-second sampled video sheets inspected at original pixel size. Actual native toggle off, reachable whole-word notice/action, actual button crash/recreated read-only controller, native toggle restored, later fresh active state, headless watch-face transitions and terminal summary observed. Native Settings layout defects are system UI, not Workeeper UI. Initial exploratory app-op/settings recording retained but not fully reviewed and not acceptance evidence.",
+  "video_review": "/private/tmp/wear-style-mvi-evidence-20260926/final-manual-video-review-api30-notification-native/index.json",
+  "raw_transition_audit": "/private/tmp/wear-style-mvi-evidence-20260926/final-notification-transitions-api30.json"
+}

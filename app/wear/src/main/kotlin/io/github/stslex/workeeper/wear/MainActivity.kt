@@ -103,10 +103,10 @@ class MainActivity : ComponentActivity() {
                     notificationAccess.markRequested()
                     notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
                 } else {
-                    startActivity(notificationAccess.settingsIntent())
+                    notificationAccess.openSettings()
                 }
             }
-            NotificationEnableAction.OPEN_SETTINGS -> startActivity(notificationAccess.settingsIntent())
+            NotificationEnableAction.OPEN_SETTINGS -> notificationAccess.openSettings()
             NotificationEnableAction.NONE -> refreshRuntime()
         }
     }

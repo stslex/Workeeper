@@ -1,0 +1,93 @@
+{
+  "case": "manual/api36/inactivity-baseline",
+  "status": "PASS",
+  "reason": "PASS for matched API36 DevDebug passive comparison: baseline 600010ms without ongoing key returns from MainActivity to system watch face within measured [71010,72140]ms; three fresh-retention trials retain MainActivity for 600060/600100/600170ms. All raw cadence audits meet 500ms budget. Separate later matching-profile HOME exit succeeds. This records this image, not a universal OS timeout or performance.",
+  "operator_attestation": true,
+  "artifacts": [
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-api36-manual-reviewed-v2/raw-source-index.json",
+      "sha256": "20562f59ae29fef3826953cd8024078212a8ae9b874f81ef4d45ef8b55336b03",
+      "bytes": 1913042
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-api36-additional-pixel-review-1.json",
+      "sha256": "52cc8b6e9603331f34c3f6ff925f043b3ead3b07cf768857f684fa871112eab2",
+      "bytes": 11354
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-api36-additional-pixel-review-2.json",
+      "sha256": "1e7124639b23aa5566c59947844b6f63c5c35a1d7299ba395b70d7d0a34e866d",
+      "bytes": 32661
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-manual-video-review-api36-baseline/index.json",
+      "sha256": "88b548e2cc9e1148deb35f31ab564bca3c5043f580d54b3cf93101c5459aa317",
+      "bytes": 323936
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-lifecycle-api36/baseline.webm",
+      "sha256": "206eecac51175eacc80305dc9ff657e3f160f2f1885ad7c370d8ac5824e892c1",
+      "bytes": 57388627
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-manual-video-review-api36-retention-1/index.json",
+      "sha256": "6cb04e1c9201388a098ed0e95a41113e84c92243db9f5ab8288f78704ee488c3",
+      "bytes": 333424
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-lifecycle-api36/retention-1.webm",
+      "sha256": "a746337c710f68edcda7ffbb942e9c001d531151a7cf9c33cac595aedaad2296",
+      "bytes": 44904635
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-manual-video-review-api36-retention-2/index.json",
+      "sha256": "bf4501200b1d73b262f47d47c19b8b5c925d9ba8fc2b09cb02bafcd4b65231df",
+      "bytes": 318764
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-lifecycle-api36/retention-2.webm",
+      "sha256": "bd3dd90242d8cf607a6a17b86063599bef35086cc5713f4759afc4cf1b9dae91",
+      "bytes": 45135874
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-manual-video-review-api36-retention-3/index.json",
+      "sha256": "6bbd803d96f634bfe1b45f39506fc19d7eb48204446e6ab78cf6b444fecf8c75",
+      "bytes": 323333
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-lifecycle-api36/retention-3.webm",
+      "sha256": "745a2e93de3115cb56840a4cf99927935271d35de36528932c38cf469d98e455",
+      "bytes": 44794762
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-manual-video-review-api36-deliberate-exit/index.json",
+      "sha256": "5a64df8ed142db1adb3f8033d144e6f38ee2aed228cbbfa639e3c673584bd4dc",
+      "bytes": 30838
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-manual-api36-dev/steps/20260926T201513.443903Z-inactivity-deliberate-exit-video-704a55dd/video.webm",
+      "sha256": "9cf84408311046615bc36017fcc2c8266bdbdac6934b29b7e41d8c8e5292a953",
+      "bytes": 1532688
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-baseline-audit-api36/audit.json",
+      "sha256": "c1e3ade6bdbd46aebe3885418bccbd9eb069ab9458f0e9d3429c5fb6661987a7",
+      "bytes": 3680
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-retention-audit-api36-1/audit.json",
+      "sha256": "22559bb8b2237ad60be42a25a4148c8543a42838791af9c5c85ddd5253b3dba3",
+      "bytes": 4317
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-retention-audit-api36-2/audit.json",
+      "sha256": "b360761e206a14c8c56869213251e987fdafe390e0b25806d04034099527a447",
+      "bytes": 4318
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-retention-audit-api36-3/audit.json",
+      "sha256": "a591b73136dc7143197a19a59fd7e60b66b0a6aba8575534ecc36e6907e90b2c",
+      "bytes": 4318
+    }
+  ]
+}

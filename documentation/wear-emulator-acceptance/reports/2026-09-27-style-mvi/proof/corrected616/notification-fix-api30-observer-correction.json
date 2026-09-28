@@ -1,0 +1,7 @@
+{
+  "status": "INVALID_GLOBAL_LOG_ORACLE",
+  "before": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-manual-api30-dev/steps/20260927T011356.721178Z-androidruntime-before-real-button-bef8a5bf/operator-command/stdout",
+  "after": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-manual-api30-dev/steps/20260927T011402.138099Z-androidruntime-after-real-button-7dde0a87/operator-command/stdout",
+  "byte_identical": true,
+  "reason": "The broad no-FATAL assertion included pre-existing GMS and system entries. Before/after logs are retained, and app PID birth, actual settings Activity, Back return and PID-scoped logs are the applicable oracles."
+}

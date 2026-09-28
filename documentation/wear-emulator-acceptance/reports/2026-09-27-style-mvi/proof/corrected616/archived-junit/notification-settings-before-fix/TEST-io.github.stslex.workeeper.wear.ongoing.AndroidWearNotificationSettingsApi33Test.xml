@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.stslex.workeeper.wear.ongoing.AndroidWearNotificationSettingsApi33Test" tests="1" skipped="0" failures="1" errors="0" timestamp="2026-09-27T00:19:18.767Z" hostname="stslexs-MacBook-Pro.local" time="1.731">
+  <properties/>
+  <testcase name="missingPerAppSettingsFallsBackToPublicSystemSettings()" classname="io.github.stslex.workeeper.wear.ongoing.AndroidWearNotificationSettingsApi33Test" time="1.73">
+    <failure message="org.opentest4j.AssertionFailedError: Unexpected exception thrown: android.content.ActivityNotFoundException" type="org.opentest4j.AssertionFailedError">org.opentest4j.AssertionFailedError: Unexpected exception thrown: android.content.ActivityNotFoundException
+	at io.github.stslex.workeeper.wear.ongoing.AndroidWearNotificationSettingsContract.missingPerAppSettingsFallsBackToPublicSystemSettings(AndroidWearNotificationSettingsTest.kt:34)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at tech.apter.junit.jupiter.robolectric.internal.JUnit5RobolectricTestRunnerHelper.proceedInvocation$lambda$7(JUnit5RobolectricTestRunnerHelper.kt:66)
+	at tech.apter.junit.jupiter.robolectric.internal.SandboxExtensionsKt.runWithRobolectric(SandboxExtensions.kt:17)
+	at tech.apter.junit.jupiter.robolectric.internal.SandboxExtensionsKt.runOnMainThreadWithRobolectric$lambda$0(SandboxExtensions.kt:10)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1144)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:642)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+Caused by: android.content.ActivityNotFoundException
+	at io.github.stslex.workeeper.wear.ongoing.AndroidWearNotificationSettingsContract.missingPerAppSettingsFallsBackToPublicSystemSettings(AndroidWearNotificationSettingsTest.kt:32)
+	... 8 more
+</failure>
+  </testcase>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

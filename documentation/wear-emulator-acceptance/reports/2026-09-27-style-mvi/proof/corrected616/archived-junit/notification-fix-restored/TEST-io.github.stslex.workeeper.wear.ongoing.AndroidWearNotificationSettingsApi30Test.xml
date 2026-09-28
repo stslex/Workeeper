@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.stslex.workeeper.wear.ongoing.AndroidWearNotificationSettingsApi30Test" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-09-27T00:26:45.573Z" hostname="stslexs-MacBook-Pro.local" time="2.431">
+  <properties/>
+  <testcase name="missingPerAppSettingsFallsBackToPublicSystemSettings()" classname="io.github.stslex.workeeper.wear.ongoing.AndroidWearNotificationSettingsApi30Test" time="2.363"/>
+  <testcase name="noSettingsHandlerReturnsFailureAndKeepsNotificationAccessDisabled()" classname="io.github.stslex.workeeper.wear.ongoing.AndroidWearNotificationSettingsApi30Test" time="0.035"/>
+  <testcase name="supportedPerAppSettingsOpensOnlyTheRequestedPackage()" classname="io.github.stslex.workeeper.wear.ongoing.AndroidWearNotificationSettingsApi30Test" time="0.026"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

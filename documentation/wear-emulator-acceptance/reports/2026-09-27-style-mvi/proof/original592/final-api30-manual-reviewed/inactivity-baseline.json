@@ -1,0 +1,118 @@
+{
+  "case": "manual/api30/inactivity-baseline",
+  "status": "PASS",
+  "reason": "API30 no-session baseline600130ms retains identical MainActivity/task across584 observations; display enters Dozing/DOZE, no automatic watch-face return observed. Active comparisons600220/600060ms and separate retention3 repeat600060ms (conservative600050) also retain Activity. Original retention3 runnerPASS at600000ms and independent599990ms audit remain invalid strict-ten-minute evidence. Raw cadence audits and all sampled videos reviewed; matched separate deliberate HOME exit succeeds. No causal/universal OS-retention claim.",
+  "operator_attestation": true,
+  "artifacts": [
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-api30-manual-reviewed/raw-source-index.json",
+      "sha256": "685c39da473a0ebd29b71541adfdf6701612429bdfe136b40e478d89859897be",
+      "bytes": 2509380
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-baseline-audit-api30/audit.json",
+      "sha256": "0e08262bb89fb7bc8ac3fd3b83a8403e3b43857ce067ae8ca892bbf2cfedb432",
+      "bytes": 2233
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-retention-audit-api30-1/audit.json",
+      "sha256": "6b1c4a0874b4911e5be84c0bdb40ff1f8af6a821b4db1201f0c217f72283e32d",
+      "bytes": 4280
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-retention-audit-api30-2/audit.json",
+      "sha256": "fba3f4a8a934688db2d3c1784df9a9b56540578ffc8a3f86b2d1420bf5376935",
+      "bytes": 4281
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-retention-audit-api30-3/audit.json",
+      "sha256": "0679b88f2899417f83c524798099e3984e1f1d5ae1d2d388c2929a66a2d2f075",
+      "bytes": 4318
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-retention-audit-api30-repeat/audit.json",
+      "sha256": "e83b4f8ee0a06cbcdb52bfef6a6bfaff5d8a412abfac7682d275352d2f835f44",
+      "bytes": 4284
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-api30-lifecycle-sampled-visual-review.json",
+      "sha256": "c5c260a38ca111aebadd2a66d07b3013827d5a303d97b3b6a9c01dde08853dca",
+      "bytes": 117983
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-api30-retention-repeat-visual-review.json",
+      "sha256": "b3d4616456ef7990a74d628e78c6aa0409011fbcb84144614adbcda417ba6c6d",
+      "bytes": 5680
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-api30-retention-repeat-endpoint-review.json",
+      "sha256": "ac3830f4e40944c98295b9e91bd2747d43e12b00158879a2cc390ddcfff2fa05",
+      "bytes": 971
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-api30-opening-video-review.json",
+      "sha256": "8378ead377966b2c10bd95170a0067b23d79475d13dfed4fa5e8d0f020454e8e",
+      "bytes": 8850
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-manual-video-review-api30-baseline/index.json",
+      "sha256": "4de406972476302f815a6fa9063c49b655abb40f9a686c9d35396fbbbeb2f923",
+      "bytes": 337632
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-lifecycle-api30/baseline.webm",
+      "sha256": "eeb79362feccaf7117278668b05e84307d178b9455f9be7fe543cf75e290ca56",
+      "bytes": 18391616
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-manual-video-review-api30-retention-1/index.json",
+      "sha256": "49b4bb0744f718c62cc99bf3263c5d0c20d35a15dd55edead09b65aa383a7ce9",
+      "bytes": 317534
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-lifecycle-api30/retention-1.webm",
+      "sha256": "1eadf5d98ec2359a26e7948ec3edc9cde968a69d7cdb364d68c7632aa23da207",
+      "bytes": 39221397
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-manual-video-review-api30-retention-2/index.json",
+      "sha256": "bb26976a50a489c1dd7877ce5cda1764614b1a0938976043c6b0496d809dd16c",
+      "bytes": 334968
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-lifecycle-api30/retention-2.webm",
+      "sha256": "e289af3362d5ef95bb9bca55596817363bb502416c59ee0a38ddaf119a6fd58e",
+      "bytes": 39009353
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-manual-video-review-api30-retention-3/index.json",
+      "sha256": "c3652989443e34e36b1928cc91201fb96256dd6b4f911f2b1115c9f56b118b13",
+      "bytes": 345682
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-lifecycle-api30/retention-3.webm",
+      "sha256": "51b78de639d53057e6ac2362166f421dbe5d6e3aaa0f09ccd882d001ebe15473",
+      "bytes": 39078451
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-manual-video-review-api30-retention-repeat/index.json",
+      "sha256": "738e691e4e7022c69f9443277babae4e313c49d466e80df0265b124d35313440",
+      "bytes": 332975
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-retention-api30-repeat/retention-3.webm",
+      "sha256": "382046b3ab5ad65de7b07c51a863cc624d70a4886256386c275d71d99062661a",
+      "bytes": 39385651
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-manual-video-review-api30-deliberate-exit/index.json",
+      "sha256": "a6f6d86599604c849f4a0f7e8110f84e7cf64fa3bf3d7f4e2886e6a69a7f8c56",
+      "bytes": 28516
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-manual-api30-dev/steps/20260926T232525.165051Z-deliberate-exit-video-start-69d6ed83/video.webm",
+      "sha256": "7f83a16e1e5b995df45d05387a2ee8f544c61a36caa1c9377220106b727c7ea3",
+      "bytes": 700256
+    }
+  ]
+}

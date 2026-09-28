@@ -1,0 +1,182 @@
+[
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/final-acceptance-closure/qualified-index.json",
+    "copy": "final-acceptance-closure/qualified-index.json",
+    "sha256": "4f449b8ba1d35c354d48d6b0d786025da6a50d7811fb759e9ff911fdcc4efef8",
+    "bytes": 509358
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/final-all16-ui-visual-index.json",
+    "copy": "final-all16-ui-visual-index.json",
+    "sha256": "a44b57f90371f20f650dd820e280268adc89856bd278520950f1c5cf9a58a3d2",
+    "bytes": 9753
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/final-source592-analysis-count-clarification.json",
+    "copy": "final-source592-analysis-count-clarification.json",
+    "sha256": "2a0fb9122924288c7af659b6a449ab9889075bf2b9cb42ac9b03bca9dad90e37",
+    "bytes": 576
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/final-api30-native-notifications-reviewed.json",
+    "copy": "final-api30-native-notifications-reviewed.json",
+    "sha256": "70534535c5f3c543429e6347b94ca5591e2cfed77a650cd3c61cc9ace1723b8d",
+    "bytes": 2504
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/final-api30-tile-reviewed.json",
+    "copy": "final-api30-tile-reviewed.json",
+    "sha256": "0071a9566711574c66e0bd816e9351bc659488d25d9c018e29d607bcee759172",
+    "bytes": 6398
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/final-acceptance-closure/final-dev-cohort-v2-command.json",
+    "copy": "final-acceptance-closure/final-dev-cohort-v2-command.json",
+    "sha256": "249a296d0f1184e6ae6a538d99541c32a7c02f57fb7cda2876b6651b77fe7663",
+    "bytes": 319
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/final-acceptance-closure/final-store-cohort-report.json",
+    "copy": "final-acceptance-closure/final-store-cohort-report.json",
+    "sha256": "844787b1808e6e360090bd2b699ba619988d0b63ab9f3ccda4a54f8d26ab6164",
+    "bytes": 3201
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/final-acceptance-closure/final-dev-cohort-v3-command.json",
+    "copy": "final-acceptance-closure/final-dev-cohort-v3-command.json",
+    "sha256": "65396f0a064ef81299f0019f7c1e7404a1d42cffa277eee6e7c1af0218afa4af",
+    "bytes": 319
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/final-acceptance-closure/final-dev-cohort-v3-report.json",
+    "copy": "final-acceptance-closure/final-dev-cohort-v3-report.json",
+    "sha256": "11d29ee3550d22e5198c1f9308a05b94f7b4d0689a96a214344ffc3a2687d4f5",
+    "bytes": 3129
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/final-acceptance-closure/final-dev-cohort-command.json",
+    "copy": "final-acceptance-closure/final-dev-cohort-command.json",
+    "sha256": "3daeff51a72ecee1f4c98465898f19522da83fe2f3c8fd7a720fd472127ffdf1",
+    "bytes": 316
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/final-acceptance-closure/final-dev-cohort-report.json",
+    "copy": "final-acceptance-closure/final-dev-cohort-report.json",
+    "sha256": "12adf9c0dc0e3aeda07ad21f52732157ccd29600ddbfe2a40ae72037578be4da",
+    "bytes": 18147
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/final-acceptance-closure/final-store-cohort-command.json",
+    "copy": "final-acceptance-closure/final-store-cohort-command.json",
+    "sha256": "70156810f2f87336444a5fe1d10d45b96244037f11b4a7fa8e1bcf826829c34a",
+    "bytes": 318
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/final-acceptance-closure/final-dev-cohort-v2-report.json",
+    "copy": "final-acceptance-closure/final-dev-cohort-v2-report.json",
+    "sha256": "8ae3ee467e5f8327d00347a28e87d2dc4a7b61bf62acadb80e3752ea04ce44ea",
+    "bytes": 3042
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/final-api36-manual-reviewed-v2/system-tile.json",
+    "copy": "final-api36-manual-reviewed-v2/system-tile.json",
+    "sha256": "2f184cfaa0bb783b76f52f3a3baff8d746c518a0d107afa23127895a76796d55",
+    "bytes": 1681
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/final-api36-manual-reviewed-v2/ongoing-return.json",
+    "copy": "final-api36-manual-reviewed-v2/ongoing-return.json",
+    "sha256": "6a6b87c4259297fd2ac28a93d504951caf622c05151401112e1fc33e851029cc",
+    "bytes": 1539
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/final-api36-manual-reviewed-v2/disconnect-terminal.json",
+    "copy": "final-api36-manual-reviewed-v2/disconnect-terminal.json",
+    "sha256": "ba6e5ad5d50fb36a2491086884ca10d51443d418abdfbfed5b5979011bf5a117",
+    "bytes": 1853
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/final-api36-manual-reviewed-v2/notification-denial-restoration.json",
+    "copy": "final-api36-manual-reviewed-v2/notification-denial-restoration.json",
+    "sha256": "89ba57f63f38199b4e90bb927cb33ba4121fe817a6e759229a542b3e9a514a1b",
+    "bytes": 2226
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/final-api36-manual-reviewed-v2/inactivity-baseline.json",
+    "copy": "final-api36-manual-reviewed-v2/inactivity-baseline.json",
+    "sha256": "7497a2d07e54c4c7ca4a7ca8c9b9bc0faeb30b069439b186609397f40b9e3456",
+    "bytes": 4473
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/final-api36-manual-reviewed-v2/store-debug-parity.json",
+    "copy": "final-api36-manual-reviewed-v2/store-debug-parity.json",
+    "sha256": "8dd8bcf0185116fc5c043ca4959ce4b3261fb61a6f8a00a2463e8ab0e52449dc",
+    "bytes": 2911
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/final-api36-manual-reviewed-v2/release-boundary.json",
+    "copy": "final-api36-manual-reviewed-v2/release-boundary.json",
+    "sha256": "c129080ddd65ac83ab8bb828fef5f386537d14ef61f66d6800a10f4169583a71",
+    "bytes": 1683
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/final-api36-manual-reviewed-v2/ambient-capabilities.json",
+    "copy": "final-api36-manual-reviewed-v2/ambient-capabilities.json",
+    "sha256": "966bd2854ac644efe21a3fbfc39b1a5813794491bb45e1eba8087b6f6fe2debe",
+    "bytes": 1954
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/final-api30-manual-reviewed/system-tile.json",
+    "copy": "final-api30-manual-reviewed/system-tile.json",
+    "sha256": "8849038a008b6808a96f39e747ce5cce25e5c367f5e09221db1177c4078b3139",
+    "bytes": 1623
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/final-api30-manual-reviewed/ongoing-return.json",
+    "copy": "final-api30-manual-reviewed/ongoing-return.json",
+    "sha256": "b5a087e0b131211d428ba33b3f18c9d59ecc12e10bbf309d5eaa5bde8feb5c97",
+    "bytes": 1334
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/final-api30-manual-reviewed/disconnect-terminal.json",
+    "copy": "final-api30-manual-reviewed/disconnect-terminal.json",
+    "sha256": "270c2bfe2206b7ae2245bd7183839cdc4a3655c07297589dfe6687784cf9abee",
+    "bytes": 1614
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/final-api30-manual-reviewed/notification-denial-restoration.json",
+    "copy": "final-api30-manual-reviewed/notification-denial-restoration.json",
+    "sha256": "7cc9c473febd431ba028a717fc62c4fdbbac20c26da087693932d39307d8e89b",
+    "bytes": 2070
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/final-api30-manual-reviewed/inactivity-baseline.json",
+    "copy": "final-api30-manual-reviewed/inactivity-baseline.json",
+    "sha256": "dc5431e4a2ddff7ef2d1b01dbf22a5cbeaa16c2d57215ebf986fd51ae32ec39d",
+    "bytes": 5745
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/final-api30-manual-reviewed/store-debug-parity.json",
+    "copy": "final-api30-manual-reviewed/store-debug-parity.json",
+    "sha256": "2b5952ed7a9faf5da1710011d3c09fa62b5f84069c4ad46be9497d40e8c9e886",
+    "bytes": 3297
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/final-api30-manual-reviewed/release-boundary.json",
+    "copy": "final-api30-manual-reviewed/release-boundary.json",
+    "sha256": "be6a3eda061c2e3e9bbd790f75e529621adbd918f56caf3ebd697c19ca94917a",
+    "bytes": 1657
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/final-api30-manual-reviewed/process-death-restoration.json",
+    "copy": "final-api30-manual-reviewed/process-death-restoration.json",
+    "sha256": "a3b1c97c589f9f871d9fc974b5606bf28242269aaa2cedc49f1ef62c729d2d8f",
+    "bytes": 2015
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/final-api30-manual-reviewed/ambient-capabilities.json",
+    "copy": "final-api30-manual-reviewed/ambient-capabilities.json",
+    "sha256": "5730002d91bc0426be1a333ea30e3ebc07e55ecc641c786305d25459d410e55e",
+    "bytes": 1745
+  }
+]

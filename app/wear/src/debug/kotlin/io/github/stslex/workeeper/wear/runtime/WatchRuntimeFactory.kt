@@ -9,6 +9,7 @@ import io.github.stslex.workeeper.wear.cache.BootCountProvider
 import io.github.stslex.workeeper.wear.cache.ElapsedRealtimeClock
 import io.github.stslex.workeeper.wear.ongoing.AndroidOngoingNotification
 import io.github.stslex.workeeper.wear.ongoing.OngoingPolicy
+import io.github.stslex.workeeper.wear.tile.observeWorkoutTile
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -45,6 +46,7 @@ internal object WatchRuntimeFactory {
             scheduler = DebugDeadlineScheduler(clock),
             selectedLocale = context.resources.configuration.locales[0],
         )
+        observeWorkoutTile(context, owner)
         return RuntimeInstance(owner, DebugSnapshotDriver(owner, ids, clock))
     }
 

@@ -1,0 +1,38 @@
+{
+  "case": "manual/api30/process-death-restoration",
+  "status": "PASS",
+  "reason": "Real Dev editor changes canonical999 to unsent998. Guarded default/unblocked SIGTERM establishes PID31411/birth733910 absent; ordinary launcher without fixture starts PID32658/birth741275, shows canonical999 and refresh-required disabled controls. Cache908B/e651aee7... byte-identical across canonical/draft/prekill/reopen; deadline7761787 unchanged. Online emulator, installed Tile removed, all services enabled. Not SIGKILL/LMK/physical-watch evidence.",
+  "operator_attestation": true,
+  "artifacts": [
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-api30-manual-reviewed/raw-source-index.json",
+      "sha256": "685c39da473a0ebd29b71541adfdf6701612429bdfe136b40e478d89859897be",
+      "bytes": 2509380
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-api30-opening-video-review.json",
+      "sha256": "8378ead377966b2c10bd95170a0067b23d79475d13dfed4fa5e8d0f020454e8e",
+      "bytes": 8850
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-api30-exit-draft-static-review.json",
+      "sha256": "ca3bc338b857937aef5cc038c9c4f589fd35a5ededaf33e5e1964f2899a2908c",
+      "bytes": 2575
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-draft-restoration-api30-dev/receipt.json",
+      "sha256": "4263af1bb9fb33cd0ee0ea0574fc96347608455c58af24a8d9490a2d5cd23942",
+      "bytes": 17694
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-manual-video-review-api30-draft-dev/index.json",
+      "sha256": "066712afdcdb4c6faae7ef4ea4c1eeb5a1748416e1da3df3ddd911f6696b4abf",
+      "bytes": 45131
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-manual-api30-dev/steps/20260926T232534.620841Z-draft-sequence-video-start-03aa4e71/video.webm",
+      "sha256": "c97342a3ebe1988b3496031d27f20990edacb47557bc0e1ece19d0321c49e2f2",
+      "bytes": 1180256
+    }
+  ]
+}

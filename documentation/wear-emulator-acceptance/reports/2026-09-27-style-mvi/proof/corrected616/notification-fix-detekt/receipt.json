@@ -1,0 +1,30 @@
+{
+  "command": [
+    "./gradlew",
+    "detekt",
+    "--rerun-tasks",
+    "--no-build-cache",
+    "--no-configuration-cache",
+    "--no-parallel",
+    "--console=plain"
+  ],
+  "cwd": "/private/tmp/workeeper-wear-stack-validation-20260926",
+  "started_epoch": 1790469957.14037,
+  "exit_code": 0,
+  "finished_epoch": 1790470005.916801,
+  "task_summaries": [
+    [
+      "63",
+      "63",
+      ""
+    ]
+  ],
+  "all_executed": true,
+  "xml": [],
+  "counts": {
+    "tests": 0,
+    "failures": 0,
+    "errors": 0,
+    "skips": 0
+  }
+}

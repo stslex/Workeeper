@@ -1,0 +1,47 @@
+{
+  "schema": 1,
+  "cohort": "916bc6466535437aaa3e67fef3d8f488",
+  "case_id": "manual/api30/store-debug-parity",
+  "status": "PASS",
+  "reason": "PASS for the declared nine-invocation StoreDebug 192dp/RU/1.24 smoke subset and fresh headless refresh/disconnect/terminal transitions. Original native/Compose PNGs and all listed sampled motion sheets inspected. Full Store cell remains BLOCKED/partial. Draft background-death restoration was not repeated on corrected source616; its source592 evidence is separately qualified by unchanged runtime bytes.",
+  "recorded_at": "2026-09-27T01:29:53.548733+00:00",
+  "operator_attestation": true,
+  "artifacts": {
+    "operator-00-store-debug-parity.json": {
+      "sha256": "84f6c9f0bbe6ab924de93560b71c5bc60146144edf232760745e55ae4901c2bb",
+      "bytes": 20869
+    },
+    "operator-01-audit.json": {
+      "sha256": "86c9541fde4f12892ccde17fe8588bd38e74f1c41cd758fb5d733adc39321d6e",
+      "bytes": 232154
+    },
+    "operator-02-prepared-evidence.json": {
+      "sha256": "65f2318a1f509c1c27057ff788726ed57ce0024c0cb23c6132e5754f3ebe9d88",
+      "bytes": 647411
+    },
+    "operator-03-index.json": {
+      "sha256": "ad05a8287ecbaa4f81d89dfe29f07996b7795b22812cc3012e6997f43887b476",
+      "bytes": 166130
+    },
+    "operator-04-api30-192-ru-1.24-store-smoke.webm": {
+      "sha256": "14e0753cff57cb7f7e66aa80bb2ff65fe159b64ccca579790a6f7b1cbd23e5d5",
+      "bytes": 7865404
+    },
+    "operator-05-index.json": {
+      "sha256": "2e4a07dc8050390d14e2b1c413c808373150cd0c8b323c2c2d1571f462e9497b",
+      "bytes": 23247
+    },
+    "operator-06-video.webm": {
+      "sha256": "6addc4c067ca5d6d9e9d1de10a94762400365342930941fd253ce2ed7687b68e",
+      "bytes": 672774
+    },
+    "operator-07-index.json": {
+      "sha256": "b85d15322d621dd0639ad69da7f1910a36b08b0a75386744cb5317ca6b7ba01d",
+      "bytes": 34728
+    },
+    "operator-08-video.webm": {
+      "sha256": "99f99554a8826e90a4cfc2c3824235558f878c170194eacd5cc722e4a0e4230b",
+      "bytes": 406828
+    }
+  }
+}

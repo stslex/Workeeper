@@ -1,0 +1,103 @@
+{
+  "schema": 1,
+  "cohort": "916bc6466535437aaa3e67fef3d8f488",
+  "case_id": "manual/api36/notification-denial-restoration",
+  "status": "PASS",
+  "reason": "Two actual native permission denials, two app-button per-app Settings routes and same Activity/PID Back return. Actual native grant alone does not renew ongoing; fresh admitted state does; terminal removes. Initial shell setup explicitly qualified.",
+  "recorded_at": "2026-09-27T02:06:17.541160+00:00",
+  "operator_attestation": true,
+  "artifacts": {
+    "operator-00-operator-review.json": {
+      "sha256": "f2056e17c0b7c3651735ff7cb0ec970ad857d2e062e28bad961b856354bcdb36",
+      "bytes": 11276
+    },
+    "operator-01-raw-artifacts.json": {
+      "sha256": "8b7ff8998cb338e0159e0b1cf47ac0567ef6e84d916101f72df90415d71dbbee",
+      "bytes": 453919
+    },
+    "operator-02-index.json": {
+      "sha256": "058a461d77025101bc96d84534d95949399801229b0aed60219d34cb7f1dff94",
+      "bytes": 263206
+    },
+    "operator-03-video.webm": {
+      "sha256": "24b9fe76bee5f29eae92a48096e233ae709ee0bb775b2edc47873452bfbf4813",
+      "bytes": 16374043
+    },
+    "operator-04-stdout": {
+      "sha256": "b603fe84fe27f495dd91e3d2d46b1fed6c71f8290fa66aa7219706ffab39a5c9",
+      "bytes": 9814
+    },
+    "operator-05-stdout": {
+      "sha256": "e4e74f48a4416258100503a2e6e461d68faf930c2a93ffedc48b60be757cfe42",
+      "bytes": 9801
+    },
+    "operator-06-captures-01.png": {
+      "sha256": "7729cb936118d7d38c7f205045b0e05100295456e8ab6bd7f6c462340fc92b2b",
+      "bytes": 150241
+    },
+    "operator-07-captures-02.png": {
+      "sha256": "209eefd345994e659a6e05d399b38325d7d25b623e068f9417fec3638edecb87",
+      "bytes": 79835
+    },
+    "operator-08-sheet-001.png": {
+      "sha256": "4cf5458eabc809d02e9c8dca6ecb30d90b8bdd9941b55e5cc853e96d5ec15a30",
+      "bytes": 149970
+    },
+    "operator-09-sheet-002.png": {
+      "sha256": "1a4efd67d433a3ca06557f23d23ba61a5ed1809614a68220d90b528ace122ee9",
+      "bytes": 120582
+    },
+    "operator-10-sheet-003.png": {
+      "sha256": "6d53e81d52c4b528bcf33b9df67a7c2b8d842b1e175f1fc0252bdfb3d26be4fb",
+      "bytes": 113178
+    },
+    "operator-11-sheet-004.png": {
+      "sha256": "5caae00494055321f0887daa1932de72ffed5ef67789526a38adb467ecfda7d6",
+      "bytes": 123331
+    },
+    "operator-12-sheet-005.png": {
+      "sha256": "9e9b07387150d4d4378046d0d8ae8af1eec0b4a97e8c7f92242dae96f1a37982",
+      "bytes": 137295
+    },
+    "operator-13-sheet-006.png": {
+      "sha256": "99073e4200bf9235dbac355f94f19cfb17b9b01466374eff679071411f7501c2",
+      "bytes": 103714
+    },
+    "operator-14-sheet-007.png": {
+      "sha256": "6b91e4f2e7d8e90450c66f2a356f6cff3d97d92be144c934b7b29ca813b2dbc9",
+      "bytes": 104507
+    },
+    "operator-15-sheet-008.png": {
+      "sha256": "ab59e6bc7f11a99f6dbfea1e1a3cfabe29d33b38f972599e79994643cbcfe9ed",
+      "bytes": 83043
+    },
+    "operator-16-sheet-009.png": {
+      "sha256": "ee507135a5b6e1f167a1bf4af447ec62913bdaaf8da41a7722d8931f7388c7ac",
+      "bytes": 162139
+    },
+    "operator-17-sheet-010.png": {
+      "sha256": "e8497292ec55d5c8d35f790b58cd7c9aa921b32b1d5521a6796e85bb4e88e151",
+      "bytes": 182583
+    },
+    "operator-18-sheet-011.png": {
+      "sha256": "25e6cf65cb8377fdb7065b871a809e810c1f61ad63d2846e3523f6c19d1248b3",
+      "bytes": 118253
+    },
+    "operator-19-sheet-012.png": {
+      "sha256": "84c73cb7bb68637e9dd22358362f97abbc238a60514af1a9d0331b0be8d41901",
+      "bytes": 160116
+    },
+    "operator-20-sheet-013.png": {
+      "sha256": "a161f58277c8801ff4d28ad34433358fc112837a1070f877184ec5f814b4a014",
+      "bytes": 189335
+    },
+    "operator-21-sheet-014.png": {
+      "sha256": "6eb769a051bc159cda921d33cc813aec0e6546c53bd061032d4ad40148165924",
+      "bytes": 42735
+    },
+    "operator-22-registration-empty-log-correction.json": {
+      "sha256": "cee8c7b8c1d6ed3be11282887238da96e8b8f024fe4b79ebb7fe47be54ddef64",
+      "bytes": 770
+    }
+  }
+}

@@ -1,0 +1,175 @@
+{
+  "status": "PASS",
+  "operator_attestation": true,
+  "build_type": "DevDebug",
+  "source_head": "6164203f3018cdfc091045c69d3aa0ff78423fde",
+  "reviewed_at": "2026-09-27T01:19:51.462307+00:00",
+  "case": "manual/api30/notification-denial-restoration",
+  "facts": [
+    "Actual native toggle denies precisely Dev package importance=NONE. Controller values and main action remain usable, notice and enable button are reachable through scrolling.",
+    "Two actual app-button taps open public android.settings.SETTINGS/MainSettingsActivity. Back returns identical MainActivity e0cdfdb/task678, PID23100/birth75986. No app crash or process recreation occurred.",
+    "Permission remains denied during both Settings/Back sequences. Native grant and ordinary return do not publish an ongoing key; a separately admitted fresh event publishes35501; terminal removes it.",
+    "The fresh event while denied was at01:15:33Z and native grant at01:16:41Z, within the120s freshness window; the grant-only observation is not explained by prior freshness expiry."
+  ],
+  "review_basis": "Original selected screenshots viewed in this session and every one of14 sampled2fps video sheets355..610s inspected. Setup before355s is retained but not claimed as reviewed video. XML, Activity/PID births, actual package policy and notification-key logs are retained.",
+  "observer_correction": {
+    "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-api30-observer-correction.json",
+    "sha256": "00f6d5b7bb9c7a4e9eccc4b1717a5c129bb736d203affa591f9c133f993c21ef",
+    "bytes": 678
+  },
+  "limits": [
+    "An initial global no-FATAL assertion was invalid because pre-existing system/GMS entries were included; before/after log bytes match exactly. App-scoped log and identity provide the actual oracle.",
+    "Sampling is not continuous playback or performance measurement.",
+    "Original source592 crash receipt remains FAIL; this is a separately versioned corrected-APK result.",
+    "Public Settings root requires the user to navigate to notification settings on this Wear image."
+  ],
+  "captures": {
+    "denied-notice-before-actual-button": {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-manual-api30-dev/steps/20260927T011325.591457Z-denied-notice-before-actual-button-fa0e8343/capture.json",
+      "sha256": "f8d555a57129fc48c67585acf70f3a015aea5144c0da344691febad8a50c1671",
+      "bytes": 32901
+    },
+    "corrected-actual-settings-opened": {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-manual-api30-dev/steps/20260927T011359.536683Z-corrected-actual-settings-opened-9d5bf9c6/capture.json",
+      "sha256": "44ebc4193b0dbd2a7a03c9b8869d448238dbe89c708c4771b82c284db2ba11aa",
+      "bytes": 32820
+    },
+    "corrected-settings-back-return": {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-manual-api30-dev/steps/20260927T011444.201310Z-corrected-settings-back-return-337c7e4f/capture.json",
+      "sha256": "15aab47c6f152681b56305ce1e5772a11c3ab893856efe7870379b891112e15b",
+      "bytes": 32723
+    },
+    "denied-notice-fully-visible": {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-manual-api30-dev/steps/20260927T011445.937655Z-denied-notice-fully-visible-7724a23d/capture.json",
+      "sha256": "dc2abae4e833be041c0aae4a13bc8df939a27e7188c1eb89317916e760437244",
+      "bytes": 32578
+    },
+    "corrected-settings-repeat": {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-manual-api30-dev/steps/20260927T011531.065284Z-corrected-settings-repeat-67ed372f/capture.json",
+      "sha256": "122d7b40bd3644532a4ec9e6dfb1a69008f4591a87e1675fbf1fa82f7c0fb0eb",
+      "bytes": 32511
+    },
+    "corrected-settings-repeat-back": {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-manual-api30-dev/steps/20260927T011532.593761Z-corrected-settings-repeat-back-1dc59c0b/capture.json",
+      "sha256": "20ae2f30bf2f7b32b3c9f6d17b2065791dba3876d7f4cc002483329fb07c0d2c",
+      "bytes": 32691
+    },
+    "fresh-denied-before-native-grant": {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-manual-api30-dev/steps/20260927T011533.632457Z-fresh-denied-before-native-grant-bc18803b/capture.json",
+      "sha256": "b180f7e0b9aa6809d7b35b43ca4a31f01c2bd33f2214c0ae1bf8d03880e39e3a",
+      "bytes": 32829
+    },
+    "native-grant-alone-no-renewal": {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-manual-api30-dev/steps/20260927T011642.384779Z-native-grant-alone-no-renewal-e716732d/capture.json",
+      "sha256": "c02e370d575cfd4bdb54178013ee348bc785d2fa0340a55ba55218451c9e3341",
+      "bytes": 32675
+    },
+    "admitted-fresh-after-grant": {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-manual-api30-dev/steps/20260927T011644.081239Z-admitted-fresh-after-grant-467031bc/capture.json",
+      "sha256": "94c3125db5ac49bb2f549a5cb5482f95ae28166781e3cba60703d892fc74ec2d",
+      "bytes": 34338
+    },
+    "corrected-notification-terminal": {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-manual-api30-dev/steps/20260927T011645.109244Z-corrected-notification-terminal-4e4b32b4/capture.json",
+      "sha256": "01fb31d2259de803f543dd10c5c601a2498d59e7ae315f5eb77775a06d30e296",
+      "bytes": 32773
+    }
+  },
+  "native_denial": {
+    "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-manual-api30-dev/steps/20260927T011246.775798Z-native-denied-package-policy-46aaf071/operator-command/stdout",
+    "sha256": "d87c651b20fc6ae894efe348644c6cae61349ced7082ba684926c08a0c5de980",
+    "bytes": 86441
+  },
+  "native_grant": {
+    "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-manual-api30-dev/steps/20260927T011642.068784Z-native-restored-package-policy-e34a437a/operator-command/stdout",
+    "sha256": "813f9469b86fa3442e7e5f828559f52140b5b8da2e8830a7c120d3e912a532b9",
+    "bytes": 86426
+  },
+  "scoped_runtime_log": {
+    "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-manual-api30-dev/steps/20260927T011448.675632Z-app-specific-androidruntime-5239a84b/operator-command/stdout",
+    "sha256": "7eac3f15731263e7cb1e1baf9ba133c9f946d0b9fb34c1d0e9871fc95fa20444",
+    "bytes": 28
+  },
+  "video_review": {
+    "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-api30-settings-video-review/index.json",
+    "sha256": "ee474b6778c03f25d817ccaf2b143e6d0edbbeb64210fb703106cc4624134b21",
+    "bytes": 293567
+  },
+  "viewed_video_sheets": [
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-api30-settings-video-review/sheet-001.png",
+      "sha256": "b5244d5362892bcb88f7e4787c700cabe3b730e3e078d6a6c8d96eecf0c8c26f",
+      "bytes": 131261
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-api30-settings-video-review/sheet-002.png",
+      "sha256": "3d5fa12388adebd55f1073547e8737a24d753d3dd9434eddc64466ab20d5fb0d",
+      "bytes": 132622
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-api30-settings-video-review/sheet-003.png",
+      "sha256": "5463ac7b266e631562c450688bf77732244076d3d8356408824dbd3bb303363d",
+      "bytes": 138677
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-api30-settings-video-review/sheet-004.png",
+      "sha256": "bf5c8fabe2992c1ea6b1ea57d7d88c89196e8e7be69ea3ceaf68424ae3e26ae4",
+      "bytes": 134134
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-api30-settings-video-review/sheet-005.png",
+      "sha256": "9dd82969e8160c7089387161e8b4ea6937b72454b4932d15b92ce6a9cc3817ad",
+      "bytes": 119874
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-api30-settings-video-review/sheet-006.png",
+      "sha256": "53f95f00bc2c5581279ae6c95d023022289dca12a58b7ff7a6847ee92906669a",
+      "bytes": 149742
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-api30-settings-video-review/sheet-007.png",
+      "sha256": "227ab3fef11e6ed2861aa907381d3d52cf610f1084584bd7ddef2df3d8bdfc20",
+      "bytes": 149606
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-api30-settings-video-review/sheet-008.png",
+      "sha256": "57966ed731e34b22eb5521613a84047b6f324bd0491f21774dff0b26e50297c5",
+      "bytes": 186564
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-api30-settings-video-review/sheet-009.png",
+      "sha256": "00e109baa252dc7266e8282b13f49be47f1960a294b466eeaafef39ea33389d0",
+      "bytes": 134302
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-api30-settings-video-review/sheet-010.png",
+      "sha256": "4496ed6629367819ccdb78133a92a4808c5edef91d7fdee5ce0056fae354a3ff",
+      "bytes": 131374
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-api30-settings-video-review/sheet-011.png",
+      "sha256": "dbd70955174fc485319688c6c263fa426e8d80928e4ed49ea02452ae26b04180",
+      "bytes": 226279
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-api30-settings-video-review/sheet-012.png",
+      "sha256": "71963a3f888c21dbbcfc90999b7ff115bee22a2e537602ae181e165b32584682",
+      "bytes": 107525
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-api30-settings-video-review/sheet-013.png",
+      "sha256": "2f5463e5d297000c75c0eda618b759c2ec45d225e9c580dba05fd52f21ea1c3e",
+      "bytes": 141821
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-api30-settings-video-review/sheet-014.png",
+      "sha256": "aa89e1b5b1e7bd1051940f615af179ffdd347f92ced78bfedee2ad11fe3a5bf4",
+      "bytes": 77608
+    }
+  ],
+  "raw_artifact_index": {
+    "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-api30-settings-reviewed/raw-artifacts.json",
+    "sha256": "2905da233f0e20afdc8be79ec431abe265779d39fbe008bfab7c0bf091bb3577",
+    "bytes": 674125
+  }
+}

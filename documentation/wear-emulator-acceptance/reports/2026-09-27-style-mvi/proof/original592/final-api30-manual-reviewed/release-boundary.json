@@ -1,0 +1,33 @@
+{
+  "case": "manual/api30/release-boundary",
+  "status": "PASS",
+  "reason": "Pinned signed StoreRelease2f3adc71... on API30 remains read-only Connecting for ordinary/debug-extra launches, installed package lacks AcceptanceScenarioReceiver and explicit broadcast is not acknowledged. Pinned StoreDebug5a62b836.../test restored and Dev76387576... unchanged. No Firebase console/delivery or shipping-performance claim.",
+  "operator_attestation": true,
+  "artifacts": [
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-api30-manual-reviewed/raw-source-index.json",
+      "sha256": "685c39da473a0ebd29b71541adfdf6701612429bdfe136b40e478d89859897be",
+      "bytes": 2509380
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-api30-store-release-reviewed.json",
+      "sha256": "ccacb850fbe62c934a5c5d6724a226bb9ae53cbac0ad5e46937ed4d67c3e0f37",
+      "bytes": 2645
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-api30-store-release-raw-audit.json",
+      "sha256": "88ef8a190a13500888d564600070aaf8f10190b610b9f0341168fe9761534aa8",
+      "bytes": 2857
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-manual-video-review-api30-release/index.json",
+      "sha256": "3713a5fd9556226bd9676f1d898019b2cf334d2bed9e9ace4eb8348a25ed8fd2",
+      "bytes": 31996
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-manual-api30-release/steps/20260926T235658.319525Z-release-video-start-14b26076/video.webm",
+      "sha256": "96d6644359feb5ac71876c83aae8b2aa30863d90d3694d0f7f9495277094eed1",
+      "bytes": 423734
+    }
+  ]
+}

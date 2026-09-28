@@ -4,9 +4,12 @@
 package io.github.stslex.workeeper.wear.tile
 
 import androidx.wear.protolayout.ActionBuilders
+import androidx.wear.protolayout.ColorBuilders
 import androidx.wear.protolayout.DimensionBuilders
 import androidx.wear.protolayout.LayoutElementBuilders
 import androidx.wear.protolayout.ModifiersBuilders
+import io.github.stslex.workeeper.core.ui.design.DARK_BODY
+import io.github.stslex.workeeper.core.ui.design.DARK_MAX
 
 internal object WorkoutTileLayout {
     const val LAUNCH_CLICK_ID = "open_controller"
@@ -15,6 +18,7 @@ internal object WorkoutTileLayout {
         packageName: String,
         activityClassName: String,
         lines: List<String>,
+        screenDiameterDp: Int = 192,
     ): LayoutElementBuilders.Layout {
         require(lines.isNotEmpty())
         val launch = ActionBuilders.LaunchAction.Builder()
@@ -32,18 +36,28 @@ internal object WorkoutTileLayout {
             .setOnClick(launch)
             .build()
         val column = LayoutElementBuilders.Column.Builder()
-            .setWidth(DimensionBuilders.expand())
+            .setWidth(DimensionBuilders.dp(screenDiameterDp * SAFE_SQUARE_FRACTION - 4f))
             .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
         lines.take(MAX_LINES).forEachIndexed { index, line ->
             column.addContent(
                 LayoutElementBuilders.Text.Builder()
                     .setText(line)
-                    .setMaxLines(if (index < 2) 2 else 1)
+                    .setMaxLines(if (index == 0) 1 else 2)
+                    .setLineHeight(DimensionBuilders.sp(if (index == 0) 16f else 14f))
                     .setOverflow(LayoutElementBuilders.TEXT_OVERFLOW_ELLIPSIZE)
                     .setMultilineAlignment(LayoutElementBuilders.TEXT_ALIGN_CENTER)
                     .setFontStyle(
                         LayoutElementBuilders.FontStyle.Builder()
-                            .setSize(DimensionBuilders.sp(if (index == 0) 18f else 14f))
+                            .setSize(DimensionBuilders.sp(if (index == 0) 14f else 12f))
+                            .setColor(
+                                ColorBuilders.argb(
+                                    when (index) {
+                                        0 -> DARK_MAX
+                                        lines.lastIndex -> DARK_MAX
+                                        else -> DARK_BODY
+                                    }.toInt(),
+                                ),
+                            )
                             .setWeight(
                                 if (index == 0) {
                                     LayoutElementBuilders.FONT_WEIGHT_BOLD
@@ -69,10 +83,8 @@ internal object WorkoutTileLayout {
                             .setContentDescription(lines.joinToString(separator = ". "))
                             .build(),
                     )
-                    .setPadding(
-                        ModifiersBuilders.Padding.Builder()
-                            .setAll(DimensionBuilders.dp(18f))
-                            .build(),
+                    .setBackground(
+                        ModifiersBuilders.Background.Builder().setColor(ColorBuilders.argb(0xFF000000.toInt())).build(),
                     )
                     .build(),
             )
@@ -82,4 +94,5 @@ internal object WorkoutTileLayout {
     }
 
     private const val MAX_LINES = 4
+    private const val SAFE_SQUARE_FRACTION = 0.70710677f
 }

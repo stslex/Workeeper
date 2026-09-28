@@ -1,0 +1,63 @@
+{
+  "case": "manual/api30/store-debug-parity",
+  "status": "PASS",
+  "reason": "Declared nine-invocation API30 StoreDebug192dp/RU/1.24 smoke passes and all stable native/Compose pixels plus sampled video reviewed. Headless refresh/disconnect/terminal and actual draft998->background death->ordinary canonical999 read-only verified;908B cache dca2d7a8... and deadline9564805 unchanged, PID7058->absent->7530. Full Store cohort remains partial/BLOCKED. Four native/Compose upper-round-edge differences and between-invocation transitional frames retained.",
+  "operator_attestation": true,
+  "artifacts": [
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-api30-manual-reviewed/raw-source-index.json",
+      "sha256": "685c39da473a0ebd29b71541adfdf6701612429bdfe136b40e478d89859897be",
+      "bytes": 2509380
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-api30-store-release-reviewed.json",
+      "sha256": "ccacb850fbe62c934a5c5d6724a226bb9ae53cbac0ad5e46937ed4d67c3e0f37",
+      "bytes": 2645
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-store-smoke-api30/manifest.json",
+      "sha256": "c4c0e2e091855e0e3097fef54105b570ff9a1a3c528fcead09c60da45c8c430d",
+      "bytes": 508805
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-store-cell-review-api30-192-ru-1.24/prepared-evidence.json",
+      "sha256": "6b24dab2def9183218b375891d9a2ed20f37bb4540bc8ab06f3ff658a9c7bcdb",
+      "bytes": 644618
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-draft-restoration-api30-store/receipt.json",
+      "sha256": "496f3f079fca8f742f9c99bb3df111a9518b3a1e7a025100e1b2510845d512af",
+      "bytes": 17525
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-manual-video-review-api30-store-transitions/index.json",
+      "sha256": "211ca26795855d668d3c0e94d535ba610b320b21ac9993069877cea46f0087e5",
+      "bytes": 24113
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-manual-api30-store/steps/20260926T235652.354586Z-store-transitions-video-start-5e215edf/video.webm",
+      "sha256": "72e37ff7457f06171c9816e5763f32822f531ec54691f07fcad08d5a8c6c6ce4",
+      "bytes": 649230
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-manual-video-review-api30-draft-store/index.json",
+      "sha256": "3f6dd3f3b55058f2cd341972080b0d64cf7fbef54487a55169368c591358c5ad",
+      "bytes": 18754
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-manual-api30-store/steps/20260926T235537.575780Z-draft-sequence-video-start-87f08461/video.webm",
+      "sha256": "447ba767ef7acc941d400833ee5ccb523dc4b2afa8386d8103a4baa433fb1139",
+      "bytes": 1191119
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-store-cell-review-api30-192-ru-1.24/video-frames/index.json",
+      "sha256": "bc8d02997e1ed2ac3cefd5e30ee1657907350334a7309971afe82c50d9f1ccc5",
+      "bytes": 74633
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-store-smoke-api30/api30-192-ru-1.24-store-smoke.webm",
+      "sha256": "1d54d58ea19f61eae725b093763944b63a1cc1a05f0f87aa4afbadbf2d07149b",
+      "bytes": 6398358
+    }
+  ]
+}

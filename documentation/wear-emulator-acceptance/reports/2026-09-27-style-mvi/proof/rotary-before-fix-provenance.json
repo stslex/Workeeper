@@ -1,0 +1,9 @@
+{
+  "scope": "Executed Kotlin/Compose regression before relative-step correction; distinct from the historical Python replay.",
+  "xml": "/private/tmp/wear-style-mvi-evidence-20260926/rotary-baseline-red/TEST-io.github.stslex.workeeper.wear.ui.WearRotaryDraftTest.xml",
+  "sha256": "703f112a3846d1ddba606743423259bef5d3ed497d3f9e549da85016d2e20d84",
+  "gradle_log": "/private/tmp/wear-style-mvi-evidence-20260926/rotary-baseline.log",
+  "gradle_log_sha256": "00082171a7754915dbe8c33f5222717c1190fe3037652951977e7ab726023114",
+  "assertion": "96px contains two relative 48px steps: expected 10, actual 9",
+  "test": "WearRotaryDraftTest.oneRotaryEventAppliesEveryStepToTheCurrentDraft"
+}

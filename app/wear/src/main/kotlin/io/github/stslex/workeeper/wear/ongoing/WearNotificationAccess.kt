@@ -3,6 +3,7 @@ package io.github.stslex.workeeper.wear.ongoing
 
 import android.Manifest
 import android.app.NotificationManager
+import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -12,6 +13,7 @@ import androidx.activity.ComponentActivity
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.edit
+import io.github.stslex.workeeper.wear.runtime.runWearRuntimeUiEvent
 
 internal enum class NotificationEnableAction { NONE, REQUEST_PERMISSION, OPEN_SETTINGS }
 
@@ -66,6 +68,14 @@ internal class AndroidWearNotificationAccess(private val activity: ComponentActi
 
     fun settingsIntent(): Intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
         .putExtra(Settings.EXTRA_APP_PACKAGE, activity.packageName)
+
+    fun openSettings(): Result<Unit> = runWearRuntimeUiEvent {
+        try {
+            activity.startActivity(settingsIntent())
+        } catch (_: ActivityNotFoundException) {
+            activity.startActivity(Intent(Settings.ACTION_SETTINGS))
+        }
+    }
 
     private companion object {
         const val PREFERENCES = "wear_notification_access"

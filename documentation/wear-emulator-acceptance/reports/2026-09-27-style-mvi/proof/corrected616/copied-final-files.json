@@ -1,0 +1,260 @@
+[
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-closure/scope-index.json",
+    "copy": "notification-fix-closure/scope-index.json",
+    "sha256": "1616e5b9c56f514f6abb2c9813d9c1c65a2125f8efb88a975d37ae691f810dd7",
+    "bytes": 18792
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-repeat-scope-qualification.json",
+    "copy": "notification-fix-repeat-scope-qualification.json",
+    "sha256": "27f5851d80302b9bbfa455c9d1a020e0ecac96bea8c7cc9ed2ea95558b50970d",
+    "bytes": 850
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-operator-visual-api36-192-en-1.00/operator-review.json",
+    "copy": "notification-fix-operator-visual-api36-192-en-1.00/operator-review.json",
+    "sha256": "2fea314930eb539f8013133ae0ee77c2ba00ef9706c9e7d8d880a2aaa629df08",
+    "bytes": 1509
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-operator-visual-api30-240-en-1.00/post-view-confirmation.json",
+    "copy": "notification-fix-operator-visual-api30-240-en-1.00/post-view-confirmation.json",
+    "sha256": "90ca637b4f125cfd0340a10f4d278dc5c3c2f4c8d578cfc1d1891ddfedabafd2",
+    "bytes": 441
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-api30-settings-reviewed/operator-review.json",
+    "copy": "notification-fix-api30-settings-reviewed/operator-review.json",
+    "sha256": "bf84e27b6e9c2d51c4fa17ec5dd36f242218c847bcb80cf3019216cb29d5d424",
+    "bytes": 10267
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-api36-settings-reviewed/operator-review.json",
+    "copy": "notification-fix-api36-settings-reviewed/operator-review.json",
+    "sha256": "f2056e17c0b7c3651735ff7cb0ec970ad857d2e062e28bad961b856354bcdb36",
+    "bytes": 11276
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-api36-settings-reviewed/registration-empty-log-correction.json",
+    "copy": "notification-fix-api36-settings-reviewed/registration-empty-log-correction.json",
+    "sha256": "cee8c7b8c1d6ed3be11282887238da96e8b8f024fe4b79ebb7fe47be54ddef64",
+    "bytes": 770
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-api36-settings-reviewed/registration-retry.json",
+    "copy": "notification-fix-api36-settings-reviewed/registration-retry.json",
+    "sha256": "491b598c4c03c32b0b3640df33489574561a019c57b9a543bd38f7f828e0e822",
+    "bytes": 3918
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-api36-240-preflight/receipt.json",
+    "copy": "notification-fix-api36-240-preflight/receipt.json",
+    "sha256": "a2fb6865fa651a7699fcc5272cd9f796dced3f8caac08f38fb1986a754373a27",
+    "bytes": 1304
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-api36-240-preflight-repeat/receipt.json",
+    "copy": "notification-fix-api36-240-preflight-repeat/receipt.json",
+    "sha256": "869ae6f426c63ad981b82bc1c3476149393cd4f0cc658927d4883f5361be6b40",
+    "bytes": 3342
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-ci616-success.json",
+    "copy": "notification-fix-ci616-success.json",
+    "sha256": "5c499e88272ec2b20a0e540810e802518fbfc2eb8463b0a64e3a968be555d8fc",
+    "bytes": 10697
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-signed-commit.json",
+    "copy": "notification-fix-signed-commit.json",
+    "sha256": "ebc02c996bae0b4cd7d0482914a94c3c5e32ee21f4e546cf00dd4e7a584ac53d",
+    "bytes": 602
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-push-verification.json",
+    "copy": "notification-fix-push-verification.json",
+    "sha256": "9e2aae43f3794bfc747ed661783ff5e5dcb3b0a54fcb13c08bb26197664fee7c",
+    "bytes": 195
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/final-publication-preservation.json",
+    "copy": "final-publication-preservation.json",
+    "sha256": "ba958f1e24ab5ea9ff8e00c95f600a2d84d7aeb1f93c662ca2f8149285ee3086",
+    "bytes": 1069
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-operator-visual-api30-192-en-1.00/operator-review.json",
+    "copy": "ui/api30-192-en-1.00/operator-review.json",
+    "sha256": "12a5d98cf9d90c0b6f03d3f7469a7b99df33d620a42072d667ccbee4c917bc73",
+    "bytes": 6467
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-operator-visual-api30-192-en-1.24/operator-review.json",
+    "copy": "ui/api30-192-en-1.24/operator-review.json",
+    "sha256": "92db386911b918e0d5dc1e1a4ddf4bf0d64390d56673652b58cdc642aa5bb5f6",
+    "bytes": 6768
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-operator-visual-api30-192-ru-1.00/operator-review.json",
+    "copy": "ui/api30-192-ru-1.00/operator-review.json",
+    "sha256": "b8a1581229e8d443a43806ea79d2c6ea9e0f5bd23f16109647d43d5a18e18421",
+    "bytes": 6473
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-operator-visual-api30-192-ru-1.24/operator-review.json",
+    "copy": "ui/api30-192-ru-1.24/operator-review.json",
+    "sha256": "e7afc34d469a87e93319295e3e3f1645faff1de4b5cffb04bd433b7bf92e8be4",
+    "bytes": 6768
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-operator-visual-api30-240-en-1.00/operator-review.json",
+    "copy": "ui/api30-240-en-1.00/operator-review.json",
+    "sha256": "df546ea5e3e4556c279d538895e97b5eb486fc1047427bb735911a5f8c422491",
+    "bytes": 7001
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-operator-visual-api30-240-en-1.24/operator-review.json",
+    "copy": "ui/api30-240-en-1.24/operator-review.json",
+    "sha256": "0cc3115b45d06e1a535bf14cfa3a951a0a6ced420d95c9f4f99dde8f5ca19c99",
+    "bytes": 6800
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-operator-visual-api30-240-ru-1.00/operator-review.json",
+    "copy": "ui/api30-240-ru-1.00/operator-review.json",
+    "sha256": "bb490521bf87cf12e63a5ccdb158e3e4416f8e045b91e42ce104e0374ee027c0",
+    "bytes": 6853
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-operator-visual-api30-240-ru-1.24/operator-review.json",
+    "copy": "ui/api30-240-ru-1.24/operator-review.json",
+    "sha256": "34ddba269fc0c2961a72ba01b8eb9a77af2f9ac6d2655da8b7fc41115a7942d7",
+    "bytes": 6628
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-repeat-operator-visual-api36-192-en-1.00/operator-review.json",
+    "copy": "ui/api36-192-en-1.00/operator-review.json",
+    "sha256": "e3db4486167e4ee5e0ff8b93ef188e7a9039214c2b9c75f5f254cf4149335384",
+    "bytes": 7441
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-operator-visual-api36-192-en-1.24/operator-review.json",
+    "copy": "ui/api36-192-en-1.24/operator-review.json",
+    "sha256": "22c0120756a92675392f2489a7ca786c9306b4718422ac0ece2f5730ca68cf2b",
+    "bytes": 7390
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-operator-visual-api36-192-ru-1.00/operator-review.json",
+    "copy": "ui/api36-192-ru-1.00/operator-review.json",
+    "sha256": "bad30a9b51b164653e3d062dbde1726541f18fd3357ea57c1b65a8962bd83225",
+    "bytes": 7393
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-operator-visual-api36-192-ru-1.24/operator-review.json",
+    "copy": "ui/api36-192-ru-1.24/operator-review.json",
+    "sha256": "6767007b799ec3ba031f0facb8299da4578b4e2d8252e5efceeb0d810229c50c",
+    "bytes": 7389
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-operator-visual-api36-240-en-1.00/operator-review.json",
+    "copy": "ui/api36-240-en-1.00/operator-review.json",
+    "sha256": "c79e22f80dbbd8cdf8fd0b13bdeb5c698c2cf32b8c7456a234083c982e282817",
+    "bytes": 7489
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-operator-visual-api36-240-en-1.24/operator-review.json",
+    "copy": "ui/api36-240-en-1.24/operator-review.json",
+    "sha256": "699a1d83d82e155f77dd31c40adaff891aabb59beb816117f08c4bbf909a3cec",
+    "bytes": 7596
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-operator-visual-api36-240-ru-1.00/operator-review.json",
+    "copy": "ui/api36-240-ru-1.00/operator-review.json",
+    "sha256": "12388de31f648f533f1e660822c2a9371b706d1e839934742e211be97bf71d91",
+    "bytes": 7318
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-operator-visual-api36-240-ru-1.24/operator-review.json",
+    "copy": "ui/api36-240-ru-1.24/operator-review.json",
+    "sha256": "a467fd39dc2226e94f76f2a5dc9218a4bea021ac66e0da06bccb0eff7394fe89",
+    "bytes": 7630
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-store-release-operator-api30/store-debug-parity.json",
+    "copy": "notification-fix-store-release-operator-api30/store-debug-parity.json",
+    "sha256": "84f6c9f0bbe6ab924de93560b71c5bc60146144edf232760745e55ae4901c2bb",
+    "bytes": 20869
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-store-release-operator-api30/release-boundary.json",
+    "copy": "notification-fix-store-release-operator-api30/release-boundary.json",
+    "sha256": "e26fb77a7509e4981385401d79316c3c598ae7dd088eb285719e9c37c02a7297",
+    "bytes": 20801
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-store-release-operator-api36/store-debug-parity.json",
+    "copy": "notification-fix-store-release-operator-api36/store-debug-parity.json",
+    "sha256": "b0436a3ae211484cce34c7e298fa3ca4a8b086d3399bb9f31bede9fadde51ab4",
+    "bytes": 21209
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-store-release-operator-api36/release-boundary.json",
+    "copy": "notification-fix-store-release-operator-api36/release-boundary.json",
+    "sha256": "01b982c519cf1f96a5116fa38f0fe3bace0d0549cfb3d6ac14c6e7b2a31e4473",
+    "bytes": 21141
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-dev-cohort/cases/manual/api30/notification-denial-restoration/receipt.json",
+    "copy": "manual-receipts/api30/notification-denial-restoration/receipt.json",
+    "sha256": "75ffdd07e8d64b0f115cc1f3d0066f5f141b6ec5a48fcb8127130ef21a1574d9",
+    "bytes": 5212
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-dev-cohort/cases/manual/api30/store-debug-parity/receipt.json",
+    "copy": "manual-receipts/api30/store-debug-parity/receipt.json",
+    "sha256": "a571413425501c21220caf7ed3c5cc7148c5e3bde0986200b6f8f12488f093af",
+    "bytes": 2012
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-dev-cohort/cases/manual/api30/release-boundary/receipt.json",
+    "copy": "manual-receipts/api30/release-boundary/receipt.json",
+    "sha256": "2323a8409895eee9ffbe17d302abe1a03ad1df324778f6e883503ad0c2cfb1ba",
+    "bytes": 1942
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-dev-cohort/cases/manual/api36/notification-denial-restoration/receipt.json",
+    "copy": "manual-receipts/api36/notification-denial-restoration/receipt.json",
+    "sha256": "85d376a8945cf95392c48aaca77376e84a259683fc115f7c164f1d3403c36910",
+    "bytes": 3933
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-dev-cohort/cases/manual/api36/store-debug-parity/receipt.json",
+    "copy": "manual-receipts/api36/store-debug-parity/receipt.json",
+    "sha256": "b989ee97e9a0d84157238815e772c3ba83693baba5242c13cbaa541cb7c9e934",
+    "bytes": 2014
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-dev-cohort/cases/manual/api36/release-boundary/receipt.json",
+    "copy": "manual-receipts/api36/release-boundary/receipt.json",
+    "sha256": "c473b52f9a2bb48c8d4f18b5a7aa077edd47e877f3bd72ff68ae89a17d354655",
+    "bytes": 1944
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-closure/notification-fix-dev-cohort-report.json",
+    "copy": "notification-fix-closure/notification-fix-dev-cohort-report.json",
+    "sha256": "675813424b13d49ae3354343c7fd8decdedd4efabe5ff8acff414277e6c5e248",
+    "bytes": 10592
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-closure/notification-fix-store-cohort-report.json",
+    "copy": "notification-fix-closure/notification-fix-store-cohort-report.json",
+    "sha256": "d1148b816aeacbfe0c4c14280632153f24ed10d87cddbd998283a7645a93905e",
+    "bytes": 3201
+  },
+  {
+    "original": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-closure/notification-fix-ui-repeat-cohort-report.json",
+    "copy": "notification-fix-closure/notification-fix-ui-repeat-cohort-report.json",
+    "sha256": "6127e0a62010751be676cd941aecf76251ef55ed6fd9449bdc27a2faf1ee17be",
+    "bytes": 3286
+  }
+]

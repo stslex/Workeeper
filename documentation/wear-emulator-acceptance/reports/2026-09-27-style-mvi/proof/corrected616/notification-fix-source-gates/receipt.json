@@ -1,0 +1,52 @@
+{
+  "status": "PASS",
+  "commands": [
+    {
+      "command": [
+        "/opt/homebrew/opt/python@3.14/bin/python3.14",
+        ".github/scripts/assert_kmp_ui_source_topology.py"
+      ],
+      "exit_code": 0,
+      "log": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-source-gates/1.log",
+      "sha256": "4c6910043342b4321a3970763b5958fe85268bc863ef05d47eb3ae428245a8dc"
+    },
+    {
+      "command": [
+        "/opt/homebrew/opt/python@3.14/bin/python3.14",
+        ".github/scripts/assert_mvi_source_topology.py"
+      ],
+      "exit_code": 0,
+      "log": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-source-gates/2.log",
+      "sha256": "0b9f3976f6aee459fadf2b9ddfbad5ead39f82f7276a07807678fc99419aa401"
+    },
+    {
+      "command": [
+        "/opt/homebrew/opt/python@3.14/bin/python3.14",
+        ".github/scripts/assert_wear_transport_gate.py",
+        "--self-test"
+      ],
+      "exit_code": 0,
+      "log": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-source-gates/3.log",
+      "sha256": "19c6000f6f57a8924601f83283df4076e9d3b67d3b2eb85af051aec4a23f8285"
+    },
+    {
+      "command": [
+        "/opt/homebrew/opt/python@3.14/bin/python3.14",
+        ".github/scripts/assert_wear_transport_gate.py"
+      ],
+      "exit_code": 0,
+      "log": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-source-gates/4.log",
+      "sha256": "dd4c8c985099ed2bffd2d3ee898a66f85c7498c4e95688167d78a9ae3f460dbe"
+    },
+    {
+      "command": [
+        "/opt/homebrew/opt/python@3.14/bin/python3.14",
+        "documentation/personal_data_gate.py",
+        "-v"
+      ],
+      "exit_code": 0,
+      "log": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-source-gates/5.log",
+      "sha256": "a7e7bd1091330cbbdfa5f1789ea2a814d21d7126d78b8f0d6fdad9c8d11ce01f"
+    }
+  ]
+}

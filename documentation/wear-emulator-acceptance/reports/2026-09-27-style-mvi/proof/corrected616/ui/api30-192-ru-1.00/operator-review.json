@@ -1,0 +1,114 @@
+{
+  "schema": 1,
+  "cell": "api30-192-ru-1.00",
+  "operator_verdict": "PASS",
+  "reviewed_at": "2026-09-27T01:08:53.625685+00:00",
+  "source": {
+    "head": "6164203f3018cdfc091045c69d3aa0ff78423fde",
+    "branch": "codex/wear-tile-acceptance",
+    "files_sha256": "db5c096bd7d9f7679658bb34d3d634c74e18143ebd09b1843753f5f559d87550"
+  },
+  "build_type": "DevDebug",
+  "cohort": "916bc6466535437aaa3e67fef3d8f488",
+  "basis": "Fresh 22 device invocations and semantics/bounds. Manually inspected every listed differing PNG sheet and fresh sampled motion sheet. Exact decoded RGBA identity reuses the prior operator inspection only for unchanged pixels; prior execution is not relabelled.",
+  "findings": [
+    "Initial primary values, action and blocking reason remain visible. Long secondary content is reachable by scrolling within the round-safe viewport.",
+    "Centered vector plus/minus preserve their 48dp target and device ink-center assertion. Separate numeric and localized text roles remain intact.",
+    "Fresh sampled rotary/Back/swipe/press/ambient motion agrees with the current executed assertions: relative batches affect the current draft; eligible editor/focus returns and disabled content cannot submit.",
+    "All six differing captures are fresh ambient times. All ten sampled motion sheets inspected. Russian units, status and editor labels remain legible; completion details are scrollable."
+  ],
+  "pixel_comparison": {
+    "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-cell-review-api30-192-ru-1.00/comparison/index.json",
+    "sha256": "f0ac55506e8e52abe20570f957650a375d7969b1a7364de7d7bc132a310c1c2c",
+    "bytes": 174928
+  },
+  "reused_identical_pixel_count": 115,
+  "separately_reviewed_differing_pixel_count": 6,
+  "prior_identical_pixel_review": {
+    "path": "/private/tmp/wear-style-mvi-evidence-20260926/final-operator-visual-api30-192-ru-1.00/operator-review.json",
+    "sha256": "ab2e9b257b9bc7903a9f9665c5729c1e9d90ea5de08f7a94e987c0a53664c4ef"
+  },
+  "viewed_sheets": [
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-cell-review-api30-192-ru-1.00/comparison/changed-01.png",
+      "sha256": "7bc46c4500a8e8b512392e39d41ab3090c88f4a81053c711883aa5fbd8e23e1d",
+      "bytes": 37461
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-cell-review-api30-192-ru-1.00/video-frames/sheet-01.png",
+      "sha256": "609ad6453ffe851cc9071e9da56eb6841fea8bb71234d369bcaaf654186f81c6",
+      "bytes": 148889
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-cell-review-api30-192-ru-1.00/video-frames/sheet-02.png",
+      "sha256": "cfaa1f501a2e3a38a3b28b0f9e8133062fbeff97615addce3bdbff6e326b3b74",
+      "bytes": 97100
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-cell-review-api30-192-ru-1.00/video-frames/sheet-03.png",
+      "sha256": "d9d4acc7999ccbcf5a0ab7b41b0deb58b45efc7ccbba3ea92b151e26cc6e9a4b",
+      "bytes": 134304
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-cell-review-api30-192-ru-1.00/video-frames/sheet-04.png",
+      "sha256": "d0b2dad5f1ab4c5d2f8858891471b8aeb881e1453d7829884a7bf29cb1c5f46a",
+      "bytes": 188387
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-cell-review-api30-192-ru-1.00/video-frames/sheet-05.png",
+      "sha256": "18344610da8e8de09fef481c9211edb8887d2982021c64f44420d90a48f3ff22",
+      "bytes": 110922
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-cell-review-api30-192-ru-1.00/video-frames/sheet-06.png",
+      "sha256": "12435eed9e08c91f7e3d6a6b8ed2334eb1634582afec64d505988c8b04150dd9",
+      "bytes": 170838
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-cell-review-api30-192-ru-1.00/video-frames/sheet-07.png",
+      "sha256": "95774f1aa3658f3e40ed7cd8f71e9f57ecc0eb7ae314590cd4909a9b99658fba",
+      "bytes": 94609
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-cell-review-api30-192-ru-1.00/video-frames/sheet-08.png",
+      "sha256": "50cb76f8bfeae218da7093a02ca20791a046b82cd8e11c71adb7a1581d4fec0b",
+      "bytes": 149571
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-cell-review-api30-192-ru-1.00/video-frames/sheet-09.png",
+      "sha256": "49b889daa4a56abaecfd4c522b43773ccc240621e593b7da201c1e4e24fb98ea",
+      "bytes": 113694
+    },
+    {
+      "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-cell-review-api30-192-ru-1.00/video-frames/sheet-10.png",
+      "sha256": "fe374ffd110617627972e7d11a7a928460b4d2d45dba316ebe6a5deef937a12d",
+      "bytes": 53194
+    }
+  ],
+  "semantic_bounds_inventory": {
+    "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-operator-visual-api30-192-ru-1.00/semantic-bounds-inventory.json",
+    "sha256": "e354357ef9f300713d601286149e1ae13070edccc0de670d965e8e44fd7e7534",
+    "bytes": 229787
+  },
+  "raw_evidence": {
+    "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-cell-review-api30-192-ru-1.00/prepared-evidence.json",
+    "sha256": "c642102f7701dd7471fac6e74cd084b77878395878b003c168e956a8e2021896",
+    "bytes": 252793
+  },
+  "video_index": {
+    "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-cell-review-api30-192-ru-1.00/video-frames/index.json",
+    "sha256": "8e968a80fec0dcd9620137c485758e71b7d4f2850e959c737bcdcffaf586759d",
+    "bytes": 158676
+  },
+  "original_video": {
+    "path": "/private/tmp/wear-style-mvi-evidence-20260926/notification-fix-ui-api30-192/api30-192-ru-1.00.webm",
+    "sha256": "b8e5d7cdb2158391c6dd1baf0cf9cff34a95b4d8093795cee5db31a40d32a7f2",
+    "bytes": 16275030
+  },
+  "video_review_method": "Lossless PNG extraction from original compressed video at4fps; exact consecutive decoded RGB duplicates collapsed only for review sheets. Original video unmodified. No timing or uninterrupted-playback acceptance inferred.",
+  "limits": [
+    "Sampled video is not a frame-complete playback claim.",
+    "No physical-watch, shipping-performance or long-duration lifecycle conclusion from these short UI cases.",
+    "The exact originally reported intraword Russian break state remains unidentified; the reproducible completion-string regression is protected."
+  ]
+}

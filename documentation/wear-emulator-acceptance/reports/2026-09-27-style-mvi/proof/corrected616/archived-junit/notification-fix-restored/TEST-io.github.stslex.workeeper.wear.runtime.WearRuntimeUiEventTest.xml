@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.stslex.workeeper.wear.runtime.WearRuntimeUiEventTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-09-27T00:26:54.177Z" hostname="stslexs-MacBook-Pro.local" time="1.234">
+  <properties/>
+  <testcase name="fatalErrorPropagatesWithoutAutomaticRetry()" classname="io.github.stslex.workeeper.wear.runtime.WearRuntimeUiEventTest" time="1.195"/>
+  <testcase name="successfulEventResultIsPreserved()" classname="io.github.stslex.workeeper.wear.runtime.WearRuntimeUiEventTest" time="0.017"/>
+  <testcase name="failedRuntimeEventIsContainedWithoutAutomaticRetry()" classname="io.github.stslex.workeeper.wear.runtime.WearRuntimeUiEventTest" time="0.016"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

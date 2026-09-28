@@ -369,6 +369,82 @@
     "xml_root": "app/wear/build"
   },
   {
+    "name": "TILE_PERSISTED_REFRESH_NOT_REQUESTED",
+    "file": "app/wear/src/main/kotlin/io/github/stslex/workeeper/wear/tile/WatchTileCoordinator.kt",
+    "find": "runCatching(requestUpdate).onFailure { failure ->",
+    "replace": "runCatching { if (it.display is WatchDisplayState.Loading) requestUpdate() }.onFailure { failure ->",
+    "task": ":app:wear:testDevDebugUnitTest --tests *WatchTileCoordinatorTest --no-configuration-cache --no-parallel --console=plain",
+    "expected_class": "io.github.stslex.workeeper.wear.tile.WatchTileCoordinatorTest",
+    "expected_method": "persistedRefreshAndExpiryUpdateTheTileWithoutAScreen()",
+    "expected_assertion": "accepted snapshot",
+    "xml_root": "app/wear/build"
+  },
+  {
+    "name": "TILE_DRAFT_UPDATE_LOOP",
+    "file": "app/wear/src/main/kotlin/io/github/stslex/workeeper/wear/tile/WatchTileCoordinator.kt",
+    "find": "snapshots.map(TileRefreshKey::from).distinctUntilChanged()",
+    "replace": "snapshots.map { it }.distinctUntilChanged()",
+    "task": ":app:wear:testDevDebugUnitTest --tests *WatchTileCoordinatorTest --no-configuration-cache --no-parallel --console=plain",
+    "expected_class": "io.github.stslex.workeeper.wear.tile.WatchTileCoordinatorTest",
+    "expected_method": "persistedRefreshAndExpiryUpdateTheTileWithoutAScreen()",
+    "expected_assertion": "update loops",
+    "xml_root": "app/wear/build"
+  },
+  {
+    "name": "TILE_REQUEST_FAILURE_UNREPORTED",
+    "file": "app/wear/src/main/kotlin/io/github/stslex/workeeper/wear/tile/WatchTileCoordinator.kt",
+    "find": "                    reportFailure(failure)",
+    "replace": "                    Unit",
+    "task": ":app:wear:testDevDebugUnitTest --tests *WatchTileCoordinatorTest --no-configuration-cache --no-parallel --console=plain",
+    "expected_class": "io.github.stslex.workeeper.wear.tile.WatchTileCoordinatorTest",
+    "expected_method": "platformRequestFailureDoesNotStopLaterUpdates()",
+    "xml_root": "app/wear/build"
+  },
+  {
+    "name": "TILE_STATUS_ONE_LINE",
+    "file": "app/wear/src/main/kotlin/io/github/stslex/workeeper/wear/tile/WorkoutTileLayout.kt",
+    "find": ".setMaxLines(if (index == 0) 1 else 2)",
+    "replace": ".setMaxLines(if (index < 2) 2 else 1)",
+    "task": ":app:wear:testDevDebugUnitTest --tests *WorkoutTileRenderingTest --no-configuration-cache --no-parallel --console=plain",
+    "expected_class": "io.github.stslex.workeeper.wear.tile.WorkoutTileRenderingTest",
+    "expected_method": "localizedStaleStatusIsFullyDrawnInsideTheRoundTile()",
+    "expected_assertion": "full status must be visible",
+    "xml_root": "app/wear/build"
+  },
+  {
+    "name": "TILE_COLUMN_OUTSIDE_CIRCLE",
+    "file": "app/wear/src/main/kotlin/io/github/stslex/workeeper/wear/tile/WorkoutTileLayout.kt",
+    "find": "screenDiameterDp * SAFE_SQUARE_FRACTION - 4f",
+    "replace": "screenDiameterDp.toFloat()",
+    "task": ":app:wear:testDevDebugUnitTest --tests *WorkoutTileRenderingTest --no-configuration-cache --no-parallel --console=plain",
+    "expected_class": "io.github.stslex.workeeper.wear.tile.WorkoutTileRenderingTest",
+    "expected_method": "localizedStaleStatusIsFullyDrawnInsideTheRoundTile()",
+    "xml_root": "app/wear/build",
+    "expected_assertion": "Tile line crosses the round edge"
+  },
+  {
+    "task": ":app:wear:testDevDebugUnitTest --tests *WatchTileRefreshRequiredTest --no-configuration-cache --no-parallel --console=plain",
+    "expected_class": "io.github.stslex.workeeper.wear.tile.WatchTileRefreshRequiredTest",
+    "xml_root": "app/wear/build",
+    "name": "TILE_REJECTED_REFRESH_KEY_OMITTED",
+    "file": "app/wear/src/main/kotlin/io/github/stslex/workeeper/wear/tile/WatchTileCoordinator.kt",
+    "find": "refreshRequired = snapshot.workout.refreshRequired,",
+    "replace": "refreshRequired = false,",
+    "expected_method": "rejectedRefreshChangesTheSystemTileKeyWithoutChangingDisplay()",
+    "expected_assertion": "rejected refresh must invalidate"
+  },
+  {
+    "task": ":app:wear:testDevDebugUnitTest --tests *WatchTileRefreshRequiredTest --no-configuration-cache --no-parallel --console=plain",
+    "expected_class": "io.github.stslex.workeeper.wear.tile.WatchTileRefreshRequiredTest",
+    "xml_root": "app/wear/build",
+    "name": "TILE_REJECTED_REFRESH_REASON_OMITTED",
+    "file": "app/wear/src/main/kotlin/io/github/stslex/workeeper/wear/tile/WorkoutTileRenderer.kt",
+    "find": "model.completionUnavailableReason == CompletionUnavailableReason.REFRESH_REQUIRED",
+    "replace": "false && model.completionUnavailableReason == CompletionUnavailableReason.REFRESH_REQUIRED",
+    "expected_method": "rejectedRefreshRendersAVisibleReasonInsteadOfFreshProgress()",
+    "expected_assertion": "refresh-required reason"
+  },
+  {
     "name": "EDITOR_BUTTON_SHAPE_DEFAULTED",
     "file": "app/wear/src/main/kotlin/io/github/stslex/workeeper/wear/ui/WearControllerScreen.kt",
     "find": "        shapes = IconButtonDefaults.shapes(shape = MaterialTheme.shapes.medium),\n",
@@ -377,6 +453,28 @@
     "expected_class": "io.github.stslex.workeeper.wear.ui.WearBrandGeometryTest",
     "expected_method": "editorIconsAreCenteredAndRussianInstructionsStayInsideTheCircle()",
     "expected_assertion": "uses the shared rounded shape"
+  },
+  {
+    "name": "TILE_CANCELLATION_SWALLOWED",
+    "file": "app/wear/src/main/kotlin/io/github/stslex/workeeper/wear/tile/WatchTileCoordinator.kt",
+    "find": "                    if (failure is CancellationException) throw failure\n",
+    "replace": "",
+    "task": ":app:wear:testDevDebugUnitTest --tests *WatchTileCoordinatorTest --no-configuration-cache --no-parallel --console=plain",
+    "expected_class": "io.github.stslex.workeeper.wear.tile.WatchTileCoordinatorTest",
+    "expected_method": "cancellationStopsTileObservationWithoutReportingFailure()",
+    "expected_assertion": "Tile cancellation must not become",
+    "xml_root": "app/wear/build"
+  },
+  {
+    "name": "TILE_FATAL_FAILURE_SWALLOWED",
+    "file": "app/wear/src/main/kotlin/io/github/stslex/workeeper/wear/tile/WatchTileCoordinator.kt",
+    "find": "                    if (failure !is Exception) throw failure\n",
+    "replace": "",
+    "task": ":app:wear:testDevDebugUnitTest --tests *WatchTileCoordinatorTest --no-configuration-cache --no-parallel --console=plain",
+    "expected_class": "io.github.stslex.workeeper.wear.tile.WatchTileCoordinatorTest",
+    "expected_method": "fatalPlatformFailureReachesTheProcessExceptionHandler()",
+    "expected_assertion": "Fatal Tile failure must reach",
+    "xml_root": "app/wear/build"
   },
   {
     "name": "AMBIENT_LOCALIZED_DIGITS_AS_ASCII",
