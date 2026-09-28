@@ -3,6 +3,7 @@ package io.github.stslex.workeeper.wear.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.annotation.DrawableRes
+import androidx.annotation.StringRes
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -18,6 +19,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -67,17 +69,8 @@ import androidx.wear.compose.material3.Text
 import androidx.wear.compose.material3.TimeText
 import io.github.stslex.workeeper.core.wear.protocol.NumericField
 import io.github.stslex.workeeper.wear.R
-import java.text.NumberFormat
 
-/**
- * The Wear controller, laid out per the controller redesign spec §4: time at the top arc,
- * a connection dot beside the status word, the exercise name, the set scale with the same
- * information repeated as words, two tappable value cards, and `Complete set` anchored to the
- * bottom edge (D-E). The training name is dropped from this screen by decision D-F.
- *
- * Tapping a value card opens the full-screen numeric editor of §5, which emits the existing
- * [ControllerAction.SetReps] / [ControllerAction.SetWeight] — no new action type, no new state.
- */
+/** Primary values and the blocking reason precede scrollable details; see Wear UI completion §1. */
 @Composable
 internal fun WearControllerScreen(
     state: WearSurfaceState,
@@ -141,50 +134,80 @@ private fun ActiveScaffold(
     val focusRequester = remember { FocusRequester() }
     ScreenScaffold(
         scrollState = scrollState,
-        contentPadding = activeContentPadding(),
+        contentPadding = PaddingValues(0.dp),
         timeText = { TimeText() },
-    ) { contentPadding ->
-        // The scaffold's own edge-button slot scales the button away until the user scrolls to
-        // the end — the primary action below the fold is the exact defect D-E removes. The
-        // button is anchored statically instead, and the scroll VIEWPORT is inset above it
-        // (padding before verticalScroll), so content can never sit under the button at any
-        // font scale: what does not fit is clipped un-tappable until scrolled into view. One
-        // inset for every surface: the disabled word is the button's own label, inside the band
-        // this inset already clears, so no surface reserves more viewport than the button needs.
+    ) { _ ->
+        // Keep the action outside the scroll viewport: the scaffold's edge slot hides it until the end.
         Box(modifier = Modifier.fillMaxSize()) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(bottom = MEDIUM_EDGE_CLEARANCE.dp)
+                    .padding(top = PRIMARY_TOP_INSET.dp, bottom = SMALL_EDGE_CLEARANCE.dp)
                     .requestFocusOnHierarchyActive()
                     .rotaryScrollable(
                         behavior = RotaryScrollableDefaults.behavior(scrollState),
                         focusRequester = focusRequester,
                     )
                     .verticalScroll(scrollState)
-                    .padding(contentPadding)
+                    .padding(horizontal = CONTENT_SIDE_INSET.dp)
                     .testTag("controller_scroll"),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                StatusRow(model, showDot = true)
-                ExerciseName(model)
-                SetScale(model)
+                PrimaryContext(model)
                 ValueCards(model, onEdit)
-                FieldError(model)
+                ControllerDetails(model)
             }
             CompleteSetButton(model, onAction, modifier = Modifier.align(Alignment.BottomCenter))
         }
     }
 }
 
-/** An explicit, deterministic inset: the §4 stack is budgeted against it, not a default. */
 @Composable
-private fun activeContentPadding() = PaddingValues(
-    start = CONTENT_SIDE_INSET.dp,
-    end = CONTENT_SIDE_INSET.dp,
-    top = CONTENT_TOP_INSET.dp,
-)
+private fun PrimaryContext(model: WearSurfaceModel) {
+    val reason = model.completionUnavailableReason
+    val text = reason?.let { stringResource(it.copyResource()) }
+        ?: model.exerciseName ?: stringResource(R.string.exercise_generic)
+    Box(
+        modifier = Modifier.width(PRIMARY_CONTEXT_WIDTH.dp).height(PRIMARY_CONTEXT_HEIGHT.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = text,
+            textAlign = TextAlign.Center,
+            color = if (reason == null) WearPalette.textPrimary else WearPalette.textSecondary,
+            style = MaterialTheme.typography.titleSmall,
+            maxLines = 2,
+            overflow = if (reason == null) TextOverflow.Ellipsis else TextOverflow.Clip,
+            modifier = Modifier
+                .semantics { heading() }
+                .testTag(if (reason == null) "exercise_context" else "completion_reason"),
+        )
+    }
+}
+
+@StringRes
+private fun CompletionUnavailableReason.copyResource(): Int = when (this) {
+    CompletionUnavailableReason.DISCONNECTED -> R.string.complete_reason_disconnected
+    CompletionUnavailableReason.REFRESH_REQUIRED -> R.string.complete_reason_refresh
+    CompletionUnavailableReason.COMMAND_IN_FLIGHT -> R.string.complete_reason_sending
+    CompletionUnavailableReason.INVALID_REPS -> R.string.complete_reason_reps
+    CompletionUnavailableReason.INVALID_WEIGHT -> R.string.complete_reason_weight
+}
+
+@Composable
+private fun ControllerDetails(model: WearSurfaceModel) {
+    Column(
+        modifier = Modifier.width(PRIMARY_CONTEXT_WIDTH.dp).testTag("controller_details"),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        StatusRow(model, showDot = true)
+        ExerciseName(model)
+        SetScale(model)
+        FieldError(model)
+    }
+}
 
 @Composable
 private fun RetryScaffold(model: WearSurfaceModel, onAction: (ControllerAction) -> Unit) {
@@ -320,10 +343,6 @@ private fun ConnectionDot(fresh: Boolean) {
 private fun ExerciseName(model: WearSurfaceModel) {
     Text(
         text = model.exerciseName ?: stringResource(R.string.exercise_generic),
-        // One line on the controller. The full name is never truncated in the accessible
-        // channel — ellipsis is visual only, and the semantics carry the whole string.
-        maxLines = 1,
-        overflow = TextOverflow.Ellipsis,
         textAlign = TextAlign.Center,
         color = WearPalette.textPrimary,
         style = MaterialTheme.typography.titleMedium,
@@ -331,7 +350,7 @@ private fun ExerciseName(model: WearSurfaceModel) {
     )
 }
 
-/** One pill per set: completed filled, the current one outlined, pending [WearPalette.pillPending]. */
+/** Bounded progress buckets; the full set ordinal and total remain in the spoken description. */
 @Composable
 private fun SetScale(model: WearSurfaceModel) {
     val total = requireNotNull(model.totalSets)
@@ -348,10 +367,10 @@ private fun SetScale(model: WearSurfaceModel) {
             .testTag("set_scale"),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        repeat(total) { index ->
+        wearSetScaleSlots(current, total).forEach { slot ->
             SetPill(
-                completed = index < current - 1,
-                current = index == current - 1,
+                completed = slot.completed,
+                current = slot.current,
                 modifier = Modifier.weight(1f),
             )
         }
@@ -373,7 +392,6 @@ private fun SetPill(completed: Boolean, current: Boolean, modifier: Modifier = M
 
 @Composable
 private fun ValueCards(model: WearSurfaceModel, onEdit: (NumericField) -> Unit) {
-    val reps = requireNotNull(model.reps)
     if (model.weighted) {
         // Deliberately UNEQUAL. Reps are at most three digits; a weight carries up to six
         // characters, so equal halves starve one and waste the other. Measured at font scale
@@ -384,22 +402,21 @@ private fun ValueCards(model: WearSurfaceModel, onEdit: (NumericField) -> Unit) 
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             WeightCard(model, onEdit, modifier = Modifier.weight(WEIGHT_CARD_SHARE))
-            RepsCard(model, reps, onEdit, modifier = Modifier.weight(1f))
+            RepsCard(model, onEdit, modifier = Modifier.weight(1f))
         }
     } else {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.Center,
         ) {
-            RepsCard(model, reps, onEdit, modifier = Modifier.fillMaxWidth(fraction = LONE_CARD_WIDTH))
+            RepsCard(model, onEdit, modifier = Modifier.fillMaxWidth(fraction = LONE_CARD_WIDTH))
         }
     }
 }
 
 @Composable
 private fun WeightCard(model: WearSurfaceModel, onEdit: (NumericField) -> Unit, modifier: Modifier = Modifier) {
-    val weight = model.weightHundredthsKg
-    val formatted = weight?.let(::formatWeight)
+    val formatted = model.formattedValues.weight
     ValueCard(
         icon = R.drawable.ic_weight,
         iconDescription = stringResource(R.string.weight_label),
@@ -425,7 +442,6 @@ private fun WeightCard(model: WearSurfaceModel, onEdit: (NumericField) -> Unit, 
 @Composable
 private fun RepsCard(
     model: WearSurfaceModel,
-    reps: Int,
     onEdit: (NumericField) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -433,7 +449,7 @@ private fun RepsCard(
         icon = R.drawable.ic_reps,
         iconDescription = stringResource(R.string.reps_label),
         // Reps have no unit; the numeral stands alone and needs no spoken embellishment.
-        value = reps.toString(),
+        value = requireNotNull(model.formattedValues.reps),
         valueDescription = null,
         enabled = model.controlsEnabled,
         onClick = { onEdit(NumericField.REPS) },
@@ -475,6 +491,7 @@ private fun ValueCard(
     }
     Column(
         modifier = modifier
+            .heightIn(min = PRIMARY_CARD_HEIGHT.dp)
             .clip(shape)
             .then(surface)
             .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
@@ -484,13 +501,13 @@ private fun ValueCard(
             .padding(vertical = 6.dp, horizontal = 8.dp)
             .testTag(tag),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(2.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp, Alignment.CenterVertically),
     ) {
         Icon(
             painter = painterResource(icon),
             contentDescription = iconDescription,
             tint = if (enabled) WearPalette.textSecondary else WearPalette.textMuted,
-            modifier = Modifier.size(CARD_ICON.dp),
+            modifier = Modifier.size(CARD_ICON.dp).testTag("${tag}_icon"),
         )
         Text(
             text = value,
@@ -521,14 +538,7 @@ private fun FieldError(model: WearSurfaceModel) {
     )
 }
 
-/**
- * `Complete set`, anchored to the bottom edge (D-E). Disabled it inverts from filled to
- * outlined and draws the word `control_disabled` as its label, in place of the glyph — shape
- * and text, not colour alone (§4). Label-only on purpose: stacked under the glyph the word had
- * no configuration that fit at 192dp and font scale 1.24 (bottom-band rebudget §2). It is
- * anchored rather than scrolled, so the disabled state is stated in text before the user
- * scrolls, and no surface reserves viewport for a word outside the arc.
- */
+/** The disabled reason occupies the primary header; both action states retain the same visible target. */
 @Composable
 private fun CompleteSetButton(
     model: WearSurfaceModel,
@@ -540,9 +550,7 @@ private fun CompleteSetButton(
     EdgeButton(
         onClick = { onAction(ControllerAction.CompleteSet) },
         enabled = model.completeEnabled,
-        // Medium in BOTH states: the disabled form carries the disabled word as its label, and
-        // the enabled primary action may never be smaller than the disabled one (G7).
-        buttonSize = EdgeButtonSize.Medium,
+        buttonSize = EdgeButtonSize.Small,
         colors = ButtonDefaults.buttonColors(
             containerColor = WearPalette.textPrimary,
             contentColor = WearPalette.onAccent,
@@ -552,43 +560,15 @@ private fun CompleteSetButton(
         border = if (model.completeEnabled) null else BorderStroke(1.dp, WearPalette.stroke),
         modifier = modifier
             .semantics {
-                contentDescription = if (model.completeEnabled) {
-                    enabledDescription
-                } else {
-                    disabledDescription
-                }
+                contentDescription = if (model.completeEnabled) enabledDescription else disabledDescription
             }
             .testTag("complete_set"),
     ) {
-        if (model.completeEnabled) {
-            // A glyph, not a word. «Завершить» is one unbreakable nine-character word and the
-            // arc gives a label about 80dp: it split mid-word («Завершит» / «ь») even on the
-            // largest screen at the default font scale, and «Complete» split on the smallest.
-            // The word is not lost — the button's own content description states the action in
-            // full, as it already did. Same trade as the unit and the absent weight.
-            Icon(
-                painter = painterResource(R.drawable.ic_complete),
-                contentDescription = null,
-                modifier = Modifier.size(COMPLETE_GLYPH.dp),
-            )
-        } else {
-            // The disabled word, alone, on one line — never split (G10) and never wrapped
-            // (maxLines 1). At the binding cell — 192dp × font scale 1.24 × the longest locale —
-            // it exceeds the Medium EdgeButton's content lane (159 px / 79.5 dp at 192dp; see
-            // documentation/feature-specs/wear-bottom-band-rebudget.md §7.1) and ellipsizes: a
-            // decided, accepted residual (copy decision). Ellipsis, not clip, so the truncation
-            // stays graceful; the full action and state remain in the button's content
-            // description, the drawn half of «not colour alone» (G4). G6 owns the single-line
-            // bound and asserts the ellipsis in that one cell.
-            Text(
-                text = stringResource(R.string.control_disabled),
-                style = MaterialTheme.typography.labelSmall,
-                textAlign = TextAlign.Center,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.testTag("complete_unavailable"),
-            )
-        }
+        Icon(
+            painter = painterResource(R.drawable.ic_complete),
+            contentDescription = null,
+            modifier = Modifier.size(COMPLETE_GLYPH.dp).testTag("complete_glyph"),
+        )
     }
 }
 
@@ -759,13 +739,12 @@ private fun EditorContent(
             .testTag("editor_rotary"),
     ) {
         val reps = model.reps
-        val weight = model.weightHundredthsKg
         val displayedValue: String
         val valueStyle = if (field == NumericField.REPS) {
-            displayedValue = requireNotNull(reps).toString()
+            displayedValue = requireNotNull(model.formattedValues.reps)
             MaterialTheme.typography.numeralMedium
         } else {
-            displayedValue = weight?.let { stringResource(R.string.weight_value, formatWeight(it)) }
+            displayedValue = model.formattedValues.weight?.let { stringResource(R.string.weight_value, it) }
                 ?: stringResource(R.string.weight_unset)
             MaterialTheme.typography.numeralExtraSmall
         }
@@ -856,19 +835,6 @@ private fun EditorStepButton(
     }
 }
 
-/**
- * Trailing zeros are dropped, so a whole weight reads «80 kg» rather than «80.00 kg» — the
- * rendering the round-4 review specified. Significant decimals survive: a 2.5 kg step gives
- * «82.5 kg», and a phone-sent 72.53 kg keeps both places.
- */
-private fun formatWeight(hundredths: Int): String = NumberFormat.getNumberInstance().run {
-    minimumFractionDigits = 0
-    maximumFractionDigits = 2
-    isGroupingUsed = false
-    format(hundredths / HUNDREDTHS_PER_KG)
-}
-
-private const val HUNDREDTHS_PER_KG = 100.0
 private const val STATUS_MAX_LINES = 4
 private const val DOT_RING_WIDTH = 1.5
 private const val PILL_HEIGHT = 6
@@ -893,15 +859,11 @@ private const val ROTARY_STEP_PX = 48f
 
 /** Viewport inset above a Small (56dp) anchored edge button, its outer padding included. */
 private const val SMALL_EDGE_CLEARANCE = 62
-
-/**
- * Viewport inset above the Medium (70dp) complete-set button — one size for both states, so
- * the enabled primary action is never smaller than the disabled one and the geometry is stable.
- */
-private const val MEDIUM_EDGE_CLEARANCE = 76
-
 /** Sides of the content column; the §4 stack sits in the wide middle band of the circle. */
 private const val CONTENT_SIDE_INSET = 16
 
 /** Clears the top-arc time text. */
-private const val CONTENT_TOP_INSET = 24
+private const val PRIMARY_TOP_INSET = 26
+private const val PRIMARY_CONTEXT_WIDTH = 128
+private const val PRIMARY_CONTEXT_HEIGHT = 42
+private const val PRIMARY_CARD_HEIGHT = 54

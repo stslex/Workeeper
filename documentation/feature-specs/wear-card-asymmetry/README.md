@@ -9,7 +9,9 @@ weight (`999.99`) needs 65dp of content at the largest font scale while the wide
 word into the button and changed Russian copy to “Отключено”; the disabled image below
 still shows the earlier overlay. Current acceptance and outstanding visibility work are
 tracked in [the bottom-band spec](../wear-bottom-band-rebudget.md#6-remaining-defects-and-ownership)
-and [Wear UI completion](../wear-ui-completion.md).
+and [Wear UI completion](../wear-ui-completion.md). The PR-D successor passes the
+80-cell host initial-visibility matrix with merged card accessibility checks; these
+older device captures do not depict that layout or replace its pending device acceptance.
 
 Whether 1.53:1 reads as intentional or as lopsided is a design call, and no gate can
 express it.

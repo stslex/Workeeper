@@ -44,4 +44,9 @@
         tools:ignore="Typos">
         <item>workeeper_watch_active_workout_v1</item>
     </string-array>
+    <string name="complete_reason_disconnected">Phone offline</string>
+    <string name="complete_reason_refresh">Refresh needed</string>
+    <string name="complete_reason_sending">Sending…</string>
+    <string name="complete_reason_reps">Reps: 1–999</string>
+    <string name="complete_reason_weight">Invalid weight</string>
 </resources>

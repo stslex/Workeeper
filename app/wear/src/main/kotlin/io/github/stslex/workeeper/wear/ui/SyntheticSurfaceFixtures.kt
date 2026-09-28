@@ -10,6 +10,7 @@ internal object SyntheticSurfaceFixtures {
     const val WEIGHTLESS = "weightless"
     const val FIELD_ERROR = "field_error"
     const val WEIGHT_ERROR = "weight_error"
+    const val COMMAND_IN_FLIGHT = "command_in_flight"
     const val UNSET_WEIGHT = "unset_weight"
     const val ANONYMOUS_EXERCISE = "anonymous_exercise"
     const val ANONYMOUS_COMPLETE = "anonymous_complete"
@@ -29,7 +30,7 @@ internal object SyntheticSurfaceFixtures {
      * redesign gates iterate this list so a kind cannot fall out of coverage silently.
      */
     fun allKinds(): List<WearSurfaceModel> = listOf(
-        ACTIVE_BOUNDARY, WEIGHTLESS, FIELD_ERROR, WEIGHT_ERROR, UNSET_WEIGHT,
+        ACTIVE_BOUNDARY, WEIGHTLESS, FIELD_ERROR, WEIGHT_ERROR, COMMAND_IN_FLIGHT, UNSET_WEIGHT,
         ANONYMOUS_EXERCISE, ANONYMOUS_COMPLETE, REFRESH_REQUIRED, DISCONNECTED, NO_SETS,
         UNSUPPORTED, PAYLOAD_TOO_LARGE, COMPLETE, RETRYABLE, PROTOCOL_MISMATCH, NO_SESSION,
         LOADING,
@@ -85,6 +86,7 @@ internal object SyntheticSurfaceFixtures {
             controlsVisible = true,
             controlsEnabled = true,
             fieldError = NumericField.REPS,
+            completionUnavailableReason = CompletionUnavailableReason.INVALID_REPS,
         )
         // The other validation string: `weight_invalid`, which only an ACTIVE kind renders.
         WEIGHT_ERROR -> WearSurfaceModel(
@@ -96,11 +98,25 @@ internal object SyntheticSurfaceFixtures {
             setOrdinal = 2,
             totalSets = 3,
             reps = 8,
-            weightHundredthsKg = 4_000,
+            weightHundredthsKg = 100_000,
             weighted = true,
             controlsVisible = true,
             controlsEnabled = true,
             fieldError = NumericField.WEIGHT,
+            completionUnavailableReason = CompletionUnavailableReason.INVALID_WEIGHT,
+        )
+        COMMAND_IN_FLIGHT -> WearSurfaceModel(
+            kind = WearSurfaceKind.ACTIVE,
+            exerciseName = "Overhead press",
+            completedExercises = 2,
+            totalExercises = 5,
+            setOrdinal = 2,
+            totalSets = 3,
+            reps = 8,
+            weightHundredthsKg = 4_000,
+            weighted = true,
+            controlsVisible = true,
+            completionUnavailableReason = CompletionUnavailableReason.COMMAND_IN_FLIGHT,
         )
         // A weighted exercise with no weight — reachable by decrementing from zero through
         // WearDraftPolicy. The card renders the em-dash mark; the words live in its
@@ -160,6 +176,7 @@ internal object SyntheticSurfaceFixtures {
             weightHundredthsKg = 10_000,
             weighted = true,
             controlsVisible = true,
+            completionUnavailableReason = CompletionUnavailableReason.REFRESH_REQUIRED,
         )
         DISCONNECTED -> WearSurfaceModel(
             kind = WearSurfaceKind.DISCONNECTED,
@@ -173,6 +190,7 @@ internal object SyntheticSurfaceFixtures {
             weightHundredthsKg = 7_250,
             weighted = true,
             controlsVisible = true,
+            completionUnavailableReason = CompletionUnavailableReason.DISCONNECTED,
         )
         else -> null
     }
