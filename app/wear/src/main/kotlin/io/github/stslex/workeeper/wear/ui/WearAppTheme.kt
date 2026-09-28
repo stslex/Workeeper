@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.wear.compose.material3.ColorScheme
 import androidx.wear.compose.material3.LocalContentColor
 import androidx.wear.compose.material3.MaterialTheme
@@ -19,10 +20,11 @@ import androidx.wear.compose.material3.MaterialTheme
  */
 @Composable
 internal fun WearAppTheme(content: @Composable () -> Unit) {
-    MaterialTheme(colorScheme = WearColorScheme) {
+    MaterialTheme(colorScheme = WearColorScheme, typography = rememberWearTypography(), shapes = WearShapes) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .testTag("wear_surface")
                 .background(WearPalette.screen),
         ) {
             CompositionLocalProvider(LocalContentColor provides WearPalette.textPrimary) {

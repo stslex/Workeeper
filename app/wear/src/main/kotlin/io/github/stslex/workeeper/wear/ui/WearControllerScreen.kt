@@ -12,6 +12,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -37,6 +38,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.rotary.onRotaryScrollEvent
 import androidx.compose.ui.platform.testTag
@@ -49,22 +51,27 @@ import androidx.compose.ui.semantics.error
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.wear.compose.foundation.BasicSwipeToDismissBox
 import androidx.wear.compose.foundation.requestFocusOnHierarchyActive
 import androidx.wear.compose.foundation.rotary.RotaryScrollableDefaults
 import androidx.wear.compose.foundation.rotary.rotaryScrollable
-import androidx.wear.compose.material3.Button
 import androidx.wear.compose.material3.ButtonDefaults
 import androidx.wear.compose.material3.EdgeButton
 import androidx.wear.compose.material3.EdgeButtonSize
 import androidx.wear.compose.material3.Icon
+import androidx.wear.compose.material3.IconButton
+import androidx.wear.compose.material3.IconButtonDefaults
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.ScreenScaffold
 import androidx.wear.compose.material3.Text
 import androidx.wear.compose.material3.TimeText
+import io.github.stslex.workeeper.core.ui.design.AppDesignDimensions.Space
 import io.github.stslex.workeeper.core.wear.protocol.NumericField
 import io.github.stslex.workeeper.wear.R
 import io.github.stslex.workeeper.wear.mvi.store.WearStore
@@ -159,7 +166,7 @@ private fun ActiveScaffold(
                     .padding(horizontal = CONTENT_SIDE_INSET.dp)
                     .testTag("controller_scroll"),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+                verticalArrangement = Arrangement.spacedBy(Space.xs),
             ) {
                 PrimaryContext(model)
                 ValueCards(model, onEdit)
@@ -176,7 +183,7 @@ private fun PrimaryContext(model: WearSurfaceModel) {
     val text = reason?.let { stringResource(it.copyResource()) }
         ?: model.exerciseName ?: stringResource(R.string.exercise_generic)
     Box(
-        modifier = Modifier.width(PRIMARY_CONTEXT_WIDTH.dp).height(PRIMARY_CONTEXT_HEIGHT.dp),
+        modifier = Modifier.width(PRIMARY_CONTEXT_WIDTH.dp).heightIn(min = PRIMARY_CONTEXT_HEIGHT.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
@@ -211,7 +218,7 @@ private fun ControllerDetails(
     Column(
         modifier = Modifier.width(PRIMARY_CONTEXT_WIDTH.dp).testTag("controller_details"),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(COMPACT_CONTENT_SPACE),
     ) {
         StatusRow(model, showDot = true)
         ExerciseName(model)
@@ -243,7 +250,10 @@ private fun RetryScaffold(model: WearSurfaceModel, onAction: (WearStore.Action) 
                     .padding(contentPadding)
                     .testTag("controller_scroll"),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(space = 6.dp, alignment = Alignment.CenterVertically),
+                verticalArrangement = Arrangement.spacedBy(
+                    space = COMPACT_CONTENT_SPACE,
+                    alignment = Alignment.CenterVertically,
+                ),
             ) {
                 StatusRow(model, showDot = false)
             }
@@ -259,36 +269,42 @@ private fun InstructionScaffold(model: WearSurfaceModel) {
     ScreenScaffold(
         scrollState = scrollState,
         timeText = { TimeText() },
-    ) { contentPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .requestFocusOnHierarchyActive()
-                .rotaryScrollable(
-                    behavior = RotaryScrollableDefaults.behavior(scrollState),
-                    focusRequester = focusRequester,
-                )
-                .verticalScroll(scrollState)
-                .padding(contentPadding)
-                .testTag("controller_scroll"),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(space = 6.dp, alignment = Alignment.CenterVertically),
-        ) {
-            StatusRow(model, showDot = false)
-            when (model.kind) {
-                WearSurfaceKind.PHONE_ACTION_NO_SETS,
-                WearSurfaceKind.PHONE_ACTION_UNSUPPORTED,
-                -> PhoneActionContent(model)
-                WearSurfaceKind.PAYLOAD_TOO_LARGE -> GenericWorkoutInstruction()
-                WearSurfaceKind.WORKOUT_COMPLETE -> WorkoutCompleteContent(model)
-                WearSurfaceKind.LOADING,
-                WearSurfaceKind.NO_SESSION,
-                WearSurfaceKind.PROTOCOL_MISMATCH,
-                WearSurfaceKind.ACTIVE,
-                WearSurfaceKind.REFRESH_REQUIRED,
-                WearSurfaceKind.DISCONNECTED,
-                WearSurfaceKind.RETRYABLE_ERROR,
-                -> Unit
+    ) { _ ->
+        BoxWithConstraints(Modifier.fillMaxSize()) {
+            val side = minOf(maxWidth, maxHeight) * ROUND_SAFE_FRACTION - ROUND_SAFE_MARGIN.dp
+            Column(
+                modifier = Modifier
+                    .size(side)
+                    .align(Alignment.Center)
+                    .requestFocusOnHierarchyActive()
+                    .rotaryScrollable(
+                        behavior = RotaryScrollableDefaults.behavior(scrollState),
+                        focusRequester = focusRequester,
+                    )
+                    .verticalScroll(scrollState)
+                    .testTag("controller_scroll"),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(
+                    space = COMPACT_CONTENT_SPACE,
+                    alignment = Alignment.CenterVertically,
+                ),
+            ) {
+                StatusRow(model, showDot = false)
+                when (model.kind) {
+                    WearSurfaceKind.PHONE_ACTION_NO_SETS,
+                    WearSurfaceKind.PHONE_ACTION_UNSUPPORTED,
+                    -> PhoneActionContent(model)
+                    WearSurfaceKind.PAYLOAD_TOO_LARGE -> GenericWorkoutInstruction()
+                    WearSurfaceKind.WORKOUT_COMPLETE -> WorkoutCompleteContent(model)
+                    WearSurfaceKind.LOADING,
+                    WearSurfaceKind.NO_SESSION,
+                    WearSurfaceKind.PROTOCOL_MISMATCH,
+                    WearSurfaceKind.ACTIVE,
+                    WearSurfaceKind.REFRESH_REQUIRED,
+                    WearSurfaceKind.DISCONNECTED,
+                    WearSurfaceKind.RETRYABLE_ERROR,
+                    -> Unit
+                }
             }
         }
     }
@@ -316,7 +332,7 @@ private fun StatusRow(model: WearSurfaceModel, showDot: Boolean) {
     ) {
         if (showDot) {
             ConnectionDot(fresh = model.kind == WearSurfaceKind.ACTIVE)
-            if (drawWord) Spacer(Modifier.width(6.dp))
+            if (drawWord) Spacer(Modifier.width(COMPACT_CONTENT_SPACE))
         }
         if (drawWord) {
             Text(
@@ -374,10 +390,10 @@ private fun SetScale(model: WearSurfaceModel) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp)
+            .padding(horizontal = Space.md)
             .semantics { contentDescription = spoken }
             .testTag("set_scale"),
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(Space.xs),
     ) {
         model.setScaleSlots.forEach { slot ->
             SetPill(
@@ -392,26 +408,30 @@ private fun SetScale(model: WearSurfaceModel) {
 @Composable
 private fun SetPill(completed: Boolean, current: Boolean, modifier: Modifier = Modifier) {
     val shape = RoundedCornerShape(percent = 50)
-    val base = modifier.height(PILL_HEIGHT.dp)
+    val fill = when {
+        completed -> WearPalette.textPrimary
+        current -> Color.Transparent
+        else -> WearPalette.pillPending
+    }
     Box(
-        modifier = when {
-            completed -> base.background(color = WearPalette.textPrimary, shape = shape)
-            current -> base.border(width = DOT_RING_WIDTH.dp, color = WearPalette.textPrimary, shape = shape)
-            else -> base.background(color = WearPalette.pillPending, shape = shape)
-        },
+        modifier = modifier
+            .height(PILL_HEIGHT.dp)
+            .background(color = fill, shape = shape)
+            .border(
+                width = DOT_RING_WIDTH.dp,
+                color = if (current) WearPalette.textPrimary else Color.Transparent,
+                shape = shape,
+            ),
     )
 }
 
 @Composable
 private fun ValueCards(model: WearSurfaceModel, onEdit: (NumericField) -> Unit) {
     if (model.weighted) {
-        // Deliberately UNEQUAL. Reps are at most three digits; a weight carries up to six
-        // characters, so equal halves starve one and waste the other. Measured at font scale
-        // 1.24, the binding case: «999.99» needs 65dp of content and «999» needs 36dp, and
-        // this split gives them 76dp and 44dp on a 192dp screen. See WEIGHT_CARD_SHARE.
+        // Reserve more width for six-character weights than for three-digit reps.
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(Space.sm),
         ) {
             WeightCard(model, onEdit, modifier = Modifier.weight(WEIGHT_CARD_SHARE))
             RepsCard(model, onEdit, modifier = Modifier.weight(1f))
@@ -432,14 +452,7 @@ private fun WeightCard(model: WearSurfaceModel, onEdit: (NumericField) -> Unit, 
     ValueCard(
         icon = R.drawable.ic_weight,
         iconDescription = stringResource(R.string.weight_label),
-        // The card shows a bare numeral. The app is kilograms only — no module offers a unit
-        // choice — so «kg» on the card is a constant, and a constant does not earn the width
-        // it costs: with it, no split of a 192dp row fits «999.99 kg» (108 + 52 + 8 > 160).
-        // An absent weight is the same trade once more: «—» is the conventional marker for an
-        // empty numeric field, and it fits every screen, while «Не задан» needs 88dp against
-        // the 76dp the card can offer. Both the unit and the spelled-out absence keep their
-        // full wording in the value's content description and in the full-screen editor, so
-        // neither the sighted nor the TalkBack user loses anything.
+        // Keep the unit and full unset wording in accessibility and the editor.
         value = formatted ?: UNSET_WEIGHT_MARK,
         valueDescription = formatted?.let { stringResource(R.string.weight_value, it) }
             ?: stringResource(R.string.weight_unset),
@@ -494,26 +507,20 @@ private fun ValueCard(
     val enabledDescription = stringResource(R.string.control_enabled)
     val disabledDescription = stringResource(R.string.control_disabled)
     val shape = MaterialTheme.shapes.large
-    val surface = if (enabled) {
-        Modifier.background(color = WearPalette.card, shape = shape)
-    } else {
-        Modifier
-            .background(color = WearPalette.cardInactive, shape = shape)
-            .border(width = 1.dp, color = WearPalette.stroke, shape = shape)
-    }
     Column(
         modifier = modifier
             .heightIn(min = PRIMARY_CARD_HEIGHT.dp)
             .clip(shape)
-            .then(surface)
+            .background(color = if (enabled) WearPalette.card else WearPalette.cardInactive, shape = shape)
+            .border(width = 1.dp, color = if (enabled) Color.Transparent else WearPalette.stroke, shape = shape)
             .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
             .semantics {
                 stateDescription = if (enabled) enabledDescription else disabledDescription
             }
-            .padding(vertical = 6.dp, horizontal = 8.dp)
+            .padding(vertical = COMPACT_CONTENT_SPACE, horizontal = Space.sm)
             .testTag(tag),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(2.dp, Alignment.CenterVertically),
+        verticalArrangement = Arrangement.spacedBy(Space.xxs, Alignment.CenterVertically),
     ) {
         Icon(
             painter = painterResource(icon),
@@ -524,7 +531,7 @@ private fun ValueCard(
         Text(
             text = value,
             color = if (enabled) WearPalette.textPrimary else WearPalette.textMuted,
-            style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
+            style = MaterialTheme.typography.numeralExtraSmall,
             maxLines = 1,
             modifier = Modifier
                 .semantics { valueDescription?.let { contentDescription = it } }
@@ -630,6 +637,7 @@ private fun GenericWorkoutInstruction() {
     Text(
         text = stringResource(R.string.workout_generic),
         color = WearPalette.textSecondary,
+        textAlign = TextAlign.Center,
         modifier = Modifier.testTag("workout_generic"),
     )
 }
@@ -652,11 +660,13 @@ private fun WorkoutCompleteContent(model: WearSurfaceModel) {
             model.totalExercises,
         ),
         color = WearPalette.textSecondary,
+        textAlign = TextAlign.Center,
         modifier = Modifier.testTag("exercise_progress"),
     )
     Text(
         text = stringResource(R.string.finish_on_phone),
         color = WearPalette.textSecondary,
+        textAlign = TextAlign.Center,
         modifier = Modifier.testTag("finish_on_phone"),
     )
 }
@@ -736,16 +746,43 @@ private fun EditorContent(
     ) {
         val reps = model.reps
         val displayedValue: String
-        val valueStyle = if (field == NumericField.REPS) {
-            displayedValue = requireNotNull(model.formattedValues.reps)
+        val numericValue = if (field == NumericField.REPS) {
+            model.formattedValues.reps
+        } else {
+            model.formattedValues.weight
+        }
+        displayedValue = if (field == NumericField.REPS) {
+            requireNotNull(numericValue)
+        } else {
+            numericValue?.let { stringResource(R.string.weight_value, it) } ?: stringResource(R.string.weight_unset)
+        }
+        val numericStyle = if (field == NumericField.REPS) {
             MaterialTheme.typography.numeralMedium
         } else {
-            displayedValue = model.formattedValues.weight?.let { stringResource(R.string.weight_value, it) }
-                ?: stringResource(R.string.weight_unset)
-            MaterialTheme.typography.numeralExtraSmall
+            MaterialTheme.typography.numeralSmall
+        }
+        val auxiliaryStyle = MaterialTheme.typography.bodyExtraSmall
+        val valueStyle = if (numericValue == null) {
+            MaterialTheme.typography.bodyLarge
+        } else {
+            numericStyle.copy(fontFamily = MaterialTheme.typography.bodyLarge.fontFamily)
+        }
+        val valueText = remember(displayedValue, numericValue, numericStyle, auxiliaryStyle) {
+            val numberStart = numericValue?.let(displayedValue::indexOf) ?: -1
+            if (numberStart < 0 || numericValue == null) {
+                AnnotatedString(displayedValue)
+            } else {
+                buildAnnotatedString {
+                    withStyle(auxiliaryStyle.toSpanStyle()) { append(displayedValue.substring(0, numberStart)) }
+                    withStyle(numericStyle.toSpanStyle()) { append(numericValue) }
+                    withStyle(auxiliaryStyle.toSpanStyle()) {
+                        append(displayedValue.substring(numberStart + numericValue.length))
+                    }
+                }
+            }
         }
         EditorStepButton(
-            glyph = "+",
+            icon = R.drawable.ic_increment,
             description = if (field == NumericField.REPS) {
                 stringResource(R.string.increase_reps, requireNotNull(reps))
             } else {
@@ -761,7 +798,7 @@ private fun EditorContent(
         Column(
             modifier = Modifier.align(Alignment.Center),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(2.dp),
+            verticalArrangement = Arrangement.spacedBy(Space.xxs),
         ) {
             Text(
                 text = if (field == NumericField.REPS) {
@@ -775,15 +812,15 @@ private fun EditorContent(
                 modifier = Modifier.testTag("editor_label"),
             )
             Text(
-                text = displayedValue,
+                text = valueText,
                 color = WearPalette.textPrimary,
-                style = valueStyle.copy(fontFeatureSettings = "tnum"),
+                style = valueStyle,
                 maxLines = 1,
                 modifier = Modifier.testTag("editor_value"),
             )
         }
         EditorStepButton(
-            glyph = "−",
+            icon = R.drawable.ic_decrement,
             description = if (field == NumericField.REPS) {
                 stringResource(R.string.decrease_reps, requireNotNull(reps))
             } else {
@@ -801,7 +838,7 @@ private fun EditorContent(
 
 @Composable
 private fun EditorStepButton(
-    glyph: String,
+    @DrawableRes icon: Int,
     description: String,
     enabled: Boolean,
     onClick: () -> Unit,
@@ -810,10 +847,11 @@ private fun EditorStepButton(
 ) {
     val enabledDescription = stringResource(R.string.control_enabled)
     val disabledDescription = stringResource(R.string.control_disabled)
-    Button(
+    IconButton(
         onClick = onClick,
         enabled = enabled,
-        colors = ButtonDefaults.buttonColors(
+        shapes = IconButtonDefaults.shapes(shape = MaterialTheme.shapes.medium),
+        colors = IconButtonDefaults.filledIconButtonColors(
             containerColor = WearPalette.textPrimary,
             contentColor = WearPalette.onAccent,
             disabledContainerColor = WearPalette.cardInactive,
@@ -827,9 +865,15 @@ private fun EditorStepButton(
             }
             .testTag(tag),
     ) {
-        Text(text = glyph, textAlign = TextAlign.Center)
+        Icon(
+            painter = painterResource(icon),
+            contentDescription = null,
+            modifier = Modifier.size(24.dp).testTag("${tag}_glyph"),
+        )
     }
 }
+
+private val COMPACT_CONTENT_SPACE = Space.xs + Space.xxs
 
 private const val STATUS_MAX_LINES = 4
 private const val DOT_RING_WIDTH = 1.5
@@ -846,9 +890,7 @@ private const val CARD_ICON = 16
 private const val COMPLETE_GLYPH = 16
 
 /**
- * The weight card's share of the two-card row, against the reps card's 1f. 92:60 on a 192dp
- * screen — 76dp and 44dp of content, against the 65dp and 36dp the widest values need at the
- * largest font scale. Equal halves gave both 60dp, which the weight overran.
+ * Extra width for the weight; see wear-style-mvi.md#card-sizing-provenance.
  */
 private const val WEIGHT_CARD_SHARE = 1.533f
 private const val ROTARY_STEP_PX = 48f
@@ -863,3 +905,7 @@ private const val PRIMARY_TOP_INSET = 26
 private const val PRIMARY_CONTEXT_WIDTH = 128
 private const val PRIMARY_CONTEXT_HEIGHT = 42
 private const val PRIMARY_CARD_HEIGHT = 54
+
+// The inset square stays inside the circle at every visible row; see wear-style-mvi.md#geometry.
+private const val ROUND_SAFE_FRACTION = 0.70710677f
+private const val ROUND_SAFE_MARGIN = 4

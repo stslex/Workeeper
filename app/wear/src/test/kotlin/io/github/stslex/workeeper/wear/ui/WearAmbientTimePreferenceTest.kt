@@ -15,6 +15,7 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.v2.runComposeUiTest
+import io.github.stslex.workeeper.core.ui.design.workeeperNativeFonts
 import io.github.stslex.workeeper.wear.ambient.WearAmbientState
 import io.github.stslex.workeeper.wear.ambient.ambientOffset
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -141,11 +142,13 @@ private fun ComposeUiTest.assertAmbientClockCase(
         image.height.toFloat(),
         node.layoutInfo.density,
         lowBit = true,
+        fonts = workeeperNativeFonts(RuntimeEnvironment.getApplication()),
     )
     val timeRow = layout.single { it.role == AmbientLineRole.TIME }
     assertTrue(
-        timeRow.paint.measureText(expected) <= timeRow.availableWidthPx,
-        "$candidate full localized clock must fit its circular chord",
+        timeRow.widthPx <= timeRow.availableWidthPx,
+        "$candidate full localized clock width=${timeRow.widthPx} limit=${timeRow.availableWidthPx} " +
+            "size=${timeRow.paint.textSize} must fit its circular chord",
     )
     assertAmbientNumericRaster(
         image,
