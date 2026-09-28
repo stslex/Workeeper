@@ -3,6 +3,11 @@ plugins {
 }
 
 android {
+    bundle {
+        language {
+            enableSplit = false
+        }
+    }
     lint {
         // Android Lint cannot merge its standalone JVM model with this app while app-only issues
         // are enabled: it reports CannotEnableHidden before source analysis. The pure-JVM
@@ -15,6 +20,7 @@ dependencies {
     implementation(project(":core:wear-protocol"))
     implementation(libs.google.play.services.wearable)
     implementation(libs.coroutines.play.services)
+    implementation(libs.androidx.wear.ambient)
 
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.junit.jupiter)
