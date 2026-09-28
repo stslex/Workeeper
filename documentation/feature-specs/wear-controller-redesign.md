@@ -177,11 +177,26 @@ Locale-specific test classes are not additional gate numbers. Unset-weight seman
 have a separate regression test.
 
 **G1 — touch targets.** Every semantics node carrying a click action has layout size of
-at least 48dp on both axes, and no two clipped target bounds overlap. The current test
-uses `node.size` for minimum dimensions and scrolls before opening editors; it does not
-prove that the complete target is initially visible. PR-C/PR-D replace this gap with
-explicit ancestor-clip visibility checks, including read-only surfaces.
-*Red when:* the bottom-edge button's height is set to 40dp.
+at least 48dp on both axes, and no two ancestor-clipped target rectangles overlap.
+The anchored completion/retry action must also have a visible rectangle of at least
+48dp on both axes before scrolling. Each value card must offer that visible minimum
+after `performScrollTo`; both editor controls are checked without scrolling.
+The matrix is 192/240dp × EN/RU × font scales 1.0/1.24, including the existing
+`REFRESH_REQUIRED` and `DISCONNECTED` read-only fixtures, weighted and weightless
+ACTIVE, retry, and both numeric editors. Each controller starts with a fresh scaffold
+so it cannot inherit a previous fixture's scroll position.
+
+`wearVisibleBounds` uses Compose `boundsInRoot` to apply the node's actual rectangular
+ancestor clips, then intersects the result with the simulated screen rectangle. It
+does not intersect the anchored button with its sibling scroll viewport. Seven oracle
+fixtures cover visible, clipped, nested-clipped, non-clipping-parent, sibling-viewport,
+partially off-screen, and fully off-screen targets. Shape outlines, the round-display
+mask, sibling occlusion, alpha and painted pixels are outside this instrument.
+G1's card check proves scroll reachability; it does not establish complete initial card
+visibility or prove that a card's text is visible. PR-D must add those mandatory initial
+visibility checks with the compact layout; passing PR-C cannot close that acceptance.
+*Red when:* the bottom-edge button's height is set to 40dp, or the oracle replaces
+ancestor-clipped bounds with a node's full layout size.
 
 **G2 — no dynamic theming.** No Wear source references `dynamicColorScheme`, and
 the colour values reaching the composition are the palette of §3.
@@ -189,10 +204,17 @@ the colour values reaching the composition are the palette of §3.
 
 **G3 — every kind is distinguishable by text.** For all eleven kinds the rendered
 semantics tree contains a non-empty status string, and no two kinds produce the
-same one. Every non-ACTIVE kind also draws its status word. The current test does not
-protect the inverse ACTIVE rule or the set-count spoken-only rule; PR-C adds that coverage
-before PR-D deliberately revises the layout contract.
-*Red when:* two kinds are pointed at the same string resource.
+same one. Every non-ACTIVE kind also draws its status word. ACTIVE does not draw its
+word: its status node has no text and carries the exact localized
+status in its content description. Target-bearing surfaces expose exact localized
+set progress in `set_scale`'s content description and no text in that row or its
+descendants. Global unmerged-tree assertions also forbid the exact localized ACTIVE
+status and set-progress labels, so adding either as a separate sibling label cannot
+bypass the tagged-node checks. This is a semantics contract on both screen sizes;
+it is not a raster proof of absence or a font/locale visibility matrix. PR-D revises
+§4 and these checks together when it changes the primary/detail reading order.
+*Red when:* two kinds share one status resource, the ACTIVE word is drawn, the spoken
+set description is removed, or a separate set-progress text label is added.
 
 **G4 — disabled is not signalled by colour alone.** In every state where
 `completeEnabled` is false and the button is present, the semantics tree contains

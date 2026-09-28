@@ -40,12 +40,16 @@ open for CI and review; Ilya merges.
 
 ## 3. Implementation contracts
 
-**Visibility and compact layout.** Compute visible bounds using each node's actual
-ancestor clips. The anchored `EdgeButton` is a sibling of the scroll column, so the
-column viewport must not clip the button in the oracle. Test known-visible and known-
-clipped controls before relying on it. Initial primary content and scroll-reachable
-secondary details have separate assertions. Extend the existing read-only fixture
-rather than creating a competing one.
+**Visibility and compact layout.** Compute visible layout bounds using each node's
+actual rectangular ancestor clips and the simulated screen rectangle. The anchored
+`EdgeButton` is a sibling of the scroll column, so the column viewport must not clip
+the button in the oracle. Shape outlines, the circular display mask, sibling occlusion,
+alpha and painted pixels need separate checks. Test known-visible and known-clipped
+controls before relying on the instrument. PR-C separates the initially visible action
+from cards reachable after scrolling; it does not grant an exception to §1's strict
+initial visibility criterion. PR-D must enforce that criterion with its new layout,
+while additional details remain scroll-reachable. Extend the existing read-only
+fixtures rather than creating competing ones.
 
 Introduce a typed UI reason with precedence: connection/freshness, then an executing
 command, then numeric-field errors. A generic boolean is insufficient to explain the
@@ -146,3 +150,87 @@ run passed with **2331 actionable tasks: 2331 executed**. The separate
 and `--no-configuration-cache`. Transport-gate self-tests (32 cases) and source scan
 passed. The local shell mockup render remained unmeasured because the installed
 headless Chrome did not return; its PR workflow must supply the browser result.
+
+## 6. PR-C measurement contract and evidence
+
+`WearVisibleBounds` preserves the declared layout size for diagnostics, obtains
+Compose's actual ancestor-clipped `boundsInRoot`, and intersects it with the explicit
+simulated screen rectangle. Dimensions are converted from pixels using the measured
+node's density. A fully off-screen result is normalized to `Rect.Zero`. The helper
+requires an attached, placed node. The scroll column's viewport is never applied to
+its sibling anchored button.
+
+The oracle's seven fixed geometric controls are:
+
+| Fixture | Expected visible width × height | Meets the 48dp minimum |
+| --- | --- | --- |
+| Visible target | 48 × 48dp | Yes |
+| Clipping parent | 40 × 40dp | No |
+| Nested clipping parents | 28 × 28dp | No |
+| Smaller non-clipping parent | 64 × 64dp | Yes |
+| Clipped sibling viewport | 64 × 64dp | Yes |
+| Partial screen intersection | 32 × 32dp | No |
+| Fully outside screen | 0 × 0dp | No |
+
+These controls establish rectangular layout geometry only. They do not measure a
+shape's outline, round-screen raster clipping, sibling occlusion, alpha, text glyphs,
+or expanded minimum-touch hit areas. No host pass under this contract proves the
+physical screen's complete visual or touch behaviour.
+
+G1 now runs one shared contract under EN and RU resource contexts at 192/240dp and
+font scales 1.0/1.24. It reuses the existing weighted ACTIVE, weightless ACTIVE,
+`REFRESH_REQUIRED`, `DISCONNECTED`, and retry fixtures, plus both numeric editors.
+The controller's anchored action must meet the visible 48dp minimum before any
+scroll. Each card must meet it after scrolling that card into view; the editor's
+increase and decrease controls must meet it without scrolling. Every click node also
+retains the declared-size minimum and pairwise ancestor-clipped non-overlap check.
+A loading transition removes the preceding scaffold before each controller case,
+so its initial check cannot inherit a previous scroll position.
+
+This intentionally permits cards below the initial fold in PR-C. It proves they are
+reachable, not that both values, a disabled reason, and the action fit initially.
+Those strict assertions belong to PR-D and must land together with its compact
+layout. Additional details must remain reachable after the primary block.
+
+G3 keeps distinct nonempty statuses for all eleven kinds on both screen sizes.
+ACTIVE's tagged row has no text and speaks its exact localized status; degraded
+rows retain their text. Target-bearing fixtures speak exact localized set progress
+on `set_scale` and have no text on that row or its descendants. Exact localized
+ACTIVE and set-progress labels are additionally forbidden across the entire unmerged
+semantics tree, catching a separately rendered sibling label as well. This protects
+the present §4 spoken-only contract before PR-D changes it deliberately.
+
+Fresh focused verification runs `WearVisibleBoundsTest`, `WearTouchTargetGateTest`,
+`WearTouchTargetGateRuTest`, and `WearKindDistinctionGateTest`: four named tests,
+zero failures, errors or skips. With Wear Detekt, the restored run reports
+**42 actionable tasks: 42 executed**.
+
+Named negative controls ran through `mutation_harness.py`, each with
+**37 actionable tasks: 37 executed** and byte-exact source restoration:
+
+| Mutation | Named failing contract |
+| --- | --- |
+| `ignore-ancestor-clips` | Clipped fixture dimensions in `WearVisibleBoundsTest` |
+| `ignore-screen-bounds` | Partial-screen fixture dimensions in `WearVisibleBoundsTest` |
+| `draw-active-status` | ACTIVE spoken-only status in `WearKindDistinctionGateTest` |
+| `remove-spoken-set-progress` | Exact spoken progress in `WearKindDistinctionGateTest` |
+| `shrink-readonly-cards` | Read-only 48dp minimum in both EN and RU G1 classes |
+| `sibling-active-status` | Globally absent ACTIVE label in `WearKindDistinctionGateTest` |
+| `sibling-set-progress` | Globally absent progress label in `WearKindDistinctionGateTest` |
+
+The two sibling controls were rerun after the strengthened G3 baseline passed.
+The read-only-card control was rerun after extracting the matrix's card helper to
+meet Detekt's nesting limit. Each RED contains an assertion failure in the named
+XML report, not a compile failure. The restored tree then passed the full gates.
+
+After `clean`, repository `assembleDebug detekt lintDebug testDebugUnitTest` reports
+**2331 actionable tasks: 2331 executed**. Each Wear flavor's XML contains 59 tests
+in 25 classes, with zero failures, errors or skips. The separate
+`assembleDebugAndroidTest verifyPaparazziDebug :lint-rules:test` run reports
+**2346 actionable tasks: 2346 executed**. Both runs used `--rerun-tasks`,
+`--no-build-cache`, and `--no-configuration-cache`.
+
+The gate inventory remains G1–G7 and G9–G11; oracle fixtures and locale variants do
+not introduce a G8. PR-B evidence above applies to its own recorded tree. This
+increment changes measurement and semantics protection; it does not close PR-D's
+initial-visibility criterion or substitute for physical-watch acceptance.

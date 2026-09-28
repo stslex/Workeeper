@@ -7,13 +7,20 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.v2.runComposeUiTest
+import io.github.stslex.workeeper.wear.R
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
+import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import tech.apter.junit.jupiter.robolectric.RobolectricExtension
 
@@ -68,12 +75,36 @@ internal class WearKindDistinctionGateTest {
                 // and keeps it spoken. Every other kind must still DRAW it: in a degraded state
                 // the word is the whole message, and losing it there is the regression this
                 // clause exists to catch.
-                if (fixture.kind != WearSurfaceKind.ACTIVE) {
+                if (fixture.kind == WearSurfaceKind.ACTIVE) {
+                    assertTrue(drawn.isBlank(), "screen=$current ACTIVE status must remain spoken-only")
+                    assertTrue(spoken.isNotBlank(), "screen=$current ACTIVE status must remain accessible")
+                    val expectedStatus = RuntimeEnvironment.getApplication().getString(fixture.statusCopy().resource)
+                    assertEquals(expectedStatus, spoken, "screen=$current spoken ACTIVE status")
+                    onAllNodes(hasText(expectedStatus), useUnmergedTree = true).assertCountEquals(0)
+                } else {
                     assertTrue(
                         drawn.isNotBlank(),
                         "screen=$current kind=${fixture.kind} must draw its status word, " +
                             "not only speak it; drawn=«$drawn» spoken=«$spoken»",
                     )
+                }
+                if (fixture.totalSets != null) {
+                    val scaleNode = onNodeWithTag("set_scale").fetchSemanticsNode()
+                    val setDescription = scaleNode.config.getOrNull(SemanticsProperties.ContentDescription)
+                        ?.joinToString()
+                        .orEmpty()
+                    val expectedProgress = RuntimeEnvironment.getApplication().getString(
+                        R.string.set_progress,
+                        fixture.setOrdinal,
+                        fixture.totalSets,
+                    )
+                    assertEquals(expectedProgress, setDescription, "screen=$current spoken set progress")
+                    onAllNodes(
+                        SemanticsMatcher.keyIsDefined(SemanticsProperties.Text) and
+                            (hasTestTag("set_scale") or hasAnyAncestor(hasTestTag("set_scale"))),
+                        useUnmergedTree = true,
+                    ).assertCountEquals(0)
+                    onAllNodes(hasText(expectedProgress), useUnmergedTree = true).assertCountEquals(0)
                 }
                 statusByKind.merge(fixture.kind, status) { first, second ->
                     assertEquals(
